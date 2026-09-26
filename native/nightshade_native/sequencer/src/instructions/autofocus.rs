@@ -1242,15 +1242,30 @@ pub(crate) async fn execute_autofocus_once(
                 .await;
             abort_guard.disarm();
             match exposure_result {
-                Ok(image_data) => Some(
-                    calculate_hfr_with_crops(
+                Ok(image_data) => {
+                    let measurement = calculate_hfr_with_crops(
                         &image_data,
                         config.outer_crop_ratio,
                         config.inner_crop_ratio,
                         config.use_brightest_n_stars,
-                    )
-                    .hfr,
-                ),
+                    );
+                    // A frame with too few stars to measure (cloud, a satellite
+                    // trail swamping detection) returns the no-focus sentinel,
+                    // which would read as a landing far worse than the curve
+                    // and blame the focuser. It measures nothing, so the
+                    // landing goes unverified, as with a failed exposure.
+                    if measurement.star_count < config.min_star_count {
+                        tracing::warn!(
+                            "Autofocus could not verify the landing: the frame at best focus \
+                             has {} measurable stars, fewer than the {} the sweep required",
+                            measurement.star_count,
+                            config.min_star_count
+                        );
+                        None
+                    } else {
+                        Some(measurement.hfr)
+                    }
+                }
                 // A failed verification frame is not a failed focus run: the
                 // curve fit and the move both succeeded. Say the check could
                 // not be made rather than discarding a good result.
@@ -1294,7 +1309,7 @@ pub(crate) async fn execute_autofocus_once(
         let hfr_note = if verified_hfr.is_some() {
             "measured"
         } else {
-            "predicted; verification frame failed"
+            "predicted; the verification frame could not be measured"
         };
 
         if let Some(cb) = progress_callback {

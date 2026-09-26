@@ -73,6 +73,8 @@ struct GearState {
     commands: Vec<i32>,
     /// `(commanded, takeup)` at every exposure, in order.
     exposures: Vec<(i32, i32)>,
+    /// Exposures after this many come back starless, as under cloud.
+    clouded_after: Option<usize>,
 }
 
 impl BacklashFocuserOps {
@@ -86,6 +88,7 @@ impl BacklashFocuserOps {
                 takeup: backlash / 2,
                 commands: Vec::new(),
                 exposures: Vec::new(),
+                clouded_after: None,
             })),
             backlash,
         }
@@ -134,14 +137,18 @@ impl DeviceOps for BacklashFocuserOps {
         _bin_x: i32,
         _bin_y: i32,
     ) -> DeviceResult<ImageData> {
-        let optical_position = {
+        let (optical_position, clouded) = {
             let mut state = self.state.lock().await;
             let sample = (state.commanded, state.takeup);
             state.exposures.push(sample);
-            state.commanded + state.takeup
+            let clouded = state
+                .clouded_after
+                .is_some_and(|after| state.exposures.len() > after);
+            (state.commanded + state.takeup, clouded)
         };
         Ok(render_star_field(
             optical_position,
+            !clouded,
             duration_secs,
             gain,
             offset,
@@ -379,6 +386,7 @@ impl DeviceOps for BacklashFocuserOps {
 /// A frame as the simulated optics would see it from `optical_position`.
 fn render_star_field(
     optical_position: i32,
+    stars: bool,
     duration_secs: f64,
     gain: Option<i32>,
     offset: Option<i32>,
@@ -401,7 +409,7 @@ fn render_star_field(
             seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
             let uniform = f64::from(seed >> 8) / f64::from(1u32 << 24) - 0.5;
             let mut value = BACKGROUND_ADU + uniform * NOISE_SIGMA_ADU * 3.464;
-            for &(cx, cy) in STAR_POSITIONS_PX {
+            for &(cx, cy) in STAR_POSITIONS_PX.iter().filter(|_| stars) {
                 let dx = x as f64 - cx;
                 let dy = y as f64 - cy;
                 value += peak * (-(dx * dx + dy * dy) / two_sigma_squared).exp();
@@ -995,5 +1003,39 @@ async fn every_autofocus_sample_is_taken_with_the_dead_band_taken_up() {
         sweep.iter().all(|(_, takeup)| *takeup == 0),
         "sweep samples (commanded, dead band still to take up): {:?}",
         sweep
+    );
+}
+
+/// Cloud over the verification frame is not a focuser that missed its mark.
+/// A starless frame measures nothing, so it cannot say the landing was wrong,
+/// and the landing-failure sentence is what re-opens the backlash
+/// recalibration offer in the app.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_starless_verification_frame_is_not_reported_as_a_bad_landing() {
+    let ops = Arc::new(BacklashFocuserOps::new(
+        SIMULATED_BACKLASH,
+        STARTING_POSITION,
+    ));
+    let state = ops.state();
+    let config = autofocus_test_config();
+    // The sweep's frames see stars; the one after them, the verification
+    // frame, does not.
+    state.lock().await.clouded_after = Some((2 * config.steps_out + 1) as usize);
+    let ctx = calibration_context(ops.clone()).await;
+
+    let result = execute_autofocus_once(
+        &config,
+        &ctx,
+        None,
+        &crate::node::context::PauseGate::default(),
+    )
+    .await;
+
+    let message = result.message.clone().unwrap_or_default();
+    assert!(
+        !message.contains(crate::instructions::LANDING_VERIFICATION_FAILURE_PHRASE),
+        "a clouded verification frame was reported as a landing failure: {} ({:?})",
+        message,
+        result.status
     );
 }
