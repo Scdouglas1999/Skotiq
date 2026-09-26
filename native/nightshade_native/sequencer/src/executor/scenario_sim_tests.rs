@@ -78,6 +78,11 @@ struct ScriptedDeviceOps {
     /// fire-and-forget mock that never updated it would (correctly) be flagged
     /// unsafe. When `close_fails` is set the shutter stays "Open" — the jam case.
     shutter_state: Arc<Mutex<String>>,
+    /// Mount tracking as the driver reports it. `mount_set_tracking` writes it
+    /// and a successful `mount_park` clears it, like a real mount.
+    mount_tracking: Arc<AtomicBool>,
+    /// Mount park latch reported by `mount_is_parked`.
+    mount_parked: Arc<AtomicBool>,
 }
 
 impl ScriptedDeviceOps {
@@ -94,6 +99,8 @@ impl ScriptedDeviceOps {
             park_fails: Arc::new(AtomicBool::new(false)),
             close_fails: Arc::new(AtomicBool::new(false)),
             shutter_state: Arc::new(Mutex::new("Open".to_string())),
+            mount_tracking: Arc::new(AtomicBool::new(true)),
+            mount_parked: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -193,17 +200,20 @@ impl DeviceOps for ScriptedDeviceOps {
         if self.park_fails.load(Ordering::SeqCst) {
             Err(format!("simulated park failure for {mount_id}"))
         } else {
+            self.mount_parked.store(true, Ordering::SeqCst);
+            self.mount_tracking.store(false, Ordering::SeqCst);
             Ok(())
         }
     }
 
     async fn mount_is_tracking(&self, mount_id: &str) -> DeviceResult<bool> {
         self.record(format!("mount_is_tracking:{mount_id}"));
-        self.inner.mount_is_tracking(mount_id).await
+        Ok(self.mount_tracking.load(Ordering::SeqCst))
     }
 
     async fn mount_set_tracking(&self, mount_id: &str, enabled: bool) -> DeviceResult<()> {
         self.record(format!("mount_set_tracking:{mount_id}:{enabled}"));
+        self.mount_tracking.store(enabled, Ordering::SeqCst);
         Ok(())
     }
 
@@ -249,8 +259,8 @@ impl DeviceOps for ScriptedDeviceOps {
     async fn mount_is_slewing(&self, id: &str) -> DeviceResult<bool> {
         self.inner.mount_is_slewing(id).await
     }
-    async fn mount_is_parked(&self, id: &str) -> DeviceResult<bool> {
-        self.inner.mount_is_parked(id).await
+    async fn mount_is_parked(&self, _id: &str) -> DeviceResult<bool> {
+        Ok(self.mount_parked.load(Ordering::SeqCst))
     }
     async fn mount_can_flip(&self, id: &str) -> DeviceResult<bool> {
         self.inner.mount_can_flip(id).await
@@ -1436,4 +1446,114 @@ fn b19_not_yet_tracking_mount_never_self_cancels() {
         !poll(&mut state, false),
         "loss must not be re-flagged once already recorded"
     );
+}
+
+/// Poll `executor` until `pred` holds for its state, or `timeout` passes.
+async fn wait_for_state(
+    executor: &super::SequenceExecutor,
+    timeout: std::time::Duration,
+    pred: impl Fn(super::ExecutorState) -> bool,
+) -> super::ExecutorState {
+    let deadline = tokio::time::Instant::now() + timeout;
+    loop {
+        let state = executor.get_state().await;
+        if pred(state) || tokio::time::Instant::now() >= deadline {
+            return state;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+}
+
+/// A long single-node run against a scripted mount, started and returned so a
+/// scenario can pause it, change the rig under it and watch what the executor
+/// does. Nothing in it needs a camera.
+async fn start_long_run_on_scripted_mount(ops: Arc<ScriptedDeviceOps>) -> super::SequenceExecutor {
+    use crate::{NodeDefinition, NodeType, SequenceDefinition};
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_device_ops(ops as SharedDeviceOps);
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    let mut sequence = SequenceDefinition::new("Hold integrity".to_string());
+    sequence.nodes.push(NodeDefinition {
+        id: "hold-delay".to_string(),
+        name: "Long wait".to_string(),
+        node_type: NodeType::Delay(crate::DelayConfig { seconds: 600.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("hold-delay".to_string());
+    executor.load_sequence(sequence).expect("sequence loads");
+    executor.start().await.expect("executor starts");
+    executor
+}
+
+/// A paused run must stay paused when a safety-class trigger fires under it.
+///
+/// Since the trigger monitor started evaluating safety-class triggers while a
+/// run is paused, `mount_tracking_lost` (safety class, action Pause) can fire
+/// during a hold. Its Pause action hands the run to the recovery driver, and a
+/// recovery that succeeds sets the run back to Running. A hold placed by the
+/// operator, or by the dead-guider or reject-storm escalations, must not be
+/// lifted by the rig itself: the mount has to stay as the operator left it and
+/// the run must not start exposing again.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_tracking_loss_during_a_hold_does_not_resume_the_run() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_long_run_on_scripted_mount(ops.clone()).await;
+
+    // Let the monitor observe the mount tracking so the loss baseline arms.
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("mount_is_tracking:mount-1") == 0 {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "monitor never polled the mount"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+
+    executor.pause().await.expect("pause");
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(5), |s| {
+        s == super::ExecutorState::Paused
+    })
+    .await;
+    assert_eq!(state, super::ExecutorState::Paused);
+
+    // The operator stops tracking to look at the rig.
+    ops.mount_tracking.store(false, Ordering::SeqCst);
+    let polls_before = ops.call_count("mount_is_tracking:mount-1");
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(12);
+    while ops.call_count("mount_is_tracking:mount-1") < polls_before + 1 {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "monitor stopped polling the mount"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    // Give the fired trigger and anything it starts time to act.
+    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+
+    let calls = ops.calls();
+    let state = executor.get_state().await;
+    assert!(
+        !calls.iter().any(|c| c == "mount_set_tracking:mount-1:true"),
+        "the rig re-enabled tracking under an operator hold; calls={calls:?}"
+    );
+    assert_eq!(
+        state,
+        super::ExecutorState::Paused,
+        "a trigger lifted an operator hold; calls={calls:?}"
+    );
+
+    // The loss is still acted on once the operator resumes with the mount
+    // untracked: the run must not expose without tracking.
+    executor.resume().await.expect("resume");
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
+    while !ops.mount_tracking.load(Ordering::SeqCst) {
+        if tokio::time::Instant::now() >= deadline {
+            let calls = ops.calls();
+            let _ = executor.stop().await;
+            panic!("a run resumed on an untracked mount never restored tracking; calls={calls:?}");
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    let _ = executor.stop().await;
 }

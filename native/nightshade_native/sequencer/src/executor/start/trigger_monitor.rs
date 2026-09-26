@@ -131,9 +131,10 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         // escalation refused to leave a run paused and parked the mount
         // instead — it was choosing between two defects. So: while Paused the
         // monitor keeps polling and keeps evaluating, but only safety-class
-        // triggers may act (see `is_safety_class_trigger`); an autofocus,
-        // dither, flip or recentre must never drive hardware under a hold a
-        // human placed to inspect the rig.
+        // triggers may act (see `is_safety_class_trigger`), and only by
+        // parking (see `may_act_during_hold`); an autofocus, dither, flip,
+        // recentre or recovery ladder must never drive hardware under a hold a
+        // human placed to inspect the rig, nor lift it.
         //
         // `Recovering` is still skipped: the recovery driver owns the hardware
         // for the length of its own bounded ladder and has its own meridian
@@ -508,6 +509,15 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             // on a transient driver glitch — actual loss is reported as
             // Ok(false), which the branch below handles distinctly.
             match &tracking_result {
+                // Under a hold the tracking-loss edge is left for the first
+                // poll after the operator resumes. Nothing may act on it here
+                // (see `may_act_during_hold`), and taking the reading now
+                // would consume the edge: the latch clears on the next poll,
+                // so a run resumed on a mount the operator left untracked
+                // would expose with nothing restoring tracking.
+                Ok(_) if paused_safety_only => {
+                    state.mount_status_query_failed = false;
+                }
                 Ok(is_tracking) => {
                     state.mount_status_query_failed = false;
 
@@ -711,17 +721,19 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                 // the guarantee in one readable place, and keeps the filtered
                 // trigger's cooldown ticking so it re-fires normally once the
                 // operator resumes.
-                .filter(|(trigger_id, _)| {
+                .filter(|(trigger_id, action)| {
                     if !paused_safety_only {
                         return true;
                     }
                     match manager.get_trigger(trigger_id) {
                         Some(trigger) => {
-                            let allowed = is_safety_class_trigger(&trigger.trigger_type);
+                            let allowed = is_safety_class_trigger(&trigger.trigger_type)
+                                && may_act_during_hold(action);
                             if !allowed {
                                 tracing::debug!(
-                                    "Trigger '{}' fired while the run is paused; not safety \
-                                     class, so it is not acted on until the run resumes",
+                                    "Trigger '{}' fired while the run is paused; it is not a \
+                                     safety-class trigger with a protective action, so it is \
+                                     not acted on until the run resumes",
                                     trigger_id
                                 );
                             }
