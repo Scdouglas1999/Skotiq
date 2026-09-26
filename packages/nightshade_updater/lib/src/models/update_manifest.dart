@@ -80,7 +80,17 @@ abstract class UpdateManifest with _$UpdateManifest {
   /// semver is offered while an identical version+build never is (that would
   /// loop a self-update). [isNewerThan] keeps a semver-only contract for
   /// callers that want pure string ordering.
-  bool isNewerBuildThan(String currentVersion, int currentBuild) {
+  bool isNewerBuildThan(String currentVersion, int currentBuild) =>
+      buildSupersedes(version, buildNumber, currentVersion, currentBuild);
+
+  /// [isNewerBuildThan] for a build known only by its version and build
+  /// number, such as a staged update whose manifest has not been read.
+  static bool buildSupersedes(
+    String version,
+    int buildNumber,
+    String currentVersion,
+    int currentBuild,
+  ) {
     final cmp = _compareVersions(version, currentVersion);
     if (cmp != 0) return cmp > 0;
     return buildNumber > currentBuild;

@@ -61,7 +61,7 @@ class _TestUpdateNotifier extends UpdateNotifier {
   }
 
   @override
-  Future<void> checkForUpdates() async {}
+  Future<void> checkForUpdates({DateTime? now}) async {}
 
   @override
   Future<void> checkStagedUpdate() async {}

@@ -79,6 +79,29 @@ abstract class UpdateState with _$UpdateState {
     /// Update server URL
     String? updateServerUrl,
 
+    /// Whether any update source is configured (an update server, or the
+    /// project's GitHub Releases). Separate from [updateServerUrl] because a
+    /// GitHub source has no server URL to show, and a null URL used to be the
+    /// signal for "OTA is off" — which would switch the whole feature off for
+    /// every build that reads releases instead.
+    @Default(false) bool sourceConfigured,
+
+    /// Release notes for [availableUpdate], in markdown.
+    ///
+    /// Held outside the manifest because the manifest's own `releaseNotes`
+    /// field is part of the signed payload and cannot be rewritten to carry a
+    /// GitHub release body without breaking every signature.
+    String? releaseNotes,
+
+    /// Human-facing page for the offered release, when the source has one.
+    String? releasePageUrl,
+
+    /// Why there is no update, when the answer is not simply "this build is
+    /// current" — for example a newer release that publishes no build for
+    /// this platform. Without it the UI would have to render that case as
+    /// "you are running the latest release", which is not what happened.
+    String? unavailableReason,
+
     /// Current update channel
     @Default('stable') String channel,
   }) = _UpdateState;

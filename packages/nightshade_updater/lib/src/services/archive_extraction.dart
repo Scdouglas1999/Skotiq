@@ -37,6 +37,9 @@ Future<void> extractArchiveSafely(
   await destination.create(recursive: true);
   final destinationRoot = await destination.resolveSymbolicLinks();
 
+  // Paths to mark executable, grouped by the mode to give them.
+  final executables = <int, List<String>>{};
+
   for (final entry in archive) {
     final relativePath = _safeArchiveEntryPath(entry.name);
     final outputPath = path.joinAll([
@@ -59,10 +62,58 @@ Future<void> extractArchiveSafely(
       } finally {
         await output.close();
       }
+      final mode = _executableMode(entry.mode);
+      if (mode != null) {
+        (executables[mode] ??= <String>[]).add(outputPath);
+      }
     } else {
       final outputDirectory = Directory(outputPath);
       await outputDirectory.create(recursive: true);
       await _assertInsideDestination(destinationRoot, outputDirectory);
+    }
+  }
+
+  for (final entry in executables.entries) {
+    await _chmod(entry.key, entry.value);
+  }
+}
+
+/// The permission bits to restore on an extracted file, or null to leave the
+/// default the file was created with.
+///
+/// Only executables are restored. The updater copies each staged file into
+/// the install directory with the mode it has in staging, so a binary that
+/// lost its executable bit here is a binary that no longer runs after the
+/// update: the application, its launcher and the updater itself. Other files
+/// keep the process default, and group/other write is never granted from an
+/// archive. Windows has no such bits, and an archive written there records
+/// none.
+int? _executableMode(int archiveMode) {
+  if (Platform.isWindows) return null;
+  final permissions = archiveMode & 0x1FF;
+  if (permissions & 0x49 == 0) return null;
+  return permissions & 0x1ED;
+}
+
+Future<void> _chmod(int mode, List<String> paths) async {
+  // dart:io cannot set a file mode, so this goes through chmod(1), once per
+  // distinct mode rather than once per file.
+  const batch = 200;
+  for (var i = 0; i < paths.length; i += batch) {
+    final chunk = paths.sublist(
+      i,
+      i + batch > paths.length ? paths.length : i + batch,
+    );
+    final result = await Process.run('chmod', [
+      mode.toRadixString(8),
+      ...chunk,
+    ]);
+    if (result.exitCode != 0) {
+      throw FileSystemException(
+        'Could not restore executable permissions (chmod exited '
+        '${result.exitCode}: ${result.stderr})',
+        chunk.first,
+      );
     }
   }
 }

@@ -23,8 +23,20 @@ String normalizeUpdateArchitecture(String value) {
 String currentUpdatePlatform() =>
     normalizeUpdatePlatform(Platform.operatingSystem);
 
-String currentUpdateArchitecture() {
-  final abi = Abi.current().toString().split('.').last.toLowerCase();
+String currentUpdateArchitecture() =>
+    updateArchitectureForAbiName(Abi.current().toString());
+
+/// Map a Dart [Abi] name (`androidArm64`, `linuxX64`, …) to the architecture
+/// this package names manifests by.
+///
+/// Split out from [currentUpdateArchitecture] so it can be tested against the
+/// names of ABIs this host is not: the Android mapping in particular decides
+/// whether a phone ever finds its own manifest, and it has to agree with the
+/// ABI table the release workflow uses when it names them. Order matters —
+/// `androidArm64` ends with both `arm64` and `arm`, and must not read as the
+/// 32-bit build.
+String updateArchitectureForAbiName(String abiName) {
+  final abi = abiName.split('.').last.toLowerCase();
   if (abi.endsWith('riscv64')) return 'riscv64';
   if (abi.endsWith('riscv32')) return 'riscv32';
   if (abi.endsWith('arm64')) return 'arm64';

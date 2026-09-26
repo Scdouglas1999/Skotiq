@@ -28,7 +28,22 @@ mixin _$UpdateState {
  String? get skippedVersion;/// Whether the offered update is below the minimum version for OTA and
 /// must be installed manually (no download/apply path).
  bool get requiresManualUpgrade;/// Update server URL
- String? get updateServerUrl;/// Current update channel
+ String? get updateServerUrl;/// Whether any update source is configured (an update server, or the
+/// project's GitHub Releases). Separate from [updateServerUrl] because a
+/// GitHub source has no server URL to show, and a null URL used to be the
+/// signal for "OTA is off" — which would switch the whole feature off for
+/// every build that reads releases instead.
+ bool get sourceConfigured;/// Release notes for [availableUpdate], in markdown.
+///
+/// Held outside the manifest because the manifest's own `releaseNotes`
+/// field is part of the signed payload and cannot be rewritten to carry a
+/// GitHub release body without breaking every signature.
+ String? get releaseNotes;/// Human-facing page for the offered release, when the source has one.
+ String? get releasePageUrl;/// Why there is no update, when the answer is not simply "this build is
+/// current" — for example a newer release that publishes no build for
+/// this platform. Without it the UI would have to render that case as
+/// "you are running the latest release", which is not what happened.
+ String? get unavailableReason;/// Current update channel
  String get channel;
 /// Create a copy of UpdateState
 /// with the given fields replaced by the non-null parameter values.
@@ -40,16 +55,16 @@ $UpdateStateCopyWith<UpdateState> get copyWith => _$UpdateStateCopyWithImpl<Upda
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is UpdateState&&(identical(other.status, status) || other.status == status)&&(identical(other.currentVersion, currentVersion) || other.currentVersion == currentVersion)&&(identical(other.currentBuildNumber, currentBuildNumber) || other.currentBuildNumber == currentBuildNumber)&&(identical(other.availableUpdate, availableUpdate) || other.availableUpdate == availableUpdate)&&(identical(other.downloadProgress, downloadProgress) || other.downloadProgress == downloadProgress)&&(identical(other.downloadedBytes, downloadedBytes) || other.downloadedBytes == downloadedBytes)&&(identical(other.totalBytes, totalBytes) || other.totalBytes == totalBytes)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.stagingPath, stagingPath) || other.stagingPath == stagingPath)&&(identical(other.lastCheckTime, lastCheckTime) || other.lastCheckTime == lastCheckTime)&&(identical(other.skippedVersion, skippedVersion) || other.skippedVersion == skippedVersion)&&(identical(other.requiresManualUpgrade, requiresManualUpgrade) || other.requiresManualUpgrade == requiresManualUpgrade)&&(identical(other.updateServerUrl, updateServerUrl) || other.updateServerUrl == updateServerUrl)&&(identical(other.channel, channel) || other.channel == channel));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UpdateState&&(identical(other.status, status) || other.status == status)&&(identical(other.currentVersion, currentVersion) || other.currentVersion == currentVersion)&&(identical(other.currentBuildNumber, currentBuildNumber) || other.currentBuildNumber == currentBuildNumber)&&(identical(other.availableUpdate, availableUpdate) || other.availableUpdate == availableUpdate)&&(identical(other.downloadProgress, downloadProgress) || other.downloadProgress == downloadProgress)&&(identical(other.downloadedBytes, downloadedBytes) || other.downloadedBytes == downloadedBytes)&&(identical(other.totalBytes, totalBytes) || other.totalBytes == totalBytes)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.stagingPath, stagingPath) || other.stagingPath == stagingPath)&&(identical(other.lastCheckTime, lastCheckTime) || other.lastCheckTime == lastCheckTime)&&(identical(other.skippedVersion, skippedVersion) || other.skippedVersion == skippedVersion)&&(identical(other.requiresManualUpgrade, requiresManualUpgrade) || other.requiresManualUpgrade == requiresManualUpgrade)&&(identical(other.updateServerUrl, updateServerUrl) || other.updateServerUrl == updateServerUrl)&&(identical(other.sourceConfigured, sourceConfigured) || other.sourceConfigured == sourceConfigured)&&(identical(other.releaseNotes, releaseNotes) || other.releaseNotes == releaseNotes)&&(identical(other.releasePageUrl, releasePageUrl) || other.releasePageUrl == releasePageUrl)&&(identical(other.unavailableReason, unavailableReason) || other.unavailableReason == unavailableReason)&&(identical(other.channel, channel) || other.channel == channel));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,currentVersion,currentBuildNumber,availableUpdate,downloadProgress,downloadedBytes,totalBytes,errorMessage,stagingPath,lastCheckTime,skippedVersion,requiresManualUpgrade,updateServerUrl,channel);
+int get hashCode => Object.hash(runtimeType,status,currentVersion,currentBuildNumber,availableUpdate,downloadProgress,downloadedBytes,totalBytes,errorMessage,stagingPath,lastCheckTime,skippedVersion,requiresManualUpgrade,updateServerUrl,sourceConfigured,releaseNotes,releasePageUrl,unavailableReason,channel);
 
 @override
 String toString() {
-  return 'UpdateState(status: $status, currentVersion: $currentVersion, currentBuildNumber: $currentBuildNumber, availableUpdate: $availableUpdate, downloadProgress: $downloadProgress, downloadedBytes: $downloadedBytes, totalBytes: $totalBytes, errorMessage: $errorMessage, stagingPath: $stagingPath, lastCheckTime: $lastCheckTime, skippedVersion: $skippedVersion, requiresManualUpgrade: $requiresManualUpgrade, updateServerUrl: $updateServerUrl, channel: $channel)';
+  return 'UpdateState(status: $status, currentVersion: $currentVersion, currentBuildNumber: $currentBuildNumber, availableUpdate: $availableUpdate, downloadProgress: $downloadProgress, downloadedBytes: $downloadedBytes, totalBytes: $totalBytes, errorMessage: $errorMessage, stagingPath: $stagingPath, lastCheckTime: $lastCheckTime, skippedVersion: $skippedVersion, requiresManualUpgrade: $requiresManualUpgrade, updateServerUrl: $updateServerUrl, sourceConfigured: $sourceConfigured, releaseNotes: $releaseNotes, releasePageUrl: $releasePageUrl, unavailableReason: $unavailableReason, channel: $channel)';
 }
 
 
@@ -60,7 +75,7 @@ abstract mixin class $UpdateStateCopyWith<$Res>  {
   factory $UpdateStateCopyWith(UpdateState value, $Res Function(UpdateState) _then) = _$UpdateStateCopyWithImpl;
 @useResult
 $Res call({
- UpdateStatus status, String currentVersion, int currentBuildNumber, UpdateManifest? availableUpdate, double downloadProgress, int downloadedBytes, int totalBytes, String? errorMessage, String? stagingPath, DateTime? lastCheckTime, String? skippedVersion, bool requiresManualUpgrade, String? updateServerUrl, String channel
+ UpdateStatus status, String currentVersion, int currentBuildNumber, UpdateManifest? availableUpdate, double downloadProgress, int downloadedBytes, int totalBytes, String? errorMessage, String? stagingPath, DateTime? lastCheckTime, String? skippedVersion, bool requiresManualUpgrade, String? updateServerUrl, bool sourceConfigured, String? releaseNotes, String? releasePageUrl, String? unavailableReason, String channel
 });
 
 
@@ -77,7 +92,7 @@ class _$UpdateStateCopyWithImpl<$Res>
 
 /// Create a copy of UpdateState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? currentVersion = null,Object? currentBuildNumber = null,Object? availableUpdate = freezed,Object? downloadProgress = null,Object? downloadedBytes = null,Object? totalBytes = null,Object? errorMessage = freezed,Object? stagingPath = freezed,Object? lastCheckTime = freezed,Object? skippedVersion = freezed,Object? requiresManualUpgrade = null,Object? updateServerUrl = freezed,Object? channel = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? currentVersion = null,Object? currentBuildNumber = null,Object? availableUpdate = freezed,Object? downloadProgress = null,Object? downloadedBytes = null,Object? totalBytes = null,Object? errorMessage = freezed,Object? stagingPath = freezed,Object? lastCheckTime = freezed,Object? skippedVersion = freezed,Object? requiresManualUpgrade = null,Object? updateServerUrl = freezed,Object? sourceConfigured = null,Object? releaseNotes = freezed,Object? releasePageUrl = freezed,Object? unavailableReason = freezed,Object? channel = null,}) {
   return _then(_self.copyWith(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as UpdateStatus,currentVersion: null == currentVersion ? _self.currentVersion : currentVersion // ignore: cast_nullable_to_non_nullable
@@ -92,6 +107,10 @@ as String?,lastCheckTime: freezed == lastCheckTime ? _self.lastCheckTime : lastC
 as DateTime?,skippedVersion: freezed == skippedVersion ? _self.skippedVersion : skippedVersion // ignore: cast_nullable_to_non_nullable
 as String?,requiresManualUpgrade: null == requiresManualUpgrade ? _self.requiresManualUpgrade : requiresManualUpgrade // ignore: cast_nullable_to_non_nullable
 as bool,updateServerUrl: freezed == updateServerUrl ? _self.updateServerUrl : updateServerUrl // ignore: cast_nullable_to_non_nullable
+as String?,sourceConfigured: null == sourceConfigured ? _self.sourceConfigured : sourceConfigured // ignore: cast_nullable_to_non_nullable
+as bool,releaseNotes: freezed == releaseNotes ? _self.releaseNotes : releaseNotes // ignore: cast_nullable_to_non_nullable
+as String?,releasePageUrl: freezed == releasePageUrl ? _self.releasePageUrl : releasePageUrl // ignore: cast_nullable_to_non_nullable
+as String?,unavailableReason: freezed == unavailableReason ? _self.unavailableReason : unavailableReason // ignore: cast_nullable_to_non_nullable
 as String?,channel: null == channel ? _self.channel : channel // ignore: cast_nullable_to_non_nullable
 as String,
   ));
@@ -190,10 +209,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( UpdateStatus status,  String currentVersion,  int currentBuildNumber,  UpdateManifest? availableUpdate,  double downloadProgress,  int downloadedBytes,  int totalBytes,  String? errorMessage,  String? stagingPath,  DateTime? lastCheckTime,  String? skippedVersion,  bool requiresManualUpgrade,  String? updateServerUrl,  String channel)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( UpdateStatus status,  String currentVersion,  int currentBuildNumber,  UpdateManifest? availableUpdate,  double downloadProgress,  int downloadedBytes,  int totalBytes,  String? errorMessage,  String? stagingPath,  DateTime? lastCheckTime,  String? skippedVersion,  bool requiresManualUpgrade,  String? updateServerUrl,  bool sourceConfigured,  String? releaseNotes,  String? releasePageUrl,  String? unavailableReason,  String channel)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _UpdateState() when $default != null:
-return $default(_that.status,_that.currentVersion,_that.currentBuildNumber,_that.availableUpdate,_that.downloadProgress,_that.downloadedBytes,_that.totalBytes,_that.errorMessage,_that.stagingPath,_that.lastCheckTime,_that.skippedVersion,_that.requiresManualUpgrade,_that.updateServerUrl,_that.channel);case _:
+return $default(_that.status,_that.currentVersion,_that.currentBuildNumber,_that.availableUpdate,_that.downloadProgress,_that.downloadedBytes,_that.totalBytes,_that.errorMessage,_that.stagingPath,_that.lastCheckTime,_that.skippedVersion,_that.requiresManualUpgrade,_that.updateServerUrl,_that.sourceConfigured,_that.releaseNotes,_that.releasePageUrl,_that.unavailableReason,_that.channel);case _:
   return orElse();
 
 }
@@ -211,10 +230,10 @@ return $default(_that.status,_that.currentVersion,_that.currentBuildNumber,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( UpdateStatus status,  String currentVersion,  int currentBuildNumber,  UpdateManifest? availableUpdate,  double downloadProgress,  int downloadedBytes,  int totalBytes,  String? errorMessage,  String? stagingPath,  DateTime? lastCheckTime,  String? skippedVersion,  bool requiresManualUpgrade,  String? updateServerUrl,  String channel)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( UpdateStatus status,  String currentVersion,  int currentBuildNumber,  UpdateManifest? availableUpdate,  double downloadProgress,  int downloadedBytes,  int totalBytes,  String? errorMessage,  String? stagingPath,  DateTime? lastCheckTime,  String? skippedVersion,  bool requiresManualUpgrade,  String? updateServerUrl,  bool sourceConfigured,  String? releaseNotes,  String? releasePageUrl,  String? unavailableReason,  String channel)  $default,) {final _that = this;
 switch (_that) {
 case _UpdateState():
-return $default(_that.status,_that.currentVersion,_that.currentBuildNumber,_that.availableUpdate,_that.downloadProgress,_that.downloadedBytes,_that.totalBytes,_that.errorMessage,_that.stagingPath,_that.lastCheckTime,_that.skippedVersion,_that.requiresManualUpgrade,_that.updateServerUrl,_that.channel);case _:
+return $default(_that.status,_that.currentVersion,_that.currentBuildNumber,_that.availableUpdate,_that.downloadProgress,_that.downloadedBytes,_that.totalBytes,_that.errorMessage,_that.stagingPath,_that.lastCheckTime,_that.skippedVersion,_that.requiresManualUpgrade,_that.updateServerUrl,_that.sourceConfigured,_that.releaseNotes,_that.releasePageUrl,_that.unavailableReason,_that.channel);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -231,10 +250,10 @@ return $default(_that.status,_that.currentVersion,_that.currentBuildNumber,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( UpdateStatus status,  String currentVersion,  int currentBuildNumber,  UpdateManifest? availableUpdate,  double downloadProgress,  int downloadedBytes,  int totalBytes,  String? errorMessage,  String? stagingPath,  DateTime? lastCheckTime,  String? skippedVersion,  bool requiresManualUpgrade,  String? updateServerUrl,  String channel)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( UpdateStatus status,  String currentVersion,  int currentBuildNumber,  UpdateManifest? availableUpdate,  double downloadProgress,  int downloadedBytes,  int totalBytes,  String? errorMessage,  String? stagingPath,  DateTime? lastCheckTime,  String? skippedVersion,  bool requiresManualUpgrade,  String? updateServerUrl,  bool sourceConfigured,  String? releaseNotes,  String? releasePageUrl,  String? unavailableReason,  String channel)?  $default,) {final _that = this;
 switch (_that) {
 case _UpdateState() when $default != null:
-return $default(_that.status,_that.currentVersion,_that.currentBuildNumber,_that.availableUpdate,_that.downloadProgress,_that.downloadedBytes,_that.totalBytes,_that.errorMessage,_that.stagingPath,_that.lastCheckTime,_that.skippedVersion,_that.requiresManualUpgrade,_that.updateServerUrl,_that.channel);case _:
+return $default(_that.status,_that.currentVersion,_that.currentBuildNumber,_that.availableUpdate,_that.downloadProgress,_that.downloadedBytes,_that.totalBytes,_that.errorMessage,_that.stagingPath,_that.lastCheckTime,_that.skippedVersion,_that.requiresManualUpgrade,_that.updateServerUrl,_that.sourceConfigured,_that.releaseNotes,_that.releasePageUrl,_that.unavailableReason,_that.channel);case _:
   return null;
 
 }
@@ -246,7 +265,7 @@ return $default(_that.status,_that.currentVersion,_that.currentBuildNumber,_that
 
 
 class _UpdateState extends UpdateState {
-  const _UpdateState({this.status = UpdateStatus.idle, required this.currentVersion, required this.currentBuildNumber, this.availableUpdate, this.downloadProgress = 0.0, this.downloadedBytes = 0, this.totalBytes = 0, this.errorMessage, this.stagingPath, this.lastCheckTime, this.skippedVersion, this.requiresManualUpgrade = false, this.updateServerUrl, this.channel = 'stable'}): super._();
+  const _UpdateState({this.status = UpdateStatus.idle, required this.currentVersion, required this.currentBuildNumber, this.availableUpdate, this.downloadProgress = 0.0, this.downloadedBytes = 0, this.totalBytes = 0, this.errorMessage, this.stagingPath, this.lastCheckTime, this.skippedVersion, this.requiresManualUpgrade = false, this.updateServerUrl, this.sourceConfigured = false, this.releaseNotes, this.releasePageUrl, this.unavailableReason, this.channel = 'stable'}): super._();
   
 
 /// Current status
@@ -276,6 +295,25 @@ class _UpdateState extends UpdateState {
 @override@JsonKey() final  bool requiresManualUpgrade;
 /// Update server URL
 @override final  String? updateServerUrl;
+/// Whether any update source is configured (an update server, or the
+/// project's GitHub Releases). Separate from [updateServerUrl] because a
+/// GitHub source has no server URL to show, and a null URL used to be the
+/// signal for "OTA is off" — which would switch the whole feature off for
+/// every build that reads releases instead.
+@override@JsonKey() final  bool sourceConfigured;
+/// Release notes for [availableUpdate], in markdown.
+///
+/// Held outside the manifest because the manifest's own `releaseNotes`
+/// field is part of the signed payload and cannot be rewritten to carry a
+/// GitHub release body without breaking every signature.
+@override final  String? releaseNotes;
+/// Human-facing page for the offered release, when the source has one.
+@override final  String? releasePageUrl;
+/// Why there is no update, when the answer is not simply "this build is
+/// current" — for example a newer release that publishes no build for
+/// this platform. Without it the UI would have to render that case as
+/// "you are running the latest release", which is not what happened.
+@override final  String? unavailableReason;
 /// Current update channel
 @override@JsonKey() final  String channel;
 
@@ -289,16 +327,16 @@ _$UpdateStateCopyWith<_UpdateState> get copyWith => __$UpdateStateCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UpdateState&&(identical(other.status, status) || other.status == status)&&(identical(other.currentVersion, currentVersion) || other.currentVersion == currentVersion)&&(identical(other.currentBuildNumber, currentBuildNumber) || other.currentBuildNumber == currentBuildNumber)&&(identical(other.availableUpdate, availableUpdate) || other.availableUpdate == availableUpdate)&&(identical(other.downloadProgress, downloadProgress) || other.downloadProgress == downloadProgress)&&(identical(other.downloadedBytes, downloadedBytes) || other.downloadedBytes == downloadedBytes)&&(identical(other.totalBytes, totalBytes) || other.totalBytes == totalBytes)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.stagingPath, stagingPath) || other.stagingPath == stagingPath)&&(identical(other.lastCheckTime, lastCheckTime) || other.lastCheckTime == lastCheckTime)&&(identical(other.skippedVersion, skippedVersion) || other.skippedVersion == skippedVersion)&&(identical(other.requiresManualUpgrade, requiresManualUpgrade) || other.requiresManualUpgrade == requiresManualUpgrade)&&(identical(other.updateServerUrl, updateServerUrl) || other.updateServerUrl == updateServerUrl)&&(identical(other.channel, channel) || other.channel == channel));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UpdateState&&(identical(other.status, status) || other.status == status)&&(identical(other.currentVersion, currentVersion) || other.currentVersion == currentVersion)&&(identical(other.currentBuildNumber, currentBuildNumber) || other.currentBuildNumber == currentBuildNumber)&&(identical(other.availableUpdate, availableUpdate) || other.availableUpdate == availableUpdate)&&(identical(other.downloadProgress, downloadProgress) || other.downloadProgress == downloadProgress)&&(identical(other.downloadedBytes, downloadedBytes) || other.downloadedBytes == downloadedBytes)&&(identical(other.totalBytes, totalBytes) || other.totalBytes == totalBytes)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.stagingPath, stagingPath) || other.stagingPath == stagingPath)&&(identical(other.lastCheckTime, lastCheckTime) || other.lastCheckTime == lastCheckTime)&&(identical(other.skippedVersion, skippedVersion) || other.skippedVersion == skippedVersion)&&(identical(other.requiresManualUpgrade, requiresManualUpgrade) || other.requiresManualUpgrade == requiresManualUpgrade)&&(identical(other.updateServerUrl, updateServerUrl) || other.updateServerUrl == updateServerUrl)&&(identical(other.sourceConfigured, sourceConfigured) || other.sourceConfigured == sourceConfigured)&&(identical(other.releaseNotes, releaseNotes) || other.releaseNotes == releaseNotes)&&(identical(other.releasePageUrl, releasePageUrl) || other.releasePageUrl == releasePageUrl)&&(identical(other.unavailableReason, unavailableReason) || other.unavailableReason == unavailableReason)&&(identical(other.channel, channel) || other.channel == channel));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,currentVersion,currentBuildNumber,availableUpdate,downloadProgress,downloadedBytes,totalBytes,errorMessage,stagingPath,lastCheckTime,skippedVersion,requiresManualUpgrade,updateServerUrl,channel);
+int get hashCode => Object.hash(runtimeType,status,currentVersion,currentBuildNumber,availableUpdate,downloadProgress,downloadedBytes,totalBytes,errorMessage,stagingPath,lastCheckTime,skippedVersion,requiresManualUpgrade,updateServerUrl,sourceConfigured,releaseNotes,releasePageUrl,unavailableReason,channel);
 
 @override
 String toString() {
-  return 'UpdateState(status: $status, currentVersion: $currentVersion, currentBuildNumber: $currentBuildNumber, availableUpdate: $availableUpdate, downloadProgress: $downloadProgress, downloadedBytes: $downloadedBytes, totalBytes: $totalBytes, errorMessage: $errorMessage, stagingPath: $stagingPath, lastCheckTime: $lastCheckTime, skippedVersion: $skippedVersion, requiresManualUpgrade: $requiresManualUpgrade, updateServerUrl: $updateServerUrl, channel: $channel)';
+  return 'UpdateState(status: $status, currentVersion: $currentVersion, currentBuildNumber: $currentBuildNumber, availableUpdate: $availableUpdate, downloadProgress: $downloadProgress, downloadedBytes: $downloadedBytes, totalBytes: $totalBytes, errorMessage: $errorMessage, stagingPath: $stagingPath, lastCheckTime: $lastCheckTime, skippedVersion: $skippedVersion, requiresManualUpgrade: $requiresManualUpgrade, updateServerUrl: $updateServerUrl, sourceConfigured: $sourceConfigured, releaseNotes: $releaseNotes, releasePageUrl: $releasePageUrl, unavailableReason: $unavailableReason, channel: $channel)';
 }
 
 
@@ -309,7 +347,7 @@ abstract mixin class _$UpdateStateCopyWith<$Res> implements $UpdateStateCopyWith
   factory _$UpdateStateCopyWith(_UpdateState value, $Res Function(_UpdateState) _then) = __$UpdateStateCopyWithImpl;
 @override @useResult
 $Res call({
- UpdateStatus status, String currentVersion, int currentBuildNumber, UpdateManifest? availableUpdate, double downloadProgress, int downloadedBytes, int totalBytes, String? errorMessage, String? stagingPath, DateTime? lastCheckTime, String? skippedVersion, bool requiresManualUpgrade, String? updateServerUrl, String channel
+ UpdateStatus status, String currentVersion, int currentBuildNumber, UpdateManifest? availableUpdate, double downloadProgress, int downloadedBytes, int totalBytes, String? errorMessage, String? stagingPath, DateTime? lastCheckTime, String? skippedVersion, bool requiresManualUpgrade, String? updateServerUrl, bool sourceConfigured, String? releaseNotes, String? releasePageUrl, String? unavailableReason, String channel
 });
 
 
@@ -326,7 +364,7 @@ class __$UpdateStateCopyWithImpl<$Res>
 
 /// Create a copy of UpdateState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? currentVersion = null,Object? currentBuildNumber = null,Object? availableUpdate = freezed,Object? downloadProgress = null,Object? downloadedBytes = null,Object? totalBytes = null,Object? errorMessage = freezed,Object? stagingPath = freezed,Object? lastCheckTime = freezed,Object? skippedVersion = freezed,Object? requiresManualUpgrade = null,Object? updateServerUrl = freezed,Object? channel = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? currentVersion = null,Object? currentBuildNumber = null,Object? availableUpdate = freezed,Object? downloadProgress = null,Object? downloadedBytes = null,Object? totalBytes = null,Object? errorMessage = freezed,Object? stagingPath = freezed,Object? lastCheckTime = freezed,Object? skippedVersion = freezed,Object? requiresManualUpgrade = null,Object? updateServerUrl = freezed,Object? sourceConfigured = null,Object? releaseNotes = freezed,Object? releasePageUrl = freezed,Object? unavailableReason = freezed,Object? channel = null,}) {
   return _then(_UpdateState(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as UpdateStatus,currentVersion: null == currentVersion ? _self.currentVersion : currentVersion // ignore: cast_nullable_to_non_nullable
@@ -341,6 +379,10 @@ as String?,lastCheckTime: freezed == lastCheckTime ? _self.lastCheckTime : lastC
 as DateTime?,skippedVersion: freezed == skippedVersion ? _self.skippedVersion : skippedVersion // ignore: cast_nullable_to_non_nullable
 as String?,requiresManualUpgrade: null == requiresManualUpgrade ? _self.requiresManualUpgrade : requiresManualUpgrade // ignore: cast_nullable_to_non_nullable
 as bool,updateServerUrl: freezed == updateServerUrl ? _self.updateServerUrl : updateServerUrl // ignore: cast_nullable_to_non_nullable
+as String?,sourceConfigured: null == sourceConfigured ? _self.sourceConfigured : sourceConfigured // ignore: cast_nullable_to_non_nullable
+as bool,releaseNotes: freezed == releaseNotes ? _self.releaseNotes : releaseNotes // ignore: cast_nullable_to_non_nullable
+as String?,releasePageUrl: freezed == releasePageUrl ? _self.releasePageUrl : releasePageUrl // ignore: cast_nullable_to_non_nullable
+as String?,unavailableReason: freezed == unavailableReason ? _self.unavailableReason : unavailableReason // ignore: cast_nullable_to_non_nullable
 as String?,channel: null == channel ? _self.channel : channel // ignore: cast_nullable_to_non_nullable
 as String,
   ));

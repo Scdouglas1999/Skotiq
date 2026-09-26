@@ -2,6 +2,9 @@
 
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,13 +37,12 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
   late final Stream<LanPushEvent> _lanPushStream;
   StreamSubscription<LanPushEvent>? _lanPushSubscription;
   static const _disabledUpdatesLog =
-      '[UpdateManager] Update server not configured, skipping update checks';
+      '[UpdateManager] No update source configured, skipping update checks';
 
-  bool _isUpdateConfigured() {
-    final state = ref.read(updateProvider);
-    final url = state.updateServerUrl;
-    return url != null && url.trim().isNotEmpty;
-  }
+  /// Reads `sourceConfigured` rather than the server URL: a build reading
+  /// GitHub Releases has no server URL, and testing the URL here was what
+  /// kept the whole update flow switched off in every shipped build.
+  bool _isUpdateConfigured() => ref.read(updateProvider).sourceConfigured;
 
   @override
   void initState() {
@@ -167,12 +169,43 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
       return;
     }
 
+    // Throttled: startup happens every launch, and a rig can be restarted
+    // many times in one session while wiring equipment. The button in
+    // Settings still runs an unthrottled check.
     final updateNotifier = ref.read(updateProvider.notifier);
-    await updateNotifier.checkForUpdates();
+    await updateNotifier.checkForUpdatesIfDue();
   }
 
   void _showUpdateAvailableDialog(UpdateState state) {
     if (_hasShownUpdateDialog) return;
+
+    final notifier = ref.read(updateProvider.notifier);
+
+    // Was this version already answered — skipped, or waved off within the
+    // reminder window? Found updates stay in state either way, so Settings
+    // still shows it; this only decides whether to interrupt.
+    if (!notifier.shouldPrompt()) {
+      developer.log(
+        'Update ${state.availableUpdate?.version} is available but was '
+        'already skipped or deferred; not prompting.',
+        name: 'UpdateManager',
+      );
+      return;
+    }
+
+    // Never talk over a running rig. Unlike the apply gate this does not
+    // require a parked mount — it only refuses to interrupt an exposure, a
+    // slew, or a sequence in flight. The dialog is re-offered on the next
+    // check once the rig is idle.
+    final heldBack = updatePromptHeldBackReason(ref.read);
+    if (heldBack != null) {
+      developer.log(
+        'Holding back the update prompt: $heldBack.',
+        name: 'UpdateManager',
+      );
+      return;
+    }
+
     _hasShownUpdateDialog = true;
 
     final manifest = state.availableUpdate!;
@@ -180,7 +213,9 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
       context,
       currentVersion: state.currentVersion,
       newVersion: manifest.version,
-      releaseNotes: manifest.releaseNotes,
+      // Prefer the notes the source carried (the GitHub release body) over
+      // the terse line baked into the signed manifest.
+      releaseNotes: state.releaseNotes ?? manifest.releaseNotes,
       downloadSizeMb: (manifest.compressedSize / 1024 / 1024).round(),
       requiresManualUpgrade: state.requiresManualUpgrade,
       onUpdate: () {
@@ -190,6 +225,10 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
         ref.read(updateProvider.notifier).skipUpdate();
       },
       onLater: () {
+        // "Not now" is remembered across restarts, so dismissing on the way
+        // out to the scope does not mean being asked again at the next
+        // launch. A newer release still asks straight away.
+        unawaited(ref.read(updateProvider.notifier).deferUpdate());
         // Reset so a manual re-check can reopen the dialog this session.
         _hasShownUpdateDialog = false;
       },
@@ -263,6 +302,9 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
       context,
       version: state.availableUpdate?.version ?? '',
       isSessionActive: isSessionActive,
+      // Android installs through the OS, which does not restart the app for
+      // us; the dialog must not promise that it will.
+      installsViaSystemInstaller: !kIsWeb && Platform.isAndroid,
       onRestartNow: () {
         ref.read(updateProvider.notifier).applyUpdate();
       },
@@ -284,6 +326,21 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // An update found mid-run is held back rather than dropped. Watch the
+    // hold so the offer arrives the moment the rig goes idle, instead of
+    // waiting for the next scheduled check up to twelve hours later — quite
+    // possibly while nobody is at the screen.
+    ref.listen<String?>(updatePromptHoldProvider, (previous, next) {
+      if (previous == null || next != null) return;
+      final state = ref.read(updateProvider);
+      if (state.status != UpdateStatus.available) return;
+      // Deferred to a post-frame callback: this fires during a provider
+      // rebuild, and showing a dialog inside one throws.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showUpdateAvailableDialog(ref.read(updateProvider));
+      });
+    });
+
     ref.listen<UpdateState>(updateProvider, (previous, next) {
       // Handle state transitions
       if (previous?.status != next.status) {
@@ -297,6 +354,13 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
             }
             break;
           case UpdateStatus.staged:
+            // Back to staged with a message: the install was refused for a
+            // reason the operator has to act on (Android's install
+            // permission), and the update is still ready once they have.
+            if (next.errorMessage != null) {
+              _showErrorBanner(next.errorMessage!);
+              break;
+            }
             // If banner is already showing (from LAN push), don't show dialog
             if (_showingBanner) {
               developer.log(

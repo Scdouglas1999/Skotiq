@@ -8,6 +8,7 @@ import 'package:nightshade_core/nightshade_core.dart';
 import 'package:nightshade_updater/src/models/update_manifest.dart';
 import 'package:nightshade_updater/src/models/update_state.dart';
 import 'package:nightshade_updater/src/providers/update_provider.dart';
+import 'package:nightshade_updater/src/services/android_installer.dart';
 import 'package:nightshade_updater/src/services/update_controller.dart';
 import 'package:nightshade_updater/src/services/update_service.dart';
 
@@ -108,6 +109,9 @@ void main() {
     final calls = <String>[];
     when(() => updateService.applyUpdate()).thenAnswer((_) async {
       calls.add('apply');
+      // The desktop path exits inside applyUpdate; a mock has to return
+      // something, and processExiting is what that path reports.
+      return UpdateApplyOutcome.processExiting;
     });
 
     final notifier = await stagedNotifier(
@@ -208,7 +212,7 @@ void main() {
         stagedAt: DateTime.utc(2026, 7, 12),
         extractPath: r'C:\staged',
       );
-      final applyGate = Completer<void>();
+      final applyGate = Completer<UpdateApplyOutcome>();
       when(
         () => updateService.getStagedUpdate(),
       ).thenAnswer((_) async => staged);
@@ -242,7 +246,7 @@ void main() {
       expect(events.whereType<UpdateAppliedEvent>(), isEmpty);
       expect(controller.lastUpdateApplied, isNull);
 
-      applyGate.complete();
+      applyGate.complete(UpdateApplyOutcome.processExiting);
       await apply;
       await Future<void>.delayed(Duration.zero);
 
@@ -409,17 +413,20 @@ void main() {
 
     await controller.checkForUpdates(channelOverride: 'beta');
 
+    // The override changes the channel only. It used to go through
+    // configure(), which re-derives the update source as a side effect — and
+    // would now silently drop a GitHub source on every `?channel=` request.
     verifyInOrder([
-      () => updateService.configure(
-        serverUrl: 'https://updates.example.invalid',
-        channel: 'beta',
-      ),
+      () => updateService.setChannel('beta'),
       () => updateService.checkForUpdates(),
-      () => updateService.configure(
-        serverUrl: 'https://updates.example.invalid',
-        channel: 'stable',
-      ),
+      () => updateService.setChannel('stable'),
     ]);
+    verifyNever(
+      () => updateService.configure(
+        serverUrl: any(named: 'serverUrl'),
+        channel: any(named: 'channel'),
+      ),
+    );
   });
 
   test('aborted check cannot publish a late available result', () async {
@@ -593,5 +600,39 @@ void main() {
       ),
     );
     verifyNever(() => backend.saveCheckpoint());
+  });
+
+  test('an Android install refused for missing permission opens the grant '
+      'screen and stays installable', () async {
+    // Android 8+ keeps "install unknown apps" off for every app until the
+    // user turns it on, so the first OTA install on every phone meets this.
+    // It used to end as a bare error: the permission screen was never
+    // opened, and leaving the staged state meant the verified APK could
+    // only be reached again by downloading it a second time.
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final calls = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(androidInstallerChannel, (call) async {
+          calls.add(call.method);
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(androidInstallerChannel, null),
+    );
+    when(() => updateService.applyUpdate()).thenThrow(
+      AndroidInstallException(
+        code: 'install_permission_denied',
+        message: 'Nightshade is not allowed to install apps yet.',
+      ),
+    );
+
+    final notifier = await stagedNotifier(safetyCheck: () async {});
+    addTearDown(notifier.dispose);
+    await notifier.applyUpdate();
+
+    expect(calls, contains('openInstallPermissionSettings'));
+    expect(notifier.state.status, UpdateStatus.staged);
+    expect(notifier.state.errorMessage, contains('Allow'));
   });
 }

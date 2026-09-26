@@ -10,6 +10,8 @@ import 'package:path/path.dart' as path;
 import '../models/update_manifest.dart';
 import 'anti_freeze_store.dart';
 import 'archive_extraction.dart';
+import 'android_installer.dart';
+import 'github_release_source.dart';
 import 'update_compatibility.dart';
 import 'update_downloader.dart';
 import 'update_verifier.dart';
@@ -37,6 +39,17 @@ const String _expectedHashesFile = 'expected_hashes.json';
 /// the process restarts, turning every later check/download/apply into a
 /// `StateError`.
 const Duration defaultUpdateHttpTimeout = Duration(seconds: 20);
+
+/// Name of the helper binary that performs the install swap.
+///
+/// The swap cannot be done by the running app, which holds its own files
+/// open, so a separate short-lived process does it after the app exits.
+/// Windows needs the `.exe` suffix to execute it; Linux must not have one,
+/// and looking for `updater.exe` there was why the Linux apply path could
+/// never find its own helper.
+final String updaterExecutableName = Platform.isWindows
+    ? 'updater.exe'
+    : 'updater';
 
 /// One-shot UI banner queued after [getStagedUpdate] discards a
 /// corrupted marker. The next consumer that reads + clears
@@ -78,6 +91,7 @@ class UpdateService {
   final _NoticeQueue _noticeQueue = _NoticeQueue();
 
   String? _updateServerUrl;
+  GithubReleaseSource? _githubSource;
   String _channel = 'stable';
   CancelToken? _currentDownloadToken;
 
@@ -172,8 +186,57 @@ class UpdateService {
     _updateServerUrl = serverUrl.endsWith('/')
         ? serverUrl.substring(0, serverUrl.length - 1)
         : serverUrl;
+    _githubSource = null;
     _channel = channel;
   }
+
+  /// Read updates from a project's GitHub Releases instead of an update
+  /// server.
+  ///
+  /// This is the source shipped builds use. CI already attaches a signed
+  /// manifest to every release, so discovery is the only thing that changes:
+  /// the manifest is authenticated to the vendor key exactly as before, and a
+  /// release carrying an unsigned or wrongly-signed manifest is refused at
+  /// download time just like an update server's would be.
+  ///
+  /// Supersedes any [configure] call; the two sources are mutually exclusive
+  /// so there is never a question of which one a check consulted.
+  void configureGithubSource({
+    required String owner,
+    required String repo,
+    String channel = 'stable',
+    GithubReleaseSource? source,
+  }) {
+    _githubSource =
+        source ??
+        GithubReleaseSource(
+          owner: owner,
+          repo: repo,
+          httpClient: _httpClient,
+          timeout: _httpTimeout,
+        );
+    _updateServerUrl = null;
+    _channel = channel;
+  }
+
+  /// Change the channel without touching the configured source.
+  ///
+  /// The one-off `?channel=` override must come through here rather than
+  /// [configure] or [configureGithubSource]: both of those pick the source as
+  /// well, so routing a channel change through either silently discards
+  /// whichever source is currently set.
+  void setChannel(String channel) {
+    _channel = channel;
+  }
+
+  /// Whether any update source is configured. False means checks are skipped
+  /// rather than failed: an operator who wants no OTA has not set one.
+  bool get hasUpdateSource =>
+      _githubSource != null ||
+      (_updateServerUrl != null && _updateServerUrl!.isNotEmpty);
+
+  /// Human-facing page for the configured source's releases, when it has one.
+  String? get releasesPageUrl => _githubSource?.releasesPageUrl;
 
   /// Pop the most recent UI banner notice queued by background work, if any.
   /// Returns null if no notice is pending. Subsequent calls return null until
@@ -256,6 +319,9 @@ class UpdateService {
 
   /// Check for available updates
   Future<UpdateCheckResult> checkForUpdates() async {
+    final github = _githubSource;
+    if (github != null) return _checkGithubForUpdates(github);
+
     if (_updateServerUrl == null) {
       throw UpdateException('Update server URL not configured');
     }
@@ -333,6 +399,101 @@ class UpdateService {
     }
   }
 
+  /// Check GitHub Releases for a newer build.
+  ///
+  /// The release tag and the manifest must agree on the version. They are
+  /// produced by the same CI job from the same `version.yaml`, so a mismatch
+  /// means the assets on that release were not all built from one commit —
+  /// exactly the case where installing the package the manifest names would
+  /// put an unexpected build on the machine. Refuse instead of guessing which
+  /// one is right.
+  Future<UpdateCheckResult> _checkGithubForUpdates(
+    GithubReleaseSource github,
+  ) async {
+    try {
+      final release = await github.fetchLatestRelease(channel: _channel);
+      if (release == null) {
+        return UpdateCheckResult(
+          hasUpdate: false,
+          currentVersion: _currentVersion,
+        );
+      }
+
+      final resolved = await github.fetchManifest(
+        release,
+        platform: _currentPlatform,
+        arch: _currentArch,
+      );
+      final manifest = resolved.manifest;
+
+      if (manifest.version != release.version) {
+        throw UpdateException(
+          'Update metadata mismatch: release ${release.tagName} advertises '
+          '${release.version}, but its manifest identifies '
+          '${manifest.version}.',
+        );
+      }
+
+      // Version and build number are the same across every target CI builds
+      // from one `version.yaml`, so this comparison holds even when the
+      // manifest that was found describes another platform. Answering it
+      // first keeps a host that is already current from being told anything
+      // about which packages the release happens to carry.
+      if (!manifest.isNewerBuildThan(_currentVersion, _currentBuildNumber)) {
+        return UpdateCheckResult(
+          hasUpdate: false,
+          currentVersion: _currentVersion,
+        );
+      }
+
+      final pageUrl = release.htmlUrl.isNotEmpty
+          ? release.htmlUrl
+          : github.releasesPageUrl;
+
+      final incompatible = incompatibleUpdateTargetMessage(
+        manifest,
+        currentPlatform: _currentPlatform,
+        currentArch: _currentArch,
+      );
+      if (incompatible != null) {
+        // A manifest named for this host that describes a different one is a
+        // packaging fault, and stays loud. A bare `manifest.json` describing
+        // another platform means the release carries nothing this host can
+        // install — ordinary for a release built before per-target manifests,
+        // and not something the operator can act on. Reporting it as a failed
+        // check would put an error on screen every time a Linux or Android
+        // install looked for an update.
+        if (!resolved.isGenericFallback) throw UpdateException(incompatible);
+        return UpdateCheckResult(
+          hasUpdate: false,
+          currentVersion: _currentVersion,
+          unavailableReason:
+              'Release ${release.tagName} publishes no update that this '
+              '$_currentPlatform/$_currentArch build can install.',
+          releasePageUrl: pageUrl,
+        );
+      }
+
+      final notes = tidyReleaseNotes(release.body) ?? manifest.releaseNotes;
+
+      return UpdateCheckResult(
+        hasUpdate: true,
+        currentVersion: _currentVersion,
+        availableVersion: manifest.version,
+        manifest: manifest,
+        requiresManualUpgrade: !manifest.canUpgradeFrom(_currentVersion),
+        releaseNotes: notes,
+        releasePageUrl: pageUrl,
+      );
+    } on GithubReleaseException catch (e) {
+      throw UpdateException(e.message);
+    } on FormatException catch (e) {
+      throw UpdateException('Invalid response format: ${e.message}');
+    } on TypeError catch (e) {
+      throw UpdateException('Invalid response format: $e');
+    }
+  }
+
   /// Fetch manifest from URL (relative or absolute)
   Future<UpdateManifest> _fetchManifest(String manifestUrl) async {
     final baseUri = Uri.parse('$_updateServerUrl/');
@@ -383,6 +544,17 @@ class UpdateService {
     // Reject plaintext download sources (unless explicitly allowed for
     // trusted local testing) before spending any bandwidth.
     _assertSecureUpdateUrl(manifest.downloadUrl, 'package download');
+
+    // Android ships an APK, not a tree of files to swap: there is nothing to
+    // extract and nothing to hash per-file, and the install is performed by
+    // the OS rather than by the updater binary.
+    if (_currentPlatform == 'android') {
+      return _downloadAndStageApk(
+        manifest,
+        onProgress: onProgress,
+        onVerifying: onVerifying,
+      );
+    }
 
     // Get staging directory
     final stagingDir = await _getStagingDirectory();
@@ -465,6 +637,117 @@ class UpdateService {
     );
   }
 
+  /// Hand a verified APK to Android's package installer.
+  ///
+  /// Control returns here: Android shows its own confirmation UI, and the app
+  /// keeps running until the user accepts and the system replaces it. That is
+  /// why this does not exit the process the way the desktop path does, and
+  /// why no pending-install marker is written — there is no window in which a
+  /// half-applied install could exist for startup to detect.
+  Future<void> _applyAndroidUpdate(
+    String apkPath,
+    UpdateManifest manifest,
+  ) async {
+    final apk = File(apkPath);
+    if (!await apk.exists()) {
+      throw UpdateException(
+        'Staged APK is missing from $apkPath. The staged update must be '
+        'downloaded again.',
+      );
+    }
+
+    // Re-hash immediately before hand-off. Between staging and apply the file
+    // sat in app storage where another process on a rooted device could have
+    // swapped it; the signature check above covers the manifest, not the
+    // bytes still on disk.
+    final actualHash = await _verifier.hashFile(apk);
+    final expected = manifest.packageSha256;
+    if (expected == null ||
+        actualHash.toLowerCase() != expected.toLowerCase()) {
+      await apk.delete();
+      throw UpdateException(
+        'Staged APK no longer matches the hash its signed manifest names; '
+        'refusing to install it.',
+      );
+    }
+
+    await installApkViaPlatform(apkPath);
+  }
+
+  /// Download and verify an Android APK for hand-off to the system installer.
+  ///
+  /// The desktop path stages a tree and swaps it in itself, so it verifies
+  /// every file after extraction. An APK is installed by Android, which does
+  /// its own package-signature check and refuses an APK not signed by the key
+  /// that signed the installed app. This path therefore verifies exactly what
+  /// it is responsible for — that the bytes are the ones the vendor-signed
+  /// manifest names — and lets the platform enforce the rest. Both checks are
+  /// mandatory: neither substitutes for the other.
+  Future<void> _downloadAndStageApk(
+    UpdateManifest manifest, {
+    DownloadProgressCallback? onProgress,
+    void Function()? onVerifying,
+  }) async {
+    final stagingDir = await _getStagingDirectory();
+    // A fixed name, like the desktop path's `update.zip`. The bytes land
+    // before the manifest's signature has been checked, so no manifest field
+    // may take part in choosing where they are written.
+    final apkPath = path.join(stagingDir.path, 'update.apk');
+
+    _currentDownloadToken = CancelToken();
+    try {
+      await _downloader.download(
+        manifest.downloadUrl,
+        apkPath,
+        onProgress: onProgress,
+        expectedSize: manifest.compressedSize,
+        cancelToken: _currentDownloadToken,
+      );
+    } finally {
+      _currentDownloadToken = null;
+    }
+
+    onVerifying?.call();
+
+    final apkFile = File(apkPath);
+    final verified = await _verifier.verifyPackage(apkFile, manifest);
+    if (!verified) {
+      await apkFile.delete();
+      throw UpdateException(
+        'Package integrity verification failed: '
+        'the package hash or manifest signature did not verify. '
+        'The download may be corrupted or tampered with.',
+      );
+    }
+
+    await _assertManifestNotRolledBack(manifest);
+    await persistStagedManifest(stagingDir, manifest);
+    await _antiFreezeStore.advance(_channel, manifest.releaseDate);
+
+    // `extractPath` names the APK itself here rather than a directory. The
+    // Android apply path hands that exact file to the installer; nothing on
+    // this platform ever walks it as a tree.
+    final markerFile = File(path.join(stagingDir.path, 'ready.json'));
+    await markerFile.writeAsString(
+      jsonEncode({
+        'version': manifest.version,
+        'buildNumber': manifest.buildNumber,
+        'stagedAt': DateTime.now().toIso8601String(),
+        'extractPath': apkPath,
+      }),
+    );
+  }
+
+  /// The manifest of the currently staged update, or null when nothing is
+  /// staged or the stored manifest cannot be read.
+  ///
+  /// Callers get the manifest the update was actually staged from, rather
+  /// than rebuilding a stand-in out of `ready.json` — which carries only a
+  /// version and a build number, so every other field would have to be
+  /// invented.
+  Future<UpdateManifest?> readStagedManifest() async =>
+      _readStagedManifest(await _getStagingDirectory());
+
   /// Get the staging directory for updates
   Future<Directory> _getStagingDirectory() async {
     final updatesRoot = await _getUpdatesRootDirectory();
@@ -503,6 +786,27 @@ class UpdateService {
           stagedAt is! String ||
           extractPath is! String) {
         throw const FormatException('marker missing required fields');
+      }
+
+      // A staged build that does not supersede the running one has already
+      // been installed, or been overtaken by a newer install. Android always
+      // lands here after a successful update: the OS replaces and relaunches
+      // the app, and nothing clears staging the way the desktop helper does.
+      // Offering it would announce the running version as a pending update.
+      if (!UpdateManifest.buildSupersedes(
+        version,
+        buildNumber,
+        _currentVersion,
+        _currentBuildNumber,
+      )) {
+        developer.log(
+          'Discarding staged update $version+$buildNumber: the running build '
+          '$_currentVersion+$_currentBuildNumber is not older.',
+          name: 'UpdateService',
+          level: 800,
+        );
+        await clearStagedUpdate();
+        return null;
       }
 
       return StagedUpdate(
@@ -552,7 +856,7 @@ class UpdateService {
   /// no trusted key is present, matching the download-time posture. On
   /// `Process.start` failure the in-memory status returns to staged rather
   /// than `exit(0)`-ing into a half-broken state.
-  Future<void> applyUpdate() async {
+  Future<UpdateApplyOutcome> applyUpdate() async {
     final staged = await getStagedUpdate();
     if (staged == null) {
       throw UpdateException('No staged update available');
@@ -603,6 +907,15 @@ class UpdateService {
     // releaseDate is authoritative — refuse a rollback/freeze here too.
     await _assertManifestNotRolledBack(manifest);
 
+    // Android hands the verified APK to the system installer. There is no
+    // file swap to perform, no updater binary to launch and no backup to
+    // keep: Android replaces the package atomically and keeps the user's
+    // data, and a failed install leaves the current app in place.
+    if (_currentPlatform == 'android') {
+      await _applyAndroidUpdate(staged.extractPath, manifest);
+      return UpdateApplyOutcome.handedToPlatformInstaller;
+    }
+
     // Build expected_hashes.json (POSIX-relative path -> sha256 hex)
     // straight from the verified manifest. The Rust updater will
     // re-verify this exact data after apply.
@@ -612,7 +925,7 @@ class UpdateService {
     );
 
     final installDir = await _getInstallDirectory();
-    final updaterPath = path.join(installDir.path, 'updater.exe');
+    final updaterPath = path.join(installDir.path, updaterExecutableName);
     final backupDir = await _getBackupDirectory();
     final pendingFile = await _getPendingInstallFile();
 
@@ -621,7 +934,10 @@ class UpdateService {
     // was bundled). We only do this AFTER the verified marker check
     // above so we never copy an updater binary from an untrusted tree.
     if (!await File(updaterPath).exists()) {
-      final stagedUpdaterPath = path.join(staged.extractPath, 'updater.exe');
+      final stagedUpdaterPath = path.join(
+        staged.extractPath,
+        updaterExecutableName,
+      );
       developer.log(
         'Updater not in install dir, checking staging: $stagedUpdaterPath',
         name: 'UpdateService',
@@ -798,7 +1114,7 @@ class UpdateService {
     }
 
     final installDir = await _getInstallDirectory();
-    final updaterPath = path.join(installDir.path, 'updater.exe');
+    final updaterPath = path.join(installDir.path, updaterExecutableName);
     if (!await File(updaterPath).exists()) {
       throw UpdateException(
         'Updater executable not found at $updaterPath; cannot roll back. '
@@ -1093,13 +1409,34 @@ class UpdateCheckResult {
   final UpdateManifest? manifest;
   final bool requiresManualUpgrade;
 
+  /// Release notes to show for this update, in markdown.
+  ///
+  /// Separate from [UpdateManifest.releaseNotes] because that field is inside
+  /// the signed canonical payload: rewriting it to carry a GitHub release body
+  /// would invalidate every signature. When the source is GitHub this holds
+  /// the release body, which is the text a human actually wrote; otherwise it
+  /// falls back to the manifest's own notes.
+  final String? releaseNotes;
+
+  /// Human-facing page for this release, when the source has one. Lets the UI
+  /// offer "read the full notes" for a build it cannot install here.
+  final String? releasePageUrl;
+
+  /// Why there is no update, when the answer is something other than "this
+  /// build is current" — for example a newer release that publishes nothing
+  /// for this platform. Null when the plain reading applies.
+  final String? unavailableReason;
+
   UpdateCheckResult({
     required this.hasUpdate,
     required this.currentVersion,
     this.availableVersion,
     this.manifest,
     this.requiresManualUpgrade = false,
-  });
+    String? releaseNotes,
+    this.releasePageUrl,
+    this.unavailableReason,
+  }) : releaseNotes = releaseNotes ?? manifest?.releaseNotes;
 }
 
 /// Information about a staged update
@@ -1135,6 +1472,23 @@ class PendingInstallStatus {
 
   const PendingInstallStatus.requiresAttention(String message)
     : this._(PendingInstallState.requiresAttention, message);
+}
+
+/// How [UpdateService.applyUpdate] handed the update off.
+///
+/// Callers used to infer this from still being alive afterwards — the desktop
+/// path exits the process, so any return meant something had gone wrong. That
+/// inference is false on Android, where the OS installer takes over and this
+/// process keeps running normally, and it made a successful install report
+/// itself as "the app should have restarted".
+enum UpdateApplyOutcome {
+  /// A helper process was launched and this process is exiting. Reaching a
+  /// caller at all means the handoff failed.
+  processExiting,
+
+  /// The update was handed to the platform's own installer. This process
+  /// stays alive; the OS replaces it once the user confirms.
+  handedToPlatformInstaller,
 }
 
 /// Exception thrown by update operations

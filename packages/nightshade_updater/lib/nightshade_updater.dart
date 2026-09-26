@@ -15,6 +15,9 @@ export 'src/models/update_state.dart';
 // Services
 export 'src/services/update_service.dart';
 export 'src/services/update_downloader.dart';
+export 'src/services/android_installer.dart';
+export 'src/services/github_release_source.dart';
+export 'src/services/update_prompt_store.dart';
 export 'src/services/update_verifier.dart';
 export 'src/services/lan_push_receiver.dart';
 // Adapter interface that the headless API depends on. Wraps

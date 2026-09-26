@@ -513,6 +513,14 @@ class UpdateController {
   /// Configured update-server URL, or null when the server is not set.
   String? get updateServerUrl => _serverUrl;
 
+  /// Where this controller looks for updates, for logs and status payloads.
+  ///
+  /// A null [updateServerUrl] no longer means "nothing configured" — it is
+  /// the normal state of a build reading GitHub releases — so reporting it as
+  /// `unconfigured` would tell an operator OTA was off while it was working.
+  String get updateSourceLabel =>
+      _serverUrl?.isNotEmpty == true ? _serverUrl! : 'github-releases';
+
   /// Whether this build can cryptographically authenticate update manifests
   /// (a trusted Ed25519 public key is compiled in and not revoked). False
   /// means OTA is check-only: downloads/applies fail closed. The bootstrap
@@ -542,7 +550,7 @@ class UpdateController {
     final hasChannelOverride =
         channelOverride != null && channelOverride.isNotEmpty;
     if (hasChannelOverride) {
-      _service.configure(serverUrl: _serverUrl ?? '', channel: channelOverride);
+      _service.setChannel(channelOverride);
     }
     // A fresh check supersedes the prior in-memory offer. This prevents a
     // failed/aborted re-check from downloading a manifest the operator no
@@ -646,7 +654,7 @@ class UpdateController {
       // configured channel even when the request fails or is aborted so a
       // later ordinary check cannot silently keep using beta/nightly.
       if (hasChannelOverride) {
-        _service.configure(serverUrl: _serverUrl ?? '', channel: _channel);
+        _service.setChannel(_channel);
       }
       _endOperation('check');
       _settleCancellation();
@@ -842,17 +850,22 @@ class UpdateController {
       );
 
       try {
-        await _service.applyUpdate();
+        final outcome = await _service.applyUpdate();
         // Production normally exits inside applyUpdate after the updater process
         // is launched, so this branch is primarily for embedders/tests where the
-        // handoff can return. Never publish `UpdateApplied` before the spawn has
-        // at least succeeded; the definitive applied timestamp is written by
-        // bootstrap after the new build verifies its pending-install marker.
+        // handoff can return — and for a platform installer, which by design
+        // leaves this process running. Never publish `UpdateApplied` before the
+        // spawn has at least succeeded; the definitive applied timestamp is
+        // written by bootstrap after the new build verifies its
+        // pending-install marker.
         _eventsController.add(
           UpdateAppliedEvent(
             fromVersion: _currentVersion,
             toVersion: staged.version,
-            restartRequired: true,
+            // A platform install is not finished when this returns: the OS is
+            // still waiting on the user, and nothing here can restart it.
+            restartRequired:
+                outcome != UpdateApplyOutcome.handedToPlatformInstaller,
           ),
         );
       } catch (e) {
