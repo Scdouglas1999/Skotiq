@@ -142,7 +142,14 @@ fn final_run_up_position(
     step_size: i32,
 ) -> (i32, RunUpSource) {
     match resolve_run_up(operator_backlash_in, measured_backlash, step_size) {
-        (Some(run_up), source) => (best_position.saturating_sub(run_up), source),
+        // Never below zero, unless the sweep itself already went there: near
+        // the bottom of travel a figure-sized run-up commanded a negative
+        // position the driver refuses, and a good sweep ended as a failure. A
+        // shorter run-up is the best this travel allows.
+        (Some(run_up), source) => (
+            best_position.saturating_sub(run_up).max(sweep_start.min(0)),
+            source,
+        ),
         (None, source) => (
             best_position
                 .saturating_sub(step_size.max(1))
@@ -1719,6 +1726,20 @@ mod final_approach_tests {
         let (run_up, _) = final_run_up_position(1000, 900, 0, Some(8), 1);
         // 8 + max(2, 1, 10) = 18.
         assert_eq!(run_up, 982);
+    }
+
+    /// A backlash-sized run-up near the bottom of travel must not command a
+    /// position below zero that the sweep never visited: the driver refuses
+    /// it, and a good sweep then ends as a failure.
+    #[test]
+    fn a_run_up_never_goes_below_travel_the_sweep_did_not_cover() {
+        let (run_up, _) = final_run_up_position(60, 25, 0, Some(105), 75);
+        assert!(
+            run_up >= 0,
+            "run-up to {} is below the focuser's travel",
+            run_up
+        );
+        assert!(run_up < 60, "the last move must still travel upward");
     }
 
     /// A best focus at the very bottom of the sweep still gets a run-up; the
