@@ -2,6 +2,21 @@ part of '../headless_api_server.dart';
 
 /// Bearer-token authentication, session ownership and paired-device activity.
 extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
+  /// Holds each request until `start()` has loaded the paired session tokens,
+  /// so the auth check below never refuses a valid paired device because the
+  /// pairing database had not been read yet.
+  Middleware _pairedTokenHydrationGate() {
+    return (innerHandler) {
+      return (request) async {
+        final pending = _pairedTokenHydration;
+        if (pending != null) {
+          await pending;
+        }
+        return innerHandler(request);
+      };
+    };
+  }
+
   /// Middleware that validates Bearer token authentication.
   ///
   /// The authentication-exempt surface is declared once in

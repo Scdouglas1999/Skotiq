@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show LazyDatabase;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -598,6 +600,89 @@ void main() {
       }
     },
   );
+
+  test('a paired token is never refused as invalid while start() is still '
+      'hydrating paired sessions', () async {
+    // A real host opens the pairing database lazily on the first query, so
+    // hydration takes as long as that open does. A request that lands in
+    // that window must not be told its token is invalid: a remote client
+    // treats that answer as terminal and asks the operator to re-pair.
+    final dir = await Directory.systemTemp.createTemp('pairing_gate');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/pairing.sqlite');
+    const sessionToken = 'persisted-session-token';
+    final seed = PairingDatabase.forTesting(NativeDatabase(file));
+    await seed.addPairedDevice(
+      deviceId: 'gated-device',
+      deviceName: 'Gated Device',
+      sessionToken: sessionToken,
+      deviceType: 'mobile',
+      expiresAt: DateTime.now().add(const Duration(days: 1)),
+      authGrantSpec: 'control',
+    );
+    await seed.close();
+
+    final gate = Completer<void>();
+    final gatedService = PairingService(
+      database: PairingDatabase.forTesting(
+        LazyDatabase(() async {
+          await gate.future;
+          return NativeDatabase(file);
+        }),
+      ),
+    );
+    addTearDown(() => gatedService.close());
+
+    final client = HttpClient();
+    addTearDown(() => client.close(force: true));
+    final gatedContainer = createHeadlessTestContainer(
+      overrides: [
+        appVersionProvider.overrideWithValue(
+          const AppVersionInfo(version: '2.5.0', buildNumber: 5),
+        ),
+      ],
+    );
+    final gatedServer = HeadlessApiServer(
+      port: 0,
+      container: gatedContainer,
+      bindLocalOnly: true,
+      authToken: 'admin-token',
+      pairingServiceFactory: () => gatedService,
+    );
+    final started = gatedServer.start();
+    try {
+      final deadline = DateTime.now().add(const Duration(seconds: 10));
+      while (gatedServer.actualPort == null || gatedServer.actualPort == 0) {
+        if (DateTime.now().isAfter(deadline)) {
+          fail('server never bound');
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      final uri = Uri.parse('http://127.0.0.1:${gatedServer.actualPort}');
+
+      final duringHydration = _request(
+        client,
+        uri,
+        '/api/devices',
+        token: sessionToken,
+      );
+      // Let the request reach the server before hydration can finish.
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      gate.complete();
+      final response = await duringHydration;
+      expect(
+        response.statusCode,
+        isNot(HttpStatus.forbidden),
+        reason: 'a valid paired token was refused during start-up',
+      );
+      await started;
+    } finally {
+      if (!gate.isCompleted) gate.complete();
+      await started;
+      await gatedServer.stop();
+      gatedContainer.dispose();
+    }
+  });
 }
 
 Future<_TestResponse> _request(
