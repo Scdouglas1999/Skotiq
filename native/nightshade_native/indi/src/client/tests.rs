@@ -1395,3 +1395,71 @@ async fn test_writer_task_clean_shutdown_leaves_connected_untouched() {
     assert!(connected.load(Ordering::SeqCst));
     assert!(event_rx.try_recv().is_err());
 }
+
+/// A port that refuses connections: bind, read the port, drop the listener.
+async fn refusing_port() -> u16 {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+    port
+}
+
+#[tokio::test]
+async fn a_failed_reconnect_with_backoff_does_not_forbid_the_next_recovery() {
+    let port = refusing_port().await;
+    let mut client = IndiClient::new("127.0.0.1", Some(port));
+    client.set_reconnection_config(ReconnectionConfig {
+        base_delay_secs: 1,
+        max_delay_secs: 1,
+        max_attempts: 2,
+        use_jitter: false,
+        jitter_factor: 0.0,
+    });
+
+    assert!(client.reconnect_with_backoff().await.is_err());
+
+    // The server may come back a minute later; the heartbeat's next pass must
+    // still be allowed to try.
+    assert!(
+        client.can_reconnect().await,
+        "a failed reconnect must not forbid the next one (reconnect_attempts={})",
+        client.reconnect_attempts().await
+    );
+}
+
+#[tokio::test]
+async fn an_aborted_reader_recovery_does_not_wedge_the_client() {
+    let port = refusing_port().await;
+    let client = Arc::new(tokio::sync::RwLock::new(IndiClient::new(
+        "127.0.0.1",
+        Some(port),
+    )));
+    // One prior failure makes recover_reader sleep its restart delay first,
+    // which is where a heartbeat stop or restart can abort it.
+    client
+        .read()
+        .await
+        .reader_consecutive_failures
+        .store(1, Ordering::SeqCst);
+
+    let task = {
+        let client = client.clone();
+        tokio::spawn(async move {
+            let _ = client.write().await.recover_reader().await;
+        })
+    };
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    task.abort();
+    let _ = task.await;
+
+    let guard = client.read().await;
+    assert!(
+        !guard.is_reconnecting(),
+        "an aborted recovery left the reconnecting flag set"
+    );
+    assert!(
+        guard.can_reconnect().await,
+        "an aborted recovery left the client unable to recover (reader_status={:?})",
+        guard.reader_status().await
+    );
+}

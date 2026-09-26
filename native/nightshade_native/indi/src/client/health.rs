@@ -129,11 +129,17 @@ impl IndiClient {
         let max_attempts = self.reconnection_config.max_attempts;
         let mut last_error = String::new();
 
-        // Set reconnecting flag to skip keepalive checks during reconnection
+        // Set reconnecting flag to skip keepalive checks during reconnection.
+        // The guard clears it, and the attempt counter, however this ends —
+        // including when the caller's future is dropped mid-backoff.
         self.reconnecting.store(true, Ordering::SeqCst);
+        let _in_progress = RecoveryInProgress {
+            reconnecting: self.reconnecting.clone(),
+            reconnect_attempts: self.reconnect_attempts.clone(),
+            reader_status: None,
+        };
 
-        // Ensure we clear the flag when done (using scope guard pattern)
-        let result = async {
+        async {
             for attempt in 1..=max_attempts {
                 self.reconnect_attempts.store(attempt, Ordering::SeqCst);
 
@@ -171,12 +177,7 @@ impl IndiClient {
                 last_error,
             })
         }
-        .await;
-
-        // Clear reconnecting flag
-        self.reconnecting.store(false, Ordering::SeqCst);
-
-        result
+        .await
     }
 
     /// Check if reconnection is currently in progress
@@ -206,8 +207,17 @@ impl IndiClient {
             });
         }
 
-        // Set reconnecting flag to skip keepalive checks during recovery
+        // Set reconnecting flag to skip keepalive checks during recovery. The
+        // guard clears it however this ends, and moves a reader still marked
+        // Restarting to Crashed: a heartbeat stopped or restarted while this
+        // slept its restart delay drops the future before either line below
+        // runs, and both markers make `can_reconnect()` refuse for good.
         self.reconnecting.store(true, Ordering::SeqCst);
+        let _in_progress = RecoveryInProgress {
+            reconnecting: self.reconnecting.clone(),
+            reconnect_attempts: self.reconnect_attempts.clone(),
+            reader_status: Some(self.reader_status.clone()),
+        };
 
         // Get current failure count for delay calculation
         let failures = self.reader_consecutive_failures();
@@ -238,7 +248,7 @@ impl IndiClient {
         }
 
         // Attempt to reconnect
-        let result = match self.connect().await {
+        match self.connect().await {
             Ok(_) => {
                 tracing::info!("Reader recovery successful after {} attempts", failures);
                 send_indi_event(
@@ -279,12 +289,7 @@ impl IndiClient {
                 );
                 Err(e)
             }
-        };
-
-        // Clear reconnecting flag
-        self.reconnecting.store(false, Ordering::SeqCst);
-
-        result
+        }
     }
 
     /// Check if a reconnection is safe (not already in progress)
@@ -336,5 +341,35 @@ impl IndiClient {
             }
         }
         Ok(())
+    }
+}
+
+/// Marks a reconnect or reader recovery as in progress and clears the markers
+/// when it ends, by return or by being dropped mid-await.
+///
+/// Every marker left behind makes `can_reconnect()` refuse, and the heartbeat
+/// is the only thing that retries: a stale `reconnecting` flag, a non-zero
+/// attempt counter after the attempts ran out, or a reader still Restarting
+/// after its recovery was cancelled each stranded the server for the rest of
+/// the night, although it answered again a minute later.
+struct RecoveryInProgress {
+    reconnecting: Arc<AtomicBool>,
+    reconnect_attempts: Arc<AtomicU32>,
+    reader_status: Option<Arc<RwLock<ReaderStatus>>>,
+}
+
+impl Drop for RecoveryInProgress {
+    fn drop(&mut self) {
+        self.reconnecting.store(false, Ordering::SeqCst);
+        self.reconnect_attempts.store(0, Ordering::SeqCst);
+        if let Some(status) = &self.reader_status {
+            // Nothing else holds this lock across an await, so the write is
+            // free here; if it were not, the holder is setting the status.
+            if let Ok(mut status) = status.try_write() {
+                if *status == ReaderStatus::Restarting {
+                    *status = ReaderStatus::Crashed;
+                }
+            }
+        }
     }
 }
