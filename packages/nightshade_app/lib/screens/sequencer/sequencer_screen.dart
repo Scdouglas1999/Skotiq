@@ -376,13 +376,14 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
     // Builder tab.
     final currentTab = ref.watch(sequencerTabProvider);
     final failed = executionState == SequenceExecutionState.failed;
-    final errors =
-        failed ? ref.watch(liveSequenceStatsProvider)?.errorMessages : null;
-    final failure = errors != null && errors.isNotEmpty
-        ? errors.last
-        : failed
-            ? ref.watch(sequenceProgressProvider).message
-            : null;
+    final stats = failed ? ref.watch(liveSequenceStatsProvider) : null;
+    final failure = failed
+        ? runFailureHeadline(
+              terminalCause: stats?.terminalCause,
+              errors: stats?.errorMessages,
+            ) ??
+            ref.watch(sequenceProgressProvider).message
+        : null;
 
     // The inspector's session memory of last-known per-node progress must
     // fold every progress update whether or not the panel is open — the
