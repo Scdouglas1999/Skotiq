@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/weather/weather_models.dart';
 import '../models/equipment/equipment_models.dart';
@@ -112,12 +113,18 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   /// sample before committing to the resume.
   static const _autoResumeHoldoff = Duration(minutes: 5);
 
+  /// Wall clock for the park-before-dawn check. Injectable so a test can
+  /// stand half an hour before dawn without waiting for one.
+  final DateTime Function() _clock;
+
   WeatherSafetyNotifier(
     Ref ref, {
     Duration autoResumeDelay = _autoResumeHoldoff,
+    @visibleForTesting DateTime Function()? clock,
   }) : _ref = ref,
        _backendNotifier = ref.read(backendProvider.notifier),
        _autoResumeDelay = autoResumeDelay,
+       _clock = clock ?? DateTime.now,
        super(WeatherSafetyState.initial()) {
     final backend = _ref.read(backendProvider);
     if (backend is NetworkBackend) {
