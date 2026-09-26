@@ -526,6 +526,12 @@ void main() {
         secondContainer.dispose();
       }
     },
+    // Three servers, each opening a real file-backed database and running its
+    // schema migration, plus a full stop/restart cycle to prove the grants
+    // survive it. That is genuinely more than 30 seconds of work on an
+    // ordinary machine, so the default per-test timeout fails it for being
+    // slow rather than wrong.
+    timeout: const Timeout(Duration(minutes: 5)),
   );
 
   // Regression for the GUI-mode restart outage: `start()` used to skip

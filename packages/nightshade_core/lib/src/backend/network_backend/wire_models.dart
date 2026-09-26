@@ -294,6 +294,14 @@ class RemoteVersionInfo {
   final String platform;
   final String? dataDir;
   final String? updateServerUrl;
+
+  /// Where the host looks for updates, when it has a source at all.
+  ///
+  /// [updateServerUrl] alone can no longer answer that: a host reading the
+  /// project's GitHub releases has no server URL, and treating a null URL as
+  /// "OTA is off" told the operator updates were unavailable on a rig that
+  /// could update perfectly well. Null only when the host reported no source.
+  final String? updateSource;
   final DateTime? lastUpdateCheck;
   final DateTime? lastUpdateApplied;
 
@@ -304,6 +312,7 @@ class RemoteVersionInfo {
     required this.platform,
     this.dataDir,
     this.updateServerUrl,
+    this.updateSource,
     this.lastUpdateCheck,
     this.lastUpdateApplied,
   });
@@ -354,6 +363,12 @@ class RemoteVersionInfo {
       platform: platform,
       dataDir: json['dataDir'] is String ? json['dataDir'] as String : null,
       updateServerUrl: safeUpdateServerUrl.isEmpty ? null : safeUpdateServerUrl,
+      updateSource: switch (json['updateSource']) {
+        final String s when s.trim().isNotEmpty => s.trim(),
+        // An older host predates this field. It only ever had a server URL,
+        // so its presence is the honest answer for those builds.
+        _ => safeUpdateServerUrl.isEmpty ? null : safeUpdateServerUrl,
+      },
       lastUpdateCheck: parse(json['lastUpdateCheck']),
       lastUpdateApplied: parse(json['lastUpdateApplied']),
     );

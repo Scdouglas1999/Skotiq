@@ -43,9 +43,10 @@ class UpdateStack {
 
 /// Construct + bootstrap the production update stack.
 ///
-/// Returns null when [serverUrl] resolves to an empty string AND no
-/// `NIGHTSHADE_UPDATE_SERVER` env var is set. Callers may treat that as
-/// "OTA is opt-in and the operator opted out".
+/// Always returns a stack: with no [serverUrl] and no
+/// `NIGHTSHADE_UPDATE_SERVER`, the source is the project's GitHub releases.
+/// (The nullable return is kept because callers already handle it, and
+/// because the construction below can still fail.)
 ///
 /// Errors during construction are surfaced via [logger] and re-thrown so
 /// the caller can decide whether to fall back to a no-OTA configuration
@@ -76,23 +77,37 @@ Future<UpdateStack?> provisionUpdateStack({
     currentVersion: currentVersion,
     currentBuildNumber: currentBuildNumber,
   );
+  // An explicit update server wins — that is how an appliance is pointed at a
+  // private build host. With none set, read the project's GitHub releases,
+  // the same source the GUI uses, so a headless rig is not left as the one
+  // install that can never see an update.
   if (resolvedUrl.isNotEmpty) {
     service.configure(serverUrl: resolvedUrl, channel: resolvedChannel);
-    // Observability gap: a build with an update server but no compiled-in
-    // NIGHTSHADE_UPDATE_PUBLIC_KEY looks live (checks succeed) until a
-    // download is attempted, where it fails closed. Warn loudly so this is
-    // not mistaken for working OTA. The stack is still returned — fail-closed
-    // is preserved downstream in downloadAndStage / applyUpdate.
-    if (!service.canAuthenticateUpdates) {
-      logger.warning(
-        'OTA update server is configured but this build has no trusted update '
-        'public key (NIGHTSHADE_UPDATE_PUBLIC_KEY) compiled in. Update checks '
-        'will run, but downloads will be refused (fail-closed). Provision the '
-        'vendor public key at build time to enable signed OTA updates.',
-        source: logSource,
-        fields: {'update_server': resolvedUrl, 'channel': resolvedChannel},
-      );
-    }
+  } else {
+    service.configureGithubSource(
+      owner: kNightshadeReleaseOwner,
+      repo: kNightshadeReleaseRepo,
+      channel: resolvedChannel,
+    );
+  }
+
+  // Observability gap: a build with an update source but no compiled-in
+  // NIGHTSHADE_UPDATE_PUBLIC_KEY looks live (checks succeed) until a
+  // download is attempted, where it fails closed. Warn loudly so this is
+  // not mistaken for working OTA. The stack is still returned — fail-closed
+  // is preserved downstream in downloadAndStage / applyUpdate.
+  if (!service.canAuthenticateUpdates) {
+    logger.warning(
+      'An OTA update source is configured but this build has no trusted '
+      'update public key (NIGHTSHADE_UPDATE_PUBLIC_KEY) compiled in. Update '
+      'checks will run, but downloads will be refused (fail-closed). Provision '
+      'the vendor public key at build time to enable signed OTA updates.',
+      source: logSource,
+      fields: {
+        'update_source': resolvedUrl.isNotEmpty ? resolvedUrl : 'github',
+        'channel': resolvedChannel,
+      },
+    );
   }
 
   final controller = UpdateController(

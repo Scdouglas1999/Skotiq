@@ -573,7 +573,7 @@ void main(List<String> args) async {
           source: _headlessLogSource,
           fields: {
             'channel': stack.controller.channel,
-            'serverUrl': stack.controller.updateServerUrl ?? 'unconfigured',
+            'updateSource': stack.controller.updateSourceLabel,
           },
         );
 
@@ -597,9 +597,8 @@ void main(List<String> args) async {
         }
       } else {
         runtimeLogger.info(
-          'OTA update stack not provisioned (no server URL configured); '
-          '/api/system/update/* will be unavailable. Set '
-          'NIGHTSHADE_UPDATE_SERVER to enable.',
+          'OTA update stack not provisioned; /api/system/update/* will be '
+          'unavailable.',
           source: _headlessLogSource,
         );
       }

@@ -209,8 +209,14 @@ class NightshadeApp extends ConsumerWidget {
                   ),
                 );
 
-                // Only add UpdateManager on desktop (not mobile - uses app stores)
-                if (isDesktop) {
+                // Desktop and Android both install Nightshade from its
+                // GitHub releases, so both can update in place. (The old
+                // reasoning here — that mobile updates through an app store
+                // — was never true of this APK: it is sideloaded, so with
+                // the manager left off, an Android install had no way to
+                // learn a new version existed.) iOS is excluded because
+                // sideloading an update is not possible there.
+                if (isDesktop || (!kIsWeb && Platform.isAndroid)) {
                   return UpdateManagerWidget(child: result);
                 }
                 return result;

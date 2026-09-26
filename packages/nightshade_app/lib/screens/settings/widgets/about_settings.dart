@@ -1,13 +1,12 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:nightshade_core/nightshade_core.dart';
 import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:nightshade_updater/nightshade_updater.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../utils/snackbar_helper.dart';
@@ -77,104 +76,6 @@ typedef ExternalUrlLauncher = Future<bool> Function(Uri uri);
 final aboutLinkLauncherProvider = Provider<ExternalUrlLauncher>(
   (ref) => (uri) async => await canLaunchUrl(uri) && await launchUrl(uri),
 );
-
-/// The newest release published for this project.
-class LatestRelease {
-  /// Version as published, with any leading `v` stripped.
-  final String version;
-
-  /// Human-facing page for the release (release notes + downloads).
-  final String url;
-
-  const LatestRelease({required this.version, required this.url});
-}
-
-/// Resolves the newest published release, or null when the project has none.
-typedef LatestReleaseChecker = Future<LatestRelease?> Function();
-
-/// Why the releases API and not the in-app updater: `UpdateService` talks to a
-/// Nightshade update server (`/api/version` + signed manifests) that no shipped
-/// desktop build is configured with — `UpdateNotifier.configure` is only ever
-/// called by the headless appliance wiring, so the GUI's updater is inert and
-/// the app could never tell anyone a new version existed. The published
-/// releases page is the channel that actually exists today. This only reports;
-/// it never downloads or installs, so it needs none of the signing material
-/// the OTA path (correctly) refuses to run without.
-final latestReleaseCheckerProvider = Provider<LatestReleaseChecker>(
-  (ref) => _fetchLatestRelease,
-);
-
-Future<LatestRelease?> _fetchLatestRelease() async {
-  final response = await http.get(
-    Uri.parse(
-      'https://api.github.com/repos/Scdouglas1999/Nightshade/releases/latest',
-    ),
-    headers: const {'Accept': 'application/vnd.github+json'},
-  ).timeout(const Duration(seconds: 15));
-
-  // 404 is the documented answer for "this repository has no releases", which
-  // is not an error the operator can act on.
-  if (response.statusCode == 404) return null;
-  if (response.statusCode != 200) {
-    throw HttpException('the release server answered ${response.statusCode}');
-  }
-
-  final decoded = jsonDecode(response.body);
-  if (decoded is! Map<String, dynamic>) {
-    throw const FormatException('unexpected release payload');
-  }
-  final tag = decoded['tag_name'];
-  if (tag is! String || tag.trim().isEmpty) {
-    throw const FormatException('release carries no version tag');
-  }
-  final url = decoded['html_url'];
-  return LatestRelease(
-    version: normalizeReleaseVersion(tag),
-    url: url is String && url.isNotEmpty
-        ? url
-        : '$kNightshadeRepositoryUrl/releases/latest',
-  );
-}
-
-/// `v6.1.0` / ` 6.1.0 ` -> `6.1.0`.
-String normalizeReleaseVersion(String raw) {
-  final trimmed = raw.trim();
-  return trimmed.startsWith('v') || trimmed.startsWith('V')
-      ? trimmed.substring(1)
-      : trimmed;
-}
-
-/// Compare two dotted versions, ignoring any pre-release suffix.
-///
-/// Returns null when either side cannot be read as numbers, so the caller can
-/// name the published release without asserting that it is newer or older —
-/// guessing there would be exactly the kind of confident-and-wrong claim this
-/// screen is being fixed for.
-int? compareReleaseVersions(String a, String b) {
-  List<int>? parts(String value) {
-    final core = value.split(RegExp('[-+]')).first;
-    final segments = core.split('.');
-    final numbers = <int>[];
-    for (final segment in segments) {
-      final parsed = int.tryParse(segment.trim());
-      if (parsed == null) return null;
-      numbers.add(parsed);
-    }
-    return numbers.isEmpty ? null : numbers;
-  }
-
-  final left = parts(a);
-  final right = parts(b);
-  if (left == null || right == null) return null;
-  for (var i = 0;
-      i < (left.length > right.length ? left.length : right.length);
-      i++) {
-    final l = i < left.length ? left[i] : 0;
-    final r = i < right.length ? right[i] : 0;
-    if (l != r) return l.compareTo(r);
-  }
-  return 0;
-}
 
 class AboutSettings extends ConsumerWidget {
   final bool isMobile;
@@ -496,15 +397,20 @@ class _LicenseCard extends ConsumerWidget {
   }
 }
 
-/// Manual "is there a newer Nightshade?" check.
+/// Manual "is there a newer Nightshade?" check, and the way in to installing
+/// one.
 ///
 /// This is the only local update surface Settings has: searching it for
 /// "update" otherwise returns About and the appliance OTA page, which is about
-/// a REMOTE rig and renders a single sentence off-network. The in-app updater
-/// cannot answer either — nothing configures its server URL on desktop. An
-/// astrophotographer needs to know a fix landed before the night, not after, so
-/// this asks the published releases feed on demand and says exactly what it
-/// found. It never downloads or installs anything.
+/// a REMOTE rig and renders a single sentence off-network.
+///
+/// It used to ask the releases API directly and could only report, because
+/// the in-app updater had no source configured and so could never answer.
+/// Shipped builds now read the project's GitHub releases through that updater,
+/// so this drives the real thing: a check here can lead to an install instead
+/// of to a browser tab. Finding an update hands off to the standard update
+/// dialog, which owns download, verification and apply — including the
+/// hardware gate that refuses to swap the binary mid-exposure.
 class _SoftwareUpdateCard extends ConsumerStatefulWidget {
   final bool isMobile;
 
@@ -517,64 +423,106 @@ class _SoftwareUpdateCard extends ConsumerStatefulWidget {
 
 class _SoftwareUpdateCardState extends ConsumerState<_SoftwareUpdateCard> {
   bool _checking = false;
-  int _generation = 0;
-  LatestRelease? _latest;
-  String? _error;
-  DateTime? _checkedAt;
 
+  /// Run an unthrottled check through the real updater.
+  ///
+  /// Startup uses the throttled path; a button labelled "Check for updates"
+  /// has to actually check, or pressing it after a release lands would sit
+  /// there reporting the same stale answer for hours.
   Future<void> _check() async {
     if (_checking) return;
-    final generation = ++_generation;
-    setState(() {
-      _checking = true;
-      _error = null;
-    });
+    setState(() => _checking = true);
     try {
-      final latest = await ref.read(latestReleaseCheckerProvider)();
-      if (!mounted || generation != _generation) return;
-      setState(() {
-        _latest = latest;
-        _checkedAt = DateTime.now();
-        _checking = false;
-      });
-    } catch (e) {
-      if (!mounted || generation != _generation) return;
-      setState(() {
-        _error = '$e';
-        _checking = false;
-      });
+      await ref.read(updateProvider.notifier).checkForUpdates();
+    } finally {
+      if (mounted) setState(() => _checking = false);
     }
   }
 
-  /// What the check found, in the operator's terms. Never guesses: an
-  /// unparseable tag is reported by name without a newer/older claim.
-  String _statusLine(String current) {
-    if (_checking) return 'Checking for updates…';
-    if (_error != null) return 'Could not check for updates: $_error';
-    final latest = _latest;
-    if (_checkedAt == null) {
-      return 'Nightshade does not check for updates on its own.';
+  /// What the check found, in the operator's terms.
+  ///
+  /// Never claims newer-or-older on its own: the version comparison lives in
+  /// the manifest gating, and this only renders the conclusion it reached.
+  String _statusLine(UpdateState state) {
+    if (_checking || state.status == UpdateStatus.checking) {
+      return 'Checking for updates…';
     }
-    if (latest == null) {
-      return 'No published release found for this project.';
+
+    switch (state.status) {
+      case UpdateStatus.checking:
+        // Unreachable — the guard above takes this — but the switch stays
+        // exhaustive so a new status cannot be added without deciding what
+        // this card says about it.
+        return 'Checking for updates…';
+      case UpdateStatus.error:
+        return 'Could not check for updates: '
+            '${state.errorMessage ?? "unknown error"}';
+      case UpdateStatus.available:
+        final version = state.availableUpdate?.version ?? 'A new version';
+        if (state.requiresManualUpgrade) {
+          return 'Nightshade $version is available, but this build is too old '
+              'to update in place. Download the full release and reinstall.';
+        }
+        return 'Nightshade $version is available.';
+      case UpdateStatus.downloading:
+        return 'Downloading '
+            '${(state.downloadProgress * 100).toStringAsFixed(0)}%…';
+      case UpdateStatus.verifying:
+        return 'Verifying the download…';
+      case UpdateStatus.staged:
+        final version = state.availableUpdate?.version ?? 'An update';
+        // Staged with a message: an install attempt was refused for a reason
+        // the operator can fix (Android's install permission), and the
+        // download is still ready once they have.
+        final blocked = state.errorMessage;
+        if (blocked != null && blocked.isNotEmpty) {
+          return '$version is downloaded and ready to install. $blocked';
+        }
+        return '$version is downloaded and ready to install.';
+      case UpdateStatus.applying:
+        return 'Installing…';
+      case UpdateStatus.upToDate:
+        // A newer release that ships nothing for this platform is not the
+        // same as being current, and must not be reported as it.
+        final unavailable = state.unavailableReason;
+        if (unavailable != null && unavailable.isNotEmpty) {
+          return '$unavailable You are running ${state.currentVersion}.';
+        }
+        if (state.skippedVersion != null) {
+          return 'You are running ${state.currentVersion}. '
+              'Version ${state.skippedVersion} was skipped.';
+        }
+        return 'You are running the latest release '
+            '(${state.currentVersion}).';
+      case UpdateStatus.idle:
+        if (!state.sourceConfigured) {
+          return 'No update source is configured, so this build does not '
+              'check for updates.';
+        }
+        // Reached when no check has completed yet — either the throttled
+        // startup check has not run, or this platform does not run one at
+        // all. Claiming a background check here would be false on the
+        // second, so this says only what is certainly true.
+        return 'No update check has run yet. '
+            'Check now to look for a new version.';
     }
-    final comparison = compareReleaseVersions(latest.version, current);
-    if (comparison == null) {
-      return 'Latest published release: ${latest.version}.';
-    }
-    if (comparison > 0) {
-      return 'Nightshade ${latest.version} is available.';
-    }
-    return 'You are running the latest release (${latest.version}).';
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = NightshadeColors.of(context);
-    final appVersion = ref.watch(appVersionProvider);
-    final latest = _latest;
-    final isNewer = latest != null &&
-        (compareReleaseVersions(latest.version, appVersion.version) ?? 0) > 0;
+    final state = ref.watch(updateProvider);
+
+    final isError = state.status == UpdateStatus.error;
+    final busy =
+        _checking || state.isBusy || state.status == UpdateStatus.checking;
+
+    // An offered update that this build may install in place. A build below
+    // the OTA minimum version is offered, but only as a manual reinstall.
+    final canInstall =
+        state.status == UpdateStatus.available && !state.requiresManualUpgrade;
+    final isStaged = state.status == UpdateStatus.staged;
+    final releasePageUrl = state.releasePageUrl;
 
     return NightshadePanel(
       child: Column(
@@ -587,9 +535,9 @@ class _SoftwareUpdateCardState extends ConsumerState<_SoftwareUpdateCard> {
           ),
           const SizedBox(height: 12),
           Text(
-            _statusLine(appVersion.version),
+            _statusLine(state),
             style: NightshadeTypography.caption.copyWith(
-              color: _error != null ? colors.error : colors.textSecondary,
+              color: isError ? colors.error : colors.textSecondary,
               height: 1.4,
             ),
           ),
@@ -603,33 +551,52 @@ class _SoftwareUpdateCardState extends ConsumerState<_SoftwareUpdateCard> {
                 icon: LucideIcons.refreshCw,
                 variant: ButtonVariant.secondary,
                 size: ButtonSize.small,
-                isLoading: _checking,
-                onPressed: _checking ? null : _check,
+                isLoading: busy,
+                onPressed: busy ? null : _check,
               ),
-              if (latest != null)
+              if (canInstall)
                 NightshadeButton(
-                  label: isNewer ? 'View release notes' : 'View releases',
-                  icon: LucideIcons.externalLink,
-                  variant:
-                      isNewer ? ButtonVariant.primary : ButtonVariant.ghost,
+                  label: 'Download and install',
+                  icon: LucideIcons.download,
+                  variant: ButtonVariant.primary,
                   size: ButtonSize.small,
-                  onPressed: () async {
-                    final uri = Uri.parse(latest.url);
-                    var launched = false;
-                    try {
-                      launched = await ref.read(aboutLinkLauncherProvider)(uri);
-                    } catch (_) {
-                      launched = false;
-                    }
-                    if (!launched && context.mounted) {
-                      context.showErrorSnackBar('Could not open ${latest.url}');
-                    }
-                  },
+                  onPressed: () =>
+                      ref.read(updateProvider.notifier).downloadUpdate(),
+                ),
+              if (isStaged)
+                NightshadeButton(
+                  label: 'Install and restart',
+                  icon: LucideIcons.refreshCw,
+                  variant: ButtonVariant.primary,
+                  size: ButtonSize.small,
+                  onPressed: () =>
+                      ref.read(updateProvider.notifier).applyUpdate(),
+                ),
+              if (releasePageUrl != null && releasePageUrl.isNotEmpty)
+                NightshadeButton(
+                  label: 'Release notes',
+                  icon: LucideIcons.externalLink,
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.small,
+                  onPressed: () => _openLink(releasePageUrl),
                 ),
             ],
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _openLink(String url) async {
+    final uri = Uri.parse(url);
+    var launched = false;
+    try {
+      launched = await ref.read(aboutLinkLauncherProvider)(uri);
+    } catch (_) {
+      launched = false;
+    }
+    if (!launched && mounted) {
+      context.showErrorSnackBar('Could not open $url');
+    }
   }
 }

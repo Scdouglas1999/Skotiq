@@ -77,5 +77,31 @@ void main() {
         );
       },
     );
+
+    test('update source is read, and inferred for hosts that predate it', () {
+      Map<String, Object?> version(Map<String, Object?> extra) => {
+        'currentVersion': '7.2.0',
+        'buildNumber': 42,
+        'channel': 'stable',
+        'platform': 'linux',
+        ...extra,
+      };
+
+      // A host reading GitHub releases has no server URL; the source field is
+      // what tells the client OTA is on.
+      final github = RemoteVersionInfo.fromJson(
+        version({'updateSource': 'github-releases'}),
+      );
+      expect(github.updateServerUrl, isNull);
+      expect(github.updateSource, 'github-releases');
+
+      // An older host only ever had a server URL.
+      final legacy = RemoteVersionInfo.fromJson(
+        version({'updateServerUrl': 'https://updates.example.com'}),
+      );
+      expect(legacy.updateSource, 'https://updates.example.com');
+
+      expect(RemoteVersionInfo.fromJson(version({})).updateSource, isNull);
+    });
   });
 }

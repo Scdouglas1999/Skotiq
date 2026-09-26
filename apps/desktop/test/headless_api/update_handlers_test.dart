@@ -74,6 +74,10 @@ class _FakeUpdateController implements UpdateController {
   String? get updateServerUrl => serverUrl;
 
   @override
+  String get updateSourceLabel =>
+      serverUrl?.isNotEmpty == true ? serverUrl! : 'github-releases';
+
+  @override
   DateTime? get lastUpdateCheck => DateTime.utc(2026, 5, 24, 12, 0);
 
   @override
@@ -197,8 +201,27 @@ void main() {
       expect(body['channel'], 'stable');
       expect(body['platform'], isA<String>());
       expect(body['updateServerUrl'], 'https://updates.example.com');
+      expect(body['updateSource'], 'https://updates.example.com');
       expect(body['lastUpdateCheck'], isA<String>());
     });
+
+    test(
+      'a host reading GitHub releases names that source, not an empty one',
+      () async {
+        // A null updateServerUrl used to be the client's only signal, and it
+        // rendered as "No update server configured" — telling the operator
+        // OTA was off on a rig that updates perfectly well.
+        controller.serverUrl = null;
+        final response = await translateHandlerErrors(
+          handlers.handleGetVersion(
+            Request('GET', Uri.parse('http://localhost/api/system/version')),
+          ),
+        );
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body.containsKey('updateServerUrl'), isFalse);
+        expect(body['updateSource'], 'github-releases');
+      },
+    );
 
     test(
       'GET /api/system/version never exposes URL credentials or tokens',

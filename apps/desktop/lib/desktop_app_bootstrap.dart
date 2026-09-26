@@ -510,7 +510,7 @@ class _ApiServerLifecycle {
             source: _logSource,
             fields: {
               'channel': stack.controller.channel,
-              'serverUrl': stack.controller.updateServerUrl ?? 'unconfigured',
+              'updateSource': stack.controller.updateSourceLabel,
             },
           );
         }

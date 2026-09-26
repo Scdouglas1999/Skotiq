@@ -151,9 +151,9 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
       setState(() {
         _loading = false;
         _loadError = notEnabled
-            ? 'Over-the-air updates aren\'t enabled on this appliance. Set '
-                'NIGHTSHADE_UPDATE_SERVER on the rig (and restart it) to manage '
-                'updates from here.'
+            ? 'This rig is running a build from before over-the-air updates '
+                'were wired up, so there is nothing to manage from here. '
+                'Update it once by hand and these controls appear.'
             : msg;
       });
     }
@@ -461,13 +461,22 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
                 style: NightshadeTypography.caption.copyWith(
                   color: colors.textMuted,
                 )),
-            if (v.updateServerUrl != null && v.updateServerUrl!.isNotEmpty)
-              Text('Update server: ${v.updateServerUrl}',
+            // A rig with no update server is no longer a rig that cannot
+            // update: with none set it reads the project's GitHub releases.
+            // Warning about a missing server there would report a fault that
+            // is not one.
+            if (v.updateSource == 'github-releases')
+              Text('Updates come from the published GitHub releases',
+                  style: NightshadeTypography.caption.copyWith(
+                    color: colors.textMuted,
+                  ))
+            else if (v.updateSource != null && v.updateSource!.isNotEmpty)
+              Text('Update server: ${v.updateSource}',
                   style: NightshadeTypography.caption.copyWith(
                     color: colors.textMuted,
                   ))
             else
-              Text('No update server configured (set NIGHTSHADE_UPDATE_SERVER)',
+              Text('This rig reports no update source',
                   style: NightshadeTypography.caption.copyWith(
                     color: colors.warning,
                   )),
@@ -575,10 +584,15 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
   ///
   /// Unknown (the version card has not loaded yet) counts as "yes" so the
   /// button is not disabled by a slow first poll.
-  bool get _hasUpdateServer {
+  bool get _hasUpdateSource {
     final version = _version;
     if (version == null) return true;
-    return (version.updateServerUrl ?? '').trim().isNotEmpty;
+    // A rig with no update server is not a rig with no updates: with none
+    // configured it reads the project's GitHub releases. Gating on the server
+    // URL alone would gray out Check on every rig that updates that way.
+    return (version.updateSource ?? version.updateServerUrl ?? '')
+        .trim()
+        .isNotEmpty;
   }
 
   Widget _buildActions(NightshadeColors colors) {
@@ -608,13 +622,12 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
         !status.requiresManualUpgrade &&
         status.canAuthenticateUpdates;
     final canRollback = canAct && status.rollbackAvailable;
-    // A check against an appliance with no update server can only ever end
-    // one way: the card already says "No update server configured", the job
-    // is accepted (green "Check request accepted"), and the status then flips
-    // to "Update failed" with a raw UpdateException. Offering the button at
-    // all was an invitation to manufacture a scary failure state; the version
-    // card immediately above already explains what is missing.
-    final canCheck = canAct && _hasUpdateServer;
+    // A check against an appliance with no update source at all can only end
+    // one way: the job is accepted (green "Check request accepted") and the
+    // status then flips to "Update failed" with a raw UpdateException.
+    // Offering the button there was an invitation to manufacture a scary
+    // failure state; the version card immediately above already says so.
+    final canCheck = canAct && _hasUpdateSource;
 
     return Wrap(
       spacing: 8,

@@ -59,6 +59,12 @@ class UpdateHandlers {
       'dataDir': _resolvedExecutableDir(),
       if (safeUpdateServerUrl.isNotEmpty)
         'updateServerUrl': safeUpdateServerUrl,
+      // Where updates come from. A host reading GitHub releases has no server
+      // URL, so without this the client cannot tell "OTA is off" from "OTA
+      // works, just not from a server you configured".
+      'updateSource': safeUpdateServerUrl.isNotEmpty
+          ? safeUpdateServerUrl
+          : controller.updateSourceLabel,
       if (controller.lastUpdateCheck != null)
         'lastUpdateCheck': controller.lastUpdateCheck!
             .toUtc()

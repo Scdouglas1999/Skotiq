@@ -349,6 +349,14 @@ class UpdateDownloadDialog extends StatelessWidget {
 class UpdateReadyDialog extends StatelessWidget {
   final String version;
   final bool isSessionActive;
+
+  /// True where the OS performs the install (Android's package installer)
+  /// rather than Nightshade swapping its own files and relaunching. The
+  /// wording has to follow: on those platforms the app does not restart
+  /// itself, the system hands the user a confirmation screen and replaces
+  /// the app once they accept.
+  final bool installsViaSystemInstaller;
+
   final VoidCallback onRestartNow;
   final VoidCallback onRestartLater;
 
@@ -356,6 +364,7 @@ class UpdateReadyDialog extends StatelessWidget {
     super.key,
     required this.version,
     required this.isSessionActive,
+    this.installsViaSystemInstaller = false,
     required this.onRestartNow,
     required this.onRestartLater,
   });
@@ -364,6 +373,7 @@ class UpdateReadyDialog extends StatelessWidget {
     BuildContext context, {
     required String version,
     required bool isSessionActive,
+    bool installsViaSystemInstaller = false,
     required VoidCallback onRestartNow,
     required VoidCallback onRestartLater,
   }) {
@@ -373,6 +383,7 @@ class UpdateReadyDialog extends StatelessWidget {
       builder: (context) => UpdateReadyDialog(
         version: version,
         isSessionActive: isSessionActive,
+        installsViaSystemInstaller: installsViaSystemInstaller,
         onRestartNow: () {
           Navigator.pop(context);
           onRestartNow();
@@ -396,13 +407,15 @@ class UpdateReadyDialog extends StatelessWidget {
       showCloseButton: false,
       actions: [
         NightshadeButton(
-          label: 'Restart Later',
+          label: installsViaSystemInstaller ? 'Not Now' : 'Restart Later',
           onPressed: onRestartLater,
           variant: ButtonVariant.outline,
           size: ButtonSize.medium,
         ),
         NightshadeButton(
-          label: isSessionActive ? 'Restart Anyway' : 'Restart Now',
+          label: installsViaSystemInstaller
+              ? (isSessionActive ? 'Install Anyway' : 'Install Now')
+              : (isSessionActive ? 'Restart Anyway' : 'Restart Now'),
           icon: LucideIcons.refreshCw,
           onPressed: onRestartNow,
           variant: isSessionActive
@@ -442,7 +455,10 @@ class UpdateReadyDialog extends StatelessWidget {
                   const SizedBox(width: NightshadeTokens.spaceMd),
                   Expanded(
                     child: Text(
-                      'An imaging session is in progress. It\'s recommended to wait until the session completes before restarting.',
+                      installsViaSystemInstaller
+                          ? 'An imaging session is in progress. Installing '
+                                'now closes Nightshade and interrupts it.'
+                          : 'An imaging session is in progress. It\'s recommended to wait until the session completes before restarting.',
                       style: NightshadeTypography.bodySm.copyWith(
                         color: colors.textSecondary,
                       ),
@@ -454,7 +470,10 @@ class UpdateReadyDialog extends StatelessWidget {
           ],
           const SizedBox(height: NightshadeTokens.spaceLg),
           Text(
-            'Nightshade will restart to complete the installation.',
+            installsViaSystemInstaller
+                ? 'Android will ask you to confirm, then replace Nightshade. '
+                      'Your data stays where it is.'
+                : 'Nightshade will restart to complete the installation.',
             style: NightshadeTypography.bodySm.copyWith(
               color: colors.textMuted,
             ),
