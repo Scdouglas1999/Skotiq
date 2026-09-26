@@ -55,6 +55,8 @@ rusb = "0.9"
 
 [dev-dependencies]
 tempfile = "3.8"
+# A pseudo-terminal stands in for a serial mount in the native reconnect tests.
+libc = "0.2"
 
 # Why unconditional, when the real dependency above is Windows-only: the ASCOM
 # connect read-back budget has to stay under this crate's own connect deadline

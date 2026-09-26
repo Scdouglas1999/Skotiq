@@ -211,6 +211,19 @@ impl DeviceManager {
 
         // Handle mounts
         if info.device_type == DeviceType::Mount {
+            // Release the port held by any earlier instance of this mount. A
+            // heartbeat loss marks the mount Error but leaves its driver in
+            // `native_mounts` with the serial port open, and serial ports open
+            // exclusively, so the reconnection loop's connect failed "busy"
+            // against Nightshade's own handle on every attempt. The old
+            // instance is dropped, not disconnected: disconnect() sends a
+            // stop-slew, and recovering a link must not halt a mount that may
+            // be slewing or tracking perfectly well.
+            if let Some(stale) = self.native_mounts.write().await.remove(&info.id) {
+                drop(stale);
+                tracing::info!("Released the previous native mount handle for {}", info.id);
+            }
+
             let baud_rate = parse_serial_mount_baud(&parts)?;
             let mut mount: Box<dyn NativeMount + Send + Sync> = match vendor {
                 "skywatcher" => {

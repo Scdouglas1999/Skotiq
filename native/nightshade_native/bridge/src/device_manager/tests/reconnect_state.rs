@@ -473,3 +473,86 @@ async fn enabling_passes_the_callers_setpoint_through_unchanged() {
         "no -10C (or any other) default may be substituted for an absent setpoint"
     );
 }
+
+/// A pseudo-terminal answering like an OnStep mount: every `#`-terminated
+/// command gets `OnStep#`. Returns the slave path the mount opens.
+#[cfg(target_os = "linux")]
+fn spawn_fake_onstep_pty() -> String {
+    use std::io::{Read, Write};
+    use std::os::fd::FromRawFd;
+
+    let mut master: libc::c_int = 0;
+    let mut slave: libc::c_int = 0;
+    // SAFETY: openpty writes two descriptors into the provided ints; the
+    // optional name, termios and winsize arguments are null.
+    let rc = unsafe {
+        libc::openpty(
+            &mut master,
+            &mut slave,
+            std::ptr::null_mut(),
+            std::ptr::null(),
+            std::ptr::null(),
+        )
+    };
+    assert_eq!(rc, 0, "openpty failed");
+    let mut name = [0 as libc::c_char; 256];
+    // SAFETY: `name` is a writable buffer of the length passed.
+    let rc = unsafe { libc::ttyname_r(slave, name.as_mut_ptr(), name.len()) };
+    assert_eq!(rc, 0, "ttyname_r failed");
+    // SAFETY: ttyname_r succeeded, so `name` holds a NUL-terminated string.
+    let path = unsafe { std::ffi::CStr::from_ptr(name.as_ptr()) }
+        .to_string_lossy()
+        .into_owned();
+    // The slave descriptor stays open (leaked) for the life of the test so the
+    // pty survives the mount closing its own handle.
+
+    // SAFETY: `master` is a fresh descriptor this function owns.
+    let mut port = unsafe { std::fs::File::from_raw_fd(master) };
+    std::thread::spawn(move || {
+        let mut buf = [0u8; 64];
+        loop {
+            match port.read(&mut buf) {
+                Ok(0) | Err(_) => break,
+                Ok(n) => {
+                    for _ in buf[..n].iter().filter(|b| **b == b'#') {
+                        if port.write_all(b"OnStep#").is_err() {
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    path
+}
+
+/// After a heartbeat loss the reconnection loop dispatches a fresh connect.
+/// Serial ports open exclusively, so for a native serial mount that connect
+/// can only succeed if the instance from before the loss has let go of the
+/// port; otherwise every attempt fails against Nightshade's own handle and the
+/// mount stays in Error although it is fine.
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn a_native_serial_mount_reconnects_after_a_heartbeat_loss() {
+    let path = spawn_fake_onstep_pty();
+    let manager = Arc::new(build_device_manager());
+    let device_id = format!("native:onstep:{}:9600", path);
+    let info = build_mount_info(&device_id, DriverType::Native);
+    manager.register_device(info.clone(), false).await;
+
+    manager
+        .connect_native(&info)
+        .await
+        .expect("first connect to the fake mount");
+
+    manager
+        .handle_heartbeat_lost(&device_id, true, 3, "Device not responding")
+        .await;
+
+    let reconnect = manager.connect_native(&info).await;
+    assert!(
+        reconnect.is_ok(),
+        "the reconnect after a heartbeat loss failed: {:?}",
+        reconnect
+    );
+}
