@@ -174,8 +174,12 @@ class TonightLastNightPanel extends ConsumerWidget {
     final statsJson = lastRun?.statsJson;
     if (lastRun != null && lastRun.status == 'failed' && statsJson != null) {
       try {
-        final errors = ParsedRunStats.fromJson(statsJson).errorMessages;
-        if (errors.isNotEmpty) failure = runFailureMessage(errors.last);
+        final parsed = ParsedRunStats.fromJson(statsJson);
+        final headline = runFailureHeadline(
+          terminalCause: parsed.terminalCause,
+          errors: parsed.errorMessages,
+        );
+        if (headline != null) failure = runFailureMessage(headline);
       } on FormatException {
         // Older runs may have an unreadable stats payload; the outcome remains visible.
       }
