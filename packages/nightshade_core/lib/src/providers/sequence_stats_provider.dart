@@ -231,13 +231,25 @@ class SequenceRunStats {
   /// would append the cause a second time. Faults recorded through
   /// [recordError] are untouched by this, so a node that really fails twice
   /// still records two errors.
+  ///
+  /// The two fixed placeholders a failure carries when nobody found a reason
+  /// (the native executor's "Sequence failed", and the "Unknown error" the
+  /// event handler substitutes for a missing field) are not causes, so they
+  /// leave [terminalCause] unset rather than being headlined as one.
   void recordTerminalError(String message) {
-    terminalCause = message;
+    if (!_terminalPlaceholders.contains(message.trim())) {
+      terminalCause = message;
+    }
     if (errorMessages.contains(message)) {
       return;
     }
     errorMessages.add(message);
   }
+
+  static const Set<String> _terminalPlaceholders = {
+    'Sequence failed',
+    'Unknown error',
+  };
 
   /// Record a non-fatal warning surfaced during execution. Idempotent on
   /// exact-duplicate consecutive messages so a per-frame warning (e.g.

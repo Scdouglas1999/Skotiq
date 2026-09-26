@@ -316,6 +316,43 @@ void main() {
       },
     );
 
+    test(
+      'a failure with no known reason files no cause, not the placeholder',
+      () async {
+        final (container, executor) = build(sequence: smartExposureSequence());
+
+        executor.handleSequencerEventForTest(
+          sequencerEvent('Error', {
+            'message': 'Change Filter failed: Operation cancelled',
+          }),
+        );
+        // The native executor sends this literal when it found no fault to
+        // blame (only cancellations survived). It is a placeholder, not a
+        // reason, and must not be headlined under "Why it ended".
+        executor.handleSequencerEventForTest(
+          sequencerEvent('SequenceFailed', {'error': 'Sequence failed'}),
+        );
+        await pumpEventQueue();
+
+        expect(
+          container.read(liveSequenceStatsProvider)!.terminalCause,
+          isNull,
+          reason: 'a placeholder is not a cause',
+        );
+      },
+    );
+
+    test('a SequenceFailed with no error field files no cause', () async {
+      final (container, executor) = build(sequence: smartExposureSequence());
+
+      executor.handleSequencerEventForTest(
+        sequencerEvent('SequenceFailed', <String, dynamic>{}),
+      );
+      await pumpEventQueue();
+
+      expect(container.read(liveSequenceStatsProvider)!.terminalCause, isNull);
+    });
+
     test('a node that really fails twice still records two errors', () {
       final stats = SequenceRunStats();
       stats.recordError('Slew failed: mount reported a limit');
