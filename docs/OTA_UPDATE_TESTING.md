@@ -322,11 +322,48 @@ part of every tagged release. The Windows job:
    present, `manifest.json` is signed against the canonical payload the runtime
    verifier checks; absent, the manifest is emitted unsigned (OTA stays
    fail-closed-disabled).
-3. Publishes `manifest.json` alongside `nightshade-<version>-windows-x64.zip`.
+3. Publishes `manifest-windows-x64.json` alongside
+   `nightshade-<version>-windows-x64.zip`.
 
-Secret names, generation one-liners, the GitHub-Releases hosting +
-`NIGHTSHADE_UPDATE_SERVER` runtime URL, and the fail-closed contract are
-documented in [`release-signing.md`](release-signing.md).
+The Linux and Android jobs bake the same public key into `flutter build linux`
+and `flutter build apk`, and sign their manifests through
+`packages/nightshade_updater/tool/build_update_manifest.dart`, which is the
+cross-platform equivalent of `build_update_package.ps1` — it signs against the
+same canonical payload, and `build_update_manifest_tool_test.dart` hands its
+output to the real verifier so the two cannot drift apart unnoticed.
+
+Secret names, generation one-liners, the GitHub-Releases hosting layout, and
+the fail-closed contract are documented in
+[`release-signing.md`](release-signing.md).
+
+## How a shipped build finds an update
+
+There is no update server to run. On startup the app asks the GitHub Releases
+API for the newest release on its channel, picks the manifest asset matching
+its own platform and architecture, and hands that manifest to the same
+verification the LAN-push path uses. Setting `NIGHTSHADE_UPDATE_SERVER`
+overrides this with the older `/api/version` + manifest-URL source, which is
+how an appliance is pointed at a private build host and how the tests drive a
+loopback mock.
+
+Checks run at most every 12 hours, and the prompt is held back while a
+sequence is running, the camera is exposing or the mount is slewing. The
+update is still found either way and waits in Settings > About, and the offer
+arrives on its own once the rig goes idle, so a release found at the start of
+a night is not sat on until the next scheduled check. "Not now" silences that
+version for three days; "Skip this version" silences it for good; a newer
+release asks again either way.
+
+A release that carries no manifest this host can install — an older release
+built before per-target manifests, which published a single `manifest.json`
+for whichever platform built it — reads as "no update for you here" rather
+than as a failed check. A manifest *named* for this host that describes a
+different one is a packaging fault and stays a loud error.
+
+Android cannot swap its own files, so there the manifest describes the APK
+itself: the app verifies the signature and the hash, then hands the file to
+Android's package installer, which applies its own signature check. Desktop
+continues to stage a tree and swap it with the `updater` helper binary.
 
 ### Update-system self-tests
 

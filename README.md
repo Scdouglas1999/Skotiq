@@ -227,10 +227,10 @@ archives also contain the licence, the third-party notices, and a note of the ex
 they were built from.
 
 > [!NOTE]
-> The Windows package includes an updater, and the app can check signed update files. Until
-> signing keys and an update server are set up, **the updater refuses everything and
-> updating is manual**. Self-updating is Windows-only anyway. Back up your settings and
-> database before replacing a copy.
+> The Windows, Linux and Android builds can check this project's GitHub releases for a newer
+> version and install it themselves. Until the update signing key is set up, **the updater
+> refuses everything and updating is manual** — it will tell you a release exists and then
+> decline to install it. Back up your settings and database before replacing a copy.
 
 **What you need to run it.** On Windows: Windows 10 or 11 (64-bit), 8 GB of RAM (16 GB is
 better), a reasonably modern GPU, and the ASCOM Platform if you use ASCOM drivers. On Linux:
@@ -273,7 +273,7 @@ means for you and whether there's a way around it:
 **[docs/known-limitations.md](docs/known-limitations.md)**
 
 The short version: there's been no full unattended night from dusk to dawn, no second-device
-test across a firewall, no macOS or iOS build, no code signing or update server, the
+test across a firewall, no macOS or iOS build, no code signing and no update signing key, the
 switch-device path is unverified, and INDI weather and switch support needs checking on a
 real Linux observatory before you trust it to keep things safe overnight.
 

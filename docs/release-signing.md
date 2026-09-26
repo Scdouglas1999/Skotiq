@@ -14,8 +14,8 @@ GitHub Actions secrets below; an owner must create them in
 
 | Secret | Track | Consumer | Absent → behavior |
 | --- | --- | --- | --- |
-| `NIGHTSHADE_UPDATE_PUBLIC_KEY` | OTA | Windows job bakes it into the binary via `--dart-define` on `flutter build windows` | Empty define → runtime OTA stays fail-closed-disabled (the app refuses every update). Build succeeds. |
-| `NIGHTSHADE_UPDATE_PRIVATE_KEY` | OTA | `scripts/build_update_package.ps1` signs the canonical manifest payload | Manifest emitted unsigned → no build can apply it (fail-closed). Build succeeds. |
+| `NIGHTSHADE_UPDATE_PUBLIC_KEY` | OTA | The Windows, Linux and Android jobs bake it into the app via `--dart-define` on `flutter build windows`, `flutter build linux` and `flutter build apk` | Empty define → runtime OTA stays fail-closed-disabled (the app refuses every update). Build succeeds. |
+| `NIGHTSHADE_UPDATE_PRIVATE_KEY` | OTA | `scripts/build_update_package.ps1` (Windows) and `packages/nightshade_updater/tool/build_update_manifest.dart` (Linux, Android) sign the canonical manifest payload | Manifest emitted unsigned → no build can apply it (fail-closed). Build succeeds. |
 | `WINDOWS_SIGNING_CERT_BASE64` | Authenticode | "Authenticode sign (optional)" step signs every `*.exe`/`*.dll` in the Release tree | Step skips → unsigned beta (SmartScreen prompt). |
 | `WINDOWS_SIGNING_CERT_PASSWORD` | Authenticode | PFX password for `signtool` | Only used when the cert is present. |
 | `ANDROID_KEYSTORE_BASE64` | Android | "Decode release keystore" step writes `$RUNNER_TEMP/release.jks` and exports `KEYSTORE_FILE` | `KEYSTORE_FILE` unset → `build.gradle.kts` falls back to the debug keystore (debug-signed beta). |
@@ -67,26 +67,46 @@ The release job builds **per-ABI** APKs (`flutter build apk --release
 splits share one `versionCode`. Distinct per-ABI `versionCode`s are only needed
 for a Play Store upload and are intentionally out of scope here.
 
-## Update hosting & runtime URL (owner runtime config, not a CI change)
+## Update hosting
 
-The signed manifest's `downloadUrl` is baked to the **immutable per-tag** GitHub
-Releases asset URL:
-
-```
-https://github.com/<owner>/<repo>/releases/download/v<version>/nightshade-<version>-windows-x64.zip
-```
-
-`manifest.json` is published as a release asset alongside the zip. For the app
-to poll a *stable* location, point the runtime `NIGHTSHADE_UPDATE_SERVER` /
-manifest URL at the latest-release alias:
+Every release job publishes a signed manifest next to the package it
+describes, named for the target it was built for:
 
 ```
-https://github.com/<owner>/<repo>/releases/latest/download/manifest.json
+manifest-windows-x64.json   nightshade-<version>-windows-x64.zip
+manifest-linux-x64.json     nightshade-<version>-linux-x64.zip
+manifest-android-arm64.json nightshade-<version>-android-arm64-v8a.apk
+manifest-android-arm.json   nightshade-<version>-android-armeabi-v7a.apk
+manifest-android-x64.json   nightshade-<version>-android-x86_64.apk
 ```
+
+The per-target names matter: the publish job flattens every build job's
+artifacts into one directory, so a shared `manifest.json` would leave one
+arbitrary platform's manifest standing and the rest undiscoverable.
+
+Each manifest's `downloadUrl` is baked to the **immutable per-tag** asset URL:
+
+```
+https://github.com/<owner>/<repo>/releases/download/v<version>/<asset>
+```
+
+Shipped builds find these by reading the GitHub Releases API, so nothing has to
+be hosted and `NIGHTSHADE_UPDATE_SERVER` need not be set. Setting it still
+overrides the source, which is how an appliance is pointed at a private build
+host.
 
 Because `downloadUrl` is part of the signed payload, any change of hosting
 (GitHub Releases → S3/other) re-breaks the signature and requires re-signing the
 manifest with the matching `downloadUrl`.
+
+To check that a published release is actually signed — an unsigned one builds
+and publishes normally, and only refuses at download time, so it is easy to
+miss:
+
+```sh
+curl -sSL https://github.com/<owner>/<repo>/releases/download/v<version>/manifest-linux-x64.json \
+  | python3 -c 'import json,sys; print("signed" if json.load(sys.stdin).get("signature") else "UNSIGNED - OTA is off")'
+```
 
 ## Fail-closed contract (summary)
 
