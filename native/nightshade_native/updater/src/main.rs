@@ -1027,11 +1027,23 @@ fn chrono_like_rfc3339_now() -> String {
     format!("epoch:{}", secs)
 }
 
+/// Executable the updater relaunches, relative to the install root.
+#[cfg(windows)]
+const APP_EXECUTABLE: &str = "nightshade_desktop.exe";
+#[cfg(not(windows))]
+const APP_EXECUTABLE: &str = "nightshade_desktop";
+
+/// Native bridge the app cannot start without, relative to the install root.
+#[cfg(windows)]
+const BRIDGE_LIBRARY: &str = "nightshade_bridge.dll";
+#[cfg(not(windows))]
+const BRIDGE_LIBRARY: &str = "lib/libnightshade_bridge.so";
+
 /// Sanity-check that the named entry points exist after apply. The hash
 /// verification is the real check; this just guards against a manifest that
 /// omits the launcher binary (which would let apply succeed with no exe).
 fn verify_entrypoints_exist(install_dir: &Path) -> Result<()> {
-    let exe_path = install_dir.join("nightshade_desktop.exe");
+    let exe_path = install_dir.join(from_posix(APP_EXECUTABLE));
     if !exe_path.exists() {
         return Err(anyhow::anyhow!(
             "Updated application executable not found after install: {:?}",
@@ -1039,7 +1051,7 @@ fn verify_entrypoints_exist(install_dir: &Path) -> Result<()> {
         ));
     }
 
-    let bridge_path = install_dir.join("nightshade_bridge.dll");
+    let bridge_path = install_dir.join(from_posix(BRIDGE_LIBRARY));
     if !bridge_path.exists() {
         return Err(anyhow::anyhow!(
             "Updated bridge library not found after install: {:?}",
@@ -1147,9 +1159,27 @@ fn remove_pending_marker(pending_file: &Path) -> Result<()> {
     Ok(())
 }
 
+/// What to run to start the updated application.
+///
+/// The Linux bundle ships a `nightshade` launcher script beside the binary. It
+/// puts the bundled `lib/` first on the loader path and forces the X11 GDK
+/// backend, without which the window never appears under native Wayland, so
+/// relaunching the bare binary would bring the app back invisible. Windows
+/// has no launcher and runs the executable directly.
+fn launch_target(install_dir: &Path) -> PathBuf {
+    #[cfg(not(windows))]
+    {
+        let launcher = install_dir.join("nightshade");
+        if launcher.is_file() {
+            return launcher;
+        }
+    }
+    install_dir.join(from_posix(APP_EXECUTABLE))
+}
+
 /// Launch the updated application
 fn launch_app(install_dir: &Path) -> Result<()> {
-    let exe_path = install_dir.join("nightshade_desktop.exe");
+    let exe_path = launch_target(install_dir);
 
     if !exe_path.exists() {
         return Err(anyhow::anyhow!(
@@ -1203,6 +1233,39 @@ mod tests {
         for (rel, data) in files {
             write(&staging.join(rel), data);
         }
+    }
+
+    /// The Linux bundle has no `.exe` or `.dll`. Checking for the Windows
+    /// names here rolled back every Linux update after it had applied and
+    /// verified cleanly.
+    #[cfg(not(windows))]
+    #[test]
+    fn linux_bundle_passes_the_entrypoint_check() {
+        let tmp = tempdir().unwrap();
+        let install = tmp.path().join("install");
+        write(&install.join("nightshade_desktop"), b"elf");
+        write(&install.join("lib/libnightshade_bridge.so"), b"so");
+        verify_entrypoints_exist(&install).unwrap();
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn linux_bundle_without_the_bridge_fails_the_entrypoint_check() {
+        let tmp = tempdir().unwrap();
+        let install = tmp.path().join("install");
+        write(&install.join("nightshade_desktop"), b"elf");
+        assert!(verify_entrypoints_exist(&install).is_err());
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn linux_relaunch_goes_through_the_launcher_script() {
+        let tmp = tempdir().unwrap();
+        let install = tmp.path().join("install");
+        write(&install.join("nightshade_desktop"), b"elf");
+        assert_eq!(launch_target(&install), install.join("nightshade_desktop"));
+        write(&install.join("nightshade"), b"#!/usr/bin/env bash\n");
+        assert_eq!(launch_target(&install), install.join("nightshade"));
     }
 
     #[test]
