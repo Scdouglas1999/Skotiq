@@ -37,6 +37,10 @@ use windows::Win32::System::Threading::{OpenProcess, WaitForSingleObject, PROCES
 // ours so a stale `.old` file from earlier updater versions does not collide.
 const BAK_SUFFIX: &str = ".nightshade-bak";
 
+// Suffix for the current file moved out of the way while a rollback restores
+// the original under its name (see `restore_file`).
+const ASIDE_SUFFIX: &str = ".nightshade-old";
+
 // File written to the install root after a successful apply. The Dart-side
 // boot-time `verifyPendingInstall` re-hashes the executable and compares to
 // what is recorded here.
@@ -947,8 +951,8 @@ fn restore_from_restore_point(
                 continue;
             }
         }
-        match fs::copy(&src, &dst) {
-            Ok(_) => println!("  Rollback: restored {:?}", dst),
+        match restore_file(&src, &dst) {
+            Ok(()) => println!("  Rollback: restored {:?}", dst),
             Err(e) => errors.push(format!(
                 "rollback: failed to restore {:?} from {:?}: {}",
                 dst, src, e
@@ -996,6 +1000,55 @@ fn restore_from_restore_point(
             errors.join("\n")
         ))
     }
+}
+
+/// Put the bytes of `src` at `dst`, including when `dst` is an executable that
+/// is running.
+///
+/// The update package carries the updater, so a rollback always restores the
+/// binary that is performing it. Writing into a running executable fails on
+/// Linux (ETXTBSY) and on Windows (sharing violation), but both allow it to be
+/// renamed, so the current file is moved aside first and the original copied
+/// into the freed name. Copying rather than renaming keeps working when the
+/// restore point sits on another filesystem than the install.
+fn restore_file(src: &Path, dst: &Path) -> Result<()> {
+    if !dst.exists() {
+        fs::copy(src, dst).with_context(|| format!("copy {:?} -> {:?}", src, dst))?;
+        return Ok(());
+    }
+    let mut aside = dst.as_os_str().to_owned();
+    aside.push(ASIDE_SUFFIX);
+    let aside = PathBuf::from(aside);
+    if aside.exists() {
+        fs::remove_file(&aside)
+            .with_context(|| format!("clear stale {:?} before restoring", aside))?;
+    }
+    fs::rename(dst, &aside).with_context(|| format!("move {:?} aside", dst))?;
+    if let Err(copy_err) = fs::copy(src, dst) {
+        // Leave the install with the file it had rather than with no file.
+        if let Err(back_err) = fs::rename(&aside, dst) {
+            return Err(anyhow::anyhow!(
+                "copy {:?} -> {:?} failed ({}), and moving the current file back also failed ({})",
+                src,
+                dst,
+                copy_err,
+                back_err
+            ));
+        }
+        return Err(anyhow::anyhow!(
+            "copy {:?} -> {:?} failed: {}",
+            src,
+            dst,
+            copy_err
+        ));
+    }
+    if let Err(e) = fs::remove_file(&aside) {
+        // Windows cannot delete an executable that is still running. The
+        // restored file is already in place; the leftover is removed by the
+        // next restore of the same path.
+        eprintln!("Warning: could not remove {:?}: {}", aside, e);
+    }
+    Ok(())
 }
 
 fn write_post_install_hashes(path: &Path, expected: &ExpectedHashes) -> Result<()> {
@@ -1467,6 +1520,43 @@ mod tests {
             !install.join("extras").exists(),
             "rollback must remove now-empty directories the update created"
         );
+    }
+
+    /// The update package carries the updater itself, so rollback always has
+    /// to put back the very binary that is running it. Copying over a running
+    /// executable fails on Linux ("Text file busy") and on Windows (sharing
+    /// violation), which left the restored install with the NEW updater and
+    /// the rollback reporting failure.
+    #[cfg(unix)]
+    #[test]
+    fn rollback_restores_an_executable_that_is_running() {
+        let tmp = tempdir().unwrap();
+        let install = tmp.path().join("install");
+        let backup = tmp.path().join("backup");
+        let restore_root = backup.join(RESTORE_POINT_DIR);
+        fs::create_dir_all(&install).unwrap();
+        fs::create_dir_all(&restore_root).unwrap();
+
+        // The "new" updater is a real executable, running for the whole test.
+        let running = install.join("updater");
+        fs::copy("/bin/sleep", &running).unwrap();
+        let mut child = Command::new(&running).arg("30").spawn().unwrap();
+        write(&restore_root.join("updater"), b"previous updater");
+
+        let log = RollbackLog {
+            moved: vec![MovedEntry {
+                rel: "updater".to_string(),
+                bak: backup_path_for(&running).to_string_lossy().to_string(),
+            }],
+            created: vec![],
+            created_dirs: vec![],
+        };
+        let result = restore_from_restore_point(&install, &restore_root, &log);
+        child.kill().unwrap();
+        child.wait().unwrap();
+
+        result.unwrap();
+        assert_eq!(fs::read(&running).unwrap(), b"previous updater");
     }
 
     #[test]
