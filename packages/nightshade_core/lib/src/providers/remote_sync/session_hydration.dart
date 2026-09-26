@@ -234,9 +234,14 @@ Future<void> _hydrateDeviceTelemetry(
     notifier.setTrackingRate(mount.trackingRate);
   }
 
+  // The status fetches ran in parallel with the live event mirror. A device
+  // the host disconnected meanwhile has had its notifier reset (deviceId
+  // cleared), and a status read before that is no evidence it is connected
+  // now, so the calls below that set `connected` are skipped for it.
   final focuser = focuserStatus;
-  if (focuser != null) {
-    final notifier = _read(reader, focuserStateProvider.notifier);
+  final focuserNotifier = _read(reader, focuserStateProvider.notifier);
+  if (focuser != null && focuserNotifier.deviceId == focuserId) {
+    final notifier = focuserNotifier;
     // The status payload carries the capability flags the reset wiped;
     // without them the slave's focuser card claims absolute positioning is
     // unsupported and disables Go To Position (same shape as the
@@ -256,8 +261,9 @@ Future<void> _hydrateDeviceTelemetry(
   }
 
   final filterWheel = filterWheelStatus;
-  if (filterWheel != null) {
-    final notifier = _read(reader, filterWheelStateProvider.notifier);
+  final filterWheelNotifier = _read(reader, filterWheelStateProvider.notifier);
+  if (filterWheel != null && filterWheelNotifier.deviceId == filterWheelId) {
+    final notifier = filterWheelNotifier;
     notifier.updatePosition(filterWheel.position);
     notifier.setMoving(filterWheel.moving);
     // The fetched status already carries the wheel's filter names; apply them

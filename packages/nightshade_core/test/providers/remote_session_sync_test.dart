@@ -395,6 +395,213 @@ void main() {
       expect(focuser.position, 12000);
     });
 
+    // Hydration fetches every device's status in parallel and applies them
+    // afterwards. A focuser the host disconnects while its status GET is in
+    // flight must stay disconnected: the late status must not resurrect it.
+    test(
+      'a focuser disconnected during hydration stays disconnected',
+      () async {
+        final backend = _MockNetworkBackend();
+        final events = StreamController<NightshadeEvent>.broadcast();
+        addTearDown(events.close);
+        final focuserStatus = Completer<FocuserStatus>();
+
+        when(() => backend.sequencerGetStatus()).thenAnswer(
+          (_) async => const SequencerStatus(state: 'Idle', progress: 0),
+        );
+        when(() => backend.getConnectedDevices()).thenAnswer(
+          (_) async => const [
+            DeviceInfo(
+              id: 'native:zwo_eaf',
+              name: 'ZWO EAF',
+              deviceType: DeviceType.focuser,
+              driverType: DriverType.native,
+              description: '',
+              driverVersion: '1.0',
+            ),
+          ],
+        );
+        when(
+          () => backend.getFocuserStatus('native:zwo_eaf'),
+        ).thenAnswer((_) => focuserStatus.future);
+        when(
+          () => backend.getOpenEditorSequence(),
+        ).thenAnswer((_) async => null);
+        when(() => backend.phd2GetStatus()).thenAnswer(
+          (_) async => const Phd2Status(
+            state: 'Stopped',
+            connected: false,
+            rmsRa: 0,
+            rmsDec: 0,
+            rmsTotal: 0,
+            snr: 0,
+            starMass: 0,
+            avgDistance: 0,
+          ),
+        );
+        when(() => backend.eventStream).thenAnswer((_) => events.stream);
+        when(
+          () => backend.connectionState,
+        ).thenReturn(BackendConnectionState.connected);
+        _stubHydrationParityEndpoints(backend);
+
+        final container = ProviderContainer(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            backendProvider.overrideWith(
+              (ref) => _FixedBackendNotifier(ref, backend),
+            ),
+            loggingServiceProvider.overrideWithValue(LoggingService()),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        container.read(remoteSessionSyncProvider);
+        await pumpEventQueue();
+        verify(() => backend.getFocuserStatus('native:zwo_eaf')).called(1);
+
+        events.add(
+          NightshadeEvent(
+            timestamp: DateTime.now().millisecondsSinceEpoch,
+            severity: EventSeverity.info,
+            category: EventCategory.equipment,
+            eventType: 'Disconnected',
+            data: const {
+              'device_type': 'focuser',
+              'device_id': 'native:zwo_eaf',
+            },
+          ),
+        );
+        await pumpEventQueue();
+        expect(
+          container.read(focuserStateProvider).connectionState,
+          DeviceConnectionState.disconnected,
+        );
+
+        focuserStatus.complete(
+          const FocuserStatus(
+            connected: true,
+            position: 12000,
+            moving: false,
+            maxPosition: 31000,
+            stepSize: 1.0,
+            isAbsolute: true,
+            hasTemperature: false,
+          ),
+        );
+        await pumpEventQueue();
+
+        expect(
+          container.read(focuserStateProvider).connectionState,
+          DeviceConnectionState.disconnected,
+          reason:
+              'a status fetched before the disconnect is not evidence the '
+              'focuser is connected now',
+        );
+      },
+    );
+
+    test(
+      'a filter wheel disconnected during hydration stays disconnected',
+      () async {
+        final backend = _MockNetworkBackend();
+        final events = StreamController<NightshadeEvent>.broadcast();
+        addTearDown(events.close);
+        final wheelStatus = Completer<FilterWheelStatus>();
+
+        when(() => backend.sequencerGetStatus()).thenAnswer(
+          (_) async => const SequencerStatus(state: 'Idle', progress: 0),
+        );
+        when(() => backend.getConnectedDevices()).thenAnswer(
+          (_) async => const [
+            DeviceInfo(
+              id: 'native:zwo_efw',
+              name: 'ZWO EFW',
+              deviceType: DeviceType.filterWheel,
+              driverType: DriverType.native,
+              description: '',
+              driverVersion: '1.0',
+            ),
+          ],
+        );
+        when(
+          () => backend.getFilterWheelStatus('native:zwo_efw'),
+        ).thenAnswer((_) => wheelStatus.future);
+        when(
+          () => backend.getOpenEditorSequence(),
+        ).thenAnswer((_) async => null);
+        when(() => backend.phd2GetStatus()).thenAnswer(
+          (_) async => const Phd2Status(
+            state: 'Stopped',
+            connected: false,
+            rmsRa: 0,
+            rmsDec: 0,
+            rmsTotal: 0,
+            snr: 0,
+            starMass: 0,
+            avgDistance: 0,
+          ),
+        );
+        when(() => backend.eventStream).thenAnswer((_) => events.stream);
+        when(
+          () => backend.connectionState,
+        ).thenReturn(BackendConnectionState.connected);
+        _stubHydrationParityEndpoints(backend);
+
+        final container = ProviderContainer(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            backendProvider.overrideWith(
+              (ref) => _FixedBackendNotifier(ref, backend),
+            ),
+            loggingServiceProvider.overrideWithValue(LoggingService()),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        container.read(remoteSessionSyncProvider);
+        await pumpEventQueue();
+        verify(() => backend.getFilterWheelStatus('native:zwo_efw')).called(1);
+
+        events.add(
+          NightshadeEvent(
+            timestamp: DateTime.now().millisecondsSinceEpoch,
+            severity: EventSeverity.info,
+            category: EventCategory.equipment,
+            eventType: 'Disconnected',
+            data: const {
+              'device_type': 'filterwheel',
+              'device_id': 'native:zwo_efw',
+            },
+          ),
+        );
+        await pumpEventQueue();
+        expect(
+          container.read(filterWheelStateProvider).connectionState,
+          DeviceConnectionState.disconnected,
+        );
+
+        wheelStatus.complete(
+          const FilterWheelStatus(
+            connected: true,
+            position: 2,
+            moving: false,
+            filterCount: 3,
+            filterNames: ['Ha', 'SII', 'OIII'],
+          ),
+        );
+        await pumpEventQueue();
+
+        expect(
+          container.read(filterWheelStateProvider).connectionState,
+          DeviceConnectionState.disconnected,
+          reason:
+              'a status fetched before the disconnect is not evidence the '
+              'wheel is connected now',
+        );
+      },
+    );
+
     // While the host's sequence runs, the slave's mirrored
     // sequenceExecutionState locks the editor — the open-editor mirror apply
     // must SKIP rather than throw SequenceLockedException out of hydration
