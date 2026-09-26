@@ -36,7 +36,11 @@ pub(crate) fn validate_slew_position(
     tolerance_deg: f64,
 ) -> Result<(), String> {
     let ra_diff_hours = normalize_ra_diff_hours(ra_actual - ra_target);
-    let ra_diff_deg = ra_diff_hours * 15.0;
+    // On the sky, not in raw RA degrees: an hour of RA spans cos(Dec) of the
+    // arc it does on the equator. Without the factor the effective tolerance
+    // near the pole shrank to seconds of arc, below the jitter of a good
+    // mount's RA read-back there, and landed slews were failed as misses.
+    let ra_diff_deg = ra_diff_hours * 15.0 * dec_target.to_radians().cos();
 
     // Dec is bounded to [-90, +90] so there is no wraparound to handle; a
     // raw subtraction is the signed angular distance directly.

@@ -75,6 +75,18 @@ fn test_validate_slew_position_ra_wraparound() {
     assert!(result.is_err());
 }
 
+/// A difference in RA is a smaller distance on the sky the further the target
+/// is from the equator. Near the pole a mount's RA read-back wanders by whole
+/// arcminutes of RA while the pointing is good to a fraction of one, and a
+/// check that compares raw RA degrees fails those slews.
+#[test]
+fn test_validate_slew_position_measures_ra_on_the_sky() {
+    // 0.002 h of RA at Dec 85 deg: 1.8' of RA, 0.16' on the sky.
+    assert!(validate_slew_position(12.0, 85.0, 12.002, 85.0, 1.0 / 60.0).is_ok());
+    // The same RA difference on the equator is a real 1.8' miss.
+    assert!(validate_slew_position(12.0, 0.0, 12.002, 0.0, 1.0 / 60.0).is_err());
+}
+
 /// Regression: a slew that lands exactly on target must not be reported as a
 /// miss because the mount reads back in a different epoch than the target is
 /// held in.
