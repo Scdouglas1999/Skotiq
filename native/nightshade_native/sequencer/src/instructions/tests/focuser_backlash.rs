@@ -1039,3 +1039,30 @@ async fn a_starless_verification_frame_is_not_reported_as_a_bad_landing() {
         result.status
     );
 }
+
+/// `failure_hfr_tolerance_ratio` at zero means "every autofocus failure is
+/// unrecoverable". It says nothing about how close a landing must be, and must
+/// not turn the landing check into "no worse than the best sample", which a
+/// correctly landed frame fails on noise alone.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_zero_failure_tolerance_does_not_fail_a_correct_landing() {
+    let ops = Arc::new(BacklashFocuserOps::new(
+        SIMULATED_BACKLASH,
+        STARTING_POSITION,
+    ));
+    let ctx = calibration_context(ops.clone()).await;
+
+    let config = AutofocusConfig {
+        measured_backlash_in: Some(SIMULATED_BACKLASH),
+        failure_hfr_tolerance_ratio: 0.0,
+        ..autofocus_test_config()
+    };
+    let result = execute_autofocus_once(
+        &config,
+        &ctx,
+        None,
+        &crate::node::context::PauseGate::default(),
+    )
+    .await;
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+}

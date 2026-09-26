@@ -1289,7 +1289,17 @@ pub(crate) async fn execute_autofocus_once(
         // backlash, slip, or a focuser that ignored the command — and that is a
         // failure the operator must see, not a success with a quiet number.
         if let Some(measured) = verified_hfr {
-            let tolerance = config.failure_hfr_tolerance_ratio.max(1.0);
+            // `failure_hfr_tolerance_ratio` is borrowed as the landing
+            // tolerance, but at or below 1 it means something else ("every
+            // failure is unrecoverable", or a limit no noisy frame can meet)
+            // and turned this check into "no worse than the best sample",
+            // which a correct landing fails on noise alone. Such settings
+            // fall back to the shipped ratio here.
+            let tolerance = if config.failure_hfr_tolerance_ratio > 1.0 {
+                config.failure_hfr_tolerance_ratio
+            } else {
+                crate::default_af_failure_hfr_tolerance_ratio()
+            };
             if best_hfr > 0.0 && measured > best_hfr * tolerance {
                 tracing::warn!(
                     "Autofocus landed at {} measuring HFR {:.2}, worse than the fitted {:.2} \
