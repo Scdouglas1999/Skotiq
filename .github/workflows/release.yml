@@ -160,7 +160,10 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: flutter build apk --release --split-per-abi
+        # The update public key is compiled in so the app can authenticate the
+        # OTA manifests below. Without it every update download is refused,
+        # whether or not the manifests are signed.
+        run: flutter build apk --release --split-per-abi "--dart-define=NIGHTSHADE_UPDATE_PUBLIC_KEY=${{ secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}"
 
       - name: Stage + checksum APKs
         run: |
@@ -181,6 +184,39 @@ jobs:
             ls -l "$apkdir" || true
             exit 1
           fi
+          ls -l dist
+
+      # One signed manifest per ABI, so an arm64 phone is never offered the
+      # x86_64 build. The APK is its own package here — Android installs it
+      # whole — so the manifest's downloadUrl is the APK's own release asset
+      # URL. Empty NIGHTSHADE_UPDATE_PRIVATE_KEY -> unsigned manifests (OTA
+      # stays fail-closed-disabled); the build still succeeds.
+      - name: Sign OTA manifests (per ABI)
+        env:
+          NIGHTSHADE_UPDATE_PRIVATE_KEY: ${{ secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          BUILD_NUMBER="$(grep -oP 'build_number:\s*\K\d+' version.yaml)"
+          # ABI -> the architecture name currentUpdateArchitecture() reports on
+          # that device, which is what the app matches the manifest against.
+          declare -A ARCH_FOR_ABI=(
+            [armeabi-v7a]=arm
+            [arm64-v8a]=arm64
+            [x86_64]=x64
+          )
+          for abi in armeabi-v7a arm64-v8a x86_64; do
+            asset="nightshade-${APP_VERSION}-android-$abi.apk"
+            [ -f "$GITHUB_WORKSPACE/dist/$asset" ] || continue
+            url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${APP_VERSION}/${asset}"
+            (cd packages/nightshade_updater && dart run tool/build_update_manifest.dart \
+              --payload "$GITHUB_WORKSPACE/dist/$asset" \
+              --out-dir "$GITHUB_WORKSPACE/dist" \
+              --version "$APP_VERSION" \
+              --build-number "$BUILD_NUMBER" \
+              --platform android \
+              --arch "${ARCH_FOR_ABI[$abi]}" \
+              --download-url "$url")
+          done
           ls -l dist
 
       - name: Upload Android artifact
@@ -238,8 +274,15 @@ jobs:
       - name: Bootstrap workspace
         run: dart run melos bootstrap
 
+      # Same two steps as `melos run build:desktop:linux`, spelled out so the
+      # update public key can be compiled in. A build without it cannot
+      # authenticate any OTA manifest, signed or not.
       - name: Build Linux release bundle
-        run: dart run melos run build:desktop:linux --no-select
+        run: |
+          set -euo pipefail
+          cargo build --locked --release --manifest-path native/nightshade_native/bridge/Cargo.toml
+          cd apps/desktop
+          flutter build linux --release "--dart-define=NIGHTSHADE_UPDATE_PUBLIC_KEY=${{ secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}"
 
       - name: Bundle native libs + verify the bridge is present
         run: |
@@ -287,6 +330,21 @@ jobs:
           chmod +x "$BUNDLE/nightshade"
           ls -l "$BUNDLE_LIB" "$BUNDLE/nightshade"
 
+      # The apply step runs a separate `updater` binary, because the running
+      # app holds its own files open and cannot swap them. Windows has
+      # shipped one since 6.0; Linux never did, so a Linux build could stage
+      # an update and then fail to install it. Built here and bundled so it
+      # is inside the archive the manifest hashes.
+      - name: Build the updater binary
+        run: |
+          set -euo pipefail
+          cargo build --locked --release --package nightshade_updater \
+            --manifest-path native/nightshade_native/Cargo.toml
+          BUNDLE="apps/desktop/build/linux/x64/release/bundle"
+          install -m 0755 \
+            native/nightshade_native/target/release/updater "$BUNDLE/updater"
+          echo "Bundled updater: $(ls -l "$BUNDLE/updater")"
+
       - name: Verify glibc floor (Bookworm / Raspberry Pi OS compatibility)
         run: |
           set -euo pipefail
@@ -303,7 +361,7 @@ jobs:
           BUNDLE="apps/desktop/build/linux/x64/release/bundle"
           floor_major=${FLOOR%%.*}; floor_minor=${FLOOR#*.}
           violations=0
-          for bin in "$BUNDLE"/nightshade_desktop "$BUNDLE"/lib/*.so; do
+          for bin in "$BUNDLE"/nightshade_desktop "$BUNDLE"/updater "$BUNDLE"/lib/*.so; do
             [ -f "$bin" ] || continue
             maxv=$(objdump -T "$bin" 2>/dev/null \
               | grep -oE 'GLIBC_2\.[0-9]+' | sort -V | tail -1 || true)
@@ -336,6 +394,34 @@ jobs:
             --transform "s,^bundle,nightshade-${APP_VERSION}-linux-x64," bundle
           (cd dist && sha256sum "nightshade-${APP_VERSION}-linux-x64.tar.gz" \
              > "nightshade-${APP_VERSION}-linux-x64.tar.gz.sha256")
+          ls -l dist
+
+      # The OTA package is a zip rather than the tar.gz above: the updater
+      # extracts zips, and teaching it a second archive format to save one
+      # asset would be new code on the path that replaces a live install.
+      # downloadUrl is baked into the signed manifest, so it must equal the
+      # real published asset URL — the immutable per-tag GitHub Releases link
+      # (the tag is always v<APP_VERSION>, validated by the version job).
+      # Empty NIGHTSHADE_UPDATE_PRIVATE_KEY -> unsigned manifest (OTA stays
+      # fail-closed-disabled); the build still succeeds.
+      - name: Package + sign OTA manifest
+        env:
+          NIGHTSHADE_UPDATE_PRIVATE_KEY: ${{ secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          BUILD_NUMBER="$(grep -oP 'build_number:\s*\K\d+' version.yaml)"
+          ASSET="nightshade-${APP_VERSION}-linux-x64.zip"
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${APP_VERSION}/${ASSET}"
+          (cd packages/nightshade_updater && dart run tool/build_update_manifest.dart \
+            --payload "$GITHUB_WORKSPACE/apps/desktop/build/linux/x64/release/bundle" \
+            --out-dir "$GITHUB_WORKSPACE/dist" \
+            --version "$APP_VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --platform linux \
+            --arch x64 \
+            --package-name "$ASSET" \
+            --download-url "$URL")
+          (cd dist && sha256sum "$ASSET" > "$ASSET.sha256")
           ls -l dist
 
       - name: Upload Linux artifact
@@ -504,6 +590,12 @@ jobs:
           $zip = "dist/$name"
           (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower() + "  $name" `
             | Out-File -Encoding ascii "$zip.sha256"
+          # Per-target name. The publish job copies every platform's artifacts
+          # into one flat directory, so three jobs each emitting `manifest.json`
+          # would leave whichever copied last standing and the other two
+          # platforms undiscoverable. The filename is not part of the signed
+          # payload, so renaming does not disturb the signature.
+          Move-Item "dist/manifest.json" "dist/manifest-windows-x64.json" -Force
           Get-ChildItem dist
 
       - name: Upload Windows artifact
@@ -535,9 +627,22 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-assets
+          # manifest-<platform>-<arch>.json: one per target, so every platform's
+          # manifest survives the flattening into release-assets/. The bare
+          # manifest.json pattern stays for any artifact built before the
+          # per-target rename.
           find artifacts -type f \( -name '*.apk' -o -name '*.tar.gz' \
-            -o -name '*.zip' -o -name '*.sha256' -o -name 'manifest.json' \) \
+            -o -name '*.zip' -o -name '*.sha256' \
+            -o -name 'manifest.json' -o -name 'manifest-*.json' \) \
             -exec cp -v {} release-assets/ \;
+          # A manifest whose name collided would silently leave a platform
+          # unable to find its update, so prove each landed exactly once.
+          dupes="$(find artifacts -type f -name 'manifest*.json' -printf '%f\n' \
+            | sort | uniq -d)"
+          if [ -n "$dupes" ]; then
+            echo "::error::Two build jobs produced the same manifest filename; one overwrote the other: $dupes"
+            exit 1
+          fi
           cp LICENSE release-assets/NIGHTSHADE-LICENSE.txt
           cp docs/THIRD_PARTY_NOTICES.md release-assets/THIRD_PARTY_NOTICES.md
           cp third_party/licenses/LGPL-2.1.txt release-assets/LGPL-2.1.txt
