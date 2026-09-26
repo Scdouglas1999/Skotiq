@@ -1,6 +1,7 @@
 use super::*;
 use crate::SequenceDefinition;
 
+mod center_contention_tests;
 mod depth_goal_tests;
 mod recovery_tests;
 mod runtime_tests;

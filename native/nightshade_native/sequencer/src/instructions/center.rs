@@ -253,24 +253,6 @@ pub async fn execute_center(
             }
         };
 
-        // Feeding the solve back into trigger state is what enables the
-        // DriftLimit trigger to detect cumulative drift across
-        // exposures without re-solving on every frame.
-        if let Some(trigger_state_lock) = &ctx.trigger_state {
-            let mut trigger_state = trigger_state_lock.write().await;
-            trigger_state.update_plate_solve(
-                solve_result.ra_degrees,
-                solve_result.dec_degrees,
-                solve_result.pixel_scale,
-            );
-            tracing::debug!(
-                "Updated trigger state with plate solve: RA={:.4}°, Dec={:.4}°, scale={:.2}\"/px",
-                solve_result.ra_degrees,
-                solve_result.dec_degrees,
-                solve_result.pixel_scale
-            );
-        }
-
         let separation_arcsec = calculate_separation_arcsec(
             target_ra_deg,
             target_dec,
@@ -278,6 +260,31 @@ pub async fn execute_center(
             solve_result.dec_degrees,
         );
         tracing::info!("Current separation: {:.1}\" from target", separation_arcsec);
+
+        // Feeding the solve back into trigger state is what enables the
+        // DriftLimit trigger to detect cumulative drift across exposures
+        // without re-solving on every frame -- but only the solve centering
+        // ends on. An attempt that is about to be corrected is not drift: the
+        // first solve of a target is routinely degrees away, and publishing it
+        // fired DriftLimit's own recenter in the middle of this one, which then
+        // exposed over this loop's next frame and failed the node with "No
+        // exposure is available to download" (found by the simulator soak).
+        if separation_arcsec <= config.accuracy_arcsec {
+            if let Some(trigger_state_lock) = &ctx.trigger_state {
+                let mut trigger_state = trigger_state_lock.write().await;
+                trigger_state.update_plate_solve(
+                    solve_result.ra_degrees,
+                    solve_result.dec_degrees,
+                    solve_result.pixel_scale,
+                );
+                tracing::debug!(
+                    "Updated trigger state with plate solve: RA={:.4}°, Dec={:.4}°, scale={:.2}\"/px",
+                    solve_result.ra_degrees,
+                    solve_result.dec_degrees,
+                    solve_result.pixel_scale
+                );
+            }
+        }
 
         if let Some(cb) = progress_callback {
             cb(
