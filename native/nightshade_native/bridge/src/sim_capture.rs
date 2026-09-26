@@ -74,10 +74,18 @@ pub(crate) async fn sim_sky_view(
         if !mount.status.connected {
             return None;
         }
-        (
-            mount.status.right_ascension * 15.0,
+        // The mount keeps coordinates of date (see `epoch::SimMountFrame`);
+        // the catalogue, like the sky a real camera sees, is J2000. A mount
+        // reading 22.8070h of date is looking at the stars catalogued at
+        // 22.7892h, so the field is rendered there — which is also what makes
+        // a plate solve of this frame disagree with the mount's read-back by
+        // exactly the precession offset, as it does on the rig.
+        let (ra_hours, dec_deg) = crate::device_manager::epoch::mount_frame_to_j2000(
+            crate::device::DriverType::Simulator,
+            mount.status.right_ascension,
             mount.status.declination,
-        )
+        );
+        (ra_hours * 15.0, dec_deg)
     };
     if !centre_ra_deg.is_finite() || !centre_dec_deg.is_finite() {
         return None;

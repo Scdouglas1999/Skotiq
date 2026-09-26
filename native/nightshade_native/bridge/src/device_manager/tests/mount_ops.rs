@@ -103,8 +103,10 @@ async fn connected_simulated_mount_accepts_a_slew() {
         mount = manager.mount_get_status(device_id).await.unwrap();
     }
     assert!(!mount.slewing, "the simulated slew never finished");
-    assert!((mount.right_ascension - 5.5).abs() < 1e-9);
-    assert!((mount.declination - 30.0).abs() < 1e-9);
+    // On the target of date: the simulator is a JNow mount.
+    let (ra_now, dec_now) = crate::device_manager::epoch::j2000_to_jnow(5.5, 30.0);
+    assert!((mount.right_ascension - ra_now).abs() < 1e-6);
+    assert!((mount.declination - dec_now).abs() < 1e-6);
     assert!(!mount.parked);
 
     crate::api::devices::simulation::get_sim_mount()

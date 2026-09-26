@@ -583,6 +583,11 @@ mod mount_motion_tests {
     async fn an_unpolled_abort_stops_the_mount_between_start_and_target() {
         let _serialized = sim_singleton_test_lock().lock().await;
         let device_id = "sim_gate_mount_unpolled_abort";
+        // Raw J2000 keeps the 0h -> 12h geometry exact: precessed, 12h becomes
+        // 12.02h and the short way round is backwards through 0h.
+        let _frame = crate::device_manager::epoch::SimFrameGuard::pin(
+            crate::device_manager::epoch::SimMountFrame::J2000,
+        );
         attach_sim_mount(device_id).await;
         park_on_the_far_side_of(12.0).await;
         let mgr = get_device_manager();
@@ -705,6 +710,11 @@ mod mount_motion_tests {
     async fn the_mount_holds_slewing_through_a_settle_after_it_arrives() {
         let _serialized = sim_singleton_test_lock().lock().await;
         let device_id = "sim_gate_mount_settle";
+        // The shortest move is the one onto the mount's own position, which
+        // needs the target and the read-back in one frame.
+        let _frame = crate::device_manager::epoch::SimFrameGuard::pin(
+            crate::device_manager::epoch::SimMountFrame::J2000,
+        );
         attach_sim_mount(device_id).await;
         let mgr = get_device_manager();
 

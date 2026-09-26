@@ -121,8 +121,10 @@ mod sim_mount_tests {
 
         wait_for_slew_to_finish(device_id).await;
         let arrived = mgr.mount_get_status(device_id).await.unwrap();
-        assert!((arrived.right_ascension - 6.0).abs() < 1e-6);
-        assert!((arrived.declination - 45.0).abs() < 1e-6);
+        // Arrives on the target of date: the simulator is a JNow mount.
+        let (ra_now, dec_now) = crate::device_manager::epoch::j2000_to_jnow(6.0, 45.0);
+        assert!((arrived.right_ascension - ra_now).abs() < 1e-6);
+        assert!((arrived.declination - dec_now).abs() < 1e-6);
         assert!(!arrived.slewing);
     }
 
