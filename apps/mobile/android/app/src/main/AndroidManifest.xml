@@ -29,6 +29,14 @@
          the whitelist via the standard system dialog. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
         tools:ignore="BatteryLife" />
+
+    <!-- OTA updates. Nightshade is installed from its GitHub releases rather
+         than a store, so updating means handing a downloaded APK to Android's
+         package installer. Without this the installer opens and immediately
+         closes. The user still confirms every install, and Android still
+         refuses an APK not signed with the key that signed the installed app.
+         See UpdateInstallerBridge.kt. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     
     <application
         android:usesCleartextTraffic="true"
@@ -91,6 +99,21 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Shares the staged update APK with Android's package installer,
+             which runs in another process and so cannot read a file:// path
+             inside this app's private storage. The authority must match
+             PROVIDER_AUTHORITY_SUFFIX in UpdateInstallerBridge.kt, and is
+             distinct from the provider share_plus registers. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.updateprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/update_file_paths" />
+        </provider>
 
         <!-- Foreground Service for background imaging operations -->
         <service

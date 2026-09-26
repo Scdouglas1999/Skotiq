@@ -84,6 +84,17 @@ class MainActivity : FlutterActivity() {
             ),
         )
 
+        // OTA update installs. Dart verifies the APK against a vendor-signed
+        // manifest and then asks this bridge to hand it to Android's package
+        // installer, which is the only thing permitted to replace the app.
+        UpdateInstallerBridge.attach(
+            applicationContext,
+            MethodChannel(
+                flutterEngine.dartExecutor.binaryMessenger,
+                UpdateInstallerBridge.CHANNEL,
+            ),
+        )
+
         // If onCreate parsed a launch intent before the channel existed,
         // flush it now. Dart's handler attaches to the channel during
         // VoiceControlService construction; this happens once

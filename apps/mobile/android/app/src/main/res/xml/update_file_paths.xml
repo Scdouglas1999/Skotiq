@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Paths the update FileProvider may share with Android's package installer.
+
+  Scoped to the staging directory alone, not to the whole files directory.
+  The provider exists for exactly one purpose — handing over a downloaded
+  APK — and everything else under files/ is the user's data: their database,
+  logs, captured frames and session checkpoints. A wider <files-path> would
+  make all of it reachable by any component holding a grant.
+
+  `updates/staging` must stay in step with _getStagingDirectory() in
+  packages/nightshade_updater/lib/src/services/update_service.dart, which
+  builds it as <getApplicationSupportDirectory()>/updates/staging.
+  getApplicationSupportDirectory() is getFilesDir() on Android, which is what
+  <files-path> resolves against.
+-->
+<paths>
+    <files-path
+        name="nightshade_update_staging"
+        path="updates/staging/" />
+</paths>
