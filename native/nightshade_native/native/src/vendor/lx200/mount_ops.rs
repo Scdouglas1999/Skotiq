@@ -147,7 +147,21 @@ impl NativeMount for Lx200Mount {
             }
         }
 
-        Ok(*self.is_slewing.lock().unwrap_or_else(|e| e.into_inner()))
+        // Every other LX200 flavour: ask the distance bar while a goto is
+        // latched. Without it the latch was only ever cleared by an abort, so
+        // a Meade, Losmandy or 10Micron mount read as slewing forever after its
+        // first goto and every sequencer slew waited out its limit and failed.
+        // A mount that does not answer keeps the latched value, as before.
+        let latched = *self.is_slewing.lock().unwrap_or_else(|e| e.into_inner());
+        if latched && !self.mount_type.is_onstep() {
+            if let Ok(bars) = self.send_command(commands::DISTANCE_BARS) {
+                let is_slewing = !bars.trim().is_empty();
+                *self.is_slewing.lock().unwrap_or_else(|e| e.into_inner()) = is_slewing;
+                return Ok(is_slewing);
+            }
+        }
+
+        Ok(latched)
     }
 
     async fn is_parked(&self) -> Result<bool, NativeError> {

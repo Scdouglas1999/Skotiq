@@ -29,6 +29,10 @@ pub(crate) mod commands {
 
     pub const SLEW_TO_TARGET: &str = ":MS#";
     pub const STOP_SLEW: &str = ":Q#";
+    /// Distance bar: one bar character while a goto is in progress, an empty
+    /// string once it has finished. The standard LX200 slew-complete query,
+    /// answered by Meade, Losmandy Gemini and 10Micron firmware.
+    pub const DISTANCE_BARS: &str = ":D#";
 
     pub const SYNC: &str = ":CM#";
 
