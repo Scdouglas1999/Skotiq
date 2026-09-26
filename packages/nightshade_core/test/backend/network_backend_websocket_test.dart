@@ -863,6 +863,56 @@ void main() {
       },
     );
 
+    test('a refused ticket upgrade does not latch the bearer that minted it '
+        '(expired ticket, host restarted between mint and upgrade)', () async {
+      // The ticket mint is itself an authenticated request, so a 200 from
+      // it proves the bearer was accepted a moment ago. A 401 on the
+      // upgrade then only says the one-shot ticket is gone: the host
+      // restarted and lost its in-memory tickets, or the upgrade arrived
+      // after the ticket's 60 s lifetime.
+      final fake = await startAuthFake(
+        statusByPath: {
+          '/api/ws/ticket': HttpStatus.ok,
+          '/events': HttpStatus.unauthorized,
+          '/api/session/status': HttpStatus.ok,
+        },
+        bodyByPath: {
+          '/api/ws/ticket': {'ticket': 't1'},
+          '/events': {
+            'error': 'Authentication required',
+            'message': 'Invalid or expired WebSocket ticket',
+          },
+          '/api/session/status': {'state': 'idle'},
+        },
+      );
+      final backend = NetworkBackend(
+        serverHost: InternetAddress.loopbackIPv4.address,
+        serverPort: fake.server.port,
+        webSocketPort: fake.server.port,
+        authToken: 'good-token',
+        autoConnectWebSocket: false,
+      );
+
+      try {
+        await backend.connect();
+
+        expect(fake.hits['/events'], 1);
+        expect(backend.isAuthTokenRejected, isFalse);
+        expect(backend.connectionState, isNot(BackendConnectionState.error));
+
+        // The bearer must still reach the wire.
+        try {
+          await backend.getSessionStatus();
+        } catch (_) {
+          // The response shape is not the point; reaching the wire is.
+        }
+        expect(fake.hits['/api/session/status'], 1);
+      } finally {
+        backend.dispose();
+        await fake.server.close(force: true);
+      }
+    });
+
     test('a non-auth refusal stays on the reconnect path (no latch)', () async {
       final fake = await startAuthFake(
         statusByPath: {
