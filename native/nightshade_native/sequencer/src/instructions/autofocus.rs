@@ -769,8 +769,20 @@ pub(crate) async fn execute_autofocus_once(
         let af_config: crate::autofocus::AutofocusConfig = config.into();
 
         let af_engine = crate::autofocus::VCurveAutofocus::new(af_config.clone());
+        // The move down to the sweep start overshoots and comes back up by
+        // the same figure, and margin, that sizes the final run-up. Using the
+        // operator's figure alone left a measured backlash out of it, and a
+        // dead band wider than one step then swallowed the first upward sweep
+        // moves: two "different" points measured at one optical position.
+        let approach_in = resolve_run_up(
+            config.backlash_compensation,
+            config.measured_backlash_in,
+            config.step_size,
+        )
+        .0
+        .unwrap_or(0);
         let backlash = crate::autofocus::BacklashCompensation::new_directional(
-            af_config.backlash_compensation,
+            approach_in,
             af_config.backlash_out_compensation,
         );
 
@@ -1326,7 +1338,26 @@ pub(crate) async fn execute_autofocus_once(
     };
 
     if matches!(result.status, NodeStatus::Failure | NodeStatus::Cancelled) {
-        let restored = restore_autofocus_origin(&focuser_id, ctx, current_position).await;
+        // The origin goes back on the same face of the backlash a landing
+        // uses. A failed run ends at or above the sweep, so a plain return
+        // arrived moving down: on a focuser with backlash that is the full
+        // dead band away from an origin the last successful run landed on
+        // from below, while the result still said the origin was restored.
+        let sweep_start = crate::autofocus::VCurveAutofocus::new(config.into())
+            .calculate_positions(current_position)
+            .first()
+            .copied()
+            .unwrap_or(current_position);
+        let (restore_run_up, _) = final_run_up_position(
+            current_position,
+            sweep_start,
+            config.backlash_compensation,
+            config.measured_backlash_in,
+            config.step_size,
+        );
+        let restored =
+            restore_autofocus_origin(&focuser_id, ctx, current_position, Some(restore_run_up))
+                .await;
         if let Err(error) = &restored {
             tracing::error!(
                 "Autofocus could not restore original position {}: {}",
@@ -1360,10 +1391,14 @@ pub(crate) async fn execute_autofocus_once(
 /// cancelled autofocus result. This deliberately ignores the sequence cancel
 /// token: cleanup is still hardware work owned by the autofocus Future, and a
 /// caller must not be told the run is terminal while the motor is moving.
+///
+/// `run_up_from`, when given, is visited first so the origin is reached
+/// moving up; it must be below `original_position`.
 pub(crate) async fn restore_autofocus_origin(
     focuser_id: &str,
     ctx: &InstructionContext,
     original_position: i32,
+    run_up_from: Option<i32>,
 ) -> Result<(), String> {
     let mut errors = Vec::new();
 
@@ -1373,6 +1408,28 @@ pub(crate) async fn restore_autofocus_origin(
     if !wait_for_focuser_stop_after_halt(focuser_id, &ctx.device_ops, Duration::from_secs(10)).await
     {
         errors.push("motor did not stop within 10 seconds".to_string());
+    }
+
+    if let Some(run_up) = run_up_from.filter(|run_up| *run_up < original_position) {
+        match ctx.device_ops.focuser_move_to(focuser_id, run_up).await {
+            Ok(()) => {
+                if !wait_for_focuser_stop_after_halt(
+                    focuser_id,
+                    &ctx.device_ops,
+                    Duration::from_secs(120),
+                )
+                .await
+                {
+                    errors.push(format!(
+                        "run-up move to {} did not settle within 120 seconds",
+                        run_up
+                    ));
+                }
+            }
+            // Still try the return itself: the origin from the wrong side
+            // is better than the focuser left wherever the run stopped.
+            Err(error) => errors.push(format!("run-up move to {} was rejected: {}", run_up, error)),
+        }
     }
 
     match ctx

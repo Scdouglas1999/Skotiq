@@ -84,7 +84,7 @@ async fn autofocus_cleanup_restores_and_verifies_original_position() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let ctx = ctx_with_ops(ops.clone()).await;
 
-    restore_autofocus_origin("focuser-1", &ctx, 12_345)
+    restore_autofocus_origin("focuser-1", &ctx, 12_345, None)
         .await
         .expect("cleanup should restore the original position");
 
