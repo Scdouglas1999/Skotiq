@@ -274,6 +274,34 @@ async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
     );
 }
 
+/// A target slew leaves the mount tracking. A mount unparked without tracking
+/// (the ASCOM simulator's behavior, and many drivers') used to be slewed and
+/// then left standing still: on the rig every frame trails, and the meridian
+/// flip trigger, which refuses to flip a mount that is not tracking, never
+/// fires. The simulator soak reached transit that way and held the next
+/// exposure for a flip that could not happen.
+#[tokio::test]
+async fn a_target_slew_leaves_the_mount_tracking() {
+    let _serialized = sim_singleton_test_lock().lock().await;
+    let _frame = FrameGuard::pin(SimMountFrame::OfDate);
+    let mount_id = "sim_mount_frame_tracking";
+    attach_sim_mount(mount_id).await;
+    get_sim_mount().write().await.status.tracking = false;
+
+    let ctx = target_context(mount_id, NGC7380_J2000);
+    let result =
+        nightshade_sequencer::instructions::execute_slew(&SlewConfig::default(), &ctx, None).await;
+    assert!(
+        result.status == nightshade_sequencer::NodeStatus::Success,
+        "{:?}",
+        result.message
+    );
+    assert!(
+        get_sim_mount().read().await.status.tracking,
+        "the slew arrived on target and left the mount not tracking"
+    );
+}
+
 /// A flip on a mount that does not report its pier side is verified by
 /// checking the mount arrived back on the target. That check compared the
 /// of-date read-back with the J2000 target against a 1' tolerance, so on any

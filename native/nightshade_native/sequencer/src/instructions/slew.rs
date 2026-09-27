@@ -144,6 +144,25 @@ pub async fn execute_slew(
         return result;
     }
 
+    // A slew to a sky position is only useful if the mount then follows it.
+    // Many drivers unpark without tracking (the ASCOM simulator among them),
+    // and ASCOM mounts may refuse an RA/Dec slew outright while not tracking.
+    // Left alone, every frame trails and the meridian-flip trigger -- which
+    // will not flip a mount that is not tracking -- never fires; the
+    // simulator soak reached transit that way and held the next exposure for
+    // a flip that could not happen. Enabled before the slew, as N.I.N.A. does.
+    // A mount that cannot report or set tracking is left as it is, with a
+    // warning: that is no reason to refuse the slew.
+    if !matches!(ctx.device_ops.mount_is_tracking(mount_id).await, Ok(true)) {
+        match ctx.device_ops.mount_set_tracking(mount_id, true).await {
+            Ok(()) => tracing::info!("Mount was not tracking; tracking enabled for the slew"),
+            Err(e) => tracing::warn!(
+                "Mount is not reported as tracking and tracking could not be enabled: {}",
+                e
+            ),
+        }
+    }
+
     tokio::select! {
         result = ctx.device_ops.mount_slew_to_coordinates(mount_id, ra, dec) => {
             match result {
