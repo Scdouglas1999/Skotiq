@@ -312,6 +312,17 @@ class UpdateService {
       if (previousVersion == _currentVersion &&
           previousBuild == _currentBuildNumber) {
         await pendingFile.delete();
+        // The staged copy of the update that was just rolled back is either
+        // gone (the updater removes the extracted tree once the swap
+        // succeeds) or the tree that failed the updater's checks. Offering it
+        // as ready to install could only fail the same way; a fresh check
+        // offers the release again with a new download.
+        final staged = await getStagedUpdate();
+        if (staged != null &&
+            staged.version == targetVersion &&
+            staged.buildNumber == targetBuild) {
+          await clearStagedUpdate();
+        }
         return PendingInstallStatus.rolledBack(
           'Rollback restored build $_currentVersion+$_currentBuildNumber '
           'after update to $targetLabel.',
