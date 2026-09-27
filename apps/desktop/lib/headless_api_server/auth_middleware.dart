@@ -509,6 +509,30 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
     return staticGrant ?? pairedMatch;
   }
 
+  /// The grant of the token whose digest is [identity], the form a socket
+  /// keeps its principal in (the raw bearer is never stored on it). Null when
+  /// no configured or paired token has that digest any more.
+  HeadlessAuthGrant? _grantForIdentity(String identity) {
+    HeadlessAuthGrant? match;
+    for (final entry in _effectiveAuthTokensByValue.entries) {
+      if (constantTimeCompareStrings(
+        computeServerFingerprint(entry.key),
+        identity,
+      )) {
+        match = entry.value;
+      }
+    }
+    for (final entry in _pairedSessionTokens.entries) {
+      if (constantTimeCompareStrings(
+        computeServerFingerprint(entry.key),
+        identity,
+      )) {
+        match ??= entry.value;
+      }
+    }
+    return match;
+  }
+
   /// Coarse projection of [_grantForToken], kept for the AuthHandlers
   /// recognised-token check (`POST /api/auth/cookie`). Returns null iff the
   /// token is unknown.

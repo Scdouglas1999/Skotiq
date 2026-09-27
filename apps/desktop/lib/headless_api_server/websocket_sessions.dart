@@ -349,6 +349,9 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
         );
         return;
       case 'session_handoff.set':
+        if (!_socketMayChangeSessionHandoff(socket, authIdentity, 'POST')) {
+          return;
+        }
         final handoff = data['handoff'];
         if (handoff != null && handoff is! Map<String, dynamic>) {
           socket.sink.add(
@@ -364,6 +367,9 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
         );
         return;
       case 'session_handoff.clear':
+        if (!_socketMayChangeSessionHandoff(socket, authIdentity, 'DELETE')) {
+          return;
+        }
         _collaborationManager.setSessionHandoff(null);
         return;
       default:
@@ -380,5 +386,47 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
         );
         return;
     }
+  }
+
+  /// Whether this socket's token may do over the socket what
+  /// `[method] /api/session-handoff` allows over HTTP.
+  ///
+  /// The HTTP route transfers session ownership and is admin-only, but the
+  /// socket applied no check at all: any token that could open the event
+  /// stream, a view-only phone included, could set or clear the handoff. The
+  /// token's current grant is looked up per message, so a token revoked while
+  /// its socket stays open loses the right with it. A socket with no identity
+  /// exists only on a server deliberately run without authentication.
+  bool _socketMayChangeSessionHandoff(
+    WebSocketChannel socket,
+    String? authIdentity,
+    String method,
+  ) {
+    if (authIdentity == null) {
+      return true;
+    }
+    final grant = _grantForIdentity(authIdentity);
+    if (grant != null &&
+        HeadlessAuthPolicy.permits(
+          grant: grant,
+          method: method,
+          path: '/api/session-handoff',
+        )) {
+      return true;
+    }
+    _logWarning(
+      '[AUTH] Refused session handoff change over the event socket for '
+      '${HeadlessApiServer._redactBearer(authIdentity)}: the token may not '
+      '$method /api/session-handoff',
+    );
+    socket.sink.add(
+      jsonEncode({
+        'type': 'error',
+        'message':
+            'Changing the session handoff needs an admin token; this '
+            'connection is not allowed to.',
+      }),
+    );
+    return false;
   }
 }
