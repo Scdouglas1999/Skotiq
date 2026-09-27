@@ -124,6 +124,10 @@ struct ScriptedDomeRotatorOps {
     /// Distinctive live telemetry so a `FrameContext::default()` cannot
     /// masquerade as a real read. `None` keeps NullDeviceOps' answer.
     scripted_mount_coordinates: Option<(f64, f64)>,
+    /// When `Some`, what `mount_readback_frame` answers instead of the
+    /// identity default, so a test can stand in for a real mount whose
+    /// read-back is of date while the target is J2000.
+    scripted_readback_frame: Option<DeviceResult<(f64, f64)>>,
     scripted_pier_side: Option<crate::meridian::PierSide>,
     scripted_cooler_power: Option<f64>,
     scripted_focuser_position: Option<i32>,
@@ -184,6 +188,7 @@ impl ScriptedDomeRotatorOps {
             saved_frame_contexts: Mutex::new(Vec::new()),
             saved_frame_paths: Mutex::new(Vec::new()),
             scripted_mount_coordinates: None,
+            scripted_readback_frame: None,
             scripted_pier_side: None,
             scripted_cooler_power: None,
             scripted_focuser_position: None,
@@ -223,6 +228,12 @@ impl ScriptedDomeRotatorOps {
     /// fixed answer.
     fn with_scripted_mount_coordinates(mut self, ra_hours: f64, dec_degrees: f64) -> Self {
         self.scripted_mount_coordinates = Some((ra_hours, dec_degrees));
+        self
+    }
+
+    /// Make `mount_readback_frame` answer `frame` for every target.
+    fn with_scripted_readback_frame(mut self, frame: DeviceResult<(f64, f64)>) -> Self {
+        self.scripted_readback_frame = Some(frame);
         self
     }
 
@@ -377,6 +388,21 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         match self.scripted_mount_coordinates {
             Some(coords) => Ok(coords),
             None => self.inner.mount_get_coordinates(id).await,
+        }
+    }
+    async fn mount_readback_frame(
+        &self,
+        id: &str,
+        ra_hours: f64,
+        dec_degrees: f64,
+    ) -> DeviceResult<(f64, f64)> {
+        match &self.scripted_readback_frame {
+            Some(frame) => frame.clone(),
+            None => {
+                self.inner
+                    .mount_readback_frame(id, ra_hours, dec_degrees)
+                    .await
+            }
         }
     }
     async fn mount_sync(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
