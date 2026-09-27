@@ -760,13 +760,12 @@ impl SequenceExecutor {
                 // a ParkAndAbort sweep is active. This prevents the outer
                 // select! from choosing completed execution and dropping the
                 // trigger monitor halfway through the hardware-safe-state work.
-                // Subscribed BEFORE the tree runs so every
-                // `InstructionFailed` a failing run emits is still in the
-                // broadcast buffer when the terminal handler drains it below.
-                // A drain (rather than a listener task) is what makes it
-                // race-free: the event is sent before `execute()` returns, so
-                // it is queued by the time we look.
-                let mut instruction_failure_rx = event_tx.subscribe();
+                // Subscribed BEFORE the tree runs so every complaint a failing
+                // run emits is seen, and followed as the run goes: a receiver
+                // drained only at the end kept the last 256 events of the
+                // night and lost any fault further back.
+                let failure_collector =
+                    crate::executor::failure_cause::FailureCollector::spawn(event_tx.subscribe());
                 let park_and_abort_for_execution = park_and_abort_in_progress.clone();
                 let mut park_and_abort_done_rx = park_and_abort_done_rx;
                 let park_and_abort_done_for_checkpoint = park_and_abort_done_rx.clone();
@@ -1235,10 +1234,8 @@ impl SequenceExecutor {
                         // `executor::failure_cause` for the rule that replaced
                         // it: the structural refusal if there is one, else the
                         // FIRST fault, never a cancelled cleanup step.
-                        let failure_report = crate::executor::failure_cause::run_failure_report(
-                            &mut instruction_failure_rx,
-                            unreachable_failure_reason,
-                        );
+                        let failure_report =
+                            failure_collector.finish(unreachable_failure_reason).await;
                         if failure_report.cascade.len() > 1 {
                             tracing::info!(
                                 "Run failure cascade ({} links, cause first): {}",

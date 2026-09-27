@@ -569,9 +569,10 @@ async fn an_unevaluable_target_trigger_states_its_reason_on_the_run() {
 
 /// The rule that replaced "prefer the most recent reason". A dying run's most
 /// recent complaint is its teardown; see `executor::failure_cause`.
-#[test]
-fn the_reported_reason_is_the_first_fault_not_the_cancelled_cleanup() {
-    let (tx, mut rx) = broadcast::channel(16);
+#[tokio::test]
+async fn the_reported_reason_is_the_first_fault_not_the_cancelled_cleanup() {
+    let (tx, rx) = broadcast::channel(16);
+    let collector = super::failure_cause::FailureCollector::spawn(rx);
     let _ = tx.send(ExecutorEvent::InstructionFailed {
         node_name: "Take Exposures".to_string(),
         message: "Daylight gate: refusing light-frame exposure".to_string(),
@@ -583,7 +584,7 @@ fn the_reported_reason_is_the_first_fault_not_the_cancelled_cleanup() {
         message: "Operation cancelled".to_string(),
     });
 
-    let report = super::failure_cause::run_failure_report(&mut rx, None);
+    let report = collector.finish(None).await;
     assert_eq!(
         report.cause.as_deref(),
         Some("Take Exposures: Daylight gate: refusing light-frame exposure")
@@ -594,7 +595,9 @@ fn the_reported_reason_is_the_first_fault_not_the_cancelled_cleanup() {
         "the cancelled step is kept, just not promoted to the reason"
     );
 
-    let empty = super::failure_cause::run_failure_report(&mut rx, None);
+    let empty = super::failure_cause::FailureCollector::spawn(tx.subscribe())
+        .finish(None)
+        .await;
     assert_eq!(
         empty.cause, None,
         "a run with no failure at all must not invent one"
@@ -1664,5 +1667,106 @@ async fn a_finished_run_publishes_its_own_verdict_as_the_terminal_message() {
             .expect("a terminal run publishes a progress message"),
         "Completed: Night root",
         "the message must name the root's outcome, not the last node to report"
+    );
+}
+
+/// A fault the run recovered from is not the reason a later fault ended it.
+///
+/// The Recovery node below absorbs its child's failure and the run carries on,
+/// so that failure is history by the time the target refuses to start. Naming
+/// it as the reason would blame, say, a USB drop that reconnected at 21:00 for
+/// a guider death at 03:00.
+#[tokio::test]
+async fn a_fault_the_run_recovered_from_is_not_the_reason_it_failed() {
+    let mut sequence = SequenceDefinition::new("Survived then failed".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "root".to_string(),
+        name: "Night".to_string(),
+        node_type: crate::NodeType::TargetHeader(crate::TargetHeaderConfig {
+            target_name: "Night".to_string(),
+            ra_hours: 20.9629,
+            dec_degrees: 40.0,
+            ..Default::default()
+        }),
+        enabled: true,
+        children: vec!["recovery".to_string(), "target".to_string()],
+    });
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "recovery".to_string(),
+        name: "Recover and continue".to_string(),
+        node_type: crate::NodeType::Recovery(crate::RecoveryConfig {
+            trigger: None,
+            recovery_action: crate::RecoveryAction::Continue,
+            max_retries: 0,
+        }),
+        enabled: true,
+        children: vec!["script".to_string()],
+    });
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "script".to_string(),
+        name: "Run Script".to_string(),
+        node_type: crate::NodeType::RunScript(crate::ScriptConfig {
+            script_path: "/nonexistent/nightshade-test-script".to_string(),
+            timeout_secs: Some(0),
+            ..Default::default()
+        }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "target".to_string(),
+        name: "D3 Field".to_string(),
+        node_type: crate::NodeType::TargetHeader(crate::TargetHeaderConfig {
+            target_name: "D3 Field".to_string(),
+            ra_hours: 20.9629,
+            dec_degrees: 40.0,
+            start_when: Some(crate::scheduling::TargetTrigger::AltitudeAbove(35.0)),
+            ..Default::default()
+        }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("root".to_string());
+
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
+    executor.load_sequence(sequence).expect("sequence loads");
+    let mut events = executor.subscribe();
+
+    executor.start().await.expect("run starts");
+
+    for _ in 0..200 {
+        if matches!(
+            executor.get_state().await,
+            ExecutorState::Completed | ExecutorState::Failed | ExecutorState::Cancelled
+        ) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    executor.stop().await.ok();
+
+    let mut failure_reason = None;
+    let mut survived = false;
+    while let Ok(event) = events.try_recv() {
+        match event {
+            ExecutorEvent::SequenceFailed { error } => failure_reason = Some(error),
+            ExecutorEvent::InstructionFailed { message, .. }
+                if message.contains("timeout_secs must be greater than zero") =>
+            {
+                survived = true;
+            }
+            _ => {}
+        }
+    }
+    assert!(
+        survived,
+        "the script must fail inside the Recovery node, or this test proves nothing"
+    );
+    let reason = failure_reason.expect("a failed run must publish a terminal failure reason");
+    assert!(
+        reason.contains("no observer location is set"),
+        "the run failed on the target it could not evaluate, not on the fault it recovered \
+         from; got: {reason}"
     );
 }
