@@ -369,8 +369,86 @@ void main() {
 
     await expectLater(
       service.downloadAndStage(check.manifest!),
-      throwsA(isA<UpdateException>()),
+      throwsA(
+        isA<UpdateException>().having(
+          (e) => e.message,
+          'message',
+          contains('not signed by the Nightshade update key'),
+        ),
+      ),
     );
+    expect(await service.getStagedUpdate(), isNull);
+  });
+
+  test('an unsigned release is refused by name, before its package is '
+      'downloaded', () async {
+    // What CI publishes while NIGHTSHADE_UPDATE_PRIVATE_KEY is unset, and what
+    // the live v7.1.0 release carries. The rehearsal showed it refused with
+    // "the download may be corrupted or tampered with" after pulling the
+    // whole package: wrong on both counts.
+    final (packageBytes, files, totalSize) = buildPackage();
+    final unsigned = UpdateManifest(
+      version: '7.2.0',
+      buildNumber: 42,
+      releaseDate: DateTime.utc(2026, 9, 20),
+      platform: 'linux',
+      arch: 'x64',
+      files: files,
+      totalSize: totalSize,
+      compressedSize: packageBytes.length,
+      packageSha256: sha256.convert(packageBytes).toString(),
+      downloadUrl:
+          'https://github.com/o/r/releases/download/v7.2.0/nightshade-7.2.0-linux-x64.zip',
+    );
+    final router = routerFor(
+      releaseJson: {
+        'tag_name': 'v7.2.0',
+        'assets': [
+          {
+            'name': 'manifest-linux-x64.json',
+            'browser_download_url':
+                'https://github.com/o/r/releases/download/v7.2.0/manifest-linux-x64.json',
+            'size': 900,
+          },
+        ],
+      },
+      manifest: unsigned,
+      packageBytes: packageBytes,
+    );
+    final client = _CountingClient(router);
+
+    final service =
+        UpdateService(
+          currentVersion: '7.1.0',
+          currentBuildNumber: 28,
+          currentPlatform: 'linux',
+          currentArch: 'x64',
+          httpClient: client,
+          downloader: UpdateDownloader(client: client),
+          verifier: UpdateVerifier(trustedPublicKeyBase64: vendorPublicKey),
+          applicationSupportDirectoryProvider: () async => dataDir,
+        )..configureGithubSource(
+          owner: 'o',
+          repo: 'r',
+          source: GithubReleaseSource(
+            owner: 'o',
+            repo: 'r',
+            httpClient: client,
+          ),
+        );
+
+    final check = await service.checkForUpdates();
+    await expectLater(
+      service.downloadAndStage(check.manifest!),
+      throwsA(
+        isA<UpdateException>().having(
+          (e) => e.message,
+          'message',
+          contains('published without a signature'),
+        ),
+      ),
+    );
+    expect(client.packageRequests, 0);
     expect(await service.getStagedUpdate(), isNull);
   });
 
@@ -408,4 +486,18 @@ void main() {
     );
     expect(await service.getStagedUpdate(), isNull);
   });
+}
+
+/// Passes requests through, counting the ones for a package.
+class _CountingClient extends http.BaseClient {
+  _CountingClient(this._inner);
+
+  final http.Client _inner;
+  int packageRequests = 0;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    if (request.url.path.endsWith('.zip')) packageRequests++;
+    return _inner.send(request);
+  }
 }

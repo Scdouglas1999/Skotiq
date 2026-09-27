@@ -545,6 +545,26 @@ class UpdateService {
     // trusted local testing) before spending any bandwidth.
     _assertSecureUpdateUrl(manifest.downloadUrl, 'package download');
 
+    // Authenticate the manifest before downloading what it names. A manifest
+    // that can never verify would otherwise cost the whole package over a
+    // rig's link, and then be reported as a corrupted or tampered download,
+    // which sends the operator looking at the network instead of the release.
+    // The signature is checked again with the package hash after download.
+    if (manifest.signature == null || manifest.signature!.trim().isEmpty) {
+      throw UpdateException(
+        'Nightshade ${manifest.version} was published without a signature on '
+        'its update manifest, so this build will not install it. Install it '
+        'from the release page instead.',
+      );
+    }
+    if (!await _verifier.verifyManifestSignature(manifest)) {
+      throw UpdateException(
+        'The update manifest for Nightshade ${manifest.version} is not signed '
+        'by the Nightshade update key this build trusts, so it will not be '
+        'installed.',
+      );
+    }
+
     // Android ships an APK, not a tree of files to swap: there is nothing to
     // extract and nothing to hash per-file, and the install is performed by
     // the OS rather than by the updater binary.
