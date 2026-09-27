@@ -250,6 +250,50 @@ async fn test_guiding_failed_trigger() {
     );
 }
 
+/// The monitor feeds guider RMS through `update_guiding_rms`, never by writing
+/// the history directly as the test above does, so that path decides what
+/// GuidingFailed can see. Making it a no-op, or inverting its retention check,
+/// left every test green.
+#[tokio::test]
+async fn guiding_rms_fed_by_the_monitor_reaches_guiding_failed_and_ages_out() {
+    let mut trigger = Trigger::new(
+        "guiding_failed",
+        "Guiding Failed",
+        TriggerType::GuidingFailed {
+            rms_threshold: 2.0,
+            duration_secs: 10.0,
+            rms_retention_secs: 60,
+        },
+        RecoveryAction::Retry { max_attempts: 3 },
+    );
+    let mut state = TriggerState::new();
+    state.set_guiding_rms_retention_secs(60);
+
+    // Bad guiding for the last 20 s: one sample recorded earlier by the same
+    // path, one arriving now.
+    state.update_guiding_rms(2.6);
+    let history = state.guiding_rms_history.as_mut().unwrap();
+    history[0].0 = Instant::now() - Duration::from_secs(20);
+    state.update_guiding_rms(2.9);
+    assert_eq!(state.guiding_rms_history.as_ref().unwrap().len(), 2);
+    assert!(
+        trigger.check(&state).await,
+        "20 s of RMS above threshold, fed through the monitor's path, must trip"
+    );
+
+    // A sample older than the retention window is dropped on the next update,
+    // so a bad patch an hour ago cannot combine with one fresh spike.
+    let mut state = TriggerState::new();
+    state.set_guiding_rms_retention_secs(60);
+    state.update_guiding_rms(2.6);
+    state.guiding_rms_history.as_mut().unwrap()[0].0 = Instant::now() - Duration::from_secs(3600);
+    state.update_guiding_rms(2.9);
+    let history = state.guiding_rms_history.as_ref().unwrap();
+    assert_eq!(history.len(), 1, "the hour-old sample must be trimmed");
+    assert_eq!(history[0].1, 2.9);
+    assert!(!trigger.check(&state).await);
+}
+
 #[tokio::test]
 async fn test_autofocus_interval_trigger() {
     let mut trigger = Trigger::new(
