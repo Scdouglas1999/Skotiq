@@ -1192,6 +1192,20 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                             )
                             .await;
 
+                            // A sweep that left the guider dead is held
+                            // below. Freeze the node tree BEFORE handing the
+                            // camera back: the capture loop is waiting for the
+                            // train past its pause check, and released first
+                            // it started one more full unguided light in the
+                            // gap while this arm was still judging the sweep.
+                            if af_result.status == NodeStatus::Failure
+                                && !is_cancelled_clone.load(Ordering::Relaxed)
+                                && autofocus_trigger_failure_cost(af_result.data.as_ref())
+                                    == AutofocusTriggerFailureCost::EveryFrameUnguided
+                            {
+                                is_paused_for_triggers.store(true, Ordering::Relaxed);
+                            }
+
                             // Hand the camera back the moment the sweep
                             // is done — success or failure — so the
                             // capture loop resumes on its next frame

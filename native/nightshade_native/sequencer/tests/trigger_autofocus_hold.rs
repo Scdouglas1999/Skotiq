@@ -26,6 +26,9 @@ struct DeadGuiderRig {
     inner: NullDeviceOps,
     calls: Mutex<Vec<String>>,
     guiding: AtomicBool,
+    /// How long a focuser position read takes, in milliseconds. Zero answers
+    /// at once; a real focuser answers over USB or ASCOM in tens to hundreds.
+    focuser_read_ms: std::sync::atomic::AtomicU64,
 }
 
 impl DeadGuiderRig {
@@ -34,6 +37,7 @@ impl DeadGuiderRig {
             inner: NullDeviceOps,
             calls: Mutex::new(Vec::new()),
             guiding: AtomicBool::new(true),
+            focuser_read_ms: std::sync::atomic::AtomicU64::new(0),
         }
     }
 
@@ -95,7 +99,7 @@ impl DeviceOps for DeadGuiderRig {
         bx: i32,
         by: i32,
     ) -> DeviceResult<ImageData> {
-        self.record(format!("camera_start_exposure:{id}"));
+        self.record(format!("camera_start_exposure:{id}:{d}"));
         self.inner.camera_start_exposure(id, d, g, o, bx, by).await
     }
 
@@ -153,6 +157,10 @@ impl DeviceOps for DeadGuiderRig {
         self.inner.focuser_move_to(id, p).await
     }
     async fn focuser_get_position(&self, id: &str) -> DeviceResult<i32> {
+        let delay = self.focuser_read_ms.load(Ordering::SeqCst);
+        if delay > 0 {
+            tokio::time::sleep(Duration::from_millis(delay)).await;
+        }
         self.inner.focuser_get_position(id).await
     }
     async fn focuser_is_moving(&self, id: &str) -> DeviceResult<bool> {
@@ -300,8 +308,20 @@ struct Run {
 
 impl Run {
     async fn start(rig: Arc<DeadGuiderRig>, exposure_duration: f64) -> Self {
+        Self::start_with(
+            rig,
+            exposure_duration,
+            NodeType::Delay(DelayConfig { seconds: 600.0 }),
+        )
+        .await
+    }
+
+    /// [`Self::start`] running `node` instead of a long wait.
+    async fn start_with(rig: Arc<DeadGuiderRig>, exposure_duration: f64, node: NodeType) -> Self {
         let mut executor = SequenceExecutor::new();
         executor.set_device_ops(rig.clone());
+        // Frames are handed to the rig's save_fits, which writes nothing.
+        executor.set_save_path(Some(std::env::temp_dir().join("trigger-autofocus-hold")));
         executor.set_devices(
             Some("cam-1".to_string()),
             Some("mount-1".to_string()),
@@ -326,7 +346,7 @@ impl Run {
         sequence.nodes.push(NodeDefinition {
             id: "wait".to_string(),
             name: "Long wait".to_string(),
-            node_type: NodeType::Delay(DelayConfig { seconds: 600.0 }),
+            node_type: node,
             enabled: true,
             children: vec![],
         });
@@ -573,5 +593,63 @@ async fn a_trigger_autofocus_turned_away_at_the_gate_never_parks() {
         !parked_or_closed(&calls),
         "a refocus that never started parked the rig; state={state:?} messages={messages:?} \
          calls={calls:?}"
+    );
+}
+
+/// Once a trigger autofocus has left the guider dead, not one more frame may
+/// start. The capture loop waits for the imaging train past its pause check;
+/// if the train is handed back before the hold is set, the loop takes it and
+/// starts a full unguided light in the gap, which is one more trailed frame
+/// of the kind the hold exists to stop.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn no_light_starts_after_a_trigger_autofocus_leaves_the_guider_dead() {
+    let _serial = SERIAL.lock().await;
+    let rig = Arc::new(DeadGuiderRig::new());
+    rig.focuser_read_ms.store(400, Ordering::SeqCst);
+    let run = Run::start_with(
+        rig.clone(),
+        0.01,
+        NodeType::TakeExposure(nightshade_sequencer::ExposureConfig {
+            count: 500,
+            duration_secs: 1.0,
+            frame_type: "light".to_string(),
+            ..Default::default()
+        }),
+    )
+    .await;
+    run.wait_for_guider_polls().await;
+    wait_until(Duration::from_secs(20), "no light was ever taken", || {
+        rig.calls()
+            .iter()
+            .any(|c| c == "camera_start_exposure:cam-1:1")
+    })
+    .await;
+    run.executor
+        .update_trigger_state(|ts| ts.invalidate_autofocus("test: force a refocus"))
+        .await;
+    run.wait_until_judged().await;
+    let Outcome {
+        state,
+        calls,
+        messages,
+    } = run.finish().await;
+    assert!(
+        calls.iter().any(|c| c == "guider_stop"),
+        "the sweep never stopped the guider, so this test proves nothing; messages={messages:?} \
+         calls={calls:?}"
+    );
+    assert_eq!(state, ExecutorState::Paused, "messages={messages:?}");
+    let last_sweep_frame = calls
+        .iter()
+        .rposition(|c| c == "camera_start_exposure:cam-1:0.01")
+        .expect("the sweep took frames");
+    let lights_after: Vec<&String> = calls[last_sweep_frame..]
+        .iter()
+        .filter(|c| *c == "camera_start_exposure:cam-1:1")
+        .collect();
+    assert!(
+        lights_after.is_empty(),
+        "{} light(s) started after the sweep that left the guider dead; calls={calls:?}",
+        lights_after.len()
     );
 }
