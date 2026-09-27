@@ -78,6 +78,9 @@ struct ScriptedDomeRotatorOps {
     mount_slew_calls: AtomicU32,
     // Camera
     camera_exposure_calls: AtomicU32,
+    /// For each `guider_dither`, how many exposures had been started when it
+    /// was issued, so a test can tell which frames a dither followed.
+    dithers_after_frame: Mutex<Vec<u32>>,
     camera_abort_calls: AtomicU32,
     hang_camera_exposure: bool,
     /// Every `(enabled, target)` the instruction handed the cooler.
@@ -167,6 +170,7 @@ impl ScriptedDomeRotatorOps {
             mount_slew_state_calls: AtomicU32::new(0),
             mount_slew_calls: AtomicU32::new(0),
             camera_exposure_calls: AtomicU32::new(0),
+            dithers_after_frame: Mutex::new(Vec::new()),
             camera_abort_calls: AtomicU32::new(0),
             hang_camera_exposure: false,
             cooler_commands: Mutex::new(Vec::new()),
@@ -573,6 +577,10 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         sto: f64,
         ra: bool,
     ) -> DeviceResult<()> {
+        self.dithers_after_frame
+            .lock()
+            .unwrap()
+            .push(self.camera_exposure_calls.load(Ordering::SeqCst));
         self.inner.guider_dither(p, sp, st, sto, ra).await
     }
     async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {

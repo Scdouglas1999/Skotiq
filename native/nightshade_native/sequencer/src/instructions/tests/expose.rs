@@ -232,3 +232,39 @@ async fn a_trigger_action_cannot_take_the_train_mid_frame() {
         "and the recenter runs the moment the frame is downloaded"
     );
 }
+
+/// Which frames of a burst a dither follows. Nothing counted dithers, so
+/// dithering calibration bursts, dithering after the final frame, or never
+/// dithering at all each passed the whole suite.
+mod dither_cadence {
+    use super::*;
+
+    async fn dithers_for(frame_type: &str, count: u32, dither_every: u32) -> Vec<u32> {
+        let ops = Arc::new(ScriptedDomeRotatorOps::new());
+        let ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
+        let config = ExposureConfig {
+            duration_secs: 0.01,
+            count,
+            frame_type: frame_type.to_string(),
+            dither_every: Some(dither_every),
+            ..ExposureConfig::default()
+        };
+        let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), count);
+        let dithers = ops.dithers_after_frame.lock().unwrap().clone();
+        dithers
+    }
+
+    #[tokio::test]
+    async fn a_light_burst_dithers_every_nth_frame_but_not_after_the_last() {
+        assert_eq!(dithers_for("Light", 4, 2).await, vec![2]);
+        assert_eq!(dithers_for("Light", 5, 2).await, vec![2, 4]);
+    }
+
+    #[tokio::test]
+    async fn a_calibration_burst_never_moves_the_mount() {
+        assert!(dithers_for("Dark", 3, 1).await.is_empty());
+        assert!(dithers_for("Flat", 3, 1).await.is_empty());
+    }
+}
