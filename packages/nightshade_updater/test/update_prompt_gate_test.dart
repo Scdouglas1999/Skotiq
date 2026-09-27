@@ -154,4 +154,44 @@ void main() {
     await tester.pump(const Duration(seconds: 10));
     await tester.pump();
   });
+
+  testWidgets('the offer appears where the app actually mounts the manager', (
+    tester,
+  ) async {
+    // NightshadeApp wraps the router's output in UpdateManagerWidget from
+    // MaterialApp.router's `builder`, which sits ABOVE the Navigator. The
+    // tests above mount it under `home:`, below one, which is why they
+    // passed while the Android rehearsal found the check and the manifest
+    // fetched and no offer ever shown.
+    final notifier = _TestNotifier(dir);
+    final container = ProviderContainer(
+      overrides: [updateProvider.overrideWith((ref) => notifier)],
+    );
+    addTearDown(container.dispose);
+    // MaterialApp's builder wraps the Navigator exactly as the router
+    // variant's does; the app hands the manager the router's navigator key.
+    final navigatorKey = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          builder: (context, child) =>
+              UpdateManagerWidget(navigatorKey: navigatorKey, child: child!),
+          home: const Scaffold(body: Text('App')),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    notifier.offer('7.2.0');
+    await tester.pump();
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('7.2.0'), findsWidgets);
+
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pump();
+  });
 }

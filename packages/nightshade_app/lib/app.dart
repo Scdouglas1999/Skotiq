@@ -141,8 +141,10 @@ class NightshadeApp extends ConsumerWidget {
               builder: (context, child) {
                 // Calculate UI scale factor INSIDE builder where we have proper MediaQuery
                 // The outer context doesn't have accurate devicePixelRatio from the window
-                final uiScaleFactor =
-                    _calculateUiScaleFactor(context, uiScaleSetting);
+                final uiScaleFactor = _calculateUiScaleFactor(
+                  context,
+                  uiScaleSetting,
+                );
                 final combinedTextScale = textScaleFactor * uiScaleFactor;
 
                 // Scale text only. Flutter handles DPI scaling for the widget
@@ -217,7 +219,12 @@ class NightshadeApp extends ConsumerWidget {
                 // learn a new version existed.) iOS is excluded because
                 // sideloading an update is not possible there.
                 if (isDesktop || (!kIsWeb && Platform.isAndroid)) {
-                  return UpdateManagerWidget(child: result);
+                  return UpdateManagerWidget(
+                    // This builder sits above the router's Navigator; the
+                    // update dialogs need the key to reach it.
+                    navigatorKey: router.routerDelegate.navigatorKey,
+                    child: result,
+                  );
                 }
                 return result;
               },

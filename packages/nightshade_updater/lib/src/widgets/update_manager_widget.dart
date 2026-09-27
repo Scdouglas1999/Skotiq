@@ -18,10 +18,23 @@ import '../../nightshade_updater.dart';
 ///
 /// This widget should be placed inside MaterialApp's builder. It uses
 /// a Stack-based approach to show update banners (no Overlay required).
+///
+/// The builder sits above the app's Navigator, so the dialogs (update
+/// available, download progress, ready to install) need [navigatorKey] to
+/// reach it. Without one they cannot open: every call threw "Navigator
+/// operation requested with a context that does not include a Navigator",
+/// and the offer the whole prompt gate exists to time was never seen.
 class UpdateManagerWidget extends ConsumerStatefulWidget {
   final Widget child;
 
-  const UpdateManagerWidget({super.key, required this.child});
+  /// The app's root Navigator, used when this widget is mounted above it.
+  final GlobalKey<NavigatorState>? navigatorKey;
+
+  const UpdateManagerWidget({
+    super.key,
+    required this.child,
+    this.navigatorKey,
+  });
 
   @override
   ConsumerState<UpdateManagerWidget> createState() =>
@@ -176,6 +189,13 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
     await updateNotifier.checkForUpdatesIfDue();
   }
 
+  /// A context below the app's Navigator, or null when there is none yet.
+  BuildContext? _dialogContext() {
+    if (Navigator.maybeOf(context) != null) return context;
+    final key = widget.navigatorKey;
+    return key?.currentState?.overlay?.context ?? key?.currentContext;
+  }
+
   void _showUpdateAvailableDialog(UpdateState state) {
     if (_hasShownUpdateDialog) return;
 
@@ -206,11 +226,21 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
       return;
     }
 
+    final dialogContext = _dialogContext();
+    if (dialogContext == null) {
+      developer.log(
+        'No Navigator to show the update offer on; it stays in Settings.',
+        name: 'UpdateManager',
+        level: 900,
+      );
+      return;
+    }
+
     _hasShownUpdateDialog = true;
 
     final manifest = state.availableUpdate!;
     UpdateAvailableDialog.show(
-      context,
+      dialogContext,
       currentVersion: state.currentVersion,
       newVersion: manifest.version,
       // Prefer the notes the source carried (the GitHub release body) over
@@ -236,9 +266,11 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
   }
 
   void _showDownloadProgressDialog(UpdateState state) {
+    final hostContext = _dialogContext();
+    if (hostContext == null) return;
     var dialogClosed = false;
     showDialog(
-      context: context,
+      context: hostContext,
       barrierDismissible: false,
       builder: (dialogContext) => Consumer(
         builder: (context, ref, _) {
@@ -298,8 +330,17 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
         sequencerState == SequenceExecutionState.stopping ||
         sequencerState == SequenceExecutionState.recovering;
 
+    final dialogContext = _dialogContext();
+    if (dialogContext == null) {
+      _showLanPushBannerDirect(
+        state.availableUpdate?.version ?? '',
+        autoDismiss: false,
+      );
+      return;
+    }
+
     UpdateReadyDialog.show(
-      context,
+      dialogContext,
       version: state.availableUpdate?.version ?? '',
       isSessionActive: isSessionActive,
       // Android installs through the OS, which does not restart the app for
