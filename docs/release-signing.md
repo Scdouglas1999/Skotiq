@@ -41,6 +41,21 @@ the same Dart serializer the runtime verifier
 (`update_verifier.dart` `_canonicalManifestPayload`) uses, so the signed bytes
 byte-match what the app verifies.
 
+The two secrets have to be a pair. Before publishing, the release workflow runs
+`packages/nightshade_updater/tool/verify_release_manifests.dart` over every
+manifest it is about to attach, with the same verifier the apps run and the
+public key they were built with. It fails the release when a manifest does not
+verify against that key, when its package is not the attached file, when its
+download URL points somewhere other than this release, or (once the private key
+is set) when a manifest is unsigned. This matters more than any other check in
+the release: a build whose compiled-in key does not match the signing key
+refuses every later update, and can only be replaced by a manual reinstall.
+
+Before provisioning the real key, or after changing the updater, the manifest
+tool or the release workflow, run the rehearsal in `tools/ota_rehearsal/`: it
+takes a real Linux release bundle through a signed update, the failure cases
+and the rollbacks, with a throwaway key.
+
 ### Windows Authenticode certificate
 
 Provision an OV/EV code-signing certificate as a PFX, then base64-encode it:
