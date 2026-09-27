@@ -175,7 +175,13 @@ pub(crate) async fn render_sim_frame(request: SimCaptureRequest) -> SimCaptureFr
             .read()
             .await;
         if focuser.status.connected {
-            Some(focuser.status.position)
+            // A cooling tube moves best focus outward (see
+            // `NIGHTSHADE_SIM_NIGHT_COOLING_C_PER_HOUR`); a focuser left where
+            // it was is that far out of focus.
+            Some(
+                focuser.status.position
+                    - crate::api::devices::simulation::sim_thermal_focus_shift_steps(),
+            )
         } else {
             None
         }

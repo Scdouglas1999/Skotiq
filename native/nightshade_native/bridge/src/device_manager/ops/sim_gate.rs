@@ -307,7 +307,11 @@ pub(crate) async fn read_focuser_status() -> Result<FocuserStatus, String> {
     if !focuser.status.connected {
         return Err(not_connected("focuser"));
     }
-    Ok(focuser.status.clone())
+    let mut status = focuser.status.clone();
+    if status.temperature.is_some() {
+        status.temperature = Some(crate::api::devices::simulation::sim_focuser_temperature_c());
+    }
+    Ok(status)
 }
 
 /// Write-side gate for focuser ops.
