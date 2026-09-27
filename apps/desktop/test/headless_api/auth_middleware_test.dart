@@ -608,6 +608,90 @@ void main() {
       });
       expect(cleared.handoff, isNull);
     });
+
+    test('a view token cannot post to the shared session over the event '
+        'socket, as it cannot over HTTP', () async {
+      final routes = {
+        '/api/collaboration/preview': {
+          'preview': {'frame': 'intruder'},
+        },
+        '/api/collaboration/chat': {'viewerName': 'Intruder', 'message': 'hi'},
+        '/api/collaboration/annotations': {
+          'annotationId': 'a1',
+          'kind': 'label',
+          'payload': {'text': 'intruder'},
+        },
+      };
+      for (final entry in routes.entries) {
+        final http = await _request(
+          client,
+          baseUri,
+          entry.key,
+          method: 'POST',
+          token: 'view-token',
+          body: entry.value,
+        );
+        expect(http.statusCode, HttpStatus.forbidden, reason: entry.key);
+      }
+
+      final result = await handoffAfterSocketMessage('view-token', {
+        'type': 'collaboration.preview',
+        'preview': {'frame': 'intruder'},
+      });
+      await handoffAfterSocketMessage('view-token', {
+        'type': 'collaboration.chat',
+        'viewerName': 'Intruder',
+        'message': 'hi',
+      });
+      await handoffAfterSocketMessage('view-token', {
+        'type': 'collaboration.annotation',
+        'annotationId': 'a1',
+        'kind': 'label',
+        'payload': {'text': 'intruder'},
+      });
+
+      final state = server.collaborationManager.state;
+      expect(
+        state.preview,
+        isNull,
+        reason: 'the socket let a view token replace the shared preview',
+      );
+      expect(state.chat, isEmpty, reason: 'the socket let a view token chat');
+      expect(
+        state.annotations,
+        isEmpty,
+        reason: 'the socket let a view token annotate',
+      );
+      expect(
+        result.frames.where((f) => f['type'] == 'error'),
+        isNotEmpty,
+        reason: 'the refusal is reported on the socket, not dropped',
+      );
+    });
+
+    test('a control token still posts to the shared session over the event '
+        'socket', () async {
+      await handoffAfterSocketMessage('control-token', {
+        'type': 'collaboration.preview',
+        'preview': {'frame': 'rig'},
+      });
+      await handoffAfterSocketMessage('control-token', {
+        'type': 'collaboration.chat',
+        'viewerName': 'Operator',
+        'message': 'focus looks good',
+      });
+      await handoffAfterSocketMessage('control-token', {
+        'type': 'collaboration.annotation',
+        'annotationId': 'a2',
+        'kind': 'label',
+        'payload': {'text': 'M31'},
+      });
+
+      final state = server.collaborationManager.state;
+      expect(state.preview, {'frame': 'rig'});
+      expect(state.chat, hasLength(1));
+      expect(state.annotations, hasLength(1));
+    });
   });
 
   group('HeadlessApiServer fine-grained auth middleware', () {
