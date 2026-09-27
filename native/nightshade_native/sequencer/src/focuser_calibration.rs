@@ -1059,6 +1059,30 @@ mod tests {
         assert_eq!(refusal.code(), "exceeds_reversal_budget");
     }
 
+    /// The reversal budget is how far the scan drove the gear back, so a
+    /// figure equal to it is one the scan could have produced; one step more is
+    /// not. Only the far-over case above was pinned.
+    #[test]
+    fn a_result_equal_to_the_reversal_budget_is_accepted_and_one_over_refused() {
+        let at_budget = BacklashAnalysisThresholds {
+            reversal_budget_steps: 105,
+            ..thresholds()
+        };
+        let (below, above) = rig_scans();
+        let calibration = derive_backlash_calibration(below, above, at_budget, context())
+            .expect("105 steps from a scan that reversed 105 is within what it covered");
+        assert_eq!(calibration.steps, 105);
+
+        let one_short = BacklashAnalysisThresholds {
+            reversal_budget_steps: 104,
+            ..thresholds()
+        };
+        let (below, above) = rig_scans();
+        let refusal = derive_backlash_calibration(below, above, one_short, context())
+            .expect_err("105 steps cannot come out of a 104-step reversal");
+        assert_eq!(refusal.code(), "exceeds_reversal_budget");
+    }
+
     /// The correction the gear-train simulation forced: a run-up smaller than
     /// the backlash is NOT in itself a reason to refuse. What matters is the
     /// reversal the scan accumulates, and a 40-step run-up over 13 points at a
