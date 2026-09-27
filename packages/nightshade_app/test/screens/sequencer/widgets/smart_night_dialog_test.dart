@@ -122,12 +122,17 @@ void main() {
 
   testWidgets('SmartNightDialog blocks a fabricated midnight-sun window',
       (tester) async {
+    // The dialog plans for the real tonight, so pick the pole that is in
+    // polar day now: the north between the equinoxes, the south otherwise.
+    final now = DateTime.now();
+    final northernSummer = now.isAfter(DateTime(now.year, 3, 21)) &&
+        now.isBefore(DateTime(now.year, 9, 23));
     await _pumpDialog(
       tester,
       overrides: [
         inMemoryDatabaseOverride(),
         appObserverLocationProvider.overrideWithValue(
-          const LocationSettings(latitude: 89, longitude: 0),
+          LocationSettings(latitude: northernSummer ? 89 : -89, longitude: 0),
         ),
       ],
     );
