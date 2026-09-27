@@ -83,6 +83,8 @@ struct ScriptedDeviceOps {
     mount_tracking: Arc<AtomicBool>,
     /// Mount park latch reported by `mount_is_parked`.
     mount_parked: Arc<AtomicBool>,
+    /// When true, `guider_start` fails, as a guider with no star does.
+    guider_start_fails: Arc<AtomicBool>,
 }
 
 impl ScriptedDeviceOps {
@@ -101,6 +103,7 @@ impl ScriptedDeviceOps {
             shutter_state: Arc::new(Mutex::new("Open".to_string())),
             mount_tracking: Arc::new(AtomicBool::new(true)),
             mount_parked: Arc::new(AtomicBool::new(false)),
+            guider_start_fails: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -177,6 +180,9 @@ impl DeviceOps for ScriptedDeviceOps {
 
     async fn guider_start(&self, sp: f64, st: f64, sto: f64) -> DeviceResult<()> {
         self.record("guider_start");
+        if self.guider_start_fails.load(Ordering::SeqCst) {
+            return Err("simulated guider start failure: no star".to_string());
+        }
         let n = self.guider_start_count.fetch_add(1, Ordering::SeqCst) + 1;
         let relock_after = self.relock_after_starts.load(Ordering::SeqCst);
         if relock_after > 0 && n >= relock_after {
@@ -1468,10 +1474,19 @@ async fn wait_for_state(
 /// scenario can pause it, change the rig under it and watch what the executor
 /// does. Nothing in it needs a camera.
 async fn start_long_run_on_scripted_mount(ops: Arc<ScriptedDeviceOps>) -> super::SequenceExecutor {
-    use crate::{NodeDefinition, NodeType, SequenceDefinition};
     let mut executor = super::SequenceExecutor::new();
-    executor.set_device_ops(ops as SharedDeviceOps);
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    start_long_run(executor, ops).await
+}
+
+/// [`start_long_run_on_scripted_mount`] for an executor the scenario has
+/// already configured.
+async fn start_long_run(
+    mut executor: super::SequenceExecutor,
+    ops: Arc<ScriptedDeviceOps>,
+) -> super::SequenceExecutor {
+    use crate::{NodeDefinition, NodeType, SequenceDefinition};
+    executor.set_device_ops(ops as SharedDeviceOps);
     let mut sequence = SequenceDefinition::new("Hold integrity".to_string());
     sequence.nodes.push(NodeDefinition {
         id: "hold-delay".to_string(),
@@ -1589,4 +1604,70 @@ async fn tracking_recovery_never_commands_tracking_on_a_parked_mount() {
         AttemptOutcome::Succeeded,
         "a parked mount is not a recovered one; calls={calls:?}"
     );
+}
+
+/// An operator Stop while recovery is waiting between attempts is a stop, not
+/// recovery running out. It must not be reported as "Recovery could not fix",
+/// and it must not run the park-and-close sweep that the operator opted into
+/// for a recovery that genuinely gives up.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn stopping_during_recovery_is_a_stop_not_a_give_up() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.guider_start_fails.store(true, Ordering::SeqCst);
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor.set_dome(Some("dome-1".to_string()));
+    executor
+        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
+            retry_interval_secs: 60.0,
+            max_duration_secs: 3600.0,
+            park_and_close_when_recovery_gives_up: true,
+            ..crate::recovery::RecoveryRuntimeConfig::default()
+        })
+        .await;
+    let mut events = executor.subscribe();
+    let mut executor = start_long_run(executor, ops.clone()).await;
+
+    // Let the monitor see the guider guiding, then lose the star.
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("guider_get_status") < 2 {
+        assert!(tokio::time::Instant::now() < deadline, "monitor never polled the guider");
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    ops.guiding.store(false, Ordering::SeqCst);
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(15), |s| {
+        s == super::ExecutorState::Recovering
+    })
+    .await;
+    assert_eq!(state, super::ExecutorState::Recovering, "calls={:?}", ops.calls());
+    // Attempt 1 fails at once; the driver is now waiting out the interval.
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("guider_start") < 1 {
+        assert!(tokio::time::Instant::now() < deadline, "recovery never attempted");
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+    let _ = executor.stop().await;
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    let mut messages = Vec::new();
+    let mut gave_up = false;
+    while let Ok(event) = events.try_recv() {
+        match event {
+            super::ExecutorEvent::Error { message } => messages.push(message),
+            super::ExecutorEvent::RecoveryGaveUp { .. } => gave_up = true,
+            _ => {}
+        }
+    }
+    let calls = ops.calls();
+    assert!(
+        !calls.iter().any(|c| c.starts_with("mount_park") || c.starts_with("dome_close")),
+        "an operator Stop ran the give-up park-and-close sweep; messages={messages:?} \
+         calls={calls:?}"
+    );
+    assert!(
+        !messages.iter().any(|m| m.contains("Recovery could not fix")),
+        "an operator Stop was reported as recovery running out; messages={messages:?}"
+    );
+    assert!(!gave_up, "an operator Stop was published as RecoveryGaveUp; messages={messages:?}");
 }
