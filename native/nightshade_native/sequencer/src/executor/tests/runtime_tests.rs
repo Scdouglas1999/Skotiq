@@ -1832,3 +1832,69 @@ async fn a_trigger_fired_autofocus_names_itself_on_the_wire() {
         "the interlude must name the trigger that fired it, got {name:?}"
     );
 }
+
+/// A paused run is still watched for weather. `is_safety_class_trigger` is
+/// tested on its own, but nothing ran the monitor through a pause: deleting
+/// the `Paused` arm of the monitor's state gate (so a paused run is not
+/// evaluated at all, the defect the passive hold depends on being fixed), or
+/// inverting the paused-run filter, left every test green.
+#[tokio::test]
+async fn weather_turning_unsafe_during_a_pause_still_fires_the_weather_trigger() {
+    let mut sequence = SequenceDefinition::new("Paused Run".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "wait".to_string(),
+        name: "Wait".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 120.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("wait".to_string());
+
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(Arc::new(ReacquireGuiderOps::new(false, false)));
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    let mut events = executor.subscribe();
+    executor.load_sequence(sequence).expect("sequence loads");
+    executor.start().await.expect("run starts");
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while executor.get_state().await != ExecutorState::Running {
+        assert!(std::time::Instant::now() < deadline, "run never started");
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    executor.pause().await.expect("pause accepted");
+    while executor.get_state().await != ExecutorState::Paused {
+        assert!(std::time::Instant::now() < deadline, "run never paused");
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    // Nothing was unsafe before the pause.
+    while let Ok(event) = events.try_recv() {
+        if let ExecutorEvent::TriggerFired { trigger_id, .. } = event {
+            assert_ne!(trigger_id, "weather_unsafe", "fired before the sky changed");
+        }
+    }
+
+    executor.update_weather_verdict(Some(true)).await;
+
+    let fired = tokio::time::timeout(std::time::Duration::from_secs(15), async {
+        loop {
+            match events.recv().await {
+                Ok(ExecutorEvent::TriggerFired { trigger_id, .. })
+                    if trigger_id == "weather_unsafe" =>
+                {
+                    return true;
+                }
+                Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                Err(broadcast::error::RecvError::Closed) => return false,
+            }
+        }
+    })
+    .await
+    .unwrap_or(false);
+    executor.stop().await.ok();
+
+    assert!(
+        fired,
+        "the weather trigger must keep protecting the rig while the run is paused"
+    );
+}
