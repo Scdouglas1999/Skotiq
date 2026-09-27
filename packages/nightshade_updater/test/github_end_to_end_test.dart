@@ -19,6 +19,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:nightshade_updater/src/models/update_manifest.dart';
 import 'package:nightshade_updater/src/services/github_release_source.dart';
+import 'package:nightshade_updater/src/services/update_controller.dart';
 import 'package:nightshade_updater/src/services/update_downloader.dart';
 import 'package:nightshade_updater/src/services/update_service.dart';
 import 'package:nightshade_updater/src/services/update_verifier.dart';
@@ -172,6 +173,26 @@ void main() {
     // note is left alone because it is inside the signed payload.
     expect(check.releaseNotes, 'Guiding fix #412');
     expect(check.manifest!.releaseNotes, 'Terse manifest note');
+
+    // A paired phone asks through the controller (the headless API), and
+    // must be shown the same notes. The rehearsal found it being handed the
+    // manifest's one-line placeholder instead.
+    final controller = UpdateController(
+      service: service,
+      currentVersion: '7.1.0',
+      currentBuildNumber: 28,
+      stateDirectory: dataDir,
+    );
+    final events = <UpdateEvent>[];
+    final sub = controller.events.listen(events.add);
+    final outcome = await controller.checkForUpdates();
+    await Future<void>.delayed(Duration.zero);
+    await sub.cancel();
+    expect(outcome.releaseNotes, 'Guiding fix #412');
+    expect(
+      events.whereType<UpdateAvailableEvent>().single.releaseNotes,
+      'Guiding fix #412',
+    );
 
     // 2. Download + verify + stage, through the real pipeline.
     final progress = <double>[];

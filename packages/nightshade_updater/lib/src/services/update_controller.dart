@@ -603,7 +603,7 @@ class UpdateController {
             currentVersion: _currentVersion,
             latestVersion: manifest.version,
             downloadUrl: manifest.downloadUrl,
-            releaseNotes: manifest.releaseNotes,
+            releaseNotes: result.releaseNotes,
             downloadSize: manifest.compressedSize,
           ),
         );
@@ -611,7 +611,7 @@ class UpdateController {
           available: true,
           latestVersion: manifest.version,
           latestBuildNumber: manifest.buildNumber,
-          releaseNotes: manifest.releaseNotes,
+          releaseNotes: result.releaseNotes,
           downloadUrl: manifest.downloadUrl,
           downloadSize: manifest.compressedSize,
           signature: manifest.signature,
