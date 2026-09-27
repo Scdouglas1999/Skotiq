@@ -487,22 +487,32 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 recovery_driver_gave_up.store(true, Ordering::Relaxed);
             }
             if !aborted_by_user && !end_policy.may_safe_abandon() {
+                // The ladder switched tracking off before its first attempt
+                // (`stop_tracking_during_recovery`) and nothing restores it for
+                // a run that has ended. Say so: "nothing has been moved" read
+                // as "the mount is as you left it", and it was not.
+                let tracking_note = if stop_tracking && recovery_driver_mount_id.is_some() {
+                    " Mount tracking was switched off for the recovery and is still off."
+                } else {
+                    ""
+                };
                 tracing::warn!(
                     "[RECOVERY] Recovery exhausted for {:?} after {} attempt{}; operator policy \
-                     is '{}', so the run ends WITHOUT parking or closing anything. The mount has \
-                     not been moved.",
+                     is '{}', so the run ends WITHOUT parking or closing anything.{}",
                     ctx.cause,
                     ctx.attempt_count,
                     if ctx.attempt_count == 1 { "" } else { "s" },
-                    end_policy.label()
+                    end_policy.label(),
+                    tracking_note
                 );
                 let _ = recovery_driver_event_tx.send(ExecutorEvent::Error {
                     message: format!(
                         "Recovery could not fix {} after {} attempt{}. The run has stopped. \
-                         Nothing has been parked or closed — check the rig when you can.",
+                         Nothing has been parked or closed.{} Check the rig when you can.",
                         ctx.cause.display_label(),
                         ctx.attempt_count,
-                        if ctx.attempt_count == 1 { "" } else { "s" }
+                        if ctx.attempt_count == 1 { "" } else { "s" },
+                        tracking_note
                     ),
                 });
             }

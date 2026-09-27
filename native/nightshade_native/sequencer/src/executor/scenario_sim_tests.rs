@@ -1853,3 +1853,65 @@ async fn a_pause_placed_during_recovery_survives_the_recovery() {
         "the operator's pause was lifted when recovery succeeded"
     );
 }
+
+/// When recovery runs out under the default hold-for-operator policy, what it
+/// tells the operator must match what it did to the rig. The ladder switched
+/// tracking off before its first attempt and nothing switches it back on for a
+/// run that has ended, so the give-up message must say tracking is off, not
+/// leave him believing the mount is as he left it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_recovery_give_up_says_that_tracking_was_left_off() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.guider_start_fails.store(true, Ordering::SeqCst);
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor
+        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
+            retry_interval_secs: 1.0,
+            max_duration_secs: 2.0,
+            ..crate::recovery::RecoveryRuntimeConfig::default()
+        })
+        .await;
+    let mut events = executor.subscribe();
+    let mut executor = start_long_run(executor, ops.clone()).await;
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("guider_get_status") < 2 {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "monitor never polled the guider"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    ops.guiding.store(false, Ordering::SeqCst);
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(30), |s| {
+        s == super::ExecutorState::Failed
+    })
+    .await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    let mut messages = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let super::ExecutorEvent::Error { message } = event {
+            messages.push(message);
+        }
+    }
+    assert_eq!(state, super::ExecutorState::Failed, "calls={calls:?}");
+    assert!(
+        calls
+            .iter()
+            .any(|c| c == "mount_set_tracking:mount-1:false"),
+        "the ladder never stopped tracking, so this test proves nothing; calls={calls:?}"
+    );
+    assert!(
+        !ops.mount_tracking.load(Ordering::SeqCst),
+        "tracking came back on; the message question does not arise"
+    );
+    let give_up = messages
+        .iter()
+        .find(|m| m.contains("Recovery could not fix"))
+        .unwrap_or_else(|| panic!("no give-up message; messages={messages:?}"));
+    assert!(
+        give_up.to_lowercase().contains("tracking"),
+        "the give-up message does not say that tracking was left off: {give_up}"
+    );
+}
