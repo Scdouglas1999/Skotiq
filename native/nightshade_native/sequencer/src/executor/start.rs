@@ -713,6 +713,7 @@ impl SequenceExecutor {
                 let command_handler = run_command_handler(CommandHandlerArgs {
                     cloud_motion_for_recovery: cloud_motion_for_recovery.clone(),
                     conditions_score_for_cmd,
+                    current_recovery_for_cmd: current_recovery_clone.clone(),
                     default_adaptive_for_cmd,
                     defect_map_apply_for_cmd,
                     event_tx: event_tx.clone(),

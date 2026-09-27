@@ -388,16 +388,35 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             };
             apply_recovery_escalation(&escalation_state, &ctx, pause_message, stop_tracking).await;
         } else if recovered {
+            // An operator Pause during the ladder is the only thing that
+            // turns `Recovering` into `Paused` while it runs. That hold is his,
+            // so a successful ladder leaves it in place rather than resuming
+            // the run under him.
+            let operator_paused = *recovery_driver_state.read().await == ExecutorState::Paused;
+            let resumed_state = if operator_paused {
+                ExecutorState::Paused
+            } else {
+                ExecutorState::Running
+            };
             tracing::info!(
-                "[RECOVERY] Loop succeeded after {} attempt{}; resuming sequence",
+                "[RECOVERY] Loop succeeded after {} attempt{}; {}",
                 ctx.attempt_count,
-                if ctx.attempt_count == 1 { "" } else { "s" }
+                if ctx.attempt_count == 1 { "" } else { "s" },
+                if operator_paused {
+                    "the run stays paused as the operator left it"
+                } else {
+                    "resuming sequence"
+                }
             );
-            *recovery_driver_state.write().await = ExecutorState::Running;
+            *recovery_driver_state.write().await = resumed_state;
             {
                 let mut prog = recovery_driver_progress.write();
-                prog.state = ExecutorState::Running;
-                prog.message = Some("Recovered — resuming sequence".to_string());
+                prog.state = resumed_state;
+                prog.message = Some(if operator_paused {
+                    "Recovered — paused, as you left it".to_string()
+                } else {
+                    "Recovered — resuming sequence".to_string()
+                });
             }
             *recovery_driver_current.write() = None;
 
@@ -431,9 +450,10 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             // also observe the advanced generation (no window where
             // it sees "not paused" with a stale generation).
             recovery_driver_generation.fetch_add(1, Ordering::AcqRel);
-            recovery_driver_is_paused.store(false, Ordering::Relaxed);
-            let _ =
-                recovery_driver_event_tx.send(ExecutorEvent::StateChanged(ExecutorState::Running));
+            if !operator_paused {
+                recovery_driver_is_paused.store(false, Ordering::Relaxed);
+            }
+            let _ = recovery_driver_event_tx.send(ExecutorEvent::StateChanged(resumed_state));
             let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryCompleted {
                 context: Box::new(ctx.clone()),
             });

@@ -1759,3 +1759,97 @@ async fn weather_turning_unsafe_during_recovery_is_still_acted_on() {
         "a weather abort was reported as recovery running out; messages={messages:?}"
     );
 }
+
+/// Start a run on a scripted rig whose guide star is lost and whose guider
+/// cannot restart, and return it once it is in a recovery ladder that retries
+/// every `retry_interval_secs`.
+async fn start_run_in_guide_star_recovery(
+    ops: Arc<ScriptedDeviceOps>,
+    retry_interval_secs: f64,
+) -> super::SequenceExecutor {
+    ops.guider_start_fails.store(true, Ordering::SeqCst);
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor
+        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
+            retry_interval_secs,
+            max_duration_secs: 5400.0,
+            ..crate::recovery::RecoveryRuntimeConfig::default()
+        })
+        .await;
+    let executor = start_long_run(executor, ops.clone()).await;
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("guider_get_status") < 2 {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "monitor never polled the guider"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    ops.guiding.store(false, Ordering::SeqCst);
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(15), |s| {
+        s == super::ExecutorState::Recovering
+    })
+    .await;
+    assert_eq!(
+        state,
+        super::ExecutorState::Recovering,
+        "calls={:?}",
+        ops.calls()
+    );
+    executor
+}
+
+/// Resume is the answer to a pause, not to a recovery. Pressed while the
+/// ladder is still re-acquiring the guide star, it must not unfreeze the node
+/// tree: every frame taken then is unguided. Try-now and abort are the
+/// operator's controls over a ladder.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn resume_during_recovery_does_not_unfreeze_the_run() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_run_in_guide_star_recovery(ops.clone(), 600.0).await;
+
+    executor.resume().await.expect("resume");
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    let state = executor.get_state().await;
+    let recovering = executor.current_recovery().is_some();
+    let _ = executor.stop().await;
+    assert!(recovering, "the ladder should still be running");
+    assert_ne!(
+        state,
+        super::ExecutorState::Running,
+        "Resume set the run Running while recovery was still re-acquiring the guide star"
+    );
+}
+
+/// An operator who pauses while a recovery ladder runs has placed a hold. A
+/// ladder that then succeeds must leave the run paused, not resume it under
+/// him.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_pause_placed_during_recovery_survives_the_recovery() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_run_in_guide_star_recovery(ops.clone(), 2.0).await;
+
+    executor.pause().await.expect("pause");
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    // The guider can restart now; the next attempt re-acquires.
+    ops.relock_after_starts.store(1, Ordering::SeqCst);
+    ops.guider_start_fails.store(false, Ordering::SeqCst);
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(20);
+    while executor.current_recovery().is_some() {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "recovery never finished; calls={:?}",
+            ops.calls()
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let state = executor.get_state().await;
+    let _ = executor.stop().await;
+    assert_eq!(
+        state,
+        super::ExecutorState::Paused,
+        "the operator's pause was lifted when recovery succeeded"
+    );
+}
