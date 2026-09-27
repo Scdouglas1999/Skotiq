@@ -131,6 +131,9 @@ struct ScriptedDomeRotatorOps {
     /// identity default, so a test can stand in for a real mount whose
     /// read-back is of date while the target is J2000.
     scripted_readback_frame: Option<DeviceResult<(f64, f64)>>,
+    /// When `Some((hfr, stars, eccentricity))`, what the per-frame star
+    /// analysis measures on every frame, so grading sees real numbers.
+    scripted_frame_metrics: Option<(f64, usize, f64)>,
     scripted_pier_side: Option<crate::meridian::PierSide>,
     scripted_cooler_power: Option<f64>,
     scripted_focuser_position: Option<i32>,
@@ -193,6 +196,7 @@ impl ScriptedDomeRotatorOps {
             saved_frame_paths: Mutex::new(Vec::new()),
             scripted_mount_coordinates: None,
             scripted_readback_frame: None,
+            scripted_frame_metrics: None,
             scripted_pier_side: None,
             scripted_cooler_power: None,
             scripted_focuser_position: None,
@@ -232,6 +236,13 @@ impl ScriptedDomeRotatorOps {
     /// fixed answer.
     fn with_scripted_mount_coordinates(mut self, ra_hours: f64, dec_degrees: f64) -> Self {
         self.scripted_mount_coordinates = Some((ra_hours, dec_degrees));
+        self
+    }
+
+    /// Make every frame measure as `hfr` px with `stars` stars of
+    /// `eccentricity`.
+    fn with_scripted_frame_metrics(mut self, hfr: f64, stars: usize, eccentricity: f64) -> Self {
+        self.scripted_frame_metrics = Some((hfr, stars, eccentricity));
         self
     }
 
@@ -664,13 +675,22 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         self.inner.safety_is_safe(id).await
     }
     async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        self.inner.calculate_image_hfr(d).await
+        match self.scripted_frame_metrics {
+            Some((hfr, _, _)) => Ok(Some(hfr)),
+            None => self.inner.calculate_image_hfr(d).await,
+        }
     }
     async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        self.inner.detect_stars_in_image(d).await
+        match self.scripted_frame_metrics {
+            Some((hfr, stars, _)) => Ok((0..stars).map(|i| (i as f64, i as f64, hfr)).collect()),
+            None => self.inner.detect_stars_in_image(d).await,
+        }
     }
     async fn measure_frame_eccentricity(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        self.inner.measure_frame_eccentricity(d).await
+        match self.scripted_frame_metrics {
+            Some((_, _, eccentricity)) => Ok(Some(eccentricity)),
+            None => self.inner.measure_frame_eccentricity(d).await,
+        }
     }
     async fn cover_calibrator_open_cover(&self, id: &str) -> DeviceResult<()> {
         self.cover_open_ids.lock().unwrap().push(id.to_string());
