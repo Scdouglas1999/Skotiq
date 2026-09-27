@@ -348,6 +348,61 @@ async fn a_node_driven_meridian_flip_reports_its_outcome_to_the_run() {
     );
 }
 
+/// The gate must not hold for a flip the trigger refuses to fire because the
+/// mount is not tracking (or is parked). The trigger checks both before its
+/// window test; the gate only mirrored the target and hour-angle half, so on a
+/// mount left not tracking every light frame after transit waited out the
+/// gate's full 30-minute bound. Found by the simulator soak: a mount unparked
+/// without tracking reached transit and the run sat at "Waiting for the
+/// meridian flip before the next 15s exposure: the flip became due 19s ago".
+#[tokio::test]
+async fn meridian_gate_does_not_hold_when_the_mount_is_not_tracking() {
+    for (tracking, parked) in [(Some(false), Some(false)), (Some(true), Some(true))] {
+        let ops = Arc::new(ScriptedDomeRotatorOps::new());
+        let mut ec = crate::node::context::ExecutionContext::new_for_test("gate-node".to_string());
+        ec.device_ops = ops;
+        ec.camera_id = Some("camera-1".to_string());
+        ec.mount_id = Some("mount-1".to_string());
+        ec.longitude = Some(42.0);
+        ec.latitude = Some(40.0);
+
+        let lst = crate::meridian::local_sidereal_time(
+            crate::meridian::julian_day(&chrono::Utc::now()),
+            42.0,
+        );
+        // Six minutes past the meridian: one minute after a 5-minute flip.
+        let ra = (lst - 0.1).rem_euclid(24.0);
+        let trigger_state = Arc::new(tokio::sync::RwLock::new(
+            crate::triggers::TriggerState::new(),
+        ));
+        {
+            let mut state = trigger_state.write().await;
+            state.meridian_flip_minutes_past = Some(5.0);
+            state.target_ra = Some(ra * 15.0);
+            state.target_dec = Some(40.0);
+            state.current_hour_angle = Some(0.1);
+            state.pier_side = Some(crate::PierSide::West);
+            state.mount_is_tracking = tracking;
+            state.mount_parked = parked;
+        }
+        ec.trigger_state = Some(trigger_state);
+        let mut ctx = ec.to_instruction_context("gate-node").await;
+        ctx.target_ra = Some(ra);
+
+        let gate = tokio::time::timeout(
+            Duration::from_secs(3),
+            wait_for_meridian_flip_window(&ctx, 15.0, &BurstControl::default()),
+        )
+        .await
+        .unwrap_or_else(|_| {
+            panic!(
+                "held for a flip the trigger cannot fire (tracking={tracking:?}, parked={parked:?})"
+            )
+        });
+        assert!(gate.is_none());
+    }
+}
+
 /// The pre-exposure meridian gate must apply to LIGHTS only.
 ///
 /// Gating a calibration frame inside a TargetHeader holds a 3s dark with
