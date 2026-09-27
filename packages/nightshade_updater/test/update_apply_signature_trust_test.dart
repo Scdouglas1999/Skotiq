@@ -285,4 +285,78 @@ void main() {
       service.dispose();
     },
   );
+
+  test('an install this user cannot write to is refused while the app is still '
+      'running', () async {
+    // The rehearsal: with the install read-only (the appliance unit's
+    // ProtectSystem=strict, or a tarball unpacked into /opt by root), the
+    // app exited for the swap, the updater could not write, and nothing
+    // came back. The refusal has to happen before the app exits.
+    final algorithm = Ed25519();
+    final keyPair = await algorithm.newKeyPair();
+    final publicKey = await keyPair.extractPublicKey();
+    final pkg = buildManifest(fileName: 'app.txt', fileContent: 'payload');
+    final signed = await sign(
+      pkg.manifest.copyWith(platform: Platform.operatingSystem),
+      algorithm,
+      keyPair,
+    );
+    await stageTree(
+      markerManifest: signed,
+      fileName: 'app.txt',
+      fileBytes: pkg.fileBytes,
+    );
+
+    final install = Directory(path.join(appSupport.path, 'install'));
+    await install.create();
+    await File(
+      path.join(install.path, updaterExecutableName),
+    ).writeAsString('updater');
+    await Process.run('chmod', ['0555', install.path]);
+    addTearDown(() => Process.run('chmod', ['0755', install.path]));
+
+    final service = UpdateService(
+      currentVersion: '2.0.0',
+      currentBuildNumber: 1,
+      currentPlatform: Platform.operatingSystem,
+      verifier: UpdateVerifier(
+        trustedPublicKeyBase64: base64Encode(publicKey.bytes),
+        signatureAlgorithm: algorithm,
+      ),
+      applicationSupportDirectoryProvider: appSupportDir,
+      installDirectoryProvider: () async => install,
+    );
+
+    await expectLater(
+      service.applyUpdate(),
+      throwsA(
+        isA<UpdateException>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('cannot write to'), contains('left running')),
+        ),
+      ),
+    );
+    expect(
+      await File(
+        path.join(appSupport.path, 'updates', 'pending_install.json'),
+      ).exists(),
+      isFalse,
+      reason: 'nothing may claim an update is in flight',
+    );
+    expect(await service.getStagedUpdate(), isNotNull);
+    service.dispose();
+  }, skip: Platform.isWindows ? 'Windows installs elevate instead' : false);
+
+  test('the updater is told to start the app the way it was started', () {
+    // A headless rig started with --headless --port=... came back as the GUI
+    // after an update, because the updater relaunched it with no arguments.
+    setUpdateRelaunchArguments(['--headless', '--port=18931', 'plain']);
+    addTearDown(() => setUpdateRelaunchArguments(const []));
+    expect(updaterRelaunchFlags(), [
+      '--relaunch-arg=--headless',
+      '--relaunch-arg=--port=18931',
+      '--relaunch-arg=plain',
+    ]);
+  });
 }

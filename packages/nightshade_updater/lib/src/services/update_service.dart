@@ -51,6 +51,27 @@ final String updaterExecutableName = Platform.isWindows
     ? 'updater.exe'
     : 'updater';
 
+/// The command line this process was started with, as its `main` received it.
+///
+/// Handed to the updater so the app comes back the way it was started. A
+/// headless rig launched as `nightshade_desktop --headless --port=...` used to
+/// be relaunched with no arguments at all, which starts the GUI: on a machine
+/// with no display that is nothing, and the rig drops off the network after
+/// what looked like a successful update.
+List<String> _relaunchArguments = const [];
+
+/// Record the app's own command line for the updater to reuse. Called once
+/// from `main`.
+void setUpdateRelaunchArguments(List<String> args) {
+  _relaunchArguments = List.unmodifiable(args);
+}
+
+/// Updater flags that restart the app with [setUpdateRelaunchArguments]'s
+/// command line. `=` keeps a value that starts with `--` attached to its flag.
+List<String> updaterRelaunchFlags() => [
+  for (final arg in _relaunchArguments) '--relaunch-arg=$arg',
+];
+
 /// One-shot UI banner queued after [getStagedUpdate] discards a
 /// corrupted marker. The next consumer that reads + clears
 /// this gets a single chance to surface the message; the banner is not
@@ -85,6 +106,7 @@ class UpdateService {
   final http.Client _httpClient;
   final Duration _httpTimeout;
   final Future<Directory> Function() _applicationSupportDirectoryProvider;
+  final Future<Directory> Function() _installDirectoryProvider;
   final bool _allowInsecureUpdateSource;
   final String _currentPlatform;
   final String _currentArch;
@@ -104,6 +126,7 @@ class UpdateService {
     http.Client? httpClient,
     Duration httpTimeout = defaultUpdateHttpTimeout,
     Future<Directory> Function()? applicationSupportDirectoryProvider,
+    Future<Directory> Function()? installDirectoryProvider,
     String? currentPlatform,
     String? currentArch,
     // OTA sources must use https. This default-off escape hatch exists
@@ -128,6 +151,8 @@ class UpdateService {
        _applicationSupportDirectoryProvider =
            applicationSupportDirectoryProvider ??
            resolveNightshadeDataDirectory,
+       _installDirectoryProvider =
+           installDirectoryProvider ?? _executableDirectory,
        _allowInsecureUpdateSource = allowInsecureUpdateSource,
        _currentPlatform = normalizeUpdatePlatform(
          currentPlatform ?? Platform.operatingSystem,
@@ -995,6 +1020,8 @@ class UpdateService {
       }
     }
 
+    await _assertInstallWritable(installDir, manifest);
+
     await pendingFile.parent.create(recursive: true);
     await pendingFile.writeAsString(
       jsonEncode({
@@ -1022,6 +1049,7 @@ class UpdateService {
       pendingFile.path,
       '--expected-hashes',
       expectedHashesFile.path,
+      ...updaterRelaunchFlags(),
       '--launch-after',
     ];
 
@@ -1164,6 +1192,7 @@ class UpdateService {
       '--expected-hashes',
       path.join(backupDir.path, 'expected_hashes.json'),
       '--rollback',
+      ...updaterRelaunchFlags(),
       '--launch-after',
     ];
 
@@ -1205,11 +1234,49 @@ class UpdateService {
     exit(0);
   }
 
-  /// Get the installation directory
-  Future<Directory> _getInstallDirectory() async {
-    // On Windows, this is the directory containing the executable
-    final execPath = Platform.resolvedExecutable;
-    return Directory(path.dirname(execPath));
+  /// The directory the running build was installed into.
+  Future<Directory> _getInstallDirectory() => _installDirectoryProvider();
+
+  static Future<Directory> _executableDirectory() async =>
+      Directory(path.dirname(Platform.resolvedExecutable));
+
+  /// Refuse, while the app is still running, an apply the updater could not
+  /// carry out.
+  ///
+  /// The app exits before the updater touches anything, so an install this
+  /// user cannot write to (a tarball unpacked into /opt by root, or the
+  /// appliance unit's `ProtectSystem=strict`) used to end with the program
+  /// gone and the reason in a temp file. Each existing directory the update
+  /// writes into is probed with a real file. Windows is left to the updater,
+  /// whose manifest asks for elevation to write under Program Files.
+  Future<void> _assertInstallWritable(
+    Directory installDir,
+    UpdateManifest manifest,
+  ) async {
+    if (Platform.isWindows) return;
+    final dirs = <String>{installDir.path};
+    for (final rel in manifest.files.keys) {
+      final parts = rel.replaceAll(r'\', '/').split('/')..removeLast();
+      var dir = installDir.path;
+      for (final part in parts) {
+        dir = path.join(dir, part);
+        if (await Directory(dir).exists()) dirs.add(dir);
+      }
+    }
+    for (final dir in dirs) {
+      final probe = File(path.join(dir, '.nightshade-write-probe-$pid'));
+      try {
+        await probe.writeAsString('');
+        await probe.delete();
+      } on FileSystemException catch (e) {
+        throw UpdateException(
+          'Cannot install the update here: this user cannot write to $dir '
+          '(${e.osError?.message ?? e.message}). Nightshade was left running '
+          'on its current version. Install the new version from the release '
+          'page, or run Nightshade from a folder this user owns.',
+        );
+      }
+    }
   }
 
   /// Get the backup directory
