@@ -896,6 +896,16 @@ impl Phd2Client {
             Ok(event_msg) => {
                 // Every looping/guide frame is an event (~1 Hz); trace, don't info.
                 tracing::debug!("PHD2: Received event: {}", event_msg.event);
+                // A new guiding session starts a new RMS window. Samples from
+                // before the guider was stopped and started again describe
+                // guiding that has ended, and left in place they kept a
+                // re-acquired guider over the recovery settle bound for the
+                // next hundred frames.
+                if event_msg.event == "StartGuiding" {
+                    if let Ok(mut stats) = rolling_stats.lock() {
+                        stats.reset();
+                    }
+                }
                 if let Some(event) = parse_phd2_event(&event_msg) {
                     // Update rolling stats for guide frames
                     if let Phd2Event::GuideStep(ref frame) = event {
@@ -1969,6 +1979,47 @@ pub fn launch_phd2() -> Result<(), String> {
 mod tests {
     use super::*;
     use std::net::TcpListener;
+
+    /// Feed PHD2 event lines through the reader's own line handler and
+    /// return the rolling stats it keeps.
+    fn feed_lines(lines: &[String]) -> GuideStats {
+        let registry = Arc::new(Mutex::new(HashMap::new()));
+        let stats = Arc::new(Mutex::new(RollingGuideStats::default()));
+        let state = Arc::new(Mutex::new(Phd2State::Connected));
+        let settle = Arc::new(Mutex::new(SettleTracker::default()));
+        for line in lines {
+            Phd2Client::process_line(line, &registry, &stats, &state, &None, &settle);
+        }
+        let result = stats.lock().unwrap().get_stats();
+        result
+    }
+
+    fn guide_step(frame: u32, ra: f64, dec: f64) -> String {
+        format!(
+            r#"{{"Event":"GuideStep","Frame":{frame},"RADistanceRaw":{ra},"DECDistanceRaw":{dec},"SNR":20.0}}"#
+        )
+    }
+
+    /// The RMS the recovery settle gate reads must describe the guiding that
+    /// is happening now. Samples from before the guider was stopped and
+    /// started again (a lost star chased at 57 px, an autofocus interlude)
+    /// kept a re-acquired guider over its 2 px bound for the next hundred
+    /// frames, several minutes at usual guide exposures, so a recovery that
+    /// worked was judged as failed.
+    #[test]
+    fn a_new_guiding_session_starts_a_new_rms_window() {
+        let mut lines: Vec<String> = (0..100).map(|i| guide_step(i, 57.0, 54.0)).collect();
+        lines.push(r#"{"Event":"GuidingStopped"}"#.to_string());
+        lines.push(r#"{"Event":"StartGuiding"}"#.to_string());
+        lines.extend((0..30).map(|i| guide_step(i, 0.3, 0.3)));
+
+        let stats = feed_lines(&lines);
+        assert!(
+            stats.rms_total <= 2.0,
+            "RMS after a fresh start still carries the old session: {:.2} px",
+            stats.rms_total
+        );
+    }
 
     #[test]
     fn normalizes_localhost_for_tcp() {
