@@ -939,16 +939,24 @@ impl MeridianFlipExecutor {
             new_pier_side
         );
         let (post_ra, post_dec) = self.device_ops.mount_get_coordinates(mount_id).await?;
-        let ra_diff_deg = normalize_ra_diff_hours(post_ra - ctx.target_ra_hours) * 15.0;
-        let dec_diff_deg = post_dec - ctx.target_dec_degrees;
+        // Compare in the frame the mount reports, as `execute_slew` does: the
+        // target is J2000 and a real mount reads back coordinates of date, ~20'
+        // apart in 2026 against a 1' tolerance. Compared raw, every correct
+        // flip on a mount without pier-side telemetry failed here.
+        let (expect_ra, expect_dec) = self
+            .device_ops
+            .mount_readback_frame(mount_id, ctx.target_ra_hours, ctx.target_dec_degrees)
+            .await?;
+        let ra_diff_deg = normalize_ra_diff_hours(post_ra - expect_ra) * 15.0;
+        let dec_diff_deg = post_dec - expect_dec;
         let tolerance_deg = self.config.flip_coordinate_tolerance_deg;
         if ra_diff_deg.abs() > tolerance_deg || dec_diff_deg.abs() > tolerance_deg {
             return Err(format!(
                 "Flip slew completed but coordinate-fallback verification failed without \
-                 pier-side telemetry: target RA={:.4}h Dec={:.4}°, mount reports RA={:.4}h \
-                 Dec={:.4}° (diff RA={:.2}', Dec={:.2}')",
-                ctx.target_ra_hours,
-                ctx.target_dec_degrees,
+                 pier-side telemetry: target RA={:.4}h Dec={:.4}° (mount frame), mount reports \
+                 RA={:.4}h Dec={:.4}° (diff RA={:.2}', Dec={:.2}')",
+                expect_ra,
+                expect_dec,
                 post_ra,
                 post_dec,
                 ra_diff_deg * 60.0,

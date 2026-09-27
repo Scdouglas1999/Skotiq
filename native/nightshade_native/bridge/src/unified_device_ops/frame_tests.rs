@@ -274,6 +274,59 @@ async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
     );
 }
 
+/// A flip on a mount that does not report its pier side is verified by
+/// checking the mount arrived back on the target. That check compared the
+/// of-date read-back with the J2000 target against a 1' tolerance, so on any
+/// JNow mount without pier-side telemetry every correct flip was reported as a
+/// failure (the 2026-09-14 slew-validator defect, in the flip executor).
+#[tokio::test]
+async fn a_flip_without_pier_side_telemetry_verifies_on_an_of_date_mount() {
+    let _serialized = sim_singleton_test_lock().lock().await;
+    let _frame = FrameGuard::pin(SimMountFrame::OfDate);
+    // No site: the simulated mount then has no hour angle to pick a pier side
+    // from and keeps reporting Unknown, like a driver without SideOfPier.
+    let previous_site = crate::api::get_state()
+        .get_observer_location()
+        .ok()
+        .flatten();
+    crate::api::get_state().set_observer_location(None).unwrap();
+    let mount_id = "sim_mount_frame_flip";
+    attach_sim_mount(mount_id).await;
+    get_sim_mount().write().await.status.side_of_pier = Some(crate::device::PierSide::Unknown);
+
+    let config = nightshade_sequencer::MeridianFlipConfig {
+        pause_guiding: false,
+        auto_center: false,
+        refocus_after: false,
+        resume_guiding: false,
+        settle_time: 0.0,
+        max_retries: 0,
+        ..Default::default()
+    };
+    let ctx = nightshade_sequencer::FlipContext {
+        target_name: "NGC 7380".to_string(),
+        target_ra_hours: NGC7380_J2000.0,
+        target_dec_degrees: NGC7380_J2000.1,
+        mount_id: mount_id.to_string(),
+        camera_id: None,
+        focuser_id: None,
+        cover_calibrator_id: None,
+        cancellation_token: None,
+        trigger_state: None,
+        autofocus_config: None,
+        simulate: false,
+    };
+    let mut executor =
+        nightshade_sequencer::MeridianFlipExecutor::new(config, create_unified_device_ops());
+    let result = executor.execute(&ctx).await;
+    let _ = crate::api::get_state().set_observer_location(previous_site);
+
+    assert!(
+        matches!(result, nightshade_sequencer::FlipResult::Success { .. }),
+        "a flip that landed on target was reported as {result:?}"
+    );
+}
+
 fn walk_fits(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
     let mut found = Vec::new();
     for entry in std::fs::read_dir(dir).unwrap().flatten() {
