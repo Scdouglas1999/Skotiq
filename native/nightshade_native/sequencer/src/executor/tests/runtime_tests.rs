@@ -1898,3 +1898,72 @@ async fn weather_turning_unsafe_during_a_pause_still_fires_the_weather_trigger()
         "the weather trigger must keep protecting the rig while the run is paused"
     );
 }
+
+/// A run resumed from a checkpoint never re-runs its StartGuiding node, so the
+/// monitor seeing the guider actively guiding is what arms GuideStarLost. With
+/// that latch inverted the trigger stayed disarmed, a guider that then stopped
+/// guiding was never reported lost, and every test passed.
+#[tokio::test]
+async fn a_guider_seen_guiding_arms_star_lost_and_a_later_drop_fires_it() {
+    let mut sequence = SequenceDefinition::new("Guided Run".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "wait".to_string(),
+        name: "Wait".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 120.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("wait".to_string());
+
+    // Guiding from the start, with no StartGuiding node in the sequence.
+    let ops = ReacquireGuiderOps::new(false, true);
+    let guiding = ops.started.clone();
+    guiding.store(true, Ordering::Relaxed);
+
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(Arc::new(ops));
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    let mut events = executor.subscribe();
+    executor.load_sequence(sequence).expect("sequence loads");
+    executor.start().await.expect("run starts");
+
+    async fn guider_flags(executor: &SequenceExecutor) -> (bool, bool) {
+        let manager = executor.trigger_manager.read().await;
+        let state = manager.state();
+        let guard = state.read().await;
+        (guard.guiding_enabled, guard.guide_star_lost)
+    }
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    while !guider_flags(&executor).await.0 {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "an actively guiding guider never armed the star-lost trigger"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+
+    // The guider stops guiding.
+    guiding.store(false, Ordering::Relaxed);
+    let fired = tokio::time::timeout(std::time::Duration::from_secs(15), async {
+        loop {
+            match events.recv().await {
+                Ok(ExecutorEvent::TriggerFired { trigger_id, .. })
+                    if trigger_id == "guide_star_lost" =>
+                {
+                    return true;
+                }
+                Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                Err(broadcast::error::RecvError::Closed) => return false,
+            }
+        }
+    })
+    .await
+    .unwrap_or(false);
+    executor.stop().await.ok();
+
+    assert!(
+        fired,
+        "a guider that stopped guiding must fire GuideStarLost"
+    );
+}
