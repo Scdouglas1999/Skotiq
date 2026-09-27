@@ -573,6 +573,21 @@ pub(crate) async fn move_autofocus_filter(
         .map_err(|error| format!("focus offset failed: {}", error))
 }
 
+/// How long the autofocus cleanup waits for a resumed guider to settle: the
+/// 60 s settle timeout it asks the guider for, plus the time to loop, select a
+/// star and send the first guide frames before that clock starts.
+const GUIDING_RESUME_DEADLINE: Duration = Duration::from_secs(120);
+const GUIDING_RESUME_POLL_INTERVAL: Duration = Duration::from_secs(2);
+
+/// Restart the guider autofocus stopped, and prove it is guiding again.
+///
+/// Proven means settled, by the bar the recovery ladder holds a re-acquired
+/// star to ([`crate::executor::guiding_is_settled`]), polled until a deadline.
+/// One status read straight after the resume was wrong both ways. PHD2's
+/// `guide` RPC answers before PHD2 is guiding, so a guider still selecting its
+/// star was called dead, which now holds the run. And PHD2 reports Guiding
+/// while it chases a star it has lost at tens of pixels, which was called
+/// restored and trailed every frame after it.
 pub(crate) async fn resume_guiding_after_autofocus(
     ctx: &InstructionContext,
     result: InstructionResult,
@@ -585,33 +600,38 @@ pub(crate) async fn resume_guiding_after_autofocus(
         )
         .await;
     }
-    match ctx.device_ops.guider_get_status().await {
-        Ok(status) if status.is_guiding => {
-            if let Some(trigger_state) = &ctx.trigger_state {
-                trigger_state.write().await.set_guiding_enabled(true);
+    let deadline = tokio::time::Instant::now() + GUIDING_RESUME_DEADLINE;
+    let mut last_seen: Result<crate::GuidingStatus, String>;
+    loop {
+        last_seen = ctx.device_ops.guider_get_status().await;
+        if let Ok(status) = &last_seen {
+            if crate::executor::guiding_is_settled(status) {
+                if let Some(trigger_state) = &ctx.trigger_state {
+                    trigger_state.write().await.set_guiding_enabled(true);
+                }
+                return result;
             }
-            result
         }
-        Ok(_) => {
-            append_guiding_not_restored(
-                ctx,
-                result,
-                "guider accepted resume but did not report guiding".to_string(),
-            )
-            .await
+        if tokio::time::Instant::now() >= deadline {
+            break;
         }
-        Err(error) => {
-            append_guiding_not_restored(
-                ctx,
-                result,
-                format!(
-                    "could not verify guiding resumed after autofocus: {}",
-                    error
-                ),
-            )
-            .await
-        }
+        sleep(GUIDING_RESUME_POLL_INTERVAL).await;
     }
+    let failure = match last_seen {
+        Ok(status) if status.is_guiding => format!(
+            "guider reported guiding after the resume but never settled: RMS {:.1} px \
+             against a {:.1} px limit after {} s",
+            status.rms_total,
+            crate::executor::REACQUIRE_SETTLE_PIXELS,
+            GUIDING_RESUME_DEADLINE.as_secs()
+        ),
+        Ok(_) => "guider accepted resume but did not report guiding".to_string(),
+        Err(error) => format!(
+            "could not verify guiding resumed after autofocus: {}",
+            error
+        ),
+    };
+    append_guiding_not_restored(ctx, result, failure).await
 }
 
 /// Record a cleanup failure that left the guider stopped: stamp the

@@ -259,7 +259,7 @@ fn stars_outside_the_hfr_window_are_counted_not_just_dropped() {
 
 /// A guider that accepts the resume and never guides must produce a result the
 /// CALLER can act on — not just a sentence in a message string.
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn a_failed_guider_resume_is_marked_not_just_described() {
     let ops = Arc::new(
         // The guider is STOPPED — autofocus stopped it for the sweep — and the
@@ -310,6 +310,55 @@ async fn a_failed_guider_resume_is_marked_not_just_described() {
             .await
             .guiding_enabled,
         "the cleanup knows the guider is down; the run's state must say so"
+    );
+}
+
+/// PHD2's `guide` RPC answers before PHD2 is guiding: it loops, selects a
+/// star and only then reports Guiding. A resume read once, straight after the
+/// RPC, called that guider dead, and a dead guider now holds the run.
+#[tokio::test(start_paused = true)]
+async fn a_guider_still_finding_its_star_is_waited_for() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_guiding(false)
+            .with_guider_that_locks_after_polls(3),
+    );
+    let ctx = pointing_ctx(ops.clone(), "NGC7380", (22.79, 58.13)).await;
+
+    let result = resume_guiding_after_autofocus(&ctx, InstructionResult::success()).await;
+
+    assert_eq!(
+        result.status,
+        NodeStatus::Success,
+        "a guider that locks a few seconds after the resume came back: {:?}",
+        result.message
+    );
+    assert_eq!(
+        autofocus_trigger_failure_cost(result.data.as_ref()),
+        AutofocusTriggerFailureCost::SoftFramesOnly
+    );
+}
+
+/// Guiding with the error far past any settle bound is not guiding restored.
+/// PHD2 reports Guiding while it chases a star it has effectively lost
+/// (measured at -56.8 / -54.4 px on the owner's rig), and the recovery ladder
+/// already refuses that as a lock.
+#[tokio::test(start_paused = true)]
+async fn a_guider_chasing_a_lost_star_is_not_guiding_restored() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_guiding(false)
+            .with_guider_rms(78.6),
+    );
+    let ctx = pointing_ctx(ops.clone(), "NGC7380", (22.79, 58.13)).await;
+
+    let result = resume_guiding_after_autofocus(&ctx, InstructionResult::success()).await;
+
+    assert_eq!(
+        autofocus_trigger_failure_cost(result.data.as_ref()),
+        AutofocusTriggerFailureCost::EveryFrameUnguided,
+        "is_guiding at 78.6 px is not a restored guider: {:?}",
+        result.message
     );
 }
 

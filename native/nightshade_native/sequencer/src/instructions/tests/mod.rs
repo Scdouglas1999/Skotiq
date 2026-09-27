@@ -102,6 +102,11 @@ struct ScriptedDomeRotatorOps {
     /// guiding — PHD2's behaviour on the owner's 2026-09-14 run, and the
     /// failure the autofocus cleanup calls CRITICAL.
     guider_resume_never_guides: bool,
+    /// Status polls after a `guider_start` that still report not guiding, as
+    /// PHD2 does while it loops, selects a star and starts guiding.
+    guider_polls_before_lock: AtomicU32,
+    /// The guider's reported RMS, in guide-camera pixels.
+    guider_rms_total: Mutex<f64>,
     guider_calibration: Option<GuidingCalibration>,
     /// W1 daylight gate — value returned by `mount_is_parked`. Defaults to
     /// `false` (matching NullDeviceOps); the parked-rig gate test sets it
@@ -180,6 +185,8 @@ impl ScriptedDomeRotatorOps {
             guider_stop_calls: AtomicU32::new(0),
             guider_start_calls: AtomicU32::new(0),
             guider_resume_never_guides: false,
+            guider_polls_before_lock: AtomicU32::new(0),
+            guider_rms_total: Mutex::new(0.7),
             guider_calibration: None,
             saved_frame_contexts: Mutex::new(Vec::new()),
             saved_frame_paths: Mutex::new(Vec::new()),
@@ -285,6 +292,21 @@ impl ScriptedDomeRotatorOps {
     /// offsets sat at RA -56.8 px / Dec -54.4 px and SNR fell 126.7 -> 11.8.
     fn with_guider_resume_that_never_guides(mut self) -> Self {
         self.guider_resume_never_guides = true;
+        self
+    }
+
+    /// A guider whose `guider_start` returns before it is guiding: the next
+    /// `polls` status reads say not guiding, then it locks. PHD2's `guide`
+    /// RPC answers at once and the app state only reaches Guiding once a star
+    /// is selected and the first guide frames are in.
+    fn with_guider_that_locks_after_polls(self, polls: u32) -> Self {
+        self.guider_polls_before_lock.store(polls, Ordering::SeqCst);
+        self
+    }
+
+    /// A guider reporting `rms_total` px of guide error.
+    fn with_guider_rms(self, rms_total: f64) -> Self {
+        *self.guider_rms_total.lock().unwrap() = rms_total;
         self
     }
 
@@ -550,11 +572,20 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         self.inner.guider_dither(p, sp, st, sto, ra).await
     }
     async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
+        let pending = self.guider_polls_before_lock.load(Ordering::SeqCst);
+        if pending > 0 {
+            self.guider_polls_before_lock
+                .store(pending - 1, Ordering::SeqCst);
+            if pending == 1 && !self.guider_resume_never_guides {
+                self.guiding.store(true, Ordering::SeqCst);
+            }
+        }
+        let rms_total = *self.guider_rms_total.lock().unwrap();
         Ok(GuidingStatus {
-            is_guiding: self.guiding.load(Ordering::SeqCst),
-            rms_ra: 0.5,
-            rms_dec: 0.5,
-            rms_total: 0.7,
+            is_guiding: pending == 0 && self.guiding.load(Ordering::SeqCst),
+            rms_ra: rms_total / std::f64::consts::SQRT_2,
+            rms_dec: rms_total / std::f64::consts::SQRT_2,
+            rms_total,
         })
     }
     async fn guider_get_calibration(&self) -> DeviceResult<GuidingCalibration> {
@@ -565,7 +596,9 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     }
     async fn guider_start(&self, _sp: f64, _st: f64, _sto: f64) -> DeviceResult<()> {
         self.guider_start_calls.fetch_add(1, Ordering::SeqCst);
-        if !self.guider_resume_never_guides {
+        if !self.guider_resume_never_guides
+            && self.guider_polls_before_lock.load(Ordering::SeqCst) == 0
+        {
             self.guiding.store(true, Ordering::SeqCst);
         }
         Ok(())

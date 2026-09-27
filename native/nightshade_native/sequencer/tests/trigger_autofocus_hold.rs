@@ -406,8 +406,10 @@ impl Run {
     }
 
     async fn wait_until_judged(&self) {
+        // A guider that never comes back is given two minutes to settle
+        // before the sweep is judged.
         wait_until(
-            Duration::from_secs(60),
+            Duration::from_secs(180),
             "the trigger autofocus never finished",
             || self.judged.load(Ordering::SeqCst),
         )
