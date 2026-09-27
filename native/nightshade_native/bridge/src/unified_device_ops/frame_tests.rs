@@ -193,3 +193,96 @@ async fn the_j2000_pin_round_trips_catalog_numbers() {
     let status = get_sim_mount().read().await.status.clone();
     assert!(separation_arcmin((status.right_ascension, status.declination), NGC7380_J2000) < 0.05);
 }
+
+/// A light frame taken on target records the target's J2000 position in its
+/// FITS `RA`/`DEC` cards, whatever frame the mount itself speaks. Stackers,
+/// solvers and catalogue tools read those cards as J2000; before the read-back
+/// was converted, every frame from a JNow mount carried coordinates ~20' off
+/// in the header and in `captured_images` (found by the simulator soak).
+#[tokio::test]
+async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
+    let _serialized = sim_singleton_test_lock().lock().await;
+    let _frame = FrameGuard::pin(SimMountFrame::OfDate);
+    let mount_id = "sim_mount_frame_fits";
+    attach_sim_mount(mount_id).await;
+    let camera_id = "sim_camera_frame_fits";
+    get_device_manager()
+        .register_device(
+            DeviceInfo {
+                id: camera_id.to_string(),
+                name: "Simulated Camera".to_string(),
+                device_type: DeviceType::Camera,
+                driver_type: DriverType::Simulator,
+                description: "Simulated camera".to_string(),
+                driver_version: "1.0".to_string(),
+                serial_number: None,
+                unique_id: None,
+                display_name: "Simulated Camera".to_string(),
+            },
+            false,
+        )
+        .await;
+    crate::api::devices::simulation::get_sim_camera()
+        .write()
+        .await
+        .status
+        .connected = true;
+    crate::api::devices::simulation::clear_sim_exposure().await;
+
+    let mut ctx = target_context(mount_id, NGC7380_J2000);
+    let slewed =
+        nightshade_sequencer::instructions::execute_slew(&SlewConfig::default(), &ctx, None).await;
+    assert!(
+        slewed.status == nightshade_sequencer::NodeStatus::Success,
+        "{:?}",
+        slewed.message
+    );
+
+    let dir = tempfile::TempDir::new().unwrap();
+    ctx.camera_id = Some(camera_id.to_string());
+    ctx.save_path = Some(dir.path().to_path_buf());
+    let config = nightshade_sequencer::ExposureConfig {
+        duration_secs: 0.1,
+        count: 1,
+        dither_every: None,
+        ..Default::default()
+    };
+    let exposed =
+        nightshade_sequencer::instructions::execute_exposure(&config, &ctx, |_, _, _| {}).await;
+
+    crate::api::devices::simulation::get_sim_camera()
+        .write()
+        .await
+        .status
+        .connected = false;
+    assert!(
+        exposed.status == nightshade_sequencer::NodeStatus::Success,
+        "{:?}",
+        exposed.message
+    );
+
+    let fits = walk_fits(dir.path());
+    assert_eq!(fits.len(), 1, "expected one light frame, found {fits:?}");
+    let header = nightshade_imaging::read_fits_header(&fits[0]).expect("header");
+    let ra_hours = header.get_float("RA").expect("RA card") / 15.0;
+    let dec = header.get_float("DEC").expect("DEC card");
+    let off = separation_arcmin((ra_hours, dec), NGC7380_J2000);
+    assert!(
+        off < 0.1,
+        "the header says RA={ra_hours:.4}h DEC={dec:.4}, {off:.1}' from the J2000 target: \
+         the mount's of-date read-back was written as if it were J2000"
+    );
+}
+
+fn walk_fits(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut found = Vec::new();
+    for entry in std::fs::read_dir(dir).unwrap().flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            found.extend(walk_fits(&path));
+        } else if path.extension().is_some_and(|e| e == "fits" || e == "fit") {
+            found.push(path);
+        }
+    }
+    found
+}

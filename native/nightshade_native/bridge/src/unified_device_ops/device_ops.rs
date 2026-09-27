@@ -119,6 +119,24 @@ impl DeviceOps for UnifiedDeviceOps {
         })
     }
 
+    async fn mount_readback_to_j2000(
+        &self,
+        mount_id: &str,
+        ra_hours: f64,
+        dec_degrees: f64,
+    ) -> DeviceResult<(f64, f64)> {
+        let driver_type = get_device_manager()
+            .get_device(mount_id)
+            .await
+            .map(|device| device.info.driver_type)
+            .ok_or_else(|| format!("mount {mount_id} is not registered"))?;
+        Ok(crate::device_manager::epoch::mount_frame_to_j2000(
+            driver_type,
+            ra_hours,
+            dec_degrees,
+        ))
+    }
+
     async fn mount_sync(
         &self,
         mount_id: &str,
