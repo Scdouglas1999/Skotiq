@@ -1631,7 +1631,10 @@ async fn stopping_during_recovery_is_a_stop_not_a_give_up() {
     // Let the monitor see the guider guiding, then lose the star.
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
     while ops.call_count("guider_get_status") < 2 {
-        assert!(tokio::time::Instant::now() < deadline, "monitor never polled the guider");
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "monitor never polled the guider"
+        );
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
     ops.guiding.store(false, Ordering::SeqCst);
@@ -1639,11 +1642,19 @@ async fn stopping_during_recovery_is_a_stop_not_a_give_up() {
         s == super::ExecutorState::Recovering
     })
     .await;
-    assert_eq!(state, super::ExecutorState::Recovering, "calls={:?}", ops.calls());
+    assert_eq!(
+        state,
+        super::ExecutorState::Recovering,
+        "calls={:?}",
+        ops.calls()
+    );
     // Attempt 1 fails at once; the driver is now waiting out the interval.
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
     while ops.call_count("guider_start") < 1 {
-        assert!(tokio::time::Instant::now() < deadline, "recovery never attempted");
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "recovery never attempted"
+        );
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
@@ -1661,13 +1672,20 @@ async fn stopping_during_recovery_is_a_stop_not_a_give_up() {
     }
     let calls = ops.calls();
     assert!(
-        !calls.iter().any(|c| c.starts_with("mount_park") || c.starts_with("dome_close")),
+        !calls
+            .iter()
+            .any(|c| c.starts_with("mount_park") || c.starts_with("dome_close")),
         "an operator Stop ran the give-up park-and-close sweep; messages={messages:?} \
          calls={calls:?}"
     );
     assert!(
-        !messages.iter().any(|m| m.contains("Recovery could not fix")),
+        !messages
+            .iter()
+            .any(|m| m.contains("Recovery could not fix")),
         "an operator Stop was reported as recovery running out; messages={messages:?}"
     );
-    assert!(!gave_up, "an operator Stop was published as RecoveryGaveUp; messages={messages:?}");
+    assert!(
+        !gave_up,
+        "an operator Stop was published as RecoveryGaveUp; messages={messages:?}"
+    );
 }
