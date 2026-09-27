@@ -150,7 +150,7 @@ class Soak:
     def sampler(self):
         path = os.path.join(self.root, "resources.csv")
         with open(path, "w", buffering=1) as fh:
-            fh.write("t,elapsed_s,rss_mb,fds,threads,db_mb,wal_mb,logs_mb,tmp_mb,captures_mb\n")
+            fh.write("t,elapsed_s,rss_mb,swap_mb,mem_mb,fds,threads,db_mb,wal_mb,logs_mb,tmp_mb,captures_mb\n")
             t0 = time.time()
             while not self.stop_sampler.is_set():
                 row = sample_process(self.app.pid, self.db_dir, self.data_dir, self.tmp_dir,
@@ -158,7 +158,7 @@ class Soak:
                 if row is None:
                     break
                 fh.write(f"{time.time():.0f},{time.time() - t0:.0f}," + ",".join(
-                    f"{row[k]:.2f}" for k in ("rss_mb", "fds", "threads", "db_mb", "wal_mb",
+                    f"{row[k]:.2f}" for k in ("rss_mb", "swap_mb", "mem_mb", "fds", "threads", "db_mb", "wal_mb",
                                                "logs_mb", "tmp_mb", "captures_mb")) + "\n")
                 self.stop_sampler.wait(self.args.sample_secs)
 
@@ -239,6 +239,15 @@ class Soak:
         self.api("POST", "/api/phd2/connect", {"host": "127.0.0.1", "port": self.args.phd2_port},
                  timeout=60)
         self.api("POST", "/api/sequencer/save-path", {"path": self.out_dir})
+        # A compressed recovery ladder, so a fault scenario reaches the
+        # give-up branch inside the soak (the default is 10 min x 90 min).
+        # Parking stays off: none of these nights opts in to it.
+        self.api("POST", "/api/sequencer/recovery/update-config", {
+            "retryIntervalSecs": self.sc.get("recovery_retry_secs", 60.0),
+            "maxDurationSecs": self.sc.get("recovery_max_secs", 300.0),
+            "stopTrackingDuringRecovery": True, "abortOnMeridian": True,
+            "audibleAlertWhenEntered": False,
+            "parkAndCloseWhenRecoveryGivesUp": False})
         self.note("configured", profile=pid)
 
     def run(self):
@@ -336,7 +345,7 @@ class Soak:
             # A run that holds itself for the operator: record it, leave it
             # held long enough to prove no frame is taken while held, then do
             # what the operator would and Stop it.
-            if state == "paused" and not operator_paused:
+            if state in ("paused", "recovering") and not operator_paused:
                 if paused_for is None:
                     paused_for = time.time()
                     record["self_paused_at"] = paused_for
@@ -346,7 +355,7 @@ class Soak:
                         not record.get("stopped_after_pause"):
                     record["stopped_after_pause"] = True
                     record["actions"].append(self.do_action({"verb": "stop", "budget_s": 45}))
-            elif state != "paused":
+            elif state not in ("paused", "recovering"):
                 paused_for = None
             if state in TERMINAL or (state == "idle" and record.get("stopped_after_pause")):
                 break
@@ -428,6 +437,9 @@ def sample_process(pid, db_dir, data_dir, tmp_dir, out_dir, root):
         return None
     fields = dict(line.split(":", 1) for line in status.splitlines() if ":" in line)
     rss_kb = float(fields.get("VmRSS", "0 kB").split()[0])
+    # The machine swaps to zram under load, so RSS alone can fall while the
+    # process grows; resident + swapped is what a leak moves.
+    swap_kb = float(fields.get("VmSwap", "0 kB").split()[0])
     threads = float(fields.get("Threads", "0").strip())
     try:
         fds = float(len(os.listdir(f"/proc/{pid}/fd")))
@@ -436,7 +448,8 @@ def sample_process(pid, db_dir, data_dir, tmp_dir, out_dir, root):
     db = os.path.join(db_dir, "nightshade.db")
     size = lambda p: os.path.getsize(p) / (1 << 20) if os.path.exists(p) else 0.0  # noqa: E731
     logs = dir_mb(os.path.join(data_dir, "logs")) + size(os.path.join(root, "app.log"))
-    return {"rss_mb": rss_kb / 1024.0, "fds": fds, "threads": threads,
+    return {"rss_mb": rss_kb / 1024.0, "swap_mb": swap_kb / 1024.0,
+            "mem_mb": (rss_kb + swap_kb) / 1024.0, "fds": fds, "threads": threads,
             "db_mb": size(db), "wal_mb": size(db + "-wal"), "logs_mb": logs,
             "tmp_mb": dir_mb(tmp_dir), "captures_mb": dir_mb(out_dir)}
 

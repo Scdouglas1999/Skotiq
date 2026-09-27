@@ -47,7 +47,9 @@ SCENARIOS = {
     "guider_lost_resume_fails": scenario(
         about="PHD2 loses the star mid-exposure and accepts every resume without locking (09-14)",
         phd2_faults="lose_star_at=600,resume_fails",
-        stop_after_pause_s=90,
+        # Held (paused or recovering) for longer than the 5-minute recovery
+        # ladder before the harness Stops it, so the give-up branch runs.
+        stop_after_pause_s=420,
         expect_terminal=["stopped", "cancelled", "failed", "idle"],
         cause_keywords=["guid", "star"], expect_flip=False, minutes=30.0),
     "guider_lost_recovers": scenario(
@@ -60,12 +62,12 @@ SCENARIOS = {
         expect_terminal=["completed"], cause_keywords=["settl", "dither"]),
     "phd2_connection_drop": scenario(
         about="PHD2's socket closes mid-night and refuses reconnects for two minutes",
-        phd2_faults="drop_at=900", phd2_drop_secs=120, stop_after_pause_s=90,
+        phd2_faults="drop_at=900", phd2_drop_secs=120, stop_after_pause_s=420,
         expect_terminal=["completed", "stopped", "cancelled", "failed", "idle"],
         cause_keywords=["guid", "phd2", "connect"], minutes=40.0),
     "filterwheel_stall": scenario(
         about="the wheel accepts a move and never arrives (jammed) partway through",
-        sim_faults="filterwheel.set_position=every(25):stall", stop_after_pause_s=60,
+        sim_faults="filterwheel.set_position=every(25):stall", stop_after_pause_s=420,
         expect_terminal=["failed", "stopped", "cancelled", "idle"],
         cause_keywords=["filter", "wheel"], expect_flip=False, minutes=30.0),
     "camera_download_hang": scenario(
@@ -83,7 +85,7 @@ SCENARIOS = {
     "camera_usb_drop": scenario(
         about="the camera drops off the bus: every download and command after ~150 fails notconnected",
         sim_faults="camera.download=after(150):notconnected,camera.command=after(300):notconnected",
-        stop_after_pause_s=90,
+        stop_after_pause_s=420,
         expect_terminal=["failed", "stopped", "cancelled", "idle"],
         cause_keywords=["camera", "connect", "disconnect"], expect_flip=False, minutes=40.0),
     "intermittent_errors": scenario(

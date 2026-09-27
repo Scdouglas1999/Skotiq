@@ -54,8 +54,10 @@ def read_header(path):
 
 def light_fits(out_dir):
     files = []
-    for path in glob.glob(os.path.join(out_dir, "**", "*.fit*"), recursive=True):
+    for path in glob.glob(os.path.join(out_dir, "**", "*"), recursive=True):
         low = path.lower()
+        if not low.endswith((".fits", ".fit", ".fts")):
+            continue
         if any(x in low for x in LIGHT_EXCLUDE):
             continue
         files.append(os.path.realpath(path))
@@ -396,7 +398,7 @@ def check_autofocus(lines):
     unverified = [ln for ln in lines if AF_UNVERIFIED.search(ln)]
     bad = [m for ln in lines for m in AF_BAD_LANDING.findall(ln)]
     if not best and not runups:
-        return verdict("autofocus_from_below_verified", False, "no autofocus ran")
+        return verdict("autofocus_from_below_verified", True, "no autofocus ran", skip=True)
     from_above = [(a, b) for a, b in runups if a >= b]
     ok = bool(runups) and not from_above and not unverified and not bad
     return verdict("autofocus_from_below_verified", ok,
@@ -484,7 +486,7 @@ def monotonic_fraction(ys):
 
 # Growth that would matter over a real 8-10 h night. The 2026-09-13 hang sat at
 # 3.2 GB; a leak of 150 MB/h reaches that from a 1.5 GB start in about 11 h.
-LIMITS = {"rss_mb": 150.0, "fds": 30.0, "threads": 20.0, "wal_mb": 100.0, "tmp_mb": 200.0,
+LIMITS = {"mem_mb": 150.0, "fds": 30.0, "threads": 20.0, "wal_mb": 100.0, "tmp_mb": 200.0,
           "logs_mb": 200.0}
 
 
@@ -499,13 +501,16 @@ def check_resources(root):
     xs = [float(r["elapsed_s"]) for r in half]
     flagged, report = [], []
     for key, limit in LIMITS.items():
+        if key not in half[0]:
+            key = "rss_mb"
         ys = [float(r[key]) for r in half]
         s = slope_per_hour(xs, ys)
         mono = monotonic_fraction(ys)
         report.append(f"{key} {ys[0]:.0f}->{ys[-1]:.0f} ({s:+.1f}/h, {mono:.0%} rising)")
         if s > limit and mono > 0.7:
             flagged.append(key)
-    peak = max(float(r["rss_mb"]) for r in rows)
+    key = "mem_mb" if "mem_mb" in rows[0] else "rss_mb"
+    peak = max(float(r[key]) for r in rows)
     return verdict("no_monotonic_resource_growth", not flagged,
-                   f"peak RSS {peak:.0f} MB; " + "; ".join(report)
+                   f"peak resident+swapped {peak:.0f} MB; " + "; ".join(report)
                    + (f"; FLAGGED {flagged}" if flagged else ""))

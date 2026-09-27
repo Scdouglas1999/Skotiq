@@ -111,7 +111,9 @@ never counted as a pass).
   target, and RA/DEC are within 3' of that target's J2000 position.
 - `no_monotonic_resource_growth`: after the first third of the run, none of RSS,
   fds, threads, WAL, temp or logs grows faster than a per-hour limit that would
-  matter over a 10-hour night (RSS 150 MB/h; the 2026-09-13 hang sat at 3.2 GB).
+  matter over a 10-hour night (resident plus swapped memory 150 MB/h -- the
+  machine swaps to zram, so RSS alone can fall while the process grows; the
+  2026-09-13 hang sat at 3.2 GB).
 
 ## The simulated mount is a JNow mount
 
