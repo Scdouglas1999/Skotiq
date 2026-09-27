@@ -69,9 +69,9 @@ class UpdatePromptStore {
   /// ever blocked by a write that did not land.
   ///
   /// Callers fire some of these without awaiting them, so writes are queued
-  /// behind one another (the last call wins) and each lands through a
-  /// temporary file and a rename. Two writes that opened the file at once
-  /// used to interleave into unreadable JSON.
+  /// behind one another (the last call wins) and each is written to a
+  /// side file that is then renamed over the record. Two overlapping writes
+  /// used to open the same file twice and interleave into unreadable JSON.
   Future<void> write(UpdatePromptState state) {
     final next = _lastWrite.then((_) => _writeNow(state));
     _lastWrite = next;
