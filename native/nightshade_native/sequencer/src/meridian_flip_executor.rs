@@ -1902,6 +1902,9 @@ mod tests {
         /// Recorded guider-start calls, used to prove centering failure stops
         /// the remaining post-flip steps.
         guider_start_calls: AtomicI32,
+        /// For each guider-stop call, how many slews had been commanded when it
+        /// arrived, so a test can tell whether guiding stopped before the flip.
+        slews_before_guider_stop: Mutex<Vec<i32>>,
         /// Whether the cover is closed.
         cover_state: AtomicI32,
         /// Notifications sent (level, title).
@@ -2146,6 +2149,11 @@ mod tests {
         }
 
         async fn guider_stop(&self) -> DeviceResult<()> {
+            self.state
+                .slews_before_guider_stop
+                .lock()
+                .unwrap()
+                .push(self.state.slew_calls.load(Ordering::Relaxed));
             Ok(())
         }
 
@@ -3183,6 +3191,44 @@ mod tests {
             1,
             "A real (non-simulated) flip must command exactly one slew"
         );
+    }
+
+    /// With `pause_guiding` on, the guider is stopped before the mount swings
+    /// across the pier; guiding through a flip slew fights the mount and loses
+    /// the star. Returning Ok from `pause_guider` without stopping anything
+    /// passed every flip test.
+    #[tokio::test]
+    async fn a_flip_stops_the_guider_before_it_slews() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.pier_sides.lock().unwrap().extend([
+            crate::meridian::PierSide::East,
+            crate::meridian::PierSide::West,
+        ]);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            pause_guiding: true,
+            auto_center: false,
+            refocus_after: false,
+            resume_guiding: false,
+            settle_time: 0.0,
+            max_retries: 0,
+            ..Default::default()
+        };
+
+        let mut executor = MeridianFlipExecutor::new(config, ops);
+        let result = executor.execute(&make_ctx(&state)).await;
+        assert!(
+            matches!(result, FlipResult::Success { .. }),
+            "got {:?}",
+            result
+        );
+
+        assert_eq!(
+            *state.slews_before_guider_stop.lock().unwrap(),
+            vec![0],
+            "the guider must be stopped once, before the flip slew"
+        );
+        assert_eq!(state.slew_calls.load(Ordering::Relaxed), 1);
     }
 
     /// The post-flip guider settle params are plumbed onto MeridianFlipConfig
