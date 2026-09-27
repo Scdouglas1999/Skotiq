@@ -278,6 +278,11 @@ extension _SequenceExecutorRuntimeConfigOperations on SequenceExecutor {
     // the editor start already awaits it before serializing the tree.
     await _ref.read(globalMeridianFlipSettingsProvider.notifier).ensureLoaded();
 
+    // Same reason, for the autofocus cadence and dither config below: they
+    // are read synchronously out of `sequencerDefaultsProvider`, which holds
+    // the library defaults until its database load completes.
+    await _ref.read(sequencerDefaultsProvider.notifier).ensureLoaded();
+
     // Autofocus cadence: persisted in sequencer_autofocus_interval_frames; the
     // Rust default of 25 is wrong for both very-short and very-long subs.
     try {
