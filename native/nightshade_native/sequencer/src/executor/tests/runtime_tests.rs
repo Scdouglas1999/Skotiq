@@ -1960,10 +1960,27 @@ async fn a_guider_seen_guiding_arms_star_lost_and_a_later_drop_fires_it() {
     })
     .await
     .unwrap_or(false);
-    executor.stop().await.ok();
-
     assert!(
         fired,
         "a guider that stopped guiding must fire GuideStarLost"
     );
+
+    // The recovery re-acquires the star (this guider relocks on start), and
+    // the session report reads that episode back from the executor.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    let history = loop {
+        let history = executor.recovery_history();
+        if !history.is_empty() || std::time::Instant::now() > deadline {
+            break history;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    };
+    executor.stop().await.ok();
+
+    assert_eq!(history.len(), 1, "one recovery episode: {history:?}");
+    assert_eq!(
+        history[0].cause,
+        crate::recovery::RecoveryCause::GuideStarLost
+    );
+    assert!(history[0].recovered, "{history:?}");
 }
