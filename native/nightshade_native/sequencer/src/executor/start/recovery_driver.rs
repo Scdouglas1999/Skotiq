@@ -566,3 +566,221 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         }
     }
 }
+
+/// The give-up branch of the real driver loop. The escalation branch has its
+/// own seam (`apply_recovery_escalation`, scenario 7); this one is inline, and
+/// the scenario that claimed to cover it (6) called `park_and_close_safe_state`
+/// directly. With the driver's policy check inverted, a default-policy give-up
+/// parked the mount and every test stayed green.
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::executor::scenario_sim_tests::ScriptedDeviceOps;
+    use crate::recovery::{RecoveryCause, RecoveryHistoryEntry, RecoveryRuntimeConfig};
+
+    struct GiveUp {
+        calls: Vec<String>,
+        state: ExecutorState,
+        gave_up: bool,
+        is_cancelled: bool,
+        history: Vec<RecoveryHistoryEntry>,
+        errors: Vec<String>,
+        gave_up_event_aborted: Option<bool>,
+    }
+
+    /// Run one recovery through the driver to its end. `DeviceDisconnected`
+    /// with no device ids is unrecoverable on the first attempt, so the loop
+    /// reaches the give-up branch without waiting out a retry interval.
+    /// `abort_first` has the operator press Abort before the first attempt.
+    async fn give_up_with(park_and_close: bool, abort_first: bool) -> GiveUp {
+        let ops = Arc::new(ScriptedDeviceOps::new());
+        // For the abort case: a camera that no reconnect revives, so every
+        // attempt fails and the loop sits in its retry wait, where the
+        // operator's Abort is read.
+        ops.connect_succeeds.store(false, Ordering::SeqCst);
+        let device_ids = if abort_first {
+            vec!["cam-1".to_string()]
+        } else {
+            Vec::new()
+        };
+        let runtime = RuntimeConfig {
+            recovery: RecoveryRuntimeConfig {
+                stop_tracking_during_recovery: false,
+                park_and_close_when_recovery_gives_up: park_and_close,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let (event_tx, mut event_rx) = broadcast::channel(64);
+        let (decision_tx, _decision_rx) = broadcast::channel(16);
+        let (request_tx, request_rx) = mpsc::channel(4);
+        let signals = Arc::new(crate::recovery::RecoverySignals::new());
+        let state = Arc::new(RwLock::new(ExecutorState::Running));
+        let gave_up = Arc::new(AtomicBool::new(false));
+        let is_cancelled = Arc::new(AtomicBool::new(false));
+        let history = Arc::new(StdRwLock::new(Vec::new()));
+
+        let driver = tokio::spawn(run_recovery_driver(RecoveryDriverArgs {
+            recovery_driver_active_run_id: Arc::new(StdRwLock::new(None)),
+            recovery_driver_cover_id: Some("cover-1".to_string()),
+            recovery_driver_current: Arc::new(StdRwLock::new(None)),
+            recovery_driver_decision_tx: decision_tx,
+            recovery_driver_device_ids: device_ids,
+            recovery_driver_device_ops: ops.clone(),
+            recovery_driver_dome_id: Some("dome-1".to_string()),
+            recovery_driver_event_tx: event_tx,
+            recovery_driver_gave_up: gave_up.clone(),
+            recovery_driver_generation: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            recovery_driver_history: history.clone(),
+            recovery_driver_is_cancelled: is_cancelled.clone(),
+            recovery_driver_is_paused: Arc::new(AtomicBool::new(false)),
+            recovery_driver_mount_id: Some("mount-1".to_string()),
+            recovery_driver_progress: Arc::new(StdRwLock::new(SequenceProgress::default())),
+            recovery_driver_runtime: Arc::new(StdRwLock::new(runtime)),
+            recovery_driver_signals: signals.clone(),
+            recovery_driver_state: state.clone(),
+            recovery_driver_trigger_mgr: Arc::new(RwLock::new(TriggerManager::new())),
+            recovery_request_rx: request_rx,
+        }));
+
+        if abort_first {
+            // `arm()` on recovery entry clears signals left from a previous
+            // loop, so the abort has to land after entry: wait for the first
+            // failed attempt.
+            request_tx
+                .send(RecoveryCause::DeviceDisconnected)
+                .await
+                .unwrap();
+            loop {
+                match event_rx.recv().await.unwrap() {
+                    ExecutorEvent::RecoveryProgress { context } if context.last_error.is_some() => {
+                        break
+                    }
+                    _ => continue,
+                }
+            }
+            signals.request_abort();
+        } else {
+            request_tx
+                .send(RecoveryCause::DeviceDisconnected)
+                .await
+                .unwrap();
+        }
+
+        let mut errors = Vec::new();
+        let mut gave_up_event_aborted = None;
+        let collect = async {
+            loop {
+                match event_rx.recv().await {
+                    Ok(ExecutorEvent::Error { message }) => errors.push(message),
+                    Ok(ExecutorEvent::RecoveryGaveUp {
+                        aborted_by_user, ..
+                    }) => {
+                        gave_up_event_aborted = Some(aborted_by_user);
+                        break;
+                    }
+                    Ok(_) => {}
+                    Err(broadcast::error::RecvError::Lagged(_)) => {}
+                    Err(broadcast::error::RecvError::Closed) => break,
+                }
+            }
+        };
+        tokio::time::timeout(std::time::Duration::from_secs(30), collect)
+            .await
+            .expect("the recovery never reached its end");
+        drop(request_tx);
+        driver.await.unwrap();
+
+        let final_state = *state.read().await;
+        let history = history.read().clone();
+        GiveUp {
+            calls: ops.calls(),
+            state: final_state,
+            gave_up: gave_up.load(Ordering::Relaxed),
+            is_cancelled: is_cancelled.load(Ordering::Relaxed),
+            history,
+            errors,
+            gave_up_event_aborted,
+        }
+    }
+
+    fn moved_hardware(calls: &[String]) -> Vec<&String> {
+        calls
+            .iter()
+            .filter(|c| {
+                c.starts_with("mount_park")
+                    || c.starts_with("cover_close")
+                    || c.starts_with("dome_close")
+            })
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn by_default_a_recovery_that_gives_up_ends_the_run_without_moving_anything() {
+        let r = give_up_with(false, false).await;
+
+        assert!(
+            moved_hardware(&r.calls).is_empty(),
+            "the default policy must never park or close: {:?}",
+            r.calls
+        );
+        assert_eq!(r.state, ExecutorState::Failed);
+        assert!(r.gave_up, "a real give-up must be reported as one");
+        assert!(r.is_cancelled, "the node tree must be stopped");
+        assert_eq!(r.gave_up_event_aborted, Some(false));
+        assert!(
+            r.errors
+                .iter()
+                .any(|e| e.contains("Nothing has been parked or closed")),
+            "the operator must be told the run stopped and nothing moved: {:?}",
+            r.errors
+        );
+        assert_eq!(r.history.len(), 1);
+        assert!(!r.history[0].recovered);
+        assert!(!r.history[0].aborted_by_user);
+    }
+
+    #[tokio::test]
+    async fn with_park_and_close_opted_in_a_give_up_parks_then_closes() {
+        let r = give_up_with(true, false).await;
+
+        assert_eq!(
+            moved_hardware(&r.calls),
+            [
+                "mount_park:mount-1",
+                "cover_close:cover-1",
+                "dome_close:dome-1"
+            ],
+            "{:?}",
+            r.calls
+        );
+        assert_eq!(r.state, ExecutorState::Failed);
+        assert!(r.gave_up);
+        assert!(
+            !r.errors
+                .iter()
+                .any(|e| e.contains("Nothing has been parked")),
+            "{:?}",
+            r.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn an_operator_abort_moves_nothing_even_with_park_and_close_on() {
+        // The operator is at the controls; the opt-in is for when nobody is.
+        let r = give_up_with(true, true).await;
+
+        assert!(moved_hardware(&r.calls).is_empty(), "{:?}", r.calls);
+        assert_eq!(r.gave_up_event_aborted, Some(true));
+        assert!(!r.gave_up, "an operator abort is not recovery giving up");
+        assert!(
+            !r.errors
+                .iter()
+                .any(|e| e.contains("Recovery could not fix")),
+            "{:?}",
+            r.errors
+        );
+        assert_eq!(r.history.len(), 1);
+        assert!(r.history[0].aborted_by_user);
+    }
+}
