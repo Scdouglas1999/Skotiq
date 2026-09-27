@@ -737,6 +737,84 @@ void main() {
     );
   });
 
+  group('upgrade timeout', () {
+    test('an upgrade the client gave up on is closed, not left attached, '
+        'when it completes late', () async {
+      // The first upgrade is answered only after the client's request
+      // timeout; later ones at once. Every socket the server accepts is
+      // recorded with whether it has since been closed.
+      final accepted = <({WebSocket socket, Completer<void> closed})>[];
+      var upgrades = 0;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        if (request.uri.path == '/api/info') {
+          request.response
+            ..statusCode = HttpStatus.ok
+            ..headers.contentType = ContentType.json
+            ..write(jsonEncode(const {'version': '2.5.0'}));
+          await request.response.close();
+          return;
+        }
+        if (request.uri.path == '/events') {
+          upgrades++;
+          if (upgrades == 1) {
+            await Future<void>.delayed(const Duration(milliseconds: 600));
+          }
+          final socket = await WebSocketTransformer.upgrade(request);
+          final closed = Completer<void>();
+          accepted.add((socket: socket, closed: closed));
+          socket.listen(
+            (message) {
+              final data = jsonDecode(message as String);
+              if (data is Map && data['type'] == 'ping') {
+                socket.add(jsonEncode({'type': 'pong'}));
+              }
+            },
+            onDone: () {
+              if (!closed.isCompleted) closed.complete();
+            },
+          );
+          return;
+        }
+        request.response.statusCode = HttpStatus.notFound;
+        await request.response.close();
+      });
+
+      final backend = NetworkBackend(
+        serverHost: InternetAddress.loopbackIPv4.address,
+        serverPort: server.port,
+        webSocketPort: server.port,
+        requestTimeout: const Duration(milliseconds: 200),
+        webSocketHeartbeatInterval: const Duration(seconds: 5),
+        webSocketHeartbeatTimeout: const Duration(seconds: 10),
+      );
+
+      try {
+        await backend.connectionStateStream
+            .firstWhere((state) => state == BackendConnectionState.connected)
+            .timeout(const Duration(seconds: 5));
+        await _waitUntil(
+          () => accepted.length >= 2,
+          timeout: const Duration(seconds: 5),
+        );
+        // The abandoned first socket must be closed by the client rather
+        // than kept open alongside the live one.
+        await accepted.first.closed.future.timeout(
+          const Duration(seconds: 2),
+          onTimeout: () => fail(
+            'the upgrade the client timed out on is still open next to the '
+            'live connection',
+          ),
+        );
+        expect(accepted.last.closed.isCompleted, isFalse);
+        expect(backend.connectionState, BackendConnectionState.connected);
+      } finally {
+        backend.dispose();
+        await server.close(force: true);
+      }
+    });
+  });
+
   group('auth rejection', () {
     /// Shared fake: /api/info answers compatibly; everything else is
     /// configurable per-test via the handlers map. Returns the server and

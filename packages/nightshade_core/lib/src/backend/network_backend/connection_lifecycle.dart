@@ -522,6 +522,18 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
         level: 1000,
         error: e,
       );
+      // An upgrade we stopped waiting for can still complete. Left attached,
+      // it fed events in while the backend said disconnected, stayed open on
+      // the host next to the connection that replaced it, and its eventual
+      // close reported the live connection as dropped.
+      final abandoned = _wsChannel;
+      _wsChannel = null;
+      unawaited(_wsSubscription?.cancel());
+      _wsSubscription = null;
+      if (abandoned != null) {
+        unawaited(abandoned.sink.done.catchError((Object _) {}));
+        unawaited(abandoned.sink.close());
+      }
       _handleConnectionFailure();
     }
   }
