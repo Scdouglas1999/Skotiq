@@ -112,6 +112,40 @@ struct Args {
     /// `--staging-dir` / `--expected-hashes` are ignored in this mode.
     #[arg(long)]
     rollback: bool,
+
+    /// Argument to start the app with after the swap, repeatable. The app
+    /// passes its own command line, so an install started with
+    /// `--headless --port=...` comes back the same way instead of as the GUI.
+    #[arg(long = "relaunch-arg", allow_hyphen_values = true)]
+    relaunch_args: Vec<String>,
+
+    /// How long the relaunched build has to confirm it started (it does so by
+    /// consuming `--pending-file`). If it exits before then, the previous
+    /// build is restored and started again. A build that is still running at
+    /// the deadline is left alone.
+    #[arg(long, default_value_t = 180)]
+    confirm_timeout_secs: u64,
+}
+
+/// Why the updater stopped, and whether the install is in a state worth
+/// starting again (the previous build, restored or never touched, or the new
+/// build fully verified).
+struct Failure {
+    error: anyhow::Error,
+    relaunch: bool,
+}
+
+impl From<anyhow::Error> for Failure {
+    fn from(error: anyhow::Error) -> Self {
+        // Every error raised with `?` happens either before the install is
+        // touched or after the new build has been applied and verified; the
+        // paths that can leave a half-applied install build a Failure
+        // themselves and say whether rollback put it back.
+        Failure {
+            error,
+            relaunch: true,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -150,7 +184,8 @@ struct PostInstallHashes {
 }
 
 fn main() {
-    if let Err(e) = run() {
+    let args = Args::parse();
+    if let Err(Failure { error: e, relaunch }) = run(&args) {
         eprintln!("Update failed: {:?}", e);
         // Why: write a stable log so the Dart side can surface the error to the
         // user even though the updater is a separate process and stdout is gone.
@@ -161,13 +196,20 @@ fn main() {
                 log_path, write_err
             );
         }
+        // The app exited to let the swap happen. Leaving nothing running
+        // after a failed update means the operator finds the program gone,
+        // with the reason in a temp file they will not look for.
+        if args.launch_after && relaunch {
+            println!("\nStarting Nightshade again...");
+            if let Err(launch_err) = launch_app(&args.install_dir, &args.relaunch_args) {
+                eprintln!("Could not start Nightshade again: {:?}", launch_err);
+            }
+        }
         std::process::exit(1);
     }
 }
 
-fn run() -> Result<()> {
-    let args = Args::parse();
-
+fn run(args: &Args) -> std::result::Result<(), Failure> {
     println!("Nightshade Updater");
     println!("==================");
     println!("Parent PID: {}", args.parent_pid);
@@ -194,11 +236,15 @@ fn run() -> Result<()> {
     if let Err(e) = lock_file.try_lock_exclusive() {
         // Why: another updater is mid-flight (or stale lock held by a still-running
         // updater). Refuse to proceed — racing two updaters can corrupt installs.
-        return Err(anyhow::anyhow!(
-            "Another Nightshade updater is already running (lock held at {:?}): {}",
-            lock_path,
-            e
-        ));
+        // That updater owns the install and will start the app itself.
+        return Err(Failure {
+            error: anyhow::anyhow!(
+                "Another Nightshade updater is already running (lock held at {:?}): {}",
+                lock_path,
+                e
+            ),
+            relaunch: false,
+        });
     }
 
     // Step 1: Wait for parent process to exit.
@@ -220,7 +266,11 @@ fn run() -> Result<()> {
     // Manual rollback mode: restore the retained restore point written by the
     // previous successful apply, then relaunch. No staging tree is touched.
     if args.rollback {
-        return run_rollback(&args);
+        return run_rollback(args).map_err(|error| Failure {
+            error,
+            // A partial restore is not a build worth starting.
+            relaunch: false,
+        });
     }
 
     // Read expected hashes once up front so we fail fast if the manifest is
@@ -247,29 +297,29 @@ fn run() -> Result<()> {
     // recovery.
     let rollback_log_path = args.backup_dir.join(ROLLBACK_LOG_FILE);
     if let Err(e) = persist_rollback_log(&rollback_log_path, &rollback_log) {
-        return Err(finalize_unlogged_rollback(
-            &args.install_dir,
-            &rollback_log,
-            e,
-        ));
+        let (error, restored) = finalize_unlogged_rollback(&args.install_dir, &rollback_log, e);
+        return Err(Failure {
+            error,
+            relaunch: restored,
+        });
     }
 
     if let Err(apply_err) = apply_result {
         eprintln!("\nApply failed: {:?}", apply_err);
-        return finalize_failure(&args, &rollback_log, &rollback_log_path, apply_err);
+        return finalize_failure(args, &rollback_log, &rollback_log_path, apply_err);
     }
 
     // Step 3: Hash-verify every file the manifest names against the result.
     println!("\nVerifying installation against manifest hashes...");
     if let Err(verify_err) = verify_against_manifest(&args.install_dir, &expected) {
         eprintln!("\nManifest verification failed: {:?}", verify_err);
-        return finalize_failure(&args, &rollback_log, &rollback_log_path, verify_err);
+        return finalize_failure(args, &rollback_log, &rollback_log_path, verify_err);
     }
 
     // Step 4: Sanity check — the named entry points exist.
     if let Err(verify_err) = verify_entrypoints_exist(&args.install_dir) {
         eprintln!("\nEntry-point check failed: {:?}", verify_err);
-        return finalize_failure(&args, &rollback_log, &rollback_log_path, verify_err);
+        return finalize_failure(args, &rollback_log, &rollback_log_path, verify_err);
     }
 
     println!("Update applied and verified.");
@@ -299,19 +349,116 @@ fn run() -> Result<()> {
         eprintln!("Warning: failed to cleanup staging: {:?}", e);
     }
 
-    // Step 8: optionally launch the new version.
+    // Step 8: optionally launch the new version, and stay until it proves it
+    // can start. Nothing else is in a position to notice a build that dies on
+    // startup: the old process is gone and the new one never gets far enough
+    // to offer a rollback, so without this the operator is left with a
+    // program that will not open and a restore point nobody uses.
     if args.launch_after {
         println!("\nLaunching updated Nightshade...");
-        launch_app(&args.install_dir).with_context(|| {
+        let mut child = launch_app(&args.install_dir, &args.relaunch_args).with_context(|| {
             format!(
                 "Failed to launch updated Nightshade from {:?}",
                 args.install_dir
             )
         })?;
+        let timeout = Duration::from_secs(args.confirm_timeout_secs);
+        match watch_start(&mut child, &args.pending_file, timeout) {
+            StartOutcome::Confirmed => println!("Updated Nightshade confirmed it started."),
+            StartOutcome::Undecided(why) => println!("Not waiting further: {}", why),
+            StartOutcome::Failed(status) => {
+                eprintln!(
+                    "\nThe updated build exited ({}) before it finished starting. \
+                     Restoring the previous build...",
+                    status
+                );
+                // Keep the pending marker: the restored build reads it and
+                // tells the operator the update was rolled back.
+                let restored = restore_previous_build(args, false);
+                let relaunched = if restored.is_ok() {
+                    launch_app(&args.install_dir, &args.relaunch_args).map(|_| ())
+                } else {
+                    Ok(())
+                };
+                let error = match (restored, relaunched) {
+                    (Ok(()), Ok(())) => anyhow::anyhow!(
+                        "The updated build exited ({}) before it finished starting; \
+                         the previous build was restored and started again.",
+                        status
+                    ),
+                    (Ok(()), Err(e)) => anyhow::anyhow!(
+                        "The updated build exited ({}) before it finished starting; \
+                         the previous build was restored but could not be started: {:?}",
+                        status,
+                        e
+                    ),
+                    (Err(e), _) => anyhow::anyhow!(
+                        "The updated build exited ({}) before it finished starting, and \
+                         restoring the previous build failed: {:?}. The install needs a \
+                         manual reinstall.",
+                        status,
+                        e
+                    ),
+                };
+                return Err(Failure {
+                    error,
+                    relaunch: false,
+                });
+            }
+        }
     }
 
     println!("\nUpdate complete!");
     Ok(())
+}
+
+/// What became of the build the updater just started.
+enum StartOutcome {
+    /// It consumed the pending marker, which it does once it has come up.
+    Confirmed,
+    /// It exited first. Holds the exit status for the error message.
+    Failed(std::process::ExitStatus),
+    /// Neither, for a reason that does not justify a rollback.
+    Undecided(String),
+}
+
+/// Exit status a second instance uses when another one holds the lock. The
+/// new build did not fail to start; something else is already running.
+const EXIT_ALREADY_RUNNING: i32 = 75;
+
+fn watch_start(
+    child: &mut std::process::Child,
+    pending_file: &Path,
+    timeout: Duration,
+) -> StartOutcome {
+    let start = std::time::Instant::now();
+    loop {
+        if !pending_file.exists() {
+            return StartOutcome::Confirmed;
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                // It may have confirmed and then been closed straight away.
+                if !pending_file.exists() {
+                    return StartOutcome::Confirmed;
+                }
+                if status.code() == Some(EXIT_ALREADY_RUNNING) {
+                    return StartOutcome::Undecided(
+                        "another Nightshade instance is already running".to_string(),
+                    );
+                }
+                return StartOutcome::Failed(status);
+            }
+            Ok(None) => {}
+            Err(e) => {
+                return StartOutcome::Undecided(format!("could not watch the new process: {}", e))
+            }
+        }
+        if start.elapsed() >= timeout {
+            return StartOutcome::Undecided(format!("still starting after {}s", timeout.as_secs()));
+        }
+        thread::sleep(Duration::from_millis(250));
+    }
 }
 
 /// Handle a failure to persist the rollback log: roll the install back
@@ -320,49 +467,49 @@ fn run() -> Result<()> {
 /// This is the one branch with no on-disk safety net — the rollback log could
 /// not be written, so next-launch recovery has nothing to retry from. If the
 /// rollback also fails, the install directory is left partially updated and the
-/// returned error must say so.
+/// returned error must say so. The flag is true when the install was restored.
 fn finalize_unlogged_rollback(
     install_dir: &Path,
     rollback_log: &RollbackLog,
     persist_error: anyhow::Error,
-) -> anyhow::Error {
+) -> (anyhow::Error, bool) {
     eprintln!("\nFailed to persist rollback log: {:?}", persist_error);
     eprintln!("Rolling back to pre-apply state...");
     match rollback_in_place(install_dir, rollback_log) {
-        Ok(()) => persist_error.context(
-            "Failed to persist rollback log; the previous installation was restored from in-place backup",
+        Ok(()) => (
+            persist_error.context(
+                "Failed to persist rollback log; the previous installation was restored from in-place backup",
+            ),
+            true,
         ),
-        Err(rollback_error) => anyhow::anyhow!(
-            "Failed to persist rollback log: {}. Rollback also failed: {}. \
-             The installation at {:?} is partially updated and needs manual recovery.",
-            persist_error,
-            rollback_error,
-            install_dir
+        Err(rollback_error) => (
+            anyhow::anyhow!(
+                "Failed to persist rollback log: {}. Rollback also failed: {}. \
+                 The installation at {:?} is partially updated and needs manual recovery.",
+                persist_error,
+                rollback_error,
+                install_dir
+            ),
+            false,
         ),
     }
 }
 
-/// Finalize a failure: roll the install back to its pre-apply state, delete
-/// the pending marker so the next launch does not think an update succeeded,
-/// then return the original error so it propagates and the process exits
-/// non-zero.
+/// Finalize a failure: roll the install back to its pre-apply state, then
+/// return the original error so it propagates and the process exits non-zero.
+///
+/// The pending marker is left in place. It names the build that was running
+/// before the update, so when that build starts again it reads the marker and
+/// reports the update as rolled back, rather than coming up with no word about
+/// the update the operator just asked for.
 fn finalize_failure(
     args: &Args,
     rollback_log: &RollbackLog,
     rollback_log_path: &Path,
     update_error: anyhow::Error,
-) -> Result<()> {
+) -> std::result::Result<(), Failure> {
     eprintln!("Update failed; rolling back to pre-apply state...");
     let rollback_result = rollback_in_place(&args.install_dir, rollback_log);
-
-    // Why: pending marker says "an update is staged and ready to apply". We
-    // failed, so the next launch must NOT think the update succeeded.
-    if let Err(e) = remove_pending_marker(&args.pending_file) {
-        eprintln!(
-            "Warning: failed to remove pending marker {:?}: {}",
-            args.pending_file, e
-        );
-    }
 
     // Why: rollback log on disk is no longer needed once rollback succeeded.
     // If rollback failed we keep it for next-launch recovery to retry.
@@ -379,13 +526,20 @@ fn finalize_failure(
     }
 
     match rollback_result {
-        Ok(()) => Err(update_error
-            .context("Update failed; the previous installation was restored from in-place backup")),
-        Err(rollback_error) => Err(anyhow::anyhow!(
-            "Update failed: {}. Rollback also failed: {}",
-            update_error,
-            rollback_error
-        )),
+        Ok(()) => Err(Failure {
+            error: update_error.context(
+                "Update failed; the previous installation was restored from in-place backup",
+            ),
+            relaunch: true,
+        }),
+        Err(rollback_error) => Err(Failure {
+            error: anyhow::anyhow!(
+                "Update failed: {}. Rollback also failed: {}",
+                update_error,
+                rollback_error
+            ),
+            relaunch: false,
+        }),
     }
 }
 
@@ -851,6 +1005,27 @@ fn retain_restore_point(install_dir: &Path, backup_dir: &Path, log: &RollbackLog
 /// 3. Drop the post-install hash record + the now-consumed restore point so the
 ///    next boot-verify does not object, then relaunch if requested.
 fn run_rollback(args: &Args) -> Result<()> {
+    restore_previous_build(args, true)?;
+
+    if args.launch_after {
+        println!("\nLaunching the restored Nightshade...");
+        launch_app(&args.install_dir, &args.relaunch_args).with_context(|| {
+            format!(
+                "Rollback applied but failed to launch restored Nightshade from {:?}",
+                args.install_dir
+            )
+        })?;
+    }
+
+    Ok(())
+}
+
+/// Put the retained restore point back over the install and drop it.
+///
+/// `clear_pending` removes the pending marker too, which the manual rollback
+/// wants (the operator asked for it and knows). The automatic rollback after a
+/// failed start keeps it, so the restored build can say what happened.
+fn restore_previous_build(args: &Args, clear_pending: bool) -> Result<()> {
     println!("\nRolling back to the previous version...");
 
     let rollback_log_path = args.backup_dir.join(ROLLBACK_LOG_FILE);
@@ -902,20 +1077,11 @@ fn run_rollback(args: &Args) -> Result<()> {
             );
         }
     }
-    remove_pending_marker(&args.pending_file)?;
-
-    println!("Rollback complete.");
-
-    if args.launch_after {
-        println!("\nLaunching the restored Nightshade...");
-        launch_app(&args.install_dir).with_context(|| {
-            format!(
-                "Rollback applied but failed to launch restored Nightshade from {:?}",
-                args.install_dir
-            )
-        })?;
+    if clear_pending {
+        remove_pending_marker(&args.pending_file)?;
     }
 
+    println!("Rollback complete.");
     Ok(())
 }
 
@@ -1230,8 +1396,9 @@ fn launch_target(install_dir: &Path) -> PathBuf {
     install_dir.join(from_posix(APP_EXECUTABLE))
 }
 
-/// Launch the updated application
-fn launch_app(install_dir: &Path) -> Result<()> {
+/// Launch the application from `install_dir` with the arguments it was
+/// running with before the update.
+fn launch_app(install_dir: &Path, args: &[String]) -> Result<std::process::Child> {
     let exe_path = launch_target(install_dir);
 
     if !exe_path.exists() {
@@ -1242,11 +1409,10 @@ fn launch_app(install_dir: &Path) -> Result<()> {
     }
 
     Command::new(&exe_path)
+        .args(args)
         .current_dir(install_dir)
         .spawn()
-        .context("Failed to launch application")?;
-
-    Ok(())
+        .context("Failed to launch application")
 }
 
 // Tests
@@ -1412,7 +1578,7 @@ mod tests {
         let mut log = RollbackLog::default();
         apply_update(&staging, &install, &mut log).unwrap();
 
-        let err = finalize_unlogged_rollback(
+        let (err, _) = finalize_unlogged_rollback(
             &install,
             &log,
             anyhow::anyhow!("disk full writing rollback_log.json"),
@@ -1445,7 +1611,7 @@ mod tests {
         let bak = backup_path_for(&install.join("nightshade_bridge.dll"));
         fs::remove_file(&bak).unwrap();
 
-        let err = finalize_unlogged_rollback(
+        let (err, _) = finalize_unlogged_rollback(
             &install,
             &log,
             anyhow::anyhow!("disk full writing rollback_log.json"),
