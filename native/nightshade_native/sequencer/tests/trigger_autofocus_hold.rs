@@ -37,6 +37,13 @@ impl DeadGuiderRig {
         }
     }
 
+    /// A rig whose guider is not guiding, so a sweep never touches it.
+    fn unguided() -> Self {
+        let rig = Self::new();
+        rig.guiding.store(false, Ordering::SeqCst);
+        rig
+    }
+
     fn record(&self, call: impl Into<String>) {
         self.calls.lock().unwrap().push(call.into());
     }
@@ -280,108 +287,154 @@ struct Outcome {
     messages: Vec<String>,
 }
 
-/// Start a long run on `rig` with the shipped autofocus failure policy, wait
-/// for the monitor to see the guider guiding, apply `seed` to force a
-/// trigger-fired autofocus, and report what the run did once it was judged.
+/// A long run on `rig` with the shipped autofocus failure policy, started,
+/// with a listener collecting its Error and Warning messages and noting when a
+/// trigger-fired autofocus has been judged.
+struct Run {
+    executor: SequenceExecutor,
+    rig: Arc<DeadGuiderRig>,
+    messages: Arc<Mutex<Vec<String>>>,
+    judged: Arc<AtomicBool>,
+    listener: tokio::task::JoinHandle<()>,
+}
+
+impl Run {
+    async fn start(rig: Arc<DeadGuiderRig>, exposure_duration: f64) -> Self {
+        let mut executor = SequenceExecutor::new();
+        executor.set_device_ops(rig.clone());
+        executor.set_devices(
+            Some("cam-1".to_string()),
+            Some("mount-1".to_string()),
+            Some("focuser-1".to_string()),
+            None,
+            None,
+        );
+        // Library defaults except what keeps the test short. Guiding is
+        // stopped for the sweep (the owner's setting); the failure action and
+        // the HFR tolerance stay at their shipped defaults.
+        executor
+            .update_autofocus_config(AutofocusConfig {
+                disable_guiding_during_af: true,
+                number_of_attempts: 1,
+                steps_out: 2,
+                exposure_duration,
+                focuser_settle_time_ms: 0,
+                ..AutofocusConfig::default()
+            })
+            .await;
+        let mut sequence = SequenceDefinition::new("Trigger autofocus".to_string());
+        sequence.nodes.push(NodeDefinition {
+            id: "wait".to_string(),
+            name: "Long wait".to_string(),
+            node_type: NodeType::Delay(DelayConfig { seconds: 600.0 }),
+            enabled: true,
+            children: vec![],
+        });
+        sequence.root_node_id = Some("wait".to_string());
+        executor.load_sequence(sequence).expect("sequence loads");
+        let mut events = executor.subscribe();
+        executor.start().await.expect("run starts");
+
+        let messages = Arc::new(Mutex::new(Vec::new()));
+        let judged = Arc::new(AtomicBool::new(false));
+        let listener = {
+            let messages = messages.clone();
+            let judged = judged.clone();
+            tokio::spawn(async move {
+                loop {
+                    match events.recv().await {
+                        Ok(ExecutorEvent::NodeCompleted { id, .. })
+                            if id.starts_with("trigger:") && id.ends_with(":autofocus") =>
+                        {
+                            judged.store(true, Ordering::SeqCst);
+                        }
+                        Ok(ExecutorEvent::Error { message })
+                        | Ok(ExecutorEvent::Warning { message }) => {
+                            messages.lock().unwrap().push(message);
+                        }
+                        Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                        Err(_) => break,
+                    }
+                }
+            })
+        };
+        Run {
+            executor,
+            rig,
+            messages,
+            judged,
+            listener,
+        }
+    }
+
+    /// Wait until the monitor has polled the guider twice, so a guider that
+    /// reports guiding is armed before a refocus is forced.
+    async fn wait_for_guider_polls(&self) {
+        wait_until(
+            Duration::from_secs(10),
+            "monitor never polled the guider",
+            || {
+                self.rig
+                    .calls()
+                    .iter()
+                    .filter(|c| c.starts_with("guider_get_status"))
+                    .count()
+                    >= 2
+            },
+        )
+        .await;
+    }
+
+    async fn wait_until_judged(&self) {
+        wait_until(
+            Duration::from_secs(60),
+            "the trigger autofocus never finished",
+            || self.judged.load(Ordering::SeqCst),
+        )
+        .await;
+        // Let the arm act on the verdict.
+        tokio::time::sleep(Duration::from_secs(3)).await;
+    }
+
+    async fn finish(mut self) -> Outcome {
+        let state = self.executor.get_state().await;
+        let calls = self.rig.calls();
+        let _ = self.executor.stop().await;
+        self.listener.abort();
+        let messages = self.messages.lock().unwrap().clone();
+        Outcome {
+            state,
+            calls,
+            messages,
+        }
+    }
+}
+
+async fn wait_until(timeout: Duration, what: &str, done: impl Fn() -> bool) {
+    let deadline = tokio::time::Instant::now() + timeout;
+    while !done() {
+        assert!(tokio::time::Instant::now() < deadline, "{what}");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
+/// Force a trigger-fired autofocus on a guiding run with `seed` applied to the
+/// trigger state, and report what the run did once the sweep was judged.
 async fn run_trigger_autofocus(
     rig: Arc<DeadGuiderRig>,
     seed: impl FnOnce(&mut TriggerState) + Send + 'static,
 ) -> Outcome {
-    let mut executor = SequenceExecutor::new();
-    executor.set_device_ops(rig.clone());
-    executor.set_devices(
-        Some("cam-1".to_string()),
-        Some("mount-1".to_string()),
-        Some("focuser-1".to_string()),
-        None,
-        None,
-    );
-    // Library defaults except what keeps the test short. Guiding is stopped
-    // for the sweep (the owner's setting); the failure action and the HFR
-    // tolerance stay at their shipped defaults.
-    executor
-        .update_autofocus_config(AutofocusConfig {
-            disable_guiding_during_af: true,
-            number_of_attempts: 1,
-            steps_out: 2,
-            exposure_duration: 0.01,
-            focuser_settle_time_ms: 0,
-            ..AutofocusConfig::default()
-        })
-        .await;
-    let mut sequence = SequenceDefinition::new("Trigger autofocus".to_string());
-    sequence.nodes.push(NodeDefinition {
-        id: "wait".to_string(),
-        name: "Long wait".to_string(),
-        node_type: NodeType::Delay(DelayConfig { seconds: 600.0 }),
-        enabled: true,
-        children: vec![],
-    });
-    sequence.root_node_id = Some("wait".to_string());
-    executor.load_sequence(sequence).expect("sequence loads");
-    let mut events = executor.subscribe();
-    executor.start().await.expect("run starts");
+    let run = Run::start(rig, 0.01).await;
+    run.wait_for_guider_polls().await;
+    run.executor.update_trigger_state(seed).await;
+    run.wait_until_judged().await;
+    run.finish().await
+}
 
-    // The sweep only stops a guider the run has seen guiding.
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
-    while rig
-        .calls()
-        .iter()
-        .filter(|c| c.starts_with("guider_get_status"))
-        .count()
-        < 2
-    {
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "monitor never polled the guider"
-        );
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    executor.update_trigger_state(seed).await;
-
-    let messages = Arc::new(Mutex::new(Vec::new()));
-    let judged = Arc::new(AtomicBool::new(false));
-    let listener = {
-        let messages = messages.clone();
-        let judged = judged.clone();
-        tokio::spawn(async move {
-            loop {
-                match events.recv().await {
-                    Ok(ExecutorEvent::NodeCompleted { id, .. })
-                        if id.starts_with("trigger:") && id.ends_with(":autofocus") =>
-                    {
-                        judged.store(true, Ordering::SeqCst);
-                    }
-                    Ok(ExecutorEvent::Error { message }) => {
-                        messages.lock().unwrap().push(message);
-                    }
-                    Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
-                    Err(_) => break,
-                }
-            }
-        })
-    };
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
-    while !judged.load(Ordering::SeqCst) {
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "the trigger autofocus never finished; calls={:?}",
-            rig.calls()
-        );
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    // Let the arm act on the verdict.
-    tokio::time::sleep(Duration::from_secs(3)).await;
-    let state = executor.get_state().await;
-    let calls = rig.calls();
-    let _ = executor.stop().await;
-    listener.abort();
-    let messages = messages.lock().unwrap().clone();
-    Outcome {
-        state,
-        calls,
-        messages,
-    }
+fn parked_or_closed(calls: &[String]) -> bool {
+    calls.iter().any(|c| {
+        c.starts_with("mount_park") || c.starts_with("cover_close") || c.starts_with("dome_close")
+    })
 }
 
 /// A trigger autofocus that cannot restart the guider must hold the run, even
@@ -439,14 +492,86 @@ async fn a_dead_guider_after_trigger_autofocus_never_parks() {
          calls={calls:?}"
     );
     assert!(
-        !calls.iter().any(|c| c.starts_with("mount_park")
-            || c.starts_with("cover_close")
-            || c.starts_with("dome_close")),
+        !parked_or_closed(&calls),
         "a dead guider parked the rig; messages={messages:?} calls={calls:?}"
     );
     assert_eq!(
         state,
         ExecutorState::Paused,
         "messages={messages:?} calls={calls:?}"
+    );
+}
+
+/// An operator Stop in the middle of a trigger-fired autofocus is a stop. It
+/// must not be judged as a failed autofocus, and so must never reach the
+/// default AbortAndPark: the operator asked the run to end, not the rig to be
+/// parked and closed.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn stopping_during_a_trigger_autofocus_never_parks() {
+    let _serial = SERIAL.lock().await;
+    let rig = Arc::new(DeadGuiderRig::unguided());
+    let mut run = Run::start(rig.clone(), 2.0).await;
+    run.executor
+        .update_trigger_state(|ts| ts.invalidate_autofocus("test: force a refocus"))
+        .await;
+    wait_until(
+        Duration::from_secs(20),
+        "the sweep never took an exposure",
+        || {
+            rig.calls()
+                .iter()
+                .any(|c| c.starts_with("camera_start_exposure"))
+        },
+    )
+    .await;
+    let _ = run.executor.stop().await;
+    // Give anything the arm starts after the stop time to reach the rig.
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    let calls = rig.calls();
+    let messages = run.messages.lock().unwrap().clone();
+    run.listener.abort();
+    assert!(
+        !parked_or_closed(&calls),
+        "an operator Stop parked the rig; messages={messages:?} calls={calls:?}"
+    );
+}
+
+/// A refocus the trigger could not even start, because another autofocus (a
+/// manual one, or a backlash calibration) held the camera and focuser, never
+/// moved anything. It says nothing about focus and must not park the rig.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_trigger_autofocus_turned_away_at_the_gate_never_parks() {
+    let _serial = SERIAL.lock().await;
+    let rig = Arc::new(DeadGuiderRig::unguided());
+    let run = Run::start(rig, 0.01).await;
+    let held = nightshade_sequencer::try_admit_autofocus_run()
+        .expect("nothing else in this binary holds the gate");
+    run.executor
+        .update_trigger_state(|ts| ts.invalidate_autofocus("test: force a refocus"))
+        .await;
+    wait_until(
+        Duration::from_secs(20),
+        "the trigger never acted on the forced refocus",
+        || {
+            run.messages
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|m| m.to_lowercase().contains("autofocus"))
+        },
+    )
+    .await;
+    // Let anything the arm does next reach the rig.
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    drop(held);
+    let Outcome {
+        state,
+        calls,
+        messages,
+    } = run.finish().await;
+    assert!(
+        !parked_or_closed(&calls),
+        "a refocus that never started parked the rig; state={state:?} messages={messages:?} \
+         calls={calls:?}"
     );
 }

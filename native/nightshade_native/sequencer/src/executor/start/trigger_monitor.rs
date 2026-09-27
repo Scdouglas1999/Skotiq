@@ -1131,6 +1131,33 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                                 NodeStatus::Running,
                                 format!("Executing: Autofocus ({trigger_name})"),
                             ));
+                            // Take the autofocus gate here rather than inside
+                            // the sweep, so a refocus turned away by another
+                            // autofocus (an Autofocus node dispatched on the
+                            // same tick, a manual sweep, a backlash
+                            // calibration) is told apart from one that ran and
+                            // failed. It moved nothing and says nothing about
+                            // focus; judged as a failure it reached the default
+                            // AbortAndPark and parked the rig. The stale-focus
+                            // latch is kept, so the trigger asks again once
+                            // its cooldown has passed.
+                            let Some(af_admission) = crate::instructions::try_admit_autofocus_run()
+                            else {
+                                camera_claim.release().await;
+                                let message = format!(
+                                    "Trigger '{trigger_name}' asked for an autofocus while another \
+                                     autofocus held the camera and focuser. This refocus was \
+                                     skipped; the trigger will ask again."
+                                );
+                                tracing::warn!("{}", message);
+                                let _ = event_tx_clone2.send(ExecutorEvent::NodeCompleted {
+                                    id: completed_node_id,
+                                    status: NodeStatus::Skipped,
+                                });
+                                let _ = event_tx_clone2.send(ExecutorEvent::Warning { message });
+                                fired_triggers.push((trigger_id, action));
+                                continue;
+                            };
                             let total_steps =
                                 af_config.steps_out.saturating_mul(2).saturating_add(1);
                             let progress_fn = move |progress: f64, detail_str: String| {
@@ -1157,10 +1184,11 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                             )
                             .await;
 
-                            let af_result = crate::instructions::execute_autofocus(
+                            let af_result = crate::instructions::execute_autofocus_admitted(
                                 &af_config,
                                 &af_ctx,
                                 Some(&progress_fn),
+                                af_admission,
                             )
                             .await;
 
@@ -1197,6 +1225,19 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                                     ts.reset_baseline_hfr();
                                     ts.mark_autofocus_performed();
                                 }
+                            } else if af_result.status == NodeStatus::Cancelled
+                                || is_cancelled_clone.load(Ordering::Relaxed)
+                            {
+                                // The run is being stopped. A sweep the stop
+                                // cut short is not a failed autofocus, and
+                                // judging it as one sent an operator's Stop
+                                // down the default AbortAndPark: park the
+                                // mount, close cover and dome.
+                                tracing::info!(
+                                    "Trigger autofocus '{}' ended by the run stopping; not \
+                                     judging it as a failed refocus",
+                                    trigger_name
+                                );
                             } else {
                                 // A failed autofocus is not automatically a
                                 // ruined night. Judge the frames it would keep
