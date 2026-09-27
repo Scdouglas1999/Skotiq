@@ -160,9 +160,14 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         // loop exits into a real operator Pause (not resume,
         // not park-and-abort). Carries the operator message.
         let mut paused_for_operator: Option<String> = None;
+        // Set when the run was cancelled under the ladder (an operator Stop, a
+        // safety trigger's park-and-abort). That is not recovery running out,
+        // and whoever cancelled owns how the run ends.
+        let mut cancelled_under_recovery = false;
         loop {
             if recovery_driver_is_cancelled.load(Ordering::Relaxed) {
                 tracing::info!("[RECOVERY] Sequence cancelled mid-recovery — exiting loop");
+                cancelled_under_recovery = true;
                 aborted_by_user = false;
                 recovered = false;
                 ctx.phase = crate::recovery::RecoveryPhase::GaveUp;
@@ -307,6 +312,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 }
                 crate::recovery::AttemptOutcome::Cancelled => {
                     tracing::info!("[RECOVERY] Attempt cancelled — exiting loop");
+                    cancelled_under_recovery = true;
                     aborted_by_user = false;
                     recovered = false;
                     ctx.phase = crate::recovery::RecoveryPhase::GaveUp;
@@ -347,7 +353,21 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             });
         }
 
-        if let Some(pause_message) = paused_for_operator {
+        if cancelled_under_recovery && !recovered && paused_for_operator.is_none() {
+            // No give-up message, no give-up sweep, no Failed stamp: reporting
+            // "Recovery could not fix" for a run that was stopped, or parked
+            // by the weather rule, would blame the wrong thing, and under the
+            // park-and-close opt-in it would run a second sweep nobody asked
+            // for.
+            tracing::info!(
+                "[RECOVERY] Recovery for {:?} ended because the run was cancelled after {} \
+                 attempt{}",
+                ctx.cause,
+                ctx.attempt_count,
+                if ctx.attempt_count == 1 { "" } else { "s" }
+            );
+            *recovery_driver_current.write() = None;
+        } else if let Some(pause_message) = paused_for_operator {
             // The PauseForOperator escalation handling lives in
             // `apply_recovery_escalation` so an integration test can drive the
             // SafeAbandon vs PassivePause branch, and the

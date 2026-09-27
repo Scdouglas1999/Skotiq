@@ -1689,3 +1689,73 @@ async fn stopping_during_recovery_is_a_stop_not_a_give_up() {
         "an operator Stop was published as RecoveryGaveUp; messages={messages:?}"
     );
 }
+
+/// A recovery ladder can run for 90 minutes, and a lost guide star is most
+/// often cloud. The rig is still under the sky while the driver waits between
+/// attempts, so the weather rule must still act: rain arriving during a
+/// guide-star recovery has to reach Weather Unsafe's configured park, and the
+/// run must not then report a recovery give-up it never had.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn weather_turning_unsafe_during_recovery_is_still_acted_on() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.guider_start_fails.store(true, Ordering::SeqCst);
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor.set_safety_check_interval_secs(5);
+    executor
+        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
+            retry_interval_secs: 600.0,
+            max_duration_secs: 5400.0,
+            ..crate::recovery::RecoveryRuntimeConfig::default()
+        })
+        .await;
+    let mut events = executor.subscribe();
+    let mut executor = start_long_run(executor, ops.clone()).await;
+
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("guider_get_status") < 2 {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "monitor never polled the guider"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    ops.guiding.store(false, Ordering::SeqCst);
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(15), |s| {
+        s == super::ExecutorState::Recovering
+    })
+    .await;
+    assert_eq!(
+        state,
+        super::ExecutorState::Recovering,
+        "calls={:?}",
+        ops.calls()
+    );
+
+    // Rain.
+    ops.weather_safe.store(false, Ordering::SeqCst);
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(20);
+    while ops.call_count("mount_park") == 0 && tokio::time::Instant::now() < deadline {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    let mut messages = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let super::ExecutorEvent::Error { message } = event {
+            messages.push(message);
+        }
+    }
+    assert!(
+        calls.iter().any(|c| c == "mount_park:mount-1"),
+        "weather turned unsafe during a recovery ladder and nothing acted on it; \
+         messages={messages:?} calls={calls:?}"
+    );
+    assert!(
+        !messages
+            .iter()
+            .any(|m| m.contains("Recovery could not fix")),
+        "a weather abort was reported as recovery running out; messages={messages:?}"
+    );
+}

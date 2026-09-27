@@ -136,14 +136,18 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         // recentre or recovery ladder must never drive hardware under a hold a
         // human placed to inspect the rig, nor lift it.
         //
-        // `Recovering` is still skipped: the recovery driver owns the hardware
-        // for the length of its own bounded ladder and has its own meridian
-        // abort. Stopping / Failed / Completed / Idle are skipped as before —
-        // nothing there to protect or to conflict with.
+        // `Recovering` is held the same way. It used to be skipped on the
+        // grounds that the recovery driver owns the hardware for its ladder,
+        // but that ladder runs for up to 90 minutes, and a lost guide star is
+        // most often cloud: rain arriving mid-ladder went unwatched, with no
+        // weather, dawn or shutter evaluation at all. Only a park-and-abort may
+        // act there, which ends the ladder with the run. Stopping / Failed /
+        // Completed / Idle are skipped as before — nothing there to protect or
+        // to conflict with.
         let current_state = *state_clone.read().await;
         let paused_safety_only = match current_state {
             ExecutorState::Running => false,
-            ExecutorState::Paused => true,
+            ExecutorState::Paused | ExecutorState::Recovering => true,
             _ => continue,
         };
 
