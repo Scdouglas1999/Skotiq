@@ -427,3 +427,42 @@ async fn a_guiderless_sweep_is_not_retried_across_attempts() {
         );
     }
 }
+
+/// `number_of_attempts` is the operator's retry budget for a sweep that fails
+/// cleanly (focuser restored, guiding back). Nothing counted attempts:
+/// returning after the first failure, or retrying a sweep regardless of the
+/// budget's end, both passed. Every attempt takes its own frames, so the
+/// exposure count is a count of sweeps.
+#[tokio::test(start_paused = true)]
+#[allow(clippy::await_holding_lock)]
+async fn a_cleanly_failing_sweep_is_retried_exactly_up_to_the_budget() {
+    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut exposures = Vec::new();
+    for attempts in [1_u32, 3] {
+        let ops = Arc::new(ScriptedDomeRotatorOps::new());
+        let mut ctx = pointing_ctx(ops.clone(), "NGC7380", (22.79, 58.13)).await;
+        ctx.focuser_id = Some("foc-1".to_string());
+        let config = AutofocusConfig {
+            number_of_attempts: attempts,
+            exposure_duration: 0.01,
+            steps_out: 1,
+            exposures_per_point: 1,
+            ..Default::default()
+        };
+        let pause = crate::node::context::PauseGate::default();
+
+        let result = execute_autofocus_attempts(&config, &ctx, None, &pause).await;
+
+        // The test camera's frames have no stars, so every sweep fails, and
+        // fails cleanly.
+        assert_eq!(result.status, NodeStatus::Failure, "{:?}", result.message);
+        exposures.push(ops.camera_exposure_calls.load(Ordering::SeqCst));
+    }
+    assert!(exposures[0] > 0, "a sweep takes frames");
+    assert_eq!(
+        exposures[1],
+        3 * exposures[0],
+        "a budget of 3 must run three sweeps of {} frames each",
+        exposures[0]
+    );
+}
