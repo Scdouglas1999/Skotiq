@@ -504,7 +504,16 @@ impl TriggerState {
         let changed = self.current_filter.as_ref() != Some(&filter);
         self.filter_changed = changed;
         if changed {
-            self.invalidate_autofocus(format!("filter changed to {}", filter));
+            // A new filter needs its own HFR baseline -- Ha and L do not share
+            // one -- but a filter change is not by itself a reason to refocus.
+            // That is the operator's "Auto focus on filter change" setting (off
+            // by default, and honoured by the serializer injecting an Autofocus
+            // node), and filter focus offsets carry the known per-filter shift.
+            // Invalidating autofocus here made the HFR trigger refocus on "L"
+            // every time its cooldown expired while a Smart Exposure node cycled
+            // narrowband filters.
+            self.baseline_hfr = None;
+            tracing::debug!("HFR baseline restarted: filter changed to {}", filter);
         }
         self.current_filter = Some(filter);
     }

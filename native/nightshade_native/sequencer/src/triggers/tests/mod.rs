@@ -1204,8 +1204,15 @@ fn test_target_change_invalidates_autofocus() {
     assert_eq!(state.baseline_hfr, None);
 }
 
+/// A filter change restarts the HFR baseline (filters do not share one) but
+/// is not by itself a reason to refocus: that is the operator's "Auto focus
+/// on filter change" setting, off by default, and filter focus offsets carry
+/// the known per-filter shift. Forcing it here made the HFR trigger run a full
+/// autofocus on "L" every time its 5-minute cooldown expired during a Smart
+/// Exposure node cycling Ha/OIII/SII -- measured by the simulator soak, and the
+/// same interleaving that cost the 2026-09-14 night.
 #[test]
-fn test_filter_change_invalidates_autofocus() {
+fn test_filter_change_restarts_the_hfr_baseline_without_forcing_autofocus() {
     let mut state = TriggerState::new();
     state.current_filter = Some("L".to_string());
     state.baseline_hfr = Some(2.0);
@@ -1214,8 +1221,31 @@ fn test_filter_change_invalidates_autofocus() {
     state.set_filter("Ha".to_string());
 
     assert!(state.filter_changed);
-    assert!(state.autofocus_invalidated);
+    assert!(!state.autofocus_invalidated);
     assert_eq!(state.baseline_hfr, None);
+}
+
+#[tokio::test]
+async fn a_rotating_filter_plan_in_focus_does_not_fire_the_hfr_trigger() {
+    let mut trigger = Trigger::new(
+        "hfr_degraded",
+        "HFR Degradation",
+        TriggerType::HfrDegraded {
+            threshold_percent: 20.0,
+            absolute_threshold: 0.0,
+            consecutive_frames: 3,
+        },
+        RecoveryAction::Autofocus,
+    );
+    let mut state = TriggerState::new();
+    for filter in ["Ha", "OIII", "SII", "Ha", "OIII", "SII"] {
+        state.set_filter(filter.to_string());
+        state.update_hfr(2.0);
+        assert!(
+            !trigger.check(&state).await,
+            "an in-focus frame after a change to {filter} fired a refocus"
+        );
+    }
 }
 
 #[tokio::test]
