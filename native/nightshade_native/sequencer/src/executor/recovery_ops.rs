@@ -210,6 +210,21 @@ pub(crate) async fn run_recovery_attempt(
     match cause {
         RecoveryCause::GuideStarLost => recover_guide_star(device_ops).await,
         RecoveryCause::MountTrackingLost => match mount_id {
+            // Parking stops tracking, so an operator who parks mid-run trips
+            // this cause too. A park is a safe state someone chose; switching
+            // tracking back on under the park latch and calling the run
+            // recovered is exactly what `restore_tracking_after_recovery`
+            // refuses to do, so hold the run for a human instead.
+            Some(id) if matches!(device_ops.mount_is_parked(id).await, Ok(true)) => {
+                AttemptOutcome::PauseForOperator {
+                    message: format!(
+                        "Mount {} is parked, so its tracking stopped. Recovery does not \
+                         un-park a mount on its own; the run is paused. Un-park the mount \
+                         and resume when you are ready.",
+                        id
+                    ),
+                }
+            }
             Some(id) => match device_ops.mount_is_tracking(id).await {
                 Ok(true) => AttemptOutcome::Succeeded,
                 Ok(false) => {

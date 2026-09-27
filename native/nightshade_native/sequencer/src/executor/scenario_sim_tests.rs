@@ -1557,3 +1557,36 @@ async fn a_tracking_loss_during_a_hold_does_not_resume_the_run() {
     }
     let _ = executor.stop().await;
 }
+
+/// A parked mount is not a mount that lost tracking. Parking stops tracking,
+/// so an operator who parks during a run trips Mount Tracking Lost, and the
+/// recovery attempt must not answer by switching tracking back on under the
+/// park latch and declaring the run recovered.
+#[tokio::test]
+async fn tracking_recovery_never_commands_tracking_on_a_parked_mount() {
+    let ops_concrete = Arc::new(ScriptedDeviceOps::new());
+    let ops: SharedDeviceOps = ops_concrete.clone();
+    ops_concrete.mount_parked.store(true, Ordering::SeqCst);
+    ops_concrete.mount_tracking.store(false, Ordering::SeqCst);
+    let (manager, _state) = manager_with_state().await;
+
+    let outcome = super::run_recovery_attempt(
+        &RecoveryCause::MountTrackingLost,
+        &ops,
+        Some("mount-1"),
+        &[],
+        &manager,
+    )
+    .await;
+
+    let calls = ops_concrete.calls();
+    assert!(
+        !calls.iter().any(|c| c == "mount_set_tracking:mount-1:true"),
+        "recovery switched tracking on under the park latch; outcome={outcome:?} calls={calls:?}"
+    );
+    assert_ne!(
+        outcome,
+        AttemptOutcome::Succeeded,
+        "a parked mount is not a recovered one; calls={calls:?}"
+    );
+}
