@@ -474,7 +474,11 @@ mod tests {
         let server = tokio::spawn(async move {
             let (mut socket, _) = listener.accept().await.expect("accept INDI client");
             let mut buf = [0_u8; 8192];
-            let _ = socket.read(&mut buf).await;
+            let asked = socket
+                .read(&mut buf)
+                .await
+                .expect("read the client's getProperties");
+            assert!(asked > 0, "the client closed before asking for properties");
             socket
                 .write_all(payload.as_bytes())
                 .await
@@ -489,7 +493,9 @@ mod tests {
                         if !replied && received.contains("newNumberVector") {
                             replied = true;
                             tokio::time::sleep(reply_delay).await;
-                            let _ = socket.write_all(reply.as_bytes()).await;
+                            if socket.write_all(reply.as_bytes()).await.is_err() {
+                                break;
+                            }
                         }
                     }
                 }
