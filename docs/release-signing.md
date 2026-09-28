@@ -15,7 +15,7 @@ GitHub Actions secrets below; an owner must create them in
 | Secret | Track | Consumer | Absent → behavior |
 | --- | --- | --- | --- |
 | `NIGHTSHADE_UPDATE_PUBLIC_KEY` | OTA | The Windows, Linux and Android jobs bake it into the app via `--dart-define` on `flutter build windows`, `flutter build linux` and `flutter build apk` | Empty define → runtime OTA stays fail-closed-disabled (the app refuses every update). Build succeeds. |
-| `NIGHTSHADE_UPDATE_PRIVATE_KEY` | OTA | `scripts/build_update_package.ps1` (Windows) and `packages/nightshade_updater/tool/build_update_manifest.dart` (Linux, Android) sign the canonical manifest payload | Manifest emitted unsigned → no build can apply it (fail-closed). Build succeeds. |
+| `NIGHTSHADE_UPDATE_PRIVATE_KEY` | OTA | `packages/nightshade_updater/tool/build_update_manifest.dart` signs the canonical manifest payload on every platform (Windows reaches it through `scripts/build_update_package.ps1`) | Manifest emitted unsigned → no build can apply it (fail-closed). Build succeeds. |
 | `WINDOWS_SIGNING_CERT_BASE64` | Authenticode | "Authenticode sign (optional)" step signs every `*.exe`/`*.dll` in the Release tree | Step skips → unsigned beta (SmartScreen prompt). |
 | `WINDOWS_SIGNING_CERT_PASSWORD` | Authenticode | PFX password for `signtool` | Only used when the cert is present. |
 | `ANDROID_KEYSTORE_BASE64` | Android | "Decode release keystore" step writes `$RUNNER_TEMP/release.jks` and exports `KEYSTORE_FILE` | `KEYSTORE_FILE` unset → `build.gradle.kts` falls back to the debug keystore (debug-signed beta). |
