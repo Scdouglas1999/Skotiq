@@ -1984,3 +1984,119 @@ async fn a_guider_seen_guiding_arms_star_lost_and_a_later_drop_fires_it() {
     );
     assert!(history[0].recovered, "{history:?}");
 }
+
+/// Run a trigger-fired autofocus that fails with focus far past the keep-
+/// imaging tolerance, under `failure_action`, and return the recorded device
+/// calls once the run has reacted.
+async fn failed_trigger_autofocus_calls(
+    failure_action: crate::AutofocusFailureAction,
+) -> Vec<String> {
+    let mut sequence = SequenceDefinition::new("New Sequence".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "wait".to_string(),
+        name: "Wait".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 120.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("wait".to_string());
+
+    let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(ops.clone());
+    executor.camera_id = Some("sim_camera_1".to_string());
+    executor.focuser_id = Some("sim_focuser_1".to_string());
+    executor.mount_id = Some("mount-1".to_string());
+    executor
+        .update_autofocus_config(crate::AutofocusConfig {
+            number_of_attempts: 1,
+            steps_out: 1,
+            exposures_per_point: 1,
+            exposure_duration: 0.01,
+            failure_action,
+            ..Default::default()
+        })
+        .await;
+    {
+        let mut manager = executor.trigger_manager.write().await;
+        for id in [
+            "hfr_degraded",
+            "meridian_flip",
+            "guiding_failed",
+            "altitude_limit",
+            "weather_unsafe",
+            "temperature_shift",
+            "filter_change",
+            "dawn_approaching",
+            "autofocus_interval",
+            "dither_interval",
+            "mount_tracking_lost",
+        ] {
+            manager.remove_trigger(id);
+        }
+        manager.add_trigger(Trigger::new(
+            "hfr_degraded",
+            "HFR Degradation",
+            crate::TriggerType::HfrDegraded {
+                threshold_percent: 20.0,
+                absolute_threshold: 0.0,
+                consecutive_frames: 1,
+            },
+            crate::RecoveryAction::Autofocus,
+        ));
+    }
+    let mut events = executor.subscribe();
+    executor.load_sequence(sequence).expect("sequence loads");
+    executor.start().await.expect("run starts");
+
+    // Baseline 2.0 px, then 4.0 px: twice the baseline, past the default
+    // 1.6x tolerance, so the failure is not one the run can image through.
+    let trigger_state = {
+        let manager = executor.trigger_manager.read().await;
+        manager.state()
+    };
+    trigger_state.write().await.update_hfr(2.0);
+    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+    trigger_state.write().await.update_hfr(4.0);
+
+    // Wait for the autofocus interlude to finish, then give the policy branch
+    // a moment to act.
+    tokio::time::timeout(std::time::Duration::from_secs(60), async {
+        loop {
+            match events.recv().await {
+                Ok(ExecutorEvent::NodeCompleted { id, .. })
+                    if id.starts_with("trigger:") && id.ends_with(":autofocus") =>
+                {
+                    return;
+                }
+                Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(broadcast::error::RecvError::Closed) => return,
+            }
+        }
+    })
+    .await
+    .expect("the trigger-fired autofocus finished");
+    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+    let calls = ops.calls();
+    executor.stop().await.ok();
+    calls
+}
+
+/// Whether a failed trigger autofocus parks the mount is the operator's
+/// `AutofocusFailureAction`. Only the default was ever exercised, so a check
+/// inverted to park under `PauseAndAlert` (moving an attended mount that was
+/// configured to wait for its operator) passed every test.
+#[tokio::test]
+async fn a_failed_trigger_autofocus_parks_only_when_the_policy_says_to() {
+    let calls = failed_trigger_autofocus_calls(crate::AutofocusFailureAction::PauseAndAlert).await;
+    assert!(
+        !calls.iter().any(|c| c.starts_with("mount_park")),
+        "PauseAndAlert must not park: {calls:?}"
+    );
+
+    let calls = failed_trigger_autofocus_calls(crate::AutofocusFailureAction::AbortAndPark).await;
+    assert!(
+        calls.iter().any(|c| c == "mount_park:mount-1"),
+        "AbortAndPark parks the mount: {calls:?}"
+    );
+}
