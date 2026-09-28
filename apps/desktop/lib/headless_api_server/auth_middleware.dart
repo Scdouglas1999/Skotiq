@@ -4,13 +4,18 @@ part of '../headless_api_server.dart';
 extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
   /// Holds each request until `start()` has loaded the paired session tokens,
   /// so the auth check below never refuses a valid paired device because the
-  /// pairing database had not been read yet.
+  /// pairing database had not been read yet. The hold is bounded (see
+  /// `_pairedTokenHydrationWaitLimit`) so a database that never answers cannot
+  /// hang every request.
   Middleware _pairedTokenHydrationGate() {
     return (innerHandler) {
       return (request) async {
         final pending = _pairedTokenHydration;
         if (pending != null) {
-          await pending;
+          await pending.timeout(
+            HeadlessApiServer._pairedTokenHydrationWaitLimit,
+            onTimeout: () {},
+          );
         }
         return innerHandler(request);
       };

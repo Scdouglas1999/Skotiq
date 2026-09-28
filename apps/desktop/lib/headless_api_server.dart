@@ -253,6 +253,13 @@ class HeadlessApiServer {
   /// is still empty.
   Future<void>? _pairedTokenHydration;
 
+  /// The longest a request waits on [_pairedTokenHydration]. Reading the
+  /// pairing database takes milliseconds; one that never answers (a stuck
+  /// disk) must not hold every request, the public connect and pairing
+  /// endpoints included, for as long as the process lives. Past this a
+  /// request is judged on the tokens loaded so far, as it was before the gate.
+  static const Duration _pairedTokenHydrationWaitLimit = Duration(seconds: 10);
+
   /// When each paired session token last had its device row stamped as seen.
   ///
   /// The middleware authenticates against the in-memory [_pairedSessionTokens]

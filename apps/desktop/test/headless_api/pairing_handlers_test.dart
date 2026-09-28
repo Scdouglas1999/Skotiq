@@ -652,7 +652,7 @@ void main() {
     final started = gatedServer.start();
     try {
       final deadline = DateTime.now().add(const Duration(seconds: 10));
-      while (gatedServer.actualPort == null || gatedServer.actualPort == 0) {
+      while (gatedServer.actualPort == 0) {
         if (DateTime.now().isAfter(deadline)) {
           fail('server never bound');
         }
@@ -681,6 +681,68 @@ void main() {
       await started;
       await gatedServer.stop();
       gatedContainer.dispose();
+    }
+  });
+
+  test('a pairing database that never answers does not hang every '
+      'request', () async {
+    // The hold above waited on hydration with no bound. A database open that
+    // never returns (a stuck disk) then held every request forever, the
+    // public /api/info and an admin token included, where before the hold
+    // they were answered.
+    final gate = Completer<void>();
+    final stuckService = PairingService(
+      database: PairingDatabase.forTesting(
+        LazyDatabase(() async {
+          await gate.future;
+          return NativeDatabase.memory();
+        }),
+      ),
+    );
+    addTearDown(() => stuckService.close());
+
+    final client = HttpClient();
+    addTearDown(() => client.close(force: true));
+    final stuckContainer = createHeadlessTestContainer(
+      overrides: [
+        appVersionProvider.overrideWithValue(
+          const AppVersionInfo(version: '2.5.0', buildNumber: 5),
+        ),
+      ],
+    );
+    final stuckServer = HeadlessApiServer(
+      port: 0,
+      container: stuckContainer,
+      bindLocalOnly: true,
+      authToken: 'admin-token',
+      pairingServiceFactory: () => stuckService,
+    );
+    final started = stuckServer.start();
+    try {
+      final deadline = DateTime.now().add(const Duration(seconds: 10));
+      while (stuckServer.actualPort == 0) {
+        if (DateTime.now().isAfter(deadline)) {
+          fail('server never bound');
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      final uri = Uri.parse('http://127.0.0.1:${stuckServer.actualPort}');
+
+      final responses =
+          await Future.wait([
+            _request(client, uri, '/api/info'),
+            _request(client, uri, '/api/devices', token: 'admin-token'),
+          ]).timeout(
+            const Duration(seconds: 20),
+            onTimeout: () => fail('requests hung behind a stuck hydration'),
+          );
+      expect(responses[0].statusCode, HttpStatus.ok);
+      expect(responses[1].statusCode, HttpStatus.ok);
+    } finally {
+      gate.complete();
+      await started;
+      await stuckServer.stop();
+      stuckContainer.dispose();
     }
   });
 }
