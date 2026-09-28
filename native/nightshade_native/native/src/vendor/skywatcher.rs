@@ -404,10 +404,19 @@ impl SkyWatcherMount {
             .map_err(|_| NativeError::SdkError("Invalid status".into()))
     }
 
-    /// Check if axis is moving (from status)
-    fn is_axis_moving(&self, axis: char) -> Result<bool, NativeError> {
+    /// Whether the axis is running a goto (from status).
+    ///
+    /// The `:f` status is three hex digits, most significant first: the mode
+    /// (bit 0 set for tracking, clear for goto), the motion (bit 0 set while
+    /// the motor runs) and the controller (bit 0 set once initialized). Bit 0
+    /// of the whole value is the controller's "initialized", which read every
+    /// initialized axis as slewing. A motor running in tracking mode is
+    /// tracking or pulse guiding, not slewing.
+    fn is_axis_slewing(&self, axis: char) -> Result<bool, NativeError> {
         let status = self.get_axis_status(axis)?;
-        Ok((status & 0x01) != 0)
+        let running = (status >> 4) & 0x01 != 0;
+        let goto_mode = (status >> 8) & 0x01 == 0;
+        Ok(running && goto_mode)
     }
 
     /// Set axis goto target
@@ -665,10 +674,10 @@ impl NativeMount for SkyWatcherMount {
             return Err(NativeError::NotConnected);
         }
 
-        let ra_moving = self.is_axis_moving(AXIS_RA)?;
-        let dec_moving = self.is_axis_moving(AXIS_DEC)?;
+        let ra_slewing = self.is_axis_slewing(AXIS_RA)?;
+        let dec_slewing = self.is_axis_slewing(AXIS_DEC)?;
 
-        Ok(ra_moving || dec_moving)
+        Ok(ra_slewing || dec_slewing)
     }
 
     async fn is_parked(&self) -> Result<bool, NativeError> {
@@ -1098,6 +1107,107 @@ mod tests {
             format_motor_board_versions(Some("030700".to_string()), Some("030701".to_string()))
                 .as_deref(),
             Some("Sky-Watcher motor board firmware RA 030700, Dec 030701")
+        );
+    }
+
+    /// A pseudo-terminal answering like a Sky-Watcher motor controller: the
+    /// position query answers mid-travel and `:f1`/`:f2` answer the given
+    /// three-digit status. Returns the slave path the mount opens.
+    #[cfg(target_os = "linux")]
+    fn spawn_synscan_pty(ra_status: &'static str, dec_status: &'static str) -> String {
+        use std::os::fd::FromRawFd;
+
+        let mut master: libc::c_int = 0;
+        let mut slave: libc::c_int = 0;
+        // SAFETY: openpty writes two descriptors into the provided ints; the
+        // optional name, termios and winsize arguments are null.
+        let rc = unsafe {
+            libc::openpty(
+                &mut master,
+                &mut slave,
+                std::ptr::null_mut(),
+                std::ptr::null(),
+                std::ptr::null(),
+            )
+        };
+        assert_eq!(rc, 0, "openpty failed");
+        let mut name = [0 as libc::c_char; 256];
+        // SAFETY: `name` is a writable buffer of the length passed.
+        let rc = unsafe { libc::ttyname_r(slave, name.as_mut_ptr(), name.len()) };
+        assert_eq!(rc, 0, "ttyname_r failed");
+        // SAFETY: ttyname_r succeeded, so `name` is NUL-terminated.
+        let path = unsafe { std::ffi::CStr::from_ptr(name.as_ptr()) }
+            .to_string_lossy()
+            .into_owned();
+        // The slave stays open (leaked) so the pty outlives the driver's handle.
+
+        // SAFETY: `master` is a fresh descriptor this function owns.
+        let mut port = unsafe { std::fs::File::from_raw_fd(master) };
+        std::thread::spawn(move || {
+            let mut pending = String::new();
+            let mut buf = [0u8; 64];
+            loop {
+                let n = match port.read(&mut buf) {
+                    Ok(0) | Err(_) => return,
+                    Ok(n) => n,
+                };
+                pending.push_str(&String::from_utf8_lossy(&buf[..n]));
+                while let Some(end) = pending.find('\r') {
+                    let command: String = pending.drain(..=end).collect();
+                    let reply = if command.starts_with(":j") {
+                        "=000080\r".to_string()
+                    } else if command.starts_with(":f1") {
+                        format!("={ra_status}\r")
+                    } else if command.starts_with(":f2") {
+                        format!("={dec_status}\r")
+                    } else {
+                        "=\r".to_string()
+                    };
+                    if port.write_all(reply.as_bytes()).is_err() {
+                        return;
+                    }
+                }
+            }
+        });
+        path
+    }
+
+    #[cfg(target_os = "linux")]
+    async fn slewing_with_status(ra_status: &'static str, dec_status: &'static str) -> bool {
+        let path = spawn_synscan_pty(ra_status, dec_status);
+        let mut mount = SkyWatcherMount::new_serial(path, Some(9600));
+        mount
+            .connect()
+            .await
+            .expect("connect to the fake motor controller");
+        mount.is_slewing().await.expect("slew state")
+    }
+
+    /// The `:f` status is three digits: the first is the mode (bit 0 set for
+    /// tracking, clear for goto), the second the motion (bit 0 set while the
+    /// motor runs), the third the controller (bit 0 set once initialized).
+    /// Reading bit 0 of the whole value read "initialized" as "slewing", so an
+    /// initialized mount read as slewing whether it was tracking, stopped or
+    /// in a goto: every sequencer slew waited out its limit, and park never
+    /// returned.
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn only_a_running_goto_reads_as_slewing() {
+        assert!(
+            !slewing_with_status("111", "101").await,
+            "a tracking mount is not slewing"
+        );
+        assert!(
+            !slewing_with_status("001", "001").await,
+            "a mount stopped at the end of a goto is not slewing"
+        );
+        assert!(
+            slewing_with_status("011", "001").await,
+            "an axis running in goto mode is a slew in progress"
+        );
+        assert!(
+            slewing_with_status("101", "011").await,
+            "either axis running in goto mode is a slew in progress"
         );
     }
 }
