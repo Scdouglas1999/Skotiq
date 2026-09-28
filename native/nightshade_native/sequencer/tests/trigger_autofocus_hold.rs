@@ -655,3 +655,40 @@ async fn no_light_starts_after_a_trigger_autofocus_leaves_the_guider_dead() {
         lights_after.len()
     );
 }
+
+/// A Stop pressed while a trigger autofocus waits for the guider to settle
+/// after its sweep must stop the run promptly. The run's end waits for the
+/// trigger action to finish, and the wait for a guider that never comes back
+/// ran its full two minutes first, holding the operator's Stop the whole time.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn stopping_while_the_guider_is_awaited_after_a_sweep_is_prompt() {
+    let _serial = SERIAL.lock().await;
+    let rig = Arc::new(DeadGuiderRig::new());
+    let mut run = Run::start(rig.clone(), 0.01).await;
+    run.wait_for_guider_polls().await;
+    run.executor
+        .update_trigger_state(|ts| ts.invalidate_autofocus("test: force a refocus"))
+        .await;
+    wait_until(
+        Duration::from_secs(60),
+        "the sweep never tried to restart the guider",
+        || rig.calls().iter().any(|c| c == "guider_start"),
+    )
+    .await;
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    let started = std::time::Instant::now();
+    let stopped = tokio::time::timeout(Duration::from_secs(60), run.executor.stop()).await;
+    let took = started.elapsed();
+    run.listener.abort();
+    let calls = rig.calls();
+    assert!(stopped.is_ok(), "Stop had not returned after 60 s");
+    assert!(
+        took < Duration::from_secs(15),
+        "Stop took {took:?} while the autofocus cleanup waited for the guider"
+    );
+    assert!(
+        !parked_or_closed(&calls),
+        "an operator Stop parked the rig; calls={calls:?}"
+    );
+}

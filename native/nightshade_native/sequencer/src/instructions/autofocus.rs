@@ -615,6 +615,19 @@ pub(crate) async fn resume_guiding_after_autofocus(
         if tokio::time::Instant::now() >= deadline {
             break;
         }
+        // A Stop ends the wait. The run's end waits for this cleanup, so a
+        // guider that was never coming back held the operator's Stop for the
+        // whole two minutes. Nothing more is owed to a run that is ending
+        // than not claiming the guider is back.
+        if ctx.cancellation_token.load(Ordering::Relaxed) {
+            tracing::info!(
+                "Autofocus cleanup stopped waiting for the guider to settle: the run is stopping"
+            );
+            if let Some(trigger_state) = &ctx.trigger_state {
+                trigger_state.write().await.set_guiding_enabled(false);
+            }
+            return result;
+        }
         sleep(GUIDING_RESUME_POLL_INTERVAL).await;
     }
     let failure = match last_seen {

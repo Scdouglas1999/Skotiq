@@ -362,6 +362,42 @@ async fn a_guider_chasing_a_lost_star_is_not_guiding_restored() {
     );
 }
 
+/// A Stop pressed while the cleanup waits for the guider to settle ends the
+/// wait. The run's end waits for this cleanup, so on a guider that was never
+/// coming back the operator's Stop took the full two minutes to land.
+#[tokio::test(start_paused = true)]
+async fn a_stop_ends_the_wait_for_the_guider_to_settle() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_guiding(false)
+            .with_guider_rms(78.6),
+    );
+    let ctx = pointing_ctx(ops.clone(), "NGC7380", (22.79, 58.13)).await;
+    let stop = ctx.cancellation_token.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(5)).await;
+        stop.store(true, Ordering::SeqCst);
+    });
+
+    let started = tokio::time::Instant::now();
+    let _ = resume_guiding_after_autofocus(&ctx, InstructionResult::success()).await;
+
+    assert!(
+        started.elapsed() < Duration::from_secs(10),
+        "the cleanup kept waiting {:?} for the guider after the run was stopped",
+        started.elapsed()
+    );
+    assert!(
+        !ctx.trigger_state
+            .as_ref()
+            .expect("pointing_ctx wires a trigger state")
+            .read()
+            .await
+            .guiding_enabled,
+        "a guider nobody saw settle must not be left marked as guiding"
+    );
+}
+
 /// A guider that DOES come back is not a failure, and the latch is re-armed.
 #[tokio::test]
 async fn a_successful_guider_resume_leaves_the_result_alone() {
