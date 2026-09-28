@@ -939,16 +939,41 @@ impl MeridianFlipExecutor {
             new_pier_side
         );
         let (post_ra, post_dec) = self.device_ops.mount_get_coordinates(mount_id).await?;
-        let ra_diff_deg = normalize_ra_diff_hours(post_ra - ctx.target_ra_hours) * 15.0;
-        let dec_diff_deg = post_dec - ctx.target_dec_degrees;
+        // Compare in the frame the mount READS BACK in, not the J2000 frame the
+        // target is held in: the device layer precesses what it sends and
+        // leaves read-backs alone, so a raw comparison misses by the
+        // precession offset (~16' of RA in 2026) against a 1' tolerance and
+        // fails a flip that landed. Same defect and fix as slew arrival
+        // (d9c7e5d77). If the frame cannot be resolved, the raw target is the
+        // only reference there is; the comparison then errs toward failing.
+        let (expect_ra, expect_dec) = match self
+            .device_ops
+            .mount_readback_frame(mount_id, ctx.target_ra_hours, ctx.target_dec_degrees)
+            .await
+        {
+            Ok(pair) => pair,
+            Err(e) => {
+                tracing::warn!(
+                    "[MERIDIAN] Could not resolve the mount's coordinate frame ({}); \
+                     comparing against the J2000 target",
+                    e
+                );
+                (ctx.target_ra_hours, ctx.target_dec_degrees)
+            }
+        };
+        let ra_diff_deg = normalize_ra_diff_hours(post_ra - expect_ra) * 15.0;
+        let dec_diff_deg = post_dec - expect_dec;
         let tolerance_deg = self.config.flip_coordinate_tolerance_deg;
         if ra_diff_deg.abs() > tolerance_deg || dec_diff_deg.abs() > tolerance_deg {
             return Err(format!(
                 "Flip slew completed but coordinate-fallback verification failed without \
-                 pier-side telemetry: target RA={:.4}h Dec={:.4}°, mount reports RA={:.4}h \
-                 Dec={:.4}° (diff RA={:.2}', Dec={:.2}')",
+                 pier-side telemetry: target RA={:.4}h Dec={:.4}° (RA={:.4}h Dec={:.4}° in \
+                 the mount's frame), mount reports RA={:.4}h Dec={:.4}° (diff RA={:.2}', \
+                 Dec={:.2}')",
                 ctx.target_ra_hours,
                 ctx.target_dec_degrees,
+                expect_ra,
+                expect_dec,
                 post_ra,
                 post_dec,
                 ra_diff_deg * 60.0,
@@ -1918,6 +1943,16 @@ mod tests {
         /// min_post_flip_altitude_deg gate can be exercised by tests. Defaults
         /// to None (which causes calculate_altitude to return 45° as before).
         altitude_override_deg: Mutex<Option<f64>>,
+        /// When `Some((d_ra_hours, d_dec_degrees))`, the mount behaves like a
+        /// real one behind the device layer: a slew lands, and reads back,
+        /// that far from the J2000 coordinates it was sent (the precession the
+        /// device layer applies on the way out), and `mount_readback_frame`
+        /// reports the same shift. `None` stores what it is sent, like the
+        /// simulator.
+        readback_offset: Mutex<Option<(f64, f64)>>,
+        /// How far short of the commanded position a slew stops, in the
+        /// mount's frame (hours, degrees).
+        slew_miss: Mutex<(f64, f64)>,
     }
 
     struct MockDeviceOps {
@@ -1939,8 +1974,30 @@ mod tests {
             dec: f64,
         ) -> DeviceResult<()> {
             self.state.slew_calls.fetch_add(1, Ordering::Relaxed);
-            *self.state.coordinates.lock().unwrap() = (ra, dec);
+            let (d_ra, d_dec) = self
+                .state
+                .readback_offset
+                .lock()
+                .unwrap()
+                .unwrap_or((0.0, 0.0));
+            let (miss_ra, miss_dec) = *self.state.slew_miss.lock().unwrap();
+            *self.state.coordinates.lock().unwrap() = (ra + d_ra + miss_ra, dec + d_dec + miss_dec);
             Ok(())
+        }
+
+        async fn mount_readback_frame(
+            &self,
+            _mount_id: &str,
+            ra_hours: f64,
+            dec_degrees: f64,
+        ) -> DeviceResult<(f64, f64)> {
+            let (d_ra, d_dec) = self
+                .state
+                .readback_offset
+                .lock()
+                .unwrap()
+                .unwrap_or((0.0, 0.0));
+            Ok((ra_hours + d_ra, dec_degrees + d_dec))
         }
 
         async fn mount_abort_slew(&self, _mount_id: &str) -> DeviceResult<()> {
@@ -2369,6 +2426,72 @@ mod tests {
                 other
             ),
         }
+    }
+
+    /// The coordinate fallback compares the target with the mount's read-back,
+    /// and a real mount reads back in its own (of-date) frame while the target
+    /// is J2000: 16' of RA and 8.5' of Dec apart for NGC 7380 in 2026, against
+    /// a 1' tolerance. Comparing them raw failed every flip on a mount without
+    /// pier-side telemetry that had in fact landed on target. The simulator
+    /// stores what it is sent, so no simulator run could show it; the same
+    /// defect in slew arrival was fixed in d9c7e5d77.
+    #[tokio::test]
+    async fn the_coordinate_fallback_compares_in_the_mounts_own_frame() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state
+            .pier_sides
+            .lock()
+            .unwrap()
+            .push(crate::meridian::PierSide::Unknown);
+        // J2000 22.7892h / 58.1324 deg reads back as 22.8070h / 58.2738 deg.
+        *state.readback_offset.lock().unwrap() = Some((0.0178, 0.1414));
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            pause_guiding: false,
+            auto_center: false,
+            refocus_after: false,
+            resume_guiding: false,
+            settle_time: 0.0,
+            max_retries: 0,
+            ..Default::default()
+        };
+
+        let mut executor = MeridianFlipExecutor::new(config, ops);
+        let result = executor.execute(&make_ctx(&state)).await;
+        assert!(
+            matches!(result, FlipResult::Success { .. }),
+            "a flip that landed on target must verify in the mount's frame: {:?}",
+            result
+        );
+
+        // A mount that really stopped short still fails the check.
+        let state = Arc::new(MockDeviceOpsState::default());
+        state
+            .pier_sides
+            .lock()
+            .unwrap()
+            .push(crate::meridian::PierSide::Unknown);
+        *state.readback_offset.lock().unwrap() = Some((0.0178, 0.1414));
+        *state.slew_miss.lock().unwrap() = (0.1, 0.0);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let mut executor = MeridianFlipExecutor::new(
+            MeridianFlipConfig {
+                pause_guiding: false,
+                auto_center: false,
+                refocus_after: false,
+                resume_guiding: false,
+                settle_time: 0.0,
+                max_retries: 0,
+                ..Default::default()
+            },
+            ops,
+        );
+        let result = executor.execute(&make_ctx(&state)).await;
+        assert!(
+            !matches!(result, FlipResult::Success { .. }),
+            "a flip 1.5 deg short must not verify: {:?}",
+            result
+        );
     }
 
     /// A real post-flip plate-solve failure must fail the flip after pier-side
