@@ -67,16 +67,33 @@ class UpdatePromptStore {
 
   /// Persist [state]. Failure is logged and swallowed so no update flow is
   /// ever blocked by a write that did not land.
-  Future<void> write(UpdatePromptState state) async {
+  ///
+  /// Callers fire some of these without awaiting them, so writes are queued
+  /// behind one another (the last call wins) and each is written to a
+  /// side file that is then renamed over the record. Two overlapping writes
+  /// used to open the same file twice and interleave into unreadable JSON.
+  Future<void> write(UpdatePromptState state) {
+    final next = _lastWrite.then((_) => _writeNow(state));
+    _lastWrite = next;
+    return next;
+  }
+
+  Future<void> _lastWrite = Future<void>.value();
+  int _writeSeq = 0;
+
+  Future<void> _writeNow(UpdatePromptState state) async {
     try {
       final file = await _file();
-      await file.writeAsString(
+      final temp = File('${file.path}.$pid.${_writeSeq++}.tmp');
+      await temp.writeAsString(
         jsonEncode({
           'lastCheckAt': state.lastCheckAt?.toUtc().toIso8601String(),
           'deferredVersion': state.deferredVersion,
           'deferredAt': state.deferredAt?.toUtc().toIso8601String(),
         }),
+        flush: true,
       );
+      await temp.rename(file.path);
     } catch (e) {
       developer.log(
         'Failed to persist update prompt state: $e',

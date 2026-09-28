@@ -3,6 +3,7 @@
 // appearing over a running sequence, or a release nobody is ever told about.
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -146,6 +147,36 @@ void main() {
         isTrue,
         reason: 'a lost record must not disable update checks',
       );
+    });
+
+    test('overlapping writes leave the last one, whole', () async {
+      // The provider fires some writes without awaiting them. Two that
+      // overlapped used to open the same file twice and write at offset 0
+      // from both handles, leaving the shorter JSON followed by the tail of
+      // the longer one (unreadable, so the deferral was lost) or the older
+      // state on top. Measured before the fix: 165 of 200 rounds corrupt.
+      for (var round = 0; round < 50; round++) {
+        unawaited(
+          store.write(
+            UpdatePromptState(
+              lastCheckAt: now,
+              deferredVersion: '7.2.0-a-long-prerelease-name.$round',
+              deferredAt: now,
+            ),
+          ),
+        );
+        await store.write(
+          UpdatePromptState(lastCheckAt: now.add(Duration(minutes: round))),
+        );
+
+        final raw = await File(
+          p.join(dataDir.path, 'updates', 'prompt_state.json'),
+        ).readAsString();
+        expect(() => jsonDecode(raw), returnsNormally, reason: raw);
+        final read = await store.read();
+        expect(read.lastCheckAt, now.add(Duration(minutes: round)));
+        expect(read.deferredVersion, isNull);
+      }
     });
 
     test('writes land beside the other update markers', () async {

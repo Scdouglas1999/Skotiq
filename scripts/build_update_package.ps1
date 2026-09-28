@@ -3,8 +3,12 @@
     Build a Nightshade update package for OTA distribution.
 
 .DESCRIPTION
-    This script creates a ZIP update package with manifest from the built
-    Flutter desktop release. Run after 'melos run dev:norun' or a release build.
+    Creates the ZIP update package and its (signed, when
+    NIGHTSHADE_UPDATE_PRIVATE_KEY is set) manifest from the built Flutter
+    desktop release, through packages/nightshade_updater/tool/
+    build_update_manifest.dart: the same packager and signer the Linux and
+    Android release jobs use. Run after 'melos run dev:norun' or a release
+    build.
 
 .PARAMETER SkipBuild
     Skip the Flutter build step (use existing build output).
@@ -124,153 +128,57 @@ try {
         New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
     }
 
-    # Calculate file hashes
-    Write-Host "`nCalculating file hashes..." -ForegroundColor Yellow
-    $files = @{}
-    $totalSize = 0
-
-    Get-ChildItem -Path $releaseDir -Recurse -File | ForEach-Object {
-        $relativePath = $_.FullName.Substring((Resolve-Path $releaseDir).Path.Length + 1).Replace("\", "/")
-        $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
-        $size = $_.Length
-        $totalSize += $size
-
-        $files[$relativePath] = @{
-            path = $relativePath
-            size = $size
-            sha256 = $hash
-        }
-
-        Write-Host "  $relativePath ($([math]::Round($size/1024, 1)) KB)" -ForegroundColor Gray
-    }
-
-    Write-Host "  Total: $([math]::Round($totalSize/1024/1024, 1)) MB uncompressed" -ForegroundColor Gray
-
-    # Create ZIP package
+    # Package, hash and sign with the same Dart tool the Linux and Android
+    # release jobs use. This script used to zip with Compress-Archive, hash in
+    # PowerShell and sign a hand-copied version of the verifier's canonical
+    # payload; any drift in that copy (field order, date formatting, a key
+    # saved with a trailing newline) would produce a manifest every Windows
+    # install refuses. The tool builds the payload with
+    # UpdateVerifier.canonicalManifestPayload itself and trims the key.
     $packageName = "nightshade-$version-windows-x64.zip"
+    $resolvedUrl = if ([string]::IsNullOrWhiteSpace($DownloadUrl)) {
+        "https://updates.nightshade.app/releases/$version/$packageName"
+    } else {
+        $DownloadUrl
+    }
     $packagePath = Join-Path $OutputDir $packageName
-    $tempPackagePath = Join-Path $OutputDir "nightshade-update.zip"
-
-    Write-Host "`nCreating ZIP package..." -ForegroundColor Yellow
-
-    # Remove existing package
     if (Test-Path $packagePath) {
         Remove-Item $packagePath -Force
     }
-    if (Test-Path $tempPackagePath) {
-        Remove-Item $tempPackagePath -Force
+    $absRelease = (Resolve-Path $releaseDir).Path
+    $absOutput = (Resolve-Path $OutputDir).Path
+
+    Write-Host "`nPackaging and signing with tool/build_update_manifest.dart..." -ForegroundColor Yellow
+    if ([string]::IsNullOrWhiteSpace($env:NIGHTSHADE_UPDATE_PRIVATE_KEY)) {
+        Write-Host "  OTA manifest unsigned (no NIGHTSHADE_UPDATE_PRIVATE_KEY); update is fail-closed-disabled" -ForegroundColor DarkYellow
+    }
+    Push-Location "packages/nightshade_updater"
+    try {
+        dart run tool/build_update_manifest.dart `
+            --payload $absRelease `
+            --out-dir $absOutput `
+            --version $version `
+            --build-number $buildNumber `
+            --platform windows `
+            --arch x64 `
+            --package-name $packageName `
+            --download-url $resolvedUrl
+        if ($LASTEXITCODE -ne 0) {
+            throw "Packaging/signing failed"
+        }
+    }
+    finally {
+        Pop-Location
     }
 
-    # Create ZIP
-    Compress-Archive -Path "$releaseDir\*" -DestinationPath $packagePath -CompressionLevel Optimal
+    # The release workflow and the LAN pusher read manifest.json.
+    $manifestPath = Join-Path $OutputDir "manifest.json"
+    Move-Item (Join-Path $OutputDir "manifest-windows-x64.json") $manifestPath -Force
 
     # Also create a generic name for the pusher tool (skipped in CI so the
     # publish job's asset sweep does not pick up a stray zip).
     if (-not $NoPusherCopy) {
-        Copy-Item $packagePath $tempPackagePath
-    }
-
-    $compressedSize = (Get-Item $packagePath).Length
-    $packageSha256 = (Get-FileHash $packagePath -Algorithm SHA256).Hash.ToLower()
-    Write-Host "  Compressed: $([math]::Round($compressedSize/1024/1024, 1)) MB" -ForegroundColor Gray
-    Write-Host "  Package SHA-256: $packageSha256" -ForegroundColor Gray
-
-    # Create manifest
-    Write-Host "`nGenerating manifest..." -ForegroundColor Yellow
-
-    $manifest = @{
-        version = $version
-        buildNumber = $buildNumber
-        releaseDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-        platform = "windows"
-        arch = "x64"
-        minVersion = "2.0.0"
-        files = $files
-        totalSize = $totalSize
-        compressedSize = $compressedSize
-        packageSha256 = $packageSha256
-        downloadUrl = if ([string]::IsNullOrWhiteSpace($DownloadUrl)) {
-            "https://updates.nightshade.app/releases/$version/$packageName"
-        } else {
-            $DownloadUrl
-        }
-        releaseNotes = "Update to version $version"
-    }
-
-    # Write the unsigned manifest first; the signer reads it back and produces
-    # the canonical payload itself (see below) so the signed bytes come from the
-    # same serializer the verifier uses.
-    $manifestPath = Join-Path $OutputDir "manifest.json"
-    $manifest | ConvertTo-Json -Depth 10 | Set-Content $manifestPath -Encoding UTF8
-
-    $privateKeyBase64 = $env:NIGHTSHADE_UPDATE_PRIVATE_KEY
-    if ($privateKeyBase64) {
-        Write-Host "  Signing manifest with NIGHTSHADE_UPDATE_PRIVATE_KEY" -ForegroundColor Gray
-        # CRITICAL byte-match: the canonical payload MUST be constructed by the
-        # same language/serializer the runtime verifier uses
-        # (update_verifier.dart _canonicalManifestPayload) or every signed
-        # manifest is rejected. The verifier sorts the files map by key, emits
-        # inner fields path/size/sha256, and re-serializes releaseDate via
-        # DateTime.parse(...).toUtc().toIso8601String() (which appends .000ms,
-        # something a PowerShell ConvertTo-Json -Compress of the raw string can
-        # never reproduce). So we read the manifest we just wrote and rebuild the
-        # payload in Dart, mirroring the verifier exactly, then jsonEncode + sign.
-        $tempScript = Join-Path $OutputDir "sign_manifest.dart"
-        $packageConfig = Join-Path $PSScriptRoot "..\packages\nightshade_updater\.dart_tool\package_config.json"
-@"
-import 'dart:convert';
-import 'dart:io';
-import 'package:cryptography/cryptography.dart';
-
-Future<void> main(List<String> args) async {
-  final manifest = jsonDecode(File(args[0]).readAsStringSync()) as Map<String, dynamic>;
-  final privateKey = base64Decode(args[1]);
-  final algorithm = Ed25519();
-  final seed = privateKey.length >= 32 ? privateKey.sublist(0, 32) : privateKey;
-  if (seed.length != 32) {
-    stderr.writeln('Expected 32-byte Ed25519 private key seed');
-    exit(1);
-  }
-  final files = manifest['files'] as Map<String, dynamic>;
-  final sortedKeys = files.keys.toList()..sort((a, b) => a.compareTo(b));
-  final payload = <String, dynamic>{
-    'version': manifest['version'],
-    'buildNumber': manifest['buildNumber'],
-    'releaseDate':
-        DateTime.parse(manifest['releaseDate'] as String).toUtc().toIso8601String(),
-    'platform': manifest['platform'],
-    'arch': manifest['arch'],
-    'minVersion': manifest['minVersion'],
-    'files': {
-      for (final key in sortedKeys)
-        key: {
-          'path': (files[key] as Map)['path'],
-          'size': (files[key] as Map)['size'],
-          'sha256': (files[key] as Map)['sha256'],
-        },
-    },
-    'totalSize': manifest['totalSize'],
-    'compressedSize': manifest['compressedSize'],
-    'packageSha256': manifest['packageSha256'],
-    'downloadUrl': manifest['downloadUrl'],
-    'releaseNotes': manifest['releaseNotes'],
-  };
-  final keyPair = await algorithm.newKeyPairFromSeed(seed);
-  final signature =
-      await algorithm.sign(utf8.encode(jsonEncode(payload)), keyPair: keyPair);
-  stdout.write(base64Encode(signature.bytes));
-}
-"@ | Set-Content $tempScript -Encoding UTF8
-        $signature = dart --packages $packageConfig $tempScript $manifestPath $privateKeyBase64
-        Remove-Item $tempScript -Force
-        if ($LASTEXITCODE -ne 0) {
-            throw "Manifest signing failed"
-        }
-        $manifest.signature = $signature.Trim()
-        # Rewrite the manifest now that it carries the signature.
-        $manifest | ConvertTo-Json -Depth 10 | Set-Content $manifestPath -Encoding UTF8
-    } else {
-        Write-Host "  OTA manifest unsigned (no NIGHTSHADE_UPDATE_PRIVATE_KEY); update is fail-closed-disabled" -ForegroundColor DarkYellow
+        Copy-Item $packagePath (Join-Path $OutputDir "nightshade-update.zip") -Force
     }
 
     Write-Host "`n========================================" -ForegroundColor Green

@@ -100,5 +100,31 @@ void main() {
         }
       }
     });
+
+    test('manifests are verified against the app key before publishing', () {
+      // A key pair that does not match, or a packager whose signing payload
+      // drifted, publishes fine and is refused by every install afterwards.
+      // The check has to run in the publish job, over the flattened assets,
+      // before either publish step.
+      final workflow = File(
+        p.join(
+          Directory.current.path,
+          '..',
+          '..',
+          '.github',
+          'workflows',
+          'release.yml',
+        ),
+      ).readAsStringSync();
+      final publish = workflow.substring(workflow.indexOf('\n  publish:'));
+      final verify = publish.indexOf('tool/verify_release_manifests.dart');
+      expect(verify, greaterThan(0));
+      expect(verify, lessThan(publish.indexOf('Publish release')));
+      expect(
+        verify,
+        lessThan(publish.indexOf('Attach artifacts to existing draft')),
+      );
+      expect(publish, contains('--require-signed'));
+    });
   });
 }

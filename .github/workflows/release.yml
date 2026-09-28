@@ -650,6 +650,37 @@ jobs:
           echo "Release assets:"
           ls -l release-assets
 
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      # Check every manifest with the verifier the shipped apps run, before
+      # anything is published. A signing key that does not pair with the
+      # public key compiled into the apps, a Windows manifest whose hand-built
+      # signing payload drifted from UpdateVerifier's, or a manifest naming a
+      # different package would all publish cleanly and then be refused by
+      # every install — and a build that cannot verify updates can only be
+      # replaced by hand. Once a private key is configured, an unsigned
+      # manifest fails the release too.
+      - name: Verify OTA manifests against the app update key
+        env:
+          NIGHTSHADE_UPDATE_PUBLIC_KEY: ${{ secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}
+          SIGNING_KEY_CONFIGURED: ${{ secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY != '' }}
+        run: |
+          set -euo pipefail
+          require=()
+          if [ "$SIGNING_KEY_CONFIGURED" = "true" ]; then require=(--require-signed); fi
+          cd packages/nightshade_updater
+          flutter pub get
+          dart run tool/verify_release_manifests.dart \
+            --assets "$GITHUB_WORKSPACE/release-assets" \
+            --tag "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            "${require[@]}"
+
       # Fail early with a clear message rather than letting the publish step
       # silently fall back to an empty release body when the notes file for this
       # tag was never written. The file name must match the tag (v5.0.0 ->

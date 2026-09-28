@@ -119,10 +119,11 @@ const _headlessLogSource = 'HeadlessMain';
 ///                         ("TLS with nginx"); without it every proxied client
 ///                         shares one rate-limit/lockout bucket. Honoured only
 ///                         when the socket peer is loopback.
-///   NIGHTSHADE_ALLOW_INSECURE_UPDATE_SOURCE=true
-///                         Testing only. Allow the OTA updater to fetch from a
-///                         non-HTTPS / unpinned update source. Never set on a
-///                         production appliance.
+///   NIGHTSHADE_ALLOW_INSECURE_UPDATE_SOURCE
+///                         Not an environment variable: a build-time
+///                         `--dart-define` (testing builds only) that lets the
+///                         OTA updater fetch over plain http. Setting it in the
+///                         environment of a release build does nothing.
 ///   NIGHTSHADE_CORS_ORIGINS
 ///                         Comma-separated CORS allow-list (same effect as
 ///                         passing --cors-origin repeatedly).

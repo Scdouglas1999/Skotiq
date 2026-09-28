@@ -1,4 +1,5 @@
-//! Build script to embed Windows manifest for admin elevation
+//! Build script to embed the Windows application manifest (asInvoker: the
+//! updater runs with the same rights as the app that starts it)
 
 fn main() {
     #[cfg(windows)]

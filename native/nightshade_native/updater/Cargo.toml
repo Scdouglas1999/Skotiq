@@ -44,9 +44,9 @@ tempfile = "3.10"
 # copies if updater pinned its own version line.
 [target.'cfg(windows)'.dependencies]
 windows = { workspace = true, features = [
+    "Win32_Foundation",
     "Win32_System_Threading",
     "Win32_System_ProcessStatus",
-    "Win32_Storage_FileSystem",
 ]}
 
 # Build dependencies for embedding Windows manifest

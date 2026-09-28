@@ -261,7 +261,9 @@ $env:NIGHTSHADE_UPDATE_PRIVATE_KEY = "<base64 32-byte private seed>"
 .\scripts\build_update_package.ps1
 ```
 
-`build_update_package.ps1` signs the canonical manifest payload when
+`build_update_package.ps1` packages and signs through
+`packages/nightshade_updater/tool/build_update_manifest.dart` (so `dart` and a
+resolved `packages/nightshade_updater` are needed) when
 `NIGHTSHADE_UPDATE_PRIVATE_KEY` is present. A manifest signed with a private key
 whose public half is **not** embedded in the target build cannot be applied.
 
@@ -327,10 +329,10 @@ part of every tagged release. The Windows job:
 
 The Linux and Android jobs bake the same public key into `flutter build linux`
 and `flutter build apk`, and sign their manifests through
-`packages/nightshade_updater/tool/build_update_manifest.dart`, which is the
-cross-platform equivalent of `build_update_package.ps1` — it signs against the
-same canonical payload, and `build_update_manifest_tool_test.dart` hands its
-output to the real verifier so the two cannot drift apart unnoticed.
+`packages/nightshade_updater/tool/build_update_manifest.dart`, the same tool
+`build_update_package.ps1` calls for Windows. `build_update_manifest_tool_test.dart`
+hands its output to the real verifier, and the release workflow checks every
+published manifest against the public key before publishing.
 
 Secret names, generation one-liners, the GitHub-Releases hosting layout, and
 the fail-closed contract are documented in

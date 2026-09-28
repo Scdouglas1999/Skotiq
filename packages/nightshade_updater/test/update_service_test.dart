@@ -101,6 +101,47 @@ void main() {
       expect(result.state, PendingInstallState.rolledBack);
       expect(await marker.exists(), isFalse);
     });
+
+    test('a rolled-back update is not left staged to be applied again', () async {
+      // The rehearsal: after the updater restored the previous build (the new
+      // one failed to start, or failed the updater's own hash check), that
+      // build came up reporting the rolled-back version as staged and ready,
+      // with its extracted tree already deleted or known bad. Applying it
+      // again could only fail the same way.
+      final staging = Directory(
+        '${tempRoot.path}${Platform.pathSeparator}updates${Platform.pathSeparator}staging',
+      );
+      await staging.create(recursive: true);
+      await File(
+        '${staging.path}${Platform.pathSeparator}ready.json',
+      ).writeAsString(
+        jsonEncode({
+          'version': '2.1.0',
+          'buildNumber': 42,
+          'stagedAt': DateTime.utc(2026, 9, 27).toIso8601String(),
+          'extractPath': '${staging.path}${Platform.pathSeparator}extracted',
+        }),
+      );
+      final marker = await pendingFile();
+      await marker.writeAsString(
+        jsonEncode({
+          'targetVersion': '2.1.0',
+          'targetBuildNumber': 42,
+          'previousVersion': '2.0.0',
+          'previousBuildNumber': 1,
+        }),
+      );
+
+      final service = UpdateService(
+        currentVersion: '2.0.0',
+        currentBuildNumber: 1,
+        applicationSupportDirectoryProvider: appSupportDir,
+      );
+
+      final result = await service.verifyPendingInstall();
+      expect(result.state, PendingInstallState.rolledBack);
+      expect(await service.getStagedUpdate(), isNull);
+    });
   });
 
   group('UpdateService manual rollback restore point', () {

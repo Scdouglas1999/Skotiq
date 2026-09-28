@@ -240,18 +240,21 @@ void main() {
       );
 
       // The altered arch breaks the signature, so staging must fail; what
-      // matters here is where the bytes were put before it did.
+      // matters here is where any bytes were put before it did. (The manifest
+      // signature is now checked before the download starts, so none are;
+      // the path check stays in case that order ever changes.)
       await expectLater(
         service.downloadAndStage(manifest),
         throwsA(isA<UpdateException>()),
       );
       final staging = path.join(dataDir.path, 'updates', 'staging');
-      expect(written, hasLength(1));
-      expect(
-        path.isWithin(staging, path.normalize(written.single)),
-        isTrue,
-        reason: 'APK written to ${path.normalize(written.single)}',
-      );
+      for (final target in written) {
+        expect(
+          path.isWithin(staging, path.normalize(target)),
+          isTrue,
+          reason: 'APK written to ${path.normalize(target)}',
+        );
+      }
     },
   );
 }

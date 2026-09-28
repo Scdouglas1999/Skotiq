@@ -37,6 +37,10 @@ use windows::Win32::System::Threading::{OpenProcess, WaitForSingleObject, PROCES
 // ours so a stale `.old` file from earlier updater versions does not collide.
 const BAK_SUFFIX: &str = ".nightshade-bak";
 
+// Suffix for the current file moved out of the way while a rollback restores
+// the original under its name (see `restore_file`).
+const ASIDE_SUFFIX: &str = ".nightshade-old";
+
 // File written to the install root after a successful apply. The Dart-side
 // boot-time `verifyPendingInstall` re-hashes the executable and compares to
 // what is recorded here.
@@ -108,6 +112,40 @@ struct Args {
     /// `--staging-dir` / `--expected-hashes` are ignored in this mode.
     #[arg(long)]
     rollback: bool,
+
+    /// Argument to start the app with after the swap, repeatable. The app
+    /// passes its own command line, so an install started with
+    /// `--headless --port=...` comes back the same way instead of as the GUI.
+    #[arg(long = "relaunch-arg", allow_hyphen_values = true)]
+    relaunch_args: Vec<String>,
+
+    /// How long the relaunched build has to confirm it started (it does so by
+    /// consuming `--pending-file`). If it exits before then, the previous
+    /// build is restored and started again. A build that is still running at
+    /// the deadline is left alone.
+    #[arg(long, default_value_t = 180)]
+    confirm_timeout_secs: u64,
+}
+
+/// Why the updater stopped, and whether the install is in a state worth
+/// starting again (the previous build, restored or never touched, or the new
+/// build fully verified).
+struct Failure {
+    error: anyhow::Error,
+    relaunch: bool,
+}
+
+impl From<anyhow::Error> for Failure {
+    fn from(error: anyhow::Error) -> Self {
+        // Every error raised with `?` happens either before the install is
+        // touched or after the new build has been applied and verified; the
+        // paths that can leave a half-applied install build a Failure
+        // themselves and say whether rollback put it back.
+        Failure {
+            error,
+            relaunch: true,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -146,7 +184,8 @@ struct PostInstallHashes {
 }
 
 fn main() {
-    if let Err(e) = run() {
+    let args = Args::parse();
+    if let Err(Failure { error: e, relaunch }) = run(&args) {
         eprintln!("Update failed: {:?}", e);
         // Why: write a stable log so the Dart side can surface the error to the
         // user even though the updater is a separate process and stdout is gone.
@@ -157,13 +196,20 @@ fn main() {
                 log_path, write_err
             );
         }
+        // The app exited to let the swap happen. Leaving nothing running
+        // after a failed update means the operator finds the program gone,
+        // with the reason in a temp file they will not look for.
+        if args.launch_after && relaunch {
+            println!("\nStarting Nightshade again...");
+            if let Err(launch_err) = launch_app(&args.install_dir, &args.relaunch_args) {
+                eprintln!("Could not start Nightshade again: {:?}", launch_err);
+            }
+        }
         std::process::exit(1);
     }
 }
 
-fn run() -> Result<()> {
-    let args = Args::parse();
-
+fn run(args: &Args) -> std::result::Result<(), Failure> {
     println!("Nightshade Updater");
     println!("==================");
     println!("Parent PID: {}", args.parent_pid);
@@ -190,21 +236,30 @@ fn run() -> Result<()> {
     if let Err(e) = lock_file.try_lock_exclusive() {
         // Why: another updater is mid-flight (or stale lock held by a still-running
         // updater). Refuse to proceed — racing two updaters can corrupt installs.
-        return Err(anyhow::anyhow!(
-            "Another Nightshade updater is already running (lock held at {:?}): {}",
-            lock_path,
-            e
-        ));
+        // That updater owns the install and will start the app itself.
+        return Err(Failure {
+            error: anyhow::anyhow!(
+                "Another Nightshade updater is already running (lock held at {:?}): {}",
+                lock_path,
+                e
+            ),
+            relaunch: false,
+        });
     }
 
     // Step 1: Wait for parent process to exit.
     println!("\nWaiting for Nightshade to exit...");
-    wait_for_process_exit(args.parent_pid, Duration::from_secs(30)).with_context(|| {
-        format!(
-            "Failed waiting for parent process {} to exit",
-            args.parent_pid
-        )
-    })?;
+    // Nothing has been touched yet, and the app is still running, so there
+    // is nothing to roll back and nothing to start again.
+    if let Err(error) = wait_for_process_exit(args.parent_pid, PARENT_EXIT_TIMEOUT) {
+        return Err(Failure {
+            error: error.context(format!(
+                "Nightshade (pid {}) did not exit, so the update was not applied",
+                args.parent_pid
+            )),
+            relaunch: false,
+        });
+    }
     println!("Parent process has exited.");
 
     // Why: even after WaitForSingleObject returns, Windows may still hold file
@@ -216,7 +271,11 @@ fn run() -> Result<()> {
     // Manual rollback mode: restore the retained restore point written by the
     // previous successful apply, then relaunch. No staging tree is touched.
     if args.rollback {
-        return run_rollback(&args);
+        return run_rollback(args).map_err(|error| Failure {
+            error,
+            // A partial restore is not a build worth starting.
+            relaunch: false,
+        });
     }
 
     // Read expected hashes once up front so we fail fast if the manifest is
@@ -243,29 +302,29 @@ fn run() -> Result<()> {
     // recovery.
     let rollback_log_path = args.backup_dir.join(ROLLBACK_LOG_FILE);
     if let Err(e) = persist_rollback_log(&rollback_log_path, &rollback_log) {
-        return Err(finalize_unlogged_rollback(
-            &args.install_dir,
-            &rollback_log,
-            e,
-        ));
+        let (error, restored) = finalize_unlogged_rollback(&args.install_dir, &rollback_log, e);
+        return Err(Failure {
+            error,
+            relaunch: restored,
+        });
     }
 
     if let Err(apply_err) = apply_result {
         eprintln!("\nApply failed: {:?}", apply_err);
-        return finalize_failure(&args, &rollback_log, &rollback_log_path, apply_err);
+        return finalize_failure(args, &rollback_log, &rollback_log_path, apply_err);
     }
 
     // Step 3: Hash-verify every file the manifest names against the result.
     println!("\nVerifying installation against manifest hashes...");
     if let Err(verify_err) = verify_against_manifest(&args.install_dir, &expected) {
         eprintln!("\nManifest verification failed: {:?}", verify_err);
-        return finalize_failure(&args, &rollback_log, &rollback_log_path, verify_err);
+        return finalize_failure(args, &rollback_log, &rollback_log_path, verify_err);
     }
 
     // Step 4: Sanity check — the named entry points exist.
     if let Err(verify_err) = verify_entrypoints_exist(&args.install_dir) {
         eprintln!("\nEntry-point check failed: {:?}", verify_err);
-        return finalize_failure(&args, &rollback_log, &rollback_log_path, verify_err);
+        return finalize_failure(args, &rollback_log, &rollback_log_path, verify_err);
     }
 
     println!("Update applied and verified.");
@@ -295,19 +354,116 @@ fn run() -> Result<()> {
         eprintln!("Warning: failed to cleanup staging: {:?}", e);
     }
 
-    // Step 8: optionally launch the new version.
+    // Step 8: optionally launch the new version, and stay until it proves it
+    // can start. Nothing else is in a position to notice a build that dies on
+    // startup: the old process is gone and the new one never gets far enough
+    // to offer a rollback, so without this the operator is left with a
+    // program that will not open and a restore point nobody uses.
     if args.launch_after {
         println!("\nLaunching updated Nightshade...");
-        launch_app(&args.install_dir).with_context(|| {
+        let mut child = launch_app(&args.install_dir, &args.relaunch_args).with_context(|| {
             format!(
                 "Failed to launch updated Nightshade from {:?}",
                 args.install_dir
             )
         })?;
+        let timeout = Duration::from_secs(args.confirm_timeout_secs);
+        match watch_start(&mut child, &args.pending_file, timeout) {
+            StartOutcome::Confirmed => println!("Updated Nightshade confirmed it started."),
+            StartOutcome::Undecided(why) => println!("Not waiting further: {}", why),
+            StartOutcome::Failed(status) => {
+                eprintln!(
+                    "\nThe updated build exited ({}) before it finished starting. \
+                     Restoring the previous build...",
+                    status
+                );
+                // Keep the pending marker: the restored build reads it and
+                // tells the operator the update was rolled back.
+                let restored = restore_previous_build(args, false);
+                let relaunched = if restored.is_ok() {
+                    launch_app(&args.install_dir, &args.relaunch_args).map(|_| ())
+                } else {
+                    Ok(())
+                };
+                let error = match (restored, relaunched) {
+                    (Ok(()), Ok(())) => anyhow::anyhow!(
+                        "The updated build exited ({}) before it finished starting; \
+                         the previous build was restored and started again.",
+                        status
+                    ),
+                    (Ok(()), Err(e)) => anyhow::anyhow!(
+                        "The updated build exited ({}) before it finished starting; \
+                         the previous build was restored but could not be started: {:?}",
+                        status,
+                        e
+                    ),
+                    (Err(e), _) => anyhow::anyhow!(
+                        "The updated build exited ({}) before it finished starting, and \
+                         restoring the previous build failed: {:?}. The install needs a \
+                         manual reinstall.",
+                        status,
+                        e
+                    ),
+                };
+                return Err(Failure {
+                    error,
+                    relaunch: false,
+                });
+            }
+        }
     }
 
     println!("\nUpdate complete!");
     Ok(())
+}
+
+/// What became of the build the updater just started.
+enum StartOutcome {
+    /// It consumed the pending marker, which it does once it has come up.
+    Confirmed,
+    /// It exited first. Holds the exit status for the error message.
+    Failed(std::process::ExitStatus),
+    /// Neither, for a reason that does not justify a rollback.
+    Undecided(String),
+}
+
+/// Exit status a second instance uses when another one holds the lock. The
+/// new build did not fail to start; something else is already running.
+const EXIT_ALREADY_RUNNING: i32 = 75;
+
+fn watch_start(
+    child: &mut std::process::Child,
+    pending_file: &Path,
+    timeout: Duration,
+) -> StartOutcome {
+    let start = std::time::Instant::now();
+    loop {
+        if !pending_file.exists() {
+            return StartOutcome::Confirmed;
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                // It may have confirmed and then been closed straight away.
+                if !pending_file.exists() {
+                    return StartOutcome::Confirmed;
+                }
+                if status.code() == Some(EXIT_ALREADY_RUNNING) {
+                    return StartOutcome::Undecided(
+                        "another Nightshade instance is already running".to_string(),
+                    );
+                }
+                return StartOutcome::Failed(status);
+            }
+            Ok(None) => {}
+            Err(e) => {
+                return StartOutcome::Undecided(format!("could not watch the new process: {}", e))
+            }
+        }
+        if start.elapsed() >= timeout {
+            return StartOutcome::Undecided(format!("still starting after {}s", timeout.as_secs()));
+        }
+        thread::sleep(Duration::from_millis(250));
+    }
 }
 
 /// Handle a failure to persist the rollback log: roll the install back
@@ -316,49 +472,49 @@ fn run() -> Result<()> {
 /// This is the one branch with no on-disk safety net — the rollback log could
 /// not be written, so next-launch recovery has nothing to retry from. If the
 /// rollback also fails, the install directory is left partially updated and the
-/// returned error must say so.
+/// returned error must say so. The flag is true when the install was restored.
 fn finalize_unlogged_rollback(
     install_dir: &Path,
     rollback_log: &RollbackLog,
     persist_error: anyhow::Error,
-) -> anyhow::Error {
+) -> (anyhow::Error, bool) {
     eprintln!("\nFailed to persist rollback log: {:?}", persist_error);
     eprintln!("Rolling back to pre-apply state...");
     match rollback_in_place(install_dir, rollback_log) {
-        Ok(()) => persist_error.context(
-            "Failed to persist rollback log; the previous installation was restored from in-place backup",
+        Ok(()) => (
+            persist_error.context(
+                "Failed to persist rollback log; the previous installation was restored from in-place backup",
+            ),
+            true,
         ),
-        Err(rollback_error) => anyhow::anyhow!(
-            "Failed to persist rollback log: {}. Rollback also failed: {}. \
-             The installation at {:?} is partially updated and needs manual recovery.",
-            persist_error,
-            rollback_error,
-            install_dir
+        Err(rollback_error) => (
+            anyhow::anyhow!(
+                "Failed to persist rollback log: {}. Rollback also failed: {}. \
+                 The installation at {:?} is partially updated and needs manual recovery.",
+                persist_error,
+                rollback_error,
+                install_dir
+            ),
+            false,
         ),
     }
 }
 
-/// Finalize a failure: roll the install back to its pre-apply state, delete
-/// the pending marker so the next launch does not think an update succeeded,
-/// then return the original error so it propagates and the process exits
-/// non-zero.
+/// Finalize a failure: roll the install back to its pre-apply state, then
+/// return the original error so it propagates and the process exits non-zero.
+///
+/// The pending marker is left in place. It names the build that was running
+/// before the update, so when that build starts again it reads the marker and
+/// reports the update as rolled back, rather than coming up with no word about
+/// the update the operator just asked for.
 fn finalize_failure(
     args: &Args,
     rollback_log: &RollbackLog,
     rollback_log_path: &Path,
     update_error: anyhow::Error,
-) -> Result<()> {
+) -> std::result::Result<(), Failure> {
     eprintln!("Update failed; rolling back to pre-apply state...");
     let rollback_result = rollback_in_place(&args.install_dir, rollback_log);
-
-    // Why: pending marker says "an update is staged and ready to apply". We
-    // failed, so the next launch must NOT think the update succeeded.
-    if let Err(e) = remove_pending_marker(&args.pending_file) {
-        eprintln!(
-            "Warning: failed to remove pending marker {:?}: {}",
-            args.pending_file, e
-        );
-    }
 
     // Why: rollback log on disk is no longer needed once rollback succeeded.
     // If rollback failed we keep it for next-launch recovery to retry.
@@ -375,13 +531,20 @@ fn finalize_failure(
     }
 
     match rollback_result {
-        Ok(()) => Err(update_error
-            .context("Update failed; the previous installation was restored from in-place backup")),
-        Err(rollback_error) => Err(anyhow::anyhow!(
-            "Update failed: {}. Rollback also failed: {}",
-            update_error,
-            rollback_error
-        )),
+        Ok(()) => Err(Failure {
+            error: update_error.context(
+                "Update failed; the previous installation was restored from in-place backup",
+            ),
+            relaunch: true,
+        }),
+        Err(rollback_error) => Err(Failure {
+            error: anyhow::anyhow!(
+                "Update failed: {}. Rollback also failed: {}",
+                update_error,
+                rollback_error
+            ),
+            relaunch: false,
+        }),
     }
 }
 
@@ -406,47 +569,86 @@ fn persist_rollback_log(path: &Path, log: &RollbackLog) -> Result<()> {
     Ok(())
 }
 
-/// Wait for a process to exit
+/// How long the old app gets to exit after handing over to the updater. It
+/// exits right after spawning us, so this only runs out when something is
+/// holding it open.
+const PARENT_EXIT_TIMEOUT: Duration = Duration::from_secs(60);
+
+/// Wait for a process to exit, or fail once `timeout` has passed.
+///
+/// Both platforms used to treat a timeout as success, so a parent that was
+/// still running (or a wait that failed) let the swap start against files the
+/// old process still had open.
 fn wait_for_process_exit(pid: u32, timeout: Duration) -> Result<()> {
     #[cfg(windows)]
     {
-        // SAFETY: `OpenProcess` and `WaitForSingleObject` are pure Win32 syscalls with
-        // value-typed arguments (PID, access mask, timeout ms). The HANDLE returned by
-        // `OpenProcess` is a Win32 owned handle that goes out of scope at the end of
-        // this `unsafe` block; the `windows` crate's HANDLE wrapper drops/closes it.
-        // We never dereference any pointer arguments.
+        use windows::Win32::Foundation::{CloseHandle, WAIT_OBJECT_0, WAIT_TIMEOUT};
+        // SAFETY: `OpenProcess`, `WaitForSingleObject` and `CloseHandle` are
+        // Win32 calls with value-typed arguments; the handle is closed before
+        // leaving this block and is never dereferenced.
         unsafe {
-            let handle = OpenProcess(PROCESS_SYNCHRONIZE, false, pid);
-            if let Ok(handle) = handle {
-                let result = WaitForSingleObject(handle, timeout.as_millis() as u32);
-                // WAIT_OBJECT_0 = 0x00000000, WAIT_TIMEOUT = 0x00000102.
-                // Anything else likely means the process already exited; treat
-                // as success rather than spuriously failing the update.
-                if result.0 != 0 && result.0 != 0x00000102 {
-                    // intentionally permissive: see comment above
-                }
+            let handle = match OpenProcess(PROCESS_SYNCHRONIZE, false, pid) {
+                Ok(handle) => handle,
+                // No such process: it has already exited. (Access is not the
+                // reason: the updater runs as the same user as the app.)
+                Err(_) => return Ok(()),
+            };
+            let millis = u32::try_from(timeout.as_millis()).unwrap_or(u32::MAX);
+            let result = WaitForSingleObject(handle, millis);
+            let _ = CloseHandle(handle);
+            if result == WAIT_OBJECT_0 {
+                Ok(())
+            } else if result == WAIT_TIMEOUT {
+                Err(anyhow::anyhow!(
+                    "process {} was still running after {}s",
+                    pid,
+                    timeout.as_secs()
+                ))
+            } else {
+                Err(anyhow::anyhow!(
+                    "waiting for process {} failed ({:?})",
+                    pid,
+                    result
+                ))
             }
-            // If we can't open the process, it probably already exited.
         }
-        Ok(())
     }
 
     #[cfg(not(windows))]
     {
         let start = std::time::Instant::now();
         while start.elapsed() < timeout {
-            // Why: `kill -0 <pid>` is the portable "does this process exist?"
-            // check. Exits 0 if alive, non-zero if not.
-            let output = Command::new("kill").args(["-0", &pid.to_string()]).output();
-
-            if let Ok(output) = output {
-                if !output.status.success() {
-                    return Ok(());
-                }
+            if !process_is_running(pid) {
+                return Ok(());
             }
             thread::sleep(Duration::from_millis(100));
         }
-        Ok(())
+        Err(anyhow::anyhow!(
+            "process {} was still running after {}s",
+            pid,
+            timeout.as_secs()
+        ))
+    }
+}
+
+/// Whether `pid` names a live process. A zombie (exited, not yet reaped by
+/// whoever started it) counts as exited: it holds no files open, and `kill -0`
+/// would report it alive until its parent got round to reaping it.
+#[cfg(not(windows))]
+fn process_is_running(pid: u32) -> bool {
+    match fs::read_to_string(format!("/proc/{}/stat", pid)) {
+        // The state field follows the parenthesized command name.
+        Ok(stat) => match stat.rfind(')') {
+            Some(end) => !matches!(stat[end + 1..].trim_start().chars().next(), Some('Z' | 'X')),
+            None => true,
+        },
+        // No procfs entry: gone (or no procfs, e.g. macOS; fall back to kill -0).
+        Err(_) if Path::new("/proc/self/stat").exists() => false,
+        Err(_) => Command::new("kill")
+            .args(["-0", &pid.to_string()])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false),
     }
 }
 
@@ -541,17 +743,44 @@ fn apply_file(
         // Now copy the new file into place. If this fails, rollback will see
         // the moved entry and rename the .bak back over whatever (if anything)
         // we wrote.
-        fs::copy(src, dst).with_context(|| {
-            format!("Failed to copy new file into place: {:?} -> {:?}", src, dst)
-        })?;
+        copy_with_retry(src, dst).context("Failed to copy new file into place")?;
     } else {
         // New file: just copy. Track for rollback (delete on failure).
-        fs::copy(src, dst).with_context(|| {
-            format!("Failed to copy new file into place: {:?} -> {:?}", src, dst)
-        })?;
+        copy_with_retry(src, dst).context("Failed to copy new file into place")?;
         rollback_log.created.push(rel_posix.to_string());
     }
     Ok(())
+}
+
+/// Copy `from` to `to`, retrying the same transient conditions as
+/// [`rename_with_retry`]: a file the just-exited app (or an antivirus scan)
+/// still holds open refuses to be written for a moment on Windows.
+fn copy_with_retry(from: &Path, to: &Path) -> Result<()> {
+    const MAX_ATTEMPTS: u32 = 3;
+    const BACKOFF: Duration = Duration::from_millis(500);
+    for attempt in 1..=MAX_ATTEMPTS {
+        match fs::copy(from, to) {
+            Ok(_) => return Ok(()),
+            Err(e) if is_retryable_rename_error(&e) && attempt < MAX_ATTEMPTS => {
+                eprintln!(
+                    "  copy {:?} -> {:?} hit transient error ({}); retrying ({}/{})",
+                    from, to, e, attempt, MAX_ATTEMPTS
+                );
+                thread::sleep(BACKOFF);
+            }
+            Err(e) => {
+                return Err(anyhow::anyhow!(
+                    "Failed to copy {:?} -> {:?} after {} attempt{}: {}",
+                    from,
+                    to,
+                    attempt,
+                    if attempt == 1 { "" } else { "s" },
+                    e
+                ))
+            }
+        }
+    }
+    unreachable!("the last attempt always returns")
 }
 
 fn backup_path_for(dst: &Path) -> PathBuf {
@@ -590,26 +819,10 @@ fn rename_with_retry(from: &Path, to: &Path) -> Result<()> {
         }
     }
 
-    // Why: on Windows, schedule a rename-on-reboot as a last-ditch effort so
-    // the user can recover by restarting their machine, but ALSO surface the
-    // failure as a hard error here so apply rolls back. We never silently
-    // accept a locked file.
-    #[cfg(windows)]
-    {
-        if let Some(ref e) = last_err {
-            if is_sharing_violation(e) {
-                if let Err(reboot_err) = schedule_replace_on_reboot(from, to) {
-                    eprintln!(
-                        "  Could not schedule reboot-time replace for {:?}: {}",
-                        from, reboot_err
-                    );
-                } else {
-                    eprintln!("  Scheduled reboot-time replace for {:?} -> {:?}", from, to);
-                }
-            }
-        }
-    }
-
+    // No reboot-time rename is queued. This error makes the apply roll back,
+    // and a rename queued with MOVEFILE_DELAY_UNTIL_REBOOT would still run at
+    // the next boot and move the restored file out of its own name, leaving an
+    // install that no longer starts.
     Err(anyhow::anyhow!(
         "Failed to rename {:?} -> {:?} after {} attempts: {}",
         from,
@@ -650,40 +863,6 @@ fn is_retryable_rename_error(e: &std::io::Error) -> bool {
         e.kind(),
         std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::WouldBlock
     )
-}
-
-#[cfg(windows)]
-fn schedule_replace_on_reboot(from: &Path, to: &Path) -> Result<()> {
-    // MoveFileExW with MOVEFILE_DELAY_UNTIL_REBOOT queues a rename for the
-    // next OS boot. `from` here is the destination we tried to write but
-    // couldn't because it was locked; the rename order in our move-then-copy
-    // model is dst -> bak, so on reboot Windows will move the locked file
-    // out of the way. Pure best-effort — caller still rolls back.
-    use std::os::windows::ffi::OsStrExt;
-    use windows::core::PCWSTR;
-    use windows::Win32::Storage::FileSystem::{MoveFileExW, MOVEFILE_DELAY_UNTIL_REBOOT};
-
-    fn to_wide(p: &Path) -> Vec<u16> {
-        p.as_os_str()
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect()
-    }
-
-    let from_w = to_wide(from);
-    let to_w = to_wide(to);
-    // SAFETY: `MoveFileExW` is a Win32 file syscall. Both `from_w` / `to_w` are
-    // locally-owned NUL-terminated UTF-16 vectors that outlive the call; their
-    // `as_ptr()` is wrapped in PCWSTR. The third arg is a value-typed flag. No
-    // pointer ownership is transferred to the kernel.
-    unsafe {
-        MoveFileExW(
-            PCWSTR(from_w.as_ptr()),
-            PCWSTR(to_w.as_ptr()),
-            MOVEFILE_DELAY_UNTIL_REBOOT,
-        )
-        .map_err(|e| anyhow::anyhow!("MoveFileExW(DELAY_UNTIL_REBOOT) failed: {}", e))
-    }
 }
 
 /// Roll back an in-progress (or just-failed) apply by undoing the operations
@@ -847,6 +1026,27 @@ fn retain_restore_point(install_dir: &Path, backup_dir: &Path, log: &RollbackLog
 /// 3. Drop the post-install hash record + the now-consumed restore point so the
 ///    next boot-verify does not object, then relaunch if requested.
 fn run_rollback(args: &Args) -> Result<()> {
+    restore_previous_build(args, true)?;
+
+    if args.launch_after {
+        println!("\nLaunching the restored Nightshade...");
+        launch_app(&args.install_dir, &args.relaunch_args).with_context(|| {
+            format!(
+                "Rollback applied but failed to launch restored Nightshade from {:?}",
+                args.install_dir
+            )
+        })?;
+    }
+
+    Ok(())
+}
+
+/// Put the retained restore point back over the install and drop it.
+///
+/// `clear_pending` removes the pending marker too, which the manual rollback
+/// wants (the operator asked for it and knows). The automatic rollback after a
+/// failed start keeps it, so the restored build can say what happened.
+fn restore_previous_build(args: &Args, clear_pending: bool) -> Result<()> {
     println!("\nRolling back to the previous version...");
 
     let rollback_log_path = args.backup_dir.join(ROLLBACK_LOG_FILE);
@@ -898,20 +1098,11 @@ fn run_rollback(args: &Args) -> Result<()> {
             );
         }
     }
-    remove_pending_marker(&args.pending_file)?;
-
-    println!("Rollback complete.");
-
-    if args.launch_after {
-        println!("\nLaunching the restored Nightshade...");
-        launch_app(&args.install_dir).with_context(|| {
-            format!(
-                "Rollback applied but failed to launch restored Nightshade from {:?}",
-                args.install_dir
-            )
-        })?;
+    if clear_pending {
+        remove_pending_marker(&args.pending_file)?;
     }
 
+    println!("Rollback complete.");
     Ok(())
 }
 
@@ -947,8 +1138,8 @@ fn restore_from_restore_point(
                 continue;
             }
         }
-        match fs::copy(&src, &dst) {
-            Ok(_) => println!("  Rollback: restored {:?}", dst),
+        match restore_file(&src, &dst) {
+            Ok(()) => println!("  Rollback: restored {:?}", dst),
             Err(e) => errors.push(format!(
                 "rollback: failed to restore {:?} from {:?}: {}",
                 dst, src, e
@@ -996,6 +1187,55 @@ fn restore_from_restore_point(
             errors.join("\n")
         ))
     }
+}
+
+/// Put the bytes of `src` at `dst`, including when `dst` is an executable that
+/// is running.
+///
+/// The update package carries the updater, so a rollback always restores the
+/// binary that is performing it. Writing into a running executable fails on
+/// Linux (ETXTBSY) and on Windows (sharing violation), but both allow it to be
+/// renamed, so the current file is moved aside first and the original copied
+/// into the freed name. Copying rather than renaming keeps working when the
+/// restore point sits on another filesystem than the install.
+fn restore_file(src: &Path, dst: &Path) -> Result<()> {
+    if !dst.exists() {
+        copy_with_retry(src, dst)?;
+        return Ok(());
+    }
+    let mut aside = dst.as_os_str().to_owned();
+    aside.push(ASIDE_SUFFIX);
+    let aside = PathBuf::from(aside);
+    if aside.exists() {
+        fs::remove_file(&aside)
+            .with_context(|| format!("clear stale {:?} before restoring", aside))?;
+    }
+    fs::rename(dst, &aside).with_context(|| format!("move {:?} aside", dst))?;
+    if let Err(copy_err) = copy_with_retry(src, dst) {
+        // Leave the install with the file it had rather than with no file.
+        if let Err(back_err) = fs::rename(&aside, dst) {
+            return Err(anyhow::anyhow!(
+                "copy {:?} -> {:?} failed ({}), and moving the current file back also failed ({})",
+                src,
+                dst,
+                copy_err,
+                back_err
+            ));
+        }
+        return Err(anyhow::anyhow!(
+            "copy {:?} -> {:?} failed: {}",
+            src,
+            dst,
+            copy_err
+        ));
+    }
+    if let Err(e) = fs::remove_file(&aside) {
+        // Windows cannot delete an executable that is still running. The
+        // restored file is already in place; the leftover is removed by the
+        // next restore of the same path.
+        eprintln!("Warning: could not remove {:?}: {}", aside, e);
+    }
+    Ok(())
 }
 
 fn write_post_install_hashes(path: &Path, expected: &ExpectedHashes) -> Result<()> {
@@ -1177,8 +1417,9 @@ fn launch_target(install_dir: &Path) -> PathBuf {
     install_dir.join(from_posix(APP_EXECUTABLE))
 }
 
-/// Launch the updated application
-fn launch_app(install_dir: &Path) -> Result<()> {
+/// Launch the application from `install_dir` with the arguments it was
+/// running with before the update.
+fn launch_app(install_dir: &Path, args: &[String]) -> Result<std::process::Child> {
     let exe_path = launch_target(install_dir);
 
     if !exe_path.exists() {
@@ -1189,11 +1430,10 @@ fn launch_app(install_dir: &Path) -> Result<()> {
     }
 
     Command::new(&exe_path)
+        .args(args)
         .current_dir(install_dir)
         .spawn()
-        .context("Failed to launch application")?;
-
-    Ok(())
+        .context("Failed to launch application")
 }
 
 // Tests
@@ -1359,7 +1599,7 @@ mod tests {
         let mut log = RollbackLog::default();
         apply_update(&staging, &install, &mut log).unwrap();
 
-        let err = finalize_unlogged_rollback(
+        let (err, _) = finalize_unlogged_rollback(
             &install,
             &log,
             anyhow::anyhow!("disk full writing rollback_log.json"),
@@ -1392,7 +1632,7 @@ mod tests {
         let bak = backup_path_for(&install.join("nightshade_bridge.dll"));
         fs::remove_file(&bak).unwrap();
 
-        let err = finalize_unlogged_rollback(
+        let (err, _) = finalize_unlogged_rollback(
             &install,
             &log,
             anyhow::anyhow!("disk full writing rollback_log.json"),
@@ -1467,6 +1707,43 @@ mod tests {
             !install.join("extras").exists(),
             "rollback must remove now-empty directories the update created"
         );
+    }
+
+    /// The update package carries the updater itself, so rollback always has
+    /// to put back the very binary that is running it. Copying over a running
+    /// executable fails on Linux ("Text file busy") and on Windows (sharing
+    /// violation), which left the restored install with the NEW updater and
+    /// the rollback reporting failure.
+    #[cfg(unix)]
+    #[test]
+    fn rollback_restores_an_executable_that_is_running() {
+        let tmp = tempdir().unwrap();
+        let install = tmp.path().join("install");
+        let backup = tmp.path().join("backup");
+        let restore_root = backup.join(RESTORE_POINT_DIR);
+        fs::create_dir_all(&install).unwrap();
+        fs::create_dir_all(&restore_root).unwrap();
+
+        // The "new" updater is a real executable, running for the whole test.
+        let running = install.join("updater");
+        fs::copy("/bin/sleep", &running).unwrap();
+        let mut child = Command::new(&running).arg("30").spawn().unwrap();
+        write(&restore_root.join("updater"), b"previous updater");
+
+        let log = RollbackLog {
+            moved: vec![MovedEntry {
+                rel: "updater".to_string(),
+                bak: backup_path_for(&running).to_string_lossy().to_string(),
+            }],
+            created: vec![],
+            created_dirs: vec![],
+        };
+        let result = restore_from_restore_point(&install, &restore_root, &log);
+        child.kill().unwrap();
+        child.wait().unwrap();
+
+        result.unwrap();
+        assert_eq!(fs::read(&running).unwrap(), b"previous updater");
     }
 
     #[test]
@@ -1547,6 +1824,137 @@ mod tests {
         let to = tmp.path().join("missing_dir/x.txt");
         let res = rename_with_retry(&from, &to);
         assert!(res.is_err(), "rename to nonexistent parent must fail");
+    }
+
+    /// A long-running process for the wait tests: `sleep` on Unix, `ping` on
+    /// Windows (which has no `sleep` and whose `timeout` needs a console).
+    fn long_running_child() -> std::process::Child {
+        #[cfg(windows)]
+        let child = Command::new("ping")
+            .args(["-n", "30", "127.0.0.1"])
+            .stdout(std::process::Stdio::null())
+            .spawn();
+        #[cfg(not(windows))]
+        let child = Command::new("sleep").arg("30").spawn();
+        child.unwrap()
+    }
+
+    /// The parent must actually be gone before the swap starts. Both
+    /// platforms used to treat a timeout as success.
+    #[test]
+    fn waiting_for_a_process_that_does_not_exit_times_out() {
+        let mut child = long_running_child();
+        let err = wait_for_process_exit(child.id(), Duration::from_millis(600))
+            .expect_err("a live process must not count as exited");
+        assert!(format!("{err}").contains("still running"), "{err}");
+        child.kill().unwrap();
+        child.wait().unwrap();
+        wait_for_process_exit(child.id(), Duration::from_secs(5)).unwrap();
+    }
+
+    /// An exited child its parent has not reaped yet is a zombie: `kill -0`
+    /// still succeeds on it, but it holds nothing open.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn an_unreaped_exited_process_counts_as_exited() {
+        let mut child = Command::new("true").spawn().unwrap();
+        let pid = child.id();
+        // Give it time to exit without reaping it.
+        thread::sleep(Duration::from_millis(300));
+        let result = wait_for_process_exit(pid, Duration::from_secs(2));
+        child.wait().unwrap();
+        result.unwrap();
+    }
+
+    /// A destination that refuses writes for a moment (Windows: still open
+    /// in the just-exited app or an antivirus scan) is retried, like rename.
+    #[cfg(unix)]
+    #[test]
+    fn copy_retries_a_destination_that_frees_up() {
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = tempdir().unwrap();
+        let src = tmp.path().join("src");
+        let dst = tmp.path().join("dst");
+        write(&src, b"new");
+        write(&dst, b"old");
+        fs::set_permissions(&dst, fs::Permissions::from_mode(0o444)).unwrap();
+        let unlock = dst.clone();
+        let t = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(300));
+            fs::set_permissions(&unlock, fs::Permissions::from_mode(0o644)).unwrap();
+        });
+        copy_with_retry(&src, &dst).unwrap();
+        t.join().unwrap();
+        assert_eq!(fs::read(&dst).unwrap(), b"new");
+    }
+
+    /// Windows only (runs in the Windows CI job): a destination opened with
+    /// no sharing refuses writes with ERROR_SHARING_VIOLATION; the copy
+    /// retries and succeeds once the handle is closed, and fails with a hard
+    /// error (so the apply rolls back) if it never is.
+    #[cfg(windows)]
+    #[test]
+    fn copy_retries_a_sharing_violation_and_then_gives_up() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let tmp = tempdir().unwrap();
+        let src = tmp.path().join("src");
+        let dst = tmp.path().join("dst");
+        write(&src, b"new");
+        write(&dst, b"old");
+
+        let held = OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&dst)
+            .unwrap();
+        let t = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(300));
+            drop(held);
+        });
+        copy_with_retry(&src, &dst).unwrap();
+        t.join().unwrap();
+        assert_eq!(fs::read(&dst).unwrap(), b"new");
+
+        let _held = OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&dst)
+            .unwrap();
+        assert!(copy_with_retry(&src, &dst).is_err());
+    }
+
+    /// Windows only (runs in the Windows CI job): renaming a file that is
+    /// open without sharing fails after the retries and leaves NO rename
+    /// queued for the next reboot. A queued MOVEFILE_DELAY_UNTIL_REBOOT used to
+    /// outlive the rollback and move the restored file aside at boot.
+    #[cfg(windows)]
+    #[test]
+    fn a_locked_rename_fails_without_queueing_a_reboot_rename() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let tmp = tempdir().unwrap();
+        let dst = tmp.path().join("nightshade_desktop.exe");
+        write(&dst, b"exe");
+        let _held = OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&dst)
+            .unwrap();
+        assert!(rename_with_retry(&dst, &backup_path_for(&dst)).is_err());
+        let pending = Command::new("reg")
+            .args([
+                "query",
+                r"HKLM\SYSTEM\CurrentControlSet\Control\Session Manager",
+                "/v",
+                "PendingFileRenameOperations",
+            ])
+            .output()
+            .unwrap();
+        let text = String::from_utf8_lossy(&pending.stdout).to_lowercase();
+        let name = tmp.path().to_string_lossy().to_lowercase();
+        assert!(
+            !text.contains(&name),
+            "a reboot-time rename was queued for {name}"
+        );
     }
 
     #[test]

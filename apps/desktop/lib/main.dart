@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nightshade_app/nightshade_app.dart';
 import 'package:nightshade_core/nightshade_core.dart';
+import 'package:nightshade_updater/nightshade_updater.dart'
+    show setUpdateRelaunchArguments;
 import 'package:window_manager/window_manager.dart';
 
 import 'desktop_app_bootstrap.dart';
@@ -88,6 +90,9 @@ _RemoteClientTarget? _parseRemoteTarget(List<String> args) {
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // An update restarts the app through the updater, which needs to know how
+  // it was started (for example --headless --port=...) to start it the same way.
+  setUpdateRelaunchArguments(args);
 
   final isHeadless =
       args.contains('--headless') ||

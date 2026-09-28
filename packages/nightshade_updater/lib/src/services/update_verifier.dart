@@ -280,7 +280,8 @@ class UpdateVerifier {
   /// Exposed as a public static so the dev signing tool and the test suite
   /// build the exact same bytes instead of hand-copying this map (a live
   /// drift risk). The output MUST stay byte-identical to what
-  /// `scripts/build_update_package.ps1` signs in production.
+  /// `tool/build_update_manifest.dart` signs in production (every platform,
+  /// Windows through `scripts/build_update_package.ps1`).
   static String canonicalManifestPayload(UpdateManifest manifest) {
     final sortedFiles = manifest.files.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
