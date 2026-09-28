@@ -247,8 +247,12 @@ def check_terminal(run, final, sc):
     ok = api_state in allowed or (api_state == "idle" and db_state in allowed)
     detail = f"API state={api_state}, sequence_runs.status={db_state}, allowed={allowed}"
     # sequence_runs only records terminal states; a held run is still "running" there.
-    if db_state and api_state in ("completed", "failed", "cancelled", "stopped") \
-            and db_state != api_state:
+    # The executor says "cancelled" for an operator Stop; sequence_runs records
+    # the same stop as "stopped", or "paused-stopped" when it kept a resume
+    # point (see run_status_presentation.dart). One family, three spellings.
+    stop_family = {"cancelled", "stopped", "paused-stopped"}
+    same = db_state == api_state or (db_state in stop_family and api_state in stop_family)
+    if db_state and api_state in ("completed", "failed", "cancelled", "stopped") and not same:
         ok = False
         detail += " (API and DB disagree)"
     return verdict("terminal_state_truthful", ok, detail)
