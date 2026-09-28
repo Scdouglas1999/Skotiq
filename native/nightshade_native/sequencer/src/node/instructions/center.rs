@@ -1,11 +1,16 @@
 //! CenterTarget instruction node.
 
-use crate::instructions::execute_center;
+use crate::instructions::{execute_center, ImagingTrainClaimGuard};
 use crate::node::context::ExecutionContext;
 use crate::node::progress::{ProgressDetail, ProgressUpdate};
 use crate::node::registry::InstructionNode;
 use crate::{NodeStatus, NodeType};
 use async_trait::async_trait;
+
+/// Time a centering attempt takes beyond its exposure: download, plate solve,
+/// sync and the correction slew. Sizes the imaging-train claim's expected
+/// duration; the claim's own grace covers a slow solve.
+const CENTER_ATTEMPT_OVERHEAD_SECS: f64 = 45.0;
 
 pub struct CenterInstruction;
 
@@ -47,9 +52,24 @@ impl InstructionNode for CenterInstruction {
             }
         };
 
-        execute_center(config, &ctx, Some(&progress_fn))
-            .await
-            .log_and_get_status_with_context("Center Target", &ctx)
+        // The Center node owns the imaging train for its whole loop, as an
+        // exposure does for its frame: capture, solve, sync and correction
+        // slew are one operation, and a trigger action that exposes or moves
+        // the mount in the middle of it either takes the node's frame ("No
+        // exposure is available to download") or invalidates the solve it is
+        // about to sync on. Taken here rather than in `execute_center`, which
+        // the DriftLimit recenter also runs while already holding the claim.
+        let expected_secs = f64::from(config.max_attempts.max(1))
+            * (config.exposure_duration.max(0.0) + CENTER_ATTEMPT_OVERHEAD_SECS);
+        let claim = match ImagingTrainClaimGuard::acquire(&ctx, "centering", expected_secs).await {
+            Ok(claim) => claim,
+            Err(cancelled) => {
+                return cancelled.log_and_get_status_with_context("Center Target", &ctx);
+            }
+        };
+        let result = execute_center(config, &ctx, Some(&progress_fn)).await;
+        claim.release(&ctx).await;
+        result.log_and_get_status_with_context("Center Target", &ctx)
     }
 }
 

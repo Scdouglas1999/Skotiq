@@ -337,6 +337,9 @@ struct CenterRun {
     max_in_flight: u32,
     trigger_actions: Vec<String>,
     failures: Vec<String>,
+    /// Whether the imaging train was claimed while the Center node was
+    /// between its captures (solving, syncing, slewing).
+    train_held_mid_center: bool,
 }
 
 /// Run the one-target Center sequence with only `keep` triggers armed.
@@ -379,7 +382,12 @@ async fn run_center(keep: &[&str]) -> CenterRun {
         .expect("sequence loads");
     executor.start().await.expect("run starts");
 
+    let trigger_state = {
+        let manager = executor.trigger_manager.read().await;
+        manager.state()
+    };
     let mut state = executor.get_state().await;
+    let mut train_held_mid_center = false;
     for _ in 0..1_500 {
         state = executor.get_state().await;
         if matches!(
@@ -387,6 +395,10 @@ async fn run_center(keep: &[&str]) -> CenterRun {
             ExecutorState::Completed | ExecutorState::Failed | ExecutorState::Cancelled
         ) {
             break;
+        }
+        // The first solve is in flight (1.5 s) and no exposure is.
+        if ops.solves.load(Ordering::SeqCst) == 1 && ops.in_flight.load(Ordering::SeqCst) == 0 {
+            train_held_mid_center |= trigger_state.read().await.imaging_train_hold().is_some();
         }
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }
@@ -408,6 +420,7 @@ async fn run_center(keep: &[&str]) -> CenterRun {
         max_in_flight: ops.max_in_flight.load(Ordering::SeqCst),
         trigger_actions,
         failures,
+        train_held_mid_center,
     }
 }
 
@@ -430,5 +443,24 @@ async fn a_center_nodes_first_solve_does_not_fire_the_drift_limit() {
     assert_eq!(
         run.max_in_flight, 1,
         "the camera was driven by two callers at once"
+    );
+}
+
+/// A Center node owns the imaging train for its whole loop -- capture, solve,
+/// sync, correction slew -- like an exposure does for its frame. It did not,
+/// so a trigger that came due as a new target started (autofocus after the
+/// target change, a stale meridian flip, a drift recenter) took the camera
+/// between the Center node's captures: in the simulator soak the refocus's
+/// sweep frame was downloaded by the Center node's next capture and the run
+/// failed "No exposure is available to download", twice, at the second
+/// target's start.
+#[tokio::test]
+async fn a_center_node_holds_the_imaging_train_between_its_captures() {
+    let run = run_center(&[]).await;
+    assert_eq!(run.state, ExecutorState::Completed, "{:?}", run.failures);
+    assert!(
+        run.train_held_mid_center,
+        "the imaging train was free while the Center node was solving; any \
+         camera-driving trigger could start exposing over its next capture"
     );
 }
