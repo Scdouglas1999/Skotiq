@@ -78,8 +78,15 @@ const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
 ///
 /// The bound is the one a fresh re-acquisition is already held to, so accepting
 /// an existing lock cannot apply a laxer standard to the worse situation.
+///
+/// An RMS of exactly zero is no measurement at all. PHD2's statistics window
+/// is emptied when guiding starts (so the old session's steps do not judge the
+/// new one), and the built-in guider's starts empty too; until the first guide
+/// step lands the window reads 0.0 while the guider already reports Guiding.
+/// Every restart path polls straight after `guider_start`, so without this a
+/// lock was accepted before one step had shown the star was held.
 pub(crate) fn guiding_is_settled(status: &crate::device_ops::GuidingStatus) -> bool {
-    status.is_guiding && status.rms_total <= REACQUIRE_SETTLE_PIXELS
+    status.is_guiding && status.rms_total > 0.0 && status.rms_total <= REACQUIRE_SETTLE_PIXELS
 }
 
 /// Actively re-acquire the guide star after a `GuideStarLost` event.

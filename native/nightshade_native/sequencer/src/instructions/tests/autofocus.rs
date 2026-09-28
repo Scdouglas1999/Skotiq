@@ -362,6 +362,29 @@ async fn a_guider_chasing_a_lost_star_is_not_guiding_restored() {
     );
 }
 
+/// A guider that has not sent one guide step since it was restarted has not
+/// shown it holds anything. PHD2's statistics window is reset when guiding
+/// starts, and an empty window reads RMS 0.0 while PHD2 already reports
+/// Guiding, which passed the settle bound before a single step was measured.
+#[tokio::test(start_paused = true)]
+async fn a_guider_with_no_guide_step_since_the_restart_is_not_guiding_restored() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_guiding(false)
+            .with_guider_rms(0.0),
+    );
+    let ctx = pointing_ctx(ops.clone(), "NGC7380", (22.79, 58.13)).await;
+
+    let result = resume_guiding_after_autofocus(&ctx, InstructionResult::success()).await;
+
+    assert_eq!(
+        autofocus_trigger_failure_cost(result.data.as_ref()),
+        AutofocusTriggerFailureCost::EveryFrameUnguided,
+        "an empty statistics window is not a settled lock: {:?}",
+        result.message
+    );
+}
+
 /// A Stop pressed while the cleanup waits for the guider to settle ends the
 /// wait. The run's end waits for this cleanup, so on a guider that was never
 /// coming back the operator's Stop took the full two minutes to land.
