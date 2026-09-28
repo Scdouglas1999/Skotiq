@@ -71,6 +71,9 @@ struct GearState {
     /// Every position the focuser was commanded to, in order, so a test can
     /// check HOW it was approached and not merely where it ended up.
     commands: Vec<i32>,
+    /// When `Some(n)`, every command after the first `n` is recorded but not
+    /// carried out: a focuser that slips or stops answering mid-run.
+    stuck_after: Option<usize>,
 }
 
 impl BacklashFocuserOps {
@@ -83,6 +86,7 @@ impl BacklashFocuserOps {
                 // either way, and the routine must not depend on it.
                 takeup: backlash / 2,
                 commands: Vec::new(),
+                stuck_after: None,
             })),
             backlash,
         }
@@ -97,6 +101,10 @@ impl BacklashFocuserOps {
 impl DeviceOps for BacklashFocuserOps {
     async fn focuser_move_to(&self, _focuser_id: &str, position: i32) -> DeviceResult<()> {
         let mut state = self.state.lock().await;
+        if state.stuck_after.is_some_and(|n| state.commands.len() >= n) {
+            state.commands.push(position);
+            return Ok(());
+        }
         let delta = position - state.commanded;
         // Upward motion pays down the dead band; downward motion fills it. A
         // move shorter than the remaining slack only moves the motor.
@@ -888,4 +896,58 @@ async fn a_focuser_with_no_backlash_reports_no_measurable_backlash() {
         }
         other => panic!("expected no measurable backlash, got {:?}", other),
     }
+}
+
+/// The final approach is checked with a real frame: 38bf2b25a made autofocus
+/// take one at the landing and fail when it measures materially worse than
+/// the curve promised. That check had no test, so dropping it, or inverting
+/// its comparison, reported every landing as good. Here the same simulated
+/// focuser runs autofocus twice: once normally, and once with the final
+/// approach silently not carried out.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_landing_that_did_not_happen_is_caught_by_the_verification_frame() {
+    let config = crate::AutofocusConfig {
+        step_size: 30,
+        steps_out: 5,
+        exposure_duration: 1.0,
+        backlash_compensation: SIMULATED_BACKLASH,
+        focuser_settle_time_ms: 0,
+        number_of_attempts: 1,
+        // The simulated field has four stars.
+        min_star_count: 3,
+        ..Default::default()
+    };
+    let pause = crate::node::context::PauseGate::default();
+
+    let ops = Arc::new(BacklashFocuserOps::new(
+        SIMULATED_BACKLASH,
+        STARTING_POSITION,
+    ));
+    let ctx = calibration_context(Arc::clone(&ops)).await;
+    let result = execute_autofocus_once(&config, &ctx, None, &pause).await;
+    assert_eq!(
+        result.status,
+        NodeStatus::Success,
+        "a focuser that goes where it is told must land and verify: {:?}",
+        result.message
+    );
+    let commands_in_a_good_run = ops.state().lock().await.commands.len();
+
+    let ops = Arc::new(BacklashFocuserOps::new(
+        SIMULATED_BACKLASH,
+        STARTING_POSITION,
+    ));
+    // The run's last two moves are the run-up below focus and the final move
+    // up to it. Dropping only the final one would leave the optics at the
+    // run-up position, which the dead band carries back to focus; drop both
+    // and the optics stay at the top of the sweep, 130 steps out.
+    ops.state().lock().await.stuck_after = Some(commands_in_a_good_run - 2);
+    let ctx = calibration_context(Arc::clone(&ops)).await;
+    let result = execute_autofocus_once(&config, &ctx, None, &pause).await;
+    assert_eq!(result.status, NodeStatus::Failure);
+    let message = result.message.unwrap_or_default();
+    assert!(
+        message.contains(crate::instructions::LANDING_VERIFICATION_FAILURE_PHRASE),
+        "a landing that never happened must be reported as one: {message}"
+    );
 }
