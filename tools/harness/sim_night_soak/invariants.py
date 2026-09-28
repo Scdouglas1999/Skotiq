@@ -499,6 +499,12 @@ def check_resources(root):
         return verdict("no_monotonic_resource_growth", True, f"only {len(rows)} samples", skip=True)
     half = rows[len(rows) // 3:]      # skip warm-up: caches and catalogs fill first
     xs = [float(r["elapsed_s"]) for r in half]
+    # A slope over a few minutes extrapolates a single step (a socket opened,
+    # a cache filled) into an hourly rate; below half an hour of post-warm-up
+    # samples there is nothing to call a trend.
+    if xs[-1] - xs[0] < 1800:
+        return verdict("no_monotonic_resource_growth", True,
+                       f"only {(xs[-1] - xs[0]) / 60:.0f} min after warm-up", skip=True)
     flagged, report = [], []
     for key, limit in LIMITS.items():
         if key not in half[0]:
