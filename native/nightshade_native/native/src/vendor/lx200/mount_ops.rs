@@ -62,11 +62,19 @@ impl NativeMount for Lx200Mount {
 
         tracing::info!("Syncing to RA={:.4}h, Dec={:.4}°", ra_hours, dec_degrees);
 
+        // `:CM#` syncs to whatever target the mount holds. If it refused the
+        // new one, that is the previous goto's, so syncing anyway moves the
+        // mount's idea of where it points to the wrong place and says it
+        // worked.
         let ra_cmd = format!("{}{}#", commands::SET_TARGET_RA, format_ra(ra_hours));
-        self.send_command_bool(&ra_cmd)?;
+        if !self.send_command_bool(&ra_cmd)? {
+            return Err(NativeError::SdkError("Mount refused the sync RA".into()));
+        }
 
         let dec_cmd = format!("{}{}#", commands::SET_TARGET_DEC, format_dec(dec_degrees));
-        self.send_command_bool(&dec_cmd)?;
+        if !self.send_command_bool(&dec_cmd)? {
+            return Err(NativeError::SdkError("Mount refused the sync Dec".into()));
+        }
 
         let _ = self.send_command(commands::SYNC)?;
 

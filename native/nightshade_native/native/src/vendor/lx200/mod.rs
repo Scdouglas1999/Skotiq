@@ -202,6 +202,17 @@ mod meade_pty_tests {
     /// bar) reports a slew in progress for the first `bar_polls` asks after a
     /// goto, then an empty bar. Returns the slave path.
     fn spawn_meade_pty(bar_polls: u32) -> String {
+        spawn_meade_pty_logged(bar_polls, b"1").0
+    }
+
+    /// As [`spawn_meade_pty`], answering `:Sr`/`:Sd` with `target_reply`
+    /// (`1` accepted, `0` refused), and recording every command received.
+    fn spawn_meade_pty_logged(
+        bar_polls: u32,
+        target_reply: &'static [u8],
+    ) -> (String, Arc<Mutex<Vec<String>>>) {
+        let received = Arc::new(Mutex::new(Vec::new()));
+        let log = received.clone();
         let mut master: libc::c_int = 0;
         let mut slave: libc::c_int = 0;
         // SAFETY: openpty writes two descriptors into the provided ints; the
@@ -240,10 +251,13 @@ mod meade_pty_tests {
                 pending.push_str(&String::from_utf8_lossy(&buf[..n]));
                 while let Some(end) = pending.find('#') {
                     let command: String = pending.drain(..=end).collect();
+                    log.lock().unwrap().push(command.clone());
                     let reply: &[u8] = if command.starts_with(":GVP") {
                         b"LX200 Classic#"
                     } else if command.starts_with(":Sr") || command.starts_with(":Sd") {
-                        b"1"
+                        target_reply
+                    } else if command.starts_with(":CM") {
+                        b" M31 EX GAL MAG 3.5 SZ178.0'#"
                     } else if command.starts_with(":MS") {
                         bars_left.store(bar_polls, Ordering::SeqCst);
                         b"0"
@@ -268,7 +282,36 @@ mod meade_pty_tests {
                 }
             }
         });
-        path
+        (path, received)
+    }
+
+    /// A sync writes the target and then `:CM#` syncs to whatever target the
+    /// mount holds. When the mount refused the new target, that is the
+    /// previous goto's, so the mount was synced to the wrong place and the
+    /// sync reported success.
+    #[tokio::test]
+    async fn a_sync_to_a_target_the_mount_refused_fails_and_is_not_sent() {
+        let (path, received) = spawn_meade_pty_logged(0, b"0");
+        let mut mount = Lx200Mount::new(path, Lx200MountType::Meade, Some(9600));
+        mount
+            .connect()
+            .await
+            .expect("connect to the fake Meade mount");
+
+        let result = mount.sync_to_coordinates(5.5, 20.0).await;
+
+        assert!(
+            result.is_err(),
+            "a sync whose target the mount refused reported success"
+        );
+        assert!(
+            !received
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|command| command.starts_with(":CM")),
+            "the sync was sent against the mount's previous target"
+        );
     }
 
     /// A goto on a Meade-protocol mount used to latch "slewing" with nothing
