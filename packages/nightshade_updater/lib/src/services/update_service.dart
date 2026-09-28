@@ -1255,16 +1255,21 @@ class UpdateService {
   /// carry out.
   ///
   /// The app exits before the updater touches anything, so an install this
-  /// user cannot write to (a tarball unpacked into /opt by root, or the
-  /// appliance unit's `ProtectSystem=strict`) used to end with the program
-  /// gone and the reason in a temp file. Each existing directory the update
-  /// writes into is probed with a real file. Windows is left to the updater,
-  /// whose manifest asks for elevation to write under Program Files.
+  /// user cannot write to (a tarball unpacked into /opt by root, the
+  /// appliance unit's `ProtectSystem=strict`, or an installer-made install
+  /// under Program Files on Windows) used to end with the program gone and
+  /// the reason in a temp file. Each existing directory the update writes
+  /// into is probed with a real file.
+  ///
+  /// On Windows this replaces elevation. The updater used to demand
+  /// administrator rights in its manifest, which a plain process launch cannot
+  /// grant (the apply never started), and which would have handed the
+  /// relaunched app an administrator token. It now runs as the user, and an
+  /// install that needs elevation is updated with the installer instead.
   Future<void> _assertInstallWritable(
     Directory installDir,
     UpdateManifest manifest,
   ) async {
-    if (Platform.isWindows) return;
     final dirs = <String>{installDir.path};
     for (final rel in manifest.files.keys) {
       final parts = rel.replaceAll(r'\', '/').split('/')..removeLast();
@@ -1284,7 +1289,8 @@ class UpdateService {
           'Cannot install the update here: this user cannot write to $dir '
           '(${e.osError?.message ?? e.message}). Nightshade was left running '
           'on its current version. Install the new version from the release '
-          'page, or run Nightshade from a folder this user owns.',
+          'page${Platform.isWindows ? ' with the installer' : ''}, or run '
+          'Nightshade from a folder this user owns.',
         );
       }
     }

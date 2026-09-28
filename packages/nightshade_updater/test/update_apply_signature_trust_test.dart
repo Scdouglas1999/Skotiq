@@ -346,7 +346,9 @@ void main() {
     );
     expect(await service.getStagedUpdate(), isNotNull);
     service.dispose();
-  }, skip: Platform.isWindows ? 'Windows installs elevate instead' : false);
+    // chmod cannot make a directory unwritable on Windows. The same check runs
+    // there against the Program Files ACL, which only a real install shows.
+  }, skip: Platform.isWindows ? 'needs POSIX permissions' : false);
 
   test('the updater is told to start the app the way it was started', () {
     // A headless rig started with --headless --port=... came back as the GUI
