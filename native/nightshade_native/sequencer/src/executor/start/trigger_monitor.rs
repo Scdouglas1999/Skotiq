@@ -1563,6 +1563,45 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                     }
                 }
                 RecoveryAction::MeridianFlip(config) => {
+                    // The flip waited for the imaging train, and the mount may
+                    // have moved meanwhile -- a target change fires this on the
+                    // new target's hour angle against the old pointing's pier
+                    // side, and the next Center or Slew node then lands on the
+                    // post-flip side. Re-read the pier side and ask again.
+                    if let Some(mount_id) = trigger_action_context.mount_id.as_deref() {
+                        let fresh_pier = match bounded_poll(
+                            "mount_side_of_pier",
+                            device_ops_for_triggers.mount_side_of_pier(mount_id),
+                        )
+                        .await
+                        {
+                            Ok(crate::meridian::PierSide::East) => Some(crate::PierSide::East),
+                            Ok(crate::meridian::PierSide::West) => Some(crate::PierSide::West),
+                            Ok(crate::meridian::PierSide::Unknown) => {
+                                Some(crate::PierSide::Unknown)
+                            }
+                            Err(_) => None,
+                        };
+                        let hour_angle = {
+                            let mut ts = trigger_state_for_actions.write().await;
+                            if let Some(pier) = fresh_pier {
+                                ts.update_pier_side(pier);
+                            }
+                            ts.current_hour_angle
+                        };
+                        let pier_now =
+                            fresh_pier.or(trigger_state_for_actions.read().await.pier_side);
+                        if !crate::triggers::flip_still_due(config, hour_angle, pier_now) {
+                            tracing::info!(
+                                "[MERIDIAN] Flip no longer due when its turn came (hour angle {:?}h, \
+                                 pier side {:?}); the mount is already on the post-flip side",
+                                hour_angle,
+                                pier_now
+                            );
+                            camera_claim.release().await;
+                            continue;
+                        }
+                    }
                     tracing::info!("[MERIDIAN] Trigger fired - executing meridian flip");
 
                     let (target_name, target_ra, target_dec, current_filter) = {
