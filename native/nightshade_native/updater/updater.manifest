@@ -7,10 +7,18 @@
     type="win32"
   />
   <description>Nightshade Update Applier</description>
+  <!--
+    asInvoker, not requireAdministrator. The app starts the updater with a
+    plain CreateProcess, which cannot raise a UAC prompt, so a manifest that
+    demands elevation made every apply fail to start (ERROR_ELEVATION_REQUIRED).
+    It also meant the relaunched app inherited an administrator token. The app
+    now refuses to apply into an install this user cannot write (for example
+    under Program Files) before it exits; per-user installs need no elevation.
+  -->
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
       <requestedPrivileges>
-        <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>
+        <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
       </requestedPrivileges>
     </security>
   </trustInfo>

@@ -249,12 +249,17 @@ fn run(args: &Args) -> std::result::Result<(), Failure> {
 
     // Step 1: Wait for parent process to exit.
     println!("\nWaiting for Nightshade to exit...");
-    wait_for_process_exit(args.parent_pid, Duration::from_secs(30)).with_context(|| {
-        format!(
-            "Failed waiting for parent process {} to exit",
-            args.parent_pid
-        )
-    })?;
+    // Nothing has been touched yet, and the app is still running, so there
+    // is nothing to roll back and nothing to start again.
+    if let Err(error) = wait_for_process_exit(args.parent_pid, PARENT_EXIT_TIMEOUT) {
+        return Err(Failure {
+            error: error.context(format!(
+                "Nightshade (pid {}) did not exit, so the update was not applied",
+                args.parent_pid
+            )),
+            relaunch: false,
+        });
+    }
     println!("Parent process has exited.");
 
     // Why: even after WaitForSingleObject returns, Windows may still hold file
@@ -564,47 +569,86 @@ fn persist_rollback_log(path: &Path, log: &RollbackLog) -> Result<()> {
     Ok(())
 }
 
-/// Wait for a process to exit
+/// How long the old app gets to exit after handing over to the updater. It
+/// exits right after spawning us, so this only runs out when something is
+/// holding it open.
+const PARENT_EXIT_TIMEOUT: Duration = Duration::from_secs(60);
+
+/// Wait for a process to exit, or fail once `timeout` has passed.
+///
+/// Both platforms used to treat a timeout as success, so a parent that was
+/// still running (or a wait that failed) let the swap start against files the
+/// old process still had open.
 fn wait_for_process_exit(pid: u32, timeout: Duration) -> Result<()> {
     #[cfg(windows)]
     {
-        // SAFETY: `OpenProcess` and `WaitForSingleObject` are pure Win32 syscalls with
-        // value-typed arguments (PID, access mask, timeout ms). The HANDLE returned by
-        // `OpenProcess` is a Win32 owned handle that goes out of scope at the end of
-        // this `unsafe` block; the `windows` crate's HANDLE wrapper drops/closes it.
-        // We never dereference any pointer arguments.
+        use windows::Win32::Foundation::{CloseHandle, WAIT_OBJECT_0, WAIT_TIMEOUT};
+        // SAFETY: `OpenProcess`, `WaitForSingleObject` and `CloseHandle` are
+        // Win32 calls with value-typed arguments; the handle is closed before
+        // leaving this block and is never dereferenced.
         unsafe {
-            let handle = OpenProcess(PROCESS_SYNCHRONIZE, false, pid);
-            if let Ok(handle) = handle {
-                let result = WaitForSingleObject(handle, timeout.as_millis() as u32);
-                // WAIT_OBJECT_0 = 0x00000000, WAIT_TIMEOUT = 0x00000102.
-                // Anything else likely means the process already exited; treat
-                // as success rather than spuriously failing the update.
-                if result.0 != 0 && result.0 != 0x00000102 {
-                    // intentionally permissive: see comment above
-                }
+            let handle = match OpenProcess(PROCESS_SYNCHRONIZE, false, pid) {
+                Ok(handle) => handle,
+                // No such process: it has already exited. (Access is not the
+                // reason: the updater runs as the same user as the app.)
+                Err(_) => return Ok(()),
+            };
+            let millis = u32::try_from(timeout.as_millis()).unwrap_or(u32::MAX);
+            let result = WaitForSingleObject(handle, millis);
+            let _ = CloseHandle(handle);
+            if result == WAIT_OBJECT_0 {
+                Ok(())
+            } else if result == WAIT_TIMEOUT {
+                Err(anyhow::anyhow!(
+                    "process {} was still running after {}s",
+                    pid,
+                    timeout.as_secs()
+                ))
+            } else {
+                Err(anyhow::anyhow!(
+                    "waiting for process {} failed ({:?})",
+                    pid,
+                    result
+                ))
             }
-            // If we can't open the process, it probably already exited.
         }
-        Ok(())
     }
 
     #[cfg(not(windows))]
     {
         let start = std::time::Instant::now();
         while start.elapsed() < timeout {
-            // Why: `kill -0 <pid>` is the portable "does this process exist?"
-            // check. Exits 0 if alive, non-zero if not.
-            let output = Command::new("kill").args(["-0", &pid.to_string()]).output();
-
-            if let Ok(output) = output {
-                if !output.status.success() {
-                    return Ok(());
-                }
+            if !process_is_running(pid) {
+                return Ok(());
             }
             thread::sleep(Duration::from_millis(100));
         }
-        Ok(())
+        Err(anyhow::anyhow!(
+            "process {} was still running after {}s",
+            pid,
+            timeout.as_secs()
+        ))
+    }
+}
+
+/// Whether `pid` names a live process. A zombie (exited, not yet reaped by
+/// whoever started it) counts as exited: it holds no files open, and `kill -0`
+/// would report it alive until its parent got round to reaping it.
+#[cfg(not(windows))]
+fn process_is_running(pid: u32) -> bool {
+    match fs::read_to_string(format!("/proc/{}/stat", pid)) {
+        // The state field follows the parenthesized command name.
+        Ok(stat) => match stat.rfind(')') {
+            Some(end) => !matches!(stat[end + 1..].trim_start().chars().next(), Some('Z' | 'X')),
+            None => true,
+        },
+        // No procfs entry: gone (or no procfs, e.g. macOS; fall back to kill -0).
+        Err(_) if Path::new("/proc/self/stat").exists() => false,
+        Err(_) => Command::new("kill")
+            .args(["-0", &pid.to_string()])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false),
     }
 }
 
@@ -699,17 +743,44 @@ fn apply_file(
         // Now copy the new file into place. If this fails, rollback will see
         // the moved entry and rename the .bak back over whatever (if anything)
         // we wrote.
-        fs::copy(src, dst).with_context(|| {
-            format!("Failed to copy new file into place: {:?} -> {:?}", src, dst)
-        })?;
+        copy_with_retry(src, dst).context("Failed to copy new file into place")?;
     } else {
         // New file: just copy. Track for rollback (delete on failure).
-        fs::copy(src, dst).with_context(|| {
-            format!("Failed to copy new file into place: {:?} -> {:?}", src, dst)
-        })?;
+        copy_with_retry(src, dst).context("Failed to copy new file into place")?;
         rollback_log.created.push(rel_posix.to_string());
     }
     Ok(())
+}
+
+/// Copy `from` to `to`, retrying the same transient conditions as
+/// [`rename_with_retry`]: a file the just-exited app (or an antivirus scan)
+/// still holds open refuses to be written for a moment on Windows.
+fn copy_with_retry(from: &Path, to: &Path) -> Result<()> {
+    const MAX_ATTEMPTS: u32 = 3;
+    const BACKOFF: Duration = Duration::from_millis(500);
+    for attempt in 1..=MAX_ATTEMPTS {
+        match fs::copy(from, to) {
+            Ok(_) => return Ok(()),
+            Err(e) if is_retryable_rename_error(&e) && attempt < MAX_ATTEMPTS => {
+                eprintln!(
+                    "  copy {:?} -> {:?} hit transient error ({}); retrying ({}/{})",
+                    from, to, e, attempt, MAX_ATTEMPTS
+                );
+                thread::sleep(BACKOFF);
+            }
+            Err(e) => {
+                return Err(anyhow::anyhow!(
+                    "Failed to copy {:?} -> {:?} after {} attempt{}: {}",
+                    from,
+                    to,
+                    attempt,
+                    if attempt == 1 { "" } else { "s" },
+                    e
+                ))
+            }
+        }
+    }
+    unreachable!("the last attempt always returns")
 }
 
 fn backup_path_for(dst: &Path) -> PathBuf {
@@ -748,26 +819,10 @@ fn rename_with_retry(from: &Path, to: &Path) -> Result<()> {
         }
     }
 
-    // Why: on Windows, schedule a rename-on-reboot as a last-ditch effort so
-    // the user can recover by restarting their machine, but ALSO surface the
-    // failure as a hard error here so apply rolls back. We never silently
-    // accept a locked file.
-    #[cfg(windows)]
-    {
-        if let Some(ref e) = last_err {
-            if is_sharing_violation(e) {
-                if let Err(reboot_err) = schedule_replace_on_reboot(from, to) {
-                    eprintln!(
-                        "  Could not schedule reboot-time replace for {:?}: {}",
-                        from, reboot_err
-                    );
-                } else {
-                    eprintln!("  Scheduled reboot-time replace for {:?} -> {:?}", from, to);
-                }
-            }
-        }
-    }
-
+    // No reboot-time rename is queued. This error makes the apply roll back,
+    // and a rename queued with MOVEFILE_DELAY_UNTIL_REBOOT would still run at
+    // the next boot and move the restored file out of its own name, leaving an
+    // install that no longer starts.
     Err(anyhow::anyhow!(
         "Failed to rename {:?} -> {:?} after {} attempts: {}",
         from,
@@ -808,40 +863,6 @@ fn is_retryable_rename_error(e: &std::io::Error) -> bool {
         e.kind(),
         std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::WouldBlock
     )
-}
-
-#[cfg(windows)]
-fn schedule_replace_on_reboot(from: &Path, to: &Path) -> Result<()> {
-    // MoveFileExW with MOVEFILE_DELAY_UNTIL_REBOOT queues a rename for the
-    // next OS boot. `from` here is the destination we tried to write but
-    // couldn't because it was locked; the rename order in our move-then-copy
-    // model is dst -> bak, so on reboot Windows will move the locked file
-    // out of the way. Pure best-effort — caller still rolls back.
-    use std::os::windows::ffi::OsStrExt;
-    use windows::core::PCWSTR;
-    use windows::Win32::Storage::FileSystem::{MoveFileExW, MOVEFILE_DELAY_UNTIL_REBOOT};
-
-    fn to_wide(p: &Path) -> Vec<u16> {
-        p.as_os_str()
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect()
-    }
-
-    let from_w = to_wide(from);
-    let to_w = to_wide(to);
-    // SAFETY: `MoveFileExW` is a Win32 file syscall. Both `from_w` / `to_w` are
-    // locally-owned NUL-terminated UTF-16 vectors that outlive the call; their
-    // `as_ptr()` is wrapped in PCWSTR. The third arg is a value-typed flag. No
-    // pointer ownership is transferred to the kernel.
-    unsafe {
-        MoveFileExW(
-            PCWSTR(from_w.as_ptr()),
-            PCWSTR(to_w.as_ptr()),
-            MOVEFILE_DELAY_UNTIL_REBOOT,
-        )
-        .map_err(|e| anyhow::anyhow!("MoveFileExW(DELAY_UNTIL_REBOOT) failed: {}", e))
-    }
 }
 
 /// Roll back an in-progress (or just-failed) apply by undoing the operations
@@ -1179,7 +1200,7 @@ fn restore_from_restore_point(
 /// restore point sits on another filesystem than the install.
 fn restore_file(src: &Path, dst: &Path) -> Result<()> {
     if !dst.exists() {
-        fs::copy(src, dst).with_context(|| format!("copy {:?} -> {:?}", src, dst))?;
+        copy_with_retry(src, dst)?;
         return Ok(());
     }
     let mut aside = dst.as_os_str().to_owned();
@@ -1190,7 +1211,7 @@ fn restore_file(src: &Path, dst: &Path) -> Result<()> {
             .with_context(|| format!("clear stale {:?} before restoring", aside))?;
     }
     fs::rename(dst, &aside).with_context(|| format!("move {:?} aside", dst))?;
-    if let Err(copy_err) = fs::copy(src, dst) {
+    if let Err(copy_err) = copy_with_retry(src, dst) {
         // Leave the install with the file it had rather than with no file.
         if let Err(back_err) = fs::rename(&aside, dst) {
             return Err(anyhow::anyhow!(
@@ -1803,6 +1824,137 @@ mod tests {
         let to = tmp.path().join("missing_dir/x.txt");
         let res = rename_with_retry(&from, &to);
         assert!(res.is_err(), "rename to nonexistent parent must fail");
+    }
+
+    /// A long-running process for the wait tests: `sleep` on Unix, `ping` on
+    /// Windows (which has no `sleep` and whose `timeout` needs a console).
+    fn long_running_child() -> std::process::Child {
+        #[cfg(windows)]
+        let child = Command::new("ping")
+            .args(["-n", "30", "127.0.0.1"])
+            .stdout(std::process::Stdio::null())
+            .spawn();
+        #[cfg(not(windows))]
+        let child = Command::new("sleep").arg("30").spawn();
+        child.unwrap()
+    }
+
+    /// The parent must actually be gone before the swap starts. Both
+    /// platforms used to treat a timeout as success.
+    #[test]
+    fn waiting_for_a_process_that_does_not_exit_times_out() {
+        let mut child = long_running_child();
+        let err = wait_for_process_exit(child.id(), Duration::from_millis(600))
+            .expect_err("a live process must not count as exited");
+        assert!(format!("{err}").contains("still running"), "{err}");
+        child.kill().unwrap();
+        child.wait().unwrap();
+        wait_for_process_exit(child.id(), Duration::from_secs(5)).unwrap();
+    }
+
+    /// An exited child its parent has not reaped yet is a zombie: `kill -0`
+    /// still succeeds on it, but it holds nothing open.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn an_unreaped_exited_process_counts_as_exited() {
+        let mut child = Command::new("true").spawn().unwrap();
+        let pid = child.id();
+        // Give it time to exit without reaping it.
+        thread::sleep(Duration::from_millis(300));
+        let result = wait_for_process_exit(pid, Duration::from_secs(2));
+        child.wait().unwrap();
+        result.unwrap();
+    }
+
+    /// A destination that refuses writes for a moment (Windows: still open
+    /// in the just-exited app or an antivirus scan) is retried, like rename.
+    #[cfg(unix)]
+    #[test]
+    fn copy_retries_a_destination_that_frees_up() {
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = tempdir().unwrap();
+        let src = tmp.path().join("src");
+        let dst = tmp.path().join("dst");
+        write(&src, b"new");
+        write(&dst, b"old");
+        fs::set_permissions(&dst, fs::Permissions::from_mode(0o444)).unwrap();
+        let unlock = dst.clone();
+        let t = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(300));
+            fs::set_permissions(&unlock, fs::Permissions::from_mode(0o644)).unwrap();
+        });
+        copy_with_retry(&src, &dst).unwrap();
+        t.join().unwrap();
+        assert_eq!(fs::read(&dst).unwrap(), b"new");
+    }
+
+    /// Windows only (runs in the Windows CI job): a destination opened with
+    /// no sharing refuses writes with ERROR_SHARING_VIOLATION; the copy
+    /// retries and succeeds once the handle is closed, and fails with a hard
+    /// error (so the apply rolls back) if it never is.
+    #[cfg(windows)]
+    #[test]
+    fn copy_retries_a_sharing_violation_and_then_gives_up() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let tmp = tempdir().unwrap();
+        let src = tmp.path().join("src");
+        let dst = tmp.path().join("dst");
+        write(&src, b"new");
+        write(&dst, b"old");
+
+        let held = OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&dst)
+            .unwrap();
+        let t = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(300));
+            drop(held);
+        });
+        copy_with_retry(&src, &dst).unwrap();
+        t.join().unwrap();
+        assert_eq!(fs::read(&dst).unwrap(), b"new");
+
+        let _held = OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&dst)
+            .unwrap();
+        assert!(copy_with_retry(&src, &dst).is_err());
+    }
+
+    /// Windows only (runs in the Windows CI job): renaming a file that is
+    /// open without sharing fails after the retries and leaves NO rename
+    /// queued for the next reboot. A queued MOVEFILE_DELAY_UNTIL_REBOOT used to
+    /// outlive the rollback and move the restored file aside at boot.
+    #[cfg(windows)]
+    #[test]
+    fn a_locked_rename_fails_without_queueing_a_reboot_rename() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let tmp = tempdir().unwrap();
+        let dst = tmp.path().join("nightshade_desktop.exe");
+        write(&dst, b"exe");
+        let _held = OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&dst)
+            .unwrap();
+        assert!(rename_with_retry(&dst, &backup_path_for(&dst)).is_err());
+        let pending = Command::new("reg")
+            .args([
+                "query",
+                r"HKLM\SYSTEM\CurrentControlSet\Control\Session Manager",
+                "/v",
+                "PendingFileRenameOperations",
+            ])
+            .output()
+            .unwrap();
+        let text = String::from_utf8_lossy(&pending.stdout).to_lowercase();
+        let name = tmp.path().to_string_lossy().to_lowercase();
+        assert!(
+            !text.contains(&name),
+            "a reboot-time rename was queued for {name}"
+        );
     }
 
     #[test]
