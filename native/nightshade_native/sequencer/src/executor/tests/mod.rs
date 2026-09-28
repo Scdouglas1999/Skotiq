@@ -1770,3 +1770,92 @@ async fn a_fault_the_run_recovered_from_is_not_the_reason_it_failed() {
          from; got: {reason}"
     );
 }
+
+/// A run made a failure by a meridian flip that could not be done names the
+/// flip as its cause.
+///
+/// The flip is not a node, so the tree carries on past it: here the wait under
+/// the target finishes successfully after the flip trigger reported that it
+/// could not move the mount. The run is then recorded as failed because the
+/// flip failed, and following the tree's successes alone treated the flip's
+/// complaint as survived and published "Sequence failed" with no reason.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_run_failed_by_its_meridian_flip_names_the_flip() {
+    let now = chrono::Utc::now();
+    let utc_hours = f64::from(chrono::Timelike::num_seconds_from_midnight(&now)) / 3600.0;
+    // A site where it is early afternoon, so no dawn rule is anywhere near.
+    let mut longitude = (14.0 - utc_hours) * 15.0;
+    if longitude > 180.0 {
+        longitude -= 360.0;
+    } else if longitude < -180.0 {
+        longitude += 360.0;
+    }
+    let latitude = 45.0;
+    // A target an hour past the meridian: the flip trigger fires at once.
+    let lst = crate::meridian::local_sidereal_time(crate::meridian::julian_day(&now), longitude);
+    let ra_hours = (lst - 1.0).rem_euclid(24.0);
+
+    let mut sequence = SequenceDefinition::new("Flip that cannot run".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "target".to_string(),
+        name: "Past the meridian".to_string(),
+        node_type: crate::NodeType::TargetHeader(crate::TargetHeaderConfig {
+            target_name: "Past the meridian".to_string(),
+            ra_hours,
+            dec_degrees: 40.0,
+            ..Default::default()
+        }),
+        enabled: true,
+        children: vec!["wait".to_string()],
+    });
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "wait".to_string(),
+        name: "Short wait".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 4.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("target".to_string());
+
+    let mut executor = SequenceExecutor::new();
+    // No mount: the flip trigger fires and reports it cannot flip.
+    executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
+    executor.load_sequence(sequence).expect("sequence loads");
+    let mut events = executor.subscribe();
+    executor.start().await.expect("run starts");
+    executor
+        .update_trigger_state(move |ts| ts.set_observer_location(Some(latitude), Some(longitude)))
+        .await;
+
+    for _ in 0..600 {
+        if matches!(
+            executor.get_state().await,
+            ExecutorState::Completed | ExecutorState::Failed | ExecutorState::Cancelled
+        ) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    executor.stop().await.ok();
+
+    let mut failure_reason = None;
+    let mut flip_refused = false;
+    while let Ok(event) = events.try_recv() {
+        match event {
+            ExecutorEvent::SequenceFailed { error } => failure_reason = Some(error),
+            ExecutorEvent::Error { message } if message.contains("Meridian flip trigger fired") => {
+                flip_refused = true;
+            }
+            _ => {}
+        }
+    }
+    assert!(
+        flip_refused,
+        "the flip trigger never reported that it could not flip, so this test proves nothing"
+    );
+    let reason = failure_reason.expect("a run whose flip failed must be recorded as failed");
+    assert!(
+        reason.contains("Meridian flip"),
+        "the run failed because its flip could not be done, and must say so; got: {reason}"
+    );
+}

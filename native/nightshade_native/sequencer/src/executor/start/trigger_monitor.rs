@@ -18,6 +18,7 @@ pub(super) struct TriggerMonitorArgs {
     pub is_cancelled_clone: Arc<AtomicBool>,
     pub is_paused_for_triggers: Arc<AtomicBool>,
     pub meridian_flip_failed_for_triggers: Arc<AtomicBool>,
+    pub meridian_flip_failure_for_triggers: Arc<StdRwLock<Option<String>>>,
     pub park_and_abort_done_for_triggers: watch::Sender<bool>,
     pub park_and_abort_for_triggers: Arc<AtomicBool>,
     pub progress_for_triggers: Arc<StdRwLock<SequenceProgress>>,
@@ -51,6 +52,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         is_cancelled_clone,
         is_paused_for_triggers,
         meridian_flip_failed_for_triggers,
+        meridian_flip_failure_for_triggers,
         park_and_abort_done_for_triggers,
         park_and_abort_for_triggers,
         progress_for_triggers,
@@ -1727,6 +1729,17 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                                 // `recovery_gave_up` coerces the
                                 // result to Failure).
                                 meridian_flip_failed_for_triggers.store(true, Ordering::Release);
+                                meridian_flip_failure_for_triggers
+                                    .write()
+                                    .get_or_insert_with(|| {
+                                        format!(
+                                            "Meridian flip for '{}' failed after {} attempt{}: {}",
+                                            target_name,
+                                            flip_attempts,
+                                            if flip_attempts == 1 { "" } else { "s" },
+                                            error
+                                        )
+                                    });
 
                                 match action_taken {
                                     crate::FlipFailureAction::PauseAndAlert => {
@@ -1869,6 +1882,9 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                         );
                         tracing::error!("[MERIDIAN] {}", message);
                         meridian_flip_failed_for_triggers.store(true, Ordering::Release);
+                        meridian_flip_failure_for_triggers
+                            .write()
+                            .get_or_insert_with(|| message.clone());
                         let _ = event_tx_clone2.send(ExecutorEvent::Error { message });
                         // No flip ran, so nothing used the
                         // camera: hand the claim straight back
