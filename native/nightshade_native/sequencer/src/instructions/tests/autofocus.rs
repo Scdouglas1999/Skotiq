@@ -434,9 +434,10 @@ async fn a_guiderless_sweep_is_not_retried_across_attempts() {
 /// budget's end, both passed. Every attempt takes its own frames, so the
 /// exposure count is a count of sweeps.
 #[tokio::test(start_paused = true)]
-#[allow(clippy::await_holding_lock)]
 async fn a_cleanly_failing_sweep_is_retried_exactly_up_to_the_budget() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    // No AF_GATE_TEST_LOCK: `execute_autofocus_attempts` never takes the
+    // admission gate, and holding the lock for this test's ~10 s pushed the
+    // gate tests into overlap with other suites' autofocus runs.
     let mut exposures = Vec::new();
     for attempts in [1_u32, 3] {
         let ops = Arc::new(ScriptedDomeRotatorOps::new());
