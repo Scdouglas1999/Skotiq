@@ -192,9 +192,18 @@ Future<void> _hydrateDeviceTelemetry(
   if (!_isCurrentRemoteBackend(reader, backend)) return;
 
   // Single apply pass — no intervening clear, so cards never blank.
+  //
+  // The status fetches ran in parallel with the live event mirror. A device
+  // the host disconnected meanwhile has had its notifier reset (deviceId
+  // cleared), and a status read before that is no evidence of its state now,
+  // so each device's apply is skipped when its card no longer holds the id it
+  // was fetched for. Without that a camera disconnected mid-exposure came
+  // back as a disconnected card still exposing and cooling, and a focuser as
+  // connected.
   final camera = cameraStatus;
-  if (camera != null) {
-    final notifier = _read(reader, cameraStateProvider.notifier);
+  final cameraNotifier = _read(reader, cameraStateProvider.notifier);
+  if (camera != null && cameraNotifier.deviceId == cameraId) {
+    final notifier = cameraNotifier;
     final temp = camera.sensorTemp;
     if (temp != null) {
       // `updateTemperature`'s power argument is null-aware
@@ -220,8 +229,9 @@ Future<void> _hydrateDeviceTelemetry(
   }
 
   final mount = mountStatus;
-  if (mount != null) {
-    final notifier = _read(reader, mountStateProvider.notifier);
+  final mountNotifier = _read(reader, mountStateProvider.notifier);
+  if (mount != null && mountNotifier.deviceId == mountId) {
+    final notifier = mountNotifier;
     notifier.updatePosition(
       mount.rightAscension,
       mount.declination,
@@ -234,10 +244,6 @@ Future<void> _hydrateDeviceTelemetry(
     notifier.setTrackingRate(mount.trackingRate);
   }
 
-  // The status fetches ran in parallel with the live event mirror. A device
-  // the host disconnected meanwhile has had its notifier reset (deviceId
-  // cleared), and a status read before that is no evidence it is connected
-  // now, so the calls below that set `connected` are skipped for it.
   final focuser = focuserStatus;
   final focuserNotifier = _read(reader, focuserStateProvider.notifier);
   if (focuser != null && focuserNotifier.deviceId == focuserId) {
@@ -276,8 +282,9 @@ Future<void> _hydrateDeviceTelemetry(
   }
 
   final rotator = rotatorStatus;
-  if (rotator != null) {
-    final notifier = _read(reader, rotatorStateProvider.notifier);
+  final rotatorNotifier = _read(reader, rotatorStateProvider.notifier);
+  if (rotator != null && rotatorNotifier.deviceId == rotatorId) {
+    final notifier = rotatorNotifier;
     notifier.updatePosition(
       rotator.position,
       mechanicalPosition: rotator.mechanicalPosition,

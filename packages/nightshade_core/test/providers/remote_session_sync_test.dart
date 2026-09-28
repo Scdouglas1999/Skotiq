@@ -602,6 +602,172 @@ void main() {
       },
     );
 
+    // The camera and mount cards take the same late apply. A camera the host
+    // disconnected mid-exposure must not come back on the phone as a
+    // disconnected card that is still exposing and cooling, and a mount must
+    // not keep the tracking state of a session that has ended.
+    test(
+      'a camera and mount disconnected during hydration keep no stale state',
+      () async {
+        final backend = _MockNetworkBackend();
+        final events = StreamController<NightshadeEvent>.broadcast();
+        addTearDown(events.close);
+        final cameraStatus = Completer<CameraStatus>();
+        final mountStatus = Completer<MountStatus>();
+
+        when(() => backend.sequencerGetStatus()).thenAnswer(
+          (_) async => const SequencerStatus(state: 'Idle', progress: 0),
+        );
+        when(() => backend.getConnectedDevices()).thenAnswer(
+          (_) async => const [
+            DeviceInfo(
+              id: 'native:zwo_asi2600',
+              name: 'ZWO ASI2600MM',
+              deviceType: DeviceType.camera,
+              driverType: DriverType.native,
+              description: '',
+              driverVersion: '1.0',
+            ),
+            DeviceInfo(
+              id: 'native:am5',
+              name: 'ZWO AM5',
+              deviceType: DeviceType.mount,
+              driverType: DriverType.native,
+              description: '',
+              driverVersion: '1.0',
+            ),
+          ],
+        );
+        when(
+          () => backend.getCameraStatus('native:zwo_asi2600'),
+        ).thenAnswer((_) => cameraStatus.future);
+        when(
+          () => backend.getMountStatus('native:am5'),
+        ).thenAnswer((_) => mountStatus.future);
+        when(
+          () => backend.getOpenEditorSequence(),
+        ).thenAnswer((_) async => null);
+        when(() => backend.phd2GetStatus()).thenAnswer(
+          (_) async => const Phd2Status(
+            state: 'Stopped',
+            connected: false,
+            rmsRa: 0,
+            rmsDec: 0,
+            rmsTotal: 0,
+            snr: 0,
+            starMass: 0,
+            avgDistance: 0,
+          ),
+        );
+        when(() => backend.eventStream).thenAnswer((_) => events.stream);
+        when(
+          () => backend.connectionState,
+        ).thenReturn(BackendConnectionState.connected);
+        _stubHydrationParityEndpoints(backend);
+
+        final container = ProviderContainer(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            backendProvider.overrideWith(
+              (ref) => _FixedBackendNotifier(ref, backend),
+            ),
+            loggingServiceProvider.overrideWithValue(LoggingService()),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        container.read(remoteSessionSyncProvider);
+        await pumpEventQueue();
+        verify(() => backend.getCameraStatus('native:zwo_asi2600')).called(1);
+        verify(() => backend.getMountStatus('native:am5')).called(1);
+
+        for (final (type, id) in [
+          ('camera', 'native:zwo_asi2600'),
+          ('mount', 'native:am5'),
+        ]) {
+          events.add(
+            NightshadeEvent(
+              timestamp: DateTime.now().millisecondsSinceEpoch,
+              severity: EventSeverity.info,
+              category: EventCategory.equipment,
+              eventType: 'Disconnected',
+              data: {'device_type': type, 'device_id': id},
+            ),
+          );
+        }
+        await pumpEventQueue();
+        expect(
+          container.read(cameraStateProvider).connectionState,
+          DeviceConnectionState.disconnected,
+        );
+        expect(
+          container.read(mountStateProvider).connectionState,
+          DeviceConnectionState.disconnected,
+        );
+
+        cameraStatus.complete(
+          const CameraStatus(
+            connected: true,
+            state: CameraState.exposing,
+            sensorTemp: -10,
+            coolerPower: 40,
+            targetTemp: -10,
+            coolerOn: true,
+            gain: 100,
+            offset: 50,
+            binX: 1,
+            binY: 1,
+            sensorWidth: 6248,
+            sensorHeight: 4176,
+            pixelSizeX: 3.76,
+            pixelSizeY: 3.76,
+            maxAdu: 65535,
+            canCool: true,
+            canSetGain: true,
+            canSetOffset: true,
+          ),
+        );
+        mountStatus.complete(
+          const MountStatus(
+            connected: true,
+            rightAscension: 0.71,
+            declination: 41.27,
+            altitude: 60,
+            azimuth: 45,
+            tracking: true,
+            slewing: false,
+            parked: false,
+            atHome: false,
+            sideOfPier: PierSide.east,
+            trackingRate: TrackingRate.sidereal,
+            canPark: true,
+            canSlew: true,
+            canSync: true,
+            canPulseGuide: true,
+            canSetTrackingRate: true,
+          ),
+        );
+        await pumpEventQueue();
+
+        final camera = container.read(cameraStateProvider);
+        expect(
+          camera.isExposing,
+          isFalse,
+          reason: 'a disconnected camera card claimed an exposure in progress',
+        );
+        expect(
+          camera.isCooling,
+          isFalse,
+          reason: 'a disconnected camera card claimed its cooler was on',
+        );
+        expect(
+          container.read(mountStateProvider).isTracking,
+          isFalse,
+          reason: 'a disconnected mount card claimed it was tracking',
+        );
+      },
+    );
+
     // While the host's sequence runs, the slave's mirrored
     // sequenceExecutionState locks the editor — the open-editor mirror apply
     // must SKIP rather than throw SequenceLockedException out of hydration
