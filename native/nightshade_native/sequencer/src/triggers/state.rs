@@ -642,6 +642,15 @@ impl TriggerState {
 
     /// Set target coordinates for drift detection
     pub fn set_target(&mut self, ra_degrees: f64, dec_degrees: f64) {
+        // A plate solve of the previous target says nothing about drift on
+        // this one: measured against the new coordinates it read as degrees of
+        // "drift" and fired a DriftLimit recenter the moment a target started,
+        // before its own slew or Center node had run.
+        if self.target_ra != Some(ra_degrees) || self.target_dec != Some(dec_degrees) {
+            self.last_plate_solve_ra = None;
+            self.last_plate_solve_dec = None;
+            self.last_plate_solve_pixel_scale = None;
+        }
         self.target_ra = Some(ra_degrees);
         self.target_dec = Some(dec_degrees);
     }

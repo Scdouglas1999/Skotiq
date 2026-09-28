@@ -1285,3 +1285,28 @@ async fn test_tracking_limit_reset_on_tracking_resume() {
     assert!(state.tracking_limit_detected_at.is_none());
     assert!(!state.mount_tracking_lost);
 }
+
+/// Found by the simulator soak: at the second target's start the DriftLimit
+/// trigger compared the FIRST target's last plate solve with the new target's
+/// coordinates, read degrees of "drift" and queued a recenter before the new
+/// target's own Center node had run.
+#[tokio::test]
+async fn a_new_target_does_not_inherit_the_previous_targets_plate_solve() {
+    let mut trigger = Trigger::new(
+        "drift_limit",
+        "Plate-Solve Drift Limit",
+        TriggerType::DriftLimit { max_pixels: 30.0 },
+        RecoveryAction::Recenter,
+    );
+    let mut state = TriggerState::new();
+    state.set_target(10.0, 20.0);
+    state.update_plate_solve(10.0001, 20.0001, 1.0);
+    assert!(!trigger.check(&state).await, "on target, no drift");
+
+    state.set_target(150.0, -30.0);
+    assert!(state.calculate_drift_pixels().is_none());
+    assert!(
+        !trigger.check(&state).await,
+        "the previous target's solve fired a recenter on the new target"
+    );
+}
