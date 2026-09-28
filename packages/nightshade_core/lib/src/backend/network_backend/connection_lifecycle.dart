@@ -238,6 +238,10 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
       return;
     }
 
+    // Set once the upgrade carries a freshly minted one-shot ticket. The
+    // mint is itself an authenticated request, so its success proves the
+    // bearer was accepted moments ago; see the refusal handling below.
+    var upgradeUsedTicket = false;
     try {
       _stopWebSocketHeartbeat();
       // Distinguish "first-time connect" from "reconnecting after
@@ -282,6 +286,7 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
         }
         if (wsTicket != null) {
           queryParameters['ticket'] = wsTicket;
+          upgradeUsedTicket = true;
         } else {
           queryParameters['token'] = authToken!;
         }
@@ -499,7 +504,14 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
       // the normal backoff path: the lockout is transient and the next
       // attempt's ticket mint will see the underlying 403 once it
       // clears, which is what latches the terminal state.)
-      if (_authRejected || _isAuthUpgradeRejection(e)) {
+      //
+      // A refusal of a TICKET upgrade is not evidence against the bearer:
+      // the mint that produced the ticket just succeeded with it. The host
+      // answers 401 "Invalid or expired WebSocket ticket" when it restarted
+      // between mint and upgrade (tickets live in memory) or the upgrade
+      // outlived the ticket. Back off and re-mint; if the bearer really was
+      // revoked in between, the next mint's 403 latches.
+      if (_authRejected || (!upgradeUsedTicket && _isAuthUpgradeRejection(e))) {
         _latchAuthRejection('WebSocket upgrade refused: $e');
         _enterAuthRejectedState();
         return;
@@ -510,6 +522,18 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
         level: 1000,
         error: e,
       );
+      // An upgrade we stopped waiting for can still complete. Left attached,
+      // it fed events in while the backend said disconnected, stayed open on
+      // the host next to the connection that replaced it, and its eventual
+      // close reported the live connection as dropped.
+      final abandoned = _wsChannel;
+      _wsChannel = null;
+      unawaited(_wsSubscription?.cancel());
+      _wsSubscription = null;
+      if (abandoned != null) {
+        unawaited(abandoned.sink.done.catchError((Object _) {}));
+        unawaited(abandoned.sink.close());
+      }
       _handleConnectionFailure();
     }
   }

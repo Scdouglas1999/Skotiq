@@ -62,11 +62,19 @@ impl NativeMount for Lx200Mount {
 
         tracing::info!("Syncing to RA={:.4}h, Dec={:.4}°", ra_hours, dec_degrees);
 
+        // `:CM#` syncs to whatever target the mount holds. If it refused the
+        // new one, that is the previous goto's, so syncing anyway moves the
+        // mount's idea of where it points to the wrong place and says it
+        // worked.
         let ra_cmd = format!("{}{}#", commands::SET_TARGET_RA, format_ra(ra_hours));
-        self.send_command_bool(&ra_cmd)?;
+        if !self.send_command_bool(&ra_cmd)? {
+            return Err(NativeError::SdkError("Mount refused the sync RA".into()));
+        }
 
         let dec_cmd = format!("{}{}#", commands::SET_TARGET_DEC, format_dec(dec_degrees));
-        self.send_command_bool(&dec_cmd)?;
+        if !self.send_command_bool(&dec_cmd)? {
+            return Err(NativeError::SdkError("Mount refused the sync Dec".into()));
+        }
 
         let _ = self.send_command(commands::SYNC)?;
 
@@ -147,7 +155,21 @@ impl NativeMount for Lx200Mount {
             }
         }
 
-        Ok(*self.is_slewing.lock().unwrap_or_else(|e| e.into_inner()))
+        // Every other LX200 flavour: ask the distance bar while a goto is
+        // latched. Without it the latch was only ever cleared by an abort, so
+        // a Meade, Losmandy or 10Micron mount read as slewing forever after its
+        // first goto and every sequencer slew waited out its limit and failed.
+        // A mount that does not answer keeps the latched value, as before.
+        let latched = *self.is_slewing.lock().unwrap_or_else(|e| e.into_inner());
+        if latched && !self.mount_type.is_onstep() {
+            if let Ok(bars) = self.send_command(commands::DISTANCE_BARS) {
+                let is_slewing = !bars.trim().is_empty();
+                *self.is_slewing.lock().unwrap_or_else(|e| e.into_inner()) = is_slewing;
+                return Ok(is_slewing);
+            }
+        }
+
+        Ok(latched)
     }
 
     async fn is_parked(&self) -> Result<bool, NativeError> {

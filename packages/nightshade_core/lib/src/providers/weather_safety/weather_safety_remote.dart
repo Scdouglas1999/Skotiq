@@ -14,9 +14,20 @@ extension _WeatherSafetyRemote on WeatherSafetyNotifier {
   Future<void> _refreshRemoteStatus() async {
     if (_remoteFetchInFlight || !mounted) return;
     final backend = _ref.read(backendProvider);
-    // isAuthTokenRejected: terminal credentials — polling can only 403 and
-    // writes a fail-mode warning into state every 10 s for nothing.
-    if (backend is! NetworkBackend || backend.isAuthTokenRejected) return;
+    if (backend is! NetworkBackend) return;
+    // isAuthTokenRejected: terminal credentials — polling can only 403, so
+    // don't. But the last verdict fetched is no longer known to hold, and
+    // leaving it on show would keep a stale "Safe" on the card all night.
+    // Replace it once with the same unavailable state a failed poll writes.
+    if (backend.isAuthTokenRejected) {
+      if (state.failModeWarning != _authRejectedSafetyWarning) {
+        state = WeatherSafetyState.initial().copyWith(
+          failModeWarning: _authRejectedSafetyWarning,
+          lastEvaluation: DateTime.now(),
+        );
+      }
+      return;
+    }
     _remoteFetchInFlight = true;
     try {
       final response = await backend.getSafetyStatus();
@@ -114,6 +125,10 @@ extension _WeatherSafetyRemote on WeatherSafetyNotifier {
     }
   }
 }
+
+const _authRejectedSafetyWarning =
+    'Imaging host safety status unavailable: the host rejected this '
+    "device's access token";
 
 /// Pre-parity hosts do not send the per-source reading, so fall back to the
 /// boolean they do send.

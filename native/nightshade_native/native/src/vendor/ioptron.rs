@@ -264,24 +264,27 @@ fn parse_dec(response: &str) -> Result<f64, NativeError> {
     Ok(sign * (degrees + arcmin / 60.0 + arcsec / 3600.0))
 }
 
+// Both goto formatters round at the hundredth they print and THEN split:
+// splitting first and rounding the hundredths carried 59.996 s up to "6000"
+// (sixty seconds), which the mount refuses as a target.
+
 fn format_ra(ra_hours: f64) -> String {
-    let hours = ra_hours.floor() as u32;
-    let remaining = (ra_hours - hours as f64) * 60.0;
-    let minutes = remaining.floor() as u32;
-    let seconds = (remaining - minutes as f64) * 60.0;
-    let centisecs = (seconds * 100.0).round() as u32;
+    const CENTISECS_PER_HOUR: i64 = 360_000;
+    let total =
+        ((ra_hours * CENTISECS_PER_HOUR as f64).round() as i64).rem_euclid(24 * CENTISECS_PER_HOUR);
+    let hours = total / CENTISECS_PER_HOUR;
+    let minutes = (total % CENTISECS_PER_HOUR) / 6000;
+    let centisecs = total % 6000;
 
     format!("{:02}{:02}{:04}", hours, minutes, centisecs)
 }
 
 fn format_dec(dec_degrees: f64) -> String {
     let sign = if dec_degrees < 0.0 { "-" } else { "+" };
-    let dec_abs = dec_degrees.abs();
-    let degrees = dec_abs.floor() as u32;
-    let remaining = (dec_abs - degrees as f64) * 60.0;
-    let arcmin = remaining.floor() as u32;
-    let arcsec = (remaining - arcmin as f64) * 60.0;
-    let centiarcsec = (arcsec * 100.0).round() as u32;
+    let total = (dec_degrees.abs() * 360_000.0).round() as i64;
+    let degrees = total / 360_000;
+    let arcmin = (total % 360_000) / 6000;
+    let centiarcsec = total % 6000;
 
     format!("{}{:02}{:02}{:04}", sign, degrees, arcmin, centiarcsec)
 }
@@ -942,6 +945,18 @@ pub fn is_available() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn goto_targets_never_emit_sixty_seconds() {
+        // 0.004 s short of 01:00:00; splitting first and rounding the
+        // hundredths printed 00:59:60.00, which the mount refuses.
+        assert_eq!(format_ra(1.0 - 0.004 / 3600.0), "01000000");
+        assert_eq!(format_ra(24.0 - 0.004 / 3600.0), "00000000");
+        assert_eq!(format_dec(10.0 - 0.004 / 3600.0), "+10000000");
+        assert_eq!(format_dec(-(10.0 - 0.004 / 3600.0)), "-10000000");
+        assert_eq!(format_ra(5.5), "05300000");
+        assert_eq!(format_dec(-33.869722), "-33521100");
+    }
 
     #[test]
     fn parse_guide_rate_accepts_documented_range() {

@@ -296,6 +296,59 @@ void main() {
       },
     );
 
+    test('a session of several runs takes the cause from the earliest failure '
+        'and the reject folder from the latest run, in time order', () async {
+      final sessionStart = DateTime.utc(2026, 9, 14, 20);
+      final sessionId = await insertSession(
+        name: 'Two runs',
+        targetId: null,
+        startTime: sessionStart,
+        endTime: DateTime.utc(2026, 9, 15, 2),
+        status: 'failed',
+      );
+      Future<void> insertRun(
+        DateTime startedAt,
+        String cause,
+        String folder,
+      ) async {
+        await db
+            .into(db.sequenceRuns)
+            .insert(
+              SequenceRunsCompanion.insert(
+                sequenceName: 'Night',
+                startedAt: startedAt,
+                endedAt: Value(startedAt.add(const Duration(hours: 1))),
+                status: const Value('failed'),
+                statsJson: Value(
+                  '{"errorMessages":["$cause"],'
+                  '"terminalCause":"$cause","rejectFolder":"$folder"}',
+                ),
+              ),
+            );
+      }
+
+      // Inserted in time order; the DAO hands them back newest first.
+      await insertRun(DateTime.utc(2026, 9, 14, 20, 10), 'A cause', '/a');
+      await insertRun(DateTime.utc(2026, 9, 14, 23), 'B cause', '/b');
+
+      final report = await service.buildReport(sessionId);
+      expect(
+        report.terminalCause,
+        'A cause',
+        reason: 'the earliest failure explains the session',
+      );
+      expect(
+        report.rejectFolder,
+        '/b',
+        reason: 'the folder the most recent reject landed in',
+      );
+      expect(
+        report.errorMessages,
+        ['A cause', 'B cause'],
+        reason: 'the error list reads in the order things happened',
+      );
+    });
+
     test('renderMarkdown emits headings and per-filter rows', () async {
       final targetId = await createTarget('Heart');
       final sessionId = await insertSession(

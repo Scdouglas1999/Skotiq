@@ -557,6 +557,10 @@ class SessionReportService {
   /// session end). This handles both the common case (one run per session)
   /// and the edge case where a session was opened around a chained
   /// sequencer execution.
+  ///
+  /// Returned oldest first. Both sources hand runs back newest first, and the
+  /// callers read this list in time order: the earliest failure is the cause,
+  /// the latest reject folder wins, and the error list reads as it happened.
   Future<List<SequenceRun>> _findRelatedSequenceRuns(
     ImagingSession session,
   ) async {
@@ -569,17 +573,15 @@ class SessionReportService {
         : await _sequenceRunsDao.getAllRuns();
     final start = session.startTime;
     final end = session.endTime ?? DateTime.now();
-    return allRuns
-        .where((r) {
-          final startedIn =
-              !r.startedAt.isBefore(start) && !r.startedAt.isAfter(end);
-          final endedIn =
-              r.endedAt != null &&
-              !r.endedAt!.isBefore(start) &&
-              !r.endedAt!.isAfter(end);
-          return startedIn || endedIn;
-        })
-        .toList(growable: false);
+    return allRuns.where((r) {
+      final startedIn =
+          !r.startedAt.isBefore(start) && !r.startedAt.isAfter(end);
+      final endedIn =
+          r.endedAt != null &&
+          !r.endedAt!.isBefore(start) &&
+          !r.endedAt!.isAfter(end);
+      return startedIn || endedIn;
+    }).toList()..sort((a, b) => a.startedAt.compareTo(b.startedAt));
   }
 
   Map<String, dynamic>? _tryDecodeStats(String raw) {

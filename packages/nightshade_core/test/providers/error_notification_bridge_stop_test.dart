@@ -28,6 +28,9 @@ class _FixedBackendNotifier extends BackendNotifier {
   _FixedBackendNotifier(super.ref, NightshadeBackend backend) : super() {
     state = backend;
   }
+
+  /// What connecting to a remote host does: the app's backend is replaced.
+  void swapTo(NightshadeBackend backend) => state = backend;
 }
 
 /// The exact event the native executor's cancelled arm produces.
@@ -204,6 +207,7 @@ void main() {
       final (container, controller) = await _bridge();
       addTearDown(container.dispose);
       addTearDown(controller.close);
+      container.read(deviceServiceProvider);
 
       controller.add(
         equipment('Error', 'Device not responding', EventSeverity.error),
@@ -213,12 +217,77 @@ void main() {
       );
       await pumpEventQueue();
 
+      final shown = container.read(uiNotificationProvider);
       expect(
-        container.read(uiNotificationProvider),
-        isEmpty,
+        shown.where((n) => n.message.contains('Device not responding')).length,
+        1,
         reason:
             'DeviceService._handleDeviceError surfaces these via errorService '
             'with its own dedupe; the bridge must not double-toast them',
+      );
+      expect(
+        shown.where((n) => n.message.contains('Device vanished')).length,
+        1,
+      );
+    },
+  );
+
+  // The suppression above is only right while a DeviceService is listening
+  // to the same backend. It is created lazily, by the first thing that reads
+  // it, so a phone that only watches a remote host may never have one, and a
+  // backend swap leaves the old one subscribed to the old backend.
+  test('an equipment Error still reaches the operator when no DeviceService '
+      'is listening', () async {
+    final (container, controller) = await _bridge();
+    addTearDown(container.dispose);
+    addTearDown(controller.close);
+
+    controller.add(
+      equipment(
+        'Error',
+        'Device unresponsive after 3 heartbeat failures',
+        EventSeverity.error,
+      ),
+    );
+    await pumpEventQueue();
+
+    expect(
+      container.read(uiNotificationProvider).map((n) => n.message),
+      contains('Device unresponsive after 3 heartbeat failures'),
+      reason: 'the mount dropped and nothing told the operator',
+    );
+  });
+
+  test(
+    'an equipment Error from a swapped-in backend still reaches the operator',
+    () async {
+      final (container, controller) = await _bridge();
+      addTearDown(container.dispose);
+      addTearDown(controller.close);
+      // The app used a device before connecting to the remote host.
+      container.read(deviceServiceProvider);
+
+      final remote = _MockFfiBackend();
+      final remoteEvents = StreamController<NightshadeEvent>.broadcast();
+      addTearDown(remoteEvents.close);
+      when(() => remote.eventStream).thenAnswer((_) => remoteEvents.stream);
+      (container.read(backendProvider.notifier) as _FixedBackendNotifier)
+          .swapTo(remote);
+      container.read(errorNotificationBridgeProvider);
+      await pumpEventQueue();
+
+      remoteEvents.add(
+        equipment(
+          'Error',
+          'Device unresponsive after 3 heartbeat failures',
+          EventSeverity.error,
+        ),
+      );
+      await pumpEventQueue();
+
+      expect(
+        container.read(uiNotificationProvider).map((n) => n.message),
+        contains(contains('Device unresponsive after 3 heartbeat failures')),
       );
     },
   );

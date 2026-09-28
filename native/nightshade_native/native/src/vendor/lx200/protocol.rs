@@ -29,6 +29,10 @@ pub(crate) mod commands {
 
     pub const SLEW_TO_TARGET: &str = ":MS#";
     pub const STOP_SLEW: &str = ":Q#";
+    /// Distance bar: one bar character while a goto is in progress, an empty
+    /// string once it has finished. The standard LX200 slew-complete query,
+    /// answered by Meade, Losmandy Gemini and 10Micron firmware.
+    pub const DISTANCE_BARS: &str = ":D#";
 
     pub const SYNC: &str = ":CM#";
 
@@ -302,22 +306,26 @@ pub(crate) fn parse_dec(response: &str) -> Result<f64, NativeError> {
     Err(NativeError::SdkError(format!("Invalid Dec format: {}", s)))
 }
 
+// Both goto formatters round at the resolution they print and THEN split, as
+// `format_dms` does: splitting first and rounding the seconds carried 59.6 s up
+// to "60" for about one target in sixty per axis, and firmware that validates
+// the field refuses the target.
+
 pub(crate) fn format_ra(ra_hours: f64) -> String {
-    let hours = ra_hours.floor() as u32;
-    let remaining = (ra_hours - hours as f64) * 60.0;
-    let minutes = remaining.floor() as u32;
-    let seconds = ((remaining - minutes as f64) * 60.0).round() as u32;
+    let total_seconds = ((ra_hours * 3600.0).round() as i64).rem_euclid(24 * 3600);
+    let hours = total_seconds / 3600;
+    let minutes = (total_seconds % 3600) / 60;
+    let seconds = total_seconds % 60;
 
     format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
 }
 
 pub(crate) fn format_dec(dec_degrees: f64) -> String {
     let sign = if dec_degrees < 0.0 { "-" } else { "+" };
-    let dec_abs = dec_degrees.abs();
-    let degrees = dec_abs.floor() as u32;
-    let remaining = (dec_abs - degrees as f64) * 60.0;
-    let arcmin = remaining.floor() as u32;
-    let arcsec = ((remaining - arcmin as f64) * 60.0).round() as u32;
+    let total_arcsec = (dec_degrees.abs() * 3600.0).round() as i64;
+    let degrees = total_arcsec / 3600;
+    let arcmin = (total_arcsec % 3600) / 60;
+    let arcsec = total_arcsec % 60;
 
     format!("{}{}*{:02}:{:02}", sign, degrees, arcmin, arcsec)
 }
@@ -950,6 +958,18 @@ mod site_tests {
         assert_eq!(text, "+41*00", "got {}", text);
         let text = format_dms(-40.99999, 2, false);
         assert_eq!(text, "-41*00", "got {}", text);
+    }
+
+    #[test]
+    fn goto_targets_never_emit_sixty_seconds() {
+        // 0.1 s short of 01:00:00; splitting first and rounding the seconds
+        // printed 00:59:60, which firmware that validates the field refuses.
+        assert_eq!(format_ra(1.0 - 0.1 / 3600.0), "01:00:00");
+        assert_eq!(format_ra(24.0 - 0.1 / 3600.0), "00:00:00");
+        assert_eq!(format_dec(10.0 - 0.1 / 3600.0), "+10*00:00");
+        assert_eq!(format_dec(-(10.0 - 0.1 / 3600.0)), "-10*00:00");
+        assert_eq!(format_ra(5.5), "05:30:00");
+        assert_eq!(format_dec(-33.869722), "-33*52:11");
     }
 
     #[test]

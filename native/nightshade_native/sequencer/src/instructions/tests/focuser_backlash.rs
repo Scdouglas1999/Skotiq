@@ -71,6 +71,10 @@ struct GearState {
     /// Every position the focuser was commanded to, in order, so a test can
     /// check HOW it was approached and not merely where it ended up.
     commands: Vec<i32>,
+    /// `(commanded, takeup)` at every exposure, in order.
+    exposures: Vec<(i32, i32)>,
+    /// Exposures after this many come back starless, as under cloud.
+    clouded_after: Option<usize>,
 }
 
 impl BacklashFocuserOps {
@@ -83,6 +87,8 @@ impl BacklashFocuserOps {
                 // either way, and the routine must not depend on it.
                 takeup: backlash / 2,
                 commands: Vec::new(),
+                exposures: Vec::new(),
+                clouded_after: None,
             })),
             backlash,
         }
@@ -131,12 +137,18 @@ impl DeviceOps for BacklashFocuserOps {
         _bin_x: i32,
         _bin_y: i32,
     ) -> DeviceResult<ImageData> {
-        let optical_position = {
-            let state = self.state.lock().await;
-            state.commanded + state.takeup
+        let (optical_position, clouded) = {
+            let mut state = self.state.lock().await;
+            let sample = (state.commanded, state.takeup);
+            state.exposures.push(sample);
+            let clouded = state
+                .clouded_after
+                .is_some_and(|after| state.exposures.len() > after);
+            (state.commanded + state.takeup, clouded)
         };
         Ok(render_star_field(
             optical_position,
+            !clouded,
             duration_secs,
             gain,
             offset,
@@ -374,6 +386,7 @@ impl DeviceOps for BacklashFocuserOps {
 /// A frame as the simulated optics would see it from `optical_position`.
 fn render_star_field(
     optical_position: i32,
+    stars: bool,
     duration_secs: f64,
     gain: Option<i32>,
     offset: Option<i32>,
@@ -396,7 +409,7 @@ fn render_star_field(
             seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
             let uniform = f64::from(seed >> 8) / f64::from(1u32 << 24) - 0.5;
             let mut value = BACKGROUND_ADU + uniform * NOISE_SIGMA_ADU * 3.464;
-            for &(cx, cy) in STAR_POSITIONS_PX {
+            for &(cx, cy) in STAR_POSITIONS_PX.iter().filter(|_| stars) {
                 let dx = x as f64 - cx;
                 let dy = y as f64 - cy;
                 value += peak * (-(dx * dx + dy * dy) / two_sigma_squared).exp();
@@ -888,4 +901,168 @@ async fn a_focuser_with_no_backlash_reports_no_measurable_backlash() {
         }
         other => panic!("expected no measurable backlash, got {:?}", other),
     }
+}
+
+/// An autofocus sized for the simulated optics: a sweep of +/-180 steps, where
+/// the PSF is still well measured, and nothing that waits on real time.
+fn autofocus_test_config() -> AutofocusConfig {
+    AutofocusConfig {
+        step_size: 60,
+        steps_out: 3,
+        exposure_duration: 0.01,
+        min_star_count: 4,
+        outer_crop_ratio: 0.95,
+        focuser_settle_time_ms: 0,
+        ..AutofocusConfig::default()
+    }
+}
+
+/// A failed autofocus promises to put the focuser back where it found it, and
+/// a trigger-fired one keeps imaging on that promise. With backlash, "where it
+/// found it" is the optical position, not the commanded number: an origin
+/// last reached moving up (as every successful autofocus now lands) and then
+/// returned to moving down sits a full dead band away.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_failed_autofocus_puts_the_optics_back_where_it_found_them() {
+    let ops = Arc::new(BacklashFocuserOps::new(
+        SIMULATED_BACKLASH,
+        STARTING_POSITION,
+    ));
+    let state = ops.state();
+    // Arrived at the origin moving up, as the last successful run landed.
+    state.lock().await.takeup = 0;
+    let ctx = calibration_context(ops.clone()).await;
+
+    let config = AutofocusConfig {
+        // No real curve reaches R² = 1, so the run fails after the sweep,
+        // with the focuser at the top of it.
+        r_squared_threshold: 1.0,
+        ..autofocus_test_config()
+    };
+    let result = execute_autofocus_once(
+        &config,
+        &ctx,
+        None,
+        &crate::node::context::PauseGate::default(),
+    )
+    .await;
+
+    assert_eq!(result.status, NodeStatus::Failure, "{:?}", result.message);
+    assert_eq!(
+        result
+            .data
+            .as_ref()
+            .and_then(|data| data.get("autofocus_origin_restored"))
+            .and_then(|value| value.as_bool()),
+        Some(true)
+    );
+    let state = state.lock().await;
+    assert_eq!(state.commanded, STARTING_POSITION);
+    assert_eq!(
+        state.commanded + state.takeup,
+        STARTING_POSITION,
+        "the focuser reports its origin but the optics are {} steps away from it",
+        state.takeup
+    );
+}
+
+/// The landing is from below because every sweep point is measured moving up;
+/// that is only true if the first points are, too. A dead band wider than one
+/// sweep step swallows the first upward moves whole unless the approach to the
+/// sweep start already took it up.
+#[tokio::test(flavor = "multi_thread")]
+async fn every_autofocus_sample_is_taken_with_the_dead_band_taken_up() {
+    let ops = Arc::new(BacklashFocuserOps::new(
+        SIMULATED_BACKLASH,
+        STARTING_POSITION,
+    ));
+    let state = ops.state();
+    let ctx = calibration_context(ops.clone()).await;
+
+    let config = AutofocusConfig {
+        measured_backlash_in: Some(SIMULATED_BACKLASH),
+        ..autofocus_test_config()
+    };
+    let result = execute_autofocus_once(
+        &config,
+        &ctx,
+        None,
+        &crate::node::context::PauseGate::default(),
+    )
+    .await;
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+
+    let state = state.lock().await;
+    let sweep: Vec<(i32, i32)> = state
+        .exposures
+        .iter()
+        .take((2 * config.steps_out + 1) as usize)
+        .copied()
+        .collect();
+    assert!(
+        sweep.iter().all(|(_, takeup)| *takeup == 0),
+        "sweep samples (commanded, dead band still to take up): {:?}",
+        sweep
+    );
+}
+
+/// Cloud over the verification frame is not a focuser that missed its mark.
+/// A starless frame measures nothing, so it cannot say the landing was wrong,
+/// and the landing-failure sentence is what re-opens the backlash
+/// recalibration offer in the app.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_starless_verification_frame_is_not_reported_as_a_bad_landing() {
+    let ops = Arc::new(BacklashFocuserOps::new(
+        SIMULATED_BACKLASH,
+        STARTING_POSITION,
+    ));
+    let state = ops.state();
+    let config = autofocus_test_config();
+    // The sweep's frames see stars; the one after them, the verification
+    // frame, does not.
+    state.lock().await.clouded_after = Some((2 * config.steps_out + 1) as usize);
+    let ctx = calibration_context(ops.clone()).await;
+
+    let result = execute_autofocus_once(
+        &config,
+        &ctx,
+        None,
+        &crate::node::context::PauseGate::default(),
+    )
+    .await;
+
+    let message = result.message.clone().unwrap_or_default();
+    assert!(
+        !message.contains(crate::instructions::LANDING_VERIFICATION_FAILURE_PHRASE),
+        "a clouded verification frame was reported as a landing failure: {} ({:?})",
+        message,
+        result.status
+    );
+}
+
+/// `failure_hfr_tolerance_ratio` at zero means "every autofocus failure is
+/// unrecoverable". It says nothing about how close a landing must be, and must
+/// not turn the landing check into "no worse than the best sample", which a
+/// correctly landed frame fails on noise alone.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_zero_failure_tolerance_does_not_fail_a_correct_landing() {
+    let ops = Arc::new(BacklashFocuserOps::new(
+        SIMULATED_BACKLASH,
+        STARTING_POSITION,
+    ));
+    let ctx = calibration_context(ops.clone()).await;
+
+    let config = AutofocusConfig {
+        measured_backlash_in: Some(SIMULATED_BACKLASH),
+        failure_hfr_tolerance_ratio: 0.0,
+        ..autofocus_test_config()
+    };
+    let result = execute_autofocus_once(
+        &config,
+        &ctx,
+        None,
+        &crate::node::context::PauseGate::default(),
+    )
+    .await;
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
 }

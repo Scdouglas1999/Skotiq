@@ -202,10 +202,18 @@ impl IndiMount {
     }
 
     /// Slew to coordinates (RA in hours, Dec in degrees)
+    ///
+    /// Returns once the driver has answered the goto, not merely once it was
+    /// sent: see [`Self::wait_for_goto_answer`].
     pub async fn slew_to_coordinates(&self, ra_hours: f64, dec_degrees: f64) -> IndiResult<()> {
         let coord = self.equatorial_coord_property().await;
         let mut client = self.client.write().await;
         let previous_mode = Self::current_on_coord_set_mode(&client, &self.device_name).await;
+        let updated_before = client
+            .get_property_last_update_ms(&self.device_name, coord.as_str())
+            .await;
+        let answer_timeout =
+            Duration::from_secs(client.timeout_config().property_timeout_secs.max(1));
 
         // Set coordinate mode to SLEW
         client
@@ -224,8 +232,88 @@ impl IndiMount {
             Self::restore_on_coord_set_mode(&mut client, &self.device_name, previous_mode).await;
             return Err(error);
         }
+        drop(client);
 
-        Ok(())
+        self.wait_for_goto_answer(
+            coord,
+            updated_before,
+            (ra_hours, dec_degrees),
+            answer_timeout,
+        )
+        .await
+    }
+
+    /// Wait for the driver's answer to a goto.
+    ///
+    /// Sending the target only queues it; the cached coordinate state still
+    /// says Ok at the old position until the driver's Busy comes back. The
+    /// sequencer polls `is_slewing` the moment the goto returns and takes the
+    /// first "not slewing" as arrival, so a goto that returned on send read as
+    /// a slew that had already ended where it started, and was then failed as
+    /// a position mismatch while the mount was still moving.
+    ///
+    /// Busy is the answer. Alert is the driver refusing the goto (a limit, a
+    /// parked mount) and is returned as an error. An Ok update already at the
+    /// target is a goto to where the mount is. Anything else — the periodic
+    /// position updates a tracking mount sends — is not the answer. A driver
+    /// that never answers within `timeout` is logged and let through, which is
+    /// what this did before.
+    async fn wait_for_goto_answer(
+        &self,
+        coord: EquatorialCoordProperty,
+        updated_before: Option<u64>,
+        (ra_hours, dec_degrees): (f64, f64),
+        timeout: Duration,
+    ) -> IndiResult<()> {
+        const AT_TARGET_DEG: f64 = 1.0 / 60.0;
+        let prop = coord.as_str();
+        let deadline = tokio::time::Instant::now() + timeout;
+        loop {
+            {
+                let client = self.client.read().await;
+                let updated = client
+                    .get_property_last_update_ms(&self.device_name, prop)
+                    .await;
+                if updated > updated_before {
+                    match client.get_property_state(&self.device_name, prop).await {
+                        Some(crate::IndiPropertyState::Busy) => return Ok(()),
+                        Some(crate::IndiPropertyState::Alert) => {
+                            return Err(IndiError::DeviceAlert(format!(
+                                "{} refused the goto to RA {:.4}h, Dec {:.4} deg ({} went to Alert)",
+                                self.device_name, ra_hours, dec_degrees, prop
+                            )));
+                        }
+                        _ => {
+                            let ra = client.get_number(&self.device_name, prop, RA).await;
+                            let dec = client.get_number(&self.device_name, prop, DEC).await;
+                            if let (Some(ra), Some(dec)) = (ra, dec) {
+                                let mut ra_diff_h = (ra - ra_hours) % 24.0;
+                                if ra_diff_h > 12.0 {
+                                    ra_diff_h -= 24.0;
+                                } else if ra_diff_h < -12.0 {
+                                    ra_diff_h += 24.0;
+                                }
+                                if (ra_diff_h * 15.0).abs() <= AT_TARGET_DEG
+                                    && (dec - dec_degrees).abs() <= AT_TARGET_DEG
+                                {
+                                    return Ok(());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if tokio::time::Instant::now() >= deadline {
+                tracing::warn!(
+                    "{} did not answer the goto within {:?}; slew completion may read the old \
+                     position",
+                    self.device_name,
+                    timeout
+                );
+                return Ok(());
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
     }
 
     /// Slew to coordinates with timeout (RA in hours, Dec in degrees)
@@ -741,6 +829,8 @@ mod tests {
 
         let timeout_config = crate::IndiTimeoutConfig {
             connection_timeout_secs: 1,
+            // This server never answers the goto; don't wait long for it.
+            property_timeout_secs: 1,
             ..Default::default()
         };
         let mut client = IndiClient::with_timeout_config("127.0.0.1", Some(port), timeout_config);
@@ -881,6 +971,129 @@ mod tests {
 
         drop(mount);
         server.await.expect("fake server should finish");
+    }
+
+    /// A fake server that answers the goto the way a real driver does: some
+    /// time after the command arrives, with `reply` (a set*Vector).
+    async fn mount_with_delayed_goto_reply(
+        reply: String,
+        reply_delay: Duration,
+    ) -> (IndiMount, tokio::task::JoinHandle<()>) {
+        let payload = format!(
+            "{MOUNT_BASE_PROPERTIES}
+<defNumberVector device=\"Mount\" name=\"EQUATORIAL_EOD_COORD\" state=\"Idle\" perm=\"rw\">
+  <defNumber name=\"RA\" min=\"0\" max=\"24\">10.0</defNumber>
+  <defNumber name=\"DEC\" min=\"-90\" max=\"90\">45.0</defNumber>
+</defNumberVector>
+<setNumberVector device=\"Mount\" name=\"EQUATORIAL_EOD_COORD\" state=\"Ok\">
+  <oneNumber name=\"RA\">10.0</oneNumber>
+  <oneNumber name=\"DEC\">45.0</oneNumber>
+</setNumberVector>
+"
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind fake INDI mount server");
+        let port = listener.local_addr().expect("read listener address").port();
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.expect("accept INDI client");
+            let mut buf = [0_u8; 8192];
+            let _ = socket.read(&mut buf).await;
+            socket
+                .write_all(payload.as_bytes())
+                .await
+                .expect("write fake mount payload");
+            let mut received = String::new();
+            let mut replied = false;
+            loop {
+                match socket.read(&mut buf).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => {
+                        received.push_str(&String::from_utf8_lossy(&buf[..n]));
+                        if !replied && received.contains("newNumberVector") {
+                            replied = true;
+                            tokio::time::sleep(reply_delay).await;
+                            let _ = socket.write_all(reply.as_bytes()).await;
+                        }
+                    }
+                }
+            }
+        });
+
+        let timeout_config = crate::IndiTimeoutConfig {
+            connection_timeout_secs: 1,
+            ..Default::default()
+        };
+        let mut client = IndiClient::with_timeout_config("127.0.0.1", Some(port), timeout_config);
+        client.connect().await.expect("connect fake INDI client");
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+        while client
+            .get_property("Mount", EQUATORIAL_EOD_COORD)
+            .await
+            .is_none()
+        {
+            assert!(tokio::time::Instant::now() < deadline);
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        (
+            IndiMount::new(Arc::new(RwLock::new(client)), "Mount"),
+            server,
+        )
+    }
+
+    /// The sequencer polls `is_slewing` the moment the goto call returns and
+    /// takes the first "not slewing" as arrival. A goto that returns before
+    /// the driver has said Busy therefore reads as a slew that already ended,
+    /// at the old coordinates.
+    #[tokio::test]
+    async fn a_goto_returns_only_once_the_driver_reports_the_slew() {
+        let (mount, server) = mount_with_delayed_goto_reply(
+            "<setNumberVector device=\"Mount\" name=\"EQUATORIAL_EOD_COORD\" state=\"Busy\">\
+               <oneNumber name=\"RA\">10.2</oneNumber>\
+               <oneNumber name=\"DEC\">45.3</oneNumber>\
+             </setNumberVector>"
+                .to_string(),
+            Duration::from_millis(300),
+        )
+        .await;
+        mount.connect().await.expect("connect mount on fake server");
+
+        mount
+            .slew_to_coordinates(11.0, 46.0)
+            .await
+            .expect("slew on fake server");
+
+        assert!(
+            mount.try_is_slewing().await.expect("coordinate state"),
+            "the goto returned while the mount still read as idle at its old position"
+        );
+
+        drop(mount);
+        server.abort();
+    }
+
+    /// A driver that refuses a goto (below a limit, parked) answers Alert.
+    /// That is the slew failing, and must be reported as such rather than as
+    /// a slew that finished somewhere unexpected.
+    #[tokio::test]
+    async fn a_goto_the_driver_refuses_is_an_error() {
+        let (mount, server) = mount_with_delayed_goto_reply(
+            "<setNumberVector device=\"Mount\" name=\"EQUATORIAL_EOD_COORD\" state=\"Alert\" \
+               message=\"Target is below the horizon limit\">\
+               <oneNumber name=\"RA\">10.0</oneNumber>\
+               <oneNumber name=\"DEC\">45.0</oneNumber>\
+             </setNumberVector>"
+                .to_string(),
+            Duration::from_millis(100),
+        )
+        .await;
+        mount.connect().await.expect("connect mount on fake server");
+
+        let result = mount.slew_to_coordinates(11.0, 46.0).await;
+        assert!(result.is_err(), "a refused goto returned {:?}", result);
+
+        drop(mount);
+        server.abort();
     }
 
     #[tokio::test]

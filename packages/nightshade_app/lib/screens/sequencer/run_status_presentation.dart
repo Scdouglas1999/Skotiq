@@ -122,6 +122,21 @@ List<String> runErrorMessagesFor(String status, List<String> messages) {
   return messages.where((m) => !isRunCancellationNotice(m)).toList();
 }
 
+/// The one message that explains why a failed run ended.
+///
+/// [terminalCause] is the reason the executor gave on `SequenceFailed`, the
+/// first fault of the failure. The cascade in [errors] keeps everything that
+/// was reported, in order, so its LAST entry is usually a step the teardown
+/// cancelled after the fault ("Change Filter: Operation cancelled" on
+/// 2026-09-14), which is never the reason. The last error stands in only for
+/// runs recorded before the cause was filed separately.
+String? runFailureHeadline({String? terminalCause, List<String>? errors}) {
+  final cause = terminalCause?.trim();
+  if (cause != null && cause.isNotEmpty) return terminalCause;
+  if (errors != null && errors.isNotEmpty) return errors.last;
+  return null;
+}
+
 /// Removes the generated bridge wrapper while retaining the actual failure.
 String runFailureMessage(String raw) => raw.replaceAllMapped(
       RegExp(r'NightshadeError\.\w+\(field0: (.*)\)', dotAll: true),

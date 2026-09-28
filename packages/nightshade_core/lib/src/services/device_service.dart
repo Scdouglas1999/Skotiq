@@ -211,6 +211,9 @@ class DeviceService {
     }
   }
 
+  /// The backend whose events this service is listening to.
+  NightshadeBackend get eventSource => _backend;
+
   DeviceService(this._ref, this._backend) {
     _temperaturePoller = CameraTemperaturePoller(ref: _ref, backend: _backend);
     _warmupController = CameraWarmupController(ref: _ref, backend: _backend);

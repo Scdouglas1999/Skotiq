@@ -168,6 +168,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
         // the per-path cap before its token is checked.
         .addMiddleware(_contentLengthLimitMiddleware())
         .addMiddleware(_apiVersionMiddleware())
+        .addMiddleware(_pairedTokenHydrationGate())
         .addMiddleware(_authMiddleware())
         .addMiddleware(_chunkedBodyLimitMiddleware())
         .addMiddleware(_rateLimitMiddleware())
@@ -177,6 +178,16 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
         // before the router so the 409 short-circuits the handler.
         .addMiddleware(_sessionOwnershipMiddleware())
         .addHandler(router.call);
+
+    // Paired session tokens load from the pairing database, whose file only
+    // opens on the first query. Start that before binding and hold requests
+    // behind it: a request that arrived first used to be judged against an
+    // empty map, answered 403 "Invalid authentication token", and a remote
+    // client takes that answer as final and asks its operator to re-pair.
+    // Hydration swallows its own errors, so a broken database still lets the
+    // server come up and print its connect URL.
+    final hydration = _hydratePairedSessionTokens();
+    _pairedTokenHydration = hydration;
 
     final bindAddress = bindLocalOnly
         ? InternetAddress.loopbackIPv4
@@ -231,12 +242,12 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
       );
     }
 
-    // + hydrate `_pairedSessionTokens` from the Drift DB and
+    // Finish hydrating `_pairedSessionTokens` (started before the bind) and
     // register a revocation listener so revokeDevice() / token expiry / the
     // periodic sweep all evict the in-memory entry synchronously without a
-    // server restart. Must run AFTER bind so a hydration error doesn't trap
-    // operator-facing connect-URL printing in main_headless.dart.
-    await _hydratePairedSessionTokens();
+    // server restart.
+    await hydration;
+    _pairedTokenHydration = null;
     // Best-effort: learn our own tailnet address so /api/info can hand it to a
     // remote client (no more reading the MagicDNS name off the appliance log).
     await _discoverTailscaleHostBestEffort();

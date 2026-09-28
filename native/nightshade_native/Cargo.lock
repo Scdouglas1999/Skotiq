@@ -1584,6 +1584,7 @@ dependencies = [
  "flutter_rust_bridge",
  "futures",
  "image",
+ "libc",
  "lru",
  "nightshade_alpaca",
  "nightshade_ascom",

@@ -160,9 +160,14 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         // loop exits into a real operator Pause (not resume,
         // not park-and-abort). Carries the operator message.
         let mut paused_for_operator: Option<String> = None;
+        // Set when the run was cancelled under the ladder (an operator Stop, a
+        // safety trigger's park-and-abort). That is not recovery running out,
+        // and whoever cancelled owns how the run ends.
+        let mut cancelled_under_recovery = false;
         loop {
             if recovery_driver_is_cancelled.load(Ordering::Relaxed) {
                 tracing::info!("[RECOVERY] Sequence cancelled mid-recovery — exiting loop");
+                cancelled_under_recovery = true;
                 aborted_by_user = false;
                 recovered = false;
                 ctx.phase = crate::recovery::RecoveryPhase::GaveUp;
@@ -307,6 +312,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 }
                 crate::recovery::AttemptOutcome::Cancelled => {
                     tracing::info!("[RECOVERY] Attempt cancelled — exiting loop");
+                    cancelled_under_recovery = true;
                     aborted_by_user = false;
                     recovered = false;
                     ctx.phase = crate::recovery::RecoveryPhase::GaveUp;
@@ -347,7 +353,21 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             });
         }
 
-        if let Some(pause_message) = paused_for_operator {
+        if cancelled_under_recovery && !recovered && paused_for_operator.is_none() {
+            // No give-up message, no give-up sweep, no Failed stamp: reporting
+            // "Recovery could not fix" for a run that was stopped, or parked
+            // by the weather rule, would blame the wrong thing, and under the
+            // park-and-close opt-in it would run a second sweep nobody asked
+            // for.
+            tracing::info!(
+                "[RECOVERY] Recovery for {:?} ended because the run was cancelled after {} \
+                 attempt{}",
+                ctx.cause,
+                ctx.attempt_count,
+                if ctx.attempt_count == 1 { "" } else { "s" }
+            );
+            *recovery_driver_current.write() = None;
+        } else if let Some(pause_message) = paused_for_operator {
             // The PauseForOperator escalation handling lives in
             // `apply_recovery_escalation` so an integration test can drive the
             // SafeAbandon vs PassivePause branch, and the
@@ -368,16 +388,35 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             };
             apply_recovery_escalation(&escalation_state, &ctx, pause_message, stop_tracking).await;
         } else if recovered {
+            // An operator Pause during the ladder is the only thing that
+            // turns `Recovering` into `Paused` while it runs. That hold is his,
+            // so a successful ladder leaves it in place rather than resuming
+            // the run under him.
+            let operator_paused = *recovery_driver_state.read().await == ExecutorState::Paused;
+            let resumed_state = if operator_paused {
+                ExecutorState::Paused
+            } else {
+                ExecutorState::Running
+            };
             tracing::info!(
-                "[RECOVERY] Loop succeeded after {} attempt{}; resuming sequence",
+                "[RECOVERY] Loop succeeded after {} attempt{}; {}",
                 ctx.attempt_count,
-                if ctx.attempt_count == 1 { "" } else { "s" }
+                if ctx.attempt_count == 1 { "" } else { "s" },
+                if operator_paused {
+                    "the run stays paused as the operator left it"
+                } else {
+                    "resuming sequence"
+                }
             );
-            *recovery_driver_state.write().await = ExecutorState::Running;
+            *recovery_driver_state.write().await = resumed_state;
             {
                 let mut prog = recovery_driver_progress.write();
-                prog.state = ExecutorState::Running;
-                prog.message = Some("Recovered — resuming sequence".to_string());
+                prog.state = resumed_state;
+                prog.message = Some(if operator_paused {
+                    "Recovered — paused, as you left it".to_string()
+                } else {
+                    "Recovered — resuming sequence".to_string()
+                });
             }
             *recovery_driver_current.write() = None;
 
@@ -411,9 +450,10 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             // also observe the advanced generation (no window where
             // it sees "not paused" with a stale generation).
             recovery_driver_generation.fetch_add(1, Ordering::AcqRel);
-            recovery_driver_is_paused.store(false, Ordering::Relaxed);
-            let _ =
-                recovery_driver_event_tx.send(ExecutorEvent::StateChanged(ExecutorState::Running));
+            if !operator_paused {
+                recovery_driver_is_paused.store(false, Ordering::Relaxed);
+            }
+            let _ = recovery_driver_event_tx.send(ExecutorEvent::StateChanged(resumed_state));
             let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryCompleted {
                 context: Box::new(ctx.clone()),
             });
@@ -447,22 +487,32 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 recovery_driver_gave_up.store(true, Ordering::Relaxed);
             }
             if !aborted_by_user && !end_policy.may_safe_abandon() {
+                // The ladder switched tracking off before its first attempt
+                // (`stop_tracking_during_recovery`) and nothing restores it for
+                // a run that has ended. Say so: "nothing has been moved" read
+                // as "the mount is as you left it", and it was not.
+                let tracking_note = if stop_tracking && recovery_driver_mount_id.is_some() {
+                    " Mount tracking was switched off for the recovery and is still off."
+                } else {
+                    ""
+                };
                 tracing::warn!(
                     "[RECOVERY] Recovery exhausted for {:?} after {} attempt{}; operator policy \
-                     is '{}', so the run ends WITHOUT parking or closing anything. The mount has \
-                     not been moved.",
+                     is '{}', so the run ends WITHOUT parking or closing anything.{}",
                     ctx.cause,
                     ctx.attempt_count,
                     if ctx.attempt_count == 1 { "" } else { "s" },
-                    end_policy.label()
+                    end_policy.label(),
+                    tracking_note
                 );
                 let _ = recovery_driver_event_tx.send(ExecutorEvent::Error {
                     message: format!(
                         "Recovery could not fix {} after {} attempt{}. The run has stopped. \
-                         Nothing has been parked or closed — check the rig when you can.",
+                         Nothing has been parked or closed.{} Check the rig when you can.",
                         ctx.cause.display_label(),
                         ctx.attempt_count,
-                        if ctx.attempt_count == 1 { "" } else { "s" }
+                        if ctx.attempt_count == 1 { "" } else { "s" },
+                        tracking_note
                     ),
                 });
             }

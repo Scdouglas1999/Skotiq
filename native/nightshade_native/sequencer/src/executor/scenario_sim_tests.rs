@@ -78,6 +78,13 @@ struct ScriptedDeviceOps {
     /// fire-and-forget mock that never updated it would (correctly) be flagged
     /// unsafe. When `close_fails` is set the shutter stays "Open" — the jam case.
     shutter_state: Arc<Mutex<String>>,
+    /// Mount tracking as the driver reports it. `mount_set_tracking` writes it
+    /// and a successful `mount_park` clears it, like a real mount.
+    mount_tracking: Arc<AtomicBool>,
+    /// Mount park latch reported by `mount_is_parked`.
+    mount_parked: Arc<AtomicBool>,
+    /// When true, `guider_start` fails, as a guider with no star does.
+    guider_start_fails: Arc<AtomicBool>,
 }
 
 impl ScriptedDeviceOps {
@@ -94,6 +101,9 @@ impl ScriptedDeviceOps {
             park_fails: Arc::new(AtomicBool::new(false)),
             close_fails: Arc::new(AtomicBool::new(false)),
             shutter_state: Arc::new(Mutex::new("Open".to_string())),
+            mount_tracking: Arc::new(AtomicBool::new(true)),
+            mount_parked: Arc::new(AtomicBool::new(false)),
+            guider_start_fails: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -170,6 +180,9 @@ impl DeviceOps for ScriptedDeviceOps {
 
     async fn guider_start(&self, sp: f64, st: f64, sto: f64) -> DeviceResult<()> {
         self.record("guider_start");
+        if self.guider_start_fails.load(Ordering::SeqCst) {
+            return Err("simulated guider start failure: no star".to_string());
+        }
         let n = self.guider_start_count.fetch_add(1, Ordering::SeqCst) + 1;
         let relock_after = self.relock_after_starts.load(Ordering::SeqCst);
         if relock_after > 0 && n >= relock_after {
@@ -193,17 +206,20 @@ impl DeviceOps for ScriptedDeviceOps {
         if self.park_fails.load(Ordering::SeqCst) {
             Err(format!("simulated park failure for {mount_id}"))
         } else {
+            self.mount_parked.store(true, Ordering::SeqCst);
+            self.mount_tracking.store(false, Ordering::SeqCst);
             Ok(())
         }
     }
 
     async fn mount_is_tracking(&self, mount_id: &str) -> DeviceResult<bool> {
         self.record(format!("mount_is_tracking:{mount_id}"));
-        self.inner.mount_is_tracking(mount_id).await
+        Ok(self.mount_tracking.load(Ordering::SeqCst))
     }
 
     async fn mount_set_tracking(&self, mount_id: &str, enabled: bool) -> DeviceResult<()> {
         self.record(format!("mount_set_tracking:{mount_id}:{enabled}"));
+        self.mount_tracking.store(enabled, Ordering::SeqCst);
         Ok(())
     }
 
@@ -249,8 +265,8 @@ impl DeviceOps for ScriptedDeviceOps {
     async fn mount_is_slewing(&self, id: &str) -> DeviceResult<bool> {
         self.inner.mount_is_slewing(id).await
     }
-    async fn mount_is_parked(&self, id: &str) -> DeviceResult<bool> {
-        self.inner.mount_is_parked(id).await
+    async fn mount_is_parked(&self, _id: &str) -> DeviceResult<bool> {
+        Ok(self.mount_parked.load(Ordering::SeqCst))
     }
     async fn mount_can_flip(&self, id: &str) -> DeviceResult<bool> {
         self.inner.mount_can_flip(id).await
@@ -1435,5 +1451,467 @@ fn b19_not_yet_tracking_mount_never_self_cancels() {
     assert!(
         !poll(&mut state, false),
         "loss must not be re-flagged once already recorded"
+    );
+}
+
+/// Poll `executor` until `pred` holds for its state, or `timeout` passes.
+async fn wait_for_state(
+    executor: &super::SequenceExecutor,
+    timeout: std::time::Duration,
+    pred: impl Fn(super::ExecutorState) -> bool,
+) -> super::ExecutorState {
+    let deadline = tokio::time::Instant::now() + timeout;
+    loop {
+        let state = executor.get_state().await;
+        if pred(state) || tokio::time::Instant::now() >= deadline {
+            return state;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+}
+
+/// A long single-node run against a scripted mount, started and returned so a
+/// scenario can pause it, change the rig under it and watch what the executor
+/// does. Nothing in it needs a camera.
+async fn start_long_run_on_scripted_mount(ops: Arc<ScriptedDeviceOps>) -> super::SequenceExecutor {
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    start_long_run(executor, ops).await
+}
+
+/// [`start_long_run_on_scripted_mount`] for an executor the scenario has
+/// already configured.
+async fn start_long_run(
+    mut executor: super::SequenceExecutor,
+    ops: Arc<ScriptedDeviceOps>,
+) -> super::SequenceExecutor {
+    use crate::{NodeDefinition, NodeType, SequenceDefinition};
+    executor.set_device_ops(ops as SharedDeviceOps);
+    let mut sequence = SequenceDefinition::new("Hold integrity".to_string());
+    sequence.nodes.push(NodeDefinition {
+        id: "hold-delay".to_string(),
+        name: "Long wait".to_string(),
+        node_type: NodeType::Delay(crate::DelayConfig { seconds: 600.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("hold-delay".to_string());
+    executor.load_sequence(sequence).expect("sequence loads");
+    executor.start().await.expect("executor starts");
+    executor
+}
+
+/// A paused run must stay paused when a safety-class trigger fires under it.
+///
+/// Since the trigger monitor started evaluating safety-class triggers while a
+/// run is paused, `mount_tracking_lost` (safety class, action Pause) can fire
+/// during a hold. Its Pause action hands the run to the recovery driver, and a
+/// recovery that succeeds sets the run back to Running. A hold placed by the
+/// operator, or by the dead-guider or reject-storm escalations, must not be
+/// lifted by the rig itself: the mount has to stay as the operator left it and
+/// the run must not start exposing again.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_tracking_loss_during_a_hold_does_not_resume_the_run() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_long_run_on_scripted_mount(ops.clone()).await;
+
+    // Let the monitor observe the mount tracking so the loss baseline arms.
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("mount_is_tracking:mount-1") == 0 {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "monitor never polled the mount"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+
+    executor.pause().await.expect("pause");
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(5), |s| {
+        s == super::ExecutorState::Paused
+    })
+    .await;
+    assert_eq!(state, super::ExecutorState::Paused);
+
+    // The operator stops tracking to look at the rig.
+    ops.mount_tracking.store(false, Ordering::SeqCst);
+    let polls_before = ops.call_count("mount_is_tracking:mount-1");
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(12);
+    while ops.call_count("mount_is_tracking:mount-1") < polls_before + 1 {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "monitor stopped polling the mount"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    // Give the fired trigger and anything it starts time to act.
+    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+
+    let calls = ops.calls();
+    let state = executor.get_state().await;
+    assert!(
+        !calls.iter().any(|c| c == "mount_set_tracking:mount-1:true"),
+        "the rig re-enabled tracking under an operator hold; calls={calls:?}"
+    );
+    assert_eq!(
+        state,
+        super::ExecutorState::Paused,
+        "a trigger lifted an operator hold; calls={calls:?}"
+    );
+
+    // The loss is still acted on once the operator resumes with the mount
+    // untracked: the run must not expose without tracking.
+    executor.resume().await.expect("resume");
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
+    while !ops.mount_tracking.load(Ordering::SeqCst) {
+        if tokio::time::Instant::now() >= deadline {
+            let calls = ops.calls();
+            let _ = executor.stop().await;
+            panic!("a run resumed on an untracked mount never restored tracking; calls={calls:?}");
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    let _ = executor.stop().await;
+}
+
+/// A parked mount is not a mount that lost tracking. Parking stops tracking,
+/// so an operator who parks during a run trips Mount Tracking Lost, and the
+/// recovery attempt must not answer by switching tracking back on under the
+/// park latch and declaring the run recovered.
+#[tokio::test]
+async fn tracking_recovery_never_commands_tracking_on_a_parked_mount() {
+    let ops_concrete = Arc::new(ScriptedDeviceOps::new());
+    let ops: SharedDeviceOps = ops_concrete.clone();
+    ops_concrete.mount_parked.store(true, Ordering::SeqCst);
+    ops_concrete.mount_tracking.store(false, Ordering::SeqCst);
+    let (manager, _state) = manager_with_state().await;
+
+    let outcome = super::run_recovery_attempt(
+        &RecoveryCause::MountTrackingLost,
+        &ops,
+        Some("mount-1"),
+        &[],
+        &manager,
+    )
+    .await;
+
+    let calls = ops_concrete.calls();
+    assert!(
+        !calls.iter().any(|c| c == "mount_set_tracking:mount-1:true"),
+        "recovery switched tracking on under the park latch; outcome={outcome:?} calls={calls:?}"
+    );
+    assert_ne!(
+        outcome,
+        AttemptOutcome::Succeeded,
+        "a parked mount is not a recovered one; calls={calls:?}"
+    );
+}
+
+/// An operator Stop while recovery is waiting between attempts is a stop, not
+/// recovery running out. It must not be reported as "Recovery could not fix",
+/// and it must not run the park-and-close sweep that the operator opted into
+/// for a recovery that genuinely gives up.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn stopping_during_recovery_is_a_stop_not_a_give_up() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.guider_start_fails.store(true, Ordering::SeqCst);
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor.set_dome(Some("dome-1".to_string()));
+    executor
+        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
+            retry_interval_secs: 60.0,
+            max_duration_secs: 3600.0,
+            park_and_close_when_recovery_gives_up: true,
+            ..crate::recovery::RecoveryRuntimeConfig::default()
+        })
+        .await;
+    let mut events = executor.subscribe();
+    let mut executor = start_long_run(executor, ops.clone()).await;
+
+    // Let the monitor see the guider guiding, then lose the star.
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("guider_get_status") < 2 {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "monitor never polled the guider"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    ops.guiding.store(false, Ordering::SeqCst);
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(15), |s| {
+        s == super::ExecutorState::Recovering
+    })
+    .await;
+    assert_eq!(
+        state,
+        super::ExecutorState::Recovering,
+        "calls={:?}",
+        ops.calls()
+    );
+    // Attempt 1 fails at once; the driver is now waiting out the interval.
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("guider_start") < 1 {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "recovery never attempted"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+    let _ = executor.stop().await;
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    let mut messages = Vec::new();
+    let mut gave_up = false;
+    while let Ok(event) = events.try_recv() {
+        match event {
+            super::ExecutorEvent::Error { message } => messages.push(message),
+            super::ExecutorEvent::RecoveryGaveUp { .. } => gave_up = true,
+            _ => {}
+        }
+    }
+    let calls = ops.calls();
+    assert!(
+        !calls
+            .iter()
+            .any(|c| c.starts_with("mount_park") || c.starts_with("dome_close")),
+        "an operator Stop ran the give-up park-and-close sweep; messages={messages:?} \
+         calls={calls:?}"
+    );
+    assert!(
+        !messages
+            .iter()
+            .any(|m| m.contains("Recovery could not fix")),
+        "an operator Stop was reported as recovery running out; messages={messages:?}"
+    );
+    assert!(
+        !gave_up,
+        "an operator Stop was published as RecoveryGaveUp; messages={messages:?}"
+    );
+}
+
+/// A recovery ladder can run for 90 minutes, and a lost guide star is most
+/// often cloud. The rig is still under the sky while the driver waits between
+/// attempts, so the weather rule must still act: rain arriving during a
+/// guide-star recovery has to reach Weather Unsafe's configured park, and the
+/// run must not then report a recovery give-up it never had.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn weather_turning_unsafe_during_recovery_is_still_acted_on() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.guider_start_fails.store(true, Ordering::SeqCst);
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor.set_safety_check_interval_secs(5);
+    executor
+        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
+            retry_interval_secs: 600.0,
+            max_duration_secs: 5400.0,
+            ..crate::recovery::RecoveryRuntimeConfig::default()
+        })
+        .await;
+    let mut events = executor.subscribe();
+    let mut executor = start_long_run(executor, ops.clone()).await;
+
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("guider_get_status") < 2 {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "monitor never polled the guider"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    ops.guiding.store(false, Ordering::SeqCst);
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(15), |s| {
+        s == super::ExecutorState::Recovering
+    })
+    .await;
+    assert_eq!(
+        state,
+        super::ExecutorState::Recovering,
+        "calls={:?}",
+        ops.calls()
+    );
+
+    // Rain.
+    ops.weather_safe.store(false, Ordering::SeqCst);
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(20);
+    while ops.call_count("mount_park") == 0 && tokio::time::Instant::now() < deadline {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    let mut messages = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let super::ExecutorEvent::Error { message } = event {
+            messages.push(message);
+        }
+    }
+    assert!(
+        calls.iter().any(|c| c == "mount_park:mount-1"),
+        "weather turned unsafe during a recovery ladder and nothing acted on it; \
+         messages={messages:?} calls={calls:?}"
+    );
+    assert!(
+        !messages
+            .iter()
+            .any(|m| m.contains("Recovery could not fix")),
+        "a weather abort was reported as recovery running out; messages={messages:?}"
+    );
+}
+
+/// Start a run on a scripted rig whose guide star is lost and whose guider
+/// cannot restart, and return it once it is in a recovery ladder that retries
+/// every `retry_interval_secs`.
+async fn start_run_in_guide_star_recovery(
+    ops: Arc<ScriptedDeviceOps>,
+    retry_interval_secs: f64,
+) -> super::SequenceExecutor {
+    ops.guider_start_fails.store(true, Ordering::SeqCst);
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor
+        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
+            retry_interval_secs,
+            max_duration_secs: 5400.0,
+            ..crate::recovery::RecoveryRuntimeConfig::default()
+        })
+        .await;
+    let executor = start_long_run(executor, ops.clone()).await;
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("guider_get_status") < 2 {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "monitor never polled the guider"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    ops.guiding.store(false, Ordering::SeqCst);
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(15), |s| {
+        s == super::ExecutorState::Recovering
+    })
+    .await;
+    assert_eq!(
+        state,
+        super::ExecutorState::Recovering,
+        "calls={:?}",
+        ops.calls()
+    );
+    executor
+}
+
+/// Resume is the answer to a pause, not to a recovery. Pressed while the
+/// ladder is still re-acquiring the guide star, it must not unfreeze the node
+/// tree: every frame taken then is unguided. Try-now and abort are the
+/// operator's controls over a ladder.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn resume_during_recovery_does_not_unfreeze_the_run() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_run_in_guide_star_recovery(ops.clone(), 600.0).await;
+
+    executor.resume().await.expect("resume");
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    let state = executor.get_state().await;
+    let recovering = executor.current_recovery().is_some();
+    let _ = executor.stop().await;
+    assert!(recovering, "the ladder should still be running");
+    assert_ne!(
+        state,
+        super::ExecutorState::Running,
+        "Resume set the run Running while recovery was still re-acquiring the guide star"
+    );
+}
+
+/// An operator who pauses while a recovery ladder runs has placed a hold. A
+/// ladder that then succeeds must leave the run paused, not resume it under
+/// him.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_pause_placed_during_recovery_survives_the_recovery() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_run_in_guide_star_recovery(ops.clone(), 2.0).await;
+
+    executor.pause().await.expect("pause");
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    // The guider can restart now; the next attempt re-acquires.
+    ops.relock_after_starts.store(1, Ordering::SeqCst);
+    ops.guider_start_fails.store(false, Ordering::SeqCst);
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(20);
+    while executor.current_recovery().is_some() {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "recovery never finished; calls={:?}",
+            ops.calls()
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let state = executor.get_state().await;
+    let _ = executor.stop().await;
+    assert_eq!(
+        state,
+        super::ExecutorState::Paused,
+        "the operator's pause was lifted when recovery succeeded"
+    );
+}
+
+/// When recovery runs out under the default hold-for-operator policy, what it
+/// tells the operator must match what it did to the rig. The ladder switched
+/// tracking off before its first attempt and nothing switches it back on for a
+/// run that has ended, so the give-up message must say tracking is off, not
+/// leave him believing the mount is as he left it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_recovery_give_up_says_that_tracking_was_left_off() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.guider_start_fails.store(true, Ordering::SeqCst);
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor
+        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
+            retry_interval_secs: 1.0,
+            max_duration_secs: 2.0,
+            ..crate::recovery::RecoveryRuntimeConfig::default()
+        })
+        .await;
+    let mut events = executor.subscribe();
+    let mut executor = start_long_run(executor, ops.clone()).await;
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("guider_get_status") < 2 {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "monitor never polled the guider"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    ops.guiding.store(false, Ordering::SeqCst);
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(30), |s| {
+        s == super::ExecutorState::Failed
+    })
+    .await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    let mut messages = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let super::ExecutorEvent::Error { message } = event {
+            messages.push(message);
+        }
+    }
+    assert_eq!(state, super::ExecutorState::Failed, "calls={calls:?}");
+    assert!(
+        calls
+            .iter()
+            .any(|c| c == "mount_set_tracking:mount-1:false"),
+        "the ladder never stopped tracking, so this test proves nothing; calls={calls:?}"
+    );
+    assert!(
+        !ops.mount_tracking.load(Ordering::SeqCst),
+        "tracking came back on; the message question does not arise"
+    );
+    let give_up = messages
+        .iter()
+        .find(|m| m.contains("Recovery could not fix"))
+        .unwrap_or_else(|| panic!("no give-up message; messages={messages:?}"));
+    assert!(
+        give_up.to_lowercase().contains("tracking"),
+        "the give-up message does not say that tracking was left off: {give_up}"
     );
 }

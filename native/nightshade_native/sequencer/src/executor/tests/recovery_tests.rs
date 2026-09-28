@@ -995,6 +995,15 @@ fn stepping_is_not_guiding() {
         rms_total: 0.64,
     }));
 
+    // Guiding with an empty statistics window (restarted, no guide step yet)
+    // has measured nothing.
+    assert!(!guiding_is_settled(&GuidingStatus {
+        is_guiding: true,
+        rms_ra: 0.0,
+        rms_dec: 0.0,
+        rms_total: 0.0,
+    }));
+
     // Not guiding at all is never settled, however small the (stale) RMS.
     assert!(!guiding_is_settled(&GuidingStatus {
         is_guiding: false,

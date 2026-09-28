@@ -142,7 +142,14 @@ fn final_run_up_position(
     step_size: i32,
 ) -> (i32, RunUpSource) {
     match resolve_run_up(operator_backlash_in, measured_backlash, step_size) {
-        (Some(run_up), source) => (best_position.saturating_sub(run_up), source),
+        // Never below zero, unless the sweep itself already went there: near
+        // the bottom of travel a figure-sized run-up commanded a negative
+        // position the driver refuses, and a good sweep ended as a failure. A
+        // shorter run-up is the best this travel allows.
+        (Some(run_up), source) => (
+            best_position.saturating_sub(run_up).max(sweep_start.min(0)),
+            source,
+        ),
         (None, source) => (
             best_position
                 .saturating_sub(step_size.max(1))
@@ -566,6 +573,21 @@ pub(crate) async fn move_autofocus_filter(
         .map_err(|error| format!("focus offset failed: {}", error))
 }
 
+/// How long the autofocus cleanup waits for a resumed guider to settle: the
+/// 60 s settle timeout it asks the guider for, plus the time to loop, select a
+/// star and send the first guide frames before that clock starts.
+const GUIDING_RESUME_DEADLINE: Duration = Duration::from_secs(120);
+const GUIDING_RESUME_POLL_INTERVAL: Duration = Duration::from_secs(2);
+
+/// Restart the guider autofocus stopped, and prove it is guiding again.
+///
+/// Proven means settled, by the bar the recovery ladder holds a re-acquired
+/// star to ([`crate::executor::guiding_is_settled`]), polled until a deadline.
+/// One status read straight after the resume was wrong both ways. PHD2's
+/// `guide` RPC answers before PHD2 is guiding, so a guider still selecting its
+/// star was called dead, which now holds the run. And PHD2 reports Guiding
+/// while it chases a star it has lost at tens of pixels, which was called
+/// restored and trailed every frame after it.
 pub(crate) async fn resume_guiding_after_autofocus(
     ctx: &InstructionContext,
     result: InstructionResult,
@@ -578,33 +600,51 @@ pub(crate) async fn resume_guiding_after_autofocus(
         )
         .await;
     }
-    match ctx.device_ops.guider_get_status().await {
-        Ok(status) if status.is_guiding => {
-            if let Some(trigger_state) = &ctx.trigger_state {
-                trigger_state.write().await.set_guiding_enabled(true);
+    let deadline = tokio::time::Instant::now() + GUIDING_RESUME_DEADLINE;
+    let mut last_seen: Result<crate::GuidingStatus, String>;
+    loop {
+        last_seen = ctx.device_ops.guider_get_status().await;
+        if let Ok(status) = &last_seen {
+            if crate::executor::guiding_is_settled(status) {
+                if let Some(trigger_state) = &ctx.trigger_state {
+                    trigger_state.write().await.set_guiding_enabled(true);
+                }
+                return result;
             }
-            result
         }
-        Ok(_) => {
-            append_guiding_not_restored(
-                ctx,
-                result,
-                "guider accepted resume but did not report guiding".to_string(),
-            )
-            .await
+        if tokio::time::Instant::now() >= deadline {
+            break;
         }
-        Err(error) => {
-            append_guiding_not_restored(
-                ctx,
-                result,
-                format!(
-                    "could not verify guiding resumed after autofocus: {}",
-                    error
-                ),
-            )
-            .await
+        // A Stop ends the wait. The run's end waits for this cleanup, so a
+        // guider that was never coming back held the operator's Stop for the
+        // whole two minutes. Nothing more is owed to a run that is ending
+        // than not claiming the guider is back.
+        if ctx.cancellation_token.load(Ordering::Relaxed) {
+            tracing::info!(
+                "Autofocus cleanup stopped waiting for the guider to settle: the run is stopping"
+            );
+            if let Some(trigger_state) = &ctx.trigger_state {
+                trigger_state.write().await.set_guiding_enabled(false);
+            }
+            return result;
         }
+        sleep(GUIDING_RESUME_POLL_INTERVAL).await;
     }
+    let failure = match last_seen {
+        Ok(status) if status.is_guiding => format!(
+            "guider reported guiding after the resume but never settled: RMS {:.1} px \
+             against a {:.1} px limit after {} s",
+            status.rms_total,
+            crate::executor::REACQUIRE_SETTLE_PIXELS,
+            GUIDING_RESUME_DEADLINE.as_secs()
+        ),
+        Ok(_) => "guider accepted resume but did not report guiding".to_string(),
+        Err(error) => format!(
+            "could not verify guiding resumed after autofocus: {}",
+            error
+        ),
+    };
+    append_guiding_not_restored(ctx, result, failure).await
 }
 
 /// Record a cleanup failure that left the guider stopped: stamp the
@@ -769,8 +809,20 @@ pub(crate) async fn execute_autofocus_once(
         let af_config: crate::autofocus::AutofocusConfig = config.into();
 
         let af_engine = crate::autofocus::VCurveAutofocus::new(af_config.clone());
+        // The move down to the sweep start overshoots and comes back up by
+        // the same figure, and margin, that sizes the final run-up. Using the
+        // operator's figure alone left a measured backlash out of it, and a
+        // dead band wider than one step then swallowed the first upward sweep
+        // moves: two "different" points measured at one optical position.
+        let approach_in = resolve_run_up(
+            config.backlash_compensation,
+            config.measured_backlash_in,
+            config.step_size,
+        )
+        .0
+        .unwrap_or(0);
         let backlash = crate::autofocus::BacklashCompensation::new_directional(
-            af_config.backlash_compensation,
+            approach_in,
             af_config.backlash_out_compensation,
         );
 
@@ -1230,15 +1282,30 @@ pub(crate) async fn execute_autofocus_once(
                 .await;
             abort_guard.disarm();
             match exposure_result {
-                Ok(image_data) => Some(
-                    calculate_hfr_with_crops(
+                Ok(image_data) => {
+                    let measurement = calculate_hfr_with_crops(
                         &image_data,
                         config.outer_crop_ratio,
                         config.inner_crop_ratio,
                         config.use_brightest_n_stars,
-                    )
-                    .hfr,
-                ),
+                    );
+                    // A frame with too few stars to measure (cloud, a satellite
+                    // trail swamping detection) returns the no-focus sentinel,
+                    // which would read as a landing far worse than the curve
+                    // and blame the focuser. It measures nothing, so the
+                    // landing goes unverified, as with a failed exposure.
+                    if measurement.star_count < config.min_star_count {
+                        tracing::warn!(
+                            "Autofocus could not verify the landing: the frame at best focus \
+                             has {} measurable stars, fewer than the {} the sweep required",
+                            measurement.star_count,
+                            config.min_star_count
+                        );
+                        None
+                    } else {
+                        Some(measurement.hfr)
+                    }
+                }
                 // A failed verification frame is not a failed focus run: the
                 // curve fit and the move both succeeded. Say the check could
                 // not be made rather than discarding a good result.
@@ -1255,7 +1322,17 @@ pub(crate) async fn execute_autofocus_once(
         // backlash, slip, or a focuser that ignored the command — and that is a
         // failure the operator must see, not a success with a quiet number.
         if let Some(measured) = verified_hfr {
-            let tolerance = config.failure_hfr_tolerance_ratio.max(1.0);
+            // `failure_hfr_tolerance_ratio` is borrowed as the landing
+            // tolerance, but at or below 1 it means something else ("every
+            // failure is unrecoverable", or a limit no noisy frame can meet)
+            // and turned this check into "no worse than the best sample",
+            // which a correct landing fails on noise alone. Such settings
+            // fall back to the shipped ratio here.
+            let tolerance = if config.failure_hfr_tolerance_ratio > 1.0 {
+                config.failure_hfr_tolerance_ratio
+            } else {
+                crate::default_af_failure_hfr_tolerance_ratio()
+            };
             if best_hfr > 0.0 && measured > best_hfr * tolerance {
                 tracing::warn!(
                     "Autofocus landed at {} measuring HFR {:.2}, worse than the fitted {:.2} \
@@ -1282,7 +1359,7 @@ pub(crate) async fn execute_autofocus_once(
         let hfr_note = if verified_hfr.is_some() {
             "measured"
         } else {
-            "predicted; verification frame failed"
+            "predicted; the verification frame could not be measured"
         };
 
         if let Some(cb) = progress_callback {
@@ -1326,7 +1403,26 @@ pub(crate) async fn execute_autofocus_once(
     };
 
     if matches!(result.status, NodeStatus::Failure | NodeStatus::Cancelled) {
-        let restored = restore_autofocus_origin(&focuser_id, ctx, current_position).await;
+        // The origin goes back on the same face of the backlash a landing
+        // uses. A failed run ends at or above the sweep, so a plain return
+        // arrived moving down: on a focuser with backlash that is the full
+        // dead band away from an origin the last successful run landed on
+        // from below, while the result still said the origin was restored.
+        let sweep_start = crate::autofocus::VCurveAutofocus::new(config.into())
+            .calculate_positions(current_position)
+            .first()
+            .copied()
+            .unwrap_or(current_position);
+        let (restore_run_up, _) = final_run_up_position(
+            current_position,
+            sweep_start,
+            config.backlash_compensation,
+            config.measured_backlash_in,
+            config.step_size,
+        );
+        let restored =
+            restore_autofocus_origin(&focuser_id, ctx, current_position, Some(restore_run_up))
+                .await;
         if let Err(error) = &restored {
             tracing::error!(
                 "Autofocus could not restore original position {}: {}",
@@ -1360,10 +1456,14 @@ pub(crate) async fn execute_autofocus_once(
 /// cancelled autofocus result. This deliberately ignores the sequence cancel
 /// token: cleanup is still hardware work owned by the autofocus Future, and a
 /// caller must not be told the run is terminal while the motor is moving.
+///
+/// `run_up_from`, when given, is visited first so the origin is reached
+/// moving up; it must be below `original_position`.
 pub(crate) async fn restore_autofocus_origin(
     focuser_id: &str,
     ctx: &InstructionContext,
     original_position: i32,
+    run_up_from: Option<i32>,
 ) -> Result<(), String> {
     let mut errors = Vec::new();
 
@@ -1373,6 +1473,28 @@ pub(crate) async fn restore_autofocus_origin(
     if !wait_for_focuser_stop_after_halt(focuser_id, &ctx.device_ops, Duration::from_secs(10)).await
     {
         errors.push("motor did not stop within 10 seconds".to_string());
+    }
+
+    if let Some(run_up) = run_up_from.filter(|run_up| *run_up < original_position) {
+        match ctx.device_ops.focuser_move_to(focuser_id, run_up).await {
+            Ok(()) => {
+                if !wait_for_focuser_stop_after_halt(
+                    focuser_id,
+                    &ctx.device_ops,
+                    Duration::from_secs(120),
+                )
+                .await
+                {
+                    errors.push(format!(
+                        "run-up move to {} did not settle within 120 seconds",
+                        run_up
+                    ));
+                }
+            }
+            // Still try the return itself: the origin from the wrong side
+            // is better than the focuser left wherever the run stopped.
+            Err(error) => errors.push(format!("run-up move to {} was rejected: {}", run_up, error)),
+        }
     }
 
     match ctx
@@ -1647,6 +1769,20 @@ mod final_approach_tests {
         let (run_up, _) = final_run_up_position(1000, 900, 0, Some(8), 1);
         // 8 + max(2, 1, 10) = 18.
         assert_eq!(run_up, 982);
+    }
+
+    /// A backlash-sized run-up near the bottom of travel must not command a
+    /// position below zero that the sweep never visited: the driver refuses
+    /// it, and a good sweep then ends as a failure.
+    #[test]
+    fn a_run_up_never_goes_below_travel_the_sweep_did_not_cover() {
+        let (run_up, _) = final_run_up_position(60, 25, 0, Some(105), 75);
+        assert!(
+            run_up >= 0,
+            "run-up to {} is below the focuser's travel",
+            run_up
+        );
+        assert!(run_up < 60, "the last move must still travel upward");
     }
 
     /// A best focus at the very bottom of the sweep still gets a run-up; the

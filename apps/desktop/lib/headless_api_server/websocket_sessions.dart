@@ -247,6 +247,13 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
         }
         return;
       case 'collaboration.preview':
+        if (!_socketMayPostToSession(
+          socket,
+          authIdentity,
+          '/api/collaboration/preview',
+        )) {
+          return;
+        }
         final preview = data['preview'];
         if (preview != null && preview is! Map<String, dynamic>) {
           socket.sink.add(
@@ -261,6 +268,13 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
         _collaborationManager.updatePreview(preview as Map<String, dynamic>?);
         return;
       case 'collaboration.chat':
+        if (!_socketMayPostToSession(
+          socket,
+          authIdentity,
+          '/api/collaboration/chat',
+        )) {
+          return;
+        }
         final clientViewerId = data['viewerId'] as String?;
         final viewerName = data['viewerName'] as String?;
         final message = data['message'] as String?;
@@ -304,6 +318,13 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
         );
         return;
       case 'collaboration.annotation':
+        if (!_socketMayPostToSession(
+          socket,
+          authIdentity,
+          '/api/collaboration/annotations',
+        )) {
+          return;
+        }
         final annotationId = data['annotationId'] as String?;
         final clientViewerId = data['viewerId'] as String?;
         final kind = data['kind'] as String?;
@@ -349,6 +370,9 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
         );
         return;
       case 'session_handoff.set':
+        if (!_socketMayChangeSessionHandoff(socket, authIdentity, 'POST')) {
+          return;
+        }
         final handoff = data['handoff'];
         if (handoff != null && handoff is! Map<String, dynamic>) {
           socket.sink.add(
@@ -364,6 +388,9 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
         );
         return;
       case 'session_handoff.clear':
+        if (!_socketMayChangeSessionHandoff(socket, authIdentity, 'DELETE')) {
+          return;
+        }
         _collaborationManager.setSessionHandoff(null);
         return;
       default:
@@ -381,4 +408,67 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
         return;
     }
   }
+
+  /// Whether this socket's token may do over the socket what `[method] [path]`
+  /// allows over HTTP, answering a refusal with an error frame.
+  ///
+  /// The handoff and collaboration messages change the same shared state as
+  /// their HTTP routes, but the socket applied no check at all: any token that
+  /// could open the event stream, a view-only phone included, could hand the
+  /// session over (an admin-only route) or replace the preview every viewer
+  /// sees, chat and annotate (control routes). The token's current grant is
+  /// looked up per message, so a token revoked while its socket stays open
+  /// loses the right with it. A socket with no identity exists only on a
+  /// server deliberately run without authentication.
+  bool _socketMay(
+    WebSocketChannel socket,
+    String? authIdentity, {
+    required String method,
+    required String path,
+    required String refusal,
+  }) {
+    if (authIdentity == null) {
+      return true;
+    }
+    final grant = _grantForIdentity(authIdentity);
+    if (grant != null &&
+        HeadlessAuthPolicy.permits(grant: grant, method: method, path: path)) {
+      return true;
+    }
+    _logWarning(
+      '[AUTH] Refused $method $path over the event socket for '
+      '${HeadlessApiServer._redactBearer(authIdentity)}: the token may not '
+      '$method $path',
+    );
+    socket.sink.add(jsonEncode({'type': 'error', 'message': refusal}));
+    return false;
+  }
+
+  bool _socketMayChangeSessionHandoff(
+    WebSocketChannel socket,
+    String? authIdentity,
+    String method,
+  ) => _socketMay(
+    socket,
+    authIdentity,
+    method: method,
+    path: '/api/session-handoff',
+    refusal:
+        'Changing the session handoff needs an admin token; this '
+        'connection is not allowed to.',
+  );
+
+  bool _socketMayPostToSession(
+    WebSocketChannel socket,
+    String? authIdentity,
+    String path,
+  ) => _socketMay(
+    socket,
+    authIdentity,
+    method: 'POST',
+    path: path,
+    refusal:
+        'Posting to the shared session needs a control token; this '
+        'connection is not allowed to.',
+  );
 }

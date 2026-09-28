@@ -427,7 +427,7 @@ pub async fn execute_backlash_calibration_admitted(
     // Whatever happened, the focuser goes back where the operator left it.
     // A calibration is a diagnostic, not a focus run: it has no business
     // leaving the drawtube parked at the end of a scan.
-    let restored = restore_autofocus_origin(&focuser_id, ctx, origin_position).await;
+    let restored = restore_autofocus_origin(&focuser_id, ctx, origin_position, None).await;
 
     match (outcome, restored) {
         (Ok(outcome), Ok(())) => Ok(outcome),

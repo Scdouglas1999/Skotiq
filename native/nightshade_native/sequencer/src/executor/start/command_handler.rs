@@ -7,6 +7,7 @@ use super::*;
 pub(super) struct CommandHandlerArgs {
     pub cloud_motion_for_recovery: Arc<RwLock<CloudMotionSnapshot>>,
     pub conditions_score_for_cmd: Arc<RwLock<Option<crate::scheduling::ConditionsScore>>>,
+    pub current_recovery_for_cmd: Arc<StdRwLock<Option<crate::recovery::RecoveryContext>>>,
     pub default_adaptive_for_cmd: Arc<RwLock<Option<crate::scheduling::AdaptiveExposureConfig>>>,
     pub defect_map_apply_for_cmd: Arc<RwLock<Option<crate::executor::DefectMapApplyState>>>,
     pub event_tx: broadcast::Sender<ExecutorEvent>,
@@ -37,6 +38,7 @@ pub(super) async fn run_command_handler(args: CommandHandlerArgs) {
     let CommandHandlerArgs {
         cloud_motion_for_recovery,
         conditions_score_for_cmd,
+        current_recovery_for_cmd,
         default_adaptive_for_cmd,
         defect_map_apply_for_cmd,
         event_tx,
@@ -75,6 +77,22 @@ pub(super) async fn run_command_handler(args: CommandHandlerArgs) {
                 // while the node tree is parked.
                 progress_for_commands.write().state = ExecutorState::Paused;
                 let _ = event_tx.send(ExecutorEvent::StateChanged(ExecutorState::Paused));
+            }
+            ExecutorCommand::Resume if current_recovery_for_cmd.read().is_some() => {
+                // The node tree is frozen by a recovery ladder, not by a
+                // pause, and unfreezing it would expose through the fault the
+                // ladder is still fixing (a guide star not yet re-acquired).
+                // Resume withdraws a pause placed during the ladder and
+                // nothing more; Try now and Abort are the controls over the
+                // ladder itself.
+                *state.write().await = ExecutorState::Recovering;
+                progress_for_commands.write().state = ExecutorState::Recovering;
+                let _ = event_tx.send(ExecutorEvent::StateChanged(ExecutorState::Recovering));
+                let _ = event_tx.send(ExecutorEvent::Warning {
+                    message: "Recovery is still running, so the run stays frozen until it \
+                              finishes. Use Try now or Abort recovery to act on it."
+                        .to_string(),
+                });
             }
             ExecutorCommand::Resume => {
                 // A node may be parked on `resume_notify.notified()`; we have

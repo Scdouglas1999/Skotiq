@@ -134,6 +134,52 @@ void main() {
   );
 
   test(
+    'a latched auth rejection does not leave the last host verdict on show',
+    () async {
+      final backend = _liveCredentialsBackend();
+      var rejected = false;
+      when(() => backend.isAuthTokenRejected).thenAnswer((_) => rejected);
+      when(() => backend.getSafetyStatus()).thenAnswer(
+        (_) async => {
+          'isSafe': true,
+          'safetyStatus': 'safe',
+          'dataSource': 'combined',
+          'hardwareWeatherSafe': true,
+          'safetyMonitorSafe': true,
+          'apiWeatherSafe': true,
+          'lastEvaluation': '2026-07-13T03:00:00Z',
+        },
+      );
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      container.read(weatherSafetyProvider);
+      await _pumpUntil(() => container.read(weatherSafetyProvider).isSafe);
+      expect(container.read(weatherSafetyProvider).isSafe, isTrue);
+
+      // Another request latched the host's rejection of this device's token.
+      // From here the client knows nothing about the host's sky.
+      rejected = true;
+      await container.read(weatherSafetyProvider.notifier).evaluateNow();
+
+      final state = container.read(weatherSafetyProvider);
+      expect(
+        state.isSafe,
+        isFalse,
+        reason: 'a verdict the client can no longer refresh is not "safe"',
+      );
+      expect(state.failModeWarning, isNotNull);
+    },
+  );
+
+  test(
     'remote safety preserves critical severity, reason, and exact actions',
     () async {
       final backend = _liveCredentialsBackend();

@@ -192,9 +192,18 @@ Future<void> _hydrateDeviceTelemetry(
   if (!_isCurrentRemoteBackend(reader, backend)) return;
 
   // Single apply pass — no intervening clear, so cards never blank.
+  //
+  // The status fetches ran in parallel with the live event mirror. A device
+  // the host disconnected meanwhile has had its notifier reset (deviceId
+  // cleared), and a status read before that is no evidence of its state now,
+  // so each device's apply is skipped when its card no longer holds the id it
+  // was fetched for. Without that a camera disconnected mid-exposure came
+  // back as a disconnected card still exposing and cooling, and a focuser as
+  // connected.
   final camera = cameraStatus;
-  if (camera != null) {
-    final notifier = _read(reader, cameraStateProvider.notifier);
+  final cameraNotifier = _read(reader, cameraStateProvider.notifier);
+  if (camera != null && cameraNotifier.deviceId == cameraId) {
+    final notifier = cameraNotifier;
     final temp = camera.sensorTemp;
     if (temp != null) {
       // `updateTemperature`'s power argument is null-aware
@@ -220,8 +229,9 @@ Future<void> _hydrateDeviceTelemetry(
   }
 
   final mount = mountStatus;
-  if (mount != null) {
-    final notifier = _read(reader, mountStateProvider.notifier);
+  final mountNotifier = _read(reader, mountStateProvider.notifier);
+  if (mount != null && mountNotifier.deviceId == mountId) {
+    final notifier = mountNotifier;
     notifier.updatePosition(
       mount.rightAscension,
       mount.declination,
@@ -235,8 +245,9 @@ Future<void> _hydrateDeviceTelemetry(
   }
 
   final focuser = focuserStatus;
-  if (focuser != null) {
-    final notifier = _read(reader, focuserStateProvider.notifier);
+  final focuserNotifier = _read(reader, focuserStateProvider.notifier);
+  if (focuser != null && focuserNotifier.deviceId == focuserId) {
+    final notifier = focuserNotifier;
     // The status payload carries the capability flags the reset wiped;
     // without them the slave's focuser card claims absolute positioning is
     // unsupported and disables Go To Position (same shape as the
@@ -256,8 +267,9 @@ Future<void> _hydrateDeviceTelemetry(
   }
 
   final filterWheel = filterWheelStatus;
-  if (filterWheel != null) {
-    final notifier = _read(reader, filterWheelStateProvider.notifier);
+  final filterWheelNotifier = _read(reader, filterWheelStateProvider.notifier);
+  if (filterWheel != null && filterWheelNotifier.deviceId == filterWheelId) {
+    final notifier = filterWheelNotifier;
     notifier.updatePosition(filterWheel.position);
     notifier.setMoving(filterWheel.moving);
     // The fetched status already carries the wheel's filter names; apply them
@@ -270,8 +282,9 @@ Future<void> _hydrateDeviceTelemetry(
   }
 
   final rotator = rotatorStatus;
-  if (rotator != null) {
-    final notifier = _read(reader, rotatorStateProvider.notifier);
+  final rotatorNotifier = _read(reader, rotatorStateProvider.notifier);
+  if (rotator != null && rotatorNotifier.deviceId == rotatorId) {
+    final notifier = rotatorNotifier;
     notifier.updatePosition(
       rotator.position,
       mechanicalPosition: rotator.mechanicalPosition,

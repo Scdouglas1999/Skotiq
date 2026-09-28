@@ -337,12 +337,6 @@ pub async fn execute_exposure_with_renderer(
             config.duration_secs
         );
 
-        // The instant the shutter opens. FITS DATE-OBS means START of
-        // observation, so it is captured here, immediately before the exposure
-        // call — stamping it at header-build time (after readout) makes every
-        // frame late by its own exposure time.
-        let exposure_started_at = chrono::Utc::now();
-
         // Take the imaging train before exposing, waiting if a trigger-fired
         // action currently holds it.
         //
@@ -352,13 +346,41 @@ pub async fn execute_exposure_with_renderer(
         // same "No exposure is available to download" failure came back 20 s
         // later — the race had swapped ends, not closed. One claim, taken by
         // whoever gets there first, is what actually serialises them.
-        let frame_claim =
-            match ImagingTrainClaimGuard::acquire(ctx, "the next exposure", config.duration_secs)
-                .await
+        //
+        // The wait for the train can outlast the pause check above: the action
+        // that held it may have paused the run before handing it back (an
+        // autofocus that left the guider dead does). So the pause is checked
+        // again with the train in hand, and a paused run gives it back and
+        // waits instead of starting the frame.
+        let frame_claim = loop {
+            let claim = match ImagingTrainClaimGuard::acquire(
+                ctx,
+                "the next exposure",
+                config.duration_secs,
+            )
+            .await
             {
                 Ok(claim) => claim,
                 Err(cancelled) => return cancelled,
             };
+            if !control.pause.is_paused() {
+                break claim;
+            }
+            claim.release(ctx).await;
+            if !control
+                .pause
+                .wait_while_paused(&ctx.cancellation_token)
+                .await
+            {
+                return InstructionResult::cancelled("Exposure cancelled while paused");
+            }
+        };
+
+        // The instant the shutter opens. FITS DATE-OBS means START of
+        // observation, so it is captured here, immediately before the exposure
+        // call — stamping it at header-build time (after readout) makes every
+        // frame late by its own exposure time.
+        let exposure_started_at = chrono::Utc::now();
 
         // tokio::select! is the only way to honour cancellation during a
         // blocking exposure without driver support; the abort branch tells

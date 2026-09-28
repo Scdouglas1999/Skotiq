@@ -713,6 +713,7 @@ impl SequenceExecutor {
                 let command_handler = run_command_handler(CommandHandlerArgs {
                     cloud_motion_for_recovery: cloud_motion_for_recovery.clone(),
                     conditions_score_for_cmd,
+                    current_recovery_for_cmd: current_recovery_clone.clone(),
                     default_adaptive_for_cmd,
                     defect_map_apply_for_cmd,
                     event_tx: event_tx.clone(),
@@ -759,13 +760,12 @@ impl SequenceExecutor {
                 // a ParkAndAbort sweep is active. This prevents the outer
                 // select! from choosing completed execution and dropping the
                 // trigger monitor halfway through the hardware-safe-state work.
-                // Subscribed BEFORE the tree runs so every
-                // `InstructionFailed` a failing run emits is still in the
-                // broadcast buffer when the terminal handler drains it below.
-                // A drain (rather than a listener task) is what makes it
-                // race-free: the event is sent before `execute()` returns, so
-                // it is queued by the time we look.
-                let mut instruction_failure_rx = event_tx.subscribe();
+                // Subscribed BEFORE the tree runs so every complaint a failing
+                // run emits is seen, and followed as the run goes: a receiver
+                // drained only at the end kept the last 256 events of the
+                // night and lost any fault further back.
+                let failure_collector =
+                    crate::executor::failure_cause::FailureCollector::spawn(event_tx.subscribe());
                 let park_and_abort_for_execution = park_and_abort_in_progress.clone();
                 let mut park_and_abort_done_rx = park_and_abort_done_rx;
                 let park_and_abort_done_for_checkpoint = park_and_abort_done_rx.clone();
@@ -814,6 +814,12 @@ impl SequenceExecutor {
                 // terminal verdict is a Failure rather than a silent success.
                 let meridian_flip_failed = Arc::new(AtomicBool::new(false));
                 let meridian_flip_failed_for_triggers = meridian_flip_failed.clone();
+                // What the failed flip said, for the run's failure reason. The
+                // flip is not a node, so the tree carries on past its complaint
+                // and the failure chain counts it as survived.
+                let meridian_flip_failure: Arc<StdRwLock<Option<String>>> =
+                    Arc::new(StdRwLock::new(None));
+                let meridian_flip_failure_for_triggers = meridian_flip_failure.clone();
                 let progress_for_checkpoint = progress.clone();
                 let state_for_checkpoint = state.clone();
                 let is_cancelled_for_checkpoint = is_cancelled.clone();
@@ -951,6 +957,7 @@ impl SequenceExecutor {
                     is_cancelled_clone,
                     is_paused_for_triggers,
                     meridian_flip_failed_for_triggers,
+                    meridian_flip_failure_for_triggers,
                     park_and_abort_done_for_triggers,
                     park_and_abort_for_triggers,
                     progress_for_triggers,
@@ -1234,10 +1241,15 @@ impl SequenceExecutor {
                         // `executor::failure_cause` for the rule that replaced
                         // it: the structural refusal if there is one, else the
                         // FIRST fault, never a cancelled cleanup step.
-                        let failure_report = crate::executor::failure_cause::run_failure_report(
-                            &mut instruction_failure_rx,
-                            unreachable_failure_reason,
-                        );
+                        let mut failure_report =
+                            failure_collector.finish(unreachable_failure_reason).await;
+                        // A run the failed flip made a failure, with no later
+                        // fault of its own, failed because of the flip.
+                        if failure_report.cause.is_none()
+                            && meridian_flip_failed.load(Ordering::Acquire)
+                        {
+                            failure_report.cause = meridian_flip_failure.read().clone();
+                        }
                         if failure_report.cascade.len() > 1 {
                             tracing::info!(
                                 "Run failure cascade ({} links, cause first): {}",

@@ -939,7 +939,12 @@ impl MeridianFlipExecutor {
             new_pier_side
         );
         let (post_ra, post_dec) = self.device_ops.mount_get_coordinates(mount_id).await?;
-        let ra_diff_deg = normalize_ra_diff_hours(post_ra - ctx.target_ra_hours) * 15.0;
+        // On the sky, as the slew arrival check measures it: raw RA degrees
+        // shrink the tolerance by cos(Dec), to seconds of arc near the pole,
+        // and a flip that landed was failed on read-back jitter.
+        let ra_diff_deg = normalize_ra_diff_hours(post_ra - ctx.target_ra_hours)
+            * 15.0
+            * ctx.target_dec_degrees.to_radians().cos();
         let dec_diff_deg = post_dec - ctx.target_dec_degrees;
         let tolerance_deg = self.config.flip_coordinate_tolerance_deg;
         if ra_diff_deg.abs() > tolerance_deg || dec_diff_deg.abs() > tolerance_deg {
@@ -1887,6 +1892,9 @@ mod tests {
         pier_sides: Mutex<Vec<crate::meridian::PierSide>>,
         /// Current coordinates returned from mount_get_coordinates (RA, Dec).
         coordinates: Mutex<(f64, f64)>,
+        /// Hours added to the RA the mount reads back, as a mount whose
+        /// read-back does not land exactly on the commanded RA.
+        readback_ra_offset_hours: Mutex<f64>,
         /// Park retry counter — fail-then-succeed simulation.
         park_failures_remaining: AtomicI32,
         /// Recorded park calls (for assertions).
@@ -1946,7 +1954,11 @@ mod tests {
         }
 
         async fn mount_get_coordinates(&self, _mount_id: &str) -> DeviceResult<(f64, f64)> {
-            Ok(*self.state.coordinates.lock().unwrap())
+            let (ra, dec) = *self.state.coordinates.lock().unwrap();
+            Ok((
+                ra + *self.state.readback_ra_offset_hours.lock().unwrap(),
+                dec,
+            ))
         }
 
         async fn mount_sync(&self, _mount_id: &str, _ra: f64, _dec: f64) -> DeviceResult<()> {
@@ -2358,6 +2370,45 @@ mod tests {
             FlipResult::Success { .. } => {}
             other => panic!(
                 "Expected coordinate-fallback verification to succeed, got {:?}",
+                other
+            ),
+        }
+    }
+
+    /// Near the pole a flip that landed must not be failed as a miss. Without
+    /// pier-side telemetry the flip is verified by where the mount says it is,
+    /// and that check compared raw RA degrees against its one-arcminute
+    /// tolerance: at Dec 85 an hour of RA spans a twelfth of the arc it does on
+    /// the equator, so a read-back 9 arcseconds off on the sky failed the flip.
+    #[tokio::test]
+    async fn a_flip_near_the_pole_is_verified_on_the_sky() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state
+            .pier_sides
+            .lock()
+            .unwrap()
+            .push(crate::meridian::PierSide::Unknown);
+        // 0.002 h of RA: 1.8' of raw RA, 9.4" on the sky at Dec 85.
+        *state.readback_ra_offset_hours.lock().unwrap() = 0.002;
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            pause_guiding: false,
+            auto_center: false,
+            refocus_after: false,
+            resume_guiding: false,
+            settle_time: 0.0,
+            max_retries: 0,
+            ..Default::default()
+        };
+        let mut executor = MeridianFlipExecutor::new(config, ops);
+        let mut ctx = make_ctx(&state);
+        ctx.target_dec_degrees = 85.0;
+        *state.coordinates.lock().unwrap() = (ctx.target_ra_hours, 85.0);
+
+        match executor.execute(&ctx).await {
+            FlipResult::Success { .. } => {}
+            other => panic!(
+                "a flip 9 arcseconds from its target was failed: {:?}",
                 other
             ),
         }

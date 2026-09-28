@@ -534,6 +534,164 @@ void main() {
         await socket.close();
       }
     });
+
+    /// Send [message] on an /events socket opened with [token], wait for the
+    /// server to act on it, then read the handoff back over HTTP as admin.
+    Future<({Object? handoff, List<Map<String, dynamic>> frames})>
+    handoffAfterSocketMessage(
+      String token,
+      Map<String, dynamic> message,
+    ) async {
+      final socket = await WebSocket.connect(
+        'ws://127.0.0.1:${server.actualPort}/events'
+        '?token=$token&apiVersion=2.5.0',
+      );
+      final frames = <Map<String, dynamic>>[];
+      final subscription = socket.listen((raw) {
+        frames.add(jsonDecode(raw as String) as Map<String, dynamic>);
+      });
+      try {
+        socket.add(jsonEncode(message));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      } finally {
+        await subscription.cancel();
+        await socket.close();
+      }
+      final read = await _request(
+        client,
+        baseUri,
+        '/api/session-handoff',
+        token: 'admin-token',
+      );
+      expect(read.statusCode, HttpStatus.ok);
+      return (handoff: read.body['sessionHandoff'], frames: frames);
+    }
+
+    test('a view token cannot set the session handoff over the event '
+        'socket, as it cannot over HTTP', () async {
+      final http = await _request(
+        client,
+        baseUri,
+        '/api/session-handoff',
+        method: 'POST',
+        token: 'view-token',
+        body: {'owner': 'intruder'},
+      );
+      expect(http.statusCode, HttpStatus.forbidden);
+
+      final result = await handoffAfterSocketMessage('view-token', {
+        'type': 'session_handoff.set',
+        'handoff': {'owner': 'intruder'},
+      });
+      expect(
+        result.handoff,
+        isNull,
+        reason: 'the socket let a view token hand the session over',
+      );
+      expect(
+        result.frames.where((f) => f['type'] == 'error'),
+        isNotEmpty,
+        reason: 'the refusal is reported on the socket, not dropped',
+      );
+    });
+
+    test('an admin token still sets and clears the session handoff over '
+        'the event socket', () async {
+      final set = await handoffAfterSocketMessage('admin-token', {
+        'type': 'session_handoff.set',
+        'handoff': {'owner': 'observatory'},
+      });
+      expect(set.handoff, {'owner': 'observatory'});
+
+      final cleared = await handoffAfterSocketMessage('admin-token', {
+        'type': 'session_handoff.clear',
+      });
+      expect(cleared.handoff, isNull);
+    });
+
+    test('a view token cannot post to the shared session over the event '
+        'socket, as it cannot over HTTP', () async {
+      final routes = {
+        '/api/collaboration/preview': {
+          'preview': {'frame': 'intruder'},
+        },
+        '/api/collaboration/chat': {'viewerName': 'Intruder', 'message': 'hi'},
+        '/api/collaboration/annotations': {
+          'annotationId': 'a1',
+          'kind': 'label',
+          'payload': {'text': 'intruder'},
+        },
+      };
+      for (final entry in routes.entries) {
+        final http = await _request(
+          client,
+          baseUri,
+          entry.key,
+          method: 'POST',
+          token: 'view-token',
+          body: entry.value,
+        );
+        expect(http.statusCode, HttpStatus.forbidden, reason: entry.key);
+      }
+
+      final result = await handoffAfterSocketMessage('view-token', {
+        'type': 'collaboration.preview',
+        'preview': {'frame': 'intruder'},
+      });
+      await handoffAfterSocketMessage('view-token', {
+        'type': 'collaboration.chat',
+        'viewerName': 'Intruder',
+        'message': 'hi',
+      });
+      await handoffAfterSocketMessage('view-token', {
+        'type': 'collaboration.annotation',
+        'annotationId': 'a1',
+        'kind': 'label',
+        'payload': {'text': 'intruder'},
+      });
+
+      final state = server.collaborationManager.state;
+      expect(
+        state.preview,
+        isNull,
+        reason: 'the socket let a view token replace the shared preview',
+      );
+      expect(state.chat, isEmpty, reason: 'the socket let a view token chat');
+      expect(
+        state.annotations,
+        isEmpty,
+        reason: 'the socket let a view token annotate',
+      );
+      expect(
+        result.frames.where((f) => f['type'] == 'error'),
+        isNotEmpty,
+        reason: 'the refusal is reported on the socket, not dropped',
+      );
+    });
+
+    test('a control token still posts to the shared session over the event '
+        'socket', () async {
+      await handoffAfterSocketMessage('control-token', {
+        'type': 'collaboration.preview',
+        'preview': {'frame': 'rig'},
+      });
+      await handoffAfterSocketMessage('control-token', {
+        'type': 'collaboration.chat',
+        'viewerName': 'Operator',
+        'message': 'focus looks good',
+      });
+      await handoffAfterSocketMessage('control-token', {
+        'type': 'collaboration.annotation',
+        'annotationId': 'a2',
+        'kind': 'label',
+        'payload': {'text': 'M31'},
+      });
+
+      final state = server.collaborationManager.state;
+      expect(state.preview, {'frame': 'rig'});
+      expect(state.chat, hasLength(1));
+      expect(state.annotations, hasLength(1));
+    });
   });
 
   group('HeadlessApiServer fine-grained auth middleware', () {

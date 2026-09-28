@@ -188,3 +188,164 @@ mod home_tests {
         assert_eq!(commands::ONSTEP_FIND_HOME, ":hF#");
     }
 }
+
+/// A Meade-protocol mount on a pseudo-terminal, answering the way the classic
+/// firmware does, so the driver can be run end to end without hardware.
+#[cfg(all(test, target_os = "linux"))]
+mod meade_pty_tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::os::fd::FromRawFd;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    /// Opens a pty whose master answers Meade commands. `:D#` (the distance
+    /// bar) reports a slew in progress for the first `bar_polls` asks after a
+    /// goto, then an empty bar. Returns the slave path.
+    fn spawn_meade_pty(bar_polls: u32) -> String {
+        spawn_meade_pty_logged(bar_polls, b"1").0
+    }
+
+    /// As [`spawn_meade_pty`], answering `:Sr`/`:Sd` with `target_reply`
+    /// (`1` accepted, `0` refused), and recording every command received.
+    fn spawn_meade_pty_logged(
+        bar_polls: u32,
+        target_reply: &'static [u8],
+    ) -> (String, Arc<Mutex<Vec<String>>>) {
+        let received = Arc::new(Mutex::new(Vec::new()));
+        let log = received.clone();
+        let mut master: libc::c_int = 0;
+        let mut slave: libc::c_int = 0;
+        // SAFETY: openpty writes two descriptors into the provided ints; the
+        // optional name, termios and winsize arguments are null.
+        let rc = unsafe {
+            libc::openpty(
+                &mut master,
+                &mut slave,
+                std::ptr::null_mut(),
+                std::ptr::null(),
+                std::ptr::null(),
+            )
+        };
+        assert_eq!(rc, 0, "openpty failed");
+        let mut name = [0 as libc::c_char; 256];
+        // SAFETY: `name` is a writable buffer of the length passed.
+        let rc = unsafe { libc::ttyname_r(slave, name.as_mut_ptr(), name.len()) };
+        assert_eq!(rc, 0, "ttyname_r failed");
+        // SAFETY: ttyname_r succeeded, so `name` is NUL-terminated.
+        let path = unsafe { std::ffi::CStr::from_ptr(name.as_ptr()) }
+            .to_string_lossy()
+            .into_owned();
+        // The slave stays open (leaked) so the pty outlives the driver's handle.
+
+        // SAFETY: `master` is a fresh descriptor this function owns.
+        let mut port = unsafe { std::fs::File::from_raw_fd(master) };
+        let bars_left = AtomicU32::new(0);
+        std::thread::spawn(move || {
+            let mut pending = String::new();
+            let mut buf = [0u8; 64];
+            loop {
+                let n = match port.read(&mut buf) {
+                    Ok(0) | Err(_) => return,
+                    Ok(n) => n,
+                };
+                pending.push_str(&String::from_utf8_lossy(&buf[..n]));
+                while let Some(end) = pending.find('#') {
+                    let command: String = pending.drain(..=end).collect();
+                    log.lock().unwrap().push(command.clone());
+                    let reply: &[u8] = if command.starts_with(":GVP") {
+                        b"LX200 Classic#"
+                    } else if command.starts_with(":Sr") || command.starts_with(":Sd") {
+                        target_reply
+                    } else if command.starts_with(":CM") {
+                        b" M31 EX GAL MAG 3.5 SZ178.0'#"
+                    } else if command.starts_with(":MS") {
+                        bars_left.store(bar_polls, Ordering::SeqCst);
+                        b"0"
+                    } else if command.starts_with(":D") {
+                        let left = bars_left.load(Ordering::SeqCst);
+                        if left > 0 {
+                            bars_left.store(left - 1, Ordering::SeqCst);
+                            b"\x7f#"
+                        } else {
+                            b"#"
+                        }
+                    } else if command.starts_with(":GR") {
+                        b"05:30:00#"
+                    } else if command.starts_with(":GD") {
+                        b"+20*00:00#"
+                    } else {
+                        b""
+                    };
+                    if !reply.is_empty() && port.write_all(reply).is_err() {
+                        return;
+                    }
+                }
+            }
+        });
+        (path, received)
+    }
+
+    /// A sync writes the target and then `:CM#` syncs to whatever target the
+    /// mount holds. When the mount refused the new target, that is the
+    /// previous goto's, so the mount was synced to the wrong place and the
+    /// sync reported success.
+    #[tokio::test]
+    async fn a_sync_to_a_target_the_mount_refused_fails_and_is_not_sent() {
+        let (path, received) = spawn_meade_pty_logged(0, b"0");
+        let mut mount = Lx200Mount::new(path, Lx200MountType::Meade, Some(9600));
+        mount
+            .connect()
+            .await
+            .expect("connect to the fake Meade mount");
+
+        let result = mount.sync_to_coordinates(5.5, 20.0).await;
+
+        assert!(
+            result.is_err(),
+            "a sync whose target the mount refused reported success"
+        );
+        assert!(
+            !received
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|command| command.starts_with(":CM")),
+            "the sync was sent against the mount's previous target"
+        );
+    }
+
+    /// A goto on a Meade-protocol mount used to latch "slewing" with nothing
+    /// that ever cleared it except an abort, so every sequencer slew waited
+    /// out its 30-minute limit and failed although the mount had arrived.
+    #[tokio::test]
+    async fn a_meade_goto_stops_reading_as_slewing_once_the_mount_arrives() {
+        let path = spawn_meade_pty(2);
+        let mut mount = Lx200Mount::new(path, Lx200MountType::Meade, Some(9600));
+        mount
+            .connect()
+            .await
+            .expect("connect to the fake Meade mount");
+
+        mount
+            .slew_to_coordinates(5.5, 20.0)
+            .await
+            .expect("goto on the fake Meade mount");
+
+        assert!(
+            mount.is_slewing().await.expect("slew state"),
+            "the mount reported the goto in progress, so is_slewing must too"
+        );
+
+        let deadline = std::time::Instant::now() + Duration::from_secs(3);
+        loop {
+            if !mount.is_slewing().await.expect("slew state") {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "is_slewing stayed true after the mount's distance bar went empty"
+            );
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    }
+}

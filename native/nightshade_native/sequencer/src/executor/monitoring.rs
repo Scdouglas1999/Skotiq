@@ -297,6 +297,22 @@ pub fn is_safety_class_trigger(trigger_type: &TriggerType) -> bool {
     }
 }
 
+/// Whether a safety-class trigger's configured action may run while the run
+/// is held.
+///
+/// The type of trigger decides whether it is watched during a hold; the action
+/// decides what it may do there. Only the operator's advance decision to park
+/// and close protects the rig without lifting the hold. Every other action
+/// either resumes the run or drives hardware under it: `Pause` and `Retry`
+/// hand the run to the recovery driver, which re-enables tracking and sets the
+/// run back to Running when it succeeds; `PauseAndWaitForClear` resumes on a
+/// clear sky; `SlewToGapAndContinue`, autofocus, flips and recentres move
+/// hardware. Measured: a `mount_tracking_lost` firing under an operator hold
+/// re-enabled tracking and resumed the run.
+pub fn may_act_during_hold(action: &RecoveryAction) -> bool {
+    matches!(action, RecoveryAction::ParkAndAbort)
+}
+
 /// How a non-auto-recoverable recovery escalation (an `AttemptOutcome::
 /// PauseForOperator`, e.g. from a consecutive-reject storm) must be handled.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

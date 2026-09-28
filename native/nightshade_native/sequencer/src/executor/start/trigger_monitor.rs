@@ -18,6 +18,7 @@ pub(super) struct TriggerMonitorArgs {
     pub is_cancelled_clone: Arc<AtomicBool>,
     pub is_paused_for_triggers: Arc<AtomicBool>,
     pub meridian_flip_failed_for_triggers: Arc<AtomicBool>,
+    pub meridian_flip_failure_for_triggers: Arc<StdRwLock<Option<String>>>,
     pub park_and_abort_done_for_triggers: watch::Sender<bool>,
     pub park_and_abort_for_triggers: Arc<AtomicBool>,
     pub progress_for_triggers: Arc<StdRwLock<SequenceProgress>>,
@@ -51,6 +52,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         is_cancelled_clone,
         is_paused_for_triggers,
         meridian_flip_failed_for_triggers,
+        meridian_flip_failure_for_triggers,
         park_and_abort_done_for_triggers,
         park_and_abort_for_triggers,
         progress_for_triggers,
@@ -131,18 +133,23 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         // escalation refused to leave a run paused and parked the mount
         // instead — it was choosing between two defects. So: while Paused the
         // monitor keeps polling and keeps evaluating, but only safety-class
-        // triggers may act (see `is_safety_class_trigger`); an autofocus,
-        // dither, flip or recentre must never drive hardware under a hold a
-        // human placed to inspect the rig.
+        // triggers may act (see `is_safety_class_trigger`), and only by
+        // parking (see `may_act_during_hold`); an autofocus, dither, flip,
+        // recentre or recovery ladder must never drive hardware under a hold a
+        // human placed to inspect the rig, nor lift it.
         //
-        // `Recovering` is still skipped: the recovery driver owns the hardware
-        // for the length of its own bounded ladder and has its own meridian
-        // abort. Stopping / Failed / Completed / Idle are skipped as before —
-        // nothing there to protect or to conflict with.
+        // `Recovering` is held the same way. It used to be skipped on the
+        // grounds that the recovery driver owns the hardware for its ladder,
+        // but that ladder runs for up to 90 minutes, and a lost guide star is
+        // most often cloud: rain arriving mid-ladder went unwatched, with no
+        // weather, dawn or shutter evaluation at all. Only a park-and-abort may
+        // act there, which ends the ladder with the run. Stopping / Failed /
+        // Completed / Idle are skipped as before — nothing there to protect or
+        // to conflict with.
         let current_state = *state_clone.read().await;
         let paused_safety_only = match current_state {
             ExecutorState::Running => false,
-            ExecutorState::Paused => true,
+            ExecutorState::Paused | ExecutorState::Recovering => true,
             _ => continue,
         };
 
@@ -508,6 +515,15 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             // on a transient driver glitch — actual loss is reported as
             // Ok(false), which the branch below handles distinctly.
             match &tracking_result {
+                // Under a hold the tracking-loss edge is left for the first
+                // poll after the operator resumes. Nothing may act on it here
+                // (see `may_act_during_hold`), and taking the reading now
+                // would consume the edge: the latch clears on the next poll,
+                // so a run resumed on a mount the operator left untracked
+                // would expose with nothing restoring tracking.
+                Ok(_) if paused_safety_only => {
+                    state.mount_status_query_failed = false;
+                }
                 Ok(is_tracking) => {
                     state.mount_status_query_failed = false;
 
@@ -711,17 +727,19 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                 // the guarantee in one readable place, and keeps the filtered
                 // trigger's cooldown ticking so it re-fires normally once the
                 // operator resumes.
-                .filter(|(trigger_id, _)| {
+                .filter(|(trigger_id, action)| {
                     if !paused_safety_only {
                         return true;
                     }
                     match manager.get_trigger(trigger_id) {
                         Some(trigger) => {
-                            let allowed = is_safety_class_trigger(&trigger.trigger_type);
+                            let allowed = is_safety_class_trigger(&trigger.trigger_type)
+                                && may_act_during_hold(action);
                             if !allowed {
                                 tracing::debug!(
-                                    "Trigger '{}' fired while the run is paused; not safety \
-                                     class, so it is not acted on until the run resumes",
+                                    "Trigger '{}' fired while the run is paused; it is not a \
+                                     safety-class trigger with a protective action, so it is \
+                                     not acted on until the run resumes",
                                     trigger_id
                                 );
                             }
@@ -1119,6 +1137,33 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                                 NodeStatus::Running,
                                 format!("Executing: Autofocus ({trigger_name})"),
                             ));
+                            // Take the autofocus gate here rather than inside
+                            // the sweep, so a refocus turned away by another
+                            // autofocus (an Autofocus node dispatched on the
+                            // same tick, a manual sweep, a backlash
+                            // calibration) is told apart from one that ran and
+                            // failed. It moved nothing and says nothing about
+                            // focus; judged as a failure it reached the default
+                            // AbortAndPark and parked the rig. The stale-focus
+                            // latch is kept, so the trigger asks again once
+                            // its cooldown has passed.
+                            let Some(af_admission) = crate::instructions::try_admit_autofocus_run()
+                            else {
+                                camera_claim.release().await;
+                                let message = format!(
+                                    "Trigger '{trigger_name}' asked for an autofocus while another \
+                                     autofocus held the camera and focuser. This refocus was \
+                                     skipped; the trigger will ask again."
+                                );
+                                tracing::warn!("{}", message);
+                                let _ = event_tx_clone2.send(ExecutorEvent::NodeCompleted {
+                                    id: completed_node_id,
+                                    status: NodeStatus::Skipped,
+                                });
+                                let _ = event_tx_clone2.send(ExecutorEvent::Warning { message });
+                                fired_triggers.push((trigger_id, action));
+                                continue;
+                            };
                             let total_steps =
                                 af_config.steps_out.saturating_mul(2).saturating_add(1);
                             let progress_fn = move |progress: f64, detail_str: String| {
@@ -1145,12 +1190,27 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                             )
                             .await;
 
-                            let af_result = crate::instructions::execute_autofocus(
+                            let af_result = crate::instructions::execute_autofocus_admitted(
                                 &af_config,
                                 &af_ctx,
                                 Some(&progress_fn),
+                                af_admission,
                             )
                             .await;
+
+                            // A sweep that left the guider dead is held
+                            // below. Freeze the node tree BEFORE handing the
+                            // camera back: the capture loop is waiting for the
+                            // train past its pause check, and released first
+                            // it started one more full unguided light in the
+                            // gap while this arm was still judging the sweep.
+                            if af_result.status == NodeStatus::Failure
+                                && !is_cancelled_clone.load(Ordering::Relaxed)
+                                && autofocus_trigger_failure_cost(af_result.data.as_ref())
+                                    == AutofocusTriggerFailureCost::EveryFrameUnguided
+                            {
+                                is_paused_for_triggers.store(true, Ordering::Relaxed);
+                            }
 
                             // Hand the camera back the moment the sweep
                             // is done — success or failure — so the
@@ -1185,6 +1245,19 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                                     ts.reset_baseline_hfr();
                                     ts.mark_autofocus_performed();
                                 }
+                            } else if af_result.status == NodeStatus::Cancelled
+                                || is_cancelled_clone.load(Ordering::Relaxed)
+                            {
+                                // The run is being stopped. A sweep the stop
+                                // cut short is not a failed autofocus, and
+                                // judging it as one sent an operator's Stop
+                                // down the default AbortAndPark: park the
+                                // mount, close cover and dome.
+                                tracing::info!(
+                                    "Trigger autofocus '{}' ended by the run stopping; not \
+                                     judging it as a failed refocus",
+                                    trigger_name
+                                );
                             } else {
                                 // A failed autofocus is not automatically a
                                 // ruined night. Judge the frames it would keep
@@ -1221,6 +1294,100 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                                      does not re-fire on every subsequent frame",
                                     ts.baseline_hfr
                                 );
+                                }
+
+                                // `autofocus_origin_restored` is absent (not
+                                // `false`) when the run bailed before it ever
+                                // moved the focuser — e.g. admission rejected
+                                // because another autofocus held the equipment —
+                                // so only an explicit `false` means the motor was
+                                // left off its origin.
+                                let origin_restored = af_result
+                                    .data
+                                    .as_ref()
+                                    .and_then(|data| data.get("autofocus_origin_restored"))
+                                    .and_then(|value| value.as_bool());
+                                let position_after_af = read_focuser_position(
+                                    &device_ops_for_triggers,
+                                    trigger_action_context.focuser_id.as_ref(),
+                                )
+                                .await;
+                                // Why: autofocus result's `message` is
+                                // Option<String> — only populated when the focus
+                                // pipeline reports a specific diagnostic. The
+                                // generic fallback stands in when no specific
+                                // signal came back; the failure itself is already
+                                // encoded in the result's status.
+                                let failure_cost =
+                                    autofocus_trigger_failure_cost(af_result.data.as_ref());
+                                let reason = af_result
+                                    .message
+                                    .unwrap_or_else(|| "autofocus did not converge".to_string());
+
+                                if failure_cost == AutofocusTriggerFailureCost::EveryFrameUnguided {
+                                    // The sweep stopped the guider and could not
+                                    // prove it back. Continuing here is what cost
+                                    // a clear night: three 180 s lights, every one
+                                    // trailed past the grader's limit, zero
+                                    // accepted. Halt semantics are an operator
+                                    // PAUSE — the node tree freezes, the burst
+                                    // loop's between-frame gate stops the next
+                                    // exposure, and nothing is moved or closed.
+                                    // Pausing is reversible by one button; parking
+                                    // is not, and a dead guider is not evidence
+                                    // about who is standing at the telescope.
+                                    //
+                                    // Safety-class triggers keep evaluating while
+                                    // Paused (see `paused_safety_only` in the
+                                    // monitor's state gate), so this hold is safe
+                                    // to leave in place unattended without the
+                                    // run parking on its own initiative.
+                                    //
+                                    // It is decided before the focus verdict, not
+                                    // after: judged on HFR alone, a dead guider
+                                    // with acceptable focus kept imaging, and one
+                                    // with no HFR reference took the default
+                                    // AbortAndPark and parked the rig.
+                                    let mut hold = autofocus_trigger_unguided_hold(
+                                        &trigger_id,
+                                        &trigger_name,
+                                        &reason,
+                                        position_after_af,
+                                    );
+                                    hold.decision.sequence_run_id =
+                                        *active_run_id_for_decisions.read();
+                                    let _ = decision_tx_for_lifecycle.send(hold.decision);
+                                    tracing::error!("{}", hold.operator_message);
+
+                                    // Drop the stale-focus latch so the trigger
+                                    // does not re-fire the moment the operator
+                                    // resumes and immediately re-stop the guider.
+                                    {
+                                        let mut ts = trigger_state_for_actions.write().await;
+                                        ts.clear_autofocus_invalidation();
+                                    }
+
+                                    is_paused_for_triggers.store(true, Ordering::Relaxed);
+                                    *state_clone.write().await = ExecutorState::Paused;
+                                    // The status API reads the progress snapshot,
+                                    // not this lock — stamping only the lock is
+                                    // what let a paused run report `running`. See
+                                    // mirror_paused_into_progress.
+                                    {
+                                        let mut prog = progress_for_triggers.write();
+                                        prog.state = ExecutorState::Paused;
+                                        prog.message = Some(
+                                            "Paused: autofocus left the guider stopped".to_string(),
+                                        );
+                                    }
+                                    let _ = event_tx_clone2
+                                        .send(ExecutorEvent::StateChanged(ExecutorState::Paused));
+                                    let _ = event_tx_clone2.send(ExecutorEvent::Error {
+                                        message: hold.operator_message,
+                                    });
+
+                                    fired_triggers.push((trigger_id, action));
+                                    continue;
                                 }
 
                                 if let AutofocusOutcome::KeepImaging { current_hfr, limit } =
@@ -1303,95 +1470,6 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                                 // what was kept. Explicit `Autofocus` NODES keep their own
                                 // configured failure handling — this governs the trigger
                                 // default only.
-                                //
-                                // `autofocus_origin_restored` is absent (not
-                                // `false`) when the run bailed before it ever
-                                // moved the focuser — e.g. admission rejected
-                                // because another autofocus held the equipment —
-                                // so only an explicit `false` means the motor was
-                                // left off its origin.
-                                let origin_restored = af_result
-                                    .data
-                                    .as_ref()
-                                    .and_then(|data| data.get("autofocus_origin_restored"))
-                                    .and_then(|value| value.as_bool());
-                                let position_after_af = read_focuser_position(
-                                    &device_ops_for_triggers,
-                                    trigger_action_context.focuser_id.as_ref(),
-                                )
-                                .await;
-                                // Why: autofocus result's `message` is
-                                // Option<String> — only populated when the focus
-                                // pipeline reports a specific diagnostic. The
-                                // generic fallback stands in when no specific
-                                // signal came back; the failure itself is already
-                                // encoded in the result's status.
-                                let failure_cost =
-                                    autofocus_trigger_failure_cost(af_result.data.as_ref());
-                                let reason = af_result
-                                    .message
-                                    .unwrap_or_else(|| "autofocus did not converge".to_string());
-
-                                if failure_cost == AutofocusTriggerFailureCost::EveryFrameUnguided {
-                                    // The sweep stopped the guider and could not
-                                    // prove it back. Continuing here is what cost
-                                    // a clear night: three 180 s lights, every one
-                                    // trailed past the grader's limit, zero
-                                    // accepted. Halt semantics are an operator
-                                    // PAUSE — the node tree freezes, the burst
-                                    // loop's between-frame gate stops the next
-                                    // exposure, and nothing is moved or closed.
-                                    // Pausing is reversible by one button; parking
-                                    // is not, and a dead guider is not evidence
-                                    // about who is standing at the telescope.
-                                    //
-                                    // Safety-class triggers keep evaluating while
-                                    // Paused (see `paused_safety_only` in the
-                                    // monitor's state gate), so this hold is safe
-                                    // to leave in place unattended without the
-                                    // run parking on its own initiative.
-                                    let mut hold = autofocus_trigger_unguided_hold(
-                                        &trigger_id,
-                                        &trigger_name,
-                                        &reason,
-                                        position_after_af,
-                                    );
-                                    hold.decision.sequence_run_id =
-                                        *active_run_id_for_decisions.read();
-                                    let _ = decision_tx_for_lifecycle.send(hold.decision);
-                                    tracing::error!("{}", hold.operator_message);
-
-                                    // Drop the stale-focus latch so the trigger
-                                    // does not re-fire the moment the operator
-                                    // resumes and immediately re-stop the guider.
-                                    {
-                                        let mut ts = trigger_state_for_actions.write().await;
-                                        ts.clear_autofocus_invalidation();
-                                    }
-
-                                    is_paused_for_triggers.store(true, Ordering::Relaxed);
-                                    *state_clone.write().await = ExecutorState::Paused;
-                                    // The status API reads the progress snapshot,
-                                    // not this lock — stamping only the lock is
-                                    // what let a paused run report `running`. See
-                                    // mirror_paused_into_progress.
-                                    {
-                                        let mut prog = progress_for_triggers.write();
-                                        prog.state = ExecutorState::Paused;
-                                        prog.message = Some(
-                                            "Paused: autofocus left the guider stopped".to_string(),
-                                        );
-                                    }
-                                    let _ = event_tx_clone2
-                                        .send(ExecutorEvent::StateChanged(ExecutorState::Paused));
-                                    let _ = event_tx_clone2.send(ExecutorEvent::Error {
-                                        message: hold.operator_message,
-                                    });
-
-                                    fired_triggers.push((trigger_id, action));
-                                    continue;
-                                }
-
                                 let mut continuation = autofocus_trigger_continuation(
                                     &trigger_id,
                                     &trigger_name,
@@ -1651,6 +1729,17 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                                 // `recovery_gave_up` coerces the
                                 // result to Failure).
                                 meridian_flip_failed_for_triggers.store(true, Ordering::Release);
+                                meridian_flip_failure_for_triggers
+                                    .write()
+                                    .get_or_insert_with(|| {
+                                        format!(
+                                            "Meridian flip for '{}' failed after {} attempt{}: {}",
+                                            target_name,
+                                            flip_attempts,
+                                            if flip_attempts == 1 { "" } else { "s" },
+                                            error
+                                        )
+                                    });
 
                                 match action_taken {
                                     crate::FlipFailureAction::PauseAndAlert => {
@@ -1793,6 +1882,9 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                         );
                         tracing::error!("[MERIDIAN] {}", message);
                         meridian_flip_failed_for_triggers.store(true, Ordering::Release);
+                        meridian_flip_failure_for_triggers
+                            .write()
+                            .get_or_insert_with(|| message.clone());
                         let _ = event_tx_clone2.send(ExecutorEvent::Error { message });
                         // No flip ran, so nothing used the
                         // camera: hand the claim straight back

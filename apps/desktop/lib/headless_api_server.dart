@@ -247,6 +247,19 @@ class HeadlessApiServer {
   // and its ceiling is far above any realistic paired-device count.
   final BoundedTokenGrantMap _pairedSessionTokens = BoundedTokenGrantMap();
 
+  /// Pending while `start()` is still loading [_pairedSessionTokens] from the
+  /// pairing database, null once it has finished. Requests wait on it (see
+  /// `_pairedTokenHydrationGate`) instead of being judged against a map that
+  /// is still empty.
+  Future<void>? _pairedTokenHydration;
+
+  /// The longest a request waits on [_pairedTokenHydration]. Reading the
+  /// pairing database takes milliseconds; one that never answers (a stuck
+  /// disk) must not hold every request, the public connect and pairing
+  /// endpoints included, for as long as the process lives. Past this a
+  /// request is judged on the tokens loaded so far, as it was before the gate.
+  static const Duration _pairedTokenHydrationWaitLimit = Duration(seconds: 10);
+
   /// When each paired session token last had its device row stamped as seen.
   ///
   /// The middleware authenticates against the in-memory [_pairedSessionTokens]
