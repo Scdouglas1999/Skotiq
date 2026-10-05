@@ -1581,6 +1581,17 @@ impl DeviceOps for UnifiedDeviceOps {
     }
 }
 
+/// Star size and shape for one frame, the grader's view of it.
+fn frame_shape(image_data: &ImageData) -> Option<nightshade_imaging::FrameShape> {
+    let img = nightshade_imaging::ImageData::from_u16(
+        image_data.width,
+        image_data.height,
+        1,
+        &image_data.data,
+    );
+    nightshade_imaging::measure_frame_shape(&img)
+}
+
 /// Decisions-verify refutation D4 (2026-08-14, corrected by the focused
 /// re-refute): a mount that cannot READ park state (the LX200 family without
 /// a cached park entry) reaches the status layer as a fabricated
@@ -1662,15 +1673,4 @@ mod parked_from_status_tests {
         let err = parked_from_status("m", &unreadable(status(false, false))).unwrap_err();
         assert!(err.to_string().contains("cannot report park state"));
     }
-}
-
-/// Star size and shape for one frame, the grader's view of it.
-fn frame_shape(image_data: &ImageData) -> Option<nightshade_imaging::FrameShape> {
-    let img = nightshade_imaging::ImageData::from_u16(
-        image_data.width,
-        image_data.height,
-        1,
-        &image_data.data,
-    );
-    nightshade_imaging::measure_frame_shape(&img)
 }

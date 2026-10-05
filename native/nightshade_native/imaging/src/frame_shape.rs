@@ -95,9 +95,11 @@ pub fn measure_frame_shape_from(
     }
     let pixels: Vec<f64> = image
         .data
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .take(width * height)
-        .map(|c| f64::from(u16::from_le_bytes([c[0], c[1]])))
+        .map(|c| f64::from(u16::from_le_bytes(*c)))
         .collect();
     let frame = Frame {
         pixels: &pixels,
@@ -360,7 +362,7 @@ fn adaptive_eccentricity(
     let mut converged = false;
     for _ in 0..30 {
         let det = a * b - c * c;
-        if !(det > 0.0) || !a.is_finite() || !b.is_finite() {
+        if det.is_nan() || det <= 0.0 || !a.is_finite() || !b.is_finite() {
             return None;
         }
         let (ia, ib, ic) = (b / det, a / det, -c / det);
