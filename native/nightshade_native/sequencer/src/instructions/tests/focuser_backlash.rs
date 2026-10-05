@@ -1158,8 +1158,8 @@ fn rig_fixture(name: &str) -> ImageData {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../test-fixtures/rig-2026-09-14")
         .join(name);
-    let (image, _) = nightshade_imaging::read_fits(&path)
-        .unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    let (image, _) =
+        nightshade_imaging::read_fits(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
     ImageData {
         width: image.width,
         height: image.height,
