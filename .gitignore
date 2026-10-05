@@ -358,3 +358,6 @@ dist-linux-v6-build/
 
 # The scratch TMPDIR a wave-1 test run pointed at; never content.
 .tmp-w1/
+
+# Flutter writes these per machine (plugin symlinks into the local pub cache)
+**/flutter/ephemeral/
