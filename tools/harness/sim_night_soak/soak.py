@@ -311,7 +311,7 @@ class Soak:
 
     def watch(self, start_t, facts):
         """Poll status until a terminal state, running scheduled operator actions."""
-        deadline = start_t + self.args.minutes * 60.0 * 1.6 + 600
+        deadline = start_t + self.args.minutes * 60.0 * 2.5 + 600
         last_state = None
         pending = sorted(self.sc.get("actions", []), key=lambda a: a["at_min"])
         paused_for = None

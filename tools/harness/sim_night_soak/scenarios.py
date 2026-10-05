@@ -23,6 +23,9 @@ BASE = {
     "expect_flip": True,
     "cooling": 4.0,
     "minutes": 80.0,
+    # A run that holds itself for the operator is left held this long (no
+    # frame may be taken meanwhile), then Stopped the way an operator would.
+    "stop_after_pause_s": 420,
 }
 
 

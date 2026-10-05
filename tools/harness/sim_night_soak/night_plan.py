@@ -192,7 +192,7 @@ def build_plan(minutes=80.0, exposure_secs=15.0, unix=None, site=None):
         center("t2_center"),
         start_guiding("t2_guide"),
         node("t2_loop", "LRGB until it sets",
-             {"type": "Loop", "iterations": 50, "condition": "Count",
+             {"type": "Loop", "iterations": 6, "condition": "Count",
               "condition_value": None}, t2_loop_children),
     ]
     for f in ["L", "R", "G", "B"]:
