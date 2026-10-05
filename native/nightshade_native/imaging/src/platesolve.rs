@@ -1473,7 +1473,21 @@ fn parse_wcs_file_inner(
     // so rot = atan2(cd2_1, -cd1_1). Using atan2(cd2_1, cd1_1) here reports a
     // north-up frame as 180°, disagreeing with the generator and corrupting any
     // fallback CD rebuilt from the scalar rotation.
-    let rotation = cd2_1.atan2(-cd1_1).to_degrees();
+    //
+    // That convention assumes the sky's own parity (east left of north,
+    // det(CD) < 0). A frame through one mirror — the owner's Newtonian — has
+    // det(CD) > 0, and the same formula then reads 180° minus the angle: his
+    // 2026-09-14 NGC 7380 solve parsed here as -158.58° while ASTAP's own
+    // CROTA2 for it, and this module's `.ini` parse of the same solve, say
+    // -21.41°. ASTAP defines CROTA "E of N if not flipped", which for a
+    // mirrored frame is atan2(cd2_1, cd1_1).
+    let mirrored = cd1_1 * cd2_2 - cd1_2 * cd2_1 > 0.0;
+    let rotation = if mirrored {
+        cd2_1.atan2(cd1_1)
+    } else {
+        cd2_1.atan2(-cd1_1)
+    }
+    .to_degrees();
 
     // Field extent in degrees, derived from the image dimensions and pixel
     // scale. Downstream WCS construction divides field_* back by the pixel
@@ -3574,5 +3588,111 @@ mod fits_naxis2_tests {
         let image = ImageData::new(16, 12, 1, PixelType::U16);
         write_fits(&path, &image, &FitsHeader::new()).unwrap();
         assert_eq!(super::super::fits_scale_arcsec_per_px(&path), None);
+    }
+}
+
+/// The owner's NGC 7380 solve of 2026-09-14, parsed from the files ASTAP
+/// itself wrote on the rig (`astap.exe ... -fov 0.75 -z 2 -wcs`), not from
+/// hand-built cards: a `.wcs` that is one unterminated card stream, a minimal
+/// header with `NAXIS = 0`, and an `.ini` with Windows line ends. That night
+/// the app's own solve and this direct run agreed to 0.17", and the scale
+/// implied 995 mm at the camera's 3.8 um pitch.
+#[cfg(test)]
+mod rig_2026_09_14_tests {
+    use super::*;
+
+    fn fixture(name: &str) -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../test-fixtures/rig-2026-09-14")
+            .join(name)
+    }
+
+    /// ASTAP's own figures from the files: CRVAL1/2, CDELT1 (deg), CROTA2.
+    const RA: f64 = 341.799_384_055;
+    const DEC: f64 = 58.135_585_823;
+    const SCALE: f64 = 2.187_995_008e-4 * 3600.0;
+
+    fn assert_is_the_rig_solution(result: &PlateSolveResult, source: &str) {
+        assert!(result.success, "{source}: {:?}", result.error);
+        assert!((result.ra - RA).abs() < 1e-6, "{source}: RA {}", result.ra);
+        assert!(
+            (result.dec - DEC).abs() < 1e-6,
+            "{source}: Dec {}",
+            result.dec
+        );
+        assert!(
+            (result.pixel_scale - SCALE).abs() < 5e-4,
+            "{source}: {:.4}\"/px against ASTAP's {SCALE:.4}",
+            result.pixel_scale
+        );
+        assert!(
+            (result.rotation.abs() - 21.41).abs() < 0.05,
+            "{source}: rotation {}",
+            result.rotation
+        );
+        // The figure the operator was told that night: 995 mm at 3.8 um.
+        let focal_mm = 206.264_806 * 3.8 / result.pixel_scale;
+        assert!((focal_mm - 995.1).abs() < 0.5, "{source}: {focal_mm:.1} mm");
+    }
+
+    #[test]
+    fn the_rig_wcs_parses_to_the_solution_astap_reported() {
+        let wcs = fixture("solve-verify.wcs");
+        let raw = fs::read_to_string(&wcs).expect("fixture");
+        assert!(
+            !raw.contains('\n'),
+            "the fixture must stay ASTAP's unterminated card stream"
+        );
+        let result = parse_wcs_file_inner(&wcs, 0.2).expect("ASTAP's own .wcs must parse");
+        assert_is_the_rig_solution(&result, "wcs");
+    }
+
+    #[test]
+    fn the_rig_ini_parses_to_the_same_solution() {
+        let ini = fixture("solve-verify.ini");
+        assert!(fs::read(&ini)
+            .expect("fixture")
+            .windows(2)
+            .any(|w| w == b"\r\n"));
+        let result = parse_astap_ini_inner(&ini, 0.2).expect("ASTAP's own .ini must parse");
+        assert_is_the_rig_solution(&result, "ini");
+    }
+
+    #[test]
+    fn the_solved_center_is_where_the_rig_reported_it() {
+        // 1.24' from NGC 7380's catalog position (22h47m21s, +58 07' 54"),
+        // before centering.
+        let result = parse_wcs_file_inner(&fixture("solve-verify.wcs"), 0.0).expect("parse");
+        let (ra0, dec0) = (341.8375_f64.to_radians(), 58.131_667_f64.to_radians());
+        let (ra, dec) = (result.ra.to_radians(), result.dec.to_radians());
+        let separation = (dec.sin() * dec0.sin() + dec.cos() * dec0.cos() * (ra - ra0).cos())
+            .clamp(-1.0, 1.0)
+            .acos()
+            .to_degrees()
+            * 60.0;
+        assert!((separation - 1.24).abs() < 0.05, "{separation:.2}'");
+    }
+
+    /// The full solve, when the frame and an ASTAP install are both present.
+    /// Neither is on CI, and ASTAP is not installed on the development
+    /// machine either, so this usually reports what it skipped.
+    #[test]
+    fn the_app_solver_reproduces_the_rig_solution_on_the_real_frame() {
+        let Some(frame) = std::env::var_os("HOME")
+            .map(|h| Path::new(&h).join(".cache/ns-rig-data/2026-09-14/solve/solve-verify.fits"))
+            .filter(|p| p.is_file())
+        else {
+            eprintln!("SKIPPED: the full solve-verify.fits is not on this machine");
+            return;
+        };
+        if find_astap_with_override(None).is_none() {
+            eprintln!("SKIPPED: no ASTAP install found");
+            return;
+        }
+        let result = solve_near(&frame, 341.8375, 58.131_667, 5.0);
+        assert!(result.success, "{:?}", result.error);
+        let arcsec = ((result.ra - RA) * DEC.to_radians().cos()).hypot(result.dec - DEC) * 3600.0;
+        assert!(arcsec < 1.0, "{arcsec:.2}\" from the rig's own ASTAP run");
+        assert!((result.pixel_scale - SCALE).abs() < 5e-4);
     }
 }
