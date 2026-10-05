@@ -137,8 +137,21 @@ impl TriggerManager {
 
         let mut filter_change_fired = false;
         for trigger in &mut self.triggers {
-            if trigger.check(&state).await {
-                tracing::warn!("Trigger fired: {} ({})", trigger.name, trigger.id);
+            let firing = trigger.check(&state).await;
+            let newly_firing = firing && !trigger.was_firing;
+            trigger.was_firing = firing;
+            if firing {
+                // A level-type trigger with no cooldown (Dither Interval,
+                // Autofocus Interval) stays due until its action runs, and
+                // while the run is held for the operator its action never
+                // does: the soak logged "Trigger fired: Dither Interval" once a
+                // second, 5,596 times over a 94-minute hold. Warn on the edge;
+                // the dispatcher logs every firing it acts on.
+                if newly_firing {
+                    tracing::warn!("Trigger fired: {} ({})", trigger.name, trigger.id);
+                } else {
+                    tracing::trace!("Trigger still firing: {} ({})", trigger.name, trigger.id);
+                }
                 if matches!(trigger.trigger_type, TriggerType::FilterChange) {
                     filter_change_fired = true;
                 }

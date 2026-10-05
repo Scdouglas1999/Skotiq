@@ -103,6 +103,10 @@ pub struct Trigger {
     /// different thresholds debounce independently.
     #[serde(skip, default)]
     pub transparency_below_threshold_since: Option<Instant>,
+    /// Whether the last evaluation fired, so the manager can log a firing
+    /// once instead of on every tick a level-type trigger stays due.
+    #[serde(skip, default)]
+    pub was_firing: bool,
 }
 
 /// trigger-creation-time clamping diagnostic. Built by
@@ -145,6 +149,7 @@ impl Trigger {
             clamp_warning,
             cloud_cover_above_threshold_since: None,
             transparency_below_threshold_since: None,
+            was_firing: false,
         }
     }
 

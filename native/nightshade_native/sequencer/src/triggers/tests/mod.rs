@@ -1286,6 +1286,35 @@ async fn test_tracking_limit_reset_on_tracking_resume() {
     assert!(!state.mount_tracking_lost);
 }
 
+/// A trigger that stays due tick after tick is still returned on every tick
+/// (the dispatcher decides what to do with it) but remembers it was already
+/// firing, which is what limits the "Trigger fired" warning to the edge.
+#[tokio::test]
+async fn a_trigger_that_stays_due_is_marked_as_already_firing() {
+    let mut manager = TriggerManager::new();
+    manager.add_trigger(Trigger::new(
+        "dither_every_2",
+        "Dither every 2",
+        TriggerType::DitherInterval { every_n_frames: 2 },
+        RecoveryAction::Dither(crate::DitherConfig::default()),
+    ));
+    {
+        let state = manager.state();
+        let mut s = state.write().await;
+        s.increment_exposure_count();
+        s.increment_exposure_count();
+    }
+    for tick in 0..3 {
+        let fired = manager.check_all().await;
+        assert!(
+            fired.iter().any(|(id, _)| id == "dither_every_2"),
+            "tick {tick}"
+        );
+        let trigger = manager.get_trigger("dither_every_2").unwrap();
+        assert!(trigger.was_firing);
+    }
+}
+
 /// Found by the simulator soak: at the second target's start the DriftLimit
 /// trigger compared the FIRST target's last plate solve with the new target's
 /// coordinates, read degrees of "drift" and queued a recenter before the new
