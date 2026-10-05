@@ -511,9 +511,11 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                 SettingRow(
                   icon: LucideIcons.shieldAlert,
                   title: 'Park on unsafe weather',
-                  subtitle:
-                      'Automatically park mount when weather becomes unsafe. '
-                      'Same setting as Weather Safety > Auto-park mount.',
+                  subtitle: 'Park the mount and close the cover and dome when '
+                      'weather turns unsafe. When off, the run stops exposing '
+                      'and waits for safe weather; nothing is parked or '
+                      'closed. Same setting as Weather Safety > Auto-park '
+                      'mount.',
                   trailing: SettingsSwitch(
                     value: autoParkOnUnsafe,
                     onChanged: (value) {
@@ -526,7 +528,10 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                 SettingRow(
                   icon: LucideIcons.sunrise,
                   title: 'Park before dawn',
-                  subtitle: 'Automatically park mount before astronomical dawn',
+                  subtitle:
+                      'Park the mount and close the cover and dome 30 minutes '
+                      'before astronomical dawn. When off, the run still ends '
+                      'then, and nothing is parked or closed.',
                   trailing: SettingsSwitch(
                     value: settings.parkBeforeDawn,
                     onChanged: (value) {

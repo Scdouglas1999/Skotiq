@@ -113,6 +113,16 @@ abstract class SequencerBackend implements AdaptiveSwapBackend {
   /// - legacy aliases ("fail_open", "warn_only") are coerced to fail-closed
   Future<void> sequencerSetSafetyFailMode(String mode);
 
+  /// Tell the executor whether its standard Weather Unsafe and Dawn
+  /// Approaching triggers may park the mount and close the cover and dome:
+  /// the operator's "Park on unsafe weather" and "Park before dawn" settings.
+  /// With one off the trigger still protects the data (unsafe weather stops
+  /// the run exposing, dawn ends the run) without moving or closing anything.
+  Future<void> sequencerSetParkPolicy({
+    required bool parkOnUnsafeWeather,
+    required bool parkBeforeDawn,
+  });
+
   /// Set the live safety/humidity polling interval for the sequencer.
   /// Valid backend values are 5..3600 seconds.
   Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds);

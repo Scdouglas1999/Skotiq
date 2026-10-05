@@ -717,24 +717,31 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         // holding the trigger_manager lock during them would deadlock the
         // trigger evaluators that share the same Arc. Snapshot the fired
         // triggers into an owned Vec and drop the lock before dispatching.
-        let fired_with_names: Vec<(String, String, RecoveryAction)> = {
+        let park_policy = runtime_config.read().park_policy;
+        let fired_with_names: Vec<(String, String, RecoveryAction, bool)> = {
             let mut manager = trigger_manager.write().await;
             let fired = manager.check_all().await;
             fired
                 .into_iter()
+                // The operator's park settings first, so the hold filter below
+                // judges what the trigger will actually do.
+                .map(|(trigger_id, action)| {
+                    let fired = apply_park_policy(&trigger_id, action, park_policy);
+                    (trigger_id, fired)
+                })
                 // While paused, drop everything that is not protecting the rig
                 // itself. Filtering here rather than inside the dispatch keeps
                 // the guarantee in one readable place, and keeps the filtered
                 // trigger's cooldown ticking so it re-fires normally once the
                 // operator resumes.
-                .filter(|(trigger_id, action)| {
+                .filter(|(trigger_id, fired)| {
                     if !paused_safety_only {
                         return true;
                     }
                     match manager.get_trigger(trigger_id) {
                         Some(trigger) => {
                             let allowed = is_safety_class_trigger(&trigger.trigger_type)
-                                && may_act_during_hold(action);
+                                && may_act_during_hold(&fired.action);
                             if !allowed {
                                 tracing::debug!(
                                     "Trigger '{}' fired while the run is paused; it is not a \
@@ -751,7 +758,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                         None => false,
                     }
                 })
-                .map(|(trigger_id, action)| {
+                .map(|(trigger_id, fired)| {
                     let trigger_name = manager
                         .get_trigger(&trigger_id)
                         .map(|t| t.name.clone())
@@ -761,7 +768,12 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                         // tolerated for diagnostic naming. Using the id as the
                         // display name preserves traceability.
                         .unwrap_or_else(|| trigger_id.clone());
-                    (trigger_id, trigger_name, action)
+                    (
+                        trigger_id,
+                        trigger_name,
+                        fired.action,
+                        fired.end_without_parking,
+                    )
                 })
                 .collect()
         };
@@ -771,8 +783,12 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             manager.state()
         };
 
-        for (trigger_id, trigger_name, action) in fired_with_names {
-            let action_str = format!("{:?}", action);
+        for (trigger_id, trigger_name, action, end_without_parking) in fired_with_names {
+            let action_str = FiredTriggerAction {
+                action: action.clone(),
+                end_without_parking,
+            }
+            .wire_label();
 
             tracing::warn!(
                 "Trigger fired: {} ({}) - action: {:?}",
@@ -898,6 +914,30 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                         let _ = event_tx_clone2
                             .send(ExecutorEvent::StateChanged(ExecutorState::Paused));
                     }
+                }
+                RecoveryAction::ParkAndAbort if end_without_parking => {
+                    // "Park before dawn" is off: end the run as the dawn rule
+                    // does, and leave the mount, cover and dome as they are.
+                    // The node tree is cancelled first so the exposure in
+                    // flight is aborted rather than cut off.
+                    cancel_and_wait_for_execution(
+                        &is_cancelled_clone,
+                        &mut execution_quiesced_for_triggers,
+                    )
+                    .await;
+                    let message = format!(
+                        "{trigger_name}: the run has ended. The mount was not parked and the \
+                         cover and dome were not closed, because Park before dawn is off. \
+                         The mount may still be tracking."
+                    );
+                    tracing::warn!("{}", message);
+                    let _ = event_tx_clone2.send(ExecutorEvent::Error { message });
+                    fired_triggers.push((trigger_id, action));
+                    return terminate_with(
+                        &is_cancelled_clone,
+                        fired_triggers,
+                        "Dawn Approaching without parking",
+                    );
                 }
                 RecoveryAction::ParkAndAbort => {
                     // Stop node execution BEFORE moving or

@@ -863,3 +863,25 @@ pub async fn api_sequencer_get_adaptive_swap_json() -> Result<Option<String>, Ni
     let executor = get_sequence_executor().read().await;
     Ok(executor.current_adaptive_swap_json().await)
 }
+
+/// Set whether the standard weather and dawn triggers may park the mount and
+/// close the cover and dome: the operator's "Park on unsafe weather" and
+/// "Park before dawn" settings. Both default to parking. With one off, the
+/// trigger still stops the run exposing (weather) or ends it (dawn), without
+/// moving or closing anything. Takes effect on a running sequence at once.
+pub async fn api_sequencer_set_park_policy(
+    park_on_unsafe_weather: bool,
+    park_before_dawn: bool,
+) -> Result<(), NightshadeError> {
+    tracing::info!(
+        "Setting sequencer park policy: park on unsafe weather={}, park before dawn={}",
+        park_on_unsafe_weather,
+        park_before_dawn
+    );
+    let mut executor = get_sequence_executor().write().await;
+    executor.set_park_policy(nightshade_sequencer::ParkPolicy {
+        park_on_unsafe_weather,
+        park_before_dawn,
+    });
+    Ok(())
+}

@@ -286,7 +286,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'weatherSafetyAlertTiming': 'Alert Timing',
     'weatherSafetyAutoPark': 'Auto-park mount',
     'weatherSafetyAutoParkDesc':
-        'Park automatically when the safety monitor trips',
+        'Park the mount and close the cover and dome when conditions turn '
+            'unsafe. When off, imaging stops and nothing is parked or closed',
     'weatherSafetyAutoResume': 'Auto-resume after clear',
     'weatherSafetyAutoResumeDesc':
         'Resume once all weather sources return safe',
@@ -1208,7 +1209,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     'weatherSafetyAlertTiming': 'Tiempo de alerta',
     'weatherSafetyAutoPark': 'Aparcar la montura',
     'weatherSafetyAutoParkDesc':
-        'Aparcar autom\u00E1ticamente cuando se active la seguridad',
+        'Aparcar la montura y cerrar la tapa y la c\u00FApula cuando las '
+            'condiciones sean inseguras. Desactivado, se detiene la captura sin '
+            'aparcar ni cerrar nada',
     'weatherSafetyAutoResume': 'Reanudar al despejar',
     'weatherSafetyAutoResumeDesc':
         'Reanudar cuando todas las fuentes vuelvan a estado seguro',

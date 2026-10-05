@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1992707924;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1660474643;
 
 // Section: executor
 
@@ -7609,6 +7609,37 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_devices_impl(
                                 api_rotator_id,
                                 api_filter_names,
                                 api_filter_focus_offsets,
+                            )
+                            .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    park_on_unsafe_weather: impl CstDecode<bool>,
+    park_before_dawn: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_sequencer_set_park_policy",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_park_on_unsafe_weather = park_on_unsafe_weather.cst_decode();
+            let api_park_before_dawn = park_before_dawn.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::NightshadeError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::sequencer::runtime_config::api_sequencer_set_park_policy(
+                                api_park_on_unsafe_weather,
+                                api_park_before_dawn,
                             )
                             .await?;
                         Ok(output_ok)
@@ -34855,6 +34886,19 @@ mod io {
             rotator_id,
             filter_names,
             filter_focus_offsets,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_nightshade_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy(
+        port_: i64,
+        park_on_unsafe_weather: bool,
+        park_before_dawn: bool,
+    ) {
+        wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy_impl(
+            port_,
+            park_on_unsafe_weather,
+            park_before_dawn,
         )
     }
 

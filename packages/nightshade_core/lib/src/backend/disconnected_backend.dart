@@ -634,6 +634,14 @@ class DisconnectedBackend
   }
 
   @override
+  Future<void> sequencerSetParkPolicy({
+    required bool parkOnUnsafeWeather,
+    required bool parkBeforeDawn,
+  }) async {
+    _throwNotConnected();
+  }
+
+  @override
   Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds) async {
     _throwNotConnected();
   }

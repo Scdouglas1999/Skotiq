@@ -248,6 +248,17 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   }
 
   @override
+  Future<void> sequencerSetParkPolicy({
+    required bool parkOnUnsafeWeather,
+    required bool parkBeforeDawn,
+  }) async {
+    await _post('sequencer/park-policy', {
+      'parkOnUnsafeWeather': parkOnUnsafeWeather,
+      'parkBeforeDawn': parkBeforeDawn,
+    });
+  }
+
+  @override
   Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds) async {
     await _post('sequencer/safety-check-interval', {'seconds': seconds});
   }

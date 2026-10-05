@@ -451,6 +451,20 @@ Future<void> apiSequencerUpdateConditionsScore({
 Future<String?> apiSequencerGetAdaptiveSwapJson() => RustLib.instance.api
     .crateApiSequencerRuntimeConfigApiSequencerGetAdaptiveSwapJson();
 
+/// Set whether the standard weather and dawn triggers may park the mount and
+/// close the cover and dome: the operator's "Park on unsafe weather" and
+/// "Park before dawn" settings. Both default to parking. With one off, the
+/// trigger still stops the run exposing (weather) or ends it (dawn), without
+/// moving or closing anything. Takes effect on a running sequence at once.
+Future<void> apiSequencerSetParkPolicy({
+  required bool parkOnUnsafeWeather,
+  required bool parkBeforeDawn,
+}) => RustLib.instance.api
+    .crateApiSequencerRuntimeConfigApiSequencerSetParkPolicy(
+      parkOnUnsafeWeather: parkOnUnsafeWeather,
+      parkBeforeDawn: parkBeforeDawn,
+    );
+
 /// User-tunable recovery defaults pushed from the Settings > Recovery Mode
 /// page. Field-for-field mirror of
 /// `nightshade_sequencer::recovery::RecoveryRuntimeConfig` so the FRB wire

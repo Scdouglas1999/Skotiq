@@ -37,6 +37,16 @@ use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
 
 impl SequenceExecutor {
+    /// Set whether the standard weather and dawn triggers may park (the
+    /// operator's "Park on unsafe weather" and "Park before dawn" settings).
+    ///
+    /// Written into the shared [`super::RuntimeConfig`], which the trigger
+    /// monitor reads each time a trigger fires, so a change reaches a running
+    /// executor at once and an idle one on its next `start()`.
+    pub fn set_park_policy(&mut self, policy: super::ParkPolicy) {
+        self.runtime_config.write().park_policy = policy;
+    }
+
     /// Set the safety fail mode for the sequencer.
     ///
     /// Mirrors the value into [`super::RuntimeConfig`] so a running

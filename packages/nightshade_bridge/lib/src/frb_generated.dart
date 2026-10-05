@@ -126,7 +126,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1992707924;
+  int get rustContentHash => 1660474643;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1459,6 +1459,11 @@ abstract class RustLibApi extends BaseApi {
     String? rotatorId,
     List<String>? filterNames,
     Map<String, int>? filterFocusOffsets,
+  });
+
+  Future<void> crateApiSequencerRuntimeConfigApiSequencerSetParkPolicy({
+    required bool parkOnUnsafeWeather,
+    required bool parkBeforeDawn,
   });
 
   Future<void>
@@ -11838,6 +11843,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           "filterNames",
           "filterFocusOffsets",
         ],
+      );
+
+  @override
+  Future<void> crateApiSequencerRuntimeConfigApiSequencerSetParkPolicy({
+    required bool parkOnUnsafeWeather,
+    required bool parkBeforeDawn,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_bool(parkOnUnsafeWeather);
+          var arg1 = cst_encode_bool(parkBeforeDawn);
+          return wire
+              .wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy(
+                port_,
+                arg0,
+                arg1,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_nightshade_error,
+        ),
+        constMeta:
+            kCrateApiSequencerRuntimeConfigApiSequencerSetParkPolicyConstMeta,
+        argValues: [parkOnUnsafeWeather, parkBeforeDawn],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSequencerRuntimeConfigApiSequencerSetParkPolicyConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_sequencer_set_park_policy",
+        argNames: ["parkOnUnsafeWeather", "parkBeforeDawn"],
       );
 
   @override

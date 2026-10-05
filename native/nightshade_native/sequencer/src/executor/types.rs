@@ -195,6 +195,36 @@ pub struct RuntimeConfig {
     /// from the runtime config so a subsequent restart without an
     /// explicit re-seed runs without stale carry-over.
     pub pending_integration_carry_over: HashMap<String, HashMap<String, f64>>,
+    /// The operator's "Park on unsafe weather" and "Park before dawn"
+    /// settings. They decide whether the standard Weather Unsafe and Dawn
+    /// Approaching triggers park; see [`ParkPolicy`].
+    pub park_policy: ParkPolicy,
+}
+
+/// Whether the standard Weather Unsafe and Dawn Approaching triggers may park
+/// the mount and close the cover and dome.
+///
+/// Both default to parking, which is what the shipped settings say. The app
+/// pushes the operator's own values at launch and whenever they change
+/// ([`SequenceExecutor::set_park_policy`]). With parking off the trigger still
+/// protects the data: unsafe weather holds the run in the weather recovery
+/// ladder, and dawn ends the run. Neither moves or closes anything.
+///
+/// Only the standard triggers read this. A Recovery node in the sequence that
+/// the operator configured with Park and Abort keeps its own choice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ParkPolicy {
+    pub park_on_unsafe_weather: bool,
+    pub park_before_dawn: bool,
+}
+
+impl Default for ParkPolicy {
+    fn default() -> Self {
+        Self {
+            park_on_unsafe_weather: true,
+            park_before_dawn: true,
+        }
+    }
 }
 
 /// Commands that can be sent to the executor
