@@ -124,6 +124,21 @@ extension _NativeBridgeSequencerOperations on _NativeBridgeImplementation {
     okLog: 'Set sequencer safety fail mode: $mode',
   );
 
+  /// Set whether the standard weather and dawn triggers may park the rig
+  Future<void> sequencerSetParkPolicy({
+    required bool parkOnUnsafeWeather,
+    required bool parkBeforeDawn,
+  }) => _native(
+    'sequencerSetParkPolicy',
+    () => gen_api.apiSequencerSetParkPolicy(
+      parkOnUnsafeWeather: parkOnUnsafeWeather,
+      parkBeforeDawn: parkBeforeDawn,
+    ),
+    okLog:
+        'Set sequencer park policy: park on unsafe weather=$parkOnUnsafeWeather, '
+        'park before dawn=$parkBeforeDawn',
+  );
+
   /// Set the safety/humidity polling interval for the sequencer
   Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds) => _native(
     'sequencerSetSafetyCheckIntervalSeconds',

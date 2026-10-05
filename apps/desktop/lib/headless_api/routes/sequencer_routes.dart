@@ -82,6 +82,11 @@ List<HeadlessRoute> buildSequencerRoutes(
   ),
   HeadlessRoute(
     HttpMethod.post,
+    '/api/sequencer/park-policy',
+    h.handleSequencerSetParkPolicy,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
     '/api/sequencer/safety-check-interval',
     h.handleSequencerSetSafetyCheckInterval,
   ),

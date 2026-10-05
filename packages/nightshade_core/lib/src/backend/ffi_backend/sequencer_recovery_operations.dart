@@ -102,6 +102,17 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
   }
 
   @override
+  Future<void> sequencerSetParkPolicy({
+    required bool parkOnUnsafeWeather,
+    required bool parkBeforeDawn,
+  }) async {
+    await bridge.NativeBridge.sequencerSetParkPolicy(
+      parkOnUnsafeWeather: parkOnUnsafeWeather,
+      parkBeforeDawn: parkBeforeDawn,
+    );
+  }
+
+  @override
   Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds) async {
     await bridge.NativeBridge.sequencerSetSafetyCheckIntervalSeconds(seconds);
   }

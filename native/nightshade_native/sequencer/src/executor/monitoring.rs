@@ -313,6 +313,65 @@ pub fn may_act_during_hold(action: &RecoveryAction) -> bool {
     matches!(action, RecoveryAction::ParkAndAbort)
 }
 
+/// What a fired trigger does once the operator's park settings are applied.
+#[derive(Debug, Clone)]
+pub(crate) struct FiredTriggerAction {
+    pub action: RecoveryAction,
+    /// End the run the way `ParkAndAbort` does, but leave the mount, cover and
+    /// dome alone: "Park before dawn" is off.
+    pub end_without_parking: bool,
+}
+
+impl FiredTriggerAction {
+    /// The action as the trigger-fired event and decision row name it. The
+    /// app reads `ParkAndAbort` there as "the trigger ended the run and parked
+    /// the mount", so a run ended without parking must not say it.
+    pub(crate) fn wire_label(&self) -> String {
+        if self.end_without_parking {
+            "Abort".to_string()
+        } else {
+            format!("{:?}", self.action)
+        }
+    }
+}
+
+/// Apply the operator's "Park on unsafe weather" and "Park before dawn"
+/// settings to a standard trigger's configured action.
+///
+/// Both standard triggers ship as `ParkAndAbort`, and the executor never heard
+/// of the two settings, so switching them off changed nothing: the mount was
+/// parked and the cover and dome closed anyway. With a setting off the trigger
+/// still protects the data, by the least surprising existing action:
+///   * Weather unsafe becomes `Pause`, which for this trigger is the weather
+///     recovery ladder: nothing more is exposed, the operator is alerted, and
+///     the run resumes when both the hardware and the app's verdict read safe.
+///   * Dawn approaching still ends the run, without parking or closing.
+///
+/// Matched on the standard trigger ids only. A Recovery node the operator put
+/// in the sequence with Park and Abort is their explicit choice for that
+/// sequence and is left alone.
+pub(crate) fn apply_park_policy(
+    trigger_id: &str,
+    action: RecoveryAction,
+    policy: ParkPolicy,
+) -> FiredTriggerAction {
+    let parks = matches!(action, RecoveryAction::ParkAndAbort);
+    match trigger_id {
+        "weather_unsafe" if parks && !policy.park_on_unsafe_weather => FiredTriggerAction {
+            action: RecoveryAction::Pause,
+            end_without_parking: false,
+        },
+        "dawn_approaching" if parks && !policy.park_before_dawn => FiredTriggerAction {
+            action,
+            end_without_parking: true,
+        },
+        _ => FiredTriggerAction {
+            action,
+            end_without_parking: false,
+        },
+    }
+}
+
 /// How a non-auto-recoverable recovery escalation (an `AttemptOutcome::
 /// PauseForOperator`, e.g. from a consecutive-reject storm) must be handled.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

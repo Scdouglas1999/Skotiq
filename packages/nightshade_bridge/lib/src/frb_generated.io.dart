@@ -17463,6 +17463,29 @@ class RustLibWire implements BaseWire {
           >();
 
   void
+  wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy(
+    int port_,
+    bool park_on_unsafe_weather,
+    bool park_before_dawn,
+  ) {
+    return _wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy(
+      port_,
+      park_on_unsafe_weather,
+      park_before_dawn,
+    );
+  }
+
+  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policyPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Bool, ffi.Bool)>
+      >(
+        'frbgen_nightshade_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy',
+      );
+  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy =
+      _wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policyPtr
+          .asFunction<void Function(int, bool, bool)>();
+
+  void
   wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_check_interval_seconds(
     int port_,
     int seconds,

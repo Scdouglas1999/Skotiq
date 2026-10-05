@@ -15,6 +15,7 @@ import '../../models/replay_decision.dart' show DecisionCategory;
 import '../../models/sequence/sequence_models.dart';
 import '../../models/settings/app_settings.dart'
     show ObserverLocation, SafetyFailMode;
+import '../../models/weather/weather_settings.dart' show WeatherSettings;
 import '../weather_providers.dart' show weatherSettingsProvider;
 import '../../services/disk_space_guard.dart';
 import '../../services/sequence_file_service.dart';

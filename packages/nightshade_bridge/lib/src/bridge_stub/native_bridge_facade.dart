@@ -261,6 +261,13 @@ abstract final class NativeBridge {
   );
   static Future<void> sequencerSetSafetyFailMode(String mode) =>
       _nativeBridge.sequencerSetSafetyFailMode(mode);
+  static Future<void> sequencerSetParkPolicy({
+    required bool parkOnUnsafeWeather,
+    required bool parkBeforeDawn,
+  }) => _nativeBridge.sequencerSetParkPolicy(
+    parkOnUnsafeWeather: parkOnUnsafeWeather,
+    parkBeforeDawn: parkBeforeDawn,
+  );
   static Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds) =>
       _nativeBridge.sequencerSetSafetyCheckIntervalSeconds(seconds);
   static Future<void> sequencerSetSavePath({String? path}) =>

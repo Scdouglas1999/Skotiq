@@ -243,6 +243,29 @@ extension _SequenceExecutorRuntimeConfigOperations on SequenceExecutor {
     );
   }
 
+  /// Push the operator's park settings to the executor.
+  ///
+  /// Weather parking is the composed gate the app's own evaluator uses,
+  /// "Park on unsafe weather" AND Weather Safety's "Auto-park mount"
+  /// ([SafetyConfig.autoParkOnUnsafe]): the two pages show and write one
+  /// setting, and turning either off must stop the executor parking too.
+  Future<void> _pushParkPolicy(
+    NightshadeBackend backend,
+    AppSettingsState settings,
+  ) async {
+    final autoParkEnabled = _ref.read(weatherSettingsProvider).autoParkEnabled;
+    final parkOnUnsafeWeather = settings.parkOnUnsafeWeather && autoParkEnabled;
+    await backend.sequencerSetParkPolicy(
+      parkOnUnsafeWeather: parkOnUnsafeWeather,
+      parkBeforeDawn: settings.parkBeforeDawn,
+    );
+    _logger.debug(
+      'Park settings: on unsafe weather=$parkOnUnsafeWeather, '
+      'before dawn=${settings.parkBeforeDawn}',
+      source: 'SequenceExecutor',
+    );
+  }
+
   /// Push every user-controlled RuntimeConfig field into the loaded executor.
   ///
   /// Reached through [SequenceExecutor.seedRuntimeConfigForNativeStart], the
@@ -324,6 +347,25 @@ extension _SequenceExecutorRuntimeConfigOperations on SequenceExecutor {
       firstStack ??= st;
       _logger.error(
         'Failed to seed autofocus interval: $e',
+        source: 'SequenceExecutor',
+      );
+    }
+
+    // Park settings. The executor's standard Weather Unsafe and Dawn
+    // Approaching triggers park the mount and close the cover and dome, and
+    // until this push existed nothing told them the operator had switched
+    // "Park on unsafe weather" or "Park before dawn" off: the rig was parked
+    // anyway.
+    try {
+      await _pushParkPolicy(
+        backend,
+        await _ref.read(appSettingsProvider.future),
+      );
+    } catch (e, st) {
+      firstError ??= e;
+      firstStack ??= st;
+      _logger.error(
+        'Failed to seed the park settings: $e',
         source: 'SequenceExecutor',
       );
     }
@@ -791,6 +833,23 @@ extension _SequenceExecutorRuntimeConfigOperations on SequenceExecutor {
       }),
     );
 
+    // Weather Safety's "Auto-park mount" is the other half of the weather
+    // park setting (see [_pushParkPolicy]).
+    _settingsSubscriptions.add(
+      _ref.listen<WeatherSettings>(weatherSettingsProvider, (previous, next) {
+        if (previous == null ||
+            previous.autoParkEnabled == next.autoParkEnabled) {
+          return;
+        }
+        final settings = _ref.read(appSettingsProvider).valueOrNull;
+        if (settings == null) return;
+        _pushMidRun(
+          'the park settings',
+          () => _pushParkPolicy(backend, settings),
+        );
+      }),
+    );
+
     _settingsSubscriptions.add(
       _ref.listen<AsyncValue<AppSettingsState>>(appSettingsProvider, (
         previous,
@@ -817,6 +876,15 @@ extension _SequenceExecutorRuntimeConfigOperations on SequenceExecutor {
               ),
             );
           }
+        }
+
+        if (prevSettings.parkOnUnsafeWeather !=
+                nextSettings.parkOnUnsafeWeather ||
+            prevSettings.parkBeforeDawn != nextSettings.parkBeforeDawn) {
+          _pushMidRun(
+            'the park settings',
+            () => _pushParkPolicy(backend, nextSettings),
+          );
         }
 
         if (prevSettings.safetyFailMode != nextSettings.safetyFailMode) {

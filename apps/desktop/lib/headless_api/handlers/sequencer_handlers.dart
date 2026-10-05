@@ -88,6 +88,8 @@ class SequencerHandlers {
       _handleSequencerSetDevices(request);
   Future<Response> handleSequencerSetSafetyFailMode(Request request) =>
       _handleSequencerSetSafetyFailMode(request);
+  Future<Response> handleSequencerSetParkPolicy(Request request) =>
+      _handleSequencerSetParkPolicy(request);
   Future<Response> handleSequencerSetSafetyCheckInterval(Request request) =>
       _handleSequencerSetSafetyCheckInterval(request);
   Future<Response> handleSequencerSetSavePath(Request request) =>

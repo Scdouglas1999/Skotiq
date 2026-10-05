@@ -200,6 +200,12 @@ void _stubBackendForStart(MockBackend backend) {
   when(
     () => backend.sequencerSetSafetyFailMode(any()),
   ).thenAnswer((_) async {});
+  when(
+    () => backend.sequencerSetParkPolicy(
+      parkOnUnsafeWeather: any(named: 'parkOnUnsafeWeather'),
+      parkBeforeDawn: any(named: 'parkBeforeDawn'),
+    ),
+  ).thenAnswer((_) async {});
   when(() => backend.setLocation(any())).thenAnswer((_) async {});
   when(
     () => backend.sequencerUpdateLocation(

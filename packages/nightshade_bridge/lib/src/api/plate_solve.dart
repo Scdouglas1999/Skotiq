@@ -7,9 +7,9 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `acquire_solve_gate`, `apply_saved_preference_to_imaging`, `apply_to_fits_header`, `arcsec_per_px`, `coalesced_solve`, `empty_solve_result`, `gather_solve_hints_for_camera`, `gather_solve_hints`, `in_flight_solves`, `into_pref`, `ladder_radii`, `log_scale`, `plate_solve_blind_inner`, `plate_solve_blind_scaled`, `plate_solve_gate`, `plate_solve_near_inner`, `plate_solve_near_scaled`, `resolve_solve_scale`, `rung_timeout`, `solve_in_flight`, `solve_ladder`, `split_solve_budget`, `validate_solver_timeout`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `InFlightGuard`, `SolveBudget`, `SolvePosition`, `SolvePreference`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
+// These functions are ignored because they are not marked as `pub`: `acquire_solve_gate`, `apply_saved_preference_to_imaging`, `apply_to_fits_header`, `arcsec_per_px`, `arcsec_per_px`, `coalesced_solve`, `empty_solve_result`, `gather_solve_hints_for_camera`, `gather_solve_hints`, `implied_focal_length_mm`, `in_flight_solves`, `into_pref`, `ladder_radii`, `log_scale`, `missing_scale_input`, `plate_solve_blind_inner`, `plate_solve_blind_scaled`, `plate_solve_gate`, `plate_solve_near_inner`, `plate_solve_near_scaled`, `record_measured_scale`, `remembered_arcsec_per_px`, `resolve_solve_scale`, `rung_timeout`, `solve_in_flight`, `solve_ladder`, `split_solve_budget`, `validate_solver_timeout`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `InFlightGuard`, `SolveBudget`, `SolvePosition`, `SolvePreference`, `SolveScale`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 
 /// Check if a plate solver is available
 bool apiIsPlateSolverAvailable() =>

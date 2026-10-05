@@ -1915,3 +1915,280 @@ async fn a_recovery_give_up_says_that_tracking_was_left_off() {
         "the give-up message does not say that tracking was left off: {give_up}"
     );
 }
+
+// =============================================================================
+// The operator's park settings: "Park on unsafe weather", "Park before dawn".
+// =============================================================================
+
+/// A run on a scripted mount, dome and cover, with the operator's park
+/// settings applied as the app pushes them before launch.
+async fn start_park_policy_run(
+    ops: Arc<ScriptedDeviceOps>,
+    policy: Option<super::ParkPolicy>,
+) -> super::SequenceExecutor {
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor.set_dome(Some("dome-1".to_string()));
+    executor.set_cover_calibrator(Some("cover-1".to_string()));
+    if let Some(policy) = policy {
+        executor.set_park_policy(policy);
+    }
+    start_long_run(executor, ops).await
+}
+
+fn parked_or_closed(calls: &[String]) -> bool {
+    calls.iter().any(|c| {
+        c.starts_with("mount_park") || c.starts_with("cover_close") || c.starts_with("dome_close")
+    })
+}
+
+/// Collect the trigger-fired actions and error messages sent so far.
+fn drain_fired_and_errors(
+    events: &mut tokio::sync::broadcast::Receiver<super::ExecutorEvent>,
+) -> (Vec<(String, String)>, Vec<String>) {
+    let mut fired = Vec::new();
+    let mut errors = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        match event {
+            super::ExecutorEvent::TriggerFired {
+                trigger_id, action, ..
+            } => fired.push((trigger_id, action)),
+            super::ExecutorEvent::Error { message } => errors.push(message),
+            _ => {}
+        }
+    }
+    (fired, errors)
+}
+
+async fn wait_for_monitor(ops: &ScriptedDeviceOps) {
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("guider_get_status") < 2 {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "monitor never polled"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+}
+
+const WEATHER_OFF: super::ParkPolicy = super::ParkPolicy {
+    park_on_unsafe_weather: false,
+    park_before_dawn: true,
+};
+
+const DAWN_OFF: super::ParkPolicy = super::ParkPolicy {
+    park_on_unsafe_weather: true,
+    park_before_dawn: false,
+};
+
+/// The shipped settings keep parking: an unsafe verdict parks and closes.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn unsafe_weather_parks_when_park_on_unsafe_weather_is_on() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_park_policy_run(ops.clone(), None).await;
+    wait_for_monitor(&ops).await;
+    executor.update_weather_verdict(Some(true)).await;
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("mount_park") == 0 && tokio::time::Instant::now() < deadline {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    assert!(
+        calls.iter().any(|c| c == "mount_park:mount-1"),
+        "calls={calls:?}"
+    );
+}
+
+/// With "Park on unsafe weather" off, unsafe weather still stops the run
+/// exposing and says so, but nothing is parked or closed.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn unsafe_weather_holds_without_parking_when_the_operator_turned_parking_off() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = super::SequenceExecutor::new();
+    let mut events = executor.subscribe();
+    executor.set_park_policy(WEATHER_OFF);
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor.set_dome(Some("dome-1".to_string()));
+    executor.set_cover_calibrator(Some("cover-1".to_string()));
+    let mut executor = start_long_run(executor, ops.clone()).await;
+    wait_for_monitor(&ops).await;
+
+    executor.update_weather_verdict(Some(true)).await;
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
+        s != super::ExecutorState::Running
+    })
+    .await;
+    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    let (fired, _) = drain_fired_and_errors(&mut events);
+
+    assert!(
+        !parked_or_closed(&calls),
+        "Park on unsafe weather is off and the rig was parked or closed; calls={calls:?}"
+    );
+    assert_eq!(
+        state,
+        super::ExecutorState::Recovering,
+        "unsafe weather must stop the run exposing; fired={fired:?}"
+    );
+    assert!(
+        fired
+            .iter()
+            .any(|(id, action)| id == "weather_unsafe" && action == "Pause"),
+        "the fired trigger must say what it did, not ParkAndAbort; fired={fired:?}"
+    );
+}
+
+/// The same setting holds during an operator pause: the weather rule may act
+/// under a hold only by parking, and parking is off, so it leaves the hold be.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn unsafe_weather_during_a_pause_does_not_park_when_parking_is_off() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_park_policy_run(ops.clone(), Some(WEATHER_OFF)).await;
+    wait_for_monitor(&ops).await;
+    executor.pause().await.expect("pause");
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(5), |s| {
+        s == super::ExecutorState::Paused
+    })
+    .await;
+    assert_eq!(state, super::ExecutorState::Paused);
+
+    executor.update_weather_verdict(Some(true)).await;
+    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+    let calls = ops.calls();
+    let state = executor.get_state().await;
+    let _ = executor.stop().await;
+    assert!(!parked_or_closed(&calls), "calls={calls:?}");
+    assert_eq!(state, super::ExecutorState::Paused);
+}
+
+/// And during a recovery ladder, which since 09fbea229 watches the weather too.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn unsafe_weather_during_recovery_does_not_park_when_parking_is_off() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.guider_start_fails.store(true, Ordering::SeqCst);
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_park_policy(WEATHER_OFF);
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor.set_dome(Some("dome-1".to_string()));
+    executor
+        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
+            retry_interval_secs: 600.0,
+            max_duration_secs: 5400.0,
+            ..crate::recovery::RecoveryRuntimeConfig::default()
+        })
+        .await;
+    let mut executor = start_long_run(executor, ops.clone()).await;
+    wait_for_monitor(&ops).await;
+    ops.guiding.store(false, Ordering::SeqCst);
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(15), |s| {
+        s == super::ExecutorState::Recovering
+    })
+    .await;
+    assert_eq!(state, super::ExecutorState::Recovering);
+
+    executor.update_weather_verdict(Some(true)).await;
+    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    assert!(!parked_or_closed(&calls), "calls={calls:?}");
+}
+
+/// A setting changed while the run is going reaches the trigger at once.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn turning_weather_parking_off_mid_run_takes_effect() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_park_policy_run(ops.clone(), None).await;
+    wait_for_monitor(&ops).await;
+    executor.set_park_policy(WEATHER_OFF);
+
+    executor.update_weather_verdict(Some(true)).await;
+    let _ = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
+        s != super::ExecutorState::Running
+    })
+    .await;
+    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    assert!(!parked_or_closed(&calls), "calls={calls:?}");
+}
+
+/// Force the Dawn Approaching trigger: a site and a dawn ten minutes away.
+async fn bring_dawn_near(executor: &super::SequenceExecutor) {
+    executor
+        .update_trigger_state(|ts| {
+            ts.set_observer_location(Some(45.0), Some(-75.0));
+            ts.dawn_time = Some(chrono::Utc::now().timestamp() + 600);
+        })
+        .await;
+}
+
+/// The shipped setting parks at dawn.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn dawn_parks_when_park_before_dawn_is_on() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_park_policy_run(ops.clone(), None).await;
+    wait_for_monitor(&ops).await;
+    bring_dawn_near(&executor).await;
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("mount_park") == 0 && tokio::time::Instant::now() < deadline {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    assert!(
+        calls.iter().any(|c| c == "mount_park:mount-1"),
+        "calls={calls:?}"
+    );
+}
+
+/// With "Park before dawn" off, dawn still ends the run, and nothing is parked
+/// or closed. The operator is told the mount was left as it was.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn dawn_ends_the_run_without_parking_when_the_operator_turned_parking_off() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = super::SequenceExecutor::new();
+    let mut events = executor.subscribe();
+    executor.set_park_policy(DAWN_OFF);
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor.set_dome(Some("dome-1".to_string()));
+    executor.set_cover_calibrator(Some("cover-1".to_string()));
+    let mut executor = start_long_run(executor, ops.clone()).await;
+    wait_for_monitor(&ops).await;
+
+    bring_dawn_near(&executor).await;
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(15), |s| {
+        matches!(
+            s,
+            super::ExecutorState::Cancelled
+                | super::ExecutorState::Completed
+                | super::ExecutorState::Failed
+        )
+    })
+    .await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    let (fired, errors) = drain_fired_and_errors(&mut events);
+
+    assert!(
+        !parked_or_closed(&calls),
+        "Park before dawn is off and the rig was parked or closed; calls={calls:?}"
+    );
+    assert_eq!(
+        state,
+        super::ExecutorState::Cancelled,
+        "dawn must still end the run; fired={fired:?}"
+    );
+    assert!(
+        fired
+            .iter()
+            .any(|(id, action)| id == "dawn_approaching" && action == "Abort"),
+        "fired={fired:?}"
+    );
+    assert!(
+        errors.iter().any(|m| m.contains("not parked")),
+        "the operator must be told the mount was left as it was; errors={errors:?}"
+    );
+}

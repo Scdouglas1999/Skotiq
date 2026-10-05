@@ -3648,6 +3648,10 @@ void frbgen_nightshade_bridge_wire__crate__api__sequencer__runtime_config__api_s
                                                                                                      struct wire_cst_list_String *filter_names,
                                                                                                      struct wire_cst_list_record_string_i_32 *filter_focus_offsets);
 
+void frbgen_nightshade_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy(int64_t port_,
+                                                                                                         bool park_on_unsafe_weather,
+                                                                                                         bool park_before_dawn);
+
 void frbgen_nightshade_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_check_interval_seconds(int64_t port_,
                                                                                                                            uint32_t seconds);
 
@@ -4814,6 +4818,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_nightshade_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_active_sequence_run_id);
     dummy_var ^= ((int64_t) (void*) frbgen_nightshade_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_decision_logging_enabled);
     dummy_var ^= ((int64_t) (void*) frbgen_nightshade_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_devices);
+    dummy_var ^= ((int64_t) (void*) frbgen_nightshade_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy);
     dummy_var ^= ((int64_t) (void*) frbgen_nightshade_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_check_interval_seconds);
     dummy_var ^= ((int64_t) (void*) frbgen_nightshade_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_fail_mode);
     dummy_var ^= ((int64_t) (void*) frbgen_nightshade_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_save_path);

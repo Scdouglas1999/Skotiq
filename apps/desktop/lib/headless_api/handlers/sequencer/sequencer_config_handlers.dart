@@ -99,6 +99,22 @@ extension _SequencerConfig on SequencerHandlers {
     return jsonOk({'status': 'ok'});
   }
 
+  /// POST /api/sequencer/park-policy: whether the executor's standard weather
+  /// and dawn triggers may park the mount and close the cover and dome.
+  Future<Response> _handleSequencerSetParkPolicy(Request request) async {
+    _logInfo('[API] POST /api/sequencer/park-policy');
+    final payload = await readJsonObject(request);
+    final parkOnUnsafeWeather = requireBool(payload, 'parkOnUnsafeWeather');
+    final parkBeforeDawn = requireBool(payload, 'parkBeforeDawn');
+
+    final backend = container.read(sequencerBackendProvider);
+    await backend.sequencerSetParkPolicy(
+      parkOnUnsafeWeather: parkOnUnsafeWeather,
+      parkBeforeDawn: parkBeforeDawn,
+    );
+    return jsonOk({'status': 'ok'});
+  }
+
   Future<Response> _handleSequencerSetSafetyCheckInterval(
     Request request,
   ) async {
