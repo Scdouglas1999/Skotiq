@@ -113,6 +113,8 @@ pub(crate) use pointing::*;
 #[cfg(test)]
 mod pointing_tests;
 pub(crate) mod rich_header;
+#[cfg(test)]
+mod rig_grading_tests;
 pub(crate) use rich_header::*;
 #[cfg(test)]
 mod tests;
