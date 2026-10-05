@@ -2057,4 +2057,326 @@ mod tests {
         fs::write(&p, data).unwrap();
         assert_eq!(sha256_file(&p).unwrap(), sha256_hex(data));
     }
+
+    /// The whole apply-or-rollback flow for one set of arguments, as `main`
+    /// runs it, with the relaunch decision dropped: these tests check what
+    /// happened to the install, not whether the app would be started again.
+    fn run_with(args: &Args) -> Result<()> {
+        run(args).map_err(|failure| failure.error)
+    }
+
+    // End-to-end runs of `run_with`. The helpers above are each tested on
+    // their own, but until these existed nothing checked that the process
+    // actually REPORTS a failed update (a `finalize_failure` returning Ok, or
+    // a `run` that returned Ok early, passed every test), that the rollback
+    // log reaches disk, or that the updater waits for the app to exit.
+
+    /// A pid that belonged to a process which has exited and been reaped.
+    fn exited_pid() -> u32 {
+        let mut child = Command::new("true").spawn().unwrap();
+        let pid = child.id();
+        child.wait().unwrap();
+        pid
+    }
+
+    struct Rig {
+        _tmp: tempfile::TempDir,
+        args: Args,
+    }
+
+    /// An install holding the old build's two entry points, a staging tree
+    /// whose bridge holds `staged`, a pending marker, and a manifest that
+    /// expects the bridge to hash as `manifest`.
+    fn rig(staged: &[u8], manifest: &[u8]) -> Rig {
+        let tmp = tempdir().unwrap();
+        let root = tmp.path();
+        let install = root.join("install");
+        let staging = root.join("staging");
+        write(&install.join(APP_EXECUTABLE), b"old-exe");
+        write(&install.join(BRIDGE_LIBRARY), b"old-bridge");
+        write(&staging.join(APP_EXECUTABLE), b"new-exe");
+        write(&staging.join(BRIDGE_LIBRARY), staged);
+        let expected = make_expected(&[(APP_EXECUTABLE, b"new-exe"), (BRIDGE_LIBRARY, manifest)]);
+        let expected_path = root.join("expected_hashes.json");
+        fs::write(&expected_path, serde_json::to_vec(&expected).unwrap()).unwrap();
+        let pending = root.join("pending_update.json");
+        write(&pending, b"{}");
+        let args = Args {
+            parent_pid: exited_pid(),
+            staging_dir: staging,
+            install_dir: install,
+            backup_dir: root.join("backup"),
+            pending_file: pending,
+            expected_hashes: expected_path,
+            launch_after: false,
+            rollback: false,
+            relaunch_args: Vec::new(),
+            confirm_timeout_secs: 180,
+        };
+        Rig { _tmp: tmp, args }
+    }
+
+    #[test]
+    fn a_verified_update_installs_records_hashes_and_can_be_rolled_back() {
+        let mut r = rig(b"new-bridge", b"new-bridge");
+        run_with(&r.args).unwrap();
+
+        let install = r.args.install_dir.clone();
+        assert_eq!(
+            fs::read(install.join(BRIDGE_LIBRARY)).unwrap(),
+            b"new-bridge"
+        );
+        assert!(install.join(POST_INSTALL_HASH_FILE).exists());
+        assert!(
+            r.args.backup_dir.join(ROLLBACK_LOG_FILE).exists(),
+            "a successful apply must leave the rollback log for `--rollback`"
+        );
+        assert!(
+            !r.args.staging_dir.exists(),
+            "staging is removed once applied"
+        );
+
+        // The operator's manual rollback brings the previous build back.
+        r.args.rollback = true;
+        r.args.parent_pid = exited_pid();
+        run_with(&r.args).unwrap();
+        assert_eq!(
+            fs::read(install.join(BRIDGE_LIBRARY)).unwrap(),
+            b"old-bridge"
+        );
+        assert_eq!(fs::read(install.join(APP_EXECUTABLE)).unwrap(), b"old-exe");
+        assert!(!r.args.pending_file.exists());
+    }
+
+    #[test]
+    fn a_payload_that_fails_its_hash_check_exits_with_an_error_and_restores_the_old_build() {
+        let r = rig(b"corrupted-bridge", b"new-bridge");
+        let err = run_with(&r.args).expect_err("a failed verification must fail the process");
+        assert!(format!("{err:?}").contains("restored"), "{err:?}");
+
+        let install = &r.args.install_dir;
+        assert_eq!(
+            fs::read(install.join(BRIDGE_LIBRARY)).unwrap(),
+            b"old-bridge"
+        );
+        assert_eq!(fs::read(install.join(APP_EXECUTABLE)).unwrap(), b"old-exe");
+        // The marker stays: the restored build reads it on its next start to
+        // report the update as rolled back. No post-install hashes are
+        // written, so nothing claims the update landed.
+        assert!(r.args.pending_file.exists());
+        assert!(!install.join(POST_INSTALL_HASH_FILE).exists());
+        assert!(
+            !r.args.backup_dir.join(ROLLBACK_LOG_FILE).exists(),
+            "a completed rollback leaves no log for next-launch recovery to replay"
+        );
+    }
+
+    #[test]
+    fn a_second_updater_on_the_same_install_refuses_and_touches_nothing() {
+        let r = rig(b"new-bridge", b"new-bridge");
+        let lock_dir = r.args.install_dir.join("updates");
+        fs::create_dir_all(&lock_dir).unwrap();
+        let held = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(lock_dir.join(LOCK_FILE_NAME))
+            .unwrap();
+        held.try_lock_exclusive().unwrap();
+
+        let err = run_with(&r.args).expect_err("must refuse while another updater holds the lock");
+        assert!(format!("{err:?}").contains("already running"), "{err:?}");
+        assert_eq!(
+            fs::read(r.args.install_dir.join(BRIDGE_LIBRARY)).unwrap(),
+            b"old-bridge"
+        );
+        assert!(r.args.pending_file.exists());
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn waits_for_the_app_to_exit_before_touching_its_files() {
+        let mut child = Command::new("sleep").arg("1").spawn().unwrap();
+        let pid = child.id();
+        // Reap it the moment it exits, as the app's own parent would; an
+        // unreaped zombie still answers `kill -0`.
+        let reaper = thread::spawn(move || child.wait().unwrap());
+
+        let started = std::time::Instant::now();
+        wait_for_process_exit(pid, Duration::from_secs(20)).unwrap();
+        let waited = started.elapsed();
+        reaper.join().unwrap();
+        assert!(
+            waited >= Duration::from_millis(700),
+            "returned after {waited:?} while the app was still running"
+        );
+        assert!(
+            waited < Duration::from_secs(15),
+            "missed the exit: {waited:?}"
+        );
+    }
+
+    #[test]
+    fn hashes_are_the_lowercase_hex_the_manifest_is_written_in() {
+        // `sha256_file_matches_in_memory_hash` compares two outputs of the same
+        // encoder, so a broken encoder passes it. The manifest comes from the
+        // Dart side, which writes standard lowercase hex; pin a published
+        // vector (FIPS 180-2, "abc").
+        let tmp = tempdir().unwrap();
+        let p = tmp.path().join("abc.bin");
+        fs::write(&p, b"abc").unwrap();
+        assert_eq!(
+            sha256_file(&p).unwrap(),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+
+    #[test]
+    fn an_update_that_leaves_no_executable_is_refused() {
+        // A fresh install whose payload (and manifest) lack the launcher: every
+        // listed hash matches, and the entry-point check is what stops it.
+        let r = rig(b"new-bridge", b"new-bridge");
+        fs::remove_file(r.args.install_dir.join(APP_EXECUTABLE)).unwrap();
+        fs::remove_file(r.args.staging_dir.join(APP_EXECUTABLE)).unwrap();
+        let expected = make_expected(&[(BRIDGE_LIBRARY, b"new-bridge")]);
+        fs::write(
+            &r.args.expected_hashes,
+            serde_json::to_vec(&expected).unwrap(),
+        )
+        .unwrap();
+
+        let err = run_with(&r.args).expect_err("an install with no executable must fail");
+        assert!(
+            format!("{err:?}").contains("executable not found"),
+            "{err:?}"
+        );
+        assert_eq!(
+            fs::read(r.args.install_dir.join(BRIDGE_LIBRARY)).unwrap(),
+            b"old-bridge"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn launch_after_starts_the_updated_build() {
+        use std::os::unix::fs::PermissionsExt;
+        let r = rig(b"new-bridge", b"new-bridge");
+        let launched = r.args.install_dir.join("launched");
+        // A started build confirms itself by consuming the pending marker;
+        // one that never does is rolled back.
+        let script = format!(
+            "#!/bin/sh\ntouch '{}'\nrm -f '{}'\n",
+            launched.display(),
+            r.args.pending_file.display()
+        );
+        let exe = r.args.staging_dir.join(APP_EXECUTABLE);
+        fs::write(&exe, &script).unwrap();
+        fs::set_permissions(&exe, fs::Permissions::from_mode(0o755)).unwrap();
+        let expected = make_expected(&[
+            (APP_EXECUTABLE, script.as_bytes()),
+            (BRIDGE_LIBRARY, b"new-bridge"),
+        ]);
+        fs::write(
+            &r.args.expected_hashes,
+            serde_json::to_vec(&expected).unwrap(),
+        )
+        .unwrap();
+        let args = Args {
+            launch_after: true,
+            ..r.args
+        };
+
+        run_with(&args).unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while !launched.exists() && std::time::Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(20));
+        }
+        assert!(launched.exists(), "the updated build was never started");
+    }
+
+    #[test]
+    fn rollback_leaves_a_created_directory_that_now_holds_someone_elses_file() {
+        let tmp = tempdir().unwrap();
+        let install = tmp.path().join("install");
+        let staging = tmp.path().join("staging");
+        fs::create_dir_all(&install).unwrap();
+        write(&staging.join("plugins/new.dll"), b"new");
+
+        let mut log = RollbackLog::default();
+        apply_update(&staging, &install, &mut log).unwrap();
+        write(&install.join("plugins/user.cfg"), b"not ours");
+
+        rollback_in_place(&install, &log).expect("a non-empty directory is not a rollback failure");
+        assert!(!install.join("plugins/new.dll").exists());
+        assert_eq!(
+            fs::read(install.join("plugins/user.cfg")).unwrap(),
+            b"not ours"
+        );
+    }
+
+    #[test]
+    fn manual_rollback_leaves_a_created_directory_that_now_holds_someone_elses_file() {
+        let tmp = tempdir().unwrap();
+        let install = tmp.path().join("install");
+        let staging = tmp.path().join("staging");
+        let backup = tmp.path().join("backup");
+        fs::create_dir_all(&install).unwrap();
+        write(&staging.join("plugins/new.dll"), b"new");
+
+        let mut log = RollbackLog::default();
+        apply_update(&staging, &install, &mut log).unwrap();
+        retain_restore_point(&install, &backup, &log).unwrap();
+        write(&install.join("plugins/user.cfg"), b"not ours");
+
+        restore_from_restore_point(&install, &backup.join(RESTORE_POINT_DIR), &log)
+            .expect("a non-empty directory is not a rollback failure");
+        assert!(!install.join("plugins/new.dll").exists());
+        assert!(install.join("plugins/user.cfg").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_rename_blocked_for_a_moment_succeeds_on_retry() {
+        // The retry exists for a file the just-exited app still holds. On
+        // Windows that is a sharing violation; here a directory made
+        // unwritable for 200 ms gives the same transient PermissionDenied.
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = tempdir().unwrap();
+        let dir = tmp.path().join("held");
+        write(&dir.join("app.bin"), b"x");
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o555)).unwrap();
+        if fs::rename(dir.join("app.bin"), dir.join("probe")).is_ok() {
+            // Running as root: permissions do not block, nothing to test.
+            fs::set_permissions(&dir, fs::Permissions::from_mode(0o755)).unwrap();
+            return;
+        }
+        let release = {
+            let dir = dir.clone();
+            thread::spawn(move || {
+                thread::sleep(Duration::from_millis(200));
+                fs::set_permissions(&dir, fs::Permissions::from_mode(0o755)).unwrap();
+            })
+        };
+        let result = rename_with_retry(&dir.join("app.bin"), &dir.join("app.bin.bak"));
+        release.join().unwrap();
+        result.expect("a transient permission error must be retried, not fatal");
+        assert!(dir.join("app.bin.bak").exists());
+    }
+
+    #[test]
+    fn a_rename_that_cannot_succeed_is_not_retried() {
+        // Retrying only helps errors a released file handle can clear; a
+        // missing parent directory is not one, so it fails without backoff.
+        let tmp = tempdir().unwrap();
+        let from = tmp.path().join("a.txt");
+        write(&from, b"x");
+        let started = std::time::Instant::now();
+        assert!(rename_with_retry(&from, &tmp.path().join("missing_dir/x.txt")).is_err());
+        assert!(
+            started.elapsed() < Duration::from_millis(450),
+            "slept {:?} retrying a permanent error",
+            started.elapsed()
+        );
+    }
 }

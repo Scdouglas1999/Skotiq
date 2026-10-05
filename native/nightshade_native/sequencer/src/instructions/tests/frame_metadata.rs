@@ -492,3 +492,114 @@ fn recorded_exposure_secs_keeps_the_command_when_the_report_is_impossible() {
     // A driver that reports nothing at all leaves the command standing.
     assert_eq!(recorded_exposure_secs(30.0, 0.0), 30.0);
 }
+
+/// The consecutive-reject limit is what turns a cloud bank into a paused run
+/// instead of a night of rejected lights. Nothing drove the counter: turning
+/// the limit check into `<`, `||`, or `consecutive > max`, or sending the
+/// recovery request on every frame instead of once, left every test green.
+mod consecutive_reject_limit {
+    use super::*;
+
+    struct Storm {
+        ctx: InstructionContext,
+        requests: tokio::sync::mpsc::Receiver<crate::recovery::RecoveryCause>,
+        events: tokio::sync::broadcast::Receiver<crate::executor::ExecutorEvent>,
+        accepted: Arc<AtomicU32>,
+        rejected: Arc<AtomicU32>,
+        consecutive: Arc<AtomicU32>,
+    }
+
+    async fn storm() -> Storm {
+        let ctx = expose_ctx(Arc::new(NullDeviceOps), None, live_sun_alt() - 30.0).await;
+        let (event_tx, events) = tokio::sync::broadcast::channel(256);
+        let (request_tx, requests) = tokio::sync::mpsc::channel(16);
+        Storm {
+            ctx: InstructionContext {
+                event_tx: Some(event_tx),
+                recovery_request_tx: Some(request_tx),
+                ..ctx
+            },
+            requests,
+            events,
+            accepted: Arc::new(AtomicU32::new(0)),
+            rejected: Arc::new(AtomicU32::new(0)),
+            consecutive: Arc::new(AtomicU32::new(0)),
+        }
+    }
+
+    impl Storm {
+        /// Grade one frame; returns (recovery requests sent, escalation
+        /// banners raised) by that frame alone.
+        async fn frame(&mut self, frame: u32, pass: bool, max: u32) -> (usize, usize) {
+            let grade = if pass {
+                crate::quality::FrameGrade::Pass
+            } else {
+                crate::quality::FrameGrade::Reject {
+                    reason: "star count 3 below minimum 20".to_string(),
+                    hfr: None,
+                    eccentricity: None,
+                    star_count: Some(3),
+                }
+            };
+            let frame_ctx = crate::scheduling::FrameContext::new_light("sess", 1, 1, 60.0, frame);
+            emit_grade_progress(
+                &self.ctx,
+                grade,
+                &crate::quality::FrameMetrics::default(),
+                true,
+                frame,
+                20,
+                std::path::Path::new("/captures/storm.fits"),
+                &frame_ctx,
+                &self.accepted,
+                &self.rejected,
+                &self.consecutive,
+                max,
+            )
+            .await;
+            let mut requests = 0;
+            while let Ok(cause) = self.requests.try_recv() {
+                assert_eq!(
+                    cause,
+                    crate::recovery::RecoveryCause::ConsecutiveRejectsExceeded
+                );
+                requests += 1;
+            }
+            let mut banners = 0;
+            while let Ok(event) = self.events.try_recv() {
+                if let crate::executor::ExecutorEvent::Error { message } = event {
+                    if message.contains("consecutive rejects") {
+                        banners += 1;
+                    }
+                }
+            }
+            (requests, banners)
+        }
+    }
+
+    #[tokio::test]
+    async fn the_third_reject_in_a_row_pauses_the_run_once() {
+        let mut s = storm().await;
+        assert_eq!(s.frame(1, false, 3).await, (0, 0));
+        assert_eq!(s.frame(2, false, 3).await, (0, 0));
+        // The limit: one recovery request, and the banner says why.
+        assert_eq!(s.frame(3, false, 3).await, (1, 1));
+        // Still rejecting: the banner repeats, the request does not.
+        assert_eq!(s.frame(4, false, 3).await, (0, 1));
+        // One good frame resets the count; a later storm escalates again.
+        assert_eq!(s.frame(5, true, 3).await, (0, 0));
+        assert_eq!(s.frame(6, false, 3).await, (0, 0));
+        assert_eq!(s.frame(7, false, 3).await, (0, 0));
+        assert_eq!(s.frame(8, false, 3).await, (1, 1));
+        assert_eq!(s.accepted.load(Ordering::Relaxed), 1);
+        assert_eq!(s.rejected.load(Ordering::Relaxed), 7);
+    }
+
+    #[tokio::test]
+    async fn a_limit_of_zero_never_pauses_the_run() {
+        let mut s = storm().await;
+        for frame in 1..=5 {
+            assert_eq!(s.frame(frame, false, 0).await, (0, 0));
+        }
+    }
+}

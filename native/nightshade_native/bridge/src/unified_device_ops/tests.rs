@@ -323,3 +323,61 @@ async fn reconnect_overrides_are_wired_not_trait_default() {
         "connect_device must be overridden; got the trait-default error: {msg}"
     );
 }
+
+/// Slew arrival is checked against the mount's read-back, so the target has to
+/// be expressed in the frame that read-back is in: of date for a real driver
+/// (the send path precesses to it), unchanged for the Simulator (which stores
+/// what it is sent). Comparing a J2000 target with an of-date read-back failed
+/// every sequence's first slew on 2026-09-14 by 16' of RA, and nothing in the
+/// bridge pinned the mapping: returning the J2000 target for every driver left
+/// every test green.
+#[tokio::test]
+async fn slew_targets_are_compared_in_the_frame_each_mount_reports() {
+    let mgr = get_device_manager();
+    let mount = |id: &str, driver_type| DeviceInfo {
+        id: id.to_string(),
+        name: "Frame Test Mount".to_string(),
+        device_type: DeviceType::Mount,
+        driver_type,
+        description: "Frame test mount".to_string(),
+        driver_version: "test".to_string(),
+        serial_number: None,
+        unique_id: None,
+        display_name: "Frame Test Mount".to_string(),
+    };
+    let real_id = "alpaca:readback_frame_mount";
+    let sim_id = "sim_readback_frame_mount";
+    mgr.register_device(mount(real_id, DriverType::Alpaca), false)
+        .await;
+    mgr.register_device(mount(sim_id, DriverType::Simulator), false)
+        .await;
+    let ops = UnifiedDeviceOps::new(crate::api::get_state().clone());
+
+    // NGC 7380, the target of the 2026-09-14 failure.
+    let (ra, dec) = (22.7892, 58.1324);
+    let real = ops.mount_readback_frame(real_id, ra, dec).await;
+    let sim = ops.mount_readback_frame(sim_id, ra, dec).await;
+    let unknown = ops
+        .mount_readback_frame("alpaca:no_such_mount", ra, dec)
+        .await;
+    mgr.unregister_device(real_id).await;
+    mgr.unregister_device(sim_id).await;
+
+    let (real_ra, real_dec) = real.unwrap();
+    let (sent_ra, sent_dec) = crate::device_manager::epoch::j2000_to_jnow(ra, dec);
+    assert!(
+        ((real_ra - sent_ra) * 15.0 * 60.0).abs() < 0.01
+            && ((real_dec - sent_dec) * 60.0).abs() < 0.01,
+        "a real mount's target must be precessed exactly as the slew sent it"
+    );
+    // A quarter century of precession: far outside the 1' arrival tolerance.
+    assert!(((real_ra - ra) * 15.0 * 60.0).abs() > 10.0);
+    assert!(((real_dec - dec) * 60.0).abs() > 5.0);
+
+    assert_eq!(
+        sim.unwrap(),
+        (ra, dec),
+        "the Simulator reads back what it was sent"
+    );
+    assert_eq!(unknown.unwrap(), (ra, dec));
+}

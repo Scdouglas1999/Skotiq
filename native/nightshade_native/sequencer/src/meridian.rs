@@ -352,6 +352,58 @@ mod tests {
         assert_eq!(diff.num_seconds(), 300); // 5 minutes = 300 seconds
     }
 
+    /// The stored meridian-crossing time is what the MeridianFlip trigger
+    /// compares the clock against, so at that instant the target must actually
+    /// be on the meridian. The existing tests only checked the answer was
+    /// within the next day, which a crossing computed from the wrong sign, the
+    /// wrong day length or no sidereal correction all satisfy.
+    #[test]
+    fn at_the_computed_crossing_the_target_is_on_the_meridian() {
+        let longitude = -75.0;
+        let start = Utc.with_ymd_and_hms(2026, 9, 14, 1, 30, 0).unwrap();
+        let lst_now = local_sidereal_time(julian_day(&start), longitude);
+        // Targets east of the meridian by 0.5 h, 6 h and 11.5 h, and one
+        // 0.25 h past it (whose next crossing is almost a sidereal day away).
+        for ahead in [0.5, 6.0, 11.5, -0.25] {
+            let ra = (lst_now + ahead).rem_euclid(24.0);
+            let crossing = calculate_meridian_crossing(ra, longitude, start);
+            let ha = hour_angle(ra, local_sidereal_time(julian_day(&crossing), longitude));
+            assert!(
+                ha.abs() * 3600.0 < 2.0,
+                "RA {ra:.3}h: hour angle at the computed crossing is {:.1}s",
+                ha * 3600.0
+            );
+            let wait_hours = crossing.signed_duration_since(start).num_seconds() as f64 / 3600.0;
+            let expected = ahead.rem_euclid(24.0) * 0.99726957;
+            assert!(
+                (wait_hours - expected).abs() < 0.001,
+                "RA {ra:.3}h: crossing in {wait_hours:.4}h, expected {expected:.4}h"
+            );
+        }
+    }
+
+    /// `calculate_altitude` feeds the AltitudeLimit trigger; it must agree with
+    /// the independently pinned `calculate_alt_az` everywhere, not only land in
+    /// 0..90 (the only thing the test above checks).
+    #[test]
+    fn altitude_agrees_with_the_full_horizontal_transform() {
+        let (latitude, longitude) = (40.0, -75.0);
+        let time = Utc.with_ymd_and_hms(2026, 7, 28, 3, 17, 0).unwrap();
+        let lst = local_sidereal_time(julian_day(&time), longitude);
+        for (ha, dec) in [(0.0, 10.0), (2.5, 30.0), (-4.0, -20.0), (7.0, 60.0)] {
+            let ra = (lst - ha).rem_euclid(24.0);
+            let alt = calculate_altitude(ra, dec, latitude, longitude, time);
+            let (expected, _) = calculate_alt_az(ra, dec, latitude, longitude, time);
+            assert!(
+                (alt - expected).abs() < 1e-6,
+                "HA {ha}h Dec {dec}: altitude {alt} vs {expected}"
+            );
+        }
+        // Transit of a southern target: 90 - lat + dec.
+        let transit = calculate_altitude(lst, 10.0, latitude, longitude, time);
+        assert!((transit - 60.0).abs() < 0.01, "transit altitude {transit}");
+    }
+
     #[test]
     fn test_altitude_calculation() {
         // Test altitude for a known configuration

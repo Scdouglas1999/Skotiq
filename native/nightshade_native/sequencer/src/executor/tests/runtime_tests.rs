@@ -1732,7 +1732,13 @@ fn the_sky_state_abstains_without_a_target_or_a_site() {
 ///
 /// The trigger knows what it fired, so the interlude announces itself.
 #[tokio::test]
+#[allow(clippy::await_holding_lock)]
 async fn a_trigger_fired_autofocus_names_itself_on_the_wire() {
+    // Fires a real autofocus through the process-wide gate; see
+    // `AF_GATE_TEST_LOCK`.
+    let _serial = crate::AF_GATE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let mut sequence = SequenceDefinition::new("New Sequence".to_string());
     sequence.nodes.push(crate::NodeDefinition {
         id: "wait".to_string(),
@@ -1816,6 +1822,7 @@ async fn a_trigger_fired_autofocus_names_itself_on_the_wire() {
     .await
     .expect("the trigger-fired autofocus announces itself");
     executor.stop().await.ok();
+    wait_for_the_autofocus_gate_to_clear().await;
 
     let (id, name) = announced;
     assert_eq!(id, "trigger:hfr_degraded:autofocus");
@@ -1830,5 +1837,294 @@ async fn a_trigger_fired_autofocus_names_itself_on_the_wire() {
     assert!(
         name.contains("HFR Degradation"),
         "the interlude must name the trigger that fired it, got {name:?}"
+    );
+}
+
+/// A paused run is still watched for weather. `is_safety_class_trigger` is
+/// tested on its own, but nothing ran the monitor through a pause: deleting
+/// the `Paused` arm of the monitor's state gate (so a paused run is not
+/// evaluated at all, the defect the passive hold depends on being fixed), or
+/// inverting the paused-run filter, left every test green.
+#[tokio::test]
+async fn weather_turning_unsafe_during_a_pause_still_fires_the_weather_trigger() {
+    let mut sequence = SequenceDefinition::new("Paused Run".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "wait".to_string(),
+        name: "Wait".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 120.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("wait".to_string());
+
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(Arc::new(ReacquireGuiderOps::new(false, false)));
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    let mut events = executor.subscribe();
+    executor.load_sequence(sequence).expect("sequence loads");
+    executor.start().await.expect("run starts");
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while executor.get_state().await != ExecutorState::Running {
+        assert!(std::time::Instant::now() < deadline, "run never started");
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    executor.pause().await.expect("pause accepted");
+    while executor.get_state().await != ExecutorState::Paused {
+        assert!(std::time::Instant::now() < deadline, "run never paused");
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    // Nothing was unsafe before the pause.
+    while let Ok(event) = events.try_recv() {
+        if let ExecutorEvent::TriggerFired { trigger_id, .. } = event {
+            assert_ne!(trigger_id, "weather_unsafe", "fired before the sky changed");
+        }
+    }
+
+    executor.update_weather_verdict(Some(true)).await;
+
+    let fired = tokio::time::timeout(std::time::Duration::from_secs(15), async {
+        loop {
+            match events.recv().await {
+                Ok(ExecutorEvent::TriggerFired { trigger_id, .. })
+                    if trigger_id == "weather_unsafe" =>
+                {
+                    return true;
+                }
+                Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                Err(broadcast::error::RecvError::Closed) => return false,
+            }
+        }
+    })
+    .await
+    .unwrap_or(false);
+    executor.stop().await.ok();
+
+    assert!(
+        fired,
+        "the weather trigger must keep protecting the rig while the run is paused"
+    );
+}
+
+/// A run resumed from a checkpoint never re-runs its StartGuiding node, so the
+/// monitor seeing the guider actively guiding is what arms GuideStarLost. With
+/// that latch inverted the trigger stayed disarmed, a guider that then stopped
+/// guiding was never reported lost, and every test passed.
+#[tokio::test]
+async fn a_guider_seen_guiding_arms_star_lost_and_a_later_drop_fires_it() {
+    let mut sequence = SequenceDefinition::new("Guided Run".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "wait".to_string(),
+        name: "Wait".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 120.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("wait".to_string());
+
+    // Guiding from the start, with no StartGuiding node in the sequence.
+    let ops = ReacquireGuiderOps::new(false, true);
+    let guiding = ops.started.clone();
+    guiding.store(true, Ordering::Relaxed);
+
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(Arc::new(ops));
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    let mut events = executor.subscribe();
+    executor.load_sequence(sequence).expect("sequence loads");
+    executor.start().await.expect("run starts");
+
+    async fn guider_flags(executor: &SequenceExecutor) -> (bool, bool) {
+        let manager = executor.trigger_manager.read().await;
+        let state = manager.state();
+        let guard = state.read().await;
+        (guard.guiding_enabled, guard.guide_star_lost)
+    }
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    while !guider_flags(&executor).await.0 {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "an actively guiding guider never armed the star-lost trigger"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+
+    // The guider stops guiding.
+    guiding.store(false, Ordering::Relaxed);
+    let fired = tokio::time::timeout(std::time::Duration::from_secs(15), async {
+        loop {
+            match events.recv().await {
+                Ok(ExecutorEvent::TriggerFired { trigger_id, .. })
+                    if trigger_id == "guide_star_lost" =>
+                {
+                    return true;
+                }
+                Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                Err(broadcast::error::RecvError::Closed) => return false,
+            }
+        }
+    })
+    .await
+    .unwrap_or(false);
+    assert!(
+        fired,
+        "a guider that stopped guiding must fire GuideStarLost"
+    );
+
+    // The recovery re-acquires the star (this guider relocks on start), and
+    // the session report reads that episode back from the executor.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    let history = loop {
+        let history = executor.recovery_history();
+        if !history.is_empty() || std::time::Instant::now() > deadline {
+            break history;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    };
+    executor.stop().await.ok();
+
+    assert_eq!(history.len(), 1, "one recovery episode: {history:?}");
+    assert_eq!(
+        history[0].cause,
+        crate::recovery::RecoveryCause::GuideStarLost
+    );
+    assert!(history[0].recovered, "{history:?}");
+}
+
+/// Run a trigger-fired autofocus that fails with focus far past the keep-
+/// imaging tolerance, under `failure_action`, and return the recorded device
+/// calls once the run has reacted.
+async fn failed_trigger_autofocus_calls(
+    failure_action: crate::AutofocusFailureAction,
+) -> Vec<String> {
+    let mut sequence = SequenceDefinition::new("New Sequence".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "wait".to_string(),
+        name: "Wait".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 120.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("wait".to_string());
+
+    let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(ops.clone());
+    executor.camera_id = Some("sim_camera_1".to_string());
+    executor.focuser_id = Some("sim_focuser_1".to_string());
+    executor.mount_id = Some("mount-1".to_string());
+    executor
+        .update_autofocus_config(crate::AutofocusConfig {
+            number_of_attempts: 1,
+            steps_out: 1,
+            exposures_per_point: 1,
+            exposure_duration: 0.01,
+            failure_action,
+            ..Default::default()
+        })
+        .await;
+    {
+        let mut manager = executor.trigger_manager.write().await;
+        for id in [
+            "hfr_degraded",
+            "meridian_flip",
+            "guiding_failed",
+            "altitude_limit",
+            "weather_unsafe",
+            "temperature_shift",
+            "filter_change",
+            "dawn_approaching",
+            "autofocus_interval",
+            "dither_interval",
+            "mount_tracking_lost",
+        ] {
+            manager.remove_trigger(id);
+        }
+        manager.add_trigger(Trigger::new(
+            "hfr_degraded",
+            "HFR Degradation",
+            crate::TriggerType::HfrDegraded {
+                threshold_percent: 20.0,
+                absolute_threshold: 0.0,
+                consecutive_frames: 1,
+            },
+            crate::RecoveryAction::Autofocus,
+        ));
+    }
+    let mut events = executor.subscribe();
+    executor.load_sequence(sequence).expect("sequence loads");
+    executor.start().await.expect("run starts");
+
+    // Baseline 2.0 px, then 4.0 px: twice the baseline, past the default
+    // 1.6x tolerance, so the failure is not one the run can image through.
+    let trigger_state = {
+        let manager = executor.trigger_manager.read().await;
+        manager.state()
+    };
+    trigger_state.write().await.update_hfr(2.0);
+    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+    trigger_state.write().await.update_hfr(4.0);
+
+    // Wait for the autofocus interlude to finish, then give the policy branch
+    // a moment to act.
+    tokio::time::timeout(std::time::Duration::from_secs(60), async {
+        loop {
+            match events.recv().await {
+                Ok(ExecutorEvent::NodeCompleted { id, .. })
+                    if id.starts_with("trigger:") && id.ends_with(":autofocus") =>
+                {
+                    return;
+                }
+                Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(broadcast::error::RecvError::Closed) => return,
+            }
+        }
+    })
+    .await
+    .expect("the trigger-fired autofocus finished");
+    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+    let calls = ops.calls();
+    executor.stop().await.ok();
+    wait_for_the_autofocus_gate_to_clear().await;
+    calls
+}
+
+/// `stop()` returns before a trigger-fired autofocus task has dropped its
+/// admission guard. A test that holds `AF_GATE_TEST_LOCK` waits for the gate
+/// to clear before releasing the lock, or the next test is turned away.
+async fn wait_for_the_autofocus_gate_to_clear() {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while crate::AUTOFOCUS_RUN_ACTIVE.load(std::sync::atomic::Ordering::Acquire) {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "an autofocus still held the gate 30 s after the run stopped"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+}
+
+/// Whether a failed trigger autofocus parks the mount is the operator's
+/// `AutofocusFailureAction`. Only the default was ever exercised, so a check
+/// inverted to park under `PauseAndAlert` (moving an attended mount that was
+/// configured to wait for its operator) passed every test.
+#[tokio::test]
+#[allow(clippy::await_holding_lock)]
+async fn a_failed_trigger_autofocus_parks_only_when_the_policy_says_to() {
+    // Fires a real autofocus through the process-wide gate; see
+    // `AF_GATE_TEST_LOCK`.
+    let _serial = crate::AF_GATE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let calls = failed_trigger_autofocus_calls(crate::AutofocusFailureAction::PauseAndAlert).await;
+    assert!(
+        !calls.iter().any(|c| c.starts_with("mount_park")),
+        "PauseAndAlert must not park: {calls:?}"
+    );
+
+    let calls = failed_trigger_autofocus_calls(crate::AutofocusFailureAction::AbortAndPark).await;
+    assert!(
+        calls.iter().any(|c| c == "mount_park:mount-1"),
+        "AbortAndPark parks the mount: {calls:?}"
     );
 }

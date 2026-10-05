@@ -150,3 +150,108 @@ mod readback_frame {
         assert!(miss.is_err(), "a 3-degree miss must still be reported");
     }
 }
+
+/// `execute_slew` end to end with a mount whose read-back frame differs from
+/// the target's. The `readback_frame` tests above pin the comparison; these
+/// pin that the instruction actually makes it in the mount's frame. Validating
+/// against the raw target instead (the 2026-09-14 defect) left every test in
+/// the crate green, because every test double reads back in J2000.
+mod slew_arrival {
+    use super::*;
+
+    /// The 2026-09-14 numbers: the J2000 target, where the device layer said
+    /// that target is in the mount's frame, and where the mount reported it
+    /// had arrived.
+    const TARGET_J2000: (f64, f64) = (22.7892, 58.1324);
+    const TARGET_JNOW: (f64, f64) = (22.8070, 58.2738);
+    const MOUNT_REPORTED: (f64, f64) = (22.8069, 58.2739);
+
+    async fn slew_with(
+        ops: ScriptedDomeRotatorOps,
+    ) -> (InstructionResult, Arc<ScriptedDomeRotatorOps>) {
+        let ops = Arc::new(ops);
+        let ctx = pointing_ctx(ops.clone(), "NGC 7380", TARGET_J2000).await;
+        let cfg = SlewConfig {
+            use_target_coords: true,
+            ..SlewConfig::default()
+        };
+        (execute_slew(&cfg, &ctx, None).await, ops)
+    }
+
+    #[tokio::test]
+    async fn a_slew_that_landed_is_verified_in_the_mounts_own_frame() {
+        let (result, ops) = slew_with(
+            ScriptedDomeRotatorOps::new()
+                .with_scripted_mount_coordinates(MOUNT_REPORTED.0, MOUNT_REPORTED.1)
+                .with_scripted_readback_frame(Ok(TARGET_JNOW)),
+        )
+        .await;
+
+        assert_eq!(
+            result.status,
+            NodeStatus::Success,
+            "a mount within 0.4\" of the target must not fail the run: {:?}",
+            result.message
+        );
+        assert!(
+            result
+                .message
+                .as_deref()
+                .unwrap_or("")
+                .contains("(verified)"),
+            "{:?}",
+            result.message
+        );
+        assert_eq!(ops.mount_slew_calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn a_mount_that_stopped_short_fails_with_a_position_mismatch() {
+        let (result, _) = slew_with(
+            ScriptedDomeRotatorOps::new()
+                .with_scripted_mount_coordinates(TARGET_JNOW.0 + 0.2, TARGET_JNOW.1)
+                .with_scripted_readback_frame(Ok(TARGET_JNOW)),
+        )
+        .await;
+
+        assert_eq!(result.status, NodeStatus::Failure);
+        assert_eq!(
+            recovery_code_of(&result).as_deref(),
+            Some("SLEW_POSITION_MISMATCH")
+        );
+    }
+
+    #[tokio::test]
+    async fn an_unknown_frame_reports_the_slew_unverified_rather_than_failed() {
+        let (result, _) = slew_with(
+            ScriptedDomeRotatorOps::new()
+                .with_scripted_mount_coordinates(MOUNT_REPORTED.0, MOUNT_REPORTED.1)
+                .with_scripted_readback_frame(Err("driver type unknown".to_string())),
+        )
+        .await;
+
+        assert_eq!(result.status, NodeStatus::Success);
+        let message = result.message.unwrap_or_default();
+        assert!(message.contains("not verified"), "{message}");
+        assert!(!message.contains("(verified)"), "{message}");
+    }
+
+    #[tokio::test]
+    async fn a_slew_to_custom_coordinates_goes_where_it_was_told() {
+        // Park positions, flat-panel pointing and alignment moves use custom
+        // coordinates; the daylight test only proves they are not gated.
+        let ops =
+            Arc::new(ScriptedDomeRotatorOps::new().with_scripted_mount_coordinates(3.25, 12.5));
+        let ctx = pointing_ctx(ops.clone(), "NGC 7380", TARGET_J2000).await;
+        let cfg = SlewConfig {
+            use_target_coords: false,
+            custom_ra: Some(3.25),
+            custom_dec: Some(12.5),
+        };
+
+        let result = execute_slew(&cfg, &ctx, None).await;
+
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        assert_eq!(ops.mount_slew_calls.load(Ordering::SeqCst), 1);
+    }
+}

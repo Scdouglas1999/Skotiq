@@ -261,16 +261,23 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
 
   bool _isParkBeforeDawnDue(AppSettingsState? appSettings) {
     if (appSettings == null || !appSettings.parkBeforeDawn) return false;
-    final now = DateTime.now();
-    final twilight = SkyCalculations.computeTwilight(
-      noonLocal: DateTime(now.year, now.month, now.day, 12),
-      latitudeDegrees: appSettings.latitude,
-      longitudeDegrees: appSettings.longitude,
-      kind: TwilightKind.astronomical,
-    );
-    final dawn = twilight.morningStart?.toLocal();
-    if (dawn == null || now.isAfter(dawn)) return false;
-    return dawn.difference(now) <=
-        WeatherSafetyNotifier._parkBeforeDawnLeadTime;
+    final now = _clock();
+    // The next dawn, not the dawn after today's noon. Dawn comes after
+    // midnight, and from midnight on, "today's night" is the one that starts
+    // this evening, so asking only for it measured the lead time to TOMORROW's
+    // dawn and the park never fired. Yesterday's night comes first because its
+    // dawn, when still ahead, is the one about to happen.
+    for (final day in [now.subtract(const Duration(days: 1)), now]) {
+      final dawn = SkyCalculations.computeTwilight(
+        noonLocal: DateTime(day.year, day.month, day.day, 12),
+        latitudeDegrees: appSettings.latitude,
+        longitudeDegrees: appSettings.longitude,
+        kind: TwilightKind.astronomical,
+      ).morningStart?.toLocal();
+      if (dawn == null || now.isAfter(dawn)) continue;
+      return dawn.difference(now) <=
+          WeatherSafetyNotifier._parkBeforeDawnLeadTime;
+    }
+    return false;
   }
 }

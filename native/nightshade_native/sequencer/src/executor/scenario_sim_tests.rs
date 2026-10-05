@@ -47,7 +47,7 @@ use std::sync::{Arc, Mutex};
 /// a shared log and lets the test flip device state MID-RUN (the whole point of
 /// a disconnect-simulation harness). Everything not explicitly scripted
 /// delegates to [`NullDeviceOps`] so the surface stays small.
-struct ScriptedDeviceOps {
+pub(crate) struct ScriptedDeviceOps {
     inner: Arc<NullDeviceOps>,
     /// Ordered record of safety-relevant calls (e.g. `"mount_park:mount-1"`,
     /// `"connect_device:cam-1"`). Scenario assertions match against this.
@@ -58,7 +58,7 @@ struct ScriptedDeviceOps {
     /// When true, `connect_device` actually reconnects (re-adds to `connected`).
     /// When false it records the attempt but leaves the device disconnected —
     /// models a dead USB hub that no reconnect can revive (-> exhaustion).
-    connect_succeeds: Arc<AtomicBool>,
+    pub(crate) connect_succeeds: Arc<AtomicBool>,
     /// Hardware safety-monitor verdict returned by `safety_is_safe`.
     weather_safe: Arc<AtomicBool>,
     /// Guider lock state reported by `guider_get_status`.
@@ -88,7 +88,7 @@ struct ScriptedDeviceOps {
 }
 
 impl ScriptedDeviceOps {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             inner: Arc::new(NullDeviceOps),
             calls: Arc::new(Mutex::new(Vec::new())),
@@ -111,11 +111,11 @@ impl ScriptedDeviceOps {
         self.calls.lock().unwrap().push(call.into());
     }
 
-    fn calls(&self) -> Vec<String> {
+    pub(crate) fn calls(&self) -> Vec<String> {
         self.calls.lock().unwrap().clone()
     }
 
-    fn call_count(&self, prefix: &str) -> usize {
+    pub(crate) fn call_count(&self, prefix: &str) -> usize {
         self.calls
             .lock()
             .unwrap()

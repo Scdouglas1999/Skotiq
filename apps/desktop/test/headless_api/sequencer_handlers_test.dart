@@ -902,4 +902,89 @@ void main() {
       expect(body['progress'], 0.0);
     });
   });
+
+  // The update-config tests above pass with the backend call's arguments
+  // unread, so the missing-flag default could flip to "park" and every test in
+  // this file still passed. These pin what the backend is actually told.
+  group('SequencerHandlers park-and-close opt-in', () {
+    late ProviderContainer container;
+    late SequencerHandlers handlers;
+    late _MockSequencerBackend backend;
+
+    setUp(() {
+      backend = _MockSequencerBackend();
+      when(
+        () => backend.updateRecoveryConfig(
+          retryIntervalSecs: any(named: 'retryIntervalSecs'),
+          maxDurationSecs: any(named: 'maxDurationSecs'),
+          stopTrackingDuringRecovery: any(named: 'stopTrackingDuringRecovery'),
+          abortOnMeridian: any(named: 'abortOnMeridian'),
+          audibleAlertWhenEntered: any(named: 'audibleAlertWhenEntered'),
+          parkAndCloseWhenRecoveryGivesUp: any(
+            named: 'parkAndCloseWhenRecoveryGivesUp',
+          ),
+        ),
+      ).thenAnswer((_) async {});
+      container = ProviderContainer(
+        overrides: [sequencerBackendProvider.overrideWithValue(backend)],
+      );
+      handlers = SequencerHandlers(container);
+    });
+
+    tearDown(() {
+      container.dispose();
+    });
+
+    Future<bool> parkAndCloseSentFor(Map<String, Object?> payload) async {
+      final response = await translateHandlerErrors(
+        handlers.handleSequencerUpdateRecoveryConfig(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/api/sequencer/recovery/update-config'),
+            body: jsonEncode({
+              'retryIntervalSecs': 600.0,
+              'maxDurationSecs': 5400.0,
+              'stopTrackingDuringRecovery': true,
+              'abortOnMeridian': true,
+              'audibleAlertWhenEntered': true,
+              ...payload,
+            }),
+          ),
+        ),
+      );
+      expect(response.statusCode, HttpStatus.ok);
+      return verify(
+            () => backend.updateRecoveryConfig(
+              retryIntervalSecs: 600.0,
+              maxDurationSecs: 5400.0,
+              stopTrackingDuringRecovery: true,
+              abortOnMeridian: true,
+              audibleAlertWhenEntered: true,
+              parkAndCloseWhenRecoveryGivesUp: captureAny(
+                named: 'parkAndCloseWhenRecoveryGivesUp',
+              ),
+            ),
+          ).captured.single
+          as bool;
+    }
+
+    test('a client that omits the flag holds the run: the backend is told '
+        'not to park', () async {
+      expect(await parkAndCloseSentFor({}), isFalse);
+    });
+
+    test('an explicit false is passed through as false', () async {
+      expect(
+        await parkAndCloseSentFor({'parkAndCloseWhenRecoveryGivesUp': false}),
+        isFalse,
+      );
+    });
+
+    test('an operator who opts in reaches the backend as true', () async {
+      expect(
+        await parkAndCloseSentFor({'parkAndCloseWhenRecoveryGivesUp': true}),
+        isTrue,
+      );
+    });
+  });
 }

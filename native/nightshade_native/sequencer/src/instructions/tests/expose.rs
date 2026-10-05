@@ -232,3 +232,158 @@ async fn a_trigger_action_cannot_take_the_train_mid_frame() {
         "and the recenter runs the moment the frame is downloaded"
     );
 }
+
+/// Which frames of a burst a dither follows. Nothing counted dithers, so
+/// dithering calibration bursts, dithering after the final frame, or never
+/// dithering at all each passed the whole suite.
+mod dither_cadence {
+    use super::*;
+
+    async fn dithers_for(frame_type: &str, count: u32, dither_every: u32) -> Vec<u32> {
+        let ops = Arc::new(ScriptedDomeRotatorOps::new());
+        let ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
+        let config = ExposureConfig {
+            duration_secs: 0.01,
+            count,
+            frame_type: frame_type.to_string(),
+            dither_every: Some(dither_every),
+            ..ExposureConfig::default()
+        };
+        let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), count);
+        let dithers = ops.dithers_after_frame.lock().unwrap().clone();
+        dithers
+    }
+
+    #[tokio::test]
+    async fn a_light_burst_dithers_every_nth_frame_but_not_after_the_last() {
+        assert_eq!(dithers_for("Light", 4, 2).await, vec![2]);
+        assert_eq!(dithers_for("Light", 5, 2).await, vec![2, 4]);
+    }
+
+    #[tokio::test]
+    async fn a_calibration_burst_never_moves_the_mount() {
+        assert!(dithers_for("Dark", 3, 1).await.is_empty());
+        assert!(dithers_for("Flat", 3, 1).await.is_empty());
+    }
+}
+
+/// Light frames are measured and graded; calibration frames are neither. The
+/// grader itself is tested, but the default test double measures nothing, so
+/// skipping the HFR, star-count or eccentricity measurement on LIGHT frames
+/// (the calibration check inverted) left every test green: a cloudy or
+/// defocused night would then be accepted frame after frame.
+mod light_frame_grading {
+    use super::*;
+
+    /// Run one frame of `frame_type` with the given measurements and check,
+    /// and return the grading verdict the frame event carried.
+    async fn grade_one(
+        frame_type: &str,
+        metrics: (f64, usize, f64),
+        check: crate::quality::ImageQualityCheck,
+    ) -> Result<(), (String, Option<f64>, Option<u32>)> {
+        let scratch = scratch_dir("light-grading");
+        let ops = Arc::new(
+            ScriptedDomeRotatorOps::new()
+                .with_scripted_frame_metrics(metrics.0, metrics.1, metrics.2),
+        );
+        let (event_tx, mut event_rx) = tokio::sync::broadcast::channel(64);
+        let mut ctx = saving_expose_ctx(ops.clone(), scratch.0.clone(), event_tx).await;
+        let mut ts = crate::triggers::TriggerState::new();
+        ts.set_max_sun_altitude_degrees(live_sun_alt() + 5.0);
+        ctx.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+        let config = ExposureConfig {
+            duration_secs: 0.01,
+            count: 1,
+            frame_type: frame_type.to_string(),
+            quality_check: Some(check),
+            ..ExposureConfig::default()
+        };
+
+        let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+
+        let mut verdict = None;
+        while let Ok(event) = event_rx.try_recv() {
+            if let crate::executor::ExecutorEvent::NodeProgress {
+                structured_detail: Some(detail),
+                ..
+            } = event
+            {
+                match *detail {
+                    crate::node::ProgressDetail::FrameAccepted { .. } => verdict = Some(Ok(())),
+                    crate::node::ProgressDetail::FrameRejected {
+                        reason,
+                        hfr,
+                        star_count,
+                        ..
+                    } => verdict = Some(Err((reason, hfr, star_count))),
+                    _ => {}
+                }
+            }
+        }
+        verdict.expect("a saved frame reports its grading verdict")
+    }
+
+    fn check(
+        f: impl FnOnce(&mut crate::quality::ImageQualityCheck),
+    ) -> crate::quality::ImageQualityCheck {
+        let mut check = crate::quality::ImageQualityCheck::default();
+        f(&mut check);
+        check
+    }
+
+    #[tokio::test]
+    async fn a_soft_light_frame_is_rejected_on_its_measured_hfr() {
+        let (reason, hfr, _) = grade_one(
+            "Light",
+            (5.0, 60, 0.1),
+            check(|c| c.hfr_threshold = Some(3.0)),
+        )
+        .await
+        .expect_err("a 5 px frame against a 3 px limit must be rejected");
+        assert_eq!(hfr, Some(5.0));
+        assert!(reason.contains("HFR"), "{reason}");
+    }
+
+    #[tokio::test]
+    async fn a_clouded_light_frame_is_rejected_on_its_star_count() {
+        let (_, _, stars) = grade_one(
+            "Light",
+            (2.0, 3, 0.1),
+            check(|c| c.star_count_min = Some(20)),
+        )
+        .await
+        .expect_err("3 stars against a floor of 20 must be rejected");
+        assert_eq!(stars, Some(3));
+    }
+
+    #[tokio::test]
+    async fn a_trailed_light_frame_is_rejected_on_its_eccentricity() {
+        let (reason, _, _) = grade_one(
+            "Light",
+            (2.0, 60, 0.8),
+            check(|c| c.eccentricity_threshold = Some(0.5)),
+        )
+        .await
+        .expect_err("0.8 eccentricity against a 0.5 limit must be rejected");
+        assert!(reason.contains("eccentricity"), "{reason}");
+    }
+
+    #[tokio::test]
+    async fn a_dark_with_the_same_numbers_is_never_graded() {
+        grade_one(
+            "Dark",
+            (5.0, 3, 0.8),
+            check(|c| {
+                c.hfr_threshold = Some(3.0);
+                c.star_count_min = Some(20);
+                c.eccentricity_threshold = Some(0.5);
+            }),
+        )
+        .await
+        .expect("a calibration frame has no stars to grade");
+    }
+}

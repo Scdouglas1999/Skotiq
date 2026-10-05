@@ -709,4 +709,55 @@ mod tests {
         assert!(baseline.is_none());
         assert!(samples.is_empty(), "bad samples should not be retained");
     }
+
+    /// The baseline is the MEDIAN of the first frames, whatever order they
+    /// arrive in. The test above uses samples whose second- and third-smallest
+    /// values are equal, so taking the wrong element of the sorted window (or
+    /// averaging two of them) still gave 2.0 and passed.
+    #[test]
+    fn baseline_is_the_median_of_distinct_samples_in_arrival_order() {
+        let mut baseline = None;
+        let mut samples = Vec::new();
+        for hfr in [3.0, 1.0, 5.0, 2.0, 4.0] {
+            update_hfr_baseline(&mut baseline, &mut samples, Some(hfr));
+        }
+        assert_eq!(baseline, Some(3.0));
+    }
+
+    /// A frame exactly at a limit is accepted: the limits are maxima and
+    /// minima the operator set, not values to stay strictly inside.
+    #[test]
+    fn a_frame_exactly_at_each_limit_passes_and_one_step_past_it_is_rejected() {
+        let check = ImageQualityCheck {
+            hfr_threshold: Some(4.0),
+            hfr_baseline_percent: Some(50.0),
+            eccentricity_threshold: Some(0.5),
+            star_count_min: Some(20),
+            ..Default::default()
+        };
+        let at_limits = FrameMetrics {
+            hfr: Some(3.0),
+            eccentricity: Some(0.5),
+            star_count: Some(20),
+        };
+        // Baseline 2.0 + 50% = a 3.0 px limit.
+        assert!(grade_frame(&check, &at_limits, Some(2.0)).is_pass());
+
+        let past = |metrics: FrameMetrics| grade_frame(&check, &metrics, Some(2.0));
+        assert!(past(FrameMetrics {
+            hfr: Some(3.01),
+            ..at_limits
+        })
+        .is_reject());
+        assert!(past(FrameMetrics {
+            eccentricity: Some(0.51),
+            ..at_limits
+        })
+        .is_reject());
+        assert!(past(FrameMetrics {
+            star_count: Some(19),
+            ..at_limits
+        })
+        .is_reject());
+    }
 }

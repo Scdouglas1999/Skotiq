@@ -477,10 +477,22 @@ mod tests {
             RecoveryCause::DeviceDisconnected,
         ];
         let mut wire_keys = std::collections::HashSet::new();
+        let mut labels = std::collections::HashSet::new();
         for cause in &causes {
             assert!(!cause.display_label().is_empty());
+            // One label per cause: the banner and the give-up message are the
+            // operator's only way to tell a guider loss from a weather abort.
+            assert!(labels.insert(cause.display_label()));
             assert!(wire_keys.insert(cause.wire_key()));
         }
+        assert_eq!(
+            RecoveryCause::GuideStarLost.display_label(),
+            "Guide star lost"
+        );
+        assert_eq!(
+            RecoveryCause::Custom("Roof sensor tripped".into()).display_label(),
+            "Roof sensor tripped"
+        );
     }
 
     #[test]

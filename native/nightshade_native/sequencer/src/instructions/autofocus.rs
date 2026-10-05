@@ -28,6 +28,14 @@ pub(crate) const AUTOFOCUS_GUIDING_NOT_RESTORED_KEY: &str = "autofocus_guiding_n
 /// camera/focuser pair concurrently.
 pub(crate) static AUTOFOCUS_RUN_ACTIVE: AtomicBool = AtomicBool::new(false);
 
+/// Serializes tests that touch the process-global [`AUTOFOCUS_RUN_ACTIVE`]
+/// gate — cargo runs tests across threads and the gate is shared state, so
+/// without this they race (one test's held gate turns another's autofocus
+/// away). Instruction tests and executor tests that fire a trigger autofocus
+/// both take it.
+#[cfg(test)]
+pub(crate) static AF_GATE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 pub struct AutofocusRunGuard;
 
 impl Drop for AutofocusRunGuard {
