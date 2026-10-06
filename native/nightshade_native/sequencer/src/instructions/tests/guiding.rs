@@ -233,3 +233,139 @@ async fn start_guiding_quality_checks_notify_and_keep_guiding() {
         assert!(run.decisions.is_empty(), "{label}: {:?}", run.decisions);
     }
 }
+
+/// After the guide-star recovery ran out the run images unguided (owner
+/// decision 2026-10-06). The steps that need a guider must not then fail or
+/// stall the run.
+mod while_imaging_unguided {
+    use super::*;
+
+    struct UnguidedRun {
+        result: InstructionResult,
+        imaging_unguided: bool,
+        warnings: Vec<String>,
+        decisions: Vec<String>,
+    }
+
+    async fn unguided_ctx(
+        ops: Arc<ScriptedDomeRotatorOps>,
+    ) -> (
+        InstructionContext,
+        tokio::sync::broadcast::Receiver<crate::executor::ExecutorEvent>,
+        tokio::sync::broadcast::Receiver<crate::decision::DecisionEvent>,
+    ) {
+        let mut ec = crate::node::context::ExecutionContext::new_for_test("guide".to_string());
+        ec.device_ops = ops;
+        let mut state = crate::triggers::TriggerState::new();
+        state.imaging_unguided = true;
+        ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+        let (event_tx, events) = tokio::sync::broadcast::channel(64);
+        ec.event_tx = Some(event_tx);
+        let (decision_tx, decisions) = tokio::sync::broadcast::channel(64);
+        ec.decision_tx = Some(decision_tx);
+        (ec.to_instruction_context("guide").await, events, decisions)
+    }
+
+    async fn finish(
+        ctx: &InstructionContext,
+        result: InstructionResult,
+        mut events: tokio::sync::broadcast::Receiver<crate::executor::ExecutorEvent>,
+        mut decisions: tokio::sync::broadcast::Receiver<crate::decision::DecisionEvent>,
+    ) -> UnguidedRun {
+        let mut warnings = Vec::new();
+        while let Ok(event) = events.try_recv() {
+            if let crate::executor::ExecutorEvent::Warning { message } = event {
+                warnings.push(message);
+            }
+        }
+        let mut summaries = Vec::new();
+        while let Ok(decision) = decisions.try_recv() {
+            summaries.push(decision.summary);
+        }
+        UnguidedRun {
+            result,
+            imaging_unguided: ctx
+                .trigger_state
+                .as_ref()
+                .unwrap()
+                .read()
+                .await
+                .imaging_unguided,
+            warnings,
+            decisions: summaries,
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_guider_that_cannot_start_does_not_fail_start_guiding() {
+        let ops = Arc::new(ScriptedDomeRotatorOps::new().with_guider_resume_that_never_guides());
+        let (ctx, events, decisions) = unguided_ctx(ops.clone()).await;
+        let config = StartGuidingConfig {
+            settle_time: 0.0,
+            settle_timeout: 10.0,
+            ..StartGuidingConfig::default()
+        };
+
+        let result = execute_start_guiding(&config, &ctx, None).await;
+        let run = finish(&ctx, result, events, decisions).await;
+
+        assert_eq!(
+            run.result.status,
+            NodeStatus::Success,
+            "{:?}",
+            run.result.message
+        );
+        assert!(run.imaging_unguided);
+        assert_eq!(
+            run.decisions,
+            vec![crate::executor::QUALITY_PROBLEM_CONTINUED_SUMMARY]
+        );
+        assert!(
+            run.warnings
+                .iter()
+                .any(|w| w.contains("did not reach active state") && w.contains("unguided")),
+            "{:?}",
+            run.warnings
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_guider_that_starts_ends_unguided_imaging() {
+        let ops = Arc::new(ScriptedDomeRotatorOps::new());
+        let (ctx, events, decisions) = unguided_ctx(ops.clone()).await;
+        let config = StartGuidingConfig {
+            settle_time: 0.0,
+            settle_timeout: 10.0,
+            ..StartGuidingConfig::default()
+        };
+
+        let result = execute_start_guiding(&config, &ctx, None).await;
+        let run = finish(&ctx, result, events, decisions).await;
+
+        assert_eq!(run.result.status, NodeStatus::Success);
+        assert!(!run.imaging_unguided, "guiding is back");
+    }
+
+    #[tokio::test]
+    async fn a_dither_node_is_skipped_without_asking_the_guider() {
+        let ops = Arc::new(ScriptedDomeRotatorOps::new().with_dither_failing("Not guiding"));
+        let (ctx, events, decisions) = unguided_ctx(ops.clone()).await;
+
+        let result = execute_dither(&DitherConfig::default(), &ctx, None).await;
+        let run = finish(&ctx, result, events, decisions).await;
+
+        assert_eq!(run.result.status, NodeStatus::Success);
+        assert!(
+            ops.dithers_after_frame.lock().unwrap().is_empty(),
+            "no dither may be sent to a guider that is not guiding"
+        );
+        assert!(
+            run.result
+                .message
+                .as_deref()
+                .is_some_and(|m| m.contains("unguided")),
+            "{:?}",
+            run.result.message
+        );
+    }
+}

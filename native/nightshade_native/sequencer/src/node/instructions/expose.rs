@@ -803,10 +803,13 @@ pub(crate) async fn check_exposure_triggers(
     };
 
     let latest_guiding_rms = {
+        // Imaging unguided after the guide-star recovery ran out: there is no
+        // guiding to judge.
         let trigger_state = trigger_state_lock.read().await;
         trigger_state
             .guiding_rms_history
             .as_ref()
+            .filter(|_| !trigger_state.imaging_unguided)
             .and_then(|history| history.last())
             .map(|(_, rms)| *rms)
         // Read lock released before the trigger loop — DriftAbove re-acquires

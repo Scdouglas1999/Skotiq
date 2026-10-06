@@ -181,6 +181,14 @@ pub struct TriggerState {
     pub guiding_enabled: bool,
     /// Whether the guide star has been lost (guider reports no star / lost lock)
     pub guide_star_lost: bool,
+    /// The guide-star recovery ran out without getting a star back and the
+    /// run carries on unguided (owner decision 2026-10-06: a lost guide star
+    /// is not a reason to end the night unless the operator turned on "Stop
+    /// the run for quality problems"). While set, dithers are skipped, a guider
+    /// that cannot start does not fail the step that asked for it, and the
+    /// guiding RMS is not judged. Cleared when the guider is seen guiding
+    /// again.
+    pub imaging_unguided: bool,
     /// Filter focus offset (steps) currently embodied in the focuser position,
     /// relative to the reference filter. Filter offsets are reference-relative
     /// deltas; a filter change moves the focuser by
@@ -384,6 +392,7 @@ impl Default for TriggerState {
             guiding_rms_history: None,
             guiding_enabled: false,
             guide_star_lost: false,
+            imaging_unguided: false,
             last_applied_filter_offset: 0,
             // 300s preserves the previous hardcoded retention so
             // un-configured triggers behave exactly as before.
@@ -608,6 +617,7 @@ impl TriggerState {
         self.last_autofocus_frame = 0;
         self.last_dither_frame = 0;
         self.consecutive_dither_failures = 0;
+        self.imaging_unguided = false;
         if std::mem::take(&mut self.restored_from_checkpoint) {
             return;
         }

@@ -913,6 +913,7 @@ pub async fn execute_exposure_with_renderer(
                 && dither_every > 0
                 && frame % dither_every == 0
                 && frame < config.count
+                && !skip_dither_while_unguided(ctx, &mut dither_skipped_warned).await
             {
                 tracing::info!("Dithering...");
                 // Dual-rig — guard the burst dither so a piggybacking secondary
@@ -1021,6 +1022,22 @@ pub async fn execute_exposure_with_renderer(
         })),
         hfr_values,
     }
+}
+
+/// Whether a burst skips its dither because the run is imaging unguided (the
+/// guide-star recovery ran out). Logged once per burst; the operator was told
+/// when guiding was given up.
+async fn skip_dither_while_unguided(ctx: &InstructionContext, warned: &mut bool) -> bool {
+    if !ctx.imaging_unguided().await {
+        return false;
+    }
+    if !std::mem::replace(warned, true) {
+        tracing::info!(
+            "Dithers skipped for the rest of this burst: the run is imaging unguided since \
+             the guide star was lost"
+        );
+    }
+    true
 }
 
 /// Seconds a whole-burst filter change is expected to take, including the focus

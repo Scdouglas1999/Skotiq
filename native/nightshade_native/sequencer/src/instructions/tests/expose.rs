@@ -476,3 +476,41 @@ mod in_burst_dither_failure {
         assert!(burst.decisions.is_empty(), "{:?}", burst.decisions);
     }
 }
+
+/// After the guide-star recovery ran out the run images unguided (owner
+/// decision 2026-10-06): a burst's dithers are skipped rather than sent to a
+/// guider that is not guiding, each one a settle timeout and a notice.
+#[tokio::test]
+async fn a_burst_while_imaging_unguided_skips_its_dithers() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_dither_failing("Not guiding"));
+    let ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
+    if let Some(state) = &ctx.trigger_state {
+        state.write().await.imaging_unguided = true;
+    }
+    let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
+    let ctx = InstructionContext {
+        decision_tx: Some(decision_tx),
+        ..ctx
+    };
+    let config = ExposureConfig {
+        duration_secs: 0.01,
+        count: 4,
+        frame_type: "Light".to_string(),
+        dither_every: Some(1),
+        ..ExposureConfig::default()
+    };
+
+    let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 4);
+    assert!(
+        ops.dithers_after_frame.lock().unwrap().is_empty(),
+        "{:?}",
+        ops.dithers_after_frame.lock().unwrap()
+    );
+    assert!(
+        decision_rx.try_recv().is_err(),
+        "the operator was already told the run is unguided"
+    );
+}

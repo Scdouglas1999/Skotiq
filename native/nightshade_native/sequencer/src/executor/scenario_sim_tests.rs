@@ -62,7 +62,7 @@ pub(crate) struct ScriptedDeviceOps {
     /// Hardware safety-monitor verdict returned by `safety_is_safe`.
     weather_safe: Arc<AtomicBool>,
     /// Guider lock state reported by `guider_get_status`.
-    guiding: Arc<AtomicBool>,
+    pub(crate) guiding: Arc<AtomicBool>,
     /// If > 0, the guider auto-re-locks after this many `guider_start` calls
     /// (models PHD2 re-acquiring a star). 0 = never auto-relock.
     relock_after_starts: Arc<AtomicU32>,
@@ -84,7 +84,7 @@ pub(crate) struct ScriptedDeviceOps {
     /// Mount park latch reported by `mount_is_parked`.
     mount_parked: Arc<AtomicBool>,
     /// When true, `guider_start` fails, as a guider with no star does.
-    guider_start_fails: Arc<AtomicBool>,
+    pub(crate) guider_start_fails: Arc<AtomicBool>,
     /// Errors the next exposures fail with, one per exposure, oldest first.
     /// Empty: every exposure succeeds.
     camera_failures: Arc<Mutex<std::collections::VecDeque<String>>>,

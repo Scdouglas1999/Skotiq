@@ -454,6 +454,15 @@ impl InstructionContext {
         }
     }
 
+    /// Whether the run is imaging unguided because the guide-star recovery ran
+    /// out. See [`crate::triggers::TriggerState::imaging_unguided`].
+    pub async fn imaging_unguided(&self) -> bool {
+        match &self.trigger_state {
+            Some(state) => state.read().await.imaging_unguided,
+            None => false,
+        }
+    }
+
     /// Tell the operator about a quality problem the run carries on through:
     /// the decision row the app's "Problem noticed — the run continues"
     /// notification is raised from, and a Warning in the run's feed. A Warning,

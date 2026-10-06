@@ -315,7 +315,10 @@ pub(super) async fn run_trigger_monitor_poll_loop(
 
             verdict_stale_unsafe = state.is_weather_verdict_stale_unsafe(verdict_staleness_secs);
 
-            if let Some(rms) = guiding_rms {
+            // A guider that lost its star and was given up on reports
+            // whatever RMS it last had; judging that would have the guiding
+            // triggers act on a guider that is not guiding.
+            if let Some(rms) = guiding_rms.filter(|_| !state.imaging_unguided) {
                 state.update_guiding_rms(rms);
                 tracing::trace!("Updated guiding RMS: {:.2}", rms);
             }
@@ -704,6 +707,16 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                             tstate.set_guiding_enabled(true);
                         }
                         tstate.set_guide_star_lost(false);
+                        // The run went on unguided after the guide-star
+                        // recovery ran out; the guider is guiding again (the
+                        // operator restarted it, or it found a star), so the
+                        // steps that need it get it back.
+                        if std::mem::take(&mut tstate.imaging_unguided) {
+                            tracing::info!(
+                                "[GUIDING] The guider is guiding again; dithers and guiding \
+                                 checks resume"
+                            );
+                        }
                     } else if tstate.guiding_enabled {
                         // Guiding was active and is now not -> star lost.
                         tstate.set_guide_star_lost(true);

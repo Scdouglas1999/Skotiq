@@ -1369,6 +1369,40 @@ impl MeridianFlipExecutor {
     }
 
     async fn resume_guider(&self, ctx: &FlipContext) -> Result<(), String> {
+        let resumed = self.restart_guider(ctx).await;
+        let imaging_unguided = match &ctx.trigger_state {
+            Some(state) => state.read().await.imaging_unguided,
+            None => false,
+        };
+        match resumed {
+            // The run already images unguided because the guide-star recovery
+            // ran out; a guider that still cannot start after the flip is the
+            // same problem, not a reason to fail the flip (owner decision
+            // 2026-10-06). An operator Stop is not a guider problem.
+            Err(problem) if imaging_unguided && !self.is_cancelled(ctx) => {
+                let continuation = crate::executor::quality_problem_continuation(
+                    "Post-flip guiding",
+                    &format!("{problem} Imaging continues unguided."),
+                    serde_json::json!({ "target_name": ctx.target_name }),
+                );
+                tracing::warn!("[MERIDIAN] {}", continuation.operator_message);
+                if let Some(tx) = &self.decision_tx {
+                    let mut decision = continuation.decision;
+                    decision.sequence_run_id = *self.active_sequence_run_id.read();
+                    let _ = tx.send(decision);
+                }
+                if let Some(tx) = &self.executor_event_tx {
+                    let _ = tx.send(ExecutorEvent::Warning {
+                        message: continuation.operator_message,
+                    });
+                }
+                Ok(())
+            }
+            other => other,
+        }
+    }
+
+    async fn restart_guider(&self, ctx: &FlipContext) -> Result<(), String> {
         if ctx.simulate {
             tracing::info!(
                 "[MERIDIAN] (dry-run) Would resume guider and verify re-lock — skipping device \
@@ -2044,6 +2078,8 @@ mod tests {
         /// Recorded guider-start calls, used to prove centering failure stops
         /// the remaining post-flip steps.
         guider_start_calls: AtomicI32,
+        /// When true, `guider_start` fails, as a guider with no star does.
+        guider_start_fails: AtomicBool,
         /// For each guider-stop call, how many slews had been commanded when it
         /// arrived, so a test can tell whether guiding stopped before the flip.
         slews_before_guider_stop: Mutex<Vec<i32>>,
@@ -2323,6 +2359,9 @@ mod tests {
             self.state
                 .guider_start_calls
                 .fetch_add(1, Ordering::Relaxed);
+            if self.state.guider_start_fails.load(Ordering::Relaxed) {
+                return Err("simulated guider start failure: no star".to_string());
+            }
             Ok(())
         }
 
@@ -3823,6 +3862,63 @@ mod tests {
                 assert!(error.contains("Post-flip guiding RMS too high"), "{error}")
             }
             other => panic!("expected the flip to fail, got {other:?}"),
+        }
+    }
+
+    /// After the guide-star recovery ran out the run images unguided (owner
+    /// decision 2026-10-06). A guider that still cannot start after the flip is
+    /// the same problem, so it is reported and the flip completes instead of
+    /// failing into its failure action.
+    #[tokio::test(start_paused = true)]
+    async fn while_imaging_unguided_a_guider_that_cannot_resume_does_not_fail_the_flip() {
+        for imaging_unguided in [false, true] {
+            let state = Arc::new(MockDeviceOpsState::default());
+            state.pier_sides.lock().unwrap().extend([
+                crate::meridian::PierSide::East,
+                crate::meridian::PierSide::West,
+            ]);
+            state.guider_start_fails.store(true, Ordering::Relaxed);
+            let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+            let config = MeridianFlipConfig {
+                pause_guiding: true,
+                auto_center: false,
+                refocus_after: false,
+                resume_guiding: true,
+                settle_time: 0.0,
+                max_retries: 0,
+                failure_action: FlipFailureAction::AbortAndPark,
+                ..Default::default()
+            };
+            let (event_tx, mut events) = tokio::sync::broadcast::channel(256);
+            let mut executor =
+                MeridianFlipExecutor::new(config, ops).with_executor_event_tx(event_tx);
+            let mut trigger_state = TriggerState::new();
+            trigger_state.imaging_unguided = imaging_unguided;
+            let ctx = FlipContext {
+                trigger_state: Some(Arc::new(RwLock::new(trigger_state))),
+                ..make_ctx(&state)
+            };
+
+            let result = executor.execute(&ctx).await;
+
+            if !imaging_unguided {
+                // A guided run whose guider does not come back after the flip
+                // keeps its failure.
+                assert!(matches!(result, FlipResult::Failed { .. }), "{result:?}");
+                continue;
+            }
+            assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");
+            assert_eq!(state.park_calls.load(Ordering::Relaxed), 0);
+            let mut warnings = Vec::new();
+            while let Ok(event) = events.try_recv() {
+                if let ExecutorEvent::Warning { message } = event {
+                    warnings.push(message);
+                }
+            }
+            assert!(
+                warnings.iter().any(|w| w.contains("unguided")),
+                "{warnings:?}"
+            );
         }
     }
 }

@@ -21,6 +21,19 @@ pub async fn execute_dither(
         return result;
     }
 
+    // The guide-star recovery ran out and the run carries on unguided. A
+    // guider that is not guiding cannot dither, and asking it costs a settle
+    // timeout; the operator was told when guiding was given up.
+    if ctx.imaging_unguided().await {
+        tracing::info!("Dither skipped: the run is imaging unguided");
+        if let Some(cb) = progress_callback {
+            cb(100.0, "Dither skipped: imaging unguided".to_string());
+        }
+        return InstructionResult::success_with_message(
+            "Dither skipped: the run is imaging unguided since the guide star was lost",
+        );
+    }
+
     let (dither_pixels, ra_only) = match config.pattern {
         crate::DitherPattern::Random => {
             tracing::info!("Dithering {} pixels (random)", config.pixels);

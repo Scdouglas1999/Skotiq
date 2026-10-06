@@ -3017,3 +3017,117 @@ async fn a_recovery_node_set_to_notify_carries_on_and_tells_the_operator() {
         "the operator is told which node gave up and how often"
     );
 }
+
+/// After the guide-star recovery ran out the run images unguided (owner
+/// decision 2026-10-06). A guider that lost its star still reports an RMS, and
+/// judging it would have the guiding triggers act on a guider that is not
+/// guiding. When the guider is seen guiding again the run is guided again.
+#[tokio::test]
+async fn while_imaging_unguided_guiding_rms_is_not_judged_and_guiding_coming_back_ends_it() {
+    let mut sequence = SequenceDefinition::new("New Sequence".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "wait".to_string(),
+        name: "Wait".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 120.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("wait".to_string());
+
+    let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
+    ops.guiding
+        .store(false, std::sync::atomic::Ordering::SeqCst);
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(ops.clone());
+    {
+        let mut manager = executor.trigger_manager.write().await;
+        let ids: Vec<String> = manager.triggers().iter().map(|t| t.id.clone()).collect();
+        for id in ids {
+            manager.remove_trigger(&id);
+        }
+        manager.add_trigger(
+            Trigger::new(
+                "guiding_failed",
+                "Guiding Failure",
+                crate::TriggerType::GuidingFailed {
+                    rms_threshold: 0.5,
+                    duration_secs: 1.0,
+                    rms_retention_secs: crate::default_guiding_rms_retention_secs(),
+                },
+                crate::RecoveryAction::Notify,
+            )
+            .with_cooldown(1),
+        );
+    }
+    let mut events = executor.subscribe();
+    executor.load_sequence(sequence).expect("sequence loads");
+    executor.start().await.expect("run starts");
+    let state_lock = executor.trigger_manager.read().await.state();
+    {
+        let mut state = state_lock.write().await;
+        state.imaging_unguided = true;
+        state.guiding_rms_history = None;
+    }
+
+    let mut fired = Vec::new();
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            match events.recv().await {
+                Ok(ExecutorEvent::TriggerFired { trigger_id, .. }) => fired.push(trigger_id),
+                Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(broadcast::error::RecvError::Closed) => return,
+            }
+        }
+    })
+    .await;
+    assert!(fired.is_empty(), "{fired:?}");
+    assert!(state_lock.read().await.imaging_unguided);
+
+    // The operator restarts guiding.
+    ops.guiding.store(true, std::sync::atomic::Ordering::SeqCst);
+    let back = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        loop {
+            {
+                let state = state_lock.read().await;
+                if !state.imaging_unguided && state.guiding_enabled {
+                    return;
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+    })
+    .await;
+    executor.stop().await.ok();
+    assert!(back.is_ok(), "a guider guiding again ends unguided imaging");
+}
+
+/// A guiding RMS exposure trigger set to end the run says nothing while the
+/// run images unguided: the RMS it would read belongs to a guider that lost
+/// its star.
+#[tokio::test]
+async fn a_guiding_rms_exposure_trigger_does_not_act_while_imaging_unguided() {
+    let (mut context, _events, _decisions) = exposure_trigger_context();
+    {
+        let mut state = context.trigger_state.as_ref().unwrap().write().await;
+        state.update_guiding_rms(9.0);
+        state.imaging_unguided = true;
+    }
+    let config = crate::ExposureConfig {
+        triggers: vec![crate::ExposureTrigger {
+            condition: crate::TriggerCondition::GuidingRmsAbove(2.0),
+            action: crate::TriggerAction::Abort,
+            debounce_secs: 0.0,
+        }],
+        ..Default::default()
+    };
+    crate::node::instructions::expose::check_exposure_triggers(
+        "lights",
+        &config,
+        &burst_at_hfr(2.0),
+        &mut context,
+    )
+    .await;
+    assert!(!context
+        .is_cancelled
+        .load(std::sync::atomic::Ordering::Relaxed));
+}

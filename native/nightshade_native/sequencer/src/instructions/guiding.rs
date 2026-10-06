@@ -54,6 +54,42 @@ pub async fn execute_start_guiding(
     ctx: &InstructionContext,
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
 ) -> InstructionResult {
+    let result = start_guiding(config, ctx, progress_callback).await;
+    if !ctx.imaging_unguided().await {
+        return result;
+    }
+    match result.status {
+        NodeStatus::Success => {
+            // Guiding is back: the steps that need it get it again.
+            if let Some(trigger_state) = &ctx.trigger_state {
+                trigger_state.write().await.imaging_unguided = false;
+            }
+            result
+        }
+        // The run already carries on unguided because the guide star was not
+        // re-acquired; a guider that still cannot start is the same problem,
+        // not a reason to end the night (owner decision 2026-10-06).
+        NodeStatus::Failure => {
+            let reason = result
+                .message
+                .unwrap_or_else(|| "Guiding did not start".to_string());
+            ctx.notify_quality_problem_continuing(
+                "Start guiding",
+                &format!("{reason} Imaging continues unguided."),
+            );
+            InstructionResult::success_with_message(format!(
+                "Guiding did not start; imaging continues unguided ({reason})"
+            ))
+        }
+        _ => result,
+    }
+}
+
+async fn start_guiding(
+    config: &StartGuidingConfig,
+    ctx: &InstructionContext,
+    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+) -> InstructionResult {
     tracing::info!(
         "Starting guiding with settle threshold {} px",
         config.settle_pixels

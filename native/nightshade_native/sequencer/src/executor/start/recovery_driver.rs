@@ -457,6 +457,32 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             let _ = recovery_driver_event_tx.send(ExecutorEvent::RecoveryCompleted {
                 context: Box::new(ctx.clone()),
             });
+        } else if !aborted_by_user
+            && ctx.cause == crate::recovery::RecoveryCause::GuideStarLost
+            && !stops_on_quality_problems(&recovery_driver_trigger_mgr).await
+        {
+            // The guide star did not come back within the budget. That costs
+            // trailed frames, which grading marks, not the hardware, so the run
+            // goes on unguided rather than ending the night (owner decision
+            // 2026-10-06). "Stop the run for quality problems" brings back the
+            // old ending below. Nothing is parked: the run is not ending.
+            let active_run_id = *recovery_driver_active_run_id.read();
+            continue_unguided(UnguidedContinuation {
+                ctx: &ctx,
+                active_run_id,
+                decision_tx: &recovery_driver_decision_tx,
+                device_ops: &recovery_driver_device_ops,
+                event_tx: &recovery_driver_event_tx,
+                generation: &recovery_driver_generation,
+                is_paused: &recovery_driver_is_paused,
+                mount_id: recovery_driver_mount_id.as_deref(),
+                progress: &recovery_driver_progress,
+                current: &recovery_driver_current,
+                state: &recovery_driver_state,
+                stop_tracking,
+                trigger_mgr: &recovery_driver_trigger_mgr,
+            })
+            .await;
         } else {
             tracing::error!(
                 "[RECOVERY] Loop gave up after {} attempt{} (aborted={})",
@@ -615,6 +641,120 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             // sequence on its next tick.
         }
     }
+}
+
+async fn stops_on_quality_problems(trigger_mgr: &Arc<RwLock<TriggerManager>>) -> bool {
+    let manager = trigger_mgr.read().await;
+    let state = manager.state();
+    let stop = state.read().await.stop_on_quality_problems;
+    stop
+}
+
+struct UnguidedContinuation<'a> {
+    ctx: &'a crate::recovery::RecoveryContext,
+    active_run_id: Option<i64>,
+    decision_tx: &'a crate::decision::DecisionSender,
+    device_ops: &'a SharedDeviceOps,
+    event_tx: &'a broadcast::Sender<ExecutorEvent>,
+    generation: &'a std::sync::atomic::AtomicU64,
+    is_paused: &'a AtomicBool,
+    mount_id: Option<&'a str>,
+    progress: &'a StdRwLock<SequenceProgress>,
+    current: &'a StdRwLock<Option<crate::recovery::RecoveryContext>>,
+    state: &'a RwLock<ExecutorState>,
+    stop_tracking: bool,
+    trigger_mgr: &'a Arc<RwLock<TriggerManager>>,
+}
+
+/// End a guide-star recovery that ran out by imaging on without guiding.
+///
+/// The star-lost trigger is disarmed (the guider is not guiding, so it would
+/// fire again at once) and the run is marked as imaging unguided, which the
+/// steps that need a guider read: dithers are skipped, a guider that cannot
+/// start does not fail them, and guiding RMS is not judged. The trigger
+/// monitor clears the mark and re-arms the trigger when it next sees the
+/// guider guiding, whether the operator restarted it or PHD2 found a star.
+async fn continue_unguided(c: UnguidedContinuation<'_>) {
+    {
+        let manager = c.trigger_mgr.read().await;
+        let state_lock = manager.state();
+        let mut state = state_lock.write().await;
+        state.imaging_unguided = true;
+        state.set_guiding_enabled(false);
+        state.set_guide_star_lost(false);
+        if let Some(history) = state.guiding_rms_history.as_mut() {
+            history.clear();
+        }
+    }
+
+    let operator_paused = *c.state.read().await == ExecutorState::Paused;
+    let resumed_state = if operator_paused {
+        ExecutorState::Paused
+    } else {
+        ExecutorState::Running
+    };
+    let minutes = c.ctx.elapsed_secs(chrono::Utc::now()) / 60.0;
+    let problem = format!(
+        "The guide star was not re-acquired after {} attempt{} over {:.0} min{}. Imaging \
+         continues unguided; every frame is still graded, so trailed frames are marked. Guiding \
+         picks up again as soon as the guider is guiding.",
+        c.ctx.attempt_count,
+        if c.ctx.attempt_count == 1 { "" } else { "s" },
+        minutes,
+        c.ctx
+            .last_error
+            .as_deref()
+            .map(|e| format!(" (last: {e})"))
+            .unwrap_or_default(),
+    );
+    tracing::warn!("[RECOVERY] {}", problem);
+
+    *c.state.write().await = resumed_state;
+    {
+        let mut prog = c.progress.write();
+        prog.state = resumed_state;
+        prog.message = Some("Guide star not re-acquired — imaging unguided".to_string());
+    }
+    *c.current.write() = None;
+
+    let tracking_warning = restore_tracking_after_recovery(
+        c.device_ops,
+        c.mount_id,
+        c.stop_tracking,
+        "after the guide-star recovery",
+        c.event_tx,
+    )
+    .await;
+    if let Some(warning) = &tracking_warning {
+        c.progress.write().message = Some(warning.clone());
+    }
+
+    let continuation = crate::executor::quality_problem_continuation(
+        "Guide star recovery",
+        &problem,
+        serde_json::json!({
+            "cause": c.ctx.cause.wire_key(),
+            "attempts": c.ctx.attempt_count,
+            "imaging_unguided": true,
+        }),
+    );
+    let mut decision = continuation.decision;
+    decision.sequence_run_id = c.active_run_id;
+    let _ = c.decision_tx.send(decision);
+    let _ = c.event_tx.send(ExecutorEvent::Warning {
+        message: continuation.operator_message,
+    });
+
+    // Same ordering as a recovery that succeeded: the generation advances
+    // before the node tree is released.
+    c.generation.fetch_add(1, Ordering::AcqRel);
+    if !operator_paused {
+        c.is_paused.store(false, Ordering::Relaxed);
+    }
+    let _ = c.event_tx.send(ExecutorEvent::StateChanged(resumed_state));
+    let _ = c.event_tx.send(ExecutorEvent::RecoveryCompleted {
+        context: Box::new(c.ctx.clone()),
+    });
 }
 
 /// The give-up branch of the real driver loop. The escalation branch has its
@@ -832,5 +972,200 @@ mod tests {
         );
         assert_eq!(r.history.len(), 1);
         assert!(r.history[0].aborted_by_user);
+    }
+
+    struct GuideStarGiveUp {
+        calls: Vec<String>,
+        state: ExecutorState,
+        is_paused: bool,
+        is_cancelled: bool,
+        gave_up: bool,
+        errors: Vec<String>,
+        warnings: Vec<String>,
+        decisions: Vec<String>,
+        trigger_state: crate::triggers::TriggerState,
+    }
+
+    /// Run a guide-star-lost recovery whose one attempt fails (the guider
+    /// cannot start: no star) through the driver to its end.
+    async fn guide_star_give_up(stop_on_quality: bool, park_and_close: bool) -> GuideStarGiveUp {
+        let ops = Arc::new(ScriptedDeviceOps::new());
+        ops.guiding.store(false, Ordering::SeqCst);
+        ops.guider_start_fails.store(true, Ordering::SeqCst);
+        // A zero retry interval gives the ladder one attempt, so the budget is
+        // spent as soon as that attempt fails.
+        let runtime = RuntimeConfig {
+            recovery: RecoveryRuntimeConfig {
+                retry_interval_secs: 0.0,
+                stop_tracking_during_recovery: false,
+                park_and_close_when_recovery_gives_up: park_and_close,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let trigger_mgr = Arc::new(RwLock::new(TriggerManager::new()));
+        {
+            let manager = trigger_mgr.read().await;
+            let state_lock = manager.state();
+            let mut state = state_lock.write().await;
+            state.stop_on_quality_problems = stop_on_quality;
+            state.set_guiding_enabled(true);
+            state.set_guide_star_lost(true);
+        }
+        let (event_tx, mut event_rx) = broadcast::channel(64);
+        let (decision_tx, mut decision_rx) = broadcast::channel(16);
+        let (request_tx, request_rx) = mpsc::channel(4);
+        let state = Arc::new(RwLock::new(ExecutorState::Running));
+        let gave_up = Arc::new(AtomicBool::new(false));
+        let is_cancelled = Arc::new(AtomicBool::new(false));
+        let is_paused = Arc::new(AtomicBool::new(false));
+
+        let driver = tokio::spawn(run_recovery_driver(RecoveryDriverArgs {
+            recovery_driver_active_run_id: Arc::new(StdRwLock::new(None)),
+            recovery_driver_cover_id: Some("cover-1".to_string()),
+            recovery_driver_current: Arc::new(StdRwLock::new(None)),
+            recovery_driver_decision_tx: decision_tx,
+            recovery_driver_device_ids: Vec::new(),
+            recovery_driver_device_ops: ops.clone(),
+            recovery_driver_dome_id: Some("dome-1".to_string()),
+            recovery_driver_event_tx: event_tx,
+            recovery_driver_gave_up: gave_up.clone(),
+            recovery_driver_generation: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            recovery_driver_history: Arc::new(StdRwLock::new(Vec::new())),
+            recovery_driver_is_cancelled: is_cancelled.clone(),
+            recovery_driver_is_paused: is_paused.clone(),
+            recovery_driver_mount_id: Some("mount-1".to_string()),
+            recovery_driver_progress: Arc::new(StdRwLock::new(SequenceProgress::default())),
+            recovery_driver_runtime: Arc::new(StdRwLock::new(runtime)),
+            recovery_driver_signals: Arc::new(crate::recovery::RecoverySignals::new()),
+            recovery_driver_state: state.clone(),
+            recovery_driver_trigger_mgr: trigger_mgr.clone(),
+            recovery_request_rx: request_rx,
+        }));
+        request_tx.send(RecoveryCause::GuideStarLost).await.unwrap();
+
+        let mut errors = Vec::new();
+        let mut warnings = Vec::new();
+        let collect = async {
+            loop {
+                match event_rx.recv().await {
+                    Ok(ExecutorEvent::Error { message }) => errors.push(message),
+                    Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+                    Ok(ExecutorEvent::RecoveryGaveUp { .. })
+                    | Ok(ExecutorEvent::RecoveryCompleted { .. }) => break,
+                    Ok(_) => {}
+                    Err(broadcast::error::RecvError::Lagged(_)) => {}
+                    Err(broadcast::error::RecvError::Closed) => break,
+                }
+            }
+        };
+        tokio::time::timeout(std::time::Duration::from_secs(30), collect)
+            .await
+            .expect("the recovery never reached its end");
+        drop(request_tx);
+        driver.await.unwrap();
+
+        let mut decisions = Vec::new();
+        while let Ok(decision) = decision_rx.try_recv() {
+            decisions.push(decision.summary);
+        }
+        let trigger_state = {
+            let manager = trigger_mgr.read().await;
+            let state_lock = manager.state();
+            let state = state_lock.read().await.clone();
+            state
+        };
+        let final_state = *state.read().await;
+        GuideStarGiveUp {
+            calls: ops.calls(),
+            state: final_state,
+            is_paused: is_paused.load(Ordering::Relaxed),
+            is_cancelled: is_cancelled.load(Ordering::Relaxed),
+            gave_up: gave_up.load(Ordering::Relaxed),
+            errors,
+            warnings,
+            decisions,
+            trigger_state,
+        }
+    }
+
+    /// Owner decision 2026-10-06: a guide star that the ladder could not get
+    /// back is not a reason to end the night. Imaging goes on unguided (the
+    /// frames are still graded, so trailed ones are marked) and the operator
+    /// is told once.
+    #[tokio::test]
+    async fn a_guide_star_never_reacquired_resumes_imaging_unguided_and_notifies() {
+        let r = guide_star_give_up(false, false).await;
+
+        assert_eq!(r.state, ExecutorState::Running);
+        assert!(!r.is_paused, "the node tree must be released");
+        assert!(!r.is_cancelled, "the run must go on");
+        assert!(!r.gave_up);
+        assert!(r.errors.is_empty(), "{:?}", r.errors);
+        assert!(moved_hardware(&r.calls).is_empty(), "{:?}", r.calls);
+        assert_eq!(
+            r.decisions
+                .iter()
+                .filter(|s| s.as_str() == crate::executor::QUALITY_PROBLEM_CONTINUED_SUMMARY)
+                .count(),
+            1,
+            "{:?}",
+            r.decisions
+        );
+        assert!(
+            r.warnings.iter().any(|w| w.contains("unguided")),
+            "{:?}",
+            r.warnings
+        );
+        assert!(r.trigger_state.imaging_unguided);
+        assert!(
+            !r.trigger_state.guiding_enabled,
+            "the star-lost trigger must be disarmed or it fires again at once"
+        );
+        assert!(!r.trigger_state.guide_star_lost);
+    }
+
+    #[tokio::test]
+    async fn unguided_imaging_never_parks_even_with_park_and_close_on() {
+        // The run is not ending, so the give-up opt-in has nothing to act on.
+        let r = guide_star_give_up(false, true).await;
+
+        assert!(moved_hardware(&r.calls).is_empty(), "{:?}", r.calls);
+        assert_eq!(r.state, ExecutorState::Running);
+    }
+
+    #[tokio::test]
+    async fn with_stop_for_quality_problems_on_a_lost_guide_star_still_ends_the_run() {
+        let r = guide_star_give_up(true, false).await;
+
+        assert_eq!(r.state, ExecutorState::Failed);
+        assert!(r.is_cancelled);
+        assert!(r.gave_up);
+        assert!(moved_hardware(&r.calls).is_empty(), "{:?}", r.calls);
+        assert!(
+            r.errors
+                .iter()
+                .any(|e| e.contains("Nothing has been parked or closed")),
+            "{:?}",
+            r.errors
+        );
+        assert!(!r.trigger_state.imaging_unguided);
+    }
+
+    #[tokio::test]
+    async fn with_stop_for_quality_problems_on_and_park_and_close_a_lost_guide_star_parks() {
+        let r = guide_star_give_up(true, true).await;
+
+        assert_eq!(r.state, ExecutorState::Failed);
+        assert_eq!(
+            moved_hardware(&r.calls),
+            [
+                "mount_park:mount-1",
+                "cover_close:cover-1",
+                "dome_close:dome-1"
+            ],
+            "{:?}",
+            r.calls
+        );
     }
 }
