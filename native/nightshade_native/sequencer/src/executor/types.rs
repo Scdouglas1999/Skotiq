@@ -199,6 +199,10 @@ pub struct RuntimeConfig {
     /// settings. They decide whether the standard Weather Unsafe and Dawn
     /// Approaching triggers park; see [`ParkPolicy`].
     pub park_policy: ParkPolicy,
+    /// The operator's "Camera retries" and "Filter wheel retries" settings,
+    /// as a live handle: every run's instruction contexts share it, so a
+    /// change reaches the next attempt of a running sequence.
+    pub device_retry: crate::instructions::DeviceRetryHandle,
 }
 
 /// Whether the standard Weather Unsafe and Dawn Approaching triggers may park

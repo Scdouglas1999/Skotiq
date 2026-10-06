@@ -240,6 +240,9 @@ pub(super) fn build_trigger_autofocus_context(
         // the secondary loop in v1 (the secondary only gates on the main-burst
         // dither path); start None.
         dither_barrier: None,
+        // The run's retry policy, so a trigger-fired action's filter change
+        // retries like the sequence's own.
+        device_retry: runtime_config.read().device_retry.clone(),
     }
 }
 

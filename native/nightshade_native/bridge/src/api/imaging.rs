@@ -168,6 +168,8 @@ fn one_shot_focus_context(
         ),
         // Dual-rig — standalone autofocus runs with no secondary coordination.
         dither_barrier: None,
+        // An Imaging-tab capture is attended: one attempt, as before.
+        device_retry: nightshade_sequencer::instructions::DeviceRetryHandle::single_attempt(),
     }
 }
 

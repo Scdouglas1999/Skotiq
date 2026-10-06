@@ -293,6 +293,7 @@ pub async fn api_start_all_sky_polar_alignment(
             ),
             // Dual-rig — polar alignment runs standalone, no secondary coord.
             dither_barrier: None,
+            device_retry: nightshade_sequencer::instructions::DeviceRetryHandle::single_attempt(),
         };
 
         let status_cb = |status: String, _progress: Option<f64>| {

@@ -85,6 +85,13 @@ pub(crate) struct ScriptedDeviceOps {
     mount_parked: Arc<AtomicBool>,
     /// When true, `guider_start` fails, as a guider with no star does.
     guider_start_fails: Arc<AtomicBool>,
+    /// Errors the next exposures fail with, one per exposure, oldest first.
+    /// Empty: every exposure succeeds.
+    camera_failures: Arc<Mutex<std::collections::VecDeque<String>>>,
+    /// Exposures started, failed ones included.
+    exposure_calls: Arc<AtomicU32>,
+    /// Paths `save_fits` was handed, in order: the frames on disk.
+    saved_frames: Arc<Mutex<Vec<String>>>,
 }
 
 impl ScriptedDeviceOps {
@@ -104,7 +111,18 @@ impl ScriptedDeviceOps {
             mount_tracking: Arc::new(AtomicBool::new(true)),
             mount_parked: Arc::new(AtomicBool::new(false)),
             guider_start_fails: Arc::new(AtomicBool::new(false)),
+            camera_failures: Arc::new(Mutex::new(std::collections::VecDeque::new())),
+            exposure_calls: Arc::new(AtomicU32::new(0)),
+            saved_frames: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+
+    /// Fail the next exposures with these errors, one each.
+    fn fail_next_exposures(&self, errors: &[&str]) {
+        self.camera_failures
+            .lock()
+            .unwrap()
+            .extend(errors.iter().map(|e| e.to_string()));
     }
 
     fn record(&self, call: impl Into<String>) {
@@ -283,6 +301,10 @@ impl DeviceOps for ScriptedDeviceOps {
         bx: i32,
         by: i32,
     ) -> DeviceResult<ImageData> {
+        self.exposure_calls.fetch_add(1, Ordering::SeqCst);
+        if let Some(error) = self.camera_failures.lock().unwrap().pop_front() {
+            return Err(error);
+        }
         self.inner.camera_start_exposure(id, d, g, o, bx, by).await
     }
     async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {
@@ -361,6 +383,7 @@ impl DeviceOps for ScriptedDeviceOps {
         f: &str,
         ctx: &crate::scheduling::FrameContext,
     ) -> DeviceResult<()> {
+        self.saved_frames.lock().unwrap().push(f.to_string());
         self.inner.save_fits(d, f, ctx).await
     }
     async fn send_notification(
@@ -2191,4 +2214,148 @@ async fn dawn_ends_the_run_without_parking_when_the_operator_turned_parking_off(
         errors.iter().any(|m| m.contains("not parked")),
         "the operator must be told the mount was left as it was; errors={errors:?}"
     );
+}
+
+// =============================================================================
+// Camera retries: one failed download no longer ends the run.
+// =============================================================================
+
+/// A run of `frames` zero-second darks on `cam-1`, saved under a scratch
+/// directory, with the given retry policy pushed as the app pushes it before
+/// launch (`None` leaves the executor's default).
+async fn start_capture_run(
+    ops: Arc<ScriptedDeviceOps>,
+    frames: u32,
+    policy: Option<crate::instructions::DeviceRetryPolicy>,
+) -> (
+    super::SequenceExecutor,
+    std::path::PathBuf,
+    tokio::sync::broadcast::Receiver<super::ExecutorEvent>,
+) {
+    use crate::{ExposureConfig, NodeDefinition, NodeType, SequenceDefinition};
+    let dir = std::env::temp_dir().join(format!("ns-retry-run-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(Some("cam-1".to_string()), None, None, None, None);
+    executor.set_save_path(Some(dir.clone()));
+    if let Some(policy) = policy {
+        executor.set_device_retry_policy(policy);
+    }
+    executor.set_device_ops(ops as SharedDeviceOps);
+    let mut sequence = SequenceDefinition::new("Retry run".to_string());
+    sequence.nodes.push(NodeDefinition {
+        id: "darks".to_string(),
+        name: "Darks".to_string(),
+        node_type: NodeType::TakeExposure(ExposureConfig {
+            count: frames,
+            duration_secs: 0.0,
+            frame_type: "dark".to_string(),
+            ..ExposureConfig::default()
+        }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("darks".to_string());
+    executor.load_sequence(sequence).expect("sequence loads");
+    let events = executor.subscribe();
+    executor.start().await.expect("executor starts");
+    (executor, dir, events)
+}
+
+fn retry_warnings(
+    events: &mut tokio::sync::broadcast::Receiver<super::ExecutorEvent>,
+) -> Vec<String> {
+    let mut warnings = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let super::ExecutorEvent::Warning { message } = event {
+            if message.contains("Retrying in") {
+                warnings.push(message);
+            }
+        }
+    }
+    warnings
+}
+
+/// The soak's `camera_download_hang` / `intermittent_errors` shape: one
+/// download fails mid-run. With the executor's default policy (the setting's
+/// default, 3) the frame is retried and the run completes with every frame
+/// saved once.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn one_failed_download_is_retried_and_the_run_completes() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.fail_next_exposures(&[
+        "Failed to download image: Injected simulator fault: the driver reported a failure",
+    ]);
+    let executor = super::SequenceExecutor::new();
+    assert_eq!(
+        executor.device_retry_policy(),
+        crate::instructions::DeviceRetryPolicy::default(),
+        "an executor the app has not configured yet retries 3 times, the setting's default"
+    );
+    drop(executor);
+
+    let (executor, dir, mut events) = start_capture_run(ops.clone(), 2, None).await;
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(20), |s| {
+        matches!(
+            s,
+            super::ExecutorState::Completed
+                | super::ExecutorState::Failed
+                | super::ExecutorState::Cancelled
+        )
+    })
+    .await;
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(
+        state,
+        super::ExecutorState::Completed,
+        "one download error must not end the run"
+    );
+    assert_eq!(
+        ops.exposure_calls.load(Ordering::SeqCst),
+        3,
+        "frame 1 twice, frame 2 once"
+    );
+    let saved = ops.saved_frames.lock().unwrap().clone();
+    assert_eq!(
+        saved.len(),
+        2,
+        "one file per frame, none for the failed attempt: {saved:?}"
+    );
+    assert_ne!(saved[0], saved[1]);
+    let warnings = retry_warnings(&mut events);
+    assert_eq!(
+        warnings.len(),
+        1,
+        "the retry is reported once: {warnings:?}"
+    );
+    assert!(warnings[0].contains("retry 1 of 3"), "{}", warnings[0]);
+}
+
+/// Retries set to 0 is the old behavior: the first failed download ends the
+/// run, with the device's own error.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn zero_camera_retries_fails_the_run_on_the_first_failed_download() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.fail_next_exposures(&["Failed to download image: USB transfer error"]);
+    let (executor, dir, _events) = start_capture_run(
+        ops.clone(),
+        2,
+        Some(crate::instructions::DeviceRetryPolicy::SINGLE_ATTEMPT),
+    )
+    .await;
+    let state = wait_for_state(&executor, std::time::Duration::from_secs(20), |s| {
+        matches!(
+            s,
+            super::ExecutorState::Completed
+                | super::ExecutorState::Failed
+                | super::ExecutorState::Cancelled
+        )
+    })
+    .await;
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(state, super::ExecutorState::Failed);
+    assert_eq!(ops.exposure_calls.load(Ordering::SeqCst), 1);
+    assert!(ops.saved_frames.lock().unwrap().is_empty());
 }

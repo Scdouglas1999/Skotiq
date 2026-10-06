@@ -281,92 +281,32 @@ pub async fn execute_exposure_with_renderer(
         || config.frame_type.eq_ignore_ascii_case("snapshot");
 
     for frame in 1..=config.count {
-        if let Some(result) = ctx.check_cancelled() {
-            return result;
-        }
-
-        // Operator Pause, honoured BETWEEN frames. The node tree checks
-        // `is_paused` at instruction boundaries, but a burst is N frames
-        // inside ONE instruction — so a Pause pressed during frame 2 of 3 used
-        // to show a PAUSED badge, a Resume button and "Paused 33%" while the
-        // camera went on to expose frame 3 and the run then recorded
-        // `completed`. An operator pauses to walk in front of the telescope,
-        // so no NEW exposure may start while paused.
-        //
-        // The frame already integrating is allowed to finish: aborting it
-        // throws away data the operator did not ask to lose, and the shutter
-        // is already open by the time the request lands. The guarantee is
-        // therefore "no new exposure starts", not "the shutter shuts now".
-        if !control
-            .pause
-            .wait_while_paused(&ctx.cancellation_token)
-            .await
-        {
-            return InstructionResult::cancelled("Exposure cancelled while paused");
-        }
-
-        // Pre-frame meridian gate (N.I.N.A.-style): when the flip trigger
-        // would fire while this frame is still exposing, hold here until the
-        // trigger-driven flip completes instead of starting a frame the slew
-        // would ruin. Only science-target lights are gated — the flip
-        // trigger itself only ever fires for a tracked target.
-        //
-        // The frame-type check is what makes that comment true. Without it a
-        // calibration frame sitting inside a TargetHeader was gated as well:
-        // observed a 3s DARK held with "meridian flip fires in ~0s and would
-        // interrupt it", which stalled the run for the gate's full 30-minute
-        // bound. A dark/bias/flat is taken with the shutter closed or on a flat
-        // panel, so where the mount is pointing cannot ruin it — and a
-        // calibration block is exactly when the operator is not tracking a
-        // target at all.
-        let gate_for_meridian = config.frame_type.eq_ignore_ascii_case("light")
-            && ctx.target_ra.is_some()
-            && ctx.mount_id.is_some();
-        if gate_for_meridian {
-            if let Some(result) =
-                wait_for_meridian_flip_window(ctx, config.duration_secs, control).await
-            {
+        // A transient camera fault (a failed download, a timeout, "not
+        // ready") retries THIS frame under the run's camera retry budget
+        // rather than ending the run. The whole frame start is repeated --
+        // pause, meridian gate, imaging-train claim -- because the claim is
+        // released while the retry waits, so a trigger-fired action may run in
+        // between. Nothing is written for a failed attempt: the FITS save and
+        // the frame's registration below happen once, for the attempt that
+        // returned an image, so frames on disk still equal frames recorded.
+        let mut camera_retries_done = 0u32;
+        let (mut image_data, exposure_started_at) = loop {
+            if let Some(result) = ctx.check_cancelled() {
                 return result;
             }
-        }
 
-        tracing::info!(
-            "Capturing frame {}/{} ({:.1}s)",
-            frame,
-            config.count,
-            config.duration_secs
-        );
-
-        // Take the imaging train before exposing, waiting if a trigger-fired
-        // action currently holds it.
-        //
-        // This is the mirror of the hold on the trigger side, and both halves
-        // are needed. With only the trigger waiting for the capture loop, the
-        // loop simply started the next frame *during* the autofocus and the
-        // same "No exposure is available to download" failure came back 20 s
-        // later — the race had swapped ends, not closed. One claim, taken by
-        // whoever gets there first, is what actually serialises them.
-        //
-        // The wait for the train can outlast the pause check above: the action
-        // that held it may have paused the run before handing it back (an
-        // autofocus that left the guider dead does). So the pause is checked
-        // again with the train in hand, and a paused run gives it back and
-        // waits instead of starting the frame.
-        let frame_claim = loop {
-            let claim = match ImagingTrainClaimGuard::acquire(
-                ctx,
-                "the next exposure",
-                config.duration_secs,
-            )
-            .await
-            {
-                Ok(claim) => claim,
-                Err(cancelled) => return cancelled,
-            };
-            if !control.pause.is_paused() {
-                break claim;
-            }
-            claim.release(ctx).await;
+            // Operator Pause, honoured BETWEEN frames. The node tree checks
+            // `is_paused` at instruction boundaries, but a burst is N frames
+            // inside ONE instruction — so a Pause pressed during frame 2 of 3 used
+            // to show a PAUSED badge, a Resume button and "Paused 33%" while the
+            // camera went on to expose frame 3 and the run then recorded
+            // `completed`. An operator pauses to walk in front of the telescope,
+            // so no NEW exposure may start while paused.
+            //
+            // The frame already integrating is allowed to finish: aborting it
+            // throws away data the operator did not ask to lose, and the shutter
+            // is already open by the time the request lands. The guarantee is
+            // therefore "no new exposure starts", not "the shutter shuts now".
             if !control
                 .pause
                 .wait_while_paused(&ctx.cancellation_token)
@@ -374,66 +314,153 @@ pub async fn execute_exposure_with_renderer(
             {
                 return InstructionResult::cancelled("Exposure cancelled while paused");
             }
-        };
 
-        // The instant the shutter opens. FITS DATE-OBS means START of
-        // observation, so it is captured here, immediately before the exposure
-        // call — stamping it at header-build time (after readout) makes every
-        // frame late by its own exposure time.
-        let exposure_started_at = chrono::Utc::now();
-
-        // tokio::select! is the only way to honour cancellation during a
-        // blocking exposure without driver support; the abort branch tells
-        // the camera to stop so it does not continue exposing in the
-        // background after we abandon the future.
-        let mut abort_guard =
-            CameraExposureAbortGuard::new(ctx.device_ops.clone(), camera_id.clone());
-        let exposure_result = tokio::select! {
-            biased;
-            _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {
-                tracing::info!("Exposure cancelled, aborting camera...");
-                match ctx.device_ops.camera_abort_exposure(&camera_id).await {
-                    Ok(()) => abort_guard.disarm(),
-                    Err(error) => tracing::error!(
-                        "Camera abort failed during exposure cancellation: {}",
-                        error
-                    ),
+            // Pre-frame meridian gate (N.I.N.A.-style): when the flip trigger
+            // would fire while this frame is still exposing, hold here until the
+            // trigger-driven flip completes instead of starting a frame the slew
+            // would ruin. Only science-target lights are gated — the flip
+            // trigger itself only ever fires for a tracked target.
+            //
+            // The frame-type check is what makes that comment true. Without it a
+            // calibration frame sitting inside a TargetHeader was gated as well:
+            // observed a 3s DARK held with "meridian flip fires in ~0s and would
+            // interrupt it", which stalled the run for the gate's full 30-minute
+            // bound. A dark/bias/flat is taken with the shutter closed or on a flat
+            // panel, so where the mount is pointing cannot ruin it — and a
+            // calibration block is exactly when the operator is not tracking a
+            // target at all.
+            let gate_for_meridian = config.frame_type.eq_ignore_ascii_case("light")
+                && ctx.target_ra.is_some()
+                && ctx.mount_id.is_some();
+            if gate_for_meridian {
+                if let Some(result) =
+                    wait_for_meridian_flip_window(ctx, config.duration_secs, control).await
+                {
+                    return result;
                 }
-                frame_claim.release(ctx).await;
-                return InstructionResult::cancelled("Exposure cancelled");
             }
-            // Thread the frame type so shuttered cameras (Moravian, FLI, some
-            // CCDs) keep the shutter CLOSED for dark/bias frames.
-            result = ctx.device_ops.camera_start_exposure_with_frame_type(
-                &camera_id,
-                config.duration_secs,
-                config.gain,
-                config.offset,
-                bin_x,
-                bin_y,
-                &config.frame_type,
-            ) => {
-                abort_guard.disarm();
-                result
-            }
-        };
-        // The frame is off the camera (or failed): release the claim on both
-        // paths. A failure that returned without releasing would leave the hold
-        // to lapse on its expiry, which is safe but delays the next
-        // trigger-fired action for no reason.
-        frame_claim.release(ctx).await;
 
-        let mut image_data = match exposure_result {
-            Ok(data) => {
-                tracing::info!(
-                    "[SEQ] Exposure completed: {}x{} image ({} pixels)",
-                    data.width,
-                    data.height,
-                    data.data.len()
-                );
-                data
+            tracing::info!(
+                "Capturing frame {}/{} ({:.1}s)",
+                frame,
+                config.count,
+                config.duration_secs
+            );
+
+            // Take the imaging train before exposing, waiting if a trigger-fired
+            // action currently holds it.
+            //
+            // This is the mirror of the hold on the trigger side, and both halves
+            // are needed. With only the trigger waiting for the capture loop, the
+            // loop simply started the next frame *during* the autofocus and the
+            // same "No exposure is available to download" failure came back 20 s
+            // later — the race had swapped ends, not closed. One claim, taken by
+            // whoever gets there first, is what actually serialises them.
+            //
+            // The wait for the train can outlast the pause check above: the action
+            // that held it may have paused the run before handing it back (an
+            // autofocus that left the guider dead does). So the pause is checked
+            // again with the train in hand, and a paused run gives it back and
+            // waits instead of starting the frame.
+            let frame_claim = loop {
+                let claim = match ImagingTrainClaimGuard::acquire(
+                    ctx,
+                    "the next exposure",
+                    config.duration_secs,
+                )
+                .await
+                {
+                    Ok(claim) => claim,
+                    Err(cancelled) => return cancelled,
+                };
+                if !control.pause.is_paused() {
+                    break claim;
+                }
+                claim.release(ctx).await;
+                if !control
+                    .pause
+                    .wait_while_paused(&ctx.cancellation_token)
+                    .await
+                {
+                    return InstructionResult::cancelled("Exposure cancelled while paused");
+                }
+            };
+
+            // The instant the shutter opens. FITS DATE-OBS means START of
+            // observation, so it is captured here, immediately before the exposure
+            // call — stamping it at header-build time (after readout) makes every
+            // frame late by its own exposure time.
+            let exposure_started_at = chrono::Utc::now();
+
+            // tokio::select! is the only way to honour cancellation during a
+            // blocking exposure without driver support; the abort branch tells
+            // the camera to stop so it does not continue exposing in the
+            // background after we abandon the future.
+            let mut abort_guard =
+                CameraExposureAbortGuard::new(ctx.device_ops.clone(), camera_id.clone());
+            let exposure_result = tokio::select! {
+                biased;
+                _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {
+                    tracing::info!("Exposure cancelled, aborting camera...");
+                    match ctx.device_ops.camera_abort_exposure(&camera_id).await {
+                        Ok(()) => abort_guard.disarm(),
+                        Err(error) => tracing::error!(
+                            "Camera abort failed during exposure cancellation: {}",
+                            error
+                        ),
+                    }
+                    frame_claim.release(ctx).await;
+                    return InstructionResult::cancelled("Exposure cancelled");
+                }
+                // Thread the frame type so shuttered cameras (Moravian, FLI, some
+                // CCDs) keep the shutter CLOSED for dark/bias frames.
+                result = ctx.device_ops.camera_start_exposure_with_frame_type(
+                    &camera_id,
+                    config.duration_secs,
+                    config.gain,
+                    config.offset,
+                    bin_x,
+                    bin_y,
+                    &config.frame_type,
+                ) => {
+                    abort_guard.disarm();
+                    result
+                }
+            };
+            // The frame is off the camera (or failed): release the claim on both
+            // paths. A failure that returned without releasing would leave the hold
+            // to lapse on its expiry, which is safe but delays the next
+            // trigger-fired action for no reason.
+            frame_claim.release(ctx).await;
+
+            match exposure_result {
+                Ok(data) => {
+                    tracing::info!(
+                        "[SEQ] Exposure completed: {}x{} image ({} pixels)",
+                        data.width,
+                        data.height,
+                        data.data.len()
+                    );
+                    break (data, exposure_started_at);
+                }
+                Err(error) => match after_failed_attempt(
+                    ctx,
+                    RetriedDevice::Camera,
+                    camera_retries_done,
+                    &error,
+                    &format!("on frame {}/{}", frame, config.count),
+                )
+                .await
+                {
+                    RetryOutcome::Retry => camera_retries_done += 1,
+                    RetryOutcome::Cancelled => {
+                        return InstructionResult::cancelled("Exposure cancelled")
+                    }
+                    RetryOutcome::GiveUp(message) => {
+                        return InstructionResult::failure(format!("Exposure failed: {}", message))
+                    }
+                },
             }
-            Err(error) => return InstructionResult::failure(format!("Exposure failed: {}", error)),
         };
 
         // per-frame defect-map application.
@@ -1003,11 +1030,15 @@ async fn apply_burst_filter(
                     index,
                     config.filter
                 );
-                if let Err(e) = ctx.device_ops.filterwheel_set_position(fw_id, index).await {
-                    return Err(InstructionResult::failure(format!(
-                        "Failed to change filter: {}",
-                        e
-                    )));
+                // Retried through transient wheel faults like a Change Filter
+                // node. No arrival wait here: the burst has always taken the
+                // command's success, and the slot the frames are labelled with
+                // is read back from the wheel afterwards
+                // (`resolve_frame_filter`).
+                if let Err(e) =
+                    move_filter_wheel(ctx, fw_id, WheelTarget::Position(index), None).await
+                {
+                    return Err(InstructionResult::failure(e));
                 }
                 let filter_name = match config.filter.as_deref() {
                     Some(name) if !name.is_empty() => Some(name.to_string()),
@@ -1048,15 +1079,9 @@ async fn apply_burst_filter(
                 }
             } else if let Some(filter) = &config.filter {
                 tracing::info!("Changing to filter by name: {}", filter);
-                if let Err(e) = ctx
-                    .device_ops
-                    .filterwheel_set_filter_by_name(fw_id, filter)
-                    .await
+                if let Err(e) = move_filter_wheel(ctx, fw_id, WheelTarget::Name(filter), None).await
                 {
-                    return Err(InstructionResult::failure(format!(
-                        "Failed to change filter: {}",
-                        e
-                    )));
+                    return Err(InstructionResult::failure(e));
                 }
                 if let Err(e) = apply_filter_focus_offset(filter, ctx, None).await {
                     return Err(InstructionResult::failure(format!(

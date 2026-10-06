@@ -99,6 +99,7 @@ fn target_context(mount_id: &str, target: (f64, f64)) -> InstructionContext {
         active_sequence_run_id: Arc::new(parking_lot::RwLock::new(None)),
         device_disconnect_recovery_pending: Arc::new(AtomicBool::new(false)),
         dither_barrier: None,
+        device_retry: nightshade_sequencer::instructions::DeviceRetryHandle::single_attempt(),
     }
 }
 

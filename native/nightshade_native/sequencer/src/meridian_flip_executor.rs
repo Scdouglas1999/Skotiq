@@ -1242,6 +1242,7 @@ impl MeridianFlipExecutor {
             // v1 (documented gap); the flip's own dither/recenter runs without
             // secondary coordination.
             dither_barrier: None,
+            device_retry: crate::instructions::DeviceRetryHandle::single_attempt(),
         };
 
         tracing::info!(
