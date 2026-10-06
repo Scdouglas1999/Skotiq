@@ -20,6 +20,14 @@ final _collapsed = <String, Future<void> Function()>{
   'sequencerSetDevices': () => NativeBridge.sequencerSetDevices(cameraId: 'c'),
   'sequencerSetSafetyFailMode': () =>
       NativeBridge.sequencerSetSafetyFailMode('abort'),
+  'sequencerSetParkPolicy': () => NativeBridge.sequencerSetParkPolicy(
+    parkOnUnsafeWeather: true,
+    parkBeforeDawn: true,
+  ),
+  'sequencerSetDeviceRetries': () => NativeBridge.sequencerSetDeviceRetries(
+    cameraRetries: 3,
+    filterWheelRetries: 3,
+  ),
   'sequencerSetSafetyCheckIntervalSeconds': () =>
       NativeBridge.sequencerSetSafetyCheckIntervalSeconds(30),
   'sequencerSetSavePath': () => NativeBridge.sequencerSetSavePath(path: '/tmp'),
@@ -123,6 +131,6 @@ void main() {
   group('left verbatim', () => pinRefusal(_stateful));
 
   test('every sequencer operation is covered', () {
-    expect(_collapsed.length + _stateful.length, 35);
+    expect(_collapsed.length + _stateful.length, 37);
   });
 }

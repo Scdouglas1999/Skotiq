@@ -300,6 +300,10 @@ pub struct InstructionContext {
     /// piggybacking secondary camera is never mid-exposure during the mount
     /// pulse.
     pub dither_barrier: Option<Arc<crate::dual_rig::DitherBarrier>>,
+    /// How many times a failed camera exposure or filter-wheel move is retried
+    /// (see [`super::device_retry`]). The run's live handle on the node path;
+    /// a single attempt for contexts with no run behind them.
+    pub device_retry: super::DeviceRetryHandle,
 }
 
 impl InstructionContext {

@@ -29,6 +29,8 @@ extension AppSettingsStateCopyWith on AppSettingsState {
     int? autoFocusEveryMinutes,
     bool? ditherEnabled,
     int? ditherEveryFrames,
+    int? cameraRetries,
+    int? filterWheelRetries,
     SafetyFailMode? safetyFailMode,
     // Sequencer editor layout. Nullable fields use the `_unset` sentinel so
     // a caller can deliberately clear a stored preference back to null
@@ -208,6 +210,8 @@ extension AppSettingsStateCopyWith on AppSettingsState {
           autoFocusEveryMinutes ?? this.autoFocusEveryMinutes,
       ditherEnabled: ditherEnabled ?? this.ditherEnabled,
       ditherEveryFrames: ditherEveryFrames ?? this.ditherEveryFrames,
+      cameraRetries: cameraRetries ?? this.cameraRetries,
+      filterWheelRetries: filterWheelRetries ?? this.filterWheelRetries,
       safetyFailMode: safetyFailMode ?? this.safetyFailMode,
       // Sequencer editor layout.
       sequencerToolboxCollapsed: identical(sequencerToolboxCollapsed, _unset)

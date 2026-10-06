@@ -47,6 +47,21 @@ impl SequenceExecutor {
         self.runtime_config.write().park_policy = policy;
     }
 
+    /// Set how many times a failed camera exposure or filter-wheel move is
+    /// retried before it counts as a failure (the operator's "Camera retries"
+    /// and "Filter wheel retries"; 3 each until the app pushes its values).
+    ///
+    /// Written through the handle every run's contexts share, so it applies
+    /// to the next attempt of a running sequence and to every later start.
+    pub fn set_device_retry_policy(&mut self, policy: crate::instructions::DeviceRetryPolicy) {
+        self.runtime_config.read().device_retry.set(policy);
+    }
+
+    /// The retry policy the next attempt will use.
+    pub fn device_retry_policy(&self) -> crate::instructions::DeviceRetryPolicy {
+        self.runtime_config.read().device_retry.get()
+    }
+
     /// Set the safety fail mode for the sequencer.
     ///
     /// Mirrors the value into [`super::RuntimeConfig`] so a running

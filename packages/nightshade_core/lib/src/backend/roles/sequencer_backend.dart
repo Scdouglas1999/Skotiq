@@ -123,6 +123,15 @@ abstract class SequencerBackend implements AdaptiveSwapBackend {
     required bool parkBeforeDawn,
   });
 
+  /// Tell the executor how many times to retry a failed camera exposure and a
+  /// failed filter-wheel move before the failure counts: the operator's
+  /// "Camera retries" and "Filter wheel retries" settings (0 to 10, 0 for a
+  /// single attempt). Applies to the next attempt of a running sequence.
+  Future<void> sequencerSetDeviceRetries({
+    required int cameraRetries,
+    required int filterWheelRetries,
+  });
+
   /// Set the live safety/humidity polling interval for the sequencer.
   /// Valid backend values are 5..3600 seconds.
   Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds);

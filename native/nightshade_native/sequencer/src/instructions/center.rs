@@ -179,35 +179,64 @@ pub async fn execute_center(
             );
         }
 
-        let image_data = tokio::select! {
-            // Full resolution + 1x1 binning gives the plate solver the highest
-            // possible star count; binning would reduce SNR enough to fail on
-            // sparse fields.
-            result = ctx.device_ops.camera_start_exposure(
-                &camera_id,
-                config.exposure_duration,
-                None,
-                None,
-                1, 1,
-            ) => {
-                match result {
-                    Ok(data) => {
-                tracing::info!("[SEQ] Exposure completed: {}x{} image ({} pixels)", data.width, data.height, data.data.len());
-                data
-            }
-                    Err(e) => return InstructionResult::failure(format!("Failed to capture image: {}", e)),
+        // A transient camera fault retries the capture under the run's camera
+        // retry budget; it is not a centering attempt, which is about the
+        // solve and the pointing.
+        let mut camera_retries_done = 0u32;
+        let image_data = loop {
+            let result = tokio::select! {
+                // Full resolution + 1x1 binning gives the plate solver the highest
+                // possible star count; binning would reduce SNR enough to fail on
+                // sparse fields.
+                result = ctx.device_ops.camera_start_exposure(
+                    &camera_id,
+                    config.exposure_duration,
+                    None,
+                    None,
+                    1, 1,
+                ) => result,
+                _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {
+                    tracing::info!("Center cancelled during exposure, aborting...");
+                    if let Err(error) = ctx.device_ops.camera_abort_exposure(&camera_id).await {
+                        tracing::warn!(
+                            "Center: abort-exposure failed on cancel ({}); the camera may still be \
+                             integrating and the next instruction can find it busy",
+                            error
+                        );
+                    }
+                    return InstructionResult::cancelled("Center cancelled");
                 }
-            }
-            _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {
-                tracing::info!("Center cancelled during exposure, aborting...");
-                if let Err(error) = ctx.device_ops.camera_abort_exposure(&camera_id).await {
-                    tracing::warn!(
-                        "Center: abort-exposure failed on cancel ({}); the camera may still be \
-                         integrating and the next instruction can find it busy",
-                        error
+            };
+            match result {
+                Ok(data) => {
+                    tracing::info!(
+                        "[SEQ] Exposure completed: {}x{} image ({} pixels)",
+                        data.width,
+                        data.height,
+                        data.data.len()
                     );
+                    break data;
                 }
-                return InstructionResult::cancelled("Center cancelled");
+                Err(e) => match after_failed_attempt(
+                    ctx,
+                    RetriedDevice::Camera,
+                    camera_retries_done,
+                    &e,
+                    &format!("on the centering frame (attempt {})", attempt),
+                )
+                .await
+                {
+                    RetryOutcome::Retry => camera_retries_done += 1,
+                    RetryOutcome::Cancelled => {
+                        return InstructionResult::cancelled("Center cancelled")
+                    }
+                    RetryOutcome::GiveUp(message) => {
+                        return InstructionResult::failure(format!(
+                            "Failed to capture image: {}",
+                            message
+                        ))
+                    }
+                },
             }
         };
 

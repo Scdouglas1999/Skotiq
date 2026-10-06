@@ -126,7 +126,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1660474643;
+  int get rustContentHash => 1613377637;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1449,6 +1449,11 @@ abstract class RustLibApi extends BaseApi {
   Future<void>
   crateApiSequencerRuntimeConfigApiSequencerSetDecisionLoggingEnabled({
     required bool enabled,
+  });
+
+  Future<void> crateApiSequencerRuntimeConfigApiSequencerSetDeviceRetries({
+    required int cameraRetries,
+    required int filterWheelRetries,
   });
 
   Future<void> crateApiSequencerRuntimeConfigApiSequencerSetDevices({
@@ -11776,6 +11781,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_sequencer_set_decision_logging_enabled",
         argNames: ["enabled"],
+      );
+
+  @override
+  Future<void> crateApiSequencerRuntimeConfigApiSequencerSetDeviceRetries({
+    required int cameraRetries,
+    required int filterWheelRetries,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_u_32(cameraRetries);
+          var arg1 = cst_encode_u_32(filterWheelRetries);
+          return wire
+              .wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries(
+                port_,
+                arg0,
+                arg1,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_nightshade_error,
+        ),
+        constMeta:
+            kCrateApiSequencerRuntimeConfigApiSequencerSetDeviceRetriesConstMeta,
+        argValues: [cameraRetries, filterWheelRetries],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSequencerRuntimeConfigApiSequencerSetDeviceRetriesConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_sequencer_set_device_retries",
+        argNames: ["cameraRetries", "filterWheelRetries"],
       );
 
   @override

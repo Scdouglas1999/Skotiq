@@ -91,6 +91,28 @@ SCENARIOS = {
         stop_after_pause_s=420,
         expect_terminal=["failed", "stopped", "cancelled", "idle"],
         cause_keywords=["camera", "connect", "disconnect"], expect_flip=False, minutes=40.0),
+    # Camera and filter-wheel retries (default 3 each, Settings > Sequencer >
+    # Device retries). Short nights: each is about one fault and its retry. A
+    # night that must complete is planned at 20 minutes; at 10 the minimum
+    # frame counts plus autofocus outrun the harness deadline.
+    "retry_download_once": scenario(
+        about="the first download fails once; the camera retry carries the night on",
+        sim_faults="camera.download=once:error",
+        cause_keywords=["download", "camera", "image"], expect_flip=False, minutes=20.0),
+    "retry_wheel_once": scenario(
+        about="the first filter-wheel move fails once; the wheel retry carries the night on",
+        sim_faults="filterwheel.set_position=once:error",
+        cause_keywords=["filter", "wheel"], expect_flip=False, minutes=20.0),
+    "retry_download_exhausted": scenario(
+        about="every download after the 12th fails: three retries are spent and the run fails as before",
+        sim_faults="camera.download=after(12):error",
+        expect_terminal=["failed"], cause_keywords=["download", "camera", "image"],
+        expect_flip=False, minutes=10.0),
+    "retry_download_once_no_retries": scenario(
+        about="camera retries set to 0: the 12th download fails and ends the run, as before retries",
+        sim_faults="camera.download=every(12):error", settings_seed={"camera_retries": "0"},
+        expect_terminal=["failed"], cause_keywords=["download", "camera", "image"],
+        expect_flip=False, minutes=10.0),
     "intermittent_errors": scenario(
         about="every 17th download and every 9th wheel move fail once",
         sim_faults="camera.download=every(17):error,filterwheel.set_position=every(9):error",

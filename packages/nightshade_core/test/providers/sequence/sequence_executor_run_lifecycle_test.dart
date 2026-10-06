@@ -206,6 +206,12 @@ void _stubBackendForStart(MockBackend backend) {
       parkBeforeDawn: any(named: 'parkBeforeDawn'),
     ),
   ).thenAnswer((_) async {});
+  when(
+    () => backend.sequencerSetDeviceRetries(
+      cameraRetries: any(named: 'cameraRetries'),
+      filterWheelRetries: any(named: 'filterWheelRetries'),
+    ),
+  ).thenAnswer((_) async {});
   when(() => backend.setLocation(any())).thenAnswer((_) async {});
   when(
     () => backend.sequencerUpdateLocation(

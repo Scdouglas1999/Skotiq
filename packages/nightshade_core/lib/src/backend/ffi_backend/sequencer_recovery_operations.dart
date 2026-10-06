@@ -113,6 +113,17 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
   }
 
   @override
+  Future<void> sequencerSetDeviceRetries({
+    required int cameraRetries,
+    required int filterWheelRetries,
+  }) async {
+    await bridge.NativeBridge.sequencerSetDeviceRetries(
+      cameraRetries: cameraRetries,
+      filterWheelRetries: filterWheelRetries,
+    );
+  }
+
+  @override
   Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds) async {
     await bridge.NativeBridge.sequencerSetSafetyCheckIntervalSeconds(seconds);
   }

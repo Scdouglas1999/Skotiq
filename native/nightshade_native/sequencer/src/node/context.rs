@@ -522,6 +522,9 @@ pub struct ExecutionContext {
     /// pulses the guider, then releases the barrier so the secondary resumes.
     /// See [`crate::dual_rig::DitherBarrier`].
     pub dither_barrier: Option<Arc<crate::dual_rig::DitherBarrier>>,
+    /// The run's camera and filter-wheel retry policy. A single attempt until
+    /// the executor installs the operator's handle at start.
+    pub device_retry: crate::instructions::DeviceRetryHandle,
 }
 
 /// runtime adaptive-swap accounting. Hot-mutated by the
@@ -750,6 +753,7 @@ impl ExecutionContext {
             // Dual-rig — no secondary camera by default; single-rig sequences
             // leave this None and every dither is a plain pass-through.
             dither_barrier: None,
+            device_retry: crate::instructions::DeviceRetryHandle::single_attempt(),
         }
     }
 
@@ -1296,6 +1300,7 @@ impl ExecutionContext {
             // `instructions::{execute_dither, execute_exposure}` can coordinate
             // with the secondary capture loop.
             dither_barrier: self.dither_barrier.clone(),
+            device_retry: self.device_retry.clone(),
         }
     }
 }

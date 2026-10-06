@@ -78,69 +78,51 @@ async fn execute_filter_change_holding_train(
     }
 
     // Index path is preferred over name (see execute_exposure rationale).
-    if let Some(index) = config.filter_index {
-        match ctx.device_ops.filterwheel_set_position(&fw_id, index).await {
-            Ok(_) => {
-                if let Some(cb) = progress_callback {
-                    cb(30.0, format!("Moving to position {}", index));
-                }
-                if let Err(e) = wait_for_filterwheel_idle(&fw_id, index, ctx, timeout).await {
-                    return InstructionResult::failure(e);
-                }
-                // Filter-specific focus offsets compensate for the differing
-                // optical path length of each filter glass; applying them
-                // here keeps the focus point usable for the next exposure
-                // without forcing the user to run autofocus after every
-                // filter change.
-                if let Err(e) =
-                    apply_filter_focus_offset(&config.filter_name, ctx, progress_callback).await
-                {
-                    return InstructionResult::failure(format!(
-                        "Focus offset failed for filter \"{}\": {}",
-                        config.filter_name, e
-                    ));
-                }
-                if let Some(cb) = progress_callback {
-                    cb(100.0, format!("Filter {}", index));
-                }
-                return InstructionResult::success_with_message(format!(
-                    "Changed to filter position: {}",
-                    index
-                ));
-            }
-            Err(e) => return InstructionResult::failure(format!("Filter change failed: {}", e)),
-        }
+    // Either way the move is retried through transient wheel faults under the
+    // run's filter wheel retry budget, and counts only once the wheel reads
+    // back at the slot, so a wheel that never arrives is caught by the
+    // timeout and retried too.
+    let target = match config.filter_index {
+        Some(index) => WheelTarget::Position(index),
+        None => WheelTarget::Name(&config.filter_name),
+    };
+    if let Some(cb) = progress_callback {
+        cb(
+            30.0,
+            match config.filter_index {
+                Some(index) => format!("Moving to position {}", index),
+                None => format!("Moving to {}", config.filter_name),
+            },
+        );
     }
+    let position = match move_filter_wheel(ctx, &fw_id, target, Some(timeout)).await {
+        Ok(position) => position,
+        Err(e) => return InstructionResult::failure(e),
+    };
 
-    match ctx
-        .device_ops
-        .filterwheel_set_filter_by_name(&fw_id, &config.filter_name)
-        .await
-    {
-        Ok(pos) => {
-            if let Some(cb) = progress_callback {
-                cb(30.0, format!("Moving to {}", config.filter_name));
-            }
-            if let Err(e) = wait_for_filterwheel_idle(&fw_id, pos, ctx, timeout).await {
-                return InstructionResult::failure(e);
-            }
-            if let Err(e) =
-                apply_filter_focus_offset(&config.filter_name, ctx, progress_callback).await
-            {
-                return InstructionResult::failure(format!(
-                    "Focus offset failed for filter \"{}\": {}",
-                    config.filter_name, e
-                ));
-            }
-            if let Some(cb) = progress_callback {
-                cb(100.0, format!("Filter: {}", config.filter_name));
-            }
-            InstructionResult::success_with_message(format!(
-                "Changed to filter: {} (pos {})",
-                config.filter_name, pos
-            ))
+    // Filter-specific focus offsets compensate for the differing optical path
+    // length of each filter glass; applying them here keeps the focus point
+    // usable for the next exposure without forcing the user to run autofocus
+    // after every filter change.
+    if let Err(e) = apply_filter_focus_offset(&config.filter_name, ctx, progress_callback).await {
+        return InstructionResult::failure(format!(
+            "Focus offset failed for filter \"{}\": {}",
+            config.filter_name, e
+        ));
+    }
+    if config.filter_index.is_some() {
+        if let Some(cb) = progress_callback {
+            cb(100.0, format!("Filter {}", position));
         }
-        Err(e) => InstructionResult::failure(format!("Filter change failed: {}", e)),
+        InstructionResult::success_with_message(format!("Changed to filter position: {}", position))
+    } else {
+        if let Some(cb) = progress_callback {
+            cb(100.0, format!("Filter: {}", config.filter_name));
+        }
+        InstructionResult::success_with_message(format!(
+            "Changed to filter: {} (pos {})",
+            config.filter_name, position
+        ))
     }
 }
 

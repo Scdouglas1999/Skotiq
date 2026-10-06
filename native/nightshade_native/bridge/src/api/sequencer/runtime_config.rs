@@ -885,3 +885,34 @@ pub async fn api_sequencer_set_park_policy(
     });
     Ok(())
 }
+
+/// Set how many times the sequencer retries a failed camera exposure and a
+/// failed filter-wheel move before the failure counts: the operator's "Camera
+/// retries" and "Filter wheel retries" settings, 3 each by default, 0 for a
+/// single attempt. Only faults that can clear are retried (a failed download,
+/// a timeout, a driver error); Stop, a device that reports itself not
+/// connected and a refused request are not. Takes effect on the next attempt
+/// of a running sequence.
+pub async fn api_sequencer_set_device_retries(
+    camera_retries: u32,
+    filter_wheel_retries: u32,
+) -> Result<(), NightshadeError> {
+    let max = nightshade_sequencer::MAX_DEVICE_RETRIES;
+    if camera_retries > max || filter_wheel_retries > max {
+        return Err(NightshadeError::InvalidParameter(format!(
+            "Retry counts must be 0 to {max} (camera {camera_retries}, \
+             filter wheel {filter_wheel_retries})"
+        )));
+    }
+    tracing::info!(
+        "Setting sequencer device retries: camera={}, filter wheel={}",
+        camera_retries,
+        filter_wheel_retries
+    );
+    let mut executor = get_sequence_executor().write().await;
+    executor.set_device_retry_policy(nightshade_sequencer::DeviceRetryPolicy {
+        camera_retries,
+        filter_wheel_retries,
+    });
+    Ok(())
+}

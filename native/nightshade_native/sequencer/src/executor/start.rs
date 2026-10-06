@@ -492,6 +492,7 @@ impl SequenceExecutor {
                     context.telescope_aperture_mm = rc.observer_profile.telescope_aperture_mm;
                     context.default_quality_check = rc.default_quality_check.clone();
                     context.reject_folder_path = rc.reject_folder_path.clone();
+                    context.device_retry = rc.device_retry.clone();
                 }
                 // seed the global adaptive-exposure
                 // fallback so a node without its own `adaptive_exposure`

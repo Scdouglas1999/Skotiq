@@ -152,6 +152,13 @@ struct ScriptedDomeRotatorOps {
     scripted_pixel_size_um: Option<(f64, f64)>,
     /// `None` stands in for a rig whose site has not been configured.
     scripted_observer_location: Option<(f64, f64)>,
+    /// Errors the next exposures fail with, one per exposure, oldest first.
+    camera_failures: Mutex<std::collections::VecDeque<String>>,
+    /// Errors the next `filterwheel_set_position` calls fail with, one each.
+    filter_set_failures: Mutex<std::collections::VecDeque<String>>,
+    /// The next this-many `filterwheel_set_position` calls are accepted and
+    /// never carried out: a stalled wheel.
+    filter_stalled_moves: AtomicU32,
 }
 
 impl ScriptedDomeRotatorOps {
@@ -211,7 +218,34 @@ impl ScriptedDomeRotatorOps {
             scripted_sensor_temp_c: None,
             scripted_pixel_size_um: None,
             scripted_observer_location: None,
+            camera_failures: Mutex::new(std::collections::VecDeque::new()),
+            filter_set_failures: Mutex::new(std::collections::VecDeque::new()),
+            filter_stalled_moves: AtomicU32::new(0),
         }
+    }
+
+    /// Fail the next exposures with these errors, one each.
+    fn failing_exposures(self, errors: &[&str]) -> Self {
+        self.camera_failures
+            .lock()
+            .unwrap()
+            .extend(errors.iter().map(|e| e.to_string()));
+        self
+    }
+
+    /// Fail the next filter-wheel moves with these errors, one each.
+    fn failing_filter_moves(self, errors: &[&str]) -> Self {
+        self.filter_set_failures
+            .lock()
+            .unwrap()
+            .extend(errors.iter().map(|e| e.to_string()));
+        self
+    }
+
+    /// Accept the next `moves` filter-wheel moves and never arrive.
+    fn stalling_filter_moves(self, moves: u32) -> Self {
+        self.filter_stalled_moves.store(moves, Ordering::SeqCst);
+        self
     }
 
     fn with_observer_location(mut self, latitude: f64, longitude: f64) -> Self {
@@ -493,6 +527,9 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         if self.hang_camera_exposure {
             return std::future::pending::<DeviceResult<ImageData>>().await;
         }
+        if let Some(error) = self.camera_failures.lock().unwrap().pop_front() {
+            return Err(error);
+        }
         // A scripted report decouples what the driver CLAIMS from what was
         // commanded — that split is the whole point — so the double also
         // drops NullDeviceOps' simulated integration sleep. Waiting the
@@ -581,7 +618,16 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     }
     async fn filterwheel_set_position(&self, _id: &str, p: i32) -> DeviceResult<()> {
         self.filter_moves.lock().unwrap().push(p);
-        self.filter_position.store(p, Ordering::SeqCst);
+        if let Some(error) = self.filter_set_failures.lock().unwrap().pop_front() {
+            return Err(error);
+        }
+        let stalled = self
+            .filter_stalled_moves
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+            .is_ok();
+        if !stalled {
+            self.filter_position.store(p, Ordering::SeqCst);
+        }
         Ok(())
     }
     async fn filterwheel_get_position(&self, _id: &str) -> DeviceResult<i32> {
@@ -1070,6 +1116,7 @@ mod autofocus;
 mod center;
 mod cooling;
 mod daylight_gate;
+mod device_retry;
 mod disconnect;
 mod dome;
 mod expose;

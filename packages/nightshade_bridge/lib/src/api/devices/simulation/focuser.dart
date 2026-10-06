@@ -8,6 +8,7 @@ import '../../../error.dart';
 import '../../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `sim_focuser_temperature_c`, `sim_night_cooling_c`, `sim_night_cooling_rate`, `sim_night_epoch`, `sim_thermal_focus_shift_steps`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `get_sim_focuser`
 
 /// Get focuser status

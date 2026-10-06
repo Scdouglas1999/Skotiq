@@ -88,6 +88,8 @@ void main() {
       autoFocusEveryMinutes: 99,
       ditherEnabled: false,
       ditherEveryFrames: 9,
+      cameraRetries: 7,
+      filterWheelRetries: 0,
       safetyFailMode: models.SafetyFailMode.failOpen,
       // Plate Solving
       plateSolver: 'Astrometry',

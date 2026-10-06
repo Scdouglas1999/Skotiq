@@ -22,6 +22,8 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       meridianFlipMinutes: remote.meridianFlipMinutes,
       autoFocusEveryMinutes: remote.autoFocusEveryMinutes,
       ditherEveryFrames: remote.ditherEveryFrames,
+      cameraRetries: remote.cameraRetries.clamp(0, kMaxDeviceRetries),
+      filterWheelRetries: remote.filterWheelRetries.clamp(0, kMaxDeviceRetries),
       plateSolveTimeout: remote.plateSolveTimeout,
       plateSolveSearchRadius: remote.plateSolveSearchRadius,
       discordWebhook: remote.discordWebhook,
@@ -197,6 +199,8 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       meridianFlipMinutes: settings.meridianFlipMinutes,
       autoFocusEveryMinutes: settings.autoFocusEveryMinutes,
       ditherEveryFrames: settings.ditherEveryFrames,
+      cameraRetries: settings.cameraRetries,
+      filterWheelRetries: settings.filterWheelRetries,
       plateSolveTimeout: settings.plateSolveTimeout,
       plateSolveSearchRadius: settings.plateSolveSearchRadius,
       discordWebhook: settings.discordWebhook,
@@ -422,6 +426,18 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       case 'ditherEveryFrames':
         return value is num
             ? current.copyWith(ditherEveryFrames: value.toInt())
+            : null;
+      case 'cameraRetries':
+        return value is num
+            ? current.copyWith(
+                cameraRetries: value.toInt().clamp(0, kMaxDeviceRetries),
+              )
+            : null;
+      case 'filterWheelRetries':
+        return value is num
+            ? current.copyWith(
+                filterWheelRetries: value.toInt().clamp(0, kMaxDeviceRetries),
+              )
             : null;
       case 'plateSolveTimeout':
         return value is num

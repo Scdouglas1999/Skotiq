@@ -38,6 +38,8 @@ extension _AppSettingsPartialPersistenceMapping on AppSettingsNotifier {
     'auto_focus_every_minutes',
     'dither_every_frames',
     'safety_fail_mode',
+    'camera_retries',
+    'filter_wheel_retries',
     // Plate solving
     'plate_solve_timeout',
     'plate_solve_search_radius',
@@ -318,6 +320,18 @@ extension _AppSettingsPartialPersistenceMapping on AppSettingsNotifier {
           : null,
       safetyFailMode: settings.containsKey('safety_fail_mode')
           ? _parseSafetyFailMode(settings['safety_fail_mode'])
+          : null,
+      cameraRetries: settings.containsKey('camera_retries')
+          ? _parseDeviceRetries(
+              settings['camera_retries'],
+              current.cameraRetries,
+            )
+          : null,
+      filterWheelRetries: settings.containsKey('filter_wheel_retries')
+          ? _parseDeviceRetries(
+              settings['filter_wheel_retries'],
+              current.filterWheelRetries,
+            )
           : null,
       plateSolver: settings['plate_solver'],
       astapPath: settings['astap_path'],
