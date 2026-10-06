@@ -142,6 +142,9 @@ struct ScriptedDomeRotatorOps {
     scripted_frame_metrics: Option<(f64, usize, f64)>,
     scripted_pier_side: Option<crate::meridian::PierSide>,
     scripted_cooler_power: Option<f64>,
+    /// Sensor temperatures `camera_get_temperature` reports, one per read; the
+    /// last one repeats. Empty: the inner ops answer.
+    scripted_camera_temps: Mutex<std::collections::VecDeque<f64>>,
     scripted_focuser_position: Option<i32>,
     scripted_focuser_temperature: Option<f64>,
     /// What the camera claims it exposed for, independent of what was
@@ -216,6 +219,7 @@ impl ScriptedDomeRotatorOps {
             scripted_frame_metrics: None,
             scripted_pier_side: None,
             scripted_cooler_power: None,
+            scripted_camera_temps: Mutex::new(std::collections::VecDeque::new()),
             scripted_focuser_position: None,
             scripted_focuser_temperature: None,
             scripted_reported_exposure_secs: None,
@@ -397,6 +401,15 @@ impl ScriptedDomeRotatorOps {
 
     fn with_hanging_camera(mut self) -> Self {
         self.hang_camera_exposure = true;
+        self
+    }
+
+    /// A sensor that reads `temps` in turn, then stays at the last one.
+    fn with_camera_temperatures(self, temps: &[f64]) -> Self {
+        self.scripted_camera_temps
+            .lock()
+            .unwrap()
+            .extend(temps.iter().copied());
         self
     }
 
@@ -592,6 +605,14 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         self.inner.camera_set_cooler(id, e, t).await
     }
     async fn camera_get_temperature(&self, id: &str) -> DeviceResult<f64> {
+        {
+            let mut temps = self.scripted_camera_temps.lock().unwrap();
+            match temps.len() {
+                0 => {}
+                1 => return Ok(temps[0]),
+                _ => return Ok(temps.pop_front().unwrap()),
+            }
+        }
         self.inner.camera_get_temperature(id).await
     }
     async fn camera_get_cooler_power(&self, id: &str) -> DeviceResult<f64> {

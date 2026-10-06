@@ -556,10 +556,12 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                   title: 'Stop the run for quality problems',
                   subtitle: 'Off: when guiding RMS goes over its limit, a '
                       'centering or recenter cannot solve, a dither does not '
-                      'settle or a post-flip check fails, you are notified '
+                      'settle, a post-flip check fails, the guide star cannot '
+                      'be re-acquired (imaging goes on unguided) or the camera '
+                      'cooler falls short of its set-point, you are notified '
                       'and the run keeps imaging. On: each of these pauses or '
-                      'ends the run. Weather, dawn and the other safety rules '
-                      'act either way.',
+                      'ends the run. Weather, dawn, a cooler fault and the '
+                      'other safety rules act either way.',
                   trailing: SettingsSwitch(
                     value: settings.stopRunOnQualityProblems,
                     onChanged: (value) {

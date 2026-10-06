@@ -79,10 +79,10 @@ pub async fn execute_cool_camera(
     }
 
     // Always wait for the setpoint. The configured duration caps HOW LONG the
-    // wait may run — it does not decide WHETHER it happens — and
-    // non-convergence within the deadline is a hard failure: returning Success
-    // on a `None` duration, or once the duration elapses, lets an unattended
-    // sequence start exposing a warm or mis-cooled sensor.
+    // wait may run — it does not decide WHETHER it happens. Non-convergence
+    // within the deadline is reported, never passed off as "Target reached";
+    // whether it also stops the run is the operator's quality setting, and a
+    // sensor warming under its cooler stops it either way (see below).
     //
     // When no duration is configured the wait is still bounded by a generous
     // default so a stuck cooler cannot hang the sequence forever.
@@ -166,16 +166,68 @@ pub async fn execute_cool_camera(
         }
 
         if elapsed_secs >= deadline_secs {
-            // Fail closed: the sensor did not reach the setpoint in time.
-            return InstructionResult::failure(format!(
+            let shortfall = format!(
                 "Camera did not reach target {:.1}°C within {:.0}s \
                  (last {:.1}°C, {:.0}% power)",
                 target_temp, deadline_secs, current_temp, cooler_power
-            ));
+            );
+            // A sensor that ended up warmer than it started, while its cooler
+            // was asked to take it the other way, is a cooler fault (a dead
+            // fan, a TEC driven backwards) and a risk to the camera: it stops
+            // the run whatever the quality setting says.
+            if cooler_is_faulting(start_temp, current_temp, target_temp) {
+                return InstructionResult::failure(format!(
+                    "{shortfall}. The sensor warmed from {start_temp:.1}°C while the cooler was \
+                     on, which looks like a cooler fault."
+                ));
+            }
+            // Short of the set-point is a quality cost, not a danger: frames at
+            // -5°C instead of -10°C carry more dark current, and each one's
+            // CCD-TEMP records what it was taken at (owner decision
+            // 2026-10-06). The cooler keeps working toward the set-point.
+            if ctx.stops_on_quality_problems().await {
+                return InstructionResult::failure(shortfall);
+            }
+            let msg = format!(
+                "Cooler reached {:.1}°C of its {:.1}°C set-point in {:.0} min; continuing at \
+                 {:.1}°C",
+                current_temp,
+                target_temp,
+                deadline_secs / 60.0,
+                current_temp
+            );
+            ctx.notify_quality_problem_continuing(
+                "Cool camera",
+                &format!(
+                    "The cooler reached {current_temp:.1}°C of its {target_temp:.1}°C set-point \
+                     in {:.0} min ({cooler_power:.0}% power). Imaging continues at \
+                     {current_temp:.1}°C, and the cooler keeps working toward the set-point.",
+                    deadline_secs / 60.0
+                ),
+            );
+            if let Some(cb) = progress_callback {
+                cb(100.0, msg.clone());
+            }
+            return InstructionResult::success_with_message(msg);
         }
 
         sleep(Duration::from_secs_f64(POLL_SECS)).await;
         elapsed_secs += POLL_SECS;
+    }
+}
+
+/// How far past its starting temperature, away from the set-point, a cooled
+/// sensor may drift before the cooler is taken to be faulting. Covers the
+/// ±0.3°C read jitter of TEC cameras with room to spare.
+const COOLER_FAULT_MARGIN_C: f64 = 1.0;
+
+/// Whether a sensor ended up further from its set-point than it started, past
+/// read noise: the cooler is heating it instead of cooling it.
+fn cooler_is_faulting(start_temp: f64, current_temp: f64, target_temp: f64) -> bool {
+    if target_temp < start_temp {
+        current_temp > start_temp + COOLER_FAULT_MARGIN_C
+    } else {
+        current_temp < start_temp - COOLER_FAULT_MARGIN_C
     }
 }
 
