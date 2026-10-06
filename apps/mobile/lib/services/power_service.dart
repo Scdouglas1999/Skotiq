@@ -164,8 +164,8 @@ class PowerService {
         _lastWarningLevel = warningLevel;
 
         // The "Battery warnings" toggle only mutes the notification banner;
-        // the safety callbacks (warning pause / critical protective pause)
-        // fire regardless so the sequence is still protected.
+        // the callbacks fire regardless. Neither pauses the run: the phone's
+        // battery is no risk to the rig.
         final prefs = await SharedPreferences.getInstance();
         final notifyBattery = MobilePreferences(prefs).notifyBattery;
 
@@ -241,12 +241,6 @@ class PowerService {
     if (_wakeLockActive) {
       await releaseWakeLock();
     }
-  }
-
-  bool shouldPauseForBattery() {
-    return _currentBatteryLevel <= 10 &&
-        _currentBatteryState != BatteryState.charging &&
-        _currentBatteryState != BatteryState.full;
   }
 
   bool shouldWarnForBattery() {

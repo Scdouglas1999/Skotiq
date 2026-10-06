@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nightshade_app/nightshade_app.dart'
     show
@@ -553,54 +554,21 @@ class MobileSequenceHooks {
     }
   }
 
-  void _handleCriticalBattery() async {
-    // Critical battery is a safety event — warn so it's visible above the
-    // info noise floor in DevTools and the log file.
+  /// The critical-battery callback, for tests.
+  @visibleForTesting
+  Future<void> handleCriticalBatteryForTesting() => _handleCriticalBattery();
+
+  /// The phone's battery reached critical. That says nothing about the rig,
+  /// so nothing is paused or stopped (owner decision 2026-10-06: only a risk
+  /// to the hardware pauses a run by itself). It used to pause the run, a
+  /// desktop host's run watched over the network included. PowerService has
+  /// already shown the low-battery notification.
+  Future<void> _handleCriticalBattery() async {
     developer.log(
-      'Critical battery level - pausing sequence',
+      'Critical phone battery; the run is left running',
       name: 'MobileSequenceHooks',
       level: 900,
     );
-
-    // Auto-pause sequence at critical battery level
-    final executionState = _ref.read(sequenceExecutionStateProvider);
-    if (executionState == SequenceExecutionState.running) {
-      // Get the sequence executor and pause
-      final backend = _ref.read(backendProvider);
-      try {
-        await backend.sequencerPause();
-      } catch (e, st) {
-        // Caught here, sequence keeps running on a critical battery — this
-        // is a serious failure mode; log as severe with error chain.
-        developer.log(
-          'Failed to pause sequence: $e',
-          name: 'MobileSequenceHooks',
-          level: 1000,
-          error: e,
-          stackTrace: st,
-        );
-        // Retry once — a transient WS blip is the most common cause.
-        try {
-          await backend.sequencerPause();
-        } catch (retryError, retryStack) {
-          developer.log(
-            'Retry pause after critical battery failed: $retryError',
-            name: 'MobileSequenceHooks',
-            level: 1000,
-            error: retryError,
-            stackTrace: retryStack,
-          );
-          // The low-battery notification told the operator the sequence
-          // "will be paused". It didn't — page them so they aren't misled.
-          await _notificationService.notifySafety(
-            title: 'Auto-pause failed',
-            body:
-                'Battery is critical but the sequence could not be paused '
-                'automatically. Pause it manually now.',
-          );
-        }
-      }
-    }
   }
 
   void _handleBatteryWarning(BatteryWarningLevel level) {

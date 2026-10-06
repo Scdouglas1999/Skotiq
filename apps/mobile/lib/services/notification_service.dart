@@ -692,21 +692,10 @@ class MobileNotificationService implements MobileNotificationSink {
   Future<void> notifyLowBattery(int percentage) async {
     if (!enableWarningNotifications) return;
 
-    String message;
-    if (percentage <= 10) {
-      message =
-          'Critical battery level ($percentage%). Sequence will be paused to protect data.';
-    } else if (percentage <= 15) {
-      message =
-          'Very low battery ($percentage%). Consider pausing the sequence.';
-    } else {
-      message = 'Battery is low ($percentage%). Please connect charger.';
-    }
-
     await _notifications.show(
       _lowBatteryId,
       'Low Battery',
-      message,
+      lowBatteryMessage(percentage),
       _warningDetails,
       payload: 'low_battery:$percentage',
     );
@@ -961,4 +950,19 @@ class MobileNotificationService implements MobileNotificationSink {
   Future<void> cancel(int id) async {
     await _notifications.cancel(id);
   }
+}
+
+/// The body of the phone's low-battery notification at [percentage].
+///
+/// The phone's battery says nothing about the rig, so nothing is paused for
+/// it (owner decision 2026-10-06): the run keeps running, and the operator is
+/// told to charge the phone to keep watching it.
+String lowBatteryMessage(int percentage) {
+  if (percentage <= 10) {
+    return 'Phone battery critical ($percentage%). The run keeps running; '
+        'connect a charger to keep watching it.';
+  } else if (percentage <= 15) {
+    return 'Very low battery ($percentage%). Please connect charger.';
+  }
+  return 'Battery is low ($percentage%). Please connect charger.';
 }

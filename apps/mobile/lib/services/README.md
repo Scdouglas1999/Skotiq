@@ -99,15 +99,15 @@ Battery monitoring and wake lock management service.
 - Acquires CPU wake lock to prevent device sleep during imaging
 - Monitors battery level every 30 seconds (configurable)
 - Automatic warnings at 20%, 15%, and 10% battery
-- Auto-pause at 10% battery to protect data
+- Never pauses the run for the phone's own battery: it is no risk to the rig
 - Real-time battery level stream for UI updates
 - Smart warning system (only warns once per level, resets when charging)
 
 **Battery Warning Levels:**
 - **Normal**: >20% battery
 - **Low**: 20% battery - first warning
-- **VeryLow**: 15% battery - consider pausing
-- **Critical**: 10% battery - auto-pause sequence
+- **VeryLow**: 15% battery - second warning
+- **Critical**: 10% battery - last warning; the run keeps running
 
 **Usage:**
 ```dart
@@ -204,7 +204,7 @@ Consumer(
 **Automatic Behaviors:**
 - Foreground service notification updates every time progress changes
 - Battery warnings sent at 20%, 15%, 10%
-- Sequence auto-paused at 10% battery (critical level)
+- At 10% battery (critical) the operator is told; the run is not paused
 - Meridian flip notifications detected from progress messages
 - All services automatically cleaned up on sequence stop
 
@@ -337,13 +337,9 @@ if (Platform.isAndroid) {
 
 ### 4. Battery Safety
 
-The 10% auto-pause is intentional for data safety. Don't disable it without user confirmation:
-```dart
-if (powerService.shouldPauseForBattery()) {
-  // Show dialog asking user if they want to continue
-  // Only continue if they explicitly accept the risk
-}
-```
+The phone's battery running low only notifies. The phone pausing the run
+(a desktop host's run included) for its own battery was removed on
+2026-10-06: only a risk to the hardware pauses or ends a run by itself.
 
 ## Future Enhancements
 
