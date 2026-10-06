@@ -79,7 +79,10 @@ String _withNote(String base, String? note) =>
 class ImageGradingSettings extends ConsumerStatefulWidget {
   final bool isMobile;
 
-  const ImageGradingSettings({super.key, this.isMobile = false});
+  const ImageGradingSettings({
+    super.key,
+    this.isMobile = false,
+  });
 
   @override
   ConsumerState<ImageGradingSettings> createState() =>
@@ -149,7 +152,9 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
     final settingsAsync = ref.watch(appSettingsProvider);
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(isMobile: widget.isMobile),
+      loading: () => SettingsLoadingState(
+        isMobile: widget.isMobile,
+      ),
       error: (error, stack) => SettingsErrorState(
         isMobile: widget.isMobile,
         error: error,
@@ -218,9 +223,8 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                   subtitle:
                       'Reject if HFR > baseline × (1 + percent/100). The baseline is the median of the first 5 accepted frames of each target.',
                   trailing: _OptionalNumberInput(
-                    fieldKey: const ValueKey(
-                      'image-grading-hfr-baseline-percent',
-                    ),
+                    fieldKey:
+                        const ValueKey('image-grading-hfr-baseline-percent'),
                     controller: _baselineController,
                     suffix: '%',
                     min: 1.0,
@@ -249,9 +253,8 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                     ),
                   ),
                   trailing: _OptionalNumberInput(
-                    fieldKey: const ValueKey(
-                      'image-grading-eccentricity-threshold',
-                    ),
+                    fieldKey:
+                        const ValueKey('image-grading-eccentricity-threshold'),
                     controller: _eccentricityController,
                     suffix: '',
                     min: 0.0,
@@ -259,9 +262,8 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                     decimals: 2,
                     enabled: enabled,
                     onCommit: (value) async {
-                      await notifier.setImageGradingEccentricityThreshold(
-                        value,
-                      );
+                      await notifier
+                          .setImageGradingEccentricityThreshold(value);
                     },
                     isMobile: widget.isMobile,
                   ),
@@ -272,9 +274,8 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                   subtitle:
                       'Reject if detected star count drops below this value. Trips when clouds roll in or the dome slit drifts off-target. Leave blank to disable.',
                   trailing: _OptionalIntInput(
-                    fieldKey: const ValueKey(
-                      'image-grading-star-count-minimum',
-                    ),
+                    fieldKey:
+                        const ValueKey('image-grading-star-count-minimum'),
                     controller: _starCountController,
                     suffix: 'stars',
                     min: 1,
@@ -290,7 +291,7 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
               ],
             ),
             SettingsSection(
-              title: 'Notifications',
+              title: 'Reject streaks',
               children: [
                 SettingRow(
                   icon: LucideIcons.alertOctagon,
@@ -307,9 +308,8 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                     allowClear: false,
                     onCommit: (value) async {
                       if (value == null) return;
-                      await notifier.setImageGradingMaxConsecutiveRejects(
-                        value,
-                      );
+                      await notifier
+                          .setImageGradingMaxConsecutiveRejects(value);
                     },
                     isMobile: widget.isMobile,
                   ),
@@ -323,8 +323,7 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                 SettingRow(
                   icon: LucideIcons.sparkles,
                   title: 'Auto-integrate at end of run',
-                  subtitle:
-                      'When on, the accepted subs are integrated into an '
+                  subtitle: 'When on, the accepted subs are integrated into an '
                       'archival master automatically when a sequence run '
                       'completes — wake up to a finished image. The result '
                       'lands in Session Review › Masters.',
@@ -395,9 +394,8 @@ class _AutoIntegrateSwitchState extends ConsumerState<_AutoIntegrateSwitch> {
   Widget build(BuildContext context) {
     final setting = ref.watch(autoIntegrationEnabledProvider);
     final enabled = setting.valueOrNull ?? false;
-    final loadError = setting.hasError
-        ? 'Could not load auto-integration setting.'
-        : null;
+    final loadError =
+        setting.hasError ? 'Could not load auto-integration setting.' : null;
     final control = NightshadeSwitch(
       key: const ValueKey('auto-integrate-switch'),
       value: enabled,

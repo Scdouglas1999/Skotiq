@@ -4,9 +4,7 @@ part of '../autofocus_settings.dart';
 
 extension _AutofocusMobileLayout on _AutofocusSettingsState {
   List<Widget> _buildMobileLayout(
-    AppSettingsState settings,
-    AppSettingsNotifier notifier,
-  ) {
+      AppSettingsState settings, AppSettingsNotifier notifier) {
     return [
       SettingRow(
         icon: LucideIcons.filter,

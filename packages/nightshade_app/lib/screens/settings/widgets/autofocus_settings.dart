@@ -21,7 +21,7 @@ const String kAfFailureToleranceSubtitle =
     'A failed autofocus never parks or ends the run: the focuser goes back '
     'where it was, you get a notification, and imaging continues. Frames '
     'within this multiple of your good HFR are reported as usable. '
-    '0 = don’t judge the frames';
+    '0 = don\u2019t judge the frames';
 
 class AutofocusSettingsPage extends ConsumerStatefulWidget {
   final bool isMobile;
@@ -187,9 +187,7 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
   }
 
   Widget _buildDesktopTwoColumnLayout(
-    AppSettingsState settings,
-    AppSettingsNotifier notifier,
-  ) {
+      AppSettingsState settings, AppSettingsNotifier notifier) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
@@ -476,9 +474,9 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
             ? null
             : Border(
                 bottom: BorderSide(
-                  color: NightshadeColors.of(
-                    context,
-                  ).border.withValues(alpha: 0.3),
+                  color: NightshadeColors.of(context)
+                      .border
+                      .withValues(alpha: 0.3),
                 ),
               ),
       ),
@@ -489,15 +487,11 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
             height: 32,
             decoration: BoxDecoration(
               color: NightshadeColors.of(context).well,
-              borderRadius: BorderRadius.circular(
-                NightshadeTokens.radiusButton,
-              ),
+              borderRadius:
+                  BorderRadius.circular(NightshadeTokens.radiusButton),
             ),
-            child: Icon(
-              icon,
-              size: 14,
-              color: NightshadeColors.of(context).textSecondary,
-            ),
+            child: Icon(icon,
+                size: 14, color: NightshadeColors.of(context).textSecondary),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -507,8 +501,7 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
                 Text(
                   title,
                   style: NightshadeTypography.labelSm.copyWith(
-                    color: NightshadeColors.of(context).textPrimary,
-                  ),
+                      color: NightshadeColors.of(context).textPrimary),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 1),
