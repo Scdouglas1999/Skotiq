@@ -590,7 +590,7 @@ impl Drop for TriggerCameraClaim {
     }
 }
 
-/// What to do about the frames a failed autofocus would keep producing.
+/// How the frames a failed autofocus leaves behind measure.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) enum AutofocusOutcome {
     /// Soft, but inside tolerance — keep imaging.
@@ -625,17 +625,18 @@ pub(super) async fn read_focuser_position(
     device_ops.focuser_get_position(focuser_id?).await.ok()
 }
 
-/// Decide whether frames are still worth capturing after autofocus failed.
+/// How the frames measure after autofocus failed, for the operator's notice.
+/// The run carries on whatever this says; it decides only what the operator
+/// is told about the frames.
 ///
 /// `reference` is the run's good HFR (the baseline the degradation trigger
 /// watches), `current` is what the frames are measuring now, and `ratio` is
 /// how many times the reference is still acceptable.
 ///
 /// Without a reference or a current measurement the answer is
-/// [`AutofocusOutcome::Unmeasurable`] — deliberately NOT "carry on". Claiming
-/// the frames are fine on the strength of no evidence is how a night fills a
-/// disk with donuts; the caller's failure action decides what to do, and it
-/// gets to make that decision knowing the focus is simply unknown.
+/// [`AutofocusOutcome::Unmeasurable`] — deliberately NOT "within tolerance".
+/// Telling the operator the frames are fine on the strength of no evidence is
+/// how a night fills a disk with donuts nobody was warned about.
 pub(super) fn autofocus_failure_verdict(
     reference: Option<f64>,
     current: Option<f64>,

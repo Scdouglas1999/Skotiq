@@ -1183,8 +1183,8 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                             // same tick, a manual sweep, a backlash
                             // calibration) is told apart from one that ran and
                             // failed. It moved nothing and says nothing about
-                            // focus; judged as a failure it reached the default
-                            // AbortAndPark and parked the rig. The stale-focus
+                            // focus; judged as a failure it once reached the old
+                            // AbortAndPark failure action and parked the rig. The stale-focus
                             // latch is kept, so the trigger asks again once
                             // its cooldown has passed.
                             let Some(af_admission) = crate::instructions::try_admit_autofocus_run()
@@ -1290,22 +1290,21 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                             {
                                 // The run is being stopped. A sweep the stop
                                 // cut short is not a failed autofocus, and
-                                // judging it as one sent an operator's Stop
-                                // down the default AbortAndPark: park the
-                                // mount, close cover and dome.
+                                // judging it as one once sent an operator's
+                                // Stop down the old AbortAndPark failure
+                                // action: park the mount, close cover and dome.
                                 tracing::info!(
                                     "Trigger autofocus '{}' ended by the run stopping; not \
                                      judging it as a failed refocus",
                                     trigger_name
                                 );
                             } else {
-                                // A failed autofocus is not automatically a
-                                // ruined night. Judge the frames it would keep
-                                // producing, not the fact that the sweep failed:
-                                // slightly-soft frames stack and deconvolve
-                                // fine, donuts are wasted disk. The reference
-                                // must be read BEFORE `reset_baseline_hfr`
-                                // overwrites it with the degraded value.
+                                // How the frames measure against the run's good
+                                // HFR, for the operator's notice: slightly soft
+                                // frames stack and deconvolve fine, frames past
+                                // the tolerance need a look. The reference must
+                                // be read BEFORE `reset_baseline_hfr` overwrites
+                                // it with the degraded value.
                                 let verdict = {
                                     let ts = trigger_state_for_actions.read().await;
                                     autofocus_failure_verdict(
@@ -1385,9 +1384,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                                     //
                                     // It is decided before the focus verdict, not
                                     // after: judged on HFR alone, a dead guider
-                                    // with acceptable focus kept imaging, and one
-                                    // with no HFR reference took the default
-                                    // AbortAndPark and parked the rig.
+                                    // with acceptable focus kept imaging unguided.
                                     let mut hold = autofocus_trigger_unguided_hold(
                                         &trigger_id,
                                         &trigger_name,
@@ -1430,86 +1427,31 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                                     continue;
                                 }
 
-                                if let AutofocusOutcome::KeepImaging { current_hfr, limit } =
-                                    verdict
-                                {
-                                    let attempts = af_config.number_of_attempts.max(1);
-                                    let message = format!(
-                                        "Autofocus failed after {} attempt{}, but HFR {:.2} is \
-                                         within the {:.2} tolerance limit — continuing to image. \
-                                         Frames will be slightly soft; focus will be retried on \
-                                         the next interval.",
-                                        attempts,
-                                        if attempts == 1 { "" } else { "s" },
-                                        current_hfr,
-                                        limit
-                                    );
-                                    tracing::warn!("{}", message);
-                                    let _ = event_tx_clone2.send(ExecutorEvent::Error { message });
-                                    fired_triggers.push((trigger_id, action));
-                                    continue;
-                                }
-
-                                if af_config.failure_action
-                                    == crate::AutofocusFailureAction::AbortAndPark
-                                {
-                                    let attempts = af_config.number_of_attempts.max(1);
-                                    let message = format!(
-                                        "Autofocus failed after {} attempt{} and {} — ending the \
-                                         sequence and parking. Further frames would not be worth \
-                                         keeping.",
-                                        attempts,
-                                        if attempts == 1 { "" } else { "s" },
+                                // A failed autofocus never parks, closes or ends
+                                // the run, however the frames measure (owner
+                                // decision 2026-10-06: "Failed AF should never
+                                // park the rig, just notify the user").
+                                // `execute_autofocus` has already returned the
+                                // focuser to its pre-sweep position; imaging
+                                // carries on there and the operator is told. The
+                                // decision row is what raises the app's
+                                // "Autofocus failed — continuing" notification.
+                                // The cause goes out as a Warning, not an Error:
+                                // every sequencer Error is a "Sequence failed"
+                                // notification, and this run has not failed.
+                                let focus_note = match verdict {
+                                    AutofocusOutcome::KeepImaging { .. } => format!(
+                                        " {}, so frames will be slightly soft until focus is \
+                                         retried.",
                                         verdict.describe()
-                                    );
-                                    tracing::error!("{}", message);
-                                    let _ = event_tx_clone2.send(ExecutorEvent::Error { message });
-
-                                    let safe_state = crate::device_ops::park_and_close_safe_state(
-                                        &device_ops_for_triggers,
-                                        trigger_action_context.mount_id.as_deref(),
-                                        trigger_action_context.cover_calibrator_id.as_deref(),
-                                        trigger_action_context.dome_id.as_deref(),
-                                        1,
-                                        2.0,
-                                    )
-                                    .await;
-                                    if let Some(park) = &safe_state.park {
-                                        if !park.success {
-                                            let _ = event_tx_clone2.send(ExecutorEvent::Error {
-                                                message: format!(
-                                                    "Autofocus abort: parking the mount failed \
-                                                         ({}). The mount may still be tracking — \
-                                                         check it.",
-                                                    park.last_error
-                                                        .clone()
-                                                        .unwrap_or_else(|| { "no detail".into() })
-                                                ),
-                                            });
-                                        }
-                                    }
-
-                                    fired_triggers.push((trigger_id, action));
-                                    return terminate_with(
-                                        &is_cancelled_clone,
-                                        fired_triggers,
-                                        "AutofocusFailureAction::AbortAndPark",
-                                    );
-                                }
-
-                                // The unattended policy for a TRIGGER-fired autofocus
-                                // that does not converge: keep imaging on the last-good
-                                // focus. Latching the executor PAUSED spends the rest of
-                                // a clear night parked on a missed curve fit, which is
-                                // worse than slightly soft subs the operator can cull in
-                                // the morning. An operator who wants the harder answer
-                                // has `AutofocusFailureAction::AbortAndPark` above, which
-                                // ends the run and safes the rig. `execute_autofocus` has
-                                // already returned the focuser to its pre-sweep position;
-                                // all this arm owes the operator is an honest record of
-                                // what was kept. Explicit `Autofocus` NODES keep their own
-                                // configured failure handling — this governs the trigger
-                                // default only.
+                                    ),
+                                    AutofocusOutcome::TooSoft { .. } => format!(
+                                        " {}: frames may be soft enough to be rejected — check \
+                                         focus.",
+                                        verdict.describe()
+                                    ),
+                                    AutofocusOutcome::Unmeasurable => String::new(),
+                                };
                                 let mut continuation = autofocus_trigger_continuation(
                                     &trigger_id,
                                     &trigger_name,
@@ -1521,10 +1463,10 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                                 continuation.decision.sequence_run_id =
                                     *active_run_id_for_decisions.read();
                                 let _ = decision_tx_for_lifecycle.send(continuation.decision);
-                                tracing::warn!("{}", continuation.operator_message);
-                                let _ = event_tx_clone2.send(ExecutorEvent::Error {
-                                    message: continuation.operator_message,
-                                });
+                                let message =
+                                    format!("{}{}", continuation.operator_message, focus_note);
+                                tracing::warn!("{}", message);
+                                let _ = event_tx_clone2.send(ExecutorEvent::Warning { message });
                             }
                         }
                         Some(missing) => {

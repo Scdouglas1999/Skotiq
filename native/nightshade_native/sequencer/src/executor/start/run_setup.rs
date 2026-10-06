@@ -99,11 +99,9 @@ impl SequenceExecutor {
                     // is the case where getting the tuning wrong costs a night.
                     tracing::info!(
                         "No Autofocus node in the sequence; trigger-fired refocus will use the \
-                     operator's autofocus settings (attempts={}, failure tolerance={}x, \
-                     failure action={:?})",
+                     operator's autofocus settings (attempts={}, failure tolerance={}x)",
                         pushed.number_of_attempts,
                         pushed.failure_hfr_tolerance_ratio,
-                        pushed.failure_action
                     );
                 } else {
                     tracing::warn!(

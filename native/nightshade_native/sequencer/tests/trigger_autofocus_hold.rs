@@ -525,9 +525,10 @@ async fn a_dead_guider_after_trigger_autofocus_never_parks() {
 }
 
 /// An operator Stop in the middle of a trigger-fired autofocus is a stop. It
-/// must not be judged as a failed autofocus, and so must never reach the
-/// default AbortAndPark: the operator asked the run to end, not the rig to be
-/// parked and closed.
+/// must not be judged as a failed autofocus (which, before the 2026-10-06
+/// decision that a failed autofocus never parks, reached the default
+/// AbortAndPark): the operator asked the run to end, not the rig to be parked
+/// and closed.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn stopping_during_a_trigger_autofocus_never_parks() {
     let _serial = SERIAL.lock().await;

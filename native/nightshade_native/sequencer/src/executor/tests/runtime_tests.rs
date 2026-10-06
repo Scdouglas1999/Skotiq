@@ -1992,12 +1992,20 @@ async fn a_guider_seen_guiding_arms_star_lost_and_a_later_drop_fires_it() {
     assert!(history[0].recovered, "{history:?}");
 }
 
+/// What a run did after a trigger-fired autofocus failed.
+struct FailedTriggerAutofocus {
+    calls: Vec<String>,
+    state: ExecutorState,
+    decisions: Vec<crate::decision::DecisionEvent>,
+    warnings: Vec<String>,
+    errors: Vec<String>,
+}
+
 /// Run a trigger-fired autofocus that fails with focus far past the keep-
-/// imaging tolerance, under `failure_action`, and return the recorded device
-/// calls once the run has reacted.
-async fn failed_trigger_autofocus_calls(
-    failure_action: crate::AutofocusFailureAction,
-) -> Vec<String> {
+/// imaging tolerance, with the autofocus settings deserialized from
+/// `persisted` exactly as a stored profile would be, and return what the run
+/// did once it had reacted.
+async fn failed_trigger_autofocus(persisted: serde_json::Value) -> FailedTriggerAutofocus {
     let mut sequence = SequenceDefinition::new("New Sequence".to_string());
     sequence.nodes.push(crate::NodeDefinition {
         id: "wait".to_string(),
@@ -2014,15 +2022,21 @@ async fn failed_trigger_autofocus_calls(
     executor.camera_id = Some("sim_camera_1".to_string());
     executor.focuser_id = Some("sim_focuser_1".to_string());
     executor.mount_id = Some("mount-1".to_string());
+    executor.cover_calibrator_id = Some("cover-1".to_string());
+    executor.dome_id = Some("dome-1".to_string());
+    let mut config = serde_json::json!({
+        "number_of_attempts": 1,
+        "steps_out": 1,
+        "exposures_per_point": 1,
+        "exposure_duration": 0.01,
+    });
+    for (key, value) in persisted.as_object().expect("an object") {
+        config[key] = value.clone();
+    }
     executor
-        .update_autofocus_config(crate::AutofocusConfig {
-            number_of_attempts: 1,
-            steps_out: 1,
-            exposures_per_point: 1,
-            exposure_duration: 0.01,
-            failure_action,
-            ..Default::default()
-        })
+        .update_autofocus_config(
+            serde_json::from_value(config).expect("a stored autofocus config deserializes"),
+        )
         .await;
     {
         let mut manager = executor.trigger_manager.write().await;
@@ -2053,6 +2067,7 @@ async fn failed_trigger_autofocus_calls(
         ));
     }
     let mut events = executor.subscribe();
+    let mut decision_rx = executor.subscribe_decisions();
     executor.load_sequence(sequence).expect("sequence loads");
     executor.start().await.expect("run starts");
 
@@ -2068,6 +2083,8 @@ async fn failed_trigger_autofocus_calls(
 
     // Wait for the autofocus interlude to finish, then give the policy branch
     // a moment to act.
+    let mut warnings = Vec::new();
+    let mut errors = Vec::new();
     tokio::time::timeout(std::time::Duration::from_secs(60), async {
         loop {
             match events.recv().await {
@@ -2076,6 +2093,8 @@ async fn failed_trigger_autofocus_calls(
                 {
                     return;
                 }
+                Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+                Ok(ExecutorEvent::Error { message }) => errors.push(message),
                 Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(broadcast::error::RecvError::Closed) => return,
             }
@@ -2084,10 +2103,29 @@ async fn failed_trigger_autofocus_calls(
     .await
     .expect("the trigger-fired autofocus finished");
     tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+    loop {
+        match events.try_recv() {
+            Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+            Ok(ExecutorEvent::Error { message }) => errors.push(message),
+            Ok(_) | Err(broadcast::error::TryRecvError::Lagged(_)) => continue,
+            Err(_) => break,
+        }
+    }
+    let mut decisions = Vec::new();
+    while let Ok(decision) = decision_rx.try_recv() {
+        decisions.push(decision);
+    }
     let calls = ops.calls();
+    let state = executor.get_state().await;
     executor.stop().await.ok();
     wait_for_the_autofocus_gate_to_clear().await;
-    calls
+    FailedTriggerAutofocus {
+        calls,
+        state,
+        decisions,
+        warnings,
+        errors,
+    }
 }
 
 /// `stop()` returns before a trigger-fired autofocus task has dropped its
@@ -2104,27 +2142,61 @@ async fn wait_for_the_autofocus_gate_to_clear() {
     }
 }
 
-/// Whether a failed trigger autofocus parks the mount is the operator's
-/// `AutofocusFailureAction`. Only the default was ever exercised, so a check
-/// inverted to park under `PauseAndAlert` (moving an attended mount that was
-/// configured to wait for its operator) passed every test.
+/// Owner decision 2026-10-06: "Failed AF should never park the rig, just
+/// notify the user." Profiles saved before that decision still carry
+/// `failure_action: "AbortAndPark"` (the old default) or `"PauseAndAlert"`, so
+/// the settings are deserialized from those stored values rather than built in
+/// code: under the old default this parked the mount, closed the cover and the
+/// dome, and ended the run.
 #[tokio::test]
 #[allow(clippy::await_holding_lock)]
-async fn a_failed_trigger_autofocus_parks_only_when_the_policy_says_to() {
+async fn a_failed_trigger_autofocus_never_parks_and_the_run_carries_on() {
     // Fires a real autofocus through the process-wide gate; see
     // `AF_GATE_TEST_LOCK`.
     let _serial = crate::AF_GATE_TEST_LOCK
         .lock()
         .unwrap_or_else(|e| e.into_inner());
-    let calls = failed_trigger_autofocus_calls(crate::AutofocusFailureAction::PauseAndAlert).await;
-    assert!(
-        !calls.iter().any(|c| c.starts_with("mount_park")),
-        "PauseAndAlert must not park: {calls:?}"
-    );
-
-    let calls = failed_trigger_autofocus_calls(crate::AutofocusFailureAction::AbortAndPark).await;
-    assert!(
-        calls.iter().any(|c| c == "mount_park:mount-1"),
-        "AbortAndPark parks the mount: {calls:?}"
-    );
+    for persisted in [
+        serde_json::json!({ "failure_action": "AbortAndPark" }),
+        serde_json::json!({ "failure_action": "PauseAndAlert" }),
+        serde_json::json!({}),
+    ] {
+        let run = failed_trigger_autofocus(persisted.clone()).await;
+        assert!(
+            !run.calls.iter().any(|c| c.starts_with("mount_park")
+                || c.starts_with("cover_close")
+                || c.starts_with("dome_close")),
+            "{persisted}: a failed autofocus moved or closed hardware: {:?}",
+            run.calls
+        );
+        assert_eq!(
+            run.state,
+            ExecutorState::Running,
+            "{persisted}: the run must keep going on the previous focus"
+        );
+        assert!(
+            run.decisions
+                .iter()
+                .any(|d| d.summary == super::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY),
+            "{persisted}: the operator must be notified (the decision row is what raises the \
+             notification): {:?}",
+            run.decisions
+                .iter()
+                .map(|d| d.summary.clone())
+                .collect::<Vec<_>>()
+        );
+        assert!(
+            run.warnings
+                .iter()
+                .any(|w| w.contains("did not converge") && w.contains("imaging continues")),
+            "{persisted}: the cause goes to the run's warnings: {:?}",
+            run.warnings
+        );
+        assert!(
+            run.errors.is_empty(),
+            "{persisted}: a run that carries on is not a failed run, and every sequencer \
+             Error is a 'Sequence failed' notification: {:?}",
+            run.errors
+        );
+    }
 }

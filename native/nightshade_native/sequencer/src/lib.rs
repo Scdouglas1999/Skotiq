@@ -2050,41 +2050,28 @@ pub struct AutofocusConfig {
     #[serde(default)]
     pub disable_guiding_during_af: bool,
     /// How far above the reference HFR the frames may sit, as a multiple, and
-    /// still be worth continuing to capture after autofocus has failed.
+    /// still be called usable after autofocus has failed.
     ///
-    /// A failed autofocus is not automatically a ruined night: focus can end up
-    /// slightly soft for reasons that leave the data usable (thin cloud over the
-    /// sweep, a star field too sparse to fit a curve, a gust during a point),
-    /// while a focuser that has run away to donuts wastes every further frame.
-    /// The decision is therefore made on the measurement: at 1.6, a run whose
-    /// reference HFR is 2.5 keeps imaging at 3.8 (1.52x) and stops at 10 (4x).
-    /// It is a ratio rather than an absolute HFR because the same number means
-    /// different things at different focal lengths and pixel scales; the log
-    /// always prints the absolute limit it worked out.
+    /// A failed autofocus never parks the mount or ends the run (owner decision
+    /// 2026-10-06: "Failed AF should never park the rig, just notify the
+    /// user"). The focuser goes back to where it started, the operator is
+    /// notified, and imaging carries on at that focus. This ratio only decides
+    /// what the notice says: at 1.6, a run whose reference HFR is 2.5 is told
+    /// its frames at 3.8 (1.52x) are slightly soft, and at 10 (4x) that they
+    /// are past the limit and focus needs checking. It is a ratio rather than
+    /// an absolute HFR because the same number means different things at
+    /// different focal lengths and pixel scales.
     ///
-    /// Zero or negative disables the tolerance — every autofocus failure is then
-    /// unrecoverable.
+    /// Autofocus also borrows it as the landing tolerance (see
+    /// `instructions::autofocus`), falling back to the shipped ratio when it is
+    /// at or below 1.
+    ///
+    /// A profile saved before the decision may still carry a `failure_action`
+    /// key next to this one (`AbortAndPark` or `PauseAndAlert`). Unknown keys
+    /// are ignored when the config is read, so that stored value has nothing
+    /// left to select.
     #[serde(default = "default_af_failure_hfr_tolerance_ratio")]
     pub failure_hfr_tolerance_ratio: f64,
-    /// What to do when a failed autofocus leaves the frames outside
-    /// [`AutofocusConfig::failure_hfr_tolerance_ratio`] and the retries in
-    /// [`AutofocusConfig::number_of_attempts`] are spent.
-    #[serde(default)]
-    pub failure_action: AutofocusFailureAction,
-}
-
-/// What an unattended run does when autofocus has failed and the frames it
-/// would keep producing are not worth keeping.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
-pub enum AutofocusFailureAction {
-    /// Stop imaging, park the mount, close cover and dome. The default: an
-    /// unattended rig producing donuts should be made safe, not left tracking
-    /// until dawn filling the disk with frames nobody can use.
-    #[default]
-    AbortAndPark,
-    /// Hold the sequence and wait for the operator. Correct when someone is
-    /// at the keyboard and would rather rescue the night than end it.
-    PauseAndAlert,
 }
 
 fn default_af_failure_hfr_tolerance_ratio() -> f64 {
@@ -2134,8 +2121,8 @@ fn default_af_min_star_count() -> u32 {
 fn default_af_number_of_attempts() -> u32 {
     // Two sweeps, not one. A single failed sweep is weak evidence — the
     // common causes (a passing cloud, a gust, a sparse field) are transient
-    // and a second sweep usually succeeds. Only a repeated failure justifies
-    // acting on [`AutofocusConfig::failure_action`] and ending a night.
+    // and a second sweep usually succeeds before the operator is told that
+    // autofocus failed.
     2
 }
 
@@ -2184,7 +2171,6 @@ impl Default for AutofocusConfig {
             backlash_out_compensation: 0,
             disable_guiding_during_af: false,
             failure_hfr_tolerance_ratio: default_af_failure_hfr_tolerance_ratio(),
-            failure_action: AutofocusFailureAction::default(),
         }
     }
 }

@@ -435,10 +435,9 @@ impl SequenceExecutor {
     pub async fn update_autofocus_config(&mut self, config: crate::AutofocusConfig) {
         tracing::info!(
             "Updating trigger-autofocus config from operator settings (attempts={}, \
-             failure tolerance={}x, failure action={:?})",
+             failure tolerance={}x)",
             config.number_of_attempts,
             config.failure_hfr_tolerance_ratio,
-            config.failure_action
         );
         let mut rc = self.runtime_config.write();
         rc.autofocus = Some(config);

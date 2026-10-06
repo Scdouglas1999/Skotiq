@@ -55,9 +55,12 @@ use tokio::sync::{broadcast, mpsc, oneshot, watch, RwLock};
 pub(crate) const RECOVERY_NODE_TRIGGER_PREFIX: &str = "recovery_node:";
 const DEFAULT_SAFETY_CHECK_INTERVAL_SECS: u64 = 30;
 
-/// Summary line of the decision row written when a trigger-fired autofocus does
-/// not converge and the run carries on at the pre-autofocus position. Named so
-/// the Replay screen's copy and the tests that pin the unattended policy cannot
+/// Summary line of the decision row written when an autofocus does not
+/// converge and the run carries on at the pre-autofocus position: a trigger's
+/// refocus, an Autofocus node, a recovery node's refocus, an exposure trigger's
+/// refocus and the post-flip refocus all write it. The app raises its
+/// "Autofocus failed — continuing" notification from this row, so the Replay
+/// screen's copy, the notification and the tests that pin the policy cannot
 /// drift apart.
 pub const AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY: &str =
     "Autofocus failed — continuing with last-good focus";
@@ -447,19 +450,20 @@ pub(crate) fn autofocus_trigger_unguided_hold(
     }
 }
 
-/// What the run records and tells the operator when a TRIGGER-fired autofocus
-/// does not converge.
+/// What the run records and tells the operator when an autofocus does not
+/// converge and imaging continues.
 pub(crate) struct AutofocusTriggerContinuation {
-    /// Replay row (`SystemEvent`) naming the focus the run decided to keep.
+    /// Replay row (`SystemEvent`) naming the focus the run decided to keep. The
+    /// app's "Autofocus failed — continuing" notification is raised from it.
     pub(crate) decision: crate::decision::DecisionEvent,
-    /// One-line notice for the run's error feed / push.
+    /// One-line notice for the run's warnings.
     pub(crate) operator_message: String,
 }
 
 /// Build the continuation record for a non-converging trigger autofocus. Lives
-/// outside the trigger loop so the unattended policy — continue on the
-/// last-good focus, never pause an unattended run — is testable without
-/// standing up an executor.
+/// outside the trigger loop so the policy — continue on the last-good focus,
+/// never pause, park or end the run — is testable without standing up an
+/// executor.
 ///
 /// `origin_restored` is the `autofocus_origin_restored` marker from the failed
 /// result: `Some(true)` the focuser went back to where it started, `Some(false)`
@@ -473,33 +477,65 @@ pub(crate) fn autofocus_trigger_continuation(
     position_after: Option<i32>,
     origin_restored: Option<bool>,
 ) -> AutofocusTriggerContinuation {
-    let decision = crate::decision::DecisionEvent::new(
-        crate::decision::DecisionCategory::SystemEvent,
-        AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY.to_string(),
+    autofocus_failure_continuation(
+        &format!("Autofocus trigger '{trigger_name}'"),
         serde_json::json!({
             "trigger_id": trigger_id,
             "trigger_name": trigger_name,
-            "reason": reason,
-            "focuser_position_before": position_before,
-            "focuser_position_after": position_after,
-            "pre_autofocus_position_restored": origin_restored,
         }),
+        reason,
+        position_before,
+        position_after,
+        origin_restored,
+    )
+}
+
+/// The continuation record for any autofocus that did not converge while the
+/// run carries on. `source` names it in the operator's notice ("Autofocus
+/// 'Refocus'", "Post-flip autofocus"), and the fields of `context` are added to
+/// the decision row's details.
+pub(crate) fn autofocus_failure_continuation(
+    source: &str,
+    context: serde_json::Value,
+    reason: &str,
+    position_before: Option<i32>,
+    position_after: Option<i32>,
+    origin_restored: Option<bool>,
+) -> AutofocusTriggerContinuation {
+    let mut details = serde_json::json!({
+        "source": source,
+        "reason": reason,
+        "focuser_position_before": position_before,
+        "focuser_position_after": position_after,
+        "pre_autofocus_position_restored": origin_restored,
+    });
+    if let (Some(details), serde_json::Value::Object(context)) = (details.as_object_mut(), context)
+    {
+        details.extend(context);
+    }
+    let decision = crate::decision::DecisionEvent::new(
+        crate::decision::DecisionCategory::SystemEvent,
+        AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY.to_string(),
+        details,
     );
 
     let at_position = position_after
         .map(|p| format!("position {p}"))
         .unwrap_or_else(|| "an unreadable position".to_string());
-    let operator_message = if origin_restored == Some(false) {
-        format!(
-            "Autofocus trigger '{trigger_name}' did not converge ({reason}) and the focuser could \
-             NOT be returned to its pre-autofocus position — it is at {at_position}. Imaging \
-             continues, but check focus before trusting these frames."
-        )
-    } else {
-        format!(
-            "Autofocus trigger '{trigger_name}' did not converge ({reason}). The focuser was \
-             returned to {at_position} and imaging continues on the last-good focus."
-        )
+    let operator_message = match origin_restored {
+        Some(false) => format!(
+            "{source} did not converge ({reason}) and the focuser could NOT be returned to its \
+             pre-autofocus position — it is at {at_position}. Imaging continues, but check \
+             focus before trusting these frames."
+        ),
+        Some(true) => format!(
+            "{source} did not converge ({reason}). The focuser was returned to {at_position} \
+             and imaging continues on the last-good focus."
+        ),
+        None => format!(
+            "{source} did not converge ({reason}). The focuser is at {at_position} and imaging \
+             continues on the last-good focus."
+        ),
     };
 
     AutofocusTriggerContinuation {

@@ -407,9 +407,9 @@ async fn replay(rig: Arc<ReplayRig>, settle: Duration) -> Outcome {
             steps_out: 2,
             exposure_duration: 0.01,
             focuser_settle_time_ms: 0,
-            // The rig's own setting ("failure action=PauseAndAlert"); the
-            // shipped default is AbortAndPark.
-            failure_action: nightshade_sequencer::AutofocusFailureAction::PauseAndAlert,
+            // The rig ran with "failure action=PauseAndAlert". There is no
+            // failure action any more: a failed autofocus always notifies and
+            // carries on (owner decision 2026-10-06).
             ..AutofocusConfig::default()
         })
         .await;
