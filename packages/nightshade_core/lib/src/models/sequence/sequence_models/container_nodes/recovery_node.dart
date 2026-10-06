@@ -196,6 +196,33 @@ class RecoveryNode extends SequenceNode {
     );
   }
 
+  /// Trigger types that judge the frames or the guiding rather than protect
+  /// the rig. Stopping the run for one of them is the operator's choice to
+  /// make, never a default.
+  static const Set<TriggerType> qualityTriggerTypes = {
+    TriggerType.hfrDegraded,
+    TriggerType.focusDrift,
+    TriggerType.guidingFailed,
+    TriggerType.driftLimit,
+    TriggerType.transparencyDropped,
+  };
+
+  /// This node watching [value]. A node still at its default Retry — which on
+  /// a trigger means "pause the run after that many firings" — gets Notify
+  /// when it is given a quality trigger (owner decision 2026-10-06: only a
+  /// risk to the hardware stops a run by itself). An action the operator
+  /// chose is kept.
+  RecoveryNode withTriggerType(TriggerType? value) {
+    final notify =
+        value != null &&
+        qualityTriggerTypes.contains(value) &&
+        recoveryAction == RecoveryActionType.retry;
+    return copyWith(
+      triggerType: value,
+      recoveryAction: notify ? RecoveryActionType.notify : null,
+    );
+  }
+
   @override
   List<Object?> get props => [
     ...super.props,

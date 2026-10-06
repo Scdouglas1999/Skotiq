@@ -766,7 +766,7 @@ class _RecoveryProperties extends ConsumerWidget {
             },
             onChanged: (value) {
               ref.read(currentSequenceProvider.notifier).updateNode(
-                    node.copyWith(triggerType: value),
+                    node.withTriggerType(value),
                   );
             },
           ),
@@ -800,6 +800,8 @@ class _RecoveryProperties extends ConsumerWidget {
                   return 'Slew to Gap and Continue';
                 case RecoveryActionType.switchTargetOrFilter:
                   return 'Switch Target or Filter';
+                case RecoveryActionType.notify:
+                  return 'Notify me and keep imaging';
               }
             },
             onChanged: (value) {

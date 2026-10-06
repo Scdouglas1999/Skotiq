@@ -2694,6 +2694,19 @@ struct GuidingFailureRun {
 /// Guiding Failure trigger's limit is 0.5 px, so it would fire every couple of
 /// seconds for as long as the run lasts.
 async fn run_with_bad_guiding(stop_on_quality_problems: bool) -> GuidingFailureRun {
+    run_with_bad_guiding_trigger(
+        stop_on_quality_problems,
+        "guiding_failed",
+        crate::RecoveryAction::Retry { max_attempts: 3 },
+    )
+    .await
+}
+
+async fn run_with_bad_guiding_trigger(
+    stop_on_quality_problems: bool,
+    trigger_id: &str,
+    action: crate::RecoveryAction,
+) -> GuidingFailureRun {
     let mut sequence = SequenceDefinition::new("New Sequence".to_string());
     sequence.nodes.push(crate::NodeDefinition {
         id: "wait".to_string(),
@@ -2715,14 +2728,14 @@ async fn run_with_bad_guiding(stop_on_quality_problems: bool) -> GuidingFailureR
         }
         manager.add_trigger(
             Trigger::new(
-                "guiding_failed",
+                trigger_id,
                 "Guiding Failure",
                 crate::TriggerType::GuidingFailed {
                     rms_threshold: 0.5,
                     duration_secs: 1.0,
                     rms_retention_secs: crate::default_guiding_rms_retention_secs(),
                 },
-                crate::RecoveryAction::Retry { max_attempts: 3 },
+                action,
             )
             .with_cooldown(1),
         );
@@ -2937,5 +2950,70 @@ async fn a_drift_recenter_that_cannot_solve_pauses_when_the_operator_asked_for_i
         run.errors.iter().any(|e| e.contains("recenter failed")),
         "{:?}",
         run.errors
+    );
+}
+
+/// A trigger the operator set to Notify (the action the node editor now gives a
+/// Recovery node's quality trigger) tells once per episode and never holds
+/// the run, whatever the quality policy says: it is the operator's own choice.
+#[tokio::test]
+async fn a_recovery_node_trigger_set_to_notify_tells_once_and_never_holds() {
+    let run = run_with_bad_guiding_trigger(
+        true,
+        "operator_guiding_watch",
+        crate::RecoveryAction::Notify,
+    )
+    .await;
+    assert_eq!(run.fired, vec!["operator_guiding_watch -> Notify"]);
+    assert!(!run.recovery_started);
+    assert_eq!(run.state, ExecutorState::Running);
+}
+
+/// A Recovery node set to Notify whose steps keep failing reports Success
+/// after its retries, so the run goes on past it, and tells the operator.
+#[tokio::test]
+async fn a_recovery_node_set_to_notify_carries_on_and_tells_the_operator() {
+    let config = crate::RecoveryConfig {
+        trigger: None,
+        recovery_action: crate::RecoveryAction::Notify,
+        max_retries: 1,
+    };
+    let mut node = crate::node::RuntimeNode::from_definition(crate::NodeDefinition {
+        id: "recovery".to_string(),
+        name: "Protect solve".to_string(),
+        node_type: crate::NodeType::Recovery(config.clone()),
+        enabled: true,
+        children: Vec::new(),
+    });
+    let runs = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    node.add_child(Box::new(AlwaysFails {
+        id: "solve".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 0.0 }),
+        runs: runs.clone(),
+        children: Vec::new(),
+    }));
+    let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
+    let mut context = crate::node::ExecutionContext::new("recovery".to_string(), ops);
+    let (event_tx, mut events) = broadcast::channel(64);
+    context.event_tx = Some(event_tx);
+    let (decision_tx, mut decisions) = broadcast::channel(64);
+    context.decision_tx = Some(decision_tx);
+
+    let status =
+        crate::node::logic::recovery::execute_recovery(&mut node, config, &mut context).await;
+
+    assert_eq!(status, NodeStatus::Success);
+    assert_eq!(runs.load(std::sync::atomic::Ordering::SeqCst), 2);
+    let summaries: Vec<String> = std::iter::from_fn(|| decisions.try_recv().ok())
+        .map(|d| d.summary)
+        .collect();
+    assert_eq!(summaries, vec![super::QUALITY_PROBLEM_CONTINUED_SUMMARY]);
+    let warned = std::iter::from_fn(|| events.try_recv().ok()).any(|e| {
+        matches!(e, ExecutorEvent::Warning { message }
+            if message.contains("Recovery 'Protect solve'") && message.contains("failed 2 times"))
+    });
+    assert!(
+        warned,
+        "the operator is told which node gave up and how often"
     );
 }

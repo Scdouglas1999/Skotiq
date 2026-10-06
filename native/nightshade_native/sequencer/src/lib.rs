@@ -3000,6 +3000,15 @@ pub enum RecoveryAction {
     ///      action falls back to `PauseAndWaitForClear` rather than
     ///      silently no-oping.
     SwitchTargetOrFilter,
+    /// Tell the operator and keep imaging. On a trigger: once per episode (a
+    /// TriggerFired with action `Notify` and a Warning), then nothing more
+    /// until the trigger has been quiet for its cooldown and a minute. On a
+    /// Recovery node whose steps keep failing: the node reports Success after
+    /// its retries and the operator gets a "Problem noticed — the run
+    /// continues" notice. What the node editor gives a quality trigger (HFR,
+    /// focus drift, guiding RMS, drift, transparency) — owner decision
+    /// 2026-10-06: only a risk to the hardware stops a run by itself.
+    Notify,
 }
 
 #[cfg(test)]

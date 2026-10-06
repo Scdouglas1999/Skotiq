@@ -402,7 +402,10 @@ pub(crate) fn apply_quality_policy(
     fired: FiredTriggerAction,
     stop_on_quality_problems: bool,
 ) -> FiredTriggerAction {
-    if trigger_id == GUIDING_FAILED_TRIGGER_ID && !stop_on_quality_problems {
+    // An operator-authored Notify always notifies.
+    if matches!(fired.action, RecoveryAction::Notify)
+        || (trigger_id == GUIDING_FAILED_TRIGGER_ID && !stop_on_quality_problems)
+    {
         FiredTriggerAction {
             notify_only: true,
             ..fired
@@ -437,6 +440,28 @@ pub(crate) fn quality_trigger_notice(
                  while the guider is still guiding"
             )
         }
+        Some(TriggerType::HfrDegraded { .. } | TriggerType::FocusDrift { .. }) => {
+            match (state.current_hfr, state.baseline_hfr) {
+                (Some(hfr), Some(baseline)) => {
+                    format!("HFR is {hfr:.2} px against a baseline of {baseline:.2} px")
+                }
+                (Some(hfr), None) => format!("HFR is {hfr:.2} px"),
+                _ => "its condition holds".to_string(),
+            }
+        }
+        Some(TriggerType::DriftLimit { max_pixels }) => match state.calculate_drift_pixels() {
+            Some((ra, dec)) => format!(
+                "the last plate solve is {:.0} px from the target (limit {max_pixels:.0} px)",
+                ra.hypot(dec)
+            ),
+            None => "its condition holds".to_string(),
+        },
+        Some(TriggerType::TransparencyDropped {
+            below_threshold, ..
+        }) => match state.current_transparency {
+            Some(t) => format!("transparency is {t:.2} (limit {below_threshold:.2})"),
+            None => "its condition holds".to_string(),
+        },
         _ => "its condition holds".to_string(),
     };
     format!(

@@ -2502,6 +2502,10 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                         }
                     }
                 }
+                // A notify-only firing (`Notify`, or a quality trigger under the
+                // default policy) told the operator and moved on above, before
+                // the in-flight guard; nothing reaches here with it.
+                RecoveryAction::Notify => {}
                 RecoveryAction::Continue => {
                     // explicit no-op handler so the
                     // match is exhaustive on every variant. The

@@ -380,6 +380,11 @@ enum RecoveryActionType {
   // pre-configured backup plan (backup filter and/or backup target id)
   // and either swaps the filter, skips to the backup target, or both.
   switchTargetOrFilter,
+  // Tell the operator and keep imaging: once per episode on a trigger, and
+  // after the retries on a node whose steps keep failing. What a quality
+  // trigger gets in the editor (see [RecoveryNode.withTriggerType]); owner
+  // decision 2026-10-06: only a risk to the hardware stops a run by itself.
+  notify,
 }
 
 /// Trigger type.
