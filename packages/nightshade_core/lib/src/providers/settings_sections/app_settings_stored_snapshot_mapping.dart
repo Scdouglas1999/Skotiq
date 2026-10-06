@@ -98,6 +98,10 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
       ),
       ditherEnabled: _parseBool(allSettings['dither_enabled'], true),
       ditherEveryFrames: _parseInt(allSettings['dither_every_frames'], 3),
+      cameraRetries: _parseDeviceRetries(allSettings['camera_retries']),
+      filterWheelRetries: _parseDeviceRetries(
+        allSettings['filter_wheel_retries'],
+      ),
       safetyFailMode: _parseSafetyFailMode(allSettings['safety_fail_mode']),
 
       // Plate Solving
@@ -549,6 +553,8 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
       'auto_focus_every_minutes': s.autoFocusEveryMinutes.toString(),
       'dither_enabled': s.ditherEnabled.toString(),
       'dither_every_frames': s.ditherEveryFrames.toString(),
+      'camera_retries': s.cameraRetries.toString(),
+      'filter_wheel_retries': s.filterWheelRetries.toString(),
       'safety_fail_mode': s.safetyFailMode.name,
 
       // Plate Solving
@@ -901,6 +907,13 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
     if (value == null) return defaultValue;
     return int.tryParse(value) ?? defaultValue;
   }
+
+  /// A stored camera or filter-wheel retry count, held to the range the
+  /// executor accepts so a hand-edited row cannot make every launch push fail.
+  int _parseDeviceRetries(
+    String? value, [
+    int defaultValue = kDefaultDeviceRetries,
+  ]) => _parseInt(value, defaultValue).clamp(0, kMaxDeviceRetries);
 
   SafetyFailMode _parseSafetyFailMode(String? value) {
     if (value == null) return SafetyFailMode.failClosed;

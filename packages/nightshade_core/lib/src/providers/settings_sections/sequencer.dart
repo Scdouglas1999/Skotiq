@@ -7,6 +7,7 @@
 //   * meridianFlipMinutes, autoFocusOnFilterChange, useFilterFocusOffsets
 //   * autoFocusEveryMinutes
 //   * ditherEnabled, ditherEveryFrames
+//   * cameraRetries, filterWheelRetries
 //
 // Does NOT own:
 //   * Per-instruction recovery defaults → see `recovery.dart`.
@@ -61,6 +62,18 @@ extension SequencerSettingsSection on AppSettingsNotifier {
   Future<void> setDitherEveryFrames(int value) async {
     await _saveSetting('dither_every_frames', value.toString());
     _patchState((s) => s.copyWith(ditherEveryFrames: value));
+  }
+
+  Future<void> setCameraRetries(int value) async {
+    final retries = value.clamp(0, kMaxDeviceRetries);
+    await _saveSetting('camera_retries', retries.toString());
+    _patchState((s) => s.copyWith(cameraRetries: retries));
+  }
+
+  Future<void> setFilterWheelRetries(int value) async {
+    final retries = value.clamp(0, kMaxDeviceRetries);
+    await _saveSetting('filter_wheel_retries', retries.toString());
+    _patchState((s) => s.copyWith(filterWheelRetries: retries));
   }
 
   // Sequencer editor layout — cross-restart UI persistence. The sequencer

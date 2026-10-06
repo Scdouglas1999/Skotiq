@@ -465,6 +465,22 @@ Future<void> apiSequencerSetParkPolicy({
       parkBeforeDawn: parkBeforeDawn,
     );
 
+/// Set how many times the sequencer retries a failed camera exposure and a
+/// failed filter-wheel move before the failure counts: the operator's "Camera
+/// retries" and "Filter wheel retries" settings, 3 each by default, 0 for a
+/// single attempt. Only faults that can clear are retried (a failed download,
+/// a timeout, a driver error); Stop, a device that reports itself not
+/// connected and a refused request are not. Takes effect on the next attempt
+/// of a running sequence.
+Future<void> apiSequencerSetDeviceRetries({
+  required int cameraRetries,
+  required int filterWheelRetries,
+}) => RustLib.instance.api
+    .crateApiSequencerRuntimeConfigApiSequencerSetDeviceRetries(
+      cameraRetries: cameraRetries,
+      filterWheelRetries: filterWheelRetries,
+    );
+
 /// User-tunable recovery defaults pushed from the Settings > Recovery Mode
 /// page. Field-for-field mirror of
 /// `nightshade_sequencer::recovery::RecoveryRuntimeConfig` so the FRB wire

@@ -642,6 +642,14 @@ class DisconnectedBackend
   }
 
   @override
+  Future<void> sequencerSetDeviceRetries({
+    required int cameraRetries,
+    required int filterWheelRetries,
+  }) async {
+    _throwNotConnected();
+  }
+
+  @override
   Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds) async {
     _throwNotConnected();
   }

@@ -17408,6 +17408,29 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sequencer__runtime_config__api_sequencer_set_decision_logging_enabledPtr
           .asFunction<void Function(int, bool)>();
 
+  void
+  wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries(
+    int port_,
+    int camera_retries,
+    int filter_wheel_retries,
+  ) {
+    return _wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries(
+      port_,
+      camera_retries,
+      filter_wheel_retries,
+    );
+  }
+
+  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retriesPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Uint32, ffi.Uint32)>
+      >(
+        'frbgen_nightshade_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries',
+      );
+  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries =
+      _wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retriesPtr
+          .asFunction<void Function(int, int, int)>();
+
   void wire__crate__api__sequencer__runtime_config__api_sequencer_set_devices(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_id,

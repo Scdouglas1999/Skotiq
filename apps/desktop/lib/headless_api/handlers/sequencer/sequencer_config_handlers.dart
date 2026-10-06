@@ -115,6 +115,32 @@ extension _SequencerConfig on SequencerHandlers {
     return jsonOk({'status': 'ok'});
   }
 
+  /// POST /api/sequencer/device-retries: how many times the executor retries a
+  /// failed camera exposure and a failed filter-wheel move.
+  Future<Response> _handleSequencerSetDeviceRetries(Request request) async {
+    _logInfo('[API] POST /api/sequencer/device-retries');
+    final payload = await readJsonObject(request);
+    final cameraRetries = requireInt(
+      payload,
+      'cameraRetries',
+      min: 0,
+      max: kMaxDeviceRetries,
+    );
+    final filterWheelRetries = requireInt(
+      payload,
+      'filterWheelRetries',
+      min: 0,
+      max: kMaxDeviceRetries,
+    );
+
+    final backend = container.read(sequencerBackendProvider);
+    await backend.sequencerSetDeviceRetries(
+      cameraRetries: cameraRetries,
+      filterWheelRetries: filterWheelRetries,
+    );
+    return jsonOk({'status': 'ok'});
+  }
+
   Future<Response> _handleSequencerSetSafetyCheckInterval(
     Request request,
   ) async {

@@ -1,5 +1,12 @@
 part of '../settings_provider.dart';
 
+/// Retries a failed camera exposure or filter-wheel move gets by default
+/// ("Camera retries", "Filter wheel retries").
+const int kDefaultDeviceRetries = 3;
+
+/// Highest retry count the executor accepts for either device.
+const int kMaxDeviceRetries = 10;
+
 class AppSettingsState {
   // General
   final bool startMinimized;
@@ -37,6 +44,14 @@ class AppSettingsState {
   final int autoFocusEveryMinutes;
   final bool ditherEnabled;
   final int ditherEveryFrames;
+
+  /// Times a failed camera exposure is retried before it counts as a failure
+  /// (0 = one attempt). Only faults that can clear are retried.
+  final int cameraRetries;
+
+  /// Times a failed filter-wheel move is retried before it counts as a
+  /// failure (0 = one attempt).
+  final int filterWheelRetries;
   final SafetyFailMode
   safetyFailMode; // How to behave when safety data unavailable
 
@@ -476,6 +491,8 @@ class AppSettingsState {
     this.autoFocusEveryMinutes = 60,
     this.ditherEnabled = true,
     this.ditherEveryFrames = 3,
+    this.cameraRetries = kDefaultDeviceRetries,
+    this.filterWheelRetries = kDefaultDeviceRetries,
     this.safetyFailMode = SafetyFailMode.failClosed,
 
     // Sequencer editor layout (null = use responsive default).

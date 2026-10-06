@@ -268,6 +268,13 @@ abstract final class NativeBridge {
     parkOnUnsafeWeather: parkOnUnsafeWeather,
     parkBeforeDawn: parkBeforeDawn,
   );
+  static Future<void> sequencerSetDeviceRetries({
+    required int cameraRetries,
+    required int filterWheelRetries,
+  }) => _nativeBridge.sequencerSetDeviceRetries(
+    cameraRetries: cameraRetries,
+    filterWheelRetries: filterWheelRetries,
+  );
   static Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds) =>
       _nativeBridge.sequencerSetSafetyCheckIntervalSeconds(seconds);
   static Future<void> sequencerSetSavePath({String? path}) =>

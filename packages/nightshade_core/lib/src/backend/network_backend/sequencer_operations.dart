@@ -259,6 +259,17 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   }
 
   @override
+  Future<void> sequencerSetDeviceRetries({
+    required int cameraRetries,
+    required int filterWheelRetries,
+  }) async {
+    await _post('sequencer/device-retries', {
+      'cameraRetries': cameraRetries,
+      'filterWheelRetries': filterWheelRetries,
+    });
+  }
+
+  @override
   Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds) async {
     await _post('sequencer/safety-check-interval', {'seconds': seconds});
   }

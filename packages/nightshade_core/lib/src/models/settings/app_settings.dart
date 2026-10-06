@@ -193,6 +193,14 @@ abstract class AppSettings with _$AppSettings {
     /// Park the mount before astronomical dawn at the end of the night.
     /// DB key `park_before_dawn`.
     @Default(true) bool parkBeforeDawn,
+    // Device retries.
+    /// Times a failed camera exposure is retried before it counts as a
+    /// failure (0 = one attempt). DB key `camera_retries`.
+    @Default(3) int cameraRetries,
+
+    /// Times a failed filter-wheel move is retried before it counts as a
+    /// failure (0 = one attempt). DB key `filter_wheel_retries`.
+    @Default(3) int filterWheelRetries,
     // Meridian flip detail.
     /// Master enable for automatic meridian flips. DB key `enable_meridian_flip`.
     @Default(true) bool enableMeridianFlip,

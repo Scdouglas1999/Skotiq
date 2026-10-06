@@ -115,6 +115,8 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
   recoveryAudibleAlertWhenEntered:
       json['recoveryAudibleAlertWhenEntered'] as bool? ?? true,
   parkBeforeDawn: json['parkBeforeDawn'] as bool? ?? true,
+  cameraRetries: (json['cameraRetries'] as num?)?.toInt() ?? 3,
+  filterWheelRetries: (json['filterWheelRetries'] as num?)?.toInt() ?? 3,
   enableMeridianFlip: json['enableMeridianFlip'] as bool? ?? true,
   tempCompensation: json['tempCompensation'] as bool? ?? false,
   tempCoefficient: (json['tempCoefficient'] as num?)?.toDouble() ?? -12.0,
@@ -304,6 +306,8 @@ Map<String, dynamic> _$AppSettingsToJson(
   'recoveryAbortOnMeridian': instance.recoveryAbortOnMeridian,
   'recoveryAudibleAlertWhenEntered': instance.recoveryAudibleAlertWhenEntered,
   'parkBeforeDawn': instance.parkBeforeDawn,
+  'cameraRetries': instance.cameraRetries,
+  'filterWheelRetries': instance.filterWheelRetries,
   'enableMeridianFlip': instance.enableMeridianFlip,
   'tempCompensation': instance.tempCompensation,
   'tempCoefficient': instance.tempCoefficient,

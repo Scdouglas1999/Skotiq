@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1660474643;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1613377637;
 
 // Section: executor
 
@@ -7570,6 +7570,17 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_decision_loggi
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_set_decision_logging_enabled", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_enabled = enabled.cst_decode(); move |context| async move {
                     transform_result_dco::<_, _, crate::error::NightshadeError>((move || async move {
                          let output_ok = crate::api::sequencer::runtime_config::api_sequencer_set_decision_logging_enabled(api_enabled).await?;   Ok(output_ok)
+                    })().await)
+                } })
+}
+fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    camera_retries: impl CstDecode<u32>,
+    filter_wheel_retries: impl CstDecode<u32>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_set_device_retries", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_camera_retries = camera_retries.cst_decode();let api_filter_wheel_retries = filter_wheel_retries.cst_decode(); move |context| async move {
+                    transform_result_dco::<_, _, crate::error::NightshadeError>((move || async move {
+                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_set_device_retries(api_camera_retries, api_filter_wheel_retries).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -34863,6 +34874,19 @@ mod io {
     ) {
         wire__crate__api__sequencer__runtime_config__api_sequencer_set_decision_logging_enabled_impl(
             port_, enabled,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_nightshade_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries(
+        port_: i64,
+        camera_retries: u32,
+        filter_wheel_retries: u32,
+    ) {
+        wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries_impl(
+            port_,
+            camera_retries,
+            filter_wheel_retries,
         )
     }
 

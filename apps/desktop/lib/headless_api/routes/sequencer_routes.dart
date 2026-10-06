@@ -87,6 +87,11 @@ List<HeadlessRoute> buildSequencerRoutes(
   ),
   HeadlessRoute(
     HttpMethod.post,
+    '/api/sequencer/device-retries',
+    h.handleSequencerSetDeviceRetries,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
     '/api/sequencer/safety-check-interval',
     h.handleSequencerSetSafetyCheckInterval,
   ),

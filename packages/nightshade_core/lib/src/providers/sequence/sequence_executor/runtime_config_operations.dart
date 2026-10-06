@@ -266,6 +266,22 @@ extension _SequenceExecutorRuntimeConfigOperations on SequenceExecutor {
     );
   }
 
+  /// Push the operator's camera and filter-wheel retry counts to the executor.
+  Future<void> _pushDeviceRetries(
+    NightshadeBackend backend,
+    AppSettingsState settings,
+  ) async {
+    await backend.sequencerSetDeviceRetries(
+      cameraRetries: settings.cameraRetries,
+      filterWheelRetries: settings.filterWheelRetries,
+    );
+    _logger.debug(
+      'Device retries: camera=${settings.cameraRetries}, '
+      'filter wheel=${settings.filterWheelRetries}',
+      source: 'SequenceExecutor',
+    );
+  }
+
   /// Push every user-controlled RuntimeConfig field into the loaded executor.
   ///
   /// Reached through [SequenceExecutor.seedRuntimeConfigForNativeStart], the
@@ -371,6 +387,22 @@ extension _SequenceExecutorRuntimeConfigOperations on SequenceExecutor {
       firstStack ??= st;
       _logger.error(
         'Failed to seed the park settings: $e',
+        source: 'SequenceExecutor',
+      );
+    }
+
+    // Camera and filter-wheel retries. Without this push the executor keeps
+    // its own default (3 each) whatever the operator set.
+    try {
+      await _pushDeviceRetries(
+        backend,
+        await _ref.read(appSettingsProvider.future),
+      );
+    } catch (e, st) {
+      firstError ??= e;
+      firstStack ??= st;
+      _logger.error(
+        'Failed to seed the device retries: $e',
         source: 'SequenceExecutor',
       );
     }
@@ -889,6 +921,15 @@ extension _SequenceExecutorRuntimeConfigOperations on SequenceExecutor {
           _pushMidRun(
             'the park settings',
             () => _pushParkPolicy(backend, nextSettings),
+          );
+        }
+
+        if (prevSettings.cameraRetries != nextSettings.cameraRetries ||
+            prevSettings.filterWheelRetries !=
+                nextSettings.filterWheelRetries) {
+          _pushMidRun(
+            'the device retries',
+            () => _pushDeviceRetries(backend, nextSettings),
           );
         }
 

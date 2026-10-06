@@ -139,6 +139,22 @@ extension _NativeBridgeSequencerOperations on _NativeBridgeImplementation {
         'park before dawn=$parkBeforeDawn',
   );
 
+  /// Set how many times a failed camera exposure and a failed filter-wheel
+  /// move are retried before the failure counts
+  Future<void> sequencerSetDeviceRetries({
+    required int cameraRetries,
+    required int filterWheelRetries,
+  }) => _native(
+    'sequencerSetDeviceRetries',
+    () => gen_api.apiSequencerSetDeviceRetries(
+      cameraRetries: cameraRetries,
+      filterWheelRetries: filterWheelRetries,
+    ),
+    okLog:
+        'Set sequencer device retries: camera=$cameraRetries, '
+        'filter wheel=$filterWheelRetries',
+  );
+
   /// Set the safety/humidity polling interval for the sequencer
   Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds) => _native(
     'sequencerSetSafetyCheckIntervalSeconds',

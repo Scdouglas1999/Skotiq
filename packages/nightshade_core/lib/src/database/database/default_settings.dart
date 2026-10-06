@@ -72,6 +72,8 @@ const Map<String, String> _defaultSettings = {
   'auto_focus_every_minutes': '60',
   'dither_enabled': 'true',
   'dither_every_frames': '3',
+  'camera_retries': '3',
+  'filter_wheel_retries': '3',
   'safety_fail_mode': 'failClosed',
   'af_method': 'Star HFR',
   'af_curve_fitting': 'Hyperbolic',
