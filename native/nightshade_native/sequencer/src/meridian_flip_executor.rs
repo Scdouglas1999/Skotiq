@@ -125,6 +125,11 @@ pub struct MeridianFlipExecutor {
     /// Plumbed into the post-flip refocus InstructionContext so FITS-save
     /// failures and other instruction-level errors surface to UI subscribers.
     executor_event_tx: Option<broadcast::Sender<ExecutorEvent>>,
+    /// The run's decision log and its run id, so a post-flip refocus that did
+    /// not converge writes the row the app raises its "Autofocus failed —
+    /// continuing" notification from.
+    decision_tx: Option<crate::decision::DecisionSender>,
+    active_sequence_run_id: Arc<parking_lot::RwLock<Option<i64>>>,
     abort_requested: Arc<AtomicBool>,
     /// Number of flip attempts made by the most recent [`Self::execute`] call.
     /// `1` means the flip succeeded (or failed) on its first attempt; anything
@@ -149,6 +154,8 @@ impl MeridianFlipExecutor {
             event_emitter: FlipEventEmitter::new(),
             event_tx: None,
             executor_event_tx: None,
+            decision_tx: None,
+            active_sequence_run_id: Arc::new(parking_lot::RwLock::new(None)),
             abort_requested: Arc::new(AtomicBool::new(false)),
             attempts_made: 0,
             failed_attempts: Vec::new(),
@@ -179,6 +186,18 @@ impl MeridianFlipExecutor {
     /// errors emit only to the tracing log (silent for the user).
     pub fn with_executor_event_tx(mut self, tx: broadcast::Sender<ExecutorEvent>) -> Self {
         self.executor_event_tx = Some(tx);
+        self
+    }
+
+    /// Set the run's decision log, so the post-flip refocus records (and the
+    /// app announces) a refocus that did not converge.
+    pub fn with_decision_tx(
+        mut self,
+        tx: crate::decision::DecisionSender,
+        active_sequence_run_id: Arc<parking_lot::RwLock<Option<i64>>>,
+    ) -> Self {
+        self.decision_tx = Some(tx);
+        self.active_sequence_run_id = active_sequence_run_id;
         self
     }
 
@@ -1234,10 +1253,10 @@ impl MeridianFlipExecutor {
             )),
             current_wind_kph: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
             current_sensor_temp_c: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-            // Replay Debug — meridian flip refocus does not emit
-            // decisions; sender starts None.
-            decision_tx: None,
-            active_sequence_run_id: std::sync::Arc::new(parking_lot::RwLock::new(None)),
+            // The run's decision log when the caller attached one, so a refocus
+            // that did not converge is recorded and announced.
+            decision_tx: self.decision_tx.clone(),
+            active_sequence_run_id: self.active_sequence_run_id.clone(),
             // Dual-rig — meridian flip is not gated by the secondary barrier in
             // v1 (documented gap); the flip's own dither/recenter runs without
             // secondary coordination.
@@ -1263,7 +1282,24 @@ impl MeridianFlipExecutor {
             self.emit_event(MeridianFlipEvent::Progress { percent });
         };
 
+        let position_before = crate::instructions::read_autofocus_position(&instruction_ctx).await;
         let result = execute_autofocus(af_config, &instruction_ctx, Some(&progress_fn)).await;
+
+        // The flip itself is done: the mount is on its new pier side and
+        // tracking. A refocus that did not converge is reported and the run
+        // goes on at the previous focus. Failing the step instead sent it down
+        // the flip's retry ladder and then its failure action, which parks the
+        // mount (owner decision 2026-10-06: a failed autofocus never parks).
+        if crate::instructions::autofocus_failure_continues_the_run(&result) {
+            crate::instructions::notify_autofocus_failed_continuing(
+                &instruction_ctx,
+                "Post-flip autofocus",
+                &result,
+                position_before,
+            )
+            .await;
+            return Ok(());
+        }
 
         match result.status {
             crate::NodeStatus::Success => {
@@ -3516,5 +3552,79 @@ mod tests {
             rx.try_recv().is_err(),
             "only the mid-ladder notice belongs on the run stream"
         );
+    }
+
+    /// Owner decision 2026-10-06: a failed autofocus never parks the rig, and
+    /// the post-flip refocus is named in it. A refocus that did not converge
+    /// failed the flip, and the flip's failure action — AbortAndPark here —
+    /// parked the mount and ended the run. The mount is on the new pier side
+    /// and tracking; the run now carries on at the previous focus, and says so.
+    #[tokio::test]
+    #[allow(clippy::await_holding_lock)]
+    async fn a_failed_post_flip_refocus_notifies_and_the_flip_completes() {
+        let _serial = crate::AF_GATE_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.pier_sides.lock().unwrap().extend([
+            crate::meridian::PierSide::East,
+            crate::meridian::PierSide::West,
+        ]);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            pause_guiding: false,
+            auto_center: false,
+            refocus_after: true,
+            resume_guiding: false,
+            settle_time: 0.0,
+            max_retries: 0,
+            failure_action: FlipFailureAction::AbortAndPark,
+            retry_delays_secs: vec![0.01],
+            safety_action_retry_delay_secs: 0.01,
+            ..Default::default()
+        };
+        let (event_tx, mut events) = tokio::sync::broadcast::channel(256);
+        let (decision_tx, mut decisions) = tokio::sync::broadcast::channel(64);
+        let mut executor = MeridianFlipExecutor::new(config, ops)
+            .with_executor_event_tx(event_tx)
+            .with_decision_tx(decision_tx, Arc::new(parking_lot::RwLock::new(Some(7))));
+        let mut ctx = make_ctx(&state);
+        ctx.focuser_id = Some("mock-focuser".to_string());
+        ctx.autofocus_config = Some(PostFlipAutofocusConfig {
+            config: crate::AutofocusConfig {
+                number_of_attempts: 1,
+                steps_out: 1,
+                exposures_per_point: 1,
+                exposure_duration: 0.01,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+
+        let result = executor.execute(&ctx).await;
+
+        assert!(
+            matches!(result, FlipResult::Success { .. }),
+            "a refocus that missed is not a failed flip: {result:?}"
+        );
+        assert_eq!(state.park_calls.load(Ordering::Relaxed), 0);
+        let mut warnings = Vec::new();
+        while let Ok(event) = events.try_recv() {
+            if let ExecutorEvent::Warning { message } = event {
+                warnings.push(message);
+            }
+        }
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("Post-flip autofocus did not converge")),
+            "{warnings:?}"
+        );
+        let decision = decisions.try_recv().expect("the operator is notified");
+        assert_eq!(
+            decision.summary,
+            crate::executor::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY
+        );
+        assert_eq!(decision.sequence_run_id, Some(7));
     }
 }

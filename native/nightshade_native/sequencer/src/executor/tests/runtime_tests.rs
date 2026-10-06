@@ -2200,3 +2200,341 @@ async fn a_failed_trigger_autofocus_never_parks_and_the_run_carries_on() {
         );
     }
 }
+
+/// Owner decision 2026-10-06: a failed autofocus keeps the sequence going on
+/// the previous focus. An Autofocus NODE that did not converge returned
+/// `Failure`, which short-circuits its container: the rest of the target, and
+/// with it the night, ended at the first missed curve fit.
+#[tokio::test]
+#[allow(clippy::await_holding_lock)]
+async fn a_failed_autofocus_node_notifies_and_the_sequence_goes_on() {
+    let _serial = crate::AF_GATE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut sequence = SequenceDefinition::new("New Sequence".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "night".to_string(),
+        name: "Night".to_string(),
+        node_type: crate::NodeType::Loop(crate::LoopConfig::default()),
+        enabled: true,
+        children: vec!["refocus".to_string(), "after".to_string()],
+    });
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "refocus".to_string(),
+        name: "Refocus".to_string(),
+        node_type: crate::NodeType::Autofocus(
+            serde_json::from_value(serde_json::json!({
+                "number_of_attempts": 1,
+                "steps_out": 1,
+                "exposures_per_point": 1,
+                "exposure_duration": 0.01,
+                // A profile saved under the old default.
+                "failure_action": "AbortAndPark",
+            }))
+            .expect("a stored autofocus node config deserializes"),
+        ),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "after".to_string(),
+        name: "After autofocus".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 0.2 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("night".to_string());
+
+    let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(ops.clone());
+    executor.camera_id = Some("sim_camera_1".to_string());
+    executor.focuser_id = Some("sim_focuser_1".to_string());
+    executor.mount_id = Some("mount-1".to_string());
+    executor.cover_calibrator_id = Some("cover-1".to_string());
+    executor.dome_id = Some("dome-1".to_string());
+    {
+        let mut manager = executor.trigger_manager.write().await;
+        for id in [
+            "hfr_degraded",
+            "meridian_flip",
+            "guiding_failed",
+            "altitude_limit",
+            "weather_unsafe",
+            "temperature_shift",
+            "filter_change",
+            "dawn_approaching",
+            "autofocus_interval",
+            "dither_interval",
+            "mount_tracking_lost",
+        ] {
+            manager.remove_trigger(id);
+        }
+    }
+    let mut events = executor.subscribe();
+    let mut decision_rx = executor.subscribe_decisions();
+    executor.load_sequence(sequence).expect("sequence loads");
+    executor.start().await.expect("run starts");
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(90);
+    loop {
+        let state = executor.get_state().await;
+        if matches!(
+            state,
+            ExecutorState::Completed | ExecutorState::Failed | ExecutorState::Cancelled
+        ) {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the run never finished (state {state:?})"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    let mut completed = Vec::new();
+    let mut warnings = Vec::new();
+    let mut errors = Vec::new();
+    loop {
+        match events.try_recv() {
+            Ok(ExecutorEvent::NodeCompleted { id, status }) => completed.push((id, status)),
+            Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+            Ok(ExecutorEvent::Error { message }) => errors.push(message),
+            Ok(_) | Err(broadcast::error::TryRecvError::Lagged(_)) => continue,
+            Err(_) => break,
+        }
+    }
+    let mut decisions = Vec::new();
+    while let Ok(decision) = decision_rx.try_recv() {
+        decisions.push(decision.summary);
+    }
+    let state = executor.get_state().await;
+    let calls = ops.calls();
+    wait_for_the_autofocus_gate_to_clear().await;
+
+    assert!(
+        !calls.iter().any(|c| c.starts_with("mount_park")
+            || c.starts_with("cover_close")
+            || c.starts_with("dome_close")),
+        "a failed autofocus node moved or closed hardware: {calls:?}"
+    );
+    assert!(
+        completed
+            .iter()
+            .any(|(id, status)| id == "after" && *status == NodeStatus::Success),
+        "the node after the failed autofocus never ran: {completed:?} errors={errors:?}"
+    );
+    assert_eq!(
+        state,
+        ExecutorState::Completed,
+        "errors={errors:?} warnings={warnings:?}"
+    );
+    assert!(
+        decisions
+            .iter()
+            .any(|s| s == super::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY),
+        "the operator must be notified: {decisions:?}"
+    );
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.contains("did not converge") && w.contains("imaging continues")),
+        "{warnings:?}"
+    );
+}
+
+/// A child that fails every time it runs, standing in for whatever the
+/// recovery node is protecting.
+struct AlwaysFails {
+    id: crate::NodeId,
+    node_type: crate::NodeType,
+    runs: Arc<std::sync::atomic::AtomicUsize>,
+    children: Vec<Box<dyn crate::node::Node>>,
+}
+
+#[async_trait::async_trait]
+impl crate::node::Node for AlwaysFails {
+    fn id(&self) -> &crate::NodeId {
+        &self.id
+    }
+    fn name(&self) -> &str {
+        "always-fails"
+    }
+    fn node_type(&self) -> &crate::NodeType {
+        &self.node_type
+    }
+    fn is_enabled(&self) -> bool {
+        true
+    }
+    async fn execute(&mut self, _context: &mut crate::node::ExecutionContext) -> NodeStatus {
+        self.runs.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        NodeStatus::Failure
+    }
+    fn reset(&mut self) {}
+    async fn abort(&mut self) {}
+    fn children(&self) -> &[Box<dyn crate::node::Node>] {
+        &self.children
+    }
+    fn children_mut(&mut self) -> &mut Vec<Box<dyn crate::node::Node>> {
+        &mut self.children
+    }
+    fn mark_completed(&mut self, _node_id: &crate::NodeId) {}
+}
+
+/// A recovery node's refocus is a recovery step, not a verdict on the run: a
+/// recovery autofocus that did not converge returned `Failure` on the spot,
+/// spending none of the retries the operator configured and ending whatever
+/// the node protects. It now notifies and goes on to the next attempt on the
+/// previous focus.
+#[tokio::test]
+#[allow(clippy::await_holding_lock)]
+async fn a_failed_recovery_autofocus_notifies_and_the_retries_go_on() {
+    let _serial = crate::AF_GATE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let config = crate::RecoveryConfig {
+        trigger: None,
+        recovery_action: crate::RecoveryAction::Autofocus,
+        max_retries: 1,
+    };
+    let mut node = crate::node::RuntimeNode::from_definition(crate::NodeDefinition {
+        id: "recovery".to_string(),
+        name: "Recovery".to_string(),
+        node_type: crate::NodeType::Recovery(config.clone()),
+        enabled: true,
+        children: Vec::new(),
+    });
+    let runs = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    // The recovery refocus takes its settings from this child; the child
+    // itself never runs a sweep.
+    node.add_child(Box::new(AlwaysFails {
+        id: "refocus-settings".to_string(),
+        node_type: crate::NodeType::Autofocus(crate::AutofocusConfig {
+            number_of_attempts: 1,
+            steps_out: 1,
+            exposures_per_point: 1,
+            exposure_duration: 0.01,
+            ..Default::default()
+        }),
+        runs: runs.clone(),
+        children: Vec::new(),
+    }));
+    let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
+    let mut context = crate::node::ExecutionContext::new("recovery".to_string(), ops.clone());
+    context.camera_id = Some("sim_camera_1".to_string());
+    context.focuser_id = Some("sim_focuser_1".to_string());
+    context.mount_id = Some("mount-1".to_string());
+    let (event_tx, mut events) = broadcast::channel(256);
+    context.event_tx = Some(event_tx);
+    let (decision_tx, mut decisions) = broadcast::channel(64);
+    context.decision_tx = Some(decision_tx);
+
+    let status =
+        crate::node::logic::recovery::execute_recovery(&mut node, config, &mut context).await;
+    wait_for_the_autofocus_gate_to_clear().await;
+
+    assert_eq!(
+        runs.load(std::sync::atomic::Ordering::SeqCst),
+        2,
+        "the configured retry must still run after the recovery refocus failed"
+    );
+    // The protected work kept failing, so the node does too; what matters is
+    // that the refocus did not decide it.
+    assert_eq!(status, NodeStatus::Failure);
+    assert!(
+        !ops.calls().iter().any(|c| c.starts_with("mount_park")),
+        "{:?}",
+        ops.calls()
+    );
+    let mut summaries = Vec::new();
+    while let Ok(decision) = decisions.try_recv() {
+        summaries.push(decision.summary);
+    }
+    assert!(
+        summaries
+            .iter()
+            .any(|s| s == super::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY),
+        "{summaries:?}"
+    );
+    let mut warned = false;
+    while let Ok(event) = events.try_recv() {
+        if let ExecutorEvent::Warning { message } = event {
+            warned |= message.contains("Recovery autofocus did not converge");
+        }
+    }
+    assert!(warned, "the cause must reach the run's warnings");
+}
+
+/// An exposure trigger's refocus already let the burst carry on when it failed,
+/// but it reported the failure as an instruction failure — an Error, which the
+/// app announces as "Sequence failed" for a run that kept imaging.
+// The in-burst refocus runs a fixed 15-point sweep of 3 s exposures; paused
+// time lets the sweep's waits elapse without the test sitting through them.
+#[tokio::test(start_paused = true)]
+#[allow(clippy::await_holding_lock)]
+async fn a_failed_exposure_trigger_autofocus_is_a_notice_not_a_failed_run() {
+    let _serial = crate::AF_GATE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
+    let mut context = crate::node::ExecutionContext::new("lights".to_string(), ops.clone());
+    context.camera_id = Some("sim_camera_1".to_string());
+    context.focuser_id = Some("sim_focuser_1".to_string());
+    context.mount_id = Some("mount-1".to_string());
+    context.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(TriggerState::new())));
+    let (event_tx, mut events) = broadcast::channel(256);
+    context.event_tx = Some(event_tx);
+    let (decision_tx, mut decisions) = broadcast::channel(64);
+    context.decision_tx = Some(decision_tx);
+    let config = crate::ExposureConfig {
+        triggers: vec![crate::ExposureTrigger {
+            condition: crate::TriggerCondition::HfrAbove(3.0),
+            action: crate::TriggerAction::Autofocus,
+            debounce_secs: 0.0,
+        }],
+        ..Default::default()
+    };
+    let frame = crate::instructions::InstructionResult {
+        hfr_values: vec![5.0],
+        ..crate::instructions::InstructionResult::success()
+    };
+
+    crate::node::instructions::expose::check_exposure_triggers(
+        "lights",
+        &config,
+        &frame,
+        &mut context,
+    )
+    .await;
+    wait_for_the_autofocus_gate_to_clear().await;
+
+    let mut errors = Vec::new();
+    let mut warnings = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        match event {
+            ExecutorEvent::Error { message } => errors.push(message),
+            ExecutorEvent::InstructionFailed { node_name, message } => {
+                errors.push(format!("{node_name}: {message}"))
+            }
+            ExecutorEvent::Warning { message } => warnings.push(message),
+            _ => {}
+        }
+    }
+    assert!(errors.is_empty(), "{errors:?}");
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.contains("Exposure-triggered autofocus did not converge")),
+        "{warnings:?}"
+    );
+    let mut summaries = Vec::new();
+    while let Ok(decision) = decisions.try_recv() {
+        summaries.push(decision.summary);
+    }
+    assert!(
+        summaries
+            .iter()
+            .any(|s| s == super::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY),
+        "{summaries:?}"
+    );
+}

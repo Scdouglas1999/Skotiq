@@ -148,6 +148,10 @@ pub async fn execute_meridian_flip_with_autofocus(
     if let Some(event_tx) = ctx.event_tx.clone() {
         flip_executor = flip_executor.with_executor_event_tx(event_tx);
     }
+    if let Some(decision_tx) = ctx.decision_tx.clone() {
+        flip_executor =
+            flip_executor.with_decision_tx(decision_tx, ctx.active_sequence_run_id.clone());
+    }
 
     match flip_executor.execute(&flip_ctx).await {
         crate::meridian_flip_executor::FlipResult::Success {

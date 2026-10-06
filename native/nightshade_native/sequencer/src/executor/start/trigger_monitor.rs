@@ -1702,7 +1702,11 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                             // The executor emits the
                             // MeridianFlipOutcome verdict itself, so
                             // it needs the run's event stream.
-                            .with_executor_event_tx(event_tx_clone2.clone());
+                            .with_executor_event_tx(event_tx_clone2.clone())
+                            .with_decision_tx(
+                                decision_tx_for_lifecycle.clone(),
+                                active_run_id_for_decisions.clone(),
+                            );
 
                         let flip_result = flip_executor.execute(&flip_ctx).await;
                         // Hand the camera back the moment the

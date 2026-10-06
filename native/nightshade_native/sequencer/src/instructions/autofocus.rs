@@ -22,6 +22,80 @@ use super::*;
 /// against a 3.50 px limit) after its own log said the guider never came back.
 pub(crate) const AUTOFOCUS_GUIDING_NOT_RESTORED_KEY: &str = "autofocus_guiding_not_restored";
 
+/// Whether the run carries on past this autofocus result on the previous
+/// focus, rather than handing it to the caller's failure path.
+///
+/// Owner decision 2026-10-06: a failed autofocus never parks the rig or ends
+/// the night; the operator is notified and imaging continues on the focus the
+/// sweep restored. Two failures are not a missed focus and keep their own
+/// handling: a device that dropped off the bus (the disconnect-recovery path
+/// retries the instruction), and a sweep that left the guider stopped, after
+/// which every frame would be trailed.
+pub(crate) fn autofocus_failure_continues_the_run(result: &InstructionResult) -> bool {
+    if result.status != NodeStatus::Failure {
+        return false;
+    }
+    if result
+        .message
+        .as_deref()
+        .is_some_and(super::disconnect::is_device_disconnected_message)
+    {
+        return false;
+    }
+    crate::executor::autofocus_trigger_failure_cost(result.data.as_ref())
+        != crate::executor::AutofocusTriggerFailureCost::EveryFrameUnguided
+}
+
+/// Where the focuser is, or `None` with no focuser or a driver that will not
+/// answer. Read either side of a sweep so a failure notice can name the focus
+/// the run kept.
+pub(crate) async fn read_autofocus_position(ctx: &InstructionContext) -> Option<i32> {
+    ctx.device_ops
+        .focuser_get_position(ctx.focuser_id.as_deref()?)
+        .await
+        .ok()
+}
+
+/// Tell the operator that `source` did not converge and that imaging carries
+/// on: the continuation decision row (which raises the app's "Autofocus failed
+/// — continuing" notification) and a Warning in the run's feed naming the
+/// cause and where the focuser is. A Warning, not an Error: every sequencer
+/// Error is reported as a failed sequence, and this run has not failed.
+pub(crate) async fn notify_autofocus_failed_continuing(
+    ctx: &InstructionContext,
+    source: &str,
+    result: &InstructionResult,
+    position_before: Option<i32>,
+) {
+    let position_after = read_autofocus_position(ctx).await;
+    let origin_restored = result
+        .data
+        .as_ref()
+        .and_then(|data| data.get("autofocus_origin_restored"))
+        .and_then(serde_json::Value::as_bool);
+    // Why: the result's `message` is only set when the focus pipeline has a
+    // specific diagnostic; the failure itself is the status.
+    let reason = result
+        .message
+        .clone()
+        .unwrap_or_else(|| "autofocus did not converge".to_string());
+    let continuation = crate::executor::autofocus_failure_continuation(
+        source,
+        serde_json::json!({ "node_id": ctx.node_id }),
+        &reason,
+        position_before,
+        position_after,
+        origin_restored,
+    );
+    ctx.emit_decision(continuation.decision);
+    tracing::warn!("{}", continuation.operator_message);
+    if let Some(event_tx) = &ctx.event_tx {
+        let _ = event_tx.send(crate::executor::ExecutorEvent::Warning {
+            message: continuation.operator_message,
+        });
+    }
+}
+
 /// Process-wide hardware admission for autofocus. Every entry path ultimately
 /// calls this module (standalone bridge, sequence node, recovery, meridian
 /// flip), so a single atomic gate prevents two callers from sweeping the same

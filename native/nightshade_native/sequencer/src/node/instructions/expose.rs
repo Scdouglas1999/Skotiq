@@ -6,7 +6,8 @@
 
 use crate::expressions::{interpolate, EvaluationFrame};
 use crate::instructions::{
-    execute_autofocus, execute_exposure_with_renderer, resolve_burst_filter, BurstFilter,
+    autofocus_failure_continues_the_run, execute_autofocus, execute_exposure_with_renderer,
+    notify_autofocus_failed_continuing, read_autofocus_position, resolve_burst_filter, BurstFilter,
     FrameSavePathRenderer, InstructionResult,
 };
 use crate::node::context::ExecutionContext;
@@ -724,7 +725,7 @@ fn compute_hfr_median(values: &[f64]) -> Option<f64> {
 
 /// Evaluate per-exposure triggers (HFR, guiding-RMS, drift) and dispatch
 /// their actions.
-async fn check_exposure_triggers(
+pub(crate) async fn check_exposure_triggers(
     node_id: &str,
     config: &ExposureConfig,
     result: &InstructionResult,
@@ -855,9 +856,21 @@ async fn check_exposure_triggers(
                         ));
                     }
                 };
+                let position_before = read_autofocus_position(&inst_ctx).await;
                 let af_result = execute_autofocus(&af_config, &inst_ctx, Some(&progress_fn)).await;
 
-                if af_result.status == NodeStatus::Success {
+                if autofocus_failure_continues_the_run(&af_result) {
+                    // The burst carries on either way; this is a notice, not
+                    // an instruction failure, which the app would announce as
+                    // a failed sequence.
+                    notify_autofocus_failed_continuing(
+                        &inst_ctx,
+                        "Exposure-triggered autofocus",
+                        &af_result,
+                        position_before,
+                    )
+                    .await;
+                } else if af_result.status == NodeStatus::Success {
                     if let Some(best_hfr) = af_result.hfr_values.first() {
                         let mut trigger_state = trigger_state_lock.write().await;
                         trigger_state.update_hfr(*best_hfr);
