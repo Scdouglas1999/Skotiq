@@ -598,10 +598,16 @@ pub(crate) async fn move_autofocus_filter(
         .filter(|id| !id.is_empty())
         .ok_or_else(|| "no filter wheel is connected".to_string())?;
 
-    ctx.device_ops
-        .filterwheel_set_position(filterwheel_id, target_position)
-        .await
-        .map_err(|error| format!("filter move command failed: {}", error))?;
+    // The command is retried through transient wheel faults like any other
+    // filter change; the arrival check below stays this function's own.
+    move_filter_wheel(
+        ctx,
+        filterwheel_id,
+        WheelTarget::Position(target_position),
+        None,
+    )
+    .await
+    .map_err(|error| format!("filter move command failed: {}", error))?;
 
     // Cleanup still owns the wheel after cancellation, so this verification
     // intentionally does not consult the sequence cancellation token.

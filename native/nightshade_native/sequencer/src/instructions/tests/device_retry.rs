@@ -252,6 +252,28 @@ async fn a_failed_wheel_move_is_retried_and_the_filter_lands() {
     );
 }
 
+/// Autofocus moves to its own filter, and back, through the same retry: one
+/// failed move used to fail the autofocus run before a single frame.
+#[tokio::test(start_paused = true)]
+async fn the_autofocus_filter_move_is_retried() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().failing_filter_moves(&[WHEEL_ERROR]));
+    let (ctx, mut events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
+
+    let result = move_autofocus_filter(&ctx, "R", 2).await;
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(result, Ok(()));
+    assert_eq!(*ops.filter_moves.lock().unwrap(), vec![2, 2]);
+    assert_eq!(ops.filter_position.load(Ordering::SeqCst), 2);
+    let warnings = retry_warnings(&mut events);
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert!(
+        warnings[0].contains("Filter wheel failed moving to position 2"),
+        "{}",
+        warnings[0]
+    );
+}
+
 /// A wheel that accepts the move and never arrives is caught by the
 /// position read-back timeout, and the move is commanded again.
 #[tokio::test(start_paused = true)]
