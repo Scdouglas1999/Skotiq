@@ -723,6 +723,66 @@ fn compute_hfr_median(values: &[f64]) -> Option<f64> {
     Some(median)
 }
 
+/// Summary of the decision row a `Notify` exposure trigger writes; the
+/// app's notification classifier reads the TriggerFired event beside it.
+pub const EXPOSURE_TRIGGER_NOTIFY_SUMMARY: &str = "Exposure trigger fired — the run continues";
+
+/// Tell the operator that an exposure trigger's condition now holds, and that
+/// nothing was stopped. Once per episode: the caller only gets here when the
+/// condition did not hold on the trigger's previous evaluation.
+fn notify_exposure_trigger(
+    node_id: &str,
+    trigger_id: &str,
+    condition: &TriggerCondition,
+    current_hfr: Option<f64>,
+    latest_guiding_rms: Option<f64>,
+    context: &ExecutionContext,
+) {
+    let (trigger_name, measured) = match condition {
+        TriggerCondition::HfrAbove(threshold) => (
+            format!("HFR above {threshold:.2} px"),
+            current_hfr.map(|hfr| format!("the last frame measured {hfr:.2} px")),
+        ),
+        TriggerCondition::GuidingRmsAbove(threshold) => (
+            format!("Guiding RMS above {threshold:.2}\""),
+            latest_guiding_rms.map(|rms| format!("guiding measured {rms:.2}\" RMS")),
+        ),
+        TriggerCondition::DriftAbove { ra_px, dec_px } => (
+            format!("Drift above RA {ra_px:.1} px / Dec {dec_px:.1} px"),
+            None,
+        ),
+    };
+    let message = format!(
+        "Exposure trigger '{trigger_name}' on node '{node_id}'{}. Imaging continues; you will \
+         hear about this trigger again only after it clears and fires again.",
+        measured.map(|m| format!(": {m}")).unwrap_or_default(),
+    );
+    tracing::warn!("{}", message);
+    if let Some(event_tx) = &context.event_tx {
+        let _ = event_tx.send(crate::executor::ExecutorEvent::TriggerFired {
+            trigger_id: trigger_id.to_string(),
+            trigger_name: trigger_name.clone(),
+            action: "Notify".to_string(),
+        });
+        let _ = event_tx.send(crate::executor::ExecutorEvent::Warning {
+            message: message.clone(),
+        });
+    }
+    context.emit_decision(
+        crate::decision::DecisionEvent::new(
+            crate::decision::DecisionCategory::TriggerFired,
+            EXPOSURE_TRIGGER_NOTIFY_SUMMARY.to_string(),
+            serde_json::json!({
+                "trigger_id": trigger_id,
+                "trigger_name": trigger_name,
+                "action": "Notify",
+                "message": message,
+            }),
+        )
+        .with_node(node_id.to_string()),
+    );
+}
+
 /// Evaluate per-exposure triggers (HFR, guiding-RMS, drift) and dispatch
 /// their actions.
 pub(crate) async fn check_exposure_triggers(
@@ -753,7 +813,7 @@ pub(crate) async fn check_exposure_triggers(
         // it inside the match arm and tokio's RwLock is not re-entrant.
     };
 
-    for trigger in &config.triggers {
+    for (index, trigger) in config.triggers.iter().enumerate() {
         let should_fire = match &trigger.condition {
             TriggerCondition::HfrAbove(threshold) => match current_hfr {
                 Some(hfr) => hfr > *threshold,
@@ -791,9 +851,18 @@ pub(crate) async fn check_exposure_triggers(
             }
         };
 
+        let episode_key = format!("{node_id}#{index}");
         if !should_fire {
+            context
+                .exposure_trigger_episodes
+                .lock()
+                .remove(&episode_key);
             continue;
         }
+        let new_episode = context
+            .exposure_trigger_episodes
+            .lock()
+            .insert(episode_key.clone());
 
         tracing::warn!(
             "Exposure trigger fired: {:?} - action: {:?}",
@@ -802,6 +871,18 @@ pub(crate) async fn check_exposure_triggers(
         );
 
         match &trigger.action {
+            TriggerAction::Notify => {
+                if new_episode {
+                    notify_exposure_trigger(
+                        node_id,
+                        &episode_key,
+                        &trigger.condition,
+                        current_hfr,
+                        latest_guiding_rms,
+                        context,
+                    );
+                }
+            }
             TriggerAction::PauseAndRecalibrate => {
                 tracing::info!("Pausing sequence due to exposure trigger");
                 context.send_progress(ProgressUpdate::lifecycle(

@@ -1706,11 +1706,23 @@ pub enum TriggerCondition {
     DriftAbove { ra_px: f64, dec_px: f64 },
 }
 
+/// What an exposure trigger does when its condition holds after a burst.
+///
+/// HFR, guiding RMS and drift are the software's judgment of the frames, and
+/// that judgment can be wrong, so the action the node editor gives a new
+/// trigger is `Notify` (owner decision 2026-10-06: only a risk to the hardware
+/// stops a run by itself). `PauseAndRecalibrate` and `Abort` stay for the
+/// operator who picks them.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TriggerAction {
+    /// Hold the run until the operator resumes it.
     PauseAndRecalibrate,
     Autofocus,
+    /// End the run.
     Abort,
+    /// Tell the operator once per episode (the first burst the condition
+    /// holds after one where it did not) and keep imaging.
+    Notify,
 }
 
 // Existing Configurations

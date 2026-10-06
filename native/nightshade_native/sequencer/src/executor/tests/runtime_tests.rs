@@ -2538,3 +2538,146 @@ async fn a_failed_exposure_trigger_autofocus_is_a_notice_not_a_failed_run() {
         "{summaries:?}"
     );
 }
+
+/// A context for evaluating exposure triggers outside a run, with its event
+/// and decision streams.
+fn exposure_trigger_context() -> (
+    crate::node::ExecutionContext,
+    broadcast::Receiver<ExecutorEvent>,
+    broadcast::Receiver<crate::decision::DecisionEvent>,
+) {
+    let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
+    let mut context = crate::node::ExecutionContext::new("lights".to_string(), ops);
+    context.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(TriggerState::new())));
+    let (event_tx, events) = broadcast::channel(256);
+    context.event_tx = Some(event_tx);
+    let (decision_tx, decisions) = broadcast::channel(64);
+    context.decision_tx = Some(decision_tx);
+    (context, events, decisions)
+}
+
+fn hfr_trigger(action: crate::TriggerAction) -> crate::ExposureConfig {
+    crate::ExposureConfig {
+        triggers: vec![crate::ExposureTrigger {
+            condition: crate::TriggerCondition::HfrAbove(3.0),
+            action,
+            debounce_secs: 0.0,
+        }],
+        ..Default::default()
+    }
+}
+
+fn burst_at_hfr(hfr: f64) -> crate::instructions::InstructionResult {
+    crate::instructions::InstructionResult {
+        hfr_values: vec![hfr],
+        ..crate::instructions::InstructionResult::success()
+    }
+}
+
+/// Owner decision 2026-10-06: an image-quality judgment (HFR, guiding RMS,
+/// drift) never stops a run by itself; the operator is told and imaging goes
+/// on. A `Notify` trigger tells once per episode, not once per burst.
+#[tokio::test]
+async fn a_notify_exposure_trigger_tells_once_per_episode_and_never_stops_the_run() {
+    let (mut context, mut events, mut decisions) = exposure_trigger_context();
+    let config = hfr_trigger(crate::TriggerAction::Notify);
+
+    // Three soft bursts, a sharp one, then soft again: two episodes.
+    for hfr in [5.0, 5.5, 6.0, 2.0, 5.0] {
+        crate::node::instructions::expose::check_exposure_triggers(
+            "lights",
+            &config,
+            &burst_at_hfr(hfr),
+            &mut context,
+        )
+        .await;
+        assert!(
+            !context.is_paused.load(std::sync::atomic::Ordering::Relaxed),
+            "HFR {hfr}"
+        );
+        assert!(
+            !context
+                .is_cancelled
+                .load(std::sync::atomic::Ordering::Relaxed),
+            "HFR {hfr}"
+        );
+    }
+
+    let mut fired = Vec::new();
+    let mut warnings = Vec::new();
+    let mut errors = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        match event {
+            ExecutorEvent::TriggerFired {
+                trigger_name,
+                action,
+                ..
+            } => fired.push(format!("{trigger_name} -> {action}")),
+            ExecutorEvent::Warning { message } => warnings.push(message),
+            ExecutorEvent::Error { message } => errors.push(message),
+            _ => {}
+        }
+    }
+    assert_eq!(
+        fired,
+        vec!["HFR above 3.00 px -> Notify", "HFR above 3.00 px -> Notify"],
+        "one TriggerFired (the app's notification) per episode"
+    );
+    assert_eq!(warnings.len(), 2, "{warnings:?}");
+    assert!(
+        warnings[0].contains("5.00 px") && warnings[0].contains("Imaging continues"),
+        "{warnings:?}"
+    );
+    assert!(errors.is_empty(), "{errors:?}");
+    let mut summaries = Vec::new();
+    while let Ok(decision) = decisions.try_recv() {
+        summaries.push(decision.summary);
+    }
+    assert_eq!(
+        summaries,
+        vec![
+            crate::node::instructions::expose::EXPOSURE_TRIGGER_NOTIFY_SUMMARY,
+            crate::node::instructions::expose::EXPOSURE_TRIGGER_NOTIFY_SUMMARY,
+        ]
+    );
+}
+
+/// The stop actions stay for the operator who chose them.
+#[tokio::test]
+async fn an_exposure_trigger_set_to_abort_or_pause_still_does_it() {
+    let (mut context, _events, _decisions) = exposure_trigger_context();
+    crate::node::instructions::expose::check_exposure_triggers(
+        "lights",
+        &hfr_trigger(crate::TriggerAction::Abort),
+        &burst_at_hfr(5.0),
+        &mut context,
+    )
+    .await;
+    assert!(context
+        .is_cancelled
+        .load(std::sync::atomic::Ordering::Relaxed));
+
+    let (mut context, _events, _decisions) = exposure_trigger_context();
+    let is_paused = context.is_paused.clone();
+    let is_cancelled = context.is_cancelled.clone();
+    let held = tokio::spawn(async move {
+        crate::node::instructions::expose::check_exposure_triggers(
+            "lights",
+            &hfr_trigger(crate::TriggerAction::PauseAndRecalibrate),
+            &burst_at_hfr(5.0),
+            &mut context,
+        )
+        .await;
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    assert!(
+        is_paused.load(std::sync::atomic::Ordering::Relaxed),
+        "the run is held"
+    );
+    assert!(!held.is_finished(), "until the operator resumes it");
+    is_cancelled.store(true, std::sync::atomic::Ordering::Relaxed);
+    tokio::time::timeout(std::time::Duration::from_secs(2), held)
+        .await
+        .expect("a stop releases the hold")
+        .expect("no panic");
+}

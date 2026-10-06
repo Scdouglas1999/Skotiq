@@ -263,4 +263,61 @@ void main() {
       },
     );
   });
+
+  // Owner decision 2026-10-06: an image-quality judgment never stops a run by
+  // itself. A trigger the operator adds tells them and keeps imaging until they
+  // pick a stopping action.
+  group('TriggerConfigurationDialog — new triggers notify', () {
+    testWidgets('Add trigger gives a trigger that notifies and keeps imaging',
+        (tester) async {
+      List<ExposureTriggerConfig>? saved;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [inMemoryDatabaseOverride()],
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (ctx) => ElevatedButton(
+                  onPressed: () async {
+                    saved = await showDialog<List<ExposureTriggerConfig>>(
+                      context: ctx,
+                      builder: (_) => const TriggerConfigurationDialog(),
+                    );
+                  },
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add trigger'));
+      await tester.pumpAndSettle();
+      expect(find.text('→ Notify me and keep imaging'), findsOneWidget);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(saved, hasLength(1));
+      expect(saved!.single.action, TriggerActionType.notify);
+      expect(saved!.single.toNativeJson()['action'], 'Notify');
+    });
+
+    test('a stored action is kept, and Notify round-trips', () {
+      ExposureTriggerConfig read(String action) =>
+          ExposureTriggerConfig.fromNativeJson({
+            'condition': {'HfrAbove': 4.0},
+            'action': action,
+            'debounce_secs': 10.0,
+          });
+      expect(read('Notify').action, TriggerActionType.notify);
+      expect(
+        read('PauseAndRecalibrate').action,
+        TriggerActionType.pauseAndRecalibrate,
+      );
+      expect(read('Abort').action, TriggerActionType.abort);
+      expect(read('Autofocus').action, TriggerActionType.autofocus);
+    });
+  });
 }

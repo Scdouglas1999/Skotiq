@@ -343,6 +343,11 @@ pub struct ExecutionContext {
     /// Used to detect "something is systematically wrong" — focus has
     /// drifted, clouds have rolled in, etc.
     pub consecutive_rejects: Arc<std::sync::atomic::AtomicU32>,
+    /// Exposure triggers whose condition held on their last evaluation, keyed
+    /// by node id and trigger position. A `Notify` trigger tells the operator
+    /// when its key is added and stays quiet while it is present, so a soft
+    /// hour is one notification rather than one per burst.
+    pub exposure_trigger_episodes: Arc<parking_lot::Mutex<std::collections::HashSet<String>>>,
     /// Image Grading: cumulative accepted / rejected counters for
     /// the run. Surfaced to the dashboard quality panel via the progress
     /// callback.
@@ -694,6 +699,7 @@ impl ExecutionContext {
             hfr_baseline: Arc::new(RwLock::new(None)),
             hfr_baseline_samples: Arc::new(RwLock::new(Vec::new())),
             consecutive_rejects: Arc::new(std::sync::atomic::AtomicU32::new(0)),
+            exposure_trigger_episodes: Arc::default(),
             frames_accepted: Arc::new(std::sync::atomic::AtomicU32::new(0)),
             frames_rejected: Arc::new(std::sync::atomic::AtomicU32::new(0)),
             default_quality_check: None,
