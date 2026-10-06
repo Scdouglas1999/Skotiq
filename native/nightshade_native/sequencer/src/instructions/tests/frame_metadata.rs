@@ -636,6 +636,27 @@ mod consecutive_reject_limit {
         assert_eq!(s.rejected.load(Ordering::Relaxed), 8);
     }
 
+    /// The app raises its notifications by matching these summaries
+    /// verbatim, so a reworded summary here would silently stop the operator
+    /// being told.
+    #[test]
+    fn the_app_matches_the_summaries_it_notifies_on() {
+        let classifier = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../packages/nightshade_core/lib/src/services/notification/event_classifier.dart"
+        ))
+        .expect("the app's notification classifier is in the repository");
+        for summary in [
+            crate::instructions::IMAGE_GRADING_REJECT_STREAK_SUMMARY,
+            crate::executor::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY,
+        ] {
+            assert!(
+                classifier.contains(&format!("'{summary}'")),
+                "event_classifier.dart does not match {summary:?}"
+            );
+        }
+    }
+
     #[tokio::test]
     async fn a_limit_of_zero_never_notifies() {
         let mut s = storm().await;
