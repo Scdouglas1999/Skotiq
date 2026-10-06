@@ -109,7 +109,6 @@ extension AppSettingsStateCopyWith on AppSettingsState {
     int? afBinning,
     double? afRSquaredThreshold,
     double? afFailureHfrToleranceRatio,
-    String? afFailureAction,
     bool? afDisableGuidingDuringAf,
     int? afFocuserSettleTimeMs,
     int? afExposuresPerPoint,
@@ -314,7 +313,6 @@ extension AppSettingsStateCopyWith on AppSettingsState {
       afRSquaredThreshold: afRSquaredThreshold ?? this.afRSquaredThreshold,
       afFailureHfrToleranceRatio:
           afFailureHfrToleranceRatio ?? this.afFailureHfrToleranceRatio,
-      afFailureAction: afFailureAction ?? this.afFailureAction,
       afDisableGuidingDuringAf:
           afDisableGuidingDuringAf ?? this.afDisableGuidingDuringAf,
       afFocuserSettleTimeMs:

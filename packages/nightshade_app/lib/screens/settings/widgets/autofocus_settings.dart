@@ -14,6 +14,15 @@ part 'autofocus_settings/filter_settings_mobile_card.dart';
 part 'autofocus_settings/mobile_layout.dart';
 part 'autofocus_settings/filter_settings_builders.dart';
 
+/// What a failed autofocus does, stated where its one remaining setting
+/// lives. There is no failure action to choose: a failed autofocus never
+/// parks the mount or ends the run (owner decision 2026-10-06).
+const String kAfFailureToleranceSubtitle =
+    'A failed autofocus never parks or ends the run: the focuser goes back '
+    'where it was, you get a notification, and imaging continues. Frames '
+    'within this multiple of your good HFR are reported as usable. '
+    '0 = don’t judge the frames';
+
 class AutofocusSettingsPage extends ConsumerStatefulWidget {
   final bool isMobile;
 
@@ -178,7 +187,9 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
   }
 
   Widget _buildDesktopTwoColumnLayout(
-      AppSettingsState settings, AppSettingsNotifier notifier) {
+    AppSettingsState settings,
+    AppSettingsNotifier notifier,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
@@ -252,7 +263,8 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
                 _buildAfSettingRow(
                   icon: LucideIcons.sparkles,
                   title: 'Use brightest n stars',
-                  subtitle: '0 = use all detected stars',
+                  subtitle:
+                      'Default 10. 0 uses every detected star; faint ones skew the HFR',
                   trailing: _afNumberInput(
                     controller: _brightestNStarsController,
                     suffix: '',
@@ -305,9 +317,7 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
                 _buildAfSettingRow(
                   icon: LucideIcons.alertTriangle,
                   title: 'HFR tolerance on failure',
-                  subtitle:
-                      'Keep imaging while HFR stays within this multiple of '
-                      'your good HFR. 0 = stop on any failure',
+                  subtitle: kAfFailureToleranceSubtitle,
                   trailing: _afNumberInput(
                     controller: _failureToleranceController,
                     suffix: '\u00D7',
@@ -316,22 +326,6 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
                     decimals: 2,
                     onChanged: (value) =>
                         notifier.setAfFailureHfrToleranceRatio(value),
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.octagon,
-                  title: 'If focus is past tolerance',
-                  subtitle: 'What an unattended run does when focus is lost',
-                  trailing: SettingsDropdown(
-                    value: AutofocusSettings.failureActionLabel(
-                      settings.afFailureAction,
-                    ),
-                    items:
-                        AutofocusSettings.failureActionLabels.values.toList(),
-                    onChanged: (value) => notifier.setAfFailureAction(
-                      AutofocusSettings.failureActionFromLabel(value),
-                    ),
-                    width: 200,
                   ),
                   isLast: true,
                 ),
@@ -482,9 +476,9 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
             ? null
             : Border(
                 bottom: BorderSide(
-                  color: NightshadeColors.of(context)
-                      .border
-                      .withValues(alpha: 0.3),
+                  color: NightshadeColors.of(
+                    context,
+                  ).border.withValues(alpha: 0.3),
                 ),
               ),
       ),
@@ -495,11 +489,15 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
             height: 32,
             decoration: BoxDecoration(
               color: NightshadeColors.of(context).well,
-              borderRadius:
-                  BorderRadius.circular(NightshadeTokens.radiusButton),
+              borderRadius: BorderRadius.circular(
+                NightshadeTokens.radiusButton,
+              ),
             ),
-            child: Icon(icon,
-                size: 14, color: NightshadeColors.of(context).textSecondary),
+            child: Icon(
+              icon,
+              size: 14,
+              color: NightshadeColors.of(context).textSecondary,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -509,7 +507,8 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
                 Text(
                   title,
                   style: NightshadeTypography.labelSm.copyWith(
-                      color: NightshadeColors.of(context).textPrimary),
+                    color: NightshadeColors.of(context).textPrimary,
+                  ),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 1),

@@ -4,7 +4,9 @@ part of '../autofocus_settings.dart';
 
 extension _AutofocusMobileLayout on _AutofocusSettingsState {
   List<Widget> _buildMobileLayout(
-      AppSettingsState settings, AppSettingsNotifier notifier) {
+    AppSettingsState settings,
+    AppSettingsNotifier notifier,
+  ) {
     return [
       SettingRow(
         icon: LucideIcons.filter,
@@ -115,7 +117,8 @@ extension _AutofocusMobileLayout on _AutofocusSettingsState {
       SettingRow(
         icon: LucideIcons.sparkles,
         title: 'Use brightest n stars',
-        subtitle: '0 = use all detected stars',
+        subtitle:
+            'Default 10. 0 uses every detected star; faint ones skew the HFR',
         trailing: _afNumberInput(
           controller: _brightestNStarsController,
           suffix: '',
@@ -189,9 +192,7 @@ extension _AutofocusMobileLayout on _AutofocusSettingsState {
       SettingRow(
         icon: LucideIcons.alertTriangle,
         title: 'HFR tolerance on failure',
-        subtitle:
-            'Keep imaging while HFR stays within this multiple of your good '
-            'HFR. 0 = stop on any failure',
+        subtitle: kAfFailureToleranceSubtitle,
         trailing: _afNumberInput(
           controller: _failureToleranceController,
           suffix: '\u00D7',
@@ -200,20 +201,6 @@ extension _AutofocusMobileLayout on _AutofocusSettingsState {
           decimals: 2,
           onChanged: (value) => notifier.setAfFailureHfrToleranceRatio(value),
           isMobile: true,
-        ),
-        isMobile: true,
-      ),
-      SettingRow(
-        icon: LucideIcons.octagon,
-        title: 'If focus is past tolerance',
-        subtitle: 'What an unattended run does when focus is lost',
-        trailing: SettingsDropdown(
-          value: AutofocusSettings.failureActionLabel(settings.afFailureAction),
-          items: AutofocusSettings.failureActionLabels.values.toList(),
-          onChanged: (value) => notifier.setAfFailureAction(
-            AutofocusSettings.failureActionFromLabel(value),
-          ),
-          width: 200,
         ),
         isMobile: true,
       ),

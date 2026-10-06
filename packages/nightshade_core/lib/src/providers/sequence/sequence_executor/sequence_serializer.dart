@@ -213,7 +213,6 @@ class SequenceSerializer {
           : nodeOverrides.exposuresPerPoint,
       'r_squared_threshold': settings.rSquaredThreshold,
       'failure_hfr_tolerance_ratio': settings.failureHfrToleranceRatio,
-      'failure_action': settings.failureAction,
       'outer_crop_ratio': settings.outerCropRatio,
       'inner_crop_ratio': settings.innerCropRatio,
       'use_brightest_n_stars': settings.useBrightestNStars,

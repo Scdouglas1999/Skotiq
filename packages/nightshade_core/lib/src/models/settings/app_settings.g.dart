@@ -188,14 +188,13 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
   afExposureTime: (json['afExposureTime'] as num?)?.toDouble() ?? 4.0,
   afInitialOffsetSteps: (json['afInitialOffsetSteps'] as num?)?.toInt() ?? 4,
   afNumberOfAttempts: (json['afNumberOfAttempts'] as num?)?.toInt() ?? 1,
-  afUseBrightestNStars: (json['afUseBrightestNStars'] as num?)?.toInt() ?? 0,
+  afUseBrightestNStars: (json['afUseBrightestNStars'] as num?)?.toInt() ?? 10,
   afOuterCropRatio: (json['afOuterCropRatio'] as num?)?.toDouble() ?? 1.0,
   afInnerCropRatio: (json['afInnerCropRatio'] as num?)?.toDouble() ?? 0.0,
   afBinning: (json['afBinning'] as num?)?.toInt() ?? 1,
   afRSquaredThreshold: (json['afRSquaredThreshold'] as num?)?.toDouble() ?? 0.7,
   afFailureHfrToleranceRatio:
       (json['afFailureHfrToleranceRatio'] as num?)?.toDouble() ?? 1.6,
-  afFailureAction: json['afFailureAction'] as String? ?? 'AbortAndPark',
   afFocuserSettleTimeMs:
       (json['afFocuserSettleTimeMs'] as num?)?.toInt() ?? 500,
   afExposuresPerPoint: (json['afExposuresPerPoint'] as num?)?.toInt() ?? 1,
@@ -368,7 +367,6 @@ Map<String, dynamic> _$AppSettingsToJson(
   'afBinning': instance.afBinning,
   'afRSquaredThreshold': instance.afRSquaredThreshold,
   'afFailureHfrToleranceRatio': instance.afFailureHfrToleranceRatio,
-  'afFailureAction': instance.afFailureAction,
   'afFocuserSettleTimeMs': instance.afFocuserSettleTimeMs,
   'afExposuresPerPoint': instance.afExposuresPerPoint,
   'afBacklashCompMethod': instance.afBacklashCompMethod,

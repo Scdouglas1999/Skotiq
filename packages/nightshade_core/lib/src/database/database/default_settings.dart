@@ -79,16 +79,18 @@ const Map<String, String> _defaultSettings = {
   'af_exposure_time': '4.0',
   'af_initial_offset_steps': '4',
   // Two sweeps, not one: a single failed sweep is weak evidence (a passing
-  // cloud, a gust, a sparse field), and only a repeated failure should be
-  // allowed to act on af_failure_action and end a night.
+  // cloud, a gust, a sparse field), so a second sweep runs before the
+  // operator is told autofocus failed.
   'af_number_of_attempts': '2',
-  'af_use_brightest_n_stars': '0',
+  // Star selection on: the brightest 10 stars. Counting every detection read
+  // the owner's in-focus frame of 2026-09-14 at 13.8 px instead of 3.2 px
+  // (owner decision 2026-10-06).
+  'af_use_brightest_n_stars': '10',
   'af_outer_crop_ratio': '1.0',
   'af_inner_crop_ratio': '0.0',
   'af_binning': '1',
   'af_r_squared_threshold': '0.7',
   'af_failure_hfr_tolerance_ratio': '1.6',
-  'af_failure_action': 'AbortAndPark',
   'af_disable_guiding': 'false',
   'af_focuser_settle_time_ms': '500',
   'af_exposures_per_point': '1',
@@ -160,4 +162,10 @@ const Set<String> _retiredSettingKeys = {
   // only); the persisted toggle had no effect in any shippable configuration
   // and its plumbing is gone.
   'use_simulation_mode',
+  // Removed 2026-10: a failed autofocus never parks the rig or ends the run
+  // (owner decision 2026-10-06), so there is no failure action left to choose.
+  // The seeded default was 'AbortAndPark'; the native engine no longer reads
+  // the field, and a stored row would only keep exporting a choice that does
+  // nothing.
+  'af_failure_action',
 };

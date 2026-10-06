@@ -72,6 +72,48 @@ void main() {
     },
   );
 
+  // Owner decision 2026-10-06: autofocus star selection is on. An API caller
+  // that leaves it out gets the brightest 10 stars, the same as a profile
+  // that never set it; counting every detection read the owner's in-focus
+  // frame at 13.8 px instead of 3.2 px.
+  test('an autofocus request that leaves star selection out uses the brightest '
+      '10 stars', () async {
+    final backend = _PendingAutofocusBackend();
+    final container = ProviderContainer(
+      overrides: [
+        backendProvider.overrideWith(
+          (ref) => _TestBackendNotifier(ref, backend),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final jobs = JobManager(emitEvent: (_) {});
+    addTearDown(jobs.dispose);
+    final handlers = DeviceHandlers(container, jobManager: jobs);
+
+    final response = await handlers.handleAutofocusStart(
+      Request(
+        'POST',
+        Uri.parse('http://localhost/api/focuser/autofocus/start'),
+        headers: {'content-type': 'application/json'},
+        body: jsonEncode({
+          'deviceId': 'native:focuser:1',
+          'cameraId': 'native:camera:1',
+          'exposureTime': 2.0,
+          'stepSize': 50,
+          'stepsOut': 4,
+        }),
+      ),
+    );
+    final body = jsonDecode(await response.readAsString()) as Map;
+    final jobId = body['jobId'] as String;
+    await _pumpUntil(() => jobs.get(jobId)?.state == JobState.running);
+    expect(backend.useBrightestNStars, 10);
+
+    backend.pending.completeError(StateError('test over'));
+    await _pumpUntil(() => jobs.get(jobId)?.state != JobState.running);
+  });
+
   group('focuser travel-range validation', () {
     // Checking only the lower bound lets an ASCOM focuser advertising
     // maxPosition 50000 accept `move-to 999999` with 200 {"status":"moving"},
@@ -203,6 +245,7 @@ class _PendingAutofocusBackend extends DisconnectedBackend {
   int cancelCalls = 0;
   int? gain;
   int? offset;
+  int? useBrightestNStars;
 
   @override
   Future<AutofocusResult> autofocusStart({
@@ -230,6 +273,7 @@ class _PendingAutofocusBackend extends DisconnectedBackend {
   }) {
     this.gain = gain;
     this.offset = offset;
+    this.useBrightestNStars = useBrightestNStars;
     return pending.future;
   }
 

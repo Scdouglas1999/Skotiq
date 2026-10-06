@@ -235,7 +235,7 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
       afNumberOfAttempts: _parseInt(allSettings['af_number_of_attempts'], 1),
       afUseBrightestNStars: _parseInt(
         allSettings['af_use_brightest_n_stars'],
-        0,
+        10,
       ),
       afOuterCropRatio: _parseDouble(allSettings['af_outer_crop_ratio'], 1.0),
       afInnerCropRatio: _parseDouble(allSettings['af_inner_crop_ratio'], 0.0),
@@ -248,7 +248,6 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
         allSettings['af_failure_hfr_tolerance_ratio'],
         1.6,
       ),
-      afFailureAction: allSettings['af_failure_action'] ?? 'AbortAndPark',
       afDisableGuidingDuringAf: _parseBool(
         allSettings['af_disable_guiding'],
         false,
@@ -294,7 +293,7 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
       ),
       imageGradingEccentricityThreshold: _parseOptionalDouble(
         allSettings['image_grading_eccentricity_threshold'],
-        defaultIfMissing: 0.7,
+        defaultIfMissing: 0.8,
       ),
       imageGradingStarCountMin: _parseOptionalInt(
         allSettings['image_grading_star_count_min'],
@@ -646,7 +645,6 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
       'af_binning': s.afBinning.toString(),
       'af_r_squared_threshold': s.afRSquaredThreshold.toString(),
       'af_failure_hfr_tolerance_ratio': s.afFailureHfrToleranceRatio.toString(),
-      'af_failure_action': s.afFailureAction,
       'af_disable_guiding': s.afDisableGuidingDuringAf.toString(),
       'af_focuser_settle_time_ms': s.afFocuserSettleTimeMs.toString(),
       'af_exposures_per_point': s.afExposuresPerPoint.toString(),

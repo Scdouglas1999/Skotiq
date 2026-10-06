@@ -210,7 +210,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
       );
     }
     final useBrightestNStars =
-        optionalInt(payload, 'useBrightestNStars', min: 0, max: 500) ?? 0;
+        optionalInt(payload, 'useBrightestNStars', min: 0, max: 500) ?? 10;
     final focuserSettleTimeMs =
         optionalInt(payload, 'focuserSettleTimeMs', min: 0, max: 10000) ?? 500;
     final backlashCompMethod =

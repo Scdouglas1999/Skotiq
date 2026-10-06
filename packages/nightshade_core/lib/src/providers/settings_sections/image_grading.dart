@@ -129,8 +129,8 @@ extension ImageGradingSettingsSection on AppSettingsNotifier {
     _patchState((s) => s.copyWith(imageGradingStarCountMin: validated));
   }
 
-  /// Pause the sequence after this many consecutive rejects. Required;
-  /// the strategic-report default is 3. Values outside the UI's 1–100 range
+  /// Notify the operator once when this many frames in a row are rejected;
+  /// the run carries on. Required; the default is 3. Values outside the UI's 1–100 range
   /// are rejected so API callers cannot persist a value the settings page
   /// cannot represent.
   Future<void> setImageGradingMaxConsecutiveRejects(int value) async {

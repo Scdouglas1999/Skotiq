@@ -106,7 +106,8 @@ abstract class AppSettings with _$AppSettings {
     /// Reject if detected star count falls below this. `null` => don't apply.
     int? imageGradingStarCountMin,
 
-    /// Pause sequence after this many consecutive rejects (default 3).
+    /// Notify the operator once when this many frames in a row are rejected
+    /// (default 3). The run carries on.
     @Default(3) int imageGradingMaxConsecutiveRejects,
 
     /// Override for the reject folder. `null` => use `<save_path>/Reject/`.
@@ -391,7 +392,9 @@ abstract class AppSettings with _$AppSettings {
     @Default(1) int afNumberOfAttempts,
 
     /// AF brightest-N stars (0 = all). DB `af_use_brightest_n_stars`.
-    @Default(0) int afUseBrightestNStars,
+    /// On by default: counting every detection lets faint, noisy sources
+    /// swamp the measurement.
+    @Default(10) int afUseBrightestNStars,
 
     /// AF outer crop ratio. DB `af_outer_crop_ratio`.
     @Default(1.0) double afOuterCropRatio,
@@ -409,18 +412,12 @@ abstract class AppSettings with _$AppSettings {
     /// still be worth capturing after autofocus has failed.
     /// DB `af_failure_hfr_tolerance_ratio`.
     ///
-    /// A failed sweep is not automatically a ruined night: focus can end up
-    /// slightly soft for reasons that leave the data usable, while a focuser
-    /// that has run away to donuts wastes every further frame. At 1.6 a run
-    /// whose good HFR is 2.5 keeps imaging at 3.8 and stops at 10. Zero
-    /// disables the tolerance, making every failure unrecoverable.
+    /// A failed autofocus never parks the rig or ends the run: the focuser
+    /// goes back where it was, the operator is notified and imaging carries
+    /// on. This ratio decides what the notice says about the frames: at 1.6
+    /// a run whose good HFR is 2.5 is told frames at 3.8 are slightly soft
+    /// and frames at 10 are past the limit.
     @Default(1.6) double afFailureHfrToleranceRatio,
-
-    /// What to do when a failed autofocus leaves focus outside the tolerance.
-    /// DB `af_failure_action`. One of `AbortAndPark` or `PauseAndAlert` —
-    /// these are the wire values the native `AutofocusFailureAction` enum
-    /// deserializes, so they are not free text.
-    @Default('AbortAndPark') String afFailureAction,
 
     /// AF focuser settle time (ms). DB `af_focuser_settle_time_ms`.
     @Default(500) int afFocuserSettleTimeMs,

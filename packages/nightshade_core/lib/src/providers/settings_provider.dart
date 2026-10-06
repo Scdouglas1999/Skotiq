@@ -224,7 +224,6 @@ final autofocusSettingsProvider = Provider<AutofocusSettings>((ref) {
     binning: settings.afBinning,
     rSquaredThreshold: settings.afRSquaredThreshold,
     failureHfrToleranceRatio: settings.afFailureHfrToleranceRatio,
-    failureAction: settings.afFailureAction,
     disableGuidingDuringAf: settings.afDisableGuidingDuringAf,
     focuserSettleTimeMs: settings.afFocuserSettleTimeMs,
     exposuresPerPoint: settings.afExposuresPerPoint,

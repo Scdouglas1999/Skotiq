@@ -189,12 +189,9 @@ class AutofocusSettings extends Equatable {
   final double rSquaredThreshold;
 
   /// Multiple of the reference HFR that a failed autofocus may leave the
-  /// frames at and still be worth capturing. Zero disables the tolerance.
+  /// frames at and still be called usable in the operator's notice. A failed
+  /// autofocus never parks or ends the run, whatever this says.
   final double failureHfrToleranceRatio;
-
-  /// `AbortAndPark` or `PauseAndAlert` — the wire values of the native
-  /// `AutofocusFailureAction`.
-  final String failureAction;
   final bool disableGuidingDuringAf;
   final int focuserSettleTimeMs;
   final int exposuresPerPoint;
@@ -207,31 +204,6 @@ class AutofocusSettings extends Equatable {
   // Filter-specific
   final String autofocusFilterName;
   final Map<String, FilterAutofocusConfig> filterSettings;
-
-  /// What the operator sees for each `failureAction` wire value, and back.
-  ///
-  /// The wire values are what the native `AutofocusFailureAction` enum
-  /// deserializes, so they cannot be prettified in place; this is the one
-  /// place the mapping lives so a settings dropdown and a summary line cannot
-  /// drift into describing the same stored value differently.
-  static const Map<String, String> failureActionLabels = {
-    'AbortAndPark': 'Park and end the sequence',
-    'PauseAndAlert': 'Pause and alert me',
-  };
-
-  /// The wire value for a label from [failureActionLabels], falling back to
-  /// the safe action rather than writing something the engine cannot read.
-  static String failureActionFromLabel(String label) => failureActionLabels
-      .entries
-      .firstWhere(
-        (entry) => entry.value == label,
-        orElse: () => const MapEntry('AbortAndPark', ''),
-      )
-      .key;
-
-  /// The label for a stored wire value, tolerant of an unrecognised one.
-  static String failureActionLabel(String action) =>
-      failureActionLabels[action] ?? failureActionLabels['AbortAndPark']!;
 
   /// The curve-fitting strategies the app can solve a sweep with, and the
   /// single source of truth for every surface that offers the choice (the
@@ -254,13 +226,12 @@ class AutofocusSettings extends Equatable {
     this.exposureTime = 4.0,
     this.initialOffsetSteps = 4,
     this.numberOfAttempts = 2,
-    this.useBrightestNStars = 0,
+    this.useBrightestNStars = 10,
     this.outerCropRatio = 1.0,
     this.innerCropRatio = 0.0,
     this.binning = 1,
     this.rSquaredThreshold = 0.7,
     this.failureHfrToleranceRatio = 1.6,
-    this.failureAction = 'AbortAndPark',
     this.disableGuidingDuringAf = false,
     this.focuserSettleTimeMs = 500,
     this.exposuresPerPoint = 1,
@@ -284,7 +255,6 @@ class AutofocusSettings extends Equatable {
     int? binning,
     double? rSquaredThreshold,
     double? failureHfrToleranceRatio,
-    String? failureAction,
     bool? disableGuidingDuringAf,
     int? focuserSettleTimeMs,
     int? exposuresPerPoint,
@@ -308,7 +278,6 @@ class AutofocusSettings extends Equatable {
       rSquaredThreshold: rSquaredThreshold ?? this.rSquaredThreshold,
       failureHfrToleranceRatio:
           failureHfrToleranceRatio ?? this.failureHfrToleranceRatio,
-      failureAction: failureAction ?? this.failureAction,
       disableGuidingDuringAf:
           disableGuidingDuringAf ?? this.disableGuidingDuringAf,
       focuserSettleTimeMs: focuserSettleTimeMs ?? this.focuserSettleTimeMs,
@@ -388,7 +357,6 @@ class AutofocusSettings extends Equatable {
     binning,
     rSquaredThreshold,
     failureHfrToleranceRatio,
-    failureAction,
     disableGuidingDuringAf,
     focuserSettleTimeMs,
     exposuresPerPoint,

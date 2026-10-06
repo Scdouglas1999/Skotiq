@@ -333,8 +333,8 @@ extension _SequenceExecutorRuntimeConfigOperations on SequenceExecutor {
       // Autofocus node inside the sequence, so a sequence without one — which
       // is exactly the sequence whose interval trigger fires unattended — ran
       // every refocus on library defaults: not the operator's step size,
-      // exposure, backlash, nor their failure tolerance and failure action. An
-      // Autofocus node still wins; this is the floor, not an override.
+      // exposure, backlash, nor their failure tolerance. An Autofocus node
+      // still wins; this is the floor, not an override.
       final afSettings = _ref.read(autofocusSettingsProvider);
       await backend.sequencerUpdateAutofocusConfig(
         jsonEncode(
@@ -343,8 +343,7 @@ extension _SequenceExecutorRuntimeConfigOperations on SequenceExecutor {
       );
       _logger.debug(
         'Seeded trigger-autofocus config: attempts=${afSettings.numberOfAttempts}, '
-        'failure tolerance=${afSettings.failureHfrToleranceRatio}x, '
-        'failure action=${afSettings.failureAction}',
+        'failure tolerance=${afSettings.failureHfrToleranceRatio}x',
         source: 'SequenceExecutor',
       );
     } catch (e, st) {

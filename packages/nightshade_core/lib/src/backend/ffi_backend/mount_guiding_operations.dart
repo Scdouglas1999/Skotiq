@@ -158,7 +158,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     double rSquaredThreshold = 0.7,
     double outerCropRatio = 1.0,
     double innerCropRatio = 0.0,
-    int useBrightestNStars = 0,
+    int useBrightestNStars = 10,
     int focuserSettleTimeMs = 500,
     String backlashCompMethod = 'Overshoot',
     int backlashIn = 350,

@@ -194,13 +194,12 @@ class AppSettingsState {
   final double afExposureTime; // default exposure for AF frames
   final int afInitialOffsetSteps; // how many steps out from center
   final int afNumberOfAttempts; // retry count on failure
-  final int afUseBrightestNStars; // 0 = use all
+  final int afUseBrightestNStars; // 0 = use all; default 10
   final double afOuterCropRatio;
   final double afInnerCropRatio;
   final int afBinning;
   final double afRSquaredThreshold;
   final double afFailureHfrToleranceRatio;
-  final String afFailureAction;
   final bool afDisableGuidingDuringAf;
   final int afFocuserSettleTimeMs;
   final int afExposuresPerPoint;
@@ -242,7 +241,8 @@ class AppSettingsState {
   /// Reject if detected star count falls below this. `null` => don't apply.
   final int? imageGradingStarCountMin;
 
-  /// Pause sequence after this many consecutive rejects (default 3).
+  /// Notify the operator once when this many frames in a row are rejected
+  /// (default 3). The run carries on.
   final int imageGradingMaxConsecutiveRejects;
 
   /// Override for the reject folder. `null` => use `<save_path>/Reject/`.
@@ -570,13 +570,12 @@ class AppSettingsState {
     this.afExposureTime = 4.0,
     this.afInitialOffsetSteps = 4,
     this.afNumberOfAttempts = 1,
-    this.afUseBrightestNStars = 0,
+    this.afUseBrightestNStars = 10,
     this.afOuterCropRatio = 1.0,
     this.afInnerCropRatio = 0.0,
     this.afBinning = 1,
     this.afRSquaredThreshold = 0.7,
     this.afFailureHfrToleranceRatio = 1.6,
-    this.afFailureAction = 'AbortAndPark',
     this.afDisableGuidingDuringAf = false,
     this.afFocuserSettleTimeMs = 500,
     this.afExposuresPerPoint = 1,
@@ -593,7 +592,7 @@ class AppSettingsState {
     this.enableImageGrading = false,
     this.imageGradingHfrThresholdPx = 3.5,
     this.imageGradingHfrBaselinePercent = 50.0,
-    this.imageGradingEccentricityThreshold = 0.7,
+    this.imageGradingEccentricityThreshold = 0.8,
     this.imageGradingStarCountMin = 10,
     this.imageGradingMaxConsecutiveRejects = 3,
     this.imageGradingRejectFolderPath,

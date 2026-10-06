@@ -46,7 +46,9 @@ void main() {
 
     final settings = container.read(appSettingsProvider).value!;
     expect(settings.imageGradingHfrThresholdPx, 3.5);
-    expect(settings.imageGradingEccentricityThreshold, 0.7);
+    // The default (0.8 since the owner's 2026-10-06 decision), unchanged by
+    // the rejected 1.1.
+    expect(settings.imageGradingEccentricityThreshold, 0.8);
     expect(settings.imageGradingStarCountMin, 10);
     expect(settings.imageGradingMaxConsecutiveRejects, 3);
   });
