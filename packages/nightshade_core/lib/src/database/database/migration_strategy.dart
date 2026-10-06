@@ -302,6 +302,7 @@ extension _NightshadeDatabaseMigration on NightshadeDatabase {
     await _upgradeSchemaV57(m, from);
     await _upgradeSchemaV58(m, from);
     await _upgradeSchemaV59(m, from);
+    await _upgradeSchemaV60(m, from);
 
     await _ensureDefaultSettings();
     await _createCustomIndexes();
