@@ -110,7 +110,7 @@ pub struct BacklashCalibrationConfig {
     pub outer_crop_ratio: f64,
     #[serde(default)]
     pub inner_crop_ratio: f64,
-    #[serde(default)]
+    #[serde(default = "default_af_use_brightest_n_stars")]
     pub use_brightest_n_stars: u32,
     #[serde(default = "default_af_focuser_settle_time_ms")]
     pub focuser_settle_time_ms: u64,
@@ -142,7 +142,7 @@ impl Default for BacklashCalibrationConfig {
             r_squared_threshold: default_calibration_r_squared_threshold(),
             outer_crop_ratio: default_af_outer_crop_ratio(),
             inner_crop_ratio: 0.0,
-            use_brightest_n_stars: 0,
+            use_brightest_n_stars: default_af_use_brightest_n_stars(),
             focuser_settle_time_ms: default_af_focuser_settle_time_ms(),
             method: default_calibration_method(),
             outlier_rejection_sigma: default_af_outlier_rejection_sigma(),

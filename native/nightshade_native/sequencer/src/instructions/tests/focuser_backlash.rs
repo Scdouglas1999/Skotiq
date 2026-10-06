@@ -1338,3 +1338,34 @@ async fn the_rig_autofocus_lands_from_below_and_reports_the_frame_it_measured() 
         "the reported HFR is the verification frame's, not the fitted minimum"
     );
 }
+
+/// Owner, 2026-10-06: "Autofocus star selection should be on." With every
+/// detection counted, the in-focus crop of 2026-09-14 (2.12 px by an
+/// independent PSF fit) reads as badly out of focus, because the mean is
+/// dominated by faint, noisy detections; the rig ran with its brightest 10
+/// stars. A profile that never set the option gets the same.
+#[test]
+fn the_default_autofocus_star_selection_reads_an_in_focus_frame_as_in_focus() {
+    let config = AutofocusConfig::default();
+    let frame = rig_fixture("focused_L_0005.fits");
+    let measured = |stars: u32| {
+        calculate_hfr_with_crops(
+            &frame,
+            config.outer_crop_ratio,
+            config.inner_crop_ratio,
+            stars,
+        )
+        .hfr
+    };
+    let every_star = measured(0);
+    let default = measured(config.use_brightest_n_stars);
+    println!("focused_L_0005: default {default:.2} px, every star {every_star:.2} px");
+    assert!(
+        default < 4.0,
+        "the default reads the in-focus frame at {default:.2} px (every star: {every_star:.2} px)"
+    );
+    assert_eq!(
+        config.use_brightest_n_stars, 10,
+        "star selection is on by default"
+    );
+}

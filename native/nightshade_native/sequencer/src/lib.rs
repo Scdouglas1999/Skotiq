@@ -2037,8 +2037,9 @@ pub struct AutofocusConfig {
     /// Central image fraction excluded from star measurement [0, outer).
     #[serde(default)]
     pub inner_crop_ratio: f64,
-    /// Brightest stars used for HFR; zero means all eligible stars.
-    #[serde(default)]
+    /// Brightest stars used for HFR; zero means all eligible stars. On by
+    /// default (10): see [`default_af_use_brightest_n_stars`].
+    #[serde(default = "default_af_use_brightest_n_stars")]
     pub use_brightest_n_stars: u32,
     /// Extra mechanical settle after the driver first reports idle.
     #[serde(default = "default_af_focuser_settle_time_ms")]
@@ -2134,6 +2135,16 @@ fn default_af_r_squared_threshold() -> f64 {
     0.7
 }
 
+/// Star selection on, measuring the brightest 10 stars (owner, 2026-10-06:
+/// "Autofocus star selection should be on"). Counting every detection lets
+/// faint, noisy sources dominate the mean: the in-focus rig frame of
+/// 2026-09-14 (2.12 px by an independent PSF fit) reads 13.8 px over every
+/// star and 3.2 px over its brightest 10, which is what the rig ran with. A
+/// stored value, zero included, still wins.
+pub(crate) fn default_af_use_brightest_n_stars() -> u32 {
+    10
+}
+
 fn default_af_outer_crop_ratio() -> f64 {
     1.0
 }
@@ -2166,7 +2177,7 @@ impl Default for AutofocusConfig {
             r_squared_threshold: default_af_r_squared_threshold(),
             outer_crop_ratio: default_af_outer_crop_ratio(),
             inner_crop_ratio: 0.0,
-            use_brightest_n_stars: 0,
+            use_brightest_n_stars: default_af_use_brightest_n_stars(),
             focuser_settle_time_ms: default_af_focuser_settle_time_ms(),
             backlash_out_compensation: 0,
             disable_guiding_during_af: false,
