@@ -493,10 +493,12 @@ fn recorded_exposure_secs_keeps_the_command_when_the_report_is_impossible() {
     assert_eq!(recorded_exposure_secs(30.0, 0.0), 30.0);
 }
 
-/// The consecutive-reject limit is what turns a cloud bank into a paused run
-/// instead of a night of rejected lights. Nothing drove the counter: turning
-/// the limit check into `<`, `||`, or `consecutive > max`, or sending the
-/// recovery request on every frame instead of once, left every test green.
+/// The consecutive-reject limit tells the operator that frames keep failing
+/// grading; it never pauses, stops or parks the run (owner decision
+/// 2026-10-06: "this limit should never stop a sequence or end a night. Again,
+/// just notify users of these issues"). It used to hand the storm to the
+/// recovery driver, which paused the run (or parked it under the opt-in
+/// give-up policy), and repeated an Error banner on every further reject.
 mod consecutive_reject_limit {
     use super::*;
 
@@ -504,23 +506,53 @@ mod consecutive_reject_limit {
         ctx: InstructionContext,
         requests: tokio::sync::mpsc::Receiver<crate::recovery::RecoveryCause>,
         events: tokio::sync::broadcast::Receiver<crate::executor::ExecutorEvent>,
+        decisions: tokio::sync::broadcast::Receiver<crate::decision::DecisionEvent>,
         accepted: Arc<AtomicU32>,
         rejected: Arc<AtomicU32>,
         consecutive: Arc<AtomicU32>,
     }
 
+    /// What grading one frame produced.
+    #[derive(Debug, Default, PartialEq)]
+    struct Seen {
+        /// Requests to the recovery driver, which freezes the node tree.
+        recovery_requests: usize,
+        /// Sequencer Errors: every one is a "Sequence failed" notification.
+        errors: usize,
+        /// The streak notice in the run's warnings.
+        streak_warnings: usize,
+        /// The decision row the app raises its notification from.
+        streak_notices: usize,
+    }
+
+    const NOTICE: Seen = Seen {
+        recovery_requests: 0,
+        errors: 0,
+        streak_warnings: 1,
+        streak_notices: 1,
+    };
+    const QUIET: Seen = Seen {
+        recovery_requests: 0,
+        errors: 0,
+        streak_warnings: 0,
+        streak_notices: 0,
+    };
+
     async fn storm() -> Storm {
         let ctx = expose_ctx(Arc::new(NullDeviceOps), None, live_sun_alt() - 30.0).await;
         let (event_tx, events) = tokio::sync::broadcast::channel(256);
         let (request_tx, requests) = tokio::sync::mpsc::channel(16);
+        let (decision_tx, decisions) = tokio::sync::broadcast::channel(256);
         Storm {
             ctx: InstructionContext {
                 event_tx: Some(event_tx),
                 recovery_request_tx: Some(request_tx),
+                decision_tx: Some(decision_tx),
                 ..ctx
             },
             requests,
             events,
+            decisions,
             accepted: Arc::new(AtomicU32::new(0)),
             rejected: Arc::new(AtomicU32::new(0)),
             consecutive: Arc::new(AtomicU32::new(0)),
@@ -528,9 +560,8 @@ mod consecutive_reject_limit {
     }
 
     impl Storm {
-        /// Grade one frame; returns (recovery requests sent, escalation
-        /// banners raised) by that frame alone.
-        async fn frame(&mut self, frame: u32, pass: bool, max: u32) -> (usize, usize) {
+        /// Grade one frame and report what that frame alone produced.
+        async fn frame(&mut self, frame: u32, pass: bool, max: u32) -> Seen {
             let grade = if pass {
                 crate::quality::FrameGrade::Pass
             } else {
@@ -557,49 +588,59 @@ mod consecutive_reject_limit {
                 max,
             )
             .await;
-            let mut requests = 0;
-            while let Ok(cause) = self.requests.try_recv() {
-                assert_eq!(
-                    cause,
-                    crate::recovery::RecoveryCause::ConsecutiveRejectsExceeded
-                );
-                requests += 1;
+            let mut seen = Seen::default();
+            while self.requests.try_recv().is_ok() {
+                seen.recovery_requests += 1;
             }
-            let mut banners = 0;
             while let Ok(event) = self.events.try_recv() {
-                if let crate::executor::ExecutorEvent::Error { message } = event {
-                    if message.contains("consecutive rejects") {
-                        banners += 1;
+                match event {
+                    crate::executor::ExecutorEvent::Error { .. } => seen.errors += 1,
+                    crate::executor::ExecutorEvent::Warning { message } => {
+                        assert!(
+                            message.contains("in a row") && message.contains("The run continues"),
+                            "{message}"
+                        );
+                        seen.streak_warnings += 1;
                     }
+                    _ => {}
                 }
             }
-            (requests, banners)
+            while let Ok(decision) = self.decisions.try_recv() {
+                if decision.summary == crate::instructions::IMAGE_GRADING_REJECT_STREAK_SUMMARY {
+                    assert_eq!(decision.details["consecutive_rejects"], max);
+                    assert_eq!(decision.details["reason"], "star count 3 below minimum 20");
+                    seen.streak_notices += 1;
+                }
+            }
+            seen
         }
     }
 
     #[tokio::test]
-    async fn the_third_reject_in_a_row_pauses_the_run_once() {
+    async fn a_reject_streak_notifies_once_and_never_holds_the_run() {
         let mut s = storm().await;
-        assert_eq!(s.frame(1, false, 3).await, (0, 0));
-        assert_eq!(s.frame(2, false, 3).await, (0, 0));
-        // The limit: one recovery request, and the banner says why.
-        assert_eq!(s.frame(3, false, 3).await, (1, 1));
-        // Still rejecting: the banner repeats, the request does not.
-        assert_eq!(s.frame(4, false, 3).await, (0, 1));
-        // One good frame resets the count; a later storm escalates again.
-        assert_eq!(s.frame(5, true, 3).await, (0, 0));
-        assert_eq!(s.frame(6, false, 3).await, (0, 0));
-        assert_eq!(s.frame(7, false, 3).await, (0, 0));
-        assert_eq!(s.frame(8, false, 3).await, (1, 1));
+        assert_eq!(s.frame(1, false, 3).await, QUIET);
+        assert_eq!(s.frame(2, false, 3).await, QUIET);
+        // The limit: one notice, and nothing asked to freeze the run.
+        assert_eq!(s.frame(3, false, 3).await, NOTICE);
+        // Still rejecting: no repeat, so a cloudy hour is one notice, not sixty.
+        assert_eq!(s.frame(4, false, 3).await, QUIET);
+        assert_eq!(s.frame(5, false, 3).await, QUIET);
+        // One good frame ends the streak; a later streak is told about again.
+        assert_eq!(s.frame(6, true, 3).await, QUIET);
+        assert_eq!(s.frame(7, false, 3).await, QUIET);
+        assert_eq!(s.frame(8, false, 3).await, QUIET);
+        assert_eq!(s.frame(9, false, 3).await, NOTICE);
+        // The rejects are still graded and counted.
         assert_eq!(s.accepted.load(Ordering::Relaxed), 1);
-        assert_eq!(s.rejected.load(Ordering::Relaxed), 7);
+        assert_eq!(s.rejected.load(Ordering::Relaxed), 8);
     }
 
     #[tokio::test]
-    async fn a_limit_of_zero_never_pauses_the_run() {
+    async fn a_limit_of_zero_never_notifies() {
         let mut s = storm().await;
         for frame in 1..=5 {
-            assert_eq!(s.frame(frame, false, 0).await, (0, 0));
+            assert_eq!(s.frame(frame, false, 0).await, QUIET);
         }
     }
 }

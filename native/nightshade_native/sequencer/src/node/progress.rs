@@ -214,9 +214,9 @@ pub enum ProgressDetail {
         /// without re-fetching the in-memory image.
         reject_path: String,
         /// Running consecutive-rejects counter. When this reaches the
-        /// configured `max_consecutive_rejects`, the executor pauses the
-        /// sequence and emits an `ExecutorEvent::Error` (
-        /// surfaces it as a critical banner).
+        /// configured `max_consecutive_rejects`, the operator is notified
+        /// once for the streak (a Warning and a decision row); the run
+        /// carries on.
         consecutive_rejects: u32,
         accepted_total: u32,
         rejected_total: u32,

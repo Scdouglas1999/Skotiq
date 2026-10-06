@@ -67,7 +67,10 @@ pub enum RecoveryCause {
     MountTrackingLost,
     /// Focus drift exceeded the configured budget (HFR > baseline * x).
     FocusDriftCritical,
-    /// image grading hit `max_consecutive_rejects`.
+    /// image grading hit `max_consecutive_rejects`. Grading no longer sends
+    /// this: since the owner's 2026-10-06 decision a reject streak only
+    /// notifies the operator and never holds the run. The variant stays so
+    /// recorded recovery history and the wire format still parse.
     ConsecutiveRejectsExceeded,
     /// A required device is missing or dropped out during an instruction.
     DeviceDisconnected,

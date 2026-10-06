@@ -356,10 +356,16 @@ pub(crate) async fn push_forensic_sample(
     }
 }
 
+/// Summary line of the decision row written when a streak of rejected frames
+/// reaches the operator's limit. The app raises its "Frames being rejected"
+/// notification from this row, once per streak; the run carries on.
+pub const IMAGE_GRADING_REJECT_STREAK_SUMMARY: &str =
+    "Frames rejected in a row — the run continues";
+
 /// Emit a structured FrameAccepted / FrameRejected progress event and (on
-/// reject) update the consecutive-rejects atomic. Escalates to an
-/// `ExecutorEvent::Error` once the consecutive-rejects threshold is hit —
-/// 's critical-event banner picks that up automatically.
+/// reject) update the consecutive-rejects atomic. When a streak of rejects
+/// reaches the limit the operator is notified once for that streak; nothing
+/// pauses, stops or parks the run.
 ///
 /// Frame-Failure Forensics: in addition to the existing event,
 /// this function:
@@ -632,61 +638,42 @@ pub(crate) async fn emit_grade_progress(
                 }),
             ));
 
-            // Escalation: max_consecutive_rejects in a row => emit Error
-            // (critical-event banner) and pause the
-            // sequence. We do NOT cancel — the user may want to inspect
-            // the rejects and resume.
-            if consecutive >= max_consecutive && max_consecutive > 0 {
-                let escalation = format!(
-                    "Image grading: {} consecutive rejects (limit {}). \
-                     Sequence paused for inspection. Frame {}/{}, last reason: {}. \
-                     Most recent reject: {}. Accepted so far: {}, rejected: {}.",
-                    consecutive,
-                    max_consecutive,
-                    frame,
-                    total,
-                    reason,
-                    full_path.display(),
-                    accepted,
-                    rejected,
+            // A streak of rejects reaching the limit is something the operator
+            // should know about, and nothing more: the run keeps imaging, every
+            // frame is still graded and the rejects stay in the Reject folder
+            // (owner decision 2026-10-06: "this limit should never stop a
+            // sequence or end a night. Again, just notify users of these
+            // issues"). This used to hand the streak to the recovery driver,
+            // which paused the run, or parked the mount under the opt-in
+            // give-up policy, and it raised an Error banner on every further
+            // reject. Told once, at the crossing: `consecutive` resets to 0 on
+            // the next accepted frame, so a later streak is told about again.
+            if max_consecutive > 0 && consecutive == max_consecutive {
+                let notice = format!(
+                    "Image grading: {} frames in a row rejected (notify limit {}), most recently \
+                     frame {}/{}: {}. The run continues and every frame is kept; rejects are in \
+                     the Reject folder. Accepted so far: {}, rejected: {}.",
+                    consecutive, max_consecutive, frame, total, reason, accepted, rejected,
                 );
-                tracing::error!("{}", escalation);
+                tracing::warn!("{}", notice);
                 if let Some(event_tx) = &ctx.event_tx {
-                    let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
-                        message: escalation,
-                    });
+                    let _ =
+                        event_tx.send(crate::executor::ExecutorEvent::Warning { message: notice });
                 }
-
-                // actually escalate to a real recovery/pause. The
-                // recovery system has a `ConsecutiveRejectsExceeded` cause
-                // whose driver pauses the run for inspection, but nothing ever
-                // SENT it — so a reject storm (clouds rolling in, focus lost,
-                // bad target) only raised a banner and kept burning the night
-                // capturing rejects. Send the cause once, exactly at the
-                // crossing, so it doesn't flood the recovery channel every
-                // subsequent frame. `consecutive` resets to 0 on the next
-                // accepted frame, so a later storm escalates again.
-                if consecutive == max_consecutive {
-                    if let Some(tx) = ctx.recovery_request_tx.as_ref() {
-                        match tx.try_send(
-                            crate::recovery::RecoveryCause::ConsecutiveRejectsExceeded,
-                        ) {
-                            Ok(()) => tracing::warn!(
-                                "[RECOVERY] Promoted consecutive-reject storm to recovery ({} in a row)",
-                                consecutive
-                            ),
-                            Err(e) => tracing::warn!(
-                                "[RECOVERY] Could not enqueue consecutive-reject recovery: {}",
-                                e
-                            ),
-                        }
-                    } else {
-                        tracing::warn!(
-                            "[RECOVERY] {} consecutive rejects but no recovery channel installed; banner only",
-                            consecutive
-                        );
-                    }
-                }
+                ctx.emit_decision(crate::decision::DecisionEvent::new(
+                    crate::decision::DecisionCategory::SystemEvent,
+                    IMAGE_GRADING_REJECT_STREAK_SUMMARY.to_string(),
+                    serde_json::json!({
+                        "consecutive_rejects": consecutive,
+                        "limit": max_consecutive,
+                        "frame": frame,
+                        "total": total,
+                        "reason": reason,
+                        "reject_path": full_path.display().to_string(),
+                        "accepted_total": accepted,
+                        "rejected_total": rejected,
+                    }),
+                ));
             }
         }
     }

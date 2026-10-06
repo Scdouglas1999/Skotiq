@@ -353,8 +353,8 @@ sealed class SequencerEvent with _$SequencerEvent {
 
   /// Image Grading: a frame failed at least one
   /// quality threshold and was routed to the reject folder. Mirrors
-  /// `ProgressDetail::FrameRejected`. The consecutive-reject pause
-  /// behaviour is unchanged; this event surfaces the metrics so the
+  /// `ProgressDetail::FrameRejected`. A streak of rejects never pauses
+  /// the run; this event surfaces the metrics so the
   /// dashboard can render them without parsing.
   const factory SequencerEvent.frameRejected({
     required String nodeId,
@@ -367,8 +367,8 @@ sealed class SequencerEvent with _$SequencerEvent {
     required String rejectPath,
 
     /// Running consecutive-rejects counter. When this reaches the
-    /// configured `max_consecutive_rejects`, the executor pauses
-    /// the sequence and emits an additional `Error` event.
+    /// configured `max_consecutive_rejects`, the operator is notified
+    /// once for the streak; the run carries on.
     required int consecutiveRejects,
     required int acceptedTotal,
     required int rejectedTotal,

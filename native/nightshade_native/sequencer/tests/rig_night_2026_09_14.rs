@@ -388,8 +388,13 @@ struct Outcome {
 
 /// Run lights on the replay rig, force the refocus once the first light has
 /// been taken (the rig's was forced by a filter change), and let the run play
-/// out until it stops on its own or `settle` passes.
-async fn replay(rig: Arc<ReplayRig>, settle: Duration) -> Outcome {
+/// out until it stops on its own, `seen(messages, calls)` says there is enough
+/// evidence, or `settle` passes.
+async fn replay(
+    rig: Arc<ReplayRig>,
+    settle: Duration,
+    seen: impl Fn(&[String], &[String]) -> bool,
+) -> Outcome {
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(rig.clone());
     executor.set_save_path(Some(std::env::temp_dir().join("rig-night-2026-09-14")));
@@ -479,6 +484,10 @@ async fn replay(rig: Arc<ReplayRig>, settle: Duration) -> Outcome {
             tokio::time::sleep(Duration::from_secs(3)).await;
             break;
         }
+        let enough = seen(&messages.lock().unwrap(), &rig.calls());
+        if enough {
+            break;
+        }
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
     let state = executor.get_state().await;
@@ -530,7 +539,7 @@ async fn a_guider_that_never_resumes_stops_the_lights_and_parks_nothing() {
         state,
         calls,
         messages,
-    } = replay(rig, Duration::from_secs(240)).await;
+    } = replay(rig, Duration::from_secs(240), |_, _| false).await;
     assert!(
         calls.iter().any(|c| c == "guider_stop"),
         "the sweep never stopped the guider, so this proves nothing; messages={messages:?}"
@@ -547,19 +556,36 @@ async fn a_guider_that_never_resumes_stops_the_lights_and_parks_nothing() {
     assert_eq!(state, ExecutorState::Paused, "messages={messages:?}");
 }
 
+fn lights_started(calls: &[String]) -> usize {
+    calls
+        .iter()
+        .filter(|c| *c == "camera_start_exposure:cam-1:1")
+        .count()
+}
+
+fn is_streak_notice(message: &str) -> bool {
+    message.contains("frames in a row rejected")
+}
+
 /// The guider as PHD2 really behaved: guiding nine seconds after the resume.
 /// The lights that follow are the night's real trailed frames; the grader
-/// must reject them, the third reject must hold the run for the operator,
-/// and nothing may be parked.
+/// must reject them, and the third reject tells the operator once. It used to
+/// hold the run there; the owner's decision of 2026-10-06 is that a reject
+/// limit never stops a sequence or ends a night, so the run keeps imaging and
+/// nothing is parked.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn the_real_night_ends_in_a_hold_not_a_park() {
+async fn the_real_night_notifies_and_keeps_imaging() {
     let _serial = SERIAL.lock().await;
     let rig = Arc::new(ReplayRig::new(Some(Duration::from_secs(9))));
     let Outcome {
         state,
         calls,
         messages,
-    } = replay(rig, Duration::from_secs(300)).await;
+    } = replay(rig, Duration::from_secs(300), |messages, calls| {
+        // Enough lights past the third reject to show the run did not stop.
+        messages.iter().any(|m| is_streak_notice(m)) && lights_started(calls) >= 6
+    })
+    .await;
     assert!(
         calls.iter().any(|c| c == "guider_stop") && calls.iter().any(|c| c == "guider_start"),
         "the sweep never stopped and restarted the guider; messages={messages:?}"
@@ -570,15 +596,18 @@ async fn the_real_night_ends_in_a_hold_not_a_park() {
             .any(|m| m.contains("CRITICAL CLEANUP FAILURE")),
         "a guider that came back nine seconds later was declared dead; messages={messages:?}"
     );
+    assert_eq!(
+        messages.iter().filter(|m| is_streak_notice(m)).count(),
+        1,
+        "the trailed lights must be reported once per streak; messages={messages:?}"
+    );
     assert!(
-        messages
-            .iter()
-            .any(|m| m.contains("consecutive") || m.contains("Consecutive")),
-        "the trailed lights never built a reject storm; messages={messages:?}"
+        lights_started(&calls) >= 6,
+        "the run stopped taking lights after the reject limit; messages={messages:?}"
     );
     assert!(
         !parked_or_closed(&calls),
         "the run parked or closed the rig; messages={messages:?} calls={calls:?}"
     );
-    assert_eq!(state, ExecutorState::Paused, "messages={messages:?}");
+    assert_eq!(state, ExecutorState::Running, "messages={messages:?}");
 }

@@ -122,6 +122,52 @@ async fn an_in_focus_frame_grades_near_its_real_hfr() {
     );
 }
 
+/// The eccentricity limit a profile gets when it never set one, alone, on the
+/// owner's frames. Owner, 2026-10-06: "0.7 may be too strict" — his in-focus
+/// frames on an f/4 Newtonian measure 0.68 full-frame, and the in-focus crop
+/// `focused_L_0005` measures 0.77 (an independent PSF fit agrees: 0.76). The
+/// trailed lights measure 0.82 and up, so the limit has to sit between.
+#[tokio::test]
+async fn the_shipped_eccentricity_limit_passes_focus_and_rejects_trails() {
+    let shipped = ImageQualityCheck {
+        hfr_threshold: None,
+        hfr_baseline_percent: None,
+        eccentricity_threshold: Some(nightshade_sequencer::quality::DEFAULT_ECCENTRICITY_THRESHOLD),
+        star_count_min: None,
+        max_consecutive_rejects: 3,
+    };
+    let dir = fixtures();
+    let mut frames = vec![
+        (dir.join("focused_L_0005.fits"), true),
+        (dir.join("focused_L_0006.fits"), true),
+        (dir.join("trailed_Ha_0001_001.fits"), false),
+        (dir.join("trailed_SII_0001_001.fits"), false),
+        (dir.join("trailed_OIII_0001.fits"), false),
+    ];
+    if let Some(full) = rig_data() {
+        frames.extend([
+            (full.join("good/Unknown_L_2026-09-15_0005.fits"), true),
+            (full.join("good/Unknown_L_2026-09-15_0006.fits"), true),
+            (full.join("solve/solve-verify.fits"), true),
+            (full.join("reject/NGC7380_Ha_0001_001.fits"), false),
+            (full.join("reject/NGC7380_SII_0001_001.fits"), false),
+            (full.join("reject/NGC7380_OIII_0001.fits"), false),
+        ]);
+    }
+    for (path, in_focus) in frames {
+        let metrics = metrics(&path).await;
+        let grade = grade_frame(&shipped, &metrics, None);
+        assert_eq!(
+            grade.is_pass(),
+            in_focus,
+            "{}: eccentricity {:?} against the shipped limit {} -> {grade:?}",
+            path.display(),
+            metrics.eccentricity,
+            nightshade_sequencer::quality::DEFAULT_ECCENTRICITY_THRESHOLD
+        );
+    }
+}
+
 #[tokio::test]
 async fn the_full_frames_of_the_night_grade_as_they_should() {
     let Some(dir) = rig_data() else {

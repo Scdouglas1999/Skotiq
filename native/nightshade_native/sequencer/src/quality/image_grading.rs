@@ -20,9 +20,11 @@
 //!   miss (a dry-air HFR of 2.4 px is great; the same field at 3.6 px the
 //!   next night is everyone-pack-up bad — `hfr_baseline_percent: 50` would
 //!   flag it).
-//! * **Consecutive-reject escalation**: 3 in a row raises a critical event
-//!   banner, because no amount of averaging will fix a systematic failure
-//!   (focus walked off, cloud bank moved through, dome failed to slave).
+//! * **Consecutive-reject notice**: 3 in a row tells the operator once for
+//!   that streak, because no amount of averaging will fix a systematic
+//!   failure (focus walked off, cloud bank moved through, dome failed to
+//!   slave). It never pauses, stops or parks the run (owner decision
+//!   2026-10-06); the frames are still graded and the rejects kept.
 //! * **A metric never taken grades Pass.** When a measurement is `None`
 //!   (detection did not run, `calculate_image_hfr` returned None) the frame
 //!   passes rather than rejecting: a missing measurement is not a known-bad
@@ -39,13 +41,26 @@ use serde::{Deserialize, Serialize};
 /// `hfr_baseline_percent` check becomes active.
 pub const DEFAULT_HFR_BASELINE_WINDOW: usize = 5;
 
+/// The eccentricity limit the app ships with: the default of the Dart
+/// setting `imageGradingEccentricityThreshold`, which is what reaches
+/// [`ImageQualityCheck::eccentricity_threshold`] on a profile that never set
+/// one. Pinned here so the rig-frame tests grade against the shipped value.
+///
+/// Chosen from the owner's frames of 2026-09-14 (10" f/4 Newtonian,
+/// `test-fixtures/rig-2026-09-14`), measured by the grader itself. In focus:
+/// 0.51, 0.54 and 0.68 on the full frames, 0.66 and 0.77 on the 1024 px
+/// crops. Trailed by a dead guider: 0.82, 0.83 and 0.97 on the crops, 0.83,
+/// 0.85 and 0.97 on the full frames. The old 0.7 rejected an in-focus frame;
+/// 0.8 (a 1.67:1 axis ratio) passes every in-focus frame and still rejects
+/// every trailed one.
+pub const DEFAULT_ECCENTRICITY_THRESHOLD: f64 = 0.8;
+
 /// Per-burst image-grading thresholds.
 ///
 /// All fields are `Option` so an operator can enable just the checks they
 /// want — absolute HFR alone, or only the baseline-relative check, or both.
-/// `max_consecutive_rejects` is required (`u32`) because the escalation
-/// path is the safety valve; setting it to `u32::MAX` effectively disables
-/// the escalation while keeping the per-frame check.
+/// `max_consecutive_rejects` is required (`u32`); zero (or `u32::MAX`)
+/// turns the streak notice off while keeping the per-frame check.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ImageQualityCheck {
     /// Reject if HFR exceeds this absolute pixel value.
@@ -65,8 +80,9 @@ pub struct ImageQualityCheck {
     /// Reject if star count drops below this floor. Trips when clouds
     /// roll in or the dome slit drifts off-target.
     pub star_count_min: Option<u32>,
-    /// Pause the sequence (emitting a critical event) after this many
-    /// consecutive rejects. Counter resets to 0 on each accepted frame.
+    /// Notify the operator once when this many frames in a row have been
+    /// rejected. The run carries on. Counter resets to 0 on each accepted
+    /// frame, so a later streak is notified again.
     pub max_consecutive_rejects: u32,
 }
 
