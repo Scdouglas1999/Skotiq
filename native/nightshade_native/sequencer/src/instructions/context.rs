@@ -439,6 +439,35 @@ impl InstructionContext {
         }
         let _ = tx.send(event);
     }
+
+    /// Whether the operator asked for quality problems to stop the run. Off by
+    /// default, and off with no run state at all (a one-shot instruction).
+    /// See [`crate::triggers::TriggerState::stop_on_quality_problems`].
+    pub async fn stops_on_quality_problems(&self) -> bool {
+        match &self.trigger_state {
+            Some(state) => state.read().await.stop_on_quality_problems,
+            None => false,
+        }
+    }
+
+    /// Tell the operator about a quality problem the run carries on through:
+    /// the decision row the app's "Problem noticed — the run continues"
+    /// notification is raised from, and a Warning in the run's feed. A Warning,
+    /// not an Error: every sequencer Error is reported as a failed sequence.
+    pub fn notify_quality_problem_continuing(&self, source: &str, problem: &str) {
+        let continuation = crate::executor::quality_problem_continuation(
+            source,
+            problem,
+            serde_json::json!({ "node_id": self.node_id }),
+        );
+        tracing::warn!("{}", continuation.operator_message);
+        self.emit_decision(continuation.decision);
+        if let Some(event_tx) = &self.event_tx {
+            let _ = event_tx.send(crate::executor::ExecutorEvent::Warning {
+                message: continuation.operator_message,
+            });
+        }
+    }
 }
 
 /// Holds the imaging-train claim (main camera + filter wheel) for one

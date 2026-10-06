@@ -85,6 +85,8 @@ pub(crate) struct ScriptedDeviceOps {
     mount_parked: Arc<AtomicBool>,
     /// When true, `guider_start` fails, as a guider with no star does.
     guider_start_fails: Arc<AtomicBool>,
+    /// When true, every plate solve finds no solution (a clouded frame).
+    pub(crate) plate_solve_fails: Arc<AtomicBool>,
 }
 
 impl ScriptedDeviceOps {
@@ -104,6 +106,7 @@ impl ScriptedDeviceOps {
             mount_tracking: Arc::new(AtomicBool::new(true)),
             mount_parked: Arc::new(AtomicBool::new(false)),
             guider_start_fails: Arc::new(AtomicBool::new(false)),
+            plate_solve_fails: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -353,6 +356,9 @@ impl DeviceOps for ScriptedDeviceOps {
         dec: Option<f64>,
         s: Option<f64>,
     ) -> DeviceResult<PlateSolveResult> {
+        if self.plate_solve_fails.load(Ordering::SeqCst) {
+            return Err("no solution: too few stars".to_string());
+        }
         self.inner.plate_solve(d, ra, dec, s).await
     }
     async fn save_fits(

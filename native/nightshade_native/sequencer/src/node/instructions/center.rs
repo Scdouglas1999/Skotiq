@@ -1,6 +1,6 @@
 //! CenterTarget instruction node.
 
-use crate::instructions::{execute_center, ImagingTrainClaimGuard};
+use crate::instructions::{center_did_not_converge, execute_center, ImagingTrainClaimGuard};
 use crate::node::context::ExecutionContext;
 use crate::node::progress::{ProgressDetail, ProgressUpdate};
 use crate::node::registry::InstructionNode;
@@ -69,6 +69,25 @@ impl InstructionNode for CenterInstruction {
         };
         let result = execute_center(config, &ctx, Some(&progress_fn)).await;
         claim.release(&ctx).await;
+        // A centering loop that never solved or never converged is the
+        // solver's judgment of the sky (cloud, a sparse field), and the mount
+        // is already pointed at the target by the loop's slews. By default the
+        // operator is told and the run goes on from there (owner decision
+        // 2026-10-06: only a risk to the hardware stops a run by itself).
+        // Skipped, which the target's container steps past; Failure would end
+        // the target and, through it, the night.
+        if center_did_not_converge(&result) && !ctx.stops_on_quality_problems().await {
+            let target = ctx.target_name.as_deref().unwrap_or("the target");
+            let problem = format!(
+                "{} on {target}. The mount stays where the last correction put it.",
+                result
+                    .message
+                    .as_deref()
+                    .unwrap_or("Centering did not converge")
+            );
+            ctx.notify_quality_problem_continuing("Center", &problem);
+            return NodeStatus::Skipped;
+        }
         result.log_and_get_status_with_context("Center Target", &ctx)
     }
 }

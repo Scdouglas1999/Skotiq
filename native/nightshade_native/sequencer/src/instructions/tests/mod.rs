@@ -108,6 +108,10 @@ struct ScriptedDomeRotatorOps {
     /// The guider's reported RMS, in guide-camera pixels.
     guider_rms_total: Mutex<f64>,
     guider_calibration: Option<GuidingCalibration>,
+    /// When `Some`, every `guider_dither` fails with this message.
+    dither_error: Option<String>,
+    /// When true, every plate solve finds no solution (a clouded frame).
+    plate_solve_fails: bool,
     /// W1 daylight gate — value returned by `mount_is_parked`. Defaults to
     /// `false` (matching NullDeviceOps); the parked-rig gate test sets it
     /// `true` to prove a parked exposure is never daylight-gated.
@@ -196,6 +200,8 @@ impl ScriptedDomeRotatorOps {
             guider_polls_before_lock: AtomicU32::new(0),
             guider_rms_total: Mutex::new(0.7),
             guider_calibration: None,
+            dither_error: None,
+            plate_solve_fails: false,
             saved_frame_contexts: Mutex::new(Vec::new()),
             saved_frame_paths: Mutex::new(Vec::new()),
             scripted_mount_coordinates: None,
@@ -324,6 +330,18 @@ impl ScriptedDomeRotatorOps {
     /// is selected and the first guide frames are in.
     fn with_guider_that_locks_after_polls(self, polls: u32) -> Self {
         self.guider_polls_before_lock.store(polls, Ordering::SeqCst);
+        self
+    }
+
+    /// A solver that finds no solution in any frame.
+    fn with_plate_solve_failing(mut self) -> Self {
+        self.plate_solve_fails = true;
+        self
+    }
+
+    /// A guider whose every dither fails with `message`.
+    fn with_dither_failing(mut self, message: &str) -> Self {
+        self.dither_error = Some(message.to_string());
         self
     }
 
@@ -611,6 +629,9 @@ impl DeviceOps for ScriptedDomeRotatorOps {
             .lock()
             .unwrap()
             .push(self.camera_exposure_calls.load(Ordering::SeqCst));
+        if let Some(message) = &self.dither_error {
+            return Err(message.clone());
+        }
         self.inner.guider_dither(p, sp, st, sto, ra).await
     }
     async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
@@ -657,6 +678,9 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         dec: Option<f64>,
         s: Option<f64>,
     ) -> DeviceResult<crate::device_ops::PlateSolveResult> {
+        if self.plate_solve_fails {
+            return Err("no solution: too few stars".to_string());
+        }
         self.inner.plate_solve(d, ra, dec, s).await
     }
     async fn save_fits(

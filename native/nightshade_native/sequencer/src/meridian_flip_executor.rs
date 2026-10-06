@@ -1042,7 +1042,13 @@ impl MeridianFlipExecutor {
         // Passing target hints (deg-converted RA) accelerates blind solves on
         // ASTAP/local indexes by ~10x; without them the solver scans the full
         // sky and post-flip exposures can stall waiting for a solution.
-        let result = self
+        //
+        // A solve that finds nothing (cloud, a sparse field) is the solver's
+        // judgment, not a fault: the pier side was verified before this step,
+        // so by default the operator is told and the flip completes. The
+        // camera, sync and slew errors around it are device faults and still
+        // fail the step.
+        let solve = self
             .device_ops
             .plate_solve(
                 &image,
@@ -1050,11 +1056,33 @@ impl MeridianFlipExecutor {
                 Some(ctx.target_dec_degrees),
                 None,
             )
-            .await?;
-
-        if !result.success {
-            return Err("Plate solve failed".to_string());
-        }
+            .await;
+        let result = match solve {
+            Ok(result) if result.success => result,
+            Ok(_) => {
+                return self
+                    .carry_on_through_quality_problem(
+                        ctx,
+                        "Post-flip recenter",
+                        "Plate solve failed: the solver found no solution, so the target was not \
+                         re-centered after the flip."
+                            .to_string(),
+                    )
+                    .await;
+            }
+            Err(error) => {
+                return self
+                    .carry_on_through_quality_problem(
+                        ctx,
+                        "Post-flip recenter",
+                        format!(
+                            "Plate solve failed: {error}, so the target was not re-centered \
+                             after the flip."
+                        ),
+                    )
+                    .await;
+            }
+        };
 
         let ra_offset = (result.ra_degrees / 15.0) - ctx.target_ra_hours;
         let dec_offset = result.dec_degrees - ctx.target_dec_degrees;
@@ -1446,14 +1474,22 @@ impl MeridianFlipExecutor {
             }
         }
         if sample_count > 0 && max_rms > rms_ceiling {
-            return Err(format!(
-                "Post-flip guiding RMS too high: {:.2}px peak across {} sample{} \
-                 (limit {:.2}px). The guider re-locked but is tracking poorly.",
-                max_rms,
-                sample_count,
-                if sample_count == 1 { "" } else { "s" },
-                rms_ceiling
-            ));
+            // The guider re-locked and is guiding; how well is a judgment, so
+            // by default it is reported and the flip completes.
+            return self
+                .carry_on_through_quality_problem(
+                    ctx,
+                    "Post-flip guiding check",
+                    format!(
+                        "Post-flip guiding RMS too high: {:.2}px peak across {} sample{} \
+                         (limit {:.2}px). The guider re-locked but is tracking poorly.",
+                        max_rms,
+                        sample_count,
+                        if sample_count == 1 { "" } else { "s" },
+                        rms_ceiling
+                    ),
+                )
+                .await;
         }
         tracing::info!(
             "[MERIDIAN] Post-flip guiding validated: peak RMS {:.2}px over {} sample{}",
@@ -1543,6 +1579,43 @@ impl MeridianFlipExecutor {
 
     /// Returns true if either the executor's internal abort flag or the
     /// caller-supplied cancellation token has been set.
+    /// A post-flip check found a quality problem — a solve with no solution,
+    /// guiding RMS over the ceiling — after the flip itself completed. With the
+    /// operator's "Stop the run for quality problems" off (the default) the
+    /// problem is reported and the step succeeds; with it on, the step fails as
+    /// it always did and the flip's retry ladder and failure action decide.
+    async fn carry_on_through_quality_problem(
+        &self,
+        ctx: &FlipContext,
+        source: &str,
+        problem: String,
+    ) -> Result<(), String> {
+        let stop = match &ctx.trigger_state {
+            Some(state) => state.read().await.stop_on_quality_problems,
+            None => false,
+        };
+        if stop {
+            return Err(problem);
+        }
+        let continuation = crate::executor::quality_problem_continuation(
+            source,
+            &problem,
+            serde_json::json!({ "target_name": ctx.target_name }),
+        );
+        tracing::warn!("[MERIDIAN] {}", continuation.operator_message);
+        if let Some(tx) = &self.decision_tx {
+            let mut decision = continuation.decision;
+            decision.sequence_run_id = *self.active_sequence_run_id.read();
+            let _ = tx.send(decision);
+        }
+        if let Some(tx) = &self.executor_event_tx {
+            let _ = tx.send(ExecutorEvent::Warning {
+                message: continuation.operator_message,
+            });
+        }
+        Ok(())
+    }
+
     fn is_cancelled(&self, ctx: &FlipContext) -> bool {
         if self.abort_requested.load(Ordering::Relaxed) {
             return true;
@@ -2438,6 +2511,18 @@ mod tests {
         }
     }
 
+    /// `make_ctx` for an operator who turned on "Stop the run for quality
+    /// problems": a post-flip solve with no solution fails the step, and the
+    /// flip's retry ladder and failure action take it from there.
+    fn make_ctx_stopping_on_quality_problems(state: &Arc<MockDeviceOpsState>) -> FlipContext {
+        let mut trigger_state = TriggerState::new();
+        trigger_state.stop_on_quality_problems = true;
+        FlipContext {
+            trigger_state: Some(Arc::new(RwLock::new(trigger_state))),
+            ..make_ctx(state)
+        }
+    }
+
     /// pier-side telemetry unavailable — verification falls back to
     /// coordinate convergence and SUCCEEDS when the mount is on-target.
     #[tokio::test]
@@ -2607,7 +2692,7 @@ mod tests {
         };
 
         let mut executor = MeridianFlipExecutor::new(config, ops);
-        let ctx = make_ctx(&state);
+        let ctx = make_ctx_stopping_on_quality_problems(&state);
 
         match executor.execute(&ctx).await {
             FlipResult::Failed { error, .. } => assert!(
@@ -2706,7 +2791,7 @@ mod tests {
         };
 
         let mut executor = MeridianFlipExecutor::new(config, ops);
-        let ctx = make_ctx(&state);
+        let ctx = make_ctx_stopping_on_quality_problems(&state);
 
         match executor.execute(&ctx).await {
             FlipResult::Success { .. } => {}
@@ -2832,7 +2917,7 @@ mod tests {
 
         let (event_tx, mut event_rx) = broadcast::channel(64);
         let mut executor = MeridianFlipExecutor::new(config, ops).with_executor_event_tx(event_tx);
-        let ctx = make_ctx(&state);
+        let ctx = make_ctx_stopping_on_quality_problems(&state);
 
         match executor.execute(&ctx).await {
             FlipResult::Failed { .. } => {}
@@ -2888,7 +2973,7 @@ mod tests {
         };
 
         let mut executor = MeridianFlipExecutor::new(config, ops);
-        let ctx = make_ctx(&state);
+        let ctx = make_ctx_stopping_on_quality_problems(&state);
 
         match executor.execute(&ctx).await {
             FlipResult::Failed { .. } => {}
@@ -3626,5 +3711,117 @@ mod tests {
             crate::executor::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY
         );
         assert_eq!(decision.sequence_run_id, Some(7));
+    }
+
+    /// A post-flip check that judged something bad — a recenter solve with no
+    /// solution, guiding RMS over the ceiling — failed the flip after the mount
+    /// was verified on its new pier side, and the flip's failure action paused
+    /// or parked the run. Owner decision 2026-10-06: only a risk to the
+    /// hardware stops a run by itself. By default the flip completes, guiding
+    /// resumes and the operator is told; `make_ctx_stopping_on_quality_problems`
+    /// (the opt-in) keeps the old failure, pinned by the tests above.
+    #[tokio::test]
+    async fn post_flip_quality_problems_notify_and_the_flip_completes() {
+        for (label, solve_failures, rms_ceiling, problem) in [
+            ("unsolved recenter", 1, 3.0, "Post-flip recenter"),
+            (
+                "guiding RMS over the ceiling",
+                0,
+                0.5,
+                "Post-flip guiding RMS too high",
+            ),
+        ] {
+            let state = Arc::new(MockDeviceOpsState::default());
+            state.pier_sides.lock().unwrap().extend([
+                crate::meridian::PierSide::East,
+                crate::meridian::PierSide::West,
+            ]);
+            state
+                .plate_solve_failures_remaining
+                .store(solve_failures, Ordering::Relaxed);
+            let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+            let config = MeridianFlipConfig {
+                pause_guiding: false,
+                auto_center: true,
+                refocus_after: false,
+                resume_guiding: true,
+                settle_time: 0.0,
+                max_retries: 0,
+                failure_action: FlipFailureAction::AbortAndPark,
+                max_post_settle_rms_pixels: rms_ceiling,
+                ..Default::default()
+            };
+            let (event_tx, mut events) = tokio::sync::broadcast::channel(256);
+            let (decision_tx, mut decisions) = tokio::sync::broadcast::channel(64);
+            let mut executor = MeridianFlipExecutor::new(config, ops)
+                .with_executor_event_tx(event_tx)
+                .with_decision_tx(decision_tx, Arc::new(parking_lot::RwLock::new(Some(7))));
+
+            let result = executor.execute(&make_ctx(&state)).await;
+
+            assert!(
+                matches!(result, FlipResult::Success { .. }),
+                "{label}: {result:?}"
+            );
+            assert_eq!(state.park_calls.load(Ordering::Relaxed), 0, "{label}");
+            assert_eq!(
+                state.guider_start_calls.load(Ordering::Relaxed),
+                1,
+                "{label}: guiding resumes"
+            );
+            let mut warnings = Vec::new();
+            while let Ok(event) = events.try_recv() {
+                if let ExecutorEvent::Warning { message } = event {
+                    warnings.push(message);
+                }
+            }
+            assert!(
+                warnings
+                    .iter()
+                    .any(|w| w.contains(problem) && w.contains("The run continues")),
+                "{label}: {warnings:?}"
+            );
+            let decision = decisions.try_recv().expect("the operator is notified");
+            assert_eq!(
+                decision.summary,
+                crate::executor::QUALITY_PROBLEM_CONTINUED_SUMMARY,
+                "{label}"
+            );
+            assert_eq!(decision.sequence_run_id, Some(7), "{label}");
+        }
+    }
+
+    /// The opt-in keeps the post-flip guiding check's failure too.
+    #[tokio::test]
+    async fn post_flip_guiding_rms_fails_the_flip_when_the_operator_asked_for_it() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.pier_sides.lock().unwrap().extend([
+            crate::meridian::PierSide::East,
+            crate::meridian::PierSide::West,
+        ]);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            pause_guiding: false,
+            auto_center: false,
+            refocus_after: false,
+            resume_guiding: true,
+            settle_time: 0.0,
+            max_retries: 0,
+            max_post_settle_rms_pixels: 0.5,
+            retry_delays_secs: vec![0.01],
+            ..Default::default()
+        };
+        let mut executor = MeridianFlipExecutor::new(config, ops);
+
+        let result = executor
+            .execute(&make_ctx_stopping_on_quality_problems(&state))
+            .await;
+
+        match result {
+            FlipResult::Failed { error, .. } => {
+                assert!(error.contains("Post-flip guiding RMS too high"), "{error}")
+            }
+            other => panic!("expected the flip to fail, got {other:?}"),
+        }
     }
 }

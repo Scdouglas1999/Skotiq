@@ -2681,3 +2681,261 @@ async fn an_exposure_trigger_set_to_abort_or_pause_still_does_it() {
         .expect("a stop releases the hold")
         .expect("no panic");
 }
+
+/// What a run did while the Guiding Failure trigger's condition held.
+struct GuidingFailureRun {
+    fired: Vec<String>,
+    warnings: Vec<String>,
+    recovery_started: bool,
+    state: ExecutorState,
+}
+
+/// Run a Delay for a few seconds while the guider reports 0.64 px RMS and the
+/// Guiding Failure trigger's limit is 0.5 px, so it would fire every couple of
+/// seconds for as long as the run lasts.
+async fn run_with_bad_guiding(stop_on_quality_problems: bool) -> GuidingFailureRun {
+    let mut sequence = SequenceDefinition::new("New Sequence".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "wait".to_string(),
+        name: "Wait".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 120.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("wait".to_string());
+
+    let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(ops);
+    {
+        let mut manager = executor.trigger_manager.write().await;
+        let ids: Vec<String> = manager.triggers().iter().map(|t| t.id.clone()).collect();
+        for id in ids {
+            manager.remove_trigger(&id);
+        }
+        manager.add_trigger(
+            Trigger::new(
+                "guiding_failed",
+                "Guiding Failure",
+                crate::TriggerType::GuidingFailed {
+                    rms_threshold: 0.5,
+                    duration_secs: 1.0,
+                    rms_retention_secs: crate::default_guiding_rms_retention_secs(),
+                },
+                crate::RecoveryAction::Retry { max_attempts: 3 },
+            )
+            .with_cooldown(1),
+        );
+    }
+    executor
+        .set_stop_on_quality_problems(stop_on_quality_problems)
+        .await;
+    let mut events = executor.subscribe();
+    executor.load_sequence(sequence).expect("sequence loads");
+    executor.start().await.expect("run starts");
+
+    let mut fired = Vec::new();
+    let mut warnings = Vec::new();
+    let mut recovery_started = false;
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(8), async {
+        loop {
+            match events.recv().await {
+                Ok(ExecutorEvent::TriggerFired {
+                    trigger_id, action, ..
+                }) => fired.push(format!("{trigger_id} -> {action}")),
+                Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+                Ok(ExecutorEvent::RecoveryStarted { .. }) => recovery_started = true,
+                Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(broadcast::error::RecvError::Closed) => return,
+            }
+        }
+    })
+    .await;
+    let state = executor.get_state().await;
+    executor.stop().await.ok();
+    GuidingFailureRun {
+        fired,
+        warnings,
+        recovery_started,
+        state,
+    }
+}
+
+/// Owner decision 2026-10-06: guiding RMS over a threshold is a judgment of the
+/// frames, and only a risk to the hardware stops a run by itself. The Guiding
+/// Failure trigger handed the run to the recovery driver on its first firing,
+/// which froze the node tree for up to 90 minutes and then ended the run. By
+/// default it now tells the operator once while the condition holds, and the
+/// run keeps imaging.
+#[tokio::test]
+async fn guiding_rms_over_the_limit_notifies_once_and_the_run_keeps_going() {
+    let run = run_with_bad_guiding(false).await;
+    assert_eq!(
+        run.fired,
+        vec!["guiding_failed -> Notify"],
+        "one notice for the whole episode, though the trigger fired every ~2 s"
+    );
+    assert!(!run.recovery_started, "nothing was frozen");
+    assert_eq!(run.state, ExecutorState::Running);
+    assert!(
+        run.warnings
+            .iter()
+            .any(|w| w.contains("guiding RMS has been over 0.50 px")
+                && w.contains("Imaging continues")),
+        "{:?}",
+        run.warnings
+    );
+}
+
+/// The operator who turned on "Stop the run for quality problems" keeps the
+/// hold and the re-acquisition ladder.
+#[tokio::test]
+async fn guiding_rms_over_the_limit_holds_the_run_when_the_operator_asked_for_it() {
+    let run = run_with_bad_guiding(true).await;
+    assert!(
+        run.fired
+            .iter()
+            .any(|f| f.starts_with("guiding_failed -> Retry")),
+        "{:?}",
+        run.fired
+    );
+    assert!(run.recovery_started, "the recovery driver took the run");
+}
+
+/// What a run did after a DriftLimit recenter could not solve.
+struct FailedRecenterRun {
+    state: ExecutorState,
+    warnings: Vec<String>,
+    errors: Vec<String>,
+    decisions: Vec<String>,
+}
+
+/// Fire the DriftLimit trigger on a rig whose solver finds nothing (cloud),
+/// and return what the run did once the recenter's three attempts ran out.
+async fn drift_recenter_on_cloud(stop_on_quality_problems: bool) -> FailedRecenterRun {
+    let mut sequence = SequenceDefinition::new("New Sequence".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "wait".to_string(),
+        name: "Wait".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 120.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("wait".to_string());
+
+    let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
+    ops.plate_solve_fails.store(true, Ordering::SeqCst);
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(ops);
+    executor.camera_id = Some("sim_camera_1".to_string());
+    executor.mount_id = Some("mount-1".to_string());
+    {
+        let mut manager = executor.trigger_manager.write().await;
+        let ids: Vec<String> = manager.triggers().iter().map(|t| t.id.clone()).collect();
+        for id in ids {
+            manager.remove_trigger(&id);
+        }
+        manager.add_trigger(
+            Trigger::new(
+                "drift_limit",
+                "Plate-Solve Drift Limit",
+                crate::TriggerType::DriftLimit { max_pixels: 30.0 },
+                crate::RecoveryAction::Recenter,
+            )
+            .with_cooldown(600),
+        );
+    }
+    executor
+        .set_stop_on_quality_problems(stop_on_quality_problems)
+        .await;
+    let mut events = executor.subscribe();
+    let mut decision_rx = executor.subscribe_decisions();
+    executor.load_sequence(sequence).expect("sequence loads");
+    executor.start().await.expect("run starts");
+    {
+        let manager = executor.trigger_manager.read().await;
+        let state = manager.state();
+        let mut state = state.write().await;
+        // M31, with the last solve a tenth of a degree off: hundreds of
+        // pixels of drift.
+        state.set_target(10.684, 41.269);
+        state.update_plate_solve(10.784, 41.269, 1.5);
+    }
+
+    // Three 5 s solve exposures, then the verdict.
+    let mut warnings = Vec::new();
+    let mut errors = Vec::new();
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        loop {
+            match events.recv().await {
+                Ok(ExecutorEvent::Warning { message }) => {
+                    let done = message.contains("recenter");
+                    warnings.push(message);
+                    if done {
+                        return;
+                    }
+                }
+                Ok(ExecutorEvent::Error { message }) => {
+                    let done = message.contains("recenter failed");
+                    errors.push(message);
+                    if done {
+                        return;
+                    }
+                }
+                Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(broadcast::error::RecvError::Closed) => return,
+            }
+        }
+    })
+    .await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let state = executor.get_state().await;
+    let mut decisions = Vec::new();
+    while let Ok(decision) = decision_rx.try_recv() {
+        decisions.push(decision.summary);
+    }
+    executor.stop().await.ok();
+    FailedRecenterRun {
+        state,
+        warnings,
+        errors,
+        decisions,
+    }
+}
+
+/// A DriftLimit recenter that could not solve paused the run until someone
+/// resumed it. Owner decision 2026-10-06: only a risk to the hardware stops a
+/// run by itself; a solver finding nothing in a clouded frame is a judgment.
+#[tokio::test]
+async fn a_drift_recenter_that_cannot_solve_notifies_and_the_run_goes_on() {
+    let run = drift_recenter_on_cloud(false).await;
+    assert_eq!(run.state, ExecutorState::Running, "{:?}", run.errors);
+    assert!(run.errors.is_empty(), "{:?}", run.errors);
+    assert!(
+        run.warnings
+            .iter()
+            .any(|w| w.contains("Failed to center") && w.contains("The run continues")),
+        "{:?}",
+        run.warnings
+    );
+    assert!(
+        run.decisions
+            .iter()
+            .any(|d| d == super::QUALITY_PROBLEM_CONTINUED_SUMMARY),
+        "{:?}",
+        run.decisions
+    );
+}
+
+/// The operator who turned on "Stop the run for quality problems" keeps the
+/// pause.
+#[tokio::test]
+async fn a_drift_recenter_that_cannot_solve_pauses_when_the_operator_asked_for_it() {
+    let run = drift_recenter_on_cloud(true).await;
+    assert_eq!(run.state, ExecutorState::Paused, "{:?}", run.warnings);
+    assert!(
+        run.errors.iter().any(|e| e.contains("recenter failed")),
+        "{:?}",
+        run.errors
+    );
+}

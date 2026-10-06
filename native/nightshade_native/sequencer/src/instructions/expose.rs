@@ -890,7 +890,7 @@ pub async fn execute_exposure_with_renderer(
                 tracing::info!("Dithering...");
                 // Dual-rig — guard the burst dither so a piggybacking secondary
                 // camera is clear before the mount pulses (no-op single-rig).
-                if let Err(e) = dither_guarded(ctx, || {
+                let dither_result = dither_guarded(ctx, || {
                     ctx.device_ops.guider_dither(
                         config.dither_pixels,
                         config.dither_settle_pixels,
@@ -899,8 +899,15 @@ pub async fn execute_exposure_with_renderer(
                         config.dither_ra_only,
                     )
                 })
-                .await
-                {
+                .await;
+                if dither_result.is_ok() {
+                    // A dither that settled ends a failure streak, as the
+                    // standalone Dither node counts it.
+                    if let Some(trigger_state) = &ctx.trigger_state {
+                        trigger_state.write().await.consecutive_dither_failures = 0;
+                    }
+                }
+                if let Err(e) = dither_result {
                     // An UNGUIDED rig cannot dither, and that is a
                     // CONFIGURATION state — not a guiding failure. No star was
                     // lost, no walking-noise problem is being masked, and no
@@ -931,14 +938,9 @@ pub async fn execute_exposure_with_renderer(
                                 config.count
                             );
                         }
-                    } else {
-                        // Fail closed, matching the standalone Dither node. A
-                        // dither / settle failure usually means guiding lost the
-                        // star, so silently continuing the burst would keep
-                        // exposing undithered (walking noise) and mask a guiding
-                        // problem. Surface it as a visible event and abort the
-                        // burst so the sequence's recovery / guiding triggers can
-                        // engage.
+                    } else if ctx.stops_on_quality_problems().await {
+                        // The operator asked for quality problems to stop the
+                        // run: fail the burst as this used to by default.
                         let error_message = format!(
                             "Dither failed after frame {}/{}: {}",
                             frame, config.count, e
@@ -950,6 +952,33 @@ pub async fn execute_exposure_with_renderer(
                             });
                         }
                         return InstructionResult::failure(error_message);
+                    } else {
+                        // A dither that does not settle costs some stacking
+                        // quality, not the frames, and the standalone Dither node
+                        // already carries on through it. Failing the burst here
+                        // ended the run (owner decision 2026-10-06: only a risk
+                        // to the hardware stops a run by itself). The operator is
+                        // told once per streak — a lost guide star is the guide
+                        // star triggers' business, not this burst's.
+                        let streak = match &ctx.trigger_state {
+                            Some(trigger_state) => {
+                                let mut state = trigger_state.write().await;
+                                state.consecutive_dither_failures =
+                                    state.consecutive_dither_failures.saturating_add(1);
+                                state.consecutive_dither_failures
+                            }
+                            None => 1,
+                        };
+                        let problem = format!(
+                            "Dither failed after frame {}/{}: {}. The frames are unaffected, \
+                             but they are not dithered until a dither settles again.",
+                            frame, config.count, e
+                        );
+                        if streak == 1 {
+                            ctx.notify_quality_problem_continuing("Exposure burst", &problem);
+                        } else {
+                            tracing::warn!("{} ({} in a row)", problem, streak);
+                        }
                     }
                 }
             }

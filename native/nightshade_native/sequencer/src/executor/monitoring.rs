@@ -230,7 +230,9 @@ pub(super) fn mount_tracking_poll_verdict(
 /// attempt 1/3" while the run went on exposing. Measured on 2026-09-14: the
 /// trigger fired at 02:59:10, 03:00:11 and 03:01:11 with guiding RMS far past
 /// its 2.0 px threshold, and three 180 s lights were taken across those two
-/// minutes. Every one was rejected.
+/// minutes. Every one was rejected. Since the owner's 2026-10-06 decision that
+/// hand-off happens only when the operator turned on "Stop the run for quality
+/// problems"; by default the trigger notifies (see `apply_quality_policy`).
 pub fn trigger_recovery_cause(trigger_id: &str) -> Option<crate::recovery::RecoveryCause> {
     match trigger_id {
         "guide_star_lost" | "guiding_failed" => Some(crate::recovery::RecoveryCause::GuideStarLost),
@@ -320,6 +322,10 @@ pub(crate) struct FiredTriggerAction {
     /// End the run the way `ParkAndAbort` does, but leave the mount, cover and
     /// dome alone: "Park before dawn" is off.
     pub end_without_parking: bool,
+    /// Tell the operator and keep imaging instead of running `action`: the
+    /// trigger judged quality, and "Stop the run for quality problems" is
+    /// off. See [`apply_quality_policy`].
+    pub notify_only: bool,
 }
 
 impl FiredTriggerAction {
@@ -327,7 +333,9 @@ impl FiredTriggerAction {
     /// app reads `ParkAndAbort` there as "the trigger ended the run and parked
     /// the mount", so a run ended without parking must not say it.
     pub(crate) fn wire_label(&self) -> String {
-        if self.end_without_parking {
+        if self.notify_only {
+            "Notify".to_string()
+        } else if self.end_without_parking {
             "Abort".to_string()
         } else {
             format!("{:?}", self.action)
@@ -360,16 +368,90 @@ pub(crate) fn apply_park_policy(
         "weather_unsafe" if parks && !policy.park_on_unsafe_weather => FiredTriggerAction {
             action: RecoveryAction::Pause,
             end_without_parking: false,
+            notify_only: false,
         },
         "dawn_approaching" if parks && !policy.park_before_dawn => FiredTriggerAction {
             action,
             end_without_parking: true,
+            notify_only: false,
         },
         _ => FiredTriggerAction {
             action,
             end_without_parking: false,
+            notify_only: false,
         },
     }
+}
+
+/// The standard trigger that judges guiding by its RMS.
+pub(crate) const GUIDING_FAILED_TRIGGER_ID: &str = "guiding_failed";
+
+/// Apply the operator's "Stop the run for quality problems" setting to a fired
+/// standard trigger.
+///
+/// The standard Guiding Failure trigger fires on guiding RMS over a threshold
+/// while the guider is still guiding. That is a judgment of the frames, and it
+/// handed the run to the recovery driver, which froze it for up to 90 minutes
+/// of re-acquisition and then ended it. Owner decision 2026-10-06: only a risk
+/// to the hardware stops a run by itself. So unless the operator turned the
+/// setting on, it notifies once per episode and the run keeps imaging. A lost
+/// guide star (the guider stopped guiding) is the Guide Star Lost trigger and
+/// keeps its recovery.
+pub(crate) fn apply_quality_policy(
+    trigger_id: &str,
+    fired: FiredTriggerAction,
+    stop_on_quality_problems: bool,
+) -> FiredTriggerAction {
+    if trigger_id == GUIDING_FAILED_TRIGGER_ID && !stop_on_quality_problems {
+        FiredTriggerAction {
+            notify_only: true,
+            ..fired
+        }
+    } else {
+        fired
+    }
+}
+
+/// The Warning a notify-only trigger puts in the run's feed: what it measured
+/// and that the run goes on.
+pub(crate) fn quality_trigger_notice(
+    trigger_name: &str,
+    trigger_id: &str,
+    manager: &crate::triggers::TriggerManager,
+    state: &TriggerState,
+) -> String {
+    let detail = match manager.get_trigger(trigger_id).map(|t| &t.trigger_type) {
+        Some(TriggerType::GuidingFailed {
+            rms_threshold,
+            duration_secs,
+            ..
+        }) => {
+            let latest = state
+                .guiding_rms_history
+                .as_ref()
+                .and_then(|history| history.last())
+                .map(|(_, rms)| format!(" (latest {rms:.2} px)"))
+                .unwrap_or_default();
+            format!(
+                "guiding RMS has been over {rms_threshold:.2} px for {duration_secs:.0} s{latest} \
+                 while the guider is still guiding"
+            )
+        }
+        _ => "its condition holds".to_string(),
+    };
+    format!(
+        "{trigger_name}: {detail}. Imaging continues; you will hear about this again only after \
+         it clears and comes back. To have it stop the run instead, turn on Stop the run for \
+         quality problems in Settings > Sequencer."
+    )
+}
+
+/// How long a notify-only trigger has to stay quiet before its next firing is
+/// a new episode the operator is told about. A trigger whose condition holds
+/// fires again as soon as its cooldown expires; a minute's margin covers a
+/// monitor tick held up by slow device polls.
+pub(crate) fn notify_episode_gap(cooldown_secs: Option<u64>) -> std::time::Duration {
+    std::time::Duration::from_secs(cooldown_secs.unwrap_or(0) + 60)
 }
 
 /// How a non-auto-recoverable recovery escalation (an `AttemptOutcome::
