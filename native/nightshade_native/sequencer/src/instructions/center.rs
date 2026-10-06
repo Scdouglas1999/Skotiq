@@ -419,10 +419,32 @@ pub async fn execute_center(
         sleep(Duration::from_secs(2)).await;
     }
 
-    InstructionResult::failure(format!(
-        "Failed to center within {:.1}\" after {} attempts",
-        config.accuracy_arcsec, config.max_attempts
-    ))
+    InstructionResult {
+        data: Some(serde_json::json!({ CENTER_NOT_CONVERGED_KEY: true })),
+        ..InstructionResult::failure(format!(
+            "Failed to center within {:.1}\" after {} attempts",
+            config.accuracy_arcsec, config.max_attempts
+        ))
+    }
+}
+
+/// Marks the result of a centering loop that ran out of attempts without
+/// solving and converging — every frame was captured and every correction slew
+/// completed, but the solver found no solution or the pointing stayed outside
+/// the accuracy asked for. Callers that carry on through that (a Center node,
+/// a post-flip recenter) tell it apart from a device error by this key.
+pub(crate) const CENTER_NOT_CONVERGED_KEY: &str = "center_not_converged";
+
+/// Whether `result` is a centering loop that ran out of attempts, as opposed to
+/// a capture, mount or rotator error, a missing target or a cancel.
+pub(crate) fn center_did_not_converge(result: &InstructionResult) -> bool {
+    result.status == NodeStatus::Failure
+        && result
+            .data
+            .as_ref()
+            .and_then(|data| data.get(CENTER_NOT_CONVERGED_KEY))
+            .and_then(serde_json::Value::as_bool)
+            == Some(true)
 }
 
 /// Apply the active target's framing rotation during centering.

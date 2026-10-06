@@ -6,7 +6,14 @@ import '../../accessible_dropdown.dart';
 
 enum TriggerConditionType { guidingRms, hfr, drift }
 
-enum TriggerActionType { pauseAndRecalibrate, autofocus, abort }
+/// What a trigger does when its condition holds after a burst.
+///
+/// HFR, guiding RMS and drift are the software's judgment of the frames, and
+/// that judgment can be wrong, so a new trigger notifies and keeps imaging
+/// (owner decision 2026-10-06: only a risk to the hardware stops a run by
+/// itself). Pausing and ending the run stay available for the operator who
+/// picks them.
+enum TriggerActionType { notify, pauseAndRecalibrate, autofocus, abort }
 
 /// Default threshold for each condition type. Switching condition type in the
 /// editor MUST reset the active threshold to the matching default, because the
@@ -34,6 +41,22 @@ double _defaultThresholdFor(TriggerConditionType c) {
       return _kDefaultHfrPixels;
     case TriggerConditionType.drift:
       return _kDefaultDriftRaPixels;
+  }
+}
+
+/// The operator-facing name of a trigger action.
+String triggerActionName(TriggerActionType action) {
+  switch (action) {
+    case TriggerActionType.notify:
+      return 'Notify me and keep imaging';
+    case TriggerActionType.pauseAndRecalibrate:
+      // The run is held until the operator resumes it; nothing is
+      // recalibrated automatically.
+      return 'Pause until I resume';
+    case TriggerActionType.autofocus:
+      return 'Run autofocus';
+    case TriggerActionType.abort:
+      return 'End the run';
   }
 }
 
@@ -98,6 +121,7 @@ class ExposureTriggerConfig {
         },
     };
     final actionJson = switch (action) {
+      TriggerActionType.notify => 'Notify',
       TriggerActionType.pauseAndRecalibrate => 'PauseAndRecalibrate',
       TriggerActionType.autofocus => 'Autofocus',
       TriggerActionType.abort => 'Abort',
@@ -144,10 +168,13 @@ class ExposureTriggerConfig {
           _defaultThresholdFor(condition);
     }
 
+    // A stored action is the operator's choice and is kept. Only a payload
+    // with no action this build knows gets the default for a new trigger.
     final action = switch (json['action'] as String?) {
+      'PauseAndRecalibrate' => TriggerActionType.pauseAndRecalibrate,
       'Autofocus' => TriggerActionType.autofocus,
       'Abort' => TriggerActionType.abort,
-      _ => TriggerActionType.pauseAndRecalibrate,
+      _ => TriggerActionType.notify,
     };
     return ExposureTriggerConfig(
       condition: condition,
@@ -175,16 +202,7 @@ class ExposureTriggerConfig {
     }
   }
 
-  String get actionLabel {
-    switch (action) {
-      case TriggerActionType.pauseAndRecalibrate:
-        return 'Pause & Recalibrate';
-      case TriggerActionType.autofocus:
-        return 'Run Autofocus';
-      case TriggerActionType.abort:
-        return 'Abort Sequence';
-    }
-  }
+  String get actionLabel => triggerActionName(action);
 
   IconData get conditionIcon {
     switch (condition) {
@@ -247,7 +265,7 @@ class _TriggerConfigurationDialogState
       _triggers.add(ExposureTriggerConfig(
         condition: TriggerConditionType.guidingRms,
         threshold: _kDefaultGuidingRmsArcsec,
-        action: TriggerActionType.pauseAndRecalibrate,
+        action: TriggerActionType.notify,
       ));
     });
   }
@@ -508,17 +526,6 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
     }
   }
 
-  String _actionName(TriggerActionType a) {
-    switch (a) {
-      case TriggerActionType.pauseAndRecalibrate:
-        return 'Pause & Recalibrate';
-      case TriggerActionType.autofocus:
-        return 'Run Autofocus';
-      case TriggerActionType.abort:
-        return 'Abort Sequence';
-    }
-  }
-
   String _getThresholdUnit() {
     switch (_condition) {
       case TriggerConditionType.guidingRms:
@@ -639,11 +646,18 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
           const SizedBox(height: 16),
           AccessibleDropdownFormField<TriggerActionType>(
             initialValue: _action,
-            decoration: const InputDecoration(labelText: 'Action'),
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Action',
+              helperText: 'Checked after each exposure node. Notify tells '
+                  'you once each time the condition starts to hold, and the '
+                  'run keeps imaging.',
+              helperMaxLines: 3,
+            ),
             items: TriggerActionType.values.map((a) {
               return DropdownMenuItem(
                 value: a,
-                child: Text(_actionName(a)),
+                child: Text(triggerActionName(a)),
               );
             }).toList(),
             onChanged: (v) => setState(() => _action = v!),

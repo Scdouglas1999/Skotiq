@@ -807,6 +807,8 @@ class NotificationRouter {
         return 'Frame captured';
       case NotificationCategory.frameRejected:
         return 'Frames being rejected';
+      case NotificationCategory.problemNoticed:
+        return 'Problem noticed — the run continues';
       case NotificationCategory.exposureFailed:
         return 'Exposure failed';
       case NotificationCategory.recoveryStarted:
@@ -900,6 +902,8 @@ class NotificationRouter {
             'restored last-good focus.';
       case NotificationCategory.autofocusFailed:
         return 'Autofocus run failed.';
+      case NotificationCategory.problemNoticed:
+        return '\${problem.source}: \${problem.message}';
       case NotificationCategory.frameRejected:
         return '\${frame.streak} frames in a row were rejected '
             '(\${frame.reason}). The run continues.';

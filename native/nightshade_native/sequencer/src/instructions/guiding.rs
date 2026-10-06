@@ -184,7 +184,15 @@ pub async fn execute_start_guiding(
                     match ctx.device_ops.guider_get_calibration().await {
                         Ok(calib) => {
                             if let Err(reason) = validate_calibration_quality(&calib, config) {
-                                return InstructionResult::failure(reason);
+                                // Skewed axes are a judgment about a guider that is
+                                // guiding, so by default the operator is told and
+                                // the run goes on (owner decision 2026-10-06). A
+                                // guider that says it is not calibrated is not
+                                // guiding the frames at all and keeps its failure.
+                                if !calib.is_calibrated || ctx.stops_on_quality_problems().await {
+                                    return InstructionResult::failure(reason);
+                                }
+                                ctx.notify_quality_problem_continuing("Start guiding", &reason);
                             }
                         }
                         Err(e) => {
@@ -222,7 +230,7 @@ pub async fn execute_start_guiding(
                         }
                     }
                     if sample_count > 0 && max_rms > config.max_post_settle_rms_pixels {
-                        return InstructionResult::failure(format!(
+                        let problem = format!(
                             "Post-settle guiding RMS too high: {:.2}px peak across {} sample{} \
                          over {}s (limit {:.2}px). Calibration looks poor — \
                          recalibrate the guider before continuing.",
@@ -231,13 +239,20 @@ pub async fn execute_start_guiding(
                             if sample_count == 1 { "" } else { "s" },
                             rms_samples as u64 * rms_interval.as_secs(),
                             config.max_post_settle_rms_pixels
-                        ));
+                        );
+                        // The guider is guiding; how well is a judgment, so by
+                        // default it notifies and the run goes on.
+                        if ctx.stops_on_quality_problems().await {
+                            return InstructionResult::failure(problem);
+                        }
+                        ctx.notify_quality_problem_continuing("Start guiding", &problem);
+                    } else {
+                        tracing::info!(
+                            "Calibration validation passed: peak RMS {:.2}px over {}s window",
+                            max_rms,
+                            rms_samples as u64 * rms_interval.as_secs()
+                        );
                     }
-                    tracing::info!(
-                        "Calibration validation passed: peak RMS {:.2}px over {}s window",
-                        max_rms,
-                        rms_samples as u64 * rms_interval.as_secs()
-                    );
                 }
 
                 // Arm the GuideStarLost trigger now that guiding is confirmed

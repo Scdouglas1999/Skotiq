@@ -212,6 +212,9 @@ void _stubBackendForStart(MockBackend backend) {
       filterWheelRetries: any(named: 'filterWheelRetries'),
     ),
   ).thenAnswer((_) async {});
+  when(
+    () => backend.sequencerSetStopOnQualityProblems(any()),
+  ).thenAnswer((_) async {});
   when(() => backend.setLocation(any())).thenAnswer((_) async {});
   when(
     () => backend.sequencerUpdateLocation(

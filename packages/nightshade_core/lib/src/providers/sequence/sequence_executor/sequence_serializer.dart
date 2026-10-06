@@ -1030,6 +1030,8 @@ class SequenceSerializer {
       // form because the Rust variant has no payload.
       case RecoveryActionType.switchTargetOrFilter:
         return 'SwitchTargetOrFilter';
+      case RecoveryActionType.notify:
+        return 'Notify';
     }
   }
 }

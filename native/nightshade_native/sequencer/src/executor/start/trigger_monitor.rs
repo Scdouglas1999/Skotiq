@@ -107,6 +107,14 @@ pub(super) async fn run_trigger_monitor_poll_loop(
     // exhausting `max_attempts`. Keyed by trigger ID.
     let mut retry_attempts: HashMap<String, u32> = HashMap::new();
 
+    // When each notify-only trigger last fired, so a condition that keeps
+    // holding is told once. Keyed by trigger ID. See `notify_episode_gap`.
+    let mut notify_episodes: HashMap<String, std::time::Instant> = HashMap::new();
+
+    // Whether the operator has been told about the current run of DriftLimit
+    // recenters that could not solve; a recenter that succeeds ends the run.
+    let mut recenter_failure_told = false;
+
     // Streaming-checkpoint cadence belongs to an independent task spawned
     // alongside this monitor (see streaming_checkpoint_task), so checkpoint
     // saves keep running while triggers_enabled = false.
@@ -718,15 +726,20 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         // trigger evaluators that share the same Arc. Snapshot the fired
         // triggers into an owned Vec and drop the lock before dispatching.
         let park_policy = runtime_config.read().park_policy;
-        let fired_with_names: Vec<(String, String, RecoveryAction, bool)> = {
+        let fired_with_names: Vec<(String, String, FiredTriggerAction, Option<u64>)> = {
             let mut manager = trigger_manager.write().await;
             let fired = manager.check_all().await;
+            let stop_on_quality_problems = manager.state().read().await.stop_on_quality_problems;
             fired
                 .into_iter()
-                // The operator's park settings first, so the hold filter below
-                // judges what the trigger will actually do.
+                // The operator's park and quality settings first, so the hold
+                // filter below judges what the trigger will actually do.
                 .map(|(trigger_id, action)| {
-                    let fired = apply_park_policy(&trigger_id, action, park_policy);
+                    let fired = apply_quality_policy(
+                        &trigger_id,
+                        apply_park_policy(&trigger_id, action, park_policy),
+                        stop_on_quality_problems,
+                    );
                     (trigger_id, fired)
                 })
                 // While paused, drop everything that is not protecting the rig
@@ -759,8 +772,8 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                     }
                 })
                 .map(|(trigger_id, fired)| {
-                    let trigger_name = manager
-                        .get_trigger(&trigger_id)
+                    let trigger = manager.get_trigger(&trigger_id);
+                    let trigger_name = trigger
                         .map(|t| t.name.clone())
                         // Why: `get_trigger` returns Option;
                         // None would only occur if a trigger fired and was
@@ -768,12 +781,8 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                         // tolerated for diagnostic naming. Using the id as the
                         // display name preserves traceability.
                         .unwrap_or_else(|| trigger_id.clone());
-                    (
-                        trigger_id,
-                        trigger_name,
-                        fired.action,
-                        fired.end_without_parking,
-                    )
+                    let cooldown_secs = trigger.and_then(|t| t.cooldown_secs);
+                    (trigger_id, trigger_name, fired, cooldown_secs)
                 })
                 .collect()
         };
@@ -783,12 +792,31 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             manager.state()
         };
 
-        for (trigger_id, trigger_name, action, end_without_parking) in fired_with_names {
-            let action_str = FiredTriggerAction {
-                action: action.clone(),
-                end_without_parking,
+        for (trigger_id, trigger_name, fired, cooldown_secs) in fired_with_names {
+            // A notify-only trigger tells the operator once per episode: a
+            // firing that follows the last one within the trigger's cooldown
+            // plus a margin is the same condition still holding, and says
+            // nothing new.
+            if fired.notify_only {
+                let now = std::time::Instant::now();
+                let same_episode = notify_episodes.get(&trigger_id).is_some_and(|last| {
+                    now.duration_since(*last) < notify_episode_gap(cooldown_secs)
+                });
+                notify_episodes.insert(trigger_id.clone(), now);
+                if same_episode {
+                    tracing::debug!(
+                        "Trigger '{}' still firing; the operator was already told",
+                        trigger_name
+                    );
+                    continue;
+                }
             }
-            .wire_label();
+            let action_str = fired.wire_label();
+            let FiredTriggerAction {
+                action,
+                end_without_parking,
+                notify_only,
+            } = fired;
 
             tracing::warn!(
                 "Trigger fired: {} ({}) - action: {:?}",
@@ -821,6 +849,19 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                 let mut stamped = decision_event;
                 stamped.sequence_run_id = *active_run_id_for_decisions.read();
                 let _ = decision_tx_for_lifecycle.send(stamped);
+            }
+
+            // A notice drives nothing: no in-flight guard, no camera claim.
+            if notify_only {
+                let message = {
+                    // Manager before state, the order every other path takes.
+                    let manager = trigger_manager.read().await;
+                    let state = trigger_state_for_actions.read().await;
+                    quality_trigger_notice(&trigger_name, &trigger_id, &manager, &state)
+                };
+                tracing::warn!("{}", message);
+                let _ = event_tx_clone2.send(ExecutorEvent::Warning { message });
+                continue;
             }
 
             // Mark the whole action dispatch as in-flight. The
@@ -2093,7 +2134,47 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                         // capture loop immediately rather than
                         // sitting out the claim's expiry.
                         camera_claim.release().await;
-                        if result.status != NodeStatus::Success {
+                        let stop_on_quality_problems = trigger_state_for_actions
+                            .read()
+                            .await
+                            .stop_on_quality_problems;
+                        if result.status == NodeStatus::Success {
+                            recenter_failure_told = false;
+                        } else if crate::instructions::center_did_not_converge(&result)
+                            && !stop_on_quality_problems
+                        {
+                            // The solver could not solve or converge (cloud, a
+                            // sparse field): a judgment, not a fault. The frames
+                            // carry on where the mount points and the operator
+                            // is told once per run of failed recenters (owner
+                            // decision 2026-10-06: only a risk to the hardware
+                            // stops a run by itself). This used to pause the run
+                            // until someone resumed it.
+                            let problem = format!(
+                                "{}. The mount stays where the last correction put it.",
+                                result
+                                    .message
+                                    .as_deref()
+                                    .unwrap_or("Recenter did not converge")
+                            );
+                            if recenter_failure_told {
+                                tracing::warn!("[DRIFT] Recenter failed again: {}", problem);
+                            } else {
+                                recenter_failure_told = true;
+                                let continuation = crate::executor::quality_problem_continuation(
+                                    &format!("{trigger_name} recenter"),
+                                    &problem,
+                                    serde_json::json!({ "trigger_id": trigger_id }),
+                                );
+                                tracing::warn!("[DRIFT] {}", continuation.operator_message);
+                                let mut decision = continuation.decision;
+                                decision.sequence_run_id = *active_run_id_for_decisions.read();
+                                let _ = decision_tx_for_lifecycle.send(decision);
+                                let _ = event_tx_clone2.send(ExecutorEvent::Warning {
+                                    message: continuation.operator_message,
+                                });
+                            }
+                        } else {
                             tracing::warn!(
                                 "[DRIFT] Recenter failed: {:?} - pausing sequence",
                                 result.message
@@ -2421,6 +2502,10 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                         }
                     }
                 }
+                // A notify-only firing (`Notify`, or a quality trigger under the
+                // default policy) told the operator and moved on above, before
+                // the in-flight guard; nothing reaches here with it.
+                RecoveryAction::Notify => {}
                 RecoveryAction::Continue => {
                     // explicit no-op handler so the
                     // match is exhaustive on every variant. The

@@ -92,6 +92,8 @@ pub(crate) struct ScriptedDeviceOps {
     exposure_calls: Arc<AtomicU32>,
     /// Paths `save_fits` was handed, in order: the frames on disk.
     saved_frames: Arc<Mutex<Vec<String>>>,
+    /// When true, every plate solve finds no solution (a clouded frame).
+    pub(crate) plate_solve_fails: Arc<AtomicBool>,
 }
 
 impl ScriptedDeviceOps {
@@ -114,6 +116,7 @@ impl ScriptedDeviceOps {
             camera_failures: Arc::new(Mutex::new(std::collections::VecDeque::new())),
             exposure_calls: Arc::new(AtomicU32::new(0)),
             saved_frames: Arc::new(Mutex::new(Vec::new())),
+            plate_solve_fails: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -375,6 +378,9 @@ impl DeviceOps for ScriptedDeviceOps {
         dec: Option<f64>,
         s: Option<f64>,
     ) -> DeviceResult<PlateSolveResult> {
+        if self.plate_solve_fails.load(Ordering::SeqCst) {
+            return Err("no solution: too few stars".to_string());
+        }
         self.inner.plate_solve(d, ra, dec, s).await
     }
     async fn save_fits(

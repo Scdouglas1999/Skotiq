@@ -66,6 +66,10 @@ const Map<String, String> _defaultSettings = {
   'dither_ra_only': 'false',
   'park_on_unsafe_weather': 'true',
   'park_before_dawn': 'true',
+  // Quality problems the sequencer judges (guiding RMS, centering, settling)
+  // notify and the run keeps imaging unless the operator turns this on (owner
+  // decision 2026-10-06: only a risk to the hardware stops a run by itself).
+  'stop_run_on_quality_problems': 'false',
   'meridian_flip_minutes': '5',
   'auto_focus_on_filter_change': 'false',
   'use_filter_focus_offsets': 'true',

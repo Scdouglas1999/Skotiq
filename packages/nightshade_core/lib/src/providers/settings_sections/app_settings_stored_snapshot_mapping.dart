@@ -83,6 +83,10 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
         true,
       ),
       parkBeforeDawn: _parseBool(allSettings['park_before_dawn'], true),
+      stopRunOnQualityProblems: _parseBool(
+        allSettings['stop_run_on_quality_problems'],
+        false,
+      ),
       meridianFlipMinutes: _parseInt(allSettings['meridian_flip_minutes'], 5),
       autoFocusOnFilterChange: _parseBool(
         allSettings['auto_focus_on_filter_change'],
@@ -546,6 +550,7 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
       // Sequencer
       'park_on_unsafe_weather': s.parkOnUnsafeWeather.toString(),
       'park_before_dawn': s.parkBeforeDawn.toString(),
+      'stop_run_on_quality_problems': s.stopRunOnQualityProblems.toString(),
       'meridian_flip_minutes': s.meridianFlipMinutes.toString(),
       'auto_focus_on_filter_change': s.autoFocusOnFilterChange.toString(),
       'use_filter_focus_offsets': s.useFilterFocusOffsets.toString(),

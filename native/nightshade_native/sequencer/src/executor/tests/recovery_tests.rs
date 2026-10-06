@@ -1067,6 +1067,8 @@ fn only_rig_protecting_triggers_evaluate_while_paused() {
 
 /// The Guiding Failure trigger must reach the recovery driver, because the
 /// driver freezing the node tree is the only thing that stops the next frame.
+/// That applies when the operator turned on "Stop the run for quality
+/// problems"; by default the trigger only notifies (owner decision 2026-10-06).
 ///
 /// Its standard action is `Retry { max_attempts: 3 }`, and on the trigger side
 /// a Retry had nothing to re-run: it counted 1/3 at 02:59:10, 2/3 at 03:00:11,

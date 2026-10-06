@@ -77,6 +77,27 @@ pub async fn execute_recovery(
             );
             return match config.recovery_action {
                 RecoveryAction::Continue => NodeStatus::Success,
+                RecoveryAction::Notify => {
+                    // The operator chose to be told rather than to stop: the
+                    // node succeeds and the run goes on past it.
+                    let continuation = crate::executor::quality_problem_continuation(
+                        &format!("Recovery '{}'", node.name()),
+                        &format!(
+                            "its steps failed {} time{}.",
+                            attempts,
+                            if attempts == 1 { "" } else { "s" }
+                        ),
+                        serde_json::json!({ "node_id": node.id() }),
+                    );
+                    tracing::warn!("{}", continuation.operator_message);
+                    context.emit_decision(continuation.decision);
+                    if let Some(tx) = &context.event_tx {
+                        let _ = tx.send(ExecutorEvent::Warning {
+                            message: continuation.operator_message,
+                        });
+                    }
+                    NodeStatus::Success
+                }
                 RecoveryAction::NextTarget => NodeStatus::Skipped,
                 RecoveryAction::CustomBranch => execute_custom_branch_children(node, context).await,
                 RecoveryAction::ParkAndAbort => {

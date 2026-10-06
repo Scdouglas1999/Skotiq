@@ -248,6 +248,11 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   }
 
   @override
+  Future<void> sequencerSetStopOnQualityProblems(bool stop) async {
+    await _post('sequencer/quality-policy', {'stopOnQualityProblems': stop});
+  }
+
+  @override
   Future<void> sequencerSetParkPolicy({
     required bool parkOnUnsafeWeather,
     required bool parkBeforeDawn,

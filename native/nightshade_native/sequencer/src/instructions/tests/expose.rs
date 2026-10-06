@@ -387,3 +387,92 @@ mod light_frame_grading {
         .expect("a calibration frame has no stars to grade");
     }
 }
+
+/// A dither between frames that does not settle is a judgment about guiding,
+/// and the standalone Dither node already carried on through it. In a burst
+/// it failed the burst, which ended the run (owner decision 2026-10-06: only a
+/// risk to the hardware stops a run by itself).
+mod in_burst_dither_failure {
+    use super::*;
+
+    struct Burst {
+        result: InstructionResult,
+        frames: u32,
+        warnings: Vec<String>,
+        decisions: Vec<String>,
+    }
+
+    async fn burst_with_failing_dither(stop_on_quality_problems: bool) -> Burst {
+        let ops = Arc::new(
+            ScriptedDomeRotatorOps::new().with_dither_failing("Settle timed out after 60s"),
+        );
+        let ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
+        if let Some(state) = &ctx.trigger_state {
+            state.write().await.stop_on_quality_problems = stop_on_quality_problems;
+        }
+        let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
+        let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
+        let ctx = InstructionContext {
+            event_tx: Some(event_tx),
+            decision_tx: Some(decision_tx),
+            ..ctx
+        };
+        let config = ExposureConfig {
+            duration_secs: 0.01,
+            count: 4,
+            frame_type: "Light".to_string(),
+            dither_every: Some(1),
+            ..ExposureConfig::default()
+        };
+        let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+        let mut warnings = Vec::new();
+        while let Ok(event) = events.try_recv() {
+            if let crate::executor::ExecutorEvent::Warning { message } = event {
+                warnings.push(message);
+            }
+        }
+        let mut decisions = Vec::new();
+        while let Ok(decision) = decision_rx.try_recv() {
+            decisions.push(decision.summary);
+        }
+        Burst {
+            result,
+            frames: ops.camera_exposure_calls.load(Ordering::SeqCst),
+            warnings,
+            decisions,
+        }
+    }
+
+    #[tokio::test]
+    async fn the_burst_keeps_imaging_and_the_operator_is_told_once() {
+        let burst = burst_with_failing_dither(false).await;
+        assert_eq!(
+            burst.result.status,
+            NodeStatus::Success,
+            "{:?}",
+            burst.result.message
+        );
+        assert_eq!(burst.frames, 4, "every frame of the burst is taken");
+        assert_eq!(
+            burst.decisions,
+            vec![crate::executor::QUALITY_PROBLEM_CONTINUED_SUMMARY],
+            "three failed dithers in a row are one notification"
+        );
+        assert!(
+            burst
+                .warnings
+                .iter()
+                .any(|w| w.contains("Settle timed out") && w.contains("The run continues")),
+            "{:?}",
+            burst.warnings
+        );
+    }
+
+    #[tokio::test]
+    async fn the_operator_who_asked_for_it_still_gets_the_stop() {
+        let burst = burst_with_failing_dither(true).await;
+        assert_eq!(burst.result.status, NodeStatus::Failure);
+        assert_eq!(burst.frames, 1);
+        assert!(burst.decisions.is_empty(), "{:?}", burst.decisions);
+    }
+}

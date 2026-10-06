@@ -544,6 +544,44 @@ pub(crate) fn autofocus_failure_continuation(
     }
 }
 
+/// Summary of the decision row written when the software judged something bad
+/// — guiding, pointing or settling — and the run carried on because the
+/// operator has not asked it to stop for that. The app raises its "Problem
+/// noticed — the run continues" notification from this row and matches the
+/// text verbatim.
+pub const QUALITY_PROBLEM_CONTINUED_SUMMARY: &str = "Problem noticed — the run continues";
+
+/// The continuation record for a quality problem the run carries on through
+/// (see [`crate::triggers::TriggerState::stop_on_quality_problems`]). `source`
+/// names what noticed it ("Center 'M31'", "Post-flip recenter"), `problem`
+/// says what it found, and the fields of `context` are added to the decision
+/// row's details.
+pub(crate) fn quality_problem_continuation(
+    source: &str,
+    problem: &str,
+    context: serde_json::Value,
+) -> AutofocusTriggerContinuation {
+    let mut details = serde_json::json!({
+        "source": source,
+        "problem": problem,
+    });
+    if let (Some(details), serde_json::Value::Object(context)) = (details.as_object_mut(), context)
+    {
+        details.extend(context);
+    }
+    AutofocusTriggerContinuation {
+        decision: crate::decision::DecisionEvent::new(
+            crate::decision::DecisionCategory::SystemEvent,
+            QUALITY_PROBLEM_CONTINUED_SUMMARY.to_string(),
+            details,
+        ),
+        operator_message: format!(
+            "{source}: {problem} The run continues. To have problems like this stop the run \
+             instead, turn on Stop the run for quality problems in Settings > Sequencer."
+        ),
+    }
+}
+
 #[cfg(test)]
 mod scenario_sim_tests;
 

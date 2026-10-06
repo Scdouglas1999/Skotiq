@@ -122,3 +122,114 @@ async fn guiding_validation_failure_stops_started_guider() {
     );
     assert!(!ops.guiding.load(Ordering::SeqCst));
 }
+
+/// What a StartGuiding run left behind: its result, whether the guider is
+/// still guiding, and what the operator was told.
+struct GuidingQualityRun {
+    result: InstructionResult,
+    still_guiding: bool,
+    warnings: Vec<String>,
+    decisions: Vec<String>,
+}
+
+async fn start_guiding_with(
+    ops: ScriptedDomeRotatorOps,
+    stop_on_quality_problems: bool,
+) -> GuidingQualityRun {
+    let ops = Arc::new(ops);
+    let mut ec = crate::node::context::ExecutionContext::new_for_test("guide".to_string());
+    ec.device_ops = ops.clone();
+    let mut state = crate::triggers::TriggerState::new();
+    state.stop_on_quality_problems = stop_on_quality_problems;
+    ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
+    ec.event_tx = Some(event_tx);
+    let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
+    ec.decision_tx = Some(decision_tx);
+    let ctx = ec.to_instruction_context("guide").await;
+    let config = StartGuidingConfig {
+        settle_time: 0.0,
+        settle_timeout: 10.0,
+        ..StartGuidingConfig::default()
+    };
+
+    let result = execute_start_guiding(&config, &ctx, None).await;
+
+    let mut warnings = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let crate::executor::ExecutorEvent::Warning { message } = event {
+            warnings.push(message);
+        }
+    }
+    let mut decisions = Vec::new();
+    while let Ok(decision) = decision_rx.try_recv() {
+        decisions.push(decision.summary);
+    }
+    GuidingQualityRun {
+        result,
+        still_guiding: ops.guiding.load(Ordering::SeqCst),
+        warnings,
+        decisions,
+    }
+}
+
+/// Owner decision 2026-10-06: a judgment the software makes about guiding
+/// never stops a run by itself. Both StartGuiding checks — calibration axes
+/// off-perpendicular, and RMS over the post-settle ceiling — failed the node,
+/// which ended the run, on a guider that was guiding.
+#[tokio::test(start_paused = true)]
+async fn start_guiding_quality_checks_notify_and_keep_guiding() {
+    let skewed = || {
+        ScriptedDomeRotatorOps::new().with_guider_calibration(GuidingCalibration {
+            is_calibrated: true,
+            ra_angle_deg: Some(0.0),
+            dec_angle_deg: Some(30.0),
+        })
+    };
+    let noisy = || ScriptedDomeRotatorOps::new().with_guider_rms(5.0);
+
+    for (label, ops, problem) in [
+        ("skewed calibration", skewed(), "off-perpendicular"),
+        (
+            "high post-settle RMS",
+            noisy(),
+            "Post-settle guiding RMS too high",
+        ),
+    ] {
+        let run = start_guiding_with(ops, false).await;
+        assert_eq!(
+            run.result.status,
+            NodeStatus::Success,
+            "{label}: {:?}",
+            run.result.message
+        );
+        assert!(
+            run.still_guiding,
+            "{label}: the guider must be left guiding"
+        );
+        assert!(
+            run.warnings
+                .iter()
+                .any(|w| w.contains(problem) && w.contains("The run continues")),
+            "{label}: {:?}",
+            run.warnings
+        );
+        assert_eq!(
+            run.decisions,
+            vec![crate::executor::QUALITY_PROBLEM_CONTINUED_SUMMARY],
+            "{label}"
+        );
+    }
+
+    // The operator who asked for quality problems to stop the run gets the
+    // old behavior: the node fails and the guider is stopped.
+    for (label, ops) in [
+        ("skewed calibration", skewed()),
+        ("high post-settle RMS", noisy()),
+    ] {
+        let run = start_guiding_with(ops, true).await;
+        assert_eq!(run.result.status, NodeStatus::Failure, "{label}");
+        assert!(!run.still_guiding, "{label}");
+        assert!(run.decisions.is_empty(), "{label}: {:?}", run.decisions);
+    }
+}

@@ -25,11 +25,16 @@ import '../../mocks/mock_backend.dart';
 /// `Future<void>` so the launch push runs end to end.
 class _RecordingBackend extends MockBackend {
   final List<Map<Symbol, dynamic>> parkPolicyPushes = [];
+  final List<bool> qualityPolicyPushes = [];
 
   @override
   dynamic noSuchMethod(Invocation invocation) {
     if (invocation.memberName == #sequencerSetParkPolicy) {
       parkPolicyPushes.add(invocation.namedArguments);
+      return Future<void>.value();
+    }
+    if (invocation.memberName == #sequencerSetStopOnQualityProblems) {
+      qualityPolicyPushes.add(invocation.positionalArguments.single as bool);
       return Future<void>.value();
     }
     final result = super.noSuchMethod(invocation);
@@ -85,6 +90,7 @@ void main() {
     required bool parkOnUnsafeWeather,
     required bool parkBeforeDawn,
     bool autoParkEnabled = true,
+    bool stopRunOnQualityProblems = false,
   }) {
     final c = ProviderContainer(
       overrides: [
@@ -106,6 +112,7 @@ void main() {
             AppSettingsState(
               parkOnUnsafeWeather: parkOnUnsafeWeather,
               parkBeforeDawn: parkBeforeDawn,
+              stopRunOnQualityProblems: stopRunOnQualityProblems,
             ),
           ),
         ),
@@ -248,5 +255,41 @@ void main() {
     expect(backend.parkPolicyPushes, contains(equals(policy(false, false))));
 
     await executor.stop();
+  });
+
+  // "Stop the run for quality problems" reaches the executor the same way:
+  // off by default (owner decision 2026-10-06), and an operator who turned it
+  // on must have it before the first frame and when they change it mid-run.
+  group('quality policy', () {
+    test('start tells the executor that quality problems notify', () async {
+      final c = buildContainer(parkOnUnsafeWeather: true, parkBeforeDawn: true);
+      c.read(currentSequenceProvider.notifier).loadSequence(_buildSequence());
+      final executor = c.read(sequenceExecutorProvider);
+
+      await executor.start();
+
+      expect(backend.qualityPolicyPushes, [false]);
+      await executor.stop();
+    });
+
+    test('an operator who turned it on gets the stop', () async {
+      final c = buildContainer(
+        parkOnUnsafeWeather: true,
+        parkBeforeDawn: true,
+        stopRunOnQualityProblems: true,
+      );
+      c.read(currentSequenceProvider.notifier).loadSequence(_buildSequence());
+      final executor = c.read(sequenceExecutorProvider);
+
+      await executor.start();
+      expect(backend.qualityPolicyPushes, [true]);
+
+      (c.read(appSettingsProvider.notifier) as _FixedSettingsNotifier).replace(
+        const AppSettingsState(),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(backend.qualityPolicyPushes, [true, false]);
+      await executor.stop();
+    });
   });
 }

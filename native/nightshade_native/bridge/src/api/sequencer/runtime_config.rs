@@ -864,6 +864,28 @@ pub async fn api_sequencer_get_adaptive_swap_json() -> Result<Option<String>, Ni
     Ok(executor.current_adaptive_swap_json().await)
 }
 
+/// Set whether quality problems the sequencer judges stop the run: the
+/// operator's "Stop the run for quality problems" setting, off by default.
+/// Off, guiding RMS over the Guiding Failure limit, a Center or DriftLimit
+/// recenter that cannot solve or converge, a StartGuiding calibration or RMS
+/// check, a dither that does not settle and the post-flip recenter and
+/// guiding checks notify the operator and the run keeps imaging. On, each of
+/// them stops the run as it used to. Takes effect on a running sequence at
+/// its next decision.
+pub async fn api_sequencer_set_stop_on_quality_problems(
+    stop_on_quality_problems: bool,
+) -> Result<(), NightshadeError> {
+    tracing::info!(
+        "Setting sequencer quality policy: stop on quality problems={}",
+        stop_on_quality_problems
+    );
+    let executor = get_sequence_executor().read().await;
+    executor
+        .set_stop_on_quality_problems(stop_on_quality_problems)
+        .await;
+    Ok(())
+}
+
 /// Set whether the standard weather and dawn triggers may park the mount and
 /// close the cover and dome: the operator's "Park on unsafe weather" and
 /// "Park before dawn" settings. Both default to parking. With one off, the

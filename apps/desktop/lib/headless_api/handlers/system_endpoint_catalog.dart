@@ -174,6 +174,7 @@ List<String> availableHeadlessEndpoints() {
     'POST /api/sequencer/safety-fail-mode',
     'POST /api/sequencer/park-policy',
     'POST /api/sequencer/device-retries',
+    'POST /api/sequencer/quality-policy',
     'POST /api/sequencer/safety-check-interval',
     'POST /api/sequencer/save-path',
     'POST /api/sequencer/active-sequence-run-id',

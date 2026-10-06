@@ -7,9 +7,10 @@
 //     never set one is 0.8 (see `DEFAULT_ECCENTRICITY_THRESHOLD` in the native
 //     `quality::image_grading`, which grades the owner's frames against it).
 //   * "Autofocus star selection should be on." A profile that never set it
-//     measures the brightest 10 stars.
+//     measures the brightest 10 stars, and the v60 upgrade moved every stored
+//     0 to 10 once (see migration_v59_to_v60_test.dart).
 //
-// Values an operator saved are kept as they are.
+// Values an operator saves are kept as they are.
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -74,6 +75,19 @@ void main() {
       expect(const AppSettingsState().imageGradingEccentricityThreshold, 0.8);
     });
 
+    test('lets quality problems notify rather than stop the run', () async {
+      final database = NightshadeDatabase.forTesting(NativeDatabase(dbFile));
+      addTearDown(database.close);
+      final (_, settings) = await load(database);
+
+      expect(settings.stopRunOnQualityProblems, isFalse);
+      expect(
+        await database.settingsDao.getSetting('stop_run_on_quality_problems'),
+        'false',
+      );
+      expect(const AppSettingsState().stopRunOnQualityProblems, isFalse);
+    });
+
     test('has no autofocus failure action to park with', () async {
       final database = NightshadeDatabase.forTesting(NativeDatabase(dbFile));
       addTearDown(database.close);
@@ -85,22 +99,25 @@ void main() {
   });
 
   group('a profile written by an older build', () {
-    test('keeps the star selection and eccentricity limit it saved', () async {
-      final first = NightshadeDatabase.forTesting(NativeDatabase(dbFile));
-      await first.settingsDao.setSetting('af_use_brightest_n_stars', '0');
-      await first.settingsDao.setSetting(
-        'image_grading_eccentricity_threshold',
-        '0.7',
-      );
-      await first.close();
+    test(
+      'keeps a star selection and eccentricity limit saved since v60',
+      () async {
+        final first = NightshadeDatabase.forTesting(NativeDatabase(dbFile));
+        await first.settingsDao.setSetting('af_use_brightest_n_stars', '0');
+        await first.settingsDao.setSetting(
+          'image_grading_eccentricity_threshold',
+          '0.7',
+        );
+        await first.close();
 
-      final second = NightshadeDatabase.forTesting(NativeDatabase(dbFile));
-      addTearDown(second.close);
-      final (_, settings) = await load(second);
+        final second = NightshadeDatabase.forTesting(NativeDatabase(dbFile));
+        addTearDown(second.close);
+        final (_, settings) = await load(second);
 
-      expect(settings.afUseBrightestNStars, 0);
-      expect(settings.imageGradingEccentricityThreshold, 0.7);
-    });
+        expect(settings.afUseBrightestNStars, 0);
+        expect(settings.imageGradingEccentricityThreshold, 0.7);
+      },
+    );
 
     test('loses its stored AbortAndPark failure action on open', () async {
       final first = NightshadeDatabase.forTesting(NativeDatabase(dbFile));

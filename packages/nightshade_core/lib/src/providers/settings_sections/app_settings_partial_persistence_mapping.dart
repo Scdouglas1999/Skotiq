@@ -87,6 +87,7 @@ extension _AppSettingsPartialPersistenceMapping on AppSettingsNotifier {
     'recovery_audible_alert_when_entered',
     // Weather-safety / dawn.
     'park_before_dawn',
+    'stop_run_on_quality_problems',
     // Meridian flip detail.
     'enable_meridian_flip',
     // Focuser temp-comp + backlash (calibration).
@@ -283,6 +284,13 @@ extension _AppSettingsPartialPersistenceMapping on AppSettingsNotifier {
           : null,
       parkBeforeDawn: settings.containsKey('park_before_dawn')
           ? _parseBool(settings['park_before_dawn'], current.parkBeforeDawn)
+          : null,
+      stopRunOnQualityProblems:
+          settings.containsKey('stop_run_on_quality_problems')
+          ? _parseBool(
+              settings['stop_run_on_quality_problems'],
+              current.stopRunOnQualityProblems,
+            )
           : null,
       meridianFlipMinutes: settings.containsKey('meridian_flip_minutes')
           ? _parseInt(

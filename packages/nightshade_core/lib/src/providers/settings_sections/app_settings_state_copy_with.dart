@@ -23,6 +23,7 @@ extension AppSettingsStateCopyWith on AppSettingsState {
     String? bitDepth,
     bool? parkOnUnsafeWeather,
     bool? parkBeforeDawn,
+    bool? stopRunOnQualityProblems,
     int? meridianFlipMinutes,
     bool? autoFocusOnFilterChange,
     bool? useFilterFocusOffsets,
@@ -201,6 +202,8 @@ extension AppSettingsStateCopyWith on AppSettingsState {
       bitDepth: bitDepth ?? this.bitDepth,
       parkOnUnsafeWeather: parkOnUnsafeWeather ?? this.parkOnUnsafeWeather,
       parkBeforeDawn: parkBeforeDawn ?? this.parkBeforeDawn,
+      stopRunOnQualityProblems:
+          stopRunOnQualityProblems ?? this.stopRunOnQualityProblems,
       meridianFlipMinutes: meridianFlipMinutes ?? this.meridianFlipMinutes,
       autoFocusOnFilterChange:
           autoFocusOnFilterChange ?? this.autoFocusOnFilterChange,

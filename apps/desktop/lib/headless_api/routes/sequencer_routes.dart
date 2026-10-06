@@ -92,6 +92,11 @@ List<HeadlessRoute> buildSequencerRoutes(
   ),
   HeadlessRoute(
     HttpMethod.post,
+    '/api/sequencer/quality-policy',
+    h.handleSequencerSetQualityPolicy,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
     '/api/sequencer/safety-check-interval',
     h.handleSequencerSetSafetyCheckInterval,
   ),

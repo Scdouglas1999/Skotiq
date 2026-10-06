@@ -52,6 +52,12 @@ enum NotificationCategory {
   /// A streak of frames failed grading and reached the operator's limit. Told
   /// once per streak; the run keeps imaging and the rejects are kept.
   frameRejected('Frames Being Rejected'),
+
+  /// A quality problem the sequencer judged — a Center that could not solve,
+  /// guiding RMS over a limit, a dither that did not settle, a post-flip
+  /// check — and carried on through, because the operator has not asked for
+  /// such problems to stop the run (owner decision 2026-10-06).
+  problemNoticed('Problem Noticed'),
   exposureFailed('Exposure Failed'),
 
   // Recovery / executor health
@@ -126,6 +132,7 @@ enum NotificationCategory {
       case NotificationCategory.darkroomDraftReady:
         return EventSeverity.info;
       case NotificationCategory.frameRejected:
+      case NotificationCategory.problemNoticed:
       case NotificationCategory.cloudArriving:
       case NotificationCategory.recoveryStarted:
         return EventSeverity.warning;
@@ -502,6 +509,9 @@ bool _systemPushByDefault(NotificationCategory c) {
     // must hear that the night continued degraded, or the decision row is
     // invisible until morning.
     case NotificationCategory.autofocusContinued:
+    // A quality problem the run carried on through is the same kind of news:
+    // the night went on, possibly degraded, and the person asleep should know.
+    case NotificationCategory.problemNoticed:
     // The morning draft is the message this whole release exists to send, and
     // the person it is for is asleep in another room. In-app only would mean
     // the operator learns about it when they next open the desktop app.

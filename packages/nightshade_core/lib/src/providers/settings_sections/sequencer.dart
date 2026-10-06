@@ -4,6 +4,7 @@
 //
 // Owns:
 //   * parkOnUnsafeWeather, parkBeforeDawn, safetyFailMode
+//   * stopRunOnQualityProblems
 //   * meridianFlipMinutes, autoFocusOnFilterChange, useFilterFocusOffsets
 //   * autoFocusEveryMinutes
 //   * ditherEnabled, ditherEveryFrames
@@ -27,6 +28,13 @@ extension SequencerSettingsSection on AppSettingsNotifier {
   Future<void> setParkBeforeDawn(bool value) async {
     await _saveSetting('park_before_dawn', value.toString());
     _patchState((s) => s.copyWith(parkBeforeDawn: value));
+  }
+
+  /// Whether quality problems the sequencer judges stop the run (off by
+  /// default: the operator is notified and the run keeps imaging).
+  Future<void> setStopRunOnQualityProblems(bool value) async {
+    await _saveSetting('stop_run_on_quality_problems', value.toString());
+    _patchState((s) => s.copyWith(stopRunOnQualityProblems: value));
   }
 
   Future<void> setSafetyFailMode(SafetyFailMode value) async {

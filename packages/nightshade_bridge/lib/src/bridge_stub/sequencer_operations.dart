@@ -124,6 +124,15 @@ extension _NativeBridgeSequencerOperations on _NativeBridgeImplementation {
     okLog: 'Set sequencer safety fail mode: $mode',
   );
 
+  /// Set whether quality problems the sequencer judges stop the run
+  Future<void> sequencerSetStopOnQualityProblems(bool stop) => _native(
+    'sequencerSetStopOnQualityProblems',
+    () => gen_api.apiSequencerSetStopOnQualityProblems(
+      stopOnQualityProblems: stop,
+    ),
+    okLog: 'Set sequencer quality policy: stop on quality problems=$stop',
+  );
+
   /// Set whether the standard weather and dawn triggers may park the rig
   Future<void> sequencerSetParkPolicy({
     required bool parkOnUnsafeWeather,

@@ -113,6 +113,14 @@ abstract class SequencerBackend implements AdaptiveSwapBackend {
   /// - legacy aliases ("fail_open", "warn_only") are coerced to fail-closed
   Future<void> sequencerSetSafetyFailMode(String mode);
 
+  /// Tell the executor whether quality problems it judges stop the run: the
+  /// operator's "Stop the run for quality problems" setting (off by default).
+  /// Off, guiding RMS over the limit, a Center or drift recenter that cannot
+  /// solve, a StartGuiding calibration or RMS check, a dither that does not
+  /// settle and the post-flip recenter and guiding checks notify and the run
+  /// keeps imaging; on, each of them stops the run.
+  Future<void> sequencerSetStopOnQualityProblems(bool stop);
+
   /// Tell the executor whether its standard Weather Unsafe and Dawn
   /// Approaching triggers may park the mount and close the cover and dome:
   /// the operator's "Park on unsafe weather" and "Park before dawn" settings.

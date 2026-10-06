@@ -62,6 +62,21 @@ impl SequenceExecutor {
         self.runtime_config.read().device_retry.get()
     }
 
+    /// Set whether a quality problem the software judges — guiding RMS over the
+    /// limit, a Center that did not converge, a dither that did not settle, a
+    /// failed post-flip recenter or guiding check — stops the run (`true`) or
+    /// notifies the operator while imaging continues (`false`, the default).
+    ///
+    /// Written into the trigger state the run shares with this executor, so a
+    /// running sequence follows the change at its next decision and an idle
+    /// one starts with it. See
+    /// [`crate::triggers::TriggerState::stop_on_quality_problems`].
+    pub async fn set_stop_on_quality_problems(&self, stop: bool) {
+        let manager = self.trigger_manager.read().await;
+        let state_lock = manager.state();
+        state_lock.write().await.stop_on_quality_problems = stop;
+    }
+
     /// Set the safety fail mode for the sequencer.
     ///
     /// Mirrors the value into [`super::RuntimeConfig`] so a running

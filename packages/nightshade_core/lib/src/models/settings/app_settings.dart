@@ -202,6 +202,11 @@ abstract class AppSettings with _$AppSettings {
     /// Times a failed filter-wheel move is retried before it counts as a
     /// failure (0 = one attempt). DB key `filter_wheel_retries`.
     @Default(3) int filterWheelRetries,
+
+    /// Stop the run for quality problems the sequencer judges (guiding RMS,
+    /// centering, settling). Off: notify and keep imaging.
+    /// DB key `stop_run_on_quality_problems`.
+    @Default(false) bool stopRunOnQualityProblems,
     // Meridian flip detail.
     /// Master enable for automatic meridian flips. DB key `enable_meridian_flip`.
     @Default(true) bool enableMeridianFlip,

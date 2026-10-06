@@ -634,6 +634,11 @@ class DisconnectedBackend
   }
 
   @override
+  Future<void> sequencerSetStopOnQualityProblems(bool stop) async {
+    _throwNotConnected();
+  }
+
+  @override
   Future<void> sequencerSetParkPolicy({
     required bool parkOnUnsafeWeather,
     required bool parkBeforeDawn,

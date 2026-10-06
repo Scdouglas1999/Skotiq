@@ -261,6 +261,18 @@ pub struct TriggerState {
     /// gate.
     pub max_sun_altitude_degrees: Option<f64>,
 
+    /// The operator's "Stop the run for quality problems" setting, carried
+    /// here so the trigger monitor and the instructions read one value.
+    ///
+    /// Off by default (owner decision 2026-10-06: only a risk to the hardware
+    /// stops a run by itself). Off, a judgment the software makes about the
+    /// frames, the guiding or the pointing — guiding RMS over the limit, a
+    /// Center that did not converge, a dither that did not settle, a post-flip
+    /// recenter or guiding check that failed — notifies the operator and the
+    /// run keeps imaging. On, each of those stops the run the way it used to.
+    /// Configuration, not run state: `reset_for_new_run` leaves it alone.
+    pub stop_on_quality_problems: bool,
+
     // Frame counting for periodic triggers
     pub completed_exposures: u32,
     pub last_autofocus_frame: u32,
@@ -394,6 +406,7 @@ impl Default for TriggerState {
             // RuntimeConfig; the instruction-layer gate falls back to the
             // default constant when unset.
             max_sun_altitude_degrees: None,
+            stop_on_quality_problems: false,
             completed_exposures: 0,
             last_autofocus_frame: 0,
             last_dither_frame: 0,
@@ -594,6 +607,7 @@ impl TriggerState {
         self.completed_exposures = 0;
         self.last_autofocus_frame = 0;
         self.last_dither_frame = 0;
+        self.consecutive_dither_failures = 0;
         if std::mem::take(&mut self.restored_from_checkpoint) {
             return;
         }
