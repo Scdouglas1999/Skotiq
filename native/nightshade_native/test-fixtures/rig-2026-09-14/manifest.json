@@ -1,0 +1,82 @@
+{
+  "description": "Real frames from the owner's rig on 2026-09-14/15 (UTC): GSO 10in f/4, ASI1600MM-Cool (3.8 um), ZWO EAF, PHD2. Each FITS here is a 1024x1024 crop copied pixel-for-pixel (no resampling) from the center of the original 4656x3520 frame, so every star keeps its PSF, flux and noise; NSCROPX0/NSCROPY0 in each header give the crop origin. Originals: ~/.cache/ns-rig-data/2026-09-14 on the development machine.",
+  "rig": {
+    "pixel_size_um": 3.8,
+    "focal_length_mm": 995.1,
+    "focuser_backlash_steps": 105,
+    "focus_from_below": 6620,
+    "focus_from_above": 6515
+  },
+  "independent_measurement": "Elliptical 2D Gaussian fits (scipy curve_fit) on bright, unsaturated, isolated stars with a fitted local background; hfr is the half-flux radius of the unclipped, background-subtracted flux within 10 px of the fitted center. Medians per crop.",
+  "frames": [
+    {
+      "file": "focused_L_0005.fits",
+      "source": "Documents/NGC7380/Unknown_L_2026-09-15_0005.fits",
+      "date_obs": "2026-09-15T00:20:46Z",
+      "exposure_s": 2.0,
+      "filter": "L",
+      "state": { "optical_focus_position": 6620, "guiding": false },
+      "context": "Taken two minutes after the A/B landing test left the focuser at 6620 approached from below (HFR 2.94 by star crops).",
+      "independent": { "fwhm_px": 4.00, "hfr_px": 2.12, "eccentricity": 0.76 }
+    },
+    {
+      "file": "focused_L_0006.fits",
+      "source": "Documents/NGC7380/Unknown_L_2026-09-15_0006.fits",
+      "date_obs": "2026-09-15T00:49:36Z",
+      "exposure_s": 2.0,
+      "filter": "L",
+      "state": { "optical_focus_position": 6620, "guiding": false },
+      "context": "Same focuser position, 29 minutes later.",
+      "independent": { "fwhm_px": 4.68, "hfr_px": 2.46, "eccentricity": 0.65 }
+    },
+    {
+      "file": "landed_from_above_L_0003.fits",
+      "source": "Documents/NGC7380/Unknown_L_2026-09-14_0003.fits",
+      "date_obs": "2026-09-14T23:56:33Z",
+      "exposure_s": 2.0,
+      "filter": "L",
+      "state": { "optical_focus_position": 6725, "guiding": false },
+      "context": "Taken 26 s after autofocus finished with the direct move 6850 -> 6620 (downward). With 105 steps of backlash that leaves the optics where 6725 is when approached from below.",
+      "independent": { "fwhm_px": 12.31, "hfr_px": 5.22, "eccentricity": 0.73, "note": "only 2 stars passed the fit's isolation and SNR cuts in this crop; the full frame gives FWHM 7.42 px, HFR 3.82 px over 30 stars" }
+    },
+    {
+      "file": "trailed_Ha_0001_001.fits",
+      "source": "Documents/NGC7380/Reject/NGC7380_Ha_0001_001.fits",
+      "date_obs": "2026-09-15T02:49:01Z",
+      "exposure_s": 180.0,
+      "filter": "Ha",
+      "state": { "optical_focus_position": 6620, "guiding": "trailed" },
+      "context": "Sequence light; graded HFR 15.99 px and rejected on the rig.",
+      "independent": { "fwhm_px": 9.53, "hfr_px": 5.06, "eccentricity": 0.98 }
+    },
+    {
+      "file": "trailed_SII_0001_001.fits",
+      "source": "Documents/NGC7380/Reject/NGC7380_SII_0001_001.fits",
+      "date_obs": "2026-09-15T02:53:21Z",
+      "exposure_s": 180.0,
+      "filter": "SII",
+      "state": { "optical_focus_position": 6620, "guiding": "trailed" },
+      "context": "Sequence light; graded HFR 15.63 px and rejected on the rig.",
+      "independent": { "fwhm_px": 5.26, "hfr_px": 2.77, "eccentricity": 0.82 }
+    },
+    {
+      "file": "trailed_OIII_0001.fits",
+      "source": "Documents/NGC7380/Reject/NGC7380_OIII_0001.fits",
+      "date_obs": "2026-09-15T02:56:41Z",
+      "exposure_s": 180.0,
+      "filter": "OIII",
+      "state": { "optical_focus_position": 6620, "guiding": "trailed" },
+      "context": "The light exposed after the autofocus cleanup declared the guider dead; graded HFR 15.61 px, the third consecutive reject.",
+      "independent": { "fwhm_px": 6.23, "hfr_px": 3.26, "eccentricity": 0.83 }
+    }
+  ],
+  "solve": {
+    "wcs": "solve-verify.wcs",
+    "ini": "solve-verify.ini",
+    "source": "Documents/NGC7380/solve-verify.fits, solved by a direct ASTAP run on the laptop (astap.exe -ra 22.7889 -spd 148.1361 -r 5 -fov 0.75 -z 2 -wcs)",
+    "center_ra_deg": 341.79938405,
+    "center_dec_deg": 58.13558582,
+    "scale_arcsec_per_px": 0.7877,
+    "rotation_deg": -21.41
+  }
+}

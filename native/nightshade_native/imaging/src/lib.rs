@@ -27,6 +27,7 @@ pub mod drizzle; // NEW: Drizzle (variable-pixel linear reconstruction) integrat
 mod camera;
 mod debayer;
 mod fits;
+mod frame_shape; // Per-frame star size/shape for grading (local background, adaptive moments)
 pub mod frame_weighting; // NEW: Per-sub quality weighting for batch integration
 pub mod integration; // NEW: Advanced weighted batch integration + pixel rejection
 pub mod master_accumulation; // NEW: Multi-night accumulating master frame
@@ -63,6 +64,7 @@ pub use deconvolution::*; // NEW: Export deconvolution types
 pub use difference_image::*; // NEW: Export difference-imaging (First Light) types
 pub use drizzle::*; // NEW: Export drizzle types
 pub use fits::*;
+pub use frame_shape::*;
 pub use frame_weighting::*; // NEW: Export frame-weighting types
 pub use integration::*; // NEW: Export batch-integration types
 pub use master_accumulation::*; // NEW: Export accumulating-master types

@@ -1477,28 +1477,12 @@ impl DeviceOps for UnifiedDeviceOps {
     // Image analysis
 
     async fn calculate_image_hfr(&self, image_data: &ImageData) -> DeviceResult<Option<f64>> {
-        use nightshade_imaging::{detect_stars, StarDetectionConfig};
-
-        // Convert to nightshade_imaging::ImageData
-        let img = nightshade_imaging::ImageData::from_u16(
-            image_data.width,
-            image_data.height,
-            1,
-            &image_data.data,
-        );
-
-        let config = StarDetectionConfig::default();
-        let stars = detect_stars(&img, &config);
-
-        if stars.is_empty() {
-            return Ok(None);
-        }
-
-        // Calculate average HFR
-        let total_hfr: f64 = stars.iter().map(|s| s.hfr).sum();
-        let avg_hfr = total_hfr / stars.len() as f64;
-
-        Ok(Some(avg_hfr))
+        // The grading and HFR-trigger metric. Not the mean of every
+        // detection's HFR: on a real frame most detections are faint, and the
+        // detector's clipped 41x41 box reads them at 15-16 px, so the 09-14
+        // run graded an in-focus frame (HFR ~1.9 px by an independent fit) at
+        // 13.22 px and rejected every frame of the night.
+        Ok(frame_shape(image_data).map(|shape| shape.hfr))
     }
 
     async fn detect_stars_in_image(
@@ -1528,21 +1512,12 @@ impl DeviceOps for UnifiedDeviceOps {
         &self,
         image_data: &ImageData,
     ) -> DeviceResult<Option<f64>> {
-        use nightshade_imaging::{detect_stars, frame_eccentricity, StarDetectionConfig};
-
-        let img = nightshade_imaging::ImageData::from_u16(
-            image_data.width,
-            image_data.height,
-            1,
-            &image_data.data,
-        );
-
-        let config = StarDetectionConfig::default();
-        let stars = detect_stars(&img, &config);
-
-        // frame_eccentricity fails closed (returns None) when too few reliable
-        // stars are present — never a fabricated value.
-        Ok(frame_eccentricity(&stars))
+        // Adaptive moments over isolated, unsaturated stars. The detector's
+        // own moments include the round seeing halo and its clipped noise
+        // floor, which read three trailed 09-14 frames (0.83-0.98 by a PSF
+        // fit) at 0.52-0.74, under the 0.7 gate. `None` when fewer than five
+        // stars can be measured, never a fabricated value.
+        Ok(frame_shape(image_data).map(|shape| shape.eccentricity))
     }
 
     // Cover calibrator (flat panel) operations
@@ -1604,6 +1579,17 @@ impl DeviceOps for UnifiedDeviceOps {
             .await
             .map_err(|e| format!("Get max brightness failed: {}", e))
     }
+}
+
+/// Star size and shape for one frame, the grader's view of it.
+fn frame_shape(image_data: &ImageData) -> Option<nightshade_imaging::FrameShape> {
+    let img = nightshade_imaging::ImageData::from_u16(
+        image_data.width,
+        image_data.height,
+        1,
+        &image_data.data,
+    );
+    nightshade_imaging::measure_frame_shape(&img)
 }
 
 /// Decisions-verify refutation D4 (2026-08-14, corrected by the focused

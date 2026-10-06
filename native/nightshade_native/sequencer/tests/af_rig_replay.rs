@@ -161,3 +161,37 @@ fn a_genuine_high_outlier_is_still_rejected() {
         result.best_position
     );
 }
+
+/// The 2026-09-14 sweep, verbatim from the rig's log (23:54-23:56 UTC), every
+/// point approached from below. Measured separately that night with the
+/// app's own star crops: the from-below optimum was 6620 (HFR 2.99), with
+/// 6520 and 6720 at 5.66 and 6.00.
+fn rig_sweep_2026_09_14() -> Vec<FocusDataPoint> {
+    vec![
+        pt(6250, 14.50),
+        pt(6325, 14.36),
+        pt(6400, 11.86),
+        pt(6475, 8.65),
+        pt(6550, 5.27),
+        pt(6625, 4.11),
+        pt(6700, 5.71),
+        pt(6775, 9.18),
+        pt(6850, 13.50),
+    ]
+}
+
+#[test]
+fn the_2026_09_14_sweep_finds_the_from_below_optimum() {
+    // The rig's own fit chose 6620 ("Final move 6850 -> 6620").
+    for method in [AutofocusMethod::Hyperbolic, AutofocusMethod::Quadratic] {
+        let (position, quality) = run(method, rig_sweep_2026_09_14());
+        println!("{:?} -> {} (R²={:.3})", method, position, quality);
+        assert!(
+            (6600..=6640).contains(&position),
+            "{:?} put best focus at {}; the from-below optimum measured on the rig is 6620",
+            method,
+            position
+        );
+        assert!(quality > 0.9, "{:?} fit quality {:.3}", method, quality);
+    }
+}

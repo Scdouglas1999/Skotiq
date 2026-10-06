@@ -210,6 +210,9 @@ impl DeviceManager {
                 if sim_faults::is_stalled("focuser.move") {
                     return Ok(());
                 }
+                if let Some(replay) = crate::sim_replay::armed() {
+                    replay.note_focuser_move(f.status.position, reached);
+                }
                 f.status.position = reached;
                 Ok(())
             }

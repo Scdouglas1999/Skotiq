@@ -81,7 +81,27 @@ struct GearState {
     /// When `Some(n)`, every command after the first `n` is recorded but not
     /// carried out: a focuser that slips or stops answering mid-run.
     stuck_after: Option<usize>,
+    /// Replay the owner's 2026-09-14 night instead of the model optics.
+    recorded: Option<RecordedNight>,
+    /// Which real frame each exposure was answered with, by file name.
+    served: Vec<Option<&'static str>>,
 }
+
+/// What the 2026-09-14 rig recorded, as a camera can answer with it.
+///
+/// The autofocus sweep frames were measured in memory and never saved, so the
+/// sweep is rendered with each point's PSF sized to the HFR the rig LOGGED at
+/// that position. The exposures after it are answered with the real frame
+/// whose recorded optical state is nearest, and with a starless frame when
+/// none is within `REAL_FRAME_REACH` steps: a state the night never recorded
+/// is not given a picture from a different one.
+struct RecordedNight {
+    sweep_hfr: Vec<(i32, f64)>,
+    real_after: usize,
+    real: Vec<(i32, &'static str, ImageData)>,
+}
+
+const REAL_FRAME_REACH: i32 = 40;
 
 impl BacklashFocuserOps {
     fn new(backlash: i32, starting_position: i32) -> Self {
@@ -96,6 +116,8 @@ impl BacklashFocuserOps {
                 exposures: Vec::new(),
                 clouded_after: None,
                 stuck_after: None,
+                recorded: None,
+                served: Vec::new(),
             })),
             backlash,
         }
@@ -155,7 +177,33 @@ impl DeviceOps for BacklashFocuserOps {
             let clouded = state
                 .clouded_after
                 .is_some_and(|after| state.exposures.len() > after);
-            (state.commanded + state.takeup, clouded)
+            let optical_position = state.commanded + state.takeup;
+            if let Some(night) = &state.recorded {
+                let (frame, served) = if state.exposures.len() > night.real_after {
+                    match night
+                        .real
+                        .iter()
+                        .min_by_key(|(position, _, _)| (position - optical_position).abs())
+                        .filter(|(position, _, _)| {
+                            (position - optical_position).abs() <= REAL_FRAME_REACH
+                        }) {
+                        Some((_, name, frame)) => (frame.clone(), Some(*name)),
+                        None => (
+                            render_with_sigma(1.0, false, duration_secs, gain, offset),
+                            None,
+                        ),
+                    }
+                } else {
+                    let sigma = recorded_hfr(&night.sweep_hfr, optical_position) / 1.177;
+                    (
+                        render_with_sigma(sigma, true, duration_secs, gain, offset),
+                        None,
+                    )
+                };
+                state.served.push(served);
+                return Ok(frame);
+            }
+            (optical_position, clouded)
         };
         Ok(render_star_field(
             optical_position,
@@ -404,6 +452,16 @@ fn render_star_field(
 ) -> ImageData {
     let defocus = f64::from(optical_position - TRUE_OPTICAL_FOCUS);
     let sigma = FOCUSED_SIGMA_PX + SIGMA_PER_STEP_SQUARED * defocus * defocus;
+    render_with_sigma(sigma, stars, duration_secs, gain, offset)
+}
+
+fn render_with_sigma(
+    sigma: f64,
+    stars: bool,
+    duration_secs: f64,
+    gain: Option<i32>,
+    offset: Option<i32>,
+) -> ImageData {
     let two_sigma_squared = 2.0 * sigma * sigma;
     // Peak flux is conserved as the PSF spreads, which is what makes a
     // defocused star fade as well as swell.
@@ -1142,5 +1200,141 @@ async fn a_landing_that_did_not_happen_is_caught_by_the_verification_frame() {
     assert!(
         message.contains(crate::instructions::LANDING_VERIFICATION_FAILURE_PHRASE),
         "a landing that never happened must be reported as one: {message}"
+    );
+}
+
+/// HFR the rig logged at each point of its 2026-09-14 23:54 UTC autofocus
+/// sweep (Hyperbolic, 4 steps of 75 from 6550, every point approached from
+/// below, `af_backlash_in` 0), verbatim from `nightshade.log.2026-09-15`.
+const RIG_SWEEP_2026_09_14: [(i32, f64); 9] = [
+    (6250, 14.50),
+    (6325, 14.36),
+    (6400, 11.86),
+    (6475, 8.65),
+    (6550, 5.27),
+    (6625, 4.11),
+    (6700, 5.71),
+    (6775, 9.18),
+    (6850, 13.50),
+];
+
+fn recorded_hfr(sweep: &[(i32, f64)], position: i32) -> f64 {
+    let first = sweep[0];
+    let last = sweep[sweep.len() - 1];
+    if position <= first.0 {
+        return first.1;
+    }
+    if position >= last.0 {
+        return last.1;
+    }
+    let i = sweep.iter().position(|(p, _)| *p >= position).unwrap_or(1);
+    let ((p0, h0), (p1, h1)) = (sweep[i - 1], sweep[i]);
+    h0 + (h1 - h0) * f64::from(position - p0) / f64::from(p1 - p0)
+}
+
+fn rig_fixture(name: &str) -> ImageData {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../test-fixtures/rig-2026-09-14")
+        .join(name);
+    let (image, _) =
+        nightshade_imaging::read_fits(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    ImageData {
+        width: image.width,
+        height: image.height,
+        data: image.as_u16().expect("16-bit frame"),
+        bits_per_pixel: 16,
+        exposure_secs: 2.0,
+        gain: None,
+        offset: None,
+        temperature: None,
+        filter: Some("L".to_string()),
+        timestamp: 0,
+        sensor_type: Some("Monochrome".to_string()),
+        bayer_offset: None,
+    }
+}
+
+/// The 2026-09-14 autofocus, replayed: its logged sweep, the owner's 105-step
+/// backlash, and the real frames taken at the two places it could land.
+///
+/// On the rig this run landed with a direct 6850 -> 6620 move, downward, so
+/// the optics sat where 6725 is from below; the frame taken 26 s later
+/// (`landed_from_above_L_0003`) is visibly soft, and the run reported its
+/// fitted curve's minimum as the result. The owner's A/B on the same night
+/// measured 5.60 px for that landing against 2.94 px with a run-up.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_rig_autofocus_lands_from_below_and_reports_the_frame_it_measured() {
+    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let ops = Arc::new(BacklashFocuserOps::new(SIMULATED_BACKLASH, 6550));
+    let state = ops.state();
+    // The rig's own settings that night (app_settings in its database):
+    // 75-step points, 4 out, brightest 10 stars, whole frame.
+    let config = AutofocusConfig {
+        step_size: 75,
+        steps_out: 4,
+        use_brightest_n_stars: 10,
+        outer_crop_ratio: 1.0,
+        ..autofocus_test_config()
+    };
+    let sweep_points = (2 * config.steps_out + 1) as usize;
+    state.lock().await.recorded = Some(RecordedNight {
+        sweep_hfr: RIG_SWEEP_2026_09_14.to_vec(),
+        real_after: sweep_points,
+        real: vec![
+            (6620, "focused_L_0005", rig_fixture("focused_L_0005.fits")),
+            (
+                6620 + SIMULATED_BACKLASH,
+                "landed_from_above_L_0003",
+                rig_fixture("landed_from_above_L_0003.fits"),
+            ),
+        ],
+    });
+    let ctx = calibration_context(ops.clone()).await;
+
+    let result = execute_autofocus_once(
+        &config,
+        &ctx,
+        None,
+        &crate::node::context::PauseGate::default(),
+    )
+    .await;
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+
+    let state = state.lock().await;
+    let best = state.commanded;
+    assert!(
+        (best - 6620).abs() <= 25,
+        "the logged sweep's optimum is 6620, the run chose {best}"
+    );
+    let approach = state.commands[state.commands.len() - 2];
+    assert!(
+        approach < best && state.takeup == 0,
+        "final approach {approach} -> {best} must run up from below (dead band left: {})",
+        state.takeup
+    );
+
+    let verification = state
+        .served
+        .iter()
+        .skip(sweep_points)
+        .find_map(|served| *served);
+    assert_eq!(
+        verification,
+        Some("focused_L_0005"),
+        "the landing must be measured, on the frame the optics were really at; \
+         exposures after the sweep: {:?}",
+        &state.exposures[sweep_points.min(state.exposures.len())..]
+    );
+    let measured = calculate_hfr_with_crops(
+        &rig_fixture("focused_L_0005.fits"),
+        config.outer_crop_ratio,
+        config.inner_crop_ratio,
+        config.use_brightest_n_stars,
+    )
+    .hfr;
+    assert_eq!(
+        result.hfr_values,
+        vec![measured],
+        "the reported HFR is the verification frame's, not the fitted minimum"
     );
 }

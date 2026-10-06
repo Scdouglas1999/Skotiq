@@ -172,6 +172,16 @@ pub(crate) async fn render_sim_frame(request: SimCaptureRequest) -> SimCaptureFr
             None
         }
     };
+    // NIGHTSHADE_SIM_REPLAY answers lights from a recorded night instead.
+    if let (Some(replay), FrameType::Light) = (crate::sim_replay::armed(), request.frame_type) {
+        let state = crate::sim_replay::RigState {
+            exposure_s: request.exposure_secs,
+            focuser_position: focus_position,
+            pointing_deg: sim_pointing_deg().await,
+            guiding: sim_rig_is_guiding().await,
+        };
+        return crate::sim_replay::capture(replay, &request, &state);
+    }
     // Star position tracks the simulated mount, so guide pulses and tracking
     // drift are visible to whatever is measuring the frame.
     let (offset_x, offset_y) = crate::api::devices::simulation::sim_guide_offset_px().await;
@@ -204,6 +214,29 @@ pub(crate) async fn render_sim_frame(request: SimCaptureRequest) -> SimCaptureFr
         width,
         height,
     }
+}
+
+/// Where the simulated mount points, in degrees, when it is connected.
+async fn sim_pointing_deg() -> Option<(f64, f64)> {
+    let mount = crate::api::devices::simulation::get_sim_mount()
+        .read()
+        .await;
+    mount.status.connected.then(|| {
+        (
+            mount.status.right_ascension * 15.0,
+            mount.status.declination,
+        )
+    })
+}
+
+/// Whether the rig's active guider reports guiding. No guider is not guiding.
+async fn sim_rig_is_guiding() -> bool {
+    let Some(guider_id) = crate::api::phd2::get_active_guider_id_for_ops().await else {
+        return false;
+    };
+    crate::api::phd2::api_guider_get_status(guider_id)
+        .await
+        .is_ok_and(|status| status.state == "Guiding")
 }
 
 /// A plate-solver settings directory that outlives every test in the binary.

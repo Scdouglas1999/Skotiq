@@ -75,6 +75,8 @@ mod sim_capture;
 /// Synthetic frame generation for the simulator camera (unit-tested against the
 /// real star detector; see the module docs for why that matters).
 mod sim_frame;
+/// `NIGHTSHADE_SIM_REPLAY`: answer simulated lights with recorded rig frames.
+mod sim_replay;
 /// Real-sky star source for the simulator camera, read out of the plate
 /// solver's own star database so a simulated frame can actually be solved.
 mod sim_sky;
