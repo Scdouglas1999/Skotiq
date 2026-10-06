@@ -974,7 +974,10 @@ async fn scenario6_disconnect_that_never_recovers_keeps_failing_then_parks_safe(
 #[tokio::test(start_paused = true)]
 async fn scenario6b_guide_star_exhaustion_then_safe_state_parks_and_closes() {
     // GuideStarLost variant of exhaustion: the star never re-locks, so every
-    // attempt fails; the subsequent give-up sweep must park + close.
+    // attempt fails; the subsequent give-up sweep must park + close. The
+    // driver only ends the run (and only sweeps, under the park-and-close
+    // opt-in) when "Stop the run for quality problems" is on; by default it
+    // images on unguided (see recovery_driver's tests).
     let ops_concrete = Arc::new(ScriptedDeviceOps::new());
     let ops: SharedDeviceOps = ops_concrete.clone();
     ops_concrete.guiding.store(false, Ordering::SeqCst);
@@ -1888,12 +1891,17 @@ async fn a_pause_placed_during_recovery_survives_the_recovery() {
 /// tracking off before its first attempt and nothing switches it back on for a
 /// run that has ended, so the give-up message must say tracking is off, not
 /// leave him believing the mount is as he left it.
+///
+/// A lost guide star ends the run when recovery runs out only for the operator
+/// who turned on "Stop the run for quality problems"; by default the run
+/// images on unguided (owner decision 2026-10-06), so this test turns it on.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_recovery_give_up_says_that_tracking_was_left_off() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     ops.guider_start_fails.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor.set_stop_on_quality_problems(true).await;
     executor
         .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
             retry_interval_secs: 1.0,
@@ -1942,6 +1950,69 @@ async fn a_recovery_give_up_says_that_tracking_was_left_off() {
     assert!(
         give_up.to_lowercase().contains("tracking"),
         "the give-up message does not say that tracking was left off: {give_up}"
+    );
+}
+
+/// The default ending of the same night: the guide star never comes back, the
+/// run images on unguided (owner decision 2026-10-06), and the tracking the
+/// ladder switched off is switched back on, or every frame after it trails
+/// for a second reason.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_guide_star_never_reacquired_images_on_with_tracking_back_on() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.guider_start_fails.store(true, Ordering::SeqCst);
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor
+        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
+            retry_interval_secs: 1.0,
+            max_duration_secs: 2.0,
+            ..crate::recovery::RecoveryRuntimeConfig::default()
+        })
+        .await;
+    let mut events = executor.subscribe();
+    let mut executor = start_long_run(executor, ops.clone()).await;
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("guider_get_status") < 2 {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "monitor never polled the guider"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    ops.guiding.store(false, Ordering::SeqCst);
+    let recovered = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        loop {
+            match events.recv().await {
+                Ok(super::ExecutorEvent::RecoveryCompleted { .. }) => return true,
+                Ok(super::ExecutorEvent::RecoveryGaveUp { .. }) => return false,
+                Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => return false,
+            }
+        }
+    })
+    .await
+    .expect("the recovery never ended");
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let state = executor.get_state().await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+
+    assert!(recovered, "the run must not give up; calls={calls:?}");
+    assert_eq!(state, super::ExecutorState::Running, "calls={calls:?}");
+    assert!(
+        calls
+            .iter()
+            .any(|c| c == "mount_set_tracking:mount-1:false"),
+        "the ladder never stopped tracking, so this test proves nothing; calls={calls:?}"
+    );
+    assert!(
+        ops.mount_tracking.load(Ordering::SeqCst),
+        "tracking must be back on for the unguided frames; calls={calls:?}"
+    );
+    assert!(
+        !calls.iter().any(|c| c.starts_with("mount_park")),
+        "{calls:?}"
     );
 }
 
