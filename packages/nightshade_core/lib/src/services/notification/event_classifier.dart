@@ -29,6 +29,7 @@
 //
 // This classifier is intentionally pure and side-effect free.
 
+import 'dart:convert';
 import 'dart:developer' as developer;
 
 import '../../models/backend/event_types.dart';
@@ -37,9 +38,16 @@ import '../../providers/sequence/run_stop_classification.dart';
 import '../../utils/device_id.dart';
 import 'notification_template.dart';
 
+/// Summary of the decision row the engine writes when a streak of rejected
+/// frames reaches the operator's limit (`IMAGE_GRADING_REJECT_STREAK_SUMMARY`
+/// in the native grading module).
+const String kImageGradingRejectStreakSummary =
+    'Frames rejected in a row — the run continues';
+
 /// The result of classifying a single backend event: the semantic
 /// [NotificationCategory], the context key/value pairs the templates need,
-/// and the event's [EventSeverity] (carried through unchanged).
+/// and the event's [EventSeverity] (carried through unchanged, except for a
+/// decision row that stands for a warning; see [classify]).
 class ClassifiedNotification {
   final NotificationCategory category;
 
@@ -87,11 +95,32 @@ class NotificationEventClassifier {
   static ClassifiedNotification? classify(NightshadeEvent event) {
     final mapped = _categoryAndContext(event);
     if (mapped == null) return null;
+    // Decision rows are published at info whatever they record. The
+    // reject-streak row stands for a warning, so it is routed at its
+    // category's own level and clears that row's warning floor.
+    final severity =
+        event.eventType == 'DecisionLogged' &&
+            mapped.$1 == NotificationCategory.frameRejected
+        ? mapped.$1.defaultSeverity
+        : event.severity;
     return ClassifiedNotification(
       category: mapped.$1,
       context: mapped.$2,
-      severity: event.severity,
+      severity: severity,
     );
+  }
+
+  /// The `details_json` of a decision row as a map, or empty when it is
+  /// absent or not an object.
+  static Map<String, dynamic> _decisionDetails(NightshadeEvent event) {
+    final raw = event.data['details_json'];
+    if (raw is! String || raw.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is Map<String, dynamic> ? decoded : const {};
+    } on FormatException {
+      return const {};
+    }
   }
 
   static (NotificationCategory, Map<String, String>)? _categoryAndContext(
@@ -191,6 +220,21 @@ class NotificationEventClassifier {
                 'Autofocus failed — continuing with last-good focus') {
           return (NotificationCategory.autofocusContinued, <String, String>{});
         }
+        // A streak of rejected frames reached the operator's limit. Told once
+        // per streak, and the run keeps imaging (owner decision 2026-10-06:
+        // the limit never stops a sequence or ends a night).
+        if ((event.data['category'] as String?) == 'system_event' &&
+            (event.data['summary'] as String?) ==
+                kImageGradingRejectStreakSummary) {
+          final details = _decisionDetails(event);
+          return (
+            NotificationCategory.frameRejected,
+            <String, String>{
+              'frame.streak': '${details['consecutive_rejects'] ?? ''}',
+              'frame.reason': (details['reason'] as String?) ?? '',
+            },
+          );
+        }
         return null;
       case 'Paused':
         return (NotificationCategory.sequencePaused, <String, String>{});
@@ -271,12 +315,11 @@ class NotificationEventClassifier {
       case 'RecoveryGaveUp':
         return (NotificationCategory.recoveryGaveUp, <String, String>{});
       case 'FrameRejected':
-        return (
-          NotificationCategory.frameRejected,
-          <String, String>{
-            'frame.reason': (event.data['reason'] as String?) ?? '',
-          },
-        );
+        // One rejected frame is not news: the run dashboard and the reject
+        // folder carry every one. The operator hears about a STREAK, once,
+        // from the engine's reject-streak decision row above; notifying per
+        // frame turned a cloudy hour into a notification a minute.
+        return null;
     }
     return null;
   }

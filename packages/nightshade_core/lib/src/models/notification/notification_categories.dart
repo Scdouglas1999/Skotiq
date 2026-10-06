@@ -39,15 +39,19 @@ enum NotificationCategory {
   autofocusCompleted('Autofocus Completed'),
   autofocusFailed('Autofocus Failed'),
 
-  /// The interval-autofocus trigger failed to converge and the run CONTINUES
-  /// on the restored last-good focus. Info, not error: the night goes on
-  /// slightly soft, and an error here would train the operator to ignore the
-  /// alerts that do end a run.
+  /// An autofocus (a trigger's refocus, an Autofocus node, a recovery or
+  /// post-flip refocus) failed to converge and the run CONTINUES on the
+  /// restored last-good focus; a failed autofocus never parks or ends a run.
+  /// Info, not error: the night goes on slightly soft, and an error here would
+  /// train the operator to ignore the alerts that do end a run.
   autofocusContinued('Autofocus Continued'),
 
   // Imaging
   frameCaptured('Frame Captured'),
-  frameRejected('Frame Rejected'),
+
+  /// A streak of frames failed grading and reached the operator's limit. Told
+  /// once per streak; the run keeps imaging and the rejects are kept.
+  frameRejected('Frames Being Rejected'),
   exposureFailed('Exposure Failed'),
 
   // Recovery / executor health

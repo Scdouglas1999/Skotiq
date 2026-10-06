@@ -806,7 +806,7 @@ class NotificationRouter {
       case NotificationCategory.frameCaptured:
         return 'Frame captured';
       case NotificationCategory.frameRejected:
-        return 'Frame rejected';
+        return 'Frames being rejected';
       case NotificationCategory.exposureFailed:
         return 'Exposure failed';
       case NotificationCategory.recoveryStarted:
@@ -901,7 +901,8 @@ class NotificationRouter {
       case NotificationCategory.autofocusFailed:
         return 'Autofocus run failed.';
       case NotificationCategory.frameRejected:
-        return 'Frame rejected: \${frame.reason}.';
+        return '\${frame.streak} frames in a row were rejected '
+            '(\${frame.reason}). The run continues.';
       case NotificationCategory.cloudArriving:
         return 'Cloud cover increasing.';
       case NotificationCategory.cloudOpening:
