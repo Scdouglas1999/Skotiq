@@ -266,6 +266,25 @@ extension _SequenceExecutorRuntimeConfigOperations on SequenceExecutor {
     );
   }
 
+  /// Push the operator's "Stop the run for quality problems" setting to the
+  /// executor. Off (the default), guiding RMS over the limit, a Center or
+  /// drift recenter that cannot solve, a StartGuiding check, a dither that
+  /// does not settle and the post-flip checks notify and the run keeps
+  /// imaging; on, each of them stops the run.
+  Future<void> _pushQualityPolicy(
+    NightshadeBackend backend,
+    AppSettingsState settings,
+  ) async {
+    await backend.sequencerSetStopOnQualityProblems(
+      settings.stopRunOnQualityProblems,
+    );
+    _logger.debug(
+      'Stop the run for quality problems: '
+      '${settings.stopRunOnQualityProblems}',
+      source: 'SequenceExecutor',
+    );
+  }
+
   /// Push every user-controlled RuntimeConfig field into the loaded executor.
   ///
   /// Reached through [SequenceExecutor.seedRuntimeConfigForNativeStart], the
@@ -370,6 +389,23 @@ extension _SequenceExecutorRuntimeConfigOperations on SequenceExecutor {
       firstStack ??= st;
       _logger.error(
         'Failed to seed the park settings: $e',
+        source: 'SequenceExecutor',
+      );
+    }
+
+    // Quality policy. The executor defaults to notifying; an operator who
+    // turned "Stop the run for quality problems" on must reach it before the
+    // first frame.
+    try {
+      await _pushQualityPolicy(
+        backend,
+        await _ref.read(appSettingsProvider.future),
+      );
+    } catch (e, st) {
+      firstError ??= e;
+      firstStack ??= st;
+      _logger.error(
+        'Failed to seed the quality policy: $e',
         source: 'SequenceExecutor',
       );
     }
@@ -888,6 +924,14 @@ extension _SequenceExecutorRuntimeConfigOperations on SequenceExecutor {
           _pushMidRun(
             'the park settings',
             () => _pushParkPolicy(backend, nextSettings),
+          );
+        }
+
+        if (prevSettings.stopRunOnQualityProblems !=
+            nextSettings.stopRunOnQualityProblems) {
+          _pushMidRun(
+            'the quality policy',
+            () => _pushQualityPolicy(backend, nextSettings),
           );
         }
 

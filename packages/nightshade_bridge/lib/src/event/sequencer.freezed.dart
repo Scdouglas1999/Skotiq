@@ -1727,8 +1727,8 @@ class SequencerEvent_FrameRejected extends SequencerEvent {
  final  int? starCount;
  final  String rejectPath;
 /// Running consecutive-rejects counter. When this reaches the
-/// configured `max_consecutive_rejects`, the executor pauses
-/// the sequence and emits an additional `Error` event.
+/// configured `max_consecutive_rejects`, the operator is notified
+/// once for the streak; the run carries on.
  final  int consecutiveRejects;
  final  int acceptedTotal;
  final  int rejectedTotal;

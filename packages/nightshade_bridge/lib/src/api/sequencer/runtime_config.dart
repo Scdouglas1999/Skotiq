@@ -451,6 +451,21 @@ Future<void> apiSequencerUpdateConditionsScore({
 Future<String?> apiSequencerGetAdaptiveSwapJson() => RustLib.instance.api
     .crateApiSequencerRuntimeConfigApiSequencerGetAdaptiveSwapJson();
 
+/// Set whether quality problems the sequencer judges stop the run: the
+/// operator's "Stop the run for quality problems" setting, off by default.
+/// Off, guiding RMS over the Guiding Failure limit, a Center or DriftLimit
+/// recenter that cannot solve or converge, a StartGuiding calibration or RMS
+/// check, a dither that does not settle and the post-flip recenter and
+/// guiding checks notify the operator and the run keeps imaging. On, each of
+/// them stops the run as it used to. Takes effect on a running sequence at
+/// its next decision.
+Future<void> apiSequencerSetStopOnQualityProblems({
+  required bool stopOnQualityProblems,
+}) => RustLib.instance.api
+    .crateApiSequencerRuntimeConfigApiSequencerSetStopOnQualityProblems(
+      stopOnQualityProblems: stopOnQualityProblems,
+    );
+
 /// Set whether the standard weather and dawn triggers may park the mount and
 /// close the cover and dome: the operator's "Park on unsafe weather" and
 /// "Park before dawn" settings. Both default to parking. With one off, the

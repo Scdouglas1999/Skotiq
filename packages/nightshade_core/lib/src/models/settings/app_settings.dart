@@ -194,6 +194,11 @@ abstract class AppSettings with _$AppSettings {
     /// Park the mount before astronomical dawn at the end of the night.
     /// DB key `park_before_dawn`.
     @Default(true) bool parkBeforeDawn,
+
+    /// Stop the run for quality problems the sequencer judges (guiding RMS,
+    /// centering, settling). Off: notify and keep imaging.
+    /// DB key `stop_run_on_quality_problems`.
+    @Default(false) bool stopRunOnQualityProblems,
     // Meridian flip detail.
     /// Master enable for automatic meridian flips. DB key `enable_meridian_flip`.
     @Default(true) bool enableMeridianFlip,

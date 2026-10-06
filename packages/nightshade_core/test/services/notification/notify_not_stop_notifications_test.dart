@@ -151,4 +151,57 @@ void main() {
       async.elapse(const Duration(seconds: 1));
     });
   });
+
+  // A quality problem the run carried on through: a Center that could not
+  // solve, guiding RMS over a StartGuiding limit, a dither that did not settle,
+  // a post-flip check (`QUALITY_PROBLEM_CONTINUED_SUMMARY` in the native
+  // executor). The operator is told, at warning, and told the run goes on.
+  NightshadeEvent problemNoticed() => _sequencer(
+    'DecisionLogged',
+    data: const {
+      'category': 'system_event',
+      'summary': 'Problem noticed — the run continues',
+      'details_json':
+          '{"source":"Center","problem":"Failed to center within 5.0\\" '
+          'after 5 attempts on M31. The mount stays where the last correction '
+          'put it.","node_id":"center-1"}',
+      'sequence_run_id': 21,
+    },
+  );
+
+  test(
+    'a quality problem the run carried on through classifies at warning',
+    () {
+      final classified = NotificationEventClassifier.classify(problemNoticed());
+      expect(classified?.category, NotificationCategory.problemNoticed);
+      expect(classified?.severity, EventSeverity.warning);
+      expect(classified?.context['problem.source'], 'Center');
+      expect(
+        classified?.context['problem.message'],
+        startsWith('Failed to center within 5.0" after 5 attempts on M31.'),
+      );
+    },
+  );
+
+  test('it is one notification that names the problem and says the run '
+      'continues', () {
+    fakeAsync((async) {
+      final inApp = _RecordingTransport();
+      final router = NotificationRouter(
+        transports: [inApp],
+        matrix: NotificationRoutingMatrix.defaults(),
+        clock: () => _t0.add(async.elapsed),
+      );
+      router.attachEventStream(Stream.value(problemNoticed()));
+      async.elapse(const Duration(seconds: 5));
+
+      expect(inApp.sent, hasLength(1), reason: '${inApp.sent}');
+      final notice = inApp.sent.single;
+      expect(notice.category, NotificationCategory.problemNoticed);
+      expect(notice.title, 'Problem noticed — the run continues');
+      expect(notice.body, contains('Center: Failed to center'));
+      router.dispose();
+      async.elapse(const Duration(seconds: 1));
+    });
+  });
 }

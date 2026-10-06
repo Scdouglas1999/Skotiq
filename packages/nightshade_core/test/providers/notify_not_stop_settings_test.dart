@@ -75,6 +75,19 @@ void main() {
       expect(const AppSettingsState().imageGradingEccentricityThreshold, 0.8);
     });
 
+    test('lets quality problems notify rather than stop the run', () async {
+      final database = NightshadeDatabase.forTesting(NativeDatabase(dbFile));
+      addTearDown(database.close);
+      final (_, settings) = await load(database);
+
+      expect(settings.stopRunOnQualityProblems, isFalse);
+      expect(
+        await database.settingsDao.getSetting('stop_run_on_quality_problems'),
+        'false',
+      );
+      expect(const AppSettingsState().stopRunOnQualityProblems, isFalse);
+    });
+
     test('has no autofocus failure action to park with', () async {
       final database = NightshadeDatabase.forTesting(NativeDatabase(dbFile));
       addTearDown(database.close);

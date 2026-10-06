@@ -44,6 +44,13 @@ import 'notification_template.dart';
 const String kImageGradingRejectStreakSummary =
     'Frames rejected in a row — the run continues';
 
+/// Summary of the decision row the engine writes when it judged a quality
+/// problem — a Center that could not solve, guiding RMS over a limit, a dither
+/// that did not settle, a post-flip check — and the run carried on
+/// (`QUALITY_PROBLEM_CONTINUED_SUMMARY` in the native executor).
+const String kQualityProblemContinuedSummary =
+    'Problem noticed — the run continues';
+
 /// The result of classifying a single backend event: the semantic
 /// [NotificationCategory], the context key/value pairs the templates need,
 /// and the event's [EventSeverity] (carried through unchanged, except for a
@@ -96,11 +103,12 @@ class NotificationEventClassifier {
     final mapped = _categoryAndContext(event);
     if (mapped == null) return null;
     // Decision rows are published at info whatever they record. The
-    // reject-streak row stands for a warning, so it is routed at its
-    // category's own level and clears that row's warning floor.
+    // reject-streak and problem-noticed rows stand for a warning, so they are
+    // routed at their category's own level and clear its warning floor.
     final severity =
         event.eventType == 'DecisionLogged' &&
-            mapped.$1 == NotificationCategory.frameRejected
+            (mapped.$1 == NotificationCategory.frameRejected ||
+                mapped.$1 == NotificationCategory.problemNoticed)
         ? mapped.$1.defaultSeverity
         : event.severity;
     return ClassifiedNotification(
@@ -232,6 +240,21 @@ class NotificationEventClassifier {
             <String, String>{
               'frame.streak': '${details['consecutive_rejects'] ?? ''}',
               'frame.reason': (details['reason'] as String?) ?? '',
+            },
+          );
+        }
+        // A quality problem the run carried on through, because the operator
+        // has not asked for such problems to stop it (owner decision
+        // 2026-10-06). Told once per episode by the engine.
+        if ((event.data['category'] as String?) == 'system_event' &&
+            (event.data['summary'] as String?) ==
+                kQualityProblemContinuedSummary) {
+          final details = _decisionDetails(event);
+          return (
+            NotificationCategory.problemNoticed,
+            <String, String>{
+              'problem.source': (details['source'] as String?) ?? '',
+              'problem.message': (details['problem'] as String?) ?? '',
             },
           );
         }

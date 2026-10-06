@@ -234,6 +234,8 @@ class NotificationRoutingSettings extends ConsumerWidget {
         return LucideIcons.camera;
       case NotificationCategory.frameRejected:
         return LucideIcons.cameraOff;
+      case NotificationCategory.problemNoticed:
+        return LucideIcons.alertCircle;
       case NotificationCategory.exposureFailed:
         return LucideIcons.alertTriangle;
       case NotificationCategory.recoveryStarted:

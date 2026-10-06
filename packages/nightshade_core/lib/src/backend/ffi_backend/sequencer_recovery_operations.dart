@@ -102,6 +102,11 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
   }
 
   @override
+  Future<void> sequencerSetStopOnQualityProblems(bool stop) async {
+    await bridge.NativeBridge.sequencerSetStopOnQualityProblems(stop);
+  }
+
+  @override
   Future<void> sequencerSetParkPolicy({
     required bool parkOnUnsafeWeather,
     required bool parkBeforeDawn,

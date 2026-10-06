@@ -31,6 +31,13 @@ class AppSettingsState {
   // Sequencer
   final bool parkOnUnsafeWeather;
   final bool parkBeforeDawn;
+
+  /// Whether a quality problem the sequencer judges — guiding RMS over the
+  /// limit, a Center that cannot solve, a dither that does not settle, a
+  /// failed post-flip check — stops the run. Off: the operator is notified
+  /// and the run keeps imaging (owner decision 2026-10-06). DB key
+  /// `stop_run_on_quality_problems`.
+  final bool stopRunOnQualityProblems;
   final int meridianFlipMinutes; // minutes before meridian
   final bool autoFocusOnFilterChange;
   final bool useFilterFocusOffsets; // Apply focus offsets when changing filters
@@ -470,6 +477,7 @@ class AppSettingsState {
     // Sequencer
     this.parkOnUnsafeWeather = true,
     this.parkBeforeDawn = true,
+    this.stopRunOnQualityProblems = false,
     this.meridianFlipMinutes = 5,
     this.autoFocusOnFilterChange = false,
     this.useFilterFocusOffsets = true,

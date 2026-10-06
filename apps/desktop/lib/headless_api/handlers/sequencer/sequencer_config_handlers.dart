@@ -115,6 +115,18 @@ extension _SequencerConfig on SequencerHandlers {
     return jsonOk({'status': 'ok'});
   }
 
+  /// POST /api/sequencer/quality-policy: whether quality problems the
+  /// executor judges (guiding RMS, centering, settling) stop the run.
+  Future<Response> _handleSequencerSetQualityPolicy(Request request) async {
+    _logInfo('[API] POST /api/sequencer/quality-policy');
+    final payload = await readJsonObject(request);
+    final stop = requireBool(payload, 'stopOnQualityProblems');
+
+    final backend = container.read(sequencerBackendProvider);
+    await backend.sequencerSetStopOnQualityProblems(stop);
+    return jsonOk({'status': 'ok'});
+  }
+
   Future<Response> _handleSequencerSetSafetyCheckInterval(
     Request request,
   ) async {

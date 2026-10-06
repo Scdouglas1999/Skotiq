@@ -17578,6 +17578,25 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sequencer__runtime_config__api_sequencer_set_simulation_modePtr
           .asFunction<void Function(int, bool)>();
 
+  void
+  wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems(
+    int port_,
+    bool stop_on_quality_problems,
+  ) {
+    return _wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems(
+      port_,
+      stop_on_quality_problems,
+    );
+  }
+
+  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problemsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Bool)>>(
+        'frbgen_nightshade_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems',
+      );
+  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems =
+      _wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problemsPtr
+          .asFunction<void Function(int, bool)>();
+
   void wire__crate__api__sequencer__lifecycle__api_sequencer_skip(int port_) {
     return _wire__crate__api__sequencer__lifecycle__api_sequencer_skip(port_);
   }

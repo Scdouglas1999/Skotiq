@@ -195,6 +195,14 @@ class SystemPushTransport extends NotificationTransport {
           enabled: (c) => c.notifyAutofocusFailed,
           priority: PushNotificationPriority.normal,
         );
+      // A quality problem the run carried on through (owner decision
+      // 2026-10-06). No legacy per-event toggle exists; the routing-matrix row
+      // is its control. Ordinary tier: the run going on is news, not an alarm.
+      case NotificationCategory.problemNoticed:
+        return const _PushSpec(
+          enabled: _always,
+          priority: PushNotificationPriority.normal,
+        );
       // The morning draft. No legacy per-event toggle ever existed for it, so
       // the control is its own routing-matrix row; priority is the ordinary
       // tier because it arrives after the night is over and nothing is at risk.
@@ -255,6 +263,7 @@ class SystemPushTransport extends NotificationTransport {
       case NotificationCategory.autofocusFailed:
       case NotificationCategory.frameCaptured:
       case NotificationCategory.frameRejected:
+      case NotificationCategory.problemNoticed:
       case NotificationCategory.recoveryStarted:
       case NotificationCategory.recoveryRecovered:
       case NotificationCategory.recoveryGaveUp:

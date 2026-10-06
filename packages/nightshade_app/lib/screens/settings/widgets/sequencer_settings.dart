@@ -542,6 +542,24 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                   ),
                 ),
                 SettingRow(
+                  icon: LucideIcons.pauseOctagon,
+                  title: 'Stop the run for quality problems',
+                  subtitle: 'Off: when guiding RMS goes over its limit, a '
+                      'centering or recenter cannot solve, a dither does not '
+                      'settle or a post-flip check fails, you are notified '
+                      'and the run keeps imaging. On: each of these pauses or '
+                      'ends the run. Weather, dawn and the other safety rules '
+                      'act either way.',
+                  trailing: SettingsSwitch(
+                    value: settings.stopRunOnQualityProblems,
+                    onChanged: (value) {
+                      return ref
+                          .read(appSettingsProvider.notifier)
+                          .setStopRunOnQualityProblems(value);
+                    },
+                  ),
+                ),
+                SettingRow(
                   icon: LucideIcons.alertTriangle,
                   title: 'Safety fail mode',
                   subtitle: settings.safetyFailMode.description,

@@ -126,7 +126,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1660474643;
+  int get rustContentHash => 1405836394;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1481,6 +1481,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiSequencerRuntimeConfigApiSequencerSetSimulationMode({
     required bool enabled,
+  });
+
+  Future<void>
+  crateApiSequencerRuntimeConfigApiSequencerSetStopOnQualityProblems({
+    required bool stopOnQualityProblems,
   });
 
   Future<void> crateApiSequencerLifecycleApiSequencerSkip();
@@ -12012,6 +12017,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_sequencer_set_simulation_mode",
         argNames: ["enabled"],
+      );
+
+  @override
+  Future<void>
+  crateApiSequencerRuntimeConfigApiSequencerSetStopOnQualityProblems({
+    required bool stopOnQualityProblems,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_bool(stopOnQualityProblems);
+          return wire
+              .wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_nightshade_error,
+        ),
+        constMeta:
+            kCrateApiSequencerRuntimeConfigApiSequencerSetStopOnQualityProblemsConstMeta,
+        argValues: [stopOnQualityProblems],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSequencerRuntimeConfigApiSequencerSetStopOnQualityProblemsConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_sequencer_set_stop_on_quality_problems",
+        argNames: ["stopOnQualityProblems"],
       );
 
   @override

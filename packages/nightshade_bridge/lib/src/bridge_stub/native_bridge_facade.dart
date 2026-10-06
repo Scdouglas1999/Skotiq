@@ -261,6 +261,8 @@ abstract final class NativeBridge {
   );
   static Future<void> sequencerSetSafetyFailMode(String mode) =>
       _nativeBridge.sequencerSetSafetyFailMode(mode);
+  static Future<void> sequencerSetStopOnQualityProblems(bool stop) =>
+      _nativeBridge.sequencerSetStopOnQualityProblems(stop);
   static Future<void> sequencerSetParkPolicy({
     required bool parkOnUnsafeWeather,
     required bool parkBeforeDawn,

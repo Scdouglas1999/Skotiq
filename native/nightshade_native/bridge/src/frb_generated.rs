@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1660474643;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1405836394;
 
 // Section: executor
 
@@ -7705,6 +7705,16 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_simulation_mod
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_set_simulation_mode", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_enabled = enabled.cst_decode(); move |context| async move {
                     transform_result_dco::<_, _, crate::error::NightshadeError>((move || async move {
                          let output_ok = crate::api::sequencer::runtime_config::api_sequencer_set_simulation_mode(api_enabled).await?;   Ok(output_ok)
+                    })().await)
+                } })
+}
+fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    stop_on_quality_problems: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_set_stop_on_quality_problems", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_stop_on_quality_problems = stop_on_quality_problems.cst_decode(); move |context| async move {
+                    transform_result_dco::<_, _, crate::error::NightshadeError>((move || async move {
+                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_set_stop_on_quality_problems(api_stop_on_quality_problems).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -34935,6 +34945,17 @@ mod io {
     ) {
         wire__crate__api__sequencer__runtime_config__api_sequencer_set_simulation_mode_impl(
             port_, enabled,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_nightshade_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems(
+        port_: i64,
+        stop_on_quality_problems: bool,
+    ) {
+        wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems_impl(
+            port_,
+            stop_on_quality_problems,
         )
     }
 
