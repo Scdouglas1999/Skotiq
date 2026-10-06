@@ -16,6 +16,7 @@ import '../providers/settings_provider.dart';
 // Prefixed: settings_provider.dart also exports a legacy `HorizonProfile`;
 // the in-sequence TargetSchedulerNode uses the scheduler samples-based one.
 import 'scheduler/horizon_profile.dart' as sched_horizon;
+import 'quality_stop_migration.dart';
 import 'sequence_wire_codec.dart';
 
 part 'sequence_file_service/sequence_encoder.dart';
@@ -211,6 +212,28 @@ class SequenceFileService {
     // Version 0 -> 1: No structural changes needed. Version 0 files
     // (pre-versioning) are compatible with version 1.
 
+    // A file saved before 2026-10-06 has its quality stops moved to notices,
+    // as the database migration to schema 61 did for saved sequences (owner
+    // decision that day: only a risk to the hardware pauses or ends a run by
+    // itself). Files written since carry [qualityStopsMovedKey], so a pause
+    // the operator chose afterwards survives export and import. A marker
+    // rather than a schema bump: older builds refuse a newer schemaVersion,
+    // and a desktop and a phone on different builds share sequences.
+    if (json[SequenceFileService.qualityStopsMovedKey] != true) {
+      final nodes = json['nodes'];
+      if (nodes is Map) {
+        for (final node in nodes.values) {
+          if (node is Map<String, dynamic>) {
+            final nodeType = node['nodeType'];
+            if (nodeType is String) {
+              notifyInsteadOfQualityStops(nodeType, node);
+            }
+          }
+        }
+      }
+      json[SequenceFileService.qualityStopsMovedKey] = true;
+    }
+
     // Stamp the current version so re-exports are up to date
     json['schemaVersion'] = currentSchemaVersion;
     return json;
@@ -292,6 +315,11 @@ class SequenceFileService {
   /// Increment this when making breaking changes to the JSON format
   /// and add a migration case in [_migrateSchema].
   static const int currentSchemaVersion = 1;
+
+  /// Top-level key every file written since 2026-10-06 carries: its quality
+  /// stops were already moved to notices, so the importer leaves its actions
+  /// alone. See [notifyInsteadOfQualityStops].
+  static const String qualityStopsMovedKey = 'qualityStopsMovedToNotify';
 
   /// Parse a pre-decoded sequence JSON map (no file I/O, no migration).
   /// Used by [SampleSequenceService] to decode bundled assets through the

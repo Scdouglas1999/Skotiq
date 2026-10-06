@@ -5,6 +5,7 @@ extension _SequenceFileEncoder on SequenceFileService {
     return {
       'schemaVersion': SequenceFileService.currentSchemaVersion,
       'version': '2.0',
+      SequenceFileService.qualityStopsMovedKey: true,
       'name': sequence.name,
       'description': sequence.description,
       'rootNodeId': sequence.rootNodeId,

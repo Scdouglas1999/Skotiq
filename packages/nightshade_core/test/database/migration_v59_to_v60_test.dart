@@ -47,7 +47,7 @@ void main() {
         final version = await db
             .customSelect('PRAGMA user_version')
             .getSingle();
-        expect(version.data['user_version'], 60);
+        expect(version.data['user_version'], db.schemaVersion);
         return await db.settingsDao.getSetting(_key);
       } finally {
         await db.close();

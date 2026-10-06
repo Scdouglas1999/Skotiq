@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -8,6 +9,7 @@ import '../utils/nightshade_data_directory.dart';
 
 import '../models/darkroom/darkroom_job.dart' show kDarkroomJobMaxAttempts;
 import '../models/settings/app_settings.dart' show kDefaultAccentColorHex;
+import '../services/quality_stop_migration.dart';
 import 'integrity_check.dart' as integrity;
 import 'integrity_check.dart'
     show DatabaseRecoveryMarker, QuarantinedDatabaseCheck;
@@ -93,6 +95,7 @@ part 'database/migration_v57.dart';
 part 'database/migration_v58.dart';
 part 'database/migration_v59.dart';
 part 'database/migration_v60.dart';
+part 'database/migration_v61.dart';
 part 'database/schema_helpers.dart';
 part 'database/default_settings.dart';
 part 'database/connection.dart';
@@ -178,7 +181,7 @@ class NightshadeDatabase extends _$NightshadeDatabase {
   NightshadeDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 60;
+  int get schemaVersion => 61;
 
   @override
   MigrationStrategy get migration => _buildMigrationStrategy();
