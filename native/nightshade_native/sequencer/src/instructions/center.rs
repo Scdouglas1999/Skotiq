@@ -253,24 +253,6 @@ pub async fn execute_center(
             }
         };
 
-        // Feeding the solve back into trigger state is what enables the
-        // DriftLimit trigger to detect cumulative drift across
-        // exposures without re-solving on every frame.
-        if let Some(trigger_state_lock) = &ctx.trigger_state {
-            let mut trigger_state = trigger_state_lock.write().await;
-            trigger_state.update_plate_solve(
-                solve_result.ra_degrees,
-                solve_result.dec_degrees,
-                solve_result.pixel_scale,
-            );
-            tracing::debug!(
-                "Updated trigger state with plate solve: RA={:.4}°, Dec={:.4}°, scale={:.2}\"/px",
-                solve_result.ra_degrees,
-                solve_result.dec_degrees,
-                solve_result.pixel_scale
-            );
-        }
-
         let separation_arcsec = calculate_separation_arcsec(
             target_ra_deg,
             target_dec,
@@ -278,6 +260,31 @@ pub async fn execute_center(
             solve_result.dec_degrees,
         );
         tracing::info!("Current separation: {:.1}\" from target", separation_arcsec);
+
+        // Feeding the solve back into trigger state is what enables the
+        // DriftLimit trigger to detect cumulative drift across exposures
+        // without re-solving on every frame -- but only the solve centering
+        // ends on. An attempt that is about to be corrected is not drift: the
+        // first solve of a target is routinely degrees away, and publishing it
+        // fired DriftLimit's own recenter in the middle of this one, which then
+        // exposed over this loop's next frame and failed the node with "No
+        // exposure is available to download" (found by the simulator soak).
+        if separation_arcsec <= config.accuracy_arcsec {
+            if let Some(trigger_state_lock) = &ctx.trigger_state {
+                let mut trigger_state = trigger_state_lock.write().await;
+                trigger_state.update_plate_solve(
+                    solve_result.ra_degrees,
+                    solve_result.dec_degrees,
+                    solve_result.pixel_scale,
+                );
+                tracing::debug!(
+                    "Updated trigger state with plate solve: RA={:.4}°, Dec={:.4}°, scale={:.2}\"/px",
+                    solve_result.ra_degrees,
+                    solve_result.dec_degrees,
+                    solve_result.pixel_scale
+                );
+            }
+        }
 
         if let Some(cb) = progress_callback {
             cb(
@@ -497,7 +504,15 @@ pub(crate) async fn wait_for_meridian_flip_window(
         if let Some(result) = ctx.check_cancelled() {
             return Some(result);
         }
-        let (threshold_min, polled_ha, flipped, pier, trigger_has_target) = {
+        let (
+            threshold_min,
+            polled_ha,
+            flipped,
+            pier,
+            trigger_has_target,
+            mount_parked,
+            mount_following,
+        ) = {
             let state = lock.read().await;
             (
                 state.meridian_flip_minutes_past,
@@ -505,6 +520,12 @@ pub(crate) async fn wait_for_meridian_flip_window(
                 state.has_flipped_this_target,
                 state.pier_side,
                 state.target_ra.is_some() && state.target_dec.is_some(),
+                state.mount_parked == Some(true),
+                // The trigger's other precondition: it will not flip a mount
+                // that is parked or not tracking (see `TriggerType::MeridianFlip`
+                // in `Trigger::check`), so holding for it there waits out the
+                // whole bound on every frame.
+                state.mount_parked != Some(true) && state.mount_is_tracking != Some(false),
             )
         };
         // No MinutesPastMeridian trigger armed / already flipped — nothing
@@ -516,6 +537,20 @@ pub(crate) async fn wait_for_meridian_flip_window(
         // Mirror the trigger's own precondition: a flip is meaningless without
         // a target, and the trigger returns false outright in that case.
         if !trigger_has_target {
+            return None;
+        }
+        if !mount_following && !announced {
+            let message = format!(
+                "Not holding the next {exposure_secs:.0}s exposure for a meridian flip: the \
+                 mount is {}, and the flip trigger does not flip a mount in that state.",
+                if mount_parked {
+                    "parked"
+                } else {
+                    "not tracking"
+                }
+            );
+            tracing::warn!("{}", message);
+            control.report(&message);
             return None;
         }
         let ha = current_target_hour_angle(ctx).or(polled_ha)?;

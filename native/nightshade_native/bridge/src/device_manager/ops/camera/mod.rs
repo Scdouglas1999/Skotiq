@@ -464,10 +464,17 @@ mod sim_sky_wiring_tests {
         .expect("save plate-solver preference");
 
         {
+            // The simulated mount keeps coordinates of date; point it at the
+            // J2000 field the way a slew would.
+            let (mount_ra, mount_dec) = crate::device_manager::epoch::j2000_to_mount_frame(
+                DriverType::Simulator,
+                ra_hours,
+                dec_deg,
+            );
             let mut mount = get_sim_mount().write().await;
             mount.status.connected = true;
-            mount.status.right_ascension = ra_hours;
-            mount.status.declination = dec_deg;
+            mount.status.right_ascension = mount_ra;
+            mount.status.declination = mount_dec;
         }
         // So the field sits where the projection puts it rather than where an
         // earlier test's accumulated drift left it.
@@ -578,10 +585,17 @@ mod sim_sky_wiring_tests {
         let ra_hours = 5.59_f64;
         let dec_deg = -5.39_f64;
         {
+            // The simulated mount keeps coordinates of date; point it at the
+            // J2000 field the way a slew would.
+            let (mount_ra, mount_dec) = crate::device_manager::epoch::j2000_to_mount_frame(
+                DriverType::Simulator,
+                ra_hours,
+                dec_deg,
+            );
             let mut mount = get_sim_mount().write().await;
             mount.status.connected = true;
-            mount.status.right_ascension = ra_hours;
-            mount.status.declination = dec_deg;
+            mount.status.right_ascension = mount_ra;
+            mount.status.declination = mount_dec;
         }
 
         let device_id = "sim_camera_sky_solve";

@@ -242,8 +242,19 @@ class SequencerDefaultsNotifier extends StateNotifier<SequencerDefaults> {
   final Ref _ref;
 
   SequencerDefaultsNotifier(this._ref) : super(const SequencerDefaults()) {
-    _loadDefaults();
+    _loadFuture = _loadDefaults();
   }
+
+  late final Future<void> _loadFuture;
+
+  /// Wait until the saved defaults have been read from the database.
+  ///
+  /// Until then [state] holds the library defaults. A start that is this
+  /// provider's first reader -- every headless night -- otherwise pushed those
+  /// to the executor instead of the operator's saved dither and autofocus
+  /// cadence (dither settle 30 s instead of 3 s, refocus every 25 frames
+  /// instead of 60, measured by the simulator soak).
+  Future<void> ensureLoaded() => _loadFuture;
 
   Future<void> _loadDefaults() async {
     final settingsDao = _ref.read(settingsDaoProvider);

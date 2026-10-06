@@ -1248,8 +1248,15 @@ fn test_target_change_invalidates_autofocus() {
     assert_eq!(state.baseline_hfr, None);
 }
 
+/// A filter change restarts the HFR baseline (filters do not share one) but
+/// is not by itself a reason to refocus: that is the operator's "Auto focus
+/// on filter change" setting, off by default, and filter focus offsets carry
+/// the known per-filter shift. Forcing it here made the HFR trigger run a full
+/// autofocus on "L" every time its 5-minute cooldown expired during a Smart
+/// Exposure node cycling Ha/OIII/SII -- measured by the simulator soak, and the
+/// same interleaving that cost the 2026-09-14 night.
 #[test]
-fn test_filter_change_invalidates_autofocus() {
+fn test_filter_change_restarts_the_hfr_baseline_without_forcing_autofocus() {
     let mut state = TriggerState::new();
     state.current_filter = Some("L".to_string());
     state.baseline_hfr = Some(2.0);
@@ -1258,8 +1265,31 @@ fn test_filter_change_invalidates_autofocus() {
     state.set_filter("Ha".to_string());
 
     assert!(state.filter_changed);
-    assert!(state.autofocus_invalidated);
+    assert!(!state.autofocus_invalidated);
     assert_eq!(state.baseline_hfr, None);
+}
+
+#[tokio::test]
+async fn a_rotating_filter_plan_in_focus_does_not_fire_the_hfr_trigger() {
+    let mut trigger = Trigger::new(
+        "hfr_degraded",
+        "HFR Degradation",
+        TriggerType::HfrDegraded {
+            threshold_percent: 20.0,
+            absolute_threshold: 0.0,
+            consecutive_frames: 3,
+        },
+        RecoveryAction::Autofocus,
+    );
+    let mut state = TriggerState::new();
+    for filter in ["Ha", "OIII", "SII", "Ha", "OIII", "SII"] {
+        state.set_filter(filter.to_string());
+        state.update_hfr(2.0);
+        assert!(
+            !trigger.check(&state).await,
+            "an in-focus frame after a change to {filter} fired a refocus"
+        );
+    }
 }
 
 #[tokio::test]
@@ -1298,4 +1328,58 @@ async fn test_tracking_limit_reset_on_tracking_resume() {
     state.reset_tracking_limit_detection();
     assert!(state.tracking_limit_detected_at.is_none());
     assert!(!state.mount_tracking_lost);
+}
+
+/// A trigger that stays due tick after tick is still returned on every tick
+/// (the dispatcher decides what to do with it) but remembers it was already
+/// firing, which is what limits the "Trigger fired" warning to the edge.
+#[tokio::test]
+async fn a_trigger_that_stays_due_is_marked_as_already_firing() {
+    let mut manager = TriggerManager::new();
+    manager.add_trigger(Trigger::new(
+        "dither_every_2",
+        "Dither every 2",
+        TriggerType::DitherInterval { every_n_frames: 2 },
+        RecoveryAction::Dither(crate::DitherConfig::default()),
+    ));
+    {
+        let state = manager.state();
+        let mut s = state.write().await;
+        s.increment_exposure_count();
+        s.increment_exposure_count();
+    }
+    for tick in 0..3 {
+        let fired = manager.check_all().await;
+        assert!(
+            fired.iter().any(|(id, _)| id == "dither_every_2"),
+            "tick {tick}"
+        );
+        let trigger = manager.get_trigger("dither_every_2").unwrap();
+        assert!(trigger.was_firing);
+    }
+}
+
+/// Found by the simulator soak: at the second target's start the DriftLimit
+/// trigger compared the FIRST target's last plate solve with the new target's
+/// coordinates, read degrees of "drift" and queued a recenter before the new
+/// target's own Center node had run.
+#[tokio::test]
+async fn a_new_target_does_not_inherit_the_previous_targets_plate_solve() {
+    let mut trigger = Trigger::new(
+        "drift_limit",
+        "Plate-Solve Drift Limit",
+        TriggerType::DriftLimit { max_pixels: 30.0 },
+        RecoveryAction::Recenter,
+    );
+    let mut state = TriggerState::new();
+    state.set_target(10.0, 20.0);
+    state.update_plate_solve(10.0001, 20.0001, 1.0);
+    assert!(!trigger.check(&state).await, "on target, no drift");
+
+    state.set_target(150.0, -30.0);
+    assert!(state.calculate_drift_pixels().is_none());
+    assert!(
+        !trigger.check(&state).await,
+        "the previous target's solve fired a recenter on the new target"
+    );
 }

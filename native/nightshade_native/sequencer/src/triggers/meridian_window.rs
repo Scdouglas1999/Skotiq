@@ -64,9 +64,57 @@ pub fn flip_window_open(
     on_pre_flip_side(hour_angle_hours, pier_side) && hour_angle_hours >= threshold_hours
 }
 
+/// Whether a flip the trigger requested is still due when its turn comes to
+/// run.
+///
+/// A flip action waits for the imaging train like every camera-driving
+/// action, and the mount can move while it waits. The case that forced this:
+/// at a target change the trigger saw the NEW target's hour angle (west of the
+/// meridian) against the pier side the mount still had on the OLD target, and
+/// requested a flip; the next target's Center node then slewed there and
+/// landed on the post-flip side, and the queued flip would have slewed again
+/// and failed with "pier side did not change". Re-asked with the pier side
+/// read after the wait, the question has the right answer.
+///
+/// Only the window-based methods are re-evaluated; the tracking-limit
+/// methods answer from the mount's own limit state, which a wait does not
+/// make stale in the same way.
+pub fn flip_still_due(
+    config: &crate::MeridianFlipConfig,
+    hour_angle_hours: Option<f64>,
+    pier_side: Option<PierSide>,
+) -> bool {
+    let threshold_hours = match config.trigger_method {
+        crate::MeridianTriggerMethod::MinutesPastMeridian => config.minutes_past_meridian / 60.0,
+        crate::MeridianTriggerMethod::HourAngleThreshold => config.hour_angle_threshold,
+        _ => return true,
+    };
+    hour_angle_hours.is_some_and(|ha| flip_window_open(ha, pier_side, threshold_hours))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The target-change case: requested on the old pointing's pier side,
+    /// run after the next target's slew put the mount on the post-flip side.
+    #[test]
+    fn a_flip_queued_before_the_target_slew_is_not_due_after_it() {
+        let config = crate::MeridianFlipConfig::default();
+        let west_target_ha = Some(3.0);
+        assert!(flip_still_due(
+            &config,
+            west_target_ha,
+            Some(PierSide::West)
+        ));
+        assert!(!flip_still_due(
+            &config,
+            west_target_ha,
+            Some(PierSide::East)
+        ));
+        assert!(!flip_still_due(&config, None, Some(PierSide::West)));
+        assert!(!flip_still_due(&config, Some(-0.5), Some(PierSide::West)));
+    }
 
     const EVERY_PIER_SIDE: [Option<PierSide>; 4] = [
         None,

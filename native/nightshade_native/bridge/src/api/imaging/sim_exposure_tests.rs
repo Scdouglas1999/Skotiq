@@ -64,10 +64,17 @@ async fn the_manual_capture_path_renders_the_catalogue_sky() {
     .expect("save plate-solver preference");
 
     {
+        // The simulated mount keeps coordinates of date; point it at the
+        // grid's J2000 centre the way a slew would.
+        let (mount_ra, mount_dec) = crate::device_manager::epoch::j2000_to_mount_frame(
+            crate::device::DriverType::Simulator,
+            ra_hours,
+            dec_deg,
+        );
         let mut mount = get_sim_mount().write().await;
         mount.status.connected = true;
-        mount.status.right_ascension = ra_hours;
-        mount.status.declination = dec_deg;
+        mount.status.right_ascension = mount_ra;
+        mount.status.declination = mount_dec;
     }
     // So the field sits where the projection puts it rather than where an
     // earlier test's accumulated drift left it.
@@ -327,10 +334,17 @@ async fn a_manual_capture_frame_solves_at_the_mounts_pointing() {
     let ra_hours = 5.59_f64;
     let dec_deg = -5.39_f64;
     {
+        // The simulated mount keeps coordinates of date; point it at the
+        // grid's J2000 centre the way a slew would.
+        let (mount_ra, mount_dec) = crate::device_manager::epoch::j2000_to_mount_frame(
+            crate::device::DriverType::Simulator,
+            ra_hours,
+            dec_deg,
+        );
         let mut mount = get_sim_mount().write().await;
         mount.status.connected = true;
-        mount.status.right_ascension = ra_hours;
-        mount.status.declination = dec_deg;
+        mount.status.right_ascension = mount_ra;
+        mount.status.declination = mount_dec;
     }
     crate::api::devices::simulation::reset_sim_guide_offset().await;
     get_sim_camera().write().await.status.connected = true;

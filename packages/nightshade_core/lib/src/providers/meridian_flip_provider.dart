@@ -13,6 +13,8 @@ import '../models/sequence/sequence_models.dart'
     show SequenceExecutionState, SequenceExecutionStateCapabilities;
 import '../services/logging_service.dart';
 import '../services/notification_service.dart';
+import 'package:nightshade_planetarium/nightshade_planetarium.dart'
+    show AstronomyCalculations;
 import '../services/scheduler/sky_calculations.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
@@ -753,6 +755,20 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
     // setting only when one is connected.
     final autoCenter = settings.recenterAfterFlip && cameraId != null;
 
+    // The flip engine re-slews to a J2000 target and precesses it to the
+    // mount's frame on the way out, like every slew. The mount's own position
+    // is read back in coordinates of date (every driver, and the simulator),
+    // so passing it straight through precessed it twice and moved the framing
+    // by ~20' (2026) on every manual or standalone flip.
+    final (
+      targetRaDeg,
+      targetDec,
+    ) = AstronomyCalculations.precessFromDateToJ2000(
+      raDeg: ra * 15,
+      decDeg: dec,
+      dt: DateTime.now().toUtc(),
+    );
+
     _flipInFlight = true;
     try {
       await _ref
@@ -769,8 +785,8 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
                 ? coverState.deviceId
                 : null,
             targetName: targetName,
-            targetRaHours: ra,
-            targetDecDegrees: dec,
+            targetRaHours: targetRaDeg / 15,
+            targetDecDegrees: targetDec,
             pauseGuiding: settings.pauseGuidingBeforeFlip,
             autoCenter: autoCenter,
             refocusAfter: settings.refocusAfterFlip,

@@ -58,22 +58,22 @@ impl DeviceManager {
         // equTopocentric, INDI EQUATORIAL_EOD_COORD, native LX200-protocol)
         // expect of-date coordinates — ~22′ apart in 2026. Convert at this
         // single choke point so every caller (sequencer, planetarium GOTO,
-        // centering) lands on target. The Simulator stores whatever it is
-        // sent and is read back by epoch-agnostic tests, so it stays raw.
+        // centering) lands on target. The Simulator is an of-date mount too
+        // unless pinned to J2000 (`epoch::SimMountFrame`), so frame mixing
+        // above this layer shows up offline instead of first on the rig.
         // See `device_manager::epoch` for the direction policy.
-        let (ra, dec) = match info.driver_type {
-            DriverType::Simulator => (ra, dec),
-            _ => {
-                let (ra_now, dec_now) = crate::device_manager::epoch::j2000_to_jnow(ra, dec);
-                tracing::debug!(
-                    "mount_slew: J2000 ({:.5}h, {:.4}°) -> JNOW ({:.5}h, {:.4}°)",
-                    ra,
-                    dec,
-                    ra_now,
-                    dec_now
-                );
-                (ra_now, dec_now)
-            }
+        let (ra, dec) = if crate::device_manager::epoch::mount_frame_is_of_date(info.driver_type) {
+            let (ra_now, dec_now) = crate::device_manager::epoch::j2000_to_jnow(ra, dec);
+            tracing::debug!(
+                "mount_slew: J2000 ({:.5}h, {:.4}°) -> JNOW ({:.5}h, {:.4}°)",
+                ra,
+                dec,
+                ra_now,
+                dec_now
+            );
+            (ra_now, dec_now)
+        } else {
+            (ra, dec)
         };
 
         match info.driver_type {

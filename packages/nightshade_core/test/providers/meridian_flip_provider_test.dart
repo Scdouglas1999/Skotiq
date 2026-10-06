@@ -18,6 +18,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nightshade_core/nightshade_core.dart';
+import 'package:nightshade_planetarium/nightshade_planetarium.dart'
+    show AstronomyCalculations;
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -497,22 +499,45 @@ void main() {
           container.read(flipExecutionStateProvider),
           FlipExecutionState.completed,
         );
-        verify(
+        final sent = verify(
           () => backend.performMeridianFlip(
             mountId: 'mount-1',
             cameraId: null,
             focuserId: null,
             coverCalibratorId: null,
             targetName: 'Manual flip',
-            targetRaHours: 7.5,
-            targetDecDegrees: -20,
+            targetRaHours: captureAny(named: 'targetRaHours'),
+            targetDecDegrees: captureAny(named: 'targetDecDegrees'),
             pauseGuiding: true,
             autoCenter: false,
             refocusAfter: false,
             resumeGuiding: true,
             settleTimeSecs: 10,
           ),
-        ).called(1);
+        );
+        sent.called(1);
+        // The mount reads back coordinates of date; the flip engine re-slews
+        // to a J2000 target (and precesses it again on the way out). Passing
+        // the read-back straight through moved the framing by the precession
+        // offset -- ~20' in 2026 -- on every manual flip. The simulator, now an
+        // of-date mount, shows it: see frame_tests.rs in the bridge.
+        final (
+          raJ2000Deg,
+          decJ2000,
+        ) = AstronomyCalculations.precessFromDateToJ2000(
+          raDeg: 7.5 * 15,
+          decDeg: -20,
+          dt: DateTime.now().toUtc(),
+        );
+        final raSent = sent.captured[0] as double;
+        final decSent = sent.captured[1] as double;
+        expect(raSent, closeTo(raJ2000Deg / 15, 1 / 3600));
+        expect(decSent, closeTo(decJ2000, 1 / 60));
+        expect(
+          (raSent - 7.5).abs() * 15 * 60,
+          greaterThan(10),
+          reason: 'the of-date read-back was sent as the J2000 target',
+        );
       },
     );
 

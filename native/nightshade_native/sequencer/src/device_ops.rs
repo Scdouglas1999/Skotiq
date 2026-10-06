@@ -119,10 +119,27 @@ pub trait DeviceOps: Send + Sync {
     /// outside any sane slew tolerance, so comparing one to the other reports a
     /// perfectly good slew as a miss.
     ///
-    /// Identity by default: the simulator and the test doubles store exactly
-    /// what they are given, which is also why this defect could never appear in
-    /// a simulator run. Only the real device layer overrides it.
+    /// Identity by default: the test doubles store exactly what they are given.
+    /// The real device layer overrides it, and so does the simulator behind
+    /// it, which is an of-date mount too (`epoch::SimMountFrame` in the bridge).
     async fn mount_readback_frame(
+        &self,
+        _mount_id: &str,
+        ra_hours: f64,
+        dec_degrees: f64,
+    ) -> DeviceResult<(f64, f64)> {
+        Ok((ra_hours, dec_degrees))
+    }
+
+    /// The inverse of [`Self::mount_readback_frame`]: express a position this
+    /// mount READ BACK in J2000, for anything that records or compares it as a
+    /// catalogue coordinate — the FITS `RA`/`DEC` cards and the
+    /// `captured_images` pointing columns, which stackers, solvers and the
+    /// Library all read as J2000.
+    ///
+    /// Hour-angle and altitude maths want the of-date read-back itself; convert
+    /// only what is stored or matched against catalogues. Identity by default.
+    async fn mount_readback_to_j2000(
         &self,
         _mount_id: &str,
         ra_hours: f64,

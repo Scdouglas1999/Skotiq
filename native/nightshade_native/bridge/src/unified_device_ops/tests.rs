@@ -326,8 +326,9 @@ async fn reconnect_overrides_are_wired_not_trait_default() {
 
 /// Slew arrival is checked against the mount's read-back, so the target has to
 /// be expressed in the frame that read-back is in: of date for a real driver
-/// (the send path precesses to it), unchanged for the Simulator (which stores
-/// what it is sent). Comparing a J2000 target with an of-date read-back failed
+/// (the send path precesses to it), and for the Simulator whichever frame it
+/// is pinned to (of date by default, J2000 under
+/// `NIGHTSHADE_SIM_MOUNT_FRAME=j2000`). Comparing a J2000 target with an of-date read-back failed
 /// every sequence's first slew on 2026-09-14 by 16' of RA, and nothing in the
 /// bridge pinned the mapping: returning the J2000 target for every driver left
 /// every test green.
@@ -356,7 +357,26 @@ async fn slew_targets_are_compared_in_the_frame_each_mount_reports() {
     // NGC 7380, the target of the 2026-09-14 failure.
     let (ra, dec) = (22.7892, 58.1324);
     let real = ops.mount_readback_frame(real_id, ra, dec).await;
-    let sim = ops.mount_readback_frame(sim_id, ra, dec).await;
+    // The simulator's frame is process-wide; pin each one under the
+    // simulator lock, as the frame tests do.
+    let (sim_of_date, sim_j2000) = {
+        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
+            .lock()
+            .await;
+        let of_date = {
+            let _frame = crate::device_manager::epoch::SimFrameGuard::pin(
+                crate::device_manager::epoch::SimMountFrame::OfDate,
+            );
+            ops.mount_readback_frame(sim_id, ra, dec).await
+        };
+        let j2000 = {
+            let _frame = crate::device_manager::epoch::SimFrameGuard::pin(
+                crate::device_manager::epoch::SimMountFrame::J2000,
+            );
+            ops.mount_readback_frame(sim_id, ra, dec).await
+        };
+        (of_date, j2000)
+    };
     let unknown = ops
         .mount_readback_frame("alpaca:no_such_mount", ra, dec)
         .await;
@@ -375,9 +395,14 @@ async fn slew_targets_are_compared_in_the_frame_each_mount_reports() {
     assert!(((real_dec - dec) * 60.0).abs() > 5.0);
 
     assert_eq!(
-        sim.unwrap(),
+        sim_of_date.unwrap(),
+        (sent_ra, sent_dec),
+        "the default Simulator is an of-date mount and is compared like one"
+    );
+    assert_eq!(
+        sim_j2000.unwrap(),
         (ra, dec),
-        "the Simulator reads back what it was sent"
+        "a Simulator pinned to J2000 reads back what it was sent"
     );
     assert_eq!(unknown.unwrap(), (ra, dec));
 }

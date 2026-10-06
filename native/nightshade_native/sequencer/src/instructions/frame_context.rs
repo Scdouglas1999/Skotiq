@@ -272,8 +272,27 @@ pub(crate) async fn build_frame_context_for_save(
     if let Some(mount_id) = &ctx.mount_id {
         match ctx.device_ops.mount_get_coordinates(mount_id).await {
             Ok((ra_hours, dec_degrees)) => {
-                frame_ctx.mount_ra_hours = Some(ra_hours);
-                frame_ctx.mount_dec_degrees = Some(dec_degrees);
+                // Stored in J2000, the frame every reader of the FITS `RA`/`DEC`
+                // cards and the `captured_images` row assumes. A JNow mount
+                // reads back of-date coordinates ~20' away (2026), and writing
+                // those as-is put every frame's recorded pointing off target by
+                // the precession offset. Alt/az below still use the of-date
+                // read-back, which is what the hour angle needs.
+                match ctx
+                    .device_ops
+                    .mount_readback_to_j2000(mount_id, ra_hours, dec_degrees)
+                    .await
+                {
+                    Ok((ra_j2000, dec_j2000)) => {
+                        frame_ctx.mount_ra_hours = Some(ra_j2000);
+                        frame_ctx.mount_dec_degrees = Some(dec_j2000);
+                    }
+                    Err(e) => tracing::debug!(
+                        "[CAPTURE] mount frame unresolved; RA/DEC omitted rather than \
+                         recorded in the wrong frame: {}",
+                        e
+                    ),
+                }
                 // Alt/az are derived, not read back: `mount_get_status` would
                 // report them but costs a full capability sweep per saved
                 // frame on ASCOM, and the geometry is exact once the site is

@@ -248,6 +248,55 @@ void main() {
     );
   });
 
+  group('A2. saved sequencer defaults reach a cold start', () {
+    // Found by the simulator soak (tools/harness/sim_night_soak): a headless
+    // start pushed dither 5 px / settle 30 s / timeout 120 s and autofocus
+    // every 25 frames -- the library defaults -- with the operator's 3 px /
+    // 3 s / 30 s and every-60-frames saved in app_settings. The seed read
+    // `sequencerDefaultsProvider` synchronously, and on a start that is the
+    // provider's first read its load from the database has not run yet.
+    test(
+      'the saved dither and autofocus cadence are pushed, not the defaults',
+      () async {
+        await db.settingsDao.setSettings({
+          'sequencer_autofocus_interval_frames': '60',
+          'sequencer_dither_pixels': '3.0',
+          'sequencer_dither_settle_pixels': '1.5',
+          'sequencer_dither_settle_time': '3.0',
+          'sequencer_dither_settle_timeout': '30.0',
+        });
+        final pushedIntervals = <int>[];
+        final pushedDither = <Map<Symbol, Object?>>[];
+        when(() => backend.sequencerUpdateAutofocusInterval(any())).thenAnswer((
+          inv,
+        ) async {
+          pushedIntervals.add(inv.positionalArguments.first as int);
+        });
+        when(
+          () => backend.sequencerUpdateDitherConfig(
+            pixels: any(named: 'pixels'),
+            settlePixels: any(named: 'settlePixels'),
+            settleTime: any(named: 'settleTime'),
+            settleTimeout: any(named: 'settleTimeout'),
+            raOnly: any(named: 'raOnly'),
+          ),
+        ).thenAnswer((inv) async {
+          pushedDither.add(inv.namedArguments);
+        });
+        final c = buildContainer(settings: _gradingOn);
+        final executor = c.read(sequenceExecutorProvider);
+
+        await executor.seedRuntimeConfigForNativeStart();
+
+        expect(pushedIntervals, [60]);
+        expect(pushedDither, hasLength(1));
+        expect(pushedDither.single[#pixels], 3.0);
+        expect(pushedDither.single[#settleTime], 3.0);
+        expect(pushedDither.single[#settleTimeout], 30.0);
+      },
+    );
+  });
+
   group('B. both launch paths seed identically', () {
     test(
       'start() pushes the same quality check the native seed does',

@@ -504,7 +504,16 @@ impl TriggerState {
         let changed = self.current_filter.as_ref() != Some(&filter);
         self.filter_changed = changed;
         if changed {
-            self.invalidate_autofocus(format!("filter changed to {}", filter));
+            // A new filter needs its own HFR baseline -- Ha and L do not share
+            // one -- but a filter change is not by itself a reason to refocus.
+            // That is the operator's "Auto focus on filter change" setting (off
+            // by default, and honoured by the serializer injecting an Autofocus
+            // node), and filter focus offsets carry the known per-filter shift.
+            // Invalidating autofocus here made the HFR trigger refocus on "L"
+            // every time its cooldown expired while a Smart Exposure node cycled
+            // narrowband filters.
+            self.baseline_hfr = None;
+            tracing::debug!("HFR baseline restarted: filter changed to {}", filter);
         }
         self.current_filter = Some(filter);
     }
@@ -633,6 +642,15 @@ impl TriggerState {
 
     /// Set target coordinates for drift detection
     pub fn set_target(&mut self, ra_degrees: f64, dec_degrees: f64) {
+        // A plate solve of the previous target says nothing about drift on
+        // this one: measured against the new coordinates it read as degrees of
+        // "drift" and fired a DriftLimit recenter the moment a target started,
+        // before its own slew or Center node had run.
+        if self.target_ra != Some(ra_degrees) || self.target_dec != Some(dec_degrees) {
+            self.last_plate_solve_ra = None;
+            self.last_plate_solve_dec = None;
+            self.last_plate_solve_pixel_scale = None;
+        }
         self.target_ra = Some(ra_degrees);
         self.target_dec = Some(dec_degrees);
     }
