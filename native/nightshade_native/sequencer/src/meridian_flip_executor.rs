@@ -214,7 +214,17 @@ impl MeridianFlipExecutor {
     /// `MeridianFlipOutcome` is what feeds the run vitals' `meridianFlips` count
     /// and the session report's error list.
     pub async fn execute(&mut self, ctx: &FlipContext) -> FlipResult {
+        // The flip is a move the run makes: the guide star leaving the frame
+        // during it is not a lost star. The flip pauses and resumes the guider
+        // itself.
+        if let Some(state) = &ctx.trigger_state {
+            state.write().await.mount_motion_depth += 1;
+        }
         let result = self.execute_flip(ctx).await;
+        if let Some(state) = &ctx.trigger_state {
+            let mut state = state.write().await;
+            state.mount_motion_depth = state.mount_motion_depth.saturating_sub(1);
+        }
         self.announce_outcome(ctx, &result);
         result
     }

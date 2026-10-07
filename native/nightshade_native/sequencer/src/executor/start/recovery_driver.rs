@@ -131,7 +131,39 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         // 2. Freeze node tree.
         recovery_driver_is_paused.store(true, Ordering::Relaxed);
 
-        // 3. Optionally stop tracking.
+        // 3. Optionally stop tracking, but never under a moving mount. On the
+        // rig (2026-10-07) a guide-star loss caused by the run's own slew
+        // stopped tracking 40 ms into that slew, and the Center after it
+        // solved trailed frames.
+        // Everything after this reads `stop_tracking` as "tracking was
+        // stopped", so a moving mount clears it.
+        let stop_tracking = stop_tracking
+            && match &recovery_driver_mount_id {
+                Some(mount_id) => {
+                    let run_is_moving_mount = {
+                        let manager = recovery_driver_trigger_mgr.read().await;
+                        let depth = manager.state().read().await.mount_motion_depth;
+                        depth > 0
+                    };
+                    let moving = run_is_moving_mount
+                        || matches!(
+                            tokio::time::timeout(
+                                std::time::Duration::from_secs(5),
+                                recovery_driver_device_ops.mount_is_slewing(mount_id),
+                            )
+                            .await,
+                            Ok(Ok(true))
+                        );
+                    if moving {
+                        tracing::info!(
+                            "[RECOVERY] Leaving tracking on '{}': the mount is moving",
+                            mount_id
+                        );
+                    }
+                    !moving
+                }
+                None => true,
+            };
         if stop_tracking {
             if let Some(mount_id) = &recovery_driver_mount_id {
                 tracing::info!(

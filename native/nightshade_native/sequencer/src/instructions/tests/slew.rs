@@ -255,3 +255,100 @@ mod slew_arrival {
         assert_eq!(ops.mount_slew_calls.load(Ordering::SeqCst), 1);
     }
 }
+
+/// A guider cannot guide through a move the run makes. On the rig (2026-10-07)
+/// PHD2 was left guiding by the previous run, the slew made it lose the star,
+/// and the run paused and stopped tracking under the slew.
+mod guiding_through_a_move {
+    use super::*;
+
+    const TARGET: (f64, f64) = (5.5, 22.0);
+
+    async fn slew_ctx(ops: Arc<ScriptedDomeRotatorOps>, run_guiding: bool) -> InstructionContext {
+        let ctx = pointing_ctx(ops, "M1", TARGET).await;
+        if let Some(state) = &ctx.trigger_state {
+            state.write().await.set_guiding_enabled(run_guiding);
+        }
+        ctx
+    }
+
+    async fn state_of(ctx: &InstructionContext) -> (bool, bool, u32) {
+        let state = ctx.trigger_state.as_ref().unwrap().read().await;
+        (
+            state.guiding_enabled,
+            state.guiding_resume_pending,
+            state.mount_motion_depth,
+        )
+    }
+
+    fn guided_rig() -> Arc<ScriptedDomeRotatorOps> {
+        Arc::new(
+            ScriptedDomeRotatorOps::new()
+                .with_guiding(true)
+                .with_scripted_mount_coordinates(TARGET.0, TARGET.1),
+        )
+    }
+
+    #[tokio::test]
+    async fn a_slew_stops_a_guider_the_run_never_started_and_leaves_it_stopped() {
+        let ops = guided_rig();
+        let ctx = slew_ctx(ops.clone(), false).await;
+        let cfg = SlewConfig {
+            use_target_coords: true,
+            ..SlewConfig::default()
+        };
+
+        let result = execute_slew(&cfg, &ctx, None).await;
+
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        assert_eq!(
+            ops.guider_stop_calls.load(Ordering::SeqCst),
+            1,
+            "the guider must be stopped before the mount moves"
+        );
+        assert_eq!(
+            state_of(&ctx).await,
+            (false, false, 0),
+            "guiding the run never started is not resumed"
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_runs_own_guiding_resumes_on_a_fresh_star_before_the_next_light_frame() {
+        let ops = guided_rig();
+        let ctx = slew_ctx(ops.clone(), true).await;
+        let cfg = SlewConfig {
+            use_target_coords: true,
+            ..SlewConfig::default()
+        };
+
+        let result = execute_slew(&cfg, &ctx, None).await;
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        assert_eq!(ops.guider_stop_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            state_of(&ctx).await,
+            (false, true, 0),
+            "stopped for the move, disarmed, and owed a resume"
+        );
+        assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 0);
+
+        let light = ExposureConfig {
+            duration_secs: 0.01,
+            count: 1,
+            ..ExposureConfig::default()
+        };
+        let _ = execute_exposure(&light, &ctx, |_, _, _| {}).await;
+
+        assert_eq!(
+            *ops.fresh_star_selections.lock().unwrap(),
+            vec![0],
+            "guiding resumes on a fresh star"
+        );
+        assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            state_of(&ctx).await,
+            (true, false, 0),
+            "the run's guiding is armed again"
+        );
+    }
+}

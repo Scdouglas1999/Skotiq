@@ -324,8 +324,9 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             // it drops to looping, and a guider that lost its star and was
             // given up on reports whatever RMS it last had; judging either
             // would have the guiding triggers act on a guider that is not
-            // guiding.
-            let judge_rms = state.guiding_enabled && !state.imaging_unguided;
+            // guiding. A move the run is making is not guiding either.
+            let judge_rms =
+                state.guiding_enabled && !state.imaging_unguided && state.mount_motion_depth == 0;
             if let Some(rms) = guiding_rms.filter(|_| judge_rms) {
                 state.update_guiding_rms(rms);
                 tracing::trace!("Updated guiding RMS: {:.2}", rms);
@@ -701,6 +702,12 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             let trigger_state = manager.state();
             let mut tstate = trigger_state.write().await;
             match guide_status {
+                // The run is moving the mount itself (slew, center, sync,
+                // flip): the guide star leaving the guide frame is what a move
+                // does, not a lost star.
+                _ if tstate.mount_motion_depth > 0 => {
+                    tstate.set_guide_star_lost(false);
+                }
                 Ok(status) => {
                     if status.is_guiding {
                         // A guider seen guiding does NOT arm the star-lost

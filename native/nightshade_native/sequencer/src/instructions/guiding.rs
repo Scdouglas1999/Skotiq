@@ -88,6 +88,144 @@ pub(crate) async fn start_guiding_on_fresh_star(
         .map_err(GuidingStartError::Start)
 }
 
+/// A mount move the run is making: a slew, a center, a sync or a flip.
+///
+/// A guider cannot guide through a move. Left guiding, PHD2 chases the star
+/// out of its frame and reports it lost, and on the rig (2026-10-07) that loss
+/// paused the run and the recovery stopped tracking under a running slew. So,
+/// as N.I.N.A. does, the outermost move stops a guider that is guiding first.
+/// Guiding this run had started is picked up again on a fresh star before the
+/// next light frame ([`resume_guiding_after_motion`]), not straight after the
+/// move: a Slew is usually followed by a Center and a StartGuiding, and each
+/// of those would otherwise restart and settle it again. Guiding the run never
+/// started (the previous run's, or the operator's) is stopped and left
+/// stopped. While any move is in progress the guiding triggers stand down.
+///
+/// Call [`MountMotion::end`] when the move is over. A move dropped without it
+/// (a cancelled future) still ends, from a spawned task.
+pub(crate) struct MountMotion {
+    trigger_state: Option<Arc<tokio::sync::RwLock<crate::triggers::TriggerState>>>,
+}
+
+impl MountMotion {
+    pub(crate) async fn begin(ctx: &InstructionContext, what: &str) -> Self {
+        let Some(trigger_state) = ctx.trigger_state.clone() else {
+            return Self {
+                trigger_state: None,
+            };
+        };
+        let (outermost, run_was_guiding) = {
+            let mut state = trigger_state.write().await;
+            state.mount_motion_depth += 1;
+            (state.mount_motion_depth == 1, state.guiding_enabled)
+        };
+        if outermost {
+            if let Ok(status) = ctx.device_ops.guider_get_status().await {
+                if status.is_guiding {
+                    tracing::info!(
+                        "[GUIDING] Stopping the guider for the {what}: it cannot guide while \
+                         the mount moves"
+                    );
+                    if let Err(error) = ctx.device_ops.guider_stop().await {
+                        tracing::warn!("[GUIDING] The guider did not stop for the {what}: {error}");
+                    }
+                }
+            }
+            if run_was_guiding {
+                let mut state = trigger_state.write().await;
+                state.set_guiding_enabled(false);
+                state.set_guide_star_lost(false);
+                state.guiding_resume_pending = true;
+            }
+        }
+        Self {
+            trigger_state: Some(trigger_state),
+        }
+    }
+
+    pub(crate) async fn end(mut self) {
+        if let Some(trigger_state) = self.trigger_state.take() {
+            let mut state = trigger_state.write().await;
+            state.mount_motion_depth = state.mount_motion_depth.saturating_sub(1);
+        }
+    }
+}
+
+impl Drop for MountMotion {
+    fn drop(&mut self) {
+        let Some(trigger_state) = self.trigger_state.take() else {
+            return;
+        };
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            let _end = handle.spawn(async move {
+                let mut state = trigger_state.write().await;
+                state.mount_motion_depth = state.mount_motion_depth.saturating_sub(1);
+            });
+        }
+    }
+}
+
+/// How long a light frame waits for guiding a move stopped to settle again.
+const GUIDING_AFTER_MOTION_DEADLINE: Duration = Duration::from_secs(120);
+
+/// Start guiding again, on a fresh star, when a move stopped the guiding this
+/// run had started. Called before a light frame.
+///
+/// A guider that does not come back is a notice and the run images unguided,
+/// unless the operator asked quality problems to stop the run; then the frame
+/// fails.
+pub(crate) async fn resume_guiding_after_motion(
+    ctx: &InstructionContext,
+) -> Option<InstructionResult> {
+    let trigger_state = ctx.trigger_state.as_ref()?;
+    if !std::mem::take(&mut trigger_state.write().await.guiding_resume_pending) {
+        return None;
+    }
+    let defaults = StartGuidingConfig::default();
+    tracing::info!("[GUIDING] Resuming guiding on a fresh star after the mount moved");
+    let problem = match start_guiding_on_fresh_star(
+        &ctx.device_ops,
+        defaults.settle_pixels,
+        defaults.settle_time,
+        defaults.settle_timeout,
+    )
+    .await
+    {
+        Err(error) => error.message().to_string(),
+        Ok(()) => {
+            let deadline = tokio::time::Instant::now() + GUIDING_AFTER_MOTION_DEADLINE;
+            loop {
+                if let Ok(status) = ctx.device_ops.guider_get_status().await {
+                    if crate::executor::guiding_is_settled(&status) {
+                        trigger_state.write().await.set_guiding_enabled(true);
+                        return None;
+                    }
+                }
+                if let Some(cancelled) = ctx.check_cancelled() {
+                    return Some(cancelled);
+                }
+                if tokio::time::Instant::now() >= deadline {
+                    break;
+                }
+                sleep(Duration::from_secs(2)).await;
+            }
+            format!(
+                "Guiding did not settle within {} s after the mount moved",
+                GUIDING_AFTER_MOTION_DEADLINE.as_secs()
+            )
+        }
+    };
+    if ctx.stops_on_quality_problems().await {
+        return Some(InstructionResult::failure(problem));
+    }
+    trigger_state.write().await.imaging_unguided = true;
+    ctx.notify_quality_problem_continuing(
+        "Resume guiding",
+        &format!("{problem}. Imaging continues unguided."),
+    );
+    None
+}
+
 /// Recovery code on a StartGuiding failure that was the guider finding no star.
 pub(crate) const NO_GUIDE_STAR_RECOVERY_CODE: &str = "NO_GUIDE_STAR";
 
@@ -106,6 +244,11 @@ pub async fn execute_start_guiding(
     ctx: &InstructionContext,
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
 ) -> InstructionResult {
+    // This node starts guiding itself; the next light frame has nothing to
+    // resume.
+    if let Some(trigger_state) = &ctx.trigger_state {
+        trigger_state.write().await.guiding_resume_pending = false;
+    }
     let result = start_guiding(config, ctx, progress_callback).await;
     // No guide star in the frame is the sky's judgment (cloud, a sparse
     // field), not a fault: by default the operator is told and the run images
@@ -483,6 +626,7 @@ pub async fn execute_stop_guiding(
                 let mut tstate = trigger_state_lock.write().await;
                 tstate.set_guiding_enabled(false);
                 tstate.set_guide_star_lost(false);
+                tstate.guiding_resume_pending = false;
             }
             if let Some(cb) = progress_callback {
                 cb(100.0, "Guiding stopped".to_string());

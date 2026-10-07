@@ -88,6 +88,8 @@ pub(crate) struct ScriptedDeviceOps {
     /// When true, `guider_select_fresh_star` finds no star (a clouded or
     /// empty guide frame).
     pub(crate) no_guide_star: Arc<AtomicBool>,
+    /// What `mount_is_slewing` answers.
+    pub(crate) mount_slewing: Arc<AtomicBool>,
     /// Errors the next exposures fail with, one per exposure, oldest first.
     /// Empty: every exposure succeeds.
     camera_failures: Arc<Mutex<std::collections::VecDeque<String>>>,
@@ -117,6 +119,7 @@ impl ScriptedDeviceOps {
             mount_parked: Arc::new(AtomicBool::new(false)),
             guider_start_fails: Arc::new(AtomicBool::new(false)),
             no_guide_star: Arc::new(AtomicBool::new(false)),
+            mount_slewing: Arc::new(AtomicBool::new(false)),
             camera_failures: Arc::new(Mutex::new(std::collections::VecDeque::new())),
             exposure_calls: Arc::new(AtomicU32::new(0)),
             saved_frames: Arc::new(Mutex::new(Vec::new())),
@@ -295,8 +298,8 @@ impl DeviceOps for ScriptedDeviceOps {
     async fn mount_unpark(&self, id: &str) -> DeviceResult<()> {
         self.inner.mount_unpark(id).await
     }
-    async fn mount_is_slewing(&self, id: &str) -> DeviceResult<bool> {
-        self.inner.mount_is_slewing(id).await
+    async fn mount_is_slewing(&self, _id: &str) -> DeviceResult<bool> {
+        Ok(self.mount_slewing.load(Ordering::SeqCst))
     }
     async fn mount_is_parked(&self, _id: &str) -> DeviceResult<bool> {
         Ok(self.mount_parked.load(Ordering::SeqCst))
@@ -2500,4 +2503,98 @@ async fn zero_camera_retries_fails_the_run_on_the_first_failed_download() {
     assert_eq!(state, super::ExecutorState::Failed);
     assert_eq!(ops.exposure_calls.load(Ordering::SeqCst), 1);
     assert!(ops.saved_frames.lock().unwrap().is_empty());
+}
+
+async fn set_mount_motion_depth(executor: &super::SequenceExecutor, depth: u32) {
+    let manager = executor.trigger_manager.read().await;
+    manager.state().write().await.mount_motion_depth = depth;
+}
+
+/// Wait up to `within` for the guide-star-lost trigger.
+async fn guide_star_lost_fires(
+    events: &mut tokio::sync::broadcast::Receiver<super::ExecutorEvent>,
+    within: std::time::Duration,
+) -> bool {
+    tokio::time::timeout(within, async {
+        loop {
+            match events.recv().await {
+                Ok(super::ExecutorEvent::TriggerFired { trigger_id, .. })
+                    if trigger_id == "guide_star_lost" =>
+                {
+                    return true;
+                }
+                Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => return false,
+            }
+        }
+    })
+    .await
+    .unwrap_or(false)
+}
+
+/// While the run moves the mount itself (slew, center, sync, flip) the guide
+/// star leaving the guide frame is what the move does. On the rig it fired
+/// Guide Star Lost 1.6 s into a slew and paused the run.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_star_lost_during_the_runs_own_move_is_not_a_lost_star() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    let mut events = executor.subscribe();
+    let mut executor = start_long_run(executor, ops.clone()).await;
+
+    set_mount_motion_depth(&executor, 1).await;
+    ops.guiding.store(false, Ordering::SeqCst);
+    let fired_during_move =
+        guide_star_lost_fires(&mut events, std::time::Duration::from_secs(3)).await;
+    // The move is over and the star is still gone: now it is lost.
+    set_mount_motion_depth(&executor, 0).await;
+    let fired_after_move =
+        guide_star_lost_fires(&mut events, std::time::Duration::from_secs(5)).await;
+    let _ = executor.stop().await;
+
+    assert!(
+        !fired_during_move,
+        "Guide Star Lost fired during the run's own move"
+    );
+    assert!(
+        fired_after_move,
+        "a star still lost after the move must fire"
+    );
+}
+
+/// The recovery stopped tracking 40 ms into the run's slew on the rig. It must
+/// leave tracking alone while the mount is moving.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn recovery_leaves_tracking_on_while_the_mount_slews() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    let mut events = executor.subscribe();
+    let mut executor = start_long_run(executor, ops.clone()).await;
+
+    ops.mount_slewing.store(true, Ordering::SeqCst);
+    ops.guiding.store(false, Ordering::SeqCst);
+    let recovering = tokio::time::timeout(std::time::Duration::from_secs(15), async {
+        loop {
+            match events.recv().await {
+                Ok(super::ExecutorEvent::RecoveryStarted { .. }) => return true,
+                Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => return false,
+            }
+        }
+    })
+    .await
+    .unwrap_or(false);
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+
+    assert!(recovering, "the lost star must still start a recovery");
+    assert!(
+        !calls
+            .iter()
+            .any(|c| c == "mount_set_tracking:mount-1:false"),
+        "tracking was stopped under a slewing mount: {calls:?}"
+    );
 }

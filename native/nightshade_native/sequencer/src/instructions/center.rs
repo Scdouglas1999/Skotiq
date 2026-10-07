@@ -101,6 +101,18 @@ pub async fn execute_center(
     ctx: &InstructionContext,
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
 ) -> InstructionResult {
+    // Capture, solve, sync and correction slews are one move of the mount.
+    let motion = MountMotion::begin(ctx, "center").await;
+    let result = center(config, ctx, progress_callback).await;
+    motion.end().await;
+    result
+}
+
+async fn center(
+    config: &CenterConfig,
+    ctx: &InstructionContext,
+    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+) -> InstructionResult {
     let mount_id = match ctx.mount_id() {
         Ok(id) => id.to_string(),
         Err(e) => return e,

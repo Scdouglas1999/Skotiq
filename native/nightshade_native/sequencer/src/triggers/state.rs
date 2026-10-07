@@ -189,6 +189,16 @@ pub struct TriggerState {
     /// guiding RMS is not judged. Cleared when the guider is seen guiding
     /// again.
     pub imaging_unguided: bool,
+    /// How many mount moves the run itself is making (slew, center, sync,
+    /// flip). While non-zero the guide star leaving the guide frame is what a
+    /// move does, so the guiding triggers neither see a lost star nor take RMS
+    /// samples, and the recovery leaves tracking alone. A count, because a
+    /// Center slews inside its own move.
+    pub mount_motion_depth: u32,
+    /// A move stopped the guiding this run had started. The next light frame
+    /// starts it again on a fresh star first; a StartGuiding or StopGuiding
+    /// before then settles it instead.
+    pub guiding_resume_pending: bool,
     /// Filter focus offset (steps) currently embodied in the focuser position,
     /// relative to the reference filter. Filter offsets are reference-relative
     /// deltas; a filter change moves the focuser by
@@ -393,6 +403,8 @@ impl Default for TriggerState {
             guiding_enabled: false,
             guide_star_lost: false,
             imaging_unguided: false,
+            mount_motion_depth: 0,
+            guiding_resume_pending: false,
             last_applied_filter_offset: 0,
             // 300s preserves the previous hardcoded retention so
             // un-configured triggers behave exactly as before.
@@ -624,6 +636,8 @@ impl TriggerState {
         // recovery stopped mount tracking mid-slew.
         self.guide_star_lost = false;
         self.guiding_rms_history = None;
+        self.mount_motion_depth = 0;
+        self.guiding_resume_pending = false;
         if std::mem::take(&mut self.restored_from_checkpoint) {
             // A resumed run carries on the guiding its checkpoint recorded.
             return;

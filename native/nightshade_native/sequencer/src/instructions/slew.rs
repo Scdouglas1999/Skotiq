@@ -148,6 +148,20 @@ pub async fn execute_slew(
         return result;
     }
 
+    let motion = MountMotion::begin(ctx, "slew").await;
+    let result = slew_mount(mount_id, ra, dec, ctx, progress_callback).await;
+    motion.end().await;
+    result
+}
+
+/// Command the slew, wait for it and verify where the mount arrived.
+async fn slew_mount(
+    mount_id: &str,
+    ra: f64,
+    dec: f64,
+    ctx: &InstructionContext,
+    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+) -> InstructionResult {
     // A slew to a sky position is only useful if the mount then follows it.
     // Many drivers unpark without tracking (the ASCOM simulator among them),
     // and ASCOM mounts may refuse an RA/Dec slew outright while not tracking.
