@@ -130,6 +130,10 @@ struct GuidingQualityRun {
     still_guiding: bool,
     warnings: Vec<String>,
     decisions: Vec<String>,
+    /// `guider_start` calls made before each fresh star selection.
+    fresh_star_selections: Vec<u32>,
+    guider_starts: u32,
+    imaging_unguided: bool,
 }
 
 async fn start_guiding_with(
@@ -141,7 +145,8 @@ async fn start_guiding_with(
     ec.device_ops = ops.clone();
     let mut state = crate::triggers::TriggerState::new();
     state.stop_on_quality_problems = stop_on_quality_problems;
-    ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    let trigger_state = Arc::new(tokio::sync::RwLock::new(state));
+    ec.trigger_state = Some(trigger_state.clone());
     let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
     ec.event_tx = Some(event_tx);
     let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
@@ -165,12 +170,67 @@ async fn start_guiding_with(
     while let Ok(decision) = decision_rx.try_recv() {
         decisions.push(decision.summary);
     }
+    let fresh_star_selections = ops.fresh_star_selections.lock().unwrap().clone();
+    let imaging_unguided = trigger_state.read().await.imaging_unguided;
     GuidingQualityRun {
         result,
         still_guiding: ops.guiding.load(Ordering::SeqCst),
         warnings,
         decisions,
+        fresh_star_selections,
+        guider_starts: ops.guider_start_calls.load(Ordering::SeqCst),
+        imaging_unguided,
     }
+}
+
+/// StartGuiding has PHD2 pick a star from a fresh frame before it guides. On
+/// the rig a StartGuiding after slew and center guided on the previous field's
+/// lock position, which was empty sky.
+#[tokio::test(start_paused = true)]
+async fn start_guiding_selects_a_fresh_star_before_it_guides() {
+    let run = start_guiding_with(ScriptedDomeRotatorOps::new(), false).await;
+    assert_eq!(run.result.status, NodeStatus::Success, "{:?}", run.result);
+    assert_eq!(
+        run.fresh_star_selections,
+        vec![0],
+        "one fresh star selection, before the guider was started"
+    );
+    assert_eq!(run.guider_starts, 1);
+}
+
+/// No star in a fresh frame is the sky's judgment, not a fault: the operator
+/// is told and the run images on unguided (owner decision 2026-10-06).
+#[tokio::test(start_paused = true)]
+async fn no_guide_star_notifies_and_the_run_images_unguided() {
+    let run = start_guiding_with(ScriptedDomeRotatorOps::new().with_no_guide_star(), false).await;
+    assert_eq!(run.result.status, NodeStatus::Success, "{:?}", run.result);
+    assert_eq!(run.guider_starts, 0, "guiding started on the old star");
+    assert!(run.imaging_unguided, "the run must know it images unguided");
+    assert!(
+        run.warnings
+            .iter()
+            .any(|w| w.contains("no guide star") && w.contains("Imaging continues unguided")),
+        "{:?}",
+        run.warnings
+    );
+}
+
+/// The operator who asked for quality problems to stop the run gets a failed
+/// StartGuiding.
+#[tokio::test(start_paused = true)]
+async fn no_guide_star_fails_start_guiding_when_the_operator_asked_for_it() {
+    let run = start_guiding_with(ScriptedDomeRotatorOps::new().with_no_guide_star(), true).await;
+    assert_eq!(run.result.status, NodeStatus::Failure);
+    assert!(
+        run.result
+            .message
+            .as_deref()
+            .is_some_and(|m| m.contains("no guide star")),
+        "{:?}",
+        run.result.message
+    );
+    assert_eq!(run.guider_starts, 0);
+    assert!(!run.imaging_unguided);
 }
 
 /// Owner decision 2026-10-06: a judgment the software makes about guiding

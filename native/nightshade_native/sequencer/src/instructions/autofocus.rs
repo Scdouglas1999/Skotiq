@@ -680,11 +680,16 @@ pub(crate) async fn resume_guiding_after_autofocus(
     ctx: &InstructionContext,
     result: InstructionResult,
 ) -> InstructionResult {
-    if let Err(error) = ctx.device_ops.guider_start(1.0, 10.0, 60.0).await {
+    // A fresh star: the autofocus run may have moved the field under the
+    // guider's old lock position.
+    if let Err(error) = start_guiding_on_fresh_star(&ctx.device_ops, 1.0, 10.0, 60.0).await {
         return append_guiding_not_restored(
             ctx,
             result,
-            format!("failed to resume guiding after autofocus: {}", error),
+            format!(
+                "failed to resume guiding after autofocus: {}",
+                error.message()
+            ),
         )
         .await;
     }

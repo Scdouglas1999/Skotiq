@@ -1087,6 +1087,16 @@ impl DeviceOps for UnifiedDeviceOps {
             .map_err(|e| format!("Start guiding failed: {}", e))
     }
 
+    async fn guider_select_fresh_star(&self) -> DeviceResult<()> {
+        let guider_id = get_active_guider_id_for_ops()
+            .await
+            .ok_or_else(|| "No active guider configured".to_string())?;
+        crate::api::phd2::select_fresh_guide_star(&guider_id)
+            .await
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+
     async fn guider_stop(&self) -> DeviceResult<()> {
         tracing::info!("Stopping guiding");
 

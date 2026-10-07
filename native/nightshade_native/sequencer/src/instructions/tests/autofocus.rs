@@ -121,6 +121,11 @@ async fn autofocus_restores_designated_filter_and_guiding_on_cancel() {
     assert_eq!(*ops.filter_moves.lock().unwrap(), vec![0, 1]);
     assert_eq!(ops.guider_stop_calls.load(Ordering::SeqCst), 1);
     assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        *ops.fresh_star_selections.lock().unwrap(),
+        vec![0],
+        "guiding resumes on a star picked after the autofocus run"
+    );
     assert!(ops.guiding.load(Ordering::SeqCst));
 }
 

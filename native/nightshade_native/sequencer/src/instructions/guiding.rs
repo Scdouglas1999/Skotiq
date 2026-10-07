@@ -48,6 +48,58 @@ impl Drop for GuiderStartupCleanupGuard {
     }
 }
 
+/// Why guiding did not start.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum GuidingStartError {
+    /// The guider found no guide star in a fresh frame.
+    NoStar(String),
+    /// The guider would not start guiding.
+    Start(String),
+}
+
+impl GuidingStartError {
+    pub(crate) fn message(&self) -> &str {
+        match self {
+            Self::NoStar(message) | Self::Start(message) => message,
+        }
+    }
+}
+
+/// Start guiding on a star the guider has just picked from a fresh frame.
+///
+/// Every place the run (re)starts guiding goes through here, because the field
+/// may have changed since the guider last selected a star: after a slew, a
+/// center, a target change, a flip or an autofocus run. Started without it,
+/// PHD2 kept the previous field's lock position and guided on nothing (owner
+/// report from the rig, 2026-10-06).
+pub(crate) async fn start_guiding_on_fresh_star(
+    device_ops: &SharedDeviceOps,
+    settle_pixels: f64,
+    settle_time: f64,
+    settle_timeout: f64,
+) -> Result<(), GuidingStartError> {
+    device_ops
+        .guider_select_fresh_star()
+        .await
+        .map_err(GuidingStartError::NoStar)?;
+    device_ops
+        .guider_start(settle_pixels, settle_time, settle_timeout)
+        .await
+        .map_err(GuidingStartError::Start)
+}
+
+/// Recovery code on a StartGuiding failure that was the guider finding no star.
+pub(crate) const NO_GUIDE_STAR_RECOVERY_CODE: &str = "NO_GUIDE_STAR";
+
+fn is_no_guide_star(result: &InstructionResult) -> bool {
+    result
+        .data
+        .as_ref()
+        .and_then(|data| data.get("recovery_code"))
+        .and_then(|code| code.as_str())
+        == Some(NO_GUIDE_STAR_RECOVERY_CODE)
+}
+
 /// Execute start guiding - starts PHD2 guiding and waits for settle
 pub async fn execute_start_guiding(
     config: &StartGuidingConfig,
@@ -55,7 +107,17 @@ pub async fn execute_start_guiding(
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
 ) -> InstructionResult {
     let result = start_guiding(config, ctx, progress_callback).await;
-    if !ctx.imaging_unguided().await {
+    // No guide star in the frame is the sky's judgment (cloud, a sparse
+    // field), not a fault: by default the operator is told and the run images
+    // on unguided (owner decision 2026-10-06).
+    let no_star_continues = matches!(result.status, NodeStatus::Failure)
+        && is_no_guide_star(&result)
+        && !ctx.stops_on_quality_problems().await;
+    if no_star_continues {
+        if let Some(trigger_state) = &ctx.trigger_state {
+            trigger_state.write().await.imaging_unguided = true;
+        }
+    } else if !ctx.imaging_unguided().await {
         return result;
     }
     match result.status {
@@ -139,15 +201,25 @@ async fn start_guiding(
         cb(60.0, "Waiting for guiding to stabilize".to_string());
     }
 
-    match ctx
-        .device_ops
-        .guider_start(
+    let started = if config.auto_select_star {
+        start_guiding_on_fresh_star(
+            &ctx.device_ops,
             config.settle_pixels,
             config.settle_time,
             config.settle_timeout,
         )
         .await
-    {
+    } else {
+        ctx.device_ops
+            .guider_start(
+                config.settle_pixels,
+                config.settle_time,
+                config.settle_timeout,
+            )
+            .await
+            .map_err(GuidingStartError::Start)
+    };
+    match started {
         Ok(_) => {
             let mut cleanup_guard = GuiderStartupCleanupGuard::new(ctx.device_ops.clone());
             let result = async {
@@ -336,7 +408,13 @@ async fn start_guiding(
                 }
             }
         }
-        Err(e) => InstructionResult::failure(format!("Failed to start guiding: {}", e)),
+        Err(GuidingStartError::NoStar(e)) => InstructionResult::failure_with_recovery(
+            format!("The guider found no guide star in a fresh frame: {}.", e),
+            NO_GUIDE_STAR_RECOVERY_CODE,
+        ),
+        Err(GuidingStartError::Start(e)) => {
+            InstructionResult::failure(format!("Failed to start guiding: {}", e))
+        }
     }
 }
 

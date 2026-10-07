@@ -98,6 +98,11 @@ struct ScriptedDomeRotatorOps {
     guiding: AtomicBool,
     guider_stop_calls: AtomicU32,
     guider_start_calls: AtomicU32,
+    /// For each `guider_select_fresh_star`, how many `guider_start` calls had
+    /// been made when it was issued, so a test can tell it came first.
+    fresh_star_selections: Mutex<Vec<u32>>,
+    /// When true, `guider_select_fresh_star` finds no star.
+    no_guide_star: bool,
     /// When true, `guider_start` returns Ok but the guider never reports
     /// guiding — PHD2's behaviour on the owner's 2026-09-14 run, and the
     /// failure the autofocus cleanup calls CRITICAL.
@@ -206,6 +211,8 @@ impl ScriptedDomeRotatorOps {
             guiding: AtomicBool::new(false),
             guider_stop_calls: AtomicU32::new(0),
             guider_start_calls: AtomicU32::new(0),
+            fresh_star_selections: Mutex::new(Vec::new()),
+            no_guide_star: false,
             guider_resume_never_guides: false,
             guider_polls_before_lock: AtomicU32::new(0),
             guider_rms_total: Mutex::new(0.7),
@@ -384,6 +391,11 @@ impl ScriptedDomeRotatorOps {
     }
 
     /// A guider reporting `rms_total` px of guide error.
+    fn with_no_guide_star(mut self) -> Self {
+        self.no_guide_star = true;
+        self
+    }
+
     fn with_guider_rms(self, rms_total: f64) -> Self {
         *self.guider_rms_total.lock().unwrap() = rms_total;
         self
@@ -730,6 +742,16 @@ impl DeviceOps for ScriptedDomeRotatorOps {
             && self.guider_polls_before_lock.load(Ordering::SeqCst) == 0
         {
             self.guiding.store(true, Ordering::SeqCst);
+        }
+        Ok(())
+    }
+    async fn guider_select_fresh_star(&self) -> DeviceResult<()> {
+        self.fresh_star_selections
+            .lock()
+            .unwrap()
+            .push(self.guider_start_calls.load(Ordering::SeqCst));
+        if self.no_guide_star {
+            return Err("no star found in the guide frame".to_string());
         }
         Ok(())
     }

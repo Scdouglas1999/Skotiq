@@ -375,6 +375,15 @@ pub trait DeviceOps: Send + Sync {
         settle_timeout: f64,
     ) -> DeviceResult<()>;
 
+    /// Make the guider drop the star it had and pick one afresh from a new
+    /// frame. Called before every start of guiding the run makes, because the
+    /// field may have changed since the guider last selected a star; an Err
+    /// means no star was found. A guider that selects its own star on every
+    /// start keeps this default.
+    async fn guider_select_fresh_star(&self) -> DeviceResult<()> {
+        Ok(())
+    }
+
     /// Stop guiding
     async fn guider_stop(&self) -> DeviceResult<()>;
 

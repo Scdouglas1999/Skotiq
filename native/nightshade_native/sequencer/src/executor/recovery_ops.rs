@@ -137,19 +137,27 @@ pub(crate) async fn recover_guide_star(
         }
     }
 
-    // Issue a real re-acquisition. guider_start re-selects a guide star and
-    // (re)starts guiding; it can return Ok before the lock is truly settled, so
-    // we verify below.
-    if let Err(e) = device_ops
-        .guider_start(
-            REACQUIRE_SETTLE_PIXELS,
-            REACQUIRE_SETTLE_TIME_SECS,
-            REACQUIRE_SETTLE_TIMEOUT_SECS,
-        )
-        .await
+    // Issue a real re-acquisition on a star picked from a fresh frame: PHD2's
+    // guide RPC keeps the lock position it had, which after a move is empty
+    // sky. The start can return Ok before the lock is truly settled, so we
+    // verify below.
+    if let Err(e) = crate::instructions::start_guiding_on_fresh_star(
+        device_ops,
+        REACQUIRE_SETTLE_PIXELS,
+        REACQUIRE_SETTLE_TIME_SECS,
+        REACQUIRE_SETTLE_TIMEOUT_SECS,
+    )
+    .await
     {
         return AttemptOutcome::Failed {
-            message: format!("Guide-star re-acquisition (guider_start) failed: {}", e),
+            message: match e {
+                crate::instructions::GuidingStartError::NoStar(e) => {
+                    format!("Guide-star re-acquisition found no star: {}", e)
+                }
+                crate::instructions::GuidingStartError::Start(e) => {
+                    format!("Guide-star re-acquisition (guider_start) failed: {}", e)
+                }
+            },
         };
     }
 

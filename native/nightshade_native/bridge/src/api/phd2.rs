@@ -853,6 +853,70 @@ pub async fn api_guider_find_star(device_id: String) -> Result<(f64, f64), Night
     result
 }
 
+/// How many guide frames a fresh star selection waits for before giving up.
+const FRESH_STAR_ATTEMPTS: u32 = 3;
+
+/// Make PHD2 pick a guide star afresh before the sequencer (re)starts guiding:
+/// stop capture, loop, wait for a frame, then auto-select a star.
+///
+/// PHD2's `guide` RPC keeps the star it has selected. After a slew or a target
+/// change that is the lock position from the previous field, and PHD2 then
+/// "guides" on empty sky (owner report from the rig, 2026-10-06).
+///
+/// The built-in guider selects its star inside its own start, so it has
+/// nothing to do here.
+#[flutter_rust_bridge::frb(ignore)]
+pub async fn select_fresh_guide_star(device_id: &str) -> Result<(f64, f64), NightshadeError> {
+    if matches!(resolve_guider_backend(device_id)?, GuiderBackend::Builtin) {
+        return Ok((0.0, 0.0));
+    }
+    let exposure = {
+        let mut client = phd2_client().await?;
+        client.stop_capture().map_err(|e| {
+            NightshadeError::OperationFailed(format!("Failed to stop PHD2 capture: {}", e))
+        })?;
+        client.loop_exposures().map_err(|e| {
+            NightshadeError::OperationFailed(format!("Failed to start PHD2 looping: {}", e))
+        })?;
+        // Why: a PHD2 that cannot report its exposure still loops; one second
+        // per attempt covers the common guide exposures and the retries below
+        // cover the rest.
+        client
+            .get_exposure()
+            .map(|ms| std::time::Duration::from_millis(u64::from(ms)))
+            .unwrap_or(std::time::Duration::from_secs(1))
+    };
+    tracing::info!(
+        "[GUIDING] Selecting a fresh guide star: PHD2 looping, waiting for a {:.1} s frame",
+        exposure.as_secs_f64()
+    );
+    let mut last_error = String::new();
+    for attempt in 1..=FRESH_STAR_ATTEMPTS {
+        // Give PHD2 a whole new frame (plus download time) before asking it to
+        // find a star in it; the client lock is not held while waiting.
+        tokio::time::sleep(exposure + std::time::Duration::from_millis(500)).await;
+        let found = phd2_client().await?.find_star();
+        match found {
+            Ok((x, y)) => {
+                tracing::info!(
+                    "[GUIDING] Fresh guide star selected at ({x:.1}, {y:.1}) px \
+                     (attempt {attempt}/{FRESH_STAR_ATTEMPTS})"
+                );
+                return Ok((x, y));
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "[GUIDING] No guide star found in frame {attempt}/{FRESH_STAR_ATTEMPTS}: {e}"
+                );
+                last_error = e;
+            }
+        }
+    }
+    Err(NightshadeError::OperationFailed(format!(
+        "PHD2 found no guide star in {FRESH_STAR_ATTEMPTS} fresh frames ({last_error})"
+    )))
+}
+
 pub async fn api_guider_set_lock_position(
     device_id: String,
     x: f64,
@@ -1268,5 +1332,109 @@ mod connected_devices_registry_tests {
             "the generic route must run api_phd2_disconnect and drop the client"
         );
         assert!(!still_listed, "PHD2 must leave the connected-devices list");
+    }
+}
+
+#[cfg(test)]
+mod fresh_guide_star_tests {
+    use super::*;
+    use std::io::{BufRead, BufReader, Write};
+    use std::net::TcpListener;
+    use std::sync::{Arc, Mutex};
+
+    type RecordedMethods = Arc<Mutex<Vec<String>>>;
+
+    /// A PHD2 stand-in that records every method it is asked for. Its first
+    /// `find_star` fails, as PHD2's does before a frame has arrived.
+    fn spawn_recording_phd2() -> (u16, RecordedMethods, std::thread::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind mock PHD2");
+        let port = listener.local_addr().expect("mock PHD2 addr").port();
+        let methods = RecordedMethods::default();
+        let recorded = methods.clone();
+        let handle = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().expect("accept the PHD2 client");
+            let mut reader = BufReader::new(stream.try_clone().expect("clone mock stream"));
+            let mut writer = stream;
+            let mut line = String::new();
+            let mut find_star_calls = 0;
+            loop {
+                line.clear();
+                match reader.read_line(&mut line) {
+                    Ok(0) | Err(_) => break,
+                    Ok(_) => {}
+                }
+                let Ok(request) = serde_json::from_str::<serde_json::Value>(line.trim()) else {
+                    continue;
+                };
+                let method = request["method"].as_str().unwrap_or_default().to_string();
+                recorded.lock().unwrap().push(method.clone());
+                let response = match method.as_str() {
+                    "get_exposure" => serde_json::json!({
+                        "jsonrpc": "2.0", "result": 10, "id": request["id"],
+                    }),
+                    "find_star" => {
+                        find_star_calls += 1;
+                        if find_star_calls == 1 {
+                            serde_json::json!({
+                                "jsonrpc": "2.0",
+                                "error": {"code": 1, "message": "no star found"},
+                                "id": request["id"],
+                            })
+                        } else {
+                            serde_json::json!({
+                                "jsonrpc": "2.0", "result": [12.5, 34.0], "id": request["id"],
+                            })
+                        }
+                    }
+                    _ => serde_json::json!({
+                        "jsonrpc": "2.0", "result": "Stopped", "id": request["id"],
+                    }),
+                };
+                if writeln!(writer, "{}", response).is_err() || writer.flush().is_err() {
+                    break;
+                }
+            }
+        });
+        (port, methods, handle)
+    }
+
+    /// On the rig a StartGuiding after slew and center guided on the previous
+    /// field's lock position. A fresh selection stops capture, loops, and asks
+    /// PHD2 to find a star in a new frame, retrying until one has arrived.
+    #[tokio::test]
+    async fn a_fresh_star_is_found_in_a_new_frame_after_capture_restarts() {
+        let _slot = PHD2_TEST_SLOT.lock().await;
+        let (port, methods, server) = spawn_recording_phd2();
+        api_phd2_connect(Some("127.0.0.1".to_string()), Some(port))
+            .await
+            .expect("mock PHD2 must accept the connect");
+        methods.lock().unwrap().clear();
+
+        let selected = select_fresh_guide_star(PHD2_DEVICE_ID).await;
+
+        let _ = api_phd2_disconnect().await;
+        server.join().expect("mock PHD2 server thread finished");
+        let methods = methods.lock().unwrap().clone();
+        let star = selected.expect("the second frame has a star");
+        assert_eq!(star, (12.5, 34.0));
+        let position = |name: &str| methods.iter().position(|m| m == name);
+        let (stop, looping, find) = (
+            position("stop_capture"),
+            position("loop"),
+            position("find_star"),
+        );
+        assert!(
+            stop.is_some() && stop < looping && looping < find,
+            "stop_capture, then loop, then find_star: {methods:?}"
+        );
+        assert_eq!(
+            methods.iter().filter(|m| *m == "find_star").count(),
+            2,
+            "{methods:?}"
+        );
+        assert!(
+            !methods.iter().any(|m| m == "guide"),
+            "selecting a star must not start guiding: {methods:?}"
+        );
     }
 }

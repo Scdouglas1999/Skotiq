@@ -1423,17 +1423,22 @@ impl MeridianFlipExecutor {
         // Mirror `pause_guider`: with no guider configured there is nothing to
         // resume, so do not send the flip into its 120-second retry ladder over
         // a no-op. A real guider failure still fails closed below.
-        match self
-            .device_ops
-            .guider_start(settle_pixels, settle_time, settle_timeout)
-            .await
+        // On a star picked afresh: the flip turned the field over, so the
+        // guider's old lock position is not where the star is.
+        match crate::instructions::start_guiding_on_fresh_star(
+            &self.device_ops,
+            settle_pixels,
+            settle_time,
+            settle_timeout,
+        )
+        .await
         {
             Ok(()) => {}
-            Err(error) if crate::device_ops::is_no_guider_configured(&error) => {
+            Err(error) if crate::device_ops::is_no_guider_configured(error.message()) => {
                 tracing::info!("[MERIDIAN] No guider configured — nothing to resume");
                 return Ok(());
             }
-            Err(error) => return Err(error),
+            Err(error) => return Err(error.message().to_string()),
         }
 
         // guider_start() can return Ok before the guider has actually
@@ -2078,6 +2083,9 @@ mod tests {
         /// Recorded guider-start calls, used to prove centering failure stops
         /// the remaining post-flip steps.
         guider_start_calls: AtomicI32,
+        /// For each fresh guide-star selection, how many guider starts had
+        /// been made when it arrived.
+        fresh_star_before_starts: Mutex<Vec<i32>>,
         /// When true, `guider_start` fails, as a guider with no star does.
         guider_start_fails: AtomicBool,
         /// For each guider-stop call, how many slews had been commanded when it
@@ -2362,6 +2370,15 @@ mod tests {
             if self.state.guider_start_fails.load(Ordering::Relaxed) {
                 return Err("simulated guider start failure: no star".to_string());
             }
+            Ok(())
+        }
+
+        async fn guider_select_fresh_star(&self) -> DeviceResult<()> {
+            self.state
+                .fresh_star_before_starts
+                .lock()
+                .unwrap()
+                .push(self.state.guider_start_calls.load(Ordering::Relaxed));
             Ok(())
         }
 
@@ -3808,6 +3825,11 @@ mod tests {
                 state.guider_start_calls.load(Ordering::Relaxed),
                 1,
                 "{label}: guiding resumes"
+            );
+            assert_eq!(
+                *state.fresh_star_before_starts.lock().unwrap(),
+                vec![0],
+                "{label}: guiding resumes on a star picked after the flip"
             );
             let mut warnings = Vec::new();
             while let Ok(event) = events.try_recv() {

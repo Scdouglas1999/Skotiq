@@ -85,6 +85,9 @@ pub(crate) struct ScriptedDeviceOps {
     mount_parked: Arc<AtomicBool>,
     /// When true, `guider_start` fails, as a guider with no star does.
     pub(crate) guider_start_fails: Arc<AtomicBool>,
+    /// When true, `guider_select_fresh_star` finds no star (a clouded or
+    /// empty guide frame).
+    pub(crate) no_guide_star: Arc<AtomicBool>,
     /// Errors the next exposures fail with, one per exposure, oldest first.
     /// Empty: every exposure succeeds.
     camera_failures: Arc<Mutex<std::collections::VecDeque<String>>>,
@@ -113,6 +116,7 @@ impl ScriptedDeviceOps {
             mount_tracking: Arc::new(AtomicBool::new(true)),
             mount_parked: Arc::new(AtomicBool::new(false)),
             guider_start_fails: Arc::new(AtomicBool::new(false)),
+            no_guide_star: Arc::new(AtomicBool::new(false)),
             camera_failures: Arc::new(Mutex::new(std::collections::VecDeque::new())),
             exposure_calls: Arc::new(AtomicU32::new(0)),
             saved_frames: Arc::new(Mutex::new(Vec::new())),
@@ -214,6 +218,14 @@ impl DeviceOps for ScriptedDeviceOps {
         // No real settle wait; keep the inner call for signature parity but it
         // is a no-op against NullDeviceOps under tokio::time::pause.
         let _ = (sp, st, sto);
+        Ok(())
+    }
+
+    async fn guider_select_fresh_star(&self) -> DeviceResult<()> {
+        self.record("guider_select_fresh_star");
+        if self.no_guide_star.load(Ordering::SeqCst) {
+            return Err("simulated empty guide frame: no star found".to_string());
+        }
         Ok(())
     }
 
@@ -901,6 +913,50 @@ async fn scenario5c_guide_star_never_relocks_fails_closed() {
     assert!(
         matches!(outcome, AttemptOutcome::Failed { .. }),
         "a guider that never re-locks must fail closed, not fake success"
+    );
+}
+
+/// A re-acquisition picks a fresh star before it guides: PHD2's `guide` keeps
+/// the lock position it had, which after a move is empty sky.
+#[tokio::test(start_paused = true)]
+async fn scenario5d_guide_star_reacquire_selects_a_fresh_star_first() {
+    let ops_concrete = Arc::new(ScriptedDeviceOps::new());
+    let ops: SharedDeviceOps = ops_concrete.clone();
+    ops_concrete.guiding.store(false, Ordering::SeqCst);
+    ops_concrete.relock_after_starts.store(1, Ordering::SeqCst);
+
+    let outcome = super::recover_guide_star(&ops).await;
+
+    assert_eq!(outcome, AttemptOutcome::Succeeded);
+    let select = ops_concrete.index_of("guider_select_fresh_star");
+    let start = ops_concrete.index_of("guider_start");
+    assert!(
+        select.is_some() && select < start,
+        "the re-acquisition must select a fresh star before guider_start; calls={:?}",
+        ops_concrete.calls()
+    );
+}
+
+/// No star in a fresh frame fails the attempt without starting the guider on
+/// the old lock position.
+#[tokio::test(start_paused = true)]
+async fn scenario5e_no_star_in_a_fresh_frame_fails_the_attempt() {
+    let ops_concrete = Arc::new(ScriptedDeviceOps::new());
+    let ops: SharedDeviceOps = ops_concrete.clone();
+    ops_concrete.guiding.store(false, Ordering::SeqCst);
+    ops_concrete.relock_after_starts.store(1, Ordering::SeqCst);
+    ops_concrete.no_guide_star.store(true, Ordering::SeqCst);
+
+    let outcome = super::recover_guide_star(&ops).await;
+
+    assert!(
+        matches!(&outcome, AttemptOutcome::Failed { message } if message.contains("no star")),
+        "{outcome:?}"
+    );
+    assert!(
+        ops_concrete.index_of("guider_start").is_none(),
+        "guiding was started on the old star; calls={:?}",
+        ops_concrete.calls()
     );
 }
 
