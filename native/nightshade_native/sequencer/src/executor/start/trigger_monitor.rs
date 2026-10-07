@@ -276,7 +276,11 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             device_ops_for_triggers.guider_get_status(),
         )
         .await;
-        let guiding_rms = guide_status.as_ref().ok().map(|status| status.rms_total);
+        let guiding_rms = guide_status
+            .as_ref()
+            .ok()
+            .filter(|status| status.is_guiding)
+            .map(|status| status.rms_total);
 
         // Poll humidity from the weather/safety
         // device on the same cadence as safety_is_safe. The
@@ -315,10 +319,14 @@ pub(super) async fn run_trigger_monitor_poll_loop(
 
             verdict_stale_unsafe = state.is_weather_verdict_stale_unsafe(verdict_staleness_secs);
 
-            // A guider that lost its star and was given up on reports
-            // whatever RMS it last had; judging that would have the guiding
-            // triggers act on a guider that is not guiding.
-            if let Some(rms) = guiding_rms.filter(|_| !state.imaging_unguided) {
+            // Only guiding this run started is judged, and only while it is
+            // guiding. PHD2 keeps reporting the RMS of its last guiding after
+            // it drops to looping, and a guider that lost its star and was
+            // given up on reports whatever RMS it last had; judging either
+            // would have the guiding triggers act on a guider that is not
+            // guiding.
+            let judge_rms = state.guiding_enabled && !state.imaging_unguided;
+            if let Some(rms) = guiding_rms.filter(|_| judge_rms) {
                 state.update_guiding_rms(rms);
                 tracing::trace!("Updated guiding RMS: {:.2}", rms);
             }
@@ -695,23 +703,19 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             match guide_status {
                 Ok(status) => {
                     if status.is_guiding {
-                        // Observing the guider actively guiding ARMS the
-                        // star-lost trigger. This latch is the authoritative
-                        // arming path: without it `guiding_enabled` would stay
-                        // false forever (StartGuiding sets it too, but the
-                        // latch also covers checkpoint-resume where the
-                        // StartGuiding node already completed and will not
-                        // re-run). It is only cleared by an explicit
-                        // StopGuiding.
-                        if !tstate.guiding_enabled {
-                            tstate.set_guiding_enabled(true);
-                        }
+                        // A guider seen guiding does NOT arm the star-lost
+                        // trigger by itself: only guiding this run started
+                        // does (see `set_guiding_enabled`). A guider left
+                        // guiding by the previous run or by the operator armed
+                        // it here, and the first slew then "lost" that star.
                         tstate.set_guide_star_lost(false);
                         // The run went on unguided after the guide-star
                         // recovery ran out; the guider is guiding again (the
                         // operator restarted it, or it found a star), so the
-                        // steps that need it get it back.
+                        // steps that need it get it back, and this run's
+                        // guiding is armed again.
                         if std::mem::take(&mut tstate.imaging_unguided) {
+                            tstate.set_guiding_enabled(true);
                             tracing::info!(
                                 "[GUIDING] The guider is guiding again; dithers and guiding \
                                  checks resume"

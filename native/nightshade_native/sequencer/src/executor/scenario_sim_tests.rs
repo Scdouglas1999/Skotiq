@@ -1530,7 +1530,16 @@ async fn start_long_run(
     sequence.root_node_id = Some("hold-delay".to_string());
     executor.load_sequence(sequence).expect("sequence loads");
     executor.start().await.expect("executor starts");
+    arm_run_guiding(&executor).await;
     executor
+}
+
+/// What a StartGuiding node that succeeded leaves behind: this run's guiding
+/// is armed, so a guider that stops guiding is a lost star. A guider merely
+/// seen guiding does not arm it.
+pub(crate) async fn arm_run_guiding(executor: &super::SequenceExecutor) {
+    let manager = executor.trigger_manager.read().await;
+    manager.state().write().await.set_guiding_enabled(true);
 }
 
 /// A paused run must stay paused when a safety-class trigger fires under it.

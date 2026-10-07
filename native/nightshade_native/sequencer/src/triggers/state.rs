@@ -618,9 +618,17 @@ impl TriggerState {
         self.last_dither_frame = 0;
         self.consecutive_dither_failures = 0;
         self.imaging_unguided = false;
+        // The guide-star latch and RMS history describe guiding the previous
+        // run started. Carried over, run 2 on the rig (2026-10-07) fired Guide
+        // Star Lost 1.6 s after Start on a PHD2 that was only looping, and the
+        // recovery stopped mount tracking mid-slew.
+        self.guide_star_lost = false;
+        self.guiding_rms_history = None;
         if std::mem::take(&mut self.restored_from_checkpoint) {
+            // A resumed run carries on the guiding its checkpoint recorded.
             return;
         }
+        self.guiding_enabled = false;
         self.clear_target_state();
     }
 
@@ -719,10 +727,12 @@ impl TriggerState {
     /// cannot fire while the guider is idle between sequences. It MUST be set
     /// `true` once guiding is active, otherwise the star-lost safety net is
     /// dead and the sequence silently keeps exposing unguided after a star
-    /// loss. It is set `true` explicitly on a successful `StartGuiding` and
-    /// latched `true` in the executor poll whenever the guider reports it is
-    /// actively guiding; it is cleared on an explicit `StopGuiding` so an
-    /// intentional stop does not masquerade as a lost star.
+    /// loss. It is set `true` only when this run starts or resumes guiding
+    /// (StartGuiding, the guide-star recovery, the post-autofocus and
+    /// post-flip resumes, a restored checkpoint); a guider that was already
+    /// guiding for someone else when the run started does not arm it. It is
+    /// cleared on an explicit stop so an intentional stop does not masquerade
+    /// as a lost star, and at the start of every run.
     pub fn set_guiding_enabled(&mut self, enabled: bool) {
         if self.guiding_enabled != enabled {
             tracing::debug!("Guiding-enabled (star-lost trigger arm) -> {}", enabled);

@@ -1906,13 +1906,23 @@ async fn weather_turning_unsafe_during_a_pause_still_fires_the_weather_trigger()
     );
 }
 
-/// A run resumed from a checkpoint never re-runs its StartGuiding node, so the
-/// monitor seeing the guider actively guiding is what arms GuideStarLost. With
-/// that latch inverted the trigger stayed disarmed, a guider that then stopped
-/// guiding was never reported lost, and every test passed.
-#[tokio::test]
-async fn a_guider_seen_guiding_arms_star_lost_and_a_later_drop_fires_it() {
+fn guided_delay_sequence(start_guiding: bool) -> SequenceDefinition {
     let mut sequence = SequenceDefinition::new("Guided Run".to_string());
+    let mut children = Vec::new();
+    if start_guiding {
+        sequence.nodes.push(crate::NodeDefinition {
+            id: "guide".to_string(),
+            name: "Start Guiding".to_string(),
+            node_type: crate::NodeType::StartGuiding(crate::StartGuidingConfig {
+                settle_timeout: 10.0,
+                validate_calibration: false,
+                ..Default::default()
+            }),
+            enabled: true,
+            children: vec![],
+        });
+        children.push("guide".to_string());
+    }
     sequence.nodes.push(crate::NodeDefinition {
         id: "wait".to_string(),
         name: "Wait".to_string(),
@@ -1920,9 +1930,59 @@ async fn a_guider_seen_guiding_arms_star_lost_and_a_later_drop_fires_it() {
         enabled: true,
         children: vec![],
     });
-    sequence.root_node_id = Some("wait".to_string());
+    children.push("wait".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "night".to_string(),
+        name: "Night".to_string(),
+        node_type: crate::NodeType::Loop(crate::LoopConfig::default()),
+        enabled: true,
+        children,
+    });
+    sequence.root_node_id = Some("night".to_string());
+    sequence
+}
 
-    // Guiding from the start, with no StartGuiding node in the sequence.
+async fn guider_flags(executor: &SequenceExecutor) -> (bool, bool) {
+    let manager = executor.trigger_manager.read().await;
+    let state = manager.state();
+    let guard = state.read().await;
+    (guard.guiding_enabled, guard.guide_star_lost)
+}
+
+async fn guiding_rms_samples(executor: &SequenceExecutor) -> usize {
+    let manager = executor.trigger_manager.read().await;
+    let state = manager.state();
+    let guard = state.read().await;
+    guard.guiding_rms_history.as_ref().map_or(0, Vec::len)
+}
+
+/// The first guiding trigger a run fires within `within`, if any.
+async fn first_guiding_trigger(
+    events: &mut broadcast::Receiver<ExecutorEvent>,
+    within: std::time::Duration,
+) -> Option<String> {
+    tokio::time::timeout(within, async {
+        loop {
+            match events.recv().await {
+                Ok(ExecutorEvent::TriggerFired { trigger_id, .. })
+                    if trigger_id == "guide_star_lost" || trigger_id == "guiding_failed" =>
+                {
+                    return Some(trigger_id);
+                }
+                Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                Err(broadcast::error::RecvError::Closed) => return None,
+            }
+        }
+    })
+    .await
+    .unwrap_or(None)
+}
+
+/// A guider that is already guiding when a run starts was started by someone
+/// else (the previous run, or the operator in PHD2). The run did not ask for
+/// it, so it must not arm the guiding triggers or have its RMS judged.
+#[tokio::test]
+async fn a_guider_already_guiding_at_start_does_not_arm_the_guiding_triggers() {
     let ops = ReacquireGuiderOps::new(false, true);
     let guiding = ops.started.clone();
     guiding.store(true, Ordering::Relaxed);
@@ -1931,21 +1991,112 @@ async fn a_guider_seen_guiding_arms_star_lost_and_a_later_drop_fires_it() {
     executor.set_device_ops(Arc::new(ops));
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     let mut events = executor.subscribe();
-    executor.load_sequence(sequence).expect("sequence loads");
+    executor
+        .load_sequence(guided_delay_sequence(false))
+        .expect("sequence loads");
     executor.start().await.expect("run starts");
 
-    async fn guider_flags(executor: &SequenceExecutor) -> (bool, bool) {
-        let manager = executor.trigger_manager.read().await;
-        let state = manager.state();
-        let guard = state.read().await;
-        (guard.guiding_enabled, guard.guide_star_lost)
-    }
+    // Several monitor ticks with the guider guiding, then it stops guiding.
+    tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
+    let armed = guider_flags(&executor).await.0;
+    let rms_samples = guiding_rms_samples(&executor).await;
+    guiding.store(false, Ordering::Relaxed);
+    let fired = first_guiding_trigger(&mut events, std::time::Duration::from_secs(3)).await;
+    executor.stop().await.ok();
+
+    assert!(
+        !armed,
+        "a guider this run never started armed the star-lost trigger"
+    );
+    assert_eq!(
+        rms_samples, 0,
+        "the RMS of guiding this run never started was judged"
+    );
+    assert_eq!(
+        fired, None,
+        "a guiding trigger fired for guiding this run never started"
+    );
+}
+
+/// Run 1 starts guiding and the operator stops it; PHD2 is left looping. Run 2
+/// has no StartGuiding node. On the rig (2026-10-07 01:15 UTC) run 2 fired
+/// Guide Star Lost 1.6 s after Start with no guider event in between, and the
+/// recovery stopped mount tracking: the previous run's latch survived into it.
+#[tokio::test]
+async fn a_stopped_guided_run_does_not_leave_the_next_run_armed() {
+    let ops = ReacquireGuiderOps::new(false, true);
+    let guiding = ops.started.clone();
+
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(Arc::new(ops));
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor
+        .load_sequence(guided_delay_sequence(true))
+        .expect("run 1 loads");
+    executor.start().await.expect("run 1 starts");
 
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
     while !guider_flags(&executor).await.0 {
         assert!(
             std::time::Instant::now() < deadline,
-            "an actively guiding guider never armed the star-lost trigger"
+            "run 1's StartGuiding never armed the star-lost trigger"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    executor.stop().await.expect("run 1 stops");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    while !matches!(
+        executor.get_state().await,
+        ExecutorState::Cancelled | ExecutorState::Completed | ExecutorState::Failed
+    ) {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "run 1 never reached a terminal state after Stop"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+
+    // PHD2 is looping, not guiding.
+    guiding.store(false, Ordering::Relaxed);
+
+    let mut events = executor.subscribe();
+    executor
+        .load_sequence(guided_delay_sequence(false))
+        .expect("run 2 loads");
+    executor.start().await.expect("run 2 starts");
+    let fired = first_guiding_trigger(&mut events, std::time::Duration::from_secs(4)).await;
+    let flags = guider_flags(&executor).await;
+    executor.stop().await.ok();
+
+    assert_eq!(fired, None, "run 2 fired a guiding trigger it never armed");
+    assert_eq!(
+        flags,
+        (false, false),
+        "run 2 inherited run 1's guiding latch"
+    );
+}
+
+/// The StartGuiding node arms GuideStarLost, and a guider that then stops
+/// guiding fires it and the recovery re-acquires the star.
+#[tokio::test]
+async fn guiding_this_run_started_arms_star_lost_and_a_later_drop_fires_it() {
+    let ops = ReacquireGuiderOps::new(false, true);
+    let guiding = ops.started.clone();
+
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(Arc::new(ops));
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    let mut events = executor.subscribe();
+    executor
+        .load_sequence(guided_delay_sequence(true))
+        .expect("sequence loads");
+    executor.start().await.expect("run starts");
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    while !guider_flags(&executor).await.0 {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "StartGuiding never armed the star-lost trigger"
         );
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
@@ -2746,6 +2897,7 @@ async fn run_with_bad_guiding_trigger(
     let mut events = executor.subscribe();
     executor.load_sequence(sequence).expect("sequence loads");
     executor.start().await.expect("run starts");
+    crate::executor::scenario_sim_tests::arm_run_guiding(&executor).await;
 
     let mut fired = Vec::new();
     let mut warnings = Vec::new();
