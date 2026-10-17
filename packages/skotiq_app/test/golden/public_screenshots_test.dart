@@ -806,9 +806,15 @@ Future<void> _capture(
   final boundaryKey = GlobalKey();
   final handle = await pumpAppScreen(
     tester,
+    // Screens leave their backdrop to the app shell, so the capture paints
+    // the theme ground itself. Without it the PNG was transparent and GitHub's
+    // light theme showed the light text on white.
     RepaintBoundary(
       key: boundaryKey,
-      child: SizedBox.fromSize(size: _size, child: screen),
+      child: ColoredBox(
+        color: SkotiqColors.dark.background,
+        child: SizedBox.fromSize(size: _size, child: screen),
+      ),
     ),
     size: _size,
     theme: SkotiqTheme.dark,
