@@ -424,7 +424,9 @@ void main() {
       expect(identical(before, after), isTrue);
     });
 
-    testWidgets('violet maps to red under the red night theme', (tester) async {
+    testWidgets('theme and violet map to red under the red night theme', (
+      tester,
+    ) async {
       // MaterialApp animates theme changes (~200 ms), and SkotiqColors.lerp
       // keeps the old palette until halfway — pump past the transition so
       // each expectation sees the settled theme.
@@ -435,8 +437,23 @@ void main() {
         painter(tester).laneColors,
         equals(trailsPalettes[SkotiqMarkTone.red]),
       );
-      // And stays violet under the normal dark theme.
-      await tester.pumpWidget(host(const SkotiqMark()));
+      // An explicit violet tone maps the same way — the wavelength
+      // constraint outranks a fixed colorway too.
+      await tester.pumpWidget(
+        host(
+          const SkotiqMark(tone: SkotiqMarkTone.violet),
+          theme: SkotiqTheme.redNight,
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        painter(tester).laneColors,
+        equals(trailsPalettes[SkotiqMarkTone.red]),
+      );
+      // And the explicit tone keeps its own palette under the dark theme.
+      await tester.pumpWidget(
+        host(const SkotiqMark(tone: SkotiqMarkTone.violet)),
+      );
       await tester.pump(const Duration(milliseconds: 300));
       expect(
         painter(tester).laneColors,
@@ -453,6 +470,91 @@ void main() {
       expect(
         painter(tester).laneColors,
         equals(trailsPalettes[SkotiqMarkTone.red]),
+      );
+    });
+
+    testWidgets('theme derives the lanes from the active accent', (
+      tester,
+    ) async {
+      // Under the default dark theme the ramp comes off the palette's own
+      // primary (#A48CF2); the poles and the warm lane are brandWarm.
+      await tester.pumpWidget(host(const SkotiqMark()));
+      final derived = themeTrailsRamp(
+        SkotiqColors.dark.primary,
+        brandWarm: SkotiqColors.dark.brandWarm,
+        lightGround: false,
+      );
+      expect(
+        painter(tester).laneColors,
+        equals([derived[0], derived[1], derived[2], derived[3], derived[4]]),
+      );
+      expect(painter(tester).poleColor, SkotiqColors.dark.brandWarm);
+
+      // A custom accent recolors the whole mark.
+      await tester.pumpWidget(
+        host(
+          const SkotiqMark(),
+          theme: SkotiqTheme.darkWithAccent(const Color(0xFF43B67A)),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      final green = themeTrailsRamp(
+        const Color(0xFF43B67A),
+        brandWarm: SkotiqColors.dark.brandWarm,
+        lightGround: false,
+      );
+      expect(painter(tester).laneColors, equals(green));
+
+      // themeAccent overrides the ambient accent — the swatch preview.
+      await tester.pumpWidget(
+        host(const SkotiqMark(themeAccent: Color(0xFFE0A53E))),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        painter(tester).laneColors,
+        equals(
+          themeTrailsRamp(
+            const Color(0xFFE0A53E),
+            brandWarm: SkotiqColors.dark.brandWarm,
+            lightGround: false,
+          ),
+        ),
+      );
+    });
+
+    testWidgets('theme picks the light stops on a light ground', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        host(const SkotiqMark(), theme: SkotiqTheme.light),
+      );
+      expect(
+        painter(tester).laneColors,
+        equals(
+          themeTrailsRamp(
+            SkotiqColors.light.primary,
+            brandWarm: SkotiqColors.light.brandWarm,
+            lightGround: true,
+          ),
+        ),
+      );
+      expect(painter(tester).poleColor, SkotiqColors.light.brandWarm);
+
+      // The tile is a dark ground even under the light theme — the mark
+      // paints its icon look, so it takes the dark recipe.
+      await tester.pumpWidget(
+        host(const SkotiqMark(tile: true), theme: SkotiqTheme.light),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        painter(tester).laneColors,
+        equals(
+          themeTrailsRamp(
+            SkotiqColors.light.primary,
+            brandWarm: SkotiqColors.dark.brandWarm,
+            lightGround: false,
+          ),
+        ),
       );
     });
 
@@ -624,6 +726,163 @@ void main() {
         frame = await paintMark();
         expect(px(frame, const Offset(4, 50)).a, 0);
       });
+    });
+  });
+
+  group('themeTrailsRamp', () {
+    /// CIE Lab of [c] under D65 — the input to [_deltaE00].
+    List<double> lab(Color c) {
+      double lin(double s) => s <= 0.04045
+          ? s / 12.92
+          : math.pow((s + 0.055) / 1.055, 2.4).toDouble();
+      final r = lin(c.r), g = lin(c.g), b = lin(c.b);
+      final x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047;
+      final y = r * 0.2126 + g * 0.7152 + b * 0.0722;
+      final z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+      double f(double t) =>
+          t > 0.008856 ? math.pow(t, 1 / 3).toDouble() : 7.787 * t + 16 / 116;
+      return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+    }
+
+    /// CIEDE2000 between two Lab triples — the same measure check_tokens.py
+    /// uses for the brandWarm/warning floor.
+    double deltaE00(List<double> a, List<double> b) {
+      final l1 = a[0], a1 = a[1], b1 = a[2];
+      final l2 = b[0], a2 = b[1], b2 = b[2];
+      final c1 = math.sqrt(a1 * a1 + b1 * b1);
+      final c2 = math.sqrt(a2 * a2 + b2 * b2);
+      final cBar7 = math.pow((c1 + c2) / 2, 7).toDouble();
+      final g = 0.5 * (1 - math.sqrt(cBar7 / (cBar7 + math.pow(25, 7))));
+      final a1p = a1 * (1 + g), a2p = a2 * (1 + g);
+      final c1p = math.sqrt(a1p * a1p + b1 * b1);
+      final c2p = math.sqrt(a2p * a2p + b2 * b2);
+      double hp(double ap, double bp) {
+        if (ap == 0 && bp == 0) return 0;
+        final h = math.atan2(bp, ap) * 180 / math.pi;
+        return h < 0 ? h + 360 : h;
+      }
+
+      final h1p = hp(a1p, b1), h2p = hp(a2p, b2);
+      final dl = l2 - l1, dc = c2p - c1p;
+      var dh = 0.0;
+      if (c1p * c2p != 0) {
+        dh = h2p - h1p;
+        if (dh > 180) dh -= 360;
+        if (dh < -180) dh += 360;
+      }
+      final dH = 2 * math.sqrt(c1p * c2p) * math.sin(dh * math.pi / 360);
+      final lBarP = (l1 + l2) / 2, cBarP = (c1p + c2p) / 2;
+      var hBarP = h1p + h2p;
+      if (c1p * c2p != 0) {
+        hBarP = (h1p - h2p).abs() > 180
+            ? (h1p + h2p < 360 ? h1p + h2p + 360 : h1p + h2p - 360) / 2
+            : hBarP / 2;
+      }
+      final t =
+          1 -
+          0.17 * math.cos((hBarP - 30) * math.pi / 180) +
+          0.24 * math.cos(2 * hBarP * math.pi / 180) +
+          0.32 * math.cos((3 * hBarP + 6) * math.pi / 180) -
+          0.20 * math.cos((4 * hBarP - 63) * math.pi / 180);
+      final dTheta = 30 * math.exp(-math.pow((hBarP - 275) / 25, 2));
+      final cBarP7 = math.pow(cBarP, 7).toDouble();
+      final rc = 2 * math.sqrt(cBarP7 / (cBarP7 + math.pow(25, 7)));
+      final sl =
+          1 +
+          0.015 *
+              math.pow(lBarP - 50, 2) /
+              math.sqrt(20 + math.pow(lBarP - 50, 2));
+      final sc = 1 + 0.045 * cBarP;
+      final sh = 1 + 0.015 * cBarP * t;
+      final rt = -math.sin(2 * dTheta * math.pi / 180) * rc;
+      return math.sqrt(
+        math.pow(dl / sl, 2).toDouble() +
+            math.pow(dc / sc, 2).toDouble() +
+            math.pow(dH / sh, 2).toDouble() +
+            rt * (dc / sc) * (dH / sh),
+      );
+    }
+
+    test('the default violet accent reproduces the approved colorway', () {
+      // Approved violet lanes, outermost first.
+      const approved = [
+        Color(0xFF6E56CF),
+        Color(0xFF8F7BEA),
+        Color(0xFFB9ABFF),
+        Color(0xFFE4DEFF),
+      ];
+      final dark = themeTrailsRamp(
+        SkotiqColors.dark.primary,
+        brandWarm: SkotiqColors.dark.brandWarm,
+        lightGround: false,
+      );
+      for (var i = 0; i < 4; i++) {
+        expect(
+          deltaE00(lab(dark[i]), lab(approved[i])),
+          lessThan(2.0),
+          reason: 'dark lane $i',
+        );
+      }
+      // Approved light colorway, same order.
+      const approvedLight = [
+        Color(0xFF4B36A8),
+        Color(0xFF6A55CC),
+        Color(0xFF8E7BE3),
+        Color(0xFF2B2347),
+      ];
+      final light = themeTrailsRamp(
+        SkotiqColors.light.primary,
+        brandWarm: SkotiqColors.light.brandWarm,
+        lightGround: true,
+      );
+      for (var i = 0; i < 4; i++) {
+        expect(
+          deltaE00(lab(light[i]), lab(approvedLight[i])),
+          lessThan(2.0),
+          reason: 'light lane $i',
+        );
+      }
+    });
+
+    test('the warm lane and the four cool lanes come out in order', () {
+      final ramp = themeTrailsRamp(
+        const Color(0xFF6EB3EC),
+        brandWarm: const Color(0xFFFFD9A8),
+        lightGround: false,
+      );
+      expect(ramp, hasLength(5));
+      expect(ramp[4], const Color(0xFFFFD9A8));
+      // On a dark ground the cool lanes lighten inward, as the violet
+      // colorway runs #6E56CF → #E4DEFF.
+      for (var i = 0; i < 3; i++) {
+        expect(
+          ramp[i + 1].computeLuminance(),
+          greaterThan(ramp[i].computeLuminance()),
+        );
+      }
+    });
+
+    test('every accent keeps its hue through the cool lanes', () {
+      const accents = {
+        'blue': Color(0xFF6EB3EC),
+        'green': Color(0xFF43B67A),
+        'amber': Color(0xFFE0A53E),
+        'pink': Color(0xFFE77FB3),
+        'violet': Color(0xFFA48CF2),
+      };
+      for (final e in accents.entries) {
+        final hue = HSVColor.fromColor(e.value).hue;
+        final ramp = themeTrailsRamp(
+          e.value,
+          brandWarm: const Color(0xFFFFD9A8),
+          lightGround: false,
+        );
+        for (var i = 0; i < 4; i++) {
+          var diff = (HSVColor.fromColor(ramp[i]).hue - hue).abs();
+          if (diff > 180) diff = 360 - diff;
+          expect(diff, lessThan(30), reason: '${e.key} lane $i');
+        }
+      }
     });
   });
 

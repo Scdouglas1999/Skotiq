@@ -150,15 +150,17 @@ abstract final class TrailsMotion {
 /// [SkotiqMarkMotion.loading] and [SkotiqMarkMotion.working] are looping
 /// animations; they run only while the mark is actually painted
 /// ([OnScreenAnimationGate]) and render as the still mark when
-/// [MediaQuery.disableAnimations] is set. In red night mode a [tone] of
-/// [SkotiqMarkTone.violet] automatically renders as [SkotiqMarkTone.red].
+/// [MediaQuery.disableAnimations] is set. In red night mode the
+/// accent-following [SkotiqMarkTone.theme] and the fixed
+/// [SkotiqMarkTone.violet] both render as [SkotiqMarkTone.red].
 class SkotiqMark extends StatefulWidget {
   const SkotiqMark({
     super.key,
     this.size = 64,
     this.motion = SkotiqMarkMotion.none,
-    this.tone = SkotiqMarkTone.violet,
+    this.tone = SkotiqMarkTone.theme,
     this.color,
+    this.themeAccent,
     this.tile = false,
     this.semanticLabel,
     this.onDrawComplete,
@@ -172,14 +174,19 @@ class SkotiqMark extends StatefulWidget {
   /// animations are disabled.
   final SkotiqMarkMotion motion;
 
-  /// The colorway. In red night mode, [SkotiqMarkTone.violet] renders as
-  /// [SkotiqMarkTone.red].
+  /// The colorway. In red night mode, [SkotiqMarkTone.theme] and
+  /// [SkotiqMarkTone.violet] both render as [SkotiqMarkTone.red].
   final SkotiqMarkTone tone;
 
   /// One color for every lane — the `currentColor` behavior the `mono` tone
   /// exists for. When null, `mono` resolves its color from
   /// [IconTheme]/[DefaultTextStyle]; other tones use their palette.
   final Color? color;
+
+  /// The accent [SkotiqMarkTone.theme] derives its cool lanes from —
+  /// the ambient [SkotiqColors.primary] when null. Settings' accent
+  /// swatches set it so each swatch previews the mark in ITS accent.
+  final Color? themeAccent;
 
   /// Whether to draw the rounded app-icon tile behind the mark (`#0E0C16`,
   /// corner radius 22.5% of the side; `#000` under the red colorway).
@@ -302,8 +309,10 @@ class _SkotiqMarkState extends State<SkotiqMark>
     final colors = context.skotiqColors;
     var tone = widget.tone;
     // Red night is a wavelength constraint, not a palette: violet would leak
-    // blue light into a dark-adapted UI, so it maps to the red colorway.
-    if (tone == SkotiqMarkTone.violet && colors.isRedNight) {
+    // blue light into a dark-adapted UI, and so would the accent-derived
+    // `theme` ramp — both map to the red colorway.
+    if ((tone == SkotiqMarkTone.violet || tone == SkotiqMarkTone.theme) &&
+        colors.isRedNight) {
       tone = SkotiqMarkTone.red;
     }
 
@@ -317,6 +326,19 @@ class _SkotiqMarkState extends State<SkotiqMark>
       final c = monoColor ?? trailsPalettes[SkotiqMarkTone.mono]![0];
       laneColors = List<Color>.filled(spec.lanes.length, c);
       poleColor = c;
+    } else if (tone == SkotiqMarkTone.theme) {
+      // The app-icon tile is always dark, so the lane stops and the warm
+      // lane are the dark-ground recipe even when the ambient theme is
+      // light — the tile renders the mark's icon look, not its panel look.
+      final lightGround =
+          !widget.tile && colors.surface.computeLuminance() > 0.5;
+      final ramp = themeTrailsRamp(
+        widget.themeAccent ?? colors.primary,
+        brandWarm: lightGround ? colors.brandWarm : SkotiqColors.dark.brandWarm,
+        lightGround: lightGround,
+      );
+      laneColors = [for (final k in spec.pick) ramp[k]];
+      poleColor = ramp[4];
     } else {
       final palette = trailsPalettes[tone]!;
       laneColors = [for (final k in spec.pick) palette[k]];

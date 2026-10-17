@@ -406,12 +406,12 @@ class _NightBandLegend extends StatelessWidget {
                   Icon(
                     LucideIcons.chevronUp,
                     size: caretSize,
-                    color: colors.primary,
+                    color: colors.brandWarm,
                   ),
                   Text(
                     nowLabel,
                     style: SkotiqTypography.monoCaption.copyWith(
-                      color: colors.primary,
+                      color: colors.brandWarm,
                     ),
                     maxLines: 1,
                     softWrap: false,
