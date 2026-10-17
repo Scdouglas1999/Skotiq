@@ -97,7 +97,8 @@ distinct at every size and nothing is clipped.
 - determinism: `sha256sum` over all generated files before/after rerun →
   `diff` clean (0)
 - `magick identify` audits: ICO = 8 frames at the listed sizes; iOS set =
-  color-type 2 / no alpha; `Icon-App-83.5x83.5@2x.png` = 167×167 (0)
+  color-type 2 / no alpha; `Icon-App-83.5x83.5@2x.png` = 167×167;
+  `app_icon_1024.png` trims to an opaque body of exactly 824×824+100+100 (0)
 - `magick montage` contact sheets (0)
 - `grep -ril nightshade` over all touched paths → no hits (1 = clean)
 
