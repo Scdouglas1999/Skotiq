@@ -100,8 +100,7 @@ class StackShareExportService {
        _saveJpeg = saveJpeg ?? bridge.apiSaveRgbaJpegFile,
        _cardRenderer = cardRenderer,
        _applicationSupportDirectoryProvider =
-           applicationSupportDirectoryProvider ??
-           resolveSkotiqDataDirectory;
+           applicationSupportDirectoryProvider ?? resolveSkotiqDataDirectory;
 
   final Ref _ref;
   final SaveRgbaPng _savePng;

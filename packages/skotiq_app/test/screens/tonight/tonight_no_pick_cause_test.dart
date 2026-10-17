@@ -61,8 +61,7 @@ void main() {
     await _pumpNoPick(tester, _UnsetLocationSettings.new);
 
     expect(find.text('Location not configured'), findsOneWidget);
-    expect(
-        find.widgetWithText(SkotiqButton, 'Open settings'), findsOneWidget);
+    expect(find.widgetWithText(SkotiqButton, 'Open settings'), findsOneWidget);
     // The hedge and the dead-end Refresh are both gone for this cause.
     expect(find.textContaining('may be below your horizon'), findsNothing);
     expect(find.widgetWithText(SkotiqButton, 'Refresh'), findsNothing);

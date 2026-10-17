@@ -41,8 +41,7 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
         children: [
           Text(
             'Transformation Coefficients',
-            style:
-                SkotiqTypography.button.copyWith(color: colors.textPrimary),
+            style: SkotiqTypography.button.copyWith(color: colors.textPrimary),
           ),
           const SizedBox(height: 12),
           _buildCoefficientRow(
@@ -74,8 +73,7 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
     );
   }
 
-  Widget _buildCoefficientRow(
-      SkotiqColors colors, String label, String value) {
+  Widget _buildCoefficientRow(SkotiqColors colors, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(

@@ -24,9 +24,7 @@ const _requiredDefaultSettings = [
 
 void main() {
   test('records manual older-profile migration evidence', () async {
-    const defineDatabasePath = String.fromEnvironment(
-      'SKOTIQ_OLD_DATABASE',
-    );
+    const defineDatabasePath = String.fromEnvironment('SKOTIQ_OLD_DATABASE');
     const requireArtifact = bool.fromEnvironment('REQUIRE_MIGRATION_ARTIFACT');
     final databaseArg = defineDatabasePath.trim().isNotEmpty
         ? defineDatabasePath

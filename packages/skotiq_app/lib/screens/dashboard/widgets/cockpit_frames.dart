@@ -144,8 +144,7 @@ class _WaitingRow extends StatelessWidget {
             const SizedBox(width: SkotiqTokens.spaceSm),
             Text(
               'Waiting for first frame…',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ],
         ));

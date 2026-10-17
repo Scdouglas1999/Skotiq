@@ -164,8 +164,7 @@ class AnnotationEmptyState extends ConsumerWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style:
-                  SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
+              style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
             ),
             if (hint != null) ...[
               const SizedBox(height: 8),

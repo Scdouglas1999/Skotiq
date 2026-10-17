@@ -443,8 +443,8 @@ class _DestinationPickerDialogState extends State<_DestinationPickerDialog> {
                     'imaging instructions under them in the Sequencer.'
                 : 'Insert "${widget.targetName}" as a new target group. You add '
                     'the imaging instructions under it in the Sequencer.',
-            style: SkotiqTypography.bodySm
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
           for (var i = 0; i < widget.destinations.length; i++)

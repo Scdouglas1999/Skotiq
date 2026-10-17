@@ -19,8 +19,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 // `TargetScore` exists in both packages — alias the planetarium import so
 // the preview row can refer to the planetarium variant explicitly without
 // shadowing the core scheduling decision type.
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    as planetarium;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' as planetarium;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'node_property_widgets.dart';

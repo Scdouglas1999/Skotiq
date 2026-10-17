@@ -11,9 +11,7 @@ void main() {
     var requests = 0;
     await tester.pumpWidget(
       MaterialApp(
-        theme: ThemeData.dark().copyWith(
-          extensions: const [SkotiqColors.dark],
-        ),
+        theme: ThemeData.dark().copyWith(extensions: const [SkotiqColors.dark]),
         home: QrScannerScreen(
           requestCameraPermission: () async {
             requests++;

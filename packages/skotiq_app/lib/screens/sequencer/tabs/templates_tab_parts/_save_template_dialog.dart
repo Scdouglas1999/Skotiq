@@ -218,8 +218,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
                     color: widget.colors.surfaceAlt,
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusLg),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                     border: Border.all(color: widget.colors.border),
                   ),
                   child: TextField(
@@ -252,8 +251,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
                     color: widget.colors.surfaceAlt,
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusLg),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                     border: Border.all(color: widget.colors.border),
                   ),
                   child: TextField(
@@ -281,8 +279,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: widget.colors.surfaceAlt,
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusLg),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                   ),
                   child: Row(
                     children: [
@@ -386,8 +383,7 @@ class _TargetOptionState extends State<_TargetOption> {
             color: _isHovered
                 ? SkotiqDecorations.tintedBadge(
                     widget.colors.warning,
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusLg),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                   ).color
                 : widget.colors.surfaceAlt,
             borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),

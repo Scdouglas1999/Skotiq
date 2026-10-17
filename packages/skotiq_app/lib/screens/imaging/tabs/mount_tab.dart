@@ -657,8 +657,8 @@ class _PulseButton extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(label,
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary)),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary)),
       ],
     );
   }

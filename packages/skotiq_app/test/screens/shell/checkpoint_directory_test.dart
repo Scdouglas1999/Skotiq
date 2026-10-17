@@ -146,8 +146,7 @@ void main() {
 
     tearDown(() => root.delete(recursive: true));
 
-    File legacyCheckpoint() =>
-        File('${legacy.path}/skotiq_session.checkpoint');
+    File legacyCheckpoint() => File('${legacy.path}/skotiq_session.checkpoint');
 
     test('a checkpoint written by an older build is carried forward', () async {
       legacyCheckpoint().writeAsStringSync('{"sequence":"last night"}');

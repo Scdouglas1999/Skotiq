@@ -84,11 +84,7 @@ void main() {
           theme: SkotiqTheme.dark.copyWith(platform: TargetPlatform.linux),
           home: Scaffold(
             body: Center(
-              child: SkotiqButton(
-                label: 'Go',
-                size: size,
-                onPressed: () {},
-              ),
+              child: SkotiqButton(label: 'Go', size: size, onPressed: () {}),
             ),
           ),
         ),

@@ -204,8 +204,7 @@ Future<_PackagedRelease> _packageSingleFile(File file) async {
 
 /// Sign the manifest when a key is provisioned, else return it unsigned.
 Future<UpdateManifest> _sign(UpdateManifest manifest) async {
-  final seedBase64 = Platform.environment['SKOTIQ_UPDATE_PRIVATE_KEY']
-      ?.trim();
+  final seedBase64 = Platform.environment['SKOTIQ_UPDATE_PRIVATE_KEY']?.trim();
   if (seedBase64 == null || seedBase64.isEmpty) {
     stderr.writeln(
       'SKOTIQ_UPDATE_PRIVATE_KEY is not set: writing an UNSIGNED '

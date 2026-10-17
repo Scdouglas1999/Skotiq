@@ -35,8 +35,7 @@ String _runActivityLabel(String status, int point) {
 }
 
 extension _MeasurementPanel on _PolarAlignmentScreenState {
-  Widget _buildMeasuringStatus(
-      SkotiqColors colors, PolarAlignmentState state) {
+  Widget _buildMeasuringStatus(SkotiqColors colors, PolarAlignmentState state) {
     final status = state.statusMessage;
     // One number for the whole panel: the progress list and the activity line
     // are describing the same instant, so they resolve the point the same way.
@@ -167,8 +166,7 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
             children: [
               Text(
                 'Progress',
-                style:
-                    SkotiqTypography.h6.copyWith(color: colors.textPrimary),
+                style: SkotiqTypography.h6.copyWith(color: colors.textPrimary),
               ),
               const SizedBox(height: 16),
               _MeasurementProgressItem(
@@ -379,8 +377,7 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
             children: [
               Text(
                 'Adjust mount',
-                style:
-                    SkotiqTypography.h5.copyWith(color: colors.textPrimary),
+                style: SkotiqTypography.h5.copyWith(color: colors.textPrimary),
               ),
               const SizedBox(height: 20),
 

@@ -482,8 +482,8 @@ class _PlanRow extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         decoration: BoxDecoration(
                           color: colors.surface,
-                          borderRadius: BorderRadius.circular(
-                              SkotiqTokens.radiusInline8),
+                          borderRadius:
+                              BorderRadius.circular(SkotiqTokens.radiusInline8),
                           border: Border.all(color: colors.border),
                         ),
                         child: Text(

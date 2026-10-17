@@ -58,8 +58,7 @@ class _CandidateList extends ConsumerWidget {
           leading +
           (hasLoadMore ? 1 : 0) +
           (hasLookups ? 1 : 0),
-      separatorBuilder: (_, __) =>
-          const SizedBox(height: SkotiqTokens.spaceSm),
+      separatorBuilder: (_, __) => const SizedBox(height: SkotiqTokens.spaceSm),
       itemBuilder: (context, index) {
         if (hasRisks && index == 0) {
           return PlanningRisksBanner(riskFactors: riskFactors);
@@ -151,8 +150,7 @@ class _CandidateColumnHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final l10n = context.l10n;
-    final style =
-        SkotiqTypography.eyebrow.copyWith(color: colors.textMuted);
+    final style = SkotiqTypography.eyebrow.copyWith(color: colors.textMuted);
 
     return Padding(
       padding: const EdgeInsets.only(

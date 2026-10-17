@@ -22,9 +22,7 @@ void main() {
   testWidgets('tapping plus reports value + step', (tester) async {
     int? reported;
     await tester.pumpWidget(
-      _wrap(
-        SkotiqStepper(value: 5, step: 1, onChanged: (v) => reported = v),
-      ),
+      _wrap(SkotiqStepper(value: 5, step: 1, onChanged: (v) => reported = v)),
     );
 
     await tester.tap(_plusButton());
@@ -36,9 +34,7 @@ void main() {
   testWidgets('tapping minus reports value - step', (tester) async {
     int? reported;
     await tester.pumpWidget(
-      _wrap(
-        SkotiqStepper(value: 5, step: 1, onChanged: (v) => reported = v),
-      ),
+      _wrap(SkotiqStepper(value: 5, step: 1, onChanged: (v) => reported = v)),
     );
 
     await tester.tap(_minusButton());
@@ -69,9 +65,7 @@ void main() {
   testWidgets('minus at min is disabled and fires no callback', (tester) async {
     var fired = false;
     await tester.pumpWidget(
-      _wrap(
-        SkotiqStepper(value: 1, min: 1, onChanged: (_) => fired = true),
-      ),
+      _wrap(SkotiqStepper(value: 1, min: 1, onChanged: (_) => fired = true)),
     );
 
     final inkWell = tester.widget<InkWell>(_minusButton());
@@ -85,9 +79,7 @@ void main() {
   testWidgets('plus at max is disabled and fires no callback', (tester) async {
     var fired = false;
     await tester.pumpWidget(
-      _wrap(
-        SkotiqStepper(value: 10, max: 10, onChanged: (_) => fired = true),
-      ),
+      _wrap(SkotiqStepper(value: 10, max: 10, onChanged: (_) => fired = true)),
     );
 
     final inkWell = tester.widget<InkWell>(_plusButton());

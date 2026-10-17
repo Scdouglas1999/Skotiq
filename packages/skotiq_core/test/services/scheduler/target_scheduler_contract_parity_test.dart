@@ -80,9 +80,7 @@ void main() {
     test('Rust source declares the SAME defaults + field set (canary)', () {
       // Locate the Rust scoring source relative to the monorepo root.
       final candidates = [
-        File(
-          '../../native/skotiq_native/sequencer/src/scheduling/scoring.rs',
-        ),
+        File('../../native/skotiq_native/sequencer/src/scheduling/scoring.rs'),
         File(
           '${Directory.current.path}/../../native/skotiq_native/sequencer/src/scheduling/scoring.rs',
         ),

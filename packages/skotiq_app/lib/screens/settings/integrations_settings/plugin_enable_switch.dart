@@ -34,8 +34,7 @@ class _PluginEnableSwitchState extends ConsumerState<_PluginEnableSwitch> {
       await ErrorDialog.show(
         context,
         title: 'Could not update plugin',
-        message:
-            'Skotiq could not ${next ? 'enable' : 'disable'} this plugin. '
+        message: 'Skotiq could not ${next ? 'enable' : 'disable'} this plugin. '
             'Its current state is unchanged.',
         technicalDetails: '$error\n$stackTrace',
       );

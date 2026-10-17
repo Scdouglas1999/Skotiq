@@ -62,8 +62,7 @@ class RunDashboardCloudMotionPanel extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: SkotiqDecorations.statusChip(
                   coverColor,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusXs),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                 ),
                 child: Text(
                   coverLabel,
@@ -145,8 +144,7 @@ class RunDashboardCloudMotionPanel extends ConsumerWidget {
           child: Text(
             label,
             style: TextStyle(
-                fontSize: SkotiqTypography.fontSize11,
-                color: colors.textMuted),
+                fontSize: SkotiqTypography.fontSize11, color: colors.textMuted),
           ),
         ),
         Text(

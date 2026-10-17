@@ -332,8 +332,7 @@ class _PinTransitionState extends State<_PinTransition>
           animation: _controller,
           child: widget.child,
           builder: (context, child) {
-            final t =
-                SkotiqTokens.curveStandard.transform(_controller.value);
+            final t = SkotiqTokens.curveStandard.transform(_controller.value);
             return Opacity(
               opacity: t,
               child: Transform.translate(

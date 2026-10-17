@@ -91,9 +91,7 @@ class _ElementRefreshCardState extends ConsumerState<ElementRefreshCard> {
           Row(
             children: [
               Icon(
-                status.hasData
-                    ? SkotiqIcons.success
-                    : SkotiqIcons.circle,
+                status.hasData ? SkotiqIcons.success : SkotiqIcons.circle,
                 size: 14,
                 color: status.hasData ? colors.success : colors.textSecondary,
               ),

@@ -72,8 +72,7 @@ class _KeyboardShortcutsOverlay extends StatelessWidget {
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: const Color(0xFF1E1E2E),
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 // absolute: fixed HUD palette (see class doc)
                 border: Border.all(color: Colors.white24),
                 boxShadow: const [
@@ -184,8 +183,8 @@ class _ShortcutSection extends StatelessWidget {
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(
-                            SkotiqTokens.radiusInline4),
+                        borderRadius:
+                            BorderRadius.circular(SkotiqTokens.radiusInline4),
                         border: Border.all(
                             color: Colors.white.withValues(alpha: 0.15)),
                       ),

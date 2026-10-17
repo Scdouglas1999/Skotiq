@@ -395,8 +395,7 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: SkotiqDecorations.tintedBadge(
                   widget.colors.primary,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusLg),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                 ),
                 child: Text(
                   '${filteredObjects.length}/${displayableObjects.length} objects',

@@ -75,8 +75,8 @@ class _SharedTargetDetailScreenState
         elevation: 0,
         title: Text(
           _target.name.isEmpty ? 'Target #${_target.targetId}' : _target.name,
-          style: SkotiqTypography.bodyStrong
-              .copyWith(color: colors.textPrimary),
+          style:
+              SkotiqTypography.bodyStrong.copyWith(color: colors.textPrimary),
         ),
       ),
       body: SafeArea(

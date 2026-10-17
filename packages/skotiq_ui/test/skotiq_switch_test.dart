@@ -143,9 +143,7 @@ void main() {
 
     testWidgets('enabled false applies disabled opacity', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          SkotiqSwitch(value: false, enabled: false, onChanged: (_) {}),
-        ),
+        _wrap(SkotiqSwitch(value: false, enabled: false, onChanged: (_) {})),
       );
       await tester.pump();
 
@@ -252,10 +250,7 @@ void main() {
   group('SkotiqSwitchStyle.switchThemeData', () {
     test('matches SkotiqSwitch color resolution', () {
       const colors = SkotiqColors.dark;
-      final theme = SkotiqSwitchStyle.switchThemeData(
-        colors,
-        colors.onPrimary,
-      );
+      final theme = SkotiqSwitchStyle.switchThemeData(colors, colors.onPrimary);
 
       final selectedTrack = theme.trackColor!.resolve({WidgetState.selected});
       expect(selectedTrack, colors.primary);

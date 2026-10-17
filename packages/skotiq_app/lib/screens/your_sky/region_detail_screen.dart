@@ -155,8 +155,7 @@ class _RegionDetailBody extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isMobile =
-            constraints.maxWidth < SkotiqTokens.breakpointTablet;
+        final isMobile = constraints.maxWidth < SkotiqTokens.breakpointTablet;
         final padding = isMobile
             ? SkotiqTokens.screenPaddingCompact
             : SkotiqTokens.screenPadding;
@@ -273,8 +272,7 @@ class _CutoutPanel extends ConsumerWidget {
                 Row(
                   children: [
                     Icon(LucideIcons.mapPin,
-                        size: SkotiqTokens.iconSm,
-                        color: colors.textSecondary),
+                        size: SkotiqTokens.iconSm, color: colors.textSecondary),
                     const SizedBox(width: SkotiqTokens.spaceSm),
                     Expanded(
                       child: Text(
@@ -360,8 +358,7 @@ class _EmptyCutout extends StatelessWidget {
           Text(
             'Point a session at this patch of sky and its frames fold in here.',
             textAlign: TextAlign.center,
-            style: SkotiqTypography.captionSm
-                .copyWith(color: colors.textMuted),
+            style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
           ),
         ],
       ),
@@ -444,15 +441,13 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
           const SizedBox(height: SkotiqTokens.spaceXs),
           Text(
             'Reconnect to your imaging host to export this co-add.',
-            style: SkotiqTypography.captionSm
-                .copyWith(color: colors.textMuted),
+            style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
           ),
         ] else if (!isHost) ...[
           const SizedBox(height: SkotiqTokens.spaceXs),
           Text(
             'Use as a live-stack reference frame runs on your imaging host.',
-            style: SkotiqTypography.captionSm
-                .copyWith(color: colors.textMuted),
+            style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
           ),
         ],
       ],
@@ -653,8 +648,7 @@ class _ChangedPanel extends StatelessWidget {
             padding: SkotiqTokens.cardPadding,
             child: Text(
               'No folds at this point in time.',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           )
         else
@@ -952,20 +946,18 @@ class _StatLine extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon,
-              size: SkotiqTokens.iconSm, color: colors.textSecondary),
+          Icon(icon, size: SkotiqTokens.iconSm, color: colors.textSecondary),
           const SizedBox(width: SkotiqTokens.spaceMd),
           Expanded(
             child: Text(
               label,
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textSecondary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             ),
           ),
           Text(
             value,
-            style:
-                SkotiqTypography.monoSm.copyWith(color: colors.textPrimary),
+            style: SkotiqTypography.monoSm.copyWith(color: colors.textPrimary),
           ),
         ],
       ),

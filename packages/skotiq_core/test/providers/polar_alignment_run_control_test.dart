@@ -39,44 +39,39 @@ Future<void> _pump([int times = 6]) async {
   }
 }
 
-SkotiqEvent _statusEvent(String phase, {String status = ''}) =>
-    SkotiqEvent(
-      timestamp: 0,
-      severity: EventSeverity.info,
-      category: EventCategory.polarAlignment,
-      eventType: 'PolarAlignmentStatus',
-      data: {'status': status, 'phase': phase, 'point': 0},
-    );
-
-SkotiqEvent _errorEvent({
-  num azimuth = 5,
-  num altitude = 5,
-  num total = 7,
-}) => SkotiqEvent(
+SkotiqEvent _statusEvent(String phase, {String status = ''}) => SkotiqEvent(
   timestamp: 0,
   severity: EventSeverity.info,
   category: EventCategory.polarAlignment,
-  eventType: 'PolarAlignment',
-  data: {
-    'azimuth_error': azimuth,
-    'altitude_error': altitude,
-    'total_error': total,
-  },
+  eventType: 'PolarAlignmentStatus',
+  data: {'status': status, 'phase': phase, 'point': 0},
 );
 
-SkotiqEvent _imageEvent(Object? imageData, {Object? solvedRa}) =>
+SkotiqEvent _errorEvent({num azimuth = 5, num altitude = 5, num total = 7}) =>
     SkotiqEvent(
       timestamp: 0,
       severity: EventSeverity.info,
       category: EventCategory.polarAlignment,
-      eventType: 'PolarAlignmentImage',
+      eventType: 'PolarAlignment',
       data: {
-        'image_data': imageData,
-        'width': 4,
-        'height': 2,
-        if (solvedRa != null) 'solved_ra': solvedRa,
+        'azimuth_error': azimuth,
+        'altitude_error': altitude,
+        'total_error': total,
       },
     );
+
+SkotiqEvent _imageEvent(Object? imageData, {Object? solvedRa}) => SkotiqEvent(
+  timestamp: 0,
+  severity: EventSeverity.info,
+  category: EventCategory.polarAlignment,
+  eventType: 'PolarAlignmentImage',
+  data: {
+    'image_data': imageData,
+    'width': 4,
+    'height': 2,
+    if (solvedRa != null) 'solved_ra': solvedRa,
+  },
+);
 
 /// Stub `startPolarAlignment` (all named args matched) to run [body].
 void _whenStartTppa(

@@ -504,8 +504,8 @@ class _TimelinePainter extends CustomPainter {
 
     final labelPainter = _text(label, colors.textSecondary,
         SkotiqTypography.fontSize10, FontWeight.w600);
-    final timePainter = _text(time, colors.textMuted,
-        SkotiqTypography.fontSize9_5, FontWeight.w400,
+    final timePainter = _text(
+        time, colors.textMuted, SkotiqTypography.fontSize9_5, FontWeight.w400,
         mono: true);
 
     // Keep labels inside the canvas: left-align at the start edge, right-align

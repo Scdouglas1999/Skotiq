@@ -85,8 +85,7 @@ class SessionChart extends StatelessWidget {
               'No ${measurementName ?? title.toLowerCase()} recorded for '
               'these frames',
               textAlign: TextAlign.center,
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ),
         ),

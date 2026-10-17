@@ -97,10 +97,7 @@ class SkotiqException implements Exception {
   /// `Result<_, String>` functions return a plain human message such as "no
   /// panels supplied to the mosaic stitcher". Neither is a `{...}` envelope, so
   /// both fall through `_looksLikeJson == false` to the heuristic.
-  factory SkotiqException.fromError(
-    Object error, [
-    StackTrace? stackTrace,
-  ]) {
+  factory SkotiqException.fromError(Object error, [StackTrace? stackTrace]) {
     final message = error.toString();
 
     if (_looksLikeJson(message)) {

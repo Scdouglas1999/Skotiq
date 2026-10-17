@@ -228,8 +228,7 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
                 guiderState.lastError != null
                     ? widget.colors.error
                     : widget.colors.warning,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               ),
               child: Row(
                 children: [

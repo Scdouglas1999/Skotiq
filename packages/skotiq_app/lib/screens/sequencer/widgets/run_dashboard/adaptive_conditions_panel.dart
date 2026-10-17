@@ -59,8 +59,7 @@ class RunDashboardAdaptiveConditionsPanel extends ConsumerWidget {
                   ? error.userMessage
                   : 'Adaptive conditions unavailable',
               style: TextStyle(
-                  fontSize: SkotiqTypography.fontSize11,
-                  color: colors.error),
+                  fontSize: SkotiqTypography.fontSize11, color: colors.error),
             ),
           ),
         ),
@@ -426,8 +425,7 @@ class _InfoRow extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-                fontSize: SkotiqTypography.fontSize11,
-                color: colors.textMuted),
+                fontSize: SkotiqTypography.fontSize11, color: colors.textMuted),
           ),
         ),
         const SizedBox(width: SkotiqTokens.spaceMd),

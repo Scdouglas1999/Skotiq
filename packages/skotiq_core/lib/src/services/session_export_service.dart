@@ -319,9 +319,7 @@ class SessionExportService {
   /// Get or create the export directory
   Future<Directory> _getExportDirectory() async {
     final docsDir = await _documentsDirectoryProvider();
-    final exportDir = Directory(
-      path.join(docsDir.path, 'Skotiq', 'exports'),
-    );
+    final exportDir = Directory(path.join(docsDir.path, 'Skotiq', 'exports'));
 
     if (!await exportDir.exists()) {
       await exportDir.create(recursive: true);

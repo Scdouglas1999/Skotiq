@@ -18,9 +18,7 @@ void main() {
   setUp(() async {
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     imagesDao = ImagesDao(db);
-    tempDir = await Directory.systemTemp.createTemp(
-      'skotiq_filesize_test_',
-    );
+    tempDir = await Directory.systemTemp.createTemp('skotiq_filesize_test_');
   });
 
   tearDown(() async {

@@ -47,14 +47,13 @@ class _RecordingTransport extends NotificationTransport {
   }
 }
 
-SkotiqEvent _disconnect(String deviceId, String deviceType) =>
-    SkotiqEvent(
-      timestamp: DateTime.now().millisecondsSinceEpoch,
-      severity: EventSeverity.warning,
-      category: EventCategory.equipment,
-      eventType: 'Disconnected',
-      data: {'device_id': deviceId, 'device_type': deviceType},
-    );
+SkotiqEvent _disconnect(String deviceId, String deviceType) => SkotiqEvent(
+  timestamp: DateTime.now().millisecondsSinceEpoch,
+  severity: EventSeverity.warning,
+  category: EventCategory.equipment,
+  eventType: 'Disconnected',
+  data: {'device_id': deviceId, 'device_type': deviceType},
+);
 
 /// Anything that looks like a wire id rather than a device name.
 final RegExp _rawIdShape = RegExp(

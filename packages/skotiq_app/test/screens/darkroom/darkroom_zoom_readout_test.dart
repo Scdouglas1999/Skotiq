@@ -589,8 +589,7 @@ void main() {
     expect(enabledOf(tester, 'Zoom in'), isTrue);
     expect(
       tester
-          .widget<SkotiqButton>(
-              find.widgetWithText(SkotiqButton, 'Fit'))
+          .widget<SkotiqButton>(find.widgetWithText(SkotiqButton, 'Fit'))
           .onPressed,
       isNotNull,
     );

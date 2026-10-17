@@ -343,8 +343,7 @@ class MobileControlButton extends StatelessWidget {
             decoration: BoxDecoration(
               color:
                   isActive ? color.withValues(alpha: 0.2) : Colors.transparent,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
             ),
             child: Icon(
               icon,

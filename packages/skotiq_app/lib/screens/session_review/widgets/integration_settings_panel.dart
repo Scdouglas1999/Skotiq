@@ -480,14 +480,11 @@ class _AdvancedToggle extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceSm),
+            padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceSm),
             child: Row(
               children: [
                 Icon(
-                  expanded
-                      ? SkotiqIcons.chevronDown
-                      : SkotiqIcons.chevronRight,
+                  expanded ? SkotiqIcons.chevronDown : SkotiqIcons.chevronRight,
                   size: 16,
                   color: colors.textSecondary,
                 ),
@@ -734,8 +731,8 @@ class _StepperRow extends StatelessWidget {
         children: [
           IconButton(
             visualDensity: VisualDensity.compact,
-            icon: Icon(SkotiqIcons.remove,
-                size: 16, color: colors.textSecondary),
+            icon:
+                Icon(SkotiqIcons.remove, size: 16, color: colors.textSecondary),
             onPressed: value > min
                 ? () => onChanged((value - step).clamp(min, max))
                 : null,
@@ -752,8 +749,7 @@ class _StepperRow extends StatelessWidget {
           ),
           IconButton(
             visualDensity: VisualDensity.compact,
-            icon: Icon(SkotiqIcons.add,
-                size: 16, color: colors.textSecondary),
+            icon: Icon(SkotiqIcons.add, size: 16, color: colors.textSecondary),
             onPressed: value < max
                 ? () => onChanged((value + step).clamp(min, max))
                 : null,

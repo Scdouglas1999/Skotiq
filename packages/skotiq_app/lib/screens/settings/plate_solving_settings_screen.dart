@@ -716,8 +716,7 @@ class _QuickStartStep extends StatelessWidget {
             width: 28,
             height: 28,
             alignment: Alignment.center,
-            decoration:
-                SkotiqDecorations.chip(colors, tone: colors.primary),
+            decoration: SkotiqDecorations.chip(colors, tone: colors.primary),
             child: Text(
               '$stepNumber',
               style: SkotiqTypography.buttonSm.copyWith(

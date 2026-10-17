@@ -108,11 +108,8 @@ void main() {
 
     Future<List<TransientAlert>> fetchAll([
       TransientAlertSettings settings = tnsSettings,
-    ]) => service.getAllAlerts(
-      settings,
-      tnsBotId: 42,
-      tnsBotName: 'Skotiq Bot',
-    );
+    ]) =>
+        service.getAllAlerts(settings, tnsBotId: 42, tnsBotName: 'Skotiq Bot');
 
     group('caching behavior', () {
       test('cache is invalid when empty', () {

@@ -259,9 +259,7 @@ class _FakeDepthLockBackend extends DisconnectedBackend {
     DepthLockMeasurement measurement,
   ) async {
     if (measurement.scaleArcsec <= 0) {
-      throw bridge.SkotiqError.operationFailed(
-        'scaleArcsec must be positive',
-      );
+      throw bridge.SkotiqError.operationFailed('scaleArcsec must be positive');
     }
     return 2400;
   }

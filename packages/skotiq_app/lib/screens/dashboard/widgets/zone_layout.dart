@@ -130,14 +130,13 @@ class _EmptyZonePlaceholder extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             '$zoneName Zone',
-            style: SkotiqTypography.button
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.button.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: 4),
           Text(
             'Enable widgets to add them here',
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ],
       ),

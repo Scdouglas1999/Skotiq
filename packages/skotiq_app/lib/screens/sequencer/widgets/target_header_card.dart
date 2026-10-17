@@ -119,8 +119,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
           // animations off still sees.
           duration: animationDuration(context, SkotiqTokens.durationNormal),
           curve: SkotiqTokens.curveStandard,
-          margin:
-              const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceXs),
+          margin: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceXs),
           decoration: widget.isSelected
               ? SkotiqDecorations.panelSelected(widget.colors)
               : (_isHovered
@@ -193,8 +192,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
               margin: const EdgeInsets.only(right: 10),
               decoration: BoxDecoration(
                 color: statusColor,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline2),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline2),
               ),
             ),
 
@@ -386,8 +384,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: widget.colors.surfaceAlt,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               ),
               child: Text(
                 'P${node.priority}',
@@ -735,8 +732,7 @@ class _CoordinateChip extends StatelessWidget {
       children: [
         Text(
           label,
-          style:
-              SkotiqTypography.labelQuiet.copyWith(color: colors.textMuted),
+          style: SkotiqTypography.labelQuiet.copyWith(color: colors.textMuted),
         ),
         const SizedBox(width: 4),
         Text(

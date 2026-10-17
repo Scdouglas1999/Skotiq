@@ -112,14 +112,10 @@ class _SkotiqSwitchState extends State<SkotiqSwitch> {
                 curve: SkotiqTokens.curvePrecise,
                 width: trackWidth,
                 height: trackHeight,
-                padding: const EdgeInsets.all(
-                  SkotiqSwitchStyle.trackPadding,
-                ),
+                padding: const EdgeInsets.all(SkotiqSwitchStyle.trackPadding),
                 decoration: BoxDecoration(
                   color: trackColor,
-                  borderRadius: BorderRadius.circular(
-                    SkotiqTokens.radiusMd,
-                  ),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                   // Keyboard focus has to be visible or reaching the control is
                   // no better than not reaching it.
                   border: Border.all(

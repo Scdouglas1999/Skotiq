@@ -98,8 +98,7 @@ class _Step2Params extends StatelessWidget {
                 'No horizon profiles defined yet. Manage horizon '
                 'profiles in Settings → Observing site, then return here '
                 'to attach one.',
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.warning),
+                style: SkotiqTypography.caption.copyWith(color: colors.warning),
               )
             else ...[
               Text(
@@ -116,8 +115,8 @@ class _Step2Params extends StatelessWidget {
               const SizedBox(height: SkotiqTokens.spaceSm),
               Text(
                 'Manage horizon profiles in Settings → Observing site.',
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted),
+                style:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
               ),
             ],
           ],
@@ -218,8 +217,8 @@ class _Step3Review extends StatelessWidget {
       children: [
         Text(
           'Review and save',
-          style: SkotiqTypography.bodyStrong
-              .copyWith(color: colors.textPrimary),
+          style:
+              SkotiqTypography.bodyStrong.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: SkotiqTokens.spaceMd),
         Container(
@@ -235,14 +234,14 @@ class _Step3Review extends StatelessWidget {
             children: [
               Text(
                 typeLabel,
-                style: SkotiqTypography.buttonSm
-                    .copyWith(color: colors.primary),
+                style:
+                    SkotiqTypography.buttonSm.copyWith(color: colors.primary),
               ),
               const SizedBox(height: 6),
               Text(
                 summary,
-                style: SkotiqTypography.bodySm
-                    .copyWith(color: colors.textPrimary),
+                style:
+                    SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
               ),
             ],
           ),

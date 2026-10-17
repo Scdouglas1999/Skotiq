@@ -175,8 +175,8 @@ class _TagEditorDialogState extends ConsumerState<_TagEditorDialog> {
                           left: 10, right: 4, top: 4, bottom: 4),
                       decoration: SkotiqDecorations.tintedBadge(
                         colors.primary,
-                        borderRadius: BorderRadius.circular(
-                            SkotiqTokens.radiusInline8),
+                        borderRadius:
+                            BorderRadius.circular(SkotiqTokens.radiusInline8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,

@@ -71,8 +71,7 @@ extension _ProfileDetailsHelpers on _ProfileDetailsState {
                 ),
                 decoration: BoxDecoration(
                   color: SkotiqColors.of(context).well,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusMd),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                 ),
                 child: Text(
                   filterName,
@@ -110,21 +109,20 @@ extension _ProfileDetailsHelpers on _ProfileDetailsState {
                     border: OutlineInputBorder(
                       borderRadius:
                           BorderRadius.circular(SkotiqTokens.radiusMd),
-                      borderSide: BorderSide(
-                          color: SkotiqColors.of(context).border),
+                      borderSide:
+                          BorderSide(color: SkotiqColors.of(context).border),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius:
                           BorderRadius.circular(SkotiqTokens.radiusMd),
-                      borderSide: BorderSide(
-                          color: SkotiqColors.of(context).border),
+                      borderSide:
+                          BorderSide(color: SkotiqColors.of(context).border),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius:
                           BorderRadius.circular(SkotiqTokens.radiusMd),
                       borderSide: BorderSide(
-                          color: SkotiqColors.of(context).primary,
-                          width: 2),
+                          color: SkotiqColors.of(context).primary, width: 2),
                     ),
                   ),
                 ),

@@ -249,8 +249,7 @@ class _Stat extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style:
-              SkotiqTypography.overline.copyWith(color: colors.textMuted),
+          style: SkotiqTypography.overline.copyWith(color: colors.textMuted),
         ),
         Text(
           value,

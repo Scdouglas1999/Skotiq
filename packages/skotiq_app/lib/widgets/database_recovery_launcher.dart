@@ -326,8 +326,7 @@ class _DatabaseRecoveryLauncherState
   }
 
   Future<void> _stageRestore(String backupPath) async {
-    final stage =
-        widget.restoreStager ?? SkotiqDatabase.stageDatabaseRestore;
+    final stage = widget.restoreStager ?? SkotiqDatabase.stageDatabaseRestore;
     try {
       await stage(backupPath);
       _restoreStaged = true;

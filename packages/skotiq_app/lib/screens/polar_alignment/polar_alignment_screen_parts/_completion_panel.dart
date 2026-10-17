@@ -49,8 +49,7 @@ int polarAlignmentImprovementSign(PolarAlignmentState state) {
 }
 
 extension _CompletionPanel on _PolarAlignmentScreenState {
-  Widget _buildCompleteStatus(
-      SkotiqColors colors, PolarAlignmentState state) {
+  Widget _buildCompleteStatus(SkotiqColors colors, PolarAlignmentState state) {
     final reached = polarAlignmentReachedThreshold(state);
     final threshold = state.config?.autoCompleteThreshold;
     return Column(

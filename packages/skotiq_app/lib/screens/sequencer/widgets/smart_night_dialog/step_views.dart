@@ -158,8 +158,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: colors.surfaceAlt,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 border: Border.all(color: colors.border),
               ),
               child: Column(
@@ -273,8 +272,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: colors.surfaceAlt,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               border: Border.all(color: colors.border),
             ),
             child: Column(
@@ -806,8 +804,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: colors.surfaceAlt,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               border: Border.all(color: colors.border),
             ),
             child: Column(

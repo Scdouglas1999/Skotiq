@@ -34,11 +34,9 @@ class _TwilightBandColors {
     required this.astro,
   });
 
-  factory _TwilightBandColors.of(SkotiqColors colors) =>
-      _TwilightBandColors(
+  factory _TwilightBandColors.of(SkotiqColors colors) => _TwilightBandColors(
         civil: SkotiqChartColors.forTheme(namedCivilTwilightBand, colors),
-        nautical:
-            SkotiqChartColors.forTheme(namedNauticalTwilightBand, colors),
+        nautical: SkotiqChartColors.forTheme(namedNauticalTwilightBand, colors),
         astro: SkotiqChartColors.forTheme(namedAstroTwilightBand, colors),
       );
 }
@@ -576,8 +574,7 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
               padding: const EdgeInsets.all(1),
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.9),
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline2),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline2),
               ),
               child: Icon(
                 icon,

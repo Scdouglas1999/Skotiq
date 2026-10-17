@@ -461,8 +461,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
     );
   }
 
-  Widget _buildLogEntry(
-      LogEntry entry, SkotiqColors colors, bool isMobile) {
+  Widget _buildLogEntry(LogEntry entry, SkotiqColors colors, bool isMobile) {
     final levelColor = _levelColor(entry.level);
     final levelLabel = _levelLabel(entry.level);
     final timeStr = _formatTimestamp(entry.timestamp);

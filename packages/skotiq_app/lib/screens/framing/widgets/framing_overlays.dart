@@ -35,8 +35,7 @@ class FramingTargetInfoOverlay extends StatelessWidget {
           if (target.catalogId != null && target.catalogId != target.name)
             Text(
               target.catalogId!,
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           const SizedBox(height: 4),
           Text(
@@ -55,8 +54,8 @@ class FramingTargetInfoOverlay extends StatelessWidget {
                   if (target.sizeArcmin != null)
                     "${target.sizeArcmin!.toStringAsFixed(0)}'",
                 ].join('  '),
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted),
+                style:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
               ),
             ),
         ],
@@ -108,8 +107,8 @@ class FramingEquipmentWarningCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: SkotiqTypography.eyebrow
-                      .copyWith(color: colors.warning),
+                  style:
+                      SkotiqTypography.eyebrow.copyWith(color: colors.warning),
                 ),
               ),
             ],
@@ -117,8 +116,8 @@ class FramingEquipmentWarningCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             message,
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           ),
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: 12),
@@ -193,8 +192,8 @@ class FramingInfoRow extends StatelessWidget {
           width: 80,
           child: Text(
             label,
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           ),
         ),
         Expanded(
@@ -241,8 +240,7 @@ class FramingCoordRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
         Text(
           value,

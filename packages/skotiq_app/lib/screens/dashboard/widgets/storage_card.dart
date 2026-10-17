@@ -64,8 +64,7 @@ class StorageCard extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Text(
           'Set a capture directory in Settings → File Output to track free space.',
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
       );
     }
@@ -97,8 +96,7 @@ class StorageCard extends ConsumerWidget {
             const Spacer(),
             Text(
               'of $totalGb GB',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ],
         ),
@@ -125,8 +123,7 @@ class StorageCard extends ConsumerWidget {
           const SizedBox(height: 8),
           Text(
             'Calculating sequence storage…',
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ] else if (projectionAsync.hasError) ...[
           const SizedBox(height: 8),
@@ -137,8 +134,7 @@ class StorageCard extends ConsumerWidget {
               Expanded(
                 child: Text(
                   'Sequence storage estimate unavailable',
-                  style: SkotiqTypography.caption
-                      .copyWith(color: colors.error),
+                  style: SkotiqTypography.caption.copyWith(color: colors.error),
                 ),
               ),
               TextButton(

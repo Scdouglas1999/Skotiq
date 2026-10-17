@@ -283,8 +283,8 @@ class _DismissButton extends StatelessWidget {
         containedInkWell: true,
         child: Padding(
           padding: const EdgeInsets.all(SkotiqTokens.spaceXs),
-          child: Icon(SkotiqIcons.close,
-              size: SkotiqTokens.iconSm, color: color),
+          child:
+              Icon(SkotiqIcons.close, size: SkotiqTokens.iconSm, color: color),
         ),
       ),
     );
@@ -334,9 +334,8 @@ _BannerSpec? _resolveSpec(MeridianCountdownState state) {
   // Armed, live numeric countdown
   final isWarning = remaining < MeridianFlipCountdownBanner.kWarningThreshold;
   return _BannerSpec(
-    severity: isWarning
-        ? SkotiqAlertSeverity.warning
-        : SkotiqAlertSeverity.info,
+    severity:
+        isWarning ? SkotiqAlertSeverity.warning : SkotiqAlertSeverity.info,
     icon: LucideIcons.flipHorizontal2,
     title: _BannerTitle(
       text: 'Meridian flip in ',
@@ -440,8 +439,8 @@ class _PierSideChip extends StatelessWidget {
           const SizedBox(width: SkotiqTokens.spaceXs),
           Text(
             'Pier ${_pierLabel(sideOfPier)}',
-            style: SkotiqTypography.labelSm
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.labelSm.copyWith(color: colors.textSecondary),
           ),
         ],
       ),

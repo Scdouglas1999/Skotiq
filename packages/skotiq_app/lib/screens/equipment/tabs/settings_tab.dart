@@ -761,8 +761,7 @@ class _BuiltinGuiderSettingsCardState
                   key: const ValueKey('builtin-guider-reset'),
                   onPressed: _initialized && !_saving ? _resetDefaults : null,
                   icon: const Icon(SkotiqIcons.refresh, size: 14),
-                  label:
-                      const Text('Reset', style: SkotiqTypography.caption),
+                  label: const Text('Reset', style: SkotiqTypography.caption),
                 ),
               ),
               const SizedBox(width: 8),
@@ -776,8 +775,7 @@ class _BuiltinGuiderSettingsCardState
                       ? _applyConfig
                       : null,
                   icon: const Icon(SkotiqIcons.check, size: 14),
-                  label:
-                      const Text('Apply', style: SkotiqTypography.caption),
+                  label: const Text('Apply', style: SkotiqTypography.caption),
                 ),
               ),
             ],
@@ -826,8 +824,7 @@ class _BuiltinGuiderSettingsCardState
               'Multi-star software guider that uses the imaging camera and mount '
               'pulse-guide. No second guide camera required. These values are '
               'sent to the guider together when you press Apply.',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
             const SizedBox(height: 16),
             body,
@@ -843,8 +840,8 @@ class _BuiltinGuiderSettingsCardState
               Text(
                 key: const ValueKey('builtin-guider-last-applied'),
                 'Last applied: ${_describeConfig(_lastApplied)}',
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted),
+                style:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -924,15 +921,13 @@ class _SettingRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style:
-              SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
         ),
         if (subtitle != null) ...[
           const SizedBox(height: 2),
           Text(
             subtitle!,
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ],
       ],

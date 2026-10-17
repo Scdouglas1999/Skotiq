@@ -371,8 +371,7 @@ class _ControlButton extends StatelessWidget {
                     : isEnabled
                         ? colors.surface
                         : colors.surface.withValues(alpha: 0.5),
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 border: Border.all(
                   color: isActive
                       ? colors.success.withValues(alpha: 0.5)

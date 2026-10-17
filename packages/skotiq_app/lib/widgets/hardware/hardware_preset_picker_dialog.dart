@@ -128,8 +128,7 @@ class _HardwarePresetPickerDialogState
     return ListView.separated(
       padding: EdgeInsets.zero,
       itemCount: results.length,
-      separatorBuilder: (_, __) =>
-          const SizedBox(height: SkotiqTokens.spaceSm),
+      separatorBuilder: (_, __) => const SizedBox(height: SkotiqTokens.spaceSm),
       itemBuilder: (context, index) {
         final preset = results[index];
         return _PresetRow(
@@ -150,8 +149,7 @@ class _HardwarePresetPickerDialogState
     return ListView.separated(
       padding: EdgeInsets.zero,
       itemCount: results.length,
-      separatorBuilder: (_, __) =>
-          const SizedBox(height: SkotiqTokens.spaceSm),
+      separatorBuilder: (_, __) => const SizedBox(height: SkotiqTokens.spaceSm),
       itemBuilder: (context, index) {
         final preset = results[index];
         return _PresetRow(
@@ -358,8 +356,8 @@ class _PresetRow extends StatelessWidget {
                 const SizedBox(height: SkotiqTokens.spaceXs),
                 Text(
                   spec,
-                  style: SkotiqTypography.monoSm
-                      .copyWith(color: colors.textMuted),
+                  style:
+                      SkotiqTypography.monoSm.copyWith(color: colors.textMuted),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],

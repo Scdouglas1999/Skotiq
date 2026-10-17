@@ -238,8 +238,7 @@ class _ExposureCountdownState extends State<_ExposureCountdown> {
           const SizedBox(width: 12),
           Text(
             'CAPTURING: ${remaining.toStringAsFixed(1)}s remaining',
-            style: SkotiqTypography.labelStrong
-                .copyWith(color: colors.primary),
+            style: SkotiqTypography.labelStrong.copyWith(color: colors.primary),
           ),
           const SizedBox(width: 16),
           Expanded(

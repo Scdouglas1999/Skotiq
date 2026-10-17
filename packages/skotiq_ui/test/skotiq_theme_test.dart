@@ -43,10 +43,7 @@ void main() {
 
       expect(colors.useDarkOnPrimary, isFalse);
       expect(colors.onPrimary, const Color(0xFFFFFFFF));
-      expect(
-        SkotiqTheme.light.colorScheme.onPrimary,
-        const Color(0xFFFFFFFF),
-      );
+      expect(SkotiqTheme.light.colorScheme.onPrimary, const Color(0xFFFFFFFF));
     });
 
     test('redNight theme uses dark onPrimary for night vision contrast', () {
@@ -102,10 +99,7 @@ void main() {
           theme: SkotiqTheme.dark,
           home: Builder(
             builder: (context) {
-              expect(
-                context.skotiqColors.primary,
-                SkotiqColors.dark.primary,
-              );
+              expect(context.skotiqColors.primary, SkotiqColors.dark.primary);
               return const SizedBox.shrink();
             },
           ),
@@ -117,10 +111,7 @@ void main() {
   group('SkotiqSwitchStyle.switchThemeData parity', () {
     test('uses colors.onPrimary for selected thumb in dark theme', () {
       const colors = SkotiqColors.dark;
-      final theme = SkotiqSwitchStyle.switchThemeData(
-        colors,
-        colors.onPrimary,
-      );
+      final theme = SkotiqSwitchStyle.switchThemeData(colors, colors.onPrimary);
 
       expect(
         theme.thumbColor!.resolve({WidgetState.selected}),
@@ -130,10 +121,7 @@ void main() {
 
     test('uses colors.onPrimary for selected thumb in redNight theme', () {
       const colors = SkotiqColors.redNight;
-      final theme = SkotiqSwitchStyle.switchThemeData(
-        colors,
-        colors.onPrimary,
-      );
+      final theme = SkotiqSwitchStyle.switchThemeData(colors, colors.onPrimary);
 
       expect(
         theme.thumbColor!.resolve({WidgetState.selected}),

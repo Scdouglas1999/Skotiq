@@ -181,8 +181,8 @@ void main() {
     // the IconButton, not the menu's constraints.
     expect(
         tester.getSize(_catalogSettingsButton(tester)),
-        equals(const Size(SkotiqTokens.iconButtonSizeSm,
-            SkotiqTokens.iconButtonSizeSm)),
+        equals(const Size(
+            SkotiqTokens.iconButtonSizeSm, SkotiqTokens.iconButtonSizeSm)),
         reason: 'The settings trigger must stay a 28 px icon button — '
             'sizing the menu never sized the button.');
 
@@ -197,13 +197,11 @@ void main() {
     // Controls present inside the opened popover. Finders are scoped to the
     // popover — the capture panel carries its own dropdowns and switches.
     expect(find.text('Magnitude limit'), findsOneWidget);
-    expect(
-        find.descendant(of: popover, matching: find.byType(SkotiqDropdown)),
+    expect(find.descendant(of: popover, matching: find.byType(SkotiqDropdown)),
         findsOneWidget);
     expect(find.text('DSOs (Messier / NGC / IC)'), findsOneWidget);
     expect(find.text('Bright stars (HYG)'), findsOneWidget);
-    expect(
-        find.descendant(of: popover, matching: find.byType(SkotiqSwitch)),
+    expect(find.descendant(of: popover, matching: find.byType(SkotiqSwitch)),
         findsNWidgets(2));
   });
 

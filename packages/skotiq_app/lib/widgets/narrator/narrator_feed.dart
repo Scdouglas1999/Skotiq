@@ -168,8 +168,7 @@ class _NarratorFeedState extends State<NarratorFeed> {
           animation: animation,
           child: Padding(
             padding: EdgeInsets.only(
-              bottom:
-                  index == _visible.length - 1 ? 0 : SkotiqTokens.spaceSm,
+              bottom: index == _visible.length - 1 ? 0 : SkotiqTokens.spaceSm,
             ),
             child: _buildCard(_visible[index]),
           ),

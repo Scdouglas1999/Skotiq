@@ -198,15 +198,13 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
           Text(
             'No decisions recorded for this run.',
             style: TextStyle(
-                fontSize: SkotiqTypography.fontSize14,
-                color: colors.textMuted),
+                fontSize: SkotiqTypography.fontSize14, color: colors.textMuted),
           ),
           const SizedBox(height: 4),
           Text(
             'Older runs may pre-date the replay log.',
             style: TextStyle(
-                fontSize: SkotiqTypography.fontSize12,
-                color: colors.textMuted),
+                fontSize: SkotiqTypography.fontSize12, color: colors.textMuted),
           ),
         ],
       ),
@@ -240,8 +238,7 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
               const SizedBox(width: 6),
               Text(
                 '${filtered.length} of ${all.length} decisions',
-                style:
-                    SkotiqTypography.h6.copyWith(color: colors.textMuted),
+                style: SkotiqTypography.h6.copyWith(color: colors.textMuted),
               ),
             ],
           ),
@@ -350,8 +347,7 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
                   onPressed: () =>
                       setState(() => _timeRange = const RangeValues(0, 1)),
                   child: const Text('Reset',
-                      style:
-                          TextStyle(fontSize: SkotiqTypography.fontSize11)),
+                      style: TextStyle(fontSize: SkotiqTypography.fontSize11)),
                 ),
             ],
           ),
@@ -595,8 +591,8 @@ class _DecisionTileState extends State<_DecisionTile> {
                 Expanded(
                   child: Text(
                     widget.decision.summary,
-                    style: SkotiqTypography.label
-                        .copyWith(color: c.textPrimary),
+                    style:
+                        SkotiqTypography.label.copyWith(color: c.textPrimary),
                   ),
                 ),
                 IconButton(

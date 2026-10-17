@@ -11,8 +11,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart'
-    hide CameraState;
+import 'package:skotiq_core/src/backend/skotiq_backend.dart' hide CameraState;
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/device_capability_provider.dart';

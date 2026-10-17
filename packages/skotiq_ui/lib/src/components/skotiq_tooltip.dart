@@ -109,10 +109,7 @@ class _SkotiqTooltipState extends State<SkotiqTooltip>
       end: 1.0,
     ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animController,
-        curve: SkotiqTokens.curveSnappy,
-      ),
+      CurvedAnimation(parent: _animController, curve: SkotiqTokens.curveSnappy),
     );
   }
 
@@ -491,9 +488,7 @@ class _TooltipOverlay extends StatelessWidget {
           richMessage ??
           Text(
             message,
-            style: SkotiqTypography.bodySm.copyWith(
-              color: colors.textPrimary,
-            ),
+            style: SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
           ),
     );
 
@@ -532,12 +527,8 @@ class _TooltipOverlay extends StatelessWidget {
       ),
     );
     return switch (pos) {
-      SkotiqTooltipPosition.top ||
-      SkotiqTooltipPosition.bottom => painted,
-      SkotiqTooltipPosition.left => RotatedBox(
-        quarterTurns: 3,
-        child: painted,
-      ),
+      SkotiqTooltipPosition.top || SkotiqTooltipPosition.bottom => painted,
+      SkotiqTooltipPosition.left => RotatedBox(quarterTurns: 3, child: painted),
       SkotiqTooltipPosition.right => RotatedBox(
         quarterTurns: 1,
         child: painted,

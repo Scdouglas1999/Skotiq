@@ -38,8 +38,8 @@ class _BuiltinGuiderConfigSection extends ConsumerWidget {
                 const SizedBox(width: 6),
                 Text(
                   'Guider Configuration',
-                  style: SkotiqTypography.h6
-                      .copyWith(color: colors.textPrimary),
+                  style:
+                      SkotiqTypography.h6.copyWith(color: colors.textPrimary),
                 ),
                 const Spacer(),
                 Container(
@@ -85,8 +85,7 @@ class _BuiltinGuiderConfigSection extends ConsumerWidget {
               ),
               child: Text(
                 'Failed to load guider config: $error',
-                style:
-                    SkotiqTypography.caption.copyWith(color: colors.error),
+                style: SkotiqTypography.caption.copyWith(color: colors.error),
               ),
             ),
             data: (config) => _BuiltinGuiderConfigForm(
@@ -460,8 +459,7 @@ class _ConfigInputRow extends StatelessWidget {
               Container(
                 decoration: BoxDecoration(
                   color: colors.background,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusMd),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                   border: Border.all(color: colors.border),
                 ),
                 child: TextField(

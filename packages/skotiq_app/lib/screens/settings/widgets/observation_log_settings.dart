@@ -465,8 +465,7 @@ class _ObservationLogSettingsState
       }
 
       final docsDir = await resolveSkotiqDocumentsDirectory();
-      final exportDir =
-          Directory(p.join(docsDir.path, 'Skotiq', 'exports'));
+      final exportDir = Directory(p.join(docsDir.path, 'Skotiq', 'exports'));
       await exportDir.create(recursive: true);
 
       final timestamp = DateTime.now()

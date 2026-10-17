@@ -459,10 +459,7 @@ class SafeRigService {
 
   /// Issue the cover close command against [deviceId]. See [closeDomeShutter].
   @visibleForTesting
-  Future<void> closeCalibratorCover(
-    SkotiqBackend backend,
-    String deviceId,
-  ) {
+  Future<void> closeCalibratorCover(SkotiqBackend backend, String deviceId) {
     return backend.coverClose(deviceId);
   }
 

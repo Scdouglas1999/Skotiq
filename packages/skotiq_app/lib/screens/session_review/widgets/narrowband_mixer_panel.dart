@@ -252,8 +252,8 @@ class _NarrowbandMixerPanelState extends State<NarrowbandMixerPanel> {
         const SizedBox(width: SkotiqTokens.spaceSm),
         Text(
           'Narrowband palette',
-          style: SkotiqTypography.sectionTitle
-              .copyWith(color: colors.textPrimary),
+          style:
+              SkotiqTypography.sectionTitle.copyWith(color: colors.textPrimary),
         ),
         const Spacer(),
         Text(
@@ -325,8 +325,7 @@ class _NarrowbandMixerPanelState extends State<NarrowbandMixerPanel> {
         children: [
           Text(
             'Combine matrix',
-            style: SkotiqTypography.captionSm
-                .copyWith(color: colors.textMuted),
+            style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
           for (var i = 0; i < widget.channels.length; i++)
@@ -389,8 +388,7 @@ class _PresetChip extends StatelessWidget {
               ),
               decoration: BoxDecoration(
                 color: bg,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusFull),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusFull),
                 border: Border.all(
                   color:
                       selected ? accent : colors.border.withValues(alpha: 0.75),
@@ -429,8 +427,7 @@ class _WeightSlider extends StatelessWidget {
           width: SkotiqTokens.space2xl,
           child: Text(
             channelLabel,
-            style:
-                SkotiqTypography.labelStrong.copyWith(color: channelColor),
+            style: SkotiqTypography.labelStrong.copyWith(color: channelColor),
           ),
         ),
         Expanded(
@@ -453,8 +450,8 @@ class _WeightSlider extends StatelessWidget {
           child: Text(
             value.toStringAsFixed(2),
             textAlign: TextAlign.right,
-            style: SkotiqTypography.monoSm
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.monoSm.copyWith(color: colors.textSecondary),
           ),
         ),
       ],

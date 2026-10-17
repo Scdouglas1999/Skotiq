@@ -65,8 +65,8 @@ class CockpitSessionVitals extends ConsumerWidget {
               const SizedBox(width: SkotiqTokens.spaceSm),
               Text(
                 'SESSION VITALS',
-                style: SkotiqTypography.eyebrow
-                    .copyWith(color: colors.textMuted),
+                style:
+                    SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
               ),
               const Spacer(),
               Text(
@@ -268,8 +268,7 @@ class _StatTile extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               label,
-              style: SkotiqTypography.eyebrow
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
             ),
           ],
         ),

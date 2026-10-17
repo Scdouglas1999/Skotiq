@@ -222,8 +222,8 @@ class _ReportBody extends ConsumerWidget {
             const SizedBox(height: 8),
             SelectableText(
               runFailureMessage(_failureCause!),
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textPrimary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
             ),
             if (report.rejectFolder != null) ...[
               const SizedBox(height: 8),
@@ -525,8 +525,8 @@ class _ReportBody extends ConsumerWidget {
                 colors: colors),
             Text(
               report.notes!,
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textSecondary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             ),
           ],
           // Journal notes attached to either this session's run
@@ -648,8 +648,8 @@ class _ReportBody extends ConsumerWidget {
               Expanded(
                 child: Text(
                   msg,
-                  style: SkotiqTypography.caption
-                      .copyWith(color: colors.warning),
+                  style:
+                      SkotiqTypography.caption.copyWith(color: colors.warning),
                 ),
               ),
             ],

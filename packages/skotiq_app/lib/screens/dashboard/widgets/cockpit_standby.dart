@@ -171,8 +171,7 @@ class _Header extends ConsumerWidget {
       children: [
         Text(
           l10n.text('dbBriefingOverline'),
-          style:
-              SkotiqTypography.overline.copyWith(color: colors.textMuted),
+          style: SkotiqTypography.overline.copyWith(color: colors.textMuted),
         ),
         const SizedBox(height: 2),
         Row(
@@ -182,8 +181,7 @@ class _Header extends ConsumerWidget {
           children: [
             Text(
               l10n.text('dbNoRunActive'),
-              style:
-                  SkotiqTypography.h3.copyWith(color: colors.textPrimary),
+              style: SkotiqTypography.h3.copyWith(color: colors.textPrimary),
             ),
             const SizedBox(width: SkotiqTokens.spaceMd),
             Flexible(

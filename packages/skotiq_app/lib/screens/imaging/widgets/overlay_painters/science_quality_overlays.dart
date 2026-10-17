@@ -259,8 +259,7 @@ class ScienceUniformityOverlayPainter extends CustomPainter {
     required this.opacity,
     required SkotiqColors colors,
   })  : flatColor = SkotiqChartColors.forTheme(namedUniformityFlat, colors),
-        strongColor =
-            SkotiqChartColors.forTheme(namedUniformityStrong, colors);
+        strongColor = SkotiqChartColors.forTheme(namedUniformityStrong, colors);
 
   @override
   void paint(Canvas canvas, Size size) {

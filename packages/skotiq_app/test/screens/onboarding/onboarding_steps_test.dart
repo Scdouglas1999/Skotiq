@@ -22,8 +22,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-SkotiqDatabase _newDb() =>
-    SkotiqDatabase.forTesting(NativeDatabase.memory());
+SkotiqDatabase _newDb() => SkotiqDatabase.forTesting(NativeDatabase.memory());
 
 Future<void> _pumpStep(
   WidgetTester tester, {

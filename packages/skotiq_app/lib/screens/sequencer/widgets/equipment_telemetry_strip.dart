@@ -619,8 +619,7 @@ Color? _guidingRmsColor(GuiderState state, SkotiqColors colors) {
 // `run_dashboard/observatory_format.dart` so the strip and the dedicated
 // Observatory cockpit panel share one source of truth. This local helper just
 // adapts the shared switch-channel data into the strip's `_TelemetryRow`.
-List<_TelemetryRow> _switchTelemetryRows(
-    SwitchState sw, SkotiqColors colors) {
+List<_TelemetryRow> _switchTelemetryRows(SwitchState sw, SkotiqColors colors) {
   final channels = observatorySwitchChannels(sw);
   final shown = channels.where((c) => !c.isOverflow).length;
   return [
@@ -731,8 +730,7 @@ class _DeviceBlock extends StatelessWidget {
             Expanded(
               child: Text(
                 name,
-                style:
-                    SkotiqTypography.h6.copyWith(color: colors.textPrimary),
+                style: SkotiqTypography.h6.copyWith(color: colors.textPrimary),
                 overflow: TextOverflow.ellipsis,
               ),
             ),

@@ -315,8 +315,8 @@ class _NightStoryTimelineState extends ConsumerState<NightStoryTimeline> {
           Text(
             "Couldn't load the night story.",
             textAlign: TextAlign.center,
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: 12),
           SkotiqButton(

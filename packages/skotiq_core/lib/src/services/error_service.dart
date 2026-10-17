@@ -643,10 +643,7 @@ class ErrorMessageMapper {
           RegExp(r'^(Error:|Exception:|Failed:)\s*', caseSensitive: false),
           '',
         )
-        .replaceAll(
-          RegExp(r'^skotiq_\w+::\w+::\s*', caseSensitive: false),
-          '',
-        )
+        .replaceAll(RegExp(r'^skotiq_\w+::\w+::\s*', caseSensitive: false), '')
         .replaceAll(RegExp(r'Err\((.*)\)', caseSensitive: false), r'$1');
 
     // Capitalize first letter

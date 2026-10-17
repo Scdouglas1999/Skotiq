@@ -16,10 +16,7 @@ class _NodePaletteContentState extends ConsumerState<_NodePaletteContent> {
 
   /// Horizontal padding of the palette column (06 §Sequencer: 10 / 12).
   static const EdgeInsets _columnPadding = EdgeInsets.fromLTRB(
-      SkotiqTokens.spaceMd,
-      0,
-      SkotiqTokens.spaceMd,
-      SkotiqTokens.spaceSm);
+      SkotiqTokens.spaceMd, 0, SkotiqTokens.spaceMd, SkotiqTokens.spaceSm);
 
   @override
   void dispose() {

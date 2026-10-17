@@ -108,8 +108,8 @@ Finder _row(String rowTitle) => find.descendant(
       matching: find.widgetWithText(SettingRow, rowTitle),
     );
 
-Finder _switchIn(String rowTitle) => find.descendant(
-    of: _row(rowTitle), matching: find.byType(SkotiqSwitch));
+Finder _switchIn(String rowTitle) =>
+    find.descendant(of: _row(rowTitle), matching: find.byType(SkotiqSwitch));
 
 /// Tap a row's switch and return once [settingKey] has actually changed in
 /// [store] — the 300ms write debounce in [SettingsSwitch] and the store write

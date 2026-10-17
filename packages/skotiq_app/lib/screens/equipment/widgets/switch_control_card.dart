@@ -177,8 +177,8 @@ class _SwitchControlCardState extends ConsumerState<SwitchControlCard> {
           const SizedBox(height: SkotiqTokens.spaceSm),
           if (count == 0)
             Text('No channels reported',
-                style: SkotiqTypography.bodySm
-                    .copyWith(color: colors.textMuted))
+                style:
+                    SkotiqTypography.bodySm.copyWith(color: colors.textMuted))
           else
             for (var i = 0; i < count; i++)
               _buildChannel(
@@ -302,8 +302,7 @@ class _SwitchControlCardState extends ConsumerState<SwitchControlCard> {
           else
             Text(
               'Driver reported an invalid numeric range',
-              style:
-                  SkotiqTypography.caption.copyWith(color: colors.warning),
+              style: SkotiqTypography.caption.copyWith(color: colors.warning),
             ),
         ],
       ),
@@ -339,16 +338,14 @@ class _ChannelLabel extends StatelessWidget {
           name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style:
-              SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
         ),
         if (description.isNotEmpty)
           Text(
             description,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
       ],
     );
@@ -393,8 +390,7 @@ class _ReadOnlyValue extends StatelessWidget {
         ],
         Text(
           label,
-          style:
-              SkotiqTypography.readoutSm.copyWith(color: colors.textMuted),
+          style: SkotiqTypography.readoutSm.copyWith(color: colors.textMuted),
         ),
       ],
     );

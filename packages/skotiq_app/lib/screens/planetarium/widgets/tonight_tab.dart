@@ -130,8 +130,7 @@ class TonightTab extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Icon(SkotiqIcons.location,
-                      size: 16, color: colors.textMuted),
+                  Icon(SkotiqIcons.location, size: 16, color: colors.textMuted),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -339,8 +338,7 @@ class TonightTab extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  Icon(SkotiqIcons.location,
-                      size: 32, color: colors.textMuted),
+                  Icon(SkotiqIcons.location, size: 32, color: colors.textMuted),
                   const SizedBox(height: 8),
                   Text(
                     'Set an observing location to rank tonight’s targets',
@@ -567,8 +565,7 @@ class _SatellitePassesSectionState
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: widget.colors.error.withValues(alpha: 0.1),
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               ),
               child: Text(
                 passState.error!,
@@ -675,8 +672,7 @@ class _SatellitePassCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: colors.warning
                         .withValues(alpha: SkotiqTokens.opacityStatusFill),
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusXs),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                   ),
                   child: Text(
                     'ISS',
@@ -690,8 +686,8 @@ class _SatellitePassCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   isIss ? 'International Space Station' : pass.name,
-                  style: SkotiqTypography.h6
-                      .copyWith(color: colors.textPrimary),
+                  style:
+                      SkotiqTypography.h6.copyWith(color: colors.textPrimary),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -714,8 +710,7 @@ class _SatellitePassCard extends StatelessWidget {
                 colors: colors,
               ),
               const SizedBox(width: 8),
-              Icon(SkotiqIcons.arrowRight,
-                  size: 10, color: colors.textMuted),
+              Icon(SkotiqIcons.arrowRight, size: 10, color: colors.textMuted),
               const SizedBox(width: 8),
               _PassTimeLabel(
                 label: 'Max',
@@ -724,8 +719,7 @@ class _SatellitePassCard extends StatelessWidget {
                 colors: colors,
               ),
               const SizedBox(width: 8),
-              Icon(SkotiqIcons.arrowRight,
-                  size: 10, color: colors.textMuted),
+              Icon(SkotiqIcons.arrowRight, size: 10, color: colors.textMuted),
               const SizedBox(width: 8),
               _PassTimeLabel(
                 label: 'Set',
@@ -769,19 +763,17 @@ class _PassTimeLabel extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-              fontSize: SkotiqTypography.fontSize9,
-              color: colors.textMuted),
+              fontSize: SkotiqTypography.fontSize9, color: colors.textMuted),
         ),
         Text(
           time,
-          style: SkotiqTypography.labelQuiet
-              .copyWith(color: colors.textPrimary),
+          style:
+              SkotiqTypography.labelQuiet.copyWith(color: colors.textPrimary),
         ),
         Text(
           az,
           style: TextStyle(
-              fontSize: SkotiqTypography.fontSize9,
-              color: colors.textMuted),
+              fontSize: SkotiqTypography.fontSize9, color: colors.textMuted),
         ),
       ],
     );

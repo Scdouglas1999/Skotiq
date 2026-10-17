@@ -217,15 +217,14 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
             Expanded(
               child: Text(
                 profile.name,
-                style: SkotiqTypography.bodySm
-                    .copyWith(color: colors.textPrimary),
+                style:
+                    SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
               ),
             ),
             const SizedBox(width: 8),
             Text(
               slotStatus,
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ],
         ),

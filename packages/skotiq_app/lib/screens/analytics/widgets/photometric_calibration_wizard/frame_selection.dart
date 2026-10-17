@@ -10,8 +10,8 @@ extension _PhotometricWizardFrameSelection
       children: [
         Text(
           'Select plate-solved frames from a standard star field',
-          style: SkotiqTypography.bodyMedium
-              .copyWith(color: colors.textPrimary),
+          style:
+              SkotiqTypography.bodyMedium.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: SkotiqTokens.spaceSm),
         Text(
@@ -20,8 +20,7 @@ extension _PhotometricWizardFrameSelection
           'One frame fits the zero point and color term; selecting frames of '
           'the same field at different altitudes adds airmass spread, which '
           'lets the fit also recover the atmospheric extinction coefficient.',
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(height: SkotiqTokens.spaceLg),
         sessionsAsync.when(
@@ -43,8 +42,8 @@ extension _PhotometricWizardFrameSelection
                     'Could not load imaging sessions: $error',
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: SkotiqTypography.caption
-                        .copyWith(color: colors.error),
+                    style:
+                        SkotiqTypography.caption.copyWith(color: colors.error),
                   ),
                 ),
                 TextButton(
@@ -217,8 +216,7 @@ extension _PhotometricWizardFrameSelection
         if (solvedImages.isEmpty) {
           return Text(
             'No plate-solved light frames found in the selected session.',
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           );
         }
 
@@ -342,8 +340,7 @@ extension _PhotometricWizardFrameSelection
               selected: isSelected,
               selectedColor: colors.primary,
               selectedTileColor:
-                  SkotiqDecorations.chip(colors, tone: colors.primary)
-                      .color,
+                  SkotiqDecorations.chip(colors, tone: colors.primary).color,
               title: Text(
                 img.fileName,
                 style: SkotiqTypography.bodySm.copyWith(

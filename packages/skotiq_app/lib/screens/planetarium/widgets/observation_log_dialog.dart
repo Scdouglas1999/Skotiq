@@ -177,8 +177,8 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
               // Rating
               Text(
                 'Rating',
-                style: SkotiqTypography.h6
-                    .copyWith(color: colors.textSecondary),
+                style:
+                    SkotiqTypography.h6.copyWith(color: colors.textSecondary),
               ),
               const SizedBox(height: 8),
               Row(
@@ -207,8 +207,8 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
               // Seeing conditions
               Text(
                 'Seeing',
-                style: SkotiqTypography.h6
-                    .copyWith(color: colors.textSecondary),
+                style:
+                    SkotiqTypography.h6.copyWith(color: colors.textSecondary),
               ),
               const SizedBox(height: 8),
               _ConditionSelector(
@@ -223,8 +223,8 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
               // Transparency
               Text(
                 'Transparency',
-                style: SkotiqTypography.h6
-                    .copyWith(color: colors.textSecondary),
+                style:
+                    SkotiqTypography.h6.copyWith(color: colors.textSecondary),
               ),
               const SizedBox(height: 8),
               _ConditionSelector(
@@ -239,8 +239,8 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
               // Notes
               Text(
                 'Notes',
-                style: SkotiqTypography.h6
-                    .copyWith(color: colors.textSecondary),
+                style:
+                    SkotiqTypography.h6.copyWith(color: colors.textSecondary),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -328,8 +328,7 @@ class _InfoRow extends StatelessWidget {
         Expanded(
           child: Text(
             value,
-            style:
-                SkotiqTypography.label.copyWith(color: colors.textPrimary),
+            style: SkotiqTypography.label.copyWith(color: colors.textPrimary),
           ),
         ),
       ],

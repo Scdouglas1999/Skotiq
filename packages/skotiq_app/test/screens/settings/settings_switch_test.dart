@@ -43,13 +43,13 @@ void main() {
 
     await tester.tap(find.byType(SkotiqSwitch));
     await tester.pump();
-    expect(tester.widget<SkotiqSwitch>(find.byType(SkotiqSwitch)).value,
-        isTrue);
+    expect(
+        tester.widget<SkotiqSwitch>(find.byType(SkotiqSwitch)).value, isTrue);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pump();
 
-    expect(tester.widget<SkotiqSwitch>(find.byType(SkotiqSwitch)).value,
-        isFalse);
+    expect(
+        tester.widget<SkotiqSwitch>(find.byType(SkotiqSwitch)).value, isFalse);
   });
 
   testWidgets('rapid toggle back to the original value skips the write',
@@ -66,8 +66,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(writes, isEmpty);
-    expect(tester.widget<SkotiqSwitch>(find.byType(SkotiqSwitch)).value,
-        isFalse);
+    expect(
+        tester.widget<SkotiqSwitch>(find.byType(SkotiqSwitch)).value, isFalse);
   });
 
   testWidgets('a newer toggle waits for an in-flight save', (tester) async {
@@ -99,8 +99,8 @@ void main() {
     completions.last.complete();
     await tester.pump();
 
-    expect(tester.widget<SkotiqSwitch>(find.byType(SkotiqSwitch)).value,
-        isFalse);
+    expect(
+        tester.widget<SkotiqSwitch>(find.byType(SkotiqSwitch)).value, isFalse);
   });
 
   testWidgets('disabled switch preserves its value and ignores taps',
@@ -115,8 +115,7 @@ void main() {
       ),
     );
 
-    final switchWidget =
-        tester.widget<SkotiqSwitch>(find.byType(SkotiqSwitch));
+    final switchWidget = tester.widget<SkotiqSwitch>(find.byType(SkotiqSwitch));
     expect(switchWidget.value, isTrue);
     expect(switchWidget.enabled, isFalse);
     await tester.tap(find.byType(SkotiqSwitch));

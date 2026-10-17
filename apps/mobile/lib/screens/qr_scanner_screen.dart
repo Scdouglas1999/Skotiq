@@ -38,8 +38,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   String? _cameraError;
 
   SkotiqColors _colors(BuildContext context) {
-    return Theme.of(context).extension<SkotiqColors>() ??
-        SkotiqColors.dark;
+    return Theme.of(context).extension<SkotiqColors>() ?? SkotiqColors.dark;
   }
 
   @override
@@ -437,8 +436,7 @@ class _CameraRecovery extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors =
-        Theme.of(context).extension<SkotiqColors>() ??
-        SkotiqColors.dark;
+        Theme.of(context).extension<SkotiqColors>() ?? SkotiqColors.dark;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),

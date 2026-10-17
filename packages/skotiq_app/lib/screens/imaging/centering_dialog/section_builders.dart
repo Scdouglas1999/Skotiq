@@ -181,8 +181,7 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(SkotiqIcons.camera,
-                    size: 16, color: colors.textSecondary),
+                Icon(SkotiqIcons.camera, size: 16, color: colors.textSecondary),
                 const SizedBox(width: 8),
                 Text(
                   'Solve exposure:',
@@ -424,8 +423,7 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
                 ),
                 if (isSuccess)
                   Icon(SkotiqIcons.success, size: 14, color: color),
-                if (!isSuccess)
-                  Icon(SkotiqIcons.error, size: 14, color: color),
+                if (!isSuccess) Icon(SkotiqIcons.error, size: 14, color: color),
               ],
             ),
           );

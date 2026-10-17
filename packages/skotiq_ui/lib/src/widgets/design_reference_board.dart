@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 
 import '_design_showcase_primitives.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show ObjectType, DriverType;
+import 'package:skotiq_core/skotiq_core.dart' show ObjectType, DriverType;
 
 import '../components/skotiq_alert.dart';
 import '../components/skotiq_button.dart';
@@ -101,9 +100,7 @@ class SkotiqDesignReferenceBoard extends StatelessWidget {
           children: [
             Text(
               'Skotiq Design Language',
-              style: SkotiqTypography.h1.copyWith(
-                color: colors.textPrimary,
-              ),
+              style: SkotiqTypography.h1.copyWith(color: colors.textPrimary),
             ),
             const SizedBox(width: SkotiqTokens.spaceMd),
             if (themeLabel != null)
@@ -132,9 +129,7 @@ class SkotiqDesignReferenceBoard extends StatelessWidget {
         Text(
           'Precision-instrument visual baseline — semantic palette, domain '
           'colors, full type scale, and the component library on one canvas.',
-          style: SkotiqTypography.bodySm.copyWith(
-            color: colors.textSecondary,
-          ),
+          style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
         ),
       ],
     );

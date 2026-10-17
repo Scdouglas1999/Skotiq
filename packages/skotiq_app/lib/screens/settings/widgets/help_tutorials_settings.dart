@@ -324,8 +324,7 @@ class HelpTutorialsSettings extends ConsumerWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration:
-                    SkotiqDecorations.chip(colors, tone: colors.error),
+                decoration: SkotiqDecorations.chip(colors, tone: colors.error),
                 child: Icon(LucideIcons.alertTriangle,
                     color: colors.error, size: 20),
               ),

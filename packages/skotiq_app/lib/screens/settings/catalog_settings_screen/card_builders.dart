@@ -47,8 +47,7 @@ mixin _CatalogCardBuilders on ConsumerState<CatalogSettingsScreen> {
         children: [
           Row(
             children: [
-              Icon(icon,
-                  color: colors.textMuted, size: SkotiqTokens.iconMd),
+              Icon(icon, color: colors.textMuted, size: SkotiqTokens.iconMd),
               const SizedBox(width: SkotiqTokens.spaceMd),
               Expanded(
                 child: Column(

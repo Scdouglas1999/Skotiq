@@ -73,13 +73,11 @@ class _SessionSelector extends StatelessWidget {
           hint: Text(
             context.l10n.text('diagnosticsSelectSession'),
             style: TextStyle(
-                color: colors.textMuted,
-                fontSize: SkotiqTypography.fontSize13),
+                color: colors.textMuted, fontSize: SkotiqTypography.fontSize13),
           ),
           dropdownColor: colors.surfaceElevated,
           style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: SkotiqTypography.fontSize13),
+              color: colors.textPrimary, fontSize: SkotiqTypography.fontSize13),
           icon:
               Icon(LucideIcons.chevronDown, size: 14, color: colors.textMuted),
           items: [

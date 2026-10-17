@@ -225,8 +225,7 @@ class _AdaptiveExposureSettingsState
               ),
               Container(
                 padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
-                decoration:
-                    SkotiqDecorations.chip(colors, tone: colors.info),
+                decoration: SkotiqDecorations.chip(colors, tone: colors.info),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

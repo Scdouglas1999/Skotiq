@@ -23,9 +23,7 @@ Future<RelayUplink?> startRelayUplink({
   required int localPort,
   void Function(String? applianceId)? onApplianceId,
 }) async {
-  String? relayUrlRaw = trimToNull(
-    Platform.environment['SKOTIQ_RELAY_URL'],
-  );
+  String? relayUrlRaw = trimToNull(Platform.environment['SKOTIQ_RELAY_URL']);
   for (final arg in args) {
     if (arg.startsWith('--relay-url=')) {
       relayUrlRaw = trimToNull(arg.substring('--relay-url='.length));

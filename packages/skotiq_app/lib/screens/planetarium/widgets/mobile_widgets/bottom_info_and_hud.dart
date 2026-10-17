@@ -108,8 +108,7 @@ class MobileSelectedObjectHud extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: colors.primary.withValues(alpha: 0.2),
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               ),
               child: Text(
                 catalogTag,
@@ -126,8 +125,7 @@ class MobileSelectedObjectHud extends StatelessWidget {
                 displayName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style:
-                    SkotiqTypography.h6.copyWith(color: colors.textPrimary),
+                style: SkotiqTypography.h6.copyWith(color: colors.textPrimary),
               ),
             ),
             const SizedBox(width: 8),

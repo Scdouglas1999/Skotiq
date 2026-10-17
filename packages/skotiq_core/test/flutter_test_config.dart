@@ -25,9 +25,7 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // HttpOverrides locally.
   HttpOverrides.global = null;
 
-  final tempDir = await Directory.systemTemp.createTemp(
-    'skotiq-core-test-',
-  );
+  final tempDir = await Directory.systemTemp.createTemp('skotiq-core-test-');
 
   // Delete the scratch dir once every test in this file has run. `tearDownAll`
   // rather than a delete after `testMain()`: `testMain` only *registers* the

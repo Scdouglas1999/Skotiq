@@ -174,8 +174,7 @@ void main() {
       // Retry drives exactly one more connect attempt (bounded — single retry,
       // no recursion). The second failure falls back to the legacy snackbar
       // rather than re-opening the dialog.
-      await tester
-          .tap(find.widgetWithText(SkotiqButton, 'Retry connection'));
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Retry connection'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 

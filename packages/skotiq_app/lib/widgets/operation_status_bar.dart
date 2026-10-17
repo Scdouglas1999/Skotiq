@@ -174,8 +174,7 @@ class _OperationStatusBarState extends ConsumerState<OperationStatusBar>
     );
   }
 
-  Widget _buildOperationBar(
-      OperationProgress operation, SkotiqColors colors) {
+  Widget _buildOperationBar(OperationProgress operation, SkotiqColors colors) {
     final isCancelling = _cancellingOperationId == operation.id;
     return Container(
       height: 28,

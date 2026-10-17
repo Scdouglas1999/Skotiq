@@ -22,8 +22,7 @@ class _IssuesCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Findings',
-                style:
-                    SkotiqTypography.h5.copyWith(color: colors.textPrimary),
+                style: SkotiqTypography.h5.copyWith(color: colors.textPrimary),
               ),
               const Spacer(),
               Text(
@@ -145,8 +144,7 @@ class _DiagnosticsLoadingSkeleton extends StatelessWidget {
             height: height,
             decoration: BoxDecoration(
               color: colors.surface,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               border: Border.all(color: colors.border),
             ),
           ),

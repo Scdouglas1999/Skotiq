@@ -113,8 +113,8 @@ class SessionProgressCard extends ConsumerWidget {
                     child: Container(
                       decoration: BoxDecoration(
                         color: colors.primary,
-                        borderRadius: BorderRadius.circular(
-                            SkotiqTokens.radiusInline2),
+                        borderRadius:
+                            BorderRadius.circular(SkotiqTokens.radiusInline2),
                       ),
                     ),
                   ),
@@ -148,8 +148,7 @@ class SessionProgressCard extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
             decoration: BoxDecoration(
               color: colors.surfaceAlt.withValues(alpha: 0.5),
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
             ),
             child: Row(
               children: [
@@ -217,8 +216,7 @@ class _ExposureProgressRow extends StatelessWidget {
               height: 3,
               decoration: BoxDecoration(
                 color: colors.surfaceAlt,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline2),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline2),
               ),
               child: FractionallySizedBox(
                 widthFactor: progressPercent,
@@ -267,8 +265,7 @@ class _CompactStat extends StatelessWidget {
           ),
           Text(
             label,
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ],
       ),
@@ -305,8 +302,7 @@ class DashboardMiniStat extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ],
         ),

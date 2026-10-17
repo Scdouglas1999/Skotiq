@@ -114,9 +114,7 @@ class FormRow extends StatelessWidget {
           padding: EdgeInsets.only(left: labelWidth + columnGap),
           child: Text(
             help!,
-            style: SkotiqTypography.caption.copyWith(
-              color: colors.textMuted,
-            ),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ),
       ],

@@ -768,8 +768,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
       onPressed: toggle,
       child: SkotiqButton(
         label: expanded ? 'Hide parameters' : 'Parameters',
-        icon:
-            expanded ? SkotiqIcons.chevronUp : SkotiqIcons.chevronDown,
+        icon: expanded ? SkotiqIcons.chevronUp : SkotiqIcons.chevronDown,
         variant: ButtonVariant.ghost,
         size: ButtonSize.small,
         onPressed: toggle,

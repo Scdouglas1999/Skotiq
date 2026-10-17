@@ -216,9 +216,7 @@ class HomeAssistantDiscoveryService {
               '${profileName == null ? '' : ' $profileName'}';
     // Node id: the distinctive part of the device name ("Skotiq
     // Observatory Backyard" -> "backyard"), so topics stay short.
-    final distinct = deviceName
-        .replaceFirst('Skotiq Observatory', '')
-        .trim();
+    final distinct = deviceName.replaceFirst('Skotiq Observatory', '').trim();
     return HaDiscoveryPayloadBuilder(
       nodeId: distinct.isEmpty ? 'observatory' : distinct,
       deviceName: deviceName,

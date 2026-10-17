@@ -252,9 +252,7 @@ void main() {
 
     test('save from capture creates host parent directories first', () async {
       final backend = _SaveFitsBackend();
-      final root = await Directory.systemTemp.createTemp(
-        'skotiq-save-fits-',
-      );
+      final root = await Directory.systemTemp.createTemp('skotiq-save-fits-');
       addTearDown(() => root.delete(recursive: true));
       final local = ProviderContainer(
         overrides: [

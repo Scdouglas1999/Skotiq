@@ -257,8 +257,7 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
             settings.hasError
                 ? 'Reporting settings unavailable'
                 : 'Loading reporting settings…',
-            style:
-                SkotiqTypography.body.copyWith(color: widget.colors.error),
+            style: SkotiqTypography.body.copyWith(color: widget.colors.error),
           ),
           if (settings.hasError) ...[
             const SizedBox(height: 6),

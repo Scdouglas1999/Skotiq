@@ -29,8 +29,7 @@ class _StatBox extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-                fontSize: SkotiqTypography.fontSize9,
-                color: colors.textMuted),
+                fontSize: SkotiqTypography.fontSize9, color: colors.textMuted),
           ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,

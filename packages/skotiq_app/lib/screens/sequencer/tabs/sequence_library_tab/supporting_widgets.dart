@@ -75,8 +75,7 @@ class _IconButtonState extends State<_IconButton> {
                           BorderRadius.circular(SkotiqTokens.radiusInline8),
                     ).color
                   : Colors.transparent,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
             ),
             child: Icon(
               widget.icon,

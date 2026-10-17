@@ -132,9 +132,7 @@ void main() {
       MaterialApp(
         theme: SkotiqTheme.redNight,
         home: Scaffold(
-          body: Center(
-            child: SkotiqCheckbox(value: true, onChanged: (_) {}),
-          ),
+          body: Center(child: SkotiqCheckbox(value: true, onChanged: (_) {})),
         ),
       ),
     );

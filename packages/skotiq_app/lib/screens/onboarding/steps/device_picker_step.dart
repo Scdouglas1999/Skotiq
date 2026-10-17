@@ -459,8 +459,7 @@ class _DeviceList extends StatelessWidget {
       // fight the outer one for the same drag.
       physics: const NeverScrollableScrollPhysics(),
       itemCount: devices.length,
-      separatorBuilder: (_, __) =>
-          const SizedBox(height: SkotiqTokens.spaceSm),
+      separatorBuilder: (_, __) => const SizedBox(height: SkotiqTokens.spaceSm),
       itemBuilder: (context, index) {
         final device = devices[index];
         // Selection match is done on activeDeviceId (the id of the

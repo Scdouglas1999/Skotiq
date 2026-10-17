@@ -36,8 +36,7 @@ abstract final class TransientTypeStyle {
         TransientType.other => SkotiqIcons.help,
       };
 
-  static Color color(TransientType type, SkotiqColors colors) =>
-      switch (type) {
+  static Color color(TransientType type, SkotiqColors colors) => switch (type) {
         TransientType.supernova || TransientType.gammaRayBurst => colors.error,
         TransientType.nova || TransientType.cataclysmic => colors.warning,
         TransientType.comet || TransientType.asteroid => colors.info,

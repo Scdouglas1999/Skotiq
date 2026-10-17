@@ -46,8 +46,7 @@ class SkotiqDesignSystemGallery extends StatefulWidget {
       _SkotiqDesignSystemGalleryState();
 }
 
-class _SkotiqDesignSystemGalleryState
-    extends State<SkotiqDesignSystemGallery> {
+class _SkotiqDesignSystemGalleryState extends State<SkotiqDesignSystemGallery> {
   int _actionCount = 0;
 
   void _recordAction() {
@@ -369,9 +368,7 @@ class _TypographySpecimen extends StatelessWidget {
         children: [
           Text(
             label,
-            style: SkotiqTypography.caption.copyWith(
-              color: colors.textMuted,
-            ),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
           const SizedBox(height: SkotiqTokens.spaceXs),
           Text(

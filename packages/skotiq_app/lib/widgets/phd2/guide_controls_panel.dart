@@ -745,8 +745,7 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
           width: 72,
           child: Text(
             label,
-            style: SkotiqTypography.captionSm
-                .copyWith(color: colors.textMuted),
+            style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
           ),
         ),
         Expanded(
@@ -771,8 +770,8 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
           width: 40,
           child: Text(
             value.toStringAsFixed(1),
-            style: SkotiqTypography.labelQuiet
-                .copyWith(color: colors.textPrimary),
+            style:
+                SkotiqTypography.labelQuiet.copyWith(color: colors.textPrimary),
             textAlign: TextAlign.right,
           ),
         ),
@@ -780,8 +779,7 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
     );
   }
 
-  Widget _buildSectionHeader(
-      String title, IconData icon, SkotiqColors colors) {
+  Widget _buildSectionHeader(String title, IconData icon, SkotiqColors colors) {
     return Row(
       children: [
         Icon(icon, size: 14, color: colors.textMuted),
@@ -789,8 +787,8 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
         Expanded(
           child: Text(
             title,
-            style: SkotiqTypography.eyebrow
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.eyebrow.copyWith(color: colors.textSecondary),
             maxLines: 1,
             overflow: TextOverflow.visible,
           ),

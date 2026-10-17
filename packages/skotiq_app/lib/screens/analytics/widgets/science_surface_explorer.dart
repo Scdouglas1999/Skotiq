@@ -567,8 +567,7 @@ class _ValueScaleBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final caption =
-        SkotiqTypography.caption.copyWith(color: colors.textMuted);
+    final caption = SkotiqTypography.caption.copyWith(color: colors.textMuted);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -580,17 +579,14 @@ class _ValueScaleBar extends StatelessWidget {
               child: Container(
                 height: 8,
                 decoration: BoxDecoration(
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusXs),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                   // The scale bar explains the surface, so it must be the
                   // SAME ramp: painted raw it advertised a blue-to-red key
                   // beside a red-night surface that no longer had one.
                   gradient: LinearGradient(
                     colors: [
-                      SkotiqChartColors.forTheme(
-                          namedSurfaceLowValue, colors),
-                      SkotiqChartColors.forTheme(
-                          namedSurfaceHighValue, colors),
+                      SkotiqChartColors.forTheme(namedSurfaceLowValue, colors),
+                      SkotiqChartColors.forTheme(namedSurfaceHighValue, colors),
                     ],
                   ),
                 ),

@@ -140,9 +140,8 @@ class _DarkroomCollapsibleAlertState extends State<_DarkroomCollapsibleAlert> {
               onPressed: _toggle,
               child: SkotiqButton(
                 label: _expanded ? 'Show less' : 'Show more',
-                icon: _expanded
-                    ? SkotiqIcons.chevronUp
-                    : SkotiqIcons.chevronDown,
+                icon:
+                    _expanded ? SkotiqIcons.chevronUp : SkotiqIcons.chevronDown,
                 variant: ButtonVariant.ghost,
                 size: ButtonSize.small,
                 onPressed: _toggle,

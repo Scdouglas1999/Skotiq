@@ -73,8 +73,7 @@ Widget _wrap(String timezone) {
       theme: SkotiqTheme.dark,
       home: Scaffold(
         body: Builder(
-          builder: (context) =>
-              TonightTab(colors: SkotiqColors.of(context)),
+          builder: (context) => TonightTab(colors: SkotiqColors.of(context)),
         ),
       ),
     ),

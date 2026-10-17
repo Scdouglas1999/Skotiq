@@ -98,9 +98,7 @@ Finder _dismissFor(String title) => find.descendant(
         matching: find.byType(EquipmentBlockerRow),
       ),
       matching: find.byWidgetPredicate(
-        (w) =>
-            w is SkotiqIconButton &&
-            w.tooltip == 'Dismiss for this session',
+        (w) => w is SkotiqIconButton && w.tooltip == 'Dismiss for this session',
       ),
     );
 

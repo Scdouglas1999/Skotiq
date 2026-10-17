@@ -202,8 +202,7 @@ class _DarkLibrarySettingsState extends ConsumerState<DarkLibrarySettings> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: SkotiqDecorations.emphasisSurface(
                 SkotiqColors.of(context).primary,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               ),
               child: Row(
                 children: [
@@ -238,8 +237,7 @@ class _DarkLibrarySettingsState extends ConsumerState<DarkLibrarySettings> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: SkotiqDecorations.emphasisSurface(
                 SkotiqColors.of(context).error,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               ),
               child: Row(
                 children: [

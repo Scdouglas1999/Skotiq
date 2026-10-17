@@ -24,8 +24,7 @@ import 'package:skotiq_core/skotiq_core.dart'
         HipsProperties,
         HipsTileFormat,
         framingHipsPropertiesProvider;
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    hide SurveySource;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' hide SurveySource;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -119,24 +118,26 @@ void main() {
       late Widget produced;
 
       await tester.pumpWidget(
-        Builder(
-          builder: (context) {
-            // Built, not mounted: this asks the widget what it would produce
-            // without standing up the whole sky-view provider graph.
-            produced = const FullScreenSkyView(
-              showFOV: true,
-              customFOV: (1.25, 0.75),
-              fovCenter: CelestialCoordinate(ra: 5.5, dec: -5.4),
-              observedObjectIds: {'obs'},
-              listedObjectIds: {'listed'},
-              sequencedObjectIds: {'sequenced'},
-              bortleClass: 3,
-              horizonAltitudes: [1, 2, 3],
-              measurementMode: true,
-              backgroundLayer: background,
-            ).build(context);
-            return const SizedBox.shrink();
-          },
+        ProviderScope(
+          child: Consumer(
+            builder: (context, ref, _) {
+              // Built, not mounted: this asks the widget what it would produce
+              // without standing up the whole sky-view provider graph.
+              produced = const FullScreenSkyView(
+                showFOV: true,
+                customFOV: (1.25, 0.75),
+                fovCenter: CelestialCoordinate(ra: 5.5, dec: -5.4),
+                observedObjectIds: {'obs'},
+                listedObjectIds: {'listed'},
+                sequencedObjectIds: {'sequenced'},
+                bortleClass: 3,
+                horizonAltitudes: [1, 2, 3],
+                measurementMode: true,
+                backgroundLayer: background,
+              ).build(context, ref);
+              return const SizedBox.shrink();
+            },
+          ),
         ),
       );
 

@@ -224,8 +224,8 @@ class ReadinessPanel extends ConsumerWidget {
               Divider(
                 height: SkotiqTokens.spaceLg,
                 thickness: 1,
-                color: colors.border
-                    .withValues(alpha: SkotiqTokens.opacityHalf),
+                color:
+                    colors.border.withValues(alpha: SkotiqTokens.opacityHalf),
               ),
           ],
         if (hiddenCount > 0) ...[
@@ -332,8 +332,8 @@ class _AllSetRow extends StatelessWidget {
               const SizedBox(height: SkotiqTokens.spaceXs),
               Text(
                 'Every readiness check has passed.',
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted),
+                style:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
               ),
             ],
           ),

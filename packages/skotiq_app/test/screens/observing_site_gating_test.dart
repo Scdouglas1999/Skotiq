@@ -129,8 +129,7 @@ void main() {
         tester,
         site: null,
         child: Builder(
-          builder: (context) =>
-              NightTimeline(colors: SkotiqColors.of(context)),
+          builder: (context) => NightTimeline(colors: SkotiqColors.of(context)),
         ),
       );
 
@@ -147,8 +146,7 @@ void main() {
         tester,
         site: _realSite,
         child: Builder(
-          builder: (context) =>
-              NightTimeline(colors: SkotiqColors.of(context)),
+          builder: (context) => NightTimeline(colors: SkotiqColors.of(context)),
         ),
       );
 
@@ -232,8 +230,7 @@ void main() {
         site: null,
         moon: _moonWithTimes,
         child: Builder(
-          builder: (context) =>
-              TonightTab(colors: SkotiqColors.of(context)),
+          builder: (context) => TonightTab(colors: SkotiqColors.of(context)),
         ),
         extra: [bestTargetsProvider.overrideWith((ref) async => [])],
       );
@@ -259,8 +256,7 @@ void main() {
         site: _realSite,
         moon: _moonWithTimes,
         child: Builder(
-          builder: (context) =>
-              TonightTab(colors: SkotiqColors.of(context)),
+          builder: (context) => TonightTab(colors: SkotiqColors.of(context)),
         ),
         extra: [bestTargetsProvider.overrideWith((ref) async => [])],
       );

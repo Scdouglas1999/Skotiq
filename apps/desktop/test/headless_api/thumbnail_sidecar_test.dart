@@ -103,9 +103,7 @@ void main() {
       );
       handlers = SessionHandlers(container, jobManager: jobManager);
 
-      tempDir = await Directory.systemTemp.createTemp(
-        'skotiq_thumb_sidecar_',
-      );
+      tempDir = await Directory.systemTemp.createTemp('skotiq_thumb_sidecar_');
       fitsFile = File('${tempDir.path}${Platform.pathSeparator}test.fits');
       // Real FITS content not needed — the FFI stub doesn't read it. The
       // file just has to exist for the existence-check branches.

@@ -16,8 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart'
-    as bridge_event;
+import 'package:skotiq_core/src/backend/skotiq_backend.dart' as bridge_event;
 
 import '../../mocks/mock_backend.dart';
 
@@ -58,10 +57,7 @@ Sequence _sequence() {
   );
 }
 
-bridge_event.SkotiqEvent _frameEvent({
-  required bool accepted,
-  double? hfr,
-}) {
+bridge_event.SkotiqEvent _frameEvent({required bool accepted, double? hfr}) {
   return bridge_event.SkotiqEvent(
     timestamp: DateTime.now().millisecondsSinceEpoch,
     severity: bridge_event.EventSeverity.info,
@@ -101,8 +97,7 @@ void main() {
 
   setUp(() {
     backend = MockBackend();
-    eventController =
-        StreamController<bridge_event.SkotiqEvent>.broadcast();
+    eventController = StreamController<bridge_event.SkotiqEvent>.broadcast();
     when(() => backend.eventStream).thenAnswer((_) => eventController.stream);
     when(
       () => backend.polarAlignmentEvents,

@@ -293,16 +293,15 @@ class NetworkService {
       // Test if server is reachable. A tailnet host fronted by TLS answers
       // only on https, so probe with the server's recorded scheme; a longer
       // timeout for a tailnet host rides out DERP-relay latency on cellular.
-      final isReachable =
-          await EnhancedSkotiqDiscovery.testServerConnection(
-            _lastKnownServer!.host,
-            _lastKnownServer!.webPort,
-            authToken: _lastKnownServer!.authToken,
-            scheme: _lastKnownServer!.scheme,
-            timeout: lastServerIsTailscale
-                ? const Duration(seconds: 6)
-                : const Duration(seconds: 3),
-          );
+      final isReachable = await EnhancedSkotiqDiscovery.testServerConnection(
+        _lastKnownServer!.host,
+        _lastKnownServer!.webPort,
+        authToken: _lastKnownServer!.authToken,
+        scheme: _lastKnownServer!.scheme,
+        timeout: lastServerIsTailscale
+            ? const Duration(seconds: 6)
+            : const Duration(seconds: 3),
+      );
 
       if (isReachable) {
         developer.log(

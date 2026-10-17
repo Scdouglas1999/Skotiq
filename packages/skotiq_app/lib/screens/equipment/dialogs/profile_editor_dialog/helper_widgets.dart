@@ -71,8 +71,7 @@ class _SectionBlock extends StatelessWidget {
         else
           Text(
             summary,
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
       ],
     );
@@ -256,8 +255,7 @@ class _ComputedValue extends StatelessWidget {
           const SizedBox(height: SkotiqTokens.spaceXs),
           Text(
             subtitle!,
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ],
       ],
@@ -570,8 +568,8 @@ class _FilterRow extends StatelessWidget {
             width: _filterIndexWidth,
             child: Text(
               '$index',
-              style: SkotiqTypography.monoSm
-                  .copyWith(color: colors.textSecondary),
+              style:
+                  SkotiqTypography.monoSm.copyWith(color: colors.textSecondary),
             ),
           ),
           Expanded(

@@ -18,8 +18,7 @@ void main() {
     final handle = await pumpAppScreen(
       tester,
       Builder(
-        builder: (context) =>
-            SequenceToolbar(colors: SkotiqColors.of(context)),
+        builder: (context) => SequenceToolbar(colors: SkotiqColors.of(context)),
       ),
       size: const Size(1400, 800),
       settle: false,
@@ -54,8 +53,7 @@ void main() {
     final handle = await pumpAppScreen(
       tester,
       Builder(
-        builder: (context) =>
-            SequenceToolbar(colors: SkotiqColors.of(context)),
+        builder: (context) => SequenceToolbar(colors: SkotiqColors.of(context)),
       ),
       // The glyph band is [inlineToggles, labelledToggles); its edges move
       // with the platform's button extent (28 desktop / 48 touch floor), so
@@ -69,8 +67,7 @@ void main() {
     for (final mode in SequencerDensity.values) {
       expect(
         find.byWidgetPredicate(
-          (w) =>
-              w is SkotiqIconButton && w.tooltip == '${mode.label} density',
+          (w) => w is SkotiqIconButton && w.tooltip == '${mode.label} density',
         ),
         findsOneWidget,
       );

@@ -596,8 +596,8 @@ class _CompactSettingFieldState extends State<_CompactSettingField> {
       children: [
         Text(
           '${widget.label}:',
-          style: SkotiqTypography.caption
-              .copyWith(color: widget.colors.textMuted),
+          style:
+              SkotiqTypography.caption.copyWith(color: widget.colors.textMuted),
         ),
         const SizedBox(width: 4),
         SizedBox(
@@ -616,19 +616,16 @@ class _CompactSettingFieldState extends State<_CompactSettingField> {
               filled: true,
               fillColor: widget.colors.surfaceAlt,
               border: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
                 borderSide: BorderSide(color: widget.colors.border),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
                 borderSide: BorderSide(
                     color: widget.colors.border.withValues(alpha: 0.5)),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
                 borderSide: BorderSide(color: widget.colors.primary),
               ),
             ),

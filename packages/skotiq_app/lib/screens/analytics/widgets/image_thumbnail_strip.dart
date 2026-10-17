@@ -177,8 +177,7 @@ class _ImageThumbnailStripState extends State<ImageThumbnailStrip> {
         child: Center(
           child: Text(
             'No images captured in this session',
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ),
       );

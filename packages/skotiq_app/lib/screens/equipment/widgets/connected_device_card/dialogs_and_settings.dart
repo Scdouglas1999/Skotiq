@@ -144,8 +144,8 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                     const SizedBox(height: 8),
                     Text(
                       errorText!,
-                      style: SkotiqTypography.bodySm
-                          .copyWith(color: colors.error),
+                      style:
+                          SkotiqTypography.bodySm.copyWith(color: colors.error),
                     ),
                   ],
                 ],
@@ -352,8 +352,8 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                     const SizedBox(height: 8),
                     Text(
                       errorText!,
-                      style: SkotiqTypography.bodySm
-                          .copyWith(color: colors.error),
+                      style:
+                          SkotiqTypography.bodySm.copyWith(color: colors.error),
                     ),
                   ],
                 ],
@@ -701,8 +701,8 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                     const SizedBox(height: 8),
                     Text(
                       errorText!,
-                      style: SkotiqTypography.bodySm
-                          .copyWith(color: colors.error),
+                      style:
+                          SkotiqTypography.bodySm.copyWith(color: colors.error),
                     ),
                   ],
                 ],

@@ -187,8 +187,7 @@ class _ActiveCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFFFFF),
                     border: Border.all(color: cs.outlineVariant),
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusMd),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                   ),
                   child: _BroadcastQr(url: shareUrl, semanticsUrl: displayUrl),
                 ),

@@ -212,8 +212,8 @@ class _BlinkView extends ConsumerWidget {
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: SkotiqTypography.bodySm
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
           ),
         ],
       ),

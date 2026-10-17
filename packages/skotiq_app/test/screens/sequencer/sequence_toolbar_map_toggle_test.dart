@@ -237,8 +237,7 @@ void main() {
     await pumpAppScreen(
       tester,
       Builder(
-        builder: (context) =>
-            SequenceToolbar(colors: SkotiqColors.of(context)),
+        builder: (context) => SequenceToolbar(colors: SkotiqColors.of(context)),
       ),
       // Wide enough for the toggles to carry words rather than glyphs.
       size: const Size(1400, 800),

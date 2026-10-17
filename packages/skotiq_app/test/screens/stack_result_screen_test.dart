@@ -538,8 +538,8 @@ void main() {
       // and its title span rather than a bare Text.
       expect(find.byType(SkotiqBanner), findsOneWidget);
       expect(
-        find.byWidgetPredicate((w) =>
-            w is SkotiqBanner && w.title == 'Live stacking is active'),
+        find.byWidgetPredicate(
+            (w) => w is SkotiqBanner && w.title == 'Live stacking is active'),
         findsOneWidget,
       );
       expect(

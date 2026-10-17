@@ -67,8 +67,8 @@ class RunDashboardFilterIntegration extends ConsumerWidget {
           const SizedBox(height: SkotiqTokens.spaceMd),
           if (filterNames.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(
-                  vertical: SkotiqTokens.spaceMd),
+              padding:
+                  const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceMd),
               child: Text(
                 'No exposures configured.',
                 style: TextStyle(
@@ -240,8 +240,7 @@ class _FilterRow extends StatelessWidget {
                 height: 12,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.45),
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusXs),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                 ),
               ),
             ),

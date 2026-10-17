@@ -323,9 +323,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
               Padding(
                 padding: EdgeInsets.fromLTRB(
                   SkotiqTokens.spaceMd,
-                  index == 0
-                      ? SkotiqTokens.spaceSm
-                      : SkotiqTokens.spaceMd,
+                  index == 0 ? SkotiqTokens.spaceSm : SkotiqTokens.spaceMd,
                   SkotiqTokens.spaceMd,
                   SkotiqTokens.spaceXs,
                 ),

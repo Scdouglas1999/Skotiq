@@ -618,8 +618,7 @@ class _StepBadge extends StatelessWidget {
         border: Border.all(color: borderColor),
       ),
       child: isDone
-          ? Icon(SkotiqIcons.check,
-              size: SkotiqTokens.iconXs, color: fg)
+          ? Icon(SkotiqIcons.check, size: SkotiqTokens.iconXs, color: fg)
           : Text(
               '$number',
               style: SkotiqTypography.labelSm.copyWith(color: fg),

@@ -168,8 +168,8 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                         height: 48,
                         decoration: SkotiqDecorations.tintedBadge(
                           templateColor,
-                          borderRadius: BorderRadius.circular(
-                              SkotiqTokens.radiusInline8),
+                          borderRadius:
+                              BorderRadius.circular(SkotiqTokens.radiusInline8),
                         ),
                         child: Icon(
                           _getTemplateIcon(),
@@ -311,8 +311,8 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                               horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: templateColor,
-                            borderRadius: BorderRadius.circular(
-                                SkotiqTokens.radiusMd),
+                            borderRadius:
+                                BorderRadius.circular(SkotiqTokens.radiusMd),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -365,8 +365,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
       builder: (dialogContext) => AlertDialog(
         backgroundColor: widget.colors.surface,
         shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(SkotiqTokens.radiusInline8)),
+            borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8)),
         title: Row(
           children: [
             Icon(LucideIcons.target, size: 20, color: widget.colors.warning),

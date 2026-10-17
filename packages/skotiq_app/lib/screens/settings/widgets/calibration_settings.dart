@@ -507,13 +507,11 @@ class _CalStatusCard extends StatelessWidget {
         decoration: available
             ? SkotiqDecorations.emphasisSurface(
                 colors.success,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               )
             : BoxDecoration(
                 color: colors.well,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 border: Border.all(color: colors.border),
               ),
         child: Column(

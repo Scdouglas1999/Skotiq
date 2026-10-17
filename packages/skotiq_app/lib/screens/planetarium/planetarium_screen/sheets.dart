@@ -170,8 +170,7 @@ extension _PlanetariumScreenSheets on _PlanetariumScreenState {
     });
   }
 
-  void _showObjectInfoBottomSheet(
-      BuildContext context, SkotiqColors colors) {
+  void _showObjectInfoBottomSheet(BuildContext context, SkotiqColors colors) {
     final selectedObject = ref.read(selectedObjectProvider);
     if (selectedObject.object == null) return;
 

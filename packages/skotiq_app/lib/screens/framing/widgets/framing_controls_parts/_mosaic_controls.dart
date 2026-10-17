@@ -27,8 +27,7 @@ class FramingMosaicSpinner extends StatelessWidget {
       children: [
         Text(
           label,
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(height: 4),
         Container(
@@ -414,8 +413,8 @@ class _FramingExportMosaicButtonState
                         ? 'Create Mosaic Project on imaging host'
                         : 'Create Mosaic Project '
                             '(${widget.panels.length} panels)',
-                style: SkotiqTypography.labelStrongSm
-                    .copyWith(color: onPrimary),
+                style:
+                    SkotiqTypography.labelStrongSm.copyWith(color: onPrimary),
               ),
             ],
           ),

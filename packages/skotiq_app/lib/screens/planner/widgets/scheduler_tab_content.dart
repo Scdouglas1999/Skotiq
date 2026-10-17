@@ -379,8 +379,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isMobile =
-            constraints.maxWidth < SkotiqTokens.breakpointTablet;
+        final isMobile = constraints.maxWidth < SkotiqTokens.breakpointTablet;
         if (isMobile) {
           return _buildMobile(
             context,

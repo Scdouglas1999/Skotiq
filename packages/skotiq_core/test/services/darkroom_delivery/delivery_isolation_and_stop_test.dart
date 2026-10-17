@@ -78,8 +78,7 @@ void main() {
     if (await tempDir.exists()) await tempDir.delete(recursive: true);
   });
 
-  SkotiqDatabase open() =>
-      SkotiqDatabase.forTesting(NativeDatabase.memory());
+  SkotiqDatabase open() => SkotiqDatabase.forTesting(NativeDatabase.memory());
 
   Future<String> master(String name) async {
     final file = File(p.join(sourceDir.path, name));

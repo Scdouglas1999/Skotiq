@@ -19,8 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart'
-    as backend_events;
+import 'package:skotiq_core/src/backend/skotiq_backend.dart' as backend_events;
 
 import '../../mocks/mock_backend.dart';
 
@@ -42,8 +41,7 @@ void main() {
 
   setUp(() {
     backend = MockBackend();
-    eventController =
-        StreamController<backend_events.SkotiqEvent>.broadcast();
+    eventController = StreamController<backend_events.SkotiqEvent>.broadcast();
     when(() => backend.eventStream).thenAnswer((_) => eventController.stream);
     when(
       () => backend.polarAlignmentEvents,
@@ -77,16 +75,14 @@ void main() {
     return (container, container.read(sequenceExecutorProvider));
   }
 
-  backend_events.SkotiqEvent event(
-    String type,
-    Map<String, Object?> data,
-  ) => backend_events.SkotiqEvent(
-    timestamp: DateTime.now().millisecondsSinceEpoch,
-    severity: backend_events.EventSeverity.error,
-    category: backend_events.EventCategory.sequencer,
-    eventType: type,
-    data: data,
-  );
+  backend_events.SkotiqEvent event(String type, Map<String, Object?> data) =>
+      backend_events.SkotiqEvent(
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        severity: backend_events.EventSeverity.error,
+        category: backend_events.EventCategory.sequencer,
+        eventType: type,
+        data: data,
+      );
 
   test(
     'a stop during a Slew is recorded as a stop, not a failed run',

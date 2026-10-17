@@ -118,8 +118,8 @@ class _NameRegionSheetState extends ConsumerState<NameRegionSheet> {
           left: SkotiqTokens.spaceLg,
           right: SkotiqTokens.spaceLg,
           top: SkotiqTokens.spaceLg,
-          bottom: MediaQuery.of(context).viewInsets.bottom +
-              SkotiqTokens.spaceLg,
+          bottom:
+              MediaQuery.of(context).viewInsets.bottom + SkotiqTokens.spaceLg,
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -173,8 +173,7 @@ class _NameRegionSheetState extends ConsumerState<NameRegionSheet> {
                 const SizedBox(height: SkotiqTokens.spaceMd),
                 Text(
                   _error!,
-                  style: SkotiqTypography.caption
-                      .copyWith(color: colors.error),
+                  style: SkotiqTypography.caption.copyWith(color: colors.error),
                 ),
               ],
               const SizedBox(height: SkotiqTokens.spaceLg),
@@ -245,8 +244,8 @@ class _NameRegionSheetState extends ConsumerState<NameRegionSheet> {
               child: Text(
                 'No targets in your library yet — switch to Custom to enter a '
                 'sky position by hand.',
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted),
+                style:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
               ));
         }
         return Column(

@@ -49,8 +49,7 @@ Widget _app(Widget home) => ProviderScope(
 /// The header's back control, whatever it currently promises.
 final Finder _backAction = find.byWidgetPredicate(
   (widget) =>
-      widget is SkotiqIconButton &&
-      widget.icon == SkotiqIcons.arrowLeft,
+      widget is SkotiqIconButton && widget.icon == SkotiqIcons.arrowLeft,
 );
 
 /// What that control promises, in the words a pointer and a screen reader both

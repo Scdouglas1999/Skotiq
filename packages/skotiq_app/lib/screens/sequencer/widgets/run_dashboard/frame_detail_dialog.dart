@@ -354,8 +354,7 @@ class _PathFallback extends StatelessWidget {
           const SizedBox(height: SkotiqTokens.spaceMd),
           Text(
             'Preview unavailable',
-            style:
-                SkotiqTypography.h6.copyWith(color: colors.textSecondary),
+            style: SkotiqTypography.h6.copyWith(color: colors.textSecondary),
           ),
           if (subtitle != null) ...[
             const SizedBox(height: SkotiqTokens.spaceSm),
@@ -437,8 +436,8 @@ class _DetailSidePanel extends StatelessWidget {
                       height: 4,
                       decoration: BoxDecoration(
                         color: causeColor,
-                        borderRadius: BorderRadius.circular(
-                            SkotiqTokens.radiusInline2),
+                        borderRadius:
+                            BorderRadius.circular(SkotiqTokens.radiusInline2),
                       ),
                     ),
                   ),

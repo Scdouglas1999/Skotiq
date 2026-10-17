@@ -39,10 +39,8 @@ class _SkotiqCheckboxState extends State<SkotiqCheckbox> {
   /// inactive control from the floor, but exempt is not invisible: the operator
   /// still has to see that the option exists and is off before they can work out
   /// why it will not move.
-  Color _uncheckedOutline(
-    SkotiqColors colors, {
-    required bool isDisabled,
-  }) => isDisabled ? colors.textMuted : colors.textSecondary;
+  Color _uncheckedOutline(SkotiqColors colors, {required bool isDisabled}) =>
+      isDisabled ? colors.textMuted : colors.textSecondary;
 
   @override
   Widget build(BuildContext context) {

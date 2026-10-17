@@ -382,10 +382,11 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
 /// - DisconnectedBackend (default for mobile)
 /// - NetworkBackend (when mobile connects to server)
 /// - FfiBackend (default for desktop/headless)
-final backendProvider =
-    StateNotifierProvider<BackendNotifier, SkotiqBackend>((ref) {
-      return BackendNotifier(ref);
-    });
+final backendProvider = StateNotifierProvider<BackendNotifier, SkotiqBackend>((
+  ref,
+) {
+  return BackendNotifier(ref);
+});
 
 /// Provider to check if we're in remote (network) mode
 /// When true, file paths refer to the server filesystem, not local

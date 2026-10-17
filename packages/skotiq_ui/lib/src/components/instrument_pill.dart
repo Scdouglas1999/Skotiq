@@ -241,9 +241,7 @@ class _Dot extends StatelessWidget {
         boxShadow: live
             ? [
                 BoxShadow(
-                  color: color.withValues(
-                    alpha: SkotiqTokens.opacityLiveHalo,
-                  ),
+                  color: color.withValues(alpha: SkotiqTokens.opacityLiveHalo),
                   spreadRadius: 3,
                 ),
               ]

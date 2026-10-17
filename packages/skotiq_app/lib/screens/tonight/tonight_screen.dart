@@ -236,8 +236,7 @@ class _Header extends StatelessWidget {
             const SizedBox(width: SkotiqTokens.spaceSm),
             Text(
               'Tonight',
-              style:
-                  SkotiqTypography.h2.copyWith(color: colors.textPrimary),
+              style: SkotiqTypography.h2.copyWith(color: colors.textPrimary),
             ),
           ],
         ),
@@ -245,8 +244,7 @@ class _Header extends StatelessWidget {
         Text(
           'One tap and Skotiq frames, plans, and runs the best target for '
           'you. Wake up to a finished master.',
-          style:
-              SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
         ),
       ],
     );
@@ -312,8 +310,8 @@ class _TargetConfirmCard extends StatelessWidget {
               const SizedBox(width: SkotiqTokens.spaceSm),
               Text(
                 "TONIGHT'S PICK",
-                style: SkotiqTypography.overline
-                    .copyWith(color: colors.primary),
+                style:
+                    SkotiqTypography.overline.copyWith(color: colors.primary),
               ),
             ],
           ),
@@ -326,8 +324,8 @@ class _TargetConfirmCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               target.objectType!,
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textSecondary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             ),
           ],
           const SizedBox(height: SkotiqTokens.spaceMd),
@@ -641,8 +639,8 @@ class _AdvancedFooter extends StatelessWidget {
               Icon(LucideIcons.sliders, size: 15, color: colors.textSecondary),
           label: Text(
             'Advanced: full planner & sequencer',
-            style: SkotiqTypography.bodySm
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
           ),
         ),
       ],

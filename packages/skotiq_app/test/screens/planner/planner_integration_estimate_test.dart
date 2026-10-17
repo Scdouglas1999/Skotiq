@@ -99,8 +99,7 @@ void main() {
         overrides: _overrides(integrationHours),
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          localizationsDelegates:
-              SkotiqLocalizations.localizationsDelegates,
+          localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
           supportedLocales: SkotiqLocalizations.supportedLocales,
           home: const Scaffold(body: PlannerScreen()),
         ),

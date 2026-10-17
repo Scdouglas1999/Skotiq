@@ -222,8 +222,7 @@ class _RemoteDirectoryPickerDialogState
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: colors.surfaceAlt,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusLg),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                 ),
                 child: Text(
                   _listing?.currentPath ?? 'Host roots',

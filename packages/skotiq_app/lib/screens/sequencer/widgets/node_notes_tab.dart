@@ -216,8 +216,7 @@ class _NodeCommentEditorState extends ConsumerState<_NodeCommentEditor> {
           horizontal: SkotiqTokens.spaceMd,
           vertical: SkotiqTokens.spaceSm,
         ),
-        decoration:
-            SkotiqDecorations.field(widget.colors, focused: _focused),
+        decoration: SkotiqDecorations.field(widget.colors, focused: _focused),
         // Enter inserts a newline in a multiline field — `onSubmitted` never
         // fires there — so the keyboard commit is Ctrl/Cmd+Enter via
         // CallbackShortcuts, which sees the keys before the field eats them.

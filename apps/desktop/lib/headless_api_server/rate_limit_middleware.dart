@@ -16,9 +16,7 @@ part of '../headless_api_server.dart';
 final bool _rateLimitTrustProxyHeaders = _readTrustProxyFlag();
 
 bool _readTrustProxyFlag() {
-  final raw = Platform.environment['SKOTIQ_TRUST_PROXY']
-      ?.trim()
-      .toLowerCase();
+  final raw = Platform.environment['SKOTIQ_TRUST_PROXY']?.trim().toLowerCase();
   return raw == 'true' || raw == '1' || raw == 'yes';
 }
 

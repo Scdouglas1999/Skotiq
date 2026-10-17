@@ -214,9 +214,8 @@ class _OnboardingGuiderStepState extends ConsumerState<OnboardingGuiderStep> {
               'this profile\'s guider.'
           : (_lastError ?? 'Connection failed.');
       color = _lastResult == true ? colors.success : colors.error;
-      icon = _lastResult == true
-          ? LucideIcons.checkCircle2
-          : SkotiqIcons.warning;
+      icon =
+          _lastResult == true ? LucideIcons.checkCircle2 : SkotiqIcons.warning;
     } else if (savedEndpoint != _currentEndpoint) {
       // Fields edited after selecting: name both addresses rather than leaving
       // a tick over an address that is not the one in the profile.

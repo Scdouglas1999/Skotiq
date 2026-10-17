@@ -35,14 +35,13 @@ Future<void> _pump([int times = 6]) async {
   }
 }
 
-SkotiqEvent _statusEvent(String phase, {String status = ''}) =>
-    SkotiqEvent(
-      timestamp: 0,
-      severity: EventSeverity.info,
-      category: EventCategory.polarAlignment,
-      eventType: 'PolarAlignmentStatus',
-      data: {'status': status, 'phase': phase, 'point': 1},
-    );
+SkotiqEvent _statusEvent(String phase, {String status = ''}) => SkotiqEvent(
+  timestamp: 0,
+  severity: EventSeverity.info,
+  category: EventCategory.polarAlignment,
+  eventType: 'PolarAlignmentStatus',
+  data: {'status': status, 'phase': phase, 'point': 1},
+);
 
 void _whenStartTppa(SkotiqBackend backend) {
   when(

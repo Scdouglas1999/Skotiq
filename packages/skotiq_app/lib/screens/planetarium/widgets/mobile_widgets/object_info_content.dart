@@ -135,8 +135,7 @@ class MobileObjectInfoContent extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: colors.surfaceAlt,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusMd),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                 ),
                 child: Text(
                   'mag ${obj.magnitude!.toStringAsFixed(1)}',

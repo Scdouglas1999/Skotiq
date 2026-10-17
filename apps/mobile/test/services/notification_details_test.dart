@@ -17,12 +17,7 @@ void main() {
     expect(details.keys, hasLength(6));
     expect(
       details.values.map((d) => d.android!.channelId).toSet(),
-      {
-        'skotiq_sequence',
-        'skotiq_warnings',
-        'skotiq_info',
-        'skotiq_critical',
-      },
+      {'skotiq_sequence', 'skotiq_warnings', 'skotiq_info', 'skotiq_critical'},
       reason: 'a presentation must not invent a channel that is never created',
     );
     for (final entry in details.entries) {

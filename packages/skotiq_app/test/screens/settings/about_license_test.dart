@@ -76,8 +76,7 @@ void main() {
   testWidgets('About reaches the open-source credits', (tester) async {
     await _pumpAbout(tester, launched: []);
 
-    final button =
-        find.widgetWithText(SkotiqButton, 'Open-source licenses');
+    final button = find.widgetWithText(SkotiqButton, 'Open-source licenses');
     await tester.ensureVisible(button);
     await tester.tap(button);
     await tester.pumpAndSettle();

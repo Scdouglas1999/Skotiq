@@ -135,8 +135,7 @@ void main() {
       );
       expect(find.textContaining('40 frames'), findsOneWidget);
       expect(find.widgetWithText(SkotiqButton, 'Resume'), findsOneWidget);
-      expect(
-          find.widgetWithText(SkotiqButton, 'Start over'), findsOneWidget);
+      expect(find.widgetWithText(SkotiqButton, 'Start over'), findsOneWidget);
     });
 
     testWidgets('hides banner when no checkpoint exists', (tester) async {

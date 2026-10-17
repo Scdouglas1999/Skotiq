@@ -141,8 +141,7 @@ class _MasterPreviewViewState extends State<MasterPreviewView> {
             padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
             child: Text(
               widget.statLine!,
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ),
       ],

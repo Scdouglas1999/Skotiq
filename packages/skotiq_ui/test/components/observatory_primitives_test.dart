@@ -81,9 +81,7 @@ void main() {
 
   group('SkotiqPanel', () {
     testWidgets('takes the panel decoration and 16px padding', (tester) async {
-      await tester.pumpWidget(
-        _host(const SkotiqPanel(child: Text('body'))),
-      );
+      await tester.pumpWidget(_host(const SkotiqPanel(child: Text('body'))));
 
       final container = tester.widget<Container>(
         find
@@ -138,10 +136,7 @@ void main() {
       final container = tester.widget<Container>(find.byType(Container).first);
       final decoration = container.decoration! as BoxDecoration;
       expect(decoration.color, SkotiqColors.dark.surfaceHover);
-      expect(
-        tester.getSize(find.byType(SkotiqChip)).height,
-        SkotiqChip.height,
-      );
+      expect(tester.getSize(find.byType(SkotiqChip)).height, SkotiqChip.height);
     });
 
     testWidgets('a tone tints the fill and colours the dot', (tester) async {
@@ -265,10 +260,7 @@ void main() {
     testWidgets('a null onPressed disables it', (tester) async {
       await tester.pumpWidget(
         _host(
-          const SkotiqIconButton(
-            icon: LucideIcons.trash2,
-            tooltip: 'Delete',
-          ),
+          const SkotiqIconButton(icon: LucideIcons.trash2, tooltip: 'Delete'),
         ),
       );
 

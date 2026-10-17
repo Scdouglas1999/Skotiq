@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show meanRaHours;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' show meanRaHours;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:path/path.dart' as p;
 
@@ -84,8 +83,8 @@ Future<void> _confirmForceRelease(
 /// Bounded: a platform channel that never answers must become a visible error
 /// on the screen, not a spinner that outlives the session.
 final mosaicArtifactsBaseDirProvider = FutureProvider<String>((ref) async {
-  final supportDir = await resolveSkotiqDataDirectory()
-      .timeout(const Duration(seconds: 10));
+  final supportDir =
+      await resolveSkotiqDataDirectory().timeout(const Duration(seconds: 10));
   return p.join(supportDir.path, 'skotiq_mosaic');
 });
 
@@ -703,8 +702,8 @@ class MosaicCollaborativeSection extends StatelessWidget {
             Text(
               'This mosaic is local-only. Publish its panel grid to the hub so '
               'your club can claim and capture panels in parallel.',
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textSecondary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             ),
             const SizedBox(height: SkotiqTokens.spaceMd),
             Align(
@@ -787,14 +786,14 @@ class MosaicCollaborativeSection extends StatelessWidget {
               'You hold ${state.heldPanelCount} of ${state.panels.length} '
               'panels · ${state.panelsUploaded} uploaded to the hub'
               '${isOwner ? '' : ' · claim a panel below to contribute'}',
-              style: SkotiqTypography.captionSm
-                  .copyWith(color: colors.textMuted),
+              style:
+                  SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
             ),
             const SizedBox(height: SkotiqTokens.spaceXs),
             Text(
               _claimHoldCaption(context, state),
-              style: SkotiqTypography.captionSm
-                  .copyWith(color: colors.textMuted),
+              style:
+                  SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
             ),
           ],
         ],
@@ -866,8 +865,7 @@ class _CollabStatusLine extends StatelessWidget {
           child: Text(
             'Hub mosaic $hubMosaicId · '
             '${role == 'owner' ? 'Owner' : 'Participant'}',
-            style:
-                SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
+            style: SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

@@ -313,8 +313,7 @@ class _IntroPanelState extends ConsumerState<_IntroPanel> {
         const SkotiqAlert(
           severity: SkotiqAlertSeverity.info,
           title: "Let's take your first picture of the sky",
-          message:
-              'In one click Skotiq will take a short exposure, stretch it '
+          message: 'In one click Skotiq will take a short exposure, stretch it '
               'for a punchy preview, plate-solve where the telescope is '
               'pointing, and label the objects it finds. Make sure your camera '
               'is connected on the Equipment screen first.',
@@ -618,8 +617,7 @@ class _PreviewUnavailable extends StatelessWidget {
           Text(
             'The captured frame is no longer in memory.',
             textAlign: TextAlign.center,
-            style:
-                SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
           ),
         ],
       ),
@@ -685,8 +683,7 @@ class _AnnotationSummary extends ConsumerWidget {
         if (count == 0)
           Text(
             'The field solved, but no catalog objects fell inside it.',
-            style:
-                SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
           ),
       ],
     );
@@ -770,8 +767,8 @@ class _SolveDetails extends StatelessWidget {
         Expanded(
           child: Text(
             parts.join('   •   '),
-            style: SkotiqTypography.monoSm
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.monoSm.copyWith(color: colors.textSecondary),
           ),
         ),
       ],

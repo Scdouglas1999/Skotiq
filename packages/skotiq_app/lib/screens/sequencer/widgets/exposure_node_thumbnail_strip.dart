@@ -500,8 +500,8 @@ class _FrameMetadata extends StatelessWidget {
                       fontSize: SkotiqTypography.fontSize10,
                       color: colors.textMuted)),
               Text(value,
-                  style: SkotiqTypography.h6
-                      .copyWith(color: colors.textPrimary)),
+                  style:
+                      SkotiqTypography.h6.copyWith(color: colors.textPrimary)),
             ],
           ),
         );

@@ -20,8 +20,7 @@ class _EquipmentHintCard extends StatelessWidget {
     return Container(
       padding: SkotiqTokens.paddingMd,
       decoration: BoxDecoration(
-        color:
-            colors.info.withValues(alpha: SkotiqTokens.opacityStatusFill),
+        color: colors.info.withValues(alpha: SkotiqTokens.opacityStatusFill),
         borderRadius: SkotiqTokens.borderRadiusMd,
         border: Border.all(
           color: colors.info.withValues(alpha: SkotiqTokens.opacityHalf),
@@ -43,8 +42,8 @@ class _EquipmentHintCard extends StatelessWidget {
                   'Preview: ${previewFovDegrees.toStringAsFixed(1)}° FOV',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: SkotiqTypography.labelQuiet
-                      .copyWith(color: colors.info),
+                  style:
+                      SkotiqTypography.labelQuiet.copyWith(color: colors.info),
                 ),
                 Text(
                   'Configure equipment for accurate framing',
@@ -243,12 +242,11 @@ class _SurveySourceSelector extends StatelessWidget {
     // display names).
     return Container(
       decoration: BoxDecoration(
-        color: colors.surfaceOverlay
-            .withValues(alpha: SkotiqTokens.opacityHalf),
+        color:
+            colors.surfaceOverlay.withValues(alpha: SkotiqTokens.opacityHalf),
         borderRadius: SkotiqTokens.borderRadiusMd,
         border: Border.all(
-          color:
-              colors.border.withValues(alpha: SkotiqTokens.opacitySubtle),
+          color: colors.border.withValues(alpha: SkotiqTokens.opacitySubtle),
         ),
       ),
       child: Row(
@@ -327,17 +325,14 @@ class _ZoomControls extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _ZoomButton(
-              icon: SkotiqIcons.add, colors: colors, onTap: onZoomIn),
+          _ZoomButton(icon: SkotiqIcons.add, colors: colors, onTap: onZoomIn),
           const SizedBox(height: SkotiqTokens.spaceXs),
           Padding(
-            padding:
-                const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceXs),
+            padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceXs),
             child: Text(
               '${(zoom * 100).round()}%',
               style: SkotiqTypography.withTabular(
-                SkotiqTypography.overline
-                    .copyWith(color: colors.textSecondary),
+                SkotiqTypography.overline.copyWith(color: colors.textSecondary),
               ),
             ),
           ),
@@ -347,8 +342,7 @@ class _ZoomControls extends StatelessWidget {
           const SizedBox(height: SkotiqTokens.spaceXs),
           Container(height: 1, width: 20, color: colors.border),
           const SizedBox(height: SkotiqTokens.spaceXs),
-          _ZoomButton(
-              icon: SkotiqIcons.expand, colors: colors, onTap: onReset),
+          _ZoomButton(icon: SkotiqIcons.expand, colors: colors, onTap: onReset),
         ],
       ),
     );
@@ -465,8 +459,7 @@ class _ScaleIndicator extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: SkotiqTokens.spaceMd,
-          vertical: SkotiqTokens.spaceSm),
+          horizontal: SkotiqTokens.spaceMd, vertical: SkotiqTokens.spaceSm),
       decoration: BoxDecoration(
         color: colors.surfaceOverlay
             .withValues(alpha: SkotiqTokens.opacityHoverBorder),
@@ -478,8 +471,7 @@ class _ScaleIndicator extends StatelessWidget {
         children: [
           Text(
             'Scale',
-            style:
-                SkotiqTypography.overline.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.overline.copyWith(color: colors.textMuted),
           ),
           const SizedBox(height: SkotiqTokens.spaceXs),
           Row(

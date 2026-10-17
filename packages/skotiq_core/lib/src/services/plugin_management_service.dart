@@ -214,9 +214,7 @@ class PluginManagementService {
       return dir;
     }
     final appDir = await resolveSkotiqDataDirectory();
-    final pluginDir = Directory(
-      path.join(appDir.path, 'Skotiq', 'plugins'),
-    );
+    final pluginDir = Directory(path.join(appDir.path, 'Skotiq', 'plugins'));
     if (!await pluginDir.exists()) {
       await pluginDir.create(recursive: true);
     }

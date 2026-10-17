@@ -101,8 +101,8 @@ class PairingScreen extends ConsumerWidget {
           if (state.pairingCode == null) ...[
             Text(
               l10n.text('pairingStartDesc'),
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textSecondary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             ),
             const SizedBox(height: SkotiqTokens.spaceMd),
             // The page's ONE primary, sized to its label. It was a stretched

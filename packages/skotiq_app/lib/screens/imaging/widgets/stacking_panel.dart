@@ -267,8 +267,7 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
           'accumulated so far cannot be recovered afterwards. Save the '
           'stacked master first — a FITS master carrying the integration time '
           'and frame count — or discard it and stop.',
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
       ),
     );

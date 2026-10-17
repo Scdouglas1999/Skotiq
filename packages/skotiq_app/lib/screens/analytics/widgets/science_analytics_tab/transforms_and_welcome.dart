@@ -155,8 +155,7 @@ class _TransformRow extends StatelessWidget {
                   horizontal: SkotiqTokens.spaceXs + 2,
                   vertical: 2,
                 ),
-                decoration:
-                    SkotiqDecorations.chip(colors, tone: qualityColor),
+                decoration: SkotiqDecorations.chip(colors, tone: qualityColor),
                 child: Text(
                   quality,
                   style: SkotiqTypography.caption.copyWith(
@@ -166,8 +165,8 @@ class _TransformRow extends StatelessWidget {
               const Spacer(),
               Text(
                 ageLabel,
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted),
+                style:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
               ),
             ],
           ),
@@ -203,8 +202,7 @@ class _TransformRow extends StatelessWidget {
           Text(
             '${transform.matchedStarCount} stars matched  |  '
             'Catalog: ${transform.catalogSource}',
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ],
       ),

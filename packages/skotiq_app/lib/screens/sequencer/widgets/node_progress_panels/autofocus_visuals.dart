@@ -135,8 +135,7 @@ class _StarZoomPanel extends StatelessWidget {
       final pixels = crop.pixels;
       if (pixels.isEmpty) {
         return Center(
-            child:
-                Icon(SkotiqIcons.error, size: 24, color: colors.textMuted));
+            child: Icon(SkotiqIcons.error, size: 24, color: colors.textMuted));
       }
 
       // Build RGBA image from grayscale
@@ -161,8 +160,7 @@ class _StarZoomPanel extends StatelessWidget {
       );
     } catch (e) {
       return Center(
-          child:
-              Icon(SkotiqIcons.error, size: 24, color: colors.textMuted));
+          child: Icon(SkotiqIcons.error, size: 24, color: colors.textMuted));
     }
   }
 

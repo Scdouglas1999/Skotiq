@@ -184,8 +184,7 @@ void main() {
     drawn.forEach((title, color) {
       expect(
         color,
-        SkotiqChartColors.forTheme(
-            _namedHues[title]!, SkotiqColors.redNight),
+        SkotiqChartColors.forTheme(_namedHues[title]!, SkotiqColors.redNight),
         reason: '$title does not route its series through forTheme',
       );
       _expectRedNightSafe(color, '$title series');

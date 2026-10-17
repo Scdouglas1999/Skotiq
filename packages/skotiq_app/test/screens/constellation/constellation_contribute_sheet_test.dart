@@ -124,8 +124,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Finder contributeButton() =>
-      find.widgetWithText(SkotiqButton, 'Contribute');
+  Finder contributeButton() => find.widgetWithText(SkotiqButton, 'Contribute');
 
   const baseConsent = 'consent to contributing it to this self-hosted';
 

@@ -208,8 +208,7 @@ class FramingFOVPainter extends CustomPainter {
   void _drawCardinalDirections(
       Canvas canvas, Offset center, double width, double height) {
     final style = SkotiqTypography.overline.copyWith(
-      color:
-          colors.textPrimary.withValues(alpha: SkotiqTokens.opacityMuted),
+      color: colors.textPrimary.withValues(alpha: SkotiqTokens.opacityMuted),
       fontWeight: FontWeight.w500,
     );
 
@@ -289,14 +288,13 @@ class FramingEquipmentFOVOverlayPainter extends CustomPainter {
 
     // Semi-transparent fill for the equipment FOV area
     final fillPaint = Paint()
-      ..color = colors.info
-          .withValues(alpha: opacity * SkotiqTokens.opacityStrong)
+      ..color =
+          colors.info.withValues(alpha: opacity * SkotiqTokens.opacityStrong)
       ..style = PaintingStyle.fill;
 
     // Border for the equipment FOV
     final borderPaint = Paint()
-      ..color =
-          colors.info.withValues(alpha: SkotiqTokens.opacityHoverBorder)
+      ..color = colors.info.withValues(alpha: SkotiqTokens.opacityHoverBorder)
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
@@ -349,8 +347,7 @@ class FramingEquipmentFOVOverlayPainter extends CustomPainter {
       RRect.fromRectAndRadius(
           textBg, const Radius.circular(SkotiqTokens.radiusXs)),
       Paint()
-        ..color =
-            colors.info.withValues(alpha: SkotiqTokens.opacityStatusFill),
+        ..color = colors.info.withValues(alpha: SkotiqTokens.opacityStatusFill),
     );
     canvas.drawRRect(
       RRect.fromRectAndRadius(
@@ -519,8 +516,8 @@ class FramingMosaicGridPainter extends CustomPainter {
     // Draw sequence path if enabled
     if (showSequencePath && panels.length > 1) {
       final pathPaint = Paint()
-        ..color = colors.warning
-            .withValues(alpha: SkotiqTokens.opacityBadgeBorder)
+        ..color =
+            colors.warning.withValues(alpha: SkotiqTokens.opacityBadgeBorder)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1;
 
@@ -567,10 +564,8 @@ class FramingMosaicGridPainter extends CustomPainter {
       // Draw panel border
       final borderPaint = Paint()
         ..color = isSelected
-            ? colors.primary
-                .withValues(alpha: SkotiqTokens.opacityHoverBorder)
-            : colors.warning
-                .withValues(alpha: SkotiqTokens.opacityBadgeBorder)
+            ? colors.primary.withValues(alpha: SkotiqTokens.opacityHoverBorder)
+            : colors.warning.withValues(alpha: SkotiqTokens.opacityBadgeBorder)
         ..style = PaintingStyle.stroke
         ..strokeWidth = isSelected ? 2 : 1;
       canvas.drawRect(panelRect, borderPaint);
@@ -583,8 +578,7 @@ class FramingMosaicGridPainter extends CustomPainter {
             style: SkotiqTypography.label.copyWith(
               color: isSelected ? colors.primary : colors.warning,
               fontWeight: FontWeight.bold,
-              fontSize:
-                  SkotiqTypography.label.fontSize! * zoom.clamp(0.5, 2.0),
+              fontSize: SkotiqTypography.label.fontSize! * zoom.clamp(0.5, 2.0),
             ),
           ),
           textDirection: TextDirection.ltr,
@@ -602,8 +596,7 @@ class FramingMosaicGridPainter extends CustomPainter {
       // Draw crosshair on selected panel
       if (isSelected) {
         final crosshairPaint = Paint()
-          ..color =
-              colors.primary.withValues(alpha: SkotiqTokens.opacityMuted)
+          ..color = colors.primary.withValues(alpha: SkotiqTokens.opacityMuted)
           ..strokeWidth = 1;
 
         canvas.drawLine(
@@ -626,8 +619,8 @@ class FramingMosaicGridPainter extends CustomPainter {
       final startY2 = startY + firstPanel.row * stepY;
 
       final startPaint = Paint()
-        ..color = colors.success
-            .withValues(alpha: SkotiqTokens.opacityHoverBorder)
+        ..color =
+            colors.success.withValues(alpha: SkotiqTokens.opacityHoverBorder)
         ..style = PaintingStyle.fill;
 
       canvas.drawCircle(

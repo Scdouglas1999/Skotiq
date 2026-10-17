@@ -38,8 +38,7 @@ class BatchOperationsToolbar extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: SkotiqDecorations.statusChip(
               colors.primary,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               bordered: false,
             ),
             child: Text(

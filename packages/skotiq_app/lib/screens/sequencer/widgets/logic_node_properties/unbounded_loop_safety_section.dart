@@ -23,8 +23,7 @@ class _UnboundedLoopSafetySection extends ConsumerWidget {
             margin: const EdgeInsets.only(bottom: 12),
             decoration: SkotiqDecorations.emphasisSurface(
               colors.warning,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,

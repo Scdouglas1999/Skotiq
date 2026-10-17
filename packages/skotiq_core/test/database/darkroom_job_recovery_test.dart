@@ -29,8 +29,7 @@ void main() {
     if (await tempDir.exists()) await tempDir.delete(recursive: true);
   });
 
-  SkotiqDatabase open() =>
-      SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+  SkotiqDatabase open() => SkotiqDatabase.forTesting(NativeDatabase(dbFile));
 
   test(
     'a job left running by a dead process is re-queued with a note',

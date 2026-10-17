@@ -229,8 +229,7 @@ void main() {
       dbFile = File(p.join(tempDir.path, 'skotiq.db'));
     });
 
-    SkotiqDatabase open() =>
-        SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    SkotiqDatabase open() => SkotiqDatabase.forTesting(NativeDatabase(dbFile));
 
     Future<int> destinationRow(
       SkotiqDatabase db, {
@@ -305,8 +304,7 @@ void main() {
       dbFile = File(p.join(tempDir.path, 'skotiq.db'));
     });
 
-    SkotiqDatabase open() =>
-        SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    SkotiqDatabase open() => SkotiqDatabase.forTesting(NativeDatabase(dbFile));
 
     test('with nothing selected says so instead of "no destination is '
         'enabled"', () async {

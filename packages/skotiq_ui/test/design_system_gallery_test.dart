@@ -153,9 +153,7 @@ void main() {
 
     expect(
       tester
-          .widget<SkotiqSwitch>(
-            find.byKey(const ValueKey('gallery-switch')),
-          )
+          .widget<SkotiqSwitch>(find.byKey(const ValueKey('gallery-switch')))
           .value,
       isTrue,
     );
@@ -165,9 +163,7 @@ void main() {
     await tester.pump();
     expect(
       tester
-          .widget<SkotiqSwitch>(
-            find.byKey(const ValueKey('gallery-switch')),
-          )
+          .widget<SkotiqSwitch>(find.byKey(const ValueKey('gallery-switch')))
           .value,
       isFalse,
     );

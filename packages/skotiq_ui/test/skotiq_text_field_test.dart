@@ -16,9 +16,7 @@ void main() {
 
   testWidgets('exposes keyboard privacy controls', (tester) async {
     await tester.pumpWidget(
-      wrap(
-        const SkotiqTextField(autocorrect: false, enableSuggestions: false),
-      ),
+      wrap(const SkotiqTextField(autocorrect: false, enableSuggestions: false)),
     );
 
     final field = tester.widget<EditableText>(find.byType(EditableText));
@@ -91,9 +89,7 @@ void main() {
           .toList();
       expect(fields, hasLength(3));
 
-      final hudExposure = tester.getRect(
-        find.byType(SkotiqTextField).at(0),
-      );
+      final hudExposure = tester.getRect(find.byType(SkotiqTextField).at(0));
       final hudGain = tester.getRect(find.byType(SkotiqTextField).at(1));
       expect(hudExposure.height, fieldHeight);
       expect(hudGain.height, fieldHeight);
@@ -118,11 +114,7 @@ void main() {
       wrap(
         const SizedBox(
           width: 160,
-          child: SkotiqTextField(
-            initialValue: '2.0',
-            suffix: 's',
-            mono: true,
-          ),
+          child: SkotiqTextField(initialValue: '2.0', suffix: 's', mono: true),
         ),
       ),
     );

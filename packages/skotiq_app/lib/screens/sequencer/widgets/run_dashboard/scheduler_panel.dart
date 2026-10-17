@@ -85,8 +85,7 @@ final recentSchedulerDecisionsProvider =
   return decisions;
 });
 
-SchedulerDecisionView? _maybeSchedulerDecision(
-    ns_events.SkotiqEvent event) {
+SchedulerDecisionView? _maybeSchedulerDecision(ns_events.SkotiqEvent event) {
   // The typed SchedulerDecision variant is the canonical
   // source. Pattern-match through EventPayload → SequencerEvent →
   // SchedulerDecision; ignore everything else.

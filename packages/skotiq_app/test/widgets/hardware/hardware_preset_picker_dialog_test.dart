@@ -14,8 +14,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_core/src/providers/hardware_presets_provider.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-SkotiqDatabase _newDb() =>
-    SkotiqDatabase.forTesting(NativeDatabase.memory());
+SkotiqDatabase _newDb() => SkotiqDatabase.forTesting(NativeDatabase.memory());
 
 Future<ProviderContainer> _pumpHost(
   WidgetTester tester, {

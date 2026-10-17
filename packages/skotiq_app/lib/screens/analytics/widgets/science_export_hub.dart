@@ -615,8 +615,7 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
                 'Could not load sessions: ${sessionsAsync.error}',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style:
-                    SkotiqTypography.caption.copyWith(color: colors.error),
+                style: SkotiqTypography.caption.copyWith(color: colors.error),
               ),
             ),
             TextButton(

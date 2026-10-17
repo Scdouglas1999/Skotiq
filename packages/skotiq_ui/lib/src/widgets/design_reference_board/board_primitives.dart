@@ -37,9 +37,7 @@ class _GradientBar extends StatelessWidget {
       children: [
         Text(
           label,
-          style: SkotiqTypography.captionSm.copyWith(
-            color: colors.textMuted,
-          ),
+          style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
         ),
         const SizedBox(height: 4),
         Container(
@@ -124,9 +122,7 @@ class _CardSpecimen extends StatelessWidget {
         children: [
           Text(
             title,
-            style: SkotiqTypography.overline.copyWith(
-              color: colors.textMuted,
-            ),
+            style: SkotiqTypography.overline.copyWith(color: colors.textMuted),
           ),
           const SizedBox(height: SkotiqTokens.spaceXs),
           Text(

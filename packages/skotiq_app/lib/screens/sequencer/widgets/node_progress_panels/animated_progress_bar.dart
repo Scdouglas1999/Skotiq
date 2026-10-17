@@ -20,8 +20,7 @@ class _AnimatedProgressBar extends StatelessWidget {
           children: [
             Expanded(
               child: ClipRRect(
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
                 child: TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0, end: progress),
                   duration: const Duration(milliseconds: 300),

@@ -327,8 +327,7 @@ class _List extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isMobile =
-            constraints.maxWidth < SkotiqTokens.breakpointTablet;
+        final isMobile = constraints.maxWidth < SkotiqTokens.breakpointTablet;
         return ListView.builder(
           padding: isMobile
               ? SkotiqTokens.screenPaddingCompact

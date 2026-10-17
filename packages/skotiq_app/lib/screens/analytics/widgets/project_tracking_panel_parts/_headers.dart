@@ -264,8 +264,7 @@ class _SortBar extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           'Sort by:',
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(width: 8),
         _sortChip('Completion', ProjectSortMode.completion),

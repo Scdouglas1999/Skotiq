@@ -9,8 +9,7 @@
 /// stays the product's rather than the schema's.
 library;
 
-import 'package:skotiq_core/skotiq_core.dart'
-    show isSequenceCancelledNotice;
+import 'package:skotiq_core/skotiq_core.dart' show isSequenceCancelledNotice;
 
 /// Human label for a durable run status.
 ///

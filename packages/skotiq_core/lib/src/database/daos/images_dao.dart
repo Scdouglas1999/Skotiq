@@ -112,8 +112,7 @@ class ProducingNodeThumbnail {
 @DriftAccessor(
   tables: [CapturedImages, ImageMetadata, ImagingSessions, Targets],
 )
-class ImagesDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$ImagesDaoMixin {
+class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   ImagesDao(super.db);
 
   /// Get all images

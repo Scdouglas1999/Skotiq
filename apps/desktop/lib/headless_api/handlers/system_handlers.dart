@@ -427,10 +427,7 @@ class SystemHandlers {
       'applicationDocuments',
       resolveSkotiqDocumentsDirectory,
     );
-    await addDirectoryCheck(
-      'applicationSupport',
-      resolveSkotiqDataDirectory,
-    );
+    await addDirectoryCheck('applicationSupport', resolveSkotiqDataDirectory);
     await addDirectoryCheck('systemTemp', () async => Directory.systemTemp);
 
     return checks;

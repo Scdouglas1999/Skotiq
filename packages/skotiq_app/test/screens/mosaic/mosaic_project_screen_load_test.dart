@@ -48,8 +48,7 @@ class _ControllerCountingObserver extends ProviderObserver {
 /// second header row), so it is found by its glyph and named by its tooltip.
 final Finder _backAction = find.byWidgetPredicate(
   (widget) =>
-      widget is SkotiqIconButton &&
-      widget.icon == SkotiqIcons.arrowLeft,
+      widget is SkotiqIconButton && widget.icon == SkotiqIcons.arrowLeft,
 );
 
 void main() {

@@ -455,20 +455,18 @@ class _DetailLine extends StatelessWidget {
       padding: EdgeInsets.only(bottom: isLast ? 0 : SkotiqTokens.spaceMd),
       child: Row(
         children: [
-          Icon(icon,
-              size: SkotiqTokens.iconSm, color: colors.textSecondary),
+          Icon(icon, size: SkotiqTokens.iconSm, color: colors.textSecondary),
           const SizedBox(width: SkotiqTokens.spaceMd),
           Expanded(
             child: Text(
               label,
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textSecondary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             ),
           ),
           Text(
             value,
-            style:
-                SkotiqTypography.monoSm.copyWith(color: colors.textPrimary),
+            style: SkotiqTypography.monoSm.copyWith(color: colors.textPrimary),
           ),
         ],
       ),
@@ -541,8 +539,7 @@ class _StatTile extends StatelessWidget {
           const SizedBox(height: SkotiqTokens.spaceXs),
           Text(
             stat.label,
-            style: SkotiqTypography.captionSm
-                .copyWith(color: colors.textMuted),
+            style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

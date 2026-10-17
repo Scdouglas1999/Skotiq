@@ -29,8 +29,7 @@ class FrameScienceChip extends ConsumerWidget {
         ),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: colors.surface
-                .withValues(alpha: SkotiqTokens.opacityStrong),
+            color: colors.surface.withValues(alpha: SkotiqTokens.opacityStrong),
             borderRadius: SkotiqTokens.borderRadiusMd,
             border: Border.all(color: colors.border),
           ),

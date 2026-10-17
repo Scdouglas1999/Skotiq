@@ -123,8 +123,7 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
   }
 
   /// The kit's section title (05 §15), not a hand-built icon + h6 row.
-  Widget _buildSectionHeader(
-      SkotiqColors colors, String title, IconData icon) {
+  Widget _buildSectionHeader(SkotiqColors colors, String title, IconData icon) {
     return SectionTitle(icon: icon, title: title);
   }
 
@@ -216,8 +215,7 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
               const SizedBox(width: 8),
               Text(
                 'Common',
-                style:
-                    SkotiqTypography.h6.copyWith(color: colors.textPrimary),
+                style: SkotiqTypography.h6.copyWith(color: colors.textPrimary),
               ),
             ],
           ),
@@ -319,13 +317,11 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
           onExpansionChanged: uiNotifier.setShowAdvancedSettings,
           title: Row(
             children: [
-              Icon(SkotiqIcons.settings2,
-                  size: 14, color: colors.textMuted),
+              Icon(SkotiqIcons.settings2, size: 14, color: colors.textMuted),
               const SizedBox(width: 8),
               Text(
                 'Advanced',
-                style:
-                    SkotiqTypography.h6.copyWith(color: colors.textPrimary),
+                style: SkotiqTypography.h6.copyWith(color: colors.textPrimary),
               ),
             ],
           ),

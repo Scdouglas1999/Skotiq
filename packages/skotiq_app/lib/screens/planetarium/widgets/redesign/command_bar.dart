@@ -448,17 +448,14 @@ class _ToolsMenu extends ConsumerWidget {
                 ],
               ),
             ),
-          item(
-              'measurement', SkotiqIcons.ruler, 'Measure (separation / PA)',
+          item('measurement', SkotiqIcons.ruler, 'Measure (separation / PA)',
               active: measurement),
           item('fov', SkotiqIcons.frame, 'FOV indicator', active: showFov),
-          item(
-              'fovRings', SkotiqIcons.target, 'FOV rings (Telrad / finder)',
+          item('fovRings', SkotiqIcons.target, 'FOV rings (Telrad / finder)',
               active: fovRings),
           item('nightVision', SkotiqIcons.moon, 'Night vision (red)',
               active: nightVision),
-          item('compass', SkotiqIcons.compass, 'Compass HUD',
-              active: compass),
+          item('compass', SkotiqIcons.compass, 'Compass HUD', active: compass),
           if (isMobilePlatform)
             item('gyroAim', LucideIcons.move3d, 'Gyro sky aiming',
                 active: gyroAiming),
@@ -487,8 +484,7 @@ class _ToolsMenu extends ConsumerWidget {
           ),
           item('export', SkotiqIcons.download, 'Export finder chart'),
           const PopupMenuDivider(),
-          item('perfHud', SkotiqIcons.activity,
-              'Performance overlay (debug)',
+          item('perfHud', SkotiqIcons.activity, 'Performance overlay (debug)',
               active: perfHud),
         ],
       ),
@@ -571,8 +567,7 @@ class _CommandBarIconButtonState extends State<CommandBarIconButton> {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: bg,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusMd),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                   border: widget.isActive
                       ? Border.all(color: colors.accent.withValues(alpha: 0.45))
                       : null,

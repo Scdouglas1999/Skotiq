@@ -215,8 +215,7 @@ class _AlpacaServerDialogState extends ConsumerState<AlpacaServerDialog> {
               padding: const EdgeInsets.all(12),
               decoration: SkotiqDecorations.emphasisSurface(
                 colors.primary,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,8 +317,7 @@ class _AlpacaServerDialogState extends ConsumerState<AlpacaServerDialog> {
                 padding: const EdgeInsets.all(10),
                 decoration: SkotiqDecorations.emphasisSurface(
                   _statusSuccess == true ? colors.success : colors.error,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusMd),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                 ),
                 child: Row(
                   children: [

@@ -294,8 +294,7 @@ class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog> {
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
                   color: widget.colors.surfaceAlt,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusLg),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                   border: Border.all(color: widget.colors.border),
                 ),
                 child: TextField(
@@ -326,8 +325,7 @@ class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog> {
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
                   color: widget.colors.surfaceAlt,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusLg),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                   border: Border.all(color: widget.colors.border),
                 ),
                 child: TextField(
@@ -353,8 +351,7 @@ class _SaveSequenceDialogState extends ConsumerState<_SaveSequenceDialog> {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: widget.colors.surfaceAlt,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusLg),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                 ),
                 child: Row(
                   children: [

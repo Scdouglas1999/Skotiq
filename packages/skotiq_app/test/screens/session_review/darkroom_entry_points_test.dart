@@ -392,8 +392,7 @@ void main() {
       expect(
         find.byWidgetPredicate(
           (widget) =>
-              widget is SkotiqIconButton &&
-              widget.icon == SkotiqIcons.refresh,
+              widget is SkotiqIconButton && widget.icon == SkotiqIcons.refresh,
         ),
         findsOneWidget,
       );

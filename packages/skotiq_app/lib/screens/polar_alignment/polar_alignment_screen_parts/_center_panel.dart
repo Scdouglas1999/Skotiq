@@ -166,8 +166,7 @@ extension _CenterPanel on _PolarAlignmentScreenState {
     );
   }
 
-  Widget _buildProgressSteps(
-      SkotiqColors colors, PolarAlignmentState state) {
+  Widget _buildProgressSteps(SkotiqColors colors, PolarAlignmentState state) {
     final point = state.currentPoint;
     final phase = state.phase;
 
@@ -290,8 +289,8 @@ extension _CenterPanel on _PolarAlignmentScreenState {
                   : 'Skotiq captures three images at different positions, '
                       'plate-solves each one, and works out how far the '
                       "mount's polar axis is from the pole.",
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textSecondary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             ),
             const SizedBox(height: SkotiqTokens.spaceLg),
             Checklist(steps: steps),

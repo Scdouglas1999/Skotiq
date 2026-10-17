@@ -200,8 +200,7 @@ class _CatalogSetupDialogState extends ConsumerState<CatalogSetupDialog> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: colors.background,
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusLg),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,8 +253,7 @@ class _CatalogSetupDialogState extends ConsumerState<CatalogSetupDialog> {
                   ),
                   const SizedBox(height: 12),
                   ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusXs),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                     child: LinearProgressIndicator(
                       value: _progress,
                       backgroundColor: colors.border,
@@ -323,8 +321,7 @@ class _CatalogSetupDialogState extends ConsumerState<CatalogSetupDialog> {
     );
   }
 
-  Widget _buildCatalogInfo(
-      SkotiqColors colors, String name, String detail) {
+  Widget _buildCatalogInfo(SkotiqColors colors, String name, String detail) {
     return Row(
       children: [
         Icon(Icons.check_circle, color: colors.primary, size: 16),

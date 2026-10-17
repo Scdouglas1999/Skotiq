@@ -170,8 +170,7 @@ class _PresetRow extends StatelessWidget {
               height: 10,
               decoration: BoxDecoration(
                 color: preset.color,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline2),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline2),
               ),
             ),
             const SizedBox(width: 10),
@@ -204,9 +203,7 @@ class _PresetRow extends StatelessWidget {
               visualDensity: VisualDensity.compact,
               iconSize: 16,
               icon: Icon(
-                preset.visible
-                    ? SkotiqIcons.visible
-                    : SkotiqIcons.hidden,
+                preset.visible ? SkotiqIcons.visible : SkotiqIcons.hidden,
                 color: preset.visible ? colors.accent : colors.textMuted,
               ),
               onPressed: onToggleVisible,
@@ -467,8 +464,7 @@ class _AddRigDialogState extends State<_AddRigDialog> {
                 ),
                 child: Row(
                   children: [
-                    Icon(SkotiqIcons.frame,
-                        size: 16, color: widget.nextColor),
+                    Icon(SkotiqIcons.frame, size: 16, color: widget.nextColor),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(

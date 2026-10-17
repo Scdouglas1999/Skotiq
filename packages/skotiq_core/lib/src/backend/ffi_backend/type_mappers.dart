@@ -196,10 +196,7 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
   /// - FRB-generated SkotiqError (from Rust)
   /// - AnyhowException (fallback from Rust)
   /// - Generic Dart exceptions
-  dart_error.SkotiqError _toSkotiqError(
-    Object exception, [
-    String? context,
-  ]) {
+  dart_error.SkotiqError _toSkotiqError(Object exception, [String? context]) {
     // Handle FRB-generated SkotiqError from Rust
     if (exception is bridge_error.SkotiqError) {
       return _fromBridgeSkotiqError(exception);
@@ -216,9 +213,7 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
   /// Convert FRB-generated SkotiqError to pure Dart SkotiqError.
   ///
   /// This preserves all the structured error information from Rust.
-  dart_error.SkotiqError _fromBridgeSkotiqError(
-    bridge_error.SkotiqError e,
-  ) {
+  dart_error.SkotiqError _fromBridgeSkotiqError(bridge_error.SkotiqError e) {
     return e.when(
       // Connection errors
       deviceNotFound: (deviceId) =>
@@ -231,8 +226,7 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
         userMessage: "'$deviceId' is already connected",
         deviceId: deviceId,
       ),
-      notConnected: (deviceId) =>
-          dart_error.SkotiqError.notConnected(deviceId),
+      notConnected: (deviceId) => dart_error.SkotiqError.notConnected(deviceId),
       deviceDisconnected: (deviceId, reason) =>
           dart_error.SkotiqError.deviceDisconnected(deviceId, reason),
 
@@ -285,14 +279,12 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
         message: 'Invalid device ID: $deviceId - $reason',
         deviceId: deviceId,
       ),
-      parameterOutOfRange: (paramName, value, min, max) =>
-          dart_error.SkotiqError(
-            category: dart_error.BackendErrorCategory.validation,
-            message:
-                'Parameter out of range: $paramName = $value (valid: $min to $max)',
-            userMessage:
-                '$paramName value $value is out of range ($min to $max)',
-          ),
+      parameterOutOfRange: (paramName, value, min, max) => dart_error.SkotiqError(
+        category: dart_error.BackendErrorCategory.validation,
+        message:
+            'Parameter out of range: $paramName = $value (valid: $min to $max)',
+        userMessage: '$paramName value $value is out of range ($min to $max)',
+      ),
 
       // Operation errors
       operationFailed: (message) => dart_error.SkotiqError(
@@ -364,11 +356,10 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
                 'Alpaca error: $baseUrl device $deviceNumber - $message (code: $errorCode)',
             errorCode: errorCode,
           ),
-      indiError: (server, port, deviceName, message) =>
-          dart_error.SkotiqError(
-            category: dart_error.BackendErrorCategory.driver,
-            message: 'INDI error: $server:$port device $deviceName - $message',
-          ),
+      indiError: (server, port, deviceName, message) => dart_error.SkotiqError(
+        category: dart_error.BackendErrorCategory.driver,
+        message: 'INDI error: $server:$port device $deviceName - $message',
+      ),
       nativeError: (vendor, message, errorCode) => dart_error.SkotiqError(
         category: dart_error.BackendErrorCategory.driver,
         message: 'Native SDK error: $vendor - $message (code: $errorCode)',

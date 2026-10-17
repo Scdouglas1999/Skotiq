@@ -248,8 +248,8 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
       children: [
         Text(
           'Actions',
-          style: SkotiqTypography.sectionTitle
-              .copyWith(color: colors.textPrimary),
+          style:
+              SkotiqTypography.sectionTitle.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: 16),
         widget.isMobile
@@ -443,8 +443,8 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
             const SizedBox(height: SkotiqTokens.spaceSm),
             Text(
               _selectedAnnotationPackage.description,
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textSecondary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             ),
             const SizedBox(height: 16),
             Align(

@@ -82,8 +82,7 @@ class _AutofocusProgressPanelState
             height: 40,
             decoration: BoxDecoration(
               color: widget.colors.surface,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               border: Border.all(color: widget.colors.border),
             ),
             child: Center(

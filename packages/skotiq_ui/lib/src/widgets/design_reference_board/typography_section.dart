@@ -15,12 +15,7 @@ class _TypographyScale extends StatelessWidget {
       ('h4', '16 / w600', 'Aa Widget Title', SkotiqTypography.h4),
       ('h5', '14 / w600', 'Aa Label Title', SkotiqTypography.h5),
       ('h6', '12 / w600', 'Aa Small Heading', SkotiqTypography.h6),
-      (
-        'bodyLg',
-        '16 / w400',
-        'The quick brown fox',
-        SkotiqTypography.bodyLg,
-      ),
+      ('bodyLg', '16 / w400', 'The quick brown fox', SkotiqTypography.bodyLg),
       ('body', '14 / w400', 'The quick brown fox', SkotiqTypography.body),
       (
         'bodyMedium',
@@ -28,12 +23,7 @@ class _TypographyScale extends StatelessWidget {
         'The quick brown fox',
         SkotiqTypography.bodyMedium,
       ),
-      (
-        'bodySm',
-        '13 / w400',
-        'The quick brown fox',
-        SkotiqTypography.bodySm,
-      ),
+      ('bodySm', '13 / w400', 'The quick brown fox', SkotiqTypography.bodySm),
       ('labelLg', '14 / w500', 'Navigation Item', SkotiqTypography.labelLg),
       ('label', '13 / w500', 'Form Label', SkotiqTypography.label),
       ('labelSm', '12 / w500', 'Helper Badge', SkotiqTypography.labelSm),
@@ -75,12 +65,7 @@ class _TypographyScale extends StatelessWidget {
         SkotiqTypography.telemetryMd,
       ),
       ('mono', '14 / mono', 'EXP 120s · GAIN 100', SkotiqTypography.mono),
-      (
-        'monoSm',
-        '12 / mono',
-        'HFR 2.13 · ECC 0.41',
-        SkotiqTypography.monoSm,
-      ),
+      ('monoSm', '12 / mono', 'HFR 2.13 · ECC 0.41', SkotiqTypography.monoSm),
       ('monoXs', '11 / mono', '-10.0°C · 33%', SkotiqTypography.monoXs),
       ('statValue', '36 / w700 mono', '247', SkotiqTypography.statValue),
       (
@@ -149,9 +134,7 @@ class _TypeRow extends StatelessWidget {
           width: 110,
           child: Text(
             spec,
-            style: SkotiqTypography.captionSm.copyWith(
-              color: colors.textMuted,
-            ),
+            style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
           ),
         ),
         Expanded(

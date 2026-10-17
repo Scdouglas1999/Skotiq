@@ -56,8 +56,7 @@ class ImagingSidePanel extends ConsumerWidget {
     SidePanelSection(icon: SkotiqIcons.focuser, tooltip: 'Focus'),
     SidePanelSection(icon: SkotiqIcons.guider, tooltip: 'Guiding'),
     SidePanelSection(icon: SkotiqIcons.mount, tooltip: 'Mount'),
-    SidePanelSection(
-        icon: SkotiqIcons.filterWheel, tooltip: 'Filter wheel'),
+    SidePanelSection(icon: SkotiqIcons.filterWheel, tooltip: 'Filter wheel'),
     SidePanelSection(icon: SkotiqIcons.rotator, tooltip: 'Rotator'),
     SidePanelSection(icon: SkotiqIcons.tag, tooltip: 'Annotations'),
     SidePanelSection(

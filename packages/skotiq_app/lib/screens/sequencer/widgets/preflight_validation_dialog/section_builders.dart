@@ -59,8 +59,8 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
             const SizedBox(height: EmptyState.titleBodyGap),
             Text(
               body,
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textSecondary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
               textAlign: TextAlign.center,
             ),
           ],
@@ -201,8 +201,7 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
           title: 'Simulation',
           trailing: Text(
             'Ends ${simulation == null ? kReadoutUnknown : _formatClock(simulation.end)}',
-            style: SkotiqTypography.readoutXs
-                .copyWith(color: colors.textMuted),
+            style: SkotiqTypography.readoutXs.copyWith(color: colors.textMuted),
           ),
         ),
         Container(

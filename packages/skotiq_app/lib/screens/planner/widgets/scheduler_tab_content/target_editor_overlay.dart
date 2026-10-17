@@ -65,8 +65,7 @@ class _TargetEditorOverlay extends ConsumerWidget {
                           ],
                         ),
                         child: Padding(
-                          padding:
-                              const EdgeInsets.all(SkotiqTokens.spaceLg),
+                          padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [

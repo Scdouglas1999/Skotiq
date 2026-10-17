@@ -257,8 +257,8 @@ class _MeridianFlipProgressDialogState
                       : _hasFailed
                           ? 'Meridian Flip Failed'
                           : 'Meridian Flip in Progress',
-                  style: SkotiqTypography.h4
-                      .copyWith(color: colors.textPrimary),
+                  style:
+                      SkotiqTypography.h4.copyWith(color: colors.textPrimary),
                 ),
                 Text(
                   _isComplete
@@ -460,8 +460,7 @@ class _MeridianFlipProgressDialogState
           children: [
             Text(
               '$_progressPercent%',
-              style:
-                  SkotiqTypography.h6.copyWith(color: colors.textSecondary),
+              style: SkotiqTypography.h6.copyWith(color: colors.textSecondary),
             ),
           ],
         ),

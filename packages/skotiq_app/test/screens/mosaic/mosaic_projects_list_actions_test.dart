@@ -47,8 +47,7 @@ Widget _app({required bool remote}) => ProviderScope(
 /// second header row), so it is found by its glyph; its tooltip is its name.
 final Finder _backAction = find.byWidgetPredicate(
   (widget) =>
-      widget is SkotiqIconButton &&
-      widget.icon == SkotiqIcons.arrowLeft,
+      widget is SkotiqIconButton && widget.icon == SkotiqIcons.arrowLeft,
 );
 
 void main() {

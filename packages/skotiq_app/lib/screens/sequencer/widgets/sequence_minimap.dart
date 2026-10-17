@@ -262,8 +262,7 @@ class SequenceMapPainter extends CustomPainter {
       // the row it stands for are recognisably the same step.
       var blockColor = nodeCategoryTint(entry.node.category, colors);
       if (!entry.node.isEnabled) {
-        blockColor =
-            blockColor.withValues(alpha: SkotiqTokens.opacityMedium);
+        blockColor = blockColor.withValues(alpha: SkotiqTokens.opacityMedium);
       }
 
       // Run state outranks category: while a run is on, where it is and what
@@ -349,8 +348,7 @@ class SequenceMapPainter extends CustomPainter {
     canvas.drawRect(
       rect,
       Paint()
-        ..color =
-            colors.primary.withValues(alpha: SkotiqTokens.opacityMedium)
+        ..color = colors.primary.withValues(alpha: SkotiqTokens.opacityMedium)
         ..style = PaintingStyle.fill,
     );
     canvas.drawRect(

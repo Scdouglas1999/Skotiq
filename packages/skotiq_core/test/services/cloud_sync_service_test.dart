@@ -371,10 +371,7 @@ void main() {
       expect(remote.deletedPaths, hasLength(1));
       // The kept bundles are exactly the manifest's.
       for (final b in manifest.bundles) {
-        expect(
-          remote.files,
-          contains('skotiq-sync/test-machine/${b.file}'),
-        );
+        expect(remote.files, contains('skotiq-sync/test-machine/${b.file}'));
       }
     });
 

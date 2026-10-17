@@ -55,8 +55,7 @@ void Function() startFrameTimingProbe({
   void Function(String line) emit = _stdout,
   bool? enabled,
 }) {
-  final armed =
-      enabled ?? Platform.environment['SKOTIQ_FRAME_TIMING'] == '1';
+  final armed = enabled ?? Platform.environment['SKOTIQ_FRAME_TIMING'] == '1';
   if (!armed) {
     return () {};
   }

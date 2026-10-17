@@ -273,8 +273,7 @@ class _CalibratedAnnotatedRow extends StatelessWidget {
     final busy = state.busy;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final stacked =
-            constraints.maxWidth < SkotiqTokens.breakpointTablet;
+        final stacked = constraints.maxWidth < SkotiqTokens.breakpointTablet;
         final cards = [
           _ActionCard(
             icon: SkotiqIcons.star,
@@ -366,8 +365,8 @@ class _ActionCard extends StatelessWidget {
           const SizedBox(height: SkotiqTokens.spaceSm),
           Text(
             body,
-            style: SkotiqTypography.bodySm
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
           Align(
@@ -432,8 +431,8 @@ class _GradedSubsDisagreement extends StatelessWidget {
             Expanded(
               child: Text(
                 message,
-                style: SkotiqTypography.bodySm
-                    .copyWith(color: colors.textPrimary),
+                style:
+                    SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
               ),
             ),
           ],
@@ -488,8 +487,8 @@ class _CalibrationRecordDisagreement extends StatelessWidget {
             Expanded(
               child: Text(
                 message,
-                style: SkotiqTypography.bodySm
-                    .copyWith(color: colors.textPrimary),
+                style:
+                    SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
               ),
             ),
           ],

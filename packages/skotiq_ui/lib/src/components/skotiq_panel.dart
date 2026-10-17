@@ -139,10 +139,7 @@ class _DashedSlotBorder extends CustomPainter {
     for (final metric in path.computeMetrics()) {
       var distance = 0.0;
       while (distance < metric.length) {
-        final next = math.min(
-          distance + SkotiqPanel.dashLength,
-          metric.length,
-        );
+        final next = math.min(distance + SkotiqPanel.dashLength, metric.length);
         canvas.drawPath(metric.extractPath(distance, next), paint);
         distance = next + SkotiqPanel.dashGap;
       }
@@ -193,9 +190,7 @@ class PanelHead extends StatelessWidget {
           Expanded(
             child: Text(
               label.toUpperCase(),
-              style: SkotiqTypography.eyebrow.copyWith(
-                color: colors.textMuted,
-              ),
+              style: SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

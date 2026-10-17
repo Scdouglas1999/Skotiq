@@ -82,18 +82,15 @@ class _MobileSearchSheetState extends ConsumerState<MobileSearchSheet> {
               filled: true,
               fillColor: widget.colors.surfaceAlt,
               border: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 borderSide: BorderSide(color: widget.colors.border),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 borderSide: BorderSide(color: widget.colors.border),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 borderSide: BorderSide(color: widget.colors.primary),
               ),
               contentPadding:
@@ -296,8 +293,7 @@ class MobileSearchResultTile extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: colors.primary.withValues(alpha: 0.15),
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               ),
               child: Text(
                 catalogTag,
@@ -317,8 +313,8 @@ class MobileSearchResultTile extends StatelessWidget {
                     displayName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: SkotiqTypography.h5
-                        .copyWith(color: colors.textPrimary),
+                    style:
+                        SkotiqTypography.h5.copyWith(color: colors.textPrimary),
                   ),
                   Text(
                     typeName,

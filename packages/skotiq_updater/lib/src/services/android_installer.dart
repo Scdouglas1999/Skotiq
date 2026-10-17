@@ -8,9 +8,7 @@ import 'package:flutter/services.dart';
 /// Android 8+ it needs the user to have granted this app permission to
 /// install packages. Both live on the platform side.
 @visibleForTesting
-const MethodChannel androidInstallerChannel = MethodChannel(
-  'skotiq/updater',
-);
+const MethodChannel androidInstallerChannel = MethodChannel('skotiq/updater');
 
 /// Overrides the installer for tests. Production leaves this null.
 @visibleForTesting

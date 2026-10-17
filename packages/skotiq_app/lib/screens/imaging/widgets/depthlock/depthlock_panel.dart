@@ -147,9 +147,7 @@ class _GoalList extends ConsumerWidget {
             icon: SkotiqIcons.list,
             title: 'Goals',
             trailing: SkotiqIconButton(
-              icon: overlayVisible
-                  ? SkotiqIcons.visible
-                  : SkotiqIcons.hidden,
+              icon: overlayVisible ? SkotiqIcons.visible : SkotiqIcons.hidden,
               tooltip: overlayVisible
                   ? 'Hide saved goals on the frame'
                   : 'Draw saved goals on the frame',

@@ -419,8 +419,7 @@ class _AppDataFolderRow extends ConsumerWidget {
     // the variable is noise, but on a headless/systemd host it is the reason
     // the folder is not where the operator expects.
     final pinned =
-        Platform.environment[skotiqDatabaseDirEnv]?.trim().isNotEmpty ??
-            false;
+        Platform.environment[skotiqDatabaseDirEnv]?.trim().isNotEmpty ?? false;
     const contents =
         'skotiq.db and any recovered or quarantined database files.';
     // The logs are NOT under the database folder — different resolver,

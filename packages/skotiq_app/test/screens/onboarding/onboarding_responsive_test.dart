@@ -16,8 +16,7 @@ import 'package:skotiq_app/screens/onboarding/onboarding_screen.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-SkotiqDatabase _newDb() =>
-    SkotiqDatabase.forTesting(NativeDatabase.memory());
+SkotiqDatabase _newDb() => SkotiqDatabase.forTesting(NativeDatabase.memory());
 
 /// The three reference phone sizes from the responsive standard, portrait.
 const _phoneSizes = <(String, Size)>[

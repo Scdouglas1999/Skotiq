@@ -27,8 +27,7 @@ part 'device_handlers/helpers.dart';
 /// center-on-target / polar-alignment. New clients should not send this;
 /// the audit's spec keeps the legacy path so pinned mobile builds stay
 /// functional during the rollout.
-const String legacyBlockingAcceptType =
-    'application/x.skotiq.legacy-blocking';
+const String legacyBlockingAcceptType = 'application/x.skotiq.legacy-blocking';
 
 /// True when the request's `Accept` header explicitly opts into the
 /// legacy synchronous response shape.

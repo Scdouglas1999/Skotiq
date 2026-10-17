@@ -176,9 +176,7 @@ class _Disc extends StatelessWidget {
           fill: colors.primary.withValues(
             alpha: SkotiqTokens.opacityAccentTintHover,
           ),
-          halo: colors.primary.withValues(
-            alpha: SkotiqTokens.opacityHairline,
-          ),
+          halo: colors.primary.withValues(alpha: SkotiqTokens.opacityHairline),
           child: Text(
             '$index',
             style: SkotiqTypography.readoutBadge

@@ -102,8 +102,7 @@ class NodePropertiesPanel extends ConsumerWidget {
             height: 4,
             decoration: BoxDecoration(
               color: colors.border,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline2),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline2),
             ),
           ),
         ),

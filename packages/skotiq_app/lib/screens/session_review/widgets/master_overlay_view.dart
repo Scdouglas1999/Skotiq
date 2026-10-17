@@ -73,8 +73,7 @@ List<FinishingResultLayer> finishingLayersForMaster(IntegratedMaster? master) {
     out.add(FinishingResultLayer(label: label, pngPath: png, icon: icon));
   }
 
-  add(master.backgroundExtractedPath, 'Background extract',
-      SkotiqIcons.grid);
+  add(master.backgroundExtractedPath, 'Background extract', SkotiqIcons.grid);
   add(master.deconvolvedPath, 'Deconvolve', SkotiqIcons.sparkle);
   add(master.starReducedPath, 'Reduce stars', SkotiqIcons.star);
   add(master.colorCalibratedPath, 'Color calibrate', SkotiqIcons.star);
@@ -307,8 +306,7 @@ class _MasterOverlayViewState extends State<MasterOverlayView> {
             ),
             child: Text(
               'Showing ${active.label} preview — toggle off for the raw master',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ),
         if (hasAnnotations && _showAnnotations)
@@ -319,8 +317,7 @@ class _MasterOverlayViewState extends State<MasterOverlayView> {
             ),
             child: Text(
               '${layer.items.length} catalog objects annotated',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ),
       ],
@@ -354,8 +351,7 @@ class _OverlayToggle extends StatelessWidget {
         const SizedBox(width: SkotiqTokens.spaceXs),
         Text(
           label,
-          style:
-              SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(width: SkotiqTokens.spaceXs),
         SkotiqSwitch(value: value, compact: true, onChanged: onChanged),

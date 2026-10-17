@@ -56,9 +56,7 @@ void main() {
     // GET /api/logs
     group('GET /api/logs', () {
       test('returns list of log files with size and modifiedAt', () async {
-        await File(
-          '$logsDir/skotiq.log.2026-05-22',
-        ).writeAsString('first-day');
+        await File('$logsDir/skotiq.log.2026-05-22').writeAsString('first-day');
         await File('$logsDir/skotiq.log').writeAsString('current');
 
         final response = await translateHandlerErrors(
@@ -312,9 +310,7 @@ void main() {
         // Plant the active log file AND a rotated one.
         final currentLog = logger.currentLogFile!;
         await File(currentLog).writeAsString('current-data');
-        await File(
-          '$logsDir/skotiq.log.2026-05-20',
-        ).writeAsString('rotated-1');
+        await File('$logsDir/skotiq.log.2026-05-20').writeAsString('rotated-1');
         await File(
           '$logsDir/skotiq.log.2026-05-21',
         ).writeAsString('rotated-2-longer');
@@ -334,10 +330,7 @@ void main() {
 
         // Current log preserved.
         expect(await File(currentLog).exists(), isTrue);
-        expect(
-          await File('$logsDir/skotiq.log.2026-05-20').exists(),
-          isFalse,
-        );
+        expect(await File('$logsDir/skotiq.log.2026-05-20').exists(), isFalse);
       });
     });
 

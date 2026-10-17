@@ -411,9 +411,8 @@ class _StepRailItem extends StatelessWidget {
               left: _StepRail._glyphInset,
               right: SkotiqTokens.spaceSm,
             ),
-            decoration: isActive
-                ? SkotiqDecorations.railItemSelected(colors)
-                : null,
+            decoration:
+                isActive ? SkotiqDecorations.railItemSelected(colors) : null,
             child: Row(
               children: [
                 Icon(glyph, size: _StepRail._glyphSize, color: glyphColor),

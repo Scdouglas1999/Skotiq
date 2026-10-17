@@ -560,8 +560,7 @@ class _ActionButtonState extends State<_ActionButton> {
               color: isActiveHover
                   ? widget.colors.primary.withValues(alpha: 0.1)
                   : widget.colors.surfaceAlt,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               border: Border.all(
                 color: isActiveHover
                     ? widget.colors.primary

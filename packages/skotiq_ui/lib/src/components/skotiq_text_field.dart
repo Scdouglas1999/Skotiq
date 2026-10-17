@@ -124,9 +124,7 @@ class _SkotiqTextFieldState extends State<SkotiqTextField> {
   }
 
   TextStyle _valueStyle(SkotiqColors colors) {
-    return (widget.mono
-            ? SkotiqTypography.inputMono
-            : SkotiqTypography.input)
+    return (widget.mono ? SkotiqTypography.inputMono : SkotiqTypography.input)
         .copyWith(
           color: widget.enabled ? colors.textPrimary : colors.textMuted,
         );

@@ -65,8 +65,7 @@ class _NarratorDetailSheet extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: SkotiqTokens.spaceLg),
                 decoration: BoxDecoration(
                   color: colors.border,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusXs),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                 ),
               ),
             ),
@@ -127,8 +126,7 @@ class _NarratorDetailSheet extends StatelessWidget {
                 padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
                 decoration: BoxDecoration(
                   color: colors.surfaceAlt,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusMd),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                   border:
                       Border.all(color: colors.border.withValues(alpha: 0.6)),
                 ),

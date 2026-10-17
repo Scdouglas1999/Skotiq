@@ -44,8 +44,8 @@ class FramingSliderField extends StatelessWidget {
           width: 80,
           child: Text(
             label,
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           ),
         ),
         Expanded(
@@ -70,8 +70,7 @@ class FramingSliderField extends StatelessWidget {
           width: 45,
           child: Text(
             '${value.toInt()}${suffix ?? ''}',
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textPrimary),
+            style: SkotiqTypography.caption.copyWith(color: colors.textPrimary),
             textAlign: TextAlign.right,
           ),
         ),

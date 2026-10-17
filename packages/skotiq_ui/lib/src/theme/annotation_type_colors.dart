@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show AnnotationStatus, ObjectType;
+import 'package:skotiq_core/skotiq_core.dart' show AnnotationStatus, ObjectType;
 import 'skotiq_colors.dart';
 
 /// Domain-specific hues for catalog object types in annotation UI.

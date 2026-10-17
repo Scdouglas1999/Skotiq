@@ -181,8 +181,7 @@ void main() {
       (tester) async {
     await _pumpChip(tester, phd2State: Phd2State.guiding);
 
-    final tooltip =
-        tester.widget<SkotiqTooltip>(find.byType(SkotiqTooltip));
+    final tooltip = tester.widget<SkotiqTooltip>(find.byType(SkotiqTooltip));
     expect(tooltip.message, contains('PHD2 guiding active'));
     expect(tooltip.message, contains('arcseconds'));
   });

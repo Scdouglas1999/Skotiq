@@ -399,8 +399,7 @@ class _AdvancedPanel extends StatelessWidget {
             label: 'Advanced (numerical)',
             child: InkWell(
               onTap: onToggle,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(
@@ -863,17 +862,14 @@ class _SmallField extends StatelessWidget {
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
         style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: SkotiqTypography.fontSize12),
+            color: colors.textPrimary, fontSize: SkotiqTypography.fontSize12),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(
-              color: colors.textMuted,
-              fontSize: SkotiqTypography.fontSize11),
+              color: colors.textMuted, fontSize: SkotiqTypography.fontSize11),
           suffixText: suffix,
           suffixStyle: TextStyle(
-              color: colors.textMuted,
-              fontSize: SkotiqTypography.fontSize11),
+              color: colors.textMuted, fontSize: SkotiqTypography.fontSize11),
           isDense: true,
           filled: true,
           fillColor: colors.surfaceAlt,

@@ -412,8 +412,8 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
             child: SingleChildScrollView(
               child: SelectableText(
                 failure.technical!,
-                style: SkotiqTypography.monoSm
-                    .copyWith(color: colors.textMuted),
+                style:
+                    SkotiqTypography.monoSm.copyWith(color: colors.textMuted),
               ),
             ),
           ),
@@ -780,9 +780,7 @@ class _OverrideDisclosure extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              expanded
-                  ? SkotiqIcons.chevronDown
-                  : SkotiqIcons.chevronRight,
+              expanded ? SkotiqIcons.chevronDown : SkotiqIcons.chevronRight,
               size: SkotiqTokens.iconSm,
               color: tint,
             ),

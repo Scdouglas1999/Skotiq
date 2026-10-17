@@ -62,12 +62,12 @@ void showSaveAsSnippetDialog(
               TextField(
                 controller: nameController,
                 autofocus: true,
-                style: SkotiqTypography.body
-                    .copyWith(color: colors.textPrimary),
+                style:
+                    SkotiqTypography.body.copyWith(color: colors.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'Template name',
-                  hintStyle: SkotiqTypography.body
-                      .copyWith(color: colors.textMuted),
+                  hintStyle:
+                      SkotiqTypography.body.copyWith(color: colors.textMuted),
                   filled: true,
                   fillColor: colors.surfaceAlt,
                   border: OutlineInputBorder(
@@ -97,12 +97,12 @@ void showSaveAsSnippetDialog(
               TextField(
                 controller: descController,
                 maxLines: 2,
-                style: SkotiqTypography.body
-                    .copyWith(color: colors.textPrimary),
+                style:
+                    SkotiqTypography.body.copyWith(color: colors.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'What does this template do?',
-                  hintStyle: SkotiqTypography.body
-                      .copyWith(color: colors.textMuted),
+                  hintStyle:
+                      SkotiqTypography.body.copyWith(color: colors.textMuted),
                   filled: true,
                   fillColor: colors.surfaceAlt,
                   border: OutlineInputBorder(

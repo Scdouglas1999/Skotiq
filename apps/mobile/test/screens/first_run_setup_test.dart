@@ -311,10 +311,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(backend.validatedPath, '/host/captures/../data');
-      expect(
-        backend.updatedSettings?.imageOutputPath,
-        '/srv/skotiq/captures',
-      );
+      expect(backend.updatedSettings?.imageOutputPath, '/srv/skotiq/captures');
       expect(find.textContaining('Pick catalogs to install'), findsOneWidget);
     });
   });

@@ -197,8 +197,7 @@ class _FocusPositionSparkline extends StatelessWidget {
         child: Center(
           child: Text(
             context.l10n.text('noData'),
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ),
       );
@@ -266,8 +265,7 @@ class _FocusPositionSparkline extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 decoration: BoxDecoration(
                   color: colors.surfaceOverlay.withValues(alpha: 0.9),
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusXs),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                 ),
                 child: Text(
                   _formatPosition(currentVal),
@@ -409,8 +407,7 @@ class _FineFocusControls extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             'Fine',
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
           const SizedBox(width: 4),
           _FineStepButton(
@@ -466,8 +463,7 @@ class _FineStepButton extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: colors.surface,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               ),
               child: Text(
                 label,

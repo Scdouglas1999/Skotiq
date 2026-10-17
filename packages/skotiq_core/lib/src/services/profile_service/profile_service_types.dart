@@ -1,9 +1,6 @@
 part of '../profile_service.dart';
 
-typedef _BackendAuthority = ({
-  BackendNotifier owner,
-  SkotiqBackend backend,
-});
+typedef _BackendAuthority = ({BackendNotifier owner, SkotiqBackend backend});
 
 /// Raised when startup auto-connect finishes activating a profile but one or
 /// more of its devices failed to connect. Startup deliberately attempts EVERY

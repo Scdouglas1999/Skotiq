@@ -98,9 +98,7 @@ void main() {
     /// unlabelled.
     testWidgets('an icon-only button is still labelled', (tester) async {
       await tester.pumpWidget(
-        host(
-          SkotiqButton(label: 'Abort', icon: Icons.stop, onPressed: () {}),
-        ),
+        host(SkotiqButton(label: 'Abort', icon: Icons.stop, onPressed: () {})),
       );
       await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
     });

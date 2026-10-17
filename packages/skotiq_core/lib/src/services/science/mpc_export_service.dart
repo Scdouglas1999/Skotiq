@@ -129,9 +129,7 @@ class MpcExportService {
     );
 
     final docsDir = await resolveSkotiqDocumentsDirectory();
-    final exportDir = Directory(
-      path.join(docsDir.path, 'Skotiq', 'exports'),
-    );
+    final exportDir = Directory(path.join(docsDir.path, 'Skotiq', 'exports'));
     if (!exportDir.existsSync()) {
       exportDir.createSync(recursive: true);
     }

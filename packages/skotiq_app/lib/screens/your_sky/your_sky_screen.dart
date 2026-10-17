@@ -107,8 +107,7 @@ class YourSkyView extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isMobile =
-            constraints.maxWidth < SkotiqTokens.breakpointTablet;
+        final isMobile = constraints.maxWidth < SkotiqTokens.breakpointTablet;
         final padding = isMobile
             ? SkotiqTokens.screenPaddingCompact
             : SkotiqTokens.screenPadding;
@@ -181,8 +180,7 @@ class YourSkyView extends ConsumerWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
-                  decoration:
-                      SkotiqDecorations.chip(colors, tone: colors.info),
+                  decoration: SkotiqDecorations.chip(colors, tone: colors.info),
                   child: Icon(LucideIcons.info,
                       size: SkotiqTokens.iconSm, color: colors.info),
                 ),

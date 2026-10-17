@@ -308,8 +308,8 @@ class _RotationControls extends StatelessWidget {
               Icon(LucideIcons.rotateCw, size: 13, color: colors.textMuted),
               const SizedBox(width: 6),
               Text('Rotation',
-                  style: SkotiqTypography.h6
-                      .copyWith(color: colors.textPrimary)),
+                  style:
+                      SkotiqTypography.h6.copyWith(color: colors.textPrimary)),
               const Spacer(),
               Text(
                 '${rotation.toStringAsFixed(0)}°',
@@ -343,8 +343,7 @@ class _RotationControls extends StatelessWidget {
             'Drag the FOV rotation handle on the sky view to adjust the '
             'framing angle visually.',
             style: TextStyle(
-                fontSize: SkotiqTypography.fontSize10,
-                color: colors.textMuted),
+                fontSize: SkotiqTypography.fontSize10, color: colors.textMuted),
           ),
         ],
       ),

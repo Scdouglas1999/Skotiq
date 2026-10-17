@@ -96,8 +96,7 @@ class InfoCard extends StatelessWidget {
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.15),
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusMd),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                 ),
                 child: Icon(icon, size: 14, color: color),
               ),
@@ -193,8 +192,7 @@ class DarknessCard extends StatelessWidget {
                   borderRadius:
                       BorderRadius.circular(SkotiqTokens.radiusInline8),
                 ),
-                child:
-                    Icon(SkotiqIcons.moon, size: 16, color: colors.primary),
+                child: Icon(SkotiqIcons.moon, size: 16, color: colors.primary),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -228,8 +226,7 @@ class DarknessCard extends StatelessWidget {
             height: 4,
             decoration: BoxDecoration(
               color: colors.surfaceAlt,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline2),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline2),
             ),
             child: Row(
               children: [

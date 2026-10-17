@@ -76,10 +76,7 @@ void main() {
     });
 
     test('twilight astro applies alpha', () {
-      expect(
-        SkotiqChartColors.twilightAstro(alpha: 0.4).a,
-        closeTo(0.4, 0.01),
-      );
+      expect(SkotiqChartColors.twilightAstro(alpha: 0.4).a, closeTo(0.4, 0.01));
     });
   });
 }

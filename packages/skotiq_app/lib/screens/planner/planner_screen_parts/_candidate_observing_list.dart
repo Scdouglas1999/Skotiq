@@ -196,8 +196,8 @@ class _CandidateObservingListDialogState
         backgroundColor: widget.colors.surface,
         title: Text(
           'Add to observing list',
-          style: SkotiqTypography.body
-              .copyWith(color: widget.colors.textPrimary),
+          style:
+              SkotiqTypography.body.copyWith(color: widget.colors.textPrimary),
         ),
         content: SizedBox(
           width: dialogMaxWidth(context, 340),

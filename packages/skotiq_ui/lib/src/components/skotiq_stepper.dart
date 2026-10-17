@@ -81,9 +81,7 @@ class SkotiqStepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final double iconSize = compact
-        ? SkotiqTokens.iconXs
-        : SkotiqTokens.iconSm;
+    final double iconSize = compact ? SkotiqTokens.iconXs : SkotiqTokens.iconSm;
     // A min-width sized for four digits keeps the readout from reflowing as the
     // value changes; tabular figures handle digit-width parity.
     final double valueMinWidth = compact ? 24 : 30;
@@ -176,9 +174,7 @@ class _StepperButton extends StatelessWidget {
 
     final Color iconColor = isEnabled
         ? colors.textSecondary
-        : colors.textSecondary.withValues(
-            alpha: SkotiqTokens.opacityDisabled,
-          );
+        : colors.textSecondary.withValues(alpha: SkotiqTokens.opacityDisabled);
 
     return Semantics(
       button: true,

@@ -281,8 +281,8 @@ class _SciencePhotometryPropertiesState
         Text(
           'Comparison stars for differential photometry. Order does not '
           'matter; the runtime extracts each independently.',
-          style: SkotiqTypography.captionSm
-              .copyWith(color: colors.textSecondary),
+          style:
+              SkotiqTypography.captionSm.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(height: SkotiqTokens.spaceSm),
         if (node.referenceStars.isEmpty)
@@ -423,8 +423,7 @@ class _SciencePhotometryPropertiesState
           'Larger values tolerate slower download / longer dithers. '
           'A gap larger than this fires a cadence-broken warning '
           'on the dashboard but does NOT abort the burst.',
-          style:
-              SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
+          style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
         ),
         const SizedBox(height: SkotiqTokens.spaceLg),
 
@@ -671,8 +670,7 @@ class _SciencePhotometryPropertiesState
       padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceXs),
       child: Text(
         label,
-        style:
-            SkotiqTypography.labelSm.copyWith(color: colors.textSecondary),
+        style: SkotiqTypography.labelSm.copyWith(color: colors.textSecondary),
       ),
     );
   }

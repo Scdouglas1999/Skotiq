@@ -137,9 +137,7 @@ abstract final class GoldenHarness {
   static Directory goldensDir() {
     final dir = capturesToRepo
         ? Directory('${repoRoot().path}/docs/design/goldens')
-        : (_scratch ??= Directory.systemTemp.createTempSync(
-            'skotiq-goldens-',
-          ));
+        : (_scratch ??= Directory.systemTemp.createTempSync('skotiq-goldens-'));
     dir.createSync(recursive: true);
     return dir;
   }

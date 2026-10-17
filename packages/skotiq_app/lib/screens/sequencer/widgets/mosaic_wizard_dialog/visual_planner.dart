@@ -212,8 +212,7 @@ class _ZoomControls extends StatelessWidget {
           Text('${(zoom * 100).round()}%',
               // absolute: HUD label over the dark sky planner canvas
               style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: SkotiqTypography.fontSize9)),
+                  color: Colors.white54, fontSize: SkotiqTypography.fontSize9)),
           IconButton(
             icon: const Icon(SkotiqIcons.remove, size: 14),
             onPressed: onZoomOut,

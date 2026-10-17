@@ -169,8 +169,7 @@ void main() {
       // Dialog should have rendered with the typed message body.
       expect(find.text('Could not insert snippet'), findsOneWidget);
       expect(find.textContaining('WarpDrive'), findsOneWidget);
-      expect(
-          find.textContaining('newer version of Skotiq'), findsOneWidget);
+      expect(find.textContaining('newer version of Skotiq'), findsOneWidget);
 
       // Dismiss the dialog and confirm the helper returns false.
       await tester.tap(find.text('OK'));

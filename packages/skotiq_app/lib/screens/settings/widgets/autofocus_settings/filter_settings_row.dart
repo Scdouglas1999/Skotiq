@@ -102,9 +102,7 @@ class _FilterSettingsRowState extends State<_FilterSettingsRow> {
             ? null
             : Border(
                 bottom: BorderSide(
-                  color: SkotiqColors.of(context)
-                      .border
-                      .withValues(alpha: 0.5),
+                  color: SkotiqColors.of(context).border.withValues(alpha: 0.5),
                 ),
               ),
       ),

@@ -126,8 +126,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
             margin: const EdgeInsets.only(bottom: 16),
             decoration: SkotiqDecorations.emphasisSurface(
               widget.colors.warning,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
             ),
             child: Row(
               children: [

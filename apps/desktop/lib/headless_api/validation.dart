@@ -12,8 +12,7 @@ import 'response_helpers.dart';
 /// `$e` on a bridge error is the freezed constructor form, and remote clients
 /// render `message` verbatim — so any handler interpolating a caught backend
 /// error into a user-facing string must route it through here.
-String describeBackendError(Object error) =>
-    error is bridge_error.SkotiqError
+String describeBackendError(Object error) => error is bridge_error.SkotiqError
     ? _cleanBackendErrorMessage(error)
     : error.toString();
 

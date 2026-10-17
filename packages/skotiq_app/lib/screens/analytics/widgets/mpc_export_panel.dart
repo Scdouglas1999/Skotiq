@@ -47,8 +47,7 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
               scienceSettingsAsync.hasError
                   ? 'MPC reporting settings unavailable'
                   : 'Loading MPC reporting settings…',
-              style: SkotiqTypography.body
-                  .copyWith(color: widget.colors.error),
+              style: SkotiqTypography.body.copyWith(color: widget.colors.error),
             ),
             if (scienceSettingsAsync.hasError) ...[
               const SizedBox(height: 6),
@@ -382,15 +381,14 @@ class _ObservationGroupTile extends StatelessWidget {
                     SkotiqDecorations.chip(colors, tone: colors.success),
                 child: Text(
                   'Known',
-                  style: SkotiqTypography.caption
-                      .copyWith(color: colors.success),
+                  style:
+                      SkotiqTypography.caption.copyWith(color: colors.success),
                 ),
               ),
             const SizedBox(width: 8),
             Text(
               '${group.observations.length} obs',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
             if (group.nightCount > 1) ...[
               const SizedBox(width: 6),
@@ -518,8 +516,7 @@ class _SmallActionButton extends StatelessWidget {
             decoration: BoxDecoration(
               color:
                   isDisabled ? colors.well.withValues(alpha: 0.5) : colors.well,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               border: Border.all(
                 color: isDisabled
                     ? colors.border.withValues(alpha: 0.3)

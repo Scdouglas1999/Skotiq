@@ -39,8 +39,7 @@ class RunDashboardTargetHeader extends ConsumerWidget {
             const SizedBox(width: SkotiqTokens.spaceMd),
             Text(
               'No target configured',
-              style:
-                  SkotiqTypography.h5.copyWith(color: colors.textSecondary),
+              style: SkotiqTypography.h5.copyWith(color: colors.textSecondary),
             ),
           ],
         ),
@@ -241,8 +240,7 @@ class _BudgetProgressPanel extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: ClipRRect(
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusXs),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                   child: LinearProgressIndicator(
                     value: fraction.clamp(0.0, 1.0),
                     minHeight: 6,

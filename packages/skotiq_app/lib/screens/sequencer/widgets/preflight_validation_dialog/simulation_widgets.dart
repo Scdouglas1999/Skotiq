@@ -93,8 +93,8 @@ class _SimulationIssueRow extends StatelessWidget {
           Expanded(
             child: Text(
               issue.message,
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textSecondary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             ),
           ),
         ],

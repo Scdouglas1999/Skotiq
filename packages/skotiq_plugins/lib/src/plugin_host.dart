@@ -250,8 +250,7 @@ class PluginHost {
         plugin: plugin,
         context: context,
         enabled: false,
-        error:
-            'Requires Skotiq $minRequired or newer (running $appVersion).',
+        error: 'Requires Skotiq $minRequired or newer (running $appVersion).',
         compatibilityBlocked: true,
       );
       context.logger.warning(

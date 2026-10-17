@@ -125,17 +125,14 @@ void main() {
     data: {if (message != null) 'message': message},
   );
 
-  SkotiqEvent equipment(
-    String type,
-    String message,
-    EventSeverity severity,
-  ) => SkotiqEvent(
-    timestamp: DateTime.now().millisecondsSinceEpoch,
-    severity: severity,
-    category: EventCategory.equipment,
-    eventType: type,
-    data: {'message': message, 'device_type': 'mount'},
-  );
+  SkotiqEvent equipment(String type, String message, EventSeverity severity) =>
+      SkotiqEvent(
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        severity: severity,
+        category: EventCategory.equipment,
+        eventType: type,
+        data: {'message': message, 'device_type': 'mount'},
+      );
 
   test(
     'a lost-star episode toasts once; per-frame hunt noise cannot re-arm it',

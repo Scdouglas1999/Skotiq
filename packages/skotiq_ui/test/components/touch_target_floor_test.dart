@@ -23,10 +23,7 @@ void main() {
 
   /// Each case: the control, and the height it paints for a pointer.
   final cases = <String, (Widget, double)>{
-    'SkotiqChip': (
-      SkotiqChip(label: 'More', onTap: () {}),
-      SkotiqChip.height,
-    ),
+    'SkotiqChip': (SkotiqChip(label: 'More', onTap: () {}), SkotiqChip.height),
     'SkotiqFilterChip': (
       SkotiqFilterChip(
         label: 'Filter: Ha',

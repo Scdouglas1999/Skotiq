@@ -20,8 +20,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6),
           child: Text(kReadoutUnknown,
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textMuted)),
+              style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted)),
         ),
         _DateButton(
           colors: colors,

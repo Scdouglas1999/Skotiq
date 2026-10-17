@@ -560,8 +560,8 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
                 ),
                 if (summaryFragments.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(
-                        top: SkotiqTokens.spaceXs / 2),
+                    padding:
+                        const EdgeInsets.only(top: SkotiqTokens.spaceXs / 2),
                     child: NodeSummaryLine(
                       node: widget.node,
                       colors: widget.colors,

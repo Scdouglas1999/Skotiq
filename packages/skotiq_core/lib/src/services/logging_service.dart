@@ -365,11 +365,7 @@ class LoggingService {
       case LogLevel.critical:
         devLevel = 1200;
     }
-    developer.log(
-      entry.toString(),
-      name: source ?? 'Skotiq',
-      level: devLevel,
-    );
+    developer.log(entry.toString(), name: source ?? 'Skotiq', level: devLevel);
   }
 
   /// Append one entry to today's Dart log file, rotating on the day stamp.

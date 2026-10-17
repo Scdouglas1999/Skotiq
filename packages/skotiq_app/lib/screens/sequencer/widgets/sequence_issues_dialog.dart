@@ -49,8 +49,8 @@ class SequenceIssuesDialog extends ConsumerWidget {
         child: sorted.isEmpty
             ? Text(
                 'No issues. This sequence is ready to start.',
-                style: SkotiqTypography.body
-                    .copyWith(color: colors.textSecondary),
+                style:
+                    SkotiqTypography.body.copyWith(color: colors.textSecondary),
               )
             : SingleChildScrollView(
                 child: Column(
@@ -140,8 +140,7 @@ class _IssueRow extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         issue.resolutionHint!,
-                        style:
-                            SkotiqTypography.caption.copyWith(color: tone),
+                        style: SkotiqTypography.caption.copyWith(color: tone),
                       ),
                     ],
                   ],

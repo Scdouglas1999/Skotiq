@@ -49,9 +49,7 @@ void main() {
     // unpicked one has to reach the fill as well as the label.
     final disabledFill = (_boxOf(tester).decoration! as BoxDecoration).color!;
 
-    await tester.pumpWidget(
-      _wrap(SkotiqChip(label: 'AAVSO', onTap: () {})),
-    );
+    await tester.pumpWidget(_wrap(SkotiqChip(label: 'AAVSO', onTap: () {})));
     await tester.pumpAndSettle();
     final enabledLabel = _labelColor(tester);
     final enabledFill = (_boxOf(tester).decoration! as BoxDecoration).color!;
@@ -117,9 +115,7 @@ void main() {
       ),
     );
 
-    await tester.pumpWidget(
-      _wrap(SkotiqChip(label: 'AAVSO', onTap: () {})),
-    );
+    await tester.pumpWidget(_wrap(SkotiqChip(label: 'AAVSO', onTap: () {})));
     await tester.pumpAndSettle();
     expect(disabledLabel.a, lessThan(_labelColor(tester).a));
     handle.dispose();

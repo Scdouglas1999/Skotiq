@@ -212,10 +212,7 @@ class GuideGraphAdvanced extends StatelessWidget {
     );
   }
 
-  Widget _buildRmsStats({
-    required SkotiqColors colors,
-    bool compact = false,
-  }) {
+  Widget _buildRmsStats({required SkotiqColors colors, bool compact = false}) {
     final spacing = compact ? 8.0 : 16.0;
     // The caller already constrains this in a Flexible + ClipRect. When the
     // header row gets tight (narrow guiding panel, side-by-side with the scale

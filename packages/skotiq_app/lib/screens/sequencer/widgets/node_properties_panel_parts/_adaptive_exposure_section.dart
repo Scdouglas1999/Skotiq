@@ -230,8 +230,7 @@ class _AdaptiveExposureSectionState
           'No filter wheel on active profile — adaptive applies to every '
           'capture (mono camera assumption).',
           style: TextStyle(
-              fontSize: SkotiqTypography.fontSize11,
-              color: colors.textMuted),
+              fontSize: SkotiqTypography.fontSize11, color: colors.textMuted),
         ),
       );
     }
@@ -318,8 +317,7 @@ class _AdaptiveExposureSectionState
               Expanded(
                 child: Text(preview,
                     style: TextStyle(
-                        fontSize: SkotiqTypography.fontSize11,
-                        color: color)),
+                        fontSize: SkotiqTypography.fontSize11, color: color)),
               ),
             ],
           ),

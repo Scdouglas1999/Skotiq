@@ -14,8 +14,7 @@ class DashboardCardStyle {
 
   /// Uniform internal padding for every card body. Matches the design
   /// system's medium spacing token so cards read as one family.
-  static const EdgeInsets contentPadding =
-      EdgeInsets.all(SkotiqTokens.spaceMd);
+  static const EdgeInsets contentPadding = EdgeInsets.all(SkotiqTokens.spaceMd);
 
   /// Vertical gap between a card's header and its body.
   static const double headerGap = SkotiqTokens.spaceSm;

@@ -153,13 +153,11 @@ class _CompactEquipmentIcon extends StatelessWidget {
             decoration: isConnected
                 ? SkotiqDecorations.statusChip(
                     colors.success,
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusMd),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                   )
                 : BoxDecoration(
                     color: colors.surface,
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusMd),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                     border: Border.all(color: colors.border),
                   ),
             child: Icon(

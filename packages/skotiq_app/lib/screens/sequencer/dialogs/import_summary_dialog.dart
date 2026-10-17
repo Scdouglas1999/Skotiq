@@ -171,8 +171,8 @@ class _Header extends StatelessWidget {
               children: [
                 Text(
                   'Import Sequence — ${result.sourceFormat.displayName}',
-                  style: SkotiqTypography.h4
-                      .copyWith(color: colors.textPrimary),
+                  style:
+                      SkotiqTypography.h4.copyWith(color: colors.textPrimary),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -189,8 +189,7 @@ class _Header extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: SkotiqDecorations.statusChip(
                 colors.warning,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -321,8 +320,7 @@ class _MappingTable extends StatelessWidget {
     if (rows.isEmpty) {
       return Text('No mappings were recorded.',
           style: TextStyle(
-              fontSize: SkotiqTypography.fontSize12,
-              color: colors.textMuted));
+              fontSize: SkotiqTypography.fontSize12, color: colors.textMuted));
     }
     final headerStyle = TextStyle(
       fontSize: SkotiqTypography.fontSize11,

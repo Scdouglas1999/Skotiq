@@ -107,8 +107,7 @@ class _CaptureSettingsPanelState extends ConsumerState<CaptureSettingsPanel> {
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: SkotiqDecorations.emphasisSurface(
                     colors.warning,
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusXs),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,

@@ -84,8 +84,7 @@ class ScienceOverlayLegend {
           children: [
             Container(
               padding: const EdgeInsets.all(8),
-              decoration:
-                  SkotiqDecorations.chip(colors, tone: colors.primary),
+              decoration: SkotiqDecorations.chip(colors, tone: colors.primary),
               child: Icon(entry.icon, color: colors.primary, size: 18),
             ),
             const SizedBox(width: 12),

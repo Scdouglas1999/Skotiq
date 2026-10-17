@@ -93,8 +93,7 @@ class CockpitRecentFrames extends ConsumerWidget {
               Text(
                 total == 1 ? '1 frame' : '$total frames',
                 style: SkotiqTypography.withTabular(
-                  SkotiqTypography.caption
-                      .copyWith(color: colors.textMuted),
+                  SkotiqTypography.caption.copyWith(color: colors.textMuted),
                 ),
               ),
           ],
@@ -122,8 +121,7 @@ class _EmptyHint extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               'No frames captured this session yet',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ],
         ));

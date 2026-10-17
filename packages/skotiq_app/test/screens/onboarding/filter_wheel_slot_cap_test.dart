@@ -83,8 +83,7 @@ Future<void> _pump(
   await tester.pump();
 }
 
-SkotiqButton _addSlotButton(WidgetTester tester) =>
-    tester.widget<SkotiqButton>(
+SkotiqButton _addSlotButton(WidgetTester tester) => tester.widget<SkotiqButton>(
       find.widgetWithText(SkotiqButton, 'Add slot'),
     );
 

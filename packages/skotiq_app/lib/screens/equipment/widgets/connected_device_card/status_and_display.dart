@@ -118,8 +118,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
   /// layout. Placed as its own full-width row (not inside the header's narrow
   /// name column) so the headline and the Diagnose affordance have room to sit
   /// side by side without crowding the connection badge.
-  Widget _buildErrorSubtitle(
-      SkotiqColors colors, DeviceConnectionState state) {
+  Widget _buildErrorSubtitle(SkotiqColors colors, DeviceConnectionState state) {
     if (state != DeviceConnectionState.error) {
       return const SizedBox.shrink();
     }

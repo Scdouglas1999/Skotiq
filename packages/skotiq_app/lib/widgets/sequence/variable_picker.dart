@@ -173,8 +173,7 @@ class _VariablePickerDialogState extends State<_VariablePickerDialog> {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusSm),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
                   ),
                   child: Row(
                     children: [
@@ -306,8 +305,7 @@ class _VariableRow extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusXs),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                   ),
                   child: Text(
                     entry.example,

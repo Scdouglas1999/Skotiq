@@ -594,9 +594,7 @@ void main() {
     // The CARD, not only the header: the screen once repainted its step count
     // while every card kept the state before the toggle.
     expect(
-      tester
-          .widget<SkotiqSwitch>(find.byType(SkotiqSwitch).first)
-          .value,
+      tester.widget<SkotiqSwitch>(find.byType(SkotiqSwitch).first).value,
       isFalse,
     );
     expect(find.text('Off — the render skipped it'), findsOneWidget);
@@ -1279,8 +1277,8 @@ void main() {
     expect(node.label, contains('5000'));
     expect(node.value, contains('outside the accepted range'));
     // The thumb stays inside the track the widget accepts.
-    expect(tester.widget<SkotiqSlider>(find.byType(SkotiqSlider)).value,
-        1024.0);
+    expect(
+        tester.widget<SkotiqSlider>(find.byType(SkotiqSlider)).value, 1024.0);
     semantics.dispose();
     await drain(tester);
   });

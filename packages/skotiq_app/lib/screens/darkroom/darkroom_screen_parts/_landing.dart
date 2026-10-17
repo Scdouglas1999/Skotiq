@@ -196,8 +196,7 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
         vertical: SkotiqTokens.spaceLg,
       ),
       itemCount: children.length,
-      separatorBuilder: (_, __) =>
-          const SizedBox(height: SkotiqTokens.spaceSm),
+      separatorBuilder: (_, __) => const SizedBox(height: SkotiqTokens.spaceSm),
       itemBuilder: (_, index) => children[index],
     );
   }

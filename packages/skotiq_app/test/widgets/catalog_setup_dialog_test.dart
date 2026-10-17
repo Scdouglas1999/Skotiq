@@ -36,8 +36,7 @@ void main() {
       ],
     );
 
-    final downloadButton =
-        find.widgetWithText(SkotiqButton, 'Download Now');
+    final downloadButton = find.widgetWithText(SkotiqButton, 'Download Now');
     await tester.ensureVisible(downloadButton);
     await tester.tap(downloadButton);
     await tester.pump();

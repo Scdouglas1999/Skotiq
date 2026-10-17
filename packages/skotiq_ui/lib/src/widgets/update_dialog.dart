@@ -301,9 +301,7 @@ class UpdateDownloadDialog extends StatelessWidget {
         children: [
           Text(
             'Version $version',
-            style: SkotiqTypography.body.copyWith(
-              color: colors.textSecondary,
-            ),
+            style: SkotiqTypography.body.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: SkotiqTokens.spaceLg),
 
@@ -430,9 +428,7 @@ class UpdateReadyDialog extends StatelessWidget {
         children: [
           Text(
             'Version $version has been downloaded and is ready to install.',
-            style: SkotiqTypography.body.copyWith(
-              color: colors.textSecondary,
-            ),
+            style: SkotiqTypography.body.copyWith(color: colors.textSecondary),
           ),
           if (isSessionActive) ...[
             const SizedBox(height: SkotiqTokens.spaceLg),
@@ -474,9 +470,7 @@ class UpdateReadyDialog extends StatelessWidget {
                 ? 'Android will ask you to confirm, then replace Skotiq. '
                       'Your data stays where it is.'
                 : 'Skotiq will restart to complete the installation.',
-            style: SkotiqTypography.bodySm.copyWith(
-              color: colors.textMuted,
-            ),
+            style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
           ),
         ],
       ),

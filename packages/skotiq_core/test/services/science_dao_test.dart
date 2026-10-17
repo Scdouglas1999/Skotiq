@@ -3,8 +3,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/daos/science_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
-import 'package:skotiq_core/src/models/science/science_models.dart'
-    as science;
+import 'package:skotiq_core/src/models/science/science_models.dart' as science;
 
 void main() {
   late SkotiqDatabase database;

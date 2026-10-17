@@ -66,8 +66,7 @@ void main() {
     await pumpAppScreen(
       tester,
       Builder(
-        builder: (context) =>
-            SequenceToolbar(colors: SkotiqColors.of(context)),
+        builder: (context) => SequenceToolbar(colors: SkotiqColors.of(context)),
       ),
       size: const Size(1600, 400),
       extraOverrides: _overrides(),
@@ -104,8 +103,7 @@ void main() {
     await pumpAppScreen(
       tester,
       Builder(
-        builder: (context) =>
-            SequenceToolbar(colors: SkotiqColors.of(context)),
+        builder: (context) => SequenceToolbar(colors: SkotiqColors.of(context)),
       ),
       size: const Size(1600, 400),
       extraOverrides: _overrides(fileService: _FailingFileService()),
@@ -130,8 +128,7 @@ void main() {
     await pumpAppScreen(
       tester,
       Builder(
-        builder: (context) =>
-            SnippetPalette(colors: SkotiqColors.of(context)),
+        builder: (context) => SnippetPalette(colors: SkotiqColors.of(context)),
       ),
       size: const Size(400, 800),
       extraOverrides: _overrides(),

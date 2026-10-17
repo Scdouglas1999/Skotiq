@@ -6,8 +6,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show CatalogManager;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' show CatalogManager;
 import 'package:path/path.dart' as p;
 
 import '../../models/science/science_models.dart';

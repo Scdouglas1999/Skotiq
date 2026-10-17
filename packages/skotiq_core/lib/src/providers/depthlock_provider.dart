@@ -23,9 +23,7 @@ final depthLockBackendProvider = Provider<DepthLockBackend>((ref) {
 /// cross-cutting concern ([DiagnosticsBackend]) rather than part of the
 /// DepthLock role, and because a test that only exercises the actions should
 /// not have to invent an event stream.
-final depthLockEventStreamProvider = Provider<Stream<core.SkotiqEvent>>((
-  ref,
-) {
+final depthLockEventStreamProvider = Provider<Stream<core.SkotiqEvent>>((ref) {
   return ref.watch(backendProvider).eventStream;
 });
 

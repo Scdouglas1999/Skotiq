@@ -42,11 +42,7 @@ class ScreenHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (icon != null) ...[
-            Icon(
-              icon,
-              size: SkotiqTokens.iconMd,
-              color: colors.textSecondary,
-            ),
+            Icon(icon, size: SkotiqTokens.iconMd, color: colors.textSecondary),
             const SizedBox(width: SkotiqTokens.spaceMd),
           ],
           Expanded(

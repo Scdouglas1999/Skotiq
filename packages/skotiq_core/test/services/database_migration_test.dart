@@ -211,9 +211,7 @@ CREATE TABLE captured_images (
   );
 
   test('schema 35 database upgrades to add switch_id column ', () async {
-    final tempDir = await Directory.systemTemp.createTemp(
-      'skotiq_v35_to_v36_',
-    );
+    final tempDir = await Directory.systemTemp.createTemp('skotiq_v35_to_v36_');
     final dbFile = File('${tempDir.path}/skotiq.db');
 
     // Set up a database at schema version 35 (the version that introduced
@@ -800,9 +798,7 @@ CREATE TABLE captured_images (
   });
 
   test('pre-v38 database upgrades to add stacked_results table', () async {
-    final tempDir = await Directory.systemTemp.createTemp(
-      'skotiq_v37_to_v38_',
-    );
+    final tempDir = await Directory.systemTemp.createTemp('skotiq_v37_to_v38_');
     final dbFile = File('${tempDir.path}/skotiq.db');
 
     // Set up a database that looks like a real v37 install: the

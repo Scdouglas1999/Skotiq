@@ -113,13 +113,11 @@ void main() {
     if (await tempDir.exists()) await tempDir.delete(recursive: true);
   });
 
-  SkotiqDatabase open() =>
-      SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+  SkotiqDatabase open() => SkotiqDatabase.forTesting(NativeDatabase(dbFile));
 
   /// Queue a real `darkroom_jobs` row. A journal row references one by
   /// foreign key, so delivery cannot be tested against an invented job id.
-  Future<int> enqueueJob(SkotiqDatabase db) =>
-      DarkroomJobsDao(db).enqueue();
+  Future<int> enqueueJob(SkotiqDatabase db) => DarkroomJobsDao(db).enqueue();
 
   Future<DeliveryArtifactSet> artifactSet({
     int jobId = 1,
