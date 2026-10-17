@@ -9,12 +9,18 @@ class _MobileSettingsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
+    final l10n = context.l10n;
     // A narrow DESKTOP window still has no OS decorations (the runners set
     // TitleBarStyle.hidden), so this bar owns minimize/maximize/close and the
-    // drag-to-move region below the side-nav breakpoint exactly as the full
-    // TitleBar does above it. Without them, resizing under 768px left the
-    // window with no mouse-reachable way to be closed, minimized or moved.
+    // drag-to-move region below the side-nav breakpoint exactly as the top
+    // band does above it. Without them, resizing under 768px left the window
+    // with no mouse-reachable way to be closed, minimized or moved.
+    //
+    // macOS is the exception: the native traffic lights stay, so no custom
+    // controls are drawn — and the bar clears the room they inset into.
     final isDesktopWindow = ShellChrome.isDesktopWindow;
+    final isMac = !kIsWebLike && Platform.isMacOS;
+    final showWindowControls = isDesktopWindow && !isMac;
 
     final bar = Container(
       height: ShellChromeMetrics.titleBarHeight,
@@ -22,8 +28,12 @@ class _MobileSettingsBar extends StatelessWidget {
       // Caption buttons are flush to the window edge (platform convention and
       // Fitts' law), so the trailing inset is dropped when they are present.
       padding: EdgeInsets.only(
-        left: SkotiqTokens.spaceLg,
-        right: isDesktopWindow ? 0 : SkotiqTokens.spaceLg,
+        // On macOS the traffic lights sit at the top-left ~78 px of every
+        // window — the lockup must start past them, not underneath.
+        left: isMac ? 80 : SkotiqTokens.spaceLg,
+        right: showWindowControls
+            ? ShellChromeMetrics.topBandRightInset
+            : SkotiqTokens.spaceLg,
       ),
       child: Row(
         children: [
@@ -33,20 +43,14 @@ class _MobileSettingsBar extends StatelessWidget {
             child: SkotiqLockup(markSize: 18),
           ),
           const Spacer(),
-          InkWell(
+          SkotiqIconButton(
             key: TutorialKeys.navSettings,
-            onTap: onOpenSettings,
-            borderRadius: SkotiqTokens.borderRadiusInline4,
-            child: Padding(
-              padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
-              child: Icon(
-                SkotiqIcons.settings,
-                size: SkotiqTokens.iconSm,
-                color: colors.textSecondary,
-              ),
-            ),
+            icon: SkotiqIcons.settings,
+            tooltip: l10n.text('settingsTitle'),
+            tooltipPosition: SkotiqTooltipPosition.bottom,
+            onPressed: onOpenSettings,
           ),
-          if (isDesktopWindow) ...[
+          if (showWindowControls) ...[
             const SizedBox(width: SkotiqTokens.spaceSm),
             WindowControls(colors: colors),
           ],

@@ -2,8 +2,8 @@
 // anything they render, and the bar is on screen on every route.
 //
 // `localSiderealTimeProvider` is a `double` recomputed off a 1 Hz wall clock;
-// the chip renders it as `HH:mm`. Watching the provider whole rebuilt the chip
-// sixty times for every change an operator can see. The run pill had the same
+// the readout renders it as `HH:mm`. Watching the provider whole rebuilt the readout
+// sixty times for every change an operator can see. The run row had the same
 // shape: while a sequence is running the executor republishes progress every
 // second (`_startPerRunTimers`), and most of what moves in it — elapsed
 // seconds, the smoothed ETA — is not on the pill.
@@ -23,7 +23,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/shell/widgets/status_bar.dart';
+import 'package:skotiq_app/screens/shell/widgets/rig_card.dart';
+import 'package:skotiq_app/screens/shell/widgets/shell_clock.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
@@ -36,7 +37,7 @@ final _lstSource = StateProvider<double?>((ref) => 12.5);
 class _SitedSettingsNotifier extends AppSettingsNotifier {
   @override
   Future<AppSettingsState> build() async =>
-      // A real site, so the chip is willing to show an LST at all: with the
+      // A real site, so the readout is willing to show an LST at all: with the
       // 0/0 sentinel the bar correctly refuses to present the planetarium
       // default observer's sidereal time as the operator's.
       const AppSettingsState(latitude: 40.7, longitude: -74.0);
@@ -69,7 +70,7 @@ void main() {
     (tester) async {
       final handle = await pumpAppScreen(
         tester,
-        const Column(mainAxisSize: MainAxisSize.min, children: [StatusBar()]),
+        const Column(mainAxisSize: MainAxisSize.min, children: [ShellClock()]),
         size: const Size(2600, 900),
         extraOverrides: [
           appSettingsProvider.overrideWith(_SitedSettingsNotifier.new),
@@ -85,11 +86,11 @@ void main() {
       final lst = handle.container.read(_lstSource.notifier);
       expect(
         find.descendant(
-          of: find.byType(StatusBar),
+          of: find.byType(ShellClock),
           matching: find.text('12:30'),
         ),
         findsOneWidget,
-        reason: 'the chip should be showing the seeded sidereal time',
+        reason: 'the readout should be showing the seeded sidereal time',
       );
 
       // 12.505 h is 12:30.3 — sidereal time has moved, the rendered string has
@@ -99,7 +100,7 @@ void main() {
         await tester.pump();
       });
 
-      // 12.52 h is 12:31.2 — the minute rolls, so the chip MUST rebuild.
+      // 12.52 h is 12:31.2 — the minute rolls, so the readout MUST rebuild.
       // Deliberately not 12.5 + 1/60: that lands on 30.999... and would make
       // the test's own arithmetic, not the widget, decide the outcome.
       final minuteRoll = await _rebuildsDuring(tester, () async {
@@ -112,24 +113,25 @@ void main() {
       // instrument has to be shown working before an absence means anything.
       expect(
         minuteRoll,
-        contains('_TimeDisplay'),
-        reason: 'the chip did not rebuild when the displayed minute changed, '
-            'so either the tracer is dead or the chip is now stale',
+        contains('ShellClock'),
+        reason:
+            'the readout did not rebuild when the displayed minute changed, '
+            'so either the tracer is dead or the readout is now stale',
       );
       expect(
         find.descendant(
-          of: find.byType(StatusBar),
+          of: find.byType(ShellClock),
           matching: find.text('12:31'),
         ),
         findsOneWidget,
-        reason: 'the minute rolled but the chip still shows the old value',
+        reason: 'the minute rolled but the readout still shows the old value',
       );
 
       expect(
         withinMinute,
-        isNot(contains('_TimeDisplay')),
+        isNot(contains('ShellClock')),
         reason: 'sidereal time advanced within the same displayed minute and '
-            'the chip rebuilt anyway — on the Linux embedder that is a '
+            'the readout rebuilt anyway — on the Linux embedder that is a '
             'full-window repaint for a string that did not change',
       );
 
@@ -143,11 +145,13 @@ void main() {
   );
 
   testWidgets(
-    'the run pill rebuilds when its displayed percent changes, and not before',
+    'the run row rebuilds when its displayed percent changes, and not before',
     (tester) async {
       final handle = await pumpAppScreen(
         tester,
-        const Column(mainAxisSize: MainAxisSize.min, children: [StatusBar()]),
+        const Column(mainAxisSize: MainAxisSize.min, children: [
+          RigCard(isExpanded: true),
+        ]),
         size: const Size(2600, 900),
         settle: false,
       );
@@ -173,13 +177,13 @@ void main() {
 
       expect(
         frameLanded,
-        contains('_SequenceIndicator'),
-        reason: 'the run pill did not rebuild when its percentage changed, so '
+        contains('_RunStateRow'),
+        reason: 'the run row did not rebuild when its percentage changed, so '
             'either the tracer is dead or the pill is now stale',
       );
       expect(
         tickOnly,
-        isNot(contains('_SequenceIndicator')),
+        isNot(contains('_RunStateRow')),
         reason: 'the executor\'s one-second elapsed/ETA tick rebuilt the run '
             'pill, which shows neither — a full-window repaint per second for '
             'the length of a run',

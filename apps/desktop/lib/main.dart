@@ -421,11 +421,12 @@ void main(List<String> args) async {
   // is simply not resizable by mouse — found by the first human to grab a
   // corner after a campaign of harness runs that resized via xdotool, which
   // bypasses the window manager and masked the gap.
+  //
+  // [WindowResizeEdges] paints no Directionality-requiring widget: the grips
+  // are Positioned by absolute left/right/top/bottom, so the app root needs
+  // no direction context of its own.
   Widget appRoot = Platform.isLinux
-      ? const Directionality(
-          textDirection: TextDirection.ltr,
-          child: DragToResizeArea(child: SkotiqApp(isDesktop: true)),
-        )
+      ? const WindowResizeEdges(child: SkotiqApp(isDesktop: true))
       : const SkotiqApp(isDesktop: true);
 
   // Windows accessibility bridge spam: Flutter logs

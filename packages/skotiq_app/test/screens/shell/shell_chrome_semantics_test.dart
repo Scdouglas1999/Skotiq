@@ -12,7 +12,7 @@
 // `BlockSemantics`; and Flutter propagates that "drop everything painted
 // before me" flag up through every ancestor that is not a semantics boundary.
 // It escaped the navigator and erased the rail out of the shell Row and the
-// title bar out of the shell Column. `_ContentSemanticsBoundary` in
+// top band out of the shell Column. `_ContentSemanticsBoundary` in
 // app_shell.dart is the boundary that stops it, and the last test here pumps
 // the REAL shell around a real routed page route so a regression fails here
 // rather than on a rig.
@@ -29,7 +29,7 @@ import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/shell/app_shell.dart';
 import 'package:skotiq_app/screens/shell/shell_navigation.dart';
 import 'package:skotiq_app/screens/shell/widgets/side_navigation.dart';
-import 'package:skotiq_app/screens/shell/widgets/title_bar.dart';
+import 'package:skotiq_app/screens/shell/widgets/window_chrome.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -176,14 +176,14 @@ void main() {
     semantics.dispose();
   });
 
-  testWidgets('the desktop chrome column publishes title bar and rail alike',
+  testWidgets('the desktop chrome column publishes top band and rail alike',
       (tester) async {
     final semantics = tester.ensureSemantics();
     await pumpAppScreen(
       tester,
       Column(
         children: [
-          const TitleBar(),
+          const ShellTopBand(),
           Expanded(
             child: Row(
               children: [
@@ -206,7 +206,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     final labels = _semanticsLabels(tester);
-    // The title-bar icons the live tree could not find. The equipment-profile
+    // The top-band icons the live tree could not find. The equipment-profile
     // shortcut is no longer among them: profiles live on Equipment and in the
     // instrument bar, and a third way in was a third thing to keep in sync.
     expect(labels, _publishes('Settings'));
@@ -228,7 +228,7 @@ void main() {
       tester,
       Column(
         children: [
-          const TitleBar(),
+          const ShellTopBand(),
           Expanded(
             child: SideNavigation(
               currentIndex: 0,

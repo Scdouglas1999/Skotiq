@@ -1,4 +1,4 @@
-// The Language row promises "app chrome". The persistent status bar IS app
+// The Language row promises "app chrome". The persistent Rig card IS app
 // chrome — it is the one strip on every screen — and it was hard-coded English.
 //
 // Live (Settings > General > Language > Spanish, app_settings.language='es'):
@@ -8,22 +8,22 @@
 // "Idle", "No save path", "Dashboard" on every one of those screens. The
 // setting's own scoped claim was therefore still false.
 //
-// The instrument bar renders each pill's VALUE and nothing else — the glyph
+// The rig card renders each pill's VALUE and nothing else — the glyph
 // carries the noun — so the strings under test are the ones that name the
 // empty slot ("No camera" / "Sin cámara") rather than a static label word
 // beside a state word.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/shell/widgets/status_bar.dart';
+import 'package:skotiq_app/screens/shell/widgets/rig_card.dart';
 
 import '../../harness/pump_app_screen.dart';
 
-Future<void> _pumpBar(WidgetTester tester, {Locale? locale}) async {
+Future<void> _pumpCard(WidgetTester tester, {Locale? locale}) async {
   await pumpAppScreen(
     tester,
     const Column(
       mainAxisAlignment: MainAxisAlignment.end,
-      children: [StatusBar()],
+      children: [RigCard(isExpanded: true)],
     ),
     size: const Size(2600, 900),
     // The bar ticks a 1-second clock; pumpAndSettle would never return.
@@ -36,13 +36,13 @@ Future<void> _pumpBar(WidgetTester tester, {Locale? locale}) async {
 
 /// Tears the tree down so the bar's periodic clock timer is cancelled before
 /// the binding's pending-timer check runs.
-Future<void> _disposeBar(WidgetTester tester) async {
+Future<void> _disposeCard(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump();
 }
 
-Finder _inBar(String text) => find.descendant(
-      of: find.byType(StatusBar),
+Finder _inCard(String text) => find.descendant(
+      of: find.byType(RigCard),
       matching: find.text(text),
     );
 
@@ -52,7 +52,7 @@ void main() {
     // missing, so a forgotten entry does not throw — it quietly paints
     // "statusNoCamera" into the chrome on every screen. That is exactly what
     // the four empty-slot strings did when they were first written.
-    await _pumpBar(tester);
+    await _pumpCard(tester);
 
     for (final key in const [
       'statusNoCamera',
@@ -63,48 +63,48 @@ void main() {
       'statusConnected',
     ]) {
       expect(
-        _inBar(key),
+        _inCard(key),
         findsNothing,
         reason: '"$key" reached the screen, so its string is missing',
       );
     }
 
-    await _disposeBar(tester);
+    await _disposeCard(tester);
   });
 
-  testWidgets('the status bar follows the chosen language', (tester) async {
-    await _pumpBar(tester, locale: const Locale('es'));
+  testWidgets('the Rig card follows the chosen language', (tester) async {
+    await _pumpCard(tester, locale: const Locale('es'));
 
     // The four device pills, with nothing attached.
-    expect(_inBar('Sin cámara'), findsOneWidget);
-    expect(_inBar('Sin montura'), findsOneWidget);
-    expect(_inBar('Sin guiado'), findsOneWidget);
-    expect(_inBar('Sin enfocador'), findsOneWidget);
+    expect(_inCard('Sin cámara'), findsOneWidget);
+    expect(_inCard('Sin montura'), findsOneWidget);
+    expect(_inCard('Sin guiado'), findsOneWidget);
+    expect(_inCard('Sin enfocador'), findsOneWidget);
     // The run-state pill and the save-folder pill.
-    expect(_inBar('Inactivo'), findsOneWidget);
-    expect(_inBar('Sin ruta de guardado'), findsOneWidget);
+    expect(_inCard('Inactivo'), findsOneWidget);
+    expect(_inCard('Sin ruta de guardado'), findsOneWidget);
 
-    expect(_inBar('No camera'), findsNothing);
-    expect(_inBar('No mount'), findsNothing);
-    expect(_inBar('No save path'), findsNothing);
-    expect(_inBar('Idle'), findsNothing);
+    expect(_inCard('No camera'), findsNothing);
+    expect(_inCard('No mount'), findsNothing);
+    expect(_inCard('No save path'), findsNothing);
+    expect(_inCard('Idle'), findsNothing);
 
-    await _disposeBar(tester);
+    await _disposeCard(tester);
   });
 
   testWidgets('an English build is untouched', (tester) async {
-    await _pumpBar(tester);
+    await _pumpCard(tester);
 
-    expect(_inBar('No camera'), findsOneWidget);
-    expect(_inBar('No mount'), findsOneWidget);
-    expect(_inBar('No guider'), findsOneWidget);
-    expect(_inBar('No focuser'), findsOneWidget);
-    expect(_inBar('No save path'), findsOneWidget);
+    expect(_inCard('No camera'), findsOneWidget);
+    expect(_inCard('No mount'), findsOneWidget);
+    expect(_inCard('No guider'), findsOneWidget);
+    expect(_inCard('No focuser'), findsOneWidget);
+    expect(_inCard('No save path'), findsOneWidget);
     // Exactly ONE run-state word anywhere on screen (04 §8): the pill. The
     // sequencer LED beside it no longer renders a label of its own, and the
     // Tonight eyebrow is a different screen's business.
-    expect(_inBar('Idle'), findsOneWidget);
+    expect(_inCard('Idle'), findsOneWidget);
 
-    await _disposeBar(tester);
+    await _disposeCard(tester);
   });
 }

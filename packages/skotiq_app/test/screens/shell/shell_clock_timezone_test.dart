@@ -1,7 +1,7 @@
 // The clock the operator always has on screen must follow Settings → Location →
 // Timezone.
 //
-// Formatting `DateTime.now()` (status bar) or `observationTimeProvider.time`
+// Formatting `DateTime.now()` (top band) or `observationTimeProvider.time`
 // (header) directly instead of asking `clockProvider` leaves both chips on the
 // host's wall time with "Use system time" OFF and a site offset chosen — the
 // setting persists, the row's subtitle updates, and nothing else in the app
@@ -13,7 +13,7 @@
 // matter which machine runs the suite.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/shell/widgets/status_bar.dart';
+import 'package:skotiq_app/screens/shell/widgets/shell_clock.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../harness/pump_app_screen.dart';
@@ -69,7 +69,7 @@ String _clockTextIn(WidgetTester tester, Finder ancestor) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('the status-bar clock follows the chosen site timezone',
+  testWidgets('the top-band clock follows the chosen site timezone',
       (tester) async {
     final timezone = _fiveHoursAheadOfHost();
     final hostBefore = DateTime.now();
@@ -78,7 +78,7 @@ void main() {
       tester,
       const Column(
         mainAxisAlignment: MainAxisAlignment.end,
-        children: [StatusBar()],
+        children: [ShellClock()],
       ),
       size: const Size(2600, 900),
       extraOverrides: [
@@ -93,21 +93,21 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     await tester.pump(const Duration(milliseconds: 50));
 
-    final shown = _parseClock(_clockTextIn(tester, find.byType(StatusBar)));
+    final shown = _parseClock(_clockTextIn(tester, find.byType(ShellClock)));
     final hostSeconds =
         hostBefore.hour * 3600 + hostBefore.minute * 60 + hostBefore.second;
 
     expect(
       _diffSeconds(shown, hostSeconds),
       inInclusiveRange(5 * 3600 - 5, 5 * 3600 + 5),
-      reason: 'the bar must read the site clock ($timezone), not the host',
+      reason: 'the clock must read the site clock ($timezone), not the host',
     );
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
 
-  testWidgets('"Use system time" leaves the status-bar clock host-local',
+  testWidgets('"Use system time" leaves the top-band clock host-local',
       (tester) async {
     final hostBefore = DateTime.now();
 
@@ -115,7 +115,7 @@ void main() {
       tester,
       const Column(
         mainAxisAlignment: MainAxisAlignment.end,
-        children: [StatusBar()],
+        children: [ShellClock()],
       ),
       size: const Size(2600, 900),
       extraOverrides: [
@@ -132,7 +132,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 50));
 
-    final shown = _parseClock(_clockTextIn(tester, find.byType(StatusBar)));
+    final shown = _parseClock(_clockTextIn(tester, find.byType(ShellClock)));
     final hostSeconds =
         hostBefore.hour * 3600 + hostBefore.minute * 60 + hostBefore.second;
 

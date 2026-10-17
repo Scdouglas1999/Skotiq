@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/shell/widgets/status_bar.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_app/screens/shell/widgets/window_chrome.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../harness/pump_app_screen.dart';
+
+/// The real alert stream opens a 15-minute polling timer that outlives the
+/// widget tree; the band only cares that it resolves.
+final _quietAlerts = <Override>[
+  activeTransientAlertsProvider.overrideWith(
+    (ref) => Stream.value(const <TransientAlert>[]),
+  ),
+];
 
 /// What this pins, and why it is worth a test at all.
 ///
@@ -15,19 +25,20 @@ import '../../harness/pump_app_screen.dart';
 /// [frame-timing] window=5.0s frames=4 fps=0.8 buildAvgMs=0.1 rasterAvgMs=231.9
 /// ```
 ///
-/// The tick lived on `_StatusBarState`, so each of those frames rebuilt the
+/// The tick lived on `_ShellClockState`, so each of those frames rebuilt the
 /// whole bar — every device pill, both action buttons, the enclosing
 /// `LayoutBuilder` — to move one digit, and repainted the parent layer with it.
 /// Moving the tick into the clock chip and giving that chip a `RepaintBoundary`
 /// is invisible on screen, which is exactly why it needs pinning: nothing about
-/// the rendered bar would tell you it had regressed.
+/// the rendered band would tell you it had regressed.
 void main() {
   testWidgets('a second passing does not rebuild the whole status bar', (
     tester,
   ) async {
     final handle = await pumpAppScreen(
       tester,
-      const Column(mainAxisSize: MainAxisSize.min, children: [StatusBar()]),
+      const Column(mainAxisSize: MainAxisSize.min, children: [ShellTopBand()]),
+      extraOverrides: _quietAlerts,
     );
 
     await tester.pump(const Duration(milliseconds: 50));
@@ -57,17 +68,16 @@ void main() {
     // did, which is the failure mode this whole campaign keeps finding.
     expect(
       log,
-      contains('_TimeDisplay'),
+      contains('ShellClock'),
       reason: 'the rebuild tracer captured nothing, so the check below proves '
           'nothing',
     );
 
     expect(
       log,
-      isNot(contains('StatusBar')),
-      reason:
-          'the per-second clock tick rebuilt StatusBar itself, so every pill '
-          'and button in the bar rebuilt to move one digit',
+      isNot(contains('ShellTopBand')),
+      reason: 'the per-second clock tick rebuilt ShellTopBand itself, so the '
+          'whole band rebuilt to move one digit',
     );
     expect(
       log,
@@ -77,6 +87,11 @@ void main() {
 
     // Keeps the analyzer honest that the harness was actually wired up.
     expect(handle.container, isNotNull);
+
+    // Unmount so the clock's per-second ticker cancels before the binding's
+    // end-of-test pending-timer check.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 
   testWidgets('the clock chip repaints without dirtying its parent layer', (
@@ -84,7 +99,8 @@ void main() {
   ) async {
     final handle = await pumpAppScreen(
       tester,
-      const Column(mainAxisSize: MainAxisSize.min, children: [StatusBar()]),
+      const Column(mainAxisSize: MainAxisSize.min, children: [ShellTopBand()]),
+      extraOverrides: _quietAlerts,
     );
     await tester.pump(const Duration(milliseconds: 50));
 
@@ -110,5 +126,8 @@ void main() {
 
     // Keeps the analyzer honest that the harness was actually wired up.
     expect(handle.container, isNotNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 }

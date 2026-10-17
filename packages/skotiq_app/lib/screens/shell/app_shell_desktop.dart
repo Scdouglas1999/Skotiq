@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'shell_exit_recorder.dart';
+import 'widgets/window_chrome_desktop.dart' as chrome_impl;
 
 /// Callback type for when window close is requested
 typedef OnCloseRequested = Future<bool> Function();
@@ -42,6 +43,11 @@ void initWindowManager(State state, {OnCloseRequested? onCloseRequested}) {
       // Create and add the listener
       _closeListener = _WindowCloseListener(onCloseRequested: onCloseRequested);
       windowManager.addListener(_closeListener!);
+
+      // The chrome state the shell draws from: maximize/restore on the
+      // caption button, and the gates for the Linux edge hairline and resize
+      // grips.
+      chrome_impl.ensureWindowChromeState();
     } catch (e) {
       developer.log('[AppShell] Error initializing window manager: $e',
           name: 'AppShell', level: 1000, error: e);

@@ -10,6 +10,9 @@
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
+  // Owned for the window's lifetime: an unreferenced channel is finalized
+  // and its handler never called.
+  FlMethodChannel* window_chrome_channel;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -20,38 +23,47 @@ static void first_frame_cb(MyApplication* self, FlView *view)
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 
+// Answers the window-chrome questions Dart cannot answer itself — the one
+// here being what a title-bar double click should do, which on Linux is the
+// desktop's own `gtk-titlebar-double-click` setting.
+static void window_chrome_method_call_cb(FlMethodChannel* channel,
+                                         FlMethodCall* method_call,
+                                         gpointer user_data) {
+  const gchar* method = fl_method_call_get_name(method_call);
+  if (g_strcmp0(method, "getTitlebarDoubleClickAction") == 0) {
+    g_autofree gchar* action = nullptr;
+    GtkSettings* settings = gtk_settings_get_default();
+    if (settings != nullptr) {
+      g_object_get(settings, "gtk-titlebar-double-click", &action, nullptr);
+    }
+    g_autoptr(FlValue) result = fl_value_new_string(
+        action != nullptr ? action : "toggle-maximize");
+    fl_method_call_respond_success(method_call, result, nullptr);
+    return;
+  }
+  fl_method_call_respond_not_implemented(method_call, nullptr);
+}
+
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
+
+  // Wayland app id + X11 WM_CLASS: the compositor maps this toplevel to
+  // com.skotiq.desktop.desktop so the taskbar and dock show the right icon
+  // and name. Must be set before the first window is realized — it is the
+  // default the window below is created with.
+  gdk_set_program_class(APPLICATION_ID);
+
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
 
-  // Use a header bar when running in GNOME as this is the common style used
-  // by applications and is the setup most users will be using (e.g. Ubuntu
-  // desktop).
-  // If running on X and not using GNOME then just use a traditional title bar
-  // in case the window manager does more exotic layout, e.g. tiling.
-  // If running on Wayland assume the header bar will work (may need changing
-  // if future cases occur).
-  gboolean use_header_bar = TRUE;
-#ifdef GDK_WINDOWING_X11
-  GdkScreen* screen = gtk_window_get_screen(window);
-  if (GDK_IS_X11_SCREEN(screen)) {
-    const gchar* wm_name = gdk_x11_screen_get_window_manager_name(screen);
-    if (g_strcmp0(wm_name, "GNOME Shell") != 0) {
-      use_header_bar = FALSE;
-    }
-  }
-#endif
-  if (use_header_bar) {
-    GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
-    gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "Skotiq");
-    gtk_header_bar_set_show_close_button(header_bar, TRUE);
-    gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
-  } else {
-    gtk_window_set_title(window, "Skotiq");
-  }
+  // A plain opaque toplevel. The shell draws its own chrome (g1-glass), so no
+  // GTK header bar is installed on ANY environment, and an undecorated window
+  // gets no decorations or CSD shadow margins from the toolkit — square
+  // corners come free. Opaque, not transparent: a transparent toplevel pays
+  // for every frame in pacing.
+  gtk_window_set_decorated(window, FALSE);
+  gtk_window_set_title(window, "Skotiq");
 
   // Must match WindowOptions.size in lib/main.dart. When they disagree, Dart's
   // windowManager resize lands while the engine is still producing its first
@@ -61,19 +73,29 @@ static void my_application_activate(GApplication* application) {
   // dies during startup with no user-visible error.
   gtk_window_set_default_size(window, 1600, 900);
 
-  // Set the window icon from the bundled icon file.
-  // Resolve the executable's directory via /proc/self/exe so the icon is
-  // found regardless of the working directory at launch time.
-  g_autoptr(GError) icon_error = nullptr;
+  // The window icon LIST, not one bitmap: the compositor picks the size it
+  // wants (32 through 512) instead of scaling a single file. Resolved via
+  // /proc/self/exe so the icons are found regardless of the working
+  // directory at launch time.
   g_autofree gchar* exe_path = g_file_read_link("/proc/self/exe", nullptr);
   if (exe_path != nullptr) {
     g_autofree gchar* exe_dir = g_path_get_dirname(exe_path);
-    g_autofree gchar* icon_path = g_build_filename(
-        exe_dir, "icons", "skotiq_256.png", nullptr);
-    GdkPixbuf* icon_pixbuf = gdk_pixbuf_new_from_file(icon_path, &icon_error);
-    if (icon_pixbuf != nullptr) {
-      gtk_window_set_icon(window, icon_pixbuf);
-      g_object_unref(icon_pixbuf);
+    GList* icons = nullptr;
+    static const char* const kIconFiles[] = {
+        "skotiq_32.png",  "skotiq_48.png",  "skotiq_64.png",
+        "skotiq_128.png", "skotiq_256.png", "skotiq_512.png",
+    };
+    for (gsize i = 0; i < G_N_ELEMENTS(kIconFiles); i++) {
+      g_autofree gchar* icon_path =
+          g_build_filename(exe_dir, "icons", kIconFiles[i], nullptr);
+      GdkPixbuf* pixbuf = gdk_pixbuf_new_from_file(icon_path, nullptr);
+      if (pixbuf != nullptr) {
+        icons = g_list_append(icons, pixbuf);
+      }
+    }
+    if (icons != nullptr) {
+      gtk_window_set_icon_list(window, icons);
+      g_list_free_full(icons, g_object_unref);
     }
   }
 
@@ -82,8 +104,10 @@ static void my_application_activate(GApplication* application) {
 
   FlView* view = fl_view_new(project);
   GdkRGBA background_color;
-  // Background defaults to black, override it here if necessary, e.g. #00000000 for transparent.
-  gdk_rgba_parse(&background_color, "#000000");
+  // Opaque, and the same ground the shell paints (SkotiqColors.dark
+  // .background / WindowOptions.backgroundColor) so the first frame is
+  // indistinguishable from the settled one.
+  gdk_rgba_parse(&background_color, "#0B0D12");
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
@@ -94,6 +118,14 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  self->window_chrome_channel = fl_method_channel_new(
+      fl_engine_get_binary_messenger(fl_view_get_engine(view)),
+      "com.skotiq.desktop/window_chrome", FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(
+      self->window_chrome_channel, window_chrome_method_call_cb, self,
+      nullptr);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
@@ -139,6 +171,7 @@ static void my_application_shutdown(GApplication* application) {
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
+  g_clear_object(&self->window_chrome_channel);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
 
@@ -150,7 +183,9 @@ static void my_application_class_init(MyApplicationClass* klass) {
   G_OBJECT_CLASS(klass)->dispose = my_application_dispose;
 }
 
-static void my_application_init(MyApplication* self) {}
+static void my_application_init(MyApplication* self) {
+  self->window_chrome_channel = nullptr;
+}
 
 MyApplication* my_application_new() {
   // Set the program name to the application ID, which helps various systems
