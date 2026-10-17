@@ -413,7 +413,8 @@ class _AddToListDialogState extends ConsumerState<_AddToListDialog> {
           },
           loading: () => const SizedBox(
             height: 80,
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            child: Center(
+                child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
           ),
           error: (e, _) => Text('Error loading lists: $e'),
         ),

@@ -591,7 +591,8 @@ class _DarkroomViewportState extends ConsumerState<_DarkroomViewport> {
     final preview = state.preview;
     if (preview == null) {
       if (state.rendering) {
-        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        return const Center(
+            child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36));
       }
       final renderError = state.renderError;
       if (renderError != null) {

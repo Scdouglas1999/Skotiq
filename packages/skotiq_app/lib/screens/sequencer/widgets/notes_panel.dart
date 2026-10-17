@@ -122,10 +122,7 @@ class TargetNotesSection extends ConsumerWidget {
         child: SizedBox(
           height: 14,
           width: 14,
-          child: CircularProgressIndicator(
-            strokeWidth: 1.5,
-            color: colors.primary,
-          ),
+          child: SkotiqSpinner(size: 14, color: colors.primary),
         ),
       ),
       error: (e, _) => Padding(

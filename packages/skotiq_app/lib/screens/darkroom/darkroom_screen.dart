@@ -359,7 +359,8 @@ class _DarkroomScreenState extends ConsumerState<DarkroomScreen> {
     DarkroomState state,
   ) {
     if (state.loading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const Center(
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36));
     }
     final loadError = state.loadError;
     if (loadError != null) {

@@ -263,10 +263,8 @@ class _OperationStatusBarState extends ConsumerState<OperationStatusBar>
                           ? SizedBox(
                               width: 12,
                               height: 12,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 1.5,
-                                color: colors.error,
-                              ),
+                              child:
+                                  SkotiqSpinner(size: 12, color: colors.error),
                             )
                           : Icon(
                               LucideIcons.x,
@@ -312,11 +310,13 @@ class OperationIndicator extends ConsumerWidget {
           SizedBox(
             width: 12,
             height: 12,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
-              value: operation.progress,
-            ),
+            child: operation.progress != null
+                ? CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
+                    value: operation.progress,
+                  )
+                : SkotiqSpinner(size: 12, color: colors.primary),
           ),
           const SizedBox(width: 6),
           Text(

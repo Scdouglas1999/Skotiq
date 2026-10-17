@@ -40,13 +40,11 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
+          const SizedBox(
             width: _busyGlyphSize,
             height: _busyGlyphSize,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: colors.primary,
-            ),
+            child: const SkotiqMark(
+                motion: SkotiqMarkMotion.loading, size: _busyGlyphSize),
           ),
           const SizedBox(height: EmptyState.iconTitleGap),
           Text(

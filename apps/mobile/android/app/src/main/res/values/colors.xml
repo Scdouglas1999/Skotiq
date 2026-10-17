@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Flutter light theme background (SkotiqColors.background). The launch
+         window paints this before the first Flutter frame, so matching it
+         exactly is what removes the white flash at startup. -->
+    <color name="skotiq_launch_background">#F3F5F8</color>
+</resources>

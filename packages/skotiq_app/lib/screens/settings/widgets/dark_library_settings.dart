@@ -71,10 +71,11 @@ class _DarkLibrarySettingsState extends ConsumerState<DarkLibrarySettings> {
                             ref.invalidate(darkLibrarySettingsProvider),
                         size: IconButtonSize.sm,
                       )
-                    : const SizedBox(
+                    : SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: SkotiqSpinner(
+                            size: 18, color: SkotiqColors.of(context).primary),
                       ),
                 isMobile: widget.isMobile,
               ),
@@ -153,7 +154,9 @@ class _DarkLibrarySettingsState extends ConsumerState<DarkLibrarySettings> {
             statsAsync.when(
               loading: () => const Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(
+                    child:
+                        SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
               ),
               error: (e, _) => Padding(
                 padding: const EdgeInsets.all(16),
@@ -316,7 +319,9 @@ class _DarkLibrarySettingsState extends ConsumerState<DarkLibrarySettings> {
             groupsAsync.when(
               loading: () => const Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(
+                    child:
+                        SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
               ),
               error: (e, _) => Padding(
                 padding: const EdgeInsets.all(16),
@@ -389,7 +394,9 @@ class _DarkLibrarySettingsState extends ConsumerState<DarkLibrarySettings> {
             entriesAsync.when(
               loading: () => const Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(
+                    child:
+                        SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
               ),
               error: (e, _) => Padding(
                 padding: const EdgeInsets.all(16),
@@ -646,10 +653,11 @@ class _DarkLibrarySettingsState extends ConsumerState<DarkLibrarySettings> {
                       }
                     },
               child: isDeleting
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: SkotiqSpinner(
+                          size: 16, color: SkotiqColors.of(context).primary),
                     )
                   : Text(
                       'Delete',

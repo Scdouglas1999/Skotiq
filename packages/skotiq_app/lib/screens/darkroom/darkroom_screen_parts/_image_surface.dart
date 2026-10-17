@@ -191,7 +191,8 @@ class _DarkroomImageSurfaceState extends State<_DarkroomImageSurface> {
       children: [
         if (shown == null)
           error == null
-              ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+              ? const Center(
+                  child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36))
               : EmptyState.compact(
                   icon: SkotiqIcons.imageOff,
                   title: 'This render produced no picture',

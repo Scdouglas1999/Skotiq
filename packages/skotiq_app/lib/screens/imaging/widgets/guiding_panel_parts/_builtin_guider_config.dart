@@ -70,10 +70,7 @@ class _BuiltinGuiderConfigSection extends ConsumerWidget {
                 child: SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: colors.primary,
-                  ),
+                  child: SkotiqSpinner(size: 16, color: colors.primary),
                 ),
               ),
             ),

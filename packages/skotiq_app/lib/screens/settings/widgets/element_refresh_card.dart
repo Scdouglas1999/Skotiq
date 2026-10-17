@@ -206,10 +206,7 @@ class _ElementRefreshCardState extends ConsumerState<ElementRefreshCard> {
               SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: colors.primary,
-                ),
+                child: SkotiqSpinner(size: 16, color: colors.primary),
               ),
             ],
           ],
@@ -233,10 +230,7 @@ class _ElementRefreshCardState extends ConsumerState<ElementRefreshCard> {
         SizedBox(
           width: 16,
           height: 16,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: colors.primary,
-          ),
+          child: SkotiqSpinner(size: 16, color: colors.primary),
         ),
         const SizedBox(width: 12),
         Text(

@@ -77,7 +77,7 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('Plate solve'), findsWidgets);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(SkotiqSpinner), findsOneWidget);
   });
 
   testWidgets('surfaces a recent failure with the truncated note',

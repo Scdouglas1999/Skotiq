@@ -21,6 +21,8 @@ class OnboardingWelcomeStep extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Center(child: SkotiqLockup(markSize: 32)),
+          const SizedBox(height: SkotiqTokens.spaceLg),
           const SectionTitle(
             icon: SkotiqIcons.sparkle,
             title: 'Welcome to Skotiq',

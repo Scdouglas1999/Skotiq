@@ -44,10 +44,10 @@ class CampaignRollupDialog extends ConsumerWidget {
         ),
         child: rollupAsync.when(
           data: (rollup) => _Body(rollup: rollup, colors: colors),
-          loading: () => AdaptiveChartContainer.fixed(
+          loading: () => const AdaptiveChartContainer.fixed(
             height: 200,
             child: Center(
-              child: CircularProgressIndicator(color: colors.primary),
+              child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
             ),
           ),
           error: (err, _) => Padding(

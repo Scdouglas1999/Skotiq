@@ -68,10 +68,7 @@ class ScienceStatusBanner extends ConsumerWidget {
         leading: SizedBox(
           width: 14,
           height: 14,
-          child: CircularProgressIndicator(
-            strokeWidth: 1.6,
-            valueColor: AlwaysStoppedAnimation<Color>(style.accent),
-          ),
+          child: SkotiqSpinner(size: 14, color: style.accent),
         ),
         headline: 'Loading science status…',
       );
@@ -109,10 +106,7 @@ class ScienceStatusBanner extends ConsumerWidget {
       leadingProgress = SizedBox(
         width: 14,
         height: 14,
-        child: CircularProgressIndicator(
-          strokeWidth: 1.6,
-          valueColor: AlwaysStoppedAnimation<Color>(style.accent),
-        ),
+        child: SkotiqSpinner(size: 14, color: style.accent),
       );
     } else if (lastFailure != null && _isRecent(lastFailure.timestamp)) {
       style = _BannerStyle.error(colors);

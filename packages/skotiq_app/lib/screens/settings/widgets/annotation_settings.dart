@@ -28,7 +28,7 @@ class AnnotationSettingsPage extends ConsumerWidget {
           child: Column(
             children: [
               if (error == null)
-                const CircularProgressIndicator()
+                const SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)
               else
                 Icon(
                   LucideIcons.alertTriangle,

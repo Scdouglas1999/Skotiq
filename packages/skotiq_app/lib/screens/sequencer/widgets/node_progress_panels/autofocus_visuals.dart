@@ -93,10 +93,7 @@ class _StarZoomPanel extends StatelessWidget {
                   SizedBox(
                     width: 12,
                     height: 12,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.5,
-                      valueColor: AlwaysStoppedAnimation(colors.primary),
-                    ),
+                    child: SkotiqSpinner(size: 12, color: colors.primary),
                   )
                 else
                   _buildNavButton(

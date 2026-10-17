@@ -304,7 +304,8 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
       final remote = remoteAsync.valueOrNull;
       if (remote == null) {
         return remoteAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(
+              child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
           error: (error, _) => Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -332,7 +333,8 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
       final readyEngine = readyAsync.valueOrNull;
       if (readyEngine == null) {
         return readyAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(
+              child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
           error: (error, _) => Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,

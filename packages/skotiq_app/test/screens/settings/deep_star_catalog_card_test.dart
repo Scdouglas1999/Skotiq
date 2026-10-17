@@ -91,7 +91,7 @@ void main() {
 
     expect(find.text('Deep-star catalog unavailable'), findsOneWidget);
     expect(find.textContaining('disk offline'), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(SkotiqMark), findsNothing);
 
     manager.statusError = null;
     await tester.tap(find.widgetWithText(SkotiqButton, 'Retry'));

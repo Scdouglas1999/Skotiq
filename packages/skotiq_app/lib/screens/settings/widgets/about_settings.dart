@@ -100,8 +100,6 @@ class AboutSettings extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
     final appVersion = ref.watch(appVersionProvider);
-    final logoSize = isMobile ? 64.0 : 80.0;
-    final logoIconSize = isMobile ? 32.0 : 40.0;
 
     return SettingsPage(
       title: 'About',
@@ -112,24 +110,7 @@ class AboutSettings extends ConsumerWidget {
         Center(
           child: Column(
             children: [
-              Container(
-                width: logoSize,
-                height: logoSize,
-                decoration:
-                    SkotiqDecorations.chip(colors, tone: colors.primary),
-                child: Icon(
-                  LucideIcons.sparkles,
-                  size: logoIconSize,
-                  color: colors.primary,
-                ),
-              ),
-              SizedBox(height: isMobile ? 16 : 20),
-              Text(
-                'Skotiq',
-                style: SkotiqTypography.pageTitle.copyWith(
-                  color: colors.textPrimary,
-                ),
-              ),
+              SkotiqLockup(markSize: isMobile ? 28 : 32),
               const SizedBox(height: 4),
               Text(
                 'Version ${appVersion.version} (build ${appVersion.buildNumber})',

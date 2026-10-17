@@ -143,7 +143,8 @@ class _EquipmentProfilesScreenState
     final profilesAsync = ref.watch(equipmentProfilesProvider);
 
     return profilesAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
       error: (error, stack) => Center(
         child: EmptyState.compact(
           icon: LucideIcons.alertTriangle,

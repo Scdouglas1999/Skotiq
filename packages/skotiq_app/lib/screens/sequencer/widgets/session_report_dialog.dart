@@ -64,7 +64,8 @@ class SessionReportDialog extends ConsumerWidget {
         width: 720,
         child: SizedBox(
           height: 200,
-          child: Center(child: CircularProgressIndicator()),
+          child: Center(
+              child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
         ),
       ),
       error: (err, _) => SkotiqDialog(

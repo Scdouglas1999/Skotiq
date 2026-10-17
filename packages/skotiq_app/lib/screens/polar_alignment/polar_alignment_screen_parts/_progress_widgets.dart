@@ -44,10 +44,7 @@ class _MeasurementProgressItem extends StatelessWidget {
                     ? SizedBox(
                         width: 10,
                         height: 10,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: colors.primary,
-                        ),
+                        child: SkotiqSpinner(size: 10, color: colors.primary),
                       )
                     : null,
           ),
@@ -194,10 +191,7 @@ class _SolveProgressIndicatorState extends State<_SolveProgressIndicator> {
             SizedBox(
               width: 12,
               height: 12,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: widget.colors.primary,
-              ),
+              child: SkotiqSpinner(size: 12, color: widget.colors.primary),
             ),
             const SizedBox(width: 8),
             Expanded(

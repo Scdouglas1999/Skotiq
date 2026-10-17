@@ -120,7 +120,9 @@ class _SavedServersScreenState extends ConsumerState<SavedServersScreen> {
         ),
       ),
       body: asyncList.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
+        ),
         error: (e, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),

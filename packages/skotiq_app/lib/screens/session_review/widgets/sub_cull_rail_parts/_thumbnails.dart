@@ -73,7 +73,7 @@ class _SubThumbnailState extends ConsumerState<_SubThumbnail> {
           child: SizedBox(
             width: 18,
             height: 18,
-            child: CircularProgressIndicator(strokeWidth: 1.8),
+            child: SkotiqMark(size: 18),
           ),
         ),
         error: (_, __) => _placeholder(),
@@ -194,7 +194,7 @@ class _BlinkView extends ConsumerWidget {
                 }
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: SkotiqMark(size: 36),
                   );
                 }
                 return Center(

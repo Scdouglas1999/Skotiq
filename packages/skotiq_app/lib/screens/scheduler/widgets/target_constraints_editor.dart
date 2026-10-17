@@ -199,15 +199,13 @@ class _TargetConstraintsEditorState
       future: _future,
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
-          return Padding(
+          return const Padding(
             padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
-            child: SizedBox(
+            child: const SizedBox(
               width: 18,
               height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: colors.primary,
-              ),
+              child:
+                  const SkotiqMark(motion: SkotiqMarkMotion.loading, size: 18),
             ),
           );
         }

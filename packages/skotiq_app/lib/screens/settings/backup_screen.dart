@@ -638,7 +638,8 @@ class _AutoSaveStatusCard extends ConsumerWidget {
               ],
             ],
           ),
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(
+              child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
           error: (error, _) => Text(
             'Could not load auto-save status.',
             style: SkotiqTypography.body.copyWith(
@@ -769,7 +770,7 @@ class _RecentBackupsCard extends StatelessWidget {
               const Center(
                 child: Padding(
                   padding: EdgeInsets.all(20),
-                  child: CircularProgressIndicator(),
+                  child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
                 ),
               )
             else if (errorMessage != null)

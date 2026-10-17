@@ -235,7 +235,8 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
           ),
           const SizedBox(height: 16),
           if (_loading)
-            const Center(child: CircularProgressIndicator())
+            const Center(
+                child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36))
           else if (_loadError != null)
             _LoadError(
               error: _loadError!,

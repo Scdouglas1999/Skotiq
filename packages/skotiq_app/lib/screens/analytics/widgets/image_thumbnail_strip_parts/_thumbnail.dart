@@ -119,9 +119,7 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                                   return const SizedBox(
                                     width: 18,
                                     height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 1.8,
-                                    ),
+                                    child: SkotiqMark(size: 18),
                                   );
                                 }
 

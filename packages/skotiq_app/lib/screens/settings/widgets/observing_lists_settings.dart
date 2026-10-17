@@ -61,7 +61,7 @@ class ObservingListsSettings extends ConsumerWidget {
             loading: () => const Center(
               child: Padding(
                 padding: EdgeInsets.all(32),
-                child: CircularProgressIndicator(),
+                child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
               ),
             ),
             error: (e, _) => Center(

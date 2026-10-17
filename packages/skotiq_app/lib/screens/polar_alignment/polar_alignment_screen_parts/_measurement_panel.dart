@@ -78,13 +78,11 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: 60,
                         height: 60,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 4,
-                          color: colors.primary,
-                        ),
+                        child: const SkotiqMark(
+                            motion: SkotiqMarkMotion.loading, size: 60),
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -224,10 +222,7 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
                     SizedBox(
                       width: 14,
                       height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: colors.primary,
-                      ),
+                      child: SkotiqSpinner(size: 14, color: colors.primary),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -332,13 +327,11 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: 60,
                         height: 60,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 4,
-                          color: colors.primary,
-                        ),
+                        child: const SkotiqMark(
+                            motion: SkotiqMarkMotion.loading, size: 60),
                       ),
                       const SizedBox(height: 16),
                       Text(

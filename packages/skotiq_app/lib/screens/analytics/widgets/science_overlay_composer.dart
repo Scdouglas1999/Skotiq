@@ -27,7 +27,7 @@ class ScienceOverlayComposer extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (!prefsAsync.hasError)
-              const CircularProgressIndicator(strokeWidth: 2)
+              const SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)
             else ...[
               Text(
                 'Could not load science overlay preferences',

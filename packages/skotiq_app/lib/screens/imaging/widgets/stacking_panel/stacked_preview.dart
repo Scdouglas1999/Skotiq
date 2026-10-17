@@ -154,13 +154,11 @@ class _StackedPreviewState extends State<_StackedPreview> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
+              const SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: widget.colors.primary,
-                ),
+                child: const SkotiqMark(
+                    motion: SkotiqMarkMotion.loading, size: 20),
               ),
               const SizedBox(height: 8),
               Text('Rendering preview...',

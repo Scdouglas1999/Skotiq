@@ -96,7 +96,7 @@ void main() {
       wrap(SessionReplayScreen(runId: 1, dataSourceOverride: source)),
     );
     // Loading spinner first.
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(SkotiqMark), findsOneWidget);
     // Drain async + stream microtasks.
     await tester.pumpAndSettle();
 

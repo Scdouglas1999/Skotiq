@@ -208,7 +208,9 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
       return _ErrorRetry(error: err, onRetry: _loadMore);
     }
     if (_runs.isEmpty && _loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
+      );
     }
     if (_runs.isEmpty) {
       return const EmptyState(
@@ -444,13 +446,13 @@ class _LoadMoreTile extends StatelessWidget {
     return InkWell(
       onTap: loading ? null : onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Center(
           child: loading
-              ? const SizedBox(
+              ? SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: SkotiqSpinner(size: 18, color: colors.primary),
                 )
               : Text(
                   error != null ? 'Retry loading' : 'Load more',

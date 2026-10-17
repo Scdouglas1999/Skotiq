@@ -7,6 +7,7 @@ import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../harness/harness.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _LoadedAppSettings extends AppSettingsNotifier {
   @override
@@ -75,7 +76,7 @@ void main() {
     expect(
       find.descendant(
         of: imagePathInput,
-        matching: find.byType(CircularProgressIndicator),
+        matching: find.byType(SkotiqSpinner),
       ),
       findsOneWidget,
     );
@@ -87,7 +88,7 @@ void main() {
     expect(
       find.descendant(
         of: imagePathInput,
-        matching: find.byType(CircularProgressIndicator),
+        matching: find.byType(SkotiqSpinner),
       ),
       findsNothing,
     );

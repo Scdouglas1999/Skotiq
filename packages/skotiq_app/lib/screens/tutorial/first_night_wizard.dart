@@ -81,7 +81,6 @@ class _FirstNightWizardState extends ConsumerState<FirstNightWizard> {
   Widget build(BuildContext context) {
     final state = ref.watch(firstNightWizardProvider);
     final notifier = ref.read(firstNightWizardProvider.notifier);
-    final colors = SkotiqColors.of(context);
     final l10n = context.l10n;
 
     // Until the saved index has loaded from the DAO, show a small spinner
@@ -95,8 +94,8 @@ class _FirstNightWizardState extends ConsumerState<FirstNightWizard> {
         width: 600,
         height: 400,
         showCloseButton: false,
-        child: Center(
-          child: CircularProgressIndicator(color: colors.primary),
+        child: const Center(
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
         ),
       );
     }

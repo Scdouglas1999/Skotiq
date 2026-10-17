@@ -602,12 +602,12 @@ class _TonightTargetActionsState extends State<_TonightTargetActions> {
         // Mid-add the button keeps its slot and shows the spinner in place of
         // the glyph, so the row never reflows under the pointer.
         if (_adding)
-          const SizedBox.square(
+          SizedBox.square(
             dimension: SkotiqTokens.iconButtonSizeSm,
             child: Center(
               child: SizedBox.square(
                 dimension: 15,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: SkotiqSpinner(size: 15, color: widget.colors.primary),
               ),
             ),
           )

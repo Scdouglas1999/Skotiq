@@ -373,10 +373,7 @@ class _ProfileSwitcher extends ConsumerWidget {
             SizedBox(
               width: 12,
               height: 12,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation(colors.textMuted),
-              ),
+              child: SkotiqSpinner(size: 12, color: colors.textMuted),
             ),
             const SizedBox(width: 8),
             Text(

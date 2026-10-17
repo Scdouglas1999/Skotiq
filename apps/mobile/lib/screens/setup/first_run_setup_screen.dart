@@ -589,7 +589,9 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     if (catalogs == null) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
+        ),
       );
     }
     return Column(
@@ -707,7 +709,9 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     if (profiles == null) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
+        ),
       );
     }
     if (profiles.isNotEmpty) {

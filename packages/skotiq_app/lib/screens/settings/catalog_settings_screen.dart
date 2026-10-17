@@ -563,7 +563,8 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
     // On mobile, skip Scaffold since parent provides structure
     if (widget.isMobile) {
       return _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36))
           : SingleChildScrollView(
               padding: EdgeInsets.all(padding),
               child: _buildContent(context),
@@ -573,7 +574,8 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
     return Scaffold(
       backgroundColor: colors.background,
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36))
           : SingleChildScrollView(
               padding: EdgeInsets.all(padding),
               child: _buildContent(context),

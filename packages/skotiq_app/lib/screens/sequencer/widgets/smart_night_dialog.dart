@@ -266,7 +266,9 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
               ),
               const Spacer(),
               if (error == null) ...[
-                const Center(child: CircularProgressIndicator()),
+                const Center(
+                    child:
+                        SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
                 const SizedBox(height: 14),
                 Text(
                   'Loading Smart Night settings…',

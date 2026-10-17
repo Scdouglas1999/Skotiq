@@ -9,7 +9,6 @@ class _MobileSettingsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final onPrimary = Theme.of(context).colorScheme.onPrimary;
     // A narrow DESKTOP window still has no OS decorations (the runners set
     // TitleBarStyle.hidden), so this bar owns minimize/maximize/close and the
     // drag-to-move region below the side-nav breakpoint exactly as the full
@@ -28,29 +27,10 @@ class _MobileSettingsBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: colors.primary,
-              borderRadius: SkotiqTokens.borderRadiusMd,
-            ),
-            child: Icon(SkotiqIcons.sparkle, size: 14, color: onPrimary),
-          ),
-          const SizedBox(width: SkotiqTokens.spaceSm + 2),
           // The wordmark yields before the caption buttons do: on a very
-          // narrow window the title may ellipsize, but close must not vanish.
-          Flexible(
-            child: Text(
-              'SKOTIQ',
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: SkotiqTypography.fontSize13,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.5,
-              ),
-            ),
+          // narrow window the lockup may ellipsize, but close must not vanish.
+          const Flexible(
+            child: SkotiqLockup(markSize: 18),
           ),
           const Spacer(),
           InkWell(

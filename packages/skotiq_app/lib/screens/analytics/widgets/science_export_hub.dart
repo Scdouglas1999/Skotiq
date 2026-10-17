@@ -582,10 +582,7 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
               SizedBox(
                 width: 14,
                 height: 14,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: colors.primary,
-                ),
+                child: SkotiqSpinner(size: 14, color: colors.primary),
               ),
               const SizedBox(width: 8),
               Text(

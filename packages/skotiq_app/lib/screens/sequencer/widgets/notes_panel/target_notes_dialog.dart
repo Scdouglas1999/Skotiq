@@ -96,10 +96,11 @@ class _TargetNotesDialogState extends ConsumerState<TargetNotesDialog> {
               ],
             );
           },
-          loading: () => Padding(
+          loading: () => const Padding(
             padding: const EdgeInsets.all(24),
-            child: Center(
-              child: CircularProgressIndicator(color: colors.primary),
+            child: const Center(
+              child:
+                  const SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
             ),
           ),
           error: (e, _) => Padding(

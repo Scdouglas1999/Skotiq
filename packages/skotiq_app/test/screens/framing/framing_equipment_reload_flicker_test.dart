@@ -2,7 +2,7 @@
 // equipment it has already resolved while its provider re-runs.
 //
 // Observed on the running desktop build: on arrival at Framing the Equipment
-// section rendered nothing but a CircularProgressIndicator, and it was still
+// section rendered nothing but a loading indicator, and it was still
 // spinning minutes later — while the FOV / Resolution / Sensor rows directly
 // below it were populated the whole time. Sampling the card region ten times
 // over ~30 s found a bare spinner in eight of them and the resolved
@@ -92,7 +92,12 @@ void main() {
     await tester.pump();
 
     // First load: a spinner is honest, there is nothing to show yet.
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is SkotiqMark && w.motion == SkotiqMarkMotion.loading,
+      ),
+      findsOneWidget,
+    );
 
     handle.container.read(_sourceProvider.notifier).resolve();
     await tester.pump();
@@ -104,7 +109,11 @@ void main() {
     await tester.pump();
 
     expect(
-      find.byType(CircularProgressIndicator),
+      find.byWidgetPredicate(
+        (w) =>
+            w is SkotiqMark && w.motion == SkotiqMarkMotion.loading ||
+            w is SkotiqSpinner,
+      ),
       findsNothing,
       reason: 'The equipment is already known; replacing it with a spinner on '
           'every telemetry tick is what made the card look permanently stuck.',

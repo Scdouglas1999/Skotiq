@@ -217,7 +217,9 @@ class TemplatesTab extends ConsumerWidget {
                   },
                   loading: () => const Padding(
                     padding: EdgeInsets.symmetric(vertical: 32),
-                    child: Center(child: CircularProgressIndicator()),
+                    child: Center(
+                        child: SkotiqMark(
+                            motion: SkotiqMarkMotion.loading, size: 36)),
                   ),
                   error: (error, stack) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 32),

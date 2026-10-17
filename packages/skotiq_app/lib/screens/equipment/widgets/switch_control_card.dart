@@ -357,12 +357,12 @@ class _PendingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
+    return SizedBox(
       width: 24,
       height: 24,
       child: Padding(
         padding: EdgeInsets.all(4),
-        child: CircularProgressIndicator(strokeWidth: 2),
+        child: SkotiqSpinner(size: 16, color: SkotiqColors.of(context).primary),
       ),
     );
   }

@@ -240,10 +240,7 @@ class _MeridianFlipProgressDialogState
                 : SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: statusColor,
-                    ),
+                    child: SkotiqSpinner(size: 20, color: statusColor),
                   ),
           ),
           const SizedBox(width: 16),
@@ -632,10 +629,7 @@ class _StepRow extends StatelessWidget {
               ? SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: iconColor,
-                  ),
+                  child: SkotiqSpinner(size: 16, color: iconColor),
                 )
               : Icon(icon, size: 16, color: iconColor),
           const SizedBox(width: 12),

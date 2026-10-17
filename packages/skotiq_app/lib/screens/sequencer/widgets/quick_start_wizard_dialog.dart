@@ -702,7 +702,8 @@ class _QuickStartWizardDialogState
         width: 520,
         child: SizedBox(
           height: 180,
-          child: Center(child: CircularProgressIndicator()),
+          child: Center(
+              child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
         ),
       );
     }

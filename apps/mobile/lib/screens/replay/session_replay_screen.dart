@@ -103,7 +103,7 @@ class _SessionReplayScreenState extends ConsumerState<SessionReplayScreen> {
       ),
       body: switch (state) {
         SessionReplayLoading() => const Center(
-          child: CircularProgressIndicator(),
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
         ),
         SessionReplayError(:final message) => _ReplayErrorView(
           message: message,

@@ -215,8 +215,9 @@ class SequenceLibraryTab extends ConsumerWidget {
                   },
                 );
               },
-              loading: () => Center(
-                child: CircularProgressIndicator(color: colors.primary),
+              loading: () => const Center(
+                child: const SkotiqMark(
+                    motion: SkotiqMarkMotion.loading, size: 36),
               ),
               error: (error, stack) => Center(
                 child: Column(

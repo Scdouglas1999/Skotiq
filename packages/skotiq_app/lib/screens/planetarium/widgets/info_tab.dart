@@ -380,10 +380,7 @@ class ImagingHistorySection extends ConsumerWidget {
           child: SizedBox(
             width: 20,
             height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: colors.primary,
-            ),
+            child: SkotiqSpinner(size: 20, color: colors.primary),
           ),
         ),
       ),

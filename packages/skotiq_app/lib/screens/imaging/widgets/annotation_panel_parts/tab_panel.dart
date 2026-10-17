@@ -452,12 +452,13 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
               const SizedBox(width: 4),
               // Re-annotate button
               _isReAnnotating
-                  ? const Padding(
+                  ? Padding(
                       padding: EdgeInsets.all(4),
                       child: SizedBox(
                         width: 14,
                         height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: SkotiqSpinner(
+                            size: 14, color: widget.colors.primary),
                       ),
                     )
                   : InkWell(
@@ -479,12 +480,13 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
               const SizedBox(width: 4),
               // Save annotated image button
               _isSaving
-                  ? const Padding(
+                  ? Padding(
                       padding: EdgeInsets.all(4),
                       child: SizedBox(
                         width: 14,
                         height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: SkotiqSpinner(
+                            size: 14, color: widget.colors.primary),
                       ),
                     )
                   : InkWell(

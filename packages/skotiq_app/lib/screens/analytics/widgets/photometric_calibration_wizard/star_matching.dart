@@ -18,7 +18,8 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
         ),
         const SizedBox(height: 16),
         if (_isComputing)
-          const Center(child: CircularProgressIndicator())
+          const Center(
+              child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36))
         else if (_starMatches.isEmpty)
           _buildRunMatchButton(colors)
         else

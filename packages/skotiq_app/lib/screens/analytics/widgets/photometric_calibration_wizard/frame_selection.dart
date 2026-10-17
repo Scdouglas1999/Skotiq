@@ -24,7 +24,8 @@ extension _PhotometricWizardFrameSelection
         ),
         const SizedBox(height: SkotiqTokens.spaceLg),
         sessionsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(
+              child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
           error: (error, _) => Container(
             padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
             decoration: BoxDecoration(

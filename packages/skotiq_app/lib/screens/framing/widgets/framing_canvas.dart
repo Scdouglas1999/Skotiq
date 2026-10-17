@@ -483,7 +483,8 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(color: widget.colors.primary),
+                      const SkotiqMark(
+                          motion: SkotiqMarkMotion.loading, size: 36),
                       const SizedBox(height: SkotiqTokens.spaceLg),
                       Text(
                         'Loading sky survey...',

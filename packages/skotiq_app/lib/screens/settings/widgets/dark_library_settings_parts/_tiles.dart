@@ -185,7 +185,7 @@ class _DarkEntryTile extends StatelessWidget {
                 ? const SizedBox(
                     width: 14,
                     height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: SkotiqMark(size: 14),
                   )
                 : SkotiqIconButton(
                     icon: LucideIcons.download,

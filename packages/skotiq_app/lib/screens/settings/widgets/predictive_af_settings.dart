@@ -177,7 +177,9 @@ class _PredictiveAfSettingsPageState
             if (snapshot.connectionState != ConnectionState.done) {
               return const Padding(
                 padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(
+                    child:
+                        SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
               );
             }
             if (snapshot.hasError || snapshot.data == null) {
@@ -639,10 +641,7 @@ class _ModelRowState extends State<_ModelRow> {
                       message: 'Exporting…',
                       child: Padding(
                         padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: c.textMuted,
-                        ),
+                        child: SkotiqSpinner(size: 12, color: c.textMuted),
                       ),
                     ),
                   )

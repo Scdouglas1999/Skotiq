@@ -448,12 +448,9 @@ class _ExportChartButtonState extends ConsumerState<ExportChartButton> {
       return const SizedBox(
         width: 28,
         height: 28,
-        child: Padding(
-          padding: EdgeInsets.all(6),
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Colors.white70,
-          ),
+        child: const Padding(
+          padding: const EdgeInsets.all(6),
+          child: const SkotiqSpinner(size: 16, color: Colors.white70),
         ),
       );
     }

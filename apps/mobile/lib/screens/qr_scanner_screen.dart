@@ -351,7 +351,12 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
             child: Stack(
               children: [
                 if (_initializing)
-                  const Center(child: CircularProgressIndicator())
+                  const Center(
+                    child: SkotiqMark(
+                      motion: SkotiqMarkMotion.loading,
+                      size: 36,
+                    ),
+                  )
                 else if (_cameraError != null)
                   Center(
                     child: Padding(

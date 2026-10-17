@@ -148,11 +148,8 @@ class _ProfileChipState extends ConsumerState<ProfileChip>
                           ? SizedBox(
                               width: 10,
                               height: 10,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                    indicatorColor),
-                              ),
+                              child:
+                                  SkotiqMark(size: 10, color: indicatorColor),
                             )
                           : indicatorIcon != null
                               ? Icon(indicatorIcon, size: 6, color: onPrimary)

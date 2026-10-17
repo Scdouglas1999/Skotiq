@@ -78,7 +78,8 @@ class _CenteringImageWidgetState extends State<_CenteringImageWidget> {
       return const SizedBox(
         width: 200,
         height: 200,
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        child: Center(
+            child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
       );
     }
 

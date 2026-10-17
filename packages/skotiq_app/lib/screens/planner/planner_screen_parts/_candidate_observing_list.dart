@@ -209,7 +209,8 @@ class _CandidateObservingListDialogState
                 loading: () => const Center(
                   child: Padding(
                     padding: EdgeInsets.all(SkotiqTokens.spaceMd),
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child:
+                        SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
                   ),
                 ),
                 error: (error, _) => Text(
