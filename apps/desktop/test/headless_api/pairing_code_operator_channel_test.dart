@@ -37,7 +37,7 @@ void main() {
 
     setUp(() async {
       clearedAuthFailures.clear();
-      tempDir = await Directory.systemTemp.createTemp('ns_pair_code_test_');
+      tempDir = await Directory.systemTemp.createTemp('sk_pair_code_test_');
       logger = LoggingService(
         applicationSupportDirectoryProvider: () async => tempDir,
         nativeInitWithLogging: ({logDirectory}) {},
@@ -240,7 +240,7 @@ void main() {
     });
 
     test('an injected directory overrides the log-derived default', () async {
-      final custom = await Directory.systemTemp.createTemp('ns_pair_custom_');
+      final custom = await Directory.systemTemp.createTemp('sk_pair_custom_');
       addTearDown(() async {
         if (await custom.exists()) await custom.delete(recursive: true);
       });

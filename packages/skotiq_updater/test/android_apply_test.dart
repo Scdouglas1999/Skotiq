@@ -25,7 +25,7 @@ void main() {
   late String publicKeyBase64;
 
   setUp(() async {
-    dataDir = await Directory.systemTemp.createTemp('ns-android-apply-');
+    dataDir = await Directory.systemTemp.createTemp('sk-android-apply-');
     algorithm = Ed25519();
     keyPair = await algorithm.newKeyPair();
     publicKeyBase64 = base64Encode((await keyPair.extractPublicKey()).bytes);

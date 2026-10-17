@@ -98,7 +98,7 @@ class FitsHeaderWriteResult {
 ///     or appends a new card before `END`
 ///   * Grows the header to the next 2880-byte block if appended cards run
 ///     out of free space (and shifts the data section down accordingly)
-///   * Writes the result atomically via a sibling `*.nshatmp` file + rename
+///   * Writes the result atomically via a sibling `*.skhatmp` file + rename
 ///
 /// Why pure Dart: the writeback runs on every captured frame after
 /// photometry; doing it in-process avoids both an FFI round-trip and an
@@ -233,7 +233,7 @@ class FitsHeaderWriter {
 
     // Atomic write via sibling temp file. If the rename fails we delete the
     // temp to avoid orphaned debris alongside the user's captures.
-    final tmpPath = '$filePath.nshatmp';
+    final tmpPath = '$filePath.skhatmp';
     final tmpFile = File(tmpPath);
     try {
       await tmpFile.writeAsBytes(output.toBytes(), flush: true);

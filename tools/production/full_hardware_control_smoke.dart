@@ -585,7 +585,7 @@ bool _near(Object? value, double expected) =>
     value is num && (value.toDouble() - expected).abs() < 0.01;
 
 String _requestId(String operation, String type) =>
-    'ns-smoke-$operation-$type-${DateTime.now().microsecondsSinceEpoch}';
+    'sk-smoke-$operation-$type-${DateTime.now().microsecondsSinceEpoch}';
 
 Future<int> _reservePort() async {
   final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);

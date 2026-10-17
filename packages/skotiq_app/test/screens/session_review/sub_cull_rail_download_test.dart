@@ -48,7 +48,7 @@ void main() {
   late _MockImagingBackend backend;
 
   setUp(() {
-    tmp = Directory.systemTemp.createTempSync('ns-sub-dl-');
+    tmp = Directory.systemTemp.createTempSync('sk-sub-dl-');
     backend = _MockImagingBackend();
     when(() => backend.getImageThumbnail(any()))
         .thenAnswer((_) async => Uint8List(0));

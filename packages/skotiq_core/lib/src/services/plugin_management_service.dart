@@ -80,7 +80,7 @@ class InstalledPluginManifest {
   /// outside the upload flow.
   final DateTime? installedAt;
 
-  /// Original filename submitted with the upload (e.g. `my_plugin.nsplugin`).
+  /// Original filename submitted with the upload (e.g. `my_plugin.skplugin`).
   final String? installedFilename;
 
   /// Archive verification/availability error. Uploaded archives are not
@@ -188,7 +188,7 @@ class PluginManagementService {
   /// the archives in the plugin directory.
   static const String registryFileName = 'registry.json';
 
-  /// Default name of the manifest entry inside an `.nsplugin` archive.
+  /// Default name of the manifest entry inside an `.skplugin` archive.
   static const String manifestEntryName = 'manifest.json';
 
   final LoggingService _logger;

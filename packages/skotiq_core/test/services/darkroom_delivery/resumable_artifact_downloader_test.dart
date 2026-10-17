@@ -77,7 +77,7 @@ void main() {
   const etag = '"aa-1700000000000"';
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_download_');
+    tempDir = await Directory.systemTemp.createTemp('sk_download_');
   });
 
   tearDown(() async {

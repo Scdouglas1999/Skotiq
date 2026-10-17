@@ -20,7 +20,7 @@ void main() {
   late File dbFile;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_orphan_session_');
+    tempDir = await Directory.systemTemp.createTemp('sk_orphan_session_');
     dbFile = File('${tempDir.path}/skotiq.db');
   });
 

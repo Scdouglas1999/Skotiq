@@ -27,7 +27,7 @@ void main() {
   late Directory dataRoot;
 
   setUp(() {
-    dataRoot = Directory.systemTemp.createTempSync('ns-dart-log');
+    dataRoot = Directory.systemTemp.createTempSync('sk-dart-log');
   });
 
   tearDown(() {

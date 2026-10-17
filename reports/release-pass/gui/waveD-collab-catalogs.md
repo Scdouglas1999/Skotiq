@@ -1,6 +1,6 @@
 # Wave D verification — cluster: collab-catalogs
 
-Driven live on `NS_AUDIT_DISPLAY=:87`, profile `waveD-collab-catalogs`, fresh scratch profile,
+Driven live on `SK_AUDIT_DISPLAY=:87`, profile `waveD-collab-catalogs`, fresh scratch profile,
 release bundle `apps/desktop/build/linux/x64/release/bundle` (binary + `libskotiq_bridge.so`
 both dated 2026-08-13 18:31), window 1600x900. Onboarding skipped; site set to 40.02 / -105.27 via
 Settings -> Location (LST started ticking, so the site took).

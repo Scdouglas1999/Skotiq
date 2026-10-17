@@ -241,7 +241,7 @@ void main() {
         handlers.handleMasterAccumulate(
           post(
             '/api/post-session/master-accumulate',
-            '{"op":"add","sidecarPath":"/tmp/m.nsm",'
+            '{"op":"add","sidecarPath":"/tmp/m.skm",'
                 '"lightPaths":["/tmp/a.fits","/tmp/b.fits"],'
                 '"exposuresSec":[60.0],"calibration":{},"settings":{}}',
           ),
@@ -257,7 +257,7 @@ void main() {
         handlers.handleMasterAccumulate(
           post(
             '/api/post-session/master-accumulate',
-            '{"op":"add","sidecarPath":"/tmp/m.nsm",'
+            '{"op":"add","sidecarPath":"/tmp/m.skm",'
                 '"lightPaths":["/tmp/a.fits"],"exposuresSec":[-1.0],'
                 '"calibration":{},"settings":{}}',
           ),
@@ -278,7 +278,7 @@ void main() {
         handlers.handleMasterAccumulate(
           post(
             '/api/post-session/master-accumulate',
-            '{"op":"info","sidecarPath":"/tmp/m.nsm",'
+            '{"op":"info","sidecarPath":"/tmp/m.skm",'
                 '"lightPaths":["/tmp/a.fits","/tmp/b.fits"],'
                 '"exposuresSec":[60.0],"calibration":{},"settings":{}}',
           ),
@@ -406,7 +406,7 @@ void main() {
         handlers.handleMasterAccumulate(
           post(
             '/api/post-session/master-accumulate',
-            '{"op":"add","sidecarPath":"/tmp/m.nsm",'
+            '{"op":"add","sidecarPath":"/tmp/m.skm",'
                 '"lightPaths":["/tmp/a.fits"],"exposuresSec":{"a":1},'
                 '"calibration":{},"settings":{}}',
           ),
@@ -422,7 +422,7 @@ void main() {
         handlers.handleMasterAccumulate(
           post(
             '/api/post-session/master-accumulate',
-            '{"op":"add","sidecarPath":"/tmp/m.nsm",'
+            '{"op":"add","sidecarPath":"/tmp/m.skm",'
                 '"lightPaths":["/tmp/a.fits"],"exposuresSec":[true],'
                 '"calibration":{},"settings":{}}',
           ),
@@ -444,7 +444,7 @@ void main() {
         handlers.handleMasterAccumulate(
           post(
             '/api/post-session/master-accumulate',
-            '{"op":"info","sidecarPath":"/tmp/m.nsm",'
+            '{"op":"info","sidecarPath":"/tmp/m.skm",'
                 '"lightPaths":["/tmp/a.fits"],"exposuresSec":{"a":1},'
                 '"calibration":{},"settings":{}}',
           ),

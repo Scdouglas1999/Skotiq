@@ -264,7 +264,7 @@ class PostSessionIntegrationService {
       cosmeticCorrection: settings.cosmeticCorrection,
     );
 
-    final tempDir = await Directory.systemTemp.createTemp('ns_ab_preview');
+    final tempDir = await Directory.systemTemp.createTemp('sk_ab_preview');
     final stamp = DateTime.now().microsecondsSinceEpoch;
     final masterFitsPath = '${tempDir.path}/ab_preview_$stamp.fits';
     final previewPath = generatePreview

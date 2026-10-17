@@ -75,7 +75,7 @@ void main() {
   late Handler handler;
 
   setUp(() {
-    tmp = Directory.systemTemp.createTempSync('nshub_cal_');
+    tmp = Directory.systemTemp.createTempSync('skhub_cal_');
     server = HubServer(
       HubConfig(
         databasePath: ':memory:',

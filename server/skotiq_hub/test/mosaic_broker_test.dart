@@ -355,7 +355,7 @@ void main() {
       // Output is refused (404 path) until complete — the partial-set gate.
       expect(broker.outputPathFor(id), isNull);
 
-      final tmp = Directory.systemTemp.createTempSync('nshub_mosaic_');
+      final tmp = Directory.systemTemp.createTempSync('skhub_mosaic_');
       addTearDown(() => tmp.deleteSync(recursive: true));
       final store = MosaicMasterStore('${tmp.path}/atlas');
       final outPath = store.saveOutput(

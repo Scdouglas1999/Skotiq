@@ -115,7 +115,7 @@ void main() {
     });
 
     test('returns empty when no manifest is installed', () async {
-      final empty = await Directory.systemTemp.createTemp('ns_deep_empty_');
+      final empty = await Directory.systemTemp.createTemp('sk_deep_empty_');
       try {
         final store = DeepStarTileStore(directory: empty.path);
         expect(await store.loadManifest(), isFalse);

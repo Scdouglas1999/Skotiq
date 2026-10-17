@@ -16,7 +16,7 @@
 /// A master is either a one-shot batch integration (status `finalized`,
 /// `sidecar_path` NULL) or a multi-night accumulating master (status
 /// `accumulating` while subs are still being folded in; `sidecar_path` points
-/// at the resumable `.nsmaster` accumulator state). `finalize` writes the
+/// at the resumable `.skmaster` accumulator state). `finalize` writes the
 /// shareable FITS and flips status to `finalized` but keeps the sidecar so more
 /// nights can be added later.
 ///

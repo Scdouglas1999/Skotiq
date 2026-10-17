@@ -104,7 +104,7 @@ void main() {
   final writer = FitsHeaderWriter();
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_science_e2e_');
+    tempDir = await Directory.systemTemp.createTemp('sk_science_e2e_');
   });
   tearDown(() async {
     if (await tempDir.exists()) {

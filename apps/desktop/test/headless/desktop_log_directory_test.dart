@@ -1,7 +1,7 @@
 // Logs must live under the data directory this instance is actually using.
 //
 // Live defect: a diagnostic dump generated from an instance started with
-// SKOTIQ_DATA_DIR=/tmp/ns-audit/... carried 400+ lines naming three OTHER
+// SKOTIQ_DATA_DIR=/tmp/sk-audit/... carried 400+ lines naming three OTHER
 // Skotiq instances' capture directories, target names and FITS filenames.
 // Cause: the log directory was hard-coded to
 // getApplicationSupportDirectory()/logs while only the Rust side honoured the
@@ -19,7 +19,7 @@ void main() {
   Future<Directory> fakeAppSupport() async => appSupport;
 
   setUp(() async {
-    tempRoot = await Directory.systemTemp.createTemp('ns_logdir_test');
+    tempRoot = await Directory.systemTemp.createTemp('sk_logdir_test');
     appSupport = Directory('${tempRoot.path}/app_support')
       ..createSync(recursive: true);
   });

@@ -16,7 +16,7 @@ set -euo pipefail
 PAYLOAD="$(readlink -f "$1")"; VERSION="$2"; BUILD="$3"; PLATFORM="$4"; ARCH="$5"
 OUT="$(mkdir -p "$6" && readlink -f "$6")"; KEY="$7"
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-OWNER_REPO="${NS_OTA_REPO:-Scdouglas1999/Skotiq}"
+OWNER_REPO="${SK_OTA_REPO:-Scdouglas1999/Skotiq}"
 
 if [ -d "$PAYLOAD" ]; then
   ASSET="skotiq-${VERSION}-${PLATFORM}-${ARCH}.zip"

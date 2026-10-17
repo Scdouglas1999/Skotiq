@@ -120,7 +120,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
-    _tempDir = Directory.systemTemp.createTempSync('ns_log_export_test');
+    _tempDir = Directory.systemTemp.createTempSync('sk_log_export_test');
   });
 
   tearDown(() {

@@ -37,7 +37,7 @@ void main() {
 
   setUp(() async {
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
-    artifactsDir = Directory.systemTemp.createTempSync('ns_mosaic_golden');
+    artifactsDir = Directory.systemTemp.createTempSync('sk_mosaic_golden');
   });
 
   tearDown(() async {

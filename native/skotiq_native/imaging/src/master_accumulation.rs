@@ -635,7 +635,7 @@ impl IntegratedMaster {
     // Serialization (resumable sidecar)
 
     /// Serialize the running accumulator state into a self-contained, versioned
-    /// blob (the `.nsmaster` sidecar).
+    /// blob (the `.skmaster` sidecar).
     ///
     /// Layout: `MAGIC (4) | version (u32 LE) | header_len (u32 LE) | JSON header
     /// | raw payload`. The JSON header carries the small, structured metadata

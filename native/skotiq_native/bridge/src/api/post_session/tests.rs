@@ -356,7 +356,7 @@ fn master_accumulate_create_add_finalize() {
     let ref_path = dir.join("ref.fits");
     write_field_fits(&ref_path, &ref_field);
 
-    let sidecar = dir.join("master.nsmaster");
+    let sidecar = dir.join("master.skmaster");
     let create = serde_json::json!({
         "op": "create",
         "referencePath": ref_path.to_string_lossy(),
@@ -433,7 +433,7 @@ fn accumulate_weights_better_night_more_than_worse_night() {
     let ref_path = dir.join("img001_ref.fits");
     write_field_fits(&ref_path, &ref_field);
 
-    let sidecar = dir.join("img001_master.nsmaster");
+    let sidecar = dir.join("img001_master.skmaster");
     let create = serde_json::json!({
         "op": "create",
         "referencePath": ref_path.to_string_lossy(),
@@ -593,7 +593,7 @@ fn mismatched_exposure_lengths_are_refused_on_both_paths() {
 
     let short_add = serde_json::json!({
         "op": "add",
-        "sidecarPath": "/nonexistent/master.nsmaster",
+        "sidecarPath": "/nonexistent/master.skmaster",
         "lightPaths": ["a.fits", "b.fits"],
         "exposuresSec": [60.0],
         "label": "2026-08-16"
@@ -1460,7 +1460,7 @@ fn master_add_records_its_calibration_and_finalize_replays_every_fold() {
     let reference = render_field(size, &stars, 400.0);
     let ref_path = dir.join("ref.fits");
     write_light_with_metadata(&ref_path, &reference, "2026-08-14T21:00:00");
-    let sidecar = dir.join("m31.nsmaster");
+    let sidecar = dir.join("m31.skmaster");
 
     let create = serde_json::json!({
         "op": "create",
@@ -1552,7 +1552,7 @@ fn finalize_without_a_calibration_log_states_the_gap() {
     let reference = render_field(size, &base_stars(size as f64), 400.0);
     let ref_path = dir.join("ref.fits");
     write_field_fits(&ref_path, &reference);
-    let sidecar = dir.join("bare.nsmaster");
+    let sidecar = dir.join("bare.skmaster");
 
     api_master_accumulate(
         serde_json::json!({
@@ -1601,7 +1601,7 @@ fn a_committed_fold_is_not_reported_as_failed_by_its_calibration_log() {
     let reference = render_field(size, &stars, 400.0);
     let ref_path = dir.join("ref.fits");
     write_light_with_metadata(&ref_path, &reference, "2026-08-14T21:00:00");
-    let sidecar = dir.join("m31.nsmaster");
+    let sidecar = dir.join("m31.skmaster");
 
     api_master_accumulate(
         serde_json::json!({
@@ -1679,7 +1679,7 @@ fn a_committed_fold_is_not_reported_as_failed_by_its_calibration_log() {
 #[test]
 fn a_retired_sidecar_is_refused_with_the_marker_the_dart_side_acts_on() {
     let dir = temp_dir("master_retired_sidecar");
-    let sidecar = dir.join("v1.nsmaster");
+    let sidecar = dir.join("v1.skmaster");
     // A version-1 sidecar: the magic and header this build reads, with the
     // retired version stamped in it.
     let mut bytes = Vec::new();
@@ -1709,7 +1709,7 @@ fn a_retired_sidecar_is_refused_with_the_marker_the_dart_side_acts_on() {
 #[test]
 fn the_calibration_log_is_written_atomically() {
     let dir = temp_dir("master_atomic_calibration_log");
-    let sidecar = dir.join("atomic.nsmaster");
+    let sidecar = dir.join("atomic.skmaster");
     let report = CalibrationReport {
         masters: Vec::new(),
         cosmetic_correction: false,
@@ -1736,7 +1736,7 @@ fn the_calibration_log_is_written_atomically() {
     let leftovers: Vec<PathBuf> = std::fs::read_dir(dir.as_ref())
         .expect("read dir")
         .filter_map(|e| e.ok().map(|e| e.path()))
-        .filter(|p| p.to_string_lossy().contains("nshatmp"))
+        .filter(|p| p.to_string_lossy().contains("skhatmp"))
         .collect();
     assert!(
         leftovers.is_empty(),
@@ -1757,7 +1757,7 @@ fn finalize_with_an_unreadable_calibration_log_still_writes_the_master() {
     let reference = render_field(size, &base_stars(size as f64), 400.0);
     let ref_path = dir.join("ref.fits");
     write_field_fits(&ref_path, &reference);
-    let sidecar = dir.join("torn.nsmaster");
+    let sidecar = dir.join("torn.skmaster");
 
     api_master_accumulate(
         serde_json::json!({

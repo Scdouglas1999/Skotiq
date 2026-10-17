@@ -58,7 +58,7 @@ void main() {
   late Directory dir;
 
   setUp(() {
-    dir = Directory.systemTemp.createTempSync('ns-prompt-gate-');
+    dir = Directory.systemTemp.createTempSync('sk-prompt-gate-');
   });
 
   tearDown(() {

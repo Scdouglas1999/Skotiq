@@ -67,7 +67,7 @@ void main() {
       final ref = await insertSub('/n1/ref.fits');
       seam.scriptedAccumulate['create'] = [
         const MasterAccumulateResult(
-          sidecarPath: '/m/m51.nsmaster',
+          sidecarPath: '/m/m51.skmaster',
           masterPath: null,
           previewPath: null,
           frameCount: 0,
@@ -82,7 +82,7 @@ void main() {
 
       final id = await service.createMaster(
         referenceSub: ref,
-        sidecarPath: '/m/m51.nsmaster',
+        sidecarPath: '/m/m51.skmaster',
         targetName: 'M51',
         filter: 'L',
       );
@@ -91,7 +91,7 @@ void main() {
       expect(master, isNotNull);
       expect(master!.status, IntegratedMasterStatus.accumulating);
       expect(master.accumulationMode, AccumulationMode.runningWeightedMean);
-      expect(master.sidecarPath, '/m/m51.nsmaster');
+      expect(master.sidecarPath, '/m/m51.skmaster');
       expect(master.filter, 'L');
       expect(master.name, 'M51 · L');
 
@@ -109,7 +109,7 @@ void main() {
     final ref = await insertSub('/n1/ref.fits');
     seam.scriptedAccumulate['create'] = [
       const MasterAccumulateResult(
-        sidecarPath: '/m/m.nsmaster',
+        sidecarPath: '/m/m.skmaster',
         masterPath: null,
         previewPath: null,
         frameCount: 0,
@@ -123,7 +123,7 @@ void main() {
     ];
     final masterId = await service.createMaster(
       referenceSub: ref,
-      sidecarPath: '/m/m.nsmaster',
+      sidecarPath: '/m/m.skmaster',
       targetName: 'M51',
       filter: 'L',
     );
@@ -134,7 +134,7 @@ void main() {
     ];
     seam.scriptedAccumulate['add'] = [
       const MasterAccumulateResult(
-        sidecarPath: '/m/m.nsmaster',
+        sidecarPath: '/m/m.skmaster',
         masterPath: null,
         previewPath: null,
         frameCount: 2,
@@ -183,7 +183,7 @@ void main() {
     final ref = await insertSub('/n1/ref.fits');
     seam.scriptedAccumulate['create'] = [
       const MasterAccumulateResult(
-        sidecarPath: '/m/m.nsmaster',
+        sidecarPath: '/m/m.skmaster',
         masterPath: null,
         previewPath: null,
         frameCount: 0,
@@ -197,7 +197,7 @@ void main() {
     ];
     final masterId = await service.createMaster(
       referenceSub: ref,
-      sidecarPath: '/m/m.nsmaster',
+      sidecarPath: '/m/m.skmaster',
     );
 
     final a = await insertSub('/n1/a.fits');
@@ -205,7 +205,7 @@ void main() {
 
     seam.scriptedAccumulate['add'] = [
       const MasterAccumulateResult(
-        sidecarPath: '/m/m.nsmaster',
+        sidecarPath: '/m/m.skmaster',
         masterPath: null,
         previewPath: null,
         frameCount: 2,
@@ -223,7 +223,7 @@ void main() {
     final c = await insertSub('/n2/c.fits');
     seam.scriptedAccumulate['add'] = [
       const MasterAccumulateResult(
-        sidecarPath: '/m/m.nsmaster',
+        sidecarPath: '/m/m.skmaster',
         masterPath: null,
         previewPath: null,
         frameCount: 3,
@@ -259,7 +259,7 @@ void main() {
       final ref = await insertSub('/n1/ref.fits');
       seam.scriptedAccumulate['create'] = [
         const MasterAccumulateResult(
-          sidecarPath: '/m/m.nsmaster',
+          sidecarPath: '/m/m.skmaster',
           masterPath: null,
           previewPath: null,
           frameCount: 0,
@@ -273,12 +273,12 @@ void main() {
       ];
       final masterId = await service.createMaster(
         referenceSub: ref,
-        sidecarPath: '/m/m.nsmaster',
+        sidecarPath: '/m/m.skmaster',
       );
       final a = await insertSub('/n1/a.fits');
       seam.scriptedAccumulate['add'] = [
         const MasterAccumulateResult(
-          sidecarPath: '/m/m.nsmaster',
+          sidecarPath: '/m/m.skmaster',
           masterPath: null,
           previewPath: null,
           frameCount: 1,
@@ -311,7 +311,7 @@ void main() {
       final ref = await insertSub('/n1/ref.fits');
       seam.scriptedAccumulate['create'] = [
         const MasterAccumulateResult(
-          sidecarPath: '/m/m.nsmaster',
+          sidecarPath: '/m/m.skmaster',
           masterPath: null,
           previewPath: null,
           frameCount: 0,
@@ -325,12 +325,12 @@ void main() {
       ];
       final masterId = await service.createMaster(
         referenceSub: ref,
-        sidecarPath: '/m/m.nsmaster',
+        sidecarPath: '/m/m.skmaster',
       );
 
       seam.scriptedAccumulate['finalize'] = [
         const MasterAccumulateResult(
-          sidecarPath: '/m/m.nsmaster',
+          sidecarPath: '/m/m.skmaster',
           masterPath: '/m/m_master.fits',
           previewPath: '/m/m_master.png',
           frameCount: 12,
@@ -373,8 +373,8 @@ void main() {
     late MasterAccumulationService retiringService;
 
     setUp(() {
-      dir = Directory.systemTemp.createTempSync('ns_master_retired');
-      sidecarPath = p.join(dir.path, 'm51.nsmaster');
+      dir = Directory.systemTemp.createTempSync('sk_master_retired');
+      sidecarPath = p.join(dir.path, 'm51.skmaster');
       File(sidecarPath).writeAsStringSync('v1 accumulator state');
       File('$sidecarPath.calib.json').writeAsStringSync('{"folds":[]}');
       retiringSeam = _RetiringSeam(sidecarPath);

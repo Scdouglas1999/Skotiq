@@ -21,7 +21,7 @@ void main() {
 
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp(
-        'ns_collaboration_handlers_test_',
+        'sk_collaboration_handlers_test_',
       );
       logger = LoggingService(
         applicationSupportDirectoryProvider: () async => tempDir,

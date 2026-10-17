@@ -1,6 +1,6 @@
 # GUI release pass — cluster: Mosaic / Collaborative Sky / Transients / Suggestions / Catalogs
 
-Driven live on `NS_AUDIT_DISPLAY=:87`, profile `gui-collab-catalogs`, fresh scratch profile
+Driven live on `SK_AUDIT_DISPLAY=:87`, profile `gui-collab-catalogs`, fresh scratch profile
 (`/tmp/ns-audit/gui-collab-catalogs`), release desktop bundle. Site set to 40.02, -105.27,
 optics 530 mm / 80 mm / 3.76 um, simulator camera + mount + focuser + filter wheel selected in
 onboarding. All findings below were observed in the running app.

@@ -82,7 +82,7 @@ void main() {
   });
 
   test('HYG parser stores the CSV RA column in hours', () async {
-    final dir = await Directory.systemTemp.createTemp('ns_hyg_units_');
+    final dir = await Directory.systemTemp.createTemp('sk_hyg_units_');
     addTearDown(() async {
       if (await dir.exists()) await dir.delete(recursive: true);
     });

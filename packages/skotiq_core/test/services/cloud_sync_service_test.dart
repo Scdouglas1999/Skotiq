@@ -260,7 +260,7 @@ void main() {
 
     setUp(() async {
       db = SkotiqDatabase.forTesting(NativeDatabase.memory());
-      tempDir = await Directory.systemTemp.createTemp('ns_cloud_sync_test_');
+      tempDir = await Directory.systemTemp.createTemp('sk_cloud_sync_test_');
       logger = _testLogger(tempDir);
       remote = InMemorySyncTarget();
     });
@@ -548,7 +548,7 @@ void main() {
 
     setUp(() async {
       db = SkotiqDatabase.forTesting(NativeDatabase.memory());
-      tempDir = await Directory.systemTemp.createTemp('ns_cloud_sync_cfg_');
+      tempDir = await Directory.systemTemp.createTemp('sk_cloud_sync_cfg_');
       logger = _testLogger(tempDir);
       dao = SettingsDao(db);
       keyring = InMemorySecureKeyValueStore();
@@ -782,7 +782,7 @@ void main() {
     late InMemoryS3 store;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp('ns_cloud_sync_s3_');
+      tempDir = await Directory.systemTemp.createTemp('sk_cloud_sync_s3_');
       logger = _testLogger(tempDir);
       store = InMemoryS3(bucket: 'astro-backups');
     });

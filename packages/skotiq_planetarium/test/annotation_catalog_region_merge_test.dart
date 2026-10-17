@@ -13,7 +13,7 @@ void main() {
   late Directory tempDir;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns-annotation-merge');
+    tempDir = await Directory.systemTemp.createTemp('sk-annotation-merge');
   });
 
   tearDown(() async {

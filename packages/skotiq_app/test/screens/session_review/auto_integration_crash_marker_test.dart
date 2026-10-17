@@ -117,7 +117,7 @@ class _ObservingAccumulationService implements MasterAccumulationService {
     markerDuringRun = await readIntegrationMarker(_markerDir);
     foldedInto.add(masterId);
     return MasterAccumulateResult(
-      sidecarPath: '/sidecar_$masterId.nsmaster',
+      sidecarPath: '/sidecar_$masterId.skmaster',
       masterPath: null,
       previewPath: null,
       frameCount: subs.length,
@@ -198,8 +198,8 @@ void main() {
 
   setUp(() async {
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
-    markerDir = await Directory.systemTemp.createTemp('ns_marker_');
-    outDir = await Directory.systemTemp.createTemp('ns_out_');
+    markerDir = await Directory.systemTemp.createTemp('sk_marker_');
+    outDir = await Directory.systemTemp.createTemp('sk_out_');
     push = PushNotificationService();
     pushSubscription = push.notifications.listen((_) {});
     await db.settingsDao.setSetting(kAutoIntegrateSettingKey, 'true');
@@ -343,7 +343,7 @@ void main() {
     final masterId = await IntegratedMastersDao(db).insertMaster(
       targetId: targetId,
       name: 'M31 L (growing)',
-      sidecarPath: '${outDir.path}/m31_l.nsmaster',
+      sidecarPath: '${outDir.path}/m31_l.skmaster',
       status: IntegratedMasterStatus.accumulating,
       accumulationMode: AccumulationMode.runningWeightedMean,
       filter: 'L',

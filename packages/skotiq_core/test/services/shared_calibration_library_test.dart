@@ -149,7 +149,7 @@ void main() {
     darkDao = DarkLibraryDao(db);
     flatDao = FlatLibraryDao(db);
     tagsDao = CalibrationTagsDao(db);
-    tmp = Directory.systemTemp.createTempSync('ns_shared_cal_');
+    tmp = Directory.systemTemp.createTempSync('sk_shared_cal_');
   });
 
   tearDown(() async {

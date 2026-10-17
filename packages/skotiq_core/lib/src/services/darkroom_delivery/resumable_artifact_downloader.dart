@@ -25,7 +25,7 @@ import 'delivery_artifact.dart';
 import 'delivery_failure.dart';
 
 /// Suffix of the partial file a download writes into.
-const String kArtifactDownloadPartSuffix = '.nsdownload-part';
+const String kArtifactDownloadPartSuffix = '.skdownload-part';
 
 /// Suffix of the sidecar recording what the partial file is.
 const String kArtifactDownloadSidecarSuffix = '.skotiq-download';

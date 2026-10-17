@@ -46,7 +46,7 @@ void main() {
   });
 
   test('a real directory answers with usable numbers', () async {
-    final dir = Directory.systemTemp.createTempSync('ns-disk-ok');
+    final dir = Directory.systemTemp.createTempSync('sk-disk-ok');
     addTearDown(() => dir.deleteSync(recursive: true));
 
     final info = await service.query(dir.path);

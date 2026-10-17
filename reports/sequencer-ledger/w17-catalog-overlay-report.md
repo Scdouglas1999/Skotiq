@@ -112,7 +112,7 @@ tap missed the clipped switch (`catalogOverlayIncludeDsosProvider` stayed
 
 ## Before / after evidence (running app, Xvfb)
 
-Sandboxed instance via `tools/ui_audit/drive_linux.py`, `NS_AUDIT_DISPLAY=:97`
+Sandboxed instance via `tools/ui_audit/drive_linux.py`, `SK_AUDIT_DISPLAY=:97`
 (private Xvfb — never `:0`), `LIBGL_ALWAYS_SOFTWARE=1`, scratch
 `SKOTIQ_DATABASE_DIR` under `/tmp/ns-audit/w17/data`. AT-SPI registry was
 unavailable in this session (`tree` could not bind), so navigation used

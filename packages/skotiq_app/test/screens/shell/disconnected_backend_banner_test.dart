@@ -72,7 +72,7 @@ void _mockPathProvider(String root) {
 Future<void> _pumpShell(WidgetTester tester) async {
   // Synchronous on purpose: `testWidgets` runs inside a fake-async zone, and
   // an awaited dart:io future never completes there.
-  final root = Directory.systemTemp.createTempSync('ns-disconnected-banner-');
+  final root = Directory.systemTemp.createTempSync('sk-disconnected-banner-');
   addTearDown(() => root.deleteSync(recursive: true));
   _mockPathProvider(root.path);
 

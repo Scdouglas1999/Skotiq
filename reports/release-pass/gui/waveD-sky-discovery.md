@@ -8,7 +8,7 @@ pass. **No code was changed in this pass.**
 (the fresh Wave-D bundle). This is a genuinely new binary, not the Wave-B one
 the previous report tested.
 
-**Harness:** `tools/ui_audit/drive_linux.py`, `NS_AUDIT_DISPLAY=:85`,
+**Harness:** `tools/ui_audit/drive_linux.py`, `SK_AUDIT_DISPLAY=:85`,
 `start --fresh --profile waveD-sky-discovery`. Window 1600x900 unless stated.
 Onboarding was skipped; the observing site was set from
 Settings → Location to **40.7128, -74.0060** (the same site the original pass

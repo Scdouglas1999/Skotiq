@@ -48,7 +48,7 @@ void main() {
   late Directory work;
 
   setUp(() async {
-    work = await Directory.systemTemp.createTemp('ns-manifest-tool-');
+    work = await Directory.systemTemp.createTemp('sk-manifest-tool-');
   });
 
   tearDown(() async {

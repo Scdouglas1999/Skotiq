@@ -59,7 +59,7 @@ void main() {
   late Directory destinationDir;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_watched_');
+    tempDir = await Directory.systemTemp.createTemp('sk_watched_');
     source = await Directory(p.join(tempDir.path, 'source')).create();
     destinationDir = await Directory(p.join(tempDir.path, 'nas')).create();
   });
@@ -518,8 +518,8 @@ void main() {
 
     // The other half of that rule: a claim about the SHARE has to be earned
     // from the share. A drop folder watched by a sync agent that unlinks
-    // `.nsdelivery-part` files 0-2 ms after they appear produced
-    //   destinationUnreachable: Reading <drop>/.<master>.2.nsdelivery-part
+    // `.skdelivery-part` files 0-2 ms after they appear produced
+    //   destinationUnreachable: Reading <drop>/.<master>.2.skdelivery-part
     //   failed: Cannot open file — No such file or directory (errno 2). That
     //   is the destination's copy and <rig>/<master> is still on the rig, so
     //   the destination went away, not the artifact
@@ -630,7 +630,7 @@ void main() {
   // that ran out of inodes the journal, the morning report and the Settings
   // status line all read
   //   insufficientSpace: Copying <master> to <drop> failed: Cannot copy file
-  //   to '<drop>/.<master>.1.nsdelivery-part'
+  //   to '<drop>/.<master>.1.skdelivery-part'
   // — a sentence that would be word-for-word identical for a read-only mount,
   // a dead symlink or a name too long for the filesystem. The reason was in
   // hand the whole time: `osError.errorCode == 28` is what picked
@@ -641,7 +641,7 @@ void main() {
       // Exactly the exception dart:io raises when File.copy hits ENOSPC: the
       // act in `message`, the reason in `osError`.
       const enospc = FileSystemException(
-        "Cannot copy file to '/drop/.M31_Ha_master.fits.1.nsdelivery-part'",
+        "Cannot copy file to '/drop/.M31_Ha_master.fits.1.skdelivery-part'",
         '/rig/M31_Ha_master.fits',
         OSError('No space left on device', 28),
       );
@@ -685,7 +685,7 @@ void main() {
               contains('errno '),
               // The OS reason, whatever this platform words it as, is present
               // rather than the act alone.
-              isNot(endsWith("nsdelivery-part'")),
+              isNot(endsWith("skdelivery-part'")),
             ),
           ),
         ),

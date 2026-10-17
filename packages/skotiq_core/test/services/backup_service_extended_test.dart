@@ -39,7 +39,7 @@ void main() {
     setUp(() async {
       srcDb = SkotiqDatabase.forTesting(NativeDatabase.memory());
       dstDb = SkotiqDatabase.forTesting(NativeDatabase.memory());
-      tempDir = await Directory.systemTemp.createTemp('ns_backup_ext_test_');
+      tempDir = await Directory.systemTemp.createTemp('sk_backup_ext_test_');
       logger = _testLogger(tempDir);
     });
 

@@ -562,7 +562,7 @@ cellular-push keys, on-sky tuning) that flip the gated bits live.
   both across a physical reconnect); disconnect/reconnect continue to flow
   through heartbeat debounce → recovery loop → push notification.
 - **Deep-star catalog tier + live minor-planet refresh (planetarium).**
-  Downloadable tiled deep-star catalog (NSDT format, hash-verified,
+  Downloadable tiled deep-star catalog (SKDT format, hash-verified,
   LRU-cached) renders below 8° FOV with clean HYG handoff; MPC element
   refresh unions fresh comet/asteroid elements into the overlay and omnibox
   search, offline-safe with last-updated indicator. Catalog prep tooling in

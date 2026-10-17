@@ -106,7 +106,7 @@ void main() {
   late StackingHandlers handlers;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_stacking_test_');
+    tempDir = await Directory.systemTemp.createTemp('sk_stacking_test_');
     logger = LoggingService(
       applicationSupportDirectoryProvider: () async => tempDir,
       nativeInitWithLogging: ({logDirectory}) {},

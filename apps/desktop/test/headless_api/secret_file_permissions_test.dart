@@ -25,7 +25,7 @@ void main() {
   late Directory appData;
 
   setUp(() async {
-    appData = await Directory.systemTemp.createTemp('ns-secret-file-test-');
+    appData = await Directory.systemTemp.createTemp('sk-secret-file-test-');
   });
 
   tearDown(() async {

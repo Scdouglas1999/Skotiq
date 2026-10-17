@@ -2,7 +2,7 @@
 // wrote.
 //
 // Live finding ND-6: Live Stacking → Stop → "Save master" → typed
-// `/tmp/ns-audit/waveD-imaging-spine/stack_master.fits` → the log recorded
+// `/tmp/sk-audit/waveD-imaging-spine/stack_master.fits` → the log recorded
 // `Saving PNG file: …/stack_master.png` and the file on disk was
 // `PNG image data, 1920 x 1080, 16-bit grayscale`. The 16-bit depth survives,
 // but a "stacked master" saved as PNG carries no FITS header, no WCS and no

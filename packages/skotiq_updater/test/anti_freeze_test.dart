@@ -68,7 +68,7 @@ void main() {
   group('AntiFreezeStore', () {
     late Directory tempRoot;
     setUp(() async {
-      tempRoot = await Directory.systemTemp.createTemp('ns_antifreeze_unit_');
+      tempRoot = await Directory.systemTemp.createTemp('sk_antifreeze_unit_');
     });
     tearDown(() async {
       if (await tempRoot.exists()) {
@@ -106,7 +106,7 @@ void main() {
     late String publicKeyBase64;
 
     setUp(() async {
-      tempRoot = await Directory.systemTemp.createTemp('ns_antifreeze_dl_');
+      tempRoot = await Directory.systemTemp.createTemp('sk_antifreeze_dl_');
       algorithm = Ed25519();
       keyPair = await algorithm.newKeyPair();
       publicKeyBase64 = base64Encode((await keyPair.extractPublicKey()).bytes);
@@ -206,7 +206,7 @@ void main() {
 
   test('anti_freeze.json lands under updates/', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
-      'ns_antifreeze_loc_',
+      'sk_antifreeze_loc_',
     );
     addTearDown(() async {
       if (await tempRoot.exists()) {

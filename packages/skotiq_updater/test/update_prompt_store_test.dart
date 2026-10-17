@@ -17,7 +17,7 @@ void main() {
   late UpdatePromptStore store;
 
   setUp(() async {
-    dataDir = await Directory.systemTemp.createTemp('ns-prompt-');
+    dataDir = await Directory.systemTemp.createTemp('sk-prompt-');
     store = UpdatePromptStore(() async => dataDir);
   });
 

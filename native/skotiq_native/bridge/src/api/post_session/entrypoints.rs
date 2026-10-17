@@ -31,7 +31,7 @@ pub fn api_integrate_session(args_json: String) -> Result<String, String> {
 /// * `info`     `{ op, sidecarPath }`
 ///
 /// Returns a [`MasterAccumulateResult`]. The running accumulator state lives in
-/// the `.nsmaster` sidecar; the FITS is the shareable artifact written on
+/// the `.skmaster` sidecar; the FITS is the shareable artifact written on
 /// `finalize` (and re-finalizable after more `add`s).
 ///
 /// `add` accepts a `runId` and honours [`api_post_session_cancel`] the same way

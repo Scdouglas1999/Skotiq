@@ -278,7 +278,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             }
             // The trigger update is in-memory only — `updateNode` mutates
             // the editor state but doesn't write to disk. The toolbar's own
-            // file action EXPORTS a .nsq through a picker; it does not
+            // file action EXPORTS a .skeq through a picker; it does not
             // persist into the library, so pointing the user at it would be
             // a lie. Auto-save (when on) picks this up on its next tick;
             // otherwise "Save Current" in the Sequences tab is what persists.
@@ -974,7 +974,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                   <Widget>[
                     SkotiqIconButton(
                       icon: LucideIcons.save,
-                      // This writes a .nsq FILE through the OS chooser;
+                      // This writes a .skeq FILE through the OS chooser;
                       // saving into the app's library is the Saved tab's
                       // "Save current". Two actions both called "Save" was a
                       // real ambiguity — the name says which one this is.

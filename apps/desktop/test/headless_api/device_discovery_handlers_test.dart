@@ -97,7 +97,7 @@ void main() {
 
     setUp(() async {
       loggerTempDir = await Directory.systemTemp.createTemp(
-        'ns_device_discovery_handlers_test_',
+        'sk_device_discovery_handlers_test_',
       );
       logger = LoggingService(
         applicationSupportDirectoryProvider: () async => loggerTempDir,
@@ -348,7 +348,7 @@ void main() {
 
     setUp(() async {
       loggerTempDir = await Directory.systemTemp.createTemp(
-        'ns_device_rescan_handlers_test_',
+        'sk_device_rescan_handlers_test_',
       );
       logger = LoggingService(
         applicationSupportDirectoryProvider: () async => loggerTempDir,

@@ -30,7 +30,7 @@ void main() {
   late PeerManifestService peers;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_peer_manifest_');
+    tempDir = await Directory.systemTemp.createTemp('sk_peer_manifest_');
     source = await Directory(p.join(tempDir.path, 'masters')).create();
     db = SkotiqDatabase.forTesting(
       NativeDatabase(File(p.join(tempDir.path, 'skotiq.db'))),

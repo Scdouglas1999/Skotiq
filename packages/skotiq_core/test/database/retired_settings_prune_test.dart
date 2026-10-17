@@ -18,7 +18,7 @@ void main() {
   late File dbFile;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_retired_settings_');
+    tempDir = await Directory.systemTemp.createTemp('sk_retired_settings_');
     dbFile = File('${tempDir.path}/skotiq.db');
   });
 

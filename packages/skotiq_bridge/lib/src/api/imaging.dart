@@ -157,7 +157,7 @@ Future<FitsReadResult> apiReadFitsFile({required String filePath}) =>
 /// Update (overwrite or inject) one or more keywords on an existing FITS file.
 ///
 /// Implementation: reads the full file into memory, mutates the header in
-/// place, writes the result to a sibling `<filename>.nshatmp` file, then
+/// place, writes the result to a sibling `<filename>.skhatmp` file, then
 /// atomically renames it over the original. If any step fails the original
 /// file is left untouched.
 ///

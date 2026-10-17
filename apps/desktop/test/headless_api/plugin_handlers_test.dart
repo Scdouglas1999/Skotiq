@@ -83,7 +83,7 @@ void main() {
     late PluginHandlers handlers;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp('ns_plugin_handlers_');
+      tempDir = await Directory.systemTemp.createTemp('sk_plugin_handlers_');
       host = PluginHost();
       plugin = _TestPlugin();
       await host.registerPlugin(plugin);
@@ -163,7 +163,7 @@ void main() {
         Request(
           'POST',
           Uri.parse(
-            'http://localhost/api/plugins/upload?filename=sample.nsplugin',
+            'http://localhost/api/plugins/upload?filename=sample.skplugin',
           ),
           body: _archive({
             'id': 'com.skotiq.sample',
@@ -191,7 +191,7 @@ void main() {
               'name': 'Legacy Upload',
               'version': '0.9.0',
             }),
-            filename: 'legacy.nsplugin',
+            filename: 'legacy.skplugin',
           );
 
       final list = await handlers.handleListPlugins(
@@ -223,7 +223,7 @@ void main() {
               'name': 'Legacy Upload',
               'version': '0.9.0',
             }),
-            filename: 'legacy.nsplugin',
+            filename: 'legacy.skplugin',
           );
 
       final removed = await handlers.handleUninstallPlugin(

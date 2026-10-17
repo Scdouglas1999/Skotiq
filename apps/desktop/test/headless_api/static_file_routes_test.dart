@@ -24,7 +24,7 @@ void main() {
   late Router router;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_static_routes_test_');
+    tempDir = await Directory.systemTemp.createTemp('sk_static_routes_test_');
     logger = LoggingService(
       applicationSupportDirectoryProvider: () async => tempDir,
       nativeInitWithLogging: ({logDirectory}) {},

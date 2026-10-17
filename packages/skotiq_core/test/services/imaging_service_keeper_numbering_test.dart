@@ -118,7 +118,7 @@ void main() {
   });
 
   setUp(() {
-    outputDir = Directory.systemTemp.createTempSync('ns_keeper_numbering');
+    outputDir = Directory.systemTemp.createTempSync('sk_keeper_numbering');
     writtenPaths = <String>[];
     backend = MockBackend();
     events = StreamController<SkotiqEvent>.broadcast();

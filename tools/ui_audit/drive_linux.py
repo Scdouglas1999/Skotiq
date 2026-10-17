@@ -65,9 +65,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 BUNDLE = REPO / "apps/desktop/build/linux/x64/release/bundle/skotiq"
 DEBUG_BUNDLE = REPO / "apps/desktop/build/linux/x64/debug/bundle/skotiq"
-RUNTIME = Path(os.environ.get("NS_AUDIT_RUNTIME", "/tmp/ns-audit"))
-DISPLAY = os.environ.get("NS_AUDIT_DISPLAY", ":77")
-GEOMETRY = os.environ.get("NS_AUDIT_GEOMETRY", "1920x1200x24")
+RUNTIME = Path(os.environ.get("SK_AUDIT_RUNTIME", "/tmp/sk-audit"))
+DISPLAY = os.environ.get("SK_AUDIT_DISPLAY", ":77")
+GEOMETRY = os.environ.get("SK_AUDIT_GEOMETRY", "1920x1200x24")
 
 
 def _paths(profile: str) -> dict[str, Path]:
@@ -153,7 +153,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         print(
             f"error: {DISPLAY} already has {len(squatters)} window(s) before we "
             f"launched anything, so screenshots would capture another process's "
-            f"app. Pick a free NS_AUDIT_DISPLAY, or pass --allow-shared-display "
+            f"app. Pick a free SK_AUDIT_DISPLAY, or pass --allow-shared-display "
             f"if you know the display is yours.",
             file=sys.stderr,
         )

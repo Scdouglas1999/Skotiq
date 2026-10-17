@@ -90,7 +90,7 @@ Future<_FakeUpdateNotifier> _pumpAbout(
   ),
   List<Uri>? launched,
 }) async {
-  final tempDir = Directory.systemTemp.createTempSync('ns-about-update-');
+  final tempDir = Directory.systemTemp.createTempSync('sk-about-update-');
   addTearDown(() {
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
   });

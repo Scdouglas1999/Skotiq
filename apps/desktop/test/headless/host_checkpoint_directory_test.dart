@@ -17,8 +17,8 @@ void main() {
   late Directory ownDataRoot;
 
   setUp(() {
-    sharedSupportDir = Directory.systemTemp.createTempSync('ns-shared-support');
-    ownDataRoot = Directory.systemTemp.createTempSync('ns-own-data');
+    sharedSupportDir = Directory.systemTemp.createTempSync('sk-shared-support');
+    ownDataRoot = Directory.systemTemp.createTempSync('sk-own-data');
   });
 
   tearDown(() {

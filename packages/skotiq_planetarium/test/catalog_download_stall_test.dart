@@ -26,7 +26,7 @@ void main() {
   late http.Client Function() savedFactory;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_catalog_stall_');
+    tempDir = await Directory.systemTemp.createTemp('sk_catalog_stall_');
     await CatalogManager.instance.initialize(tempDir.path);
 
     savedConnect = CatalogManager.connectTimeout;

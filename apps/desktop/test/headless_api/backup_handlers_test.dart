@@ -149,7 +149,7 @@ void main() {
     late BackupHandlers handlers;
 
     setUp(() {
-      backupDir = Directory.systemTemp.createTempSync('ns-backup-restore');
+      backupDir = Directory.systemTemp.createTempSync('sk-backup-restore');
       addTearDown(() => backupDir.deleteSync(recursive: true));
       container = createHeadlessTestContainer(
         overrides: [

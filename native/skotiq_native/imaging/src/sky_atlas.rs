@@ -39,7 +39,7 @@
 //!
 //! Each tile accumulator serialises to a sidecar under
 //! `<atlas_root>/tiles/<order>/<tileId>.nst` (magic [`TILE_MAGIC`], the same
-//! layout discipline as the master's `.nsmaster`). The atlas is **out-of-core**:
+//! layout discipline as the master's `.skmaster`). The atlas is **out-of-core**:
 //! a fold loads only the touched tiles, mutates them, and rewrites them; a query
 //! loads only the tiles a cone covers. The whole sky is never held in RAM, and a
 //! caller-supplied memory budget bounds how many tile buffers are resident at
@@ -52,7 +52,7 @@ use serde::{Deserialize, Serialize};
 
 /// Per-write nonce so each [`SkyAtlas::store_tile`] temp sidecar is unique even
 /// when two folds for the SAME tile race (or two processes share the atlas):
-/// the shared `nst.tmp` name let one fold's temp clobber another mid-write. The
+/// the shared `skt.tmp` name let one fold's temp clobber another mid-write. The
 /// final write-then-rename onto the real path stays atomic on the same fs.
 static STORE_TILE_NONCE: AtomicU64 = AtomicU64::new(0);
 
@@ -1244,10 +1244,10 @@ impl SkyAtlas {
             std::fs::create_dir_all(parent).map_err(|e| AtlasError::Io(e.to_string()))?;
         }
         // Per-write-unique temp (pid + monotonic nonce) so a concurrent fold for
-        // the same tile can't collide on a shared `nst.tmp`; the rename onto the
+        // the same tile can't collide on a shared `skt.tmp`; the rename onto the
         // real path is still atomic on the same filesystem.
         let tmp = path.with_extension(format!(
-            "nst.tmp.{}.{}",
+            "skt.tmp.{}.{}",
             std::process::id(),
             STORE_TILE_NONCE.fetch_add(1, Ordering::Relaxed)
         ));
@@ -2098,7 +2098,7 @@ mod tests {
     #[test]
     fn store_tile_unique_temp_no_collision_under_concurrency() {
         // Many concurrent store_tile calls for the SAME tile must not collide on
-        // a shared `.nst.tmp` path; each write uses a pid+nonce-unique temp and a
+        // a shared `.skt.tmp` path; each write uses a pid+nonce-unique temp and a
         // final atomic rename, so the on-disk sidecar is always a complete,
         // deserializable accumulator after the storm settles.
         use std::sync::Arc;
@@ -2135,12 +2135,12 @@ mod tests {
         // got renamed into place).
         let reloaded = atlas.load_tile(tid).unwrap().expect("tile on disk");
         assert_eq!(reloaded.tile_id, tid);
-        // No stray `.nst.tmp.*` temp files survived the storm.
+        // No stray `.skt.tmp.*` temp files survived the storm.
         let tiles_dir = atlas.tile_path(tid).parent().unwrap().to_path_buf();
         let leftover_tmp = std::fs::read_dir(&tiles_dir)
             .unwrap()
             .filter_map(|e| e.ok())
-            .filter(|e| e.file_name().to_string_lossy().contains(".nst.tmp."))
+            .filter(|e| e.file_name().to_string_lossy().contains(".skt.tmp."))
             .count();
         assert_eq!(leftover_tmp, 0, "no temp files should remain after renames");
 

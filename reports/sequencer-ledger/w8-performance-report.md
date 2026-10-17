@@ -22,7 +22,7 @@ Measure first. Every claim below carries the command and the number.
 
 ## 1. Baseline: idle CPU per screen (release bundle, GUI harness)
 
-Harness: `tools/ui_audit/drive_linux.py --profile w8perf`, `NS_AUDIT_DISPLAY=:96`,
+Harness: `tools/ui_audit/drive_linux.py --profile w8perf`, `SK_AUDIT_DISPLAY=:96`,
 Xvfb `1920x1200x24`, `LIBGL_ALWAYS_SOFTWARE=1` + `GALLIUM_DRIVER=softpipe`.
 Profile seeded from `~/.cache/skotiq-ledger-preview/data` minus
 `skotiq.db.lock` (past onboarding, Sim Rig connected, two saved sequences).

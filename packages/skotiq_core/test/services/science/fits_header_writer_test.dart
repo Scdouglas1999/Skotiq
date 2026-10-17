@@ -79,7 +79,7 @@ void main() {
   final writer = FitsHeaderWriter();
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_fits_writer_');
+    tempDir = await Directory.systemTemp.createTemp('sk_fits_writer_');
   });
   tearDown(() async {
     if (await tempDir.exists()) {

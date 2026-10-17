@@ -25,7 +25,7 @@ void main() {
   late Directory dir;
 
   setUp(() {
-    dir = Directory.systemTemp.createTempSync('ns-restore-marker');
+    dir = Directory.systemTemp.createTempSync('sk-restore-marker');
   });
 
   tearDown(() {

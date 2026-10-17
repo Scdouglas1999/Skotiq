@@ -110,7 +110,7 @@ void main() {
       // watched-folder transport and the bytes land — with no operator action and
       // no remote-access server anywhere in the process. The cadences are shrunk
       // so the test drives the ladder instead of waiting out 30 seconds of it.
-      final root = Directory.systemTemp.createTempSync('ns-arming');
+      final root = Directory.systemTemp.createTempSync('sk-arming');
       addTearDown(() {
         if (root.existsSync()) root.deleteSync(recursive: true);
       });

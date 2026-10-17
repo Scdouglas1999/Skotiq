@@ -14,7 +14,7 @@ void main() {
   late FramingImageCacheService service;
 
   setUp(() async {
-    tempRoot = await Directory.systemTemp.createTemp('ns_framing_cache_test_');
+    tempRoot = await Directory.systemTemp.createTemp('sk_framing_cache_test_');
     service = FramingImageCacheService(
       supportDirProvider: () async => tempRoot,
     );

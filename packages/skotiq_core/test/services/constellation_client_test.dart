@@ -56,7 +56,7 @@ void main() {
     test(
       'pushTile POSTs the .nst blob with order query + provenance headers',
       () async {
-        final dir = await Directory.systemTemp.createTemp('nst_push');
+        final dir = await Directory.systemTemp.createTemp('skt_push');
         final delta = File('${dir.path}/delta_42.nst');
         await delta.writeAsBytes([9, 8, 7, 6]);
 
@@ -152,7 +152,7 @@ void main() {
     );
 
     test('pullTile GETs the blob and writes it to disk', () async {
-      final dir = await Directory.systemTemp.createTemp('nst_pull');
+      final dir = await Directory.systemTemp.createTemp('skt_pull');
       final out = '${dir.path}/community_42.fits';
 
       http.Request? seen;
@@ -183,7 +183,7 @@ void main() {
   group('large-artifact downloads', () {
     test('a hub that sends headers then stalls mid-body times out instead of '
         'hanging forever, and leaves no partial artifact behind', () async {
-      final dir = await Directory.systemTemp.createTemp('nst_stall');
+      final dir = await Directory.systemTemp.createTemp('skt_stall');
       final out = '${dir.path}/community_7.fits';
       final body = StreamController<List<int>>();
       addTearDown(() async {
@@ -217,7 +217,7 @@ void main() {
     }, timeout: const Timeout(Duration(seconds: 15)));
 
     test('a body that fails mid-stream deletes the truncated file', () async {
-      final dir = await Directory.systemTemp.createTemp('nst_reset');
+      final dir = await Directory.systemTemp.createTemp('skt_reset');
       final out = '${dir.path}/community_8.fits';
       addTearDown(() => dir.delete(recursive: true));
 
@@ -359,7 +359,7 @@ void main() {
 
   group('error mapping', () {
     test('409 maps to geometryMismatch', () async {
-      final dir = await Directory.systemTemp.createTemp('nst_409');
+      final dir = await Directory.systemTemp.createTemp('skt_409');
       final delta = File('${dir.path}/d.nst')..writeAsBytesSync([0]);
       final mock = MockClient(
         (_) async => http.Response('order mismatch', 409),

@@ -2,7 +2,7 @@
 
 Binary: `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`
 (`lib/libskotiq_bridge.so` dated 2026-08-13 20:33, newer than the launcher — this is the
-fresh bundle). Driven with `tools/ui_audit/drive_linux.py`, `NS_AUDIT_DISPLAY=:84`,
+fresh bundle). Driven with `tools/ui_audit/drive_linux.py`, `SK_AUDIT_DISPLAY=:84`,
 profile `waveE-settings-pairing`, started `--fresh`. Evidence:
 `/tmp/ns-audit/waveE-settings-pairing/` (s01…s71).
 

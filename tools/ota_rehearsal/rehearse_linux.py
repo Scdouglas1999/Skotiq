@@ -524,7 +524,7 @@ def judge(run, sc, outcome):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--root", required=True, help="rehearsal root (~/.cache/ns-ota)")
+    ap.add_argument("--root", required=True, help="rehearsal root (~/.cache/sk-ota)")
     ap.add_argument("--set", required=True, help="build set label, e.g. base or fixed")
     ap.add_argument("--bundle-n", required=True)
     ap.add_argument("--scenarios", required=True, help="scenarios JSON file")

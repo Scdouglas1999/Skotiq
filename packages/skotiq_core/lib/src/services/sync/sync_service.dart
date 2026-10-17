@@ -643,7 +643,7 @@ class SyncService {
       target = await _buildTarget(config);
 
       // 1. Bundle — reuse the exact backup creation the Backup screen uses.
-      tempDir = await Directory.systemTemp.createTemp('ns_sync_push_');
+      tempDir = await Directory.systemTemp.createTemp('sk_sync_push_');
       final timestamp = _fileTimestamp(_clock());
       final bundleName = 'bundle-$timestamp.nsbak';
       final localPath = p.join(tempDir.path, bundleName);

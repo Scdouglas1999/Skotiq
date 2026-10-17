@@ -27,7 +27,7 @@ void main() {
   late Directory relocated;
 
   setUp(() {
-    tempRoot = Directory.systemTemp.createTempSync('ns-dir-resolver');
+    tempRoot = Directory.systemTemp.createTempSync('sk-dir-resolver');
     platformSupport = Directory(p.join(tempRoot.path, 'platform-support'))
       ..createSync(recursive: true);
     platformDocuments = Directory(p.join(tempRoot.path, 'platform-documents'))

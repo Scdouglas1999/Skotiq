@@ -317,7 +317,7 @@ class CatalogHandlers {
     // Stream the upload to a temp file so a 1 GiB transfer doesn't
     // materialise in-memory. Use a unique name so concurrent uploads of
     // the same catalog don't collide.
-    final tempDir = await Directory.systemTemp.createTemp('ns_catalog_upload_');
+    final tempDir = await Directory.systemTemp.createTemp('sk_catalog_upload_');
     final tempPath = p.join(
       tempDir.path,
       'upload.${DateTime.now().millisecondsSinceEpoch}',

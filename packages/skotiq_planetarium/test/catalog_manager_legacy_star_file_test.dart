@@ -29,7 +29,7 @@ void main() {
     late Directory tempDir;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp('ns_catalog_v42_');
+      tempDir = await Directory.systemTemp.createTemp('sk_catalog_v42_');
       await CatalogManager.instance.initialize(tempDir.path);
       await File('${tempDir.path}/hyg_v42.csv').writeAsString(_miniHygCsv());
     });
@@ -57,7 +57,7 @@ void main() {
     });
 
     test('is removed once the current-name catalog is installed', () async {
-      final src = await Directory.systemTemp.createTemp('ns_v44_src_');
+      final src = await Directory.systemTemp.createTemp('sk_v44_src_');
       addTearDown(() async {
         if (await src.exists()) await src.delete(recursive: true);
       });
@@ -80,7 +80,7 @@ void main() {
     late Directory tempDir;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp('ns_catalog_none_');
+      tempDir = await Directory.systemTemp.createTemp('sk_catalog_none_');
       await CatalogManager.instance.initialize(tempDir.path);
     });
 

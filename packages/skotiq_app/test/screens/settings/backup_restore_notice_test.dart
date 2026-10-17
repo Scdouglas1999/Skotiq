@@ -35,7 +35,7 @@ void main() {
     // Sync file work only: inside testWidgets the clock is faked, so a real
     // asynchronous filesystem call never completes unless it is wrapped in
     // tester.runAsync (which the list load below is).
-    final directory = Directory.systemTemp.createTempSync('ns-backup-test');
+    final directory = Directory.systemTemp.createTempSync('sk-backup-test');
     addTearDown(() => directory.deleteSync(recursive: true));
     final backupFile = File('${directory.path}/skotiq-2026-08-01.nsbackup')
       ..writeAsStringSync('{}');
@@ -105,7 +105,7 @@ void main() {
   // to Imaging to start the run). Only the operator's Dismiss may clear it.
   testWidgets('the restart reminder survives leaving and re-entering the page',
       (tester) async {
-    final directory = Directory.systemTemp.createTempSync('ns-backup-nav');
+    final directory = Directory.systemTemp.createTempSync('sk-backup-nav');
     addTearDown(() => directory.deleteSync(recursive: true));
     final backupFile = File('${directory.path}/skotiq-2026-08-01.nsbackup')
       ..writeAsStringSync('{}');

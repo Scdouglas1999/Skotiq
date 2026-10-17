@@ -18,7 +18,7 @@ void main() {
   late Directory tempDir;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_catalog_partial_');
+    tempDir = await Directory.systemTemp.createTemp('sk_catalog_partial_');
   });
 
   tearDown(() async {
@@ -50,9 +50,9 @@ void main() {
   // it and those leftovers stayed forever too.
   test('a deep-star tile leftover in a subdirectory is reclaimed', () async {
     final tiles = Directory('${tempDir.path}/deep_stars')..createSync();
-    final abandonedTile = File('${tiles.path}/nsdt_0421.nsdt.part');
+    final abandonedTile = File('${tiles.path}/skdt_0421.skdt.part');
     await abandonedTile.writeAsBytes(List<int>.filled(8192, 0x42));
-    final installedTile = File('${tiles.path}/nsdt_0420.nsdt');
+    final installedTile = File('${tiles.path}/skdt_0420.skdt');
     await installedTile.writeAsBytes(List<int>.filled(16, 0x43));
 
     await CatalogManager.instance.initialize(tempDir.path);

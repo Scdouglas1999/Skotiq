@@ -18,8 +18,8 @@ set -euo pipefail
 
 KEYS="$(readlink -f "$1")"; shift
 
-if [ "${NS_OTA_IN_SHIM:-}" != "1" ]; then
-  export NS_OTA_IN_SHIM=1
+if [ "${SK_OTA_IN_SHIM:-}" != "1" ]; then
+  export SK_OTA_IN_SHIM=1
   exec unshare --user --map-root-user --mount --net -- "$0" "$KEYS" "$@"
 fi
 

@@ -649,7 +649,7 @@ void main() {
     });
 
     test('accepts a writable directory and forwards it', () async {
-      final dir = Directory.systemTemp.createTempSync('ns-save-path-ok');
+      final dir = Directory.systemTemp.createTempSync('sk-save-path-ok');
       addTearDown(() => dir.deleteSync(recursive: true));
 
       final response = await post({'path': dir.path});
@@ -664,7 +664,7 @@ void main() {
     test(
       'creates a missing directory rather than accepting it blind',
       () async {
-        final parent = Directory.systemTemp.createTempSync('ns-save-path-new');
+        final parent = Directory.systemTemp.createTempSync('sk-save-path-new');
         addTearDown(() => parent.deleteSync(recursive: true));
         final target = '${parent.path}/captures/tonight';
 

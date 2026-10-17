@@ -160,7 +160,7 @@ class SftpTransport implements ArtifactTransport {
       );
     }
 
-    final workDir = await Directory.systemTemp.createTemp('ns_sftp_');
+    final workDir = await Directory.systemTemp.createTemp('sk_sftp_');
     final _SftpSession session;
     try {
       session = await _openSession(

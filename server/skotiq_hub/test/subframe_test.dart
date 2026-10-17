@@ -11,7 +11,7 @@ void main() {
   late Directory tmp;
 
   setUp(() {
-    tmp = Directory.systemTemp.createTempSync('nshub_subs_');
+    tmp = Directory.systemTemp.createTempSync('skhub_subs_');
   });
 
   tearDown(() {

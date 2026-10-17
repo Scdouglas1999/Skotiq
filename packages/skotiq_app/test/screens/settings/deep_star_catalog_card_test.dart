@@ -17,7 +17,7 @@ const _manifest = DeepStarManifest(
     DeepStarManifestTile(
       raBand: 1,
       decBand: 2,
-      file: 'tile.nsdt',
+      file: 'tile.skdt',
       sizeBytes: 100,
       sha256: 'abc',
       starCount: 7,

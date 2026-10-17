@@ -66,7 +66,7 @@ class IntegratedMaster {
   final String? masterFitsPath;
   final String? previewPngPath;
 
-  /// Resumable accumulator sidecar (`.nsmaster`). Null for one-shot batch
+  /// Resumable accumulator sidecar (`.skmaster`). Null for one-shot batch
   /// integrations.
   final String? sidecarPath;
 

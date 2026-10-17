@@ -22,7 +22,7 @@ void main() {
   late Directory tempDir;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns-region-scan');
+    tempDir = await Directory.systemTemp.createTemp('sk-region-scan');
   });
 
   tearDown(() async {

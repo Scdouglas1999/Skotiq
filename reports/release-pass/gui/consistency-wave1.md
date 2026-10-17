@@ -1,6 +1,6 @@
 # Cross-screen design-language audit (cluster: consistency)
 
-Driven live against the release bundle on `NS_AUDIT_DISPLAY=:88`, profile `gui-consistency`,
+Driven live against the release bundle on `SK_AUDIT_DISPLAY=:88`, profile `gui-consistency`,
 fresh scratch profile (first-run onboarding). Read-only review; no app code was changed.
 
 Harness note for whoever re-drives this: `drive_linux.py` accepts `--profile` on both sides of the

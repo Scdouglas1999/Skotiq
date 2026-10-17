@@ -1294,7 +1294,7 @@ void main() {
     final masters = IntegratedMastersDao(db);
     final accumulating = await masters.insertMaster(
       name: 'M42 · L',
-      sidecarPath: '${workspace.path}/M42.nsmaster',
+      sidecarPath: '${workspace.path}/M42.skmaster',
       status: IntegratedMasterStatus.accumulating,
       accumulationMode: AccumulationMode.runningWeightedMean,
     );

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert a public deep-star source catalog into Skotiq NSDT tiles.
+"""Convert a public deep-star source catalog into Skotiq SKDT tiles.
 
 The planetarium's *deep-star tier* extends the bundled HYG atlas (~mag 11.5
 floor) downward to a Tycho-2 / Gaia subset, served as small per-region binary
@@ -13,10 +13,10 @@ It does NOT download anything — point ``--input`` at a catalog you already hav
 mapping). For tests / demos, ``--synthetic`` writes a tiny deterministic
 tileset with no external data.
 
-NSDT binary layout (little-endian) — MUST stay byte-identical to the Dart
+SKDT binary layout (little-endian) — MUST stay byte-identical to the Dart
 decoder in ``deep_star_tile.dart``::
 
-    magic 'NSDT' (4) | version u16 (=1) | raBand u8 | decBand u8
+    magic 'SKDT' (4) | version u16 (=1) | raBand u8 | decBand u8
     starCount u32 | reserved u32 (=0)
     then starCount * 12-byte records, sorted ascending by magnitude:
         ra  u32  micro-hours   (ra_hours * 1e6)
@@ -41,7 +41,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-MAGIC = b"NSDT"
+MAGIC = b"SKDT"
 FORMAT_VERSION = 1
 HEADER_BYTES = 16
 RECORD_BYTES = 12
@@ -77,7 +77,7 @@ def dec_band_of(dec_deg: float) -> int:
 
 
 def tile_file_name(ra_band: int, dec_band: int) -> str:
-    return f"tile_r{ra_band:02d}_d{dec_band:02d}.nsdt"
+    return f"tile_r{ra_band:02d}_d{dec_band:02d}.skdt"
 
 
 def encode_tile(ra_band: int, dec_band: int, stars: list[Star]) -> bytes:

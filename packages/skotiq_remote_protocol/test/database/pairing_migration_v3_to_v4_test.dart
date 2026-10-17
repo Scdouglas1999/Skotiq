@@ -32,7 +32,7 @@ void main() {
     test(
       'preserves pairings and backfills the historical control grant',
       () async {
-        final dir = await Directory.systemTemp.createTemp('ns_pairing_v3v4_');
+        final dir = await Directory.systemTemp.createTemp('sk_pairing_v3v4_');
         addTearDown(() async {
           if (await dir.exists()) await dir.delete(recursive: true);
         });

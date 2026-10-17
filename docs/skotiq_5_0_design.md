@@ -91,7 +91,7 @@ Tile accumulator sidecars are files under the app data dir
 (`<atlas_root>/tiles/<order>/<tileId>.nst`); the DB (`sky_tiles`,
 `sky_atlas_regions`) is the **index** over them (which tiles exist, their depth,
 coverage, last-folded session, bounding cone), not the bulk pixel store —
-exactly the `integrated_masters` (DB row) + `.nsmaster` (sidecar) split that
+exactly the `integrated_masters` (DB row) + `.skmaster` (sidecar) split that
 already ships.
 
 ---

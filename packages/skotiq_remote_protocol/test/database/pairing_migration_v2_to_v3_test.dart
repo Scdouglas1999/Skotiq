@@ -54,7 +54,7 @@ void main() {
 
     Future<Directory> tempDir(String suffix) async {
       final dir = await Directory.systemTemp.createTemp(
-        'ns_pairing_v2v3_$suffix',
+        'sk_pairing_v2v3_$suffix',
       );
       addTearDown(() async {
         if (await dir.exists()) await dir.delete(recursive: true);

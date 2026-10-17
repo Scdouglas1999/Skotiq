@@ -5,7 +5,7 @@ with faults injected, and check what a real night must not get wrong.
   python3 tools/harness/sim_night_soak/soak.py --scenario baseline
   python3 tools/harness/sim_night_soak/soak.py --list
 
-Everything lands under --scratch (default ~/.cache/ns-soak/<scenario>): the
+Everything lands under --scratch (default ~/.cache/sk-soak/<scenario>): the
 database, frames, logs, the resource CSV, the guider timeline, the status
 timeline and results.json. The exit status is 0 only when every invariant held.
 See README.md for what each invariant means and why it is there.
@@ -479,7 +479,7 @@ def main():
         return 2
     sc = dict(SCENARIOS[args.scenario])
     args.minutes = sc.get("minutes", args.minutes)
-    args.scratch = args.scratch or os.path.expanduser(f"~/.cache/ns-soak/{args.scenario}")
+    args.scratch = args.scratch or os.path.expanduser(f"~/.cache/sk-soak/{args.scenario}")
     if args.recheck:
         with open(os.path.join(args.scratch, "results.json")) as fh:
             result = json.load(fh)

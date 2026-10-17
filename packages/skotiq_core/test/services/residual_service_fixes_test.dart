@@ -549,7 +549,7 @@ void main() {
         final settingsDao = SettingsDao(database);
         await settingsDao.setSetting('sentinel', 'keep-me');
 
-        final dir = await Directory.systemTemp.createTemp('ns_atomic_restore_');
+        final dir = await Directory.systemTemp.createTemp('sk_atomic_restore_');
         addTearDown(() => dir.delete(recursive: true));
         final backupFile = File('${dir.path}/malformed.nsbackup');
         await backupFile.writeAsString(

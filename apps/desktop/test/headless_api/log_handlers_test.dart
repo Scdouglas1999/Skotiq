@@ -27,7 +27,7 @@ void main() {
     late String logsDir;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp('ns_log_handlers_test_');
+      tempDir = await Directory.systemTemp.createTemp('sk_log_handlers_test_');
       // Use a fake current-log file path so clearLogs preserves it.
       logsDir = '${tempDir.path}${Platform.pathSeparator}logs';
       final currentLogPath = '$logsDir${Platform.pathSeparator}skotiq.log';

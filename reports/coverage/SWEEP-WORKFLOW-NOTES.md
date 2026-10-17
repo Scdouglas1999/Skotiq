@@ -81,7 +81,7 @@ accessibility root is matched by **process id**, never by application name (the 
 per login session, not per display, so name matching can pick up the developer's own running app —
 and a `click` would then drive it).
 
-**Still required of the caller:** assign each agent its own `NS_AUDIT_DISPLAY`, and check the
+**Still required of the caller:** assign each agent its own `SK_AUDIT_DISPLAY`, and check the
 display is free first:
 
 ```bash
@@ -90,7 +90,7 @@ for d in $(seq 81 99); do echo ":$d $(DISPLAY=:$d xdotool search --onlyvisible -
 
 ## Checklist for the next sweep workflow
 
-- [ ] Each agent gets its own `NS_AUDIT_DISPLAY`, verified free before launch.
+- [ ] Each agent gets its own `SK_AUDIT_DISPLAY`, verified free before launch.
 - [ ] Slices of ~15-25 ledger units, taken from `units_by_area.json`.
 - [ ] Brief includes the context-budget rules (`tree` over `shot`; capture liberally, read selectively).
 - [ ] Brief requires incremental writes to `reports/coverage/swept/<area>.json`.

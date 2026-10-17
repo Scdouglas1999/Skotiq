@@ -8,7 +8,7 @@ nothing on the right".
 
 ## 1. Reproduced in the running app
 
-Harness: `tools/ui_audit/drive_linux.py --profile w6shift`, `NS_AUDIT_DISPLAY=:92`,
+Harness: `tools/ui_audit/drive_linux.py --profile w6shift`, `SK_AUDIT_DISPLAY=:92`,
 profile seeded from `~/.cache/skotiq-ledger-preview/data`. App window
 1600x900 at root (160,150) on a 1920x1200 virtual screen. Loaded
 "NGC 7000 + M31 · full night" from Sequencer › Saved, selected the **Cool

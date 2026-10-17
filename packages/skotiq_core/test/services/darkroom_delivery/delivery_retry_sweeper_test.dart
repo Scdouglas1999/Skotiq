@@ -86,7 +86,7 @@ void main() {
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     delivery = _CountingDelivery(db);
     logger = LoggingService();
-    tempDir = Directory.systemTemp.createTempSync('ns_delivery_sweeper_');
+    tempDir = Directory.systemTemp.createTempSync('sk_delivery_sweeper_');
   });
 
   tearDown(() async {

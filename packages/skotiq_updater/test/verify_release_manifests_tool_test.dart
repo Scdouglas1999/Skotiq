@@ -24,7 +24,7 @@ void main() {
   final algorithm = Ed25519();
 
   setUp(() async {
-    assets = await Directory.systemTemp.createTemp('ns-verify-release-');
+    assets = await Directory.systemTemp.createTemp('sk-verify-release-');
     key = await algorithm.newKeyPair();
     publicKey = base64Encode((await key.extractPublicKey()).bytes);
   });

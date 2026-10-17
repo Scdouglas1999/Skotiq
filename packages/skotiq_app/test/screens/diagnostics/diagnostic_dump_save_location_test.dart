@@ -26,7 +26,7 @@ void main() {
   Map<Object?, Object?>? saveDialogArguments;
 
   setUp(() {
-    root = Directory.systemTemp.createTempSync('ns-dump-save-');
+    root = Directory.systemTemp.createTempSync('sk-dump-save-');
     downloads = Directory('${root.path}/Downloads')..createSync();
     documents = Directory('${root.path}/Documents')..createSync();
     saveDialogArguments = null;

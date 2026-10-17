@@ -232,7 +232,7 @@ void main() {
 
   setUpAll(() async {
     db = mockDatabase();
-    tempDir = await Directory.systemTemp.createTemp('ns_cloud_sync_ui_');
+    tempDir = await Directory.systemTemp.createTemp('sk_cloud_sync_ui_');
     logger = _testLogger(tempDir);
   });
 

@@ -82,7 +82,7 @@ void main() {
   }
 
   setUp(() async {
-    temp = await Directory.systemTemp.createTemp('ns-thumb-sidecar');
+    temp = await Directory.systemTemp.createTemp('sk-thumb-sidecar');
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     imagesDao = ImagesDao(db);
     generator = _CountingGenerator();

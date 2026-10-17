@@ -6,7 +6,7 @@ magnitude 11.5) down to ~mag 13. The app streams these tiles on demand via
 `DeepStarCatalogManager`, culling to the view and only when zoomed in past the
 deep-star FOV threshold.
 
-`make_deep_star_tiles.py` converts a source CSV into the binary `.nsdt` tile
+`make_deep_star_tiles.py` converts a source CSV into the binary `.skdt` tile
 format plus a `manifest.json`, which you host at a static URL. The app fetches
 `<baseUrl>/manifest.json`, then each tile, verifying every tile's SHA-256
 against the manifest.
@@ -20,14 +20,14 @@ and point `--input` at it. For tests and demos, `--synthetic` writes a tiny
 deterministic tileset with no external dependency; that synthetic data is
 **not real astrometry** and must never ship as the actual deep-star tier.
 
-## Tile format (NSDT v1)
+## Tile format (SKDT v1)
 
 Little-endian; this layout is byte-identical to the Dart decoder in
 `packages/skotiq_planetarium/lib/src/catalogs/deep_star_tile.dart`. If you
 change one, change both.
 
 ```
-magic 'NSDT' (4) | version u16 (=1) | raBand u8 | decBand u8
+magic 'SKDT' (4) | version u16 (=1) | raBand u8 | decBand u8
 starCount u32 | reserved u32 (=0)
 starCount * 12-byte records, sorted ascending by magnitude (brightest first):
     ra  u32  micro-hours    (ra_hours * 1e6)
@@ -38,7 +38,7 @@ starCount * 12-byte records, sorted ascending by magnitude (brightest first):
 
 The sky is split into 24 RA bands (1 hour each) × 18 Dec bands (10° each),
 matching the renderer's `CelestialSpatialIndex` cells so view culling agrees
-with the tiling. One file per non-empty cell: `tile_rRR_dDD.nsdt`.
+with the tiling. One file per non-empty cell: `tile_rRR_dDD.skdt`.
 
 ## Usage
 
@@ -70,7 +70,7 @@ cd skotiq_deep_stars && python3 -m http.server 8765
 
 and point the app's deep-star base URL at
 `http://<host>:8765` (the default in `DeepStarCatalogManager` is a localhost
-self-host). The app appends `/manifest.json` and `/tile_rRR_dDD.nsdt`.
+self-host). The app appends `/manifest.json` and `/tile_rRR_dDD.skdt`.
 
 ## Obtaining source catalogs
 

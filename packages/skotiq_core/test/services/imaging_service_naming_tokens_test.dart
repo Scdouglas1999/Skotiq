@@ -75,7 +75,7 @@ void main() {
   });
 
   setUp(() {
-    outputDir = Directory.systemTemp.createTempSync('ns_naming_tokens');
+    outputDir = Directory.systemTemp.createTempSync('sk_naming_tokens');
     writtenPaths = <String>[];
     backend = MockBackend();
     events = StreamController<SkotiqEvent>.broadcast();

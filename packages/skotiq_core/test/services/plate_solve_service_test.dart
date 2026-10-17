@@ -29,7 +29,7 @@ void main() {
       // would see ~12.513 here instead of 187.7.
       const crval1Deg = 187.7;
       const crval2Deg = 12.39;
-      final tmp = await Directory.systemTemp.createTemp('ns_wcs_test');
+      final tmp = await Directory.systemTemp.createTemp('sk_wcs_test');
       addTearDown(() => tmp.delete(recursive: true));
       final wcs = File('${tmp.path}/frame.wcs');
       await wcs.writeAsString(
@@ -84,7 +84,7 @@ void main() {
     String card(String content) => content.padRight(80).substring(0, 80);
 
     test('_parseWcsFile reads a terminator-free ASTAP header', () async {
-      final tmp = await Directory.systemTemp.createTemp('ns_wcs_cards');
+      final tmp = await Directory.systemTemp.createTemp('sk_wcs_cards');
       addTearDown(() => tmp.delete(recursive: true));
       final wcs = File('${tmp.path}/frame.wcs');
       await wcs.writeAsString(
@@ -119,7 +119,7 @@ void main() {
     });
 
     test('_parseWcsFile still reads a newline-delimited header', () async {
-      final tmp = await Directory.systemTemp.createTemp('ns_wcs_lines');
+      final tmp = await Directory.systemTemp.createTemp('sk_wcs_lines');
       addTearDown(() => tmp.delete(recursive: true));
       final wcs = File('${tmp.path}/frame.wcs');
       await wcs.writeAsString(
@@ -139,7 +139,7 @@ void main() {
 
   group('parser failure paths fail closed (no silent success)', () {
     test('_parseWcsFile fails loud when CRVAL keywords are absent', () async {
-      final tmp = await Directory.systemTemp.createTemp('ns_wcs_bad');
+      final tmp = await Directory.systemTemp.createTemp('sk_wcs_bad');
       addTearDown(() => tmp.delete(recursive: true));
       final wcs = File('${tmp.path}/frame.wcs');
       await wcs.writeAsString('COMMENT no coordinates here\n');
@@ -185,7 +185,7 @@ void main() {
     }
 
     test('a failure result is fully zeroed and names its reason', () async {
-      final tmp = await Directory.systemTemp.createTemp('ns_wcs_shape');
+      final tmp = await Directory.systemTemp.createTemp('sk_wcs_shape');
       addTearDown(() => tmp.delete(recursive: true));
       final wcs = File('${tmp.path}/frame.wcs');
       await wcs.writeAsString('COMMENT nothing solvable here\n');

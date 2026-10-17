@@ -1,6 +1,6 @@
 # Wave D verification — cluster: settings-onboarding
 
-Instance: `NS_AUDIT_DISPLAY=:84 python3 tools/ui_audit/drive_linux.py <cmd> --profile waveD-settings-onboarding`
+Instance: `SK_AUDIT_DISPLAY=:84 python3 tools/ui_audit/drive_linux.py <cmd> --profile waveD-settings-onboarding`
 (profile **after** the subcommand; `start --fresh --profile waveD-settings-onboarding`)
 Build: `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop` (binary dated 2026-08-13 18:31), Xvfb :84, softpipe.
 Window: 1600x900 for all repros unless stated; one pass at 1000x800.

@@ -55,7 +55,7 @@ void main() {
     late LoggingService logger;
 
     setUp(() async {
-      loggerTempDir = await Directory.systemTemp.createTemp('ns_mount_status_');
+      loggerTempDir = await Directory.systemTemp.createTemp('sk_mount_status_');
       logger = LoggingService(
         applicationSupportDirectoryProvider: () async => loggerTempDir,
         nativeInitWithLogging: ({logDirectory}) {},

@@ -8,7 +8,7 @@
 ///
 /// This is deliberately chrome-only. The name a node carries once it is in a
 /// sequence is the user's data — `NodePaletteItem.createNode()` sets it, the
-/// operator renames it, and it is written into their saved `.nsq`. Lowering
+/// operator renames it, and it is written into their saved `.skeq`. Lowering
 /// that would rewrite what the app saved for them, so the tree, the canvas bar
 /// and the properties column all keep the string exactly as it is stored.
 library;

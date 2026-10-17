@@ -258,7 +258,7 @@ void main() {
       (tester) async {
     // Synchronous on purpose: `testWidgets` runs inside a fake-async zone, and
     // an awaited dart:io future never completes there.
-    final root = Directory.systemTemp.createTempSync('ns-shell-semantics-');
+    final root = Directory.systemTemp.createTempSync('sk-shell-semantics-');
     addTearDown(() => root.deleteSync(recursive: true));
     _mockPathProvider(root.path);
 

@@ -1,6 +1,6 @@
 # Live verification residual — 2026-08-05
 
-Reused / relaunched sandboxed instance: `NS_AUDIT_DISPLAY=:78`, profile `verify-product`.
+Reused / relaunched sandboxed instance: `SK_AUDIT_DISPLAY=:78`, profile `verify-product`.
 Prior cont pid was stopped so the scratch DB could be seeded; relaunched without `--fresh`
 (pid recorded in `/tmp/ns-audit/verify-product/app.pid`).
 

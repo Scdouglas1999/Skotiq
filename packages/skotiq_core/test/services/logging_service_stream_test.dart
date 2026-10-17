@@ -30,7 +30,7 @@ void main() {
     late LoggingService service;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp('ns_log_stream_test_');
+      tempDir = await Directory.systemTemp.createTemp('sk_log_stream_test_');
       service = LoggingService(
         applicationSupportDirectoryProvider: () async => tempDir,
         nativeInitWithLogging: ({logDirectory}) {},
@@ -199,7 +199,7 @@ void main() {
     late LoggingService service;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp('ns_log_infos_test_');
+      tempDir = await Directory.systemTemp.createTemp('sk_log_infos_test_');
       service = LoggingService(
         applicationSupportDirectoryProvider: () async => tempDir,
         nativeInitWithLogging: ({logDirectory}) {},
@@ -248,7 +248,7 @@ void main() {
     late String currentLogPath;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp('ns_log_clear_test_');
+      tempDir = await Directory.systemTemp.createTemp('sk_log_clear_test_');
       // Use a fake current-log filename inside the log directory so the
       // service preserves it on clear.
       service = LoggingService(

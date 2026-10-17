@@ -180,7 +180,7 @@ void main() {
       await backend.sequencerSetSafetyFailMode('fail_open');
       // Camera-only (no filter wheel): isolates the server-side capture path.
       await backend.sequencerSetDevices(cameraId: cam);
-      await backend.sequencerSetSavePath('/tmp/nswf/captures');
+      await backend.sequencerSetSavePath('/tmp/skwf/captures');
 
       // Author a sequence the way the real client does: this is the EXACT wire
       // JSON `SequenceExecutor.sequenceToJsonForTest` emits for a TargetHeader
@@ -194,7 +194,7 @@ void main() {
 
       // Monitor live status the way the UI does: poll sequencerGetStatus until
       // the server-side run finishes (idle/complete) or a FITS appears.
-      final capturesDir = Directory('/tmp/nswf/captures');
+      final capturesDir = Directory('/tmp/skwf/captures');
       bool hasFits() =>
           capturesDir.existsSync() &&
           capturesDir.listSync().any((f) => f.path.endsWith('.fits'));

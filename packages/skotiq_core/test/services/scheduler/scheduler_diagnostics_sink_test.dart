@@ -120,7 +120,7 @@ void main() {
     'a scheduler diagnostic lands in the ring the Logs viewer reads, under its '
     'own source',
     () async {
-      final dir = Directory.systemTemp.createTempSync('ns-sched-log');
+      final dir = Directory.systemTemp.createTempSync('sk-sched-log');
       addTearDown(() => dir.deleteSync(recursive: true));
       final logger = _logger(dir);
       addTearDown(logger.dispose);
@@ -141,7 +141,7 @@ void main() {
   );
 
   test('the adapter preserves the diagnostic level', () async {
-    final dir = Directory.systemTemp.createTempSync('ns-sched-log');
+    final dir = Directory.systemTemp.createTempSync('sk-sched-log');
     addTearDown(() => dir.deleteSync(recursive: true));
     final logger = _logger(dir);
     addTearDown(logger.dispose);

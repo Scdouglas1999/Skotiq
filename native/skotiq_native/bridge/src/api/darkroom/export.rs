@@ -573,7 +573,7 @@ fn sidecar_beside(path: &Path) -> PathBuf {
 
 /// The temporary sibling an atomic write goes through.
 fn temp_sibling(path: &Path) -> PathBuf {
-    append_extension(path, "nshatmp")
+    append_extension(path, "skhatmp")
 }
 
 /// `path` with `suffix` appended as a further extension, keeping the one it
