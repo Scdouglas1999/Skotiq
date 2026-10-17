@@ -460,6 +460,19 @@ pub(crate) async fn run_polar_alignment(
     let mut consecutive_failures = 0;
     const MAX_FAILURES: i32 = 5;
 
+    // The adjustment loop is the part the operator waits on: every frame
+    // answers "did that turn of the bolt help?". Only the field's position
+    // matters here, so the frames are binned at least 2x2 (a quarter of the
+    // pixels to read out and to solve), and once one frame has solved, the next
+    // searches a small cone around it instead of the whole pole region. On the
+    // owner's ASI1600 at 1x1 a pass took ~20 s: ~10.5 s to read out a full
+    // frame and ~8.5 s to solve it.
+    let mut adjust_binning = adjustment_binning(binning);
+    let mut adjust_scale = solve_scale.clone();
+    adjust_scale.hints.binning = (adjust_binning, adjust_binning);
+    let mut adjust_scale_arcsec_per_px = adjust_scale.arcsec_per_px();
+    let mut last_adjust_solve: Option<(f64, f64)> = None;
+
     loop {
         match polar_loop_control(generation) {
             PolarLoopControl::Continue => {}
@@ -477,11 +490,27 @@ pub(crate) async fn run_polar_alignment(
             exposure_time,
             gain,
             offset,
-            binning,
-            binning,
+            adjust_binning,
+            adjust_binning,
         )
         .await
         {
+            if adjust_binning != binning {
+                // A camera that refuses the faster binning still aligns at
+                // the binning the operator chose.
+                tracing::warn!(
+                    "Adjustment frame at {}x{} binning failed ({:?}); using the run's {}x{}",
+                    adjust_binning,
+                    adjust_binning,
+                    e,
+                    binning,
+                    binning
+                );
+                adjust_binning = binning;
+                adjust_scale = solve_scale.clone();
+                adjust_scale_arcsec_per_px = solve_scale_arcsec_per_px;
+                continue;
+            }
             consecutive_failures += 1;
             tracing::warn!("Capture failed in adjustment loop: {:?}", e);
             emit_polar_status(
@@ -542,7 +571,7 @@ pub(crate) async fn run_polar_alignment(
         let temp_path = create_unique_temp_fits_path("polar_align_adjust");
         let temp_path_str = temp_path.to_string_lossy().to_string();
 
-        if let Err(e) = write_temp_fits_for_solve(&image, &temp_path_str, &solve_scale.hints) {
+        if let Err(e) = write_temp_fits_for_solve(&image, &temp_path_str, &adjust_scale.hints) {
             consecutive_failures += 1;
             tracing::warn!("Failed to write temp FITS: {}", e);
             emit_polar_status(
@@ -570,12 +599,16 @@ pub(crate) async fn run_polar_alignment(
         // what killed the measurement points on the owner's laptop, and the
         // adjustment loop re-solves the same field over and over — the frame
         // ASTAP is least entitled to search the whole sky for.
+        let mount_hint = match last_adjust_solve {
+            Some(_) => None,
+            None => read_polar_solve_hint(&mount_id).await,
+        };
         let solve_result = solve_polar_frame(
             "the adjustment frame",
             &temp_path_str,
-            read_polar_solve_hint(&mount_id).await,
-            solve_scale_arcsec_per_px,
-            polar_solve_downsample(image.width, image.height, binning),
+            adjustment_solve_hint(last_adjust_solve, mount_hint),
+            adjust_scale_arcsec_per_px,
+            polar_solve_downsample(image.width, image.height, adjust_binning),
             solve_timeout_secs,
         )
         .await;
@@ -613,6 +646,7 @@ pub(crate) async fn run_polar_alignment(
 
         // Native plate-solve results report RA in degrees.
         let ra_degrees = plate_solve_ra_degrees(solve_result.ra);
+        last_adjust_solve = Some((ra_degrees, solve_result.dec));
 
         // Emit image again with plate solve coordinates
         emit_polar_image(
@@ -742,9 +776,32 @@ pub(crate) async fn run_polar_alignment(
             center_ra,
             center_dec,
         );
+    }
+}
 
-        // Brief pause before next update
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+/// Search radius for an adjustment frame solved from the previous one, in
+/// degrees. A turn of an altitude or azimuth bolt moves the field by
+/// arcminutes; three degrees still holds several full turns between frames.
+pub(crate) const ADJUSTMENT_SOLVE_SEARCH_RADIUS_DEG: f64 = 3.0;
+
+/// Binning for the adjustment frames: the run's own, but never finer than 2x2.
+pub(crate) fn adjustment_binning(run_binning: i32) -> i32 {
+    run_binning.max(2)
+}
+
+/// Where to look for an adjustment frame: around the last solved frame when
+/// there is one, else where the mount says it points (or blind).
+pub(crate) fn adjustment_solve_hint(
+    last_solved: Option<(f64, f64)>,
+    mount_hint: Option<PolarSolveHint>,
+) -> Option<PolarSolveHint> {
+    match last_solved {
+        Some((ra_degrees, dec_degrees)) => Some(PolarSolveHint {
+            ra_degrees,
+            dec_degrees,
+            search_radius_deg: ADJUSTMENT_SOLVE_SEARCH_RADIUS_DEG,
+        }),
+        None => mount_hint,
     }
 }
 
@@ -804,4 +861,40 @@ pub(crate) fn write_temp_fits_for_solve(
 
     write_fits(Path::new(path), &image_data, &header)
         .map_err(|e| format!("FITS write error: {:?}", e))
+}
+
+#[cfg(test)]
+mod adjustment_tests {
+    use super::*;
+
+    #[test]
+    fn adjustment_frames_are_binned_at_least_two_by_two() {
+        assert_eq!(adjustment_binning(1), 2);
+        assert_eq!(adjustment_binning(2), 2);
+        assert_eq!(adjustment_binning(4), 4);
+    }
+
+    #[test]
+    fn a_solved_adjustment_frame_narrows_the_next_search_to_its_field() {
+        let mount = PolarSolveHint {
+            ra_degrees: 10.0,
+            dec_degrees: 80.0,
+            search_radius_deg: POLAR_SOLVE_SEARCH_RADIUS_DEG,
+        };
+        let next = adjustment_solve_hint(Some((37.5, 88.9)), Some(mount)).unwrap();
+        assert_eq!((next.ra_degrees, next.dec_degrees), (37.5, 88.9));
+        assert_eq!(next.search_radius_deg, ADJUSTMENT_SOLVE_SEARCH_RADIUS_DEG);
+        assert!(ADJUSTMENT_SOLVE_SEARCH_RADIUS_DEG < POLAR_SOLVE_SEARCH_RADIUS_DEG);
+    }
+
+    #[test]
+    fn the_first_adjustment_frame_still_uses_the_mount_or_solves_blind() {
+        let mount = PolarSolveHint {
+            ra_degrees: 10.0,
+            dec_degrees: 80.0,
+            search_radius_deg: POLAR_SOLVE_SEARCH_RADIUS_DEG,
+        };
+        assert_eq!(adjustment_solve_hint(None, Some(mount)), Some(mount));
+        assert_eq!(adjustment_solve_hint(None, None), None);
+    }
 }
