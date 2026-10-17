@@ -1,31 +1,13 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Skotiq">
-  <defs>
-    <radialGradient id="sky" cx="35%" cy="30%" r="80%">
-      <stop offset="0%" stop-color="#1c2129"/>
-      <stop offset="60%" stop-color="#0d1117"/>
-      <stop offset="100%" stop-color="#04060a"/>
-    </radialGradient>
-    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#5B9EC4"/>
-      <stop offset="100%" stop-color="#7AB8D4"/>
-    </linearGradient>
-    <radialGradient id="star" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="40%" stop-color="#e6edf3"/>
-      <stop offset="100%" stop-color="#5B9EC4" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="512" height="512" rx="96" fill="#0A0C0F"/>
-  <circle cx="256" cy="256" r="200" fill="url(#sky)" stroke="url(#ring)" stroke-width="8"/>
-  <line x1="56" y1="256" x2="120" y2="256" stroke="#7AB8D4" stroke-width="2" stroke-opacity="0.4"/>
-  <line x1="392" y1="256" x2="456" y2="256" stroke="#7AB8D4" stroke-width="2" stroke-opacity="0.4"/>
-  <line x1="256" y1="56" x2="256" y2="120" stroke="#7AB8D4" stroke-width="2" stroke-opacity="0.4"/>
-  <line x1="256" y1="392" x2="256" y2="456" stroke="#7AB8D4" stroke-width="2" stroke-opacity="0.4"/>
-  <circle cx="180" cy="180" r="3" fill="#e6edf3" fill-opacity="0.7"/>
-  <circle cx="330" cy="210" r="2" fill="#e6edf3" fill-opacity="0.5"/>
-  <circle cx="200" cy="340" r="2.5" fill="#e6edf3" fill-opacity="0.6"/>
-  <circle cx="360" cy="320" r="2" fill="#e6edf3" fill-opacity="0.5"/>
-  <circle cx="256" cy="256" r="36" fill="url(#star)"/>
-  <circle cx="256" cy="256" r="6" fill="#ffffff"/>
+<svg role="img" aria-label="Skotiq" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512">
+<rect width="100" height="100" fill="#0E0C16"/>
+<g transform="translate(10 10) scale(0.8)">
+<g transform="translate(50 50) scale(1.08) translate(-50 -50.5)">
+<path d="M67.65,22.21 A22.40,22.40 0 1 0 50.00,58.40 A5.60,5.60 0 1 1 46.25,68.16" fill="none" stroke="#6E56CF" stroke-width="3.0" stroke-linecap="round"/>
+<path d="M66.87,29.18 A18.20,18.20 0 1 0 50.00,54.20 A9.80,9.80 0 1 1 41.51,68.90" fill="none" stroke="#8F7BEA" stroke-width="3.0" stroke-linecap="round"/>
+<path d="M59.73,25.93 A14.00,14.00 0 1 0 50.00,50.00 A14.00,14.00 0 1 1 39.28,73.00" fill="none" stroke="#B9ABFF" stroke-width="3.0" stroke-linecap="round"/>
+<path d="M58.49,31.10 A9.80,9.80 0 1 0 50.00,45.80 A18.20,18.20 0 1 1 32.90,70.22" fill="none" stroke="#E4DEFF" stroke-width="3.0" stroke-linecap="round"/>
+<path d="M52.80,31.15 A5.60,5.60 0 1 0 50.00,41.60 A22.40,22.40 0 1 1 39.48,83.78" fill="none" stroke="#FFD9A8" stroke-width="3.0" stroke-linecap="round"/>
+<circle cx="50.0" cy="36.0" r="2.2" fill="#E4DEFF"/>
+</g>
+</g>
 </svg>

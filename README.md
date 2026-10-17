@@ -1,6 +1,10 @@
 <div align="center">
 
-<img src="assets/branding/logo-512.png" width="128" alt="Skotiq logo">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/branding/banner.png">
+  <source media="(prefers-color-scheme: light)" srcset="assets/branding/banner-light.png">
+  <img src="assets/branding/banner.png" alt="Skotiq — astrophotography capture software that runs the whole night from one app">
+</picture>
 
 # Skotiq
 
