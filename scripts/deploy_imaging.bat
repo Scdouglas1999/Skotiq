@@ -36,7 +36,7 @@ if %errorlevel% neq 0 (
 )
 
 echo [4/5] Stopping remote instance...
-ssh scdou@192.168.1.59 "taskkill /IM skotiq_desktop.exe /F"
+ssh scdou@192.168.1.59 "taskkill /IM skotiq.exe /F"
 :: Don't fail if not running - just continue
 
 echo [5/5] Deploying to 192.168.1.59...

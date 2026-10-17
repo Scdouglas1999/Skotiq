@@ -109,8 +109,8 @@ trap cleanup EXIT
 echo "== [0/7] bundle architecture check =="
 mkdir -p "$WORK/bundle"
 tar -xzf "$BUNDLE_TARBALL" -C "$WORK/bundle"
-BUNDLE_EXE="$WORK/bundle/skotiq_desktop"
-[ -f "$BUNDLE_EXE" ] || { echo "ERROR: skotiq_desktop missing from tarball" >&2; exit 1; }
+BUNDLE_EXE="$WORK/bundle/skotiq"
+[ -f "$BUNDLE_EXE" ] || { echo "ERROR: skotiq missing from tarball" >&2; exit 1; }
 ELF_MACHINE="$(readelf -h "$BUNDLE_EXE" | awk -F: '/Machine/ {gsub(/^[ \t]+/, "", $2); print $2}')"
 echo "Bundle ELF machine: $ELF_MACHINE"
 if ! printf '%s' "$ELF_MACHINE" | grep -qi 'aarch64'; then

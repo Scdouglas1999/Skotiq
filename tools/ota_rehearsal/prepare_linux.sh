@@ -56,8 +56,9 @@ DB=$((NB - 1))
 # 8. N+1 that installs cleanly but cannot start: the executable exits 1
 BROKEN="$ROOT/builds/$SET-N1-broken"
 rm -rf "$BROKEN"; cp -a "$BN1" "$BROKEN"
-printf '#!/bin/sh\necho "rehearsal: this build refuses to start" >&2\nexit 1\n' > "$BROKEN/skotiq_desktop"
-chmod 0755 "$BROKEN/skotiq_desktop"
+# The launcher is `skotiq`; the real binary it execs is `skotiq.bin`.
+printf '#!/bin/sh\necho "rehearsal: this build refuses to start" >&2\nexit 1\n' > "$BROKEN/skotiq.bin"
+chmod 0755 "$BROKEN/skotiq.bin"
 printf '%s\n' "N1-broken-$N1V" > "$BROKEN/REHEARSAL-MARKER.txt"
 "$PKG" "$BROKEN" "$N1V" "$N1B" linux x64 "$DIST/broken" "$KEYS/update_private.b64"
 

@@ -1,0 +1,4 @@
+# Files that legitimately name the old product: the first-launch migration
+# has to know where the previous install kept its data.
+packages/skotiq_core/lib/src/utils/legacy_install_migration.dart
+packages/skotiq_core/test/utils/legacy_install_migration_test.dart

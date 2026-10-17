@@ -1,6 +1,6 @@
 {
-    "name": "skotiq_desktop",
-    "short_name": "skotiq_desktop",
+    "name": "Skotiq",
+    "short_name": "Skotiq",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

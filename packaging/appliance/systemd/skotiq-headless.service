@@ -15,7 +15,7 @@
 
 [Unit]
 Description=Skotiq headless astrophotography server
-Documentation=https://github.com/skotiq/skotiq file:///opt/skotiq/docs/headless-secure-setup.md
+Documentation=https://github.com/Scdouglas1999/Skotiq file:///opt/skotiq/docs/headless-secure-setup.md
 # Bind after the network is actually routable, not just configured — the
 # server enumerates interfaces at startup to print/advertise its LAN URL,
 # and mDNS registration needs a live interface.
@@ -51,7 +51,7 @@ WorkingDirectory=/var/lib/skotiq
 StateDirectory=skotiq
 StateDirectoryMode=0750
 
-ExecStart=/usr/bin/xvfb-run -a /opt/skotiq/bundle/skotiq_desktop --headless
+ExecStart=/usr/bin/xvfb-run -a /opt/skotiq/bundle/skotiq --headless
 
 # Unattended overnight imaging: always come back. The 5 s backoff avoids a
 # tight crash loop hammering USB devices; the StartLimit* keys in [Unit]

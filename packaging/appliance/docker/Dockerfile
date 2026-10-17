@@ -87,4 +87,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 # tini reaps the Xvfb child and forwards SIGTERM so main_headless.dart's
 # shutdown path (mDNS unregister, API stop, OTA dispose) actually runs.
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/bin/xvfb-run", "-a", \
-            "/opt/skotiq/bundle/skotiq_desktop", "--headless"]
+            "/opt/skotiq/bundle/skotiq", "--headless"]

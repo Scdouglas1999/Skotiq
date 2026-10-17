@@ -101,7 +101,7 @@ _BlockerInput _blockerInputFor(
           'dart run melos run audit:public-release-gate --no-select',
         ],
         expectedEvidence: [
-          'apps/desktop/build/windows/x64/runner/Release/skotiq_desktop.exe',
+          'apps/desktop/build/windows/x64/runner/Release/skotiq.exe',
           'docs/production-readiness/windows-bundle-audit.json',
           'docs/production-readiness/windows-bundle-audit.md',
         ],

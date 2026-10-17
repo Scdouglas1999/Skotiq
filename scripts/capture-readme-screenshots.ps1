@@ -1,7 +1,7 @@
 # Captures README screenshots from a built Windows desktop app and the headless web dashboard.
 #
 # Requires a Release (or Debug) build at:
-#   apps/desktop/build/windows/x64/runner/<Configuration>/skotiq_desktop.exe
+#   apps/desktop/build/windows/x64/runner/<Configuration>/skotiq.exe
 #
 # IMPORTANT: run this from an interactive desktop session (a normal PowerShell window
 # you can see). The app is a GPU-rendered Flutter desktop app; launched from a
@@ -36,7 +36,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path | Split-Path -Parent
 $DesktopDir = Join-Path $ProjectRoot 'apps\desktop'
-$Exe = Join-Path $DesktopDir "build\windows\x64\runner\$Configuration\skotiq_desktop.exe"
+$Exe = Join-Path $DesktopDir "build\windows\x64\runner\$Configuration\skotiq.exe"
 $OutDir = Join-Path $ProjectRoot 'assets\screenshots'
 $HeadlessLog = Join-Path $env:TEMP 'skotiq-headless-screenshot.log'
 
@@ -189,14 +189,14 @@ function Wait-AppProcess {
     )
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
     while ((Get-Date) -lt $deadline) {
-        $proc = Get-Process -Name 'skotiq_desktop' -ErrorAction SilentlyContinue |
+        $proc = Get-Process -Name 'skotiq' -ErrorAction SilentlyContinue |
             Where-Object { $_.Id -ne $ParentPid -or $_.MainWindowHandle -ne 0 } |
             Sort-Object StartTime -Descending |
             Select-Object -First 1
         if ($proc) { return $proc }
         Start-Sleep -Milliseconds 400
     }
-    throw 'Timed out waiting for skotiq_desktop process'
+    throw 'Timed out waiting for skotiq process'
 }
 
 function Get-WindowRect {

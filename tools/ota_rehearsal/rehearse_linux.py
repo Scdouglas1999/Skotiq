@@ -404,14 +404,15 @@ def pre_apply_hook(run, hook):
     if hook == "corrupt_staged_desktop_binary":
         # Staged tree changed after verification: the Rust updater's own
         # post-apply hash check is what must catch it.
+        # `skotiq` is the launcher wrapper; the real ELF is `skotiq.bin`.
         target = os.path.join(run.data, "updates", "staging", "extracted",
-                              "skotiq_desktop")
+                              "skotiq.bin")
         with open(target, "r+b") as fh:
             fh.seek(4096)
             b = fh.read(1)
             fh.seek(4096)
             fh.write(bytes([b[0] ^ 0xFF]))
-        run.step("flipped one byte in staged skotiq_desktop")
+        run.step("flipped one byte in staged skotiq.bin")
 
 
 def after_apply_hook(run, hook, outcome):

@@ -6,7 +6,7 @@ const _jsonOutputPath = 'docs/production-readiness/windows-bundle-audit.json';
 const _markdownOutputPath = 'docs/production-readiness/windows-bundle-audit.md';
 
 const _requiredFiles = <String>[
-  'skotiq_desktop.exe',
+  'skotiq.exe',
   'skotiq_bridge.dll',
   'flutter_windows.dll',
   'sqlite3.dll',

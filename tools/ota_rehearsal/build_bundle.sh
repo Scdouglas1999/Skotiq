@@ -64,6 +64,10 @@ cp -Lv "$LIBRAW_PATH" "$BUNDLE_LIB/"
 if [ ! -f "$BUNDLE_LIB/libsqlite3.so" ] || [ -L "$BUNDLE_LIB/libsqlite3.so" ]; then
   echo "MISSING: hermetic $BUNDLE_LIB/libsqlite3.so" >&2; exit 1
 fi
+# The flutter binary lands as `skotiq`; the shipped layout parks it at
+# `skotiq.bin` so `skotiq` can be this launcher (matches the release
+# workflows, which do the same move).
+mv "$BUNDLE/skotiq" "$BUNDLE/skotiq.bin"
 {
   printf '%s\n' '#!/usr/bin/env bash'
   printf '%s\n' 'HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]:-$0}")")" && pwd)"'
@@ -72,7 +76,7 @@ fi
   printf '%s\n' '# (no surface ever shows); XWayland is the path every tested launch'
   printf '%s\n' '# used. Force it until the Wayland surface path is fixed and proven.'
   printf '%s\n' 'export GDK_BACKEND=x11'
-  printf '%s\n' 'exec "$HERE/skotiq_desktop" "$@"'
+  printf '%s\n' 'exec "$HERE/skotiq.bin" "$@"'
 } > "$BUNDLE/skotiq"
 chmod +x "$BUNDLE/skotiq"
 install -m 0755 "$TARGET/release/updater" "$BUNDLE/updater"

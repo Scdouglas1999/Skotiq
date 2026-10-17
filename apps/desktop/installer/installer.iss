@@ -1,7 +1,7 @@
 #define MyAppName "Skotiq"
-#define MyAppVersion "4.2.0"
+#define MyAppVersion "7.1.0"
 #define MyAppPublisher "Skotiq"
-#define MyAppExeName "skotiq_desktop.exe"
+#define MyAppExeName "skotiq.exe"
 #define ReleaseDir "..\\build\\windows\\x64\\runner\\Release"
 
 [Setup]
@@ -9,8 +9,9 @@ AppId={{301F4A2B-7E43-46E3-B0BB-74EAE26D45A0}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\Skotiq
+DefaultDirName={localappdata}\Programs\Skotiq
 DefaultGroupName=Skotiq
+PrivilegesRequired=lowest
 OutputDir=..\build\installer
 OutputBaseFilename=SkotiqSetup
 ArchitecturesAllowed=x64

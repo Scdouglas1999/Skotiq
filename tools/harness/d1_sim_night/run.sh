@@ -11,7 +11,7 @@ set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 D1="${D1_SCRATCH:-/tmp/skotiq-d1-harness}"
 mkdir -p "$D1"
-BUNDLE="${D1_BUNDLE:-$HERE/../../../apps/desktop/build/linux/x64/release/bundle/skotiq_desktop}"
+BUNDLE="${D1_BUNDLE:-$HERE/../../../apps/desktop/build/linux/x64/release/bundle/skotiq}"
 T=d1-secret-token
 P="${D1_PORT:-8093}"
 
@@ -35,7 +35,7 @@ bad()  { FAIL=$((FAIL+1)); echo "[d1]   FAIL: $*"; }
 api()  { curl -sf -m 10 -H "$AH" "$@"; }
 
 # Reap only what a previous run of THIS script left behind. `pkill -f
-# skotiq_desktop` killed every instance on the machine — a parallel harness
+# skotiq` killed every instance on the machine — a parallel harness
 # on another port, another agent's sweep, the operator's own running rig — so
 # the pid is recorded and re-identified by its command line before any signal
 # goes out. A recycled pid belonging to something else does not match and is

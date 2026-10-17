@@ -73,7 +73,7 @@ jobs:
         run: |
           $rel = "apps/desktop/build/windows/x64/runner/Release"
           $missing = @()
-          foreach ($f in @("skotiq_desktop.exe", "skotiq_bridge.dll", "libraw.dll")) {
+          foreach ($f in @("skotiq.exe", "skotiq_bridge.dll", "libraw.dll")) {
             if (-not (Test-Path (Join-Path $rel $f))) { $missing += $f }
           }
           if ($missing.Count -gt 0) {

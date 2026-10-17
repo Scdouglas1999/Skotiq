@@ -63,8 +63,8 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-BUNDLE = REPO / "apps/desktop/build/linux/x64/release/bundle/skotiq_desktop"
-DEBUG_BUNDLE = REPO / "apps/desktop/build/linux/x64/debug/bundle/skotiq_desktop"
+BUNDLE = REPO / "apps/desktop/build/linux/x64/release/bundle/skotiq"
+DEBUG_BUNDLE = REPO / "apps/desktop/build/linux/x64/debug/bundle/skotiq"
 RUNTIME = Path(os.environ.get("NS_AUDIT_RUNTIME", "/tmp/ns-audit"))
 DISPLAY = os.environ.get("NS_AUDIT_DISPLAY", ":77")
 GEOMETRY = os.environ.get("NS_AUDIT_GEOMETRY", "1920x1200x24")

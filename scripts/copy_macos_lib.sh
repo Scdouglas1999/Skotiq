@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Find the app bundle
-APP_BUNDLE="$PROJECT_ROOT/apps/desktop/build/macos/Build/Products/Release/skotiq_desktop.app"
+APP_BUNDLE="$PROJECT_ROOT/apps/desktop/build/macos/Build/Products/Release/skotiq.app"
 
 if [ ! -d "$APP_BUNDLE" ]; then
     echo "App bundle not found at $APP_BUNDLE"
