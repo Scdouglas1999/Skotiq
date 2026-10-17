@@ -13,7 +13,7 @@ the name, the artwork and the identifiers underneath are new.
 The app is now Skotiq everywhere it used to carry the old name: the title bar,
 the about screen, the icon, the desktop entry and the documentation.
 
-- On Windows the program is `skotiq_desktop.exe`, and a fresh install goes to
+- On Windows the program is `skotiq.exe`, and a fresh install goes to
   `%LOCALAPPDATA%\Programs\Skotiq`. The portable zip still runs from wherever
   you extract it.
 - On Linux the binary and data folders use the new name; the launcher is still

@@ -559,7 +559,7 @@ the release scope and the INDI driver.
 1. Windows: `%APPDATA%\Skotiq\logs\`
 2. macOS: `~/Library/Application Support/Skotiq/logs/` when macOS is
    shipped or being validated
-3. Linux: `~/.local/share/skotiq/logs/` when Linux is shipped or being
+3. Linux: `~/.local/share/com.skotiq.desktop/logs/` when Linux is shipped or being
    validated
 4. Open latest log file for error messages
 
@@ -579,7 +579,7 @@ the release scope and the INDI driver.
    - Windows: `%APPDATA%\Skotiq\settings.db`
    - macOS: `~/Library/Application Support/Skotiq/settings.db` when macOS
      is in scope
-   - Linux: `~/.local/share/skotiq/settings.db` when Linux is in scope
+   - Linux: `~/.local/share/com.skotiq.desktop/settings.db` when Linux is in scope
 2. Skotiq will recreate with defaults
 
 **Permission Issues**

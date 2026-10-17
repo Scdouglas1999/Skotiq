@@ -249,7 +249,7 @@ membership. Allow about 500 MB for the app, plus room for your catalogues and fr
    [Releases](https://github.com/Scdouglas1999/Skotiq/releases/latest), and check the
    `.sha256` if you want to be careful.
 2. Extract the whole thing somewhere you can write to. Don't run it from inside the zip.
-3. Start it — `skotiq_desktop.exe` on Windows, `./skotiq` on Linux. Windows may warn
+3. Start it — `skotiq.exe` on Windows, `./skotiq` on Linux. Windows may warn
    about an unsigned program; check the hash first if that bothers you.
 4. **Download the sky catalogues on first run.** They aren't bundled, because they're large.
    Settings → Catalogs → Download catalogs fetches the star and deep-sky catalogues, about

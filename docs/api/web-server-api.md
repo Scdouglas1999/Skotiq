@@ -141,7 +141,7 @@ API route count without connecting to hardware.
   "platform": {
     "operatingSystem": "windows",
     "operatingSystemVersion": "Windows 10 ...",
-    "executable": "C:\\Program Files\\Skotiq\\skotiq_desktop.exe"
+    "executable": "C:\\Program Files\\Skotiq\\skotiq.exe"
   },
   "server": {
     "port": 8080,

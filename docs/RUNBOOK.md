@@ -14,20 +14,19 @@ cause, the fix, and how to verify recovery.
 
 ## Log paths (canonical)
 
-These paths are what the installer and `LoggingService.initialize()` use for
-released builds. Development / unsigned builds may resolve to
-`com.example/skotiq_desktop` instead — Flutter `path_provider` reads
-`CompanyName\ProductName` (Windows) and `PRODUCT_BUNDLE_IDENTIFIER` (macOS) at
-runtime, so a sideloaded developer build will not write to the same directory
-as an MSIX/installer build. Confirm the actual log directory by reading the
+These paths are what `LoggingService.initialize()` uses. Flutter
+`path_provider` builds the application-support folder from `CompanyName` and
+`ProductName` in `Runner.rc` (Windows), `PRODUCT_BUNDLE_IDENTIFIER` (macOS) and
+`APPLICATION_ID` (Linux), so a build with different values writes elsewhere.
+Confirm the actual log directory by reading the
 `Log directory: …` line that `LoggingService` writes on startup (see
 `packages/skotiq_core/lib/src/services/logging_service.dart:119`).
 
 | OS | Logs | Drift DB | Sequence checkpoint |
 |---|---|---|---|
-| Windows | `%APPDATA%\Skotiq\logs\` | `%USERPROFILE%\Documents\Skotiq\skotiq.db` | `%USERPROFILE%\Documents\Skotiq\profiles\skotiq_session.checkpoint` |
-| macOS | `~/Library/Application Support/Skotiq/logs/` | `~/Documents/Skotiq/skotiq.db` | `~/Documents/Skotiq/profiles/skotiq_session.checkpoint` |
-| Linux | `~/.local/share/skotiq_desktop/logs/` | `~/Documents/Skotiq/skotiq.db` | `~/Documents/Skotiq/profiles/skotiq_session.checkpoint` |
+| Windows | `%APPDATA%\Skotiq\Skotiq\logs\` | `%USERPROFILE%\Documents\Skotiq\skotiq.db` | `%USERPROFILE%\Documents\Skotiq\profiles\skotiq_session.checkpoint` |
+| macOS | `~/Library/Application Support/com.skotiq.desktop/logs/` | `~/Documents/Skotiq/skotiq.db` | `~/Documents/Skotiq/profiles/skotiq_session.checkpoint` |
+| Linux | `~/.local/share/com.skotiq.desktop/logs/` | `~/Documents/Skotiq/skotiq.db` | `~/Documents/Skotiq/profiles/skotiq_session.checkpoint` |
 
 > **Why two different roots?** Logs use `getApplicationSupportDirectory()`
 > (`logging_service.dart:104`); the database and checkpoints use
@@ -61,7 +60,7 @@ as an MSIX/installer build. Confirm the actual log directory by reading the
    tail -200 ~/Library/Application\ Support/Skotiq/logs/skotiq.log
 
    # Linux
-   tail -200 ~/.local/share/skotiq_desktop/logs/skotiq.log
+   tail -200 ~/.local/share/com.skotiq.desktop/logs/skotiq.log
    ```
 
 2. Grep for the bootstrap anchors. Each is logged by
@@ -86,7 +85,7 @@ as an MSIX/installer build. Confirm the actual log directory by reading the
    ```powershell
    # Windows — set the env var, then launch
    $env:SKOTIQ_HEADLESS = "1"
-   & "C:\Program Files\Skotiq\skotiq_desktop.exe"
+   & "C:\Program Files\Skotiq\skotiq.exe"
    ```
 
    ```bash
@@ -97,7 +96,7 @@ as an MSIX/installer build. Confirm the actual log directory by reading the
    Or use the explicit flag the binary accepts (`main.dart:20`):
 
    ```powershell
-   & "C:\Program Files\Skotiq\skotiq_desktop.exe" --headless
+   & "C:\Program Files\Skotiq\skotiq.exe" --headless
    ```
 
 **Root cause matrix**
@@ -676,7 +675,7 @@ A. **Loopback when LAN was wanted** — restart with auth:
 
 ```powershell
 $env:SKOTIQ_AUTH_TOKEN = (New-Guid).Guid
-& "C:\Program Files\Skotiq\skotiq_desktop.exe" --headless
+& "C:\Program Files\Skotiq\skotiq.exe" --headless
 ```
 
 ```bash
@@ -758,7 +757,7 @@ Compress-Archive "$out\*" "$out.zip"
 out=$HOME/skotiq-bundle-$(date +%Y%m%d%H%M%S)
 mkdir -p "$out"
 cp -r ~/Library/Application\ Support/Skotiq/logs/* "$out/" 2>/dev/null || \
-    cp -r ~/.local/share/skotiq_desktop/logs/* "$out/" 2>/dev/null
+    cp -r ~/.local/share/com.skotiq.desktop/logs/* "$out/" 2>/dev/null
 cp ~/Documents/Skotiq/profiles/skotiq_session.checkpoint*     "$out/" 2>/dev/null
 cp /tmp/skotiq_update_error.log                                   "$out/" 2>/dev/null
 curl -s http://127.0.0.1:8080/api/info > "$out/api-info.json"

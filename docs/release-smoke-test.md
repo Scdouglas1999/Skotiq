@@ -28,7 +28,7 @@ the raw `build/` output — the bundling step is exactly what this test exercise
 
 On a Windows 10/11 machine **without** Visual Studio, Flutter, or the dev tools:
 
-- [ ] Extract `skotiq-<version>-windows-x64.zip` and run `skotiq_desktop.exe`.
+- [ ] Extract `skotiq-<version>-windows-x64.zip` and run `skotiq.exe`.
 - [ ] App window opens — no "missing `*.dll`" / "VCRUNTIME140.dll not found" dialog.
 - [ ] The native bridge loads (no FFI/codegen-hash error on startup; equipment
       discovery screen is reachable).

@@ -65,7 +65,7 @@ vendor udev rules, libraries, and group membership.
    Compare the result with the first value in the `.sha256` file.
 3. Extract the entire archive to a writable folder. Do not run the executable
    from inside the ZIP.
-4. Run `skotiq_desktop.exe`.
+4. Run `skotiq.exe`.
 5. Windows SmartScreen may show “Windows protected your PC” because the beta is
    not code-signed. Confirm the file hash and GitHub release source before using
    “More info” → “Run anyway.”
@@ -128,7 +128,7 @@ carry over without manual copying.
 Skotiq data is stored under:
 
 - Windows: `%APPDATA%\Skotiq\`
-- Linux: `~/.local/share/skotiq_desktop/`
+- Linux: `~/.local/share/com.skotiq.desktop/`
 - macOS development builds: `~/Library/Application Support/Skotiq/`
 
 ## Updating

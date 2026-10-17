@@ -62,7 +62,7 @@ flutter run -d windows --target=lib/main_headless.dart -- --require-auth
 Packaged Windows run:
 
 ```powershell
-.\build\windows\x64\runner\Release\skotiq_desktop.exe --headless --require-auth
+.\build\windows\x64\runner\Release\skotiq.exe --headless --require-auth
 ```
 
 Packaged Linux run:
@@ -76,7 +76,7 @@ Use a fixed token when clients need a stable credential:
 ```powershell
 $env:SKOTIQ_AUTH_TOKEN = "replace-with-a-long-random-token"
 $env:SKOTIQ_PORT = "8080"
-.\skotiq_desktop.exe --headless
+.\skotiq.exe --headless
 ```
 
 ## Client Authentication
@@ -101,13 +101,13 @@ Use narrower tokens for clients that do not need administrative access:
 ```powershell
 $env:SKOTIQ_VIEW_TOKEN = "replace-with-a-long-random-view-token"
 $env:SKOTIQ_CONTROL_TOKEN = "replace-with-a-long-random-control-token"
-.\skotiq_desktop.exe --headless --auth-token=replace-with-a-long-random-admin-token
+.\skotiq.exe --headless --auth-token=replace-with-a-long-random-admin-token
 ```
 
 Equivalent CLI flags are available:
 
 ```powershell
-.\skotiq_desktop.exe --headless `
+.\skotiq.exe --headless `
   --auth-token=replace-with-a-long-random-admin-token `
   --view-token=replace-with-a-long-random-view-token `
   --control-token=replace-with-a-long-random-control-token
