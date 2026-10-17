@@ -5,7 +5,6 @@
 // rows carry the same sentence — a row that publishes only "Disconnected"
 // answers a question nobody asked.
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/widgets/rig_card.dart';
 

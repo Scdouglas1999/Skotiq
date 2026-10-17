@@ -652,7 +652,11 @@ class WindowResizeEdges extends StatelessWidget {
     return ValueListenableBuilder<WindowChromeState>(
       valueListenable: window_impl.windowChromeState,
       builder: (context, chrome, _) {
+        // This Stack sits above MaterialApp's Directionality, so the default
+        // AlignmentDirectional alignment would resolve against a null
+        // TextDirection. Alignment.topLeft needs none.
         return Stack(
+          alignment: Alignment.topLeft,
           children: [
             child,
             if (!chrome.fillsScreen)
