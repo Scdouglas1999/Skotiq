@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 const _defaultExePath =
-    'apps/desktop/build/windows/x64/runner/Release/skotiq_desktop.exe';
+    'apps/desktop/build/windows/x64/runner/Release/skotiq.exe';
 const _defaultApkPath =
     'apps/mobile/build/app/outputs/flutter-apk/app-release.apk';
 const _defaultAvdName = 'skotiq_release_smoke_api35';

@@ -32,10 +32,16 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../database/daos/settings_dao.dart';
 import '../../models/notification/notification_categories.dart';
+import '../../utils/legacy_install_migration.dart'
+    show migrateLegacySecretsNamespace;
 
 /// Stable key prefix inside the secure store. Versioned so a future
 /// breaking change (e.g. encrypting per-field) can migrate again.
-const String _secretsKeyPrefix = 'ns.notif.v1.';
+///
+/// Installations written before the product rename used a namespace derived
+/// from the old name; [SecretsStore] re-keys those entries the first time it
+/// is touched, via [migrateLegacySecretsNamespace].
+const String _secretsKeyPrefix = 'skotiq.notif.v1.';
 
 /// Sentinel value written to `app_settings` once the one-shot migration
 /// has completed. Presence of this flag short-circuits subsequent
@@ -80,6 +86,22 @@ abstract class SecretField {
   /// export/backup). `TransientAlertSettings.tnsApiKey` is populated only as an
   /// in-memory request snapshot from this keyring value and is never persisted.
   static const String tnsApiKey = 'tns.api_key';
+
+  /// Every field the store owns, used by the one-shot namespace re-key that
+  /// carries pre-rename installs' secrets forward.
+  static const List<String> all = [
+    emailPassword,
+    pushoverApiToken,
+    pushoverUserKey,
+    telegramBotToken,
+    discordWebhookUrl,
+    genericWebhookUrl,
+    genericWebhookHeaders,
+    mqttPassword,
+    cloudSyncPassword,
+    cloudSyncS3SecretKey,
+    tnsApiKey,
+  ];
 }
 
 /// Minimal interface for the backing secure-storage implementation.
@@ -156,11 +178,27 @@ class SecretsStore {
 
   String _keyFor(String field) => '$_secretsKeyPrefix$field';
 
+  /// Re-key of entries written under the pre-rename keyring namespace.
+  /// Memoized per instance; the underlying migration is idempotent, so a
+  /// fresh store instance harmlessly re-runs it against a clean keyring.
+  Future<void>? _legacyNamespaceMigration;
+
+  Future<void> _ensureLegacyNamespaceMigrated() {
+    return _legacyNamespaceMigration ??= migrateLegacySecretsNamespace(
+      (key) => _store.read(key: key),
+      (key, value) => _store.write(key: key, value: value),
+      (key) => _store.delete(key: key),
+      SecretField.all,
+      _secretsKeyPrefix,
+    );
+  }
+
   /// Read a single secret. Returns an empty string when not present so
   /// callers that rebuild typed configs from the store don't need to
   /// fork for the "first run" case.
   Future<String> read(String field) async {
     try {
+      await _ensureLegacyNamespaceMigrated();
       final v = await _store.read(key: _keyFor(field));
       return v ?? '';
     } catch (e) {
@@ -182,6 +220,7 @@ class SecretsStore {
   Future<void> write(String field, String value) async {
     final key = _keyFor(field);
     try {
+      await _ensureLegacyNamespaceMigrated();
       if (value.isEmpty) {
         await _store.delete(key: key);
       } else {
@@ -203,6 +242,7 @@ class SecretsStore {
   /// Delete a single secret.
   Future<void> delete(String field) async {
     try {
+      await _ensureLegacyNamespaceMigrated();
       await _store.delete(key: _keyFor(field));
     } catch (e) {
       developer.log(

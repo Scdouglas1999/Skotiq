@@ -102,8 +102,8 @@ elif [ -n "$SRC_BUNDLE_DIR" ]; then
 else
   echo "No --tarball/--bundle-dir given; assuming bundle already at $BUNDLE_DIR"
 fi
-if [ ! -x "$BUNDLE_DIR/skotiq_desktop" ]; then
-  echo "ERROR: $BUNDLE_DIR/skotiq_desktop missing or not executable." >&2
+if [ ! -x "$BUNDLE_DIR/skotiq" ]; then
+  echo "ERROR: $BUNDLE_DIR/skotiq missing or not executable." >&2
   echo "Build it with scripts/docker_build_linux.sh and pass --tarball." >&2
   exit 1
 fi

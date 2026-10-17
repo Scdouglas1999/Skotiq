@@ -177,7 +177,7 @@ echo "== headless smoke test =="
 # via the Flutter bundle's lib/ rpath, so a clean headless boot proves the
 # Dart<->Rust FFI library resolves on Linux. We run under xvfb because the GTK
 # embedder still initialises a display even in headless app mode.
-EXE="$BUNDLE/skotiq_desktop"
+EXE="$BUNDLE/skotiq"
 if [ ! -x "$EXE" ]; then
   # Fall back to whatever single executable the bundle produced.
   EXE=$(find "$BUNDLE" -maxdepth 1 -type f -executable | head -1)

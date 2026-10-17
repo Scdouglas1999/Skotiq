@@ -100,12 +100,45 @@ Future<String> resolveDesktopProfileDirectory({
 Future<({String dataRoot, String logDirectory})> prepareDesktopLogDirectory({
   Map<String, String>? environment,
   Future<Directory> Function()? applicationSupportDirectory,
+  Future<Directory> Function()? documentsDirectory,
 }) async {
   final env = environment ?? Platform.environment;
   final dataRoot = (await resolveSkotiqDataDirectory(
     environment: env,
     applicationSupportDirectoryProvider: applicationSupportDirectory,
   )).path;
+
+  // Carry a pre-rename install's state into the resolved roots before
+  // anything creates files under them. This is the one place every launch
+  // mode (GUI, --headless) funnels through before the bridge or the
+  // database opens, and it must run before
+  // [configureSkotiqDataDirectory] publishes this root into the process
+  // environment — the migration reads the operator's environment, not the
+  // one the app is about to rewrite.
+  //
+  // The documents root is best-effort: a context without the path_provider
+  // channel (unit tests, a bare dart:io harness) has no Documents folder to
+  // migrate anyway, so a resolution failure skips the documents step rather
+  // than blocking startup.
+  String? documentsRoot;
+  try {
+    documentsRoot = (await resolveSkotiqDocumentsDirectory(
+      environment: env,
+      documentsDirectoryProvider: documentsDirectory,
+    )).path;
+  } catch (e) {
+    stderr.writeln(
+      '[migration] documents root unavailable ($e) — skipping that step',
+    );
+  }
+  await migrateLegacyInstall(
+    dataRoot: dataRoot,
+    documentsRoot: documentsRoot,
+    databaseDirectory: env[skotiqDatabaseDirEnv],
+    environment: env,
+    log: stderr.writeln,
+  );
+
   configureSkotiqDataDirectory(dataRoot, environment: env);
 
   final logDir = path.join(dataRoot, 'logs');
@@ -149,15 +182,15 @@ Future<DesktopBootPaths> initialiseDesktopLogging() async {
     final (libName, bundleHint) = switch (Platform.operatingSystem) {
       'windows' => (
         'skotiq_bridge.dll (plus libraw.dll)',
-        r'build\windows\x64\runner\Release\skotiq_desktop.exe with the DLLs beside it',
+        r'build\windows\x64\runner\Release\skotiq.exe with the DLLs beside it',
       ),
       'macos' => (
         'libskotiq_bridge.dylib',
-        'build/macos/Build/Products/Release/skotiq_desktop.app with the dylib in Frameworks/',
+        'build/macos/Build/Products/Release/Skotiq.app with the dylib in Frameworks/',
       ),
       _ => (
         'libskotiq_bridge.so',
-        'build/linux/x64/release/bundle/skotiq_desktop with the .so in that bundle\'s lib/ directory',
+        'build/linux/x64/release/bundle/skotiq with the .so in that bundle\'s lib/ directory',
       ),
     };
     throw StateError(

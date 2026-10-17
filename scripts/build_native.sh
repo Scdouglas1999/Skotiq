@@ -63,7 +63,7 @@ elif [[ "$PLATFORM" == "Darwin" ]]; then
     if [[ "$ARCH" == "x86_64" ]]; then
         cargo build --release --target x86_64-apple-darwin --manifest-path bridge/Cargo.toml
         LIB_NAME="libskotiq_bridge.dylib"
-        TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/macos/Build/Products/Release/skotiq_desktop.app/Contents/Frameworks"
+        TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/macos/Build/Products/Release/skotiq.app/Contents/Frameworks"
         mkdir -p "$TARGET_DIR"
         cp "target/x86_64-apple-darwin/release/$LIB_NAME" "$TARGET_DIR/"
         echo "Copied $LIB_NAME to $TARGET_DIR"
@@ -73,7 +73,7 @@ elif [[ "$PLATFORM" == "Darwin" ]]; then
     if [[ "$ARCH" == "arm64" ]] || [[ "$ARCH" == "aarch64" ]]; then
         cargo build --release --target aarch64-apple-darwin --manifest-path bridge/Cargo.toml
         LIB_NAME="libskotiq_bridge.dylib"
-        TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/macos/Build/Products/Release/skotiq_desktop.app/Contents/Frameworks"
+        TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/macos/Build/Products/Release/skotiq.app/Contents/Frameworks"
         mkdir -p "$TARGET_DIR"
         cp "target/aarch64-apple-darwin/release/$LIB_NAME" "$TARGET_DIR/"
         echo "Copied $LIB_NAME to $TARGET_DIR"

@@ -202,4 +202,4 @@ foreach ($required in @('skotiq_bridge.dll', 'libraw.dll', 'sqlite3.dll')) {
 
 Write-Host ""
 Write-Host "Staging complete. Launch:" -ForegroundColor Yellow
-Write-Host "  $(Join-Path $OutputDir 'skotiq_desktop.exe')"
+Write-Host "  $(Join-Path $OutputDir 'skotiq.exe')"

@@ -34,8 +34,8 @@ const _headlessLogSource = 'HeadlessMain';
 ///   Linux:   flutter run -d linux --target=lib/main_headless.dart
 ///
 ///   Or build and run:
-///   Windows: .\\build\\windows\\x64\\runner\\Release\\skotiq_desktop.exe --headless
-///   Linux:   ./build/linux/`<arch>`/release/bundle/skotiq_desktop --headless
+///   Windows: .\\build\\windows\\x64\\runner\\Release\\skotiq.exe --headless
+///   Linux:   ./build/linux/`<arch>`/release/bundle/skotiq --headless
 ///
 /// Authentication:
 ///   --auth-token=`<token>`  Set a specific authentication token

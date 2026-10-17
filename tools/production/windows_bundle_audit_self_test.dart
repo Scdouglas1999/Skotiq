@@ -80,7 +80,7 @@ Future<void> main() async {
       'failing fixture should identify missing and empty required files',
     );
     _expect(
-      disallowed.contains('skotiq_desktop.pdb') &&
+      disallowed.contains('skotiq.pdb') &&
           disallowed.contains('data/flutter_assets/test/fixture.txt'),
       'failing fixture should identify disallowed files and segments',
     );
@@ -105,7 +105,7 @@ Future<void> _writeFailingBundle(Directory bundle) async {
   await _writePassingBundle(bundle);
   await File('${bundle.path}/sqlite3.dll').delete();
   await File('${bundle.path}/skotiq_bridge.dll').writeAsString('');
-  await _writeFile(bundle, 'skotiq_desktop.pdb', 'debug symbols');
+  await _writeFile(bundle, 'skotiq.pdb', 'debug symbols');
   await _writeFile(
     bundle,
     'data/flutter_assets/test/fixture.txt',
@@ -160,7 +160,7 @@ void _expect(bool condition, String message) {
 }
 
 const _requiredFiles = <String>[
-  'skotiq_desktop.exe',
+  'skotiq.exe',
   'skotiq_bridge.dll',
   'flutter_windows.dll',
   'sqlite3.dll',

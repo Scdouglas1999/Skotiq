@@ -12,12 +12,12 @@
 #   D1_BUNDLE   bundle binary (default: this repo's release build)
 #   D1_PORT     API port (default 8094)
 #
-# Teardown kills only the PID this script launched — never `pkill skotiq_desktop`,
+# Teardown kills only the PID this script launched — never `pkill skotiq`,
 # which would take down another harness running its own instance at the same time.
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 D1="${D1_SCRATCH:-/tmp/skotiq-d1-two-nights}"
-BUNDLE="${D1_BUNDLE:-$HERE/../../../apps/desktop/build/linux/x64/release/bundle/skotiq_desktop}"
+BUNDLE="${D1_BUNDLE:-$HERE/../../../apps/desktop/build/linux/x64/release/bundle/skotiq}"
 T=d1-two-nights-token
 P="${D1_PORT:-8094}"
 

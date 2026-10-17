@@ -32,7 +32,7 @@ import invariants  # noqa: E402
 from scenarios import SCENARIOS  # noqa: E402
 
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
-DEFAULT_BUNDLE = os.path.join(REPO, "apps/desktop/build/linux/x64/release/bundle/skotiq_desktop")
+DEFAULT_BUNDLE = os.path.join(REPO, "apps/desktop/build/linux/x64/release/bundle/skotiq")
 DEFAULT_ASTAP = os.path.expanduser("~/.local/share/skotiq-audit/astap/bin")
 TOKEN = "soak-secret-token"
 TERMINAL = {"completed", "failed", "cancelled", "stopped", "error"}

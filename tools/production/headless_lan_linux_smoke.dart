@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 const _defaultExePath =
-    'apps/desktop/build/linux/x64/release/bundle/skotiq_desktop';
+    'apps/desktop/build/linux/x64/release/bundle/skotiq';
 const _adminToken = 'skotiq-smoke-admin-token';
 const _viewToken = 'skotiq-smoke-view-token';
 const _controlToken = 'skotiq-smoke-control-token';

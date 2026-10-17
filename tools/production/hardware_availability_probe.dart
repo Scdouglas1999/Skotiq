@@ -172,13 +172,13 @@ void main(List<String> args) async {
 
 String _defaultExePath() {
   if (Platform.isWindows) {
-    return 'apps/desktop/build/windows/x64/runner/Release/skotiq_desktop.exe';
+    return 'apps/desktop/build/windows/x64/runner/Release/skotiq.exe';
   }
   if (Platform.isLinux) {
-    return 'apps/desktop/build/linux/x64/release/bundle/skotiq_desktop';
+    return 'apps/desktop/build/linux/x64/release/bundle/skotiq';
   }
   if (Platform.isMacOS) {
-    return 'apps/desktop/build/macos/Build/Products/Release/skotiq_desktop.app/Contents/MacOS/skotiq_desktop';
+    return 'apps/desktop/build/macos/Build/Products/Release/Skotiq.app/Contents/MacOS/Skotiq';
   }
   stderr.writeln(
     'Unsupported host platform for hardware availability probe: '

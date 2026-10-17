@@ -10,7 +10,7 @@
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 D1="${D1_SCRATCH:-/tmp/skotiq-d1-crash}"
-BUNDLE="${D1_BUNDLE:-$HERE/../../../apps/desktop/build/linux/x64/release/bundle/skotiq_desktop}"
+BUNDLE="${D1_BUNDLE:-$HERE/../../../apps/desktop/build/linux/x64/release/bundle/skotiq}"
 T=d1-secret-token
 P="${D1_PORT:-8094}"
 
@@ -39,7 +39,7 @@ Q()    { sqlite3 -cmd ".timeout 10000" "$DBDIR/skotiq.db" "$1"; }
 
 PIDFILE=$D1/app.pid
 # Reap only what a previous run of THIS script left behind. `pkill -f
-# skotiq_desktop` kills every instance on the machine — a parallel
+# skotiq` kills every instance on the machine — a parallel
 # harness on another port, another agent's sweep, the operator's own rig —
 # so the pid is recorded and re-identified by its command line (the port is
 # unique per leg) before any signal goes out. Same discipline as run.sh.

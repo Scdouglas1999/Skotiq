@@ -37,7 +37,7 @@ Check it is alive: `curl http://your-host:9777/healthz`
 Start the headless server with the relay URL:
 
 ```sh
-SKOTIQ_RELAY_URL=wss://relay.example.com ./skotiq_desktop --headless
+SKOTIQ_RELAY_URL=wss://relay.example.com ./skotiq --headless
 # or: --relay-url=wss://relay.example.com
 ```
 

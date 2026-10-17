@@ -109,6 +109,9 @@ jobs:
           # Launcher: prepend the bundled lib/ so libraw (and the hermetic
           # sqlite native asset) win the loader search. Written with printf
           # (not a heredoc) so YAML block-indentation can't corrupt it.
+          # The Flutter binary is BINARY_NAME `skotiq`; the launcher owns that
+          # name, so the real executable moves to `skotiq.bin` first.
+          mv "$BUNDLE/skotiq" "$BUNDLE/skotiq.bin"
           {
             printf '%s\n' '#!/usr/bin/env bash'
             printf '%s\n' 'HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]:-$0}")")" && pwd)"'
@@ -117,7 +120,7 @@ jobs:
             printf '%s\n' '# (no surface ever shows); XWayland is the path every tested launch'
             printf '%s\n' '# used. Force it until the Wayland surface path is fixed and proven.'
             printf '%s\n' 'export GDK_BACKEND=x11'
-            printf '%s\n' 'exec "$HERE/skotiq_desktop" "$@"'
+            printf '%s\n' 'exec "$HERE/skotiq.bin" "$@"'
           } > "$BUNDLE/skotiq"
           chmod +x "$BUNDLE/skotiq"
           echo "Bundle lib contents:"
@@ -162,7 +165,7 @@ jobs:
           BUNDLE="apps/desktop/build/linux/x64/release/bundle"
           floor_major=${FLOOR%%.*}; floor_minor=${FLOOR#*.}
           violations=0
-          for bin in "$BUNDLE"/skotiq_desktop "$BUNDLE"/lib/*.so; do
+          for bin in "$BUNDLE"/skotiq.bin "$BUNDLE"/lib/*.so; do
             [ -f "$bin" ] || continue
             maxv=$(objdump -T "$bin" 2>/dev/null \
               | grep -oE 'GLIBC_2\.[0-9]+' | sort -V | tail -1 || true)

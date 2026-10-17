@@ -67,7 +67,7 @@ Linux desktop targets, so two real options remain:
   hours (AOT compile + Rust release build under qemu).
 
 `build_pi_image.sh` **verifies the ELF architecture** of
-`skotiq_desktop` in the tarball and refuses an x86_64 bundle unless you
+`skotiq` in the tarball and refuses an x86_64 bundle unless you
 pass `--allow-arch-mismatch` (only useful to dry-run the image plumbing).
 
 ## Building the image

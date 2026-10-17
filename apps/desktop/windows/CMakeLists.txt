@@ -4,7 +4,7 @@ project(skotiq_desktop LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "skotiq_desktop")
+set(BINARY_NAME "skotiq")
 
 # Rust library discovery (shared with runner and install)
 set(RUST_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../native/skotiq_native/target/release")
