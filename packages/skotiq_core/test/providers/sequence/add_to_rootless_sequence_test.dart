@@ -1,5 +1,5 @@
 // A sequence can reach the editor with no usable root node: `rootNodeId` is
-// nullable on the model, on the `sequences` table and in the `.nseq.json`
+// nullable on the model, on the `sequences` table and in the `.skeq.json`
 // schema (the importer only checks the key is a String *if present*), and the
 // id-remapping copy paths resolve it through a lookup that can miss.
 //

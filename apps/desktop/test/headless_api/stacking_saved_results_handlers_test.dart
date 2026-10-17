@@ -19,7 +19,7 @@ void main() {
   late StackingHandlers handlers;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_saved_stack_test_');
+    tempDir = await Directory.systemTemp.createTemp('sk_saved_stack_test_');
     database = SkotiqDatabase.forTesting(NativeDatabase.memory());
     container = ProviderContainer(
       overrides: [databaseProvider.overrideWithValue(database)],

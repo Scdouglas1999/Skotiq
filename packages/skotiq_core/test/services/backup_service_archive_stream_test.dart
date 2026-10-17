@@ -37,7 +37,7 @@ void main() {
   setUp(() async {
     srcDb = SkotiqDatabase.forTesting(NativeDatabase.memory());
     dstDb = SkotiqDatabase.forTesting(NativeDatabase.memory());
-    tempDir = await Directory.systemTemp.createTemp('ns_backup_stream_');
+    tempDir = await Directory.systemTemp.createTemp('sk_backup_stream_');
     logger = _testLogger(tempDir);
   });
 
@@ -99,11 +99,11 @@ void main() {
       // Every successful backup records `autosave.last_backup_at`, so run one
       // throwaway first and the two archives under test see the same key set.
       await service.createBackup(
-        customPath: p.join(tempDir.path, 'warmup.nsbackup'),
+        customPath: p.join(tempDir.path, 'warmup.skbackup'),
       );
 
-      final prettyPath = p.join(tempDir.path, 'pretty.nsbackup');
-      final compactPath = p.join(tempDir.path, 'compact.nsbackup');
+      final prettyPath = p.join(tempDir.path, 'pretty.skbackup');
+      final compactPath = p.join(tempDir.path, 'compact.skbackup');
       final pretty = await service.createBackup(customPath: prettyPath);
       final compact = await service.createBackup(
         customPath: compactPath,
@@ -140,7 +140,7 @@ void main() {
     () async {
       await seed(srcDb);
 
-      final backupPath = p.join(tempDir.path, 'paged.nsbackup');
+      final backupPath = p.join(tempDir.path, 'paged.skbackup');
       final created = await serviceFor(
         srcDb,
       ).createBackup(customPath: backupPath, humanReadable: false);

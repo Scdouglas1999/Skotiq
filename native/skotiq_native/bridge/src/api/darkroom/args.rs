@@ -96,7 +96,7 @@ pub(crate) struct DarkroomExportArgs {
     /// The files to write. An empty list is an error: an export that writes
     /// nothing is not an export.
     pub(crate) outputs: Vec<ExportOutputArgs>,
-    /// Where to write the `.nsrecipe` sidecar. Absent derives it from the first
+    /// Where to write the `.skrecipe` sidecar. Absent derives it from the first
     /// FITS output.
     pub(crate) sidecar_path: Option<String>,
     /// Whether to write the sidecar at all. Defaults to `true`; see

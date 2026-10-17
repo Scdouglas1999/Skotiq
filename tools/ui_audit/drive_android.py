@@ -5,7 +5,7 @@ WHY THIS EXISTS
 ---------------
 The desktop sweep reached 384 of 400 coverage units; the 14 that stayed
 untouched were the mobile app, recorded as "needs an Android emulator". The SDK,
-the emulator and an `ns_test_api35` AVD were all already on this machine — what
+the emulator and an `sk_test_api35` AVD were all already on this machine — what
 was missing was a harness. This is it.
 
 It is the Android counterpart of `drive_linux.py`, with one real advantage:
@@ -16,7 +16,7 @@ harness resolves the coordinates itself, which does not go stale when a layout
 shifts.
 
 USAGE
-  drive_android.py boot [--avd ns_test_api35]
+  drive_android.py boot [--avd sk_test_api35]
   drive_android.py install [--apk path]     # builds a debug APK if none given
   drive_android.py start
   drive_android.py tree [--filter TEXT]     # names, classes, bounds, enabled/checked
@@ -42,9 +42,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 SDK = Path(os.environ.get("ANDROID_HOME", str(Path.home() / "Android/Sdk")))
 EMULATOR = SDK / "emulator/emulator"
-APP_ID = os.environ.get("NS_ANDROID_APP_ID", "com.skotiq.mobile")
-AVD = os.environ.get("NS_ANDROID_AVD", "ns_test_api35")
-OUT = Path(os.environ.get("NS_ANDROID_RUNTIME", "/tmp/ns-android"))
+APP_ID = os.environ.get("SK_ANDROID_APP_ID", "com.skotiq.mobile")
+AVD = os.environ.get("SK_ANDROID_AVD", "sk_test_api35")
+OUT = Path(os.environ.get("SK_ANDROID_RUNTIME", "/tmp/sk-android"))
 
 
 def _adb(*args: str, timeout: int = 120) -> subprocess.CompletedProcess:

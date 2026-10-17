@@ -9,7 +9,7 @@
 //!
 //! The committed fixtures are 1024×1024 crops copied pixel-for-pixel from the
 //! frame centers. The full frames are checked too when they are present under
-//! `~/.cache/ns-rig-data/2026-09-14` (or `$SKOTIQ_RIG_DATA/2026-09-14`);
+//! `~/.cache/sk-rig-data/2026-09-14` (or `$SKOTIQ_RIG_DATA/2026-09-14`);
 //! without them those tests say so and return.
 
 use skotiq_imaging::{measure_frame_shape, read_fits, FrameShape};
@@ -22,7 +22,19 @@ fn fixtures() -> PathBuf {
 fn rig_data() -> Option<PathBuf> {
     let root = std::env::var_os("SKOTIQ_RIG_DATA")
         .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| Path::new(&h).join(".cache/ns-rig-data")))?
+        .or_else(|| {
+            std::env::var_os("HOME").map(|h| {
+                // Machines that downloaded the corpus before the rebrand keep it
+                // under the old cache directory name.
+                let cache = Path::new(&h).join(".cache");
+                let fresh = cache.join("sk-rig-data");
+                if fresh.is_dir() {
+                    fresh
+                } else {
+                    cache.join("ns-rig-data")
+                }
+            })
+        })?
         .join("2026-09-14");
     root.is_dir().then_some(root)
 }
@@ -87,7 +99,7 @@ fn crops_the_fit_could_barely_sample_still_read_on_the_right_side() {
 #[test]
 fn full_frames_measure_what_an_independent_psf_fit_measures() {
     let Some(dir) = rig_data() else {
-        eprintln!("SKIPPED: ~/.cache/ns-rig-data/2026-09-14 is not on this machine");
+        eprintln!("SKIPPED: ~/.cache/sk-rig-data/2026-09-14 is not on this machine");
         return;
     };
     assert_matches(

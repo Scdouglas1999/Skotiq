@@ -1,7 +1,7 @@
 // Two different things were both called "Save", and two different surfaces
 // were both called "Templates".
 //
-//   * The toolbar floppy wrote a .nsq file through the OS chooser; the
+//   * The toolbar floppy wrote a .skeq file through the OS chooser; the
 //     Sequences tab's "Save Current" saves into the app library. A new user
 //     cannot tell which one persists their work.
 //   * The Builder's left panel is the "Snippets" tab, its import tooltip says

@@ -20,7 +20,7 @@ void main() {
   late _MockImagingBackend backend;
 
   setUp(() {
-    tmp = Directory.systemTemp.createTempSync('ns-img-dl-test');
+    tmp = Directory.systemTemp.createTempSync('sk-img-dl-test');
     backend = _MockImagingBackend();
   });
 

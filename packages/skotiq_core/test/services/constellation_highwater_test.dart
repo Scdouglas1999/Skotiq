@@ -272,7 +272,7 @@ void main() {
       expect(seam.merged, hasLength(1));
       expect(
         seam.merged.single['basePath'],
-        contains('swarm_overlay/tiles/9/1234.nst'),
+        contains('swarm_overlay/tiles/9/1234.skt'),
       );
 
       final outcome = await service.contributeTarget(target.targetId);
@@ -309,7 +309,7 @@ void main() {
         coverageMean: 0.8,
         totalFrames: 6,
         integrationSeconds: 1800,
-        sidecarPath: '/tmp/constellation_highwater_test/tiles/9/1234.nst',
+        sidecarPath: '/tmp/constellation_highwater_test/tiles/9/1234.skt',
       );
 
       await service.pullTarget(target.targetId, finalized: false);

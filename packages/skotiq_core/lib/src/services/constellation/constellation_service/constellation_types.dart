@@ -2,7 +2,7 @@ part of '../constellation_service.dart';
 
 /// What a contribution puts on the wire.
 ///
-/// [sums] (the default) ships only the additive `.nst` accumulator the master
+/// [sums] (the default) ships only the additive `.skt` accumulator the master
 /// integration already keeps — never the raw individual subframes. [subs] is a
 /// heavier, more-revealing opt-in: it streams the user's own light FITS to the
 /// hub ([ConstellationService.contributeRawSubs]), so it is only valid against

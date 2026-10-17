@@ -1,7 +1,7 @@
 // Pillar C ("Constellation") — pull-and-blend path test.
 //
 // "Pull & blend into Your Sky" has to fold the downloaded community tile into
-// the local atlas: the UI-reachable pull requests the additive `.nst`
+// the local atlas: the UI-reachable pull requests the additive `.skt`
 // accumulator (`finalized: false`) so the service calls
 // SkyAtlasService.mergeSwarmDelta. The finalized FITS pull is a display-only
 // blob with no consumer and must NOT be merged.

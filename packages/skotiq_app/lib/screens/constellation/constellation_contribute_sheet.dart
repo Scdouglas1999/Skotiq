@@ -29,7 +29,7 @@ Future<ContributionOutcome?> showConstellationContributeSheet(
 /// The default and recommended choice is SUMS — only the additive co-add stack
 /// the master integration already keeps. SUBS (raw subframes) is the heavier,
 /// more-revealing opt-in. The choice is persisted; the upload itself ships the
-/// additive `.nst` sums through [ConstellationService.contributeTarget].
+/// additive `.skt` sums through [ConstellationService.contributeTarget].
 class _ConstellationContributeSheet extends ConsumerStatefulWidget {
   final SharedTarget target;
 

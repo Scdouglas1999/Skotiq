@@ -257,7 +257,7 @@ void main() {
       (tester) async {
     final harness = await _pumpPanel(
       tester,
-      destination: '/tmp/ns-audit/stack_master.tif',
+      destination: '/tmp/sk-audit/stack_master.tif',
     );
 
     await tester.tap(find.text('Stop'));

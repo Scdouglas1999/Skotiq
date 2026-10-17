@@ -222,7 +222,7 @@ existing star-based similarity fit; the fit must have matched scale within
 `CD_frame = CD_ref · A` with the reference pixel pulled back through the
 inverse map.
 
-Stable frame identity is `ns:<NS-SESID>:<NS-FIDX>` for Skotiq-saved
+Stable frame identity is `sk:<SK-SESID>:<SK-FIDX>` for Skotiq-saved
 frames and a digest of the pixel bytes plus `DATE-OBS` otherwise, so
 reprocessing or a duplicate event is not new evidence.
 

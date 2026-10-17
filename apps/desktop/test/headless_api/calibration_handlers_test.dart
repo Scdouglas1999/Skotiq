@@ -37,7 +37,7 @@ void main() {
     setUp(() async {
       db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       tempDir = await Directory.systemTemp.createTemp(
-        'ns_calibration_handlers_test_',
+        'sk_calibration_handlers_test_',
       );
       calibrationDir = Directory('${tempDir.path}/data');
       await calibrationDir.create(recursive: true);

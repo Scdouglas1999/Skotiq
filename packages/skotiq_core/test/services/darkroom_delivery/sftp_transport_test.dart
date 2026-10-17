@@ -110,7 +110,7 @@ void main() {
   const secretRef = 'delivery.office_pc_key';
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_sftp_test_');
+    tempDir = await Directory.systemTemp.createTemp('sk_sftp_test_');
     keyring = InMemorySecureKeyValueStore();
     secrets = SecretsStore(keyring);
     await secrets.write(secretRef, '-----BEGIN OPENSSH PRIVATE KEY-----');
@@ -496,7 +496,7 @@ void main() {
         (c) => c.executable == 'ssh' && c.args.contains('sha256sum'),
         stdout:
             '$digest  /srv/astro/incoming/.M31_Ha_master.fits.12'
-            '.nsdelivery-part\n',
+            '.skdelivery-part\n',
       );
       final t = await opened();
 
@@ -508,7 +508,7 @@ void main() {
           .toList();
       expect(sftpCalls.length, 2);
       expect(sftpCalls[0].stdinText, startsWith('put '));
-      expect(sftpCalls[0].stdinText, contains('.nsdelivery-part'));
+      expect(sftpCalls[0].stdinText, contains('.skdelivery-part'));
       expect(
         sftpCalls[0].stdinText,
         isNot(contains("'/srv/astro/incoming/M31_Ha_master.fits'")),

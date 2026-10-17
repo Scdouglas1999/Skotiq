@@ -6,7 +6,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 
 /// A retired settings key keeps its seeded value forever: nothing writes it,
 /// but `BackupService._exportSettings` dumps the whole `app_settings` table
-/// into every `.nsbackup`, so the stale row is exported as if it were
+/// into every `.skbackup`, so the stale row is exported as if it were
 /// configuration. `auto_save_sequences` (seeded `'true'`) contradicts
 /// `autosave.sequence_enabled` (default `false`), the key the toggle shows and
 /// `AutoSaveService` obeys.
@@ -18,7 +18,7 @@ void main() {
   late File dbFile;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_retired_settings_');
+    tempDir = await Directory.systemTemp.createTemp('sk_retired_settings_');
     dbFile = File('${tempDir.path}/skotiq.db');
   });
 
@@ -66,7 +66,7 @@ void main() {
   // `cooling_behavior` shipped seeded 'On Connect' with no UI, no setter
   // caller and no reader that acted on it. Whether the cooler runs on connect
   // is a per-profile decision (`equipment_profiles.cool_on_connect`), so every
-  // settings snapshot, .nsbackup and /api/settings payload announced automatic
+  // settings snapshot, .skbackup and /api/settings payload announced automatic
   // cooling that nothing performed.
   test('cooling_behavior is not seeded into a fresh profile', () async {
     final db = SkotiqDatabase.forTesting(NativeDatabase(dbFile));

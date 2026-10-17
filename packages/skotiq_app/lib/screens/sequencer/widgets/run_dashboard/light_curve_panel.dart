@@ -26,10 +26,10 @@ import 'package:skotiq_core/skotiq_core.dart';
 // The typed `SkotiqEvent` union (and its `EventPayload_*` arms) carries the
 // photometry SequencerEvent variants this panel binds to. It collides by name
 // with the wire/JSON event model the barrel above keeps canonical, so it is
-// imported from the core's dedicated typed-event seam under the `ns_events`
+// imported from the core's dedicated typed-event seam under the `sk_events`
 // prefix. The non-colliding `EventPayload_Sequencer` arm is reachable
 // unprefixed off the barrel.
-import 'package:skotiq_core/skotiq_core_events.dart' as ns_events;
+import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class LightCurvePanel extends ConsumerWidget {
@@ -456,7 +456,7 @@ class LightCurveActivity {
 }
 
 /// Subscribes to the typed run-event stream ([skotiqEventsProvider]) and
-/// observes the photometry [ns_events.SequencerEvent] variants emitted by the
+/// observes the photometry [sk_events.SequencerEvent] variants emitted by the
 /// Science Photometry node: `PhotometryFrame`, `PhotometryCadenceBroken`, and
 /// `PhotometrySummary`. Every field this panel needs — target designation,
 /// filter, and the authoritative cadence-break counter — survives the FRB
@@ -469,20 +469,20 @@ class _LightCurveActivityNotifier extends StateNotifier<LightCurveActivity> {
   }
 
   final Ref _ref;
-  ProviderSubscription<AsyncValue<ns_events.SkotiqEvent>>? _subscription;
+  ProviderSubscription<AsyncValue<sk_events.SkotiqEvent>>? _subscription;
 
   void _wire() {
     // Listening to the typed StreamProvider keeps us aligned with the
     // sibling Run Dashboard panels (scheduler / trigger feed) that read the
     // same typed surface, and it transparently follows backend swaps
     // (FFI <-> network) without manual resubscription.
-    _subscription = _ref.listen<AsyncValue<ns_events.SkotiqEvent>>(
+    _subscription = _ref.listen<AsyncValue<sk_events.SkotiqEvent>>(
       skotiqEventsProvider,
       (_, next) => next.whenData(_onEvent),
     );
   }
 
-  void _onEvent(ns_events.SkotiqEvent event) {
+  void _onEvent(sk_events.SkotiqEvent event) {
     final payload = event.payload;
     if (payload is! EventPayload_Sequencer) return;
     final sequencer = payload.field0;

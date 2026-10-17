@@ -217,7 +217,7 @@ void main() {
           coverageMean: 1,
           totalFrames: 1,
           integrationSeconds: 60,
-          sidecarPath: '/atlas/1.nst',
+          sidecarPath: '/atlas/1.skt',
         );
         await aDao.upsertTile(
           tileId: 2,
@@ -227,7 +227,7 @@ void main() {
           coverageMean: 1,
           totalFrames: 1,
           integrationSeconds: 60,
-          sidecarPath: '/atlas/2.nst',
+          sidecarPath: '/atlas/2.skt',
         );
         final band = await aDao.getTilesInDecBand(40, 42);
         expect(band, hasLength(1));

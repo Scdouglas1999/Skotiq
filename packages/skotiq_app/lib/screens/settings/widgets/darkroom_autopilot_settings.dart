@@ -6,7 +6,7 @@
 // "draft", "recipe" and "auto draft" each returned "No settings match your
 // search", and "dawn" returned only the sequencer's park control. One D1 night
 // with that unmentioned default on produced 4 recipes, 4 draft JPEGs, 4
-// `.nsrecipe` sidecars, a night report, 9 delivered files and a morning
+// `.skrecipe` sidecars, a night report, 9 delivered files and a morning
 // notification — none of which the operator had a control for, or was ever told
 // about. The nearest switch, "Auto-integrate at end of run", describes only the
 // master.

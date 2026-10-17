@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_bridge/skotiq_bridge.dart' as ns_events;
+import 'package:skotiq_bridge/skotiq_bridge.dart' as sk_events;
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import '../../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
@@ -23,22 +23,22 @@ import '../../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 /// The native side no longer emits that event at all (it is logged instead), and
 /// this guard keeps the class of bug from returning through any other reused
 /// payload.
-ns_events.SkotiqEvent _event({
-  required ns_events.EventSeverity severity,
+sk_events.SkotiqEvent _event({
+  required sk_events.EventSeverity severity,
   String message = 'Runtime config updated: conditions_score',
 }) =>
-    ns_events.SkotiqEvent(
+    sk_events.SkotiqEvent(
       eventId: BigInt.from(1),
       timestamp: DateTime(2026, 7, 25, 13, 26, 45).millisecondsSinceEpoch,
       severity: severity,
-      category: ns_events.EventCategory.sequencer,
-      payload: ns_events.EventPayload.sequencer(
-        ns_events.SequencerEvent.error(message: message),
+      category: sk_events.EventCategory.sequencer,
+      payload: sk_events.EventPayload.sequencer(
+        sk_events.SequencerEvent.error(message: message),
       ),
     );
 
 List<RunDashboardEvent> _dashboardEvents(
-  List<ns_events.SkotiqEvent> history,
+  List<sk_events.SkotiqEvent> history,
 ) {
   final container = ProviderContainer(overrides: [inMemoryDatabaseOverride()]);
   addTearDown(container.dispose);
@@ -52,7 +52,7 @@ List<RunDashboardEvent> _dashboardEvents(
 void main() {
   test('an Info event on the error payload is NOT critical', () {
     final out = _dashboardEvents([
-      _event(severity: ns_events.EventSeverity.info),
+      _event(severity: sk_events.EventSeverity.info),
     ]);
 
     expect(out, hasLength(1));
@@ -66,7 +66,7 @@ void main() {
 
   test('a Warning event on the error payload stays a warning', () {
     final out = _dashboardEvents([
-      _event(severity: ns_events.EventSeverity.warning),
+      _event(severity: sk_events.EventSeverity.warning),
     ]);
 
     expect(out.single.isCritical, isFalse);
@@ -78,7 +78,7 @@ void main() {
     // classification exists for.
     final out = _dashboardEvents([
       _event(
-        severity: ns_events.EventSeverity.error,
+        severity: sk_events.EventSeverity.error,
         message: 'Camera disconnected mid-exposure',
       ),
     ]);
@@ -90,7 +90,7 @@ void main() {
   test('a Critical event IS still critical', () {
     final out = _dashboardEvents([
       _event(
-        severity: ns_events.EventSeverity.critical,
+        severity: sk_events.EventSeverity.critical,
         message: 'Mount hit a limit',
       ),
     ]);

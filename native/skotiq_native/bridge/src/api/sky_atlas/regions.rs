@@ -262,8 +262,8 @@ pub(crate) fn growth_impl(args: GrowthArgs) -> Result<GrowthResult, String> {
 /// the linear-additive federation operation the keystone proves exact:
 ///
 /// ```jsonc
-/// { "basePath": "/…/hub/tiles/9/42.nst", "deltaPath": "/…/delta_42.nst",
-///   "trust": 0.85, "subtract": false, "outPath": "/…/hub/tiles/9/42.nst" }
+/// { "basePath": "/…/hub/tiles/9/42.skt", "deltaPath": "/…/delta_42.skt",
+///   "trust": 0.85, "subtract": false, "outPath": "/…/hub/tiles/9/42.skt" }
 /// // -> { "ok": true, "tileId": 42, "totalFramesAfter": 130,
 /// //      "integrationSecondsAfter": 39000.0, "contributorsAfter": 7 }
 /// ```

@@ -55,7 +55,7 @@ class _RecordingExporter implements ScienceReportExporter {
       {PeriodAnalysisResult? period}) async {
     calls++;
     seenPeriod = period;
-    final dir = await Directory.systemTemp.createTemp('ns-report-wiring-');
+    final dir = await Directory.systemTemp.createTemp('sk-report-wiring-');
     final file = File('${dir.path}/session-$sessionId.md');
     await file.writeAsString('stub');
     return file;

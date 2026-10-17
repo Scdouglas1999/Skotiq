@@ -157,7 +157,7 @@ flutter test test/widgets --concurrency=3
   → +293 −10  EXIT=1  (see below)
 cd apps/desktop && flutter build linux --release && cp libskotiq_bridge.so …
   → ✓ Built build/linux/x64/release/bundle/skotiq_desktop  EXIT=0
-tools/ui_audit/drive_linux.py --profile w7fix (NS_AUDIT_DISPLAY=:97, seeded
+tools/ui_audit/drive_linux.py --profile w7fix (SK_AUDIT_DISPLAY=:97, seeded
   /tmp/ns-audit/w7fix/data from the preview data dir) — navigated Continue
   Session → Imaging; captures before: w7_now.png / w7_imaging_raw.png,
   after: after.png

@@ -109,7 +109,7 @@ void main() {
       completion.complete(
         BackupResult(
           success: true,
-          filePath: '/tmp/autosave.nsbackup',
+          filePath: '/tmp/autosave.skbackup',
           timestamp: DateTime.utc(2026, 7, 12),
         ),
       );

@@ -51,7 +51,7 @@ void _mockPathProvider(String root) {
 Future<void> _pumpShell(WidgetTester tester, Size size) async {
   // Synchronous on purpose: `testWidgets` runs inside a fake-async zone, and
   // an awaited dart:io future never completes there.
-  final root = Directory.systemTemp.createTempSync('ns-window-chrome-');
+  final root = Directory.systemTemp.createTempSync('sk-window-chrome-');
   addTearDown(() => root.deleteSync(recursive: true));
   _mockPathProvider(root.path);
 

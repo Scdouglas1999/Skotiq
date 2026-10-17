@@ -24,7 +24,7 @@ void main() {
   }
 
   setUp(() {
-    tmp = Directory.systemTemp.createTempSync('nshub_fusion_');
+    tmp = Directory.systemTemp.createTempSync('skhub_fusion_');
     db = HubDatabase.open(':memory:');
     store = TileStore(tmp.path);
     tokens = TokenService(db);

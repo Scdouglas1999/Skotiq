@@ -75,7 +75,7 @@ void main() {
   late Handler handler;
 
   setUp(() {
-    tmp = Directory.systemTemp.createTempSync('nshub_cal_');
+    tmp = Directory.systemTemp.createTempSync('skhub_cal_');
     server = HubServer(
       HubConfig(
         databasePath: ':memory:',
@@ -761,37 +761,40 @@ void main() {
       );
     });
 
-    test('a poison-master flood auto-suspends the account (WS4 abuse parity with '
-        'tile/co-imaging)', () async {
-      final reg = server.accounts.signup(
-        publicKey: 'flooder',
-        displayName: 'Flooder',
-      );
-      // Stay under the raw rate limiter (120/min) but push past the abuse
-      // threshold (25). Every 422 lands in the audit ledger and feeds
-      // `checkAbuse`, so a poison-master flood auto-suspends like any other
-      // abuse.
-      expect(server.moderation.isSuspended(reg.account.id), isFalse);
-      for (var i = 0; i < ModerationService.defaultAbuseThreshold; i++) {
-        final r = await send(
-          'POST',
-          '/v1/calibration/masters?masterType=dark&camera=ASI2600MM'
-              '&license=cc-by&sensorWidth=64&sensorHeight=48',
-          token: reg.bearerToken,
-          body: fitsBytes(degenerate: true),
+    test(
+      'a poison-master flood auto-suspends the account (WS4 abuse parity with '
+      'tile/co-imaging)',
+      () async {
+        final reg = server.accounts.signup(
+          publicKey: 'flooder',
+          displayName: 'Flooder',
         );
-        // Each request is rejected — a 422 poison rejection until the flood
-        // trips the auto-suspend, after which the account is refused outright.
-        expect(r.statusCode, greaterThanOrEqualTo(400));
-      }
-      expect(
-        server.moderation.isSuspended(reg.account.id),
-        isTrue,
-        reason:
-            'a poison-master flood must auto-suspend, exactly like the '
-            'tile-fusion and co-imaging abuse paths',
-      );
-    });
+        // Stay under the raw rate limiter (120/min) but push past the abuse
+        // threshold (25). Every 422 lands in the audit ledger and feeds
+        // `checkAbuse`, so a poison-master flood auto-suspends like any other
+        // abuse.
+        expect(server.moderation.isSuspended(reg.account.id), isFalse);
+        for (var i = 0; i < ModerationService.defaultAbuseThreshold; i++) {
+          final r = await send(
+            'POST',
+            '/v1/calibration/masters?masterType=dark&camera=ASI2600MM'
+                '&license=cc-by&sensorWidth=64&sensorHeight=48',
+            token: reg.bearerToken,
+            body: fitsBytes(degenerate: true),
+          );
+          // Each request is rejected — a 422 poison rejection until the flood
+          // trips the auto-suspend, after which the account is refused outright.
+          expect(r.statusCode, greaterThanOrEqualTo(400));
+        }
+        expect(
+          server.moderation.isSuspended(reg.account.id),
+          isTrue,
+          reason:
+              'a poison-master flood must auto-suspend, exactly like the '
+              'tile-fusion and co-imaging abuse paths',
+        );
+      },
+    );
 
     test(
       'a published master records a durable consent row, revoked on retract',

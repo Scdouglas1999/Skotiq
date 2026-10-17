@@ -32,7 +32,7 @@ void main() {
   late String vendorPublicKey;
 
   setUp(() async {
-    dataDir = await Directory.systemTemp.createTemp('ns-ota-e2e-');
+    dataDir = await Directory.systemTemp.createTemp('sk-ota-e2e-');
     algorithm = Ed25519();
     vendorKey = await algorithm.newKeyPair();
     vendorPublicKey = base64Encode((await vendorKey.extractPublicKey()).bytes);

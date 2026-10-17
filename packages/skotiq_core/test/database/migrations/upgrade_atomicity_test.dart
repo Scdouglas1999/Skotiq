@@ -31,7 +31,7 @@ void main() {
   late File dbFile;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_upgrade_atomicity_');
+    tempDir = await Directory.systemTemp.createTemp('sk_upgrade_atomicity_');
     dbFile = File(p.join(tempDir.path, 'skotiq.db'));
   });
 

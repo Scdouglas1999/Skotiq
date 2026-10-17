@@ -305,8 +305,8 @@ file is untouched by this branch.
 
 ## Live reproduction (Xvfb, softpipe, scratch database)
 
-Harness `tools/ui_audit/drive_linux.py` on `NS_AUDIT_DISPLAY=:88`,
-`NS_AUDIT_RUNTIME=/tmp/ns-audit-w18`, profile `w18`. Never `DISPLAY=:0`.
+Harness `tools/ui_audit/drive_linux.py` on `SK_AUDIT_DISPLAY=:88`,
+`SK_AUDIT_RUNTIME=/tmp/ns-audit-w18`, profile `w18`. Never `DISPLAY=:0`.
 
 The scratch database was seeded (`~/.cache/ns-tmp/w18-sensor-specs/seed.sh`)
 with the owner's setup: one active profile whose camera is `ASI1600MM-Cool`

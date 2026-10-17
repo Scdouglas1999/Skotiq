@@ -183,7 +183,7 @@ final coImagingSessionServiceProvider = Provider<CoImagingSessionService>((
     // into the SAME shared-target tile through the existing additive-sum
     // upload. The shared target is joined locally first (so the cone centre
     // resolves from the session's own coordinates without re-browsing), then
-    // the unchanged `contributeTarget` `.nst` path runs under the
+    // the unchanged `contributeTarget` `.skt` path runs under the
     // operator's consented license and return the TRUE delta the hub accepted so
     // the combined accounting equals what was fused (never a hardcoded +1).
     fusionContributor: (request) async {
@@ -416,7 +416,7 @@ final myContributionsProvider = FutureProvider<List<ContributionRecord>>((ref) {
 /// Pulling is a side-effecting fetch (it writes the cached blobs to disk), so
 /// this provider performs the pull and returns the resulting [SwarmTile] index.
 ///
-/// Pull with `finalized: false` — the additive `.nst` accumulator — the only
+/// Pull with `finalized: false` — the additive `.skt` accumulator — the only
 /// form [ConstellationService.pullTarget] folds into the local atlas (via
 /// `mergeSwarmDelta`). A `finalized: true` FITS pull is a display-only blob
 /// with no consumer, so nothing would reach Your Sky.

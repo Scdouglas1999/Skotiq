@@ -32,7 +32,7 @@ void main() {
   test('a configured folder that is not on disk reports pathMissing', () async {
     // The real shape of the incident: a path saved on one machine, opened on
     // another. Nothing about it is a query failure.
-    final missing = '${Directory.systemTemp.path}/ns-not-here-4f2a9c';
+    final missing = '${Directory.systemTemp.path}/sk-not-here-4f2a9c';
     expect(Directory(missing).existsSync(), isFalse);
 
     await expectLater(
@@ -46,7 +46,7 @@ void main() {
   });
 
   test('a real directory answers with usable numbers', () async {
-    final dir = Directory.systemTemp.createTempSync('ns-disk-ok');
+    final dir = Directory.systemTemp.createTempSync('sk-disk-ok');
     addTearDown(() => dir.deleteSync(recursive: true));
 
     final info = await service.query(dir.path);

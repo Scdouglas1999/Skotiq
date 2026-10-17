@@ -93,7 +93,7 @@ void main() {
   });
 
   setUp(() {
-    outputDir = Directory.systemTemp.createTempSync('ns_loop_retention');
+    outputDir = Directory.systemTemp.createTempSync('sk_loop_retention');
     writtenPaths = <String>[];
     backend = MockBackend();
     events = StreamController<SkotiqEvent>.broadcast();

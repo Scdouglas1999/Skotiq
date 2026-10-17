@@ -38,7 +38,7 @@ void main() {
   late Directory tempDir;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_backup_identity_');
+    tempDir = await Directory.systemTemp.createTemp('sk_backup_identity_');
   });
 
   tearDown(() async {
@@ -116,7 +116,7 @@ void main() {
 
     /// A minimal v2.1 bundle carrying [profiles] and nothing else.
     Future<String> writeBundle(List<Map<String, dynamic>> profiles) async {
-      final file = File(p.join(tempDir.path, 'bundle.nsbackup'));
+      final file = File(p.join(tempDir.path, 'bundle.skbackup'));
       await file.writeAsString(
         jsonEncode({
           'version': '2.1',

@@ -25,7 +25,7 @@ tooltip read "Hide the map" while no map had appeared or disappeared anywhere.
 
 Bundle built in this worktree at `f1f739da1` (`flutter build linux --release`
 then the bridge `.so` copied in — the flutter build wipes it every time).
-Harness: `tools/ui_audit/drive_linux.py --profile w6map`, `NS_AUDIT_DISPLAY=:94`,
+Harness: `tools/ui_audit/drive_linux.py --profile w6map`, `SK_AUDIT_DISPLAY=:94`,
 profile seeded from `/home/scdouglas/.cache/skotiq-ledger-preview/data`
 (lock file removed). Navigated Sequencer → Saved → "NGC 7000 + M31 · full night"
 → Load, then switched to Ledger density and clicked the Map glyph in the canvas

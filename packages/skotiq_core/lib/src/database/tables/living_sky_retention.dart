@@ -2,7 +2,7 @@ import 'package:drift/drift.dart';
 
 /// Retention bookkeeping for the age/size-bounded maintenance sweeps over
 /// unbounded append-only state (per-tile sidecars and the cutout/delta cache,
-/// the `transient_detections` log, swarm `.nst`/`.fits` blobs).
+/// the `transient_detections` log, swarm `.skt`/`.fits` blobs).
 ///
 /// One row per [scope] (a stable string key — see [LivingSkyRetentionScope]),
 /// keyed unique so a sweep upserts its progress and resumes from the

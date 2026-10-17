@@ -15,7 +15,7 @@
 //!
 //! Fixtures are 1024×1024 center crops copied pixel-for-pixel (see
 //! `test-fixtures/rig-2026-09-14/manifest.json`); the full frames are graded
-//! as well when `~/.cache/ns-rig-data/2026-09-14` is present.
+//! as well when `~/.cache/sk-rig-data/2026-09-14` is present.
 
 use super::UnifiedDeviceOps;
 use skotiq_sequencer::quality::{grade_frame, FrameGrade, FrameMetrics, ImageQualityCheck};
@@ -39,7 +39,19 @@ fn fixtures() -> PathBuf {
 fn rig_data() -> Option<PathBuf> {
     let root = std::env::var_os("SKOTIQ_RIG_DATA")
         .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| Path::new(&h).join(".cache/ns-rig-data")))?
+        .or_else(|| {
+            std::env::var_os("HOME").map(|h| {
+                // Machines that downloaded the corpus before the rebrand keep it
+                // under the old cache directory name.
+                let cache = Path::new(&h).join(".cache");
+                let fresh = cache.join("sk-rig-data");
+                if fresh.is_dir() {
+                    fresh
+                } else {
+                    cache.join("ns-rig-data")
+                }
+            })
+        })?
         .join("2026-09-14");
     root.is_dir().then_some(root)
 }
@@ -171,7 +183,7 @@ async fn the_shipped_eccentricity_limit_passes_focus_and_rejects_trails() {
 #[tokio::test]
 async fn the_full_frames_of_the_night_grade_as_they_should() {
     let Some(dir) = rig_data() else {
-        eprintln!("SKIPPED: ~/.cache/ns-rig-data/2026-09-14 is not on this machine");
+        eprintln!("SKIPPED: ~/.cache/sk-rig-data/2026-09-14 is not on this machine");
         return;
     };
     for file in [

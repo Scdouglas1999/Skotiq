@@ -50,10 +50,10 @@ void main() {
         final selector = _RecordingFileSelector(savePath: '/tmp/chosen.json');
         FileSelectorPlatform.instance = selector;
 
-        final target = await chooseExportTarget(suggestedName: 'M31.nseq.json');
+        final target = await chooseExportTarget(suggestedName: 'M31.skeq.json');
 
         expect(selector.getSaveLocationCalls, 1);
-        expect(selector.lastSuggestedName, 'M31.nseq.json');
+        expect(selector.lastSuggestedName, 'M31.skeq.json');
         expect(target, isNotNull);
         expect(target!.path, '/tmp/chosen.json');
         // The user picked the location, so it is already reachable.
@@ -94,7 +94,7 @@ void main() {
       final selector = _RecordingFileSelector(savePath: '/tmp/unused');
       FileSelectorPlatform.instance = selector;
 
-      final target = await chooseExportTarget(suggestedName: 'M31.nseq.json');
+      final target = await chooseExportTarget(suggestedName: 'M31.skeq.json');
 
       expect(
         selector.getSaveLocationCalls,
@@ -111,7 +111,7 @@ void main() {
             'the path is inside the app sandbox, so the caller still '
             'has to hand the written file to the share sheet',
       );
-      expect(target.path, endsWith('M31.nseq.json'));
+      expect(target.path, endsWith('M31.skeq.json'));
     });
 
     test('a user-authored name cannot escape the export directory', () async {

@@ -619,7 +619,7 @@ extension _SkotiqDatabaseSchemaHelpers on SkotiqDatabase {
   /// `integrated_masters` row referenced by `mosaic_projects.output_master_id`,
   /// so it flows into the existing master library + morning report unchanged.
   /// `UNIQUE(project_id, panel_index)` makes `(project, panel)` the panel
-  /// identity (panel_index is 0-based, matching the FITS `NS-PIDX` provenance).
+  /// identity (panel_index is 0-based, matching the FITS `SK-PIDX` provenance).
   Future<void> _createMosaicTables() async {
     await customStatement(
       'CREATE TABLE IF NOT EXISTS mosaic_projects('

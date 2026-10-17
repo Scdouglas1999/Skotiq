@@ -11,7 +11,7 @@ void main() {
   late Directory tempDir;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_element_refresh_');
+    tempDir = await Directory.systemTemp.createTemp('sk_element_refresh_');
   });
 
   tearDown(() async {

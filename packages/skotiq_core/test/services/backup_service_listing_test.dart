@@ -40,7 +40,7 @@ void main() {
   });
 
   test('backup files are filtered and sorted newest first', () async {
-    final older = File('${root.path}/older.nsbackup');
+    final older = File('${root.path}/older.skbackup');
     final newer = File('${root.path}/newer.json');
     await older.writeAsString('{}');
     await newer.writeAsString('{}');
@@ -52,7 +52,7 @@ void main() {
       (await service(
         () async => root,
       ).listBackups()).map((file) => file.uri.pathSegments.last),
-      ['newer.json', 'older.nsbackup'],
+      ['newer.json', 'older.skbackup'],
     );
   });
 

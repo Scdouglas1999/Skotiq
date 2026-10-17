@@ -12,7 +12,7 @@ void main() {
   late Handler handler;
 
   setUp(() {
-    tmp = Directory.systemTemp.createTempSync('nshub_http_');
+    tmp = Directory.systemTemp.createTempSync('skhub_http_');
     server = HubServer(
       HubConfig(
         databasePath: ':memory:',
@@ -476,36 +476,39 @@ void main() {
     },
   );
 
-  test('unhandled error is redacted to a generic 500 by the error trap', () async {
-    // Drive the REAL production middleware ([hubErrorTrapMiddleware], the same
-    // one HubServer installs) around a handler that throws an exception whose
-    // text embeds exactly the kind of internal detail we must never leak: an
-    // absolute path, a SQL fragment, and the exception type name.
-    const secret =
-        'StateError: /var/lib/skotiq/hub.sqlite SELECT token FROM accounts';
-    final trapped = hubErrorTrapMiddleware()(
-      (Request request) async => throw StateError(secret),
-    );
+  test(
+    'unhandled error is redacted to a generic 500 by the error trap',
+    () async {
+      // Drive the REAL production middleware ([hubErrorTrapMiddleware], the same
+      // one HubServer installs) around a handler that throws an exception whose
+      // text embeds exactly the kind of internal detail we must never leak: an
+      // absolute path, a SQL fragment, and the exception type name.
+      const secret =
+          'StateError: /var/lib/skotiq/hub.sqlite SELECT token FROM accounts';
+      final trapped = hubErrorTrapMiddleware()(
+        (Request request) async => throw StateError(secret),
+      );
 
-    final response = await trapped(
-      Request('GET', Uri.parse('http://localhost/v1/anything')),
-    );
-    final raw = await response.readAsString();
+      final response = await trapped(
+        Request('GET', Uri.parse('http://localhost/v1/anything')),
+      );
+      final raw = await response.readAsString();
 
-    // Status + stable envelope: a true 500 with the canonical code/message.
-    expect(response.statusCode, 500);
-    final body = jsonDecode(raw) as Map<String, Object?>;
-    final err = body['error'] as Map<String, Object?>;
-    expect(err['code'], 'internal');
-    expect(err['message'], 'internal error');
+      // Status + stable envelope: a true 500 with the canonical code/message.
+      expect(response.statusCode, 500);
+      final body = jsonDecode(raw) as Map<String, Object?>;
+      final err = body['error'] as Map<String, Object?>;
+      expect(err['code'], 'internal');
+      expect(err['message'], 'internal error');
 
-    // Redaction: the serialized response must NOT echo any fragment of the
-    // thrown exception — not the path, not the SQL, not the type name.
-    expect(raw, isNot(contains('hub.sqlite')));
-    expect(raw, isNot(contains('SELECT')));
-    expect(raw, isNot(contains('StateError')));
-    expect(raw, isNot(contains('/var/lib')));
-  });
+      // Redaction: the serialized response must NOT echo any fragment of the
+      // thrown exception — not the path, not the SQL, not the type name.
+      expect(raw, isNot(contains('hub.sqlite')));
+      expect(raw, isNot(contains('SELECT')));
+      expect(raw, isNot(contains('StateError')));
+      expect(raw, isNot(contains('/var/lib')));
+    },
+  );
 
   test('error trap still maps validation faults to their own codes', () async {
     // The redaction path must be specific to TRULY-unhandled errors: a

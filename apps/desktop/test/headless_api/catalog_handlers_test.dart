@@ -57,7 +57,7 @@ void main() {
 
     setUp(() async {
       tempCatalogDir = await Directory.systemTemp.createTemp(
-        'ns_catalog_handlers_test_',
+        'sk_catalog_handlers_test_',
       );
       await CatalogManager.instance.initialize(tempCatalogDir.path);
 
@@ -107,7 +107,7 @@ void main() {
       final csv = _miniNgcCsvBody();
       final csvBytes = utf8.encode(csv);
       final expectedSha = sha256.convert(csvBytes).toString();
-      final src = await Directory.systemTemp.createTemp('ns_src_');
+      final src = await Directory.systemTemp.createTemp('sk_src_');
       final srcFile = File('${src.path}/source.csv');
       await srcFile.writeAsString(csv);
       await CatalogManager.instance.installFromFile(
@@ -209,7 +209,7 @@ void main() {
         final csv = _miniNgcCsvBody();
         final csvBytes = utf8.encode(csv);
         final expectedSha = sha256.convert(csvBytes).toString();
-        final src = await Directory.systemTemp.createTemp('ns_src_');
+        final src = await Directory.systemTemp.createTemp('sk_src_');
         final srcFile = File('${src.path}/source.csv');
         await srcFile.writeAsString(csv);
 
@@ -318,7 +318,7 @@ void main() {
         final csv = _miniNgcCsvBody();
         final csvBytes = utf8.encode(csv);
         final expectedSha = sha256.convert(csvBytes).toString();
-        final src = await Directory.systemTemp.createTemp('ns_src_v_');
+        final src = await Directory.systemTemp.createTemp('sk_src_v_');
         final srcFile = File('${src.path}/source.csv');
         await srcFile.writeAsString(csv);
         await CatalogManager.instance.installFromFile(
@@ -373,7 +373,7 @@ void main() {
       final csv = _miniNgcCsvBody();
       final csvBytes = utf8.encode(csv);
       final expectedSha = sha256.convert(csvBytes).toString();
-      final src = await Directory.systemTemp.createTemp('ns_src_d_');
+      final src = await Directory.systemTemp.createTemp('sk_src_d_');
       final srcFile = File('${src.path}/source.csv');
       await srcFile.writeAsString(csv);
       await CatalogManager.instance.installFromFile(

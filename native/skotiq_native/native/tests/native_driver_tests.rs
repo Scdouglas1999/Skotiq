@@ -1201,14 +1201,14 @@ mod fake_sdk_contract {
         );
         let old_dir = env::current_dir().expect("read current dir");
         let old_path = env::var("PATH").unwrap_or_default();
-        let old_not_ready = env::var("NS_POA_NOT_READY").ok();
-        let old_start_error = env::var("NS_POA_START_ERROR").ok();
-        let old_image_error = env::var("NS_POA_IMAGE_ERROR").ok();
+        let old_not_ready = env::var("SK_POA_NOT_READY").ok();
+        let old_start_error = env::var("SK_POA_START_ERROR").ok();
+        let old_image_error = env::var("SK_POA_IMAGE_ERROR").ok();
         env::set_current_dir(&shim_dir).expect("switch to fake SDK dir");
         env::set_var("PATH", format!("{};{}", shim_dir.display(), old_path));
-        env::remove_var("NS_POA_NOT_READY");
-        env::remove_var("NS_POA_START_ERROR");
-        env::remove_var("NS_POA_IMAGE_ERROR");
+        env::remove_var("SK_POA_NOT_READY");
+        env::remove_var("SK_POA_START_ERROR");
+        env::remove_var("SK_POA_IMAGE_ERROR");
 
         let devices = player_one::discover_devices()
             .await
@@ -1249,14 +1249,14 @@ mod fake_sdk_contract {
         assert_eq!(status.gain, 73);
         assert_eq!(status.offset, 11);
 
-        env::set_var("NS_POA_NOT_READY", "1");
+        env::set_var("SK_POA_NOT_READY", "1");
         assert!(!cooled
             .is_exposure_complete()
             .await
             .expect("Player One not-ready poll"));
-        env::remove_var("NS_POA_NOT_READY");
+        env::remove_var("SK_POA_NOT_READY");
 
-        env::set_var("NS_POA_START_ERROR", "1");
+        env::set_var("SK_POA_START_ERROR", "1");
         let start_error = cooled
             .start_exposure(ExposureParams {
                 duration_secs: 0.01,
@@ -1271,7 +1271,7 @@ mod fake_sdk_contract {
             .await
             .expect_err("undocumented Player One SDK error should propagate");
         assert!(format!("{start_error}").contains("Unknown POA error code"));
-        env::remove_var("NS_POA_START_ERROR");
+        env::remove_var("SK_POA_START_ERROR");
 
         cooled
             .start_exposure(ExposureParams {
@@ -1291,12 +1291,12 @@ mod fake_sdk_contract {
             .await
             .expect("Player One exposure complete"));
 
-        env::set_var("NS_POA_IMAGE_ERROR", "1");
+        env::set_var("SK_POA_IMAGE_ERROR", "1");
         cooled
             .download_image()
             .await
             .expect_err("Player One image transfer error should propagate");
-        env::remove_var("NS_POA_IMAGE_ERROR");
+        env::remove_var("SK_POA_IMAGE_ERROR");
 
         let image = cooled
             .download_image()
@@ -1380,9 +1380,9 @@ mod fake_sdk_contract {
         assert_eq!(names[3], "Ha");
         wheel.disconnect().await.expect("Player One PW disconnect");
 
-        restore_env_var("NS_POA_NOT_READY", old_not_ready);
-        restore_env_var("NS_POA_START_ERROR", old_start_error);
-        restore_env_var("NS_POA_IMAGE_ERROR", old_image_error);
+        restore_env_var("SK_POA_NOT_READY", old_not_ready);
+        restore_env_var("SK_POA_START_ERROR", old_start_error);
+        restore_env_var("SK_POA_IMAGE_ERROR", old_image_error);
         env::set_current_dir(old_dir).expect("restore current dir");
         env::set_var("PATH", old_path);
     }
@@ -1393,10 +1393,10 @@ mod fake_sdk_contract {
         let shim_dir = build_single_fake_sdk("qhy", "qhy_fake.rs", "qhyccd.dll", QHY_FAKE_SDK);
         let old_dir = env::current_dir().expect("read current dir");
         let old_path = env::var("PATH").unwrap_or_default();
-        let old_exposure_error = env::var("NS_QHY_EXPOSURE_ERROR").ok();
+        let old_exposure_error = env::var("SK_QHY_EXPOSURE_ERROR").ok();
         env::set_current_dir(&shim_dir).expect("switch to fake SDK dir");
         env::set_var("PATH", format!("{};{}", shim_dir.display(), old_path));
-        env::remove_var("NS_QHY_EXPOSURE_ERROR");
+        env::remove_var("SK_QHY_EXPOSURE_ERROR");
 
         let devices = qhy::discover_devices().await.expect("QHY discovery");
         assert_eq!(devices.len(), 2);
@@ -1439,7 +1439,7 @@ mod fake_sdk_contract {
         assert_eq!(status.gain, 81);
         assert_eq!(status.offset, 14);
 
-        env::set_var("NS_QHY_EXPOSURE_ERROR", "1");
+        env::set_var("SK_QHY_EXPOSURE_ERROR", "1");
         cooled
             .start_exposure(ExposureParams {
                 duration_secs: 0.01,
@@ -1453,7 +1453,7 @@ mod fake_sdk_contract {
             })
             .await
             .expect_err("QHY SDK exposure failure should propagate");
-        env::remove_var("NS_QHY_EXPOSURE_ERROR");
+        env::remove_var("SK_QHY_EXPOSURE_ERROR");
 
         cooled
             .start_exposure(ExposureParams {
@@ -1507,7 +1507,7 @@ mod fake_sdk_contract {
             .expect_err("uncooled QHY guide camera should reject cooler control");
         guide.disconnect().await.expect("QHY guide disconnect");
 
-        restore_env_var("NS_QHY_EXPOSURE_ERROR", old_exposure_error);
+        restore_env_var("SK_QHY_EXPOSURE_ERROR", old_exposure_error);
         env::set_current_dir(old_dir).expect("restore current dir");
         env::set_var("PATH", old_path);
     }
@@ -1523,10 +1523,10 @@ mod fake_sdk_contract {
         );
         let old_dir = env::current_dir().expect("read current dir");
         let old_path = env::var("PATH").unwrap_or_default();
-        let old_pull_error = env::var("NS_TOUPTEK_PULL_ERROR").ok();
+        let old_pull_error = env::var("SK_TOUPTEK_PULL_ERROR").ok();
         env::set_current_dir(&shim_dir).expect("switch to fake SDK dir");
         env::set_var("PATH", format!("{};{}", shim_dir.display(), old_path));
-        env::remove_var("NS_TOUPTEK_PULL_ERROR");
+        env::remove_var("SK_TOUPTEK_PULL_ERROR");
 
         let devices = touptek::discover_devices_for_brand("OGMA")
             .await
@@ -1578,12 +1578,12 @@ mod fake_sdk_contract {
             .await
             .expect("ToupTek exposure status"));
 
-        env::set_var("NS_TOUPTEK_PULL_ERROR", "1");
+        env::set_var("SK_TOUPTEK_PULL_ERROR", "1");
         cooled
             .download_image()
             .await
             .expect_err("ToupTek pull-image SDK failure should propagate");
-        env::remove_var("NS_TOUPTEK_PULL_ERROR");
+        env::remove_var("SK_TOUPTEK_PULL_ERROR");
 
         let image = cooled
             .download_image()
@@ -1611,7 +1611,7 @@ mod fake_sdk_contract {
             .await
             .expect("ToupTek uncooled disconnect");
 
-        restore_env_var("NS_TOUPTEK_PULL_ERROR", old_pull_error);
+        restore_env_var("SK_TOUPTEK_PULL_ERROR", old_pull_error);
         env::set_current_dir(old_dir).expect("restore current dir");
         env::set_var("PATH", old_path);
     }
@@ -1621,9 +1621,9 @@ mod fake_sdk_contract {
     async fn test_fli_fake_sdk_shim_exercises_camera_focuser_and_filterwheel_flows() {
         let shim_dir = build_single_fake_sdk("fli", "fli_fake.rs", "libfli.dll", FLI_FAKE_SDK);
         let old_path = env::var("PATH").unwrap_or_default();
-        let old_grab_error = env::var("NS_FLI_GRAB_ERROR").ok();
+        let old_grab_error = env::var("SK_FLI_GRAB_ERROR").ok();
         env::set_var("PATH", format!("{};{}", shim_dir.display(), old_path));
-        env::remove_var("NS_FLI_GRAB_ERROR");
+        env::remove_var("SK_FLI_GRAB_ERROR");
 
         let cameras = fli::discover_cameras().await.expect("FLI camera discovery");
         let focusers = fli::discover_focusers()
@@ -1681,12 +1681,12 @@ mod fake_sdk_contract {
             .await
             .expect("FLI exposure complete"));
 
-        env::set_var("NS_FLI_GRAB_ERROR", "1");
+        env::set_var("SK_FLI_GRAB_ERROR", "1");
         camera
             .download_image()
             .await
             .expect_err("FLI row grab failure should propagate");
-        env::remove_var("NS_FLI_GRAB_ERROR");
+        env::remove_var("SK_FLI_GRAB_ERROR");
         let image = camera.download_image().await.expect("FLI image download");
         assert_eq!((image.width, image.height), (32, 24));
         assert_eq!(image.data[0], 1000);
@@ -1715,7 +1715,7 @@ mod fake_sdk_contract {
         );
         wheel.disconnect().await.expect("FLI wheel disconnect");
 
-        restore_env_var("NS_FLI_GRAB_ERROR", old_grab_error);
+        restore_env_var("SK_FLI_GRAB_ERROR", old_grab_error);
         env::set_var("PATH", old_path);
     }
 
@@ -1729,9 +1729,9 @@ mod fake_sdk_contract {
             MORAVIAN_FAKE_SDK,
         );
         let old_path = env::var("PATH").unwrap_or_default();
-        let old_begin_error = env::var("NS_MORAVIAN_BEGIN_ERROR").ok();
+        let old_begin_error = env::var("SK_MORAVIAN_BEGIN_ERROR").ok();
         env::set_var("PATH", format!("{};{}", shim_dir.display(), old_path));
-        env::remove_var("NS_MORAVIAN_BEGIN_ERROR");
+        env::remove_var("SK_MORAVIAN_BEGIN_ERROR");
 
         let devices = moravian::discover_devices()
             .await
@@ -1758,7 +1758,7 @@ mod fake_sdk_contract {
             .await
             .expect("Moravian set cooler");
 
-        env::set_var("NS_MORAVIAN_BEGIN_ERROR", "1");
+        env::set_var("SK_MORAVIAN_BEGIN_ERROR", "1");
         cooled
             .start_exposure(ExposureParams {
                 duration_secs: 0.0,
@@ -1772,7 +1772,7 @@ mod fake_sdk_contract {
             })
             .await
             .expect_err("Moravian begin exposure failure should propagate");
-        env::remove_var("NS_MORAVIAN_BEGIN_ERROR");
+        env::remove_var("SK_MORAVIAN_BEGIN_ERROR");
 
         cooled
             .start_exposure(ExposureParams {
@@ -1808,7 +1808,7 @@ mod fake_sdk_contract {
             .expect_err("uncooled Moravian camera should reject cooler control");
         color.disconnect().await.expect("Moravian color disconnect");
 
-        restore_env_var("NS_MORAVIAN_BEGIN_ERROR", old_begin_error);
+        restore_env_var("SK_MORAVIAN_BEGIN_ERROR", old_begin_error);
         env::set_var("PATH", old_path);
     }
 
@@ -1823,10 +1823,10 @@ mod fake_sdk_contract {
         );
         let old_dir = env::current_dir().expect("read current dir");
         let old_path = env::var("PATH").unwrap_or_default();
-        let old_release_error = env::var("NS_FUJIFILM_RELEASE_ERROR").ok();
+        let old_release_error = env::var("SK_FUJIFILM_RELEASE_ERROR").ok();
         env::set_current_dir(&shim_dir).expect("switch to fake SDK dir");
         env::set_var("PATH", format!("{};{}", shim_dir.display(), old_path));
-        env::remove_var("NS_FUJIFILM_RELEASE_ERROR");
+        env::remove_var("SK_FUJIFILM_RELEASE_ERROR");
 
         let devices = fujifilm::discover_devices()
             .await
@@ -1846,7 +1846,7 @@ mod fake_sdk_contract {
             .await
             .expect_err("Fujifilm cooler unsupported");
 
-        env::set_var("NS_FUJIFILM_RELEASE_ERROR", "1");
+        env::set_var("SK_FUJIFILM_RELEASE_ERROR", "1");
         gfx.start_exposure(ExposureParams {
             duration_secs: 0.01,
             gain: Some(800),
@@ -1859,7 +1859,7 @@ mod fake_sdk_contract {
         })
         .await
         .expect_err("Fujifilm release SDK failure should propagate");
-        env::remove_var("NS_FUJIFILM_RELEASE_ERROR");
+        env::remove_var("SK_FUJIFILM_RELEASE_ERROR");
 
         gfx.start_exposure(ExposureParams {
             duration_secs: 0.01,
@@ -1880,7 +1880,7 @@ mod fake_sdk_contract {
             .expect("Fujifilm exposure status"));
         gfx.disconnect().await.expect("Fujifilm disconnect");
 
-        restore_env_var("NS_FUJIFILM_RELEASE_ERROR", old_release_error);
+        restore_env_var("SK_FUJIFILM_RELEASE_ERROR", old_release_error);
         env::set_current_dir(old_dir).expect("restore current dir");
         env::set_var("PATH", old_path);
     }
@@ -2057,12 +2057,12 @@ fn fill_props(id:c_int,props:*mut POACameraProperties)->c_int{unsafe{if props.is
 #[no_mangle] pub extern "C" fn POASetImageSize(_id:c_int,width:c_int,height:c_int)->c_int{if width<=0||height<=0{return 4;} WIDTH.store(width,Ordering::SeqCst); HEIGHT.store(height,Ordering::SeqCst); 0}
 #[no_mangle] pub extern "C" fn POASetImageStartPos(_id:c_int,_x:c_int,_y:c_int)->c_int{0}
 #[no_mangle] pub extern "C" fn POASetImageFormat(_id:c_int,fmt:c_int)->c_int{FORMAT.store(fmt,Ordering::SeqCst); 0}
-#[no_mangle] pub extern "C" fn POAStartExposure(_id:c_int,_snap:c_int)->c_int{if std::env::var("NS_POA_START_ERROR").is_ok(){13}else{0}}
+#[no_mangle] pub extern "C" fn POAStartExposure(_id:c_int,_snap:c_int)->c_int{if std::env::var("SK_POA_START_ERROR").is_ok(){13}else{0}}
 #[no_mangle] pub extern "C" fn POAStopExposure(_id:c_int)->c_int{0}
 #[no_mangle] pub unsafe extern "C" fn POAGetCameraState(_id:c_int,state:*mut c_int)->c_int{if state.is_null(){return 4;} *state=0; 0}
-#[no_mangle] pub unsafe extern "C" fn POAGetImageData(_id:c_int,buf:*mut u8,size:c_long,_timeout_ms:c_int)->c_int{if std::env::var("NS_POA_IMAGE_ERROR").is_ok(){return 10;} if buf.is_null()||size<0{return 4;} for i in 0..((size as usize)/2){let v=5000u16.wrapping_add(i as u16); *buf.add(i*2)=(v&0xff) as u8; *buf.add(i*2+1)=(v>>8) as u8;} 0}
+#[no_mangle] pub unsafe extern "C" fn POAGetImageData(_id:c_int,buf:*mut u8,size:c_long,_timeout_ms:c_int)->c_int{if std::env::var("SK_POA_IMAGE_ERROR").is_ok(){return 10;} if buf.is_null()||size<0{return 4;} for i in 0..((size as usize)/2){let v=5000u16.wrapping_add(i as u16); *buf.add(i*2)=(v&0xff) as u8; *buf.add(i*2+1)=(v>>8) as u8;} 0}
 #[no_mangle] pub unsafe extern "C" fn POAGetImageSize(_id:c_int,width:*mut c_int,height:*mut c_int)->c_int{if width.is_null()||height.is_null(){return 4;} *width=WIDTH.load(Ordering::SeqCst); *height=HEIGHT.load(Ordering::SeqCst); 0}
-#[no_mangle] pub unsafe extern "C" fn POAImageReady(_id:c_int,ready:*mut c_int)->c_int{if ready.is_null(){return 4;} *ready=if std::env::var("NS_POA_NOT_READY").is_ok(){0}else{1}; 0}
+#[no_mangle] pub unsafe extern "C" fn POAImageReady(_id:c_int,ready:*mut c_int)->c_int{if ready.is_null(){return 4;} *ready=if std::env::var("SK_POA_NOT_READY").is_ok(){0}else{1}; 0}
 "#;
 
     const PLAYER_ONE_PW_FAKE_SDK: &str = r#"
@@ -2115,7 +2115,7 @@ unsafe fn write_cstr(buf:*mut c_char,text:&[u8]){for i in 0..256{*buf.add(i)=0;}
 #[no_mangle] pub extern "C" fn SetQHYCCDResolution(_handle:*mut c_void,_x:c_uint,_y:c_uint,width:c_uint,height:c_uint)->c_uint{if width==0||height==0{return 1;} WIDTH.store(width,Ordering::SeqCst); HEIGHT.store(height,Ordering::SeqCst); 0}
 #[no_mangle] pub extern "C" fn SetQHYCCDBinMode(_handle:*mut c_void,bin_x:c_uint,bin_y:c_uint)->c_uint{if bin_x==0||bin_x!=bin_y{return 1;} BIN.store(bin_x,Ordering::SeqCst); 0}
 #[no_mangle] pub extern "C" fn SetQHYCCDBitsMode(_handle:*mut c_void,_bits:c_uint)->c_uint{0}
-#[no_mangle] pub extern "C" fn ExpQHYCCDSingleFrame(_handle:*mut c_void)->c_uint{if std::env::var("NS_QHY_EXPOSURE_ERROR").is_ok(){99}else{0}}
+#[no_mangle] pub extern "C" fn ExpQHYCCDSingleFrame(_handle:*mut c_void)->c_uint{if std::env::var("SK_QHY_EXPOSURE_ERROR").is_ok(){99}else{0}}
 #[no_mangle] pub unsafe extern "C" fn GetQHYCCDSingleFrame(_handle:*mut c_void,width:*mut c_uint,height:*mut c_uint,bpp:*mut c_uint,channels:*mut c_uint,buf:*mut u8)->c_uint{let w=WIDTH.load(Ordering::SeqCst); let h=HEIGHT.load(Ordering::SeqCst); if !width.is_null(){*width=w;} if !height.is_null(){*height=h;} if !bpp.is_null(){*bpp=16;} if !channels.is_null(){*channels=1;} if buf.is_null(){return 1;} for i in 0..((w*h) as usize){let v=6000u16.wrapping_add(i as u16); *buf.add(i*2)=(v&0xff) as u8; *buf.add(i*2+1)=(v>>8) as u8;} 0}
 #[no_mangle] pub extern "C" fn CancelQHYCCDExposingAndReadout(_handle:*mut c_void)->c_uint{0}
 #[no_mangle] pub extern "C" fn GetQHYCCDMemLength(_handle:*mut c_void)->c_uint{WIDTH.load(Ordering::SeqCst)*HEIGHT.load(Ordering::SeqCst)*2}
@@ -2237,7 +2237,7 @@ fn model(index:usize)->*const OgmacamModelV2{let mut res:[OgmacamResolution;16]=
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_get_Size(_h:*mut c_void,width:*mut c_int,height:*mut c_int)->c_int{if !width.is_null(){*width=WIDTH.load(Ordering::SeqCst);} if !height.is_null(){*height=HEIGHT.load(Ordering::SeqCst);} 0}
 #[no_mangle] pub extern "C" fn Ogmacam_put_Roi(_h:*mut c_void,_x:c_uint,_y:c_uint,width:c_uint,height:c_uint)->c_int{if width>0&&height>0{WIDTH.store(width as i32,Ordering::SeqCst); HEIGHT.store(height as i32,Ordering::SeqCst);} 0}
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_get_SerialNumber(_h:*mut c_void,buf:*mut c_char)->c_int{if buf.is_null(){return -1;} let text=if ACTIVE_INDEX.load(Ordering::SeqCst)==0{b"OGMA-COOLED-0001\0".as_slice()}else{b"OGMA-GUIDE-0002\0".as_slice()}; for i in 0..text.len(){*buf.add(i)=text[i] as c_char;} 0}
-#[no_mangle] pub unsafe extern "C" fn Ogmacam_PullImageV3(_h:*mut c_void,buf:*mut c_void,_still:c_int,bits:c_int,_row:c_uint,info:*mut OgmacamFrameInfoV3)->c_int{if std::env::var("NS_TOUPTEK_PULL_ERROR").is_ok(){return -7;} if buf.is_null(){return -1;} let w=WIDTH.load(Ordering::SeqCst) as usize; let h=HEIGHT.load(Ordering::SeqCst) as usize; if !info.is_null(){(*info).width=w as c_uint; (*info).height=h as c_uint; (*info).flag=0; (*info).seq=1;} let out=buf as *mut u8; let bytes=if bits==16{2}else{1}; for i in 0..(w*h){let v=3000u16.wrapping_add(i as u16); if bytes==2{*out.add(i*2)=(v&0xff) as u8; *out.add(i*2+1)=(v>>8) as u8;}else{*out.add(i)=v as u8;}} 0}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_PullImageV3(_h:*mut c_void,buf:*mut c_void,_still:c_int,bits:c_int,_row:c_uint,info:*mut OgmacamFrameInfoV3)->c_int{if std::env::var("SK_TOUPTEK_PULL_ERROR").is_ok(){return -7;} if buf.is_null(){return -1;} let w=WIDTH.load(Ordering::SeqCst) as usize; let h=HEIGHT.load(Ordering::SeqCst) as usize; if !info.is_null(){(*info).width=w as c_uint; (*info).height=h as c_uint; (*info).flag=0; (*info).seq=1;} let out=buf as *mut u8; let bytes=if bits==16{2}else{1}; for i in 0..(w*h){let v=3000u16.wrapping_add(i as u16); if bytes==2{*out.add(i*2)=(v&0xff) as u8; *out.add(i*2+1)=(v>>8) as u8;}else{*out.add(i)=v as u8;}} 0}
 "#;
 
     const FLI_FAKE_SDK: &str = r#"
@@ -2267,7 +2267,7 @@ fn kind_from_path(path:*const c_char)->c_long{unsafe{if path.is_null(){return FL
 #[no_mangle] pub extern "C" fn FLISetTemperature(_dev:c_long,_temp:c_double)->c_long{0}
 #[no_mangle] pub unsafe extern "C" fn FLIGetTemperature(_dev:c_long,temp:*mut c_double)->c_long{if !temp.is_null(){*temp=-10.0;} 0}
 #[no_mangle] pub unsafe extern "C" fn FLIGetCoolerPower(_dev:c_long,power:*mut c_double)->c_long{if !power.is_null(){*power=42.0;} 0}
-#[no_mangle] pub unsafe extern "C" fn FLIGrabRow(_dev:c_long,buff:*mut u8,width:usize)->c_long{if std::env::var("NS_FLI_GRAB_ERROR").is_ok(){return -8;} if buff.is_null(){return -1;} for i in 0..(width/2){let v=1000u16.wrapping_add(i as u16); *buff.add(i*2)=(v&0xff) as u8; *buff.add(i*2+1)=(v>>8) as u8;} 0}
+#[no_mangle] pub unsafe extern "C" fn FLIGrabRow(_dev:c_long,buff:*mut u8,width:usize)->c_long{if std::env::var("SK_FLI_GRAB_ERROR").is_ok(){return -8;} if buff.is_null(){return -1;} for i in 0..(width/2){let v=1000u16.wrapping_add(i as u16); *buff.add(i*2)=(v&0xff) as u8; *buff.add(i*2+1)=(v>>8) as u8;} 0}
 #[no_mangle] pub extern "C" fn FLISetBitDepth(_dev:c_long,_bits:c_long)->c_long{0}
 #[no_mangle] pub unsafe extern "C" fn FLIGetDeviceStatus(_dev:c_long,status:*mut c_long)->c_long{if !status.is_null(){*status=0x80000000u32 as c_long;} 0}
 #[no_mangle] pub unsafe extern "C" fn FLIGetLibVersion(ver:*mut c_char,len:usize)->c_long{put(ver,len,b"fake-libfli-1.0\0");0}
@@ -2310,7 +2310,7 @@ unsafe fn put(buf:*mut c_char,len:Cardinal,text:&[u8])->Boolean{if buf.is_null()
 #[no_mangle] pub extern "C" fn ClearSensor(_camera:PCCamera)->Boolean{1}
 #[no_mangle] pub extern "C" fn Open(_camera:PCCamera)->Boolean{1}
 #[no_mangle] pub extern "C" fn Close(_camera:PCCamera)->Boolean{1}
-#[no_mangle] pub extern "C" fn BeginExposure(_camera:PCCamera,_use_shutter:Boolean)->Boolean{if std::env::var("NS_MORAVIAN_BEGIN_ERROR").is_ok(){0}else{1}}
+#[no_mangle] pub extern "C" fn BeginExposure(_camera:PCCamera,_use_shutter:Boolean)->Boolean{if std::env::var("SK_MORAVIAN_BEGIN_ERROR").is_ok(){0}else{1}}
 #[no_mangle] pub extern "C" fn EndExposure(_camera:PCCamera,_use_shutter:Boolean,_abort:Boolean)->Boolean{1}
 #[no_mangle] pub unsafe extern "C" fn GetImage16b(_camera:PCCamera,_x:Integer,_y:Integer,w:Integer,d:Integer,buffer_len:Cardinal,buffer:*mut c_void)->Boolean{if buffer.is_null()||w<=0||d<=0{return 0;} let pixels=(buffer_len as usize/2).min((w*d) as usize); let out=buffer as *mut u16; for i in 0..pixels{*out.add(i)=9000u16.wrapping_add(i as u16);} 1}
 #[no_mangle] pub unsafe extern "C" fn AdjustSubFrame(_camera:PCCamera,_x:*mut Integer,_y:*mut Integer,_w:*mut Integer,_d:*mut Integer)->Boolean{1}
@@ -2332,10 +2332,10 @@ unsafe fn fill<const N:usize>(buf:&mut [c_char;N],text:&[u8]){for b in buf.iter_
 #[no_mangle] pub unsafe extern "C" fn XSDK_Append(_interface:c_long,_p_interface:*mut c_char,_p_device_name:*mut c_char,count:*mut c_long,list:*mut XsdkCameraList)->c_long{if !count.is_null(){*count=2;} if list.is_null(){return 0;} let mut first:XsdkCameraList=std::mem::zeroed(); fill(&mut first.str_product,b"GFX100 II"); fill(&mut first.str_serial_no,b"FUJI-GFX-0001"); fill(&mut first.str_framework,b"USB"); first.b_valid=true; *list.add(0)=first; let mut second:XsdkCameraList=std::mem::zeroed(); fill(&mut second.str_product,b"X-T5"); fill(&mut second.str_serial_no,b"FUJI-XT5-0002"); fill(&mut second.str_framework,b"USB"); second.b_valid=true; *list.add(1)=second; 0}
 #[no_mangle] pub unsafe extern "C" fn XSDK_OpenEx(device:*const c_char,handle:*mut XsdkHandle,mode:*mut c_long,_opt:*mut c_void)->c_long{if handle.is_null(){return -1;} if !device.is_null(){let s=CStr::from_ptr(device).to_string_lossy(); if s.contains("X-T5"){ISO.store(400,Ordering::SeqCst);}} *handle=1usize as XsdkHandle; if !mode.is_null(){*mode=0;} 0}
 #[no_mangle] pub extern "C" fn XSDK_Close(_h:XsdkHandle)->c_long{0}
-#[no_mangle] pub unsafe extern "C" fn XSDK_GetErrorNumber(_h:XsdkHandle,api:*mut c_long,err:*mut c_long)->c_long{if !api.is_null(){*api=0;} if !err.is_null(){*err=if std::env::var("NS_FUJIFILM_RELEASE_ERROR").is_ok(){0x00001006}else{0};} 0}
+#[no_mangle] pub unsafe extern "C" fn XSDK_GetErrorNumber(_h:XsdkHandle,api:*mut c_long,err:*mut c_long)->c_long{if !api.is_null(){*api=0;} if !err.is_null(){*err=if std::env::var("SK_FUJIFILM_RELEASE_ERROR").is_ok(){0x00001006}else{0};} 0}
 #[no_mangle] pub unsafe extern "C" fn XSDK_GetDeviceInfo(_h:XsdkHandle,info:*mut XsdkDeviceInformation)->c_long{if info.is_null(){return -1;} let mut v:XsdkDeviceInformation=std::mem::zeroed(); fill(&mut v.str_vendor,b"FUJIFILM"); fill(&mut v.str_manufacturer,b"FUJIFILM"); fill(&mut v.str_product,b"GFX100 II"); fill(&mut v.str_firmware,b"9.99"); fill(&mut v.str_device_type,b"Digital Camera"); fill(&mut v.str_serial_no,b"FUJI-GFX-0001"); fill(&mut v.str_framework,b"USB"); v.b_device_id=1; fill(&mut v.str_device_name,b"Skotiq Fuji"); *info=v; 0}
 #[no_mangle] pub extern "C" fn XSDK_SetPriorityMode(_h:XsdkHandle,_mode:c_long)->c_long{0}
-#[no_mangle] pub unsafe extern "C" fn XSDK_Release(_h:XsdkHandle,_mode:c_long,shot:*mut c_long,af:*mut c_long)->c_long{if std::env::var("NS_FUJIFILM_RELEASE_ERROR").is_ok(){return -1;} if !shot.is_null(){*shot=0;} if !af.is_null(){*af=0;} 0}
+#[no_mangle] pub unsafe extern "C" fn XSDK_Release(_h:XsdkHandle,_mode:c_long,shot:*mut c_long,af:*mut c_long)->c_long{if std::env::var("SK_FUJIFILM_RELEASE_ERROR").is_ok(){return -1;} if !shot.is_null(){*shot=0;} if !af.is_null(){*af=0;} 0}
 #[no_mangle] pub unsafe extern "C" fn XSDK_ReadImageInfo(_h:XsdkHandle,info:*mut XsdkImageInformation)->c_long{if info.is_null(){return -1;} (*info).l_format=7; (*info).l_data_size=0; (*info).l_image_pix_width=0; (*info).l_image_pix_height=0; (*info).l_image_bit_depth=0; 0}
 #[no_mangle] pub unsafe extern "C" fn XSDK_ReadImage(_h:XsdkHandle,_data:*mut u8,_size:c_ulong)->c_long{0}
 #[no_mangle] pub extern "C" fn XSDK_DeleteImage(_h:XsdkHandle)->c_long{0}

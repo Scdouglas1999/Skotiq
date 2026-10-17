@@ -5,7 +5,7 @@
 // was the same dead end.
 //
 // `rootNodeId` is nullable on the model, on the `sequences` table and in the
-// `.nseq.json` schema, so a library row can genuinely arrive without one. This
+// `.skeq.json` schema, so a library row can genuinely arrive without one. This
 // drives the real flow — picker, `loadCopyForEditing`, insert, read-back — and
 // pins that the target now lands, reachable from a root, with no failure toast.
 

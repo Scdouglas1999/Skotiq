@@ -157,7 +157,7 @@ class _DarkroomBranchBar extends ConsumerStatefulWidget {
   /// Why the night's other masters could not be listed, when they could not.
   final String? siblingsError;
 
-  /// Read a `.nsrecipe` sidecar and open it as a new recipe over this master.
+  /// Read a `.skrecipe` sidecar and open it as a new recipe over this master.
   final VoidCallback onImportRecipe;
 
   /// True while an import is reading a file, so a second press cannot start a
@@ -510,7 +510,7 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
         // the recipe survives outside the database". Without a reader that
         // sentence described a file the product could not consume.
         SkotiqButton(
-          label: 'Import .nsrecipe',
+          label: 'Import .skrecipe',
           icon: SkotiqIcons.upload,
           variant: ButtonVariant.secondary,
           size: ButtonSize.small,

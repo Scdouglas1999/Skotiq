@@ -1,6 +1,6 @@
 # GUI release pass — cluster: settings-onboarding (wave 2)
 
-Instance: `NS_AUDIT_DISPLAY=:84 python3 tools/ui_audit/drive_linux.py <cmd> --profile gui-settings-onboarding`
+Instance: `SK_AUDIT_DISPLAY=:84 python3 tools/ui_audit/drive_linux.py <cmd> --profile gui-settings-onboarding`
 Build: `apps/desktop/build/linux/x64/release/bundle` (softpipe, Xvfb :84), fresh scratch profile.
 Date: 2026-08-13
 

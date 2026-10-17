@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_planetarium/src/catalogs/deep_star_tile.dart';
 
 void main() {
-  group('NSDT tile encode/decode round-trip', () {
+  group('SKDT tile encode/decode round-trip', () {
     test('records survive a round-trip within quantization tolerance', () {
       final tile = DeepStarTile(
         raBand: 7,
@@ -56,6 +56,24 @@ void main() {
       final decoded = DeepStarTile.decode(tile.encode());
       expect(decoded.records, isEmpty);
       expect(decoded.encode().length, DeepStarTile.headerBytes);
+    });
+
+    test('decodes a pre-rename NSDT-magic tile', () {
+      final tile = DeepStarTile(
+        raBand: 5,
+        decBand: 9,
+        records: const [
+          DeepStarRecord(raHours: 8.5, decDeg: -2.25, magnitude: 12.1),
+        ],
+      );
+      final legacy = tile.encode();
+      // Re-stamp the pre-rename magic; the layout is otherwise identical.
+      for (var i = 0; i < 4; i++) {
+        legacy[i] = DeepStarTile.legacyMagic[i];
+      }
+      final decoded = DeepStarTile.decode(legacy);
+      expect(decoded.raBand, 5);
+      expect(decoded.records.single.magnitude, closeTo(12.1, 1e-6));
     });
 
     test('rejects bad magic', () {
@@ -142,7 +160,7 @@ void main() {
           DeepStarManifestTile(
             raBand: 1,
             decBand: 2,
-            file: 'tile_r01_d02.nsdt',
+            file: 'tile_r01_d02.skdt',
             sizeBytes: 100,
             sha256: 'abc',
             starCount: 7,
@@ -151,7 +169,7 @@ void main() {
       );
       final decoded = DeepStarManifest.decodeJson(manifest.encodeJson());
       expect(decoded.name, 'Test tier');
-      expect(decoded.tiles.single.file, 'tile_r01_d02.nsdt');
+      expect(decoded.tiles.single.file, 'tile_r01_d02.skdt');
       expect(decoded.totalStars, 7);
     });
 

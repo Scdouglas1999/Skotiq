@@ -103,7 +103,7 @@ void main() {
 
     setUp(() async {
       server = await RealSshdServer.start();
-      rigDir = await Directory.systemTemp.createTemp('ns_rig_');
+      rigDir = await Directory.systemTemp.createTemp('sk_rig_');
       secrets = SecretsStore(InMemorySecureKeyValueStore());
       await secrets.write(secretRef, server.authorizedPrivateKey);
       pinned = [];
@@ -531,7 +531,7 @@ void main() {
       final keyDirs = Directory.systemTemp
           .listSync()
           .whereType<Directory>()
-          .where((d) => p.basename(d.path).startsWith('ns_sftp_'))
+          .where((d) => p.basename(d.path).startsWith('sk_sftp_'))
           .toList();
       expect(keyDirs, isNotEmpty);
       final keyFile = File(p.join(keyDirs.first.path, 'id_delivery'));

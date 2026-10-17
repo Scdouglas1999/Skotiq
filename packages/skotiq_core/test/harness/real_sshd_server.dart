@@ -115,7 +115,7 @@ class RealSshdServer {
   /// the shape a great many real servers have, and the one that decides
   /// whether a delivery failure names the failure or the banner.
   static Future<RealSshdServer> start({String? banner}) async {
-    final root = await Directory.systemTemp.createTemp('ns_real_sshd_');
+    final root = await Directory.systemTemp.createTemp('sk_real_sshd_');
     try {
       return await _start(root, banner);
     } on Object {

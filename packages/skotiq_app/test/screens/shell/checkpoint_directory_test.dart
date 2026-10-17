@@ -77,7 +77,7 @@ void main() {
     (tester) async {
       // Synchronous on purpose: `testWidgets` runs inside a fake-async zone,
       // and an awaited dart:io future never completes there.
-      final root = Directory.systemTemp.createTempSync('ns-checkpoint-');
+      final root = Directory.systemTemp.createTempSync('sk-checkpoint-');
       addTearDown(() => root.deleteSync(recursive: true));
       final documents = Directory('${root.path}/documents')
         ..createSync(recursive: true);
@@ -139,7 +139,7 @@ void main() {
     late Directory target;
 
     setUp(() async {
-      root = await Directory.systemTemp.createTemp('ns-checkpoint-adopt-');
+      root = await Directory.systemTemp.createTemp('sk-checkpoint-adopt-');
       legacy = Directory('${root.path}/support')..createSync(recursive: true);
       target = Directory('${root.path}/db/checkpoints');
     });

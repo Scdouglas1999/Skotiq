@@ -21,7 +21,7 @@ void main() {
   late File dbFile;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_premigration_');
+    tempDir = await Directory.systemTemp.createTemp('sk_premigration_');
     dbFile = File(p.join(tempDir.path, 'skotiq.db'));
   });
 

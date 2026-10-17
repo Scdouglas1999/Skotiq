@@ -3673,7 +3673,7 @@ mod rig_2026_09_14_tests {
     #[test]
     fn the_app_solver_reproduces_the_rig_solution_on_the_real_frame() {
         let Some(frame) = std::env::var_os("HOME")
-            .map(|h| Path::new(&h).join(".cache/ns-rig-data/2026-09-14/solve/solve-verify.fits"))
+            .map(|h| Path::new(&h).join(".cache/sk-rig-data/2026-09-14/solve/solve-verify.fits"))
             .filter(|p| p.is_file())
         else {
             eprintln!("SKIPPED: the full solve-verify.fits is not on this machine");

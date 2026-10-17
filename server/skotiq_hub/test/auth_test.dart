@@ -163,7 +163,7 @@ void main() {
     });
 
     test('accepts a high-entropy secret', () {
-      expect(secretWeakness('nshub-3f9a2b7c1d8e4f06a5b9c2d1e0f3a4b5'), isNull);
+      expect(secretWeakness('skhub-3f9a2b7c1d8e4f06a5b9c2d1e0f3a4b5'), isNull);
       expect(secretWeakness('correct horse battery staple 42!!'), isNull);
     });
   });

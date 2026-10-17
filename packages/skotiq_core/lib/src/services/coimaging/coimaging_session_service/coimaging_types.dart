@@ -4,7 +4,7 @@ part of '../coimaging_session_service.dart';
 /// completed sub into the shared-target tile the session is deepening — resolved
 /// from the live session by [CoImagingSessionService.recordCompletedSub] so the
 /// fuser stays a thin seam over the existing [ConstellationService.contributeTarget]
-/// additive-sum upload (the same `.nst` path the async swarm already uses).
+/// additive-sum upload (the same `.skt` path the async swarm already uses).
 class CoImagingFusionRequest {
   /// The hub shared-target id whose fused tile the session deepens. Null when the
   /// session is not (yet) bound to a shared target — then nothing can be fused.
@@ -23,7 +23,7 @@ class CoImagingFusionRequest {
   final ContributionLicense license;
 
   /// Whether the operator consented to public, name-credited attribution (vs
-  /// anonymous). Threaded into the underlying `.nst` push so the hub records the
+  /// anonymous). Threaded into the underlying `.skt` push so the hub records the
   /// contribution under the operator's actual attribution preference.
   final bool attributionConsent;
 

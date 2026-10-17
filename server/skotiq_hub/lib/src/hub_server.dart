@@ -176,9 +176,7 @@ class HubServer {
   /// SHA-256 fingerprint of the hub identity, derived from [HubConfig.serverSecret]
   /// — the same derivation as `skotiq_remote_protocol/server_identity`.
   String get fingerprint => sha256
-      .convert(
-        utf8.encode('skotiq-remote-v1:${config.serverSecret.trim()}'),
-      )
+      .convert(utf8.encode('skotiq-remote-v1:${config.serverSecret.trim()}'))
       .toString();
 
   /// Exposed for tests: the in-process request handler with all middleware.
@@ -847,7 +845,7 @@ class HubServer {
       final mean = tile.finalizeMean();
       return Response.ok(mean.buffer.asUint8List(), headers: headers);
     }
-    // finalized=false → the merged .nst accumulator bytes themselves.
+    // finalized=false → the merged .skt accumulator bytes themselves.
     final bytes = _store.loadBytes(tileId, order)!;
     return Response.ok(bytes, headers: headers);
   }

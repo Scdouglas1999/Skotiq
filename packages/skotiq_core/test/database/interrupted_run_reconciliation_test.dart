@@ -17,7 +17,7 @@ void main() {
   late File dbFile;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_interrupted_run_');
+    tempDir = await Directory.systemTemp.createTemp('sk_interrupted_run_');
     dbFile = File('${tempDir.path}/skotiq.db');
   });
 

@@ -19,10 +19,10 @@
 /// `EventSeverity` imports THIS library, conventionally with a prefix:
 ///
 /// ```dart
-/// import 'package:skotiq_core/skotiq_core_events.dart' as ns_events;
+/// import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
 /// ...
-/// String title = ns_events.skotiqEventDisplayTitle(event);
-/// if (event.payload is ns_events.EventPayload_Sequencer) { ... }
+/// String title = sk_events.skotiqEventDisplayTitle(event);
+/// if (event.payload is sk_events.EventPayload_Sequencer) { ... }
 /// ```
 ///
 /// The non-colliding members (every `EventPayload_*` / per-family variant,

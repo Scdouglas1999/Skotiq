@@ -23,7 +23,7 @@ void main() {
   late File recordFile;
 
   setUp(() {
-    dataRoot = Directory.systemTemp.createTempSync('ns-last-gasp');
+    dataRoot = Directory.systemTemp.createTempSync('sk-last-gasp');
     recordFile = resolveDesktopSessionRecordFile(dataRoot.path);
   });
 

@@ -90,7 +90,7 @@ void main() {
   late Directory appSupport;
 
   setUp(() async {
-    appSupport = await Directory.systemTemp.createTemp('ns_persist001_');
+    appSupport = await Directory.systemTemp.createTemp('sk_persist001_');
   });
   tearDown(() async {
     if (await appSupport.exists()) {

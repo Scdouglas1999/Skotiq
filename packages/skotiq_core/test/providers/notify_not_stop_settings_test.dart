@@ -29,7 +29,7 @@ void main() {
   late File dbFile;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_notify_not_stop_');
+    tempDir = await Directory.systemTemp.createTemp('sk_notify_not_stop_');
     dbFile = File('${tempDir.path}/skotiq.db');
   });
 

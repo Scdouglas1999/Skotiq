@@ -8,7 +8,7 @@ them show more of them.
 
 ## What a run is
 
-`soak.py` builds a scratch install under `~/.cache/ns-soak/<scenario>/`,
+`soak.py` builds a scratch install under `~/.cache/sk-soak/<scenario>/`,
 launches the release bundle headless against it, and drives it only through the
 HTTP API, the way a remote client or the web dashboard does:
 

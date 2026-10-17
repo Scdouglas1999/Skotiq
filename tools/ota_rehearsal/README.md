@@ -37,8 +37,8 @@ hook for pointing it elsewhere, and needs none.
 ## Running it
 
 ```bash
-R=~/.cache/ns-ota                       # anywhere outside the repository
-export CARGO_TARGET_DIR=~/.cache/ns-targets/ota-rehearsal
+R=~/.cache/sk-ota                       # anywhere outside the repository
+export CARGO_TARGET_DIR=~/.cache/sk-targets/ota-rehearsal
 
 python3 tools/ota_rehearsal/make_keys.py $R/keys
 

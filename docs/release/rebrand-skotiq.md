@@ -50,5 +50,5 @@ once in the new app after it is paired.
 
 Keep the old install until the new build has opened your profile once. If a
 data folder does not come across, the migration guide in
-`docs/migration-backup-restore.md` covers restoring from a `.nsbackup`, and the
+`docs/migration-backup-restore.md` covers restoring from a `.skbackup`, and the
 troubleshooting guide lists the data locations on each platform.

@@ -298,7 +298,7 @@ class DeepStarCatalogManager {
         if (sha256.convert(bytes).toString() != t.sha256) {
           throw FormatException('Tile ${t.file} failed SHA-256 verification');
         }
-        // Sanity: the payload must decode as an NSDT tile.
+        // Sanity: the payload must decode as an SKDT tile.
         DeepStarTile.decode(bytes);
 
         final tmp = File('${target.path}.part');

@@ -14,7 +14,7 @@ void main() {
     'pair page establishes a cookie session and offers code fallback',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
-        'ns_pair_page_test_',
+        'sk_pair_page_test_',
       );
       final logger = LoggingService(
         applicationSupportDirectoryProvider: () async => tempDir,

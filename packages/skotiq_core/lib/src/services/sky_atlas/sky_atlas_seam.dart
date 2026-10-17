@@ -30,7 +30,7 @@ abstract class SkyAtlasSeam {
   /// Deepening growth curve for a region (cumulative frames/seconds per fold).
   Future<Map<String, dynamic>> growth(Map<String, dynamic> args);
 
-  /// Additively merge a pulled community `.nst` delta into a local base tile
+  /// Additively merge a pulled community `.skt` delta into a local base tile
   /// (`{ basePath, deltaPath, trust, subtract, outPath }`). Backs the
   /// Constellation pull-back blend into "Your Sky".
   Future<Map<String, dynamic>> mergeDelta(Map<String, dynamic> args);

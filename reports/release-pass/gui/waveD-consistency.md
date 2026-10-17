@@ -2,7 +2,7 @@
 
 Adversarial re-drive of the **fresh** release bundle
 (`apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`, built 18:31, i.e. after the last
-fix commit at 18:28) on `NS_AUDIT_DISPLAY=:88`, profile `waveD-consistency`, `start --fresh`
+fix commit at 18:28) on `SK_AUDIT_DISPLAY=:88`, profile `waveD-consistency`, `start --fresh`
 (first-run onboarding). Read-only: no app code, no test, no report other than this file was changed.
 
 Bundle freshness was proved before driving, not assumed: `strings lib/libapp.so` contains

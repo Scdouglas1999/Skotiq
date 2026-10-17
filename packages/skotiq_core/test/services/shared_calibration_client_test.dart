@@ -21,7 +21,7 @@ void main() {
   late File master;
 
   setUp(() {
-    tmp = Directory.systemTemp.createTempSync('ns_shared_cal_client_');
+    tmp = Directory.systemTemp.createTempSync('sk_shared_cal_client_');
     master = File('${tmp.path}/master_dark.fits')
       ..writeAsBytesSync(<int>[1, 2, 3, 4, 5]);
   });

@@ -22,7 +22,7 @@ void main() {
     await File(
       '${directory.path}/config.json',
     ).writeAsString('{"baseUrl":"https://catalog.example"}');
-    await File('${directory.path}/tile_r01_d02.nsdt.part').writeAsBytes([1, 2]);
+    await File('${directory.path}/tile_r01_d02.skdt.part').writeAsBytes([1, 2]);
 
     final interrupted = await manager.status();
     expect(interrupted.isInstalled, isFalse);
@@ -33,7 +33,7 @@ void main() {
 
     expect(await File('${directory.path}/config.json').exists(), isTrue);
     expect(
-      await File('${directory.path}/tile_r01_d02.nsdt.part').exists(),
+      await File('${directory.path}/tile_r01_d02.skdt.part').exists(),
       isFalse,
     );
     final cleaned = await manager.status();

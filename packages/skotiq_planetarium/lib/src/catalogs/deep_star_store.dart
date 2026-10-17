@@ -7,7 +7,7 @@ import 'package:path/path.dart' as path;
 import '../celestial_object.dart';
 import 'deep_star_tile.dart';
 
-/// Read side of the installed deep-star tier: loads NSDT tiles on demand,
+/// Read side of the installed deep-star tier: loads SKDT tiles on demand,
 /// keeps a small LRU of decoded tiles, and answers brightest-in-viewport
 /// queries with the same region semantics as the HYG spatial index.
 ///

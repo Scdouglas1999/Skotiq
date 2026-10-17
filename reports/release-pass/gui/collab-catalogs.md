@@ -1,6 +1,6 @@
 # GUI release pass (wave 2) — cluster: Mosaic / Collaborative Sky / Transients / Suggestions / Catalogs
 
-Driven live on `NS_AUDIT_DISPLAY=:87`, profile `gui-collab-catalogs`, fresh scratch profile,
+Driven live on `SK_AUDIT_DISPLAY=:87`, profile `gui-collab-catalogs`, fresh scratch profile,
 release desktop bundle (`apps/desktop/build/linux/x64/release/bundle`), window 1600x900.
 Site set to 40.02 / -105.27 via Settings -> Location. Onboarding was exited with "Skip
 onboarding" (step 3 refuses to advance with no camera, see COL2-14).

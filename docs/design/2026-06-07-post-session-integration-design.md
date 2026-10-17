@@ -190,7 +190,7 @@ impl IntegratedMaster {
 }
 ```
 
-**Persistence:** finalized master → `write_fits` (we extend with F32 output, §1.8) carrying full provenance in `FitsHeader` (`HISTORY` cards already supported); the *resumable accumulator state* → a **sidecar** `.nsmaster` file (the `serialize` blob, versioned exactly like `DefectMap::serialize`/`deserialize` in `defect_map.rs`). Re-opening reads the sidecar to keep accumulating; the FITS is the shareable artifact.
+**Persistence:** finalized master → `write_fits` (we extend with F32 output, §1.8) carrying full provenance in `FitsHeader` (`HISTORY` cards already supported); the *resumable accumulator state* → a **sidecar** `.skmaster` file (the `serialize` blob, versioned exactly like `DefectMap::serialize`/`deserialize` in `defect_map.rs`). Re-opening reads the sidecar to keep accumulating; the FITS is the shareable artifact.
 
 ### 1.7 `integration/calibration_ext.rs` — calibration completeness
 
@@ -397,7 +397,7 @@ This section records the **as-built** feature against the design above, verified
 **FFI** (`bridge/src/api/post_session.rs`, 1981 lines, committed `3e0a5d19`; FRB regenerated + committed). Exactly **four** `String -> Result<String, String>` JSON entrypoints (all DTOs `#[frb(ignore)]`, so future knobs never trigger a regen â€” the live-stacker trick):
 
 - `api_integrate_session` â€” one-shot **calibrate -> register -> normalize -> weight -> integrate(reject)** into a 16-bit/float linear FITS master + stretched preview PNG + optional rejection-map FITS; returns frames integrated/rejected, total integration seconds, mean RMS residual, per-frame cull stats. Smart reject auto-select by sub count (percentile <8, winsorized-sigma 8-24, linear-fit >=25).
-- `api_master_accumulate` â€” create / add / finalize / info over `IntegratedMaster`; freezes a registration-reference companion FITS at create; resumable via the `.nsmaster` sidecar.
+- `api_master_accumulate` â€” create / add / finalize / info over `IntegratedMaster`; freezes a registration-reference companion FITS at create; resumable via the `.skmaster` sidecar.
 - `api_build_master_flat` â€” unit-mean master-flat build (+ optional bias/dark-flat pedestal).
 - `api_save_fits_master` â€” re-export an in-memory F32/U16 buffer as a provenance-carrying FITS master.
 
@@ -454,7 +454,7 @@ This section records the **as-built** feature against the design above, verified
 
 ### 7.5 Multi-night accumulation design (as-built)
 
-A `.nsmaster` sidecar holds the resumable per-pixel accumulator (`sum_w`, `sum_wx`, `sum_wx2`, coverage, rejected) + frozen normalization reference + frozen geometry reference + per-night log; the shareable artifact is the finalized F32 FITS. `create` freezes a registration-reference companion FITS so every later night aligns to the same grid; `add` normalizes incoming subs onto the frozen photometric anchor, online-clips, and folds; `finalize` divides out the weighted mean and writes the FITS + preview (re-openable for more adds). The Dart `integrated_master_frames` join dedups by image id so re-running an add never double-counts a sub.
+A `.skmaster` sidecar holds the resumable per-pixel accumulator (`sum_w`, `sum_wx`, `sum_wx2`, coverage, rejected) + frozen normalization reference + frozen geometry reference + per-night log; the shareable artifact is the finalized F32 FITS. `create` freezes a registration-reference companion FITS so every later night aligns to the same grid; `add` normalizes incoming subs onto the frozen photometric anchor, online-clips, and folds; `finalize` divides out the weighted mean and writes the FITS + preview (re-openable for more adds). The Dart `integrated_master_frames` join dedups by image id so re-running an add never double-counts a sub.
 
 ### 7.6 Follow-up list
 

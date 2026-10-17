@@ -24,7 +24,7 @@ void main() {
     late Directory tempDir;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp('ns_catalog_legacy_');
+      tempDir = await Directory.systemTemp.createTemp('sk_catalog_legacy_');
       await CatalogManager.instance.initialize(tempDir.path);
     });
 
@@ -46,7 +46,7 @@ void main() {
 
     test('successful import reports size and leaves no .partial', () async {
       final csv = _miniHygCsv();
-      final src = await Directory.systemTemp.createTemp('ns_src_legacy_');
+      final src = await Directory.systemTemp.createTemp('sk_src_legacy_');
       final srcFile = File('${src.path}/stars.csv');
       await srcFile.writeAsString(csv);
 
@@ -72,7 +72,7 @@ void main() {
 
     test('failed import does not clobber an existing catalog', () async {
       // Seed a good catalog first.
-      final src = await Directory.systemTemp.createTemp('ns_src_good_');
+      final src = await Directory.systemTemp.createTemp('sk_src_good_');
       final goodFile = File('${src.path}/good.csv');
       await goodFile.writeAsString(_miniHygCsv());
       await CatalogManager.instance.importCatalog(

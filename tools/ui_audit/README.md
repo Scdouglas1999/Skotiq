@@ -9,7 +9,7 @@ wrong first; none of it is optional.
 ```bash
 cd apps/desktop && flutter build linux --release      # once
 python3 tools/ui_audit/drive_linux.py start --fresh   # --fresh wipes the scratch profile
-python3 tools/ui_audit/drive_linux.py shot /tmp/ns-audit/shots/a.png   # cropped + downscaled
+python3 tools/ui_audit/drive_linux.py shot /tmp/sk-audit/shots/a.png   # cropped + downscaled
 python3 tools/ui_audit/drive_linux.py shot --region 800x400+560+300 out.png  # one panel
 python3 tools/ui_audit/drive_linux.py shot --raw out.png              # full-res, rarely needed
 python3 tools/ui_audit/drive_linux.py tree            # live widget names + states
@@ -24,7 +24,7 @@ python3 tools/ui_audit/drive_linux.py stop
 Use `--profile NAME` to run more than one instance. Each profile gets its own
 display-sharing app process, scratch database and log, but they all share one
 Xvfb display, so **two profiles will click on each other's windows**. For real
-isolation, set `NS_AUDIT_DISPLAY` to a different display per agent.
+isolation, set `SK_AUDIT_DISPLAY` to a different display per agent.
 
 ## Context budget — the thing that actually kills sweep agents
 
@@ -86,7 +86,7 @@ control and the sweep reports that control's behaviour under the wrong name.
 switch" means reading these, not just seeing that a row rendered.
 
 **The scratch profile is real.** `SKOTIQ_DATABASE_DIR` and
-`SKOTIQ_DATA_DIR` point into `/tmp/ns-audit/<profile>/data`, so a sweep never
+`SKOTIQ_DATA_DIR` point into `/tmp/sk-audit/<profile>/data`, so a sweep never
 touches real observing data — but it also means a fresh profile starts at
 onboarding step 1 every time, and any state a test depends on must be set up
 first.

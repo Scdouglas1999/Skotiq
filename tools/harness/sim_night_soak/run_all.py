@@ -6,7 +6,7 @@ summary line per scenario.
   python3 tools/harness/sim_night_soak/run_all.py -j 2 baseline operator
 
 Each scenario gets its own API and PHD2 port. Logs go to
-~/.cache/ns-soak/<scenario>.log; results.json stays in each scratch dir.
+~/.cache/sk-soak/<scenario>.log; results.json stays in each scratch dir.
 Exit status is 0 only when no scenario failed an invariant.
 """
 import argparse
@@ -28,7 +28,7 @@ def main():
     args = ap.parse_args()
     skip = set(filter(None, args.skip.split(",")))
     names = args.names or [n for n in SCENARIOS if n not in skip]
-    root = os.path.expanduser("~/.cache/ns-soak")
+    root = os.path.expanduser("~/.cache/sk-soak")
     os.makedirs(root, exist_ok=True)
     pending = list(enumerate(names))
     running = {}

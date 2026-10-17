@@ -6,18 +6,18 @@ import '../celestial_object.dart';
 import '../coordinate_system.dart';
 import 'hyg_depth.dart';
 
-/// Deep-star tile format ("NSDT") — the on-disk unit of the downloadable
+/// Deep-star tile format ("SKDT") — the on-disk unit of the downloadable
 /// deep-star catalog tier (Tycho-2 / Gaia subset below the bundled HYG floor).
 ///
 /// The sky is divided into a fixed grid of 24 RA bands (1h each) x 18 Dec
 /// bands (10 deg each) — deliberately the SAME geometry as
 /// `CelestialSpatialIndex` so tile-level culling agrees with how the renderer
-/// already culls HYG stars. One tile = one file `tile_rRR_dDD.nsdt`.
+/// already culls HYG stars. One tile = one file `tile_rRR_dDD.skdt`.
 ///
 /// Binary layout (little-endian), version 1:
 /// ```
 /// offset size  field
-///      0    4  magic 'NSDT'
+///      0    4  magic 'SKDT' ('NSDT' on tiles published before the rename)
 ///      4    2  format version (u16) = 1
 ///      6    1  raBand  (u8, 0..23)
 ///      7    1  decBand (u8, 0..17)
@@ -44,7 +44,7 @@ class DeepStarTileScheme {
   /// File name for a tile.
   static String tileFileName(int raBand, int decBand) =>
       'tile_r${raBand.toString().padLeft(2, '0')}'
-      '_d${decBand.toString().padLeft(2, '0')}.nsdt';
+      '_d${decBand.toString().padLeft(2, '0')}.skdt';
 
   /// RA band for an RA in hours (0-24).
   static int raBandOf(double raHours) {
@@ -192,15 +192,20 @@ class DeepStarRecord {
   });
 }
 
-/// Encoder/decoder for the NSDT tile binary format.
+/// Encoder/decoder for the SKDT tile binary format.
 class DeepStarTile {
   static const int formatVersion = 1;
   static const int headerBytes = 16;
   static const int recordBytes = 12;
   static const int _bvUnknown = 0x7FFF;
 
-  /// 'NSDT' as bytes.
-  static const List<int> magic = [0x4E, 0x53, 0x44, 0x54];
+  /// 'SKDT' as bytes — the magic new tiles are written with.
+  static const List<int> magic = [0x53, 0x4B, 0x44, 0x54];
+
+  /// 'NSDT' as bytes — the magic on tiles published before the rename.
+  /// Layout-identical to [magic]'s version; accepted on decode so already
+  /// installed and already hosted tilesets keep working.
+  static const List<int> legacyMagic = [0x4E, 0x53, 0x44, 0x54];
 
   final int raBand;
   final int decBand;
@@ -249,20 +254,25 @@ class DeepStarTile {
   /// Decode a tile from its binary form.
   ///
   /// Throws [FormatException] on bad magic, unsupported version, or a
-  /// truncated payload.
+  /// truncated payload. Tiles carrying the pre-rename [legacyMagic] decode
+  /// exactly like current [magic] tiles — the layouts are identical.
   static DeepStarTile decode(Uint8List bytes) {
     if (bytes.length < headerBytes) {
-      throw const FormatException('NSDT tile truncated (no header)');
+      throw const FormatException('SKDT tile truncated (no header)');
     }
     final data = ByteData.sublistView(bytes);
+    var current = true;
+    var legacy = true;
     for (var i = 0; i < 4; i++) {
-      if (data.getUint8(i) != magic[i]) {
-        throw const FormatException('Not an NSDT tile (bad magic)');
-      }
+      current &= data.getUint8(i) == magic[i];
+      legacy &= data.getUint8(i) == legacyMagic[i];
+    }
+    if (!current && !legacy) {
+      throw const FormatException('Not an SKDT tile (bad magic)');
     }
     final version = data.getUint16(4, Endian.little);
     if (version != formatVersion) {
-      throw FormatException('Unsupported NSDT version $version');
+      throw FormatException('Unsupported SKDT version $version');
     }
     final raBand = data.getUint8(6);
     final decBand = data.getUint8(7);
@@ -270,7 +280,7 @@ class DeepStarTile {
     final expected = headerBytes + recordBytes * count;
     if (bytes.length < expected) {
       throw FormatException(
-        'NSDT tile truncated: ${bytes.length} bytes, expected $expected',
+        'SKDT tile truncated: ${bytes.length} bytes, expected $expected',
       );
     }
 

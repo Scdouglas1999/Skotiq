@@ -32,7 +32,7 @@ void main() {
     late Directory tempDir;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp('ns_catalog_install_');
+      tempDir = await Directory.systemTemp.createTemp('sk_catalog_install_');
       await CatalogManager.instance.initialize(tempDir.path);
     });
 
@@ -53,7 +53,7 @@ void main() {
       final csv = _miniNgcCsvBody();
       final csvBytes = utf8.encode(csv);
       final expectedSha = sha256.convert(csvBytes).toString();
-      final src = await Directory.systemTemp.createTemp('ns_src_inst_');
+      final src = await Directory.systemTemp.createTemp('sk_src_inst_');
       final srcFile = File('${src.path}/source.csv');
       await srcFile.writeAsString(csv);
 
@@ -98,7 +98,7 @@ void main() {
 
     test('installFromFile rejects mismatched expected sha', () async {
       final csv = _miniNgcCsvBody();
-      final src = await Directory.systemTemp.createTemp('ns_src_mismatch_');
+      final src = await Directory.systemTemp.createTemp('sk_src_mismatch_');
       final srcFile = File('${src.path}/source.csv');
       await srcFile.writeAsString(csv);
 

@@ -27,7 +27,7 @@ instead of modifying the tracked entry.
     cargo build --release --package skotiq_bridge   # EXIT=0 (CARGO_TARGET_DIR set)
     cp .../libskotiq_bridge.so apps/desktop/build/linux/x64/release/bundle/lib/
 
-Harness: `NS_AUDIT_DISPLAY=:91 NS_AUDIT_RUNTIME=/tmp/ns-audit-w16 LIBGL_ALWAYS_SOFTWARE=1`,
+Harness: `SK_AUDIT_DISPLAY=:91 SK_AUDIT_RUNTIME=/tmp/ns-audit-w16 LIBGL_ALWAYS_SOFTWARE=1`,
 `drive_linux.py start --profile w16`, `resize 1920 1080` (the owner's laptop size).
 AT-SPI was unavailable in this session (`Could not activate remote peer org.a11y.atspi.Registry`),
 so everything was driven by `shot` + `click-img`/`click-xy`.

@@ -109,7 +109,7 @@ legs); on-sky and Windows validation are owed. See `docs/release-notes.md`.
   line derives from a recorded fact.
 - **Export at any stage** — the linear master, the image after step N, or the
   final render. FITS carries the full recipe as provenance (HISTORY cards plus a
-  `.nsrecipe` sidecar); a raster export of a still-linear stage is a visible
+  `.skrecipe` sidecar); a raster export of a still-linear stage is a visible
   screen-transfer choice, never a silent auto-stretch.
 - **Honest calibration reporting** — every master states which darks/flats/bias
   were applied, per slot, with match quality and staleness, in the result, the
@@ -547,7 +547,7 @@ cellular-push keys, on-sky tuning) that flip the gated bits live.
   its own capture loop with a native dither barrier: the secondary is never
   mid-exposure when the primary dithers (complete-if-short or abort policy),
   and a stuck secondary can never stall the primary past a bounded wait.
-  Frames share the naming/metadata pipeline, tagged `NS-RIG`. Opt-in
+  Frames share the naming/metadata pipeline, tagged `SK-RIG`. Opt-in
   "Secondary Rig" dashboard tile; headless routes for mobile/web monitoring.
   Same-mount only; no secondary guiding/solving/AF by design.
 - **Calibration library manager.** Browse/filter/tag every dark, flat, bias,
@@ -562,7 +562,7 @@ cellular-push keys, on-sky tuning) that flip the gated bits live.
   both across a physical reconnect); disconnect/reconnect continue to flow
   through heartbeat debounce → recovery loop → push notification.
 - **Deep-star catalog tier + live minor-planet refresh (planetarium).**
-  Downloadable tiled deep-star catalog (NSDT format, hash-verified,
+  Downloadable tiled deep-star catalog (SKDT format, hash-verified,
   LRU-cached) renders below 8° FOV with clean HYG handoff; MPC element
   refresh unions fresh comet/asteroid elements into the overlay and omnibox
   search, offline-safe with last-updated indicator. Catalog prep tooling in

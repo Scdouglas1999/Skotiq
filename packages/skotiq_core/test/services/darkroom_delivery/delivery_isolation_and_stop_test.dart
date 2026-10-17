@@ -70,7 +70,7 @@ void main() {
   late Directory sourceDir;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_delivery_isolation_');
+    tempDir = await Directory.systemTemp.createTemp('sk_delivery_isolation_');
     sourceDir = await Directory(p.join(tempDir.path, 'masters')).create();
   });
 

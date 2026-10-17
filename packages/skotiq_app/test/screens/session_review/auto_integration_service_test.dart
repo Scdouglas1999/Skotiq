@@ -40,7 +40,7 @@ class _FakeAccumulationService implements MasterAccumulationService {
   }) async {
     calls.add((masterId: masterId, subs: subs, runId: runId));
     return MasterAccumulateResult(
-      sidecarPath: '/sidecar_$masterId.nsmaster',
+      sidecarPath: '/sidecar_$masterId.skmaster',
       masterPath: null,
       previewPath: null,
       frameCount: subs.length,
@@ -329,7 +329,7 @@ void main() {
     return IntegratedMastersDao(db).insertMaster(
       targetId: targetId,
       name: 'M-$filter',
-      sidecarPath: '/sidecar_$filter.nsmaster',
+      sidecarPath: '/sidecar_$filter.skmaster',
       status: IntegratedMasterStatus.accumulating,
       accumulationMode: AccumulationMode.runningWeightedMean,
       filter: filter,

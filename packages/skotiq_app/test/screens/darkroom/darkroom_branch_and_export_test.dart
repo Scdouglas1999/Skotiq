@@ -11,7 +11,7 @@
 //    remount with a blank frame in the middle of it;
 //  * the export sheet shows the engine's raster refusal as readable text, not
 //    just a greyed chip, and one switch turns it into a choice;
-//  * a FITS export names its `.nsrecipe` sidecar on the wire rather than hoping
+//  * a FITS export names its `.skrecipe` sidecar on the wire rather than hoping
 //    the engine derives one;
 //  * what those controls publish to assistive tech — the refusal's reason, the
 //    export sheet's answer to Escape, its phone presentation, and a
@@ -1183,7 +1183,7 @@ void main() {
     expect(args['masterPath'], _masterPath);
     expect((args['stage'] as Map)['kind'], 'final');
     expect(args['writeSidecar'], isTrue);
-    expect(args['sidecarPath'], '/tmp/skotiq-test/out.fits.nsrecipe');
+    expect(args['sidecarPath'], '/tmp/skotiq-test/out.fits.skrecipe');
     expect(args['screenTransfer'], isFalse);
     expect((args['outputs'] as List).single, {
       'format': 'fits',
@@ -1194,7 +1194,7 @@ void main() {
     // The reply's own numbers are reported back, sidecar included.
     expect(find.textContaining('Written', findRichText: true), findsOneWidget);
     expect(
-      find.textContaining('/tmp/skotiq-test/out.fits.nsrecipe'),
+      find.textContaining('/tmp/skotiq-test/out.fits.skrecipe'),
       findsOneWidget,
     );
     await drain(tester);
@@ -1323,7 +1323,7 @@ void main() {
     expect(darkroom.exportArgs, hasLength(1));
     final args = darkroom.exportArgs.single;
     expect((args['stage'] as Map)['kind'], 'linear');
-    expect(args['sidecarPath'], '/tmp/skotiq-test/out.fits.nsrecipe');
+    expect(args['sidecarPath'], '/tmp/skotiq-test/out.fits.skrecipe');
     // The recipe rides along as provenance, refused step included: the export
     // sends the stack whole rather than quietly dropping what the engine
     // objected to.
@@ -1411,7 +1411,7 @@ void main() {
     expect(darkroom.exportArgs, hasLength(1));
     expect(find.textContaining('Written', findRichText: true), findsOneWidget);
     expect(
-      find.textContaining('/tmp/skotiq-test/out.fits.nsrecipe'),
+      find.textContaining('/tmp/skotiq-test/out.fits.skrecipe'),
       findsOneWidget,
     );
     // And it is NOT reported as a failure.
@@ -2505,7 +2505,7 @@ void main() {
   // D2-6, from the release bundle: the autopilot names its recipes
   // `Master · <filter> draft`, and the Save dialog opened pre-filled with
   // `Master_·_B_draft-final.fits`. That name is written to this disk, to a
-  // `.nsrecipe` sidecar beside it, and from there to a watched folder or an
+  // `.skrecipe` sidecar beside it, and from there to a watched folder or an
   // SFTP target — four filesystems and a wire, none of them this app's. Every
   // name the autopilot itself writes in the same directory is ASCII.
   testWidgets('the proposed file name is portable ASCII', (tester) async {

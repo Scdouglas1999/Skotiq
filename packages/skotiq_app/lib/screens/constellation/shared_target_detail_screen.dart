@@ -216,7 +216,7 @@ class _SharedTargetDetailScreenState
     final ownBefore =
         ref.read(yourContributionSecondsProvider(_target)).valueOrNull ?? 0.0;
     try {
-      // Pull the additive `.nst` accumulator (finalized: false) so the service
+      // Pull the additive `.skt` accumulator (finalized: false) so the service
       // actually folds it into the local atlas — that merge is what makes the
       // swarm's depth show up in Your Sky. A finalized FITS pull is a
       // display-only blob that never blends, which would make the "blended

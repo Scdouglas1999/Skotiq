@@ -24,7 +24,7 @@
 //! * [`api_darkroom_validate`] — check a recipe against this build's operations.
 //! * [`api_darkroom_render_preview`] — render at a pyramid level into RGBA.
 //! * [`api_darkroom_render_export`] — write a stage to FITS / PNG / JPEG / TIFF
-//!   with the recipe recorded in the file and in a `.nsrecipe` sidecar.
+//!   with the recipe recorded in the file and in a `.skrecipe` sidecar.
 //! * [`api_darkroom_registry`] — the operation catalogue and a first-draft
 //!   recipe for a master.
 //! * [`api_darkroom_cancel`] — raise, read or drop a render's cancel flag.

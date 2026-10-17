@@ -24,7 +24,7 @@ part 'sky_atlas_service/internals.dart';
 /// time-scrub timeline). Region grouping, coverage, growth, and shareable
 /// cutouts are read straight back through the same seam.
 ///
-/// The atlas state itself lives entirely on disk under [atlasRoot] (one `.nst`
+/// The atlas state itself lives entirely on disk under [atlasRoot] (one `.skt`
 /// accumulator per tile); the DB rows are the cheap index the UI renders from.
 class SkyAtlasService {
   SkyAtlasService({
@@ -58,7 +58,7 @@ class SkyAtlasService {
 
   String? _cachedAtlasRoot;
 
-  /// Serializes every writer that touches a base/overlay `.nst` sidecar so two
+  /// Serializes every writer that touches a base/overlay `.skt` sidecar so two
   /// folds (or a fold and a swarm merge) never interleave on the same tile file.
   /// In-process is sufficient: the host is the single atlas authority — remote
   /// companions mirror but do not fold.
@@ -348,7 +348,7 @@ class SkyAtlasService {
   }
 
   /// Per-tile coverage rows for the heat overlay / gallery, deepest first —
-  /// served from the [SkyTiles] DB index instead of scanning the on-disk `.nst`
+  /// served from the [SkyTiles] DB index instead of scanning the on-disk `.skt`
   /// sidecars.
   ///
   /// Every scalar the heat overlay / contribution bar reads
@@ -462,7 +462,7 @@ class SkyAtlasService {
   }
 
   /// Per-tile coverage rows for the heat overlay / gallery, deepest first, by
-  /// the native full-scan of the on-disk `.nst` sidecars.
+  /// the native full-scan of the on-disk `.skt` sidecars.
   ///
   /// Prefer [coverageFromIndex] for the hot heat-overlay/contribution poll: it
   /// returns the same scalars from the [SkyTiles] index without any sidecar I/O.
@@ -501,7 +501,7 @@ class SkyAtlasService {
     return TileProvenanceView.fromJson(tileId, result);
   }
 
-  /// Export the accumulator state for the LOCAL folds since [since] to a `.nst`
+  /// Export the accumulator state for the LOCAL folds since [since] to a `.skt`
   /// delta under the atlas cache (the federation contribution payload).
   ///
   /// Returns the delta path together with the post-anchor own-light tally the
@@ -515,7 +515,7 @@ class SkyAtlasService {
     required DateTime since,
   }) async {
     final root = await atlasRoot();
-    final outPath = p.join(_cacheDir(root), 'delta_$tileId.nst');
+    final outPath = p.join(_cacheDir(root), 'delta_$tileId.skt');
     final result = await _seam.dispatch({
       'action': 'exportDelta',
       'atlasRoot': root,
@@ -658,11 +658,11 @@ class SkyAtlasService {
 
   // Internals
 
-  /// Blend a pulled community `.nst` accumulator into the swarm OVERLAY tree so
+  /// Blend a pulled community `.skt` accumulator into the swarm OVERLAY tree so
   /// its depth can surface in "Your Sky" — without ever touching the user's
   /// contributable base tile.
   ///
-  /// The overlay is a SEPARATE sidecar tree (`swarm_overlay/<order>/<tileId>.nst`)
+  /// The overlay is a SEPARATE sidecar tree (`swarm_overlay/<order>/<tileId>.skt`)
   /// that [exportDelta] never reads, so pulled community photons can never be
   /// re-shipped as the user's own contribution. Each pull is a fresh full-tile
   /// community snapshot, so the merge is REPLACE-not-add: the existing overlay
@@ -681,16 +681,28 @@ class SkyAtlasService {
   }) {
     return _serialized(() async {
       final root = await atlasRoot();
-      final basePath = p.join(_tilesDir(root), '$tileId.nst');
-      final overlayPath = p.join(_overlayDir(root), '$tileId.nst');
+      // Pre-rename atlases may still hold `.nst` sidecars; fold the merge into
+      // whichever path actually holds the accumulated depth.
+      String resolve(String dir) {
+        final current = p.join(dir, '$tileId.skt');
+        if (File(current).existsSync()) return current;
+        final legacy = p.join(dir, '$tileId.nst');
+        return File(legacy).existsSync() ? legacy : current;
+      }
+
+      final basePath = resolve(_tilesDir(root));
+      // The overlay is rebuilt from scratch below, so it always writes its
+      // `.skt` name; a stale `.nst` twin is reclaimed alongside it.
+      final overlayPath = p.join(_overlayDir(root), '$tileId.skt');
+      final legacyOverlay = File(p.join(_overlayDir(root), '$tileId.nst'));
 
       // REPLACE-not-add: drop any prior overlay so the merge folds the freshly
       // pulled community snapshot into a zeroed accumulator — the overlay always
       // equals exactly one copy of the current community depth.
-      final overlayFile = File(overlayPath);
-      if (overlayFile.existsSync()) {
+      for (final stale in [File(overlayPath), legacyOverlay]) {
+        if (!stale.existsSync()) continue;
         try {
-          overlayFile.deleteSync();
+          stale.deleteSync();
         } on FileSystemException catch (e) {
           _logger.warning(
             'mergeSwarmDelta(tile $tileId): could not clear prior overlay '
@@ -770,13 +782,13 @@ class SkyAtlasService {
 
   /// Default age budget for the cutout/delta cache sweep — a cutout the user
   /// browsed two weeks ago is cheap to regenerate on demand from the durable
-  /// `.nst` accumulators, so it need not occupy disk indefinitely.
+  /// `.skt` accumulators, so it need not occupy disk indefinitely.
   static const _defaultCacheMaxAge = Duration(days: 14);
 
   /// Reclaim the cutout/delta cache (`<atlasRoot>/cache`). Unlike the durable
   /// tile accumulators, everything here is a derived artefact the engine can
   /// rebuild on demand: `tile_<id>.png` renders, `cutout_*.fits`/`.png`
-  /// co-adds, and spent `delta_<id>.nst` federation payloads. Left unmanaged it
+  /// co-adds, and spent `delta_<id>.skt` federation payloads. Left unmanaged it
   /// grows without bound (a 2048² PNG+FITS pair per distinct region browse),
   /// silently filling a long-running host or a constrained appliance.
   ///
@@ -801,7 +813,10 @@ class SkyAtlasService {
     await for (final entity in dir.list(followLinks: false)) {
       if (entity is! File) continue;
       final ext = p.extension(entity.path).toLowerCase();
-      if (ext != '.png' && ext != '.fits' && ext != '.nst') continue;
+      // `.nst` keeps pre-rename sidecars inside the sweep's remit.
+      if (ext != '.png' && ext != '.fits' && ext != '.skt' && ext != '.nst') {
+        continue;
+      }
       final stat = await entity.stat();
       entries.add((file: entity, modified: stat.modified, size: stat.size));
     }
@@ -847,11 +862,18 @@ class SkyAtlasService {
   }
 
   /// Delete a spent federation delta after a successful contribution upload, so
-  /// the `delta_<tileId>.nst` payload does not linger in the cache until the
+  /// the `delta_<tileId>.skt` payload does not linger in the cache until the
   /// next [sweepCache]. A vanished/locked file is swallowed (best-effort).
   Future<bool> deleteExportedDelta(int tileId) async {
     final root = await atlasRoot();
-    return _deleteCacheFile(File(p.join(_cacheDir(root), 'delta_$tileId.nst')));
+    // A pre-rename export may have left `delta_<id>.nst`; reclaim it too.
+    var deleted = await _deleteCacheFile(
+      File(p.join(_cacheDir(root), 'delta_$tileId.skt')),
+    );
+    deleted |= await _deleteCacheFile(
+      File(p.join(_cacheDir(root), 'delta_$tileId.nst')),
+    );
+    return deleted;
   }
 }
 

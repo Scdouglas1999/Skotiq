@@ -157,7 +157,7 @@ Future<FitsReadResult> apiReadFitsFile({required String filePath}) =>
 /// Update (overwrite or inject) one or more keywords on an existing FITS file.
 ///
 /// Implementation: reads the full file into memory, mutates the header in
-/// place, writes the result to a sibling `<filename>.nshatmp` file, then
+/// place, writes the result to a sibling `<filename>.skhatmp` file, then
 /// atomically renames it over the original. If any step fails the original
 /// file is left untouched.
 ///
@@ -1789,28 +1789,28 @@ class FitsWriteHeaderRich {
   /// Bayer pattern ("RGGB", "BGGR", etc.) (FITS `BAYERPAT`).
   final String? bayerPattern;
 
-  /// Skotiq session identifier (FITS `NS-SESID`).
+  /// Skotiq session identifier (FITS `SK-SESID`).
   final String? sessionId;
 
-  /// 1-based frame index within the burst (FITS `NS-FIDX`).
+  /// 1-based frame index within the burst (FITS `SK-FIDX`).
   final int? frameIndex;
 
-  /// Total planned frames in the burst (FITS `NS-NPLN`).
+  /// Total planned frames in the burst (FITS `SK-NPLN`).
   final int? totalPlannedFrames;
 
-  /// Mosaic identification (FITS `NS-MOSNM`).
+  /// Mosaic identification (FITS `SK-MOSNM`).
   final String? mosaicName;
 
-  /// 0-based mosaic panel index (FITS `NS-PIDX`).
+  /// 0-based mosaic panel index (FITS `SK-PIDX`).
   final int? mosaicPanelIndex;
 
-  /// Mosaic panel row (FITS `NS-PROW`).
+  /// Mosaic panel row (FITS `SK-PROW`).
   final int? mosaicPanelRow;
 
-  /// Mosaic panel column (FITS `NS-PCOL`).
+  /// Mosaic panel column (FITS `SK-PCOL`).
   final int? mosaicPanelColumn;
 
-  /// Mosaic total panel count (FITS `NS-NPAN`).
+  /// Mosaic total panel count (FITS `SK-NPAN`).
   final int? mosaicTotalPanels;
   final DefectMapCorrectionRecord? defectMapCorrection;
   final String? photometryObjectCatalog;
@@ -1822,7 +1822,7 @@ class FitsWriteHeaderRich {
   final double? photometrySnr;
 
   /// Dual-rig — optical-train / camera attribution for multi-camera
-  /// sessions (FITS `NS-RIG`). `None` for the single-rig case.
+  /// sessions (FITS `SK-RIG`). `None` for the single-rig case.
   final String? rigLabel;
 
   const FitsWriteHeaderRich({

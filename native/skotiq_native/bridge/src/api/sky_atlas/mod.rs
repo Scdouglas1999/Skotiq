@@ -19,7 +19,7 @@
 //!   a region, and report a deepening growth curve.
 //!
 //! Every call is **stateless per call** (the atlas state lives entirely in the
-//! on-disk tile sidecars under `<atlasRoot>/tiles/<order>/<tileId>.nst`); the
+//! on-disk tile sidecars under `<atlasRoot>/tiles/<order>/<tileId>.skt`); the
 //! calls are CPU- / IO-bound and synchronous, run off the Dart UI isolate. Every
 //! failure mode (bad action, unreadable frame, degenerate WCS, no coverage, write
 //! failure) surfaces as `Err(String)` — never a silent partial fold.
@@ -143,7 +143,7 @@ fn read_frame(path: &str) -> Result<ImageData, String> {
 /// A missing directory (atlas never folded into) yields an empty list, not an
 /// error — a brand-new atlas legitimately has no tiles yet.
 fn list_tiles_on_disk(atlas: &SkyAtlas) -> Result<Vec<TileId>, String> {
-    // `tile_path(0)` gives `<root>/tiles/<order>/0.nst`; its parent is the dir.
+    // `tile_path(0)` gives `<root>/tiles/<order>/0.skt`; its parent is the dir.
     let dir = match atlas.tile_path(0).parent() {
         Some(p) => p.to_path_buf(),
         None => return Ok(Vec::new()),
@@ -157,7 +157,10 @@ fn list_tiles_on_disk(atlas: &SkyAtlas) -> Result<Vec<TileId>, String> {
     for entry in entries {
         let entry = entry.map_err(|e| format!("failed to read tile directory entry: {e}"))?;
         let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()) != Some("nst") {
+        // Scan both the current and pre-rename sidecar extensions so an
+        // atlas folded before the rename still reports its coverage.
+        let ext = path.extension().and_then(|s| s.to_str());
+        if ext != Some("skt") && ext != Some("nst") {
             continue;
         }
         if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {

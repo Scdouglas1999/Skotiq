@@ -103,7 +103,7 @@ void main() {
   });
 
   setUp(() {
-    outputDir = Directory.systemTemp.createTempSync('ns_pixel_size');
+    outputDir = Directory.systemTemp.createTempSync('sk_pixel_size');
     writtenHeaders = <FitsWriteHeader>[];
     backend = MockBackend();
     events = StreamController<SkotiqEvent>.broadcast();

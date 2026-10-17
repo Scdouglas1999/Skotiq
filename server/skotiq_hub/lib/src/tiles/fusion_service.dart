@@ -12,7 +12,7 @@ import 'tile_codec.dart';
 import 'tile_quality.dart';
 import 'tile_store.dart';
 
-/// Server-side fusion: accepts a contributor's `.nst` delta, weights it by the
+/// Server-side fusion: accepts a contributor's `.skt` delta, weights it by the
 /// contributor's trust, robust-rejects gross outliers, and merges it into the
 /// shared tile using the SAME additive co-add the keystone uses
 /// (`mergeSigned`). Records the contribution for retraction + audit and updates
@@ -75,7 +75,7 @@ class FusionService {
 
   /// Fuse a contributor delta into the shared tile.
   ///
-  /// [deltaBytes] is the contributor's serialized `.nst`. [tileId]/[order] come
+  /// [deltaBytes] is the contributor's serialized `.skt`. [tileId]/[order] come
   /// from the request path/query and MUST match the delta's own header (a
   /// mismatch is a 409, surfaced as a [TileCodecException]). [framesDelta] /
   /// [integrationSecondsDelta] / [medianFwhm] are the contributor's claimed

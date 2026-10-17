@@ -125,7 +125,7 @@ class _FakeSyncService extends SyncService {
     if (throwFromPush) throw StateError('cloud target unavailable');
     return SyncPushResult(
       success: true,
-      remotePath: 'skotiq-sync/test-rig/bundle.nsbak',
+      remotePath: 'skotiq-sync/test-rig/bundle.skbak',
       timestamp: DateTime.utc(2026, 7, 14),
     );
   }
@@ -232,7 +232,7 @@ void main() {
 
   setUpAll(() async {
     db = mockDatabase();
-    tempDir = await Directory.systemTemp.createTemp('ns_cloud_sync_ui_');
+    tempDir = await Directory.systemTemp.createTemp('sk_cloud_sync_ui_');
     logger = _testLogger(tempDir);
   });
 
@@ -432,7 +432,7 @@ void main() {
     when(() => backend.pushCloudSyncNow()).thenAnswer(
       (_) async => SyncPushResult(
         success: true,
-        remotePath: 'skotiq-sync/observatory-host/bundle.nsbak',
+        remotePath: 'skotiq-sync/observatory-host/bundle.skbak',
         timestamp: DateTime.utc(2026, 7, 13),
       ),
     );

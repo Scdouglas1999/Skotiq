@@ -104,7 +104,7 @@ void main() {
   late Directory source;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_delivery_svc_');
+    tempDir = await Directory.systemTemp.createTemp('sk_delivery_svc_');
     dbFile = File(p.join(tempDir.path, 'skotiq.db'));
     source = await Directory(p.join(tempDir.path, 'masters')).create();
   });
@@ -568,7 +568,7 @@ void main() {
     );
 
     // A transport is built with a job id, and the atomic write derives its
-    // staged name from it (`.<name>.<jobId>.nsdelivery-part`). One transport
+    // staged name from it (`.<name>.<jobId>.skdelivery-part`). One transport
     // opened on the FIRST due row therefore staged every other night's files
     // under that night's job: two nights whose masters share a delivered name
     // collided on one staged path, and the litter a kill leaves behind named a

@@ -68,7 +68,7 @@ special case.
 ## The sibling sections in the same rail
 
 Driven live at the panel's real width (release bundle, harness profile
-`w11mount`, `NS_AUDIT_DISPLAY=:98`), one section at a time off the icon strip:
+`w11mount`, `SK_AUDIT_DISPLAY=:98`), one section at a time off the icon strip:
 
 | Section | Found | Done |
 | --- | --- | --- |

@@ -15,9 +15,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 // The typed `SkotiqEvent` union collides by name with the wire/JSON event
 // model the barrel above keeps canonical, so it is imported from the core's
-// dedicated typed-event seam under the `ns_events` prefix — the convention the
+// dedicated typed-event seam under the `sk_events` prefix — the convention the
 // run dashboard providers already follow.
-import 'package:skotiq_core/skotiq_core_events.dart' as ns_events;
+import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
 
 import '../../ledger_seconds.dart';
 import '../../plan_math.dart';
@@ -492,15 +492,15 @@ class _LedgerActualStartsNotifier extends StateNotifier<Map<String, DateTime>> {
   /// outlive the sequencer screen being closed.
   void Function()? _onRunObserved;
 
-  void _onEvent(ns_events.SkotiqEvent event) {
+  void _onEvent(sk_events.SkotiqEvent event) {
     if (!mounted) return;
     final payload = event.payload;
-    if (payload is! ns_events.EventPayload_Sequencer) return;
+    if (payload is! sk_events.EventPayload_Sequencer) return;
     switch (payload.field0) {
-      case ns_events.SequencerEvent_Started():
+      case sk_events.SequencerEvent_Started():
         _onRunObserved?.call();
         state = const <String, DateTime>{};
-      case ns_events.SequencerEvent_NodeStarted(nodeId: final nodeId):
+      case sk_events.SequencerEvent_NodeStarted(nodeId: final nodeId):
         _onRunObserved?.call();
         state = <String, DateTime>{
           ...state,

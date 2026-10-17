@@ -186,23 +186,23 @@ async fn fits_round_trip_preserves_all_frame_context_keywords() {
     assert_eq!(parsed.get_float("CROTA2"), Some(-1.3));
 
     // Skotiq-specific session / frame accounting.
-    assert_eq!(parsed.get_string("NS-SESID"), Some("session-uuid-abc"));
-    assert_eq!(parsed.get_int("NS-FIDX"), Some(7));
-    assert_eq!(parsed.get_int("NS-NPLN"), Some(20));
+    assert_eq!(parsed.get_string("SK-SESID"), Some("session-uuid-abc"));
+    assert_eq!(parsed.get_int("SK-FIDX"), Some(7));
+    assert_eq!(parsed.get_int("SK-NPLN"), Some(20));
 
     // Mosaic: the panel a frame belongs to has to reach the FITS header, not
     // just the sequence config.
     assert_eq!(parsed.get_int("MOSAIC"), Some(1));
-    assert_eq!(parsed.get_string("NS-MOSNM"), Some("M31 Wide"));
-    // PANELIDX is 1-based for human readability; NS-PIDX preserves
+    assert_eq!(parsed.get_string("SK-MOSNM"), Some("M31 Wide"));
+    // PANELIDX is 1-based for human readability; SK-PIDX preserves
     // the 0-based form for re-import.
     assert_eq!(parsed.get_int("PANELIDX"), Some(3));
-    assert_eq!(parsed.get_int("NS-PIDX"), Some(2));
+    assert_eq!(parsed.get_int("SK-PIDX"), Some(2));
     assert_eq!(parsed.get_int("PANELROW"), Some(1));
-    assert_eq!(parsed.get_int("NS-PROW"), Some(1));
+    assert_eq!(parsed.get_int("SK-PROW"), Some(1));
     assert_eq!(parsed.get_int("PANELCOL"), Some(2));
-    assert_eq!(parsed.get_int("NS-PCOL"), Some(2));
-    assert_eq!(parsed.get_int("NS-NPAN"), Some(9));
+    assert_eq!(parsed.get_int("SK-PCOL"), Some(2));
+    assert_eq!(parsed.get_int("SK-NPAN"), Some(9));
 }
 
 /// A monochrome capture should NOT emit a BAYERPAT keyword (writing
@@ -268,7 +268,7 @@ async fn missing_optional_fields_are_omitted_not_zeroed() {
     for absent_key in &[
         "OBJECT", "FILTER", "FILTPOS", "GAIN", "OFFSET", "CCD-TEMP", "SET-TEMP", "FOCUSPOS",
         "ROTATPOS", "GUIDERMS", "SOLVRA", "SOLVDEC", "PIXSCALE", "CROTA1", "BAYERPAT", "MOSAIC",
-        "PANELIDX", "NS-MOSNM", "OBSERVER", "SITELAT", "TELESCOP", "INSTRUME", "FOCALLEN",
+        "PANELIDX", "SK-MOSNM", "OBSERVER", "SITELAT", "TELESCOP", "INSTRUME", "FOCALLEN",
         "APTDIA",
     ] {
         let s = parsed.get_string(absent_key);

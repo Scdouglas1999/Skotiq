@@ -685,7 +685,7 @@ class DeliveryService {
 
     // One transport per JOB, not one per destination. A transport is built
     // with a job id and the atomic write derives its staged name from it
-    // (`.<name>.<jobId>.nsdelivery-part`), so a sweep spanning two nights that
+    // (`.<name>.<jobId>.skdelivery-part`), so a sweep spanning two nights that
     // opened a single transport on the first due row staged the second night's
     // masters under the first night's job. Two nights whose masters share a
     // delivered name then collided on one staged path, and the litter a kill

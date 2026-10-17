@@ -411,7 +411,7 @@ class _DarkroomRecipePanelState extends State<_DarkroomRecipePanel> {
       if (importNote != null) ...[
         SkotiqBanner(
           tone: BannerTone.info,
-          title: 'Imported from a .nsrecipe sidecar',
+          title: 'Imported from a .skrecipe sidecar',
           message: importNote,
         ),
         const SizedBox(height: SkotiqTokens.spaceLg),

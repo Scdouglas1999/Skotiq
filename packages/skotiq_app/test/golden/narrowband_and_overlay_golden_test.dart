@@ -161,7 +161,7 @@ Future<String> _writeSamplePng() async {
   final image = await picture.toImage(w, h);
   final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
   image.dispose();
-  final dir = Directory.systemTemp.createTempSync('ns_overlay_golden');
+  final dir = Directory.systemTemp.createTempSync('sk_overlay_golden');
   final file = File('${dir.path}/master_preview.png');
   file.writeAsBytesSync(bytes!.buffer.asUint8List());
   return file.path;

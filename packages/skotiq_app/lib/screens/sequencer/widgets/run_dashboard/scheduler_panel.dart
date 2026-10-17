@@ -11,10 +11,10 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 // The typed `SkotiqEvent` union collides by name with the wire/JSON event
 // model the barrel above keeps canonical, so it comes from the core's dedicated
-// typed-event seam under the `ns_events` prefix. The non-colliding members this
+// typed-event seam under the `sk_events` prefix. The non-colliding members this
 // panel needs (`EventPayload_Sequencer`, `SchedulerScoreEntry`) are reachable
 // unprefixed straight off the barrel.
-import 'package:skotiq_core/skotiq_core_events.dart' as ns_events;
+import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// One scheduler decision row as surfaced to the panel. Every
@@ -85,7 +85,7 @@ final recentSchedulerDecisionsProvider =
   return decisions;
 });
 
-SchedulerDecisionView? _maybeSchedulerDecision(ns_events.SkotiqEvent event) {
+SchedulerDecisionView? _maybeSchedulerDecision(sk_events.SkotiqEvent event) {
   // The typed SchedulerDecision variant is the canonical
   // source. Pattern-match through EventPayload → SequencerEvent →
   // SchedulerDecision; ignore everything else.

@@ -38,7 +38,7 @@ void main() {
       container = createHeadlessTestContainer();
       db = container.read(databaseProvider);
       handlers = DarkroomDeliveryHandlers(container);
-      tempDir = await Directory.systemTemp.createTemp('ns_delivery_api_');
+      tempDir = await Directory.systemTemp.createTemp('sk_delivery_api_');
 
       jobId = await DarkroomJobsDao(db).enqueue();
       targetId = await DeliveryTargetsDao(db).create(

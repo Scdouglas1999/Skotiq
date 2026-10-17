@@ -87,7 +87,7 @@ void main() {
       );
 
       await expectLater(
-        service.installFromBytes(upload, filename: 'new.nsplugin'),
+        service.installFromBytes(upload, filename: 'new.skplugin'),
         throwsA(isA<PluginRegistryException>()),
       );
       expect(directory.listSync().map((entry) => entry.path.split('/').last), [
@@ -115,8 +115,8 @@ void main() {
         utf8.encode(jsonEncode({'id': id, 'name': id, 'version': '1.0.0'}));
 
     await Future.wait([
-      service.installFromBytes(upload('one'), filename: 'one.nsplugin'),
-      service.installFromBytes(upload('two'), filename: 'two.nsplugin'),
+      service.installFromBytes(upload('one'), filename: 'one.skplugin'),
+      service.installFromBytes(upload('two'), filename: 'two.skplugin'),
     ]);
 
     expect((await service.listPlugins()).map((plugin) => plugin.id).toSet(), {

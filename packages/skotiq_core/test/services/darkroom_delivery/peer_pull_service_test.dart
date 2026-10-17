@@ -124,7 +124,7 @@ void main() {
   };
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_peer_pull_');
+    tempDir = await Directory.systemTemp.createTemp('sk_peer_pull_');
   });
 
   tearDown(() async {

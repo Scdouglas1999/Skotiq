@@ -452,7 +452,7 @@ impl SequenceExecutor {
 
                 // seed the session-static FITS-header fields from the
                 // runtime config. A fresh `session_id` is minted per start()
-                // so `NS-SESID` uniquely identifies the run; ExecutionContext::new
+                // so `SK-SESID` uniquely identifies the run; ExecutionContext::new
                 // already generates one in tests, but we MUST replace it here so
                 // the value reflects the current production start (not a value
                 // generated when this executor instance was first constructed,

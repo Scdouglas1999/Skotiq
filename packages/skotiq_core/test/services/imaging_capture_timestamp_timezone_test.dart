@@ -103,7 +103,7 @@ void main() {
   });
 
   setUp(() {
-    outputDir = Directory.systemTemp.createTempSync('ns_capture_tz');
+    outputDir = Directory.systemTemp.createTempSync('sk_capture_tz');
     backend = MockBackend();
     events = StreamController<SkotiqEvent>.broadcast();
     when(() => backend.eventStream).thenAnswer((_) => events.stream);

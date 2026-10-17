@@ -67,7 +67,7 @@ class MasterRestartNotice {
 ///
 /// The headline post-session feature: keep folding new nights' accepted subs
 /// into an existing master over time without re-reading old subs. The resumable
-/// accumulator state lives in a `.nsmaster` sidecar (the native side owns it);
+/// accumulator state lives in a `.skmaster` sidecar (the native side owns it);
 /// this service owns the *bookkeeping* — the `integrated_masters` row (status
 /// `accumulating`, mode `runningWeightedMean`), the per-sub `integrated_master_frames`
 /// fold records, and the dedup that prevents a sub being folded twice.

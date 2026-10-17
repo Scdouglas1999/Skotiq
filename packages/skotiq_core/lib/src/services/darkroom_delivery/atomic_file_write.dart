@@ -21,7 +21,7 @@ import 'delivery_failure.dart';
 /// [AtomicFileWrite.stage] and [AtomicFileWrite.commit] leaves one of these
 /// behind; the next attempt for the same job and file overwrites it, so the
 /// litter is bounded by the number of files in flight.
-const String kStagedDeliverySuffix = '.nsdelivery-part';
+const String kStagedDeliverySuffix = '.skdelivery-part';
 
 /// Re-type [failure] — raised reading a file that lives in the DESTINATION —
 /// by asking which side actually went away.
@@ -40,7 +40,7 @@ const String kStagedDeliverySuffix = '.nsdelivery-part';
 /// WHICH destination-side failure is then read off [destinationFile] and the
 /// directory holding it, not inferred. "The destination went away" is a claim
 /// about the SHARE, and a drop folder watched by a sync agent that unlinks
-/// `.nsdelivery-part` files milliseconds after they appear produced exactly
+/// `.skdelivery-part` files milliseconds after they appear produced exactly
 /// that sentence while `ls` on the directory answered normally in the same
 /// second. The sibling arm, [AtomicFileWrite._copyFailure], stats the directory
 /// before saying it; this one now does too, and when the directory is still

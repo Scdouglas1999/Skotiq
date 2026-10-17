@@ -8,7 +8,7 @@
 //   * browse the shared targets the swarm is collecting,
 //   * JOIN a shared target (records the chosen hub target locally),
 //   * CONTRIBUTE the local atlas tiles for that target — by default the
-//     *additive sums* (the serialized `.nst` keystone bytes the
+//     *additive sums* (the serialized `.skt` keystone bytes the
 //     [SkyAtlasService] exports), never raw subs, so nothing on the user's disk
 //     leaves the device except the same accumulator the master integration
 //     already keeps,
@@ -307,7 +307,7 @@ class ConstellationService {
   ///
   /// For every locally-deepened tile whose centre falls inside the target's
   /// cone we export the additive accumulator delta since [since] (the keystone
-  /// `.nst` sums — *not* raw subs) and push it. A tile the hub rejects on a
+  /// `.skt` sums — *not* raw subs) and push it. A tile the hub rejects on a
   /// geometry/order mismatch is collected into the outcome rather than aborting
   /// the whole batch, so one stray tile cannot block a good contribution.
   ///
@@ -445,7 +445,7 @@ class ConstellationService {
             );
           }
 
-          // The exported `.nst` delta has served its purpose — it is now on the
+          // The exported `.skt` delta has served its purpose — it is now on the
           // hub. Reclaim it immediately rather than leaving it to accrue in the
           // cache until the next sweep (best-effort; a failure is non-fatal).
           await _atlas.deleteExportedDelta(tile.tileId);
@@ -505,7 +505,7 @@ class ConstellationService {
 
   /// Share the user's own raw light FITS for a joined target to the hub.
   ///
-  /// Unlike SUMS (which exports the additive `.nst` accumulator and bypasses raw
+  /// Unlike SUMS (which exports the additive `.skt` accumulator and bypasses raw
   /// pixels), this streams each ACCEPTED LIGHT frame the user captured for the
   /// target straight from disk to `POST /v1/tiles/<tile>/subframes`. The frames
   /// are grouped under the target's representative hub tile (its advertised
@@ -633,7 +633,7 @@ class ConstellationService {
   /// under the atlas `swarm/` directory for blending into "Your Sky".
   ///
   /// [finalized] true caches rendered FITS tiles (ready to display); false
-  /// caches the merged `.nst` accumulators (still additive, so they can later
+  /// caches the merged `.skt` accumulators (still additive, so they can later
   /// be folded locally). Returns the cached [SwarmTile]s, newest pull first.
   Future<List<SwarmTile>> pullTarget(
     int targetId, {
@@ -669,7 +669,7 @@ class ConstellationService {
       final swarmDir = await _swarmDir();
       final pulled = <SwarmTile>[];
       for (final tileId in ids) {
-        final ext = finalized ? 'fits' : 'nst';
+        final ext = finalized ? 'fits' : 'skt';
         final outPath = '$swarmDir/tile_${tileId}_$_order.$ext';
         await client.pullTile(
           tileId: tileId,
@@ -681,7 +681,7 @@ class ConstellationService {
         // depth shows up in "Your Sky" (the documented pull-back -> blend flow)
         // WITHOUT touching the user's contributable base. Finalized FITS pulls
         // are display-only overlays and are not merged (they are not additive
-        // accumulators); only `.nst` snapshots fold in.
+        // accumulators); only `.skt` snapshots fold in.
         //
         // mergeSwarmDelta is REPLACE-not-add against the overlay, so the overlay
         // always equals exactly one copy of the current community depth — N
@@ -984,7 +984,7 @@ class ConstellationService {
 
   // Retention
 
-  /// Reclaim accumulated swarm `.nst`/`.fits` pull/delta blobs under the atlas
+  /// Reclaim accumulated swarm `.skt`/`.fits` pull/delta blobs under the atlas
   /// `swarm/<order>/` tree, bounded by age (and optionally total bytes).
   ///
   /// Pull caches one community blob per tile and never reclaimed them, so a
@@ -1028,7 +1028,8 @@ class ConstellationService {
     await for (final entity in dir.list(followLinks: false)) {
       if (entity is! File) continue;
       final ext = p.extension(entity.path).toLowerCase();
-      if (ext != '.nst' && ext != '.fits') continue;
+      // `.nst` keeps pre-rename blobs inside the sweep's remit.
+      if (ext != '.skt' && ext != '.nst' && ext != '.fits') continue;
       if (live.contains(p.normalize(entity.path))) continue;
       final stat = await entity.stat();
       blobs.add((file: entity, modified: stat.modified, size: stat.size));

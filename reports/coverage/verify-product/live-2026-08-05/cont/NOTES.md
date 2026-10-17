@@ -1,6 +1,6 @@
 # Live verification continuation — 2026-08-05 (cont/)
 
-Reused sandboxed instance: `NS_AUDIT_DISPLAY=:78`, profile `verify-product`, pid `2948528`.
+Reused sandboxed instance: `SK_AUDIT_DISPLAY=:78`, profile `verify-product`, pid `2948528`.
 
 ## Setup this pass
 

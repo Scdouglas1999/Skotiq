@@ -61,10 +61,10 @@ extension _SkyAtlasInternals on SkyAtlasService {
       // Phantom guard: a cone that overlaps a tile's footprint but contributes
       // no accepted frames (e.g. an over-coverage edge tile) reports framesAdded
       // == 0. Upserting it would seed an empty 0-frame SkyTiles row + a dangling
-      // sidecarPath to a never-written `.nst`, and recordFold would inject a
+      // sidecarPath to a never-written `.skt`, and recordFold would inject a
       // "+0 frames" entry into the timeline. Skip those entirely.
       if (tile.framesAdded <= 0) continue;
-      final sidecarPath = p.join(tilesDir, '${tile.tileId}.nst');
+      final sidecarPath = p.join(tilesDir, '${tile.tileId}.skt');
       await _dao.upsertTile(
         tileId: tile.tileId,
         healpixOrder: _order,

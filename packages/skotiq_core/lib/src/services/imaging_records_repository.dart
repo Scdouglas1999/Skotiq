@@ -569,7 +569,7 @@ final imagingRecordsRepositoryProvider = Provider<ImagingRecordsRepository>((
         //
         // ORDER IS LOAD-BEARING (Wave 1 self-subtraction fix): the scan MUST run
         // BEFORE the atlas fold below. The diff template is read from the SAME
-        // per-tile `.nst` sidecars the fold writes into, so folding first would
+        // per-tile `.skt` sidecars the fold writes into, so folding first would
         // average this frame's own flux into the template it is differenced
         // against (weight ~1/(N+1)) — every transient would self-suppress and
         // faint SNR~5-6 sources would drop below the persist gate and vanish.

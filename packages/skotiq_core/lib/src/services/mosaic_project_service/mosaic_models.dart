@@ -42,7 +42,7 @@ class MosaicPanelIntegrationOutcome {
   /// The `mosaic_panels.id` this outcome describes.
   final int panelId;
 
-  /// The panel's 0-based grid index (matches the FITS `NS-PIDX` provenance).
+  /// The panel's 0-based grid index (matches the FITS `SK-PIDX` provenance).
   final int panelIndex;
 
   /// The per-panel `integrated_masters.id` produced, or null when the panel was

@@ -61,7 +61,7 @@ void main() {
     () async {
       final tempDir = await Directory.systemTemp.createTemp('sequence_path_');
       addTearDown(() async => tempDir.delete(recursive: true));
-      final filePath = path.join(tempDir.path, 'sequence.nseq.json');
+      final filePath = path.join(tempDir.path, 'sequence.skeq.json');
       final originalPlatform = FileSelectorPlatform.instance;
       final platform = TestFileSelectorPlatform(
         openPath: filePath,
@@ -126,7 +126,7 @@ void main() {
     );
     addTearDown(() async => tempDir.delete(recursive: true));
 
-    final filePath = path.join(tempDir.path, 'sequence.nseq.json');
+    final filePath = path.join(tempDir.path, 'sequence.skeq.json');
     final originalPlatform = FileSelectorPlatform.instance;
 
     FileSelectorPlatform.instance = TestFileSelectorPlatform(
@@ -208,7 +208,7 @@ void main() {
     );
     addTearDown(() async => tempDir.delete(recursive: true));
 
-    final filePath = path.join(tempDir.path, 'dither.nseq.json');
+    final filePath = path.join(tempDir.path, 'dither.skeq.json');
     final originalPlatform = FileSelectorPlatform.instance;
     FileSelectorPlatform.instance = TestFileSelectorPlatform(
       openPath: filePath,
@@ -261,7 +261,7 @@ void main() {
 
       final filePath = path.join(
         tempDir.path,
-        'sequence_invalid_filter.nseq.json',
+        'sequence_invalid_filter.skeq.json',
       );
       final originalPlatform = FileSelectorPlatform.instance;
 
@@ -334,7 +334,7 @@ void main() {
       );
       addTearDown(() async => tempDir.delete(recursive: true));
 
-      final filePath = path.join(tempDir.path, 'invalid.nseq.json');
+      final filePath = path.join(tempDir.path, 'invalid.skeq.json');
       final originalPlatform = FileSelectorPlatform.instance;
       FileSelectorPlatform.instance = TestFileSelectorPlatform(
         openPath: filePath,
@@ -370,7 +370,7 @@ void main() {
       );
       addTearDown(() async => tempDir.delete(recursive: true));
 
-      final filePath = path.join(tempDir.path, 'recovery.nseq.json');
+      final filePath = path.join(tempDir.path, 'recovery.skeq.json');
       final originalPlatform = FileSelectorPlatform.instance;
       FileSelectorPlatform.instance = TestFileSelectorPlatform(
         openPath: filePath,
@@ -463,7 +463,7 @@ void main() {
       );
       addTearDown(() async => tempDir.delete(recursive: true));
 
-      final filePath = path.join(tempDir.path, 'humidity.nseq.json');
+      final filePath = path.join(tempDir.path, 'humidity.skeq.json');
       final originalPlatform = FileSelectorPlatform.instance;
       FileSelectorPlatform.instance = TestFileSelectorPlatform(
         openPath: filePath,
@@ -509,7 +509,7 @@ void main() {
       );
       addTearDown(() async => tempDir.delete(recursive: true));
 
-      final filePath = path.join(tempDir.path, 'scheduler.nseq.json');
+      final filePath = path.join(tempDir.path, 'scheduler.skeq.json');
       final originalPlatform = FileSelectorPlatform.instance;
       FileSelectorPlatform.instance = TestFileSelectorPlatform(
         openPath: filePath,
@@ -591,7 +591,7 @@ void main() {
     );
     addTearDown(() async => tempDir.delete(recursive: true));
 
-    final filePath = path.join(tempDir.path, 'cover_science.nseq.json');
+    final filePath = path.join(tempDir.path, 'cover_science.skeq.json');
     final originalPlatform = FileSelectorPlatform.instance;
     FileSelectorPlatform.instance = TestFileSelectorPlatform(
       openPath: filePath,
@@ -718,7 +718,7 @@ void main() {
       );
       addTearDown(() async => tempDir.delete(recursive: true));
 
-      final filePath = path.join(tempDir.path, 'forced.nseq.json');
+      final filePath = path.join(tempDir.path, 'forced.skeq.json');
       final originalPlatform = FileSelectorPlatform.instance;
       FileSelectorPlatform.instance = TestFileSelectorPlatform(
         openPath: filePath,

@@ -17,7 +17,7 @@ class ScienceSettings {
   /// When true, after calibration + transparency complete the science
   /// pipeline writes a small set of standard keywords back onto the
   /// captured FITS file (MAGZP, MAGZPERR, MAGZPSRC, MAGZPNST, MAGLIM5,
-  /// TRANSPAR, EXTINCT, NSHA_VER). This makes Skotiq's photometric and atmospheric
+  /// TRANSPAR, EXTINCT, SKHA_VER). This makes Skotiq's photometric and atmospheric
   /// measurements directly visible to PixInsight, AstroPixelProcessor,
   /// Siril, and any other tool that reads the original capture.
   ///

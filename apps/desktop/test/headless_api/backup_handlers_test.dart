@@ -52,7 +52,7 @@ void main() {
         Request(
           'POST',
           Uri.parse('http://localhost/api/backup/create'),
-          body: jsonEncode({'customPath': '/tmp/overwrite.nsbackup'}),
+          body: jsonEncode({'customPath': '/tmp/overwrite.skbackup'}),
         ),
       );
 
@@ -99,7 +99,7 @@ void main() {
       final body = jsonDecode(await response.readAsString()) as Map;
       expect(
         body['error'],
-        'Invalid backup filename. Use a .nsbackup or .json filename.',
+        'Invalid backup filename. Use a .skbackup or .json filename.',
       );
     });
 
@@ -127,7 +127,7 @@ void main() {
         Request(
           'POST',
           Uri.parse(
-            'http://localhost/api/backup/upload-restore?fileName=test.nsbackup',
+            'http://localhost/api/backup/upload-restore?fileName=test.skbackup',
           ),
         ),
       );
@@ -149,7 +149,7 @@ void main() {
     late BackupHandlers handlers;
 
     setUp(() {
-      backupDir = Directory.systemTemp.createTempSync('ns-backup-restore');
+      backupDir = Directory.systemTemp.createTempSync('sk-backup-restore');
       addTearDown(() => backupDir.deleteSync(recursive: true));
       container = createHeadlessTestContainer(
         overrides: [
@@ -178,7 +178,7 @@ void main() {
       await dao.setSetting('observer_name', 'restored-observer');
       final backupId = const Uuid().v4();
       final created = await service.createBackup(
-        customPath: '${backupDir.path}/skotiq-backup-manual-$backupId.nsbackup',
+        customPath: '${backupDir.path}/skotiq-backup-manual-$backupId.skbackup',
       );
       expect(created.success, isTrue, reason: created.errorMessage);
 

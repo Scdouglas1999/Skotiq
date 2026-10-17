@@ -44,11 +44,11 @@ Also correct the severity if it is wrong in either direction, and flag a wrong "
 Read tools/ui_audit/README.md. The release bundle is ALREADY BUILT — do NOT run flutter build or
 cargo build; other agents share this machine.
 
-  env NS_AUDIT_DISPLAY=<DISPLAY> python3 tools/ui_audit/drive_linux.py start --profile <PROFILE> --fresh
-  env NS_AUDIT_DISPLAY=<DISPLAY> python3 tools/ui_audit/drive_linux.py tree
-  env NS_AUDIT_DISPLAY=<DISPLAY> python3 tools/ui_audit/drive_linux.py shot /tmp/ns-audit/shots/<PROFILE>-NN.png
-  env NS_AUDIT_DISPLAY=<DISPLAY> python3 tools/ui_audit/drive_linux.py click-img <that shot> X Y
-  env NS_AUDIT_DISPLAY=<DISPLAY> python3 tools/ui_audit/drive_linux.py stop --profile <PROFILE>
+  env SK_AUDIT_DISPLAY=<DISPLAY> python3 tools/ui_audit/drive_linux.py start --profile <PROFILE> --fresh
+  env SK_AUDIT_DISPLAY=<DISPLAY> python3 tools/ui_audit/drive_linux.py tree
+  env SK_AUDIT_DISPLAY=<DISPLAY> python3 tools/ui_audit/drive_linux.py shot /tmp/sk-audit/shots/<PROFILE>-NN.png
+  env SK_AUDIT_DISPLAY=<DISPLAY> python3 tools/ui_audit/drive_linux.py click-img <that shot> X Y
+  env SK_AUDIT_DISPLAY=<DISPLAY> python3 tools/ui_audit/drive_linux.py stop --profile <PROFILE>
 
 CONTEXT BUDGET — this is what killed four agents earlier: a screenshot costs ~2000 tokens and one
 agent read 140. Use \`tree\` (text, nearly free) for state; screenshot only for layout or rendering
@@ -56,7 +56,7 @@ questions. Budget ~30 image reads for the whole batch. \`click-img\` takes coord
 THAT IMAGE; \`click-xy\` takes root coordinates and would land elsewhere.
 
 For any finding about a NUMBER, recompute it yourself from the scratch DB
-(/tmp/ns-audit/<PROFILE>/data/skotiq.db) or by hand. Comparing two of the app's own readouts
+(/tmp/sk-audit/<PROFILE>/data/skotiq.db) or by hand. Comparing two of the app's own readouts
 proves nothing about which is right.
 
 WRITE AS YOU GO: append each verdict to reports/coverage/verdicts/<YOUR KEY>.json the moment you

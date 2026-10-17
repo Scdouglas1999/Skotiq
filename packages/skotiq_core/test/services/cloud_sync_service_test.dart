@@ -260,7 +260,7 @@ void main() {
 
     setUp(() async {
       db = SkotiqDatabase.forTesting(NativeDatabase.memory());
-      tempDir = await Directory.systemTemp.createTemp('ns_cloud_sync_test_');
+      tempDir = await Directory.systemTemp.createTemp('sk_cloud_sync_test_');
       logger = _testLogger(tempDir);
       remote = InMemorySyncTarget();
     });
@@ -316,7 +316,7 @@ void main() {
 
       expect(result.success, isTrue, reason: result.errorMessage);
       expect(result.remotePath, startsWith('skotiq-sync/test-machine/'));
-      expect(result.remotePath, endsWith('.nsbak'));
+      expect(result.remotePath, endsWith('.skbak'));
 
       final manifestBytes =
           remote.files['skotiq-sync/test-machine/manifest.json'];
@@ -365,7 +365,7 @@ void main() {
       expect(manifest.bundles, hasLength(2));
 
       final remoteBundles = remote.files.keys
-          .where((p) => p.endsWith('.nsbak'))
+          .where((p) => p.endsWith('.skbak'))
           .toList();
       expect(remoteBundles, hasLength(2));
       expect(remote.deletedPaths, hasLength(1));
@@ -464,7 +464,7 @@ void main() {
       await configure(db, autoPush: true);
       await serviceFor(db).maybeAutoPush(reason: 'test');
       expect(
-        remote.uploadedPaths.where((p) => p.endsWith('.nsbak')),
+        remote.uploadedPaths.where((p) => p.endsWith('.skbak')),
         hasLength(1),
       );
     });
@@ -548,7 +548,7 @@ void main() {
 
     setUp(() async {
       db = SkotiqDatabase.forTesting(NativeDatabase.memory());
-      tempDir = await Directory.systemTemp.createTemp('ns_cloud_sync_cfg_');
+      tempDir = await Directory.systemTemp.createTemp('sk_cloud_sync_cfg_');
       logger = _testLogger(tempDir);
       dao = SettingsDao(db);
       keyring = InMemorySecureKeyValueStore();
@@ -782,7 +782,7 @@ void main() {
     late InMemoryS3 store;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp('ns_cloud_sync_s3_');
+      tempDir = await Directory.systemTemp.createTemp('sk_cloud_sync_s3_');
       logger = _testLogger(tempDir);
       store = InMemoryS3(bucket: 'astro-backups');
     });

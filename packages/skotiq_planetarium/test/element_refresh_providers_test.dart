@@ -47,7 +47,7 @@ void main() {
   late Directory tempDir;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_er_prov_');
+    tempDir = await Directory.systemTemp.createTemp('sk_er_prov_');
   });
 
   tearDown(() async {

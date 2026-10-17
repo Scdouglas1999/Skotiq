@@ -9,7 +9,7 @@ void main() {
   late File dbFile;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_lock_test_');
+    tempDir = await Directory.systemTemp.createTemp('sk_lock_test_');
     dbFile = File(p.join(tempDir.path, 'skotiq.db'));
   });
 
@@ -106,7 +106,7 @@ void main() {
   test(
     'acquire creates the database folder if it does not exist yet',
     () async {
-      final nested = File(p.join(tempDir.path, 'deep', 'nested', 'ns.db'));
+      final nested = File(p.join(tempDir.path, 'deep', 'nested', 'sk.db'));
       final lock = await SingleInstanceLock.acquire(nested);
       addTearDown(lock.release);
 

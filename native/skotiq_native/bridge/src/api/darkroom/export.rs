@@ -21,13 +21,13 @@
 //! canonical JSON split across numbered `HISTORY` cards, so the exact recipe can
 //! be read back out of the file alone. Base64 is used because a FITS reader
 //! trims trailing spaces from a commentary card, which would silently corrupt a
-//! raw JSON payload split at a space. A `.nsrecipe` sidecar carries the same
+//! raw JSON payload split at a space. A `.skrecipe` sidecar carries the same
 //! canonical JSON beside the file, so a recipe survives outside the database
 //! even for a raster export.
 //!
 //! # Step numbering in an exported file
 //!
-//! Two numbers appear, and they are not the same number. `NSSTAGE` and the
+//! Two numbers appear, and they are not the same number. `SKSTAGE` and the
 //! sidecar's `stage.index` are the machine token: the caller's own 0-based
 //! `stage.index`, unchanged, so a reader can split `afterStep:0` and replay
 //! that exact request. Every sentence a person reads — the `HISTORY` step
@@ -62,7 +62,11 @@ use super::render::{
 use super::state::{registry, RenderCancelToken};
 
 /// Marker every recipe-payload `HISTORY` card starts with.
-const HISTORY_RECIPE_MARKER: &str = "NSRECIPE-B64";
+const HISTORY_RECIPE_MARKER: &str = "SKRECIPE-B64";
+
+/// The marker exports stamped before the rebrand. Accepted on replay so
+/// recipes embedded in older FITS still decode.
+const LEGACY_HISTORY_RECIPE_MARKER: &str = "NSRECIPE-B64";
 
 /// Base64 characters per `HISTORY` card. A commentary card holds 72 bytes of
 /// text; the marker and the four-digit index take 18, leaving room for this with
@@ -104,10 +108,10 @@ impl ExportStage {
         }
     }
 
-    /// The wire description carried in the reply and in the `NSSTAGE` card.
+    /// The wire description carried in the reply and in the `SKSTAGE` card.
     ///
     /// `afterStep:N` carries N exactly as the caller sent it in `stage.index`
-    /// — 0-based, the same number the reply and the `.nsrecipe` sidecar echo.
+    /// — 0-based, the same number the reply and the `.skrecipe` sidecar echo.
     /// This is the token's contract: a file written by any build names the
     /// stage in the vocabulary an export request is made in, so a reader can
     /// split the token and replay it verbatim. Nothing in the tree parses the
@@ -391,10 +395,10 @@ fn export_header(
     history: &[String],
 ) -> FitsHeader {
     let mut header = image.header().clone();
-    header.set_string("NSSTAGE", &stage.as_wire());
-    header.set_string("NSRECIPE", fingerprint);
-    header.set_int("NSRECVER", i64::from(RECIPE_SCHEMA_VERSION));
-    header.set_int("NSRECSTP", recipe.steps.len() as i64);
+    header.set_string("SKSTAGE", &stage.as_wire());
+    header.set_string("SKRECIPE", fingerprint);
+    header.set_int("SKRECVER", i64::from(RECIPE_SCHEMA_VERSION));
+    header.set_int("SKRECSTP", recipe.steps.len() as i64);
     for line in history {
         header.add_history(line);
     }
@@ -501,7 +505,7 @@ struct SidecarOutcome {
     skipped_reason: Value,
 }
 
-/// Write the `.nsrecipe` sidecar beside the exported FITS.
+/// Write the `.skrecipe` sidecar beside the exported FITS.
 ///
 /// The sidecar is written when the caller names a path or when the export wrote
 /// a FITS to derive one from. An export of raster files alone with no named path
@@ -545,7 +549,7 @@ fn write_sidecar(
     let recipe_value =
         serde_json::to_value(recipe).map_err(|e| format!("cannot encode the recipe: {e}"))?;
     let document = json!({
-        "kind": "nsrecipe",
+        "kind": "skrecipe",
         "schemaVersion": RECIPE_SCHEMA_VERSION,
         "fingerprint": fingerprint,
         "stage": stage.as_json(),
@@ -566,18 +570,18 @@ fn write_sidecar(
     })
 }
 
-/// `<path>.nsrecipe`, the sidecar-beside-the-artifact convention.
+/// `<path>.skrecipe`, the sidecar-beside-the-artifact convention.
 fn sidecar_beside(path: &Path) -> PathBuf {
-    append_extension(path, "nsrecipe")
+    append_extension(path, "skrecipe")
 }
 
 /// The temporary sibling an atomic write goes through.
 fn temp_sibling(path: &Path) -> PathBuf {
-    append_extension(path, "nshatmp")
+    append_extension(path, "skhatmp")
 }
 
 /// `path` with `suffix` appended as a further extension, keeping the one it
-/// already has: `master.fits` becomes `master.fits.nsrecipe`.
+/// already has: `master.fits` becomes `master.fits.skrecipe`.
 fn append_extension(path: &Path, suffix: &str) -> PathBuf {
     let mut extension = std::ffi::OsString::new();
     if let Some(existing) = path.extension() {
@@ -630,7 +634,10 @@ pub(crate) fn recipe_from_history(history: &[String]) -> Result<String, String> 
     use base64::Engine;
     let mut chunks: Vec<(usize, String)> = Vec::new();
     for line in history {
-        let Some(rest) = line.strip_prefix(HISTORY_RECIPE_MARKER) else {
+        let Some(rest) = line
+            .strip_prefix(HISTORY_RECIPE_MARKER)
+            .or_else(|| line.strip_prefix(LEGACY_HISTORY_RECIPE_MARKER))
+        else {
             continue;
         };
         let mut parts = rest.trim().splitn(2, ' ');

@@ -8,7 +8,7 @@ void main() {
   late Directory tempDir;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_db_connection_test_');
+    tempDir = await Directory.systemTemp.createTemp('sk_db_connection_test_');
   });
 
   tearDown(() async {

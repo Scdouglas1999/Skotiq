@@ -13,7 +13,7 @@ import '../validation.dart';
 class BackupHandlers {
   static const int _maxBackupUploadBytes = 256 * 1024 * 1024;
 
-  /// Filename pattern: skotiq-backup-{timestamp}-{uuid}.nsbackup.
+  /// Filename pattern: skotiq-backup-{timestamp}-{uuid}.skbackup.
   ///
   /// Backup ids must survive a process restart, so the UUID lives in the
   /// filename and is the public REST identifier for delete / download /
@@ -103,7 +103,7 @@ class BackupHandlers {
       // Route auto-save through createBackup with a UUID-bearing path (rather
       // than service.autoSaveBackup) so the new backup carries a stable
       // identifier recoverable from its filename. autoSaveBackup produces a
-      // `skotiq_autosave_<ts>.nsbackup` name that the _idForBackupFile
+      // `skotiq_autosave_<ts>.skbackup` name that the _idForBackupFile
       // fallback can only address as "legacy-...", so the id in the create
       // response would not survive a later list/delete round-trip.
       final autoSavePath = await _defaultUuidBackupPath(service, tag: 'auto');
@@ -321,12 +321,12 @@ class BackupHandlers {
       }
 
       final requestedFileName =
-          request.url.queryParameters['fileName'] ?? 'uploaded.nsbackup';
+          request.url.queryParameters['fileName'] ?? 'uploaded.skbackup';
       final fileName = _sanitizeUploadedBackupFileName(requestedFileName);
       if (fileName == null) {
         return jsonBadRequest({
           'error':
-              'Invalid backup filename. Use a .nsbackup or .json filename.',
+              'Invalid backup filename. Use a .skbackup or .json filename.',
         });
       }
       final replaceExisting =
@@ -470,14 +470,20 @@ class BackupHandlers {
       return null;
     }
     if (!fileName.contains('.')) {
-      fileName = '$fileName.nsbackup';
+      fileName = '$fileName.skbackup';
     }
     final lower = fileName.toLowerCase();
-    if (!lower.endsWith('.nsbackup') && !lower.endsWith('.json')) {
+    if (!lower.endsWith('.skbackup') &&
+        !lower.endsWith('.nsbackup') &&
+        !lower.endsWith('.json')) {
       return null;
     }
     if (fileName.length > 120) {
-      final ext = lower.endsWith('.json') ? '.json' : '.nsbackup';
+      final ext = lower.endsWith('.json')
+          ? '.json'
+          : lower.endsWith('.nsbackup')
+          ? '.nsbackup'
+          : '.skbackup';
       final stem = fileName.substring(0, fileName.length - ext.length);
       final maxStemLength = 120 - ext.length;
       final safeStem = stem.length <= maxStemLength
@@ -695,6 +701,6 @@ class BackupHandlers {
         .replaceAll(':', '-')
         .replaceAll('.', '-');
     final id = _uuid.v4();
-    return p.join(dir.path, 'skotiq-backup-$tag-$timestamp-$id.nsbackup');
+    return p.join(dir.path, 'skotiq-backup-$tag-$timestamp-$id.skbackup');
   }
 }

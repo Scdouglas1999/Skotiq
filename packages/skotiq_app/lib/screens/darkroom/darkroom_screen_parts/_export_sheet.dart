@@ -855,7 +855,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
     return Text(
       'Every export carries this recipe: a FITS gets HISTORY cards naming each '
       'step and its outcome plus the recipe\'s own canonical JSON, and a '
-      '.nsrecipe sidecar is written beside whichever file is chosen so the '
+      '.skrecipe sidecar is written beside whichever file is chosen so the '
       'recipe survives outside the database.',
       style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
     );
@@ -1162,7 +1162,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
   /// [name] folded to the characters a file name carries anywhere.
   ///
   /// The proposed name goes into a Save dialog, onto this disk, into a
-  /// `.nsrecipe` sidecar beside it, and from there onto a watched folder or an
+  /// `.skrecipe` sidecar beside it, and from there onto a watched folder or an
   /// SFTP target — four filesystems and a wire, none of them this app's. The
   /// autopilot names its recipes `Master · <filter> draft`, and U+00B7 was
   /// carried straight through: the chooser opened on `Master_·_B_draft-final`
@@ -1252,7 +1252,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
           // Named rather than derived: the engine only derives a sidecar path
           // from a FITS output, and a raster export with no sidecar would leave
           // the recipe behind in the database alone.
-          'sidecarPath': '$outputPath.nsrecipe',
+          'sidecarPath': '$outputPath.skrecipe',
           'writeSidecar': true,
           'screenTransfer': _screenTransfer,
           if (widget.catalogStars.isNotEmpty)

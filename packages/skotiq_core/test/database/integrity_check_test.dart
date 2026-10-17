@@ -11,7 +11,7 @@ void main() {
   late File dbFile;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ns_integrity_test_');
+    tempDir = await Directory.systemTemp.createTemp('sk_integrity_test_');
     dbFile = File(p.join(tempDir.path, 'skotiq.db'));
   });
 

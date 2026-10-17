@@ -38,8 +38,8 @@
 //! # Where tiles live
 //!
 //! Each tile accumulator serialises to a sidecar under
-//! `<atlas_root>/tiles/<order>/<tileId>.nst` (magic [`TILE_MAGIC`], the same
-//! layout discipline as the master's `.nsmaster`). The atlas is **out-of-core**:
+//! `<atlas_root>/tiles/<order>/<tileId>.skt` (magic [`TILE_MAGIC`], the same
+//! layout discipline as the master's `.skmaster`). The atlas is **out-of-core**:
 //! a fold loads only the touched tiles, mutates them, and rewrites them; a query
 //! loads only the tiles a cone covers. The whole sky is never held in RAM, and a
 //! caller-supplied memory budget bounds how many tile buffers are resident at
@@ -52,7 +52,7 @@ use serde::{Deserialize, Serialize};
 
 /// Per-write nonce so each [`SkyAtlas::store_tile`] temp sidecar is unique even
 /// when two folds for the SAME tile race (or two processes share the atlas):
-/// the shared `nst.tmp` name let one fold's temp clobber another mid-write. The
+/// the shared `skt.tmp` name let one fold's temp clobber another mid-write. The
 /// final write-then-rename onto the real path stays atomic on the same fs.
 static STORE_TILE_NONCE: AtomicU64 = AtomicU64::new(0);
 
@@ -64,8 +64,13 @@ use crate::ImageData;
 
 /// On-disk format version for a serialized [`SkyTileAccumulator`].
 pub const TILE_STATE_VERSION: u32 = 1;
-/// Magic bytes prefixing a serialized tile sidecar (`"NST" + version tag`).
-pub const TILE_MAGIC: &[u8; 4] = b"NST1";
+/// Magic bytes prefixing a serialized tile sidecar (`"SKT" + version tag`).
+pub const TILE_MAGIC: &[u8; 4] = b"SKT1";
+
+/// Magic on sidecars serialized before the rebrand. Layout-identical to
+/// [`TILE_MAGIC`]'s version; accepted on deserialize so existing atlases and
+/// deltas emitted by older builds keep loading.
+pub const LEGACY_TILE_MAGIC: &[u8; 4] = b"NST1";
 
 /// HEALPix NESTED tile id at a fixed base order. Builders pick the order const;
 /// it is recorded in every tile + DB row so a mixed-order mix-up is detectable.
@@ -933,7 +938,7 @@ impl SkyTileAccumulator {
                 bytes.len()
             )));
         }
-        if &bytes[0..4] != TILE_MAGIC {
+        if &bytes[0..4] != TILE_MAGIC && &bytes[0..4] != LEGACY_TILE_MAGIC {
             return Err(AtlasError::BadMagic);
         }
         let version = u32::from_le_bytes(bytes[4..8].try_into().expect("4 bytes"));
@@ -1166,7 +1171,7 @@ fn merge_signed(
 // Out-of-core atlas: per-tile sidecars on disk
 
 /// A handle to an on-disk atlas: a directory of serialized tile sidecars under
-/// `<root>/tiles/<order>/<tileId>.nst`. The atlas is the bulk pixel store; the
+/// `<root>/tiles/<order>/<tileId>.skt`. The atlas is the bulk pixel store; the
 /// DB index (`sky_tiles`) lives separately. No tile pixels are held in RAM
 /// beyond the tiles a single fold/query touches.
 #[derive(Debug, Clone)]
@@ -1200,17 +1205,29 @@ impl SkyAtlas {
         self.root
             .join("tiles")
             .join(self.order.to_string())
+            .join(format!("{tile_id}.skt"))
+    }
+
+    /// Path a tile's sidecar had before the rebrand's `.skt` rename.
+    fn legacy_tile_path(&self, tile_id: TileId) -> PathBuf {
+        self.root
+            .join("tiles")
+            .join(self.order.to_string())
             .join(format!("{tile_id}.nst"))
     }
 
     /// Load a tile sidecar from disk, or `None` if it does not exist yet.
+    /// Atlases folded before the `.skt` rename hold `.nst` sidecars — read
+    /// them through the same loader so existing depth is never abandoned.
     pub fn load_tile(&self, tile_id: TileId) -> Result<Option<SkyTileAccumulator>, AtlasError> {
-        let path = self.tile_path(tile_id);
-        match std::fs::read(&path) {
-            Ok(bytes) => Ok(Some(SkyTileAccumulator::deserialize(&bytes)?)),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(AtlasError::Io(e.to_string())),
+        for path in [self.tile_path(tile_id), self.legacy_tile_path(tile_id)] {
+            match std::fs::read(&path) {
+                Ok(bytes) => return Ok(Some(SkyTileAccumulator::deserialize(&bytes)?)),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(e) => return Err(AtlasError::Io(e.to_string())),
+            }
         }
+        Ok(None)
     }
 
     /// Load a tile, or create a fresh zeroed one if it does not exist.
@@ -1244,15 +1261,21 @@ impl SkyAtlas {
             std::fs::create_dir_all(parent).map_err(|e| AtlasError::Io(e.to_string()))?;
         }
         // Per-write-unique temp (pid + monotonic nonce) so a concurrent fold for
-        // the same tile can't collide on a shared `nst.tmp`; the rename onto the
+        // the same tile can't collide on a shared `skt.tmp`; the rename onto the
         // real path is still atomic on the same filesystem.
         let tmp = path.with_extension(format!(
-            "nst.tmp.{}.{}",
+            "skt.tmp.{}.{}",
             std::process::id(),
             STORE_TILE_NONCE.fetch_add(1, Ordering::Relaxed)
         ));
         std::fs::write(&tmp, tile.serialize()).map_err(|e| AtlasError::Io(e.to_string()))?;
         std::fs::rename(&tmp, &path).map_err(|e| AtlasError::Io(e.to_string()))?;
+        // Migrate on write: the sidecar now lives at its `.skt` path, so a
+        // pre-rename `.nst` twin would only duplicate it.
+        let legacy = self.legacy_tile_path(tile.tile_id);
+        if legacy != path && legacy.exists() {
+            let _ = std::fs::remove_file(legacy);
+        }
         Ok(())
     }
 
@@ -2098,7 +2121,7 @@ mod tests {
     #[test]
     fn store_tile_unique_temp_no_collision_under_concurrency() {
         // Many concurrent store_tile calls for the SAME tile must not collide on
-        // a shared `.nst.tmp` path; each write uses a pid+nonce-unique temp and a
+        // a shared `.skt.tmp` path; each write uses a pid+nonce-unique temp and a
         // final atomic rename, so the on-disk sidecar is always a complete,
         // deserializable accumulator after the storm settles.
         use std::sync::Arc;
@@ -2135,12 +2158,12 @@ mod tests {
         // got renamed into place).
         let reloaded = atlas.load_tile(tid).unwrap().expect("tile on disk");
         assert_eq!(reloaded.tile_id, tid);
-        // No stray `.nst.tmp.*` temp files survived the storm.
+        // No stray `.skt.tmp.*` temp files survived the storm.
         let tiles_dir = atlas.tile_path(tid).parent().unwrap().to_path_buf();
         let leftover_tmp = std::fs::read_dir(&tiles_dir)
             .unwrap()
             .filter_map(|e| e.ok())
-            .filter(|e| e.file_name().to_string_lossy().contains(".nst.tmp."))
+            .filter(|e| e.file_name().to_string_lossy().contains(".skt.tmp."))
             .count();
         assert_eq!(leftover_tmp, 0, "no temp files should remain after renames");
 
@@ -2180,13 +2203,13 @@ mod tests {
 
     // Cross-language parity fixtures
     //
-    // The hub (`server/skotiq_hub`) re-implements this module's `NST1`
+    // The hub (`server/skotiq_hub`) re-implements this module's `SKT1`
     // additive tile codec in Dart and claims byte-for-byte parity. To make a
     // silent layout drift on either side a *test failure* rather than a silent
     // corruption of every community stack, this test emits Rust-produced
     // ground-truth artifacts into the hub's fixtures directory:
     //
-    //   * `tile_a.nst`, `tile_b.nst` — two compact (4x4x1) serialized
+    //   * `tile_a.skt`, `tile_b.skt` — two compact (4x4x1) serialized
     //     accumulators with deterministic, distinct per-slot running sums.
     //   * `merge_expected.json` — the exact `merge_signed(a, b, trust=0.5,
     //     +1)` result (the six running vectors + finalized mean) computed by
@@ -2307,8 +2330,8 @@ mod tests {
             let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("../../../server/skotiq_hub/test/fixtures");
             std::fs::create_dir_all(&dir).expect("create fixtures dir");
-            std::fs::write(dir.join("tile_a.nst"), &a_bytes).expect("write tile_a");
-            std::fs::write(dir.join("tile_b.nst"), &b_bytes).expect("write tile_b");
+            std::fs::write(dir.join("tile_a.skt"), &a_bytes).expect("write tile_a");
+            std::fs::write(dir.join("tile_b.skt"), &b_bytes).expect("write tile_b");
             std::fs::write(dir.join("merge_expected.json"), expected_json.as_bytes())
                 .expect("write merge_expected");
         }

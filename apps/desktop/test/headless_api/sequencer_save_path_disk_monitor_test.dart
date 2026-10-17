@@ -26,7 +26,7 @@ void main() {
     late Directory scratch;
 
     setUp(() async {
-      scratch = await Directory.systemTemp.createTemp('ns-save-path-test');
+      scratch = await Directory.systemTemp.createTemp('sk-save-path-test');
       addTearDown(() async {
         if (scratch.existsSync()) await scratch.delete(recursive: true);
       });

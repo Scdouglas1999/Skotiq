@@ -108,7 +108,7 @@ void main() {
   late Directory root;
 
   setUp(() {
-    root = Directory.systemTemp.createTempSync('ns-delivery-reread');
+    root = Directory.systemTemp.createTempSync('sk-delivery-reread');
   });
 
   tearDown(() {

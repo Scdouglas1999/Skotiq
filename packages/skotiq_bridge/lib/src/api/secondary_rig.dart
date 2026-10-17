@@ -55,7 +55,7 @@ class SecondaryRigConfigApi {
   final String? filterName;
   final double? targetTempC;
 
-  /// Human label for the rig, used in the save sub-folder + `NS-RIG` keyword.
+  /// Human label for the rig, used in the save sub-folder + `SK-RIG` keyword.
   final String rigLabel;
   final String? cameraMake;
   final String? cameraModel;

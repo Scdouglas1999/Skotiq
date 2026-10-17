@@ -1,6 +1,6 @@
 part of '../constellation_service.dart';
 
-/// Default age a cached swarm `.nst`/`.fits` blob may reach before
+/// Default age a cached swarm `.skt`/`.fits` blob may reach before
 /// [sweepSwarmBlobs] reclaims it. A blob older than this that is not the live
 /// overlay for a currently-pulled tile is stale working set, safe to delete
 /// (a later pull re-fetches it).

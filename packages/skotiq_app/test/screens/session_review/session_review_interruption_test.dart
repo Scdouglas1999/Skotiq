@@ -253,7 +253,7 @@ Future<String> _writeSamplePng() async {
   );
   final image = await recorder.endRecording().toImage(8, 8);
   final data = await image.toByteData(format: ui.ImageByteFormat.png);
-  final dir = await Directory.systemTemp.createTemp('ns_review_interrupt_');
+  final dir = await Directory.systemTemp.createTemp('sk_review_interrupt_');
   final file = File('${dir.path}/preview.png');
   await file.writeAsBytes(Uint8List.view(data!.buffer));
   return file.path;

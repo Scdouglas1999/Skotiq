@@ -39,7 +39,7 @@ void main() {
     setUp(() async {
       srcDb = SkotiqDatabase.forTesting(NativeDatabase.memory());
       dstDb = SkotiqDatabase.forTesting(NativeDatabase.memory());
-      tempDir = await Directory.systemTemp.createTemp('ns_backup_ext_test_');
+      tempDir = await Directory.systemTemp.createTemp('sk_backup_ext_test_');
       logger = _testLogger(tempDir);
     });
 
@@ -98,7 +98,7 @@ void main() {
         );
 
         // Backup
-        final backupFile = File(p.join(tempDir.path, 'backup.nsbackup'));
+        final backupFile = File(p.join(tempDir.path, 'backup.skbackup'));
         final backupResult = await serviceFor(
           srcDb,
         ).createBackup(customPath: backupFile.path);
@@ -142,7 +142,7 @@ void main() {
         dec: 41.3,
       );
 
-      final backupFile = File(p.join(tempDir.path, 'backup.nsbackup'));
+      final backupFile = File(p.join(tempDir.path, 'backup.skbackup'));
       final backupResult = await serviceFor(
         srcDb,
       ).createBackup(customPath: backupFile.path);
@@ -191,7 +191,7 @@ void main() {
           cloudDensityThreshold: 35,
         );
 
-        final backupFile = File(p.join(tempDir.path, 'weather.nsbackup'));
+        final backupFile = File(p.join(tempDir.path, 'weather.skbackup'));
         final backupResult = await serviceFor(
           srcDb,
         ).createBackup(customPath: backupFile.path);
@@ -233,7 +233,7 @@ void main() {
       final dao = srcDb.settingsDao;
       expect(await dao.getSetting(BackupService.lastBackupSettingKey), isNull);
 
-      final backupFile = File(p.join(tempDir.path, 'manual.nsbackup'));
+      final backupFile = File(p.join(tempDir.path, 'manual.skbackup'));
       final before = DateTime.now().subtract(const Duration(seconds: 1));
       final result = await serviceFor(
         srcDb,
@@ -285,7 +285,7 @@ void main() {
         ),
       );
 
-      final backupFile = File(p.join(tempDir.path, 'sequence.nsbackup'));
+      final backupFile = File(p.join(tempDir.path, 'sequence.skbackup'));
       final backup = await serviceFor(
         srcDb,
       ).createBackup(customPath: backupFile.path);
@@ -345,7 +345,7 @@ void main() {
           ),
         );
 
-        final backupFile = File(p.join(tempDir.path, 'profile.nsbackup'));
+        final backupFile = File(p.join(tempDir.path, 'profile.skbackup'));
         final backup = await serviceFor(
           srcDb,
         ).createBackup(customPath: backupFile.path);

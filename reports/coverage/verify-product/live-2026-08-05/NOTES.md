@@ -2,7 +2,7 @@
 
 ## How the app was driven
 
-- Harness: `NS_AUDIT_DISPLAY=:78 python3 tools/ui_audit/drive_linux.py … --profile verify-product`
+- Harness: `SK_AUDIT_DISPLAY=:78 python3 tools/ui_audit/drive_linux.py … --profile verify-product`
 - Fresh scratch profile (`--fresh`), release binary at `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`
 - AT-SPI bound by profile PID (not app name); evidence via `tree` first, cropped `shot` when needed
 - Skipped onboarding → connected Simulated Camera/Mount/Focuser/Filter Wheel from Discovery

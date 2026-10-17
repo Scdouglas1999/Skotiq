@@ -5,7 +5,7 @@ CON-43). No commit in the tree references a CON- id, so those 43 findings are pr
 this wave does **not** re-report them. Numbering continues at **CON-44** so the two files can be
 concatenated without collisions.
 
-Driven live against the release bundle on `NS_AUDIT_DISPLAY=:88`, profile `gui-consistency`,
+Driven live against the release bundle on `SK_AUDIT_DISPLAY=:88`, profile `gui-consistency`,
 fresh scratch profile (first-run onboarding). Read-only review; no app code was changed.
 
 ## Summary

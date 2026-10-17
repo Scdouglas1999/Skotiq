@@ -796,7 +796,7 @@ class SessionReviewController extends StateNotifier<SessionReviewState> {
       final stamp = DateTime.now().millisecondsSinceEpoch;
       final sidecar = p.join(
         outDir,
-        '${_safeName(state.title)}_${_safeName(filter ?? 'master')}_$stamp.nsmaster',
+        '${_safeName(state.title)}_${_safeName(filter ?? 'master')}_$stamp.skmaster',
       );
       final reference = _bestReference(accepted);
       final masterId = await service.createMaster(
