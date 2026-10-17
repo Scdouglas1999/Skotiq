@@ -131,17 +131,13 @@ def lockup_svg(w, h, bg, palette, wordmark_fill, wordmark_px, mark_px,
     mx = (w - total) / 2
     tx = mx + mark_px + gap
     cy = h / 2
-    tile = ""
-    if tile_mark:
-        tile = mark.tile_body(palette)
-    else:
-        tile = mark.group(palette)
+    frag = mark.tile_body(palette) if tile_mark else mark.group(palette)
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" '
         f'width="{w}" height="{h}">\n'
         f'<rect width="{w}" height="{h}" fill="{bg}"/>\n'
         f'<g transform="translate({mx:.2f} {cy - mark_px / 2:.2f}) '
-        f'scale({mark_px / 100:.4f})">\n{tile}\n</g>\n'
+        f'scale({mark_px / 100:.4f})">\n{frag}\n</g>\n'
         f'<text x="{tx:.2f}" y="{cy:.2f}" font-family="Sora" font-weight="600" '
         f'font-size="{wordmark_px}" letter-spacing="{TRACKING_EM}em" '
         f'fill="{wordmark_fill}" dominant-baseline="central">{WORDMARK}</text>\n'
@@ -241,22 +237,24 @@ def vector_paths(palette, level, k, tx, ty):
     return out
 
 
-def vector_xml(palette, level, k, tx, ty):
+def vector_xml(palette, level, k, tx, ty, flat_color=None):
     """An Android vector drawable of the mark, transform baked flat.
 
     pathData is the same lane geometry mark.py emits, pre-multiplied by the
     placement transform because VectorDrawable strokes round differently than
-    SVG under nested group scales."""
+    SVG under nested group scales. flat_color draws every lane in one color
+    (the Android 13 monochrome layer is tinted by the system itself)."""
     p = ['<vector xmlns:android="http://schemas.android.com/apk/res/android"',
          '    android:width="108dp" android:height="108dp"',
          '    android:viewportWidth="108" android:viewportHeight="108">']
     for d, kind, color, w in vector_paths(palette, level, k, tx, ty):
+        c = flat_color or color
         if kind == "stroke":
             p.append(f'    <path android:pathData="{d}" android:fillColor="#00000000" '
-                     f'android:strokeColor="{color}" android:strokeWidth="{w:.2f}" '
+                     f'android:strokeColor="{c}" android:strokeWidth="{w:.2f}" '
                      f'android:strokeLineCap="round"/>')
         else:
-            p.append(f'    <path android:pathData="{d}" android:fillColor="{color}"/>')
+            p.append(f'    <path android:pathData="{d}" android:fillColor="{c}"/>')
     p.append("</vector>")
     return "\n".join(p) + "\n"
 
@@ -285,27 +283,17 @@ def android_icons():
           '    <color name="ic_launcher_background">#0E0C16</color>\n'
           '</resources>\n')
 
-    # The mark occupies the safe zone: scale the 100-unit frame to 66 of 108.
+    # The mark occupies the safe zone: the 100-unit frame draws at 66 units
+    # on the 108 dp canvas, centered.
     pad = (108.0 - 66.0) / 2.0
     write(os.path.join(res, "drawable", "ic_launcher_foreground.xml"),
           vector_xml("violet", "full", mark.ADAPTIVE_SAFE, pad, pad))
 
     # Android 13 themed icons tint this layer themselves, so it is drawn
     # in a single flat color.
-    lanes, width, _, dot = mark.LEVELS["full"]
-    p = ['<vector xmlns:android="http://schemas.android.com/apk/res/android"',
-         '    android:width="108dp" android:height="108dp"',
-         '    android:viewportWidth="108" android:viewportHeight="108">']
-    for d, kind, _, w in vector_paths("mono", "full", mark.ADAPTIVE_SAFE, pad, pad):
-        if kind == "stroke":
-            p.append(f'    <path android:pathData="{d}" android:fillColor="#00000000" '
-                     f'android:strokeColor="#FFFFFFFF" android:strokeWidth="{w:.2f}" '
-                     f'android:strokeLineCap="round"/>')
-        else:
-            p.append(f'    <path android:pathData="{d}" android:fillColor="#FFFFFFFF"/>')
-    p.append("</vector>")
     write(os.path.join(res, "drawable", "ic_launcher_monochrome.xml"),
-          "\n".join(p) + "\n")
+          vector_xml("mono", "full", mark.ADAPTIVE_SAFE, pad, pad,
+                     flat_color="#FFFFFFFF"))
 
 
 # --- web --------------------------------------------------------------------
