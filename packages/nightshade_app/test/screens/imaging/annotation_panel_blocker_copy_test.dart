@@ -52,6 +52,50 @@ Future<void> _drain(WidgetTester tester) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('shows partial objects while the deep catalog is still searching',
+      (tester) async {
+    final handle = await pumpAppScreen(
+        tester, const AnnotationTabPanel(colors: NightshadeColors.dark),
+        size: const Size(360, 1000), settle: false);
+    await _drain(tester);
+    handle.container.read(currentAnnotationProvider.notifier).state =
+        ImageAnnotation(
+      imagePath: '/tmp/target.fits',
+      timestamp: DateTime.utc(2026, 10, 7),
+      plateSolve: const PlateSolveData(
+          ra: 341.8,
+          dec: 58.1,
+          pixelScale: 0.79,
+          rotation: 0,
+          fieldWidth: 1,
+          fieldHeight: 1,
+          imageWidth: 1000,
+          imageHeight: 1000),
+      objects: [
+        const CelestialObjectAnnotation(
+            id: 'dso_NGC7380',
+            name: 'NGC7380',
+            type: ObjectType.starCluster,
+            ra: 341.8,
+            dec: 58.1,
+            x: 500,
+            y: 500,
+            magnitude: 7.2)
+      ],
+    );
+    handle.container.read(annotationStateProvider.notifier).state =
+        const AnnotationState(
+      status: AnnotationStatus.searchingCatalogs,
+      message: 'Found 1 object · searching deep catalog…',
+      objectsFound: 1,
+    );
+    await _drain(tester);
+    expect(find.text('NGC7380'), findsOneWidget);
+    expect(
+        find.text('Found 1 object · searching deep catalog…'), findsOneWidget);
+    expect(find.text('No image annotated'), findsNothing);
+  });
+
   testWidgets(
       'empty_state_names_the_missing_solver: with frames on disk and no plate '
       'solver, the objects list stops telling the operator to capture an image',

@@ -1,9 +1,12 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nightshade_core/nightshade_core.dart';
+// ignore: implementation_imports
+import 'package:nightshade_core/src/providers/hardware_presets_provider.dart';
 import 'package:nightshade_planetarium/nightshade_planetarium.dart';
 import 'package:nightshade_ui/nightshade_ui.dart';
 import 'package:uuid/uuid.dart';
+import '../widgets/auto_build_options_dialog.dart';
 
 /// Build a multi-filter Smart Night sequence for a Plan Tonight target.
 Future<SingleTargetSequenceResult> buildPlanTonightTargetSequence({
@@ -11,11 +14,13 @@ Future<SingleTargetSequenceResult> buildPlanTonightTargetSequence({
   required TargetSuggestion target,
   required SessionOptimizationPlan plan,
   bool includeSessionPreamble = false,
+  AutoBuildOptions? options,
 }) async {
   return _buildPlanTonightTargetSequenceCore(
     ref: ref,
     target: target,
     includeSessionPreamble: includeSessionPreamble,
+    options: options,
   );
 }
 
@@ -27,11 +32,13 @@ Future<SingleTargetSequenceResult>
   required WidgetRef ref,
   required TargetSuggestion target,
   bool includeSessionPreamble = false,
+  AutoBuildOptions? options,
 }) async {
   return _buildPlanTonightTargetSequenceCore(
     ref: ref,
     target: target,
     includeSessionPreamble: includeSessionPreamble,
+    options: options,
   );
 }
 
@@ -47,6 +54,7 @@ Future<SingleTargetSequenceResult> buildPlanTonightTargetSequenceFromFraming({
   TargetSuggestion? sourceSuggestion,
   double? rotationDegrees,
   bool includeSessionPreamble = false,
+  AutoBuildOptions? options,
 }) async {
   final suggestion = sourceSuggestion == null
       ? await framingTargetSuggestion(ref: ref, target: target)
@@ -55,7 +63,9 @@ Future<SingleTargetSequenceResult> buildPlanTonightTargetSequenceFromFraming({
           catalogId: target.catalogId ?? sourceSuggestion.catalogId,
           raHours: target.raHours,
           decDegrees: target.decDegrees,
-          objectType: target.type?.displayName ?? sourceSuggestion.objectType,
+          objectType: target.objectType ??
+              sourceSuggestion.objectType ??
+              target.type?.displayName,
           magnitude: target.magnitude ?? sourceSuggestion.magnitude,
           sizeArcmin: target.sizeArcmin ?? sourceSuggestion.sizeArcmin,
           constellation: target.constellation ?? sourceSuggestion.constellation,
@@ -64,6 +74,7 @@ Future<SingleTargetSequenceResult> buildPlanTonightTargetSequenceFromFraming({
     ref: ref,
     target: suggestion,
     includeSessionPreamble: includeSessionPreamble,
+    options: options,
   );
   return _withFramingRotation(result, rotationDegrees);
 }
@@ -73,6 +84,7 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
   required TargetSuggestion target,
   double? integrationBudgetHours,
   bool includeSessionPreamble = false,
+  AutoBuildOptions? options,
 }) async {
   final profile = ref.read(activeEquipmentProfileProvider);
   if (profile == null) {
@@ -110,12 +122,46 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
     longitudeDeg: settings.longitude,
   );
 
-  final integrationGoals =
-      await ref.read(integrationGoalServiceProvider).progressForTarget(
-            target.targetId,
-          );
+  final end = switch (options?.end) {
+    AutoBuildEnd.astronomical => window.twilight.astronomicalDawn,
+    AutoBuildEnd.nautical => window.twilight.nauticalDawn,
+    AutoBuildEnd.civil => window.twilight.civilDawn,
+    AutoBuildEnd.sunrise => window.twilight.sunrise,
+    _ => window.end,
+  };
+  if (end == null) {
+    throw const SmartNightBuildException(
+        'The selected dawn does not occur at this location tonight. Choose a different end condition.');
+  }
+  final now = DateTime.now();
+  final start = now.isAfter(window.start) ? now : window.start;
+  if (!start.isBefore(end)) {
+    throw const SmartNightBuildException('Tonight’s imaging window has ended.');
+  }
+  final fillWindow = options != null && options.end != AutoBuildEnd.integration;
+  integrationBudgetHours = options == null
+      ? integrationBudgetHours
+      : (fillWindow ? end.difference(start).inSeconds / 3600 : options.hours);
 
+  // The reviewed recipe owns its filters and exposure lengths. Saved
+  // integration goals are used only by the automatic planning path.
+  final integrationGoals = options == null
+      ? await ref
+          .read(integrationGoalServiceProvider)
+          .progressForTarget(target.targetId)
+      : null;
+
+  await ref.read(hardwarePresetsServiceProvider.notifier).loaded;
+  final camera = ref.read(cameraStateProvider);
+  final connected = camera.connectionState == DeviceConnectionState.connected;
+  final captureProfile =
+      connected ? profile.copyWith(cameraName: camera.deviceName) : profile;
   final smartNightSettings = SmartNightSettings(
+    gainOverride: options?.gain,
+    offsetOverride: options?.offset,
+    useExposurePresets: options != null && !options.useCalculator,
+    defaultFrameDurationSecs: options?.exposures ??
+        const SmartNightSettings().defaultFrameDurationSecs,
     // The site minimum altitude belongs to the site, not to this builder.
     // Leaving it at the SmartNightSettings default meant this path refused
     // targets at 27 deg ("no usable imaging window ... at min altitude 30")
@@ -135,14 +181,18 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
   return SmartNightService(
     suggestionService: ref.read(targetSuggestionServiceProvider),
     logging: ref.read(loggingServiceProvider),
+    cameraLibrary: ref.read(hardwarePresetsServiceProvider),
   ).buildSingleTargetSequence(
-    profile: profile,
+    profile: captureProfile,
     suggestion: target,
-    windowStart: window.start,
-    windowEnd: window.end,
+    windowStart: start,
+    windowEnd: end,
     availableFilters: filters,
     exposureContext: exposureContext,
     settings: smartNightSettings,
+    strategy: options?.strategy,
+    fillWindow: fillWindow,
+    includeSessionShutdown: options?.shutdown,
     integrationBudgetHours: integrationBudgetHours,
     integrationGoalProgress: integrationGoals,
     includeSessionPreamble: includeSessionPreamble,
@@ -160,7 +210,7 @@ Future<TargetSuggestion> framingTargetSuggestion({
     raHours: target.raHours,
     decDegrees: target.decDegrees,
     catalogId: target.catalogId,
-    objectType: target.type?.displayName,
+    objectType: target.objectType ?? target.type?.displayName,
     magnitude: target.magnitude,
     sizeArcmin: target.sizeArcmin,
     constellation: target.constellation,
@@ -283,9 +333,12 @@ Future<bool> addPlanTonightTargetToSequencer({
   bool includeSessionPreamble = false,
 }) async {
   try {
+    final options = await showAutoBuildOptions(context, ref, target);
+    if (options == null || !context.mounted) return false;
     final built = await buildPlanTonightTargetSequenceFromSuggestion(
       ref: ref,
       target: target,
+      options: options,
       includeSessionPreamble: includeSessionPreamble,
     );
     if (!context.mounted) return false;
@@ -341,9 +394,16 @@ Future<bool> addFramedTargetToSequencer({
   }
 
   try {
+    final suggestion = sourceSuggestion?.copyWith(
+            raHours: target.raHours, decDegrees: target.decDegrees) ??
+        await framingTargetSuggestion(ref: ref, target: target);
+    if (!context.mounted) return false;
+    final options = await showAutoBuildOptions(context, ref, suggestion);
+    if (options == null || !context.mounted) return false;
     final built = await buildPlanTonightTargetSequenceFromFraming(
       ref: ref,
       target: target,
+      options: options,
       sourceSuggestion: sourceSuggestion,
       rotationDegrees: rotationDegrees,
       includeSessionPreamble: includeSessionPreamble,

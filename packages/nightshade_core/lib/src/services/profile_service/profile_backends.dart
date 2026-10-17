@@ -115,6 +115,7 @@ extension _ProfileServiceBackends on ProfileService {
     }
 
     final dao = _ref.read(equipmentProfilesDaoProvider);
+    final logger = _ref.read(loggingServiceProvider);
     final existing = await dao.getProfileById(profile.id!);
     _requireAuthority(operation);
     if (existing == null) {
@@ -174,6 +175,16 @@ extension _ProfileServiceBackends on ProfileService {
       ),
     );
     _requireAuthority(operation);
+    if (existing.isActive) {
+      await writeActiveProfileThrough(
+        dao: dao,
+        backend: backend,
+        logger: logger,
+        profileId: profile.id!,
+        strict: true,
+      );
+      _requireAuthority(operation);
+    }
     _ref.invalidate(equipmentProfilesProvider);
   }
 

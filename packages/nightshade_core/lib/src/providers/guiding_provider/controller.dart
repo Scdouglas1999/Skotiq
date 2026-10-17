@@ -64,6 +64,10 @@ class Phd2Controller {
   final NightshadeBackend backend;
   StreamSubscription? _eventSub;
   bool _disposed = false;
+  final DateTime Function() _now;
+  DateTime? _lastStarLossWarning;
+  DateTime? _stableGuidingSince;
+  bool _starLossActive = false;
   bool _relaunchInFlight = false;
 
   /// A single physical link loss can produce more than one Disconnected event:
@@ -113,12 +117,14 @@ class Phd2Controller {
     Duration(seconds: 30),
   ];
 
-  Phd2Controller(this.ref, this.backend) {
+  Phd2Controller(this.ref, this.backend, {DateTime Function()? now})
+    : _now = now ?? DateTime.now {
     _init();
   }
 
   /// PHD2 closed externally (EOF) or bridge published [Disconnected].
   void _handlePhd2LinkLost() {
+    _resetStarLoss();
     ref.read(phd2StateProvider.notifier).state = Phd2State.stopped;
     ref.read(guiderStateProvider.notifier).setDisconnected();
 
@@ -284,6 +290,7 @@ class Phd2Controller {
             guiderNotifier.setGuiding(true);
             break;
           case 'GuidingStopped':
+            _resetStarLoss();
             ref.read(phd2StateProvider.notifier).state = Phd2State.stopped;
             guiderNotifier.setGuiding(false);
             break;
@@ -386,6 +393,24 @@ class Phd2Controller {
     // GuideStatsNotifier handles the proper rolling RMS calculation
     // Just update the UI state provider with the current stats
     final stats = ref.read(guideStatsProvider);
+    if (_starLossActive) {
+      final rms = stats.rmsTotal;
+      if (rms.isFinite && rms > 0 && rms <= 2) {
+        final now = _now();
+        _stableGuidingSince ??= now;
+        if (now.difference(_stableGuidingSince!) >=
+            const Duration(seconds: 10)) {
+          _logger.info(
+            'Guide star recovered; guiding has remained within 2 px '
+            'for 10 seconds.',
+            source: 'PHD2',
+          );
+          _resetStarLoss();
+        }
+      } else {
+        _stableGuidingSince = null;
+      }
+    }
 
     ref
         .read(guiderStateProvider.notifier)
@@ -401,6 +426,12 @@ class Phd2Controller {
     ref.read(guideStatsProvider.notifier).updateStarData(snr, starMass);
   }
 
+  void _resetStarLoss() {
+    _starLossActive = false;
+    _stableGuidingSince = null;
+    _lastStarLossWarning = null;
+  }
+
   void _handleStarLost() {
     // Record the event timestamp
     ref.read(starLostEventProvider.notifier).state = DateTime.now();
@@ -413,7 +444,14 @@ class Phd2Controller {
     final guiderNotifier = ref.read(guiderStateProvider.notifier);
     guiderNotifier.setGuiding(false);
 
-    _logger.warning('Guide star lost — guiding suspended.', source: 'PHD2');
+    final now = _now();
+    _starLossActive = true;
+    _stableGuidingSince = null;
+    if (_lastStarLossWarning == null ||
+        now.difference(_lastStarLossWarning!) >= const Duration(minutes: 1)) {
+      _logger.warning('Guide star lost — guiding suspended.', source: 'PHD2');
+      _lastStarLossWarning = now;
+    }
 
     // RECOVERY POLICY (explicit, by design):
     // This controller deliberately does NOT drive its own star-recovery loop.

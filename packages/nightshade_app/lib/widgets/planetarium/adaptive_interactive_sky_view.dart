@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nightshade_core/nightshade_core.dart';
 import 'package:nightshade_planetarium/nightshade_planetarium.dart'
     as planetarium_v1;
 
@@ -7,7 +9,7 @@ import 'package:nightshade_planetarium/nightshade_planetarium.dart'
 /// This is the single go-forward renderer. Subclasses ([FullScreenSkyView])
 /// inherit this stable surface; the widget simply forwards to
 /// [planetarium_v1.InteractiveSkyView].
-class AdaptiveInteractiveSkyView extends StatelessWidget {
+class AdaptiveInteractiveSkyView extends ConsumerWidget {
   const AdaptiveInteractiveSkyView({
     super.key,
     this.onObjectSelected,
@@ -62,12 +64,13 @@ class AdaptiveInteractiveSkyView extends StatelessWidget {
   final bool syncViewPoseFromV1;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return planetarium_v1.InteractiveSkyView(
       onObjectSelected: onObjectSelected,
       onCoordinateTapped: onCoordinateTapped,
       onObjectTapped: onObjectTapped,
       showFOV: showFOV,
+      showCrosshair: ref.watch(imagingViewerStateProvider).showCrosshair,
       customFOV: customFOV,
       fovCenter: fovCenter,
       observedObjectIds: observedObjectIds,

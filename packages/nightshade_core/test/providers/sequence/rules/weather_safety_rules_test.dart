@@ -118,14 +118,21 @@ void main() {
       );
     });
 
-    test('clean when the fail mode is permissive', () async {
-      final c = _container(failMode: SafetyFailMode.failOpen);
-      await c.read(appSettingsProvider.future);
-      expect(
-        _withRef(c, (ref) => rule.validate(_seq(), ValidationContext(ref))),
-        isEmpty,
+    for (final mode in [SafetyFailMode.failOpen, SafetyFailMode.warnOnly]) {
+      test(
+        'warns without blocking when no source is connected ($mode)',
+        () async {
+          final c = _container(failMode: mode);
+          await c.read(appSettingsProvider.future);
+          final issues = _withRef(
+            c,
+            (ref) => rule.validate(_seq(), ValidationContext(ref)),
+          );
+          expect(issues.single.severity, ValidationSeverity.warning);
+          expect(issues.single.description, contains('continue'));
+        },
       );
-    });
+    }
 
     test('clean when weather safety is disabled entirely', () async {
       final c = _container(weatherSafetyEnabled: false);

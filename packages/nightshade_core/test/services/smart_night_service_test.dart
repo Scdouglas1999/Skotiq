@@ -109,6 +109,45 @@ void main() {
       );
     }
 
+    test('camera and filter group select gains on emitted exposures', () {
+      for (final filters in [
+        <String>['L', 'R', 'G', 'B'],
+        <String>['Ha', 'SII', 'OIII'],
+      ]) {
+        final result = service.buildSingleTargetSequence(
+          profile: monoProfile.copyWith(cameraName: 'ZWO ASI1600MM-Cool'),
+          suggestion: fakeSuggestion(id: 1, name: 'Target'),
+          windowStart: DateTime(2026, 5, 17, 22),
+          windowEnd: DateTime(2026, 5, 18, 5),
+          availableFilters: filters,
+        );
+        final plans = result.sequence.nodes.values
+            .whereType<SmartExposureNode>()
+            .single
+            .plans;
+        for (final plan in plans) {
+          expect(plan.gain, filters.first == 'L' ? 76 : 139);
+          expect(plan.offset, filters.first == 'L' ? 15 : 21);
+        }
+      }
+      final result = service.buildSingleTargetSequence(
+        profile: monoProfile.copyWith(cameraName: 'ZWO ASI1600MM-Cool'),
+        suggestion: fakeSuggestion(id: 1, name: 'Target'),
+        windowStart: DateTime(2026, 5, 17, 22),
+        windowEnd: DateTime(2026, 5, 18, 5),
+        availableFilters: const [],
+        settings: const SmartNightSettings(
+          gainOverride: 80,
+          offsetOverride: 16,
+        ),
+      );
+      final exposure = result.sequence.nodes.values
+          .whereType<ExposureNode>()
+          .single;
+      expect(exposure.gain, 80);
+      expect(exposure.offset, 16);
+    });
+
     test('builds LRGB sequence from a single target', () {
       final plan = service.build(
         profile: monoProfile,
@@ -934,6 +973,114 @@ void main() {
           ),
         );
       });
+    });
+
+    test(
+      'full-window captures repeat until the cutoff, then warm and park',
+      () {
+        final end = DateTime(2026, 5, 18, 5);
+        for (final filters in [monoProfile.filterNames, <String>[]]) {
+          final result = service.buildSingleTargetSequence(
+            profile: monoProfile,
+            suggestion: fakeSuggestion(id: 1, name: 'M51'),
+            windowStart: DateTime(2026, 5, 17, 22),
+            windowEnd: end,
+            availableFilters: filters,
+            fillWindow: true,
+            includeSessionShutdown: true,
+          );
+          final nodes = result.sequence.nodes;
+          final header = nodes.values.whereType<TargetHeaderNode>().single;
+          expect(header.endBefore, end);
+          expect(header.integrationBudget!.stopOnBudgetMet, isFalse);
+          if (filters.isEmpty) {
+            final loop = nodes.values.whereType<LoopNode>().single;
+            expect(loop.repeatUntil, end);
+            expect(loop.conditionType, LoopConditionType.untilTime);
+            expect(nodes[loop.childIds.single], isA<ExposureNode>());
+          } else {
+            final exposure = nodes.values.whereType<SmartExposureNode>().single;
+            expect(exposure.loopUntilStopped, isTrue);
+            expect(exposure.integrationBudgetSecs, 0);
+          }
+          final children = nodes[result.sequence.rootNodeId]!.childIds
+              .map((id) => nodes[id])
+              .toList();
+          expect(children[children.length - 2], isA<WarmCameraNode>());
+          expect(children.last, isA<ParkNode>());
+          expect(nodes.values.whereType<CoolCameraNode>(), isEmpty);
+        }
+      },
+    );
+
+    test('shutdown can be disabled independently of startup', () {
+      final result = service.buildSingleTargetSequence(
+        profile: monoProfile,
+        suggestion: fakeSuggestion(id: 1, name: 'M51'),
+        windowStart: DateTime(2026, 5, 17, 22),
+        windowEnd: DateTime(2026, 5, 18, 5),
+        availableFilters: monoProfile.filterNames,
+        includeSessionPreamble: true,
+        includeSessionShutdown: false,
+      );
+      expect(
+        result.sequence.nodes.values.whereType<CoolCameraNode>(),
+        isNotEmpty,
+      );
+      expect(result.sequence.nodes.values.whereType<ParkNode>(), isEmpty);
+      expect(result.sequence.nodes.values.whereType<WarmCameraNode>(), isEmpty);
+    });
+
+    test(
+      'recipe exposures survive generation without collapsing to the floor',
+      () {
+        final result = service.buildSingleTargetSequence(
+          profile: monoProfile,
+          suggestion: fakeSuggestion(id: 1, name: 'M51'),
+          windowStart: DateTime(2026, 5, 17, 22),
+          windowEnd: DateTime(2026, 5, 18, 5),
+          availableFilters: monoProfile.filterNames,
+          settings: const SmartNightSettings(
+            useExposurePresets: true,
+            defaultFrameDurationSecs: {'L': 120, 'R': 180, 'G': 180, 'B': 180},
+          ),
+        );
+        expect(result.filterPlans.map((p) => p.durationSecs), [
+          120,
+          180,
+          180,
+          180,
+        ]);
+        expect(
+          SmartNightSettings.fromJson(
+            const SmartNightSettings(useExposurePresets: true).toJson(),
+          ).useExposurePresets,
+          isTrue,
+        );
+      },
+    );
+
+    test('generated lights carry the selected camera gain and offset', () {
+      for (final filters in [monoProfile.filterNames, <String>[]]) {
+        final result = service.buildSingleTargetSequence(
+          profile: monoProfile,
+          suggestion: fakeSuggestion(id: 1, name: 'M51'),
+          windowStart: DateTime(2026, 5, 17, 22),
+          windowEnd: DateTime(2026, 5, 18, 5),
+          availableFilters: filters,
+        );
+        final nodes = result.sequence.nodes.values;
+        if (filters.isEmpty) {
+          final light = nodes.whereType<ExposureNode>().single;
+          expect(light.gain, 100);
+          expect(light.offset, 50);
+        } else {
+          for (final row in nodes.whereType<SmartExposureNode>().single.plans) {
+            expect(row.gain, 100);
+            expect(row.offset, 50);
+          }
+        }
+      }
     });
 
     test('integration goals merge with budget fill for remaining filters', () {

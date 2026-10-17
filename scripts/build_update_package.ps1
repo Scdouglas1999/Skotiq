@@ -67,17 +67,10 @@ try {
     Write-Host "  Build: $buildNumber" -ForegroundColor Gray
     Write-Host "  Channel: $channel" -ForegroundColor Gray
 
-    # OTA is fail-closed. Two distinct keys are involved:
-    #   * NIGHTSHADE_UPDATE_PRIVATE_KEY signs THIS manifest (below).
-    #   * NIGHTSHADE_UPDATE_PUBLIC_KEY must be embedded in the SHIPPED app
-    #     binary at build time (see scripts/package_windows.ps1) for that
-    #     binary to accept the signed update. A package signed here can only
-    #     be applied by a build that carries the matching public key; an app
-    #     built without it will refuse the update by design.
-    if ([string]::IsNullOrWhiteSpace($env:NIGHTSHADE_UPDATE_PUBLIC_KEY)) {
-        Write-Host "  NOTE: NIGHTSHADE_UPDATE_PUBLIC_KEY is not set in this shell." -ForegroundColor DarkYellow
-        Write-Host "        The packaged app self-updates only if it was built with that key embedded (package_windows.ps1)." -ForegroundColor DarkYellow
-    }
+    # OTA is fail-closed: manifests must be signed by the key trusted by the
+    # installed app. New builds embed the production public key by default;
+    # NIGHTSHADE_UPDATE_PUBLIC_KEY can override it for testing or rotation.
+    # NIGHTSHADE_UPDATE_PRIVATE_KEY supplies the matching signing seed below.
 
     # Build if not skipping
     if (-not $SkipBuild) {

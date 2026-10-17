@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/nightshade_backend.dart';
@@ -23,6 +24,7 @@ final unifiedDiscoveryProvider =
 
 /// Notifier for managing unified device discovery across all backends
 class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
+  static const _discoveryTimeout = Duration(seconds: 45);
   final Ref _ref;
   bool _cancelled = false;
   int _operationGeneration = 0;
@@ -342,6 +344,7 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
       final settings = await _ref.read(appSettingsProvider.future);
 
       List<DeviceInfo> devices = [];
+      final errors = <String>[];
 
       switch (backend) {
         case DriverType.ascom:
@@ -355,14 +358,22 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
           // Discover all device types in PARALLEL for faster discovery
           final typeFutures = DeviceType.values.map((type) async {
             try {
-              final typeDevices = await deviceService.discoverDevices(type);
+              final typeDevices = await deviceService
+                  .discoverDevices(type)
+                  .timeout(_discoveryTimeout);
               if (isRemote) {
                 return typeDevices;
               }
               // Filter to only include devices from this backend
               return typeDevices.where((d) => d.driverType == backend).toList();
+            } on TimeoutException {
+              errors.add(
+                '${type.displayName} discovery timed out after '
+                '${_discoveryTimeout.inSeconds} seconds',
+              );
+              return <DeviceInfo>[];
             } catch (e) {
-              // Log but continue with other types
+              errors.add('${type.displayName} discovery failed: $e');
               return <DeviceInfo>[];
             }
           });
@@ -377,10 +388,9 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
           final indiPort = port ?? settings.indiServerPort;
           if (indiHost.isNotEmpty) {
             try {
-              devices = await deviceService.discoverIndiAtAddress(
-                indiHost,
-                indiPort,
-              );
+              devices = await deviceService
+                  .discoverIndiAtAddress(indiHost, indiPort)
+                  .timeout(_discoveryTimeout);
             } catch (e) {
               return _BackendResult(
                 backend: backend,
@@ -396,10 +406,9 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
           final alpacaPort = port ?? settings.alpacaServerPort;
           if (alpacaHost.isNotEmpty) {
             try {
-              devices = await deviceService.discoverAlpacaAtAddress(
-                alpacaHost,
-                alpacaPort,
-              );
+              devices = await deviceService
+                  .discoverAlpacaAtAddress(alpacaHost, alpacaPort)
+                  .timeout(_discoveryTimeout);
             } catch (e) {
               return _BackendResult(
                 backend: backend,
@@ -411,7 +420,11 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
           break;
       }
 
-      return _BackendResult(backend: backend, devices: devices);
+      return _BackendResult(
+        backend: backend,
+        devices: devices,
+        error: errors.isEmpty ? null : errors.join('; '),
+      );
     } catch (e) {
       return _BackendResult(backend: backend, devices: [], error: e.toString());
     }

@@ -18,6 +18,7 @@ class FramingView extends ConsumerStatefulWidget {
 
   /// Whether mosaic mode is enabled
   final bool showMosaic;
+  final bool showCrosshair;
 
   const FramingView({
     super.key,
@@ -25,6 +26,7 @@ class FramingView extends ConsumerStatefulWidget {
     this.onTargetChanged,
     this.onRotationChanged,
     this.showMosaic = false,
+    this.showCrosshair = false,
   });
 
   @override
@@ -124,12 +126,13 @@ class _FramingViewState extends ConsumerState<FramingView> {
           ),
 
         // Center crosshair
-        Center(
-          child: CustomPaint(
-            painter: _CrosshairPainter(),
-            size: const Size(60, 60),
+        if (widget.showCrosshair)
+          Center(
+            child: CustomPaint(
+              painter: _CrosshairPainter(),
+              size: const Size(60, 60),
+            ),
           ),
-        ),
 
         // Zoom controls
         Positioned(

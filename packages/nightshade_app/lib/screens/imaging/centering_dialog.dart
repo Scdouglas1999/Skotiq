@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'dart:developer' as developer;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:nightshade_core/nightshade_core.dart';
@@ -13,6 +14,7 @@ import '../../utils/authority_bound_dialog.dart';
 import '../../widgets/plate_solver_required_banner.dart';
 
 part 'centering_dialog/image_canvas.dart';
+part 'centering_dialog/presentation.dart';
 
 part 'centering_dialog/section_builders.dart';
 
@@ -21,12 +23,14 @@ class CenteringDialog extends ConsumerStatefulWidget {
   final double? targetRa;
   final double? targetDec;
   final String? targetName;
+  final ValueChanged<CenteringResult?>? onClose;
 
   const CenteringDialog({
     super.key,
     this.targetRa,
     this.targetDec,
     this.targetName,
+    this.onClose,
   });
 
   @override
@@ -35,6 +39,7 @@ class CenteringDialog extends ConsumerStatefulWidget {
 
 class _CenteringDialogState extends ConsumerState<CenteringDialog> {
   bool _isCentering = false;
+  bool _isMinimized = false;
   // Latched while CenteringService.stop() is in flight so the user can't
   // double-click Abort and queue up two abortMountSlew calls.
   bool _abortInFlight = false;
@@ -59,7 +64,11 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
       backendProvider,
       (previous, next) {
         if (previous == null || identical(previous, next) || !mounted) return;
-        closeAuthorityBoundDialog(context);
+        if (widget.onClose != null) {
+          widget.onClose!(null);
+        } else {
+          closeAuthorityBoundDialog(context);
+        }
       },
     );
     final profile = ref.read(activeEquipmentProfileProvider);
@@ -161,19 +170,23 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
   @override
   Widget build(BuildContext context) {
     final centeringStatus = ref.watch(centeringStatusProvider);
+    if (_isMinimized) {
+      return _buildMinimized(centeringStatus, context.nightshadeColors);
+    }
     final currentImage = ref.watch(currentImageProvider);
     final theme = Theme.of(context);
     final colors = context.nightshadeColors;
+    final sideBySide = MediaQuery.sizeOf(context).width >= 760;
 
-    // Block back-button / Escape dismissal mid-run; the only sanctioned exit
-    // while centering is the Abort button, which also stops the service.
+    // Dismissal must not abandon a running operation; minimizing keeps it mounted.
     final isWideLayout = _isCentering ||
         _result != null ||
         centeringStatus.iterationHistory.isNotEmpty;
 
-    return PopScope(
+    final dialog = PopScope(
       canPop: !_isCentering,
       child: Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
         child: ConstrainedBox(
           constraints: Responsive.dialogConstraints(
             context,
@@ -186,7 +199,8 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
             width: double.infinity,
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(
+                MediaQuery.sizeOf(context).width < 600 ? 16 : 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -204,6 +218,7 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
                 if (_solverMissingMessage != null) ...[
                   PlateSolverRequiredBanner(
                     contextMessage: _solverMissingMessage,
+                    onBeforeNavigate: widget.onClose == null ? null : _close,
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -217,14 +232,16 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Left: Image preview
-                        if (currentImage != null &&
+                        if (sideBySide &&
+                            currentImage != null &&
                             (_isCentering || _result != null))
                           Expanded(
                             flex: 1,
                             child:
                                 _buildImagePreview(currentImage, colors, theme),
                           ),
-                        if (currentImage != null &&
+                        if (sideBySide &&
+                            currentImage != null &&
                             (_isCentering || _result != null))
                           const SizedBox(width: 16),
 
@@ -235,6 +252,11 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
+                                if (!sideBySide && currentImage != null) ...[
+                                  _buildImagePreview(
+                                      currentImage, colors, theme),
+                                  const SizedBox(height: 12),
+                                ],
                                 // Coordinates
                                 if (widget.targetRa != null &&
                                     widget.targetDec != null)
@@ -283,8 +305,10 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
                 const SizedBox(height: 16),
 
                 // Action buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
                     if (_isCentering)
                       NightshadeButton(
@@ -297,10 +321,9 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
                     else ...[
                       NightshadeButton(
                         label: 'Close',
-                        onPressed: () => Navigator.of(context).pop(),
+                        onPressed: _close,
                         variant: ButtonVariant.outline,
                       ),
-                      const SizedBox(width: 12),
                       NightshadeButton(
                         label: 'Start centering',
                         icon: NightshadeIcons.target,
@@ -316,6 +339,20 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
         ),
       ),
     );
+    if (widget.onClose == null) return dialog;
+    return Stack(children: [
+      const ModalBarrier(dismissible: false, color: Colors.black54),
+      FocusScope(
+        autofocus: true,
+        child: CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.escape):
+                _isCentering ? _minimize : _close,
+          },
+          child: Focus(autofocus: true, child: dialog),
+        ),
+      ),
+    ]);
   }
 
   Widget _buildStatusSection(CenteringStatus status, NightshadeColors colors) {
@@ -525,7 +562,9 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
         solverConfig: solverConfig,
         config: _buildCenteringConfig(exposureTime, appSettings),
         onStatusUpdate: (status) {
-          ref.read(centeringStatusProvider.notifier).state = status;
+          if (mounted) {
+            ref.read(centeringStatusProvider.notifier).state = status;
+          }
         },
       );
 

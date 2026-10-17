@@ -207,6 +207,8 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     }
 
     final dao = ref.read(equipmentProfilesDaoProvider);
+    final settingsBackend = ref.read(profileSettingsBackendProvider);
+    final logger = ref.read(loggingServiceProvider);
     final dbProfile = await dao.getProfileById(profile.id!);
 
     if (dbProfile == null) {
@@ -250,6 +252,15 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     );
 
     await dao.updateProfile(updated);
+    if (dbProfile.isActive) {
+      await writeActiveProfileThrough(
+        dao: dao,
+        backend: settingsBackend,
+        logger: logger,
+        profileId: profile.id!,
+        strict: true,
+      );
+    }
     ref.invalidateSelf();
     return profile.id!;
   }

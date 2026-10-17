@@ -91,6 +91,7 @@ class HardwarePresetsService {
         preset.brand,
         preset.model,
         ...preset.aliases,
+        for (final alias in preset.aliases) '${preset.brand} $alias',
       ],
     );
   }
@@ -103,7 +104,10 @@ class HardwarePresetsService {
   ///
   /// Returns `null` for an empty/unknown name rather than guessing — a wrong
   /// auto-fill is worse than none.
-  CameraDefaultsPreset? matchCameraByName(String? cameraName) {
+  CameraDefaultsPreset? matchCameraByName(
+    String? cameraName, {
+    bool exactOnly = false,
+  }) {
     if (cameraName == null) return null;
     final normalizedQuery = _normalize(cameraName);
     if (normalizedQuery.isEmpty) return null;
@@ -116,6 +120,8 @@ class HardwarePresetsService {
         if (_normalize(name) == normalizedQuery) return preset;
       }
     }
+
+    if (exactOnly) return null;
 
     // Pass 2: containment in either direction, guarded by a minimum length so
     // short tokens (e.g. a two-character alias) cannot produce spurious hits.
@@ -255,6 +261,7 @@ class HardwarePresetsService {
     preset.displayName,
     preset.model,
     ...preset.aliases,
+    for (final alias in preset.aliases) '${preset.brand} $alias',
   ];
 
   /// Lower-cases and strips every non-alphanumeric character so that

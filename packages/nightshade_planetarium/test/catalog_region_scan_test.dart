@@ -96,6 +96,20 @@ void main() {
     });
   });
 
+  test('GLADE numeric and quoted CSV paths preserve the same fields', () {
+    final plain = GladePlusData.fromCsvLine(
+      ' 341.8338,58.0635,1.2e1,3000,123 ',
+    );
+    final quoted = GladePlusData.fromCsvLine(
+      '"341.8338","58.0635","1.2e1","3000","123"',
+    );
+    expect(plain.ra, quoted.ra);
+    expect(plain.dec, quoted.dec);
+    expect(plain.magnitude, quoted.magnitude);
+    expect(plain.redshift, quoted.redshift);
+    expect(plain.pgc, quoted.pgc);
+  });
+
   group('GladePlusCatalogLoader.searchNearby', () {
     test('keeps only the rows inside the cone', () async {
       final path = await writeGladeCatalog([

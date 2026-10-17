@@ -68,6 +68,27 @@ Future<ProviderContainer> _buildContainer({
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('defers compensation until an existing focuser move finishes', () async {
+    final device = _CapturingDeviceService();
+    final container = await _buildContainer(coefficient: -12, device: device);
+    addTearDown(container.dispose);
+    container.read(focuserTempCompensationProvider);
+    final focuser = container.read(focuserStateProvider.notifier);
+    focuser.setConnecting('focuser-1');
+    focuser.setConnected();
+    focuser.updatePosition(5000);
+    focuser.updateTemperature(15);
+    focuser.setMoving(true);
+    focuser.updateTemperature(14);
+    await Future<void>.delayed(Duration.zero);
+    focuser.updateTemperature(13);
+    await Future<void>.delayed(Duration.zero);
+    expect(device.moves, isEmpty);
+    focuser.setMoving(false);
+    await Future<void>.delayed(Duration.zero);
+    expect(device.moves, [5024]);
+  });
+
   group('FocuserTempCompensator sign convention (matches Rust executor)', () {
     test('negative coefficient + temperature DROP moves focuser OUTWARD '
         '(target > baseline), matching Rust current+delta*coeff', () async {

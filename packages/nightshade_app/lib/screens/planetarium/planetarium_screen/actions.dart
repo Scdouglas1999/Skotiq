@@ -376,14 +376,11 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
 
     // Show centering dialog
     if (mounted) {
-      await showDialog(
+      await showCenteringDialog(
         context: context,
-        barrierDismissible: false,
-        builder: (context) => CenteringDialog(
-          targetRa: coords.ra,
-          targetDec: coords.dec,
-          targetName: objectName,
-        ),
+        targetRa: coords.ra,
+        targetDec: coords.dec,
+        targetName: objectName,
       );
     }
   }

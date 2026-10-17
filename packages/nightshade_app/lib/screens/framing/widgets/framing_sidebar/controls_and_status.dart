@@ -200,7 +200,7 @@ class FramingCoordinatesPanel extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Coordinates',
+                  'Frame center',
                   style: NightshadeTypography.labelStrongSm
                       .copyWith(color: colors.textPrimary),
                 ),

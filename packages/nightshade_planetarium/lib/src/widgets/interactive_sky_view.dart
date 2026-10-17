@@ -51,6 +51,7 @@ class InteractiveSkyView extends ConsumerStatefulWidget {
 
   /// Whether to show the FOV indicator
   final bool showFOV;
+  final bool showCrosshair;
 
   /// Custom FOV rectangle (if not using equipment provider)
   final (double width, double height)? customFOV;
@@ -96,6 +97,7 @@ class InteractiveSkyView extends ConsumerStatefulWidget {
     this.onCoordinateTapped,
     this.onObjectTapped,
     this.showFOV = false,
+    this.showCrosshair = false,
     this.customFOV,
     this.fovCenter,
     this.observedObjectIds = const {},
@@ -662,6 +664,7 @@ class _InteractiveSkyViewState extends ConsumerState<InteractiveSkyView>
                           ),
                           foregroundPainter: widget.showFOV
                               ? _FOVOverlayPainter(
+                                  showCrosshair: widget.showCrosshair,
                                   viewState: viewState,
                                   fovWidth:
                                       widget.customFOV?.$1 ??

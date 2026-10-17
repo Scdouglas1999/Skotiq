@@ -6,9 +6,11 @@ absent the build still succeeds but ships unsigned/fail-closed-disabled. A
 secret that is _present but broken_ fails the build loudly rather than silently
 downgrading.**
 
-None of the signing material is in the repo. The workflow only _reads_ the
-GitHub Actions secrets below; an owner must create them in
-**Settings → Secrets and variables → Actions**.
+Private signing material is kept outside the repo. The workflow reads the
+GitHub Actions secrets below from **Settings → Secrets and variables → Actions**.
+The production OTA key pair was configured there on 2026-10-08. Its public key
+is also built into `UpdateVerifier` for local builds; CI explicitly embeds the
+public-key secret. Keep both public keys matched to the private signing seed.
 
 ## Required secrets
 

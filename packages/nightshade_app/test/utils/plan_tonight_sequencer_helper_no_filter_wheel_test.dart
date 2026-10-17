@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nightshade_app/utils/plan_tonight_sequencer_helper.dart';
+import 'package:nightshade_app/widgets/auto_build_options_dialog.dart';
 import 'package:nightshade_core/nightshade_core.dart';
 import 'package:nightshade_planetarium/nightshade_planetarium.dart'
     show TargetVisibilityInfo;
@@ -73,14 +74,15 @@ TargetSuggestion _suggestion() {
   );
 }
 
-List<Override> _overrides({bool wheelConnected = false}) {
+List<Override> _overrides(
+    {bool wheelConnected = false, List<String> filters = const []}) {
   final goals = _FakeGoalService();
   when(() => goals.progressForTarget(any())).thenAnswer((_) async => const []);
   return [
     inMemoryDatabaseOverride(),
     appSettingsProvider.overrideWith(_ConfiguredSettingsNotifier.new),
     activeEquipmentProfileProvider.overrideWithValue(_oscProfile),
-    effectiveFiltersProvider.overrideWithValue(const <String>[]),
+    effectiveFiltersProvider.overrideWithValue(filters),
     if (wheelConnected)
       filterWheelStateProvider.overrideWith(_SlotlessConnectedWheel.new),
     smartNightExposureContextProvider.overrideWith(
@@ -114,6 +116,62 @@ Future<T> _withRef<T>(
 }
 
 void main() {
+  testWidgets(
+      'framing retains emission subtype and dragged coordinates through generation',
+      (tester) async {
+    final result = await _withRef(
+        tester,
+        _overrides(filters: ['L', 'R', 'G', 'B', 'Ha', 'SII', 'OIII']),
+        (ref) => buildPlanTonightTargetSequenceFromFraming(
+              ref: ref,
+              target: const FramingTarget(
+                  name: 'NGC7380',
+                  raHours: 22.8,
+                  decDegrees: 58.2,
+                  type: TargetType.nebula),
+              sourceSuggestion: _suggestion().copyWith(
+                  targetName: 'NGC7380', objectType: 'Emission Nebula'),
+              rotationDegrees: 37,
+            ));
+    expect(result.strategy, SmartNightStrategy.narrowbandSho);
+    final header =
+        result.sequence.nodes.values.whereType<TargetHeaderNode>().single;
+    expect(header.raHours, 22.8);
+    expect(header.decDegrees, 58.2);
+    expect(header.rotation, 37);
+  });
+
+  testWidgets('nautical-dawn recipe reaches the target and capture block',
+      (tester) async {
+    final result = await _withRef(
+        tester,
+        _overrides(),
+        (ref) => buildPlanTonightTargetSequenceFromSuggestion(
+            ref: ref,
+            target: _suggestion(),
+            options: const AutoBuildOptions(
+                strategy: SmartNightStrategy.oscOneShot,
+                end: AutoBuildEnd.nautical,
+                gain: 139,
+                offset: 21,
+                exposures: {'': 180})));
+    final nodes = result.sequence.nodes.values;
+    final header = nodes.whereType<TargetHeaderNode>().single;
+    final window = SmartNightService(
+            suggestionService:
+                TargetSuggestionService(loggingService: LoggingService()),
+            logging: LoggingService())
+        .calculateWindow(latitudeDeg: 40, longitudeDeg: -75);
+    expect(header.endBefore, window.twilight.nauticalDawn);
+    expect(nodes.whereType<LoopNode>().single.repeatUntil, header.endBefore);
+    final exposure = nodes.whereType<ExposureNode>().single;
+    expect(exposure.durationSecs, 180);
+    expect(exposure.gain, 139);
+    expect(exposure.offset, 21);
+    expect(nodes.whereType<WarmCameraNode>(), hasLength(1));
+    expect(nodes.whereType<ParkNode>(), hasLength(1));
+  });
+
   testWidgets('Plan Tonight builds a sequence on a rig with no filter wheel', (
     tester,
   ) async {

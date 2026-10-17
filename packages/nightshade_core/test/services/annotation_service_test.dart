@@ -53,6 +53,134 @@ void main() {
     registerFallbackValue(0.0);
   });
 
+  for (final outcome in ['complete', 'error', 'host change']) {
+    final deepFails = outcome == 'error';
+    test(
+      'publishes bright objects while deep catalog is pending (outcome: $outcome)',
+      () async {
+        final catalogManager = MockCatalogManager();
+        when(() => catalogManager.isInitialized).thenReturn(true);
+        when(catalogManager.getDsoCatalogStatus).thenAnswer(
+          (_) async => const CatalogStatus(
+            isInstalled: true,
+            installedPath: '/tmp/ngc.csv',
+          ),
+        );
+        when(
+          catalogManager.getStarCatalogStatus,
+        ).thenAnswer((_) async => CatalogStatus.notInstalled());
+        when(catalogManager.getAnnotationCatalogStatus).thenAnswer(
+          (_) async => const CatalogStatus(
+            isInstalled: true,
+            installedPath: '/tmp/glade.csv',
+          ),
+        );
+        when(
+          () => catalogManager.searchDsoNearby(
+            ra: any(named: 'ra'),
+            dec: any(named: 'dec'),
+            radiusDegrees: any(named: 'radiusDegrees'),
+            maxMagnitude: any(named: 'maxMagnitude'),
+          ),
+        ).thenAnswer(
+          (_) async => [
+            const OpenNgcData(
+              name: 'NGC7380',
+              type: 'Cl+N',
+              ra: 10,
+              dec: 20,
+              magnitude: 7.2,
+              constellation: 'Cep',
+            ),
+          ],
+        );
+        final backend = MockNightshadeBackend();
+        stubSolverDetection(backend);
+        when(
+          () => backend.plateSolve(
+            imagePath: any(named: 'imagePath'),
+            ra: any(named: 'ra'),
+            dec: any(named: 'dec'),
+            fovDegrees: any(named: 'fovDegrees'),
+            timeoutSeconds: any(named: 'timeoutSeconds'),
+          ),
+        ).thenAnswer((_) async => _successfulSolve());
+        final container = ProviderContainer(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            backendProvider.overrideWith(
+              (ref) => TestBackendNotifier(ref, backend),
+            ),
+            annotationSettingsProvider.overrideWith(
+              TestAnnotationSettingsNotifier.new,
+            ),
+            annotationServiceProvider.overrideWith(
+              (ref) => AnnotationService(ref, catalogManager: catalogManager),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        final deepCatalog = _PendingAnnotationCatalog();
+        final service = container.read(annotationServiceProvider)
+          ..debugAnnotationCatalogOverride = deepCatalog;
+        final run = service.processNewImage(_image('/tmp/bright-target.fits'));
+        await deepCatalog.started.future.timeout(const Duration(seconds: 2));
+        final partial = container.read(currentAnnotationProvider);
+        final pendingStatus = container.read(annotationStateProvider).status;
+        if (outcome == 'host change') {
+          service.handleBackendChanged(backend, MockNightshadeBackend());
+        }
+        // Release the background query even when the regression assertion fails.
+        if (deepFails) {
+          deepCatalog.result.completeError(
+            StateError('deep catalog unreadable'),
+          );
+        } else {
+          deepCatalog.result.complete([
+            const AnnotationObject(
+              id: 'pgc_123',
+              primaryName: 'PGC 123',
+              ra: 10.0005,
+              dec: 20,
+              type: AnnotationObjectType.galaxy,
+              magnitude: 12,
+              source: 'GLADE+',
+            ),
+          ]);
+        }
+        await run;
+        expect(partial?.objects.map((o) => o.name), contains('NGC7380'));
+        expect(partial!.objects.single.type, ObjectType.starCluster);
+        expect(pendingStatus, AnnotationStatus.searchingCatalogs);
+        if (outcome == 'host change') {
+          expect(container.read(currentAnnotationProvider), isNull);
+          expect(
+            container.read(annotationStateProvider).status,
+            AnnotationStatus.idle,
+          );
+          return;
+        }
+        expect(
+          container.read(currentAnnotationProvider)!.objects.map((o) => o.name),
+          contains('NGC7380'),
+        );
+        expect(
+          container.read(annotationStateProvider).status,
+          deepFails ? AnnotationStatus.error : AnnotationStatus.complete,
+        );
+        if (!deepFails) {
+          expect(
+            container
+                .read(currentAnnotationProvider)!
+                .objects
+                .map((o) => o.name),
+            contains('PGC 123'),
+          );
+        }
+      },
+    );
+  }
+
   test(
     'annotation pipeline surfaces unavailable settings and does no work',
     () async {
@@ -462,24 +590,22 @@ void main() {
       while (solveCalls == 0) {
         await Future<void>.delayed(Duration.zero);
       }
-      await service.processNewImage(_image('/tmp/second.fits'));
-      final newImageState = container.read(annotationStateProvider);
-      expect(newImageState.status, AnnotationStatus.plateSolveFailed);
-
-      firstSolve.complete(_failedSolve('old image failed'));
-      await first;
-
-      final finalState = container.read(annotationStateProvider);
-      expect(finalState.status, newImageState.status);
-      expect(finalState.errorDetails, newImageState.errorDetails);
-      expect(container.read(currentAnnotationProvider), isNull);
-      // ONE backend solve, not two: the annotate path now goes through
-      // PlateSolveService, whose single-flight gate refuses a solve while
-      // another is in flight instead of launching a second solver process
-      // against the same catalog. (The live log showed exactly that — two
-      // ASTAP invocations 45 ms apart over one frame.) The invariant this
-      // test exists for is unchanged: the newer image's state stands.
+      final second = service.processNewImage(_image('/tmp/second.fits'));
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        container.read(annotationStateProvider).status,
+        AnnotationStatus.plateSolving,
+      );
       expect(solveCalls, 1);
+      final latest = service.processNewImage(_image('/tmp/latest.fits'));
+      await Future<void>.delayed(Duration.zero);
+      firstSolve.complete(_failedSolve('old image failed'));
+      await Future.wait([first, second, latest]);
+      final finalState = container.read(annotationStateProvider);
+      expect(finalState.status, AnnotationStatus.plateSolveFailed);
+      expect(finalState.errorDetails, contains('new image failed'));
+      expect(container.read(currentAnnotationProvider), isNull);
+      expect(solveCalls, 2, reason: 'only the newest waiting image is solved');
     },
   );
 
@@ -701,5 +827,23 @@ class _ThrowingAnnotationCatalog extends AnnotationCatalog {
     Set<AnnotationObjectType>? typeFilter,
   }) async {
     throw StateError('annotation catalog read failed');
+  }
+}
+
+class _PendingAnnotationCatalog extends AnnotationCatalog {
+  final started = Completer<void>();
+  final result = Completer<List<AnnotationObject>>();
+  @override
+  bool get isAvailable => true;
+  @override
+  Future<List<AnnotationObject>> searchNearby({
+    required double ra,
+    required double dec,
+    required double radiusDegrees,
+    double? maxMagnitude,
+    Set<AnnotationObjectType>? typeFilter,
+  }) {
+    if (!started.isCompleted) started.complete();
+    return result.future;
   }
 }

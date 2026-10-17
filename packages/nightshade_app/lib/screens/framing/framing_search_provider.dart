@@ -135,6 +135,7 @@ class TargetSearchNotifier extends StateNotifier<TargetSearchState> {
           magnitude: dso.magnitude,
           sizeArcmin: dso.sizeArcMin,
           type: targetType,
+          objectType: dso.type.displayName,
         ));
       }
 

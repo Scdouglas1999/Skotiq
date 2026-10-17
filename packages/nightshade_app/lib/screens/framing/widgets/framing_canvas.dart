@@ -32,7 +32,7 @@ part 'framing_canvas_parts/_canvas_controls.dart';
 /// image (or starfield fallback), optional grid, equipment FOV overlays, the
 /// mosaic grid, and the on-canvas controls (top chips, zoom, scale, target
 /// info, error banner).
-class FramingCanvas extends StatefulWidget {
+class FramingCanvas extends ConsumerStatefulWidget {
   final NightshadeColors colors;
   final FramingState framingState;
   final FramingEquipmentResult? equipmentResult;
@@ -68,10 +68,10 @@ class FramingCanvas extends StatefulWidget {
   });
 
   @override
-  State<FramingCanvas> createState() => _FramingCanvasState();
+  ConsumerState<FramingCanvas> createState() => _FramingCanvasState();
 }
 
-class _FramingCanvasState extends State<FramingCanvas> {
+class _FramingCanvasState extends ConsumerState<FramingCanvas> {
   bool _isDragging = false;
   bool _isRotating = false;
 
@@ -654,12 +654,13 @@ class _FramingCanvasState extends State<FramingCanvas> {
               }(),
 
               // Crosshairs
-              Center(
-                child: CustomPaint(
-                  painter: FramingCrosshairPainter(colors: widget.colors),
-                  size: const Size(100, 100),
+              if (ref.watch(imagingViewerStateProvider).showCrosshair)
+                Center(
+                  child: CustomPaint(
+                    painter: FramingCrosshairPainter(colors: widget.colors),
+                    size: const Size(100, 100),
+                  ),
                 ),
-              ),
 
               // Top chrome — ONE flow, not three hard-coded offsets.
               //

@@ -130,6 +130,12 @@ class FocuserTempCompensator {
       _ref.read(focuserTempCompensationBaselineProvider.notifier).state = null;
       return;
     }
+    if (_moveInFlight ||
+        next.isMoving ||
+        _ref.read(deviceServiceProvider).isAutofocusRunning) {
+      // Re-evaluate when the focuser reports idle; moving is not a fault.
+      return;
+    }
     final temperature = next.temperature;
     final position = next.position;
     if (temperature == null || position == null) {
@@ -180,12 +186,6 @@ class FocuserTempCompensator {
             '($targetPosition); skipping move.',
             source: 'FocuserTempCompensator',
           );
-      return;
-    }
-
-    if (_moveInFlight) {
-      // A previous move is still settling; we'll re-evaluate on the next
-      // temperature tick.
       return;
     }
 

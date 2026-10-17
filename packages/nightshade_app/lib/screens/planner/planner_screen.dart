@@ -20,6 +20,8 @@ import '../../localization/nightshade_localizations.dart';
 import '../../utils/authority_bound_dialog.dart';
 import '../../utils/darkroom_navigation.dart' show unavailableControlName;
 import '../../utils/plan_tonight_sequencer_helper.dart';
+import '../../widgets/auto_build_options_dialog.dart';
+import '../imaging/widgets/camera_panel.dart';
 import 'widgets/planning_risks_banner.dart';
 import 'widgets/progress_tab_content.dart';
 import 'widgets/projects_tab_content.dart';
@@ -326,7 +328,31 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                 icon: LucideIcons.compass,
                 title: l10n.text('plannerTitleShort'),
                 tabs: tabBar,
-                actions: const [_PlanNightChips()],
+                actions: [
+                  if (MediaQuery.sizeOf(context).width >= 1000)
+                    const _PlanNightChips(),
+                  NightshadeButton(
+                    label: MediaQuery.sizeOf(context).width < 1000
+                        ? 'Camera'
+                        : 'Camera / cooling',
+                    icon: NightshadeIcons.frost,
+                    variant: ButtonVariant.secondary,
+                    onPressed: () => showDialog<void>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                              title: const Text('Camera / cooling'),
+                              content: SizedBox(
+                                  width: 420,
+                                  height: 500,
+                                  child: CameraPanel(colors: colors)),
+                              actions: [
+                                NightshadeButton(
+                                    label: 'Done',
+                                    onPressed: () => Navigator.pop(context))
+                              ],
+                            )),
+                  ),
+                ],
               ),
             Expanded(
               child: IndexedStack(

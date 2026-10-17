@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -53,6 +54,50 @@ void main() {
       ],
     );
   }
+
+  test('a hung camera scan ends with an error and retains other devices', () {
+    fakeAsync((async) {
+      final service = _MockDeviceService();
+      final cameraResult = Completer<List<DeviceInfo>>();
+      const mount = DeviceInfo(
+        id: 'mount',
+        name: 'Mount',
+        deviceType: DeviceType.mount,
+        driverType: DriverType.native,
+        description: '',
+        driverVersion: '',
+      );
+      when(() => service.discoverDevices(any())).thenAnswer((invocation) {
+        final type = invocation.positionalArguments.single as DeviceType;
+        return type == DeviceType.camera
+            ? cameraResult.future
+            : Future.value(type == DeviceType.mount ? [mount] : []);
+      });
+      final container = createContainer(
+        backend: _MockNetworkBackend(),
+        service: service,
+      );
+      addTearDown(container.dispose);
+      var completed = false;
+      container.read(unifiedDiscoveryProvider.notifier).discoverAll().then((_) {
+        completed = true;
+      });
+      async.flushMicrotasks();
+      async.elapse(const Duration(seconds: 46));
+      expect(completed, isTrue);
+      final state = container.read(unifiedDiscoveryProvider);
+      expect(state.isDiscovering, isFalse);
+      expect(state.rawDevices.map((d) => d.id), ['mount']);
+      expect(state.backendStates.values.single.error, contains('Camera'));
+      expect(state.backendStates.values.single.error, contains('timed out'));
+      cameraResult.complete([_device('late-camera')]);
+      async.flushMicrotasks();
+      expect(
+        container.read(unifiedDiscoveryProvider).rawDevices.map((d) => d.id),
+        ['mount'],
+      );
+    });
+  });
 
   test('a slower older scan cannot overwrite the latest scan', () async {
     final service = _MockDeviceService();

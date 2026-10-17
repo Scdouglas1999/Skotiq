@@ -193,7 +193,7 @@ class _FramingActionRailState extends ConsumerState<FramingActionRail> {
               statusValue: hasTarget ? 'Resolved' : 'None',
               colors: colors,
               child: hasTarget
-                  ? _TargetSummary(colors: colors, target: target)
+                  ? _TargetSummary(colors: colors, target: aimTarget!)
                   : const EmptyState.compact(
                       icon: NightshadeIcons.target,
                       title: 'No target selected',

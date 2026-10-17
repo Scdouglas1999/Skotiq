@@ -52,7 +52,10 @@ class SlewDropdownButton extends ConsumerStatefulWidget {
   /// Optional icon to display.
   final IconData? icon;
 
-  /// Optional custom label. Defaults to "Slew".
+  /// Mode executed by the main button.
+  final SlewMode defaultMode;
+
+  /// Optional custom label. Defaults to the selected mode’s label.
   final String? label;
 
   const SlewDropdownButton({
@@ -65,6 +68,7 @@ class SlewDropdownButton extends ConsumerStatefulWidget {
     this.variant = ButtonVariant.primary,
     this.icon,
     this.label,
+    this.defaultMode = SlewMode.slew,
   });
 
   @override
@@ -111,8 +115,14 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     // Determine if slew+center+rotate option should be shown
     final showRotateOption = hasRotator && widget.targetRotation != null;
 
-    final visibleLabel =
-        _operationInFlight ? 'Working...' : (widget.label ?? 'Slew');
+    final visibleLabel = _operationInFlight
+        ? 'Working...'
+        : widget.label ??
+            switch (widget.defaultMode) {
+              SlewMode.slew => 'Slew',
+              SlewMode.slewAndCenter => 'Slew & Center',
+              SlewMode.slewCenterRotate => 'Slew, Center & Rotate',
+            };
 
     // The filled half runs the default action; the chevron opens alternatives.
     return Row(
@@ -125,7 +135,8 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
             label: visibleLabel,
             icon: widget.icon ?? LucideIcons.move,
             variant: widget.variant,
-            onPressed: enabled ? () => _handleSlewMode(SlewMode.slew) : null,
+            onPressed:
+                enabled ? () => _handleSlewMode(widget.defaultMode) : null,
           ),
         ),
         const SizedBox(width: 4),
@@ -182,12 +193,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
                   ),
                 ),
             ],
-            // The chevron is its own control now and it is the ONLY route to
-            // Slew & Center / Slew, Center & Rotate, so it gets the design
-            // system's touch minimum rather than a glyph-sized hit box.
-            // Padding to 28x36 (the first attempt) still missed
-            // [NightshadeTokens.minTouchTarget] in both axes. The row is
-            // already 48 tall from the primary half, so the height is free.
+            // Keep the alternatives menu large enough for touch input.
             child: ConstrainedBox(
               constraints: const BoxConstraints(
                 minWidth: NightshadeTokens.minTouchTarget,
@@ -280,14 +286,11 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     // Wait for slew to complete, then show centering dialog
     // The centering dialog handles the plate solve loop
     if (!mounted) return;
-    await showDialog(
+    await showCenteringDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => CenteringDialog(
-        targetRa: widget.ra,
-        targetDec: widget.dec,
-        targetName: widget.targetName ?? 'Target',
-      ),
+      targetRa: widget.ra,
+      targetDec: widget.dec,
+      targetName: widget.targetName ?? 'Target',
     );
   }
 

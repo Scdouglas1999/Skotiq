@@ -340,6 +340,25 @@ class _FramingViewState extends ConsumerState<FramingView> {
     final panels = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        FramingActionsPanel(
+          colors: colors,
+          framingState: framingState,
+          // Both add-to-sequence paths capture a POINTING: the emitted target
+          // headers must carry the aim (the dragged reticle position), not the
+          // view-center target. effectiveAimTarget is non-null here because
+          // the buttons are gated on framingState.target != null.
+          onAddToSequence: () => _addToSequence(
+            framingState.effectiveAimTarget!,
+            framingState.rotation,
+          ),
+          onAddToExistingSequence: () => _addToExistingSequence(
+            framingState.effectiveAimTarget!,
+            framingState.rotation,
+          ),
+          onSaveTarget: _saveTarget,
+          onCacheImage: _cacheImage,
+        ),
+        SizedBox(height: sectionGap),
         FramingEquipmentSection(
           colors: colors,
           equipmentAsync: equipmentResult,
@@ -368,24 +387,6 @@ class _FramingViewState extends ConsumerState<FramingView> {
           equipmentAsync: equipmentResult,
         ),
         SizedBox(height: sectionGap),
-        FramingActionsPanel(
-          colors: colors,
-          framingState: framingState,
-          // Both add-to-sequence paths capture a POINTING: the emitted target
-          // headers must carry the aim (the dragged reticle position), not the
-          // view-center target. effectiveAimTarget is non-null here because
-          // the buttons are gated on framingState.target != null.
-          onAddToSequence: () => _addToSequence(
-            framingState.effectiveAimTarget!,
-            framingState.rotation,
-          ),
-          onAddToExistingSequence: () => _addToExistingSequence(
-            framingState.effectiveAimTarget!,
-            framingState.rotation,
-          ),
-          onSaveTarget: _saveTarget,
-          onCacheImage: _cacheImage,
-        ),
       ],
     );
 
@@ -473,11 +474,12 @@ class _FramingViewState extends ConsumerState<FramingView> {
       context: context,
       ref: ref,
       target: target,
+      replaceSequence: true,
       sourceSuggestion: framingState.sourceSuggestion,
       rotationDegrees: rotation,
     );
     if (added && mounted) {
-      context.showInfoSnackBar('Added ${target.name} to sequence');
+      context.go('/sequencer');
     }
   }
 

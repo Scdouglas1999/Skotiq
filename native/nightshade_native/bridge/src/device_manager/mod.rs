@@ -133,13 +133,15 @@ impl HeartbeatConfig {
         self
     }
 
-    /// Create config optimized for cameras (less frequent during long exposures)
+    /// Camera liveness checks keep a fixed cadence after failures.
     pub fn for_camera() -> Self {
         Self {
             base_interval_secs: 10,
             max_interval_secs: 60,
             failure_threshold: 3,
-            backoff_multiplier: 2.0,
+            // Three failed polls already debounce transient errors; backing off
+            // adds another 40 seconds before confirming a lost camera.
+            backoff_multiplier: 1.0,
             auto_reconnect: false,
             max_reconnect_attempts: 3,
             reconnect_delay_secs: 10,

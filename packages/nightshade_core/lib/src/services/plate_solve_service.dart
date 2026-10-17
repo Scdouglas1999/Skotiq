@@ -122,6 +122,7 @@ class PlateSolveService {
   final NightshadeBackend _backend;
   final StateController<PlateSolveState> _stateController;
   bool _solveInFlight = false;
+  Completer<void>? _solveFinished;
   bool _retired = false;
 
   PlateSolveService(this._ref, {NightshadeBackend? backend})
@@ -165,24 +166,30 @@ class PlateSolveService {
     }
 
     _solveInFlight = true;
-    _ref.read(plateSolveStateProvider.notifier).state = _ref
-        .read(plateSolveStateProvider)
-        .copyWith(isSolving: true, currentImage: imagePath);
-
+    final finished = _solveFinished = Completer<void>();
     try {
+      _ref.read(plateSolveStateProvider.notifier).state = _ref
+          .read(plateSolveStateProvider)
+          .copyWith(isSolving: true, currentImage: imagePath);
       final result = await operation();
       if (_hasAuthority) _announceSolveResult(imagePath, result);
       return result;
     } finally {
       // Detection/configuration/backend errors can throw before a result
       // exists. Always release both the UI state and the process-local gate.
-      final state = _ref.read(plateSolveStateProvider);
-      if (_hasAuthority && state.isSolving) {
-        _ref.read(plateSolveStateProvider.notifier).state = state.copyWith(
-          isSolving: false,
-        );
+      try {
+        if (_hasAuthority) {
+          final state = _ref.read(plateSolveStateProvider);
+          if (state.isSolving) {
+            _ref.read(plateSolveStateProvider.notifier).state = state.copyWith(
+              isSolving: false,
+            );
+          }
+        }
+      } finally {
+        _solveInFlight = false;
+        finished.complete();
       }
-      _solveInFlight = false;
     }
   }
 
@@ -712,6 +719,27 @@ class PlateSolveService {
         }
         return;
     }
+  }
+
+  /// Background annotations wait for interactive solves and keep only the
+  /// current frame. File paths alone cannot identify an image: live-view FITS
+  /// files are reused, so an older result must not be reused by path.
+  Future<PlateSolveResult?> solveForAnnotation({
+    required String imagePath,
+    required bool Function() isCurrent,
+    double? hintRaHours,
+    double? hintDecDegrees,
+  }) async {
+    while (_solveInFlight) {
+      await _solveFinished!.future;
+      if (!_hasAuthority || !isCurrent()) return null;
+    }
+    if (!_hasAuthority || !isCurrent()) return null;
+    return solveWithFallback(
+      imagePath: imagePath,
+      hintRaHours: hintRaHours,
+      hintDecDegrees: hintDecDegrees,
+    );
   }
 
   /// Solve `imagePath` honouring the user's `PlateSolverChoice`.

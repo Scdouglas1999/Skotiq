@@ -74,6 +74,67 @@ void main() {
     await db.close();
   });
 
+  for (final entry in ['profile editor', 'optics service']) {
+    for (final active in [true, false]) {
+      test(
+        'optics edits through $entry sync only active profiles (active=$active)',
+        () async {
+          final backend = _MockFfiBackend();
+          when(
+            () => backend.eventStream,
+          ).thenAnswer((_) => const Stream<NightshadeEvent>.empty());
+          when(() => backend.saveProfile(any())).thenAnswer((_) async {});
+          when(() => backend.loadProfile(any())).thenAnswer((_) async {});
+          final container = ProviderContainer(
+            overrides: [
+              databaseProvider.overrideWithValue(db),
+              backendProvider.overrideWith(
+                (ref) => _FixedBackendNotifier(ref, backend),
+              ),
+            ],
+          );
+          addTearDown(container.dispose);
+          final dao = container.read(equipmentProfilesDaoProvider);
+          if (!active) {
+            await dao.createProfile(
+              const EquipmentProfileModel(name: 'Current').toCompanion(),
+            );
+          }
+          final id = await dao.createProfile(
+            const EquipmentProfileModel(name: 'Imaging').toCompanion(),
+          );
+          await container.read(equipmentProfilesProvider.future);
+          if (entry == 'profile editor') {
+            final row = await dao.getProfileById(id);
+            await container
+                .read(equipmentProfilesProvider.notifier)
+                .updateProfile(
+                  EquipmentProfileModel.fromDatabase(
+                    row!,
+                  ).copyWith(focalLength: 1000),
+                );
+          } else {
+            await container
+                .read(profileServiceProvider)
+                .updateProfileOptics(id, focalLength: 1000);
+          }
+          expect((await dao.getProfileById(id))!.focalLength, 1000);
+          if (active) {
+            final saved =
+                verify(() => backend.saveProfile(captureAny())).captured.single
+                    as remote_profile.EquipmentProfile;
+            expect(saved.focalLength, 1000);
+            verify(() => backend.loadProfile(id.toString())).called(1);
+          } else {
+            verifyNever(() => backend.saveProfile(any()));
+            verifyNever(() => backend.loadProfile(any()));
+            expect((await dao.getActiveProfile())!.id, isNot(id));
+          }
+        },
+      );
+    }
+  }
+
   test('local setActiveProfile write-throughs the new active row to the native '
       'backend (save + load) before SQLite flips', () async {
     final backend = _MockFfiBackend();

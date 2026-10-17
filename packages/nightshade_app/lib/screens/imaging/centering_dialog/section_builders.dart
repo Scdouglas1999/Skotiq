@@ -33,8 +33,12 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
             ],
           ),
         ),
-        // The footer Abort/Close owns dismissal. No header X: as the only exit
-        // it is disabled mid-run, which traps the user.
+        if (widget.onClose != null)
+          IconButton(
+            tooltip: 'Minimize centering',
+            icon: const Icon(LucideIcons.minus),
+            onPressed: _minimize,
+          ),
       ],
     );
   }
@@ -74,11 +78,25 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
             ),
 
             // Crosshair overlay
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _CrosshairPainter(
-                  color: colors.accent.withValues(alpha: 0.5),
+            if (ref.watch(imagingViewerStateProvider).showCrosshair)
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _CrosshairPainter(
+                    color: colors.accent.withValues(alpha: 0.5),
+                  ),
                 ),
+              ),
+
+            Positioned(
+              right: 8,
+              top: 8,
+              child: NightshadeIconButton(
+                icon: NightshadeIcons.crosshair,
+                tooltip: 'Crosshair',
+                selected: ref.watch(imagingViewerStateProvider).showCrosshair,
+                onPressed: () => ref
+                    .read(imagingViewerStateProvider.notifier)
+                    .toggleCrosshair(),
               ),
             ),
 
@@ -110,60 +128,42 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
 
   Widget _buildCoordinatesCompact(
       CenteringStatus status, NightshadeColors colors, ThemeData theme) {
+    Widget pair(String prefix, double ra, double dec) => LayoutBuilder(
+          builder: (context, constraints) {
+            final items = [
+              _buildCoordInfo(
+                  '$prefix RA', _formatRa(ra), NightshadeIcons.compass, colors),
+              _buildCoordInfo('$prefix Dec', _formatDec(dec),
+                  LucideIcons.moveVertical, colors),
+            ];
+            if (constraints.maxWidth < 360) {
+              return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    items[0],
+                    const SizedBox(height: 8),
+                    items[1],
+                  ]);
+            }
+            return Row(children: [
+              Expanded(child: items[0]),
+              const SizedBox(width: 12),
+              Expanded(child: items[1]),
+            ]);
+          },
+        );
     return NightshadeCard(
       padding: const EdgeInsets.all(12),
       borderRadius: NightshadeTokens.radiusInline8,
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _buildCoordInfo(
-                  'Target RA',
-                  _formatRa(widget.targetRa!),
-                  NightshadeIcons.compass,
-                  colors,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildCoordInfo(
-                  'Target Dec',
-                  _formatDec(widget.targetDec!),
-                  LucideIcons.moveVertical,
-                  colors,
-                ),
-              ),
-            ],
-          ),
-          if (status.solvedRa != null && status.solvedDec != null) ...[
-            const SizedBox(height: 8),
-            Divider(height: 1, color: colors.border),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildCoordInfo(
-                    'Solved RA',
-                    _formatRa(status.solvedRa!),
-                    NightshadeIcons.sparkle,
-                    colors,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildCoordInfo(
-                    'Solved Dec',
-                    _formatDec(status.solvedDec!),
-                    NightshadeIcons.sparkle,
-                    colors,
-                  ),
-                ),
-              ],
-            ),
-          ],
+      child: Column(children: [
+        pair('Target', widget.targetRa!, widget.targetDec!),
+        if (status.solvedRa != null && status.solvedDec != null) ...[
+          const SizedBox(height: 8),
+          Divider(height: 1, color: colors.border),
+          const SizedBox(height: 8),
+          pair('Solved', status.solvedRa!, status.solvedDec!),
         ],
-      ),
+      ]),
     );
   }
 
@@ -175,72 +175,78 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Icon(NightshadeIcons.camera,
-                  size: 16, color: colors.textSecondary),
-              const SizedBox(width: 8),
-              Text(
-                'Solve exposure:',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colors.textSecondary,
-                ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 80,
-                height: 32,
-                child: TextField(
-                  controller: _exposureController,
-                  enabled: !_isCentering,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  textAlign: TextAlign.center,
-                  // Clear a stale validation error the moment the user starts
-                  // fixing the field, so the entry stays live and editable.
-                  onChanged: (_) {
-                    if (_exposureError != null) {
-                      setState(() => _exposureError = null);
-                    }
-                  },
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(NightshadeIcons.camera,
+                    size: 16, color: colors.textSecondary),
+                const SizedBox(width: 8),
+                Text(
+                  'Solve exposure:',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: colors.textPrimary,
-                    fontFeatures: [const FontFeature.tabularFigures()],
-                  ),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(NightshadeTokens.radiusMd),
-                      borderSide: BorderSide(color: colors.border),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(NightshadeTokens.radiusMd),
-                      borderSide: BorderSide(
-                          color: hasError ? colors.error : colors.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(NightshadeTokens.radiusMd),
-                      borderSide: BorderSide(
-                          color: hasError ? colors.error : colors.accent),
-                    ),
-                    filled: true,
-                    fillColor: colors.surface,
+                    color: colors.textSecondary,
                   ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                's',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colors.textMuted,
+              ]),
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                SizedBox(
+                  width: 80,
+                  height: 32,
+                  child: TextField(
+                    controller: _exposureController,
+                    enabled: !_isCentering,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    textAlign: TextAlign.center,
+                    // Clear a stale validation error the moment the user starts
+                    // fixing the field, so the entry stays live and editable.
+                    onChanged: (_) {
+                      if (_exposureError != null) {
+                        setState(() => _exposureError = null);
+                      }
+                    },
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                      fontFeatures: [const FontFeature.tabularFigures()],
+                    ),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 6),
+                      border: OutlineInputBorder(
+                        borderRadius:
+                            BorderRadius.circular(NightshadeTokens.radiusMd),
+                        borderSide: BorderSide(color: colors.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius:
+                            BorderRadius.circular(NightshadeTokens.radiusMd),
+                        borderSide: BorderSide(
+                            color: hasError ? colors.error : colors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius:
+                            BorderRadius.circular(NightshadeTokens.radiusMd),
+                        borderSide: BorderSide(
+                            color: hasError ? colors.error : colors.accent),
+                      ),
+                      filled: true,
+                      fillColor: colors.surface,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 4),
+                Text(
+                  's',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colors.textMuted,
+                  ),
+                ),
+              ]),
             ],
           ),
           if (hasError) ...[
@@ -277,26 +283,30 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
       children: [
         Icon(icon, size: 14, color: colors.accent),
         const SizedBox(width: 6),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontSize: NightshadeTypography.fontSize10,
-                color: colors.textSecondary,
-              ),
-            ),
-            Text(
-              value,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
-                fontFeatures: [const FontFeature.tabularFigures()],
-              ),
-            ),
-          ],
-        ),
+        Flexible(
+            child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontSize: NightshadeTypography.fontSize10,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      value,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: colors.textPrimary,
+                        fontFeatures: [const FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                ))),
       ],
     );
   }

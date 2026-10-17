@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nightshade_core/src/models/plate_solver.dart';
 import 'package:nightshade_core/src/models/sequence/sequence_models.dart';
 import 'package:nightshade_core/src/providers/plate_solver_provider.dart';
+import 'package:nightshade_core/src/providers/profiles_provider.dart';
 import 'package:nightshade_core/src/providers/sequence/rules/plate_solver_rules.dart';
 import 'package:nightshade_core/src/providers/sequence/sequence_validation.dart';
 
@@ -74,6 +75,35 @@ Future<List<ValidationIssue>> _run(
 }
 
 void main() {
+  for (final focal in [0.0, double.nan, double.infinity, 1000.0]) {
+    test('centering discloses missing or invalid focal length ($focal)', () {
+      final container = ProviderContainer(
+        overrides: [
+          activeEquipmentProfileProvider.overrideWithValue(
+            EquipmentProfileModel(name: 'Imaging', focalLength: focal),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final issues = PlateSolveFocalLengthRule().validate(
+        _centringSequence(),
+        ValidationContext(container.read(_probeProvider)),
+      );
+      if (focal.isFinite && focal > 0) {
+        expect(issues, isEmpty);
+      } else {
+        expect(issues.single.severity, ValidationSeverity.warning);
+      }
+      expect(
+        PlateSolveFocalLengthRule().validate(
+          _centringSequence(enabled: false),
+          ValidationContext(container.read(_probeProvider)),
+        ),
+        isEmpty,
+      );
+    });
+  }
+
   test(
     'a centring sequence with no solver is an ERROR, not a warning',
     () async {

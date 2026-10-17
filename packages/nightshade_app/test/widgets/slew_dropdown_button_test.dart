@@ -135,6 +135,28 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets('centering as the primary mode runs the camera preflight',
+      (tester) async {
+    _ControlledMountService? service;
+    await pumpAppScreen(
+      tester,
+      const SizedBox(
+          width: 280,
+          child: SlewDropdownButton(
+              ra: 12, dec: 30, defaultMode: SlewMode.slewAndCenter)),
+      extraOverrides: [
+        mountStateProvider.overrideWith(_ConnectedMountNotifier.new),
+        mountCommandServiceProvider
+            .overrideWith((ref) => service = _ControlledMountService(ref)),
+      ],
+    );
+    await tester.tap(find.widgetWithText(NightshadeButton, 'Slew & Center'));
+    await tester.pumpAndSettle();
+    expect(find.text('Connect an imaging camera before using Slew & Center.'),
+        findsOneWidget);
+    expect(service, isNull);
+  });
+
   testWidgets('the chevron half meets the design system touch minimum',
       (tester) async {
     await tester.pumpWidget(_harness(mountConnected: true));

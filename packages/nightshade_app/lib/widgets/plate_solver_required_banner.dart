@@ -22,15 +22,19 @@ class PlateSolverRequiredBanner extends StatelessWidget {
   /// Hide the call-to-action button when the parent already provides a
   /// "Configure" path of its own. Defaults to `false`.
   final bool showActionButton;
+  final VoidCallback? onBeforeNavigate;
 
   const PlateSolverRequiredBanner({
     super.key,
     this.contextMessage,
     this.showActionButton = true,
+    this.onBeforeNavigate,
   });
 
   void _navigateToSettings(BuildContext context) {
-    context.push('/settings/plate-solving');
+    final router = GoRouter.of(context);
+    onBeforeNavigate?.call();
+    router.push('/settings/plate-solving');
   }
 
   @override

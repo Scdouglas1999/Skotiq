@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:nightshade_core/nightshade_core.dart' hide HorizonProfile;
+import 'package:nightshade_core/src/providers/settings_provider.dart'
+    show HorizonProfile;
 import 'package:nightshade_core/src/database/database.dart'
     show Target, ImagingSession;
 
@@ -71,6 +75,94 @@ void main() {
         status: 'completed',
       );
     }
+
+    test('catalog scoring keeps the UI event loop responsive', () async {
+      final targets = List.generate(
+        3716,
+        (i) => createTarget(
+          id: i + 1,
+          name: 'Catalog $i',
+          ra: (i % 240) / 10,
+          dec: (i % 150) - 70.0,
+          objectType: 'Galaxy',
+          sizeArcmin: 10,
+        ),
+      );
+      final clock = Stopwatch()..start();
+      var lastTick = Duration.zero;
+      var longestGap = Duration.zero;
+      var ticks = 0;
+      void recordTick() {
+        final now = clock.elapsed;
+        final gap = now - lastTick;
+        if (gap > longestGap) longestGap = gap;
+        lastTick = now;
+        ticks++;
+      }
+
+      final heartbeat = Timer.periodic(
+        const Duration(milliseconds: 10),
+        (_) => recordTick(),
+      );
+      try {
+        await service.getSuggestionsForTonight(
+          config: const TargetSuggestionConfig(),
+          latitude: 39.97,
+          longitude: -75.36,
+          targets: targets,
+          sessions: [],
+          observationTime: DateTime.utc(2026, 10, 7, 22),
+        );
+        final deliveredTicks = ticks;
+        recordTick();
+        printOnFailure(
+          'Scored ${targets.length} targets in ${clock.elapsedMilliseconds}ms; '
+          'UI heartbeats: $deliveredTicks; longest stall: ${longestGap.inMilliseconds}ms',
+        );
+        expect(
+          longestGap,
+          lessThan(const Duration(milliseconds: 250)),
+          reason:
+              'Target scoring must not freeze rendering and input while loading the catalog',
+        );
+        expect(deliveredTicks, greaterThan(0));
+      } finally {
+        heartbeat.cancel();
+      }
+    });
+
+    test('background scoring respects an imported horizon profile', () async {
+      final targets = [
+        createTarget(
+          id: 1,
+          name: 'NGC7380',
+          ra: 22.78,
+          dec: 58.1,
+          objectType: 'Emission Nebula',
+          sizeArcmin: 25,
+        ),
+      ];
+      Future<List<TargetSuggestion>> score(HorizonProfile? horizon) =>
+          service.getSuggestionsForTonight(
+            config: const TargetSuggestionConfig(minAltitude: 0, minScore: 0),
+            latitude: 39.97,
+            longitude: -75.36,
+            targets: targets,
+            sessions: [],
+            observationTime: DateTime.utc(2026, 10, 7, 22),
+            horizonProfile: horizon,
+          );
+      expect(await score(null), isNotEmpty);
+      expect(
+        await score(
+          HorizonProfile.fromSamples(const [
+            (azimuth: 0, altitude: 89),
+            (azimuth: 180, altitude: 89),
+          ]),
+        ),
+        isEmpty,
+      );
+    });
 
     group('getSuggestionsForTonight', () {
       // A sizeless star otherwise takes tonight's #1 imaging pick: "gam Cyg /

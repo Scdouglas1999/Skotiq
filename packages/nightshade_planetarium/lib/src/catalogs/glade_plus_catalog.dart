@@ -45,6 +45,9 @@ class GladePlusData {
   }
 
   static List<String> _parseCsvLine(String line) {
+    // Downloaded GLADE+ rows are numeric and normally have no quoted cells.
+    // Avoid allocating a StringBuffer and a one-character String per byte.
+    if (!line.contains('"')) return line.split(',');
     final result = <String>[];
     var inQuotes = false;
     var current = StringBuffer();

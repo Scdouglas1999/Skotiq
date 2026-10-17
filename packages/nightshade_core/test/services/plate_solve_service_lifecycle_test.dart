@@ -173,6 +173,10 @@ void main() {
       );
       expect(container.read(plateSolveStateProvider).isSolving, isTrue);
 
+      final queuedAnnotation = serviceA.solveForAnnotation(
+        imagePath: '/tmp/annotation-old-host.fits',
+        isCurrent: () => true,
+      );
       backendNotifier.replaceBackend(backendB);
       final serviceB = container.read(plateSolveServiceProvider);
       expect(serviceB, isNot(same(serviceA)));
@@ -180,6 +184,7 @@ void main() {
 
       result.complete(_solveResult());
       expect((await solve).success, isTrue);
+      expect(await queuedAnnotation, isNull);
       expect(container.read(plateSolveStateProvider).lastResult, isNull);
     },
   );

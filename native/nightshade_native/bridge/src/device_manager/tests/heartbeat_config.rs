@@ -21,6 +21,8 @@ fn test_heartbeat_config_default() {
 fn test_heartbeat_config_for_camera() {
     let config = HeartbeatConfig::for_camera();
     assert_eq!(config.base_interval_secs, 10);
+    // Failed probes must not delay the next check by 20 then 40 seconds.
+    assert_eq!(config.backoff_multiplier, 1.0);
     assert_eq!(config.failure_threshold, 3);
     assert!(!config.auto_reconnect);
 }

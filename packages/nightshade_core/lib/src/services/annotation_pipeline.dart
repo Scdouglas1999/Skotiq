@@ -173,11 +173,12 @@ extension AnnotationPipeline on AnnotationService {
       // could run ASTAP on the same frame concurrently), and — the reason a
       // failed annotate solve left no trace anywhere — the one log line that
       // records a solve's outcome.
-      final PlateSolveResult result;
+      final PlateSolveResult? result;
       try {
         result = await _ref
             .read(plateSolveServiceProvider)
-            .solveWithFallback(
+            .solveForAnnotation(
+              isCurrent: isCurrent,
               imagePath: image.filePath!,
               hintRaHours: hintRaHours,
               hintDecDegrees: hintDec,
@@ -189,7 +190,7 @@ extension AnnotationPipeline on AnnotationService {
             AnnotationState.plateSolveFailed(e.message);
         return;
       }
-      if (!isCurrent()) return;
+      if (!isCurrent() || result == null) return;
 
       if (!result.success) {
         final detailedReason = _describePlateSolveFailure(result.error);
@@ -324,6 +325,16 @@ extension AnnotationPipeline on AnnotationService {
         includeStars: includeStars && hasStarCatalog,
         minMagnitude: effectiveMagnitudeLimit,
         snrBasedMagnitudeCutoff: effectiveMagnitudeLimit,
+        onPartialResult: (partial) {
+          if (!isCurrent()) return;
+          _ref.read(currentAnnotationProvider.notifier).state = partial;
+          _ref.read(annotationStateProvider.notifier).state = AnnotationState(
+            status: AnnotationStatus.searchingCatalogs,
+            message:
+                'Found ${partial.objects.length} ${partial.objects.length == 1 ? 'object' : 'objects'} · searching deep catalog…',
+            objectsFound: partial.objects.length,
+          );
+        },
       );
       if (!isCurrent()) return;
 
@@ -390,6 +401,7 @@ extension AnnotationPipeline on AnnotationService {
     double minMagnitude = 15.0,
     double minSize = 0.5,
     double? snrBasedMagnitudeCutoff,
+    void Function(ImageAnnotation)? onPartialResult,
   }) async {
     _logger.info('Starting annotation for $imagePath', source: 'Annotation');
 
@@ -399,6 +411,16 @@ extension AnnotationPipeline on AnnotationService {
       minMagnitude: minMagnitude,
       minSize: minSize,
       snrBasedMagnitudeCutoff: snrBasedMagnitudeCutoff,
+      onPartialResult: onPartialResult == null
+          ? null
+          : (objects) => onPartialResult(
+              ImageAnnotation(
+                imagePath: imagePath,
+                timestamp: DateTime.now(),
+                plateSolve: plateSolve,
+                objects: objects,
+              ),
+            ),
     );
 
     _logger.info(
@@ -424,6 +446,7 @@ extension AnnotationPipeline on AnnotationService {
     double minMagnitude = 15.0,
     double minSize = 0.5,
     double? snrBasedMagnitudeCutoff,
+    void Function(List<CelestialObjectAnnotation>)? onPartialResult,
   }) async {
     final annotations = <CelestialObjectAnnotation>[];
 
@@ -451,76 +474,7 @@ extension AnnotationPipeline on AnnotationService {
     // Temporary map for deduplication: keyed by normalized name or position.
     final deduplicatedById = <String, CelestialObjectAnnotation>{};
 
-    // 1) Query annotation catalog (GLADE+/OpenNGC merged)
-    final annotationCatalog = await _loadAnnotationCatalog();
-    if (annotationCatalog != null && annotationCatalog.isAvailable) {
-      try {
-        final objects = await annotationCatalog.searchNearby(
-          ra: plateSolve.ra,
-          dec: plateSolve.dec,
-          radiusDegrees: searchRadius,
-          maxMagnitude: effectiveMagnitudeCutoff,
-        );
-
-        _logger.debug(
-          'Found ${objects.length} annotation objects in search area',
-          source: 'Annotation',
-        );
-
-        for (final obj in objects) {
-          if (obj.majorAxis != null && obj.majorAxis! < minSize) {
-            continue;
-          }
-
-          final pixelCoords = plateSolve.skyToPixel(obj.ra, obj.dec);
-          if (pixelCoords == null) {
-            continue;
-          }
-
-          if (pixelCoords.x < 0 ||
-              pixelCoords.x >= plateSolve.imageWidth ||
-              pixelCoords.y < 0 ||
-              pixelCoords.y >= plateSolve.imageHeight) {
-            continue;
-          }
-
-          final altName = obj.alternateNames.isNotEmpty
-              ? obj.alternateNames.first
-              : null;
-
-          final annotation = CelestialObjectAnnotation(
-            id: obj.id,
-            name: obj.primaryName,
-            type: _mapAnnotationObjectType(obj.type),
-            ra: obj.ra,
-            dec: obj.dec,
-            x: pixelCoords.x,
-            y: pixelCoords.y,
-            catalogId: altName ?? obj.primaryName,
-            commonName: altName != null && altName != obj.primaryName
-                ? altName
-                : null,
-            magnitude: obj.magnitude,
-            size: obj.majorAxis,
-          );
-
-          final dedupeKey = _deduplicationKey(annotation);
-          deduplicatedById[dedupeKey] = annotation;
-        }
-      } catch (e, stackTrace) {
-        // Genuine failure (corrupt catalog, I/O error, malformed row) — surface
-        // it instead of silently returning a partial list. Re-throwing routes
-        // it to processNewImage's error path. (An empty-but-successful query
-        // never reaches here.)
-        _logger.error(
-          'Error querying annotation catalog: $e\nStack trace: $stackTrace',
-          source: 'Annotation',
-        );
-        throw AnnotationCatalogQueryException('annotation', e);
-      }
-    }
-
-    // 2) Query DSO catalog (always, for objects the annotation catalog may miss)
+    // Query the small DSO catalog first so bright labels can appear immediately.
     try {
       final dsos = await _catalogManager.searchDsoNearby(
         ra: plateSolve.ra,
@@ -551,7 +505,9 @@ extension AnnotationPipeline on AnnotationService {
           continue;
         }
 
-        final objectType = _inferObjectType(dso.type);
+        final objectType = _mapAnnotationObjectType(
+          AnnotationObject.fromOpenNgc(dso).type,
+        );
 
         final annotation = CelestialObjectAnnotation(
           id: 'dso_${dso.name}',
@@ -568,7 +524,7 @@ extension AnnotationPipeline on AnnotationService {
 
         final dedupeKey = _deduplicationKey(annotation);
         if (!deduplicatedById.containsKey(dedupeKey)) {
-          // Only add if not already present from annotation catalog
+          // Keep one entry for duplicate catalog identifiers.
           deduplicatedById[dedupeKey] = annotation;
         } else {
           // Merge: keep the entry with more fields populated
@@ -589,8 +545,6 @@ extension AnnotationPipeline on AnnotationService {
       );
       throw AnnotationCatalogQueryException('DSO', e);
     }
-
-    annotations.addAll(deduplicatedById.values);
 
     // Optionally include bright stars
     if (includeStars) {
@@ -644,6 +598,86 @@ extension AnnotationPipeline on AnnotationService {
         throw AnnotationCatalogQueryException('star', e);
       }
     }
+
+    if (deduplicatedById.isNotEmpty || annotations.isNotEmpty) {
+      onPartialResult?.call([...deduplicatedById.values, ...annotations]);
+    }
+
+    // Enrich the initial labels with the much larger galaxy catalog.
+    final annotationCatalog = await _loadAnnotationCatalog();
+    if (annotationCatalog != null && annotationCatalog.isAvailable) {
+      try {
+        final watch = Stopwatch()..start();
+        _logger.info('Searching deep annotation catalog', source: 'Annotation');
+        final objects = await annotationCatalog.searchNearby(
+          ra: plateSolve.ra,
+          dec: plateSolve.dec,
+          radiusDegrees: searchRadius,
+          maxMagnitude: effectiveMagnitudeCutoff,
+        );
+
+        _logger.debug(
+          'Found ${objects.length} annotation objects in ${watch.elapsedMilliseconds} ms',
+          source: 'Annotation',
+        );
+
+        for (final obj in objects) {
+          if (obj.majorAxis != null && obj.majorAxis! < minSize) {
+            continue;
+          }
+
+          final pixelCoords = plateSolve.skyToPixel(obj.ra, obj.dec);
+          if (pixelCoords == null) {
+            continue;
+          }
+
+          if (pixelCoords.x < 0 ||
+              pixelCoords.x >= plateSolve.imageWidth ||
+              pixelCoords.y < 0 ||
+              pixelCoords.y >= plateSolve.imageHeight) {
+            continue;
+          }
+
+          final altName = obj.alternateNames.isNotEmpty
+              ? obj.alternateNames.first
+              : null;
+
+          final annotation = CelestialObjectAnnotation(
+            id: obj.id,
+            name: obj.primaryName,
+            type: _mapAnnotationObjectType(obj.type),
+            ra: obj.ra,
+            dec: obj.dec,
+            x: pixelCoords.x,
+            y: pixelCoords.y,
+            catalogId: altName ?? obj.primaryName,
+            commonName: altName != null && altName != obj.primaryName
+                ? altName
+                : null,
+            magnitude: obj.magnitude,
+            size: obj.majorAxis,
+          );
+
+          final dedupeKey = _deduplicationKey(annotation);
+          final existing = deduplicatedById[dedupeKey];
+          deduplicatedById[dedupeKey] = existing == null
+              ? annotation
+              : _mergeAnnotationObjects(annotation, existing);
+        }
+      } catch (e, stackTrace) {
+        // Genuine failure (corrupt catalog, I/O error, malformed row) — surface
+        // it instead of silently returning a partial list. Re-throwing routes
+        // it to processNewImage's error path. (An empty-but-successful query
+        // never reaches here.)
+        _logger.error(
+          'Error querying annotation catalog: $e\nStack trace: $stackTrace',
+          source: 'Annotation',
+        );
+        throw AnnotationCatalogQueryException('annotation', e);
+      }
+    }
+
+    annotations.insertAll(0, deduplicatedById.values);
 
     _logger.debug(
       'Total annotations: ${annotations.length}',

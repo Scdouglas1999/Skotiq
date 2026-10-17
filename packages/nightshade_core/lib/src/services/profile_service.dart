@@ -15,6 +15,8 @@ import '../providers/database_provider.dart';
 import '../providers/device_connection_progress_provider.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
+import '../providers/profile_activation_writethrough.dart';
+import 'logging_service.dart';
 import '../providers/settings_provider.dart';
 import '../providers/unified_discovery_provider.dart';
 import '../utils/json_validation.dart';

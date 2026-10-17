@@ -82,6 +82,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     return SmartNightService(
       suggestionService: ref.read(targetSuggestionServiceProvider),
       logging: ref.read(loggingServiceProvider),
+      cameraLibrary: ref.read(hardwarePresetsServiceProvider),
     );
   }
 

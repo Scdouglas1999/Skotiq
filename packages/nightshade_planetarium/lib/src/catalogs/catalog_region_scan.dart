@@ -237,10 +237,12 @@ Future<CatalogRegionScan<T>> scanCatalogRegion<T>({
       .transform(utf8.decoder)
       .transform(const LineSplitter());
 
-  await for (final line in lines) {
+  // Consume each decoded chunk synchronously in the worker. Awaiting every
+  // row adds millions of stream pause/resume cycles to a full GLADE+ scan.
+  await lines.takeWhile((_) => !truncated).forEach((line) {
     lineNumber++;
     if (lineNumber == 1 || line.isEmpty) {
-      continue;
+      return;
     }
 
     final T object;
@@ -248,7 +250,7 @@ Future<CatalogRegionScan<T>> scanCatalogRegion<T>({
       object = parse(line);
     } catch (_) {
       malformedRows++;
-      continue;
+      return;
     }
 
     final position = positionOf(object);
@@ -257,15 +259,14 @@ Future<CatalogRegionScan<T>> scanCatalogRegion<T>({
       objDec: position.dec,
       magnitude: magnitudeOf(object),
     )) {
-      continue;
+      return;
     }
 
     matches.add(object);
     if (matches.length >= filter.maxResults) {
       truncated = true;
-      break;
     }
-  }
+  });
 
   matches.sort((a, b) {
     final pa = positionOf(a);

@@ -351,6 +351,7 @@ final List<RefAwareSequenceValidator> defaultRefAwareSequenceValidators =
       EquipmentConnectionRule(),
       // The executor refuses a centring sequence with no solver; say so first.
       PlateSolverForCenteringRule(),
+      PlateSolveFocalLengthRule(),
       RotatorRotationConflictRule(),
       FilterInWheelRule(),
       // Same check against the equipment profile for the daylight case, when

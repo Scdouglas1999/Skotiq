@@ -304,8 +304,39 @@ class FramingActionsPanel extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Canonical guided framing flow (target → frame → solve → slew).
-        const FramingActionRail(),
+        if (framingState.effectiveAimTarget case final target?) ...[
+          Text('Frame center · slew destination',
+              style: NightshadeTypography.labelStrongSm
+                  .copyWith(color: colors.textPrimary)),
+          Text('${target.raFormatted}  ${target.decFormatted}',
+              style: NightshadeTypography.monoCaption
+                  .copyWith(color: colors.textSecondary)),
+          const SizedBox(height: NightshadeTokens.spaceSm),
+          SlewDropdownButton(
+            ra: target.raHours,
+            dec: target.decDegrees,
+            targetName: target.name,
+            targetRotation: framingState.rotation,
+            defaultMode: SlewMode.slewAndCenter,
+            isEnabled: !ref.watch(mountStateProvider).isParked,
+          ),
+          const SizedBox(height: NightshadeTokens.spaceSm),
+        ],
+        SizedBox(
+            width: double.infinity,
+            child: NightshadeButton(
+              icon: LucideIcons.wand2,
+              label: 'Auto-build sequence',
+              onPressed: hasTarget ? onAddToSequence : null,
+            )),
+        const SizedBox(height: NightshadeTokens.spaceSm),
+        const Material(
+          type: MaterialType.transparency,
+          child: ExpansionTile(
+            title: Text('Framing checks and manual solve'),
+            children: [FramingActionRail()],
+          ),
+        ),
 
         const SizedBox(height: NightshadeTokens.spaceXl),
 
@@ -332,18 +363,6 @@ class FramingActionsPanel extends ConsumerWidget {
                 variant: ButtonVariant.secondary,
                 size: ButtonSize.small,
                 onPressed: hasTarget ? onAddToExistingSequence : null,
-              ),
-            ),
-            const SizedBox(width: NightshadeTokens.spaceSm),
-            // Auto-build: generates a complete Smart Night instruction tree for
-            // the framed target and loads it.
-            Expanded(
-              child: NightshadeButton(
-                icon: LucideIcons.wand2,
-                label: 'Auto-build',
-                variant: ButtonVariant.secondary,
-                size: ButtonSize.small,
-                onPressed: hasTarget ? onAddToSequence : null,
               ),
             ),
           ],

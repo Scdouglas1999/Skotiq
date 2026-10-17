@@ -75,6 +75,10 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         return Vec::new();
     }
 
+    let explicit_end = sequence_for_custom_recovery_triggers
+        .as_ref()
+        .is_some_and(super::explicit_end::owns_dawn_end);
+
     let mut check_interval = tokio::time::interval(std::time::Duration::from_secs(1));
     let mut fired_triggers: Vec<(String, RecoveryAction)> = Vec::new();
 
@@ -756,6 +760,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             let stop_on_quality_problems = manager.state().read().await.stop_on_quality_problems;
             fired
                 .into_iter()
+                .filter(|(id, _)| !(explicit_end && id == "dawn_approaching"))
                 // The operator's park and quality settings first, so the hold
                 // filter below judges what the trigger will actually do.
                 .map(|(trigger_id, action)| {

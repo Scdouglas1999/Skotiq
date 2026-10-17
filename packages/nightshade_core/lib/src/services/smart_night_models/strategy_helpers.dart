@@ -387,11 +387,15 @@ List<SmartNightFilterPlan> _composeBudgetFilterPlans({
         floorSeconds: settings.subExposureFloorSecs,
       ),
     );
-    final pickedSecs = recommendation.seconds > 0
-        ? recommendation.seconds
-        : settings.defaultFrameDurationSecs[filterName.toUpperCase()] ??
-              settings.defaultFrameDurationSecs[filterName] ??
-              180.0;
+    final preset =
+        settings.defaultFrameDurationSecs[filterName] ??
+        settings.defaultFrameDurationSecs[FilterExposureSpec.fromName(
+          filterName,
+        ).name] ??
+        180.0;
+    final pickedSecs = settings.useExposurePresets
+        ? preset
+        : (recommendation.seconds > 0 ? recommendation.seconds : preset);
     final budgetSecs = perFilterBudget[filterName] ?? 0;
     final count = budgetSecs <= 0
         ? 1

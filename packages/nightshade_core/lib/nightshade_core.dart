@@ -724,3 +724,5 @@ export 'src/utils/utc_timestamp.dart';
 export 'src/utils/remote_path.dart';
 export 'src/utils/aligned_ticker.dart';
 export 'src/utils/nightshade_data_directory.dart';
+
+export 'src/services/smart_night/camera_capture_defaults.dart';

@@ -41,6 +41,8 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     required SmartNightSettings settings,
     required SmartNightContext context,
     required bool includeSessionPreamble,
+    required bool? includeSessionShutdown,
+    required bool fillWindow,
   }) {
     final nodes = <String, SequenceNode>{};
     final childOrder = <String>[];
@@ -81,6 +83,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
       settings: settings,
       context: context,
       nodesAccumulator: nodes,
+      fillWindow: fillWindow,
     );
     final updatedHeader = header.copyWith(
       parentId: rootId,
@@ -89,7 +92,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     nodes[updatedHeader.id] = updatedHeader;
     childOrder.add(updatedHeader.id);
 
-    if (includeSessionPreamble) {
+    if (includeSessionShutdown ?? includeSessionPreamble) {
       addRootChild(
         WarmCameraNode(
           id: SmartNightService._uuid.v4(),
@@ -771,6 +774,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     required SmartNightSettings settings,
     required SmartNightContext context,
     required Map<String, SequenceNode> nodesAccumulator,
+    bool fillWindow = false,
   }) {
     final headerId = SmartNightService._uuid.v4();
     final children = <SequenceNode>[];
@@ -835,17 +839,33 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     children.add(
       planned.isUnfiltered
           ? _emitUnfilteredExposure(
+              profile: profile,
               planned: planned,
               settings: settings,
               parentId: headerId,
             )
           : _emitSmartExposure(
+              profile: profile,
               planned: planned,
               settings: settings,
               context: context,
+              fillWindow: fillWindow,
               parentId: headerId,
             ),
     );
+
+    if (fillWindow && planned.isUnfiltered) {
+      final capture = children.removeLast();
+      final loop = LoopNode(
+        name: 'Image until end of window',
+        conditionType: LoopConditionType.untilTime,
+        repeatUntil: planned.windowEnd,
+        parentId: headerId,
+        childIds: [capture.id],
+      );
+      nodesAccumulator[capture.id] = capture.copyWith(parentId: loop.id);
+      children.add(loop);
+    }
 
     // 6. Optional meridian flip recovery — only inject when the target
     // crosses the meridian during its imaging window. The executor's
@@ -878,7 +898,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     final integrationBudget = IntegrationBudget(
       totalSecs: integrationSecsTotal,
       perFilter: perFilterBudget,
-      stopOnBudgetMet: true,
+      stopOnBudgetMet: !fillWindow,
     );
 
     final header = TargetHeaderNode(
@@ -892,13 +912,16 @@ extension _SmartNightSequenceEmitter on SmartNightService {
       startAfter: planned.windowStart,
       endBefore: planned.windowEnd,
       integrationBudget: integrationBudget,
-      // Start/end altitude crossings give the executor a real
-      // gate to wait on. We add the altitude-above trigger as a soft
-      // window override too — when minAltitude is exceeded the target
-      // starts; when it dips below, it ends. The plan's wall-clock
-      // bounds are also respected via startAfter / endBefore.
-      startWhen: AltitudeAboveTrigger(settings.minAltitudeDeg),
-      endWhen: AltitudeBelowTrigger(settings.minAltitudeDeg),
+      // Explicit triggers take precedence over legacy time fields in the
+      // executor, so include both altitude and time in the conditions.
+      startWhen: AndTrigger([
+        AltitudeAboveTrigger(settings.minAltitudeDeg),
+        TimeAfterTrigger(planned.windowStart.millisecondsSinceEpoch ~/ 1000),
+      ]),
+      endWhen: OrTrigger([
+        AltitudeBelowTrigger(settings.minAltitudeDeg),
+        TimeAfterTrigger(planned.windowEnd.millisecondsSinceEpoch ~/ 1000),
+      ]),
       childIds: children.map((c) => c.id).toList(),
     );
 
@@ -915,16 +938,28 @@ extension _SmartNightSequenceEmitter on SmartNightService {
   /// adaptive exposures, and clamps the total integration to the per-
   /// target budget.
   SmartExposureNode _emitSmartExposure({
+    required EquipmentProfileModel profile,
     required SmartNightPlannedTarget planned,
     required SmartNightSettings settings,
     required SmartNightContext context,
     required String parentId,
+    bool fillWindow = false,
   }) {
     final plans = planned.filterPlans.map((fp) {
+      final defaults = resolveCameraCaptureDefaults(
+        cameraName: profile.cameraName,
+        filterName: fp.filterName,
+        profileGain: profile.defaultGain,
+        profileOffset: profile.defaultOffset,
+        library: _cameraLibrary,
+      );
       return FilterPlan(
         filterName: fp.filterName,
         count: fp.count,
         durationSecs: fp.durationSecs,
+        gain: settings.gainOverride ?? defaults.gain,
+        offset: settings.offsetOverride ?? defaults.offset,
+        binning: _binningModeForInt(profile.defaultBinX),
         ditherEvery: settings.ditherEveryFrames,
       );
     }).toList();
@@ -936,7 +971,8 @@ extension _SmartNightSequenceEmitter on SmartNightService {
       plans: plans,
       rotateFilters: true,
       ditherOnFilterChange: false,
-      integrationBudgetSecs: planned.integrationSecs,
+      integrationBudgetSecs: fillWindow ? 0 : planned.integrationSecs,
+      loopUntilStopped: fillWindow,
       batchSize: 1,
       parentId: parentId,
     );
@@ -948,17 +984,28 @@ extension _SmartNightSequenceEmitter on SmartNightService {
   /// frames with whatever is in the light path and never asks a wheel that
   /// isn't there to move — the same contract manual capture uses.
   ExposureNode _emitUnfilteredExposure({
+    required EquipmentProfileModel profile,
     required SmartNightPlannedTarget planned,
     required SmartNightSettings settings,
     required String parentId,
   }) {
     final plan = planned.filterPlans.single;
+    final defaults = resolveCameraCaptureDefaults(
+      cameraName: profile.cameraName,
+      filterName: plan.filterName,
+      profileGain: profile.defaultGain,
+      profileOffset: profile.defaultOffset,
+      library: _cameraLibrary,
+    );
     return ExposureNode(
       id: SmartNightService._uuid.v4(),
       name:
           'Exposures — ${plan.count} × '
           '${plan.durationSecs.toStringAsFixed(0)}s (no filter)',
       durationSecs: plan.durationSecs,
+      gain: settings.gainOverride ?? defaults.gain,
+      offset: settings.offsetOverride ?? defaults.offset,
+      binning: _binningModeForInt(profile.defaultBinX),
       count: plan.count,
       frameType: FrameType.light,
       ditherEvery: settings.ditherEveryFrames,

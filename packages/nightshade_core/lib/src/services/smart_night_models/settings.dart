@@ -80,6 +80,13 @@ class SmartNightSettings {
   /// with an unknown camera).
   final Map<String, double> defaultFrameDurationSecs;
 
+  /// Use the chosen per-filter recipe instead of the exposure calculator.
+  final bool useExposurePresets;
+
+  /// Explicit recipe edits override the camera library for this build.
+  final int? gainOverride;
+  final int? offsetOverride;
+
   /// Whether to append automatic flats at end-of-session when the profile
   /// has a cover calibrator.
   final bool includeFlatsAtEnd;
@@ -178,6 +185,9 @@ class SmartNightSettings {
       'SII': 300,
       'OSC': 180,
     },
+    this.useExposurePresets = false,
+    this.gainOverride,
+    this.offsetOverride,
     this.includeFlatsAtEnd = true,
     this.flatCountPerFilter = 20,
     this.useSchedulerForMultiTarget = true,
@@ -204,6 +214,9 @@ class SmartNightSettings {
     double? afTempDeltaC,
     double? defaultIntegrationBudgetHours,
     Map<String, double>? defaultFrameDurationSecs,
+    bool? useExposurePresets,
+    int? gainOverride,
+    int? offsetOverride,
     bool? includeFlatsAtEnd,
     int? flatCountPerFilter,
     bool? useSchedulerForMultiTarget,
@@ -231,6 +244,9 @@ class SmartNightSettings {
           defaultIntegrationBudgetHours ?? this.defaultIntegrationBudgetHours,
       defaultFrameDurationSecs:
           defaultFrameDurationSecs ?? this.defaultFrameDurationSecs,
+      useExposurePresets: useExposurePresets ?? this.useExposurePresets,
+      gainOverride: gainOverride ?? this.gainOverride,
+      offsetOverride: offsetOverride ?? this.offsetOverride,
       includeFlatsAtEnd: includeFlatsAtEnd ?? this.includeFlatsAtEnd,
       flatCountPerFilter: flatCountPerFilter ?? this.flatCountPerFilter,
       useSchedulerForMultiTarget:
@@ -265,6 +281,9 @@ class SmartNightSettings {
     'afTempDeltaC': afTempDeltaC,
     'defaultIntegrationBudgetHours': defaultIntegrationBudgetHours,
     'defaultFrameDurationSecs': defaultFrameDurationSecs,
+    'useExposurePresets': useExposurePresets,
+    if (gainOverride != null) 'gainOverride': gainOverride,
+    if (offsetOverride != null) 'offsetOverride': offsetOverride,
     'includeFlatsAtEnd': includeFlatsAtEnd,
     'flatCountPerFilter': flatCountPerFilter,
     'useSchedulerForMultiTarget': useSchedulerForMultiTarget,
@@ -301,6 +320,9 @@ class SmartNightSettings {
       defaultFrameDurationSecs: _stringDoubleMap(
         json['defaultFrameDurationSecs'],
       ),
+      useExposurePresets: json['useExposurePresets'] as bool? ?? false,
+      gainOverride: (json['gainOverride'] as num?)?.toInt(),
+      offsetOverride: (json['offsetOverride'] as num?)?.toInt(),
       includeFlatsAtEnd: json['includeFlatsAtEnd'] as bool? ?? true,
       flatCountPerFilter: _jsonInt(json['flatCountPerFilter'], 20),
       useSchedulerForMultiTarget:

@@ -208,6 +208,13 @@ class CameraDefaultsPreset {
   final bool isColor;
   final int recommendedGain;
   final int recommendedOffset;
+
+  /// Filter-group recipes; absent entries use this camera’s general defaults.
+  final int? broadbandGain;
+  final int? broadbandOffset;
+  final int? narrowbandGain;
+  final int? narrowbandOffset;
+
   final int recommendedBinX;
   final int recommendedBinY;
 
@@ -230,6 +237,11 @@ class CameraDefaultsPreset {
     required this.isColor,
     required this.recommendedGain,
     required this.recommendedOffset,
+    this.broadbandGain,
+    this.broadbandOffset,
+    this.narrowbandGain,
+    this.narrowbandOffset,
+
     this.recommendedBinX = 1,
     this.recommendedBinY = 1,
     this.recommendedCoolingTempC,
@@ -266,6 +278,19 @@ class CameraDefaultsPreset {
       sensorName: _stringValue(json['sensorName'], 'sensorName'),
       isColor: _boolValue(json['isColor'], 'isColor'),
       recommendedGain: _intValue(json['recommendedGain'], 'recommendedGain'),
+      broadbandGain: json['broadbandGain'] == null
+          ? null
+          : _intValue(json['broadbandGain'], 'broadbandGain'),
+      broadbandOffset: json['broadbandOffset'] == null
+          ? null
+          : _intValue(json['broadbandOffset'], 'broadbandOffset'),
+      narrowbandGain: json['narrowbandGain'] == null
+          ? null
+          : _intValue(json['narrowbandGain'], 'narrowbandGain'),
+      narrowbandOffset: json['narrowbandOffset'] == null
+          ? null
+          : _intValue(json['narrowbandOffset'], 'narrowbandOffset'),
+
       recommendedOffset: _intValue(
         json['recommendedOffset'],
         'recommendedOffset',
@@ -296,6 +321,11 @@ class CameraDefaultsPreset {
     'isColor': isColor,
     'recommendedGain': recommendedGain,
     'recommendedOffset': recommendedOffset,
+    if (broadbandGain != null) 'broadbandGain': broadbandGain,
+    if (broadbandOffset != null) 'broadbandOffset': broadbandOffset,
+    if (narrowbandGain != null) 'narrowbandGain': narrowbandGain,
+    if (narrowbandOffset != null) 'narrowbandOffset': narrowbandOffset,
+
     'recommendedBinX': recommendedBinX,
     'recommendedBinY': recommendedBinY,
     if (recommendedCoolingTempC != null)
@@ -315,6 +345,11 @@ class CameraDefaultsPreset {
     bool? isColor,
     int? recommendedGain,
     int? recommendedOffset,
+    int? broadbandGain,
+    int? broadbandOffset,
+    int? narrowbandGain,
+    int? narrowbandOffset,
+
     int? recommendedBinX,
     int? recommendedBinY,
     double? recommendedCoolingTempC,
@@ -333,6 +368,11 @@ class CameraDefaultsPreset {
       isColor: isColor ?? this.isColor,
       recommendedGain: recommendedGain ?? this.recommendedGain,
       recommendedOffset: recommendedOffset ?? this.recommendedOffset,
+      broadbandGain: broadbandGain ?? this.broadbandGain,
+      broadbandOffset: broadbandOffset ?? this.broadbandOffset,
+      narrowbandGain: narrowbandGain ?? this.narrowbandGain,
+      narrowbandOffset: narrowbandOffset ?? this.narrowbandOffset,
+
       recommendedBinX: recommendedBinX ?? this.recommendedBinX,
       recommendedBinY: recommendedBinY ?? this.recommendedBinY,
       recommendedCoolingTempC: clearRecommendedCoolingTempC
@@ -356,6 +396,10 @@ class CameraDefaultsPreset {
         other.isColor == isColor &&
         other.recommendedGain == recommendedGain &&
         other.recommendedOffset == recommendedOffset &&
+        other.broadbandGain == broadbandGain &&
+        other.broadbandOffset == broadbandOffset &&
+        other.narrowbandGain == narrowbandGain &&
+        other.narrowbandOffset == narrowbandOffset &&
         other.recommendedBinX == recommendedBinX &&
         other.recommendedBinY == recommendedBinY &&
         other.recommendedCoolingTempC == recommendedCoolingTempC &&
@@ -375,6 +419,11 @@ class CameraDefaultsPreset {
     isColor,
     recommendedGain,
     recommendedOffset,
+    broadbandGain,
+    broadbandOffset,
+    narrowbandGain,
+    narrowbandOffset,
+
     recommendedBinX,
     recommendedBinY,
     recommendedCoolingTempC,
@@ -661,7 +710,13 @@ const List<CameraDefaultsPreset> builtInCameraDefaultsPresets = [
     id: 'cam.zwo.asi1600mm',
     brand: 'ZWO',
     model: 'ASI1600MM Pro',
-    aliases: ['ASI1600MM', 'ASI1600MM Pro', 'ASI1600MM-Pro', 'ZWO ASI1600MM'],
+    aliases: [
+      'ASI1600MM',
+      'ASI1600MM Pro',
+      'ASI1600MM-Pro',
+      'ASI1600MM-Cool',
+      'ZWO ASI1600MM',
+    ],
     pixelSizeMicrons: 3.8,
     sensorWidthPx: 4656,
     sensorHeightPx: 3520,
@@ -670,6 +725,11 @@ const List<CameraDefaultsPreset> builtInCameraDefaultsPresets = [
     // 139/21 is the well-known unity-gain set-point for the MN34230.
     recommendedGain: 139,
     recommendedOffset: 21,
+    // Owner-provided broadband/narrowband acquisition recipes.
+    broadbandGain: 76,
+    broadbandOffset: 15,
+    narrowbandGain: 139,
+    narrowbandOffset: 21,
     recommendedCoolingTempC: -10,
     isBuiltIn: true,
   ),

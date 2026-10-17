@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:nightshade_core/nightshade_core.dart';
+// ignore: implementation_imports
+import 'package:nightshade_core/src/providers/hardware_presets_provider.dart';
 import 'package:nightshade_ui/nightshade_ui.dart';
 
 import '../../../services/smart_night_plan_launcher.dart';
@@ -512,6 +514,8 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
         missingDarkRequirements: darkLibraryMissing.requirements,
       );
 
+      await ref.read(hardwarePresetsServiceProvider.notifier).loaded;
+      if (!mounted) return false;
       final plan = _buildService().build(
         profile: activeProfile,
         latitudeDeg: location.latitude,

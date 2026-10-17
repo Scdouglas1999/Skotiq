@@ -91,6 +91,7 @@ class FilterExposureSpec {
       return const FilterExposureSpec.narrowbandHa();
     }
     if (normalized == 'oiii' ||
+        normalized == 'o3' ||
         normalized == 'o-iii' ||
         normalized == 'oxygen iii') {
       return const FilterExposureSpec(
@@ -102,6 +103,7 @@ class FilterExposureSpec {
       );
     }
     if (normalized == 'sii' ||
+        normalized == 's2' ||
         normalized == 's-ii' ||
         normalized == 'sulfur ii' ||
         normalized == 'sulphur ii') {

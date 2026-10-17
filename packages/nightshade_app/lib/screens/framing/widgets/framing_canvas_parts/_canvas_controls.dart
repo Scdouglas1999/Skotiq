@@ -82,6 +82,14 @@ class _CanvasControls extends StatelessWidget {
         // rather than overflowing (07: reduce content or let it scroll).
         final toggles = <Widget>[
           NightshadeIconButton(
+            icon: NightshadeIcons.crosshair,
+            tooltip: 'Crosshair',
+            size: IconButtonSize.sm,
+            selected: ref.watch(imagingViewerStateProvider).showCrosshair,
+            onPressed: () =>
+                ref.read(imagingViewerStateProvider.notifier).toggleCrosshair(),
+          ),
+          NightshadeIconButton(
             icon: NightshadeIcons.grid,
             tooltip: 'Grid',
             size: IconButtonSize.sm,

@@ -4,6 +4,7 @@ import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../services/equipment_health_service.dart';
 import 'database_provider.dart';
 import 'device_last_contact_provider.dart';
+import 'device_heartbeat_health_provider.dart';
 import 'equipment/camera_state_provider.dart';
 import 'equipment/filter_wheel_state_provider.dart';
 import 'equipment/dome_state_provider.dart';
@@ -156,10 +157,15 @@ final deviceHealthSnapshotsProvider = Provider<List<DeviceHealthSnapshot>>((
   // every other device arrived with none and the panel could only ever say
   // "last contact unknown" for them — see [deviceLastContactProvider].
   final contacts = ref.watch(deviceLastContactProvider);
+  final heartbeats = ref.watch(deviceHeartbeatHealthProvider);
 
   final descriptors = [
     for (final descriptor in ref.watch(connectedDeviceDescriptorsProvider))
-      _withContact(descriptor, contacts[descriptor.deviceId]),
+      _withHealth(
+        descriptor,
+        contacts[descriptor.deviceId],
+        heartbeats[descriptor.deviceId]?.health,
+      ),
   ];
 
   return service.buildSnapshots(
@@ -168,26 +174,27 @@ final deviceHealthSnapshotsProvider = Provider<List<DeviceHealthSnapshot>>((
   );
 });
 
-/// Fold the backend's contact record into [descriptor].
-///
-/// The descriptor's own timestamp wins when it is the more recent of the two
-/// (the camera stamps itself on every successful call, which is finer-grained
-/// than the heartbeat poll), and an unresponsive verdict from the backend
-/// makes the device unhealthy so the score stops reading 100 while a device
-/// has gone quiet.
-DeviceConnectionDescriptor _withContact(
+/// Combine contact timestamps with immediate heartbeat status changes.
+/// A failed heartbeat must show up before the next contact poll, while a
+/// recovery must not override another source that still reports a failure.
+DeviceConnectionDescriptor _withHealth(
   DeviceConnectionDescriptor descriptor,
   DeviceContact? contact,
+  HeartbeatHealth? heartbeat,
 ) {
-  if (contact == null) return descriptor;
   final own = descriptor.lastSuccessfulCommunication;
-  final lastContact = own != null && own.isAfter(contact.lastContact)
+  final lastContact =
+      contact == null || (own != null && own.isAfter(contact.lastContact))
       ? own
       : contact.lastContact;
   return DeviceConnectionDescriptor(
     deviceId: descriptor.deviceId,
     deviceLabel: descriptor.deviceLabel,
-    isHealthy: descriptor.isHealthy && contact.isResponsive,
+    isHealthy:
+        descriptor.isHealthy &&
+        (contact?.isResponsive ?? true) &&
+        heartbeat != HeartbeatHealth.degraded &&
+        heartbeat != HeartbeatHealth.reconnecting,
     lastSuccessfulCommunication: lastContact,
   );
 }

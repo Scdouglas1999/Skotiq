@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nightshade_app/screens/framing/widgets/framing_canvas.dart';
+import 'package:nightshade_app/screens/framing/painters/framing_background_painters.dart';
 import 'package:nightshade_core/nightshade_core.dart';
 import 'package:nightshade_ui/nightshade_ui.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
@@ -116,6 +117,20 @@ Future<ProviderContainer> _pumpCanvas(
 }
 
 void main() {
+  testWidgets('crosshair starts hidden and can be enabled from framing',
+      (tester) async {
+    final container = await _pumpCanvas(tester,
+        framingState: const FramingState(target: _target), calls: _Calls());
+    final crosshair = find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is FramingCrosshairPainter);
+    expect(crosshair, findsNothing);
+    expect(container.read(imagingViewerStateProvider).showCrosshair, isFalse);
+    await tester.tap(find.byTooltip('Crosshair'));
+    await tester.pump();
+    expect(crosshair, findsOneWidget);
+    expect(container.read(imagingViewerStateProvider).showCrosshair, isTrue);
+  });
+
   testWidgets('drag inside the FOV rect moves the aim, not the sky', (
     tester,
   ) async {

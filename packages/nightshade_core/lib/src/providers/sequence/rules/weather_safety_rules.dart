@@ -33,12 +33,10 @@ class WeatherSafetyNoSourceRule implements RefAwareSequenceValidator {
     // `appSettingsProvider` is an AsyncNotifier; `.read()` yields AsyncValue and
     // `.value` is null while loading (see `settings_rules.dart`).
     final failMode = ctx.ref.read(appSettingsProvider).value?.safetyFailMode;
-    // Only fail-closed aborts a run on missing data; failOpen/warnOnly abstain,
-    // so an absent sensor is harmless there. A null (settings still loading) is
-    // treated as fail-closed because that is the shipped default.
+    // A missing source blocks fail-closed runs and warns for permissive modes.
+    // Loading settings retain the shipped fail-closed default.
     final failsClosed =
         failMode == null || failMode == SafetyFailMode.failClosed;
-    if (!failsClosed) return const [];
 
     final weatherConnected =
         ctx.ref.read(weatherStateProvider).connectionState ==
@@ -47,6 +45,23 @@ class WeatherSafetyNoSourceRule implements RefAwareSequenceValidator {
         ctx.ref.read(safetyMonitorStateProvider).connectionState ==
         DeviceConnectionState.connected;
     if (weatherConnected || safetyMonitorConnected) return const [];
+
+    if (!failsClosed) {
+      return const [
+        ValidationIssue(
+          severity: ValidationSeverity.warning,
+          category: ValidationCategory.equipment,
+          title: 'No Weather Safety Readings',
+          description:
+              'No weather device or safety monitor is connected. '
+              'The selected safety policy allows this run to continue without '
+              'readings that could detect unsafe conditions.',
+          resolutionHint:
+              'Connect a weather device or safety monitor, or review '
+              'the policy in Settings > Automation & Safety before starting.',
+        ),
+      ];
+    }
 
     return [
       const ValidationIssue(

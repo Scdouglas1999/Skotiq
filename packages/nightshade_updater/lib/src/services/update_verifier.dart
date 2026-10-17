@@ -7,6 +7,12 @@ import 'package:cryptography/cryptography.dart';
 import 'package:path/path.dart' as path;
 import '../models/update_manifest.dart';
 
+/// Production release verification key. The private seed is held outside the
+/// repository and in GitHub Actions; a dart-define can override this for testing
+/// or key rotation. An explicitly empty override still disables update trust.
+const nightshadeProductionUpdatePublicKey =
+    'fKehvP6UbIHts3DJDWvhk6Ua490Pya5vlKKV6FEhNmQ=';
+
 /// A trusted Ed25519 verification key paired with the id used to revoke it.
 ///
 /// The id never enters the signed canonical payload — it exists only so the
@@ -29,6 +35,7 @@ class UpdateVerifier {
   UpdateVerifier({
     String trustedPublicKeyBase64 = const String.fromEnvironment(
       'NIGHTSHADE_UPDATE_PUBLIC_KEY',
+      defaultValue: nightshadeProductionUpdatePublicKey,
     ),
     String primaryKeyId = const String.fromEnvironment(
       'NIGHTSHADE_UPDATE_KEY_ID',

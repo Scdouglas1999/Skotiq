@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show compute;
 import 'package:nightshade_planetarium/nightshade_planetarium.dart';
 
 import '../database/database.dart';
@@ -28,10 +29,6 @@ class TargetSuggestionService {
   final LoggingService _logging;
 
   static const String _source = 'TargetSuggestionService';
-
-  /// Typical sub-exposure time in seconds for progress estimation.
-  /// Used when calculating data progress from session integration time.
-  static const double _typicalExposureSecs = 300.0;
 
   TargetSuggestionService({required LoggingService loggingService})
     : _logging = loggingService;
@@ -62,30 +59,86 @@ class TargetSuggestionService {
     OpticalConfig? opticalConfig,
     HorizonProfile? horizonProfile,
   }) async {
-    final now = observationTime ?? DateTime.now();
+    if (targets.isEmpty) return [];
+    final elapsed = Stopwatch()..start();
     _logging.debug(
       'Generating suggestions for ${targets.length} targets at lat=$latitude, lon=$longitude',
       source: _source,
     );
-
-    if (targets.isEmpty) {
-      _logging.info(
-        'No targets provided for suggestion generation',
-        source: _source,
-      );
-      return [];
+    final result = await compute(_scoreTonight, (
+      config: config,
+      latitude: latitude,
+      longitude: longitude,
+      targets: targets,
+      sessions: sessions,
+      observationTime: observationTime ?? DateTime.now(),
+      opticalConfig: opticalConfig,
+      horizonProfile: horizonProfile,
+    ), debugLabel: 'tonight-target-scoring');
+    for (final warning in result.warnings) {
+      _logging.warning(warning, source: _source);
     }
+    _logging.info(
+      'Generated ${result.suggestions.length} suggestions from ${targets.length} '
+      'targets in ${elapsed.elapsedMilliseconds}ms (background scoring)',
+      source: _source,
+    );
+    return result.suggestions;
+  }
+}
+
+typedef _SuggestionRequest = ({
+  TargetSuggestionConfig config,
+  double latitude,
+  double longitude,
+  List<Target> targets,
+  List<ImagingSession> sessions,
+  DateTime observationTime,
+  OpticalConfig? opticalConfig,
+  HorizonProfile? horizonProfile,
+});
+
+typedef _SuggestionResult = ({
+  List<TargetSuggestion> suggestions,
+  List<String> warnings,
+});
+
+// A top-level callback keeps UI services and logging handles out of the worker.
+_SuggestionResult _scoreTonight(_SuggestionRequest request) {
+  final scorer = _TonightSuggestionScorer();
+  final suggestions = scorer.score(
+    config: request.config,
+    latitude: request.latitude,
+    longitude: request.longitude,
+    targets: request.targets,
+    sessions: request.sessions,
+    observationTime: request.observationTime,
+    opticalConfig: request.opticalConfig,
+    horizonProfile: request.horizonProfile,
+  );
+  return (suggestions: suggestions, warnings: scorer.warnings);
+}
+
+class _TonightSuggestionScorer {
+  final warnings = <String>[];
+  static const double _typicalExposureSecs = 300.0;
+
+  List<TargetSuggestion> score({
+    required TargetSuggestionConfig config,
+    required double latitude,
+    required double longitude,
+    required List<Target> targets,
+    required List<ImagingSession> sessions,
+    required DateTime observationTime,
+    OpticalConfig? opticalConfig,
+    HorizonProfile? horizonProfile,
+  }) {
+    final now = observationTime;
 
     // Determine the night window (astronomical dusk to dawn).
     // If we're currently in a night (after midnight, before dawn), use that
     // night's window. Otherwise use the upcoming night.
     final nightWindow = _calculateNightWindow(now, latitude, longitude);
-
-    _logging.debug(
-      'Night window: ${nightWindow.start} to ${nightWindow.end} '
-      '(twilight date: ${nightWindow.twilight.astronomicalDusk} - ${nightWindow.twilight.astronomicalDawn})',
-      source: _source,
-    );
 
     // Get moon position at the midpoint of the night (moon moves slowly)
     final nightMid = nightWindow.start.add(
@@ -97,13 +150,6 @@ class TargetSuggestionService {
     final moonRaDeg = moonPos.$1;
     final moonDecDeg = moonPos.$2;
     final moonIllumination = AstronomyCalculations.moonIllumination(nightMid);
-
-    _logging.debug(
-      'Moon position (at night midpoint): RA=${moonRaDeg.toStringAsFixed(2)}, '
-      'Dec=${moonDecDeg.toStringAsFixed(2)}, '
-      'illumination=${moonIllumination.toStringAsFixed(1)}%',
-      source: _source,
-    );
 
     // Create the scoring service. When a custom horizon profile is set, feed
     // it in as a per-azimuth altitude mask so "hours above minimum altitude"
@@ -129,10 +175,6 @@ class TargetSuggestionService {
     final fov = opticalConfig?.fieldOfView;
     if (fov != null) {
       fovShortAxisArcmin = min(fov.$1, fov.$2) * 60.0;
-      _logging.debug(
-        'Optical config available: FOV short axis = ${fovShortAxisArcmin.toStringAsFixed(1)} arcmin',
-        source: _source,
-      );
     }
 
     final suggestions = <TargetSuggestion>[];
@@ -159,22 +201,11 @@ class TargetSuggestionService {
           score.visibility.peakAltitude ?? score.visibility.currentAltitude;
       final hoursAboveHorizon = score.visibility.hoursAboveMinAlt ?? 0.0;
       if (peakAlt < config.minAltitude || hoursAboveHorizon <= 0.0) {
-        _logging.debug(
-          'Skipping ${target.name}: peak altitude ${peakAlt.toStringAsFixed(1)}° / '
-          '${hoursAboveHorizon.toStringAsFixed(1)}h above the local horizon '
-          '(min ${config.minAltitude}°)',
-          source: _source,
-        );
         continue;
       }
 
       // Skip targets below minimum score
       if (score.totalScore < config.minScore) {
-        _logging.debug(
-          'Skipping ${target.name}: score ${score.totalScore.toStringAsFixed(1)} '
-          'below minimum ${config.minScore}',
-          source: _source,
-        );
         continue;
       }
 
@@ -187,11 +218,6 @@ class TargetSuggestionService {
       if (config.preferredObjectTypes.isEmpty &&
           _parseDsoType(target.objectType) == DsoType.star &&
           (target.sizeArcmin == null || target.sizeArcmin! <= 0)) {
-        _logging.debug(
-          'Skipping ${target.name}: typed "${target.objectType}" with no '
-          'angular size — a point source, not an imaging target',
-          source: _source,
-        );
         continue;
       }
 
@@ -202,10 +228,6 @@ class TargetSuggestionService {
           (type) => objectType.contains(type.toLowerCase()),
         );
         if (!matches) {
-          _logging.debug(
-            'Skipping ${target.name}: object type "$objectType" not in preferred types',
-            source: _source,
-          );
           continue;
         }
       }
@@ -279,11 +301,6 @@ class TargetSuggestionService {
 
       suggestions.add(suggestion);
     }
-
-    _logging.info(
-      'Generated ${suggestions.length} suggestions from ${targets.length} targets',
-      source: _source,
-    );
 
     // Sort by configured mode
     _sortSuggestions(suggestions, config.sortMode, config.prioritizeIncomplete);
@@ -429,9 +446,8 @@ class TargetSuggestionService {
 
     // No astronomical/nautical/civil darkness (e.g. polar midnight sun).
     // Use a reasonable default window: 9 PM to 5 AM local.
-    _logging.warning(
+    warnings.add(
       'No twilight boundaries found - using default 21:00-05:00 window',
-      source: _source,
     );
     final defaultStart = DateTime(now.year, now.month, now.day, 21);
     var defaultEnd = DateTime(now.year, now.month, now.day + 1, 5);

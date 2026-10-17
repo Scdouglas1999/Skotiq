@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/sequence/sequence_models.dart';
 import '../../plate_solver_provider.dart';
+import '../../profiles_provider.dart';
 import '../sequence_validation.dart';
 
 /// A sequence that centres on its target cannot run without a plate solver.
@@ -46,6 +47,42 @@ class PlateSolverForCenteringRule implements RefAwareSequenceValidator {
         resolutionHint:
             'Install ASTAP (with a star catalog) or astrometry.net, then set '
             'it up in Settings → Plate solving. Or disable the Center node.',
+      ),
+    ];
+  }
+}
+
+/// Missing optics must be visible before the solver searches for the scale.
+class PlateSolveFocalLengthRule implements RefAwareSequenceValidator {
+  @override
+  String get name => 'PlateSolveFocalLength';
+
+  @override
+  List<ValidationIssue> validate(Sequence sequence, ValidationContext ctx) {
+    if (!sequence.nodes.values.any(
+      (node) => node.isEnabled && node is CenterNode,
+    )) {
+      return const [];
+    }
+    final profile = ctx.ref.read(activeEquipmentProfileProvider);
+    final focal = profile == null
+        ? null
+        : (profile.focalLength > 0
+              ? profile.focalLength
+              : profile.telescopeFocalLength);
+    if (focal != null && focal.isFinite && focal > 0) return const [];
+    return const [
+      ValidationIssue(
+        severity: ValidationSeverity.warning,
+        category: ValidationCategory.equipment,
+        title: 'Plate Solve Focal Length Missing',
+        description:
+            'The active equipment profile has no valid focal length. '
+            'Centering will need to determine the image scale, which can make '
+            'solves slower or less reliable.',
+        resolutionHint:
+            'Set the effective focal length of the optical train '
+            'in the equipment profile, including any reducer or Barlow.',
       ),
     ];
   }

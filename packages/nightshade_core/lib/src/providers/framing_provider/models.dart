@@ -171,6 +171,7 @@ class FramingState {
       raHours: ra,
       decDegrees: dec,
       type: t.type,
+      objectType: t.objectType,
       magnitude: t.magnitude,
       sizeArcmin: t.sizeArcmin,
       constellation: t.constellation,
@@ -270,6 +271,9 @@ class FramingTarget {
   final double raHours;
   final double decDegrees;
   final TargetType? type;
+
+  /// Catalog subtype retained for filter selection (e.g. emission vs reflection).
+  final String? objectType;
   final double? magnitude;
   final double? sizeArcmin;
   final String? constellation;
@@ -280,6 +284,7 @@ class FramingTarget {
     required this.raHours,
     required this.decDegrees,
     this.type,
+    this.objectType,
     this.magnitude,
     this.sizeArcmin,
     this.constellation,
@@ -328,6 +333,7 @@ class FramingTarget {
     'raHours': raHours,
     'decDegrees': decDegrees,
     if (type != null) 'type': type!.name,
+    if (objectType != null) 'objectType': objectType,
     if (magnitude != null) 'magnitude': magnitude,
     if (sizeArcmin != null) 'sizeArcmin': sizeArcmin,
     if (constellation != null) 'constellation': constellation,
@@ -350,6 +356,7 @@ class FramingTarget {
     return FramingTarget(
       name: name,
       catalogId: json['catalogId'] as String?,
+      objectType: json['objectType'] as String?,
       // Backward-compat: older payloads may have stored RA in degrees.
       raHours: _normalizeRaHoursMaybeDegrees(raHours),
       decDegrees: decDegrees,

@@ -72,7 +72,7 @@ class FOVIndicator {
     this.visible = true,
     this.strokeWidth = 2.0,
     this.showCornerBrackets = true,
-    this.showCrosshair = true,
+    this.showCrosshair = false,
   });
 
   /// Create a camera sensor FOV indicator
@@ -91,7 +91,7 @@ class FOVIndicator {
       color: color,
       label: label,
       showCornerBrackets: true,
-      showCrosshair: true,
+      showCrosshair: false,
     );
   }
 
@@ -108,7 +108,7 @@ class FOVIndicator {
       color: color,
       label: label,
       showCornerBrackets: false,
-      showCrosshair: true,
+      showCrosshair: false,
     );
   }
 
@@ -138,7 +138,7 @@ class FOVIndicator {
       color: color,
       label: label,
       showCornerBrackets: false,
-      showCrosshair: true,
+      showCrosshair: false,
     );
   }
 

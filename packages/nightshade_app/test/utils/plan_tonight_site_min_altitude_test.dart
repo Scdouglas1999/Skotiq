@@ -143,8 +143,14 @@ void main() {
       reason: 'the operator set 42 deg on the scheduler; the builder must not '
           'substitute its own default',
     );
-    expect((header.startWhen as AltitudeAboveTrigger).altitudeDeg, 42);
-    expect((header.endWhen as AltitudeBelowTrigger).altitudeDeg, 42);
+    final start = (header.startWhen as AndTrigger).children;
+    final end = (header.endWhen as OrTrigger).children;
+    expect(start.whereType<AltitudeAboveTrigger>().single.altitudeDeg, 42);
+    expect(end.whereType<AltitudeBelowTrigger>().single.altitudeDeg, 42);
+    expect(start.whereType<TimeAfterTrigger>().single.unixSeconds,
+        header.startAfter!.millisecondsSinceEpoch ~/ 1000);
+    expect(end.whereType<TimeAfterTrigger>().single.unixSeconds,
+        header.endBefore!.millisecondsSinceEpoch ~/ 1000);
   });
 
   testWidgets('with no scheduler row saved, builder and scheduler agree', (

@@ -455,14 +455,11 @@ class _QuickActionsCardState extends ConsumerState<QuickActionsCard> {
 
     // Show centering dialog
     if (context.mounted) {
-      showDialog(
+      showCenteringDialog(
         context: context,
-        barrierDismissible: false,
-        builder: (ctx) => CenteringDialog(
-          targetRa: targetRa,
-          targetDec: targetDec,
-          targetName: session.targetName ?? 'Target',
-        ),
+        targetRa: targetRa,
+        targetDec: targetDec,
+        targetName: session.targetName ?? 'Target',
       );
     }
   }

@@ -57,7 +57,10 @@ NightshadeEvent _guidingEvent(String eventType, [Map<String, dynamic>? data]) =>
       data: data ?? const {},
     );
 
-ProviderContainer _container(NightshadeBackend backend) {
+ProviderContainer _container(
+  NightshadeBackend backend, {
+  DateTime Function()? now,
+}) {
   return ProviderContainer(
     overrides: [
       backendProvider.overrideWith(
@@ -65,6 +68,10 @@ ProviderContainer _container(NightshadeBackend backend) {
       ),
       appSettingsProvider.overrideWith(_SettingsNotifier.new),
       loggingServiceProvider.overrideWithValue(LoggingService()),
+      if (now != null)
+        phd2ControllerProvider.overrideWith(
+          (ref) => Phd2Controller(ref, backend, now: now),
+        ),
     ],
   );
 }
@@ -78,6 +85,76 @@ void _markConnected(ProviderContainer container) {
 void main() {
   setUpAll(() {
     registerFallbackValue(const Stream<NightshadeEvent>.empty());
+  });
+
+  test(
+    'repeated star loss warnings are bounded and do not drop events',
+    () async {
+      final events = StreamController<NightshadeEvent>.broadcast();
+      addTearDown(events.close);
+      final backend = _MockBackend();
+      when(() => backend.eventStream).thenAnswer((_) => events.stream);
+      final container = _container(backend);
+      addTearDown(container.dispose);
+      _markConnected(container);
+      container.read(phd2ControllerProvider);
+      for (var i = 0; i < 20; i++) {
+        events.add(_guidingEvent('StarLost'));
+      }
+      await Future<void>.delayed(Duration.zero);
+      final warnings = container
+          .read(loggingServiceProvider)
+          .getRecentLogs()
+          .where((entry) => entry.message.contains('Guide star lost'));
+      expect(warnings.length, 1);
+      expect(container.read(phd2StateProvider), Phd2State.lostLock);
+      expect(container.read(starLostEventProvider), isNotNull);
+    },
+  );
+
+  test('star loss reminders are bounded until sustained recovery', () async {
+    var now = DateTime(2026, 10, 8);
+    final events = StreamController<NightshadeEvent>.broadcast();
+    addTearDown(events.close);
+    final backend = _MockBackend();
+    when(() => backend.eventStream).thenAnswer((_) => events.stream);
+    final container = _container(backend, now: () => now);
+    addTearDown(container.dispose);
+    _markConnected(container);
+    container.read(guideStatsProvider);
+    container.read(phd2ControllerProvider);
+    Future<void> emit(String type, [Map<String, dynamic>? data]) async {
+      events.add(_guidingEvent(type, data));
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    int logs(String text) => container
+        .read(loggingServiceProvider)
+        .getRecentLogs()
+        .where((entry) => entry.message.contains(text))
+        .length;
+    const goodStep = {'RADistanceRaw': 0.3, 'DECDistanceRaw': 0.4};
+    await emit('StarLost');
+    now = now.add(const Duration(seconds: 59));
+    await emit('StarLost');
+    expect(logs('Guide star lost'), 1);
+    now = now.add(const Duration(seconds: 1));
+    await emit('StarLost');
+    expect(logs('Guide star lost'), 2);
+    await emit('GuideStep', goodStep);
+    now = now.add(const Duration(seconds: 9));
+    await emit('GuideStep', goodStep);
+    expect(logs('Guide star recovered'), 0);
+    // A fresh loss resets the stability interval without another warning.
+    await emit('StarLost');
+    for (var i = 0; i <= 10; i++) {
+      await emit('GuideStep', goodStep);
+      now = now.add(const Duration(seconds: 1));
+    }
+    expect(logs('Guide star recovered'), 1);
+    expect(container.read(guideStatsProvider).frameCount, 13);
+    await emit('StarLost');
+    expect(logs('Guide star lost'), 3);
   });
 
   group('command gate', () {

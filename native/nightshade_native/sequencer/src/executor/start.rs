@@ -6,6 +6,7 @@ use super::*;
 
 mod checkpoint_stream;
 mod command_handler;
+mod explicit_end;
 mod preflight;
 mod progress_callback;
 mod recovery_driver;

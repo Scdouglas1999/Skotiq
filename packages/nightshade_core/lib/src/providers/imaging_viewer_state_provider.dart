@@ -30,7 +30,7 @@ class ImagingViewerState {
   const ImagingViewerState({
     this.zoomLevel = 1.0,
     this.panOffset = Offset.zero,
-    this.showCrosshair = true,
+    this.showCrosshair = false,
     this.showGrid = false,
     this.showStarOverlay = false,
   });

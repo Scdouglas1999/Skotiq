@@ -264,20 +264,14 @@ Invoke-Step "Build Rust updater (release)" {
 
 Invoke-Step "Build Flutter Windows app (release)" {
     Push-Location $desktopDir
-    # Embed the trusted OTA update public key from the environment.
-    # Sourced from NIGHTSHADE_UPDATE_PUBLIC_KEY so it is EMPTY by default,
-    # which deliberately disables OTA auto-update (the runtime refuses to
-    # stage an update it cannot authenticate to the vendor key). Provision
-    # the base64 vendor public key in this env var to ship a self-updating
-    # build. See docs/OTA_UPDATE_TESTING.md ("OTA signing keys").
+    # The app includes the production verification key. Supply an override
+    # only when explicitly configured; an empty define would disable trust.
     $updatePublicKey = $env:NIGHTSHADE_UPDATE_PUBLIC_KEY
-    if ([string]::IsNullOrWhiteSpace($updatePublicKey)) {
-        Write-Host "  NIGHTSHADE_UPDATE_PUBLIC_KEY not set: OTA auto-update will be DISABLED (fail-closed)." -ForegroundColor DarkYellow
-        $updatePublicKey = ""
-    } else {
-        Write-Host "  Embedding trusted OTA update public key (OTA enabled)." -ForegroundColor DarkGreen
+    $updateDefines = @()
+    if (-not [string]::IsNullOrWhiteSpace($updatePublicKey)) {
+        $updateDefines += "--dart-define=NIGHTSHADE_UPDATE_PUBLIC_KEY=$updatePublicKey"
     }
-    flutter build windows --release "--dart-define=NIGHTSHADE_UPDATE_PUBLIC_KEY=$updatePublicKey"
+    flutter build windows --release @updateDefines
     Pop-Location
 }
 

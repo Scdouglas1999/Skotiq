@@ -205,7 +205,7 @@ netstat -an | Select-String "45679|45680"
 
 ## OTA signing keys (owner provisioning step)
 
-**OTA auto-update is fail-closed and DISABLED by default.** Both the HTTPS
+**OTA auto-update is fail-closed. New builds trust the production public key by default.** Both the HTTPS
 pull path (`UpdateService.downloadAndStage`) and the LAN push receiver
 (`LanPushReceiver.startServer`) refuse to stage an update unless it carries an
 Ed25519 signature that verifies against a trusted public key compiled into the
@@ -215,7 +215,15 @@ sources must also use `https://`; plaintext `http://` is rejected unless the
 build explicitly opts in via `allowInsecureUpdateSource` (intended only for
 trusted loopback testing).
 
-To enable signed OTA updates, the owner must provision two distinct keys.
+The production Ed25519 pair was provisioned on 2026-10-08 in the repository's
+`NIGHTSHADE_UPDATE_PUBLIC_KEY` and `NIGHTSHADE_UPDATE_PRIVATE_KEY` Actions secrets.
+The matching public key is also the default in `UpdateVerifier`, so local builds
+trust production releases without an environment override. The private seed is
+never stored in the repository. Existing installed builds without a trusted key
+need a manual installation of a new build before they can authenticate updates.
+
+The steps below describe provisioning a replacement pair; keep the existing
+private key for normal releases.
 
 ### 1. Generate an Ed25519 key pair (one time)
 
@@ -238,8 +246,8 @@ Store the **private** key in a secret manager. Never commit it.
 
 ### 2. Embed the PUBLIC key in the shipped app build
 
-Set the env var before the release build so it is baked into the binary via
-`--dart-define`:
+For a testing or rotation key, set the env var before the release build to
+override the built-in production public key via `--dart-define`:
 
 ```powershell
 $env:NIGHTSHADE_UPDATE_PUBLIC_KEY = "<base64 vendor public key>"
@@ -248,9 +256,10 @@ $env:NIGHTSHADE_UPDATE_PUBLIC_KEY = "<base64 vendor public key>"
 
 `package_windows.ps1` passes
 `--dart-define=NIGHTSHADE_UPDATE_PUBLIC_KEY=$env:NIGHTSHADE_UPDATE_PUBLIC_KEY`
-to `flutter build windows --release`. If the variable is empty, the build still
-succeeds but **OTA stays disabled** (the runtime fails closed). A build without
-the public key will refuse every update, signed or not.
+to `flutter build windows --release` only when the variable is nonempty.
+Without it, the app uses its built-in production key. An explicitly empty
+`--dart-define=NIGHTSHADE_UPDATE_PUBLIC_KEY=` disables trust for testing.
+CI passes its public-key secret explicitly; keep it paired with the signing seed.
 
 ### 3. Sign each manifest with the PRIVATE key
 

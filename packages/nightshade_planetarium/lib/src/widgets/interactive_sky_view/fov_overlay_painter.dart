@@ -376,6 +376,7 @@ class _FOVOverlayPainter extends CustomPainter {
   final double? fovHeight;
   final CelestialCoordinate? fovCenter;
   final double rotation;
+  final bool showCrosshair;
 
   _FOVOverlayPainter({
     required this.viewState,
@@ -383,6 +384,7 @@ class _FOVOverlayPainter extends CustomPainter {
     this.fovHeight,
     this.fovCenter,
     this.rotation = 0,
+    this.showCrosshair = false,
   });
 
   @override
@@ -494,13 +496,23 @@ class _FOVOverlayPainter extends CustomPainter {
       bracketPaint,
     );
 
-    // Draw center crosshair
-    final crosshairPaint = Paint()
-      ..color = const Color(0xFF00E676).withValues(alpha: 0.5)
-      ..strokeWidth = 1;
+    if (showCrosshair) {
+      // Draw center crosshair
+      final crosshairPaint = Paint()
+        ..color = const Color(0xFF00E676).withValues(alpha: 0.5)
+        ..strokeWidth = 1;
 
-    canvas.drawLine(const Offset(-15, 0), const Offset(15, 0), crosshairPaint);
-    canvas.drawLine(const Offset(0, -15), const Offset(0, 15), crosshairPaint);
+      canvas.drawLine(
+        const Offset(-15, 0),
+        const Offset(15, 0),
+        crosshairPaint,
+      );
+      canvas.drawLine(
+        const Offset(0, -15),
+        const Offset(0, 15),
+        crosshairPaint,
+      );
+    }
 
     // Draw rotation indicator
     if (rotation != 0) {
@@ -539,7 +551,8 @@ class _FOVOverlayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _FOVOverlayPainter oldDelegate) {
-    return viewState != oldDelegate.viewState ||
+    return showCrosshair != oldDelegate.showCrosshair ||
+        viewState != oldDelegate.viewState ||
         fovWidth != oldDelegate.fovWidth ||
         fovHeight != oldDelegate.fovHeight ||
         // Without this the box stays where it was when the user picks a new

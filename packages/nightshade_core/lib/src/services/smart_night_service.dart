@@ -12,6 +12,8 @@ import '../models/scheduler/integration_goal.dart';
 import '../models/sequence/sequence_models.dart';
 import '../providers/profiles_provider.dart' show EquipmentProfileModel;
 import 'logging_service.dart';
+import 'hardware_presets/hardware_presets_service.dart';
+import 'smart_night/camera_capture_defaults.dart';
 import 'pre_session_simulator.dart';
 import 'sensor_specs/camera_sensor_spec_resolver.dart';
 import 'session_optimizer_service.dart' show SmartNightExposureContext;
@@ -56,6 +58,7 @@ class SmartNightService {
   final LoggingService _logging;
   final SmartNightExposureCalculator _exposureCalculator;
   final HardwareSpecsService _hardwareSpecs;
+  final HardwarePresetsService _cameraLibrary;
 
   static const _source = 'SmartNightService';
   static const _uuid = Uuid();
@@ -104,10 +107,12 @@ class SmartNightService {
     SmartNightExposureCalculator exposureCalculator =
         const SmartNightExposureCalculator(),
     HardwareSpecsService hardwareSpecs = const HardwareSpecsService(),
+    HardwarePresetsService cameraLibrary = const HardwarePresetsService(),
   }) : _suggestionService = suggestionService,
        _logging = logging,
        _exposureCalculator = exposureCalculator,
-       _hardwareSpecs = hardwareSpecs;
+       _hardwareSpecs = hardwareSpecs,
+       _cameraLibrary = cameraLibrary;
 
   /// Compute tonight's dark window from the observer location. Falls back
   /// to nautical / civil twilight at high latitudes. During polar night,
@@ -663,6 +668,8 @@ class SmartNightService {
     double? integrationBudgetHours,
     List<IntegrationGoalProgress>? integrationGoalProgress,
     bool includeSessionPreamble = false,
+    bool? includeSessionShutdown,
+    bool fillWindow = false,
   }) {
     final planningFilters = smartNightPlanningFilters(availableFilters);
     final resolvedStrategy =
@@ -751,7 +758,9 @@ class SmartNightService {
       (sum, plan) => sum + plan.integrationSecs,
     );
     final actualEnd = usable.$1.add(Duration(seconds: integrationSecs.round()));
-    final clampedEnd = actualEnd.isBefore(usable.$2) ? actualEnd : usable.$2;
+    final clampedEnd = !fillWindow && actualEnd.isBefore(usable.$2)
+        ? actualEnd
+        : usable.$2;
 
     final planned = SmartNightPlannedTarget(
       suggestion: suggestion,
@@ -781,6 +790,8 @@ class SmartNightService {
       settings: settings,
       context: context,
       includeSessionPreamble: includeSessionPreamble,
+      includeSessionShutdown: includeSessionShutdown,
+      fillWindow: fillWindow,
     );
 
     return SingleTargetSequenceResult(
