@@ -49,16 +49,14 @@ void main() {
     Directory oldDocuments,
     Directory newDocuments,
     Directory fallbackRoot,
-  }) linuxFixture() {
-    final dataHome = Directory(p.join(tempRoot.path, 'datahome'))
-      ..createSync();
+  })
+  linuxFixture() {
+    final dataHome = Directory(p.join(tempRoot.path, 'datahome'))..createSync();
     final docsHome = Directory(p.join(tempRoot.path, 'docs'))..createSync();
     final oldRoot = Directory(
       p.join(dataHome.path, 'com.example.nightshade_desktop'),
     );
-    final newRoot = Directory(
-      p.join(dataHome.path, 'com.skotiq.desktop'),
-    );
+    final newRoot = Directory(p.join(dataHome.path, 'com.skotiq.desktop'));
     final fallback = Directory(p.join(dataHome.path, 'nightshade_desktop'));
 
     // Old application-support contents: preferences file, catalogs, secrets
@@ -76,11 +74,7 @@ void main() {
     fileIn(oldDocs, 'nightshade-corrupt-1710000000000.db', 'backup');
     // The doctor flow also embeds the db name: a fully-purged file looks
     // like what a fresh Skotiq install would have written.
-    fileIn(
-      oldDocs,
-      'nightshade-corrupt-1710000000001-nightshade.db',
-      'backup',
-    );
+    fileIn(oldDocs, 'nightshade-corrupt-1710000000001-nightshade.db', 'backup');
     fileIn(oldDocs, 'profiles/default.json');
 
     final newDocs = Directory(p.join(docsHome.path, 'Skotiq'));
@@ -94,50 +88,57 @@ void main() {
     );
   }
 
-  Map<String, String> linuxEnv(Directory dataHome) =>
-      {'HOME': tempRoot.path, 'XDG_DATA_HOME': dataHome.path};
+  Map<String, String> linuxEnv(Directory dataHome) => {
+    'HOME': tempRoot.path,
+    'XDG_DATA_HOME': dataHome.path,
+  };
 
   group('linux data root', () {
-    test('moves the old application-support root and renames inner files',
-        () async {
-      final fixture = linuxFixture();
-      final dataHome = fixture.oldDataRoot.parent;
+    test(
+      'moves the old application-support root and renames inner files',
+      () async {
+        final fixture = linuxFixture();
+        final dataHome = fixture.oldDataRoot.parent;
 
-      final report = await migrateLegacyInstall(
-        dataRoot: fixture.newDataRoot.path,
-        environment: linuxEnv(dataHome),
-        operatingSystem: 'linux',
-        log: (_) {},
-      );
+        final report = await migrateLegacyInstall(
+          dataRoot: fixture.newDataRoot.path,
+          environment: linuxEnv(dataHome),
+          operatingSystem: 'linux',
+          log: (_) {},
+        );
 
-      // The whole tree moved under the new application-id directory.
-      expect(fixture.oldDataRoot.existsSync(), isFalse);
-      expect(fixture.newDataRoot.existsSync(), isTrue);
-      expect(
-        File(
-          p.join(fixture.newDataRoot.path, 'shared_preferences.json'),
-        ).existsSync(),
-        isTrue,
-      );
-      // Log basenames carried the old prefix; they rename in place.
-      expect(
-        File(p.join(fixture.newDataRoot.path, 'logs', 'skotiq.log'))
-            .existsSync(),
-        isTrue,
-      );
-      expect(
-        File(p.join(fixture.newDataRoot.path, 'logs', 'skotiq-dart.log'))
-            .existsSync(),
-        isTrue,
-      );
-      expect(
-        File(p.join(fixture.newDataRoot.path, 'logs', 'nightshade.log'))
-            .existsSync(),
-        isFalse,
-      );
-      expect(report.didWork, isTrue);
-      expect(report.warnings, isEmpty);
-    });
+        // The whole tree moved under the new application-id directory.
+        expect(fixture.oldDataRoot.existsSync(), isFalse);
+        expect(fixture.newDataRoot.existsSync(), isTrue);
+        expect(
+          File(
+            p.join(fixture.newDataRoot.path, 'shared_preferences.json'),
+          ).existsSync(),
+          isTrue,
+        );
+        // Log basenames carried the old prefix; they rename in place.
+        expect(
+          File(
+            p.join(fixture.newDataRoot.path, 'logs', 'skotiq.log'),
+          ).existsSync(),
+          isTrue,
+        );
+        expect(
+          File(
+            p.join(fixture.newDataRoot.path, 'logs', 'skotiq-dart.log'),
+          ).existsSync(),
+          isTrue,
+        );
+        expect(
+          File(
+            p.join(fixture.newDataRoot.path, 'logs', 'nightshade.log'),
+          ).existsSync(),
+          isFalse,
+        );
+        expect(report.didWork, isTrue);
+        expect(report.warnings, isEmpty);
+      },
+    );
 
     test('falls back to the executable-name root when the app-id root is '
         'absent', () async {
@@ -167,11 +168,7 @@ void main() {
       final fixture = linuxFixture();
       final dataHome = fixture.oldDataRoot.parent;
       // The new install already ran once and wrote its own preferences.
-      fileIn(
-        fixture.newDataRoot,
-        'shared_preferences.json',
-        '{"fresh":true}',
-      );
+      fileIn(fixture.newDataRoot, 'shared_preferences.json', '{"fresh":true}');
 
       final report = await migrateLegacyInstall(
         dataRoot: fixture.newDataRoot.path,
@@ -195,66 +192,66 @@ void main() {
       );
       // Non-colliding content still moved across.
       expect(
-        File(p.join(fixture.newDataRoot.path, 'push_config.json'))
-            .existsSync(),
+        File(p.join(fixture.newDataRoot.path, 'push_config.json')).existsSync(),
         isTrue,
       );
-      expect(
-        report.warnings.where((w) => w.contains('kept both')),
-        isNotEmpty,
-      );
+      expect(report.warnings.where((w) => w.contains('kept both')), isNotEmpty);
     });
   });
 
   group('documents subtree', () {
-    test('renames Nightshade/ to Skotiq/ and the inner database names',
-        () async {
-      final fixture = linuxFixture();
-      final dataHome = fixture.oldDataRoot.parent;
+    test(
+      'renames Nightshade/ to Skotiq/ and the inner database names',
+      () async {
+        final fixture = linuxFixture();
+        final dataHome = fixture.oldDataRoot.parent;
 
-      await migrateLegacyInstall(
-        dataRoot: fixture.newDataRoot.path,
-        documentsRoot: fixture.newDocuments.parent.path,
-        environment: linuxEnv(dataHome),
-        operatingSystem: 'linux',
-        log: (_) {},
-      );
+        await migrateLegacyInstall(
+          dataRoot: fixture.newDataRoot.path,
+          documentsRoot: fixture.newDocuments.parent.path,
+          environment: linuxEnv(dataHome),
+          operatingSystem: 'linux',
+          log: (_) {},
+        );
 
-      expect(fixture.oldDocuments.existsSync(), isFalse);
-      expect(fixture.newDocuments.existsSync(), isTrue);
-      expect(
-        File(p.join(fixture.newDocuments.path, 'skotiq.db'))
-            .readAsStringSync(),
-        'database-bytes',
-      );
-      expect(
-        File(p.join(fixture.newDocuments.path, 'pairing.db')).existsSync(),
-        isTrue,
-      );
-      expect(
-        File(
-          p.join(
-            fixture.newDocuments.path,
-            'skotiq-corrupt-1710000000000.db',
-          ),
-        ).existsSync(),
-        isTrue,
-      );
-      expect(
-        File(
-          p.join(
-            fixture.newDocuments.path,
-            'skotiq-corrupt-1710000000001-skotiq.db',
-          ),
-        ).existsSync(),
-        isTrue,
-      );
-      expect(
-        File(p.join(fixture.newDocuments.path, 'profiles', 'default.json'))
-            .existsSync(),
-        isTrue,
-      );
-    });
+        expect(fixture.oldDocuments.existsSync(), isFalse);
+        expect(fixture.newDocuments.existsSync(), isTrue);
+        expect(
+          File(
+            p.join(fixture.newDocuments.path, 'skotiq.db'),
+          ).readAsStringSync(),
+          'database-bytes',
+        );
+        expect(
+          File(p.join(fixture.newDocuments.path, 'pairing.db')).existsSync(),
+          isTrue,
+        );
+        expect(
+          File(
+            p.join(
+              fixture.newDocuments.path,
+              'skotiq-corrupt-1710000000000.db',
+            ),
+          ).existsSync(),
+          isTrue,
+        );
+        expect(
+          File(
+            p.join(
+              fixture.newDocuments.path,
+              'skotiq-corrupt-1710000000001-skotiq.db',
+            ),
+          ).existsSync(),
+          isTrue,
+        );
+        expect(
+          File(
+            p.join(fixture.newDocuments.path, 'profiles', 'default.json'),
+          ).existsSync(),
+          isTrue,
+        );
+      },
+    );
 
     test('a colliding skotiq.db keeps the legacy file as .legacy', () async {
       final fixture = linuxFixture();
@@ -273,13 +270,13 @@ void main() {
       );
 
       expect(
-        File(p.join(fixture.newDocuments.path, 'skotiq.db'))
-            .readAsStringSync(),
+        File(p.join(fixture.newDocuments.path, 'skotiq.db')).readAsStringSync(),
         'new-database',
       );
       expect(
-        File(p.join(fixture.newDocuments.path, 'skotiq.db.legacy'))
-            .readAsStringSync(),
+        File(
+          p.join(fixture.newDocuments.path, 'skotiq.db.legacy'),
+        ).readAsStringSync(),
         'database-bytes',
       );
     });
@@ -293,10 +290,7 @@ void main() {
 
       final report = await migrateLegacyInstall(
         dataRoot: relocated.path,
-        environment: {
-          ...linuxEnv(dataHome),
-          skotiqDataDirEnv: relocated.path,
-        },
+        environment: {...linuxEnv(dataHome), skotiqDataDirEnv: relocated.path},
         operatingSystem: 'linux',
         log: (_) {},
       );
@@ -347,11 +341,7 @@ void main() {
       fileIn(oldRoot, 'shared_preferences.json');
       // Windows secure storage is an encrypted file inside app support —
       // moving the root carries it.
-      fileIn(
-        oldRoot,
-        'flutter_secure_storage.dat',
-        'ciphertext',
-      );
+      fileIn(oldRoot, 'flutter_secure_storage.dat', 'ciphertext');
       fileIn(
         Directory(p.join(local.path, 'com.example', 'nightshade_desktop')),
         'cache.bin',
@@ -359,10 +349,7 @@ void main() {
 
       final report = await migrateLegacyInstall(
         dataRoot: newRoot.path,
-        environment: {
-          'APPDATA': appData.path,
-          'LOCALAPPDATA': local.path,
-        },
+        environment: {'APPDATA': appData.path, 'LOCALAPPDATA': local.path},
         operatingSystem: 'windows',
         log: (_) {},
       );
@@ -377,9 +364,7 @@ void main() {
         isTrue,
       );
       expect(
-        File(
-          p.join(local.path, 'Skotiq', 'Skotiq', 'cache.bin'),
-        ).existsSync(),
+        File(p.join(local.path, 'Skotiq', 'Skotiq', 'cache.bin')).existsSync(),
         isTrue,
       );
       expect(report.warnings, isEmpty);
@@ -387,80 +372,82 @@ void main() {
   });
 
   group('macos', () {
-    test('moves Application Support and renames the preferences plist',
-        () async {
-      final home = Directory(p.join(tempRoot.path, 'home'))..createSync();
-      final oldRoot = Directory(
-        p.join(
-          home.path,
-          'Library',
-          'Application Support',
-          'com.example.nightshadeDesktop',
-        ),
-      );
-      final newRoot = Directory(
-        p.join(
-          home.path,
-          'Library',
-          'Application Support',
-          'com.skotiq.desktop',
-        ),
-      );
-      fileIn(oldRoot, 'push_config.json');
-      fileIn(
-        Directory(
+    test(
+      'moves Application Support and renames the preferences plist',
+      () async {
+        final home = Directory(p.join(tempRoot.path, 'home'))..createSync();
+        final oldRoot = Directory(
           p.join(
             home.path,
             'Library',
-            'Caches',
+            'Application Support',
             'com.example.nightshadeDesktop',
           ),
-        ),
-        'catalog.bin',
-      );
-      fileIn(
-        Directory(p.join(home.path, 'Library', 'Preferences')),
-        'com.example.nightshadeDesktop.plist',
-        '<plist/>',
-      );
-
-      final report = await migrateLegacyInstall(
-        dataRoot: newRoot.path,
-        environment: {'HOME': home.path},
-        operatingSystem: 'macos',
-        log: (_) {},
-      );
-
-      expect(oldRoot.existsSync(), isFalse);
-      expect(
-        File(p.join(newRoot.path, 'push_config.json')).existsSync(),
-        isTrue,
-      );
-      expect(
-        File(
+        );
+        final newRoot = Directory(
           p.join(
             home.path,
             'Library',
-            'Caches',
+            'Application Support',
             'com.skotiq.desktop',
-            'catalog.bin',
           ),
-        ).existsSync(),
-        isTrue,
-      );
-      expect(
-        File(
-          p.join(
-            home.path,
-            'Library',
-            'Preferences',
-            'com.skotiq.desktop.plist',
+        );
+        fileIn(oldRoot, 'push_config.json');
+        fileIn(
+          Directory(
+            p.join(
+              home.path,
+              'Library',
+              'Caches',
+              'com.example.nightshadeDesktop',
+            ),
           ),
-        ).existsSync(),
-        isTrue,
-      );
-      expect(report.warnings, isEmpty);
-    });
+          'catalog.bin',
+        );
+        fileIn(
+          Directory(p.join(home.path, 'Library', 'Preferences')),
+          'com.example.nightshadeDesktop.plist',
+          '<plist/>',
+        );
+
+        final report = await migrateLegacyInstall(
+          dataRoot: newRoot.path,
+          environment: {'HOME': home.path},
+          operatingSystem: 'macos',
+          log: (_) {},
+        );
+
+        expect(oldRoot.existsSync(), isFalse);
+        expect(
+          File(p.join(newRoot.path, 'push_config.json')).existsSync(),
+          isTrue,
+        );
+        expect(
+          File(
+            p.join(
+              home.path,
+              'Library',
+              'Caches',
+              'com.skotiq.desktop',
+              'catalog.bin',
+            ),
+          ).existsSync(),
+          isTrue,
+        );
+        expect(
+          File(
+            p.join(
+              home.path,
+              'Library',
+              'Preferences',
+              'com.skotiq.desktop.plist',
+            ),
+          ).existsSync(),
+          isTrue,
+        );
+        expect(report.warnings, isEmpty);
+      },
+    );
   });
 
   group('pinned database directory', () {
@@ -488,127 +475,152 @@ void main() {
   });
 
   group('appliance', () {
-    test('folds the legacy sibling state dir into a relocated skotiq root',
-        () async {
-      // headless.env pins SKOTIQ_DATA_DIR=/var/lib/skotiq; the old appliance
-      // kept its state at /var/lib/nightshade. Fixture mirrors that under the
-      // temp dir: <tmp>/var/lib/{nightshade,skotiq}.
-      final varLib = Directory(p.join(tempRoot.path, 'var', 'lib'))
-        ..createSync(recursive: true);
-      final legacyState = Directory(p.join(varLib.path, 'nightshade'));
-      final newState = Directory(p.join(varLib.path, 'skotiq'));
-      fileIn(legacyState, 'database/nightshade.db', 'database-bytes');
-      fileIn(legacyState, 'logs/nightshade.log', 'old log');
+    test(
+      'folds the legacy sibling state dir into a relocated skotiq root',
+      () async {
+        // headless.env pins SKOTIQ_DATA_DIR=/var/lib/skotiq; the old appliance
+        // kept its state at /var/lib/nightshade. Fixture mirrors that under the
+        // temp dir: <tmp>/var/lib/{nightshade,skotiq}.
+        final varLib = Directory(p.join(tempRoot.path, 'var', 'lib'))
+          ..createSync(recursive: true);
+        final legacyState = Directory(p.join(varLib.path, 'nightshade'));
+        final newState = Directory(p.join(varLib.path, 'skotiq'));
+        fileIn(legacyState, 'database/nightshade.db', 'database-bytes');
+        fileIn(legacyState, 'logs/nightshade.log', 'old log');
 
-      await migrateLegacyInstall(
-        dataRoot: newState.path,
-        databaseDirectory: p.join(newState.path, 'database'),
-        environment: {
-          'HOME': tempRoot.path,
-          skotiqDataDirEnv: newState.path,
-        },
-        operatingSystem: 'linux',
-        legacyApplianceStateDirOverride: legacyState.path,
-        legacyApplianceConfDirOverride:
-            p.join(tempRoot.path, 'etc', 'nightshade'),
-        applianceConfDir: p.join(tempRoot.path, 'etc', 'skotiq'),
-        legacyApplianceUnitFileOverride:
-            p.join(tempRoot.path, 'units', 'nightshade-headless.service'),
-        log: (_) {},
-      );
+        await migrateLegacyInstall(
+          dataRoot: newState.path,
+          databaseDirectory: p.join(newState.path, 'database'),
+          environment: {'HOME': tempRoot.path, skotiqDataDirEnv: newState.path},
+          operatingSystem: 'linux',
+          legacyApplianceStateDirOverride: legacyState.path,
+          legacyApplianceConfDirOverride: p.join(
+            tempRoot.path,
+            'etc',
+            'nightshade',
+          ),
+          applianceConfDir: p.join(tempRoot.path, 'etc', 'skotiq'),
+          legacyApplianceUnitFileOverride: p.join(
+            tempRoot.path,
+            'units',
+            'nightshade-headless.service',
+          ),
+          log: (_) {},
+        );
 
-      // The sibling folded in; inner db renamed by the data-root pass.
-      expect(
-        File(p.join(newState.path, 'database', 'skotiq.db'))
-            .readAsStringSync(),
-        'database-bytes',
-      );
-      expect(
-        File(p.join(newState.path, 'logs', 'skotiq.log')).existsSync(),
-        isTrue,
-      );
-    });
+        // The sibling folded in; inner db renamed by the data-root pass.
+        expect(
+          File(
+            p.join(newState.path, 'database', 'skotiq.db'),
+          ).readAsStringSync(),
+          'database-bytes',
+        );
+        expect(
+          File(p.join(newState.path, 'logs', 'skotiq.log')).existsSync(),
+          isTrue,
+        );
+      },
+    );
 
-    test('translates headless.env when the process can write the conf dir',
-        () async {
-      final legacyConf = Directory(
-        p.join(tempRoot.path, 'etc', 'nightshade'),
-      );
-      final confDir = Directory(p.join(tempRoot.path, 'etc', 'skotiq'));
-      fileIn(
-        legacyConf,
-        'headless.env',
-        'NIGHTSHADE_AUTH_TOKEN=tok123\n'
-            'NIGHTSHADE_DATA_DIR=/var/lib/nightshade\n'
-            'NIGHTSHADE_DATABASE_DIR=/var/lib/nightshade/database\n'
-            'NIGHTSHADE_PORT=9090\n',
-      );
+    test(
+      'translates headless.env when the process can write the conf dir',
+      () async {
+        final legacyConf = Directory(
+          p.join(tempRoot.path, 'etc', 'nightshade'),
+        );
+        final confDir = Directory(p.join(tempRoot.path, 'etc', 'skotiq'));
+        fileIn(
+          legacyConf,
+          'headless.env',
+          'NIGHTSHADE_AUTH_TOKEN=tok123\n'
+              'NIGHTSHADE_DATA_DIR=/var/lib/nightshade\n'
+              'NIGHTSHADE_DATABASE_DIR=/var/lib/nightshade/database\n'
+              'NIGHTSHADE_PORT=9090\n',
+        );
 
-      final report = await migrateLegacyInstall(
-        dataRoot: p.join(tempRoot.path, 'data'),
-        environment: {'HOME': tempRoot.path},
-        operatingSystem: 'linux',
-        legacyApplianceConfDirOverride: legacyConf.path,
-        applianceConfDir: confDir.path,
-        legacyApplianceStateDirOverride:
-            p.join(tempRoot.path, 'var', 'lib', 'nightshade'),
-        legacyApplianceUnitFileOverride:
-            p.join(tempRoot.path, 'units', 'nightshade-headless.service'),
-        log: (_) {},
-      );
+        final report = await migrateLegacyInstall(
+          dataRoot: p.join(tempRoot.path, 'data'),
+          environment: {'HOME': tempRoot.path},
+          operatingSystem: 'linux',
+          legacyApplianceConfDirOverride: legacyConf.path,
+          applianceConfDir: confDir.path,
+          legacyApplianceStateDirOverride: p.join(
+            tempRoot.path,
+            'var',
+            'lib',
+            'nightshade',
+          ),
+          legacyApplianceUnitFileOverride: p.join(
+            tempRoot.path,
+            'units',
+            'nightshade-headless.service',
+          ),
+          log: (_) {},
+        );
 
-      final translated =
-          File(p.join(confDir.path, 'headless.env')).readAsStringSync();
-      expect(translated, contains('SKOTIQ_AUTH_TOKEN=tok123'));
-      expect(translated, contains('SKOTIQ_DATA_DIR=/var/lib/skotiq'));
-      expect(
-        translated,
-        contains('SKOTIQ_DATABASE_DIR=/var/lib/skotiq/database'),
-      );
-      expect(translated, contains('SKOTIQ_PORT=9090'));
-      expect(translated, isNot(contains('NIGHTSHADE')));
-      // The original stays put as a backup.
-      expect(
-        File(p.join(legacyConf.path, 'headless.env')).existsSync(),
-        isTrue,
-      );
-      expect(
-        report.actions.where((a) => a.contains('translated')),
-        isNotEmpty,
-      );
-    });
+        final translated = File(
+          p.join(confDir.path, 'headless.env'),
+        ).readAsStringSync();
+        expect(translated, contains('SKOTIQ_AUTH_TOKEN=tok123'));
+        expect(translated, contains('SKOTIQ_DATA_DIR=/var/lib/skotiq'));
+        expect(
+          translated,
+          contains('SKOTIQ_DATABASE_DIR=/var/lib/skotiq/database'),
+        );
+        expect(translated, contains('SKOTIQ_PORT=9090'));
+        expect(translated, isNot(contains('NIGHTSHADE')));
+        // The original stays put as a backup.
+        expect(
+          File(p.join(legacyConf.path, 'headless.env')).existsSync(),
+          isTrue,
+        );
+        expect(
+          report.actions.where((a) => a.contains('translated')),
+          isNotEmpty,
+        );
+      },
+    );
 
-    test('an existing new headless.env wins; the old file only warns',
-        () async {
-      final legacyConf = Directory(
-        p.join(tempRoot.path, 'etc', 'nightshade'),
-      );
-      final confDir = Directory(p.join(tempRoot.path, 'etc', 'skotiq'));
-      fileIn(legacyConf, 'headless.env', 'NIGHTSHADE_AUTH_TOKEN=old\n');
-      fileIn(confDir, 'headless.env', 'SKOTIQ_AUTH_TOKEN=new\n');
+    test(
+      'an existing new headless.env wins; the old file only warns',
+      () async {
+        final legacyConf = Directory(
+          p.join(tempRoot.path, 'etc', 'nightshade'),
+        );
+        final confDir = Directory(p.join(tempRoot.path, 'etc', 'skotiq'));
+        fileIn(legacyConf, 'headless.env', 'NIGHTSHADE_AUTH_TOKEN=old\n');
+        fileIn(confDir, 'headless.env', 'SKOTIQ_AUTH_TOKEN=new\n');
 
-      final report = await migrateLegacyInstall(
-        dataRoot: p.join(tempRoot.path, 'data'),
-        environment: {'HOME': tempRoot.path},
-        operatingSystem: 'linux',
-        legacyApplianceConfDirOverride: legacyConf.path,
-        applianceConfDir: confDir.path,
-        legacyApplianceStateDirOverride:
-            p.join(tempRoot.path, 'var', 'lib', 'nightshade'),
-        legacyApplianceUnitFileOverride:
-            p.join(tempRoot.path, 'units', 'nightshade-headless.service'),
-        log: (_) {},
-      );
+        final report = await migrateLegacyInstall(
+          dataRoot: p.join(tempRoot.path, 'data'),
+          environment: {'HOME': tempRoot.path},
+          operatingSystem: 'linux',
+          legacyApplianceConfDirOverride: legacyConf.path,
+          applianceConfDir: confDir.path,
+          legacyApplianceStateDirOverride: p.join(
+            tempRoot.path,
+            'var',
+            'lib',
+            'nightshade',
+          ),
+          legacyApplianceUnitFileOverride: p.join(
+            tempRoot.path,
+            'units',
+            'nightshade-headless.service',
+          ),
+          log: (_) {},
+        );
 
-      expect(
-        File(p.join(confDir.path, 'headless.env')).readAsStringSync(),
-        'SKOTIQ_AUTH_TOKEN=new\n',
-      );
-      expect(
-        report.warnings.where((w) => w.contains('headless.env')),
-        isNotEmpty,
-      );
-    });
+        expect(
+          File(p.join(confDir.path, 'headless.env')).readAsStringSync(),
+          'SKOTIQ_AUTH_TOKEN=new\n',
+        );
+        expect(
+          report.warnings.where((w) => w.contains('headless.env')),
+          isNotEmpty,
+        );
+      },
+    );
 
     test('a leftover legacy systemd unit is surfaced', () async {
       final unit = File(
@@ -620,10 +632,17 @@ void main() {
         dataRoot: p.join(tempRoot.path, 'data'),
         environment: {'HOME': tempRoot.path},
         operatingSystem: 'linux',
-        legacyApplianceStateDirOverride:
-            p.join(tempRoot.path, 'var', 'lib', 'nightshade'),
-        legacyApplianceConfDirOverride:
-            p.join(tempRoot.path, 'etc', 'nightshade'),
+        legacyApplianceStateDirOverride: p.join(
+          tempRoot.path,
+          'var',
+          'lib',
+          'nightshade',
+        ),
+        legacyApplianceConfDirOverride: p.join(
+          tempRoot.path,
+          'etc',
+          'nightshade',
+        ),
         applianceConfDir: p.join(tempRoot.path, 'etc', 'skotiq'),
         legacyApplianceUnitFileOverride: unit.path,
         log: (_) {},
@@ -693,13 +712,10 @@ void main() {
 
       // Idempotent: nothing under the old prefix remains.
       expect(
-        await migrateLegacySecretsNamespace(
-          read,
-          write,
-          delete,
-          const ['email.password', 'mqtt.password'],
-          'skotiq.notif.v1.',
-        ),
+        await migrateLegacySecretsNamespace(read, write, delete, const [
+          'email.password',
+          'mqtt.password',
+        ], 'skotiq.notif.v1.'),
         0,
       );
     });
@@ -713,13 +729,9 @@ void main() {
       Future<void> write(String k, String v) async => backing[k] = v;
       Future<void> delete(String k) async => backing.remove(k);
 
-      await migrateLegacySecretsNamespace(
-        read,
-        write,
-        delete,
-        const ['email.password'],
-        'skotiq.notif.v1.',
-      );
+      await migrateLegacySecretsNamespace(read, write, delete, const [
+        'email.password',
+      ], 'skotiq.notif.v1.');
 
       expect(backing['skotiq.notif.v1.email.password'], 'new-secret');
       expect(backing['ns.notif.v1.email.password'], isNull);

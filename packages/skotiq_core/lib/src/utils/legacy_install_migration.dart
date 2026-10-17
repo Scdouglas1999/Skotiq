@@ -142,7 +142,8 @@ Future<LegacyInstallMigrationReport> migrateLegacyInstall({
   final report = LegacyInstallMigrationReport();
   final env = environment ?? Platform.environment;
   final os = operatingSystem ?? Platform.operatingSystem;
-  final emit = log ??
+  final emit =
+      log ??
       (String m) =>
           developer.log(m, name: 'skotiq.legacy_migration', level: 900);
 
@@ -255,12 +256,9 @@ Future<LegacyInstallMigrationReport> migrateLegacyInstall({
   if (databaseDirectory != null && databaseDirectory != dataRoot) {
     final dir = Directory(databaseDirectory);
     if (await dir.exists()) {
-      await attempt(
-        'rename legacy entries under $databaseDirectory',
-        () async {
-          await _renameLegacyEntries(dir, report, emit);
-        },
-      );
+      await attempt('rename legacy entries under $databaseDirectory', () async {
+        await _renameLegacyEntries(dir, report, emit);
+      });
     }
   }
 
@@ -284,8 +282,7 @@ Future<LegacyInstallMigrationReport> migrateLegacyInstall({
   // exactly what an operator must run. None of it is fatal.
   if (os == 'linux') {
     final confDir = applianceConfDir ?? skotiqApplianceConfDir;
-    final legacyConf =
-        legacyApplianceConfDirOverride ?? legacyApplianceConfDir;
+    final legacyConf = legacyApplianceConfDirOverride ?? legacyApplianceConfDir;
     final legacyState =
         legacyApplianceStateDirOverride ?? legacyApplianceStateDir;
     final legacyUnit =
@@ -433,10 +430,7 @@ String translateLegacyHeadlessEnv(String content) {
         (_) => 'SKOTIQ_',
       )
       .replaceAll(legacyApplianceStateDir, skotiqApplianceStateDir)
-      .replaceAll(
-        legacyApplianceConfDir,
-        p.join('/etc', skotiqFilePrefix),
-      )
+      .replaceAll(legacyApplianceConfDir, p.join('/etc', skotiqFilePrefix))
       .replaceAll(
         p.join('/opt', legacyFilePrefix),
         p.join('/opt', skotiqFilePrefix),
@@ -464,7 +458,9 @@ Future<void> _migrateApplianceEnv(
     return;
   }
   try {
-    final translated = translateLegacyHeadlessEnv(await File(src).readAsString());
+    final translated = translateLegacyHeadlessEnv(
+      await File(src).readAsString(),
+    );
     await Directory(confDir).create(recursive: true);
     await File(dst).writeAsString(translated);
     report.actions.add(
@@ -650,9 +646,7 @@ Future<void> _renameLegacyEntries(
       try {
         await _renameLegacyEntries(entity, report, emit);
       } on FileSystemException catch (e) {
-        report.warnings.add(
-          'could not scan ${entity.path} for renames: $e',
-        );
+        report.warnings.add('could not scan ${entity.path} for renames: $e');
       }
     }
     final base = p.basename(entity.path);
@@ -672,9 +666,7 @@ Future<void> _renameLegacyEntries(
       await entity.rename(target);
       report.actions.add('renamed ${entity.path} -> $target');
     } on FileSystemException catch (e) {
-      report.warnings.add(
-        'could not rename ${entity.path} -> $target: $e',
-      );
+      report.warnings.add('could not rename ${entity.path} -> $target: $e');
     }
   }
 }

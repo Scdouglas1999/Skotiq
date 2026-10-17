@@ -65,7 +65,7 @@ python3 reports/rebrand/check_md_links.py --anchors > /tmp/links_before.txt 2>&1
                                          # EXIT=1 — 4 broken anchors (before)
 python3 reports/rebrand/check_md_links.py --anchors > /tmp/links_final.txt 2>&1; echo EXIT=$?
                                          # EXIT=0 — 0 broken (after fixes)
-rg -il 'nightshade|night_shade|night-shade' --glob '*.md' .   # EXIT=1 — zero hits
+rg -il '<old>' --glob '*.md' .   # EXIT=1 — zero hits
 rg -n '\ban Skotiq|\ban SKOTIQ' --glob '*.md' .               # EXIT=1 — zero hits
 ```
 

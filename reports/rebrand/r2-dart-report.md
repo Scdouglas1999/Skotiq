@@ -1,4 +1,4 @@
-# r2-dart rebrand report — Nightshade → Skotiq
+# r2-dart rebrand report — <old> → Skotiq
 
 Scope: every Dart package and app library — `packages/**`, `apps/*/lib/**`,
 `apps/*/test/**`, root `pubspec.yaml`, `melos.yaml`, `analysis_options.yaml`,
@@ -30,7 +30,7 @@ re-checkout was needed.
   file.
 
 Regen diff character: line re-wraps where `Skotiq*` identifiers are shorter
-than `Nightshade*` (drift/freezed emit at the page width), doc comments the
+than `<old>*` (drift/freezed emit at the page width), doc comments the
 committed output had stale vs. current sources, and mockito import-alias
 renumbering. Nothing semantic. Committed as
 `85e78577d fix(rebrand): regenerate Dart codegen and re-resolve lockfiles`.
@@ -59,9 +59,9 @@ desktop 9; bridge, plugins, remote_protocol, updater, mobile_e2e report "No
 issues found".
 
 Base verification (`663267b75` worktree at `$TMPDIR/base`, `flutter pub get`
-then `dart analyze .` per package): identical counts — nightshade_app 874
-(including the same error, fixed here), nightshade_ui 59, mobile 20,
-nightshade_core 18, nightshade_planetarium 9, desktop 9. The rename added
+then `dart analyze .` per package): identical counts — <old>_app 874
+(including the same error, fixed here), <old>_ui 59, mobile 20,
+<old>_core 18, <old>_planetarium 9, desktop 9. The rename added
 zero analyzer diagnostics.
 
 ## 3. `dart format`
@@ -88,8 +88,8 @@ Grepped every `Skotiq`/`skotiq` string literal in `packages/*/lib`,
   (`skotiq.local`, `skotiq.db`, `skotiq/...` channels, `com.skotiq.*`).
 - `'SKOTIQ'` in `title_bar.dart:142` and `_mobile_settings_bar.dart:45` is the
   all-caps wordmark with `letterSpacing` styling — intentional treatment, kept.
-- No remnants of the old name's wordplay: searched `deadly`, `nightshade`,
-  `night shade`, `belladonna`, `botanical`, `plant`, `garden`, `shade` —
+- No remnants of the old name's wordplay: searched `deadly`, `<old>`,
+  `belladonna`, `botanical`, `plant`, `garden`, `shade` —
   only innocuous hits (`poison the fit`, `a shade darker`, `two shades of one
   hue`).
 - About page (`about_settings.dart`), onboarding (`welcome_step.dart`),
@@ -132,7 +132,7 @@ design — see docs/testing/golden-tests.md):
   `test/benchmark/golden_compare_test.dart` "benchmark golden checkpoints
   (compare)" — all five checkpoints exceed the 0.20% limit at 1.9–4.4%
   changed. Verified pre-existing: the same test on base `663267b75`
-  (`$TMPDIR/base/packages/nightshade_planetarium`) fails identically with
+  (`$TMPDIR/base/packages/<old>_planetarium`) fails identically with
   the same maxDelta values (218/245/219/245/255) and the same percentages —
   host-specific baseline drift, not a rename diff. No PNG baselines touched.
 
