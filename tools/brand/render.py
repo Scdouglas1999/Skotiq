@@ -100,7 +100,7 @@ def rsvg_text(svg_text, out, width, height):
     log(out)
 
 
-def tile_png(out, px, palette="violet", level=None, ground=mark.GROUND,
+def tile_png(out, px, palette="violet", level=None, ground=None,
              radius=mark.TILE_RX):
     """The rounded-tile icon rasterized at px, at the level for that size."""
     level = level or mark.level_for_size(px)

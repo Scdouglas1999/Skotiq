@@ -16,6 +16,7 @@ CY_UP, CY_LO = 36.0, 64.0
 CX = 50.0
 
 # The tile an app icon sits on: ground color and corner radius (22.5% of side).
+# The red night-mode colorway is the exception: it sits on pure black.
 GROUND = "#0E0C16"
 TILE_RX = 22.5
 
@@ -125,8 +126,10 @@ def group(palette="violet", level="full"):
     return "\n".join(elements(palette, level) + ["</g>"])
 
 
-def svg(palette="violet", size=512, tile=True, ground=GROUND, level="full",
+def svg(palette="violet", size=512, tile=True, ground=None, level="full",
         radius=TILE_RX):
+    if ground is None:
+        ground = "#000" if palette == "red" else GROUND
     p = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" '
          f'width="{size}" height="{size}">']
     if tile:
@@ -148,7 +151,8 @@ if __name__ == "__main__":
     ap.add_argument("--level", default="full", choices=sorted(LEVELS))
     ap.add_argument("--size", type=int, default=512)
     ap.add_argument("--bare", action="store_true", help="no rounded tile")
-    ap.add_argument("--ground", default=GROUND)
+    ap.add_argument("--ground", default=None,
+                    help="tile color; default #0E0C16, #000 for the red colorway")
     ap.add_argument("--radius", type=float, default=TILE_RX)
     ap.add_argument("-o", "--out")
     args = ap.parse_args()
