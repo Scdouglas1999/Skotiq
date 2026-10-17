@@ -22,6 +22,7 @@ key name.
 | `palettes.*.startFill` / `onStart` | `SkotiqColors.startFill` / `onStart` | new fields (Start button) |
 | `palettes.*.accentSwatches` | `AppearanceAccents.forTheme(mode)` | new const list in `skotiq_theme.dart` |
 | `palettes.*.bands.*` | `SkotiqColors.bandDusk/bandTwilight/bandDark/bandDawn` | new fields (NightBand) |
+| `palettes.*.brandWarm` | `SkotiqColors.brandWarm` | brand/decoration only — never status, never a control |
 | `typography.styles.pageTitle` | `SkotiqTypography.pageTitle` | NOT `h1`; `h1` (32) stays and is deprecated |
 | `typography.styles.sectionTitle` | `SkotiqTypography.sectionTitle` | NOT `h2` |
 | `typography.styles.*` other | same name | `readoutXs`, `readoutBadge`, `monoCaption`, `buttonLg` are new |
@@ -57,19 +58,21 @@ key name.
 | `textPrimary` | `#EDEFF3` | #E8EAED | content, values, titles |
 | `textSecondary` | `#B3BAC5` | #9AA3AD | descriptions, key labels in key/value lists, rail labels |
 | `textMuted` | `#8E97A4` | #9099A6 | eyebrows, readout labels, timestamps, placeholders, icons at rest |
-| `primary` | `#6EB3EC` | #5B9EC4 | primary button fill, selected state, links, live "now" marker |
-| `accent` | `#8FC7F5` | #7AB8D4 | primary hover fill only |
+| `primary` | `#A48CF2` | #6EB3EC | primary button fill, selected state, links — the brand violet; the old blue survives as the second Appearance swatch and as `info` |
+| `accent` | `#B9ABFF` | #8FC7F5 | primary hover fill only |
 | `onPrimary` | `#0B0D12` (via `useDarkOnPrimary: true`) | same | ink on primary/accent fills |
 | `success` | `#43B67A` | #3DAA6D | connected, done, safe |
 | `warning` | `#E0A53E` | #D49A3A | attention, unsaved, session-only |
 | `error` | `#E86A6A` | #D85C5C | failed, disconnected, stop |
-| `info` | `#6EB3EC` | #5B9EC4 | equals primary |
+| `info` | `#6EB3EC` | equals old primary | keeps the old blue so status stays distinct from a violet selection |
+| `brandWarm` **(new)** | `#FFD9A8` | — | the mark's warm lane/pole star, the "now" marker, the running step's progress highlight — decoration only, held ΔE00 ≥ 15 from `warning` (light `#B43B00`, red night `#FF9A9A`) |
 | `startFill` **(new)** | `#43B67A` | — | Start-sequence button fill (light `#1E7A47`, red night = primary) |
 | `onStart` **(new)** | `#06140B` | — | ink on `startFill` (light white, red night `onPrimary`) |
 | `bandDusk/bandTwilight/bandDark/bandDawn` **(new)** | `#3A3F66 / #151A2C / #0D1015 / #4A4160` | — | NightBand gradient; light `#C9CFE8 / #4A5680 / #1B2238 / #E2C9C0`; red night `#3A1414 / #140808 / #0A0000 / #3A1414` |
 
-Contrast (from `check_tokens.py`): textMuted worst 5.02:1 on surfaceOverlay; error worst 4.53:1
-on surfaceOverlay; onPrimary on primary 8.63:1. All pass.
+Contrast (from `check_tokens.py`): textMuted worst 5.02:1 on surfaceOverlay; error worst 4.73:1
+on surfaceOverlay; onPrimary on primary 7.04:1; brandWarm 11.12:1 worst surface, ΔE00 15.61
+from warning. All pass.
 
 ### 1.2 Light palette
 
@@ -84,8 +87,8 @@ on surfaceOverlay; onPrimary on primary 8.63:1. All pass.
 | `border` | `#DCE1E7` | #D8DEE4 |
 | `borderHighlight` | `#C6CED8` | #C8D0D8 |
 | `textPrimary` / `textSecondary` / `textMuted` | `#14181F` / `#4F5966` / `#616873` | #141820 / #5C6672 / #616873 |
-| `primary` | `#256F9E` | #2878A8 (was 4.43:1 as text on background, now 4.84) |
-| `accent` | `#1F5F88` | #3A9BC4 (white ink on the old accent was 3.15:1; hover now DARKENS in light) |
+| `primary` | `#6A4FD1` | #256F9E (the brand violet, 5.27:1 as text on background; the old blue stays as `info` and a swatch) |
+| `accent` | `#5B41C4` | #1F5F88 (hover still DARKENS in light; white ink 7.00:1) |
 | `success` / `warning` / `error` / `info` | unchanged `#277549` / `#8F5D14` / `#BC3838` / `#256E99` | |
 | `useDarkOnPrimary` | `false` | same |
 
@@ -96,7 +99,8 @@ panels do not. See `SkotiqDecorations.panel` in §5.
 
 Unchanged except: `well: #0F0404`, `borderHighlight: #3A1A1A`, `primary: #EF3B3B` (was #DC2626,
 4.29:1 under dark ink → 5.29), `accent: #FF5A5A` (hover lightens; was #B91C1C, 3.20:1), `error:
-#EF5252` (was #EF5350, which was off the red axis by 3 in blue). Every colour keeps G == B.
+#EF5252` (was #EF5350, which was off the red axis by 3 in blue). Every colour keeps G == B —
+including `brandWarm: #FF9A9A`, a pale red folded onto the axis, ΔE00 18.34 from warning.
 
 ### 1.4 Custom accent
 
@@ -108,9 +112,14 @@ on white. `check_tokens.py` validates every swatch both as a fill (with the ink
 
 | Theme | Swatches |
 |---|---|
-| dark | `#6EB3EC #43B67A #E0A53E #E86A6A #A48CF2 #E77FB3 #4FC3C8` |
-| light | `#256F9E #277549 #8F5D14 #BC3838 #6A4FD1 #B03A7A #1B7278` |
+| dark | `#A48CF2 #6EB3EC #43B67A #E0A53E #E86A6A #E77FB3 #4FC3C8` |
+| light | `#6A4FD1 #256F9E #277549 #8F5D14 #BC3838 #B03A7A #1B7278` |
 | red night | none (accent picker hidden; the palette is fixed by the wavelength rule) |
+
+Violet leads each list — it is the brand accent and each palette's own primary; the old blue
+stays second so the previous look remains one tap away. Each swatch renders the Trails mark in
+that accent (`SkotiqMark` tone `theme` + `themeAccent`), so the row previews the logo each
+choice produces.
 
 Dart: the swatch list in the Appearance settings section becomes a `switch` on the active
 `AppThemeMode`; store the chosen hex as today. If a stored accent fails the text-contrast floor
