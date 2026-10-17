@@ -47,7 +47,7 @@ find-and-replace cannot do.
 ### New tooling
 
 - `reports/rebrand/check_md_links.py` — markdown link checker used for the
-  before/after counts. Checks `[text](target)` inline links, reference-style
+  before/after counts. Checks inline links, reference-style
   definitions and `<img src>` targets; skips fenced code blocks (PowerShell
   snippets contain `[Type]::Method(...)` lookalikes); with `--anchors` it
   resolves `#fragment` links against GitHub-style slugs of the target file's
