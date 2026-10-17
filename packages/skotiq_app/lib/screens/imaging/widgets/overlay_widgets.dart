@@ -78,6 +78,13 @@ class HistogramPainter extends CustomPainter {
   }
 }
 
+/// Exposure progress drawn AROUND the frame on screen, never over it.
+///
+/// A looping operator watches each frame while the next one exposes, so the
+/// canvas keeps showing the last image: progress is a thin line along the top
+/// edge and one compact pill at the top centre, and neither takes the pointer.
+/// (This used to be a 70% black scrim with a ring, which hid every frame of a
+/// loop for the whole of the next exposure.)
 class ExposureProgressOverlay extends StatelessWidget {
   final ExposureProgress progress;
   final SkotiqColors colors;
@@ -87,7 +94,7 @@ class ExposureProgressOverlay extends StatelessWidget {
   ///
   /// The countdown MUST stop here. `ExposureProgress` keeps ticking after a
   /// cancel — the native waiter goes on publishing progress until the driver
-  /// reports not-exposing or the duration deadline passes — so a running ring
+  /// reports not-exposing or the duration deadline passes — so a running bar
   /// counts down to a frame that will never arrive. Nothing is known about how
   /// long the driver takes to honour an abort, so this state is indeterminate
   /// by construction.
@@ -105,68 +112,73 @@ class ExposureProgressOverlay extends StatelessWidget {
     final statusText = isAborting
         ? 'Stopping exposure...'
         : (progress.isDownloading ? 'Downloading...' : 'Exposing...');
+    final indeterminate = isAborting || progress.isDownloading;
     final progressValue = (progress.percent / 100.0).clamp(0.0, 1.0);
+    final muted =
+        SkotiqTypography.caption.copyWith(color: colors.textSecondary);
 
-    return Container(
-      // absolute: exposure progress scrim over the live image canvas
-      color: Colors.black.withValues(alpha: 0.7),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 80,
-              height: 80,
-              child: Stack(
-                children: [
-                  isAborting
-                      ? const SkotiqMark(
-                          motion: SkotiqMarkMotion.loading, size: 80)
-                      : CircularProgressIndicator(
-                          value: progressValue,
-                          strokeWidth: 4,
-                          backgroundColor: colors.surfaceAlt,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(colors.primary),
-                        ),
-                  if (!isAborting)
-                    Center(
-                      child: Text(
-                        '${progress.percent.toStringAsFixed(0)}%',
-                        style: SkotiqTypography.sectionTitle
-                            .copyWith(color: colors.primary),
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: LinearProgressIndicator(
+              value: indeterminate ? null : progressValue,
+              minHeight: 3,
+              backgroundColor: Colors.transparent,
+              valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
+            ),
+          ),
+          Positioned(
+            top: SkotiqTokens.spaceMd,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: SkotiqTokens.spaceMd,
+                  vertical: SkotiqTokens.spaceXs,
+                ),
+                decoration: BoxDecoration(
+                  color: colors.surfaceOverlay.withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusFull),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (indeterminate) ...[
+                      SkotiqSpinner(size: 12, color: colors.primary),
+                      const SizedBox(width: SkotiqTokens.spaceSm),
+                    ],
+                    Text(
+                      statusText,
+                      style: SkotiqTypography.caption.copyWith(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              statusText,
-              style: SkotiqTypography.bodyStrong.copyWith(
-                  // absolute: status label over the live image canvas
-                  color: Colors.white),
-            ),
-            const SizedBox(height: 4),
-            if (!isAborting && !progress.isDownloading)
-              Text(
-                '${progress.remaining.toStringAsFixed(1)}s remaining',
-                style: SkotiqTypography.caption.copyWith(
-                    // absolute: remaining-time label over the live image canvas
-                    color: Colors.white70),
-              ),
-            if (progress.totalFrames != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  'Frame ${progress.frameNumber} of ${progress.totalFrames}',
-                  style: SkotiqTypography.caption.copyWith(
-                      // absolute: frame-count label over the live image canvas
-                      color: Colors.white54),
+                    if (!indeterminate) ...[
+                      Text('  ·  ', style: muted),
+                      Text(
+                        '${progress.remaining.toStringAsFixed(1)}s remaining',
+                        style: muted,
+                      ),
+                    ],
+                    if (progress.totalFrames != null) ...[
+                      Text('  ·  ', style: muted),
+                      Text(
+                        'Frame ${progress.frameNumber} of ${progress.totalFrames}',
+                        style: muted,
+                      ),
+                    ],
+                  ],
                 ),
               ),
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }

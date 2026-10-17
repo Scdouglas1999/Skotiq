@@ -117,6 +117,8 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
   Widget build(BuildContext context) {
     // Sync snapshot exposure defaults from the active equipment profile
     ref.watch(syncExposureFromProfileProvider);
+    // Put each autofocus frame on the canvas while a run measures it.
+    ref.watch(autofocusPreviewFeederProvider);
 
     final colors = context.skotiqColors;
     final selectedSection = ref.watch(selectedImagingPanelProvider);

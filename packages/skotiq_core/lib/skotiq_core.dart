@@ -294,6 +294,7 @@ export 'src/providers/connection_quality_provider.dart';
 export 'src/providers/science_provider.dart';
 export 'src/providers/science_status_provider.dart';
 export 'src/providers/autofocus_progress_provider.dart';
+export 'src/providers/autofocus_preview_feeder.dart';
 export 'src/providers/push_notification_provider.dart';
 export 'src/providers/dark_library_provider.dart';
 export 'src/providers/live_stacking_provider.dart';
