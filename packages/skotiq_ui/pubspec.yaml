@@ -38,6 +38,11 @@ flutter:
     - family: SplineSansMono
       fonts:
         - asset: assets/fonts/SplineSansMono-VF.ttf
+    #   Sora — the wordmark face only ("skotiq", SemiBold). Chosen for the
+    #            rebrand; nothing else should set it.
+    - family: Sora
+      fonts:
+        - asset: assets/fonts/Sora-VF.ttf
 
 
 
