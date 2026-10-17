@@ -1540,172 +1540,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "skotiq_alpaca"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "futures",
- "if-addrs",
- "reqwest",
- "serde",
- "serde_json",
- "socket2 0.6.4",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "skotiq_ascom"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "mockall",
- "skotiq_ascom",
- "serde",
- "thiserror",
- "tokio",
- "tracing",
- "windows",
-]
-
-[[package]]
-name = "skotiq_bridge"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-stream",
- "async-trait",
- "base64 0.22.1",
- "chrono",
- "flutter_rust_bridge",
- "futures",
- "image",
- "libc",
- "lru",
- "skotiq_alpaca",
- "skotiq_ascom",
- "skotiq_imaging",
- "skotiq_indi",
- "skotiq_native",
- "skotiq_sequencer",
- "parking_lot",
- "rayon",
- "rusb",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "windows",
-]
-
-[[package]]
-name = "skotiq_imaging"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "bytemuck",
- "cc",
- "chrono",
- "image",
- "memmap2",
- "quick-xml",
- "rayon",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
- "wait-timeout",
-]
-
-[[package]]
-name = "skotiq_indi"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "base64 0.22.1",
- "fastrand",
- "if-addrs",
- "mdns-sd",
- "quick-xml",
- "serde",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "skotiq_native"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "image",
- "libc",
- "libloading",
- "skotiq_imaging",
- "once_cell",
- "serde",
- "serde_json",
- "serialport",
- "thiserror",
- "tokio",
- "tracing",
- "winapi",
-]
-
-[[package]]
-name = "skotiq_sequencer"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "base64 0.22.1",
- "chrono",
- "futures",
- "image",
- "libc",
- "skotiq_imaging",
- "parking_lot",
- "rand",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "skotiq_updater"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "fs2",
- "fs_extra",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "walkdir",
- "windows",
- "winres",
- "zip",
-]
-
-[[package]]
 name = "nix"
 version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2374,6 +2208,172 @@ name = "simd-adler32"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "703d5c7ef118737c72f1af64ad2f6f8c5e1921f818cdcb97b8fe6fc69bf66214"
+
+[[package]]
+name = "skotiq_alpaca"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "futures",
+ "if-addrs",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "socket2 0.6.4",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "skotiq_ascom"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "mockall",
+ "serde",
+ "skotiq_ascom",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "windows",
+]
+
+[[package]]
+name = "skotiq_bridge"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "flutter_rust_bridge",
+ "futures",
+ "image",
+ "libc",
+ "lru",
+ "parking_lot",
+ "rayon",
+ "rusb",
+ "serde",
+ "serde_json",
+ "skotiq_alpaca",
+ "skotiq_ascom",
+ "skotiq_imaging",
+ "skotiq_indi",
+ "skotiq_native",
+ "skotiq_sequencer",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "windows",
+]
+
+[[package]]
+name = "skotiq_imaging"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "bytemuck",
+ "cc",
+ "chrono",
+ "image",
+ "memmap2",
+ "quick-xml",
+ "rayon",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "wait-timeout",
+]
+
+[[package]]
+name = "skotiq_indi"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base64 0.22.1",
+ "fastrand",
+ "if-addrs",
+ "mdns-sd",
+ "quick-xml",
+ "serde",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "skotiq_native"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "image",
+ "libc",
+ "libloading",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "serialport",
+ "skotiq_imaging",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "winapi",
+]
+
+[[package]]
+name = "skotiq_sequencer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "futures",
+ "image",
+ "libc",
+ "parking_lot",
+ "rand",
+ "serde",
+ "serde_json",
+ "skotiq_imaging",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "skotiq_updater"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "fs2",
+ "fs_extra",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "walkdir",
+ "windows",
+ "winres",
+ "zip",
+]
 
 [[package]]
 name = "slab"

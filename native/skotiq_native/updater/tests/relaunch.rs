@@ -49,23 +49,23 @@ fn rig(new_launcher: &str) -> Rig {
     let log = root.join("starts.log");
 
     let old = format!("#!/bin/sh\necho \"old $*\" >> '{}'\n", log.display());
-    write_exec(&install.join("skotiq"), &old);
-    write_exec(&install.join("skotiq_desktop"), "old binary");
+    write_exec(&install.join("skotiq.sh"), &old);
+    write_exec(&install.join("skotiq"), "old binary");
     fs::create_dir_all(install.join("lib")).unwrap();
     fs::write(install.join("lib/libskotiq_bridge.so"), "old bridge").unwrap();
 
     let new = new_launcher
         .replace("@LOG@", &log.display().to_string())
         .replace("@PENDING@", &pending.display().to_string());
-    write_exec(&staging.join("skotiq"), &new);
-    write_exec(&staging.join("skotiq_desktop"), "new binary");
+    write_exec(&staging.join("skotiq.sh"), &new);
+    write_exec(&staging.join("skotiq"), "new binary");
     fs::create_dir_all(staging.join("lib")).unwrap();
     fs::write(staging.join("lib/libskotiq_bridge.so"), "new bridge").unwrap();
 
     let mut files = HashMap::new();
     for rel in [
+        "skotiq.sh",
         "skotiq",
-        "skotiq_desktop",
         "lib/libskotiq_bridge.so",
     ] {
         files.insert(rel.to_string(), sha(&staging.join(rel)));
@@ -143,13 +143,13 @@ fn a_new_build_that_dies_on_startup_is_rolled_back_and_the_old_one_started() {
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("before it finished starting"), "{}", stderr);
     assert!(
-        fs::read_to_string(r.install.join("skotiq"))
+        fs::read_to_string(r.install.join("skotiq.sh"))
             .unwrap()
             .contains("old"),
         "the previous launcher must be back"
     );
     assert_eq!(
-        fs::read_to_string(r.install.join("skotiq_desktop")).unwrap(),
+        fs::read_to_string(r.install.join("skotiq")).unwrap(),
         "old binary"
     );
     let log = wait_for_log(&r.log, "old");
@@ -189,7 +189,7 @@ fn a_new_build_that_comes_up_is_kept_and_started_with_the_same_arguments() {
         String::from_utf8_lossy(&out.stderr)
     );
     assert_eq!(
-        fs::read_to_string(r.install.join("skotiq_desktop")).unwrap(),
+        fs::read_to_string(r.install.join("skotiq")).unwrap(),
         "new binary"
     );
     let log = wait_for_log(&r.log, "new");
@@ -211,7 +211,7 @@ fn a_failed_apply_starts_the_previous_build_again() {
     // operator with nothing running.
     let r = rig("#!/bin/sh\necho \"new $*\" >> '@LOG@'\n");
     fs::write(
-        r.staging.join("skotiq_desktop"),
+        r.staging.join("skotiq"),
         "tampered after staging",
     )
     .unwrap();
@@ -219,7 +219,7 @@ fn a_failed_apply_starts_the_previous_build_again() {
 
     assert!(!out.status.success());
     assert_eq!(
-        fs::read_to_string(r.install.join("skotiq_desktop")).unwrap(),
+        fs::read_to_string(r.install.join("skotiq")).unwrap(),
         "old binary"
     );
     let log = wait_for_log(&r.log, "old");
@@ -240,7 +240,7 @@ fn a_build_refused_by_the_single_instance_lock_is_not_rolled_back() {
         String::from_utf8_lossy(&out.stderr)
     );
     assert_eq!(
-        fs::read_to_string(r.install.join("skotiq_desktop")).unwrap(),
+        fs::read_to_string(r.install.join("skotiq")).unwrap(),
         "new binary"
     );
 }
