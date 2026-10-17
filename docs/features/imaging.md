@@ -587,15 +587,12 @@ Set total integration time goal:
 ### Camera issues
 - [Camera Not Detected](../troubleshooting/common-issues.md#camera-not-detected)
 - [Images Not Saving](../troubleshooting/common-issues.md#images-not-saving)
-- [Cooling Problems](../troubleshooting/common-issues.md#cooling-problems)
 
 ### Mount issues
 - [Mount Not Responding](../troubleshooting/common-issues.md#mount-not-responding)
-- [Poor Tracking](../troubleshooting/common-issues.md#poor-tracking)
 
 ### Focus issues
 - [Autofocus Fails](../troubleshooting/common-issues.md#autofocus-fails)
-- [HFR Inconsistent](../troubleshooting/common-issues.md#hfr-inconsistent)
 
 ### Guiding issues
 - [PHD2 Not Connecting](../troubleshooting/common-issues.md#phd2-not-connecting)

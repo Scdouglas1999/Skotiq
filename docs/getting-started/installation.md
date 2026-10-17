@@ -112,6 +112,10 @@ the full equipment-control surface.
 
 ## First launch
 
+Skotiq was previously released under another name. On first launch it moves an
+existing install's data across automatically, so settings, profiles and history
+carry over without manual copying.
+
 1. Open Tonight and confirm the UI loads without an error banner.
 2. Create an equipment profile under Equipment.
 3. Open the Planetarium (Ctrl+K, then type its name) and confirm the sky
@@ -124,7 +128,7 @@ the full equipment-control surface.
 Skotiq data is stored under:
 
 - Windows: `%APPDATA%\Skotiq\`
-- Linux: `~/.local/share/skotiq/`
+- Linux: `~/.local/share/skotiq_desktop/`
 - macOS development builds: `~/Library/Application Support/Skotiq/`
 
 ## Updating
