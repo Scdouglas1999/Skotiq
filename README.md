@@ -240,6 +240,11 @@ membership. Allow about 500 MB for the app, plus room for your catalogues and fr
 
 ## Getting started
 
+> [!NOTE]
+> Skotiq was previously released under another name. The first time it runs, it
+> moves an existing install's data across automatically, so there is nothing to
+> copy by hand.
+
 1. Download the file for your platform from
    [Releases](https://github.com/Scdouglas1999/Skotiq/releases/latest), and check the
    `.sha256` if you want to be careful.

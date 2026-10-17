@@ -2,7 +2,7 @@
 
 Welcome. This document covers the local setup steps every contributor should run once, plus the conventions CI enforces.
 
-Skotiq is a Flutter front end over a Rust core, bridged with flutter_rust_bridge (FRB). The Dart bindings and the native library must stay in sync, so the toolchain and dev scripts exist to keep them aligned. See [README](../README.md#build-from-source) for the full build matrix.
+Skotiq is a Flutter front end over a Rust core, bridged with flutter_rust_bridge (FRB). The Dart bindings and the native library must stay in sync, so the toolchain and dev scripts exist to keep them aligned. See [README](../README.md#building-it-yourself) for the full build matrix.
 
 ## One-time setup
 
