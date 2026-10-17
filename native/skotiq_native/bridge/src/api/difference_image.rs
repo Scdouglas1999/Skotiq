@@ -16,6 +16,7 @@
 //! unknown transient) happens Dart-side; this call deliberately stops at the
 //! geometry + photometry, leaving `catalogMatch` null for the Dart layer to fill.
 
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::difference_image::{difference_against_template, TransientCandidate};
 use skotiq_imaging::registration::Interpolator;
 use skotiq_imaging::sky_atlas::{
@@ -23,7 +24,6 @@ use skotiq_imaging::sky_atlas::{
 };
 use skotiq_imaging::wcs_sip::SipWcs;
 use skotiq_imaging::{read_image, ImageData, StarDetectionConfig};
-use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 use crate::api::post_session::write_preview_png;
@@ -513,7 +513,7 @@ mod tests {
     fn temp_dir(tag: &str) -> TempDir {
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
         let p =
-            std::env::temp_dir().join(format!("ns_diff_ffi_{}_{}_{}", tag, std::process::id(), n));
+            std::env::temp_dir().join(format!("sk_diff_ffi_{}_{}_{}", tag, std::process::id(), n));
         std::fs::create_dir_all(&p).unwrap();
         TempDir(p)
     }

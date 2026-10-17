@@ -1859,10 +1859,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_mount_status(MountStatus self, SseSerializer serializer);
 
   @protected
-  void sse_encode_skotiq_error(
-    SkotiqError self,
-    SseSerializer serializer,
-  );
+  void sse_encode_skotiq_error(SkotiqError self, SseSerializer serializer);
 
   @protected
   void sse_encode_node_definition_api(

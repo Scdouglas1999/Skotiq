@@ -1901,11 +1901,8 @@ mod fake_sdk_contract {
         output_name: &str,
         source: &str,
     ) -> PathBuf {
-        let root = env::temp_dir().join(format!(
-            "skotiq-{}-fake-sdk-{}",
-            vendor,
-            std::process::id()
-        ));
+        let root =
+            env::temp_dir().join(format!("skotiq-{}-fake-sdk-{}", vendor, std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).expect("create fake SDK dir");
         compile_cdylib(&root, source_name, output_name, source);

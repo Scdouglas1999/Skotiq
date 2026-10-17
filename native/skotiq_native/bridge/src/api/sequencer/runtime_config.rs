@@ -183,8 +183,8 @@ pub async fn api_sequencer_update_dither_config(
 pub async fn api_sequencer_update_meridian_flip_config(
     config_json: String,
 ) -> Result<(), SkotiqError> {
-    let config: skotiq_sequencer::MeridianFlipConfig = serde_json::from_str(&config_json)
-        .map_err(|e| {
+    let config: skotiq_sequencer::MeridianFlipConfig =
+        serde_json::from_str(&config_json).map_err(|e| {
             SkotiqError::InvalidParameter(format!("Invalid meridian-flip config JSON: {}", e))
         })?;
     if config.max_retries > 0 && config.retry_delays_secs.is_empty() {
@@ -297,11 +297,9 @@ pub async fn api_sequencer_update_autofocus_interval(
 ///
 /// Takes the same JSON shape the sequence's Autofocus node carries, so the
 /// Dart side has exactly one serializer to keep correct.
-pub async fn api_sequencer_update_autofocus_config(
-    config_json: String,
-) -> Result<(), SkotiqError> {
-    let config: skotiq_sequencer::AutofocusConfig = serde_json::from_str(&config_json)
-        .map_err(|e| {
+pub async fn api_sequencer_update_autofocus_config(config_json: String) -> Result<(), SkotiqError> {
+    let config: skotiq_sequencer::AutofocusConfig =
+        serde_json::from_str(&config_json).map_err(|e| {
             SkotiqError::InvalidParameter(format!(
                 "autofocus config JSON could not be parsed: {e}. Trigger-fired refocus would \
                  have silently fallen back to library defaults."
@@ -749,9 +747,8 @@ pub async fn api_sequencer_get_current_recovery_json() -> Result<Option<String>,
 pub async fn api_sequencer_get_recovery_history_json() -> Result<String, SkotiqError> {
     let executor = get_sequence_executor().read().await;
     let history = executor.recovery_history();
-    serde_json::to_string(&history).map_err(|e| {
-        SkotiqError::SerializationError(format!("Recovery history serialise: {}", e))
-    })
+    serde_json::to_string(&history)
+        .map_err(|e| SkotiqError::SerializationError(format!("Recovery history serialise: {}", e)))
 }
 
 // Replay debug
@@ -783,9 +780,7 @@ pub async fn api_sequencer_get_active_sequence_run_id() -> Result<Option<i64>, S
 /// `enabled = false`, the executor short-circuits all decision sends
 /// (no channel publish, no allocation) so power users who don't want
 /// the replay log can opt out. Defaults to ON.
-pub async fn api_sequencer_set_decision_logging_enabled(
-    enabled: bool,
-) -> Result<(), SkotiqError> {
+pub async fn api_sequencer_set_decision_logging_enabled(enabled: bool) -> Result<(), SkotiqError> {
     let executor = get_sequence_executor().read().await;
     executor.set_decision_logging_enabled(enabled);
     tracing::info!(

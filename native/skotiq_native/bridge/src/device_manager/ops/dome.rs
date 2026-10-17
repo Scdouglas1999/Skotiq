@@ -690,9 +690,7 @@ impl DeviceManager {
                         azimuth: alpaca_status.azimuth,
                         altitude: alpaca_status.altitude,
                         shutter_status: match alpaca_status.shutter_status {
-                            skotiq_alpaca::ShutterStatus::Open => {
-                                crate::device::ShutterState::Open
-                            }
+                            skotiq_alpaca::ShutterStatus::Open => crate::device::ShutterState::Open,
                             skotiq_alpaca::ShutterStatus::Closed => {
                                 crate::device::ShutterState::Closed
                             }

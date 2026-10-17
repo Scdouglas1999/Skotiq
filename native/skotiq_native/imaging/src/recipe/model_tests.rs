@@ -177,14 +177,8 @@ fn the_canonical_prefix_ignores_parameter_key_order() {
 
 #[test]
 fn the_fingerprint_is_stable_and_distinguishes_inputs() {
-    assert_eq!(
-        fingerprint_hex(b"skotiq"),
-        fingerprint_hex(b"skotiq")
-    );
-    assert_ne!(
-        fingerprint_hex(b"skotiq"),
-        fingerprint_hex(b"nightshadf")
-    );
+    assert_eq!(fingerprint_hex(b"skotiq"), fingerprint_hex(b"skotiq"));
+    assert_ne!(fingerprint_hex(b"skotiq"), fingerprint_hex(b"nightshadf"));
     assert_eq!(fingerprint_hex(b"").len(), 32);
 }
 

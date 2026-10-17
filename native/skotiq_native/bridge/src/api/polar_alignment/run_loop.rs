@@ -381,14 +381,13 @@ pub(crate) async fn run_polar_alignment(
     // Phase 2: Calculate center of rotation
     emit_polar_status("Calculating polar alignment error...", "adjusting", 3);
 
-    let fit =
-        skotiq_sequencer::fit_rotation_axis(&solved_points, is_north).ok_or_else(|| {
-            let msg = "The three measurement points do not describe a rotation. The mount did not \
+    let fit = skotiq_sequencer::fit_rotation_axis(&solved_points, is_north).ok_or_else(|| {
+        let msg = "The three measurement points do not describe a rotation. The mount did not \
              turn between them, or the same frame was solved three times."
-                .to_string();
-            emit_polar_status(&format!("Error: {}", msg), "error", 0);
-            msg
-        })?;
+            .to_string();
+        emit_polar_status(&format!("Error: {}", msg), "error", 0);
+        msg
+    })?;
     let (mut center_ra, mut center_dec) = (fit.ra_degrees, fit.dec_degrees);
     let pole_dec = if is_north { 90.0 } else { -90.0 };
 

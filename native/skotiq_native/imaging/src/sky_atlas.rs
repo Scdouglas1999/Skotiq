@@ -2043,7 +2043,7 @@ mod tests {
 
     #[test]
     fn atlas_fold_persists_and_query_recovers() {
-        let dir = std::env::temp_dir().join(format!("ns_atlas_test_{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("sk_atlas_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let atlas = SkyAtlas::open(&dir, ATLAS_HEALPIX_ORDER, 256 * 1024 * 1024);
 
@@ -2103,7 +2103,7 @@ mod tests {
         // deserializable accumulator after the storm settles.
         use std::sync::Arc;
         let dir = std::env::temp_dir().join(format!(
-            "ns_atlas_store_tmp_{}_{}",
+            "sk_atlas_store_tmp_{}_{}",
             std::process::id(),
             STORE_TILE_NONCE.fetch_add(1, Ordering::Relaxed)
         ));

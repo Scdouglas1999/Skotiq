@@ -529,8 +529,7 @@ impl SkotiqError {
             } => {
                 format!("Hardware error on '{}': {}", device_id, message)
             }
-            SkotiqError::Timeout(msg)
-            | SkotiqError::DeviceTimeout { operation: msg, .. } => {
+            SkotiqError::Timeout(msg) | SkotiqError::DeviceTimeout { operation: msg, .. } => {
                 format!("Operation timed out: {}", msg)
             }
             SkotiqError::ConnectionTimeout {

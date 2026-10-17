@@ -142,8 +142,7 @@ impl DeviceManager {
 
                     let clients = self.indi_clients.read().await;
                     if let Some(client) = clients.get(&server_key) {
-                        let focuser =
-                            skotiq_indi::IndiFocuser::new(client.clone(), &device_name);
+                        let focuser = skotiq_indi::IndiFocuser::new(client.clone(), &device_name);
                         return focuser_move_with_timeout(
                             async {
                                 focuser
@@ -314,8 +313,7 @@ impl DeviceManager {
 
                     let clients = self.indi_clients.read().await;
                     if let Some(client) = clients.get(&server_key) {
-                        let focuser =
-                            skotiq_indi::IndiFocuser::new(client.clone(), &device_name);
+                        let focuser = skotiq_indi::IndiFocuser::new(client.clone(), &device_name);
                         return with_timeout_str(
                             async {
                                 focuser
@@ -404,8 +402,7 @@ impl DeviceManager {
 
                     let clients = self.indi_clients.read().await;
                     if let Some(client) = clients.get(&server_key) {
-                        let focuser =
-                            skotiq_indi::IndiFocuser::new(client.clone(), &device_name);
+                        let focuser = skotiq_indi::IndiFocuser::new(client.clone(), &device_name);
                         return focuser.abort_motion().await.map_err(DeviceOpError::driver);
                     }
                     return Err(DeviceOpError::not_connected(
@@ -481,8 +478,7 @@ impl DeviceManager {
 
                     let clients = self.indi_clients.read().await;
                     if let Some(client) = clients.get(&server_key) {
-                        let focuser =
-                            skotiq_indi::IndiFocuser::new(client.clone(), &device_name);
+                        let focuser = skotiq_indi::IndiFocuser::new(client.clone(), &device_name);
                         return focuser.get_position().await.map_err(DeviceOpError::driver);
                     }
                     return Err(DeviceOpError::not_connected(
@@ -550,8 +546,7 @@ impl DeviceManager {
 
                     let clients = self.indi_clients.read().await;
                     if let Some(client) = clients.get(&server_key) {
-                        let focuser =
-                            skotiq_indi::IndiFocuser::new(client.clone(), &device_name);
+                        let focuser = skotiq_indi::IndiFocuser::new(client.clone(), &device_name);
                         return Ok(focuser.is_moving().await);
                     }
                     return Err(DeviceOpError::not_connected(
@@ -693,8 +688,7 @@ impl DeviceManager {
 
                     let clients = self.indi_clients.read().await;
                     if let Some(client) = clients.get(&server_key) {
-                        let focuser =
-                            skotiq_indi::IndiFocuser::new(client.clone(), &device_name);
+                        let focuser = skotiq_indi::IndiFocuser::new(client.clone(), &device_name);
                         // Temperature might not be available on all focusers.
                         // Distinguish "this focuser has no temperature sensor"
                         // (a legitimate Ok(None)) from "the read FAILED" — the

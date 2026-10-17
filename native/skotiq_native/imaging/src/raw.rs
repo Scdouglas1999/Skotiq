@@ -119,10 +119,7 @@ struct skotiq_libraw_config_t {
 // - Windows: libraw.dll (linked as "libraw")
 // - Linux/macOS: libraw.so/dylib (linked as "raw" since lib prefix is automatic)
 extern "C" {
-    fn skotiq_libraw_apply_config(
-        data: *mut libraw_data_t,
-        config: *const skotiq_libraw_config_t,
-    );
+    fn skotiq_libraw_apply_config(data: *mut libraw_data_t, config: *const skotiq_libraw_config_t);
     // Fill a `skotiq_cfa_info_t` from an unpacked processor (dims, margins,
     // bit depth, saturation, CFA orientation). Returns 0 on success.
     fn skotiq_libraw_extract_cfa_info(

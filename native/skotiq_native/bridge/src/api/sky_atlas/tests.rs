@@ -38,7 +38,7 @@ impl Drop for TempDir {
 
 fn temp_dir(tag: &str) -> TempDir {
     let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-    let p = std::env::temp_dir().join(format!("ns_atlas_ffi_{}_{}_{}", tag, std::process::id(), n));
+    let p = std::env::temp_dir().join(format!("sk_atlas_ffi_{}_{}_{}", tag, std::process::id(), n));
     std::fs::create_dir_all(&p).unwrap();
     TempDir(p)
 }

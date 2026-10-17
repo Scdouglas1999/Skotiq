@@ -3,7 +3,7 @@ use skotiq_imaging::{read_fits, write_fits, FitsHeader, ImageData, PixelType};
 use std::path::PathBuf;
 
 fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join("ns_calibrate_carry_over_test");
+    let dir = std::env::temp_dir().join("sk_calibrate_carry_over_test");
     std::fs::create_dir_all(&dir).unwrap();
     dir.join(name)
 }

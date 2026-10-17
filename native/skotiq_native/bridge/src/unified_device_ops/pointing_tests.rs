@@ -23,7 +23,7 @@ impl Drop for TempDir {
 
 fn temp_scratch_dir(tag: &str) -> TempDir {
     let p = std::env::temp_dir().join(format!(
-        "ns_unifiedops_{}_{}_{}",
+        "sk_unifiedops_{}_{}_{}",
         tag,
         std::process::id(),
         std::time::SystemTime::now()

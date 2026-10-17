@@ -514,8 +514,7 @@ mod sim_sky_wiring_tests {
         get_sim_camera().write().await.status.connected = false;
         let _ = crate::state::save_platesolver_preference(&previous);
 
-        let data =
-            skotiq_imaging::ImageData::from_u16(image.width, image.height, 1, &image.data);
+        let data = skotiq_imaging::ImageData::from_u16(image.width, image.height, 1, &image.data);
         let found = skotiq_imaging::detect_stars_with_stats(
             &data,
             &skotiq_imaging::StarDetectionConfig::default(),

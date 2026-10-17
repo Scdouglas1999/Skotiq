@@ -41,10 +41,8 @@ fn star_frame(width: u32, height: u32, count: u32, sigma: f64) -> skotiq_imaging
 fn a_frame_with_stars_publishes_every_measurement_from_one_detection() {
     let image = star_frame(512, 512, 36, 2.0);
     let stats = skotiq_imaging::calculate_stats_u16(&image);
-    let stars = skotiq_imaging::detect_stars(
-        &image,
-        &skotiq_imaging::StarDetectionConfig::default(),
-    );
+    let stars =
+        skotiq_imaging::detect_stars(&image, &skotiq_imaging::StarDetectionConfig::default());
     assert!(!stars.is_empty(), "the synthetic frame must carry stars");
 
     let published = frame_stats_result(&stats, &stars);
@@ -64,10 +62,8 @@ fn a_frame_with_stars_publishes_every_measurement_from_one_detection() {
 fn a_starless_frame_publishes_nothing_rather_than_a_zero() {
     let image = star_frame(128, 128, 0, 2.0);
     let stats = skotiq_imaging::calculate_stats_u16(&image);
-    let stars = skotiq_imaging::detect_stars(
-        &image,
-        &skotiq_imaging::StarDetectionConfig::default(),
-    );
+    let stars =
+        skotiq_imaging::detect_stars(&image, &skotiq_imaging::StarDetectionConfig::default());
 
     let published = frame_stats_result(&stats, &stars);
 

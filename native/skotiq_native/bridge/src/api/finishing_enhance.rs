@@ -26,13 +26,13 @@
 //! deconvolution and star-reduction passes preserve the source pixel type since
 //! they already return a same-layout frame.
 
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::background_extraction::{self, BackgroundConfig};
 use skotiq_imaging::deconvolution::{self, DeconvConfig, PsfEstimateConfig, PsfKind, PsfModel};
 use skotiq_imaging::star_reduction::{self, StarReduceMethod, StarReductionConfig};
 use skotiq_imaging::{
     carry_source_header, read_fits, write_fits, FitsHeader, ImageData, PixelType,
 };
-use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 // Public FFI entry points
@@ -627,7 +627,7 @@ mod tests {
     /// rng): the per-test name plus the process id keeps parallel runs from
     /// colliding while staying fully reproducible.
     fn temp_dir(name: &str) -> TempDir {
-        let p = std::env::temp_dir().join(format!("ns_fe_{name}_{}", std::process::id()));
+        let p = std::env::temp_dir().join(format!("sk_fe_{name}_{}", std::process::id()));
         std::fs::create_dir_all(&p).unwrap();
         TempDir(p)
     }

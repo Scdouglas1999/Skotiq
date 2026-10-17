@@ -11,8 +11,7 @@
 
 use super::store::{Admission, GoalRecord, GoalStore};
 use crate::event::{
-    create_event_auto_id, DepthLockEvent, EventCategory, EventPayload, EventSeverity,
-    SkotiqEvent,
+    create_event_auto_id, DepthLockEvent, EventCategory, EventPayload, EventSeverity, SkotiqEvent,
 };
 use skotiq_imaging::depthlock::input::{
     self, fnv1a64, AcquisitionSettings, MasterKind, ReferenceGeometry,

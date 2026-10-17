@@ -465,10 +465,8 @@ mod resume_tests {
         };
         use crate::{ExecutorState, SequenceDefinition};
 
-        let dir = std::env::temp_dir().join(format!(
-            "skotiq_mosaic_resume_e2e_{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("skotiq_mosaic_resume_e2e_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("test dir");
 
@@ -625,10 +623,8 @@ mod resume_tests {
     async fn production_entry_without_a_manager_persists_nothing() {
         use crate::checkpoint::CheckpointManager;
 
-        let dir = std::env::temp_dir().join(format!(
-            "skotiq_mosaic_no_manager_{}",
-            uuid::Uuid::new_v4()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("skotiq_mosaic_no_manager_{}", uuid::Uuid::new_v4()));
         seed_session_checkpoint(&dir, 4);
 
         let seen = std::sync::Mutex::new(Vec::new());

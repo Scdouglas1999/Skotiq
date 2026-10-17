@@ -5,11 +5,9 @@
 
 use std::path::{Path, PathBuf};
 
-use skotiq_imaging::recipe::{
-    canonical_json, fingerprint_hex, OpRegistry, RECIPE_SCHEMA_VERSION,
-};
-use skotiq_imaging::{read_fits, write_fits, FitsHeader, ImageData};
 use serde_json::{json, Value};
+use skotiq_imaging::recipe::{canonical_json, fingerprint_hex, OpRegistry, RECIPE_SCHEMA_VERSION};
+use skotiq_imaging::{read_fits, write_fits, FitsHeader, ImageData};
 
 use super::export::recipe_from_history;
 use super::schema::{example_params, ParamKind, OP_DOCS};

@@ -282,9 +282,7 @@ pub(crate) async fn run_guiding_loop(
         let selected = choose_lock_star(&frame.stars, current_lock, None)
             .or_else(|| frame.stars.first())
             .cloned()
-            .ok_or_else(|| {
-                SkotiqError::OperationFailed("No guide stars detected".to_string())
-            })?;
+            .ok_or_else(|| SkotiqError::OperationFailed("No guide stars detected".to_string()))?;
 
         let offset = {
             let mut guard = controller.write().await;

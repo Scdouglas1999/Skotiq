@@ -43,8 +43,7 @@ sealed class SkotiqError with _$SkotiqError implements FrbException {
   }) = SkotiqError_CommunicationError;
 
   /// Generic timeout error (for backwards compatibility)
-  const factory SkotiqError.timeout(String field0) =
-      SkotiqError_Timeout;
+  const factory SkotiqError.timeout(String field0) = SkotiqError_Timeout;
 
   /// Device-specific timeout with details
   const factory SkotiqError.deviceTimeout({
@@ -82,14 +81,11 @@ sealed class SkotiqError with _$SkotiqError implements FrbException {
     required String deviceId,
     required String currentOperation,
   }) = SkotiqError_DeviceBusy;
-  const factory SkotiqError.imageError(String field0) =
-      SkotiqError_ImageError;
+  const factory SkotiqError.imageError(String field0) = SkotiqError_ImageError;
   const factory SkotiqError.cameraError(String field0) =
       SkotiqError_CameraError;
-  const factory SkotiqError.noImageAvailable() =
-      SkotiqError_NoImageAvailable;
-  const factory SkotiqError.exposureCancelled() =
-      SkotiqError_ExposureCancelled;
+  const factory SkotiqError.noImageAvailable() = SkotiqError_NoImageAvailable;
+  const factory SkotiqError.exposureCancelled() = SkotiqError_ExposureCancelled;
   const factory SkotiqError.exposureFailed({
     required String cameraId,
     required String reason,
@@ -98,8 +94,7 @@ sealed class SkotiqError with _$SkotiqError implements FrbException {
     required String cameraId,
     required String reason,
   }) = SkotiqError_DownloadFailed;
-  const factory SkotiqError.ioError(String field0) =
-      SkotiqError_IoError;
+  const factory SkotiqError.ioError(String field0) = SkotiqError_IoError;
   const factory SkotiqError.serializationError(String field0) =
       SkotiqError_SerializationError;
   const factory SkotiqError.plateSolveError(String field0) =
@@ -142,8 +137,7 @@ sealed class SkotiqError with _$SkotiqError implements FrbException {
     required String message,
     required int hresult,
   }) = SkotiqError_ComError;
-  const factory SkotiqError.internal(String field0) =
-      SkotiqError_Internal;
+  const factory SkotiqError.internal(String field0) = SkotiqError_Internal;
   const factory SkotiqError.cancelled() = SkotiqError_Cancelled;
   const factory SkotiqError.runtimeInitFailed(String field0) =
       SkotiqError_RuntimeInitFailed;

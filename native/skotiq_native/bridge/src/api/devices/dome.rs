@@ -8,12 +8,12 @@ use crate::event::*;
 use crate::state::*;
 use crate::storage::{AppSettings, ObserverLocation};
 use crate::unified_device_ops::create_unified_device_ops;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::{
     calculate_airmass, validate_fits_header, validate_image, write_fits, BayerPattern,
     DebayerAlgorithm, FitsHeader, ImageData,
 };
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -52,10 +52,7 @@ pub async fn api_dome_close_shutter(device_id: String) -> Result<(), SkotiqError
 }
 
 /// Slew dome to azimuth
-pub async fn api_dome_slew_to_azimuth(
-    device_id: String,
-    azimuth: f64,
-) -> Result<(), SkotiqError> {
+pub async fn api_dome_slew_to_azimuth(device_id: String, azimuth: f64) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();
     mgr.dome_slew_to_azimuth(&device_id, azimuth)
         .await
@@ -65,9 +62,7 @@ pub async fn api_dome_slew_to_azimuth(
 /// Park dome
 pub async fn api_dome_park(device_id: String) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();
-    mgr.dome_park(&device_id)
-        .await
-        .map_err(SkotiqError::from)
+    mgr.dome_park(&device_id).await.map_err(SkotiqError::from)
 }
 
 /// Get dome azimuth

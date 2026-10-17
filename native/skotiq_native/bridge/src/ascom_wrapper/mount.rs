@@ -15,9 +15,7 @@
 use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomMount;
-use skotiq_native::traits::{
-    GuideDirection, NativeDevice, NativeError, NativeMount, TrackingRate,
-};
+use skotiq_native::traits::{GuideDirection, NativeDevice, NativeError, NativeMount, TrackingRate};
 use skotiq_native::NativeVendor;
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -313,16 +311,14 @@ impl AscomMountWrapper {
                         if let Some(m) = &mut mount {
                             match m.side_of_pier() {
                                 Ok(0) => {
-                                    let _ =
-                                        reply.send(Ok(skotiq_native::traits::PierSide::East));
+                                    let _ = reply.send(Ok(skotiq_native::traits::PierSide::East));
                                 }
                                 Ok(1) => {
-                                    let _ =
-                                        reply.send(Ok(skotiq_native::traits::PierSide::West));
+                                    let _ = reply.send(Ok(skotiq_native::traits::PierSide::West));
                                 }
                                 Ok(_) => {
-                                    let _ = reply
-                                        .send(Ok(skotiq_native::traits::PierSide::Unknown));
+                                    let _ =
+                                        reply.send(Ok(skotiq_native::traits::PierSide::Unknown));
                                 }
                                 Err(e) => {
                                     let _ = reply.send(Err(e.to_string()));

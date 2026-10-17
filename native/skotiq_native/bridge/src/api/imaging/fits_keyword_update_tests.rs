@@ -34,7 +34,7 @@ impl Drop for TempDir {
 
 fn temp_fits_dir(tag: &str) -> TempDir {
     let p = std::env::temp_dir().join(format!(
-        "ns_kw_{}_{}_{}",
+        "sk_kw_{}_{}_{}",
         tag,
         std::process::id(),
         std::time::SystemTime::now()

@@ -471,8 +471,7 @@ pub async fn get_status() -> Result<Phd2Status, SkotiqError> {
 /// Convert the built-in guider's `east`/`north` calibration vectors into the
 /// PHD2-shaped `Phd2CalibrationData` (degrees, possibly None) so the unified
 /// `api_guider_get_calibration` can return one type across backends.
-pub async fn get_calibration_data() -> Result<crate::api::phd2::Phd2CalibrationData, SkotiqError>
-{
+pub async fn get_calibration_data() -> Result<crate::api::phd2::Phd2CalibrationData, SkotiqError> {
     let guard = state().read().await;
     let calib = match guard.calibration {
         Some(c) => c,

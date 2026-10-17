@@ -3220,10 +3220,7 @@ fn wire__crate__api__sequencer__mosaic__api_estimate_mosaic_time_impl(
 fn wire__crate__api__event_stream__api_event_stream_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     sink: impl CstDecode<
-        StreamSink<
-            crate::event::bus::SkotiqEvent,
-            flutter_rust_bridge::for_generated::DcoCodec,
-        >,
+        StreamSink<crate::event::bus::SkotiqEvent, flutter_rust_bridge::for_generated::DcoCodec>,
     >,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
@@ -14277,275 +14274,6 @@ impl SseDecode for crate::device::MountTimeInfo {
     }
 }
 
-impl SseDecode for crate::error::SkotiqError {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut tag_ = <i32>::sse_decode(deserializer);
-        match tag_ {
-            0 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::DeviceNotFound(var_field0);
-            }
-            1 => {
-                let mut var_deviceId = <String>::sse_decode(deserializer);
-                let mut var_reason = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::ConnectionFailed {
-                    device_id: var_deviceId,
-                    reason: var_reason,
-                };
-            }
-            2 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::AlreadyConnected(var_field0);
-            }
-            3 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::NotConnected(var_field0);
-            }
-            4 => {
-                let mut var_deviceId = <String>::sse_decode(deserializer);
-                let mut var_reason = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::DeviceDisconnected {
-                    device_id: var_deviceId,
-                    reason: var_reason,
-                };
-            }
-            5 => {
-                let mut var_deviceId = <String>::sse_decode(deserializer);
-                let mut var_message = <String>::sse_decode(deserializer);
-                let mut var_errorCode = <Option<i32>>::sse_decode(deserializer);
-                return crate::error::SkotiqError::HardwareError {
-                    device_id: var_deviceId,
-                    message: var_message,
-                    error_code: var_errorCode,
-                };
-            }
-            6 => {
-                let mut var_deviceId = <String>::sse_decode(deserializer);
-                let mut var_message = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::CommunicationError {
-                    device_id: var_deviceId,
-                    message: var_message,
-                };
-            }
-            7 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::Timeout(var_field0);
-            }
-            8 => {
-                let mut var_deviceId = <String>::sse_decode(deserializer);
-                let mut var_operation = <String>::sse_decode(deserializer);
-                let mut var_timeoutSecs = <f64>::sse_decode(deserializer);
-                return crate::error::SkotiqError::DeviceTimeout {
-                    device_id: var_deviceId,
-                    operation: var_operation,
-                    timeout_secs: var_timeoutSecs,
-                };
-            }
-            9 => {
-                let mut var_deviceId = <String>::sse_decode(deserializer);
-                let mut var_timeoutSecs = <f64>::sse_decode(deserializer);
-                return crate::error::SkotiqError::ConnectionTimeout {
-                    device_id: var_deviceId,
-                    timeout_secs: var_timeoutSecs,
-                };
-            }
-            10 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::InvalidParameter(var_field0);
-            }
-            11 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::InvalidInput(var_field0);
-            }
-            12 => {
-                let mut var_deviceId = <String>::sse_decode(deserializer);
-                let mut var_reason = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::InvalidDeviceId {
-                    device_id: var_deviceId,
-                    reason: var_reason,
-                };
-            }
-            13 => {
-                let mut var_paramName = <String>::sse_decode(deserializer);
-                let mut var_value = <String>::sse_decode(deserializer);
-                let mut var_min = <String>::sse_decode(deserializer);
-                let mut var_max = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::ParameterOutOfRange {
-                    param_name: var_paramName,
-                    value: var_value,
-                    min: var_min,
-                    max: var_max,
-                };
-            }
-            14 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::OperationFailed(var_field0);
-            }
-            15 => {
-                let mut var_deviceId = <String>::sse_decode(deserializer);
-                let mut var_operation = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::NotSupported {
-                    device_id: var_deviceId,
-                    operation: var_operation,
-                };
-            }
-            16 => {
-                let mut var_deviceId = <String>::sse_decode(deserializer);
-                let mut var_currentOperation = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::DeviceBusy {
-                    device_id: var_deviceId,
-                    current_operation: var_currentOperation,
-                };
-            }
-            17 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::ImageError(var_field0);
-            }
-            18 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::CameraError(var_field0);
-            }
-            19 => {
-                return crate::error::SkotiqError::NoImageAvailable;
-            }
-            20 => {
-                return crate::error::SkotiqError::ExposureCancelled;
-            }
-            21 => {
-                let mut var_cameraId = <String>::sse_decode(deserializer);
-                let mut var_reason = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::ExposureFailed {
-                    camera_id: var_cameraId,
-                    reason: var_reason,
-                };
-            }
-            22 => {
-                let mut var_cameraId = <String>::sse_decode(deserializer);
-                let mut var_reason = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::DownloadFailed {
-                    camera_id: var_cameraId,
-                    reason: var_reason,
-                };
-            }
-            23 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::IoError(var_field0);
-            }
-            24 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::SerializationError(var_field0);
-            }
-            25 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::PlateSolveError(var_field0);
-            }
-            26 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::SequenceError(var_field0);
-            }
-            27 => {
-                let mut var_progId = <String>::sse_decode(deserializer);
-                let mut var_message = <String>::sse_decode(deserializer);
-                let mut var_errorCode = <i32>::sse_decode(deserializer);
-                return crate::error::SkotiqError::AscomError {
-                    prog_id: var_progId,
-                    message: var_message,
-                    error_code: var_errorCode,
-                };
-            }
-            28 => {
-                let mut var_baseUrl = <String>::sse_decode(deserializer);
-                let mut var_deviceNumber = <u32>::sse_decode(deserializer);
-                let mut var_message = <String>::sse_decode(deserializer);
-                let mut var_errorCode = <i32>::sse_decode(deserializer);
-                return crate::error::SkotiqError::AlpacaError {
-                    base_url: var_baseUrl,
-                    device_number: var_deviceNumber,
-                    message: var_message,
-                    error_code: var_errorCode,
-                };
-            }
-            29 => {
-                let mut var_server = <String>::sse_decode(deserializer);
-                let mut var_port = <u16>::sse_decode(deserializer);
-                let mut var_deviceName = <String>::sse_decode(deserializer);
-                let mut var_message = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::IndiError {
-                    server: var_server,
-                    port: var_port,
-                    device_name: var_deviceName,
-                    message: var_message,
-                };
-            }
-            30 => {
-                let mut var_vendor = <String>::sse_decode(deserializer);
-                let mut var_message = <String>::sse_decode(deserializer);
-                let mut var_errorCode = <i32>::sse_decode(deserializer);
-                return crate::error::SkotiqError::NativeError {
-                    vendor: var_vendor,
-                    message: var_message,
-                    error_code: var_errorCode,
-                };
-            }
-            31 => {
-                let mut var_message = <String>::sse_decode(deserializer);
-                let mut var_hresult = <u32>::sse_decode(deserializer);
-                return crate::error::SkotiqError::ComError {
-                    message: var_message,
-                    hresult: var_hresult,
-                };
-            }
-            32 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::Internal(var_field0);
-            }
-            33 => {
-                return crate::error::SkotiqError::Cancelled;
-            }
-            34 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::RuntimeInitFailed(var_field0);
-            }
-            35 => {
-                let mut var_resource = <String>::sse_decode(deserializer);
-                let mut var_message = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::ResourceExhausted {
-                    resource: var_resource,
-                    message: var_message,
-                };
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-
-impl SseDecode for crate::event::bus::SkotiqEvent {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_eventId = <u64>::sse_decode(deserializer);
-        let mut var_timestamp = <i64>::sse_decode(deserializer);
-        let mut var_severity = <crate::event::equipment::EventSeverity>::sse_decode(deserializer);
-        let mut var_category = <crate::event::equipment::EventCategory>::sse_decode(deserializer);
-        let mut var_payload = <crate::event::bus::EventPayload>::sse_decode(deserializer);
-        let mut var_causedBy = <Option<u64>>::sse_decode(deserializer);
-        let mut var_correlationId = <Option<String>>::sse_decode(deserializer);
-        let mut var_deviceId = <Option<String>>::sse_decode(deserializer);
-        return crate::event::bus::SkotiqEvent {
-            event_id: var_eventId,
-            timestamp: var_timestamp,
-            severity: var_severity,
-            category: var_category,
-            payload: var_payload,
-            caused_by: var_causedBy,
-            correlation_id: var_correlationId,
-            device_id: var_deviceId,
-        };
-    }
-}
-
 impl SseDecode for crate::api::sequencer::NodeDefinitionApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -16299,6 +16027,275 @@ impl SseDecode for crate::api::devices::simulation::environment::SimulatedWeathe
         return crate::api::devices::simulation::environment::SimulatedWeather {
             connected: var_connected,
             conditions: var_conditions,
+        };
+    }
+}
+
+impl SseDecode for crate::error::SkotiqError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::DeviceNotFound(var_field0);
+            }
+            1 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                let mut var_reason = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::ConnectionFailed {
+                    device_id: var_deviceId,
+                    reason: var_reason,
+                };
+            }
+            2 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::AlreadyConnected(var_field0);
+            }
+            3 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::NotConnected(var_field0);
+            }
+            4 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                let mut var_reason = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::DeviceDisconnected {
+                    device_id: var_deviceId,
+                    reason: var_reason,
+                };
+            }
+            5 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                let mut var_errorCode = <Option<i32>>::sse_decode(deserializer);
+                return crate::error::SkotiqError::HardwareError {
+                    device_id: var_deviceId,
+                    message: var_message,
+                    error_code: var_errorCode,
+                };
+            }
+            6 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::CommunicationError {
+                    device_id: var_deviceId,
+                    message: var_message,
+                };
+            }
+            7 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::Timeout(var_field0);
+            }
+            8 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                let mut var_operation = <String>::sse_decode(deserializer);
+                let mut var_timeoutSecs = <f64>::sse_decode(deserializer);
+                return crate::error::SkotiqError::DeviceTimeout {
+                    device_id: var_deviceId,
+                    operation: var_operation,
+                    timeout_secs: var_timeoutSecs,
+                };
+            }
+            9 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                let mut var_timeoutSecs = <f64>::sse_decode(deserializer);
+                return crate::error::SkotiqError::ConnectionTimeout {
+                    device_id: var_deviceId,
+                    timeout_secs: var_timeoutSecs,
+                };
+            }
+            10 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::InvalidParameter(var_field0);
+            }
+            11 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::InvalidInput(var_field0);
+            }
+            12 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                let mut var_reason = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::InvalidDeviceId {
+                    device_id: var_deviceId,
+                    reason: var_reason,
+                };
+            }
+            13 => {
+                let mut var_paramName = <String>::sse_decode(deserializer);
+                let mut var_value = <String>::sse_decode(deserializer);
+                let mut var_min = <String>::sse_decode(deserializer);
+                let mut var_max = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::ParameterOutOfRange {
+                    param_name: var_paramName,
+                    value: var_value,
+                    min: var_min,
+                    max: var_max,
+                };
+            }
+            14 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::OperationFailed(var_field0);
+            }
+            15 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                let mut var_operation = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::NotSupported {
+                    device_id: var_deviceId,
+                    operation: var_operation,
+                };
+            }
+            16 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                let mut var_currentOperation = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::DeviceBusy {
+                    device_id: var_deviceId,
+                    current_operation: var_currentOperation,
+                };
+            }
+            17 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::ImageError(var_field0);
+            }
+            18 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::CameraError(var_field0);
+            }
+            19 => {
+                return crate::error::SkotiqError::NoImageAvailable;
+            }
+            20 => {
+                return crate::error::SkotiqError::ExposureCancelled;
+            }
+            21 => {
+                let mut var_cameraId = <String>::sse_decode(deserializer);
+                let mut var_reason = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::ExposureFailed {
+                    camera_id: var_cameraId,
+                    reason: var_reason,
+                };
+            }
+            22 => {
+                let mut var_cameraId = <String>::sse_decode(deserializer);
+                let mut var_reason = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::DownloadFailed {
+                    camera_id: var_cameraId,
+                    reason: var_reason,
+                };
+            }
+            23 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::IoError(var_field0);
+            }
+            24 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::SerializationError(var_field0);
+            }
+            25 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::PlateSolveError(var_field0);
+            }
+            26 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::SequenceError(var_field0);
+            }
+            27 => {
+                let mut var_progId = <String>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                let mut var_errorCode = <i32>::sse_decode(deserializer);
+                return crate::error::SkotiqError::AscomError {
+                    prog_id: var_progId,
+                    message: var_message,
+                    error_code: var_errorCode,
+                };
+            }
+            28 => {
+                let mut var_baseUrl = <String>::sse_decode(deserializer);
+                let mut var_deviceNumber = <u32>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                let mut var_errorCode = <i32>::sse_decode(deserializer);
+                return crate::error::SkotiqError::AlpacaError {
+                    base_url: var_baseUrl,
+                    device_number: var_deviceNumber,
+                    message: var_message,
+                    error_code: var_errorCode,
+                };
+            }
+            29 => {
+                let mut var_server = <String>::sse_decode(deserializer);
+                let mut var_port = <u16>::sse_decode(deserializer);
+                let mut var_deviceName = <String>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::IndiError {
+                    server: var_server,
+                    port: var_port,
+                    device_name: var_deviceName,
+                    message: var_message,
+                };
+            }
+            30 => {
+                let mut var_vendor = <String>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                let mut var_errorCode = <i32>::sse_decode(deserializer);
+                return crate::error::SkotiqError::NativeError {
+                    vendor: var_vendor,
+                    message: var_message,
+                    error_code: var_errorCode,
+                };
+            }
+            31 => {
+                let mut var_message = <String>::sse_decode(deserializer);
+                let mut var_hresult = <u32>::sse_decode(deserializer);
+                return crate::error::SkotiqError::ComError {
+                    message: var_message,
+                    hresult: var_hresult,
+                };
+            }
+            32 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::Internal(var_field0);
+            }
+            33 => {
+                return crate::error::SkotiqError::Cancelled;
+            }
+            34 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::RuntimeInitFailed(var_field0);
+            }
+            35 => {
+                let mut var_resource = <String>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::ResourceExhausted {
+                    resource: var_resource,
+                    message: var_message,
+                };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
+impl SseDecode for crate::event::bus::SkotiqEvent {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_eventId = <u64>::sse_decode(deserializer);
+        let mut var_timestamp = <i64>::sse_decode(deserializer);
+        let mut var_severity = <crate::event::equipment::EventSeverity>::sse_decode(deserializer);
+        let mut var_category = <crate::event::equipment::EventCategory>::sse_decode(deserializer);
+        let mut var_payload = <crate::event::bus::EventPayload>::sse_decode(deserializer);
+        let mut var_causedBy = <Option<u64>>::sse_decode(deserializer);
+        let mut var_correlationId = <Option<String>>::sse_decode(deserializer);
+        let mut var_deviceId = <Option<String>>::sse_decode(deserializer);
+        return crate::event::bus::SkotiqEvent {
+            event_id: var_eventId,
+            timestamp: var_timestamp,
+            severity: var_severity,
+            category: var_category,
+            payload: var_payload,
+            caused_by: var_causedBy,
+            correlation_id: var_correlationId,
+            device_id: var_deviceId,
         };
     }
 }
@@ -19356,257 +19353,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::device::MountTimeInfo>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::error::SkotiqError {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            crate::error::SkotiqError::DeviceNotFound(field0) => {
-                [0.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::ConnectionFailed { device_id, reason } => [
-                1.into_dart(),
-                device_id.into_into_dart().into_dart(),
-                reason.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::AlreadyConnected(field0) => {
-                [2.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::NotConnected(field0) => {
-                [3.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::DeviceDisconnected { device_id, reason } => [
-                4.into_dart(),
-                device_id.into_into_dart().into_dart(),
-                reason.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::HardwareError {
-                device_id,
-                message,
-                error_code,
-            } => [
-                5.into_dart(),
-                device_id.into_into_dart().into_dart(),
-                message.into_into_dart().into_dart(),
-                error_code.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::CommunicationError { device_id, message } => [
-                6.into_dart(),
-                device_id.into_into_dart().into_dart(),
-                message.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::Timeout(field0) => {
-                [7.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::DeviceTimeout {
-                device_id,
-                operation,
-                timeout_secs,
-            } => [
-                8.into_dart(),
-                device_id.into_into_dart().into_dart(),
-                operation.into_into_dart().into_dart(),
-                timeout_secs.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::ConnectionTimeout {
-                device_id,
-                timeout_secs,
-            } => [
-                9.into_dart(),
-                device_id.into_into_dart().into_dart(),
-                timeout_secs.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::InvalidParameter(field0) => {
-                [10.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::InvalidInput(field0) => {
-                [11.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::InvalidDeviceId { device_id, reason } => [
-                12.into_dart(),
-                device_id.into_into_dart().into_dart(),
-                reason.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::ParameterOutOfRange {
-                param_name,
-                value,
-                min,
-                max,
-            } => [
-                13.into_dart(),
-                param_name.into_into_dart().into_dart(),
-                value.into_into_dart().into_dart(),
-                min.into_into_dart().into_dart(),
-                max.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::OperationFailed(field0) => {
-                [14.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::NotSupported {
-                device_id,
-                operation,
-            } => [
-                15.into_dart(),
-                device_id.into_into_dart().into_dart(),
-                operation.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::DeviceBusy {
-                device_id,
-                current_operation,
-            } => [
-                16.into_dart(),
-                device_id.into_into_dart().into_dart(),
-                current_operation.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::ImageError(field0) => {
-                [17.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::CameraError(field0) => {
-                [18.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::NoImageAvailable => [19.into_dart()].into_dart(),
-            crate::error::SkotiqError::ExposureCancelled => [20.into_dart()].into_dart(),
-            crate::error::SkotiqError::ExposureFailed { camera_id, reason } => [
-                21.into_dart(),
-                camera_id.into_into_dart().into_dart(),
-                reason.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::DownloadFailed { camera_id, reason } => [
-                22.into_dart(),
-                camera_id.into_into_dart().into_dart(),
-                reason.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::IoError(field0) => {
-                [23.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::SerializationError(field0) => {
-                [24.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::PlateSolveError(field0) => {
-                [25.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::SequenceError(field0) => {
-                [26.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::AscomError {
-                prog_id,
-                message,
-                error_code,
-            } => [
-                27.into_dart(),
-                prog_id.into_into_dart().into_dart(),
-                message.into_into_dart().into_dart(),
-                error_code.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::AlpacaError {
-                base_url,
-                device_number,
-                message,
-                error_code,
-            } => [
-                28.into_dart(),
-                base_url.into_into_dart().into_dart(),
-                device_number.into_into_dart().into_dart(),
-                message.into_into_dart().into_dart(),
-                error_code.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::IndiError {
-                server,
-                port,
-                device_name,
-                message,
-            } => [
-                29.into_dart(),
-                server.into_into_dart().into_dart(),
-                port.into_into_dart().into_dart(),
-                device_name.into_into_dart().into_dart(),
-                message.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::NativeError {
-                vendor,
-                message,
-                error_code,
-            } => [
-                30.into_dart(),
-                vendor.into_into_dart().into_dart(),
-                message.into_into_dart().into_dart(),
-                error_code.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::ComError { message, hresult } => [
-                31.into_dart(),
-                message.into_into_dart().into_dart(),
-                hresult.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::error::SkotiqError::Internal(field0) => {
-                [32.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::Cancelled => [33.into_dart()].into_dart(),
-            crate::error::SkotiqError::RuntimeInitFailed(field0) => {
-                [34.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::ResourceExhausted { resource, message } => [
-                35.into_dart(),
-                resource.into_into_dart().into_dart(),
-                message.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::error::SkotiqError {}
-impl flutter_rust_bridge::IntoIntoDart<crate::error::SkotiqError>
-    for crate::error::SkotiqError
-{
-    fn into_into_dart(self) -> crate::error::SkotiqError {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::event::bus::SkotiqEvent {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.event_id.into_into_dart().into_dart(),
-            self.timestamp.into_into_dart().into_dart(),
-            self.severity.into_into_dart().into_dart(),
-            self.category.into_into_dart().into_dart(),
-            self.payload.into_into_dart().into_dart(),
-            self.caused_by.into_into_dart().into_dart(),
-            self.correlation_id.into_into_dart().into_dart(),
-            self.device_id.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::event::bus::SkotiqEvent
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::event::bus::SkotiqEvent>
-    for crate::event::bus::SkotiqEvent
-{
-    fn into_into_dart(self) -> crate::event::bus::SkotiqEvent {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::sequencer::NodeDefinitionApi {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -21115,6 +20861,255 @@ impl
     > for crate::api::devices::simulation::environment::SimulatedWeather
 {
     fn into_into_dart(self) -> crate::api::devices::simulation::environment::SimulatedWeather {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::error::SkotiqError {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::error::SkotiqError::DeviceNotFound(field0) => {
+                [0.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::ConnectionFailed { device_id, reason } => [
+                1.into_dart(),
+                device_id.into_into_dart().into_dart(),
+                reason.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::AlreadyConnected(field0) => {
+                [2.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::NotConnected(field0) => {
+                [3.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::DeviceDisconnected { device_id, reason } => [
+                4.into_dart(),
+                device_id.into_into_dart().into_dart(),
+                reason.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::HardwareError {
+                device_id,
+                message,
+                error_code,
+            } => [
+                5.into_dart(),
+                device_id.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
+                error_code.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::CommunicationError { device_id, message } => [
+                6.into_dart(),
+                device_id.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::Timeout(field0) => {
+                [7.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::DeviceTimeout {
+                device_id,
+                operation,
+                timeout_secs,
+            } => [
+                8.into_dart(),
+                device_id.into_into_dart().into_dart(),
+                operation.into_into_dart().into_dart(),
+                timeout_secs.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::ConnectionTimeout {
+                device_id,
+                timeout_secs,
+            } => [
+                9.into_dart(),
+                device_id.into_into_dart().into_dart(),
+                timeout_secs.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::InvalidParameter(field0) => {
+                [10.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::InvalidInput(field0) => {
+                [11.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::InvalidDeviceId { device_id, reason } => [
+                12.into_dart(),
+                device_id.into_into_dart().into_dart(),
+                reason.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::ParameterOutOfRange {
+                param_name,
+                value,
+                min,
+                max,
+            } => [
+                13.into_dart(),
+                param_name.into_into_dart().into_dart(),
+                value.into_into_dart().into_dart(),
+                min.into_into_dart().into_dart(),
+                max.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::OperationFailed(field0) => {
+                [14.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::NotSupported {
+                device_id,
+                operation,
+            } => [
+                15.into_dart(),
+                device_id.into_into_dart().into_dart(),
+                operation.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::DeviceBusy {
+                device_id,
+                current_operation,
+            } => [
+                16.into_dart(),
+                device_id.into_into_dart().into_dart(),
+                current_operation.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::ImageError(field0) => {
+                [17.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::CameraError(field0) => {
+                [18.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::NoImageAvailable => [19.into_dart()].into_dart(),
+            crate::error::SkotiqError::ExposureCancelled => [20.into_dart()].into_dart(),
+            crate::error::SkotiqError::ExposureFailed { camera_id, reason } => [
+                21.into_dart(),
+                camera_id.into_into_dart().into_dart(),
+                reason.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::DownloadFailed { camera_id, reason } => [
+                22.into_dart(),
+                camera_id.into_into_dart().into_dart(),
+                reason.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::IoError(field0) => {
+                [23.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::SerializationError(field0) => {
+                [24.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::PlateSolveError(field0) => {
+                [25.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::SequenceError(field0) => {
+                [26.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::AscomError {
+                prog_id,
+                message,
+                error_code,
+            } => [
+                27.into_dart(),
+                prog_id.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
+                error_code.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::AlpacaError {
+                base_url,
+                device_number,
+                message,
+                error_code,
+            } => [
+                28.into_dart(),
+                base_url.into_into_dart().into_dart(),
+                device_number.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
+                error_code.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::IndiError {
+                server,
+                port,
+                device_name,
+                message,
+            } => [
+                29.into_dart(),
+                server.into_into_dart().into_dart(),
+                port.into_into_dart().into_dart(),
+                device_name.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::NativeError {
+                vendor,
+                message,
+                error_code,
+            } => [
+                30.into_dart(),
+                vendor.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
+                error_code.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::ComError { message, hresult } => [
+                31.into_dart(),
+                message.into_into_dart().into_dart(),
+                hresult.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::error::SkotiqError::Internal(field0) => {
+                [32.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::Cancelled => [33.into_dart()].into_dart(),
+            crate::error::SkotiqError::RuntimeInitFailed(field0) => {
+                [34.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::ResourceExhausted { resource, message } => [
+                35.into_dart(),
+                resource.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::error::SkotiqError {}
+impl flutter_rust_bridge::IntoIntoDart<crate::error::SkotiqError> for crate::error::SkotiqError {
+    fn into_into_dart(self) -> crate::error::SkotiqError {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::event::bus::SkotiqEvent {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.event_id.into_into_dart().into_dart(),
+            self.timestamp.into_into_dart().into_dart(),
+            self.severity.into_into_dart().into_dart(),
+            self.category.into_into_dart().into_dart(),
+            self.payload.into_into_dart().into_dart(),
+            self.caused_by.into_into_dart().into_dart(),
+            self.correlation_id.into_into_dart().into_dart(),
+            self.device_id.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::event::bus::SkotiqEvent
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::event::bus::SkotiqEvent>
+    for crate::event::bus::SkotiqEvent
+{
+    fn into_into_dart(self) -> crate::event::bus::SkotiqEvent {
         self
     }
 }
@@ -23739,240 +23734,6 @@ impl SseEncode for crate::device::MountTimeInfo {
     }
 }
 
-impl SseEncode for crate::error::SkotiqError {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        match self {
-            crate::error::SkotiqError::DeviceNotFound(field0) => {
-                <i32>::sse_encode(0, serializer);
-                <String>::sse_encode(field0, serializer);
-            }
-            crate::error::SkotiqError::ConnectionFailed { device_id, reason } => {
-                <i32>::sse_encode(1, serializer);
-                <String>::sse_encode(device_id, serializer);
-                <String>::sse_encode(reason, serializer);
-            }
-            crate::error::SkotiqError::AlreadyConnected(field0) => {
-                <i32>::sse_encode(2, serializer);
-                <String>::sse_encode(field0, serializer);
-            }
-            crate::error::SkotiqError::NotConnected(field0) => {
-                <i32>::sse_encode(3, serializer);
-                <String>::sse_encode(field0, serializer);
-            }
-            crate::error::SkotiqError::DeviceDisconnected { device_id, reason } => {
-                <i32>::sse_encode(4, serializer);
-                <String>::sse_encode(device_id, serializer);
-                <String>::sse_encode(reason, serializer);
-            }
-            crate::error::SkotiqError::HardwareError {
-                device_id,
-                message,
-                error_code,
-            } => {
-                <i32>::sse_encode(5, serializer);
-                <String>::sse_encode(device_id, serializer);
-                <String>::sse_encode(message, serializer);
-                <Option<i32>>::sse_encode(error_code, serializer);
-            }
-            crate::error::SkotiqError::CommunicationError { device_id, message } => {
-                <i32>::sse_encode(6, serializer);
-                <String>::sse_encode(device_id, serializer);
-                <String>::sse_encode(message, serializer);
-            }
-            crate::error::SkotiqError::Timeout(field0) => {
-                <i32>::sse_encode(7, serializer);
-                <String>::sse_encode(field0, serializer);
-            }
-            crate::error::SkotiqError::DeviceTimeout {
-                device_id,
-                operation,
-                timeout_secs,
-            } => {
-                <i32>::sse_encode(8, serializer);
-                <String>::sse_encode(device_id, serializer);
-                <String>::sse_encode(operation, serializer);
-                <f64>::sse_encode(timeout_secs, serializer);
-            }
-            crate::error::SkotiqError::ConnectionTimeout {
-                device_id,
-                timeout_secs,
-            } => {
-                <i32>::sse_encode(9, serializer);
-                <String>::sse_encode(device_id, serializer);
-                <f64>::sse_encode(timeout_secs, serializer);
-            }
-            crate::error::SkotiqError::InvalidParameter(field0) => {
-                <i32>::sse_encode(10, serializer);
-                <String>::sse_encode(field0, serializer);
-            }
-            crate::error::SkotiqError::InvalidInput(field0) => {
-                <i32>::sse_encode(11, serializer);
-                <String>::sse_encode(field0, serializer);
-            }
-            crate::error::SkotiqError::InvalidDeviceId { device_id, reason } => {
-                <i32>::sse_encode(12, serializer);
-                <String>::sse_encode(device_id, serializer);
-                <String>::sse_encode(reason, serializer);
-            }
-            crate::error::SkotiqError::ParameterOutOfRange {
-                param_name,
-                value,
-                min,
-                max,
-            } => {
-                <i32>::sse_encode(13, serializer);
-                <String>::sse_encode(param_name, serializer);
-                <String>::sse_encode(value, serializer);
-                <String>::sse_encode(min, serializer);
-                <String>::sse_encode(max, serializer);
-            }
-            crate::error::SkotiqError::OperationFailed(field0) => {
-                <i32>::sse_encode(14, serializer);
-                <String>::sse_encode(field0, serializer);
-            }
-            crate::error::SkotiqError::NotSupported {
-                device_id,
-                operation,
-            } => {
-                <i32>::sse_encode(15, serializer);
-                <String>::sse_encode(device_id, serializer);
-                <String>::sse_encode(operation, serializer);
-            }
-            crate::error::SkotiqError::DeviceBusy {
-                device_id,
-                current_operation,
-            } => {
-                <i32>::sse_encode(16, serializer);
-                <String>::sse_encode(device_id, serializer);
-                <String>::sse_encode(current_operation, serializer);
-            }
-            crate::error::SkotiqError::ImageError(field0) => {
-                <i32>::sse_encode(17, serializer);
-                <String>::sse_encode(field0, serializer);
-            }
-            crate::error::SkotiqError::CameraError(field0) => {
-                <i32>::sse_encode(18, serializer);
-                <String>::sse_encode(field0, serializer);
-            }
-            crate::error::SkotiqError::NoImageAvailable => {
-                <i32>::sse_encode(19, serializer);
-            }
-            crate::error::SkotiqError::ExposureCancelled => {
-                <i32>::sse_encode(20, serializer);
-            }
-            crate::error::SkotiqError::ExposureFailed { camera_id, reason } => {
-                <i32>::sse_encode(21, serializer);
-                <String>::sse_encode(camera_id, serializer);
-                <String>::sse_encode(reason, serializer);
-            }
-            crate::error::SkotiqError::DownloadFailed { camera_id, reason } => {
-                <i32>::sse_encode(22, serializer);
-                <String>::sse_encode(camera_id, serializer);
-                <String>::sse_encode(reason, serializer);
-            }
-            crate::error::SkotiqError::IoError(field0) => {
-                <i32>::sse_encode(23, serializer);
-                <String>::sse_encode(field0, serializer);
-            }
-            crate::error::SkotiqError::SerializationError(field0) => {
-                <i32>::sse_encode(24, serializer);
-                <String>::sse_encode(field0, serializer);
-            }
-            crate::error::SkotiqError::PlateSolveError(field0) => {
-                <i32>::sse_encode(25, serializer);
-                <String>::sse_encode(field0, serializer);
-            }
-            crate::error::SkotiqError::SequenceError(field0) => {
-                <i32>::sse_encode(26, serializer);
-                <String>::sse_encode(field0, serializer);
-            }
-            crate::error::SkotiqError::AscomError {
-                prog_id,
-                message,
-                error_code,
-            } => {
-                <i32>::sse_encode(27, serializer);
-                <String>::sse_encode(prog_id, serializer);
-                <String>::sse_encode(message, serializer);
-                <i32>::sse_encode(error_code, serializer);
-            }
-            crate::error::SkotiqError::AlpacaError {
-                base_url,
-                device_number,
-                message,
-                error_code,
-            } => {
-                <i32>::sse_encode(28, serializer);
-                <String>::sse_encode(base_url, serializer);
-                <u32>::sse_encode(device_number, serializer);
-                <String>::sse_encode(message, serializer);
-                <i32>::sse_encode(error_code, serializer);
-            }
-            crate::error::SkotiqError::IndiError {
-                server,
-                port,
-                device_name,
-                message,
-            } => {
-                <i32>::sse_encode(29, serializer);
-                <String>::sse_encode(server, serializer);
-                <u16>::sse_encode(port, serializer);
-                <String>::sse_encode(device_name, serializer);
-                <String>::sse_encode(message, serializer);
-            }
-            crate::error::SkotiqError::NativeError {
-                vendor,
-                message,
-                error_code,
-            } => {
-                <i32>::sse_encode(30, serializer);
-                <String>::sse_encode(vendor, serializer);
-                <String>::sse_encode(message, serializer);
-                <i32>::sse_encode(error_code, serializer);
-            }
-            crate::error::SkotiqError::ComError { message, hresult } => {
-                <i32>::sse_encode(31, serializer);
-                <String>::sse_encode(message, serializer);
-                <u32>::sse_encode(hresult, serializer);
-            }
-            crate::error::SkotiqError::Internal(field0) => {
-                <i32>::sse_encode(32, serializer);
-                <String>::sse_encode(field0, serializer);
-            }
-            crate::error::SkotiqError::Cancelled => {
-                <i32>::sse_encode(33, serializer);
-            }
-            crate::error::SkotiqError::RuntimeInitFailed(field0) => {
-                <i32>::sse_encode(34, serializer);
-                <String>::sse_encode(field0, serializer);
-            }
-            crate::error::SkotiqError::ResourceExhausted { resource, message } => {
-                <i32>::sse_encode(35, serializer);
-                <String>::sse_encode(resource, serializer);
-                <String>::sse_encode(message, serializer);
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-
-impl SseEncode for crate::event::bus::SkotiqEvent {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u64>::sse_encode(self.event_id, serializer);
-        <i64>::sse_encode(self.timestamp, serializer);
-        <crate::event::equipment::EventSeverity>::sse_encode(self.severity, serializer);
-        <crate::event::equipment::EventCategory>::sse_encode(self.category, serializer);
-        <crate::event::bus::EventPayload>::sse_encode(self.payload, serializer);
-        <Option<u64>>::sse_encode(self.caused_by, serializer);
-        <Option<String>>::sse_encode(self.correlation_id, serializer);
-        <Option<String>>::sse_encode(self.device_id, serializer);
-    }
-}
-
 impl SseEncode for crate::api::sequencer::NodeDefinitionApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -25376,6 +25137,240 @@ impl SseEncode for crate::api::devices::simulation::environment::SimulatedWeathe
     }
 }
 
+impl SseEncode for crate::error::SkotiqError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::error::SkotiqError::DeviceNotFound(field0) => {
+                <i32>::sse_encode(0, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::error::SkotiqError::ConnectionFailed { device_id, reason } => {
+                <i32>::sse_encode(1, serializer);
+                <String>::sse_encode(device_id, serializer);
+                <String>::sse_encode(reason, serializer);
+            }
+            crate::error::SkotiqError::AlreadyConnected(field0) => {
+                <i32>::sse_encode(2, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::error::SkotiqError::NotConnected(field0) => {
+                <i32>::sse_encode(3, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::error::SkotiqError::DeviceDisconnected { device_id, reason } => {
+                <i32>::sse_encode(4, serializer);
+                <String>::sse_encode(device_id, serializer);
+                <String>::sse_encode(reason, serializer);
+            }
+            crate::error::SkotiqError::HardwareError {
+                device_id,
+                message,
+                error_code,
+            } => {
+                <i32>::sse_encode(5, serializer);
+                <String>::sse_encode(device_id, serializer);
+                <String>::sse_encode(message, serializer);
+                <Option<i32>>::sse_encode(error_code, serializer);
+            }
+            crate::error::SkotiqError::CommunicationError { device_id, message } => {
+                <i32>::sse_encode(6, serializer);
+                <String>::sse_encode(device_id, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::error::SkotiqError::Timeout(field0) => {
+                <i32>::sse_encode(7, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::error::SkotiqError::DeviceTimeout {
+                device_id,
+                operation,
+                timeout_secs,
+            } => {
+                <i32>::sse_encode(8, serializer);
+                <String>::sse_encode(device_id, serializer);
+                <String>::sse_encode(operation, serializer);
+                <f64>::sse_encode(timeout_secs, serializer);
+            }
+            crate::error::SkotiqError::ConnectionTimeout {
+                device_id,
+                timeout_secs,
+            } => {
+                <i32>::sse_encode(9, serializer);
+                <String>::sse_encode(device_id, serializer);
+                <f64>::sse_encode(timeout_secs, serializer);
+            }
+            crate::error::SkotiqError::InvalidParameter(field0) => {
+                <i32>::sse_encode(10, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::error::SkotiqError::InvalidInput(field0) => {
+                <i32>::sse_encode(11, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::error::SkotiqError::InvalidDeviceId { device_id, reason } => {
+                <i32>::sse_encode(12, serializer);
+                <String>::sse_encode(device_id, serializer);
+                <String>::sse_encode(reason, serializer);
+            }
+            crate::error::SkotiqError::ParameterOutOfRange {
+                param_name,
+                value,
+                min,
+                max,
+            } => {
+                <i32>::sse_encode(13, serializer);
+                <String>::sse_encode(param_name, serializer);
+                <String>::sse_encode(value, serializer);
+                <String>::sse_encode(min, serializer);
+                <String>::sse_encode(max, serializer);
+            }
+            crate::error::SkotiqError::OperationFailed(field0) => {
+                <i32>::sse_encode(14, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::error::SkotiqError::NotSupported {
+                device_id,
+                operation,
+            } => {
+                <i32>::sse_encode(15, serializer);
+                <String>::sse_encode(device_id, serializer);
+                <String>::sse_encode(operation, serializer);
+            }
+            crate::error::SkotiqError::DeviceBusy {
+                device_id,
+                current_operation,
+            } => {
+                <i32>::sse_encode(16, serializer);
+                <String>::sse_encode(device_id, serializer);
+                <String>::sse_encode(current_operation, serializer);
+            }
+            crate::error::SkotiqError::ImageError(field0) => {
+                <i32>::sse_encode(17, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::error::SkotiqError::CameraError(field0) => {
+                <i32>::sse_encode(18, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::error::SkotiqError::NoImageAvailable => {
+                <i32>::sse_encode(19, serializer);
+            }
+            crate::error::SkotiqError::ExposureCancelled => {
+                <i32>::sse_encode(20, serializer);
+            }
+            crate::error::SkotiqError::ExposureFailed { camera_id, reason } => {
+                <i32>::sse_encode(21, serializer);
+                <String>::sse_encode(camera_id, serializer);
+                <String>::sse_encode(reason, serializer);
+            }
+            crate::error::SkotiqError::DownloadFailed { camera_id, reason } => {
+                <i32>::sse_encode(22, serializer);
+                <String>::sse_encode(camera_id, serializer);
+                <String>::sse_encode(reason, serializer);
+            }
+            crate::error::SkotiqError::IoError(field0) => {
+                <i32>::sse_encode(23, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::error::SkotiqError::SerializationError(field0) => {
+                <i32>::sse_encode(24, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::error::SkotiqError::PlateSolveError(field0) => {
+                <i32>::sse_encode(25, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::error::SkotiqError::SequenceError(field0) => {
+                <i32>::sse_encode(26, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::error::SkotiqError::AscomError {
+                prog_id,
+                message,
+                error_code,
+            } => {
+                <i32>::sse_encode(27, serializer);
+                <String>::sse_encode(prog_id, serializer);
+                <String>::sse_encode(message, serializer);
+                <i32>::sse_encode(error_code, serializer);
+            }
+            crate::error::SkotiqError::AlpacaError {
+                base_url,
+                device_number,
+                message,
+                error_code,
+            } => {
+                <i32>::sse_encode(28, serializer);
+                <String>::sse_encode(base_url, serializer);
+                <u32>::sse_encode(device_number, serializer);
+                <String>::sse_encode(message, serializer);
+                <i32>::sse_encode(error_code, serializer);
+            }
+            crate::error::SkotiqError::IndiError {
+                server,
+                port,
+                device_name,
+                message,
+            } => {
+                <i32>::sse_encode(29, serializer);
+                <String>::sse_encode(server, serializer);
+                <u16>::sse_encode(port, serializer);
+                <String>::sse_encode(device_name, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::error::SkotiqError::NativeError {
+                vendor,
+                message,
+                error_code,
+            } => {
+                <i32>::sse_encode(30, serializer);
+                <String>::sse_encode(vendor, serializer);
+                <String>::sse_encode(message, serializer);
+                <i32>::sse_encode(error_code, serializer);
+            }
+            crate::error::SkotiqError::ComError { message, hresult } => {
+                <i32>::sse_encode(31, serializer);
+                <String>::sse_encode(message, serializer);
+                <u32>::sse_encode(hresult, serializer);
+            }
+            crate::error::SkotiqError::Internal(field0) => {
+                <i32>::sse_encode(32, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::error::SkotiqError::Cancelled => {
+                <i32>::sse_encode(33, serializer);
+            }
+            crate::error::SkotiqError::RuntimeInitFailed(field0) => {
+                <i32>::sse_encode(34, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::error::SkotiqError::ResourceExhausted { resource, message } => {
+                <i32>::sse_encode(35, serializer);
+                <String>::sse_encode(resource, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
+impl SseEncode for crate::event::bus::SkotiqEvent {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u64>::sse_encode(self.event_id, serializer);
+        <i64>::sse_encode(self.timestamp, serializer);
+        <crate::event::equipment::EventSeverity>::sse_encode(self.severity, serializer);
+        <crate::event::equipment::EventCategory>::sse_encode(self.category, serializer);
+        <crate::event::bus::EventPayload>::sse_encode(self.payload, serializer);
+        <Option<u64>>::sse_encode(self.caused_by, serializer);
+        <Option<String>>::sse_encode(self.correlation_id, serializer);
+        <Option<String>>::sse_encode(self.device_id, serializer);
+    }
+}
+
 impl SseEncode for crate::api::plate_solve::SolveHints {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -25745,10 +25740,8 @@ mod io {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(
             self,
-        ) -> StreamSink<
-            crate::event::bus::SkotiqEvent,
-            flutter_rust_bridge::for_generated::DcoCodec,
-        > {
+        ) -> StreamSink<crate::event::bus::SkotiqEvent, flutter_rust_bridge::for_generated::DcoCodec>
+        {
             let raw: String = self.cst_decode();
             StreamSink::deserialize(raw)
         }
@@ -28180,228 +28173,6 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::error::SkotiqError> for wire_cst_skotiq_error {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::error::SkotiqError {
-            match self.tag {
-                0 => {
-                    let ans = unsafe { self.kind.DeviceNotFound };
-                    crate::error::SkotiqError::DeviceNotFound(ans.field0.cst_decode())
-                }
-                1 => {
-                    let ans = unsafe { self.kind.ConnectionFailed };
-                    crate::error::SkotiqError::ConnectionFailed {
-                        device_id: ans.device_id.cst_decode(),
-                        reason: ans.reason.cst_decode(),
-                    }
-                }
-                2 => {
-                    let ans = unsafe { self.kind.AlreadyConnected };
-                    crate::error::SkotiqError::AlreadyConnected(ans.field0.cst_decode())
-                }
-                3 => {
-                    let ans = unsafe { self.kind.NotConnected };
-                    crate::error::SkotiqError::NotConnected(ans.field0.cst_decode())
-                }
-                4 => {
-                    let ans = unsafe { self.kind.DeviceDisconnected };
-                    crate::error::SkotiqError::DeviceDisconnected {
-                        device_id: ans.device_id.cst_decode(),
-                        reason: ans.reason.cst_decode(),
-                    }
-                }
-                5 => {
-                    let ans = unsafe { self.kind.HardwareError };
-                    crate::error::SkotiqError::HardwareError {
-                        device_id: ans.device_id.cst_decode(),
-                        message: ans.message.cst_decode(),
-                        error_code: ans.error_code.cst_decode(),
-                    }
-                }
-                6 => {
-                    let ans = unsafe { self.kind.CommunicationError };
-                    crate::error::SkotiqError::CommunicationError {
-                        device_id: ans.device_id.cst_decode(),
-                        message: ans.message.cst_decode(),
-                    }
-                }
-                7 => {
-                    let ans = unsafe { self.kind.Timeout };
-                    crate::error::SkotiqError::Timeout(ans.field0.cst_decode())
-                }
-                8 => {
-                    let ans = unsafe { self.kind.DeviceTimeout };
-                    crate::error::SkotiqError::DeviceTimeout {
-                        device_id: ans.device_id.cst_decode(),
-                        operation: ans.operation.cst_decode(),
-                        timeout_secs: ans.timeout_secs.cst_decode(),
-                    }
-                }
-                9 => {
-                    let ans = unsafe { self.kind.ConnectionTimeout };
-                    crate::error::SkotiqError::ConnectionTimeout {
-                        device_id: ans.device_id.cst_decode(),
-                        timeout_secs: ans.timeout_secs.cst_decode(),
-                    }
-                }
-                10 => {
-                    let ans = unsafe { self.kind.InvalidParameter };
-                    crate::error::SkotiqError::InvalidParameter(ans.field0.cst_decode())
-                }
-                11 => {
-                    let ans = unsafe { self.kind.InvalidInput };
-                    crate::error::SkotiqError::InvalidInput(ans.field0.cst_decode())
-                }
-                12 => {
-                    let ans = unsafe { self.kind.InvalidDeviceId };
-                    crate::error::SkotiqError::InvalidDeviceId {
-                        device_id: ans.device_id.cst_decode(),
-                        reason: ans.reason.cst_decode(),
-                    }
-                }
-                13 => {
-                    let ans = unsafe { self.kind.ParameterOutOfRange };
-                    crate::error::SkotiqError::ParameterOutOfRange {
-                        param_name: ans.param_name.cst_decode(),
-                        value: ans.value.cst_decode(),
-                        min: ans.min.cst_decode(),
-                        max: ans.max.cst_decode(),
-                    }
-                }
-                14 => {
-                    let ans = unsafe { self.kind.OperationFailed };
-                    crate::error::SkotiqError::OperationFailed(ans.field0.cst_decode())
-                }
-                15 => {
-                    let ans = unsafe { self.kind.NotSupported };
-                    crate::error::SkotiqError::NotSupported {
-                        device_id: ans.device_id.cst_decode(),
-                        operation: ans.operation.cst_decode(),
-                    }
-                }
-                16 => {
-                    let ans = unsafe { self.kind.DeviceBusy };
-                    crate::error::SkotiqError::DeviceBusy {
-                        device_id: ans.device_id.cst_decode(),
-                        current_operation: ans.current_operation.cst_decode(),
-                    }
-                }
-                17 => {
-                    let ans = unsafe { self.kind.ImageError };
-                    crate::error::SkotiqError::ImageError(ans.field0.cst_decode())
-                }
-                18 => {
-                    let ans = unsafe { self.kind.CameraError };
-                    crate::error::SkotiqError::CameraError(ans.field0.cst_decode())
-                }
-                19 => crate::error::SkotiqError::NoImageAvailable,
-                20 => crate::error::SkotiqError::ExposureCancelled,
-                21 => {
-                    let ans = unsafe { self.kind.ExposureFailed };
-                    crate::error::SkotiqError::ExposureFailed {
-                        camera_id: ans.camera_id.cst_decode(),
-                        reason: ans.reason.cst_decode(),
-                    }
-                }
-                22 => {
-                    let ans = unsafe { self.kind.DownloadFailed };
-                    crate::error::SkotiqError::DownloadFailed {
-                        camera_id: ans.camera_id.cst_decode(),
-                        reason: ans.reason.cst_decode(),
-                    }
-                }
-                23 => {
-                    let ans = unsafe { self.kind.IoError };
-                    crate::error::SkotiqError::IoError(ans.field0.cst_decode())
-                }
-                24 => {
-                    let ans = unsafe { self.kind.SerializationError };
-                    crate::error::SkotiqError::SerializationError(ans.field0.cst_decode())
-                }
-                25 => {
-                    let ans = unsafe { self.kind.PlateSolveError };
-                    crate::error::SkotiqError::PlateSolveError(ans.field0.cst_decode())
-                }
-                26 => {
-                    let ans = unsafe { self.kind.SequenceError };
-                    crate::error::SkotiqError::SequenceError(ans.field0.cst_decode())
-                }
-                27 => {
-                    let ans = unsafe { self.kind.AscomError };
-                    crate::error::SkotiqError::AscomError {
-                        prog_id: ans.prog_id.cst_decode(),
-                        message: ans.message.cst_decode(),
-                        error_code: ans.error_code.cst_decode(),
-                    }
-                }
-                28 => {
-                    let ans = unsafe { self.kind.AlpacaError };
-                    crate::error::SkotiqError::AlpacaError {
-                        base_url: ans.base_url.cst_decode(),
-                        device_number: ans.device_number.cst_decode(),
-                        message: ans.message.cst_decode(),
-                        error_code: ans.error_code.cst_decode(),
-                    }
-                }
-                29 => {
-                    let ans = unsafe { self.kind.IndiError };
-                    crate::error::SkotiqError::IndiError {
-                        server: ans.server.cst_decode(),
-                        port: ans.port.cst_decode(),
-                        device_name: ans.device_name.cst_decode(),
-                        message: ans.message.cst_decode(),
-                    }
-                }
-                30 => {
-                    let ans = unsafe { self.kind.NativeError };
-                    crate::error::SkotiqError::NativeError {
-                        vendor: ans.vendor.cst_decode(),
-                        message: ans.message.cst_decode(),
-                        error_code: ans.error_code.cst_decode(),
-                    }
-                }
-                31 => {
-                    let ans = unsafe { self.kind.ComError };
-                    crate::error::SkotiqError::ComError {
-                        message: ans.message.cst_decode(),
-                        hresult: ans.hresult.cst_decode(),
-                    }
-                }
-                32 => {
-                    let ans = unsafe { self.kind.Internal };
-                    crate::error::SkotiqError::Internal(ans.field0.cst_decode())
-                }
-                33 => crate::error::SkotiqError::Cancelled,
-                34 => {
-                    let ans = unsafe { self.kind.RuntimeInitFailed };
-                    crate::error::SkotiqError::RuntimeInitFailed(ans.field0.cst_decode())
-                }
-                35 => {
-                    let ans = unsafe { self.kind.ResourceExhausted };
-                    crate::error::SkotiqError::ResourceExhausted {
-                        resource: ans.resource.cst_decode(),
-                        message: ans.message.cst_decode(),
-                    }
-                }
-                _ => unreachable!(),
-            }
-        }
-    }
-    impl CstDecode<crate::event::bus::SkotiqEvent> for wire_cst_skotiq_event {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::event::bus::SkotiqEvent {
-            crate::event::bus::SkotiqEvent {
-                event_id: self.event_id.cst_decode(),
-                timestamp: self.timestamp.cst_decode(),
-                severity: self.severity.cst_decode(),
-                category: self.category.cst_decode(),
-                payload: self.payload.cst_decode(),
-                caused_by: self.caused_by.cst_decode(),
-                correlation_id: self.correlation_id.cst_decode(),
-                device_id: self.device_id.cst_decode(),
-            }
-        }
-    }
     impl CstDecode<crate::api::sequencer::NodeDefinitionApi> for wire_cst_node_definition_api {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::sequencer::NodeDefinitionApi {
@@ -29359,6 +29130,228 @@ mod io {
             crate::api::devices::simulation::environment::SimulatedWeather {
                 connected: self.connected.cst_decode(),
                 conditions: self.conditions.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::error::SkotiqError> for wire_cst_skotiq_error {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::error::SkotiqError {
+            match self.tag {
+                0 => {
+                    let ans = unsafe { self.kind.DeviceNotFound };
+                    crate::error::SkotiqError::DeviceNotFound(ans.field0.cst_decode())
+                }
+                1 => {
+                    let ans = unsafe { self.kind.ConnectionFailed };
+                    crate::error::SkotiqError::ConnectionFailed {
+                        device_id: ans.device_id.cst_decode(),
+                        reason: ans.reason.cst_decode(),
+                    }
+                }
+                2 => {
+                    let ans = unsafe { self.kind.AlreadyConnected };
+                    crate::error::SkotiqError::AlreadyConnected(ans.field0.cst_decode())
+                }
+                3 => {
+                    let ans = unsafe { self.kind.NotConnected };
+                    crate::error::SkotiqError::NotConnected(ans.field0.cst_decode())
+                }
+                4 => {
+                    let ans = unsafe { self.kind.DeviceDisconnected };
+                    crate::error::SkotiqError::DeviceDisconnected {
+                        device_id: ans.device_id.cst_decode(),
+                        reason: ans.reason.cst_decode(),
+                    }
+                }
+                5 => {
+                    let ans = unsafe { self.kind.HardwareError };
+                    crate::error::SkotiqError::HardwareError {
+                        device_id: ans.device_id.cst_decode(),
+                        message: ans.message.cst_decode(),
+                        error_code: ans.error_code.cst_decode(),
+                    }
+                }
+                6 => {
+                    let ans = unsafe { self.kind.CommunicationError };
+                    crate::error::SkotiqError::CommunicationError {
+                        device_id: ans.device_id.cst_decode(),
+                        message: ans.message.cst_decode(),
+                    }
+                }
+                7 => {
+                    let ans = unsafe { self.kind.Timeout };
+                    crate::error::SkotiqError::Timeout(ans.field0.cst_decode())
+                }
+                8 => {
+                    let ans = unsafe { self.kind.DeviceTimeout };
+                    crate::error::SkotiqError::DeviceTimeout {
+                        device_id: ans.device_id.cst_decode(),
+                        operation: ans.operation.cst_decode(),
+                        timeout_secs: ans.timeout_secs.cst_decode(),
+                    }
+                }
+                9 => {
+                    let ans = unsafe { self.kind.ConnectionTimeout };
+                    crate::error::SkotiqError::ConnectionTimeout {
+                        device_id: ans.device_id.cst_decode(),
+                        timeout_secs: ans.timeout_secs.cst_decode(),
+                    }
+                }
+                10 => {
+                    let ans = unsafe { self.kind.InvalidParameter };
+                    crate::error::SkotiqError::InvalidParameter(ans.field0.cst_decode())
+                }
+                11 => {
+                    let ans = unsafe { self.kind.InvalidInput };
+                    crate::error::SkotiqError::InvalidInput(ans.field0.cst_decode())
+                }
+                12 => {
+                    let ans = unsafe { self.kind.InvalidDeviceId };
+                    crate::error::SkotiqError::InvalidDeviceId {
+                        device_id: ans.device_id.cst_decode(),
+                        reason: ans.reason.cst_decode(),
+                    }
+                }
+                13 => {
+                    let ans = unsafe { self.kind.ParameterOutOfRange };
+                    crate::error::SkotiqError::ParameterOutOfRange {
+                        param_name: ans.param_name.cst_decode(),
+                        value: ans.value.cst_decode(),
+                        min: ans.min.cst_decode(),
+                        max: ans.max.cst_decode(),
+                    }
+                }
+                14 => {
+                    let ans = unsafe { self.kind.OperationFailed };
+                    crate::error::SkotiqError::OperationFailed(ans.field0.cst_decode())
+                }
+                15 => {
+                    let ans = unsafe { self.kind.NotSupported };
+                    crate::error::SkotiqError::NotSupported {
+                        device_id: ans.device_id.cst_decode(),
+                        operation: ans.operation.cst_decode(),
+                    }
+                }
+                16 => {
+                    let ans = unsafe { self.kind.DeviceBusy };
+                    crate::error::SkotiqError::DeviceBusy {
+                        device_id: ans.device_id.cst_decode(),
+                        current_operation: ans.current_operation.cst_decode(),
+                    }
+                }
+                17 => {
+                    let ans = unsafe { self.kind.ImageError };
+                    crate::error::SkotiqError::ImageError(ans.field0.cst_decode())
+                }
+                18 => {
+                    let ans = unsafe { self.kind.CameraError };
+                    crate::error::SkotiqError::CameraError(ans.field0.cst_decode())
+                }
+                19 => crate::error::SkotiqError::NoImageAvailable,
+                20 => crate::error::SkotiqError::ExposureCancelled,
+                21 => {
+                    let ans = unsafe { self.kind.ExposureFailed };
+                    crate::error::SkotiqError::ExposureFailed {
+                        camera_id: ans.camera_id.cst_decode(),
+                        reason: ans.reason.cst_decode(),
+                    }
+                }
+                22 => {
+                    let ans = unsafe { self.kind.DownloadFailed };
+                    crate::error::SkotiqError::DownloadFailed {
+                        camera_id: ans.camera_id.cst_decode(),
+                        reason: ans.reason.cst_decode(),
+                    }
+                }
+                23 => {
+                    let ans = unsafe { self.kind.IoError };
+                    crate::error::SkotiqError::IoError(ans.field0.cst_decode())
+                }
+                24 => {
+                    let ans = unsafe { self.kind.SerializationError };
+                    crate::error::SkotiqError::SerializationError(ans.field0.cst_decode())
+                }
+                25 => {
+                    let ans = unsafe { self.kind.PlateSolveError };
+                    crate::error::SkotiqError::PlateSolveError(ans.field0.cst_decode())
+                }
+                26 => {
+                    let ans = unsafe { self.kind.SequenceError };
+                    crate::error::SkotiqError::SequenceError(ans.field0.cst_decode())
+                }
+                27 => {
+                    let ans = unsafe { self.kind.AscomError };
+                    crate::error::SkotiqError::AscomError {
+                        prog_id: ans.prog_id.cst_decode(),
+                        message: ans.message.cst_decode(),
+                        error_code: ans.error_code.cst_decode(),
+                    }
+                }
+                28 => {
+                    let ans = unsafe { self.kind.AlpacaError };
+                    crate::error::SkotiqError::AlpacaError {
+                        base_url: ans.base_url.cst_decode(),
+                        device_number: ans.device_number.cst_decode(),
+                        message: ans.message.cst_decode(),
+                        error_code: ans.error_code.cst_decode(),
+                    }
+                }
+                29 => {
+                    let ans = unsafe { self.kind.IndiError };
+                    crate::error::SkotiqError::IndiError {
+                        server: ans.server.cst_decode(),
+                        port: ans.port.cst_decode(),
+                        device_name: ans.device_name.cst_decode(),
+                        message: ans.message.cst_decode(),
+                    }
+                }
+                30 => {
+                    let ans = unsafe { self.kind.NativeError };
+                    crate::error::SkotiqError::NativeError {
+                        vendor: ans.vendor.cst_decode(),
+                        message: ans.message.cst_decode(),
+                        error_code: ans.error_code.cst_decode(),
+                    }
+                }
+                31 => {
+                    let ans = unsafe { self.kind.ComError };
+                    crate::error::SkotiqError::ComError {
+                        message: ans.message.cst_decode(),
+                        hresult: ans.hresult.cst_decode(),
+                    }
+                }
+                32 => {
+                    let ans = unsafe { self.kind.Internal };
+                    crate::error::SkotiqError::Internal(ans.field0.cst_decode())
+                }
+                33 => crate::error::SkotiqError::Cancelled,
+                34 => {
+                    let ans = unsafe { self.kind.RuntimeInitFailed };
+                    crate::error::SkotiqError::RuntimeInitFailed(ans.field0.cst_decode())
+                }
+                35 => {
+                    let ans = unsafe { self.kind.ResourceExhausted };
+                    crate::error::SkotiqError::ResourceExhausted {
+                        resource: ans.resource.cst_decode(),
+                        message: ans.message.cst_decode(),
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+    impl CstDecode<crate::event::bus::SkotiqEvent> for wire_cst_skotiq_event {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::event::bus::SkotiqEvent {
+            crate::event::bus::SkotiqEvent {
+                event_id: self.event_id.cst_decode(),
+                timestamp: self.timestamp.cst_decode(),
+                severity: self.severity.cst_decode(),
+                category: self.category.cst_decode(),
+                payload: self.payload.cst_decode(),
+                caused_by: self.caused_by.cst_decode(),
+                correlation_id: self.correlation_id.cst_decode(),
+                device_id: self.device_id.cst_decode(),
             }
         }
     }
@@ -30914,38 +30907,6 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
-    impl NewWithNullPtr for wire_cst_skotiq_error {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                tag: -1,
-                kind: SkotiqErrorKind { nil__: () },
-            }
-        }
-    }
-    impl Default for wire_cst_skotiq_error {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_skotiq_event {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                event_id: Default::default(),
-                timestamp: Default::default(),
-                severity: Default::default(),
-                category: Default::default(),
-                payload: Default::default(),
-                caused_by: core::ptr::null_mut(),
-                correlation_id: core::ptr::null_mut(),
-                device_id: core::ptr::null_mut(),
-            }
-        }
-    }
-    impl Default for wire_cst_skotiq_event {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
     impl NewWithNullPtr for wire_cst_node_definition_api {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -31737,6 +31698,38 @@ mod io {
         }
     }
     impl Default for wire_cst_simulated_weather {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_skotiq_error {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                tag: -1,
+                kind: SkotiqErrorKind { nil__: () },
+            }
+        }
+    }
+    impl Default for wire_cst_skotiq_error {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_skotiq_event {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                event_id: Default::default(),
+                timestamp: Default::default(),
+                severity: Default::default(),
+                category: Default::default(),
+                payload: Default::default(),
+                caused_by: core::ptr::null_mut(),
+                correlation_id: core::ptr::null_mut(),
+                device_id: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_skotiq_event {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -33263,9 +33256,7 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__session__api_end_session(
-        port_: i64,
-    ) {
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__session__api_end_session(port_: i64) {
         wire__crate__api__session__api_end_session_impl(port_)
     }
 
@@ -33956,9 +33947,7 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__init__api_list_log_files(
-        port_: i64,
-    ) {
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__init__api_list_log_files(port_: i64) {
         wire__crate__api__init__api_list_log_files_impl(port_)
     }
 
@@ -34129,9 +34118,7 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_disconnect(
-        port_: i64,
-    ) {
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_disconnect(port_: i64) {
         wire__crate__api__phd2__api_phd2_disconnect_impl(port_)
     }
 
@@ -34155,9 +34142,7 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_find_star(
-        port_: i64,
-    ) {
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_find_star(port_: i64) {
         wire__crate__api__phd2__api_phd2_find_star_impl(port_)
     }
 
@@ -34230,9 +34215,7 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_status(
-        port_: i64,
-    ) {
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_status(port_: i64) {
         wire__crate__api__phd2__api_phd2_get_status_impl(port_)
     }
 
@@ -36450,9 +36433,7 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_cover_state(
-        value: i32,
-    ) -> *mut i32 {
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_cover_state(value: i32) -> *mut i32 {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(value)
     }
 
@@ -36597,9 +36578,7 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_pier_side(
-        value: i32,
-    ) -> *mut i32 {
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_pier_side(value: i32) -> *mut i32 {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(value)
     }
 
@@ -36811,9 +36790,7 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_bool(
-        len: i32,
-    ) -> *mut wire_cst_list_bool {
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_bool(len: i32) -> *mut wire_cst_list_bool {
         let wrap = wire_cst_list_bool {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(Default::default(), len),
             len,
@@ -38794,255 +38771,6 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
-    pub struct wire_cst_skotiq_error {
-        tag: i32,
-        kind: SkotiqErrorKind,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub union SkotiqErrorKind {
-        DeviceNotFound: wire_cst_SkotiqError_DeviceNotFound,
-        ConnectionFailed: wire_cst_SkotiqError_ConnectionFailed,
-        AlreadyConnected: wire_cst_SkotiqError_AlreadyConnected,
-        NotConnected: wire_cst_SkotiqError_NotConnected,
-        DeviceDisconnected: wire_cst_SkotiqError_DeviceDisconnected,
-        HardwareError: wire_cst_SkotiqError_HardwareError,
-        CommunicationError: wire_cst_SkotiqError_CommunicationError,
-        Timeout: wire_cst_SkotiqError_Timeout,
-        DeviceTimeout: wire_cst_SkotiqError_DeviceTimeout,
-        ConnectionTimeout: wire_cst_SkotiqError_ConnectionTimeout,
-        InvalidParameter: wire_cst_SkotiqError_InvalidParameter,
-        InvalidInput: wire_cst_SkotiqError_InvalidInput,
-        InvalidDeviceId: wire_cst_SkotiqError_InvalidDeviceId,
-        ParameterOutOfRange: wire_cst_SkotiqError_ParameterOutOfRange,
-        OperationFailed: wire_cst_SkotiqError_OperationFailed,
-        NotSupported: wire_cst_SkotiqError_NotSupported,
-        DeviceBusy: wire_cst_SkotiqError_DeviceBusy,
-        ImageError: wire_cst_SkotiqError_ImageError,
-        CameraError: wire_cst_SkotiqError_CameraError,
-        ExposureFailed: wire_cst_SkotiqError_ExposureFailed,
-        DownloadFailed: wire_cst_SkotiqError_DownloadFailed,
-        IoError: wire_cst_SkotiqError_IoError,
-        SerializationError: wire_cst_SkotiqError_SerializationError,
-        PlateSolveError: wire_cst_SkotiqError_PlateSolveError,
-        SequenceError: wire_cst_SkotiqError_SequenceError,
-        AscomError: wire_cst_SkotiqError_AscomError,
-        AlpacaError: wire_cst_SkotiqError_AlpacaError,
-        IndiError: wire_cst_SkotiqError_IndiError,
-        NativeError: wire_cst_SkotiqError_NativeError,
-        ComError: wire_cst_SkotiqError_ComError,
-        Internal: wire_cst_SkotiqError_Internal,
-        RuntimeInitFailed: wire_cst_SkotiqError_RuntimeInitFailed,
-        ResourceExhausted: wire_cst_SkotiqError_ResourceExhausted,
-        nil__: (),
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_DeviceNotFound {
-        field0: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_ConnectionFailed {
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        reason: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_AlreadyConnected {
-        field0: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_NotConnected {
-        field0: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_DeviceDisconnected {
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        reason: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_HardwareError {
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        message: *mut wire_cst_list_prim_u_8_strict,
-        error_code: *mut i32,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_CommunicationError {
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        message: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_Timeout {
-        field0: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_DeviceTimeout {
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        operation: *mut wire_cst_list_prim_u_8_strict,
-        timeout_secs: f64,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_ConnectionTimeout {
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        timeout_secs: f64,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_InvalidParameter {
-        field0: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_InvalidInput {
-        field0: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_InvalidDeviceId {
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        reason: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_ParameterOutOfRange {
-        param_name: *mut wire_cst_list_prim_u_8_strict,
-        value: *mut wire_cst_list_prim_u_8_strict,
-        min: *mut wire_cst_list_prim_u_8_strict,
-        max: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_OperationFailed {
-        field0: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_NotSupported {
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        operation: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_DeviceBusy {
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        current_operation: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_ImageError {
-        field0: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_CameraError {
-        field0: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_ExposureFailed {
-        camera_id: *mut wire_cst_list_prim_u_8_strict,
-        reason: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_DownloadFailed {
-        camera_id: *mut wire_cst_list_prim_u_8_strict,
-        reason: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_IoError {
-        field0: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_SerializationError {
-        field0: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_PlateSolveError {
-        field0: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_SequenceError {
-        field0: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_AscomError {
-        prog_id: *mut wire_cst_list_prim_u_8_strict,
-        message: *mut wire_cst_list_prim_u_8_strict,
-        error_code: i32,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_AlpacaError {
-        base_url: *mut wire_cst_list_prim_u_8_strict,
-        device_number: u32,
-        message: *mut wire_cst_list_prim_u_8_strict,
-        error_code: i32,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_IndiError {
-        server: *mut wire_cst_list_prim_u_8_strict,
-        port: u16,
-        device_name: *mut wire_cst_list_prim_u_8_strict,
-        message: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_NativeError {
-        vendor: *mut wire_cst_list_prim_u_8_strict,
-        message: *mut wire_cst_list_prim_u_8_strict,
-        error_code: i32,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_ComError {
-        message: *mut wire_cst_list_prim_u_8_strict,
-        hresult: u32,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_Internal {
-        field0: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_RuntimeInitFailed {
-        field0: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_SkotiqError_ResourceExhausted {
-        resource: *mut wire_cst_list_prim_u_8_strict,
-        message: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_skotiq_event {
-        event_id: u64,
-        timestamp: i64,
-        severity: i32,
-        category: i32,
-        payload: wire_cst_event_payload,
-        caused_by: *mut u64,
-        correlation_id: *mut wire_cst_list_prim_u_8_strict,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
     pub struct wire_cst_node_definition_api {
         id: *mut wire_cst_list_prim_u_8_strict,
         name: *mut wire_cst_list_prim_u_8_strict,
@@ -39849,6 +39577,255 @@ mod io {
     pub struct wire_cst_simulated_weather {
         connected: bool,
         conditions: wire_cst_weather_conditions,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_skotiq_error {
+        tag: i32,
+        kind: SkotiqErrorKind,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub union SkotiqErrorKind {
+        DeviceNotFound: wire_cst_SkotiqError_DeviceNotFound,
+        ConnectionFailed: wire_cst_SkotiqError_ConnectionFailed,
+        AlreadyConnected: wire_cst_SkotiqError_AlreadyConnected,
+        NotConnected: wire_cst_SkotiqError_NotConnected,
+        DeviceDisconnected: wire_cst_SkotiqError_DeviceDisconnected,
+        HardwareError: wire_cst_SkotiqError_HardwareError,
+        CommunicationError: wire_cst_SkotiqError_CommunicationError,
+        Timeout: wire_cst_SkotiqError_Timeout,
+        DeviceTimeout: wire_cst_SkotiqError_DeviceTimeout,
+        ConnectionTimeout: wire_cst_SkotiqError_ConnectionTimeout,
+        InvalidParameter: wire_cst_SkotiqError_InvalidParameter,
+        InvalidInput: wire_cst_SkotiqError_InvalidInput,
+        InvalidDeviceId: wire_cst_SkotiqError_InvalidDeviceId,
+        ParameterOutOfRange: wire_cst_SkotiqError_ParameterOutOfRange,
+        OperationFailed: wire_cst_SkotiqError_OperationFailed,
+        NotSupported: wire_cst_SkotiqError_NotSupported,
+        DeviceBusy: wire_cst_SkotiqError_DeviceBusy,
+        ImageError: wire_cst_SkotiqError_ImageError,
+        CameraError: wire_cst_SkotiqError_CameraError,
+        ExposureFailed: wire_cst_SkotiqError_ExposureFailed,
+        DownloadFailed: wire_cst_SkotiqError_DownloadFailed,
+        IoError: wire_cst_SkotiqError_IoError,
+        SerializationError: wire_cst_SkotiqError_SerializationError,
+        PlateSolveError: wire_cst_SkotiqError_PlateSolveError,
+        SequenceError: wire_cst_SkotiqError_SequenceError,
+        AscomError: wire_cst_SkotiqError_AscomError,
+        AlpacaError: wire_cst_SkotiqError_AlpacaError,
+        IndiError: wire_cst_SkotiqError_IndiError,
+        NativeError: wire_cst_SkotiqError_NativeError,
+        ComError: wire_cst_SkotiqError_ComError,
+        Internal: wire_cst_SkotiqError_Internal,
+        RuntimeInitFailed: wire_cst_SkotiqError_RuntimeInitFailed,
+        ResourceExhausted: wire_cst_SkotiqError_ResourceExhausted,
+        nil__: (),
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_DeviceNotFound {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_ConnectionFailed {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        reason: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_AlreadyConnected {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_NotConnected {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_DeviceDisconnected {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        reason: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_HardwareError {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        message: *mut wire_cst_list_prim_u_8_strict,
+        error_code: *mut i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_CommunicationError {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        message: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_Timeout {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_DeviceTimeout {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        operation: *mut wire_cst_list_prim_u_8_strict,
+        timeout_secs: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_ConnectionTimeout {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        timeout_secs: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_InvalidParameter {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_InvalidInput {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_InvalidDeviceId {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        reason: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_ParameterOutOfRange {
+        param_name: *mut wire_cst_list_prim_u_8_strict,
+        value: *mut wire_cst_list_prim_u_8_strict,
+        min: *mut wire_cst_list_prim_u_8_strict,
+        max: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_OperationFailed {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_NotSupported {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        operation: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_DeviceBusy {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        current_operation: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_ImageError {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_CameraError {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_ExposureFailed {
+        camera_id: *mut wire_cst_list_prim_u_8_strict,
+        reason: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_DownloadFailed {
+        camera_id: *mut wire_cst_list_prim_u_8_strict,
+        reason: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_IoError {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_SerializationError {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_PlateSolveError {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_SequenceError {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_AscomError {
+        prog_id: *mut wire_cst_list_prim_u_8_strict,
+        message: *mut wire_cst_list_prim_u_8_strict,
+        error_code: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_AlpacaError {
+        base_url: *mut wire_cst_list_prim_u_8_strict,
+        device_number: u32,
+        message: *mut wire_cst_list_prim_u_8_strict,
+        error_code: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_IndiError {
+        server: *mut wire_cst_list_prim_u_8_strict,
+        port: u16,
+        device_name: *mut wire_cst_list_prim_u_8_strict,
+        message: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_NativeError {
+        vendor: *mut wire_cst_list_prim_u_8_strict,
+        message: *mut wire_cst_list_prim_u_8_strict,
+        error_code: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_ComError {
+        message: *mut wire_cst_list_prim_u_8_strict,
+        hresult: u32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_Internal {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_RuntimeInitFailed {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_ResourceExhausted {
+        resource: *mut wire_cst_list_prim_u_8_strict,
+        message: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_skotiq_event {
+        event_id: u64,
+        timestamp: i64,
+        severity: i32,
+        category: i32,
+        payload: wire_cst_event_payload,
+        caused_by: *mut u64,
+        correlation_id: *mut wire_cst_list_prim_u_8_strict,
+        device_id: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

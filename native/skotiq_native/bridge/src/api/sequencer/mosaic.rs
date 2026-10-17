@@ -113,13 +113,7 @@ pub fn api_calculate_altitude(
         .single()
         .unwrap_or_else(|| Utc::now());
 
-    skotiq_sequencer::meridian::calculate_altitude(
-        ra_hours,
-        dec_degrees,
-        latitude,
-        longitude,
-        time,
-    )
+    skotiq_sequencer::meridian::calculate_altitude(ra_hours, dec_degrees, latitude, longitude, time)
 }
 
 // LiveStacking broadcast API

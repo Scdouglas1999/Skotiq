@@ -12,9 +12,7 @@
 //!   -- --ignored --nocapture
 //! ```
 
-use skotiq_imaging::normalization::{
-    estimate_normalization, CoverageMask, NormalizationConfig,
-};
+use skotiq_imaging::normalization::{estimate_normalization, CoverageMask, NormalizationConfig};
 use skotiq_imaging::read_fits;
 
 #[test]

@@ -28,6 +28,7 @@
 //! The calls are CPU-bound and synchronous; the Dart side runs them off the UI
 //! isolate.
 
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::calibration_masters::{
     build_master_flat, cosmetic_correct_transient, CosmeticConfig, MasterFlatConfig,
 };
@@ -54,7 +55,6 @@ use skotiq_imaging::{
     auto_stretch_stf, read_fits, read_fits_header, read_image, write_fits, FitsHeader, ImageData,
     PixelType, RgbStretchMode, WcsInfo,
 };
-use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 use crate::api::get_state;

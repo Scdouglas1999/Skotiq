@@ -52,12 +52,12 @@ use crate::event::*;
 use crate::state::*;
 use crate::storage::{AppSettings, ObserverLocation};
 use crate::unified_device_ops::create_unified_device_ops;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::{
     calculate_airmass, validate_fits_header, validate_image, write_fits, BayerPattern,
     DebayerAlgorithm, FitsHeader, ImageData,
 };
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -281,11 +281,11 @@ pub async fn api_run_autofocus(
         ));
     }
 
+    use serde::Deserialize;
     use skotiq_sequencer::instructions::{
         execute_autofocus_admitted, try_admit_autofocus_run, InstructionContext,
     };
     use skotiq_sequencer::{AutofocusConfig, AutofocusMethod, Binning, NodeStatus};
-    use serde::Deserialize;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[derive(Debug, Deserialize)]
@@ -481,9 +481,7 @@ pub async fn api_run_autofocus(
             result.message.unwrap_or("Autofocus failed".to_string()),
         )),
         NodeStatus::Cancelled => Err(SkotiqError::Cancelled),
-        _ => Err(SkotiqError::OperationFailed(
-            "Unknown error".to_string(),
-        )),
+        _ => Err(SkotiqError::OperationFailed("Unknown error".to_string())),
     }
 }
 
@@ -1158,10 +1156,8 @@ pub(crate) async fn camera_start_exposure_configured_opt(
         for &pixel in &display_data_raw {
             histogram[pixel as usize] += 1;
         }
-        let stars = skotiq_imaging::detect_stars(
-            &image,
-            &skotiq_imaging::StarDetectionConfig::default(),
-        );
+        let stars =
+            skotiq_imaging::detect_stars(&image, &skotiq_imaging::StarDetectionConfig::default());
         let frame_stats = frame_stats_result(&stats, &stars);
         tracing::info!(
             "Simulated capture: {}x{}, {} stars detected, median HFR: {:?}, median ecc: {:?}",
@@ -1501,9 +1497,7 @@ pub async fn api_get_last_raw_image_data(device_id: String) -> Result<Vec<u16>, 
 /// that requires original 16-bit sensor data (not display-stretched 8-bit data)
 /// Reads from per-device atomic storage to ensure consistency with display data
 #[flutter_rust_bridge::frb(ignore)]
-pub async fn get_last_raw_image_info(
-    device_id: &str,
-) -> Result<Option<RawImageInfo>, SkotiqError> {
+pub async fn get_last_raw_image_info(device_id: &str) -> Result<Option<RawImageInfo>, SkotiqError> {
     let mut storage = get_unified_image_storage().lock().await;
     Ok(storage.get(device_id).map(|data| data.raw_info.clone()))
 }
@@ -3933,17 +3927,12 @@ pub async fn api_generate_fits_thumbnail(
 
     tokio::task::spawn_blocking(move || generate_fits_thumbnail_jpeg(&file_path, max_size))
         .await
-        .map_err(|e| {
-            SkotiqError::OperationFailed(format!("Thumbnail task join error: {}", e))
-        })?
+        .map_err(|e| SkotiqError::OperationFailed(format!("Thumbnail task join error: {}", e)))?
 }
 
 /// The blocking body of [`api_generate_fits_thumbnail`]. Never call this from
 /// an async context without `spawn_blocking`.
-fn generate_fits_thumbnail_jpeg(
-    file_path: &str,
-    max_size: u32,
-) -> Result<Vec<u8>, SkotiqError> {
+fn generate_fits_thumbnail_jpeg(file_path: &str, max_size: u32) -> Result<Vec<u8>, SkotiqError> {
     use skotiq_imaging::read_fits;
     use std::path::Path;
 
@@ -4078,15 +4067,13 @@ fn generate_fits_thumbnail_jpeg(
             let pixel_idx = (src_y as usize)
                 .checked_mul(width as usize)
                 .and_then(|row| row.checked_add(src_x as usize))
-                .ok_or_else(|| {
-                    SkotiqError::ImageError("FITS pixel index overflow".to_string())
-                })?;
-            let sample_idx = pixel_idx.checked_mul(channels).ok_or_else(|| {
-                SkotiqError::ImageError("FITS sample index overflow".to_string())
-            })?;
-            let sample_end = sample_idx.checked_add(channels).ok_or_else(|| {
-                SkotiqError::ImageError("FITS sample index overflow".to_string())
-            })?;
+                .ok_or_else(|| SkotiqError::ImageError("FITS pixel index overflow".to_string()))?;
+            let sample_idx = pixel_idx
+                .checked_mul(channels)
+                .ok_or_else(|| SkotiqError::ImageError("FITS sample index overflow".to_string()))?;
+            let sample_end = sample_idx
+                .checked_add(channels)
+                .ok_or_else(|| SkotiqError::ImageError("FITS sample index overflow".to_string()))?;
             if sample_end > sample_count {
                 return Err(SkotiqError::ImageError(format!(
                     "FITS pixel {} falls outside its validated sample buffer",
@@ -4131,9 +4118,8 @@ fn generate_fits_thumbnail_jpeg(
     use image::{GrayImage, ImageEncoder};
     use std::io::Cursor;
 
-    let gray_img = GrayImage::from_raw(new_width, new_height, stretched).ok_or_else(|| {
-        SkotiqError::ImageError("Failed to create grayscale image".to_string())
-    })?;
+    let gray_img = GrayImage::from_raw(new_width, new_height, stretched)
+        .ok_or_else(|| SkotiqError::ImageError("Failed to create grayscale image".to_string()))?;
 
     let mut jpeg_data = Vec::new();
     let mut cursor = Cursor::new(&mut jpeg_data);
@@ -4501,14 +4487,10 @@ pub fn api_calibrate_image_file(
             })?;
         }
         ImageFormat::Xisf => {
-            skotiq_imaging::write_xisf(
-                out,
-                &calibrated,
-                &skotiq_imaging::XisfMetadata::default(),
-            )
-            .map_err(|e| {
-                SkotiqError::ImageError(format!("Failed to write calibrated XISF: {:?}", e))
-            })?;
+            skotiq_imaging::write_xisf(out, &calibrated, &skotiq_imaging::XisfMetadata::default())
+                .map_err(|e| {
+                    SkotiqError::ImageError(format!("Failed to write calibrated XISF: {:?}", e))
+                })?;
         }
         ImageFormat::Tiff => {
             skotiq_imaging::write_tiff(out, &calibrated).map_err(|e| {
@@ -4716,9 +4698,7 @@ pub fn api_stacking_start_from_data(
 /// Add a frame to the live stack from a file path.
 ///
 /// Returns the current stacked result.
-pub fn api_stacking_add_frame(
-    image_path: String,
-) -> Result<ApiLiveStackingResult, SkotiqError> {
+pub fn api_stacking_add_frame(image_path: String) -> Result<ApiLiveStackingResult, SkotiqError> {
     let result = crate::stacking_api::stacking_add_frame(image_path)
         .map_err(|e| SkotiqError::ImageError(e))?;
     Ok(convert_result(result))
@@ -5208,9 +5188,7 @@ pub struct ApiMasterFrameResult {
     pub output_mean: f64,
 }
 
-fn parse_master_kind(
-    s: &str,
-) -> Result<skotiq_imaging::stacking::MasterFrameKind, SkotiqError> {
+fn parse_master_kind(s: &str) -> Result<skotiq_imaging::stacking::MasterFrameKind, SkotiqError> {
     match s.trim().to_ascii_uppercase().as_str() {
         "BIAS" => Ok(skotiq_imaging::stacking::MasterFrameKind::Bias),
         "DARK" => Ok(skotiq_imaging::stacking::MasterFrameKind::Dark),
@@ -5222,9 +5200,7 @@ fn parse_master_kind(
     }
 }
 
-fn parse_output_type(
-    s: &str,
-) -> Result<skotiq_imaging::stacking::MasterOutputType, SkotiqError> {
+fn parse_output_type(s: &str) -> Result<skotiq_imaging::stacking::MasterOutputType, SkotiqError> {
     match s.trim().to_ascii_uppercase().as_str() {
         "U16" => Ok(skotiq_imaging::stacking::MasterOutputType::U16),
         "F32" => Ok(skotiq_imaging::stacking::MasterOutputType::F32),
@@ -5247,9 +5223,7 @@ fn parse_combine_method(
                 SkotiqError::InvalidParameter("SIGMA_CLIP requires sigma_kappa".to_string())
             })?;
             let iterations = m.sigma_iterations.ok_or_else(|| {
-                SkotiqError::InvalidParameter(
-                    "SIGMA_CLIP requires sigma_iterations".to_string(),
-                )
+                SkotiqError::InvalidParameter("SIGMA_CLIP requires sigma_iterations".to_string())
             })?;
             Ok(CombineMethod::SigmaClip { kappa, iterations })
         }
@@ -5312,9 +5286,7 @@ pub async fn api_combine_master_frames(
         Ok::<_, String>(out)
     })
     .await
-    .map_err(|e| {
-        SkotiqError::ImageError(format!("join error reading master frame inputs: {}", e))
-    })?
+    .map_err(|e| SkotiqError::ImageError(format!("join error reading master frame inputs: {}", e)))?
     .map_err(SkotiqError::ImageError)?;
 
     let combine_kind = kind_enum;

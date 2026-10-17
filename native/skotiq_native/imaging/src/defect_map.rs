@@ -1469,10 +1469,8 @@ mod tests {
 
     #[test]
     fn file_round_trip() {
-        let path = std::env::temp_dir().join(format!(
-            "skotiq_defect_map_test_{}.ndm",
-            std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("skotiq_defect_map_test_{}.ndm", std::process::id()));
         let mut map = DefectMap::empty(8, 8, -200);
         map.mark_defective(3, 3);
         map.mark_defective(0, 7);

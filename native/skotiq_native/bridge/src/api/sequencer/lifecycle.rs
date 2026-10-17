@@ -4,9 +4,8 @@ use super::*;
 pub async fn api_sequencer_load_json(json: String) -> Result<(), SkotiqError> {
     tracing::info!("Loading sequence from JSON");
 
-    let definition: SequenceDefinition = serde_json::from_str(&json).map_err(|e| {
-        SkotiqError::InvalidInput(format!("Failed to parse sequence JSON: {}", e))
-    })?;
+    let definition: SequenceDefinition = serde_json::from_str(&json)
+        .map_err(|e| SkotiqError::InvalidInput(format!("Failed to parse sequence JSON: {}", e)))?;
 
     let mut executor = get_sequence_executor().write().await;
     executor
@@ -26,9 +25,8 @@ pub async fn api_sequencer_load(definition: SequenceDefinitionApi) -> Result<(),
         .nodes
         .iter()
         .map(|n| {
-            let node_type: NodeType = serde_json::from_str(&n.config_json).map_err(|e| {
-                SkotiqError::InvalidInput(format!("Invalid node config: {}", e))
-            })?;
+            let node_type: NodeType = serde_json::from_str(&n.config_json)
+                .map_err(|e| SkotiqError::InvalidInput(format!("Invalid node config: {}", e)))?;
 
             Ok(NodeDefinition {
                 id: n.id.clone(),
@@ -92,9 +90,10 @@ pub async fn api_sequencer_start() -> Result<(), SkotiqError> {
 
     let mut executor = get_sequence_executor().write().await;
     seed_executor_site_from_settings(&mut executor).await;
-    executor.start().await.map_err(|e| {
-        SkotiqError::OperationFailed(format!("Failed to start sequence: {}", e))
-    })?;
+    executor
+        .start()
+        .await
+        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to start sequence: {}", e)))?;
 
     // Publish event
     get_state().publish_event(create_event_auto_id(
@@ -113,9 +112,10 @@ pub async fn api_sequencer_pause() -> Result<(), SkotiqError> {
     tracing::info!("Pausing sequence execution");
 
     let executor = get_sequence_executor().read().await;
-    executor.pause().await.map_err(|e| {
-        SkotiqError::OperationFailed(format!("Failed to pause sequence: {}", e))
-    })?;
+    executor
+        .pause()
+        .await
+        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to pause sequence: {}", e)))?;
 
     get_state().publish_event(create_event_auto_id(
         EventSeverity::Info,
@@ -131,9 +131,10 @@ pub async fn api_sequencer_resume() -> Result<(), SkotiqError> {
     tracing::info!("Resuming sequence execution");
 
     let executor = get_sequence_executor().read().await;
-    executor.resume().await.map_err(|e| {
-        SkotiqError::OperationFailed(format!("Failed to resume sequence: {}", e))
-    })?;
+    executor
+        .resume()
+        .await
+        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to resume sequence: {}", e)))?;
 
     get_state().publish_event(create_event_auto_id(
         EventSeverity::Info,
@@ -254,10 +255,7 @@ pub async fn api_sequencer_plugin_node_finished(
         .plugin_node_finished(node_id, success, message, structured_detail_json)
         .await
         .map_err(|e| {
-            SkotiqError::OperationFailed(format!(
-                "Failed to deliver plugin node verdict: {}",
-                e
-            ))
+            SkotiqError::OperationFailed(format!("Failed to deliver plugin node verdict: {}", e))
         })?;
     Ok(())
 }
@@ -426,9 +424,9 @@ pub async fn api_perform_meridian_flip(
             "Meridian flip failed: {} (configured failure action: {:?})",
             error, action_taken
         ))),
-        skotiq_sequencer::FlipResult::Aborted { reason } => Err(
-            SkotiqError::OperationFailed(format!("Meridian flip aborted: {}", reason)),
-        ),
+        skotiq_sequencer::FlipResult::Aborted { reason } => Err(SkotiqError::OperationFailed(
+            format!("Meridian flip aborted: {}", reason),
+        )),
     }
 }
 

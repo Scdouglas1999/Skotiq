@@ -1269,9 +1269,9 @@ fn chrono_like_rfc3339_now() -> String {
 
 /// Executable the updater relaunches, relative to the install root.
 #[cfg(windows)]
-const APP_EXECUTABLE: &str = "skotiq_desktop.exe";
+const APP_EXECUTABLE: &str = "skotiq.exe";
 #[cfg(not(windows))]
-const APP_EXECUTABLE: &str = "skotiq_desktop";
+const APP_EXECUTABLE: &str = "skotiq";
 
 /// Native bridge the app cannot start without, relative to the install root.
 #[cfg(windows)]
@@ -1401,20 +1401,23 @@ fn remove_pending_marker(pending_file: &Path) -> Result<()> {
 
 /// What to run to start the updated application.
 ///
-/// The Linux bundle ships a `skotiq` launcher script beside the binary. It
-/// puts the bundled `lib/` first on the loader path and forces the X11 GDK
-/// backend, without which the window never appears under native Wayland, so
-/// relaunching the bare binary would bring the app back invisible. Windows
-/// has no launcher and runs the executable directly.
+/// The Linux bundle ships `skotiq` as a launcher script that owns the app
+/// name and execs the real binary at `skotiq.bin`: the script puts the
+/// bundled `lib/` first on the loader path and forces the X11 GDK backend,
+/// without which the window never appears under native Wayland, so the
+/// relaunch must go through it. `skotiq.bin` is only a fallback for a
+/// bundle where the script is missing. Windows has no launcher and runs
+/// the executable directly.
 fn launch_target(install_dir: &Path) -> PathBuf {
+    let exe = install_dir.join(from_posix(APP_EXECUTABLE));
     #[cfg(not(windows))]
-    {
-        let launcher = install_dir.join("skotiq");
-        if launcher.is_file() {
-            return launcher;
+    if !exe.is_file() {
+        let bare_binary = install_dir.join("skotiq.bin");
+        if bare_binary.is_file() {
+            return bare_binary;
         }
     }
-    install_dir.join(from_posix(APP_EXECUTABLE))
+    exe
 }
 
 /// Launch the application from `install_dir` with the arguments it was
@@ -1483,7 +1486,7 @@ mod tests {
     fn linux_bundle_passes_the_entrypoint_check() {
         let tmp = tempdir().unwrap();
         let install = tmp.path().join("install");
-        write(&install.join("skotiq_desktop"), b"elf");
+        write(&install.join("skotiq"), b"elf");
         write(&install.join("lib/libskotiq_bridge.so"), b"so");
         verify_entrypoints_exist(&install).unwrap();
     }
@@ -1493,7 +1496,7 @@ mod tests {
     fn linux_bundle_without_the_bridge_fails_the_entrypoint_check() {
         let tmp = tempdir().unwrap();
         let install = tmp.path().join("install");
-        write(&install.join("skotiq_desktop"), b"elf");
+        write(&install.join("skotiq"), b"elf");
         assert!(verify_entrypoints_exist(&install).is_err());
     }
 
@@ -1502,10 +1505,15 @@ mod tests {
     fn linux_relaunch_goes_through_the_launcher_script() {
         let tmp = tempdir().unwrap();
         let install = tmp.path().join("install");
-        write(&install.join("skotiq_desktop"), b"elf");
-        assert_eq!(launch_target(&install), install.join("skotiq_desktop"));
+        // Shipped layout: `skotiq` is the launcher script, `skotiq.bin` the
+        // real binary. The relaunch must run `skotiq` so the loader-path and
+        // GDK env the script exports still apply.
         write(&install.join("skotiq"), b"#!/usr/bin/env bash\n");
+        write(&install.join("skotiq.bin"), b"elf");
         assert_eq!(launch_target(&install), install.join("skotiq"));
+        // If the script ever goes missing, the bare binary still launches.
+        fs::remove_file(install.join("skotiq")).unwrap();
+        assert_eq!(launch_target(&install), install.join("skotiq.bin"));
     }
 
     #[test]
@@ -1516,7 +1524,7 @@ mod tests {
         fs::create_dir_all(&install).unwrap();
 
         let files: &[(&str, &[u8])] = &[
-            ("skotiq_desktop.exe", b"new-exe"),
+            ("skotiq.exe", b"new-exe"),
             ("skotiq_bridge.dll", b"new-bridge"),
             ("data/flutter_assets/AssetManifest.json", b"{\"a\":1}"),
         ];
@@ -1657,7 +1665,7 @@ mod tests {
         fs::create_dir_all(&backup).unwrap();
 
         // Pre-apply install state (the version we want to roll back TO).
-        write(&install.join("skotiq_desktop.exe"), b"v1-exe");
+        write(&install.join("skotiq.exe"), b"v1-exe");
         write(&install.join("skotiq_bridge.dll"), b"v1-bridge");
 
         // Stage the new version: replaces the two existing files and adds a
@@ -1665,7 +1673,7 @@ mod tests {
         stage_tree(
             &staging,
             &[
-                ("skotiq_desktop.exe", b"v2-exe"),
+                ("skotiq.exe", b"v2-exe"),
                 ("skotiq_bridge.dll", b"v2-bridge"),
                 ("extras/added.txt", b"v2-only"),
             ],
@@ -1677,13 +1685,10 @@ mod tests {
         retain_restore_point(&install, &backup, &log).unwrap();
 
         // Sanity: install now holds v2 and the added file.
-        assert_eq!(
-            fs::read(install.join("skotiq_desktop.exe")).unwrap(),
-            b"v2-exe"
-        );
+        assert_eq!(fs::read(install.join("skotiq.exe")).unwrap(), b"v2-exe");
         assert!(install.join("extras/added.txt").exists());
         // The install dir must be clean of stray .bak files.
-        assert!(!backup_path_for(&install.join("skotiq_desktop.exe")).exists());
+        assert!(!backup_path_for(&install.join("skotiq.exe")).exists());
 
         // Persist the rollback log where run_rollback expects it, then restore.
         persist_rollback_log(&backup.join(ROLLBACK_LOG_FILE), &log).unwrap();
@@ -1691,10 +1696,7 @@ mod tests {
         restore_from_restore_point(&install, &restore_root, &log).unwrap();
 
         // The predecessor version is back, and the v2-only file is gone.
-        assert_eq!(
-            fs::read(install.join("skotiq_desktop.exe")).unwrap(),
-            b"v1-exe"
-        );
+        assert_eq!(fs::read(install.join("skotiq.exe")).unwrap(), b"v1-exe");
         assert_eq!(
             fs::read(install.join("skotiq_bridge.dll")).unwrap(),
             b"v1-bridge"
@@ -1787,8 +1789,8 @@ mod tests {
         // Stage a brand-new file in a brand-new subdirectory.
         write(&staging.join("extras/new_file.txt"), b"hello");
         // Plus a critical file that already exists.
-        write(&install.join("skotiq_desktop.exe"), b"old-exe");
-        write(&staging.join("skotiq_desktop.exe"), b"new-exe");
+        write(&install.join("skotiq.exe"), b"old-exe");
+        write(&staging.join("skotiq.exe"), b"new-exe");
 
         let mut log = RollbackLog::default();
         apply_update(&staging, &install, &mut log).unwrap();
@@ -1806,10 +1808,7 @@ mod tests {
             "rollback must remove directories apply created if empty"
         );
         // Critical file restored to old contents.
-        assert_eq!(
-            fs::read(install.join("skotiq_desktop.exe")).unwrap(),
-            b"old-exe"
-        );
+        assert_eq!(fs::read(install.join("skotiq.exe")).unwrap(), b"old-exe");
     }
 
     #[test]
@@ -1932,7 +1931,7 @@ mod tests {
     fn a_locked_rename_fails_without_queueing_a_reboot_rename() {
         use std::os::windows::fs::OpenOptionsExt;
         let tmp = tempdir().unwrap();
-        let dst = tmp.path().join("skotiq_desktop.exe");
+        let dst = tmp.path().join("skotiq.exe");
         write(&dst, b"exe");
         let _held = OpenOptions::new()
             .read(true)

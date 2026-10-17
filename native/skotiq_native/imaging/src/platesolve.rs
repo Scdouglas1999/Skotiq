@@ -2076,12 +2076,8 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let id = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let path = std::env::temp_dir().join(format!(
-            "skotiq-{}-{}-{}.txt",
-            name,
-            std::process::id(),
-            id
-        ));
+        let path =
+            std::env::temp_dir().join(format!("skotiq-{}-{}-{}.txt", name, std::process::id(), id));
         let mut f = std::fs::File::create(&path).expect("create temp file");
         f.write_all(contents.as_bytes()).expect("write temp file");
         path
@@ -2516,10 +2512,8 @@ mod tests {
     /// error rather than panicking or claiming success.
     #[test]
     fn verify_solver_reports_missing_path() {
-        let bogus = std::env::temp_dir().join(format!(
-            "skotiq-no-such-solver-{}.bin",
-            std::process::id()
-        ));
+        let bogus =
+            std::env::temp_dir().join(format!("skotiq-no-such-solver-{}.bin", std::process::id()));
         let err = super::verify_solver(&bogus).expect_err("missing path must error");
         match err {
             super::SolverVerifyError::Missing(p) => assert_eq!(p, bogus),
@@ -3546,7 +3540,7 @@ mod fits_naxis2_tests {
 
     #[test]
     fn reads_the_height_without_decoding_pixels() {
-        let dir = std::env::temp_dir().join("ns_fits_naxis2_test");
+        let dir = std::env::temp_dir().join("sk_fits_naxis2_test");
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("frame.fits");
         let image = ImageData::new(16, 12, 1, PixelType::U16);
@@ -3563,7 +3557,7 @@ mod fits_naxis2_tests {
     /// that stays right for an imported frame from somebody else's rig.
     #[test]
     fn the_frame_declares_its_own_plate_scale() {
-        let dir = std::env::temp_dir().join("ns_fits_scale_test");
+        let dir = std::env::temp_dir().join("sk_fits_scale_test");
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("scaled.fits");
         let image = ImageData::new(16, 12, 1, PixelType::U16);
@@ -3582,7 +3576,7 @@ mod fits_naxis2_tests {
     /// A frame with no optics cards yields no hint — never a guess.
     #[test]
     fn a_frame_without_optics_cards_declares_no_scale() {
-        let dir = std::env::temp_dir().join("ns_fits_scale_test");
+        let dir = std::env::temp_dir().join("sk_fits_scale_test");
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("bare.fits");
         let image = ImageData::new(16, 12, 1, PixelType::U16);

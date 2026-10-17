@@ -540,10 +540,7 @@ pub(crate) async fn get_alpaca_capabilities(
             }
             Ok(DeviceCapabilities::Switch(caps))
         }
-        _ => Err(SkotiqError::not_supported(
-            device_id,
-            "get_capabilities",
-        )),
+        _ => Err(SkotiqError::not_supported(device_id, "get_capabilities")),
     }
 }
 

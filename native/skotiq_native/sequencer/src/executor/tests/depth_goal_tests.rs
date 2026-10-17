@@ -473,7 +473,7 @@ async fn run(
     ops: Arc<RecordingOps>,
     depth_ops: Option<Arc<ScriptedDepthOps>>,
 ) -> RunOutcome {
-    let dir = std::env::temp_dir().join(format!("ns-depthlock-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-depthlock-{}", uuid::Uuid::new_v4()));
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(ops);
     executor.set_depth_goal_ops(depth_ops.map(|d| d as crate::depth_goal::SharedDepthGoalOps));

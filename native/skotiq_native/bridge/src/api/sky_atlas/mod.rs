@@ -24,6 +24,7 @@
 //! failure mode (bad action, unreadable frame, degenerate WCS, no coverage, write
 //! failure) surfaces as `Err(String)` — never a silent partial fold.
 
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::registration::Interpolator;
 use skotiq_imaging::sky_atlas::{
     merge_tiles, merge_tiles_subtract, tile_center, AtlasError, SkyAtlas, SkyTileAccumulator,
@@ -34,7 +35,6 @@ use skotiq_imaging::{
     add_wcs_headers, master_accumulation::AccumulationMode, master_accumulation::OnlineClip,
     read_image, write_fits, FitsHeader, ImageData, WcsInfo,
 };
-use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 use crate::api::post_session::write_preview_png;

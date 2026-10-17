@@ -821,11 +821,8 @@ mod tests {
             connection_timeout_secs: 1,
             ..Default::default()
         };
-        let mut client = skotiq_indi::IndiClient::with_timeout_config(
-            "127.0.0.1",
-            Some(port),
-            timeout_config,
-        );
+        let mut client =
+            skotiq_indi::IndiClient::with_timeout_config("127.0.0.1", Some(port), timeout_config);
         client.connect().await.expect("connect fake INDI client");
 
         manager.indi_clients.write().await.insert(

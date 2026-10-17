@@ -10,7 +10,7 @@ use super::*;
 /// one frame's pixels gone. Allocation must be atomic.
 #[test]
 fn concurrent_save_path_allocation_never_hands_out_the_same_file_twice() {
-    let dir = std::env::temp_dir().join(format!("ns-save-path-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-save-path-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let contended = dir.join("Dark_nofilter_0001.fits");
 

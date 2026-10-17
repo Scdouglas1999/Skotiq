@@ -9,7 +9,7 @@ const RECORD: usize = 2880;
 
 fn temp_dir(tag: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir().join(format!(
-        "ns-write-fits-parity-{}-{}",
+        "sk-write-fits-parity-{}-{}",
         std::process::id(),
         tag
     ));
