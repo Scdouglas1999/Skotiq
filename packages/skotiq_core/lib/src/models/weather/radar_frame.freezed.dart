@@ -28,11 +28,9 @@ mixin _$RadarFrame {
 /// row-major order (outer list = rows running NORTH→SOUTH, inner list =
 /// columns running WEST→EAST), each value normalised to 0.0–1.0.
 ///
-/// This is the real spatial radar signal decoded from the provider's tiles
-/// (the reflectivity colormap mapped to intensity per pixel, downsampled to
-/// this grid). When present and non-empty it lets the cloud-motion analyzer
-/// track a genuine cloud centroid that MOVES between frames, instead of the
-/// single uniform [opacity] box that carries no spatial structure.
+/// This is the spatial radar signal decoded from the provider's tiles (the
+/// reflectivity colormap mapped to intensity per pixel, downsampled to this
+/// grid).
 ///
 /// The grid spans exactly [north]..[south] (rows) and [west]..[east]
 /// (columns); cell (r, c) covers the geographic sub-rectangle obtained by
@@ -278,11 +276,9 @@ class _RadarFrame implements RadarFrame {
 /// row-major order (outer list = rows running NORTH→SOUTH, inner list =
 /// columns running WEST→EAST), each value normalised to 0.0–1.0.
 ///
-/// This is the real spatial radar signal decoded from the provider's tiles
-/// (the reflectivity colormap mapped to intensity per pixel, downsampled to
-/// this grid). When present and non-empty it lets the cloud-motion analyzer
-/// track a genuine cloud centroid that MOVES between frames, instead of the
-/// single uniform [opacity] box that carries no spatial structure.
+/// This is the spatial radar signal decoded from the provider's tiles (the
+/// reflectivity colormap mapped to intensity per pixel, downsampled to this
+/// grid).
 ///
 /// The grid spans exactly [north]..[south] (rows) and [west]..[east]
 /// (columns); cell (r, c) covers the geographic sub-rectangle obtained by
@@ -295,11 +291,9 @@ class _RadarFrame implements RadarFrame {
 /// row-major order (outer list = rows running NORTH→SOUTH, inner list =
 /// columns running WEST→EAST), each value normalised to 0.0–1.0.
 ///
-/// This is the real spatial radar signal decoded from the provider's tiles
-/// (the reflectivity colormap mapped to intensity per pixel, downsampled to
-/// this grid). When present and non-empty it lets the cloud-motion analyzer
-/// track a genuine cloud centroid that MOVES between frames, instead of the
-/// single uniform [opacity] box that carries no spatial structure.
+/// This is the spatial radar signal decoded from the provider's tiles (the
+/// reflectivity colormap mapped to intensity per pixel, downsampled to this
+/// grid).
 ///
 /// The grid spans exactly [north]..[south] (rows) and [west]..[east]
 /// (columns); cell (r, c) covers the geographic sub-rectangle obtained by

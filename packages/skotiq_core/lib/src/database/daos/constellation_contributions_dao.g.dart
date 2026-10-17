@@ -3,8 +3,7 @@
 part of 'constellation_contributions_dao.dart';
 
 // ignore_for_file: type=lint
-mixin _$ConstellationContributionsDaoMixin
-    on DatabaseAccessor<SkotiqDatabase> {
+mixin _$ConstellationContributionsDaoMixin on DatabaseAccessor<SkotiqDatabase> {
   $ConstellationContributionsTable get constellationContributions =>
       attachedDatabase.constellationContributions;
   ConstellationContributionsDaoManager get managers =>

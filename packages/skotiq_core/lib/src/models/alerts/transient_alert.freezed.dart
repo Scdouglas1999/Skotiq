@@ -352,11 +352,10 @@ mixin _$TransientAlertSettings {
 
 /// Which alert sources to monitor.
 ///
-/// Defaults to the fetchable feed plus manual entry. It used to default to
-/// {aavso, mpec, cbat, manual} — three sources that are never queried — so
-/// out of the box the app reported it was monitoring feeds it was not.
-/// TNS still needs its bot credentials before it can return anything (see
-/// tnsApiKey and Settings > Science).
+/// Defaults to the fetchable feed plus manual entry, so no feed is
+/// reported as monitored unless it is queried. TNS needs its bot
+/// credentials before it returns anything (see tnsApiKey and
+/// Settings > Science).
  Set<TransientSource> get enabledSources;/// Only show alerts brighter than this magnitude
  double get magnitudeThreshold;/// Which transient types to monitor
  Set<TransientType> get typesToMonitor;/// Show notification when new alerts arrive
@@ -570,19 +569,17 @@ class _TransientAlertSettings implements TransientAlertSettings {
 
 /// Which alert sources to monitor.
 ///
-/// Defaults to the fetchable feed plus manual entry. It used to default to
-/// {aavso, mpec, cbat, manual} — three sources that are never queried — so
-/// out of the box the app reported it was monitoring feeds it was not.
-/// TNS still needs its bot credentials before it can return anything (see
-/// tnsApiKey and Settings > Science).
+/// Defaults to the fetchable feed plus manual entry, so no feed is
+/// reported as monitored unless it is queried. TNS needs its bot
+/// credentials before it returns anything (see tnsApiKey and
+/// Settings > Science).
  final  Set<TransientSource> _enabledSources;
 /// Which alert sources to monitor.
 ///
-/// Defaults to the fetchable feed plus manual entry. It used to default to
-/// {aavso, mpec, cbat, manual} — three sources that are never queried — so
-/// out of the box the app reported it was monitoring feeds it was not.
-/// TNS still needs its bot credentials before it can return anything (see
-/// tnsApiKey and Settings > Science).
+/// Defaults to the fetchable feed plus manual entry, so no feed is
+/// reported as monitored unless it is queried. TNS needs its bot
+/// credentials before it returns anything (see tnsApiKey and
+/// Settings > Science).
 @override@JsonKey() Set<TransientSource> get enabledSources {
   if (_enabledSources is EqualUnmodifiableSetView) return _enabledSources;
   // ignore: implicit_dynamic_type

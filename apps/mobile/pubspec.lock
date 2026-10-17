@@ -916,69 +916,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.0"
-  skotiq_app:
-    dependency: "direct main"
-    description:
-      path: "../../packages/skotiq_app"
-      relative: true
-    source: path
-    version: "0.0.1"
-  skotiq_bridge:
-    dependency: "direct main"
-    description:
-      path: "../../packages/skotiq_bridge"
-      relative: true
-    source: path
-    version: "1.0.0"
-  skotiq_core:
-    dependency: "direct main"
-    description:
-      path: "../../packages/skotiq_core"
-      relative: true
-    source: path
-    version: "1.0.0"
-  skotiq_planetarium:
-    dependency: "direct main"
-    description:
-      path: "../../packages/skotiq_planetarium"
-      relative: true
-    source: path
-    version: "1.0.0"
-  skotiq_plugins:
-    dependency: "direct overridden"
-    description:
-      path: "../../packages/skotiq_plugins"
-      relative: true
-    source: path
-    version: "1.0.0"
-  skotiq_relay:
-    dependency: transitive
-    description:
-      path: "../../tools/skotiq_relay"
-      relative: true
-    source: path
-    version: "0.1.0"
-  skotiq_remote_protocol:
-    dependency: "direct main"
-    description:
-      path: "../../packages/skotiq_remote_protocol"
-      relative: true
-    source: path
-    version: "1.0.0"
-  skotiq_ui:
-    dependency: "direct main"
-    description:
-      path: "../../packages/skotiq_ui"
-      relative: true
-    source: path
-    version: "1.0.0"
-  skotiq_updater:
-    dependency: "direct main"
-    description:
-      path: "../../packages/skotiq_updater"
-      relative: true
-    source: path
-    version: "1.0.0"
   nm:
     dependency: transitive
     description:
@@ -1403,6 +1340,69 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.0"
+  skotiq_app:
+    dependency: "direct main"
+    description:
+      path: "../../packages/skotiq_app"
+      relative: true
+    source: path
+    version: "0.0.1"
+  skotiq_bridge:
+    dependency: "direct main"
+    description:
+      path: "../../packages/skotiq_bridge"
+      relative: true
+    source: path
+    version: "1.0.0"
+  skotiq_core:
+    dependency: "direct main"
+    description:
+      path: "../../packages/skotiq_core"
+      relative: true
+    source: path
+    version: "1.0.0"
+  skotiq_planetarium:
+    dependency: "direct main"
+    description:
+      path: "../../packages/skotiq_planetarium"
+      relative: true
+    source: path
+    version: "1.0.0"
+  skotiq_plugins:
+    dependency: "direct overridden"
+    description:
+      path: "../../packages/skotiq_plugins"
+      relative: true
+    source: path
+    version: "1.0.0"
+  skotiq_relay:
+    dependency: transitive
+    description:
+      path: "../../tools/skotiq_relay"
+      relative: true
+    source: path
+    version: "0.1.0"
+  skotiq_remote_protocol:
+    dependency: "direct main"
+    description:
+      path: "../../packages/skotiq_remote_protocol"
+      relative: true
+    source: path
+    version: "1.0.0"
+  skotiq_ui:
+    dependency: "direct main"
+    description:
+      path: "../../packages/skotiq_ui"
+      relative: true
+    source: path
+    version: "1.0.0"
+  skotiq_updater:
+    dependency: "direct main"
+    description:
+      path: "../../packages/skotiq_updater"
+      relative: true
+    source: path
+    version: "1.0.0"
   sky_engine:
     dependency: transitive
     description: flutter

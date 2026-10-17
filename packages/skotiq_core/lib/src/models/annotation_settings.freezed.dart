@@ -29,11 +29,10 @@ mixin _$AnnotationSettings {
  bool get clickToIdentify;/// Search radius for click-to-identify in arcseconds
  double get clickSearchRadiusArcsec;/// Whether to auto-annotate new captured images
  bool get autoAnnotate;/// Maximum number of objects to display
- int get maxObjectsToDisplay;/// Fractional padding around the
-/// catalog FOV bounding box. 0.05 = 5% padding (the historical
-/// hardcoded default). Increase if large DSOs whose centre is just
-/// off-frame are getting clipped from the overlay; decrease to query
-/// faster on slow disks.
+ int get maxObjectsToDisplay;/// Fractional padding around the catalog FOV bounding box. 0.05 = 5%
+/// padding. Increase if large DSOs whose centre is just off-frame are
+/// getting clipped from the overlay; decrease to query faster on slow
+/// disks.
  double get catalogBboxPaddingFraction;/// Whether to show compass overlay (N/E arrows from plate solve rotation)
  bool get compassEnabled;/// Whether to show scale bar overlay (angular size reference)
  bool get scaleBarEnabled;/// Grid overlay type (none, pixel, or celestial RA/Dec)
@@ -288,11 +287,10 @@ class _AnnotationSettings implements AnnotationSettings {
 @override@JsonKey() final  bool autoAnnotate;
 /// Maximum number of objects to display
 @override@JsonKey() final  int maxObjectsToDisplay;
-/// Fractional padding around the
-/// catalog FOV bounding box. 0.05 = 5% padding (the historical
-/// hardcoded default). Increase if large DSOs whose centre is just
-/// off-frame are getting clipped from the overlay; decrease to query
-/// faster on slow disks.
+/// Fractional padding around the catalog FOV bounding box. 0.05 = 5%
+/// padding. Increase if large DSOs whose centre is just off-frame are
+/// getting clipped from the overlay; decrease to query faster on slow
+/// disks.
 @override@JsonKey() final  double catalogBboxPaddingFraction;
 /// Whether to show compass overlay (N/E arrows from plate solve rotation)
 @override@JsonKey() final  bool compassEnabled;
