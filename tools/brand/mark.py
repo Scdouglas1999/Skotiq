@@ -54,10 +54,12 @@ def lane_mapped(offset, up_start, lo_end, k, tx, ty):
 
     Only endpoints and radii change: a circular arc under uniform scale stays
     circular, so the flags carry over untouched."""
+    def m(p):
+        return p[0] * k + tx, p[1] * k + ty
     ru, rl = (R0 + offset) * k, (R0 - offset) * k
-    x0, y0 = (v * k + t for v, t in zip(pt(CX, CY_UP, R0 + offset, up_start), (tx, ty)))
-    xm, ym = (v * k + t for v, t in zip(pt(CX, CY_UP, R0 + offset, 90), (tx, ty)))
-    x1, y1 = (v * k + t for v, t in zip(pt(CX, CY_LO, R0 - offset, lo_end), (tx, ty)))
+    x0, y0 = m(pt(CX, CY_UP, R0 + offset, up_start))
+    xm, ym = m(pt(CX, CY_UP, R0 + offset, 90))
+    x1, y1 = m(pt(CX, CY_LO, R0 - offset, lo_end))
     sweep_up = (up_start - (90 - 360)) % 360
     large_up = 1 if sweep_up > 180 else 0
     sweep_lo = (lo_end - (-90)) % 360

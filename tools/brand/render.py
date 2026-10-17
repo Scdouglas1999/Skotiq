@@ -194,10 +194,11 @@ def icons():
     for px in (16, 32, 64, 128, 256, 512, 1024):
         body = px * mark.MACOS_BODY
         level = mark.level_for_size(body)
+        # The 100-unit tile fragment scales into the 824 px body.
         svg = (
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" '
             f'width="{px}" height="{px}">\n'
-            f'<g transform="translate(100 100) scale({mark.MACOS_BODY * 10:.4f})">\n'
+            f'<g transform="translate(100 100) scale(8.24)">\n'
             f'{mark.tile_body("violet", level=level)}\n</g>\n</svg>'
         )
         rsvg(svg, os.path.join(mac, f"app_icon_{px}.png"), px)
