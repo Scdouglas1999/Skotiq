@@ -43,10 +43,11 @@ red,mono}.svg` (bare) and `icon-{full,mid,flat}.svg` (violet tiles).
   (forced `PNG24`).
 - Android: legacy `mipmap-*/ic_launcher.png` (48–192 px, rounded tile), and
   an adaptive icon — `mipmap-anydpi-v26/ic_launcher.xml` on a
-  `#0E0C16` `@color/ic_launcher_background`, `drawable/ic_launcher_
-  foreground.xml` and `drawable/ic_launcher_monochrome.xml` vector
-  drawables with the mark scaled into the 66 dp safe zone. Manifest still
-  reads `@mipmap/ic_launcher`; no names changed.
+  `#0E0C16` `@color/ic_launcher_background`, plus
+  `drawable/ic_launcher_foreground.xml` and
+  `drawable/ic_launcher_monochrome.xml` vector drawables with the mark
+  scaled into the 66 dp safe zone. The manifest still reads
+  `@mipmap/ic_launcher`; no names changed.
 
 **Web** — `favicon.png` (16 px, flat), `Icon-{192,512}.png` tiles,
 `Icon-maskable-{192,512}.png` (full-bleed, mark inside the 80% safe
