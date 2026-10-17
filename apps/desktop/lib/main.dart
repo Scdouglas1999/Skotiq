@@ -1,5 +1,7 @@
 import 'dart:developer' as developer;
 import 'dart:io';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -155,9 +157,15 @@ void main(List<String> args) async {
 
   await windowManager.ensureInitialized();
 
-  const windowOptions = WindowOptions(
-    size: Size(1600, 900),
-    minimumSize: Size(1200, 700),
+  final initialSize = initialWindowSize(
+    ui.PlatformDispatcher.instance.displays,
+  );
+  final windowOptions = WindowOptions(
+    size: initialSize,
+    minimumSize: Size(
+      math.min(1200, initialSize.width),
+      math.min(700, initialSize.height),
+    ),
     center: true,
     // Opaque theme background — Colors.transparent + TitleBarStyle.hidden
     // composites to an undraggable black hole on Linux/Wayland when the first
@@ -453,4 +461,21 @@ void main(List<String> args) async {
       await windowManager.minimize();
     }
   });
+}
+
+/// The first window's size: 1600 x 900, shrunk to fit the display it opens on.
+///
+/// A 1920 x 1080 laptop at 125% scaling is 1536 x 864 logical pixels. Centering
+/// a larger frameless window there pushes its top edge, and with it the window
+/// controls, off the screen. The margins leave room for the taskbar.
+@visibleForTesting
+Size initialWindowSize(Iterable<ui.Display> displays) {
+  const preferred = Size(1600, 900);
+  if (displays.isEmpty) return preferred;
+  final display = displays.first;
+  final screen = display.size / display.devicePixelRatio;
+  return Size(
+    math.min(preferred.width, (screen.width * 0.94).floorToDouble()),
+    math.min(preferred.height, (screen.height * 0.88).floorToDouble()),
+  );
 }
