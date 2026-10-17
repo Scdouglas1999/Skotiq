@@ -3,8 +3,10 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'app_settings.freezed.dart';
 part 'app_settings.g.dart';
 
-/// Default accent color hex — matches `SkotiqColors.dark.primary` (#6EB3EC).
-const kDefaultAccentColorHex = '#6EB3EC';
+/// Default accent color hex — matches `SkotiqColors.dark.primary` (#A48CF2),
+/// the brand violet. Seeded into `app_settings` at install; migration v62
+/// rewrites the old seed (#6EB3EC) to this on existing installs.
+const kDefaultAccentColorHex = '#A48CF2';
 
 /// Defines how the safety system behaves when weather/safety devices fail or are unavailable
 enum SafetyFailMode {
