@@ -100,7 +100,7 @@ distinct at every size and nothing is clipped.
   color-type 2 / no alpha; `Icon-App-83.5x83.5@2x.png` = 167×167;
   `app_icon_1024.png` trims to an opaque body of exactly 824×824+100+100 (0)
 - `magick montage` contact sheets (0)
-- `grep -ril nightshade` over all touched paths → no hits (1 = clean)
+- `grep -ril <old name>` over all touched paths → no hits (1 = clean)
 
 `TMPDIR=$HOME/.cache/ns-tmp/b1-brand-assets` was set throughout. `flutter
 test` not run — this area touches no Dart code (r-agents own that).
