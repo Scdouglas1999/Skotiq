@@ -16,6 +16,43 @@ abstract final class ShellChromeMetrics {
   /// The top bar: brand, command field, global actions, window controls.
   static const double titleBarHeight = 44.0;
 
+  /// The main area's top band: clock/LST at the left, global actions and the
+  /// window controls at the right. It is the window's drag strip, so it is
+  /// taller than a dense control row — the empty space is the affordance.
+  static const double topBandHeight = 58.0;
+
+  /// One window control: a 30x30 square, glyph centred.
+  static const double windowButtonSize = 30.0;
+
+  /// Corner radius on [windowButtonSize].
+  static const double windowButtonRadius = 9.0;
+
+  /// Glyph size inside a window control.
+  static const double windowButtonIconSize = 16.0;
+
+  /// Gap between adjacent window controls.
+  static const double windowButtonGap = 2.0;
+
+  /// Space between the last window control and the window's right edge.
+  static const double topBandRightInset = 14.0;
+
+  /// Height of the 1 px rule between the top band's action cluster and the
+  /// window controls.
+  static const double topBandSeparatorHeight = 18.0;
+
+  /// The strip at the very top of the sidebar that drags the window.
+  static const double sidebarDragStripHeight = 12.0;
+
+  /// On macOS the traffic lights inset over the sidebar's top-left and the
+  /// strip must leave them room.
+  static const double sidebarDragStripHeightMacOS = 40.0;
+
+  /// Invisible resize grip along each edge of an undecorated Linux window.
+  static const double windowResizeEdgeSize = 5.0;
+
+  /// Wider grip at the corners so diagonal resizes are easy to land.
+  static const double windowResizeCornerSize = 14.0;
+
   /// Windows-style caption button width.
   static const double windowControlWidth = 46.0;
 

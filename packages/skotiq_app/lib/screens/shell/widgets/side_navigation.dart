@@ -6,6 +6,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../shell_navigation.dart';
+import 'rig_card.dart';
+import 'window_chrome.dart';
 
 /// One rail row: a destination, or the heading above a group of them.
 sealed class SideNavEntry {
@@ -57,11 +59,17 @@ List<SideNavTab> sideNavigationTabs(BuildContext context) => [
         if (entry is SideNavTab) entry,
     ];
 
-/// The left rail (04-shell §3).
+/// The left sidebar (the window's own pane, g1-glass).
 ///
 /// 64 px of icons by default, 220 px with labels and group headings when
-/// expanded. `background`-toned with a hairline on its trailing edge, because
-/// it is window chrome and shares the top bar's tone rather than the panels'.
+/// expanded. It runs the FULL window height: the chrome header (lockup,
+/// command field, drag strip) at the top, the destinations in the middle, and
+/// the Rig card pinned to the bottom.
+///
+/// `surface`-toned — a tonal step lighter than the `background` main area —
+/// with a faint wash of the user's accent at the top-left corner that follows
+/// the lockup's own accent (red in red night). There is no border on the
+/// trailing edge: the slate's regions are separated by tone, not lines.
 class SideNavigation extends ConsumerWidget {
   final int currentIndex;
   final ValueChanged<int> onTabSelected;
@@ -101,58 +109,90 @@ class SideNavigation extends ConsumerWidget {
     final badgedRoutes = _badgedRoutes(ref);
 
     return AnimatedContainer(
-      duration: SkotiqTokens.durationSmooth,
+      duration: animationDuration(context, SkotiqTokens.durationSmooth),
       curve: SkotiqTokens.curveStandard,
       width: isExpanded
           ? ShellChromeMetrics.railWidthExpanded
           : ShellChromeMetrics.railWidthCollapsed,
-      decoration: BoxDecoration(
-        color: colors.background,
-        border: Border(right: BorderSide(color: colors.border, width: 1)),
-      ),
+      decoration: BoxDecoration(color: colors.surface),
       // Clipped because the width animates: mid-transition the 220 px row's
       // label is wider than the box it is animating into, and an unclipped
       // overflow paints it across the page body.
       child: ClipRect(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Stack(
           children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  SkotiqTokens.spaceMd,
-                  SkotiqTokens.spaceMd,
-                  SkotiqTokens.spaceMd,
-                  SkotiqTokens.spaceSm,
+            // The accent wash at the top-left corner — `primary` at ~10%
+            // alpha, gone by 70% of the radius, so it follows whatever accent
+            // the operator chose (including red night) the way the lockup
+            // does. Decorative: the pane's identity comes through the lockup.
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ExcludeSemantics(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: Alignment.topLeft,
+                        radius: 1.6,
+                        colors: [
+                          colors.primary.withValues(alpha: 0.10),
+                          colors.primary.withValues(alpha: 0.0),
+                        ],
+                        stops: const [0.0, 0.7],
+                      ),
+                    ),
+                  ),
                 ),
-                children: [
-                  for (var row = 0; row < entries.length; row++)
-                    _buildEntry(context, entries, row, badgedRoutes),
-                ],
               ),
             ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Brand, the palette field, and the strip that drags the
+                // window (with room for macOS traffic lights).
+                SidebarChromeHeader(isExpanded: isExpanded),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(
+                      SkotiqTokens.spaceMd,
+                      0,
+                      SkotiqTokens.spaceMd,
+                      SkotiqTokens.spaceSm,
+                    ),
+                    children: [
+                      for (var row = 0; row < entries.length; row++)
+                        _buildEntry(context, entries, row, badgedRoutes),
+                    ],
+                  ),
+                ),
 
-            // The collapse toggle is a rail item like any other, at the foot
-            // of the rail. It is NAMED for what the tap does, not for the
-            // glyph: "Expand navigation" while collapsed.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                SkotiqTokens.spaceMd,
-                0,
-                SkotiqTokens.spaceMd,
-                SkotiqTokens.spaceSm,
-              ),
-              child: NavItem(
-                icon: isExpanded
-                    ? LucideIcons.panelLeftClose
-                    : LucideIcons.panelLeft,
-                label: isExpanded
-                    ? '${l10n.text('collapse')} navigation'
-                    : 'Expand navigation',
-                isSelected: false,
-                isExpanded: isExpanded,
-                onTap: onToggleExpanded,
-              ),
+                // The collapse toggle is a rail item like any other, at the
+                // foot of the list. It is NAMED for what the tap does, not
+                // for the glyph: "Expand navigation" while collapsed.
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    SkotiqTokens.spaceMd,
+                    0,
+                    SkotiqTokens.spaceMd,
+                    SkotiqTokens.spaceSm,
+                  ),
+                  child: NavItem(
+                    icon: isExpanded
+                        ? LucideIcons.panelLeftClose
+                        : LucideIcons.panelLeft,
+                    label: isExpanded
+                        ? '${l10n.text('collapse')} navigation'
+                        : 'Expand navigation',
+                    isSelected: false,
+                    isExpanded: isExpanded,
+                    onTap: onToggleExpanded,
+                  ),
+                ),
+
+                // The Rig card: run state, one row per device, the in-flight
+                // operation strip and the save path — everything the old
+                // bottom instrument bar carried.
+                RigCard(isExpanded: isExpanded),
+              ],
             ),
           ],
         ),

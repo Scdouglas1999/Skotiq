@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Skotiq
+GenericName=Astrophotography sequencer
+Comment=Plan and run astrophotography sessions: capture, guiding, autofocus
+# @BUNDLE_DIR@ is a placeholder — the extracted tarball directory. See the
+# "Linux installation" section of docs/getting-started/installation.md.
+Exec=@BUNDLE_DIR@/skotiq
+Icon=skotiq
+Terminal=false
+Categories=Science;Education;Astronomy;
+Keywords=astrophotography;telescope;sequencer;astronomy;
+StartupWMClass=com.skotiq.desktop

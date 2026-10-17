@@ -16,6 +16,16 @@ namespace {
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
 #endif
 
+/// Window attribute for the Windows 11 corner style, redefined for older
+/// SDKs. `DWMWCP_ROUND` (2) asks DWM for rounded corners; the attribute is
+/// ignored on Windows 10.
+#ifndef DWMWA_WINDOW_CORNER_PREFERENCE
+#define DWMWA_WINDOW_CORNER_PREFERENCE 33
+#endif
+#ifndef DWMWCP_ROUND
+#define DWMWCP_ROUND 2
+#endif
+
 constexpr const wchar_t kWindowClassName[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
 
 /// Registry key for app theme preference.
@@ -145,6 +155,14 @@ bool Win32Window::Create(const std::wstring& title,
   }
 
   UpdateTheme(window);
+
+  // Windows 11 rounded corners. The caption itself stays hidden — the
+  // window_manager plugin's TitleBarStyle.hidden removes it while keeping
+  // the system resize border and the DWM shadow — but the corner shape is a
+  // DWM attribute only the process can ask for.
+  DWORD corner_preference = DWMWCP_ROUND;
+  DwmSetWindowAttribute(window, DWMWA_WINDOW_CORNER_PREFERENCE,
+                        &corner_preference, sizeof(corner_preference));
 
   return OnCreate();
 }

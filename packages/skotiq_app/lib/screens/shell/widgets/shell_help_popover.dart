@@ -9,14 +9,14 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../shell_navigation.dart';
-import 'title_bar.dart' show commandPaletteShortcutLabel;
+import 'window_chrome.dart' show commandPaletteShortcutLabel;
 
 /// Where "Open the manual" goes.
 ///
 /// There is no per-screen manual in this project — the documentation is the
 /// repository — so the item is named for what it actually opens rather than
 /// promising a page per screen. 05 §11 asks for "Open the manual for
-/// <screen>"; the honest version is recorded in reports/observatory/w1.
+/// `screen`"; the honest version is recorded in reports/observatory/w1.
 const String kManualUrl = 'https://github.com/Scdouglas1999/Skotiq';
 
 /// The top bar's help button (05 §11).

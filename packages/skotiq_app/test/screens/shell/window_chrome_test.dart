@@ -8,14 +8,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/shell/widgets/title_bar.dart';
+import 'package:skotiq_app/screens/shell/widgets/window_chrome.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';
 
 /// The real alert stream opens a 15-minute polling timer that outlives the
-/// widget tree; the title bar only cares that it resolves.
+/// widget tree; the top band only cares that it resolves.
 final _quietAlerts = <Override>[
   activeTransientAlertsProvider.overrideWith(
     (ref) => Stream.value(const <TransientAlert>[]),
@@ -23,18 +23,18 @@ final _quietAlerts = <Override>[
 ];
 
 void main() {
-  testWidgets('every title-bar control carries a name and a button role',
+  testWidgets('every top-band control carries a name and a button role',
       (tester) async {
     final semantics = tester.ensureSemantics();
     await pumpAppScreen(
       tester,
-      const TitleBar(),
+      const ShellTopBand(),
       settle: false,
       extraOverrides: _quietAlerts,
     );
     await tester.pump(const Duration(milliseconds: 200));
 
-    // The equipment-profile shortcut left the top bar: profiles live on the
+    // The equipment-profile shortcut left the band: profiles live on the
     // Equipment screen and in the instrument bar's profile pill, and a third
     // way in was a third thing to keep in sync. Help took its place.
     for (final label in const ['Help for this screen', 'Settings']) {
@@ -60,7 +60,11 @@ void main() {
     );
     await tester.pump();
 
-    for (final label in const ['Minimize', 'Maximize', 'Close window']) {
+    for (final label in const [
+      'Minimize window',
+      'Maximize window',
+      'Close window'
+    ]) {
       expect(find.bySemanticsLabel(label), findsOneWidget);
     }
 

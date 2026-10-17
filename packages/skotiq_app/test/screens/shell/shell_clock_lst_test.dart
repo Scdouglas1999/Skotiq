@@ -1,4 +1,4 @@
-// The shell status bar must not state a local sidereal time for a site the
+// The shell top-band clock must not state a local sidereal time for a site the
 // operator never gave it.
 //
 // `localSiderealTimeProvider` reads the planetarium's observer, whose default is
@@ -14,9 +14,9 @@
 // em dash the design language uses for every unknown, not a row of hyphens.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/shell/widgets/status_bar.dart';
+import 'package:skotiq_app/screens/shell/widgets/shell_clock.dart';
 // `siteLocationIsSet` moved from this widget file to the settings model in
-// skotiq_core: a not-set rule living inside a status-bar widget invited
+// skotiq_core: a not-set rule living inside a top-band widget invited
 // every other surface to re-derive its own copy, and those copies drifted.
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
@@ -53,13 +53,14 @@ void main() {
     });
   });
 
-  testWidgets('with no observing site the bar shows an em dash, not a number',
+  testWidgets(
+      'with no observing site the readout shows an em dash, not a number',
       (tester) async {
     await pumpAppScreen(
       tester,
       const Column(
         mainAxisAlignment: MainAxisAlignment.end,
-        children: [StatusBar()],
+        children: [ShellClock()],
       ),
       size: const Size(2600, 900),
       extraOverrides: [
@@ -77,14 +78,14 @@ void main() {
     // The readout is still LABELLED — an unlabelled em dash beside the clock
     // would be an unknown with nothing saying what is unknown.
     expect(
-      find.descendant(of: find.byType(StatusBar), matching: find.text('LST')),
+      find.descendant(of: find.byType(ShellClock), matching: find.text('LST')),
       findsOneWidget,
       reason: 'the sidereal readout keeps its label whether or not it has a '
           'value',
     );
     expect(
       find.descendant(
-        of: find.byType(StatusBar),
+        of: find.byType(ShellClock),
         matching: find.text('\u2014'),
       ),
       findsOneWidget,
@@ -92,7 +93,7 @@ void main() {
     );
     expect(
       find.descendant(
-        of: find.byType(StatusBar),
+        of: find.byType(ShellClock),
         matching: find.text('12:30'),
       ),
       findsNothing,

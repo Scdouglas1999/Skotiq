@@ -628,6 +628,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'statusNoMount': 'No mount',
     'statusNoGuider': 'No guider',
     'statusNoFocuser': 'No focuser',
+    'statusSavePath': 'Save path',
+    'statusFilterWheel': 'Filter wheel',
     // Not `sequenceStopping` — that one carries an ellipsis and this pill
     // does not.
     'statusSequenceStopping': 'Stopping',
@@ -1549,6 +1551,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'statusNoMount': 'Sin montura',
     'statusNoGuider': 'Sin guiado',
     'statusNoFocuser': 'Sin enfocador',
+    'statusSavePath': 'Ruta de guardado',
+    'statusFilterWheel': 'Rueda de filtros',
     'statusSequenceStopping': 'Deteniendo',
     'statusSequenceCompleted': 'Completada',
     'statusSequenceFailed': 'Fallida',

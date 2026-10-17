@@ -16,7 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/shell/widgets/title_bar.dart';
+import 'package:skotiq_app/screens/shell/widgets/window_chrome.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Every node in the tree under [root] that carries the button role.
@@ -63,7 +63,11 @@ void main() {
         if (node.label.isNotEmpty) node.label: node,
     };
 
-    for (final label in ['Minimize', 'Maximize', 'Close window']) {
+    for (final label in [
+      'Minimize window',
+      'Maximize window',
+      'Close window',
+    ]) {
       final node = labelled[label];
       expect(node, isNotNull, reason: '$label publishes no button node');
       // hasEnabledState is the flag the bridge reads BEFORE isEnabled: without
