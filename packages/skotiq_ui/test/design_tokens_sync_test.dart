@@ -70,6 +70,7 @@ void main() {
     'warning': (c) => c.warning,
     'error': (c) => c.error,
     'info': (c) => c.info,
+    'brandWarm': (c) => c.brandWarm,
     'startFill': (c) => c.startFill,
     'onStart': (c) => c.onStart,
   };
@@ -245,6 +246,7 @@ void main() {
         'warning': dart.warning,
         'error': dart.error,
         'info': dart.info,
+        'brandWarm': dart.brandWarm,
         'startFill': dart.startFill,
         'onStart': dart.onStart,
         'onPrimary': dart.onPrimary,

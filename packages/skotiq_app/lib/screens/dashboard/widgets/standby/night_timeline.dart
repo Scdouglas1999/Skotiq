@@ -458,25 +458,26 @@ class _TimelinePainter extends CustomPainter {
     _moonMarker(canvas, x, sunset, sunrise, moon?.moonrise);
     _moonMarker(canvas, x, sunset, sunrise, moon?.moonset);
 
-    // "Now" marker: vivid primary line with a soft glow dot, only when now is
-    // within the sunset→sunrise span.
+    // "Now" marker: the brand's warm lane as a line with a soft glow dot,
+    // only when now is within the sunset→sunrise span. brandWarm is the
+    // sparing decoration colour — never a control, never a status.
     if (!now.isBefore(sunset) && !now.isAfter(sunrise)) {
       final nx = x(now);
       final glow = Paint()
-        ..color = colors.primary.withValues(alpha: 0.25)
+        ..color = colors.brandWarm.withValues(alpha: 0.25)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
       canvas.drawCircle(Offset(nx, _bandTop + _bandHeight / 2), 7, glow);
       canvas.drawLine(
         Offset(nx, _bandTop - 2),
         Offset(nx, _bandTop + _bandHeight + 2),
         Paint()
-          ..color = colors.primary
+          ..color = colors.brandWarm
           ..strokeWidth = 2,
       );
       canvas.drawCircle(
         Offset(nx, _bandTop + _bandHeight / 2),
         3.5,
-        Paint()..color = colors.primary,
+        Paint()..color = colors.brandWarm,
       );
     }
   }
@@ -590,6 +591,7 @@ class _TimelinePainter extends CustomPainter {
         // The axis labels are drawn on this clock; changing the site timezone
         // has to redraw them.
         old.clock != clock ||
-        old.colors.primary != colors.primary;
+        old.colors.primary != colors.primary ||
+        old.colors.brandWarm != colors.brandWarm;
   }
 }

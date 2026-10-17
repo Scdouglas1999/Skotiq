@@ -415,6 +415,55 @@ CREATE TABLE captured_images (
     },
   );
 
+  test('v62 rewrites the seeded old accent and keeps a real choice', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'skotiq_accent_migration_',
+    );
+    final seededFile = File('${tempDir.path}/seeded.db');
+    final chosenFile = File('${tempDir.path}/chosen.db');
+    try {
+      // Two databases that both last ran at v61: one still carrying the old
+      // seeded accent, one where a different swatch was picked. Both land on
+      // the same onUpgrade path.
+      final seededSetup = SkotiqDatabase.forTesting(NativeDatabase(seededFile));
+      try {
+        await seededSetup.customStatement(
+          "UPDATE app_settings SET value = '#6EB3EC' "
+          "WHERE key = 'accent_color'",
+        );
+        await seededSetup.customStatement('PRAGMA user_version = 61');
+      } finally {
+        await seededSetup.close();
+      }
+      final chosenSetup = SkotiqDatabase.forTesting(NativeDatabase(chosenFile));
+      try {
+        await chosenSetup.customStatement(
+          "UPDATE app_settings SET value = '#43B67A' "
+          "WHERE key = 'accent_color'",
+        );
+        await chosenSetup.customStatement('PRAGMA user_version = 61');
+      } finally {
+        await chosenSetup.close();
+      }
+
+      final seededDb = SkotiqDatabase.forTesting(NativeDatabase(seededFile));
+      final chosenDb = SkotiqDatabase.forTesting(NativeDatabase(chosenFile));
+      try {
+        final seeded = await seededDb.settingsDao.getAllSettings();
+        final chosen = await chosenDb.settingsDao.getAllSettings();
+        expect(seeded['accent_color'], equals('#A48CF2'));
+        expect(chosen['accent_color'], equals('#43B67A'));
+      } finally {
+        await seededDb.close();
+        await chosenDb.close();
+      }
+    } finally {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    }
+  });
+
   test('schema 12 database upgrades to the complete current table set', () async {
     final tempDir = await Directory.systemTemp.createTemp(
       'skotiq_schema12_upgrade_',
@@ -703,10 +752,10 @@ CREATE TABLE captured_images (
     },
   );
 
-  test('fresh database is at schema 61 with stacked_results table', () async {
+  test('fresh database is at schema 62 with stacked_results table', () async {
     final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     try {
-      expect(db.schemaVersion, equals(61));
+      expect(db.schemaVersion, equals(62));
 
       // v48 (Night Narrator): the narrator_events table must exist on a
       // fresh install (drift createAll) just like on the upgrade path.
@@ -820,7 +869,7 @@ CREATE TABLE captured_images (
           .customSelect('PRAGMA user_version')
           .getSingle();
       expect(upgradedVersion.data['user_version'], equals(db.schemaVersion));
-      expect(db.schemaVersion, equals(61));
+      expect(db.schemaVersion, equals(62));
 
       final tableRow = await db
           .customSelect(

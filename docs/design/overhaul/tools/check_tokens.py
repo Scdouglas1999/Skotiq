@@ -11,6 +11,10 @@ What it checks (exit code 1 on any failure):
     surface, because the app reads them as small status TEXT;
   * onPrimary clears 4.5:1 on primary and accent (filled buttons);
   * primary clears 4.5:1 on bg and surface (used as link/selected text);
+  * brandWarm clears 3:1 on every surface — it is a brand/decoration GRAPHIC
+    (WCAG 1.4.11 non-text floor), never text and never a status colour;
+  * brandWarm stays visibly distinct from warning: CIEDE2000 DeltaE >= 15,
+    so a decoration can never read as a caution;
   * the three text roles stay strictly ordered (primary brighter than
     secondary brighter than muted on dark palettes; reverse on light);
   * red night keeps red as the dominant channel of every text/status colour.
@@ -32,6 +36,11 @@ SURFACES = ["bg", "surface", "well", "surfaceHover", "surfaceElevated", "surface
 TEXT_ROLES = ["textPrimary", "textSecondary", "textMuted"]
 STATUS_ROLES = ["success", "warning", "error", "info"]
 AA = 4.5
+# WCAG 1.4.11 floor for non-text graphics (the mark's warm lane, the "now"
+# marker) and the minimum CIEDE2000 separation between brandWarm and warning
+# that keeps a decoration from reading as a caution.
+NON_TEXT_AA = 3.0
+BRAND_WARM_MIN_DELTA_E = 15.0
 
 
 def hex_to_rgb(h: str) -> tuple[int, int, int]:
@@ -52,6 +61,78 @@ def contrast(a: str, b: str) -> float:
     la, lb = luminance(a), luminance(b)
     hi, lo = max(la, lb), min(la, lb)
     return (hi + 0.05) / (lo + 0.05)
+
+
+def _lab(h: str) -> tuple[float, float, float]:
+    """sRGB hex -> CIE L*a*b* (D65/2°)."""
+    import math
+
+    def chan(c: int) -> float:
+        c1 = c / 255
+        return c1 / 12.92 if c1 <= 0.03928 else ((c1 + 0.055) / 1.055) ** 2.4
+
+    r, g, b = hex_to_rgb(h)
+    x = (0.4124564 * chan(r) + 0.3575761 * chan(g) + 0.1804375 * chan(b)) / 0.95047
+    y = 0.2126729 * chan(r) + 0.7151522 * chan(g) + 0.0721750 * chan(b)
+    z = (0.0193339 * chan(r) + 0.1191920 * chan(g) + 0.9503041 * chan(b)) / 1.08883
+
+    def f(t: float) -> float:
+        return t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
+
+    fx, fy, fz = f(x), f(y), f(z)
+    return (116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz))
+
+
+def delta_e_00(h1: str, h2: str) -> float:
+    """CIEDE2000 DeltaE between two sRGB hex colours."""
+    import math
+
+    l1, a1, b1 = _lab(h1)
+    l2, a2, b2 = _lab(h2)
+    c1, c2 = math.hypot(a1, b1), math.hypot(a2, b2)
+    cb = (c1 + c2) / 2
+    g = 0.5 * (1 - math.sqrt(cb**7 / (cb**7 + 25**7))) if cb else 0
+    a1p, a2p = a1 * (1 + g), a2 * (1 + g)
+    c1p, c2p = math.hypot(a1p, b1), math.hypot(a2p, b2)
+    h1p = math.degrees(math.atan2(b1, a1p)) % 360 if c1p else 0
+    h2p = math.degrees(math.atan2(b2, a2p)) % 360 if c2p else 0
+    dlp = l2 - l1
+    dcp = c2p - c1p
+    dhp = 0.0
+    if c1p * c2p:
+        d = h2p - h1p
+        if d > 180:
+            d -= 360
+        elif d < -180:
+            d += 360
+        dhp = d
+    dhp2 = 2 * math.sqrt(c1p * c2p) * math.sin(math.radians(dhp / 2))
+    lbp, cbp = (l1 + l2) / 2, (c1p + c2p) / 2
+    if c1p * c2p:
+        if abs(h1p - h2p) <= 180:
+            hbp = (h1p + h2p) / 2
+        elif h1p + h2p < 360:
+            hbp = (h1p + h2p + 360) / 2
+        else:
+            hbp = (h1p + h2p - 360) / 2
+    else:
+        hbp = h1p + h2p
+    t = (
+        1
+        - 0.17 * math.cos(math.radians(hbp - 30))
+        + 0.24 * math.cos(math.radians(2 * hbp))
+        + 0.32 * math.cos(math.radians(3 * hbp + 6))
+        - 0.20 * math.cos(math.radians(4 * hbp - 63))
+    )
+    dro = 30 * math.exp(-(((hbp - 275) / 25) ** 2))
+    rc = 2 * math.sqrt(cbp**7 / (cbp**7 + 25**7))
+    sl = 1 + 0.015 * ((lbp - 50) ** 2) / math.sqrt(20 + (lbp - 50) ** 2)
+    sc = 1 + 0.045 * cbp
+    sh = 1 + 0.015 * cbp * t
+    rt = -math.sin(math.radians(2 * dro)) * rc
+    return math.sqrt(
+        (dlp / sl) ** 2 + (dcp / sc) ** 2 + (dhp2 / sh) ** 2 + rt * (dcp / sc) * (dhp2 / sh)
+    )
 
 
 def main() -> int:
@@ -91,6 +172,29 @@ def main() -> int:
         print(f"  onStart on startFill  {c:5.2f}:1{flag}")
         if c < AA:
             failures.append(f"{name}: onStart on startFill = {c:.2f}:1")
+
+        # brandWarm is a brand/decoration colour — it must never read as a
+        # status, so it gets the non-text 3:1 floor on every surface and a
+        # minimum CIEDE2000 distance from this palette's `warning`.
+        warm = p["brandWarm"]
+        worst_warm = min(contrast(warm, p[s]) for s in SURFACES)
+        worst_surface = min(SURFACES, key=lambda s: contrast(warm, p[s]))
+        flag = "" if worst_warm >= NON_TEXT_AA else "  <-- FAIL"
+        print(
+            f"  brandWarm graphic  {worst_warm:5.2f}:1 worst on {worst_surface}{flag}"
+        )
+        if worst_warm < NON_TEXT_AA:
+            failures.append(
+                f"{name}: brandWarm {warm} on {worst_surface} = {worst_warm:.2f}:1 (< {NON_TEXT_AA})"
+            )
+        de = delta_e_00(warm, p["warning"])
+        flag = "" if de >= BRAND_WARM_MIN_DELTA_E else "  <-- FAIL"
+        print(f"  brandWarm vs warning dE00 {de:5.2f} (min {BRAND_WARM_MIN_DELTA_E:.0f}){flag}")
+        if de < BRAND_WARM_MIN_DELTA_E:
+            failures.append(
+                f"{name}: brandWarm {warm} is {de:.2f} dE00 from warning "
+                f"{p['warning']} (< {BRAND_WARM_MIN_DELTA_E})"
+            )
         for sw in p.get("accentSwatches", []):
             ink = "#0B0D12" if luminance(sw) > 0.1791 else "#FFFFFF"   # SkotiqColors._prefersDarkInk
             c_fill = contrast(ink, sw)
@@ -109,7 +213,7 @@ def main() -> int:
             failures.append(f"{name}: text roles not strictly ordered")
 
         if p.get("isRedNight"):
-            for role in TEXT_ROLES + STATUS_ROLES + ["primary", "accent", "startFill"] + [f"bands.{k}" for k in p["bands"]]:
+            for role in TEXT_ROLES + STATUS_ROLES + ["primary", "accent", "startFill", "brandWarm"] + [f"bands.{k}" for k in p["bands"]]:
                 if role.startswith("bands."):
                     r, g, b = hex_to_rgb(p["bands"][role[6:]])
                     if not (r >= g and r >= b and g == b):

@@ -605,7 +605,7 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
                             child: Text(
                               widget.progressDetail!,
                               style: SkotiqTypography.caption.copyWith(
-                                color: widget.colors.primary,
+                                color: widget.colors.brandWarm,
                               ),
                             ),
                           ),
@@ -617,7 +617,7 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
                             minHeight: 4,
                             backgroundColor: widget.colors.surfaceHover,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                                widget.colors.primary),
+                                widget.colors.brandWarm),
                           ),
                         ),
                       ],

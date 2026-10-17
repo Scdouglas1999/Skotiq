@@ -28,6 +28,7 @@ class BrandPreviewApp extends StatelessWidget {
   ];
 
   static const _tones = <(SkotiqMarkTone, String, Color)>[
+    (SkotiqMarkTone.theme, 'theme (default accent)', Color(0xFF12151B)),
     (SkotiqMarkTone.violet, 'violet', Color(0xFF0E0C16)),
     (SkotiqMarkTone.light, 'light (light ground)', Color(0xFFF3F1F8)),
     (SkotiqMarkTone.red, 'red (black ground)', Color(0xFF000000)),

@@ -37,12 +37,14 @@ abstract final class AppearanceAccents {
   AppearanceAccents._();
 
   /// Ink 5.83–9.23:1, as link text 5.83–8.68:1 on the dark canvas.
+  /// Violet leads — it is the brand accent and the palette's own primary;
+  /// the old blue stays second so the previous look remains one tap away.
   static const List<Color> dark = <Color>[
+    Color(0xFFA48CF2),
     Color(0xFF6EB3EC),
     Color(0xFF43B67A),
     Color(0xFFE0A53E),
     Color(0xFFE86A6A),
-    Color(0xFFA48CF2),
     Color(0xFFE77FB3),
     Color(0xFF4FC3C8),
   ];
@@ -50,11 +52,11 @@ abstract final class AppearanceAccents {
   /// The same seven hues taken down to where white ink and a white ground both
   /// work: ink 5.46–5.75:1, as link text 5.00–5.27:1.
   static const List<Color> light = <Color>[
+    Color(0xFF6A4FD1),
     Color(0xFF256F9E),
     Color(0xFF277549),
     Color(0xFF8F5D14),
     Color(0xFFBC3838),
-    Color(0xFF6A4FD1),
     Color(0xFFB03A7A),
     Color(0xFF1B7278),
   ];
@@ -101,7 +103,14 @@ ThemeData resolveSkotiqThemeData({
   }
 
   final accentColor = parseSkotiqAccentColor(accentColorHex);
-  if (accentColor == null) {
+  // The palette's own primary is the DEFAULT, not a custom accent: it gets
+  // the designed palette — its hover step, its ink pick, its link fallback —
+  // rather than a `withAccent` derivation whose values only approximate it.
+  final designedPrimary = themeSetting == 'light'
+      ? SkotiqColors.light.primary
+      : SkotiqColors.dark.primary;
+  if (accentColor == null ||
+      accentColor.toARGB32() == designedPrimary.toARGB32()) {
     switch (themeSetting) {
       case 'light':
         return SkotiqTheme.light;

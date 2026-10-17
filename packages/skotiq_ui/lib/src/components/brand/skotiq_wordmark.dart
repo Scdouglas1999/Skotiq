@@ -51,8 +51,9 @@ class SkotiqLockup extends StatelessWidget {
   const SkotiqLockup({
     super.key,
     this.markSize = 32,
-    this.tone = SkotiqMarkTone.violet,
+    this.tone = SkotiqMarkTone.theme,
     this.color,
+    this.themeAccent,
     this.motion = SkotiqMarkMotion.none,
     this.tile = false,
     this.onDrawComplete,
@@ -61,13 +62,17 @@ class SkotiqLockup extends StatelessWidget {
   /// Mark side in logical pixels; wordmark size and the gap derive from it.
   final double markSize;
 
-  /// The mark's colorway — [SkotiqMarkTone.violet] still maps to red under
-  /// the red night theme.
+  /// The mark's colorway — the default [SkotiqMarkTone.theme] follows the
+  /// active accent; [SkotiqMarkTone.theme] and [SkotiqMarkTone.violet] both
+  /// map to red under the red night theme.
   final SkotiqMarkTone tone;
 
   /// One color for mark lanes and wordmark ink; both inherit their ambient
   /// defaults when null.
   final Color? color;
+
+  /// Forwarded to the mark's [SkotiqMark.themeAccent].
+  final Color? themeAccent;
 
   /// The mark's motion — [SkotiqMarkMotion.draw] for a splash lockup.
   final SkotiqMarkMotion motion;
@@ -98,6 +103,7 @@ class SkotiqLockup extends StatelessWidget {
           size: markSize,
           tone: tone,
           color: tone == SkotiqMarkTone.mono ? ink : color,
+          themeAccent: themeAccent,
           motion: motion,
           tile: tile,
           onDrawComplete: onDrawComplete,

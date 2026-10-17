@@ -122,7 +122,15 @@ final class TrailsLevelSpec {
 /// `mono` paints every lane in one color; [SkotiqMark]'s widget layer
 /// resolves it to the ambient icon/text color unless overridden.
 enum SkotiqMarkTone {
-  /// Primary colorway.
+  /// The scheme-aware colorway — the mark's default. The four cool lanes
+  /// are a tonal ramp derived at build time from the active [SkotiqColors]'
+  /// `primary` (the user's accent); the warm lane and the pole star take
+  /// its `brandWarm`. Under red night it renders as [red]: the wavelength
+  /// constraint outranks the accent. See [themeTrailsRamp].
+  theme,
+
+  /// Primary colorway — fixed brand violet, for contexts that must show
+  /// the approved mark regardless of the user's accent.
   violet,
 
   /// For light backgrounds.
@@ -183,6 +191,8 @@ const Map<TrailsLevel, TrailsLevelSpec> trailsLevels = {
 
 /// The reference's `PALETTES`, keyed by tone. Every list holds the five
 /// lane colors outermost-to-innermost; the mark's pole star uses index 3.
+/// [SkotiqMarkTone.theme] has no entry — its lanes are derived per context
+/// by [themeTrailsRamp].
 const Map<SkotiqMarkTone, List<Color>> trailsPalettes = {
   SkotiqMarkTone.violet: [
     Color(0xFF6E56CF),
@@ -213,6 +223,118 @@ const Map<SkotiqMarkTone, List<Color>> trailsPalettes = {
     Color(0xFFEDEAF7),
   ],
 };
+
+/// The `theme` colorway's lane recipe: (OKLCH lightness, share of the
+/// accent's chroma) for the four cool lanes, outermost to innermost.
+///
+/// The stops are measured off the approved colorways — on a dark ground the
+/// ramp runs dark→bright so the S's core glows; on a light ground it runs
+/// mid→dark so the innermost lane stays the most separated lane on a pale
+/// field. The derivation lands within ΔE00 ≈ 2 of the approved violet and
+/// light colorways for the default accent (asserted in
+/// `skotiq_mark_test.dart`), so no special-casing is needed.
+const List<(double, double)> _themeStopsDark = [
+  (0.542, 1.22),
+  (0.651, 1.09),
+  (0.784, 0.81),
+  (0.915, 0.31),
+];
+const List<(double, double)> _themeStopsLight = [
+  (0.429, 0.91),
+  (0.534, 0.93),
+  (0.646, 0.80),
+  (0.284, 0.34),
+];
+
+/// Builds the `theme` colorway's five lanes for [primary] — the user's
+/// accent — following the [trailsPalettes] convention: cool lanes in slots
+/// 0–3, [brandWarm] in slot 4 where the mark's warm lane lives.
+///
+/// [lightGround] picks the stop set; pass true when the mark sits on a
+/// light field (the light theme's surfaces) so the innermost lane goes
+/// dark instead of blowing out to near-white.
+List<Color> themeTrailsRamp(
+  Color primary, {
+  required Color brandWarm,
+  required bool lightGround,
+}) {
+  final (_, accentChroma, accentHue) = _srgbToOklch(primary);
+  final stops = lightGround ? _themeStopsLight : _themeStopsDark;
+  return [
+    for (final (lightness, chromaShare) in stops)
+      _oklchToColor(lightness, accentChroma * chromaShare, accentHue),
+    brandWarm,
+  ];
+}
+
+/// sRGB → OKLCH (Ottosson). Returns (lightness, chroma, hue degrees).
+(double, double, double) _srgbToOklch(Color color) {
+  double linearize(double c) =>
+      c <= 0.04045 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
+  final r = linearize(color.r);
+  final g = linearize(color.g);
+  final b = linearize(color.b);
+  final l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b;
+  final m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b;
+  final s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b;
+  final lC = math.pow(l, 1 / 3).toDouble();
+  final mC = math.pow(m, 1 / 3).toDouble();
+  final sC = math.pow(s, 1 / 3).toDouble();
+  final a = 1.9779984951 * lC - 2.4285922050 * mC + 0.4505937099 * sC;
+  final b2 = 0.0259040371 * lC + 0.7827717662 * mC - 0.8086757660 * sC;
+  return (
+    0.2104542553 * lC + 0.7936177850 * mC - 0.0040720468 * sC,
+    math.sqrt(a * a + b2 * b2),
+    (math.atan2(b2, a) * 180 / math.pi + 360) % 360,
+  );
+}
+
+/// OKLCH → sRGB. A hue's chroma ceiling drops fast toward the gamut edge,
+/// so an out-of-gamut request decays chroma until the colour lands — the
+/// lane keeps its hue and lightness rather than clipping into a corner.
+Color _oklchToColor(double lightness, double chroma, double hueDegrees) {
+  double encodeChannel(double v) =>
+      v <= 0.0031308 ? 12.92 * v : 1.055 * math.pow(v, 1 / 2.4) - 0.055;
+
+  (int, int, int)? encode(double c) {
+    final a = c * math.cos(hueDegrees * math.pi / 180);
+    final b = c * math.sin(hueDegrees * math.pi / 180);
+    final l = math
+        .pow(lightness + 0.3963377774 * a + 0.2158037573 * b, 3)
+        .toDouble();
+    final m = math
+        .pow(lightness - 0.1055613458 * a - 0.0638541728 * b, 3)
+        .toDouble();
+    final s = math
+        .pow(lightness - 0.0894841775 * a - 1.2914855480 * b, 3)
+        .toDouble();
+    final r = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+    final g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+    final b2 = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+    const epsilon = 0.0001;
+    if (r < -epsilon ||
+        r > 1 + epsilon ||
+        g < -epsilon ||
+        g > 1 + epsilon ||
+        b2 < -epsilon ||
+        b2 > 1 + epsilon) {
+      return null;
+    }
+    return (
+      (encodeChannel(r.clamp(0.0, 1.0)) * 255).round(),
+      (encodeChannel(g.clamp(0.0, 1.0)) * 255).round(),
+      (encodeChannel(b2.clamp(0.0, 1.0)) * 255).round(),
+    );
+  }
+
+  for (var c = chroma; c >= 0; c *= 0.95) {
+    final rgb = encode(c);
+    if (rgb != null) return Color.fromARGB(255, rgb.$1, rgb.$2, rgb.$3);
+    if (c < 0.0005) break;
+  }
+  final (r, g, b) = encode(0)!;
+  return Color.fromARGB(255, r, g, b);
+}
 
 /// Picks the detail level for a logical pixel size: [TrailsLevel.full] from
 /// 64 px, [TrailsLevel.mid] from 24 to 63, [TrailsLevel.flat] below 24.

@@ -35,6 +35,16 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
   final Color error;
   final Color info;
 
+  /// The mark's warm peach, used sparingly for BRAND and decoration only:
+  /// the Trails logo's warm lane and pole star, the "now" marker, and the
+  /// running sequence step's progress highlight.
+  ///
+  /// It must never carry status meaning — a filled chip, a toast, a link — so
+  /// `check_tokens.py` keeps it at CIEDE2000 DeltaE >= 15 from [warning] and
+  /// holds it to the non-text 3:1 floor on every surface rather than the
+  /// text 4.5:1 floor.
+  final Color brandWarm;
+
   /// Fill of the one Start-sequence button. Green rather than [primary] on the
   /// two colour palettes, because starting a run is the night's committing
   /// action and it should not read as "the selected thing".
@@ -92,6 +102,7 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
     required this.warning,
     required this.error,
     required this.info,
+    required this.brandWarm,
     required this.startFill,
     required this.onStart,
     required this.bandDusk,
@@ -107,19 +118,24 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
   Color get onPrimary =>
       useDarkOnPrimary ? background : const Color(0xFFFFFFFF);
 
-  /// [primary] as TEXT — links, the selected rail label, the "now" marker.
+  /// [primary] as TEXT — links and the selected rail label.
   ///
-  /// A dark-safe accent is not light-safe: the dark palette's #6EB3EC is 8.1:1
-  /// as link text on its own canvas but 2.4:1 on white. A stored accent
+  /// A dark-safe accent is not light-safe: the dark palette's old #6EB3EC
+  /// blue is 8.1:1 as link text on its own canvas but 2.4:1 on white. A stored accent
   /// outlives a theme switch, so [darkWithAccent] / [lightWithAccent] set
   /// [linkOverride] to that theme's own primary when the chosen colour misses
   /// the floor — the fill keeps the user's choice, only the text steps aside.
   Color get link => linkOverride ?? primary;
 
-  /// Deep graphite / blue-black palette with restrained cyan-blue accents.
+  /// Deep graphite / blue-black palette with restrained brand-violet accents.
   static const dark = SkotiqColors(
-    primary: Color(0xFF6EB3EC),
-    accent: Color(0xFF8FC7F5),
+    // The brand violet — the mark's cool lanes run #6E56CF through #E4DEFF and
+    // this sits mid-ramp at 7.04:1 as text on the canvas. The old blue
+    // (#6EB3EC) survives as the second Appearance swatch and as `info`.
+    primary: Color(0xFFA48CF2),
+    // Hover/hot step, one lightness notch above primary — the mark's
+    // #B9ABFF lane, 9.56:1 under dark ink.
+    accent: Color(0xFFB9ABFF),
     background: Color(0xFF0B0D12),
     surface: Color(0xFF12151B),
     well: Color(0xFF0E1116),
@@ -142,7 +158,14 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
     // 4.73:1 worst case, on surfaceOverlay — the tightest colour in this
     // palette, and the first one to re-measure if a surface is ever lifted.
     error: Color(0xFFE86A6A),
+    // Deliberately stays the OLD primary blue: status (download captions,
+    // NodeStatus.running) must remain distinguishable from selection now that
+    // selection is violet.
     info: Color(0xFF6EB3EC),
+    // The mark's warm lane and pole star, #FFD9A8 — 11.12:1 on the worst
+    // surface and DeltaE 15.61 from warning, so a decoration never reads as
+    // a caution.
+    brandWarm: Color(0xFFFFD9A8),
     startFill: Color(0xFF43B67A),
     // 7.38:1 on startFill.
     onStart: Color(0xFF06140B),
@@ -154,19 +177,18 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
     // so white label text on a filled button scored 2.94:1 (primary), 2.18:1
     // (accent) and 3.75:1 (error — the mount STOP and every destructive
     // button). Dark ink on a light fill is the correct pairing: onPrimary
-    // measures 8.63:1 on primary and 10.79:1 on accent.
+    // measures 7.04:1 on primary and 9.56:1 on accent.
     useDarkOnPrimary: true,
   );
 
-  /// Cool light palette with deeper cyan-blue primary for contrast.
+  /// Cool light palette with a deeper brand-violet primary for contrast.
   static const light = SkotiqColors(
-    // 5.46:1 under white ink and 5.00:1 as link text on the canvas. The
-    // previous #2878A8 measured 4.43:1 as text, under the floor.
-    primary: Color(0xFF256F9E),
-    // Hover DARKENS in a light palette: white ink on the previous #3A9BC4
-    // measured 3.15:1, so lightening the accent was buying a hover state with
-    // the label's legibility.
-    accent: Color(0xFF1F5F88),
+    // 5.75:1 under white ink and 5.27:1 as link text on the canvas. The old
+    // blue (#256F9E) survives as the second Appearance swatch and as `info`.
+    primary: Color(0xFF6A4FD1),
+    // Hover DARKENS in a light palette, so the accent sits one lightness
+    // notch below primary; white ink on it measures 7.00:1.
+    accent: Color(0xFF5B41C4),
     background: Color(0xFFF3F5F8),
     surface: Color(0xFFFFFFFF),
     well: Color(0xFFEEF1F5),
@@ -195,7 +217,15 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
     success: Color(0xFF277549),
     warning: Color(0xFF8F5D14),
     error: Color(0xFFBC3838),
+    // Keeps its blue, darker than the dark palette's — same reasoning: status
+    // must not collide with a violet selection.
     info: Color(0xFF256E99),
+    // Deepened peach for a white ground — the logo's #FFD9A8 would sit at
+    // 1.7:1 here. The "now" label and frame countdown set it as TEXT, so it
+    // is taken down to a burnt orange that clears the 4.5:1 text floor on
+    // every light surface (4.87:1 worst, on surfaceHover) and stays DeltaE
+    // 16.86 from warning.
+    brandWarm: Color(0xFFB43B00),
     startFill: Color(0xFF1E7A47),
     // White ink, 5.34:1 on startFill.
     onStart: Color(0xFFFFFFFF),
@@ -308,6 +338,10 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
     warning: Color(0xFFFF4040),
     error: Color(0xFFEF5252),
     info: Color(0xFFE57373),
+    // Red night cannot spend a warm hue: the decoration folds onto the red
+    // axis like every other role, a pale red kept DeltaE 18.34 from warning
+    // and at 8.26:1 on the worst surface.
+    brandWarm: Color(0xFFFF9A9A),
     // Red night has no green to spend on Start, so the button is the palette's
     // own primary; its label and position tell it apart, not its hue.
     startFill: Color(0xFFEF3B3B),
@@ -341,6 +375,7 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
     Color? warning,
     Color? error,
     Color? info,
+    Color? brandWarm,
     Color? startFill,
     Color? onStart,
     Color? bandDusk,
@@ -371,6 +406,7 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
       warning: warning ?? this.warning,
       error: error ?? this.error,
       info: info ?? this.info,
+      brandWarm: brandWarm ?? this.brandWarm,
       startFill: startFill ?? this.startFill,
       onStart: onStart ?? this.onStart,
       bandDusk: bandDusk ?? this.bandDusk,
@@ -421,6 +457,7 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
       warning: Color.lerp(warning, other.warning, t)!,
       error: Color.lerp(error, other.error, t)!,
       info: Color.lerp(info, other.info, t)!,
+      brandWarm: Color.lerp(brandWarm, other.brandWarm, t)!,
       startFill: Color.lerp(startFill, other.startFill, t)!,
       onStart: Color.lerp(onStart, other.onStart, t)!,
       bandDusk: Color.lerp(bandDusk, other.bandDusk, t)!,
@@ -464,6 +501,7 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
         other.warning == warning &&
         other.error == error &&
         other.info == info &&
+        other.brandWarm == brandWarm &&
         other.startFill == startFill &&
         other.onStart == onStart &&
         other.bandDusk == bandDusk &&
@@ -476,7 +514,7 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
   }
 
   /// [Object.hash] takes at most 20 positional arguments and this palette now
-  /// carries 27 fields, so the list form is the one that compiles.
+  /// carries 28 fields, so the list form is the one that compiles.
   @override
   int get hashCode => Object.hashAll(<Object?>[
     primary,
@@ -498,6 +536,7 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
     warning,
     error,
     info,
+    brandWarm,
     startFill,
     onStart,
     bandDusk,

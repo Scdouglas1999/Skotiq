@@ -20,7 +20,7 @@ const double _ledgerHeaderHeight = 26.0;
 const double _ledgerGuideWidth = 18.0;
 const double _ledgerGuideLineWidth = 1.0;
 
-/// The primary marker down the left edge of the running row. Reserved on every
+/// The warm marker down the left edge of the running row. Reserved on every
 /// row (as blank space when the row is not running) so switching rows cannot
 /// shift the name by two pixels.
 const double _ledgerRunningMarkerWidth = 2.0;
@@ -157,7 +157,7 @@ Color? _ledgerRowFill({
   // says so through its left marker and its Running chip, which are content.
   if (pinned) return colors.surfaceElevated;
   if (isRunning) {
-    return colors.primary.withValues(alpha: SkotiqTokens.opacityAccentTint);
+    return colors.brandWarm.withValues(alpha: SkotiqTokens.opacityAccentTint);
   }
   if (isSelected) return colors.surfaceElevated;
   if (hovered) return colors.surfaceHover;
@@ -666,9 +666,9 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
           // be two heartbeats for one run.
           child: isRunning
               ? (widget.pinned || widget.isDragging
-                  ? ColoredBox(color: colors.primary)
+                  ? ColoredBox(color: colors.brandWarm)
                   : _RunningMarkerBreath(
-                      child: ColoredBox(color: colors.primary),
+                      child: ColoredBox(color: colors.brandWarm),
                     ))
               : null,
         ),
@@ -802,8 +802,9 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
     );
   }
 
-  /// The 2 px bar along the bottom edge: primary while running, success when
-  /// complete, error when failed, and nothing at all before the node has run.
+  /// The 2 px bar along the bottom edge: warm while running — the brand's
+  /// "now" mark — success when complete, error when failed, and nothing at
+  /// all before the node has run.
   ///
   /// The failure case is not in the spec's list, but Ledger rows have no status
   /// stripe of their own, so leaving a failed row unmarked would lose the one
@@ -817,7 +818,7 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
     final Color fill;
     final double fraction;
     if (isRunning) {
-      fill = colors.primary;
+      fill = colors.brandWarm;
       fraction = ((widget.progressPercent ?? 0) / 100.0).clamp(0.0, 1.0);
     } else if (isSuccess) {
       fill = colors.success;
