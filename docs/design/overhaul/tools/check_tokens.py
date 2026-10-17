@@ -187,14 +187,18 @@ def main() -> int:
             failures.append(
                 f"{name}: brandWarm {warm} on {worst_surface} = {worst_warm:.2f}:1 (< {NON_TEXT_AA})"
             )
-        de = delta_e_00(warm, p["warning"])
-        flag = "" if de >= BRAND_WARM_MIN_DELTA_E else "  <-- FAIL"
-        print(f"  brandWarm vs warning dE00 {de:5.2f} (min {BRAND_WARM_MIN_DELTA_E:.0f}){flag}")
-        if de < BRAND_WARM_MIN_DELTA_E:
-            failures.append(
-                f"{name}: brandWarm {warm} is {de:.2f} dE00 from warning "
-                f"{p['warning']} (< {BRAND_WARM_MIN_DELTA_E})"
-            )
+        # Red night bends every role onto the red axis, so error and the warm
+        # mark are both red there by rule; only warning is held apart.
+        warm_rivals = ("warning",) if name == "redNight" else ("warning", "error")
+        for rival in warm_rivals:
+            de = delta_e_00(warm, p[rival])
+            flag = "" if de >= BRAND_WARM_MIN_DELTA_E else "  <-- FAIL"
+            print(f"  brandWarm vs {rival} dE00 {de:5.2f} (min {BRAND_WARM_MIN_DELTA_E:.0f}){flag}")
+            if de < BRAND_WARM_MIN_DELTA_E:
+                failures.append(
+                    f"{name}: brandWarm {warm} is {de:.2f} dE00 from {rival} "
+                    f"{p[rival]} (< {BRAND_WARM_MIN_DELTA_E})"
+                )
         for sw in p.get("accentSwatches", []):
             ink = "#0B0D12" if luminance(sw) > 0.1791 else "#FFFFFF"   # SkotiqColors._prefersDarkInk
             c_fill = contrast(ink, sw)

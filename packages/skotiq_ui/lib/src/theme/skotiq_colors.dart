@@ -225,7 +225,7 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
     // is taken down to a burnt orange that clears the 4.5:1 text floor on
     // every light surface (4.87:1 worst, on surfaceHover) and stays DeltaE
     // 16.86 from warning.
-    brandWarm: Color(0xFFB43B00),
+    brandWarm: Color(0xFF8A3200),
     startFill: Color(0xFF1E7A47),
     // White ink, 5.34:1 on startFill.
     onStart: Color(0xFFFFFFFF),

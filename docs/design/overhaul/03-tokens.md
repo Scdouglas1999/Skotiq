@@ -65,7 +65,7 @@ key name.
 | `warning` | `#E0A53E` | #D49A3A | attention, unsaved, session-only |
 | `error` | `#E86A6A` | #D85C5C | failed, disconnected, stop |
 | `info` | `#6EB3EC` | equals old primary | keeps the old blue so status stays distinct from a violet selection |
-| `brandWarm` **(new)** | `#FFD9A8` | — | the mark's warm lane/pole star, the "now" marker, the running step's progress highlight — decoration only, held ΔE00 ≥ 15 from `warning` (light `#B43B00`, red night `#FF9A9A`) |
+| `brandWarm` **(new)** | `#FFD9A8` | — | the mark's warm lane/pole star, the "now" marker, the running step's progress highlight — decoration only, held ΔE00 ≥ 15 from `warning` and (outside red night) `error` (light `#8A3200`, red night `#FF9A9A`) |
 | `startFill` **(new)** | `#43B67A` | — | Start-sequence button fill (light `#1E7A47`, red night = primary) |
 | `onStart` **(new)** | `#06140B` | — | ink on `startFill` (light white, red night `onPrimary`) |
 | `bandDusk/bandTwilight/bandDark/bandDawn` **(new)** | `#3A3F66 / #151A2C / #0D1015 / #4A4160` | — | NightBand gradient; light `#C9CFE8 / #4A5680 / #1B2238 / #E2C9C0`; red night `#3A1414 / #140808 / #0A0000 / #3A1414` |
