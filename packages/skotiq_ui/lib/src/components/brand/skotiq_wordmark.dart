@@ -83,11 +83,13 @@ class SkotiqLockup extends StatelessWidget {
   /// Forwarded to the mark's [SkotiqMark.onDrawComplete].
   final VoidCallback? onDrawComplete;
 
-  /// Wordmark size for a given mark size: `fontSize ≈ markSize × 1.25`.
-  static double fontSizeFor(double markSize) => markSize * 1.25;
+  /// Wordmark size for a given mark size. The drawn S fills about 72% of the
+  /// mark's box, so a 0.85 ratio puts the S at roughly 1.1 times the height of
+  /// the wordmark's ascenders, the proportion of the approved lockup.
+  static double fontSizeFor(double markSize) => markSize * 0.85;
 
-  /// Gap between mark and wordmark: `0.2 × markSize`.
-  static double gapFor(double markSize) => markSize * 0.2;
+  /// Gap between mark and wordmark: `0.25 × markSize`.
+  static double gapFor(double markSize) => markSize * 0.25;
 
   @override
   Widget build(BuildContext context) {

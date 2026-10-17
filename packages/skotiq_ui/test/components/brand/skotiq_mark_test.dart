@@ -931,9 +931,9 @@ void main() {
       );
       expect(tester.widget<SkotiqMark>(find.byType(SkotiqMark)).size, 40);
       final text = tester.widget<Text>(find.text('skotiq'));
-      // mark ≈ 1.1 × cap height (Sora cap 0.73em → fontSize ≈ mark × 1.25)
-      // and gap ≈ 0.2 × mark.
-      expect(text.style!.fontSize, moreOrLessEquals(50, epsilon: 1e-9));
+      // The drawn S (about 72% of the box) stands about 1.1 times the
+      // wordmark's ascenders: fontSize = 0.85 × mark, gap = 0.25 × mark.
+      expect(text.style!.fontSize, moreOrLessEquals(34, epsilon: 1e-9));
       final gap = find.byWidgetPredicate(
         (w) => w is SizedBox && w.width == SkotiqLockup.gapFor(40),
       );

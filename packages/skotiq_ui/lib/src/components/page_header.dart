@@ -80,11 +80,16 @@ class PageHeader extends StatelessWidget {
               : ShellChromeMetrics.pageHeaderHeight) +
           hairline,
       padding: const EdgeInsets.symmetric(horizontal: SkotiqTokens.space2xl),
+      // The window is one slate: a header separates from its page by space,
+      // not a line. The hairline stays only under a tab strip, where it is the
+      // rail the selected tab's underline sits on.
       decoration: BoxDecoration(
         color: colors.background,
-        border: Border(
-          bottom: BorderSide(color: colors.border, width: _hairlineWidth),
-        ),
+        border: tabs == null
+            ? null
+            : Border(
+                bottom: BorderSide(color: colors.border, width: _hairlineWidth),
+              ),
       ),
       // The tab strip gets ALL the width the title and the actions do not use.
       //
