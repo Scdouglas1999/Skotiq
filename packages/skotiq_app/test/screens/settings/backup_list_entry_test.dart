@@ -7,12 +7,12 @@ void main() {
     final entries = parseRemoteBackupList([
       {
         'id': 'good-id',
-        'fileName': 'skotiq.nsbackup',
+        'fileName': 'skotiq.skbackup',
         'createdAt': 123,
         'fileSize': 456,
       },
-      {'id': '', 'fileName': 'empty-id.nsbackup'},
-      {'id': 7, 'fileName': 'wrong-id-type.nsbackup'},
+      {'id': '', 'fileName': 'empty-id.skbackup'},
+      {'id': 7, 'fileName': 'wrong-id-type.skbackup'},
     ]);
 
     expect(entries, hasLength(1));

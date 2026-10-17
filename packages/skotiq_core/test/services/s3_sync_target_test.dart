@@ -86,13 +86,13 @@ void main() {
 
       await targetWith(
         client,
-      ).uploadFile('skotiq-sync/laptop/b.nsbak', [1, 2, 3]);
+      ).uploadFile('skotiq-sync/laptop/b.skbak', [1, 2, 3]);
 
       expect(seen, isNotNull);
       expect(seen!.method, 'PUT');
       expect(seen!.url.scheme, 'https');
       expect(seen!.url.host, 'astro-backups.s3.us-east-1.amazonaws.com');
-      expect(seen!.url.path, '/skotiq-sync/laptop/b.nsbak');
+      expect(seen!.url.path, '/skotiq-sync/laptop/b.skbak');
       expect(seen!.bodyBytes, [1, 2, 3]);
       expect(seen!.headers['Content-Type'], 'application/octet-stream');
       // x-amz-content-sha256 is the real SHA-256 of the body (not UNSIGNED).
@@ -117,7 +117,7 @@ void main() {
         expect(request.url.host, 'astro-backups.s3.us-east-1.amazonaws.com');
         return http.Response.bytes([9, 8, 7], 200);
       });
-      final bytes = await targetWith(client).downloadFile('s/f.nsbak');
+      final bytes = await targetWith(client).downloadFile('s/f.skbak');
       expect(bytes, [9, 8, 7]);
     });
 
@@ -127,7 +127,7 @@ void main() {
         methods.add(request.method);
         return http.Response('', 404);
       });
-      await targetWith(client).deleteFile('s/gone.nsbak');
+      await targetWith(client).deleteFile('s/gone.skbak');
       expect(methods, ['DELETE']);
     });
 
@@ -181,10 +181,10 @@ void main() {
         return http.Response('', 200);
       });
 
-      await targetWith(client, pathStyle: true).uploadFile('sync/b.nsbak', [1]);
+      await targetWith(client, pathStyle: true).uploadFile('sync/b.skbak', [1]);
 
       expect(seen!.url.host, 's3.us-east-1.amazonaws.com');
-      expect(seen!.url.path, '/astro-backups/sync/b.nsbak');
+      expect(seen!.url.path, '/astro-backups/sync/b.skbak');
     });
   });
 
@@ -202,7 +202,7 @@ void main() {
       expect(dir.name, 'obsy-pi');
 
       final bundle = entries.firstWhere(
-        (e) => e.name == 'bundle-2026-06-09.nsbak',
+        (e) => e.name == 'bundle-2026-06-09.skbak',
       );
       expect(bundle.isDirectory, isFalse);
       expect(bundle.sizeBytes, 4242);
@@ -225,7 +225,7 @@ void main() {
 
       expect(calls, 2);
       expect(tokensSeen, [null, 'TOKEN-2']);
-      expect(entries.map((e) => e.name), ['page1.nsbak', 'page2.nsbak']);
+      expect(entries.map((e) => e.name), ['page1.skbak', 'page2.skbak']);
     });
   });
 
@@ -233,7 +233,7 @@ void main() {
     Future<SyncTargetException> captureError(int status) async {
       final client = MockClient((request) async => http.Response('', status));
       try {
-        await targetWith(client).downloadFile('x/y.nsbak');
+        await targetWith(client).downloadFile('x/y.skbak');
         fail('expected SyncTargetException');
       } on SyncTargetException catch (e) {
         return e;
@@ -264,7 +264,7 @@ void main() {
         throw http.ClientException('connection refused');
       });
       await expectLater(
-        () => targetWith(client).downloadFile('x/y.nsbak'),
+        () => targetWith(client).downloadFile('x/y.skbak'),
         throwsA(
           isA<SyncTargetException>().having(
             (e) => e.kind,
@@ -280,7 +280,7 @@ void main() {
     test('thrown messages never contain the access key or secret', () async {
       final client = MockClient((request) async => http.Response('', 403));
       try {
-        await targetWith(client).downloadFile('x/y.nsbak');
+        await targetWith(client).downloadFile('x/y.skbak');
         fail('expected SyncTargetException');
       } on SyncTargetException catch (e) {
         final text = e.toString();
@@ -302,7 +302,7 @@ const String _sampleList = '''<?xml version="1.0" encoding="UTF-8"?>
     <Size>0</Size>
   </Contents>
   <Contents>
-    <Key>skotiq-sync/bundle-2026-06-09.nsbak</Key>
+    <Key>skotiq-sync/bundle-2026-06-09.skbak</Key>
     <LastModified>2026-06-09T04:30:00.000Z</LastModified>
     <Size>4242</Size>
     <ETag>"abc"</ETag>
@@ -330,7 +330,7 @@ const String _truncatedPage = '''<?xml version="1.0" encoding="UTF-8"?>
   <IsTruncated>true</IsTruncated>
   <NextContinuationToken>TOKEN-2</NextContinuationToken>
   <Contents>
-    <Key>skotiq-sync/page1.nsbak</Key>
+    <Key>skotiq-sync/page1.skbak</Key>
     <Size>1</Size>
   </Contents>
 </ListBucketResult>''';
@@ -341,7 +341,7 @@ const String _finalPage = '''<?xml version="1.0" encoding="UTF-8"?>
   <Prefix>skotiq-sync/</Prefix>
   <IsTruncated>false</IsTruncated>
   <Contents>
-    <Key>skotiq-sync/page2.nsbak</Key>
+    <Key>skotiq-sync/page2.skbak</Key>
     <Size>2</Size>
   </Contents>
 </ListBucketResult>''';

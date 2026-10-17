@@ -19,10 +19,10 @@ class RegionCutoutExport {
   });
 }
 
-/// The result of [SkyAtlasService.exportDelta]: the written `.nst` delta path
+/// The result of [SkyAtlasService.exportDelta]: the written `.skt` delta path
 /// plus the post-anchor own-light tally carved out for the federation push.
 class AtlasDeltaExport {
-  /// On-disk path of the exported `.nst` delta accumulator.
+  /// On-disk path of the exported `.skt` delta accumulator.
   final String path;
 
   /// Frames attributable to LOCAL folds strictly after the export anchor — the

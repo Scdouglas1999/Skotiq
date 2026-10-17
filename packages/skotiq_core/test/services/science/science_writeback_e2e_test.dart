@@ -10,7 +10,7 @@
 //      tools (PixInsight, AstroPixelProcessor, Siril) can read them.
 //
 // This test exercises both parts against a real (synthetic) FITS fixture on
-// disk. Renaming a keyword, swapping a unit, dropping the NSHA_VER provenance
+// disk. Renaming a keyword, swapping a unit, dropping the SKHA_VER provenance
 // stamp, or breaking the writer's atomic file replacement fails it loudly.
 
 import 'dart:io';
@@ -157,7 +157,7 @@ void main() {
         'MAGLIM5',
         'TRANSPAR',
         'EXTINCT',
-        'NSHA_VER',
+        'SKHA_VER',
       ]);
 
       final fixture = await _writeFixture(tempDir, name: 'e2e.fits');
@@ -196,7 +196,7 @@ void main() {
       expect(extinct, isNotNull);
       expect(_floatFromCard(extinct!), closeTo(0.215, 1e-6));
 
-      final nshaVer = _firstCardFor(fixture, 'NSHA_VER');
+      final nshaVer = _firstCardFor(fixture, 'SKHA_VER');
       expect(nshaVer, isNotNull);
       expect(_stringFromCard(nshaVer!), 'Skotiq 2.5.0');
 
@@ -242,7 +242,7 @@ void main() {
     },
   );
 
-  test('partial contract: transparency-only still stamps NSHA_VER', () async {
+  test('partial contract: transparency-only still stamps SKHA_VER', () async {
     final updates = ScienceProcessingService.buildScienceWritebackKeywords(
       calibration: null,
       transparency: TransparencySample(
@@ -259,7 +259,7 @@ void main() {
     expect(updates.map((u) => u.keyword).toList(), [
       'TRANSPAR',
       'EXTINCT',
-      'NSHA_VER',
+      'SKHA_VER',
     ]);
   });
 
@@ -279,7 +279,7 @@ void main() {
           confidence: 0.55,
         ),
       );
-      expect(updates.map((u) => u.keyword).toList(), ['TRANSPAR', 'NSHA_VER']);
+      expect(updates.map((u) => u.keyword).toList(), ['TRANSPAR', 'SKHA_VER']);
     },
   );
 
@@ -305,7 +305,7 @@ void main() {
     expect(keywords, contains('MAGZPSRC'));
     expect(keywords, contains('MAGZPNST'));
     expect(keywords, contains('MAGZPERR'));
-    expect(keywords, contains('NSHA_VER'));
+    expect(keywords, contains('SKHA_VER'));
     expect(keywords, isNot(contains('MAGZP')));
     expect(keywords, isNot(contains('MAGLIM5')));
   });

@@ -327,7 +327,7 @@ void _seedLegacyDatabase(String path) {
         600.0,
         1.0,
         'accepted',
-        '/data/contrib-legacy.nst',
+        '/data/contrib-legacy.skt',
         now,
       ],
     );

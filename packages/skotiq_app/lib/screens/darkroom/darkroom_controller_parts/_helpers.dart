@@ -404,7 +404,7 @@ String? darkroomMasterFailureNextStep(String message, String masterPath) {
       'Session Review to write it again.';
 }
 
-/// A `.nsrecipe` file the operator chose, and what it holds.
+/// A `.skrecipe` file the operator chose, and what it holds.
 @immutable
 class DarkroomSidecarPick {
   /// Absolute path of the chosen file, so the import can say what it read.
@@ -416,7 +416,7 @@ class DarkroomSidecarPick {
   const DarkroomSidecarPick({required this.path, required this.text});
 }
 
-/// Choose and read a `.nsrecipe` sidecar, as a seam a test can script.
+/// Choose and read a `.skrecipe` sidecar, as a seam a test can script.
 ///
 /// Both halves are unavailable inside a widget test — the platform file chooser
 /// and the read off disk — so they are one overridable function rather than two
@@ -429,7 +429,8 @@ Future<DarkroomSidecarPick?> _defaultDarkroomSidecarReader() async {
     acceptedTypeGroups: const [
       XTypeGroup(
         label: 'Skotiq recipe sidecar',
-        extensions: ['nsrecipe'],
+        // 'nsrecipe' keeps sidecars written before the rebrand selectable.
+        extensions: ['skrecipe', 'nsrecipe'],
       ),
     ],
     confirmButtonText: 'Import recipe',
@@ -441,12 +442,12 @@ Future<DarkroomSidecarPick?> _defaultDarkroomSidecarReader() async {
   return DarkroomSidecarPick(path: file.path, text: await file.readAsString());
 }
 
-/// Override point for the `.nsrecipe` import source (tests script this).
+/// Override point for the `.skrecipe` import source (tests script this).
 final darkroomSidecarReaderProvider = Provider<DarkroomSidecarReader>(
   (ref) => _defaultDarkroomSidecarReader,
 );
 
-/// A `.nsrecipe` sidecar, read back.
+/// A `.skrecipe` sidecar, read back.
 ///
 /// The sidecar is what an export writes beside its file so the recipe survives
 /// outside the database. This is the reader for it: the same document, decoded
@@ -477,7 +478,7 @@ class DarkroomImportedRecipe {
   });
 }
 
-/// Decode a `.nsrecipe` sidecar document.
+/// Decode a `.skrecipe` sidecar document.
 ///
 /// Throws [DarkroomRecipeFormatException] naming what the file holds instead:
 /// an import that silently produced an empty stack would look like a recipe
@@ -500,17 +501,19 @@ DarkroomImportedRecipe decodeDarkroomSidecar(String text) {
   }
   if (document is! Map<String, dynamic>) {
     throw DarkroomRecipeFormatException(
-      'this file holds ${darkroomJsonKind(document)}, and a .nsrecipe sidecar '
+      'this file holds ${darkroomJsonKind(document)}, and a .skrecipe sidecar '
       'is a JSON object',
     );
   }
   final kind = document['kind'];
-  if (kind != 'nsrecipe') {
+  // 'nsrecipe' is the discriminator sidecars written before the rebrand
+  // declare; the document shape is identical.
+  if (kind != 'skrecipe' && kind != 'nsrecipe') {
     throw DarkroomRecipeFormatException(
       kind is String
-          ? 'this file declares itself a "$kind" document, not the "nsrecipe" '
+          ? 'this file declares itself a "$kind" document, not the "skrecipe" '
               'sidecar an export writes'
-          : 'this file declares no "kind", so it is not a .nsrecipe sidecar '
+          : 'this file declares no "kind", so it is not a .skrecipe sidecar '
               'this build can read',
     );
   }

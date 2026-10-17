@@ -48,7 +48,7 @@ part 'darkroom_controller_parts/_helpers.dart';
 /// practice.
 const int kDarkroomJournalDepth = 100;
 
-/// What to do about a `.nsrecipe` this build will not read.
+/// What to do about a `.skrecipe` this build will not read.
 ///
 /// Every import refusal ends on it, because both ways forward are outside this
 /// screen: a sidecar is written by an export, so a damaged or partial one is
@@ -57,7 +57,7 @@ const int kDarkroomJournalDepth = 100;
 /// closed chooser and nothing to try.
 const String kDarkroomImportNextStep =
     'Export the recipe again from the Darkroom that wrote it, or choose a '
-    'different .nsrecipe file.';
+    'different .skrecipe file.';
 
 /// Drives one Darkroom scope.
 class DarkroomController extends StateNotifier<DarkroomState> {
@@ -752,7 +752,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
     state = state.copyWith(clearOfferError: true);
   }
 
-  /// Read a `.nsrecipe` sidecar and open it as a new recipe over the master
+  /// Read a `.skrecipe` sidecar and open it as a new recipe over the master
   /// this editor is on.
   ///
   /// The sidecar is what every export writes beside its file, and until this
@@ -900,6 +900,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
   static String _importedRecipeName(String path) {
     var name = p.basename(path);
     for (final suffix in const [
+      '.skrecipe',
       '.nsrecipe',
       '.fits',
       '.fit',

@@ -402,8 +402,8 @@ class MosaicService {
   /// populates the per-panel `MosaicPanelInfo` into the
   /// `ExecutionContext` at TargetHeader entry, which then flows into
   /// every FITS frame written for that panel (`MOSAIC=1`, `PANELIDX`,
-  /// `PANELROW`, `PANELCOL`, `NS-MOSNM`, `NS-PIDX`, `NS-PROW`,
-  /// `NS-PCOL`, `NS-NPAN`).
+  /// `PANELROW`, `PANELCOL`, `SK-MOSNM`, `SK-PIDX`, `SK-PROW`,
+  /// `SK-PCOL`, `SK-NPAN`).
   ///
   /// Every panel is a distinct [TargetHeaderNode] with a stable UUID, so
   /// panel-level resume runs through the executor's

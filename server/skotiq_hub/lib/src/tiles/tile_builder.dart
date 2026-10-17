@@ -63,7 +63,7 @@ class TileBuilder {
 
   /// A synthetic single-contributor delta: every covered pixel sees [frames]
   /// samples of constant value [value] at unit weight. This produces a valid
-  /// `.nst` whose finalized mean is exactly [value] and whose additivity the
+  /// `.skt` whose finalized mean is exactly [value] and whose additivity the
   /// hub's fusion test relies on. Not used in production folds (the client folds
   /// real frames in Rust); it exists so tests can assert the server-side merge
   /// equals a local co-add without the imaging crate.

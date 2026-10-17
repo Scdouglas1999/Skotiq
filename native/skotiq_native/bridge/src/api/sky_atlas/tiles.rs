@@ -170,7 +170,7 @@ pub(crate) struct ExportDeltaArgs {
     pub(crate) tile_id: TileId,
     /// ISO anchor: only folds strictly after this instant are in the delta.
     pub(crate) since_iso: String,
-    /// Output `.nst` path for the delta accumulator.
+    /// Output `.skt` path for the delta accumulator.
     pub(crate) out_path: String,
 }
 

@@ -1,5 +1,5 @@
 {
-  "description": "Real frames from the owner's rig on 2026-09-14/15 (UTC): GSO 10in f/4, ASI1600MM-Cool (3.8 um), ZWO EAF, PHD2. Each FITS here is a 1024x1024 crop copied pixel-for-pixel (no resampling) from the center of the original 4656x3520 frame, so every star keeps its PSF, flux and noise; NSCROPX0/NSCROPY0 in each header give the crop origin. Originals: ~/.cache/ns-rig-data/2026-09-14 on the development machine.",
+  "description": "Real frames from the owner's rig on 2026-09-14/15 (UTC): GSO 10in f/4, ASI1600MM-Cool (3.8 um), ZWO EAF, PHD2. Each FITS here is a 1024x1024 crop copied pixel-for-pixel (no resampling) from the center of the original 4656x3520 frame, so every star keeps its PSF, flux and noise; NSCROPX0/NSCROPY0 in each header give the crop origin. Originals: ~/.cache/sk-rig-data/2026-09-14 on the development machine.",
   "rig": {
     "pixel_size_um": 3.8,
     "focal_length_mm": 995.1,

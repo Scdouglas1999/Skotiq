@@ -121,11 +121,12 @@ class SequenceFileService {
     // Save dialog on desktop; a sandbox path plus a share sheet on touch.
     final target = await chooseExportTarget(
       initialDirectory: _initialDirectoryOrNull,
-      suggestedName: '${sequence.name}.nseq.json',
+      suggestedName: '${sequence.name}.skeq.json',
       acceptedTypeGroups: [
         const file_selector.XTypeGroup(
           label: 'Skotiq Sequence',
-          extensions: ['json', 'nseq'],
+          // 'nseq' keeps pre-rename sequence files selectable.
+          extensions: ['json', 'skeq', 'nseq'],
         ),
       ],
     );
@@ -153,7 +154,8 @@ class SequenceFileService {
       acceptedTypeGroups: [
         const file_selector.XTypeGroup(
           label: 'Skotiq Sequence',
-          extensions: ['json', 'nseq'],
+          // 'nseq' keeps pre-rename sequence files selectable.
+          extensions: ['json', 'skeq', 'nseq'],
         ),
       ],
     );

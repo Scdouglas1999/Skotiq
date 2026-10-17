@@ -148,7 +148,7 @@ void main() {
       const EquipmentProfilesScreen(),
       extraOverrides: [
         equipmentProfileImportPickerProvider.overrideWithValue(
-          () async => XFile('/home/op/m31.nseq.json', name: 'm31.nseq.json'),
+          () async => XFile('/home/op/m31.skeq.json', name: 'm31.skeq.json'),
         ),
         equipmentProfileImportReaderProvider.overrideWithValue(
           (file) async => '{"name":"M31","nodes":{},"rootNodeId":"r"}',
@@ -164,7 +164,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.textContaining('"m31.nseq.json"'), findsOneWidget);
+    expect(find.textContaining('"m31.skeq.json"'), findsOneWidget);
     expect(find.textContaining('Skotiq sequence'), findsOneWidget);
     expect(find.textContaining('Exception'), findsNothing);
     expect(tester.takeException(), isNull);

@@ -150,7 +150,7 @@ const Map<String, String> _defaultSettings = {
 ///
 /// A retired key is worse than a missing one: nothing writes it, so it keeps
 /// its stale seed value forever — while `BackupService._exportSettings` dumps
-/// the whole `app_settings` table into every `.nsbackup`, and the settings
+/// the whole `app_settings` table into every `.skbackup`, and the settings
 /// snapshot serves it. Deleting the row on open stops an already-created
 /// profile from carrying a retired key's value forward.
 const Set<String> _retiredSettingKeys = {
@@ -161,7 +161,7 @@ const Set<String> _retiredSettingKeys = {
   // decision (`equipment_profiles.cool_on_connect`, asked in the onboarding
   // wizard and in Equipment > Edit Profile > Camera Defaults). This key had
   // no UI, no setter caller and no reader that acted on it, yet it shipped
-  // seeded 'On Connect' — so every settings snapshot, .nsbackup and
+  // seeded 'On Connect' — so every settings snapshot, .skbackup and
   // /api/settings payload announced automatic cooling that nothing performed.
   'cooling_behavior',
   // Removed 2026-08: simulation mode is installed natively (debug builds

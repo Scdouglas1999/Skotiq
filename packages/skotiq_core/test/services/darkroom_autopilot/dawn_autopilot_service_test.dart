@@ -543,7 +543,7 @@ void main() {
         darkroom.exportArgs.single['renderId'],
         DawnAutopilotService.renderIdFor(outcome.jobId),
       );
-      expect(darkroom.exportArgs.single['sidecarPath'], endsWith('.nsrecipe'));
+      expect(darkroom.exportArgs.single['sidecarPath'], endsWith('.skrecipe'));
       expect(
         File(outcome.report!.masters.single.draftRenderPath!).existsSync(),
         isTrue,

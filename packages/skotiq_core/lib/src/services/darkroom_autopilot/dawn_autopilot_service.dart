@@ -1259,7 +1259,7 @@ class DawnAutopilotService {
           'outputs': [
             {'format': 'jpeg', 'path': draftPath, 'quality': 92},
           ],
-          'sidecarPath': '$draftPath.nsrecipe',
+          'sidecarPath': '$draftPath.skrecipe',
           'writeSidecar': true,
           // A draft whose stack never left the linear stage has no display
           // mapping of its own; this asks the engine for its own auto stretch

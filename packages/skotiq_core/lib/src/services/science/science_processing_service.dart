@@ -268,7 +268,7 @@ class ScienceProcessingService {
   /// list is empty when nothing useful was produced (no calibration AND no
   /// transparency), so callers can short-circuit the writeback in that
   /// case. When *any* keyword is produced the list always ends with a
-  /// `NSHA_VER` tag so downstream tools can attribute provenance.
+  /// `SKHA_VER` tag so downstream tools can attribute provenance.
   static List<FitsKeywordWrite> buildScienceWritebackKeywords({
     required FramePhotometricCalibration? calibration,
     required TransparencySample? transparency,
@@ -350,7 +350,7 @@ class ScienceProcessingService {
     // which Skotiq build emitted these values.
     updates.add(
       FitsKeywordWrite.string(
-        'NSHA_VER',
+        'SKHA_VER',
         buildTag,
         comment: 'Skotiq build that stamped MAGZP*/TRANSPAR',
       ),

@@ -28,7 +28,7 @@ void main() {
         method: 'POST',
         body: jsonEncode({
           'status': 'pushed',
-          'remotePath': 'skotiq-sync/observatory-host/bundle.nsbak',
+          'remotePath': 'skotiq-sync/observatory-host/bundle.skbak',
           'sizeBytes': 4096,
           'timestamp': 1783968000000,
         }),

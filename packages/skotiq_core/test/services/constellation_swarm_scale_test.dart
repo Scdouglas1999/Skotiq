@@ -5,7 +5,7 @@
 //     idx_sky_tiles_dec, then the exact great-circle test) — bounded by the
 //     cone, not the whole atlas, and still CORRECT (it must pick exactly the
 //     in-cone tiles and exclude same-Dec-band-but-far-RA and out-of-band tiles);
-//   * sweepSwarmBlobs reclaims accumulated swarm .nst/.fits blobs by age/space
+//   * sweepSwarmBlobs reclaims accumulated swarm .skt/.fits blobs by age/space
 //     but NEVER deletes the live overlay backing a currently-pulled tile.
 
 import 'dart:io';
@@ -129,7 +129,7 @@ void main() {
       coverageMean: 0.8,
       totalFrames: 10,
       integrationSeconds: 3000.0,
-      sidecarPath: 'tile_$tileId.nst',
+      sidecarPath: 'tile_$tileId.skt',
     );
   }
 
@@ -229,7 +229,7 @@ void main() {
       final now = DateTime.now();
       // An old stale blob (30 days) for a tile NOT currently pulled.
       final stale = await writeBlob(
-        'tile_9001_9.nst',
+        'tile_9001_9.skt',
         modified: now.subtract(const Duration(days: 30)),
       );
       // A recent blob (1 day) — within the age window, must survive.
@@ -240,7 +240,7 @@ void main() {
       // An OLD blob that is the LIVE overlay for a currently-pulled tile — must
       // survive regardless of age.
       final liveOverlay = await writeBlob(
-        'tile_9003_9.nst',
+        'tile_9003_9.skt',
         modified: now.subtract(const Duration(days: 90)),
       );
 
@@ -289,15 +289,15 @@ void main() {
         final now = DateTime.now();
         // Three fresh (within age) blobs, each 4 bytes; oldest mtime first.
         await writeBlob(
-          'tile_8001_9.nst',
+          'tile_8001_9.skt',
           modified: now.subtract(const Duration(hours: 3)),
         );
         await writeBlob(
-          'tile_8002_9.nst',
+          'tile_8002_9.skt',
           modified: now.subtract(const Duration(hours: 2)),
         );
         await writeBlob(
-          'tile_8003_9.nst',
+          'tile_8003_9.skt',
           modified: now.subtract(const Duration(hours: 1)),
         );
 
@@ -316,7 +316,7 @@ void main() {
         ).listSync().whereType<File>().toList();
         expect(remaining, hasLength(1));
         // The newest (hours: 1) blob is the one kept.
-        expect(remaining.single.path, endsWith('tile_8003_9.nst'));
+        expect(remaining.single.path, endsWith('tile_8003_9.skt'));
       },
     );
 

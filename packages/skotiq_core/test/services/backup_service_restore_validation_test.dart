@@ -68,7 +68,7 @@ void main() {
     }
 
     Future<File> writeBackup(String contents) async {
-      final f = File(p.join(tempDir.path, 'backup.nsbackup'));
+      final f = File(p.join(tempDir.path, 'backup.skbackup'));
       await f.writeAsString(contents);
       return f;
     }
@@ -234,7 +234,7 @@ void main() {
         TargetsCompanion.insert(name: 'M42', ra: 5.6, dec: -5.4),
       );
 
-      final backupFile = File(p.join(tempDir.path, 'good.nsbackup'));
+      final backupFile = File(p.join(tempDir.path, 'good.skbackup'));
       final backupResult = await serviceFor(
         srcDb,
       ).createBackup(customPath: backupFile.path);

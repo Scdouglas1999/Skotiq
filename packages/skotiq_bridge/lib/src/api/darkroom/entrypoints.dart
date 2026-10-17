@@ -65,7 +65,7 @@ Future<DarkroomPreview> apiDarkroomRenderPreview({
 /// `args_json` is a [`DarkroomExportArgs`]. `stage` selects `linear` (the
 /// master's own pixels), `afterStep` with an index, or `final`. Every FITS
 /// output carries the recipe in `HISTORY` cards — readable lines plus a base64
-/// payload of the canonical JSON — and a `.nsrecipe` sidecar is written beside
+/// payload of the canonical JSON — and a `.skrecipe` sidecar is written beside
 /// it unless the caller opts out.
 ///
 /// PNG, JPEG and TIFF are quantised from the recipe engine's own pixels. A stage

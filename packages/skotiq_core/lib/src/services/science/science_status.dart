@@ -30,7 +30,7 @@ enum ScienceStage {
   movingObjects('Moving objects'),
 
   /// Writes the science measurements (MAGZP, MAGZPERR, MAGZPSRC, TRANSPAR,
-  /// NSHA_VER) back into the captured frame's FITS header so
+  /// SKHA_VER) back into the captured frame's FITS header so
   /// external pipelines (PixInsight, AstroPixelProcessor, Siril) can read
   /// Skotiq's products without going through the database.
   fitsWriteback('FITS writeback'),

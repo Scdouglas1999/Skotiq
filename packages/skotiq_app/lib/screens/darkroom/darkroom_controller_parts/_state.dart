@@ -110,7 +110,7 @@ class DarkroomState {
   /// Why the last offer action produced no recipe. Null when none has failed.
   ///
   /// Named for the start offer because that is where it began, but `Import
-  /// .nsrecipe` writes it from BOTH entry points — the offer and the branch bar
+  /// .skrecipe` writes it from BOTH entry points — the offer and the branch bar
   /// over an open recipe — so every layout of this screen has to render it. A
   /// refusal composed into a field the current layout does not read is a
   /// refusal the operator never sees, which is the same thing as no refusal at
@@ -306,7 +306,7 @@ class DarkroomState {
   /// found none.
   final String? siblingsError;
 
-  /// What the last `.nsrecipe` import read, in the file's own numbers. Null
+  /// What the last `.skrecipe` import read, in the file's own numbers. Null
   /// when nothing was imported into this editor session.
   final String? importNote;
 

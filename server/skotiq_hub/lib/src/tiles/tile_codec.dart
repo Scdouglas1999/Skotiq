@@ -1,12 +1,12 @@
 /// Pure-Dart reader/writer/merger for the Skotiq sky-atlas tile sidecar
-/// (`.nst`), bit-compatible with `native/.../imaging/src/sky_atlas.rs`.
+/// (`.skt`), bit-compatible with `native/.../imaging/src/sky_atlas.rs`.
 ///
 /// # Why this lives in the hub
 ///
 /// The hub fuses contributions server-side, which it can do either by calling
 /// the Rust `merge_tiles` over an FFI shim or by re-implementing the documented
 /// additive merge in Dart. The
-/// keystone's on-disk format is `NST1` (`TILE_MAGIC` / `TILE_STATE_VERSION = 1`),
+/// keystone's on-disk format is `SKT1` (`TILE_MAGIC` / `TILE_STATE_VERSION = 1`),
 /// and the federation algebra is deliberately trivial: a per-pixel weighted
 /// mean decomposes into six running vectors (`sum_w`, `sum_w2`, `sum_wx`,
 /// `sum_wx2`, `coverage`, `rejected`) that are **exactly additive across
@@ -19,7 +19,7 @@
 /// # On-disk layout (mirrors `SkyTileAccumulator::serialize`)
 ///
 /// ```text
-/// MAGIC "NST1" (4) | version u32 LE | header_len u32 LE | JSON header |
+/// MAGIC "SKT1" (4) | version u32 LE | header_len u32 LE | JSON header |
 /// payload: sum_w[len] f64 | sum_w2[len] f64 | sum_wx[len] f64 |
 ///          sum_wx2[len] f64 | coverage[len] u32 | rejected[len] u32   (all LE)
 /// ```
@@ -35,7 +35,12 @@ import 'dart:typed_data';
 
 /// Magic bytes prefixing a serialized tile sidecar. Matches
 /// `sky_atlas.rs::TILE_MAGIC`.
-const List<int> tileMagic = <int>[0x4E, 0x53, 0x54, 0x31]; // "NST1"
+const List<int> tileMagic = <int>[0x53, 0x4B, 0x54, 0x31]; // "SKT1"
+
+/// Magic on sidecars serialized before the rebrand. Matches
+/// `sky_atlas.rs::LEGACY_TILE_MAGIC`; accepted on decode so atlases and
+/// deltas emitted by older builds keep loading.
+const List<int> legacyTileMagic = <int>[0x4E, 0x53, 0x54, 0x31]; // "NST1"
 
 /// On-disk format version this build reads/writes. Matches
 /// `sky_atlas.rs::TILE_STATE_VERSION`.
@@ -43,7 +48,7 @@ const int tileStateVersion = 1;
 
 const int _fixedPrefixBytes = 12; // 4 magic + 4 version + 4 header_len
 
-/// Thrown when a `.nst` blob is malformed, the wrong version, or two operands
+/// Thrown when a `.skt` blob is malformed, the wrong version, or two operands
 /// cannot be merged (geometry / order / channel / id mismatch).
 ///
 /// The HTTP layer maps [code] to a status: `geometryMismatch` / `orderMismatch`
@@ -146,7 +151,7 @@ class TileAccumulator {
     return 0;
   }
 
-  /// Parse a `.nst` blob into a [TileAccumulator]. Fails loudly (matching the
+  /// Parse a `.skt` blob into a [TileAccumulator]. Fails loudly (matching the
   /// Rust `deserialize`) on bad magic, an unsupported version, a truncated
   /// payload, or geometry that disagrees with the declared slot count.
   static TileAccumulator deserialize(Uint8List bytes) {
@@ -156,13 +161,17 @@ class TileAccumulator {
         'truncated: ${bytes.length} bytes, need at least $_fixedPrefixBytes',
       );
     }
+    var magicOk = true;
+    var legacyMagicOk = true;
     for (var i = 0; i < 4; i++) {
-      if (bytes[i] != tileMagic[i]) {
-        throw TileCodecException(
-          'badMagic',
-          'not a Skotiq tile sidecar (bad magic)',
-        );
-      }
+      magicOk &= bytes[i] == tileMagic[i];
+      legacyMagicOk &= bytes[i] == legacyTileMagic[i];
+    }
+    if (!magicOk && !legacyMagicOk) {
+      throw TileCodecException(
+        'badMagic',
+        'not a Skotiq tile sidecar (bad magic)',
+      );
     }
     final view = ByteData.sublistView(bytes);
     final version = view.getUint32(4, Endian.little);
@@ -213,7 +222,7 @@ class TileAccumulator {
 
     var cursor = headerEnd;
     // Every float vector is read AND validated: an untrusted contributor controls
-    // every byte of the .nst, so a single NaN/Inf in any weighted-sum slot would,
+    // every byte of the .skt, so a single NaN/Inf in any weighted-sum slot would,
     // once merged via mergeSigned, permanently poison the shared base (NaN - NaN
     // stays NaN, so retract() cannot remove it). Reject the whole blob on the
     // first non-finite value rather than ever letting it reach the merge.
@@ -241,7 +250,7 @@ class TileAccumulator {
     );
   }
 
-  /// Serialize back to the exact `.nst` layout the keystone emits.
+  /// Serialize back to the exact `.skt` layout the keystone emits.
   Uint8List serialize() {
     // Keep header.slot_count consistent with the live payload length.
     final headerOut = Map<String, Object?>.from(header)

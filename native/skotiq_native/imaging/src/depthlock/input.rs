@@ -405,7 +405,7 @@ fn robust_level_and_noise(pixels: &[f64]) -> (f64, f64) {
 /// often it is reprocessed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LightIdentity {
-    /// `ns:<session>:<index>` for Skotiq-saved frames; otherwise a digest
+    /// `sk:<session>:<index>` for Skotiq-saved frames; otherwise a digest
     /// of the pixel bytes and the observation start.
     pub frame_id: String,
     /// `DATE-OBS` (exposure start) as Unix milliseconds, UTC.
@@ -434,9 +434,17 @@ pub fn light_identity(header: &FitsHeader, light: &ImageData) -> Result<LightIde
         .get_string("DATE-OBS")
         .ok_or("DepthLock requires DATE-OBS on every light")?;
     let acquired_at_ms = date_obs_ms(date_obs)?;
-    let frame_id = match (header.get_string("NS-SESID"), header.get_int("NS-FIDX")) {
+    // Frames saved before the rebrand carry NS-SESID/NS-FIDX; treat them the
+    // same so a mixed-era light pool still collapses to one identity.
+    let session = header
+        .get_string("SK-SESID")
+        .or_else(|| header.get_string("NS-SESID"));
+    let index = header
+        .get_int("SK-FIDX")
+        .or_else(|| header.get_int("NS-FIDX"));
+    let frame_id = match (session, index) {
         (Some(session), Some(index)) if !session.trim().is_empty() && index > 0 => {
-            format!("ns:{}:{}", session.trim(), index)
+            format!("sk:{}:{}", session.trim(), index)
         }
         _ => {
             let digest = fnv1a64(light.data.iter().copied().chain(date_obs.bytes()));

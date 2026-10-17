@@ -46,7 +46,7 @@ pub async fn execute_target_header(
     context.target_rotation = config.rotation;
     // Populate target_id (stamped here so child exposures' FITS headers
     // carry a stable join key for the database row) and mosaic_panel (the
-    // panel index the PANELIDX/NS-PIDX/NS-PROW/NS-PCOL FITS keywords carry).
+    // panel index the PANELIDX/SK-PIDX/SK-PROW/SK-PCOL FITS keywords carry).
     context.target_id = Some(node.id().clone());
     context.mosaic_panel = config.mosaic_panel.clone();
 

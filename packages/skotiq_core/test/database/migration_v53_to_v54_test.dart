@@ -204,7 +204,7 @@ void main() {
             coverageMean: 1.0,
             totalFrames: 5,
             integrationSeconds: 300.0,
-            sidecarPath: '/atlas/tiles/9/7.nst',
+            sidecarPath: '/atlas/tiles/9/7.skt',
           );
           await upgraded.skyAtlasDao.upsertTile(
             tileId: 7,
@@ -214,7 +214,7 @@ void main() {
             coverageMean: 1.0,
             totalFrames: 5,
             integrationSeconds: 300.0,
-            sidecarPath: '/atlas/tiles/9/7.nst',
+            sidecarPath: '/atlas/tiles/9/7.skt',
             swarmOverlayFrames: 40,
             swarmOverlayIntegrationSeconds: 2400.0,
           );

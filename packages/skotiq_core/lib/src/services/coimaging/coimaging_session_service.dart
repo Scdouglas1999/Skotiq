@@ -485,7 +485,7 @@ class CoImagingSessionService {
   ///
   ///   (a) fold the sub's additive sum into the session's shared-target tile via
   ///       the injected [CoImagingTileFuser] (the existing
-  ///       `ConstellationService.contributeTarget` `.nst` upload);
+  ///       `ConstellationService.contributeTarget` `.skt` upload);
   ///   (b) report `framesDelta` + `exposureSeconds` to the COMBINED accounting;
   ///   (c) tag `constellation_contributions.session_id` so the deepened tile
   ///       records which session drove it.

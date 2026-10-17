@@ -11,7 +11,7 @@ part of '../sequence_models.dart';
 ///   * `nodes` (a flat `Map<String, SequenceNode>`) remains the canonical
 ///     content store and the on-disk serialization shape. Every node carries
 ///     its own `childIds: List<String>` and `parentId: String?`. The on-the-
-///     wire JSON (executor payload + `.nseq.json` export) is unchanged.
+///     wire JSON (executor payload + `.skeq.json` export) is unchanged.
 ///
 ///   * The parent/child indexes are **derived** from `nodes` and live in
 ///     [SequenceTreeIndex] (sibling class, cached per-instance via an

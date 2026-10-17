@@ -2883,21 +2883,21 @@ pub struct FitsWriteHeaderRich {
     pub plate_solve_rotation_deg: Option<f64>,
     /// Bayer pattern ("RGGB", "BGGR", etc.) (FITS `BAYERPAT`).
     pub bayer_pattern: Option<String>,
-    /// Skotiq session identifier (FITS `NS-SESID`).
+    /// Skotiq session identifier (FITS `SK-SESID`).
     pub session_id: Option<String>,
-    /// 1-based frame index within the burst (FITS `NS-FIDX`).
+    /// 1-based frame index within the burst (FITS `SK-FIDX`).
     pub frame_index: Option<u32>,
-    /// Total planned frames in the burst (FITS `NS-NPLN`).
+    /// Total planned frames in the burst (FITS `SK-NPLN`).
     pub total_planned_frames: Option<u32>,
-    /// Mosaic identification (FITS `NS-MOSNM`).
+    /// Mosaic identification (FITS `SK-MOSNM`).
     pub mosaic_name: Option<String>,
-    /// 0-based mosaic panel index (FITS `NS-PIDX`).
+    /// 0-based mosaic panel index (FITS `SK-PIDX`).
     pub mosaic_panel_index: Option<i32>,
-    /// Mosaic panel row (FITS `NS-PROW`).
+    /// Mosaic panel row (FITS `SK-PROW`).
     pub mosaic_panel_row: Option<i32>,
-    /// Mosaic panel column (FITS `NS-PCOL`).
+    /// Mosaic panel column (FITS `SK-PCOL`).
     pub mosaic_panel_column: Option<i32>,
-    /// Mosaic total panel count (FITS `NS-NPAN`).
+    /// Mosaic total panel count (FITS `SK-NPAN`).
     pub mosaic_total_panels: Option<i32>,
     // per-frame defect-map correction provenance.
     // Emitted as a FITS HISTORY card so the calibration trace is visible
@@ -2925,7 +2925,7 @@ pub struct FitsWriteHeaderRich {
     pub photometry_fwhm_arcsec: Option<f64>,
     pub photometry_snr: Option<f64>,
     /// Dual-rig — optical-train / camera attribution for multi-camera
-    /// sessions (FITS `NS-RIG`). `None` for the single-rig case.
+    /// sessions (FITS `SK-RIG`). `None` for the single-rig case.
     pub rig_label: Option<String>,
 }
 
@@ -3453,43 +3453,43 @@ pub async fn save_fits_file_rich(
 
     // Skotiq-specific session / frame / mosaic accounting (NS-*).
     if let Some(session_id) = &header_data.session_id {
-        header.set_string("NS-SESID", session_id);
+        header.set_string("SK-SESID", session_id);
     }
     if let Some(idx) = header_data.frame_index {
-        header.set_int("NS-FIDX", idx as i64);
+        header.set_int("SK-FIDX", idx as i64);
     }
     if let Some(total) = header_data.total_planned_frames {
-        header.set_int("NS-NPLN", total as i64);
+        header.set_int("SK-NPLN", total as i64);
     }
     if let Some(name) = &header_data.mosaic_name {
         // MOSAIC=1 is the boolean "this frame is part of a mosaic"
         // flag, kept as an integer keyword for maximum reader
         // compatibility (some tools refuse BOOLEAN FITS values).
         header.set_int("MOSAIC", 1);
-        header.set_string("NS-MOSNM", name);
+        header.set_string("SK-MOSNM", name);
     }
     if let Some(idx) = header_data.mosaic_panel_index {
         // 1-based for human readability in viewers (panel 1, 2, 3 ...)
-        // while keeping the original 0-based index in NS-PIDX for the
+        // while keeping the original 0-based index in SK-PIDX for the
         // re-import path.
         header.set_int("PANELIDX", (idx + 1) as i64);
-        header.set_int("NS-PIDX", idx as i64);
+        header.set_int("SK-PIDX", idx as i64);
     }
     if let Some(row) = header_data.mosaic_panel_row {
         header.set_int("PANELROW", row as i64);
-        header.set_int("NS-PROW", row as i64);
+        header.set_int("SK-PROW", row as i64);
     }
     if let Some(col) = header_data.mosaic_panel_column {
         header.set_int("PANELCOL", col as i64);
-        header.set_int("NS-PCOL", col as i64);
+        header.set_int("SK-PCOL", col as i64);
     }
     if let Some(total) = header_data.mosaic_total_panels {
-        header.set_int("NS-NPAN", total as i64);
+        header.set_int("SK-NPAN", total as i64);
     }
     // Dual-rig — optical-train / camera attribution for multi-camera sessions.
     // Omitted for the single-rig case so existing frames are unchanged.
     if let Some(rig) = &header_data.rig_label {
-        header.set_string("NS-RIG", rig);
+        header.set_string("SK-RIG", rig);
     }
 
     // defect-map correction HISTORY card. When the

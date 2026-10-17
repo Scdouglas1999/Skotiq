@@ -6,7 +6,7 @@
 // co-add.
 // This client speaks that wire contract verbatim: a bearer token carries the
 // account's `contribute`/`read` scopes, JSON bodies everywhere except the tile
-// blobs (the `.nst` accumulator payload travels as `application/octet-stream`),
+// blobs (the `.skt` accumulator payload travels as `application/octet-stream`),
 // and the `order` query parameter pins the HEALPix tiling so a mismatched hub
 // is detected up front.
 //
@@ -29,7 +29,7 @@ part 'constellation_client/io_cleanup.dart';
 /// Thin REST client for one Constellation hub (one account / bearer token).
 ///
 /// Every method maps to a single endpoint in the hub contract. Heavy tile
-/// transfers ([pushTile] / [pullTile]) stream the `.nst` blob to/from disk so a
+/// transfers ([pushTile] / [pullTile]) stream the `.skt` blob to/from disk so a
 /// deep tile never has to be held in memory twice.
 class ConstellationClient {
   /// Hub root, e.g. `https://hub.example.org` or `http://192.168.1.20:8088`.
@@ -201,7 +201,7 @@ class ConstellationClient {
   }
 
   /// `POST /v1/tiles/{tileId}/contributions?order=…` — upload the additive
-  /// `.nst` delta at [deltaPath]. Provenance hints (frame/integration deltas +
+  /// `.skt` delta at [deltaPath]. Provenance hints (frame/integration deltas +
   /// instrument fingerprint, *not* PII) ride as headers per the contract.
   Future<ContributionReceipt> pushTile({
     required int tileId,
@@ -253,7 +253,7 @@ class ConstellationClient {
 
   /// `GET /v1/tiles/{tileId}?order=…&finalized=…` — download the community
   /// co-add for [tileId] to [outPath]. [finalized] true pulls a rendered FITS;
-  /// false pulls the merged `.nst` accumulator (still additive, so it can be
+  /// false pulls the merged `.skt` accumulator (still additive, so it can be
   /// merged locally). Returns [outPath] on success.
   Future<String> pullTile({
     required int tileId,

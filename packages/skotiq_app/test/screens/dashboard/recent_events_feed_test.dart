@@ -14,19 +14,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/skotiq_core_events.dart' as ns;
+import 'package:skotiq_core/skotiq_core_events.dart' as sk;
 
-ns.SkotiqEvent _event(ns.EventPayload payload, ns.EventCategory category) {
-  return ns.SkotiqEvent(
+sk.SkotiqEvent _event(sk.EventPayload payload, sk.EventCategory category) {
+  return sk.SkotiqEvent(
     eventId: BigInt.from(1),
     timestamp: DateTime.now().millisecondsSinceEpoch,
-    severity: ns.EventSeverity.info,
+    severity: sk.EventSeverity.info,
     category: category,
     payload: payload,
   );
 }
 
-class _FakeHistory extends StateNotifier<List<ns.SkotiqEvent>>
+class _FakeHistory extends StateNotifier<List<sk.SkotiqEvent>>
     implements EventHistoryNotifier {
   _FakeHistory(super.state);
 
@@ -41,24 +41,24 @@ void main() {
         eventHistoryProvider.overrideWith(
           (ref) => _FakeHistory([
             _event(
-              const ns.EventPayload.system(
-                ns.SystemEvent.notification(
+              const sk.EventPayload.system(
+                sk.SystemEvent.notification(
                   title: 'EventStreamReady',
                   message: 'Event stream subscription is active',
                   level: 'debug',
                 ),
               ),
-              ns.EventCategory.system,
+              sk.EventCategory.system,
             ),
             _event(
-              ns.EventPayload.equipment(
-                ns.EquipmentEvent.heartbeatStarted(
+              sk.EventPayload.equipment(
+                sk.EquipmentEvent.heartbeatStarted(
                   deviceType: 'camera',
                   deviceId: 'sim_camera_1',
                   intervalSecs: BigInt.from(5),
                 ),
               ),
-              ns.EventCategory.equipment,
+              sk.EventCategory.equipment,
             ),
           ]),
         ),
@@ -71,14 +71,14 @@ void main() {
 
   test('the debug stream-ready notification is not user-facing', () {
     final event = _event(
-      const ns.EventPayload.system(
-        ns.SystemEvent.notification(
+      const sk.EventPayload.system(
+        sk.SystemEvent.notification(
           title: 'EventStreamReady',
           message: 'Event stream subscription is active',
           level: 'debug',
         ),
       ),
-      ns.EventCategory.system,
+      sk.EventCategory.system,
     );
 
     expect(isUserFacingRunEvent(event), isFalse);
@@ -86,23 +86,23 @@ void main() {
 
   test('heartbeat lifecycle plumbing is not user-facing', () {
     final started = _event(
-      ns.EventPayload.equipment(
-        ns.EquipmentEvent.heartbeatStarted(
+      sk.EventPayload.equipment(
+        sk.EquipmentEvent.heartbeatStarted(
           deviceType: 'camera',
           deviceId: 'sim_camera_1',
           intervalSecs: BigInt.from(5),
         ),
       ),
-      ns.EventCategory.equipment,
+      sk.EventCategory.equipment,
     );
     final stopped = _event(
-      const ns.EventPayload.equipment(
-        ns.EquipmentEvent.heartbeatStopped(
+      const sk.EventPayload.equipment(
+        sk.EquipmentEvent.heartbeatStopped(
           deviceType: 'camera',
           deviceId: 'sim_camera_1',
         ),
       ),
-      ns.EventCategory.equipment,
+      sk.EventCategory.equipment,
     );
 
     expect(isUserFacingRunEvent(started), isFalse);
@@ -111,23 +111,23 @@ void main() {
 
   test('a real notification and a real device event still show', () {
     final notification = _event(
-      const ns.EventPayload.system(
-        ns.SystemEvent.notification(
+      const sk.EventPayload.system(
+        sk.SystemEvent.notification(
           title: 'Sequence complete',
           message: 'All targets finished.',
           level: 'info',
         ),
       ),
-      ns.EventCategory.system,
+      sk.EventCategory.system,
     );
     final connected = _event(
-      const ns.EventPayload.equipment(
-        ns.EquipmentEvent.connected(
+      const sk.EventPayload.equipment(
+        sk.EquipmentEvent.connected(
           deviceType: 'camera',
           deviceId: 'sim_camera_1',
         ),
       ),
-      ns.EventCategory.equipment,
+      sk.EventCategory.equipment,
     );
 
     expect(isUserFacingRunEvent(notification), isTrue);

@@ -144,7 +144,7 @@ void main() {
 
     // A hand-written bundle that DOES carry the key, which is the only way one
     // can reach a restore now that the exporter strips it.
-    final foreign = File('${root.path}/foreign.nsbackup');
+    final foreign = File('${root.path}/foreign.skbackup');
     await foreign.writeAsString(
       jsonEncode({
         'version': BackupService.backupVersion,

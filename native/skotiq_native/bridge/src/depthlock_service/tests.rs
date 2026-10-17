@@ -148,8 +148,8 @@ fn light_header(index: usize, filter: &str, exposure: f64) -> FitsHeader {
         "DATE-OBS",
         &when.format("%Y-%m-%dT%H:%M:%S%.3f").to_string(),
     );
-    h.set_string("NS-SESID", "synthetic-night");
-    h.set_int("NS-FIDX", index as i64 + 1);
+    h.set_string("SK-SESID", "synthetic-night");
+    h.set_int("SK-FIDX", index as i64 + 1);
     h
 }
 
@@ -818,7 +818,7 @@ async fn an_interrupted_analysis_is_repaired_on_open() {
         let store = GoalStore::open(&store_dir).unwrap();
         let record = store.get("faint").unwrap();
         let mut orphan = record.evidence.values().next().unwrap().clone();
-        orphan.frame_id = "ns:synthetic-night:99".into();
+        orphan.frame_id = "sk:synthetic-night:99".into();
         orphan.acquired_at_ms += 1;
         assert_eq!(
             store

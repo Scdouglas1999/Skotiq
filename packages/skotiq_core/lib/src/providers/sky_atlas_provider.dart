@@ -132,7 +132,7 @@ final skyAtlasCoverageProvider = StreamProvider<List<AtlasTileCoverage>>((ref) {
     );
   }
   // Host coverage poll reads the SkyTiles DB index (same scalars, zero sidecar
-  // I/O) rather than the native full-scan of every `.nst` sidecar.
+  // I/O) rather than the native full-scan of every `.skt` sidecar.
   return Stream.fromFuture(
     ref.watch(skyAtlasServiceProvider).coverageFromIndex(),
   );

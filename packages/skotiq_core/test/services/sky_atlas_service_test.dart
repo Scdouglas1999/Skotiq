@@ -451,7 +451,7 @@ void main() {
 
       final overlayFrames = await service.mergeSwarmDelta(
         tileId: 99,
-        deltaPath: '/tmp/atlas/swarm/9/tile_99_9.nst',
+        deltaPath: '/tmp/atlas/swarm/9/tile_99_9.skt',
       );
 
       // The merge targets the OVERLAY sidecar tree (separate from tiles/9), so
@@ -459,11 +459,11 @@ void main() {
       expect(seam.merged, hasLength(1));
       expect(
         seam.merged.single['deltaPath'],
-        '/tmp/atlas/swarm/9/tile_99_9.nst',
+        '/tmp/atlas/swarm/9/tile_99_9.skt',
       );
       expect(
         seam.merged.single['basePath'],
-        contains('swarm_overlay/tiles/9/99.nst'),
+        contains('swarm_overlay/tiles/9/99.skt'),
       );
       // The returned total is the overlay's own (community) depth.
       expect(overlayFrames, 42);
@@ -515,7 +515,7 @@ void main() {
 
       await service.mergeSwarmDelta(
         tileId: 99,
-        deltaPath: '/tmp/atlas/swarm/9/tile_99_9.nst',
+        deltaPath: '/tmp/atlas/swarm/9/tile_99_9.skt',
       );
 
       // Own-light totals + base sidecar pointer are untouched; only the overlay
@@ -523,7 +523,7 @@ void main() {
       final after = await dao.getTile(99, healpixOrder: 9);
       expect(after!.totalFrames, 5);
       expect(after.integrationSeconds, closeTo(1500.0, 1e-9));
-      expect(after.sidecarPath, contains('tiles/9/99.nst'));
+      expect(after.sidecarPath, contains('tiles/9/99.skt'));
       expect(after.sidecarPath, isNot(contains('swarm_overlay')));
       expect(after.swarmOverlayFrames, 42);
     },
@@ -575,7 +575,7 @@ void main() {
     () async {
       // Two folded tiles with distinct depth so the deepest-first ordering and
       // the per-tile scalars are both exercised. The fold mirrors the same
-      // scalars the native scan would read back from the `.nst` sidecars into
+      // scalars the native scan would read back from the `.skt` sidecars into
       // the SkyTiles index row, so the indexed read must match scalar-for-scalar.
       seam.onDispatch = (args) {
         // The fold of /tmp/light_001.fits hits tile 42 (the frame() WCS);
@@ -762,7 +762,7 @@ void main() {
 
       final old = makeFile('cutout_old.png', age: const Duration(days: 30));
       final fresh = makeFile('cutout_fresh.png', age: const Duration(hours: 1));
-      final delta = makeFile('delta_5.nst', age: const Duration(days: 30));
+      final delta = makeFile('delta_5.skt', age: const Duration(days: 30));
       // A non-cache file extension is never touched.
       final keep = makeFile('notes.txt', age: const Duration(days: 30));
 
@@ -790,7 +790,7 @@ void main() {
     );
     final cacheDir = Directory(p.join(root.path, 'cache'))
       ..createSync(recursive: true);
-    final delta = File(p.join(cacheDir.path, 'delta_42.nst'))
+    final delta = File(p.join(cacheDir.path, 'delta_42.skt'))
       ..writeAsBytesSync(const [0, 1, 2]);
 
     expect(await svc.deleteExportedDelta(42), isTrue);

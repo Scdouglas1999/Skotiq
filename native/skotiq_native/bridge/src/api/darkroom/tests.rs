@@ -728,14 +728,14 @@ fn export_writes_the_recipe_into_the_fits_and_beside_it() {
     assert!(out.exists());
 
     let (_, header) = read_fits(&out).expect("the exported master must read back");
-    assert_eq!(header.get_string("NSSTAGE"), Some("final"));
+    assert_eq!(header.get_string("SKSTAGE"), Some("final"));
     assert_eq!(
-        header.get_string("NSRECIPE"),
+        header.get_string("SKRECIPE"),
         reply["recipeFingerprint"].as_str()
     );
-    assert_eq!(header.get_int("NSRECSTP"), Some(1));
+    assert_eq!(header.get_int("SKRECSTP"), Some(1));
     assert_eq!(
-        header.get_int("NSRECVER"),
+        header.get_int("SKRECVER"),
         Some(i64::from(RECIPE_SCHEMA_VERSION))
     );
     assert_eq!(header.get_string("OBJECT"), Some("NGC 7000"));
@@ -763,9 +763,9 @@ fn export_writes_the_recipe_into_the_fits_and_beside_it() {
     let sidecar_path = reply["sidecarPath"]
         .as_str()
         .expect("a sidecar is written beside the FITS");
-    assert!(sidecar_path.ends_with("final.fits.nsrecipe"));
+    assert!(sidecar_path.ends_with("final.fits.skrecipe"));
     let sidecar = parse(&std::fs::read_to_string(sidecar_path).expect("sidecar reads"));
-    assert_eq!(sidecar["kind"], json!("nsrecipe"));
+    assert_eq!(sidecar["kind"], json!("skrecipe"));
     assert_eq!(
         sidecar["fingerprint"].as_str(),
         reply["recipeFingerprint"].as_str()
@@ -826,7 +826,7 @@ fn the_exported_history_states_a_crop_the_render_had_to_shrink() {
 #[test]
 fn the_exported_summary_line_carries_the_whole_fingerprint() {
     // The summary line runs past column 80 — a digest halved at the card
-    // boundary cannot be matched against `NSRECIPE` or against the sidecar, and
+    // boundary cannot be matched against `SKRECIPE` or against the sidecar, and
     // that is what a reader has to do to know which recipe made these pixels.
     let dir = tempfile::tempdir().expect("temp dir");
     let master = write_master(dir.path(), "fingerprint.fits", 64, 64, 1);
@@ -867,7 +867,7 @@ fn the_exported_summary_line_carries_the_whole_fingerprint() {
         summary.ends_with(&format!("fingerprint={fingerprint}")),
         "the summary line lost part of the fingerprint: {summary:?}"
     );
-    assert_eq!(header.get_string("NSRECIPE"), Some(fingerprint));
+    assert_eq!(header.get_string("SKRECIPE"), Some(fingerprint));
 
     let sidecar = parse(
         &std::fs::read_to_string(
@@ -906,7 +906,7 @@ fn export_of_the_linear_stage_writes_the_masters_own_pixels() {
     let (source, _) = read_fits(&master).expect("master reads");
     let (written, header) = read_fits(&out).expect("export reads");
     assert_eq!(written.data, source.data, "linear export is a passthrough");
-    assert_eq!(header.get_string("NSSTAGE"), Some("linear"));
+    assert_eq!(header.get_string("SKSTAGE"), Some("linear"));
     assert!(
         header
             .history
@@ -1042,7 +1042,7 @@ fn export_after_a_step_stops_the_stack_there() {
     assert_eq!(reply["sourceDomain"], json!("linear"));
 
     let (_, header) = read_fits(&out).expect("export reads");
-    assert_eq!(header.get_string("NSSTAGE"), Some("afterStep:0"));
+    assert_eq!(header.get_string("SKSTAGE"), Some("afterStep:0"));
 }
 
 #[test]
@@ -1111,7 +1111,7 @@ fn the_exported_history_numbers_steps_from_one() {
 
 #[test]
 fn the_stage_card_keeps_the_request_index_and_translates_it_for_a_reader() {
-    // `NSSTAGE` is the machine token: the same index the caller sent in
+    // `SKSTAGE` is the machine token: the same index the caller sent in
     // `stage.index`, the same index the reply and the sidecar echo. It stays
     // 0-based so a file written by any build means one thing, and the human
     // summary line beside it carries the 1-based number the operator sees
@@ -1144,7 +1144,7 @@ fn the_stage_card_keeps_the_request_index_and_translates_it_for_a_reader() {
 
     assert_eq!(reply["stage"], json!({"kind": "afterStep", "index": 0}));
     let (_, header) = read_fits(&out).expect("export reads");
-    assert_eq!(header.get_string("NSSTAGE"), Some("afterStep:0"));
+    assert_eq!(header.get_string("SKSTAGE"), Some("afterStep:0"));
     let sidecar = parse(
         &std::fs::read_to_string(
             reply["sidecarPath"]
@@ -1175,7 +1175,7 @@ fn the_stage_card_keeps_the_request_index_and_translates_it_for_a_reader() {
 
     // Both ways: a reader that splits the token off an existing file recovers
     // the exact request the export ran, and re-running it writes the same card.
-    let token = header.get_string("NSSTAGE").expect("the card is present");
+    let token = header.get_string("SKSTAGE").expect("the card is present");
     let (kind, index) = token.split_once(':').expect("afterStep carries an index");
     let recovered: usize = index.parse().expect("the token's index is a number");
     let replay = dir.path().join("stage-wire-replay.fits");
@@ -1194,7 +1194,7 @@ fn the_stage_card_keeps_the_request_index_and_translates_it_for_a_reader() {
     assert_eq!(replayed["stage"], reply["stage"]);
     let (replayed_pixels, replayed_header) = read_fits(&replay).expect("replay reads");
     let (original_pixels, _) = read_fits(&out).expect("original reads");
-    assert_eq!(replayed_header.get_string("NSSTAGE"), Some("afterStep:0"));
+    assert_eq!(replayed_header.get_string("SKSTAGE"), Some("afterStep:0"));
     assert_eq!(
         replayed_pixels.data, original_pixels.data,
         "the token names the same stage of the same stack"
@@ -1269,7 +1269,7 @@ fn export_with_a_screen_transfer_names_the_transfer_it_used() {
     let dir = tempfile::tempdir().expect("temp dir");
     let master = write_master(dir.path(), "screen-source.fits", 64, 64, 1);
     let png = dir.path().join("screen.png");
-    let sidecar = dir.path().join("screen.nsrecipe");
+    let sidecar = dir.path().join("screen.skrecipe");
     let recipe = recipe_json("r-screen", "master:screen", json!([]));
 
     let reply = parse(

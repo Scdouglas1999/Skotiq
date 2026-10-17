@@ -41,7 +41,7 @@ final appVersionProvider = Provider<AppVersionInfo>((ref) {
 });
 
 /// `Skotiq <version>` label for stamping exports and FITS headers
-/// (AAVSO #SOFTWARE, NSHA_VER, science reports). Falls back to a plain
+/// (AAVSO #SOFTWARE, SKHA_VER, science reports). Falls back to a plain
 /// "Skotiq" when [appVersionProvider] has not been overridden (test
 /// benches) so a label consumer never crashes a data export over version
 /// metadata. Kept short — the FITS writeback needs it to fit a single

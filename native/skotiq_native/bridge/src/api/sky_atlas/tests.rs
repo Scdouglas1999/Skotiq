@@ -333,7 +333,7 @@ fn export_delta_blocks_mixed_pre_and_post_anchor_own_folds() {
     )
     .unwrap();
 
-    let out = dir.join("delta.nst");
+    let out = dir.join("delta.skt");
     let export = serde_json::json!({
         "action": "exportDelta",
         "atlasRoot": dir.to_string_lossy(), "order": order,
@@ -364,7 +364,7 @@ fn export_delta_allows_all_post_anchor_dated_folds() {
     .to_string();
     api_sky_atlas_add_frame(add).unwrap();
 
-    let out = dir.join("delta.nst");
+    let out = dir.join("delta.skt");
     let export = serde_json::json!({
         "action": "exportDelta",
         "atlasRoot": dir.to_string_lossy(), "order": order,
@@ -422,7 +422,7 @@ fn export_delta_only_post_anchor_local() {
     )
     .unwrap();
 
-    let out = dir.join("delta.nst");
+    let out = dir.join("delta.skt");
     let export = serde_json::json!({
         "action": "exportDelta",
         "atlasRoot": dir.to_string_lossy(), "order": order,

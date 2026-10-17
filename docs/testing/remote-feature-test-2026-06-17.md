@@ -131,7 +131,7 @@ both directions) — the loss is purely the bridge-struct subset.
 - Catalog: object lookup (M42 w/ formatted RA/Dec), region query (76 objects @ 2°), reload.
   (B15: verify has no expected hash.)
 - Sequence-management CRUD: create→get→nodes→duplicate→delete. Targets CRUD. Backup create
-  (.nsbackup, 7284 items). Mosaic/flat-wizard generators. Focus-model fit.
+  (.skbackup, 7284 items). Mosaic/flat-wizard generators. Focus-model fit.
 - Read API: science/calibration/collaboration/session/histories/stacking/plugins/weather/safety
   /guider/cloud-motion all 200 with sane payloads. Web UIs (dashboard/run-watch/pair) render.
 - File browser enforces an allow-list (path_not_allowed outside Documents/Image Output). ✓

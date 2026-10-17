@@ -10,7 +10,7 @@ import 'targets.dart';
 /// across nights and equipment changes. Three tables back the feature:
 ///
 ///   * [SkyTiles] — one row per materialized HEALPix tile, carrying the running
-///     totals and a pointer to the on-disk `.nst` streaming accumulator sidecar.
+///     totals and a pointer to the on-disk `.skt` streaming accumulator sidecar.
 ///   * [SkyAtlasRegions] — named, human-facing groupings of tiles (a target, a
 ///     mosaic, a custom box) used to drive the atlas browser and per-region
 ///     coverage rollups.
@@ -81,7 +81,7 @@ class SkyTiles extends Table {
   RealColumn get swarmOverlayIntegrationSeconds =>
       real().withDefault(const Constant(0))();
 
-  /// Path to the on-disk `.nst` streaming accumulator sidecar.
+  /// Path to the on-disk `.skt` streaming accumulator sidecar.
   TextColumn get sidecarPath => text()();
 
   /// The session whose fold last touched this tile (null when that session was

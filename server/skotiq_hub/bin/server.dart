@@ -159,5 +159,5 @@ String _ensurePersistentSecret(String dbPath) {
 String _generateSecret() {
   final rng = Random.secure();
   final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
-  return 'nshub-${bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join()}';
+  return 'skhub-${bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join()}';
 }

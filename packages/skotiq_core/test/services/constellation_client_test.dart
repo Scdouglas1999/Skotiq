@@ -54,10 +54,10 @@ void main() {
     });
 
     test(
-      'pushTile POSTs the .nst blob with order query + provenance headers',
+      'pushTile POSTs the .skt blob with order query + provenance headers',
       () async {
         final dir = await Directory.systemTemp.createTemp('skt_push');
-        final delta = File('${dir.path}/delta_42.nst');
+        final delta = File('${dir.path}/delta_42.skt');
         await delta.writeAsBytes([9, 8, 7, 6]);
 
         http.Request? seen;
@@ -360,7 +360,7 @@ void main() {
   group('error mapping', () {
     test('409 maps to geometryMismatch', () async {
       final dir = await Directory.systemTemp.createTemp('skt_409');
-      final delta = File('${dir.path}/d.nst')..writeAsBytesSync([0]);
+      final delta = File('${dir.path}/d.skt')..writeAsBytesSync([0]);
       final mock = MockClient(
         (_) async => http.Response('order mismatch', 409),
       );
@@ -423,7 +423,7 @@ void main() {
         clientWith(mock).pushTile(
           tileId: 1,
           order: 9,
-          deltaPath: '/does/not/exist.nst',
+          deltaPath: '/does/not/exist.skt',
           license: 'cc-by',
         ),
         throwsA(

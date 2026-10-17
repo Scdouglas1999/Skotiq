@@ -90,7 +90,7 @@ void main() {
       );
       addTearDown(() async => tempDir.delete(recursive: true));
 
-      final filePath = path.join(tempDir.path, 'fixture.nsnippet.json');
+      final filePath = path.join(tempDir.path, 'fixture.sknippet.json');
       final originalPlatform = FileSelectorPlatform.instance;
       FileSelectorPlatform.instance = TestSnippetFileSelectorPlatform(
         openPath: filePath,
@@ -244,7 +244,7 @@ void main() {
       final service = SnippetFileService();
       final snippet = _makeSnippet(name: 'My / Weird: Name?');
       final filename = service.suggestedFilename(snippet);
-      expect(filename, endsWith('.nsnippet.json'));
+      expect(filename, endsWith('.sknippet.json'));
       expect(filename, isNot(contains('/')));
       expect(filename, isNot(contains(':')));
       expect(filename, isNot(contains('?')));

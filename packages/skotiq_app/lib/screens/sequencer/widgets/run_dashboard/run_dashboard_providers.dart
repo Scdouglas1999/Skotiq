@@ -5,12 +5,12 @@ import 'package:skotiq_core/skotiq_core.dart';
 // The typed bridge event union (`SkotiqEvent` / `EventCategory` /
 // `EventSeverity`) collides by name with the wire/JSON event model that the
 // unprefixed barrel above keeps canonical, so the typed surface is imported
-// from the core's dedicated typed-event seam under the `ns_events` prefix.
+// from the core's dedicated typed-event seam under the `sk_events` prefix.
 // (The non-colliding members — `EventPayload_*` variants, the display helpers,
 // `isCriticalEvent` — are reachable unprefixed off the barrel, but we keep them
 // behind the prefix here so every typed-event reference in this file reads from
 // one place.)
-import 'package:skotiq_core/skotiq_core_events.dart' as ns_events;
+import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
 
 /// The active target during execution.
 ///
@@ -516,34 +516,34 @@ List<RunDashboardEvent> collapseRepeatedEvents(
   return out;
 }
 
-RunDashboardEventSeverity _mapSeverity(ns_events.EventSeverity sev) {
+RunDashboardEventSeverity _mapSeverity(sk_events.EventSeverity sev) {
   switch (sev) {
-    case ns_events.EventSeverity.info:
+    case sk_events.EventSeverity.info:
       return RunDashboardEventSeverity.info;
-    case ns_events.EventSeverity.warning:
+    case sk_events.EventSeverity.warning:
       return RunDashboardEventSeverity.warning;
-    case ns_events.EventSeverity.error:
+    case sk_events.EventSeverity.error:
       return RunDashboardEventSeverity.error;
-    case ns_events.EventSeverity.critical:
+    case sk_events.EventSeverity.critical:
       return RunDashboardEventSeverity.critical;
   }
 }
 
-String _categoryLabel(ns_events.EventCategory cat) {
+String _categoryLabel(sk_events.EventCategory cat) {
   switch (cat) {
-    case ns_events.EventCategory.equipment:
+    case sk_events.EventCategory.equipment:
       return 'Equipment';
-    case ns_events.EventCategory.imaging:
+    case sk_events.EventCategory.imaging:
       return 'Imaging';
-    case ns_events.EventCategory.guiding:
+    case sk_events.EventCategory.guiding:
       return 'Guiding';
-    case ns_events.EventCategory.sequencer:
+    case sk_events.EventCategory.sequencer:
       return 'Sequencer';
-    case ns_events.EventCategory.safety:
+    case sk_events.EventCategory.safety:
       return 'Safety';
-    case ns_events.EventCategory.system:
+    case sk_events.EventCategory.system:
       return 'System';
-    case ns_events.EventCategory.polarAlignment:
+    case sk_events.EventCategory.polarAlignment:
       return 'Polar align';
   }
 }
@@ -552,9 +552,9 @@ String _categoryLabel(ns_events.EventCategory cat) {
 ///
 /// Guards against payload-type classification escalating an event above the
 /// severity it declares.
-bool _isAtLeastError(ns_events.SkotiqEvent event) =>
-    event.severity == ns_events.EventSeverity.error ||
-    event.severity == ns_events.EventSeverity.critical;
+bool _isAtLeastError(sk_events.SkotiqEvent event) =>
+    event.severity == sk_events.EventSeverity.error ||
+    event.severity == sk_events.EventSeverity.critical;
 
 /// True when this bridge event is the operator's Stop wearing an error's
 /// clothes.
@@ -570,11 +570,11 @@ bool _isAtLeastError(ns_events.SkotiqEvent event) =>
 /// executor's own handler and this bridge cannot disagree about what the notice
 /// is; only the exact notice is reclassified (a fault whose text merely
 /// contains "cancelled" is still an error).
-bool isOperatorStopNotice(ns_events.SkotiqEvent event) {
+bool isOperatorStopNotice(sk_events.SkotiqEvent event) {
   final payload = event.payload;
-  if (payload is! ns_events.EventPayload_Sequencer) return false;
+  if (payload is! sk_events.EventPayload_Sequencer) return false;
   final sequencerEvent = payload.field0;
-  if (sequencerEvent is! ns_events.SequencerEvent_Error) return false;
+  if (sequencerEvent is! sk_events.SequencerEvent_Error) return false;
   return isSequenceCancelledNotice(sequencerEvent.message);
 }
 
@@ -586,18 +586,18 @@ bool isOperatorStopNotice(ns_events.SkotiqEvent event) {
 /// nobody present (the trigger monitor cancels through the same
 /// is_cancelled machinery), so claiming "Stopped by request" off them invents
 /// an operator action nobody took.
-bool _isOperatorStopEvidence(ns_events.SkotiqEvent event) =>
+bool _isOperatorStopEvidence(sk_events.SkotiqEvent event) =>
     _stopDecision(event)?.author == SequenceStopAuthor.operatorPress;
 
 /// The stop-authorship decision this bridge event carries, read through the
 /// SHARED vocabulary in `run_stop_classification.dart` — the same reader the
 /// notification router uses on the core-typed stream, so the feed row and the
 /// phone push can never disagree about whose stop it was.
-SequenceStopDecision? _stopDecision(ns_events.SkotiqEvent event) {
+SequenceStopDecision? _stopDecision(sk_events.SkotiqEvent event) {
   final payload = event.payload;
-  if (payload is! ns_events.EventPayload_Sequencer) return null;
+  if (payload is! sk_events.EventPayload_Sequencer) return null;
   final sequencerEvent = payload.field0;
-  if (sequencerEvent is! ns_events.SequencerEvent_DecisionLogged) return null;
+  if (sequencerEvent is! sk_events.SequencerEvent_DecisionLogged) return null;
   return sequenceStopDecision(
     category: sequencerEvent.category,
     summary: sequencerEvent.summary,
@@ -608,21 +608,21 @@ SequenceStopDecision? _stopDecision(ns_events.SkotiqEvent event) {
 /// The system decision the executor logs when the AUTOPILOT commanded the
 /// stop (origin `scheduler` on the stop API). Evidence of a cause — just
 /// not a human one.
-bool _isAutopilotStopEvidence(ns_events.SkotiqEvent event) =>
+bool _isAutopilotStopEvidence(sk_events.SkotiqEvent event) =>
     _stopDecision(event)?.author == SequenceStopAuthor.autopilot;
 
 /// The run this stop-family event belongs to, when the wire carries it.
 /// Episode identity: two events of DIFFERENT runs may never fold together,
 /// and two of the SAME run always may, however far apart the safing
 /// teardown stretched them.
-int? _stopFamilyRunId(ns_events.SkotiqEvent event) {
+int? _stopFamilyRunId(sk_events.SkotiqEvent event) {
   final payload = event.payload;
-  if (payload is! ns_events.EventPayload_Sequencer) return null;
+  if (payload is! sk_events.EventPayload_Sequencer) return null;
   final sequencerEvent = payload.field0;
-  if (sequencerEvent is ns_events.SequencerEvent_Stopped) {
+  if (sequencerEvent is sk_events.SequencerEvent_Stopped) {
     return sequencerEvent.sequenceRunId;
   }
-  if (sequencerEvent is ns_events.SequencerEvent_DecisionLogged) {
+  if (sequencerEvent is sk_events.SequencerEvent_DecisionLogged) {
     return sequencerEvent.sequenceRunId;
   }
   return null;
@@ -631,13 +631,13 @@ int? _stopFamilyRunId(ns_events.SkotiqEvent event) {
 /// The rest of the stop family — cause-neutral members that mark THAT the
 /// run ended, not WHY: the terminal `Stopped` pair, the cancel-notice Error,
 /// and the cancel-notice lifecycle decision.
-bool _isNeutralStopFamilyEvent(ns_events.SkotiqEvent event) {
+bool _isNeutralStopFamilyEvent(sk_events.SkotiqEvent event) {
   if (isOperatorStopNotice(event)) return true;
   final payload = event.payload;
-  if (payload is! ns_events.EventPayload_Sequencer) return false;
+  if (payload is! sk_events.EventPayload_Sequencer) return false;
   final sequencerEvent = payload.field0;
-  if (sequencerEvent is ns_events.SequencerEvent_Stopped) return true;
-  return sequencerEvent is ns_events.SequencerEvent_DecisionLogged &&
+  if (sequencerEvent is sk_events.SequencerEvent_Stopped) return true;
+  return sequencerEvent is sk_events.SequencerEvent_DecisionLogged &&
       isSequenceCancelledNotice(sequencerEvent.summary);
 }
 
@@ -648,15 +648,15 @@ bool _isNeutralStopFamilyEvent(ns_events.SkotiqEvent event) {
 /// seconds (the stop API publishes after the safing teardown) while a mashed
 /// Stop repeats every couple of seconds — no time window can separate those,
 /// but identity can.
-String? _stopEvidenceKind(ns_events.SkotiqEvent event) {
+String? _stopEvidenceKind(sk_events.SkotiqEvent event) {
   final payload = event.payload;
-  if (payload is! ns_events.EventPayload_Sequencer) return null;
+  if (payload is! sk_events.EventPayload_Sequencer) return null;
   final sequencerEvent = payload.field0;
-  if (sequencerEvent is ns_events.SequencerEvent_Error &&
+  if (sequencerEvent is sk_events.SequencerEvent_Error &&
       sequencerEvent.message == kSequenceCancelledNotice) {
     return 'error-notice';
   }
-  if (sequencerEvent is! ns_events.SequencerEvent_DecisionLogged) return null;
+  if (sequencerEvent is! sk_events.SequencerEvent_DecisionLogged) return null;
   if (sequencerEvent.summary == kSequenceCancelledNotice) {
     return 'decision-notice';
   }
@@ -735,7 +735,7 @@ List<RunDashboardEvent> _foldDuplicateCompletions(
 }
 
 List<RunDashboardEvent> _foldStopFamilyRows(
-  Iterable<ns_events.SkotiqEvent> events,
+  Iterable<sk_events.SkotiqEvent> events,
 ) {
   final out = <RunDashboardEvent>[];
   final groups = <_StopGroup>[];
@@ -746,8 +746,8 @@ List<RunDashboardEvent> _foldStopFamilyRows(
     final row = _toDashboardEvent(event);
     if (!family && row.title != 'Sequence stopped') {
       final payload = event.payload;
-      if (payload is ns_events.EventPayload_Sequencer &&
-          payload.field0 is ns_events.SequencerEvent_Started) {
+      if (payload is sk_events.EventPayload_Sequencer &&
+          payload.field0 is sk_events.SequencerEvent_Started) {
         // Run boundary: anything older belongs to a previous run's episode.
         groups.clear();
       }
@@ -818,7 +818,7 @@ List<RunDashboardEvent> _foldStopFamilyRows(
 /// Uses the exhaustive switch helpers in `event_display.dart` so a new
 /// payload variant becomes a compile error here instead of a silent
 /// "Unknown event" row on the live rig.
-RunDashboardEvent _toDashboardEvent(ns_events.SkotiqEvent event) {
+RunDashboardEvent _toDashboardEvent(sk_events.SkotiqEvent event) {
   final ms = event.timestamp.toInt();
   // A stop is still worth a row in the feed — it is how the operator
   // reconstructs the night — but it is an INFO row that says what happened,
@@ -850,15 +850,15 @@ RunDashboardEvent _toDashboardEvent(ns_events.SkotiqEvent event) {
   // how bad it is, and nothing should silently escalate past it — the alerting
   // path below already refuses to treat an Info event as critical, and the two
   // must not disagree about the same event.
-  final isCritical = ns_events.isCriticalEvent(event) && _isAtLeastError(event);
+  final isCritical = sk_events.isCriticalEvent(event) && _isAtLeastError(event);
   return RunDashboardEvent(
     eventId: event.eventId,
     time: DateTime.fromMillisecondsSinceEpoch(ms),
     severity: isCritical ? RunDashboardEventSeverity.critical : severity,
     category: _categoryLabel(event.category),
-    title: ns_events.skotiqEventDisplayTitle(event),
+    title: sk_events.skotiqEventDisplayTitle(event),
     message: _nameDepthGoal(
-      _humanizeDeviceIds(ns_events.skotiqEventDisplayDetail(event), event),
+      _humanizeDeviceIds(sk_events.skotiqEventDisplayDetail(event), event),
       event,
     ),
     isCritical: isCritical,
@@ -873,11 +873,11 @@ RunDashboardEvent _toDashboardEvent(ns_events.SkotiqEvent event) {
 /// find the goal itself — and a goal is addressed by its id and the revision
 /// the verdict was reached on — so the identity is appended here rather than
 /// pushed into the sentence the other surfaces share.
-String _nameDepthGoal(String message, ns_events.SkotiqEvent event) {
+String _nameDepthGoal(String message, sk_events.SkotiqEvent event) {
   final payload = event.payload;
-  if (payload is! ns_events.EventPayload_Sequencer) return message;
+  if (payload is! sk_events.EventPayload_Sequencer) return message;
   final sequencer = payload.field0;
-  if (sequencer is! ns_events.SequencerEvent_DepthGoalCompleted) {
+  if (sequencer is! sk_events.SequencerEvent_DepthGoalCompleted) {
     return message;
   }
   return '$message · goal ${sequencer.goalId} revision ${sequencer.revision}';
@@ -891,7 +891,7 @@ String _nameDepthGoal(String message, ns_events.SkotiqEvent event) {
 /// the built-in guider `Guider · native:builtin_guider:multi_star`. A device id
 /// is a routing key, not something an astrophotographer recognises, and the
 /// same feed is what an operator scans to reconstruct their night.
-String _humanizeDeviceIds(String message, ns_events.SkotiqEvent event) {
+String _humanizeDeviceIds(String message, sk_events.SkotiqEvent event) {
   final deviceId = event.deviceId;
   if (deviceId == null || deviceId.isEmpty) return message;
   if (!message.contains(deviceId)) return message;
@@ -909,16 +909,16 @@ String _humanizeDeviceIds(String message, ns_events.SkotiqEvent event) {
 /// one action, four of them monitor plumbing that means nothing to an
 /// astrophotographer and that evicted the events that do. Both still reach the
 /// diagnostics log, which is where they belong.
-bool isUserFacingRunEvent(ns_events.SkotiqEvent event) {
+bool isUserFacingRunEvent(sk_events.SkotiqEvent event) {
   final payload = event.payload;
-  if (payload is ns_events.EventPayload_Equipment) {
+  if (payload is sk_events.EventPayload_Equipment) {
     final equipment = payload.field0;
-    return equipment is! ns_events.EquipmentEvent_HeartbeatStarted &&
-        equipment is! ns_events.EquipmentEvent_HeartbeatStopped;
+    return equipment is! sk_events.EquipmentEvent_HeartbeatStarted &&
+        equipment is! sk_events.EquipmentEvent_HeartbeatStopped;
   }
-  if (payload is ns_events.EventPayload_System) {
+  if (payload is sk_events.EventPayload_System) {
     final system = payload.field0;
-    return !(system is ns_events.SystemEvent_Notification &&
+    return !(system is sk_events.SystemEvent_Notification &&
         system.level.toLowerCase() == 'debug');
   }
   return true;
@@ -1018,28 +1018,28 @@ final runDashboardDroppedCriticalCountProvider = StateProvider<int>((ref) => 0);
 /// disconnects in the same second) doesn't machine-gun-beep at the user.
 const Duration _audibleAlertCooldown = Duration(seconds: 5);
 
-/// Map the typed event category (`ns_events.EventCategory`) to the
+/// Map the typed event category (`sk_events.EventCategory`) to the
 /// `EventCategory` enum that [PushNotificationService] expects on its
 /// synthetic-injection API.
 /// Why two enums: the typed event category is generated from FRB (surfaced
 /// through the `skotiq_core_events` seam); `skotiq_core` also has its
 /// own wire/JSON copy used by services (`PushNotification.category` is the
 /// unprefixed core enum).
-EventCategory _bridgeCategoryToCore(ns_events.EventCategory cat) {
+EventCategory _bridgeCategoryToCore(sk_events.EventCategory cat) {
   switch (cat) {
-    case ns_events.EventCategory.equipment:
+    case sk_events.EventCategory.equipment:
       return EventCategory.equipment;
-    case ns_events.EventCategory.imaging:
+    case sk_events.EventCategory.imaging:
       return EventCategory.imaging;
-    case ns_events.EventCategory.guiding:
+    case sk_events.EventCategory.guiding:
       return EventCategory.guiding;
-    case ns_events.EventCategory.sequencer:
+    case sk_events.EventCategory.sequencer:
       return EventCategory.sequencer;
-    case ns_events.EventCategory.safety:
+    case sk_events.EventCategory.safety:
       return EventCategory.safety;
-    case ns_events.EventCategory.system:
+    case sk_events.EventCategory.system:
       return EventCategory.system;
-    case ns_events.EventCategory.polarAlignment:
+    case sk_events.EventCategory.polarAlignment:
       return EventCategory.polarAlignment;
   }
 }
@@ -1058,30 +1058,30 @@ EventCategory _bridgeCategoryToCore(ns_events.EventCategory cat) {
 /// the bridge still forwards those — that is the gap this bridge exists to
 /// fill. The router's content-signature dedup is a backstop; this predicate is
 /// the primary, intent-level guard so the two paths never both page.
-bool _routerClassifierAlreadyPushes(ns_events.SkotiqEvent event) {
+bool _routerClassifierAlreadyPushes(sk_events.SkotiqEvent event) {
   final payload = event.payload;
   return switch (payload) {
-    ns_events.EventPayload_Imaging(field0: final v) => switch (v) {
-        ns_events.ImagingEvent_ExposureFailed() => true,
-        ns_events.ImagingEvent_ExposureFailedOld() => true,
+    sk_events.EventPayload_Imaging(field0: final v) => switch (v) {
+        sk_events.ImagingEvent_ExposureFailed() => true,
+        sk_events.ImagingEvent_ExposureFailedOld() => true,
         _ => false,
       },
-    ns_events.EventPayload_Safety(field0: final v) => switch (v) {
-        ns_events.SafetyEvent_WeatherUnsafe() => true,
-        ns_events.SafetyEvent_EmergencyStop() => true,
+    sk_events.EventPayload_Safety(field0: final v) => switch (v) {
+        sk_events.SafetyEvent_WeatherUnsafe() => true,
+        sk_events.SafetyEvent_EmergencyStop() => true,
         _ => false,
       },
-    ns_events.EventPayload_System(field0: final v) => switch (v) {
+    sk_events.EventPayload_System(field0: final v) => switch (v) {
         // The classifier maps only "disk*" system events to a category; a
         // generic SystemEvent.error classifies to null, so the bridge must
         // still push it (that is the gap below).
-        ns_events.SystemEvent_DiskSpaceLow() => true,
+        sk_events.SystemEvent_DiskSpaceLow() => true,
         _ => false,
       },
-    ns_events.EventPayload_Sequencer(field0: final v) => switch (v) {
-        ns_events.SequencerEvent_Error() => true,
-        ns_events.SequencerEvent_Stopped() => true,
-        ns_events.SequencerEvent_RecoveryGaveUp() => true,
+    sk_events.EventPayload_Sequencer(field0: final v) => switch (v) {
+        sk_events.SequencerEvent_Error() => true,
+        sk_events.SequencerEvent_Stopped() => true,
+        sk_events.SequencerEvent_RecoveryGaveUp() => true,
         _ => false,
       },
     // Guiding / equipment events only reach this bridge as critical when they
@@ -1100,10 +1100,10 @@ bool _routerClassifierAlreadyPushes(ns_events.SkotiqEvent event) {
 
 /// True for the event that opens a run, which resets the per-run ledger of
 /// already-escalated failure reasons.
-bool _isSequencerRunStart(ns_events.SkotiqEvent event) {
+bool _isSequencerRunStart(sk_events.SkotiqEvent event) {
   final payload = event.payload;
-  return payload is ns_events.EventPayload_Sequencer &&
-      payload.field0 is ns_events.SequencerEvent_Started;
+  return payload is sk_events.EventPayload_Sequencer &&
+      payload.field0 is sk_events.SequencerEvent_Started;
 }
 
 /// True when [event] is the terminal `SequenceFailed` merely RESTATING a
@@ -1125,20 +1125,20 @@ bool _isSequencerRunStart(ns_events.SkotiqEvent event) {
 /// Recording happens here too, so the mid-run Error that IS escalated is
 /// remembered for its own terminal restatement.
 bool _isRestatedFailureReason(
-  ns_events.SkotiqEvent event,
+  sk_events.SkotiqEvent event,
   Set<String> escalatedReasons,
 ) {
   final payload = event.payload;
-  if (payload is! ns_events.EventPayload_Sequencer) return false;
+  if (payload is! sk_events.EventPayload_Sequencer) return false;
   final sequencerEvent = payload.field0;
-  final reason = ns_events.skotiqEventDisplayDetail(event);
+  final reason = sk_events.skotiqEventDisplayDetail(event);
   if (reason.isEmpty) return false;
 
-  if (sequencerEvent is ns_events.SequencerEvent_Error) {
+  if (sequencerEvent is sk_events.SequencerEvent_Error) {
     escalatedReasons.add(reason);
     return false;
   }
-  if (sequencerEvent is ns_events.SequencerEvent_Failed) {
+  if (sequencerEvent is sk_events.SequencerEvent_Failed) {
     return escalatedReasons.contains(reason);
   }
   return false;
@@ -1164,13 +1164,13 @@ final runDashboardCriticalEventsBridgeProvider = Provider<void>((ref) {
   // [_isRestatedFailureReason].
   final escalatedSequencerFailureReasons = <String>{};
 
-  ref.listen<List<ns_events.SkotiqEvent>>(
+  ref.listen<List<sk_events.SkotiqEvent>>(
     eventHistoryProvider,
     (previous, next) {
       if (next.isEmpty) return;
       // Iterate from oldest-to-newest among entries the bridge hasn't
       // seen before. The history list is newest-first.
-      final fresh = <ns_events.SkotiqEvent>[];
+      final fresh = <sk_events.SkotiqEvent>[];
       for (final event in next) {
         if (lastSeenId != null && event.eventId <= lastSeenId!) break;
         fresh.add(event);
@@ -1202,8 +1202,8 @@ final runDashboardCriticalEventsBridgeProvider = Provider<void>((ref) {
         if (_isSequencerRunStart(event)) {
           escalatedSequencerFailureReasons.clear();
         }
-        if (event.severity == ns_events.EventSeverity.info) continue;
-        if (!ns_events.isCriticalEvent(event)) continue;
+        if (event.severity == sk_events.EventSeverity.info) continue;
+        if (!sk_events.isCriticalEvent(event)) continue;
         // The operator's own Stop arrives here as a critical sequencer Error
         // (see [isOperatorStopNotice]). It is not an alert: no red banner, no
         // "Critical · Sequencer" toast, no audible alarm, no phone page for a
@@ -1273,7 +1273,7 @@ final runDashboardCriticalEventsBridgeProvider = Provider<void>((ref) {
           router.routeBridgeCriticalPush(
             title: 'Critical · ${dashboardEvent.category}',
             body: detail,
-            eventType: ns_events.skotiqEventDisplayTitle(event),
+            eventType: sk_events.skotiqEventDisplayTitle(event),
             eventCategory: _bridgeCategoryToCore(event.category),
           );
         }

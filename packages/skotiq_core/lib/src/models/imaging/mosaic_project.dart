@@ -234,7 +234,7 @@ class MosaicProjectPanel {
   /// Owning `mosaic_projects.id`. `ON DELETE CASCADE`.
   final int projectId;
 
-  /// 0-based panel index, matching the FITS `NS-PIDX` / `PANELIDX` provenance.
+  /// 0-based panel index, matching the FITS `SK-PIDX` / `PANELIDX` provenance.
   final int panelIndex;
 
   /// Panel center right ascension. Units follow [MosaicPanel] (RA hours).

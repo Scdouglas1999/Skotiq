@@ -12,12 +12,17 @@ import '../utils/export_target.dart';
 
 /// File extension Skotiq writes for shared / exported snippet bundles.
 ///
-/// Mirrors the `.nseq.json` convention from [SequenceFileService] — the
+/// Mirrors the `.skeq.json` convention from [SequenceFileService] — the
 /// trailing `.json` keeps the file recognisably JSON in plain-text editors
 /// and lets the OS pick a sensible icon on platforms that key off the
-/// final extension. The `.nsnippet` segment is what distinguishes a
+/// final extension. The `.sknippet` segment is what distinguishes a
 /// snippet bundle from a full sequence file.
-const String snippetFileExtension = 'nsnippet.json';
+const String snippetFileExtension = 'sknippet.json';
+
+/// Extension snippet bundles carried before the rebrand. The importer's
+/// file picker still accepts it so bundles shared before the rename open
+/// without the user renaming anything.
+const String legacySnippetFileExtension = 'sknippet.json';
 
 /// Schema-version constant for snippet bundles produced by
 /// [SnippetFileService.exportSnippet]. Bump and add a migration in
@@ -26,7 +31,7 @@ const int snippetFileCurrentSchemaVersion = 1;
 
 /// Wire-format `kind` discriminator. The importer refuses to parse a
 /// file whose `kind` does not match this exact string so a misplaced
-/// `.nseq.json` (full sequence) cannot be silently loaded as a snippet.
+/// `.skeq.json` (full sequence) cannot be silently loaded as a snippet.
 const String snippetFileKind = 'skotiq.snippet';
 
 /// Issue surfaced by [SnippetImportException].
@@ -88,7 +93,7 @@ class SnippetVersionMismatchException implements Exception {
 }
 
 /// Service for sharing custom snippets between machines / users by
-/// reading and writing self-contained `.nsnippet.json` bundles.
+/// reading and writing self-contained `.sknippet.json` bundles.
 ///
 /// Sits beside [SequenceFileService] on purpose — they're sibling
 /// concepts (one writes a whole sequence, the other writes a reusable
@@ -125,7 +130,7 @@ class SnippetFileService {
   ///
   /// Strips characters Windows / macOS / Linux reject in filenames and
   /// collapses whitespace runs to single underscores. The returned name
-  /// already includes the `.nsnippet.json` extension.
+  /// already includes the `.sknippet.json` extension.
   String suggestedFilename(TemplateSnippet snippet) {
     final cleaned = snippet.name
         .replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1F]'), '')
@@ -156,7 +161,7 @@ class SnippetFileService {
       acceptedTypeGroups: [
         const file_selector.XTypeGroup(
           label: 'Skotiq Snippet',
-          extensions: ['nsnippet.json', 'json'],
+          extensions: [snippetFileExtension, 'json'],
         ),
       ],
     );
@@ -198,7 +203,11 @@ class SnippetFileService {
       acceptedTypeGroups: [
         const file_selector.XTypeGroup(
           label: 'Skotiq Snippet',
-          extensions: ['nsnippet.json', 'json'],
+          extensions: [
+            snippetFileExtension,
+            legacySnippetFileExtension,
+            'json',
+          ],
         ),
       ],
     );
@@ -251,7 +260,7 @@ class SnippetFileService {
           field: 'kind',
           message:
               'Expected "$snippetFileKind", got "$kind". '
-              'This may be a Skotiq sequence file (.nseq.json) — '
+              'This may be a Skotiq sequence file (.skeq.json) — '
               'open it from the sequence editor instead.',
         ),
       );

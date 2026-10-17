@@ -19,7 +19,7 @@
 //  * Escape and Alt+Left leave, and a Back control says so;
 //  * the delete confirmation names the child branches up front;
 //  * compare keeps the Recipe and History panels reachable;
-//  * a `.nsrecipe` sidecar can be read back into a recipe.
+//  * a `.skrecipe` sidecar can be read back into a recipe.
 
 import 'dart:convert';
 
@@ -218,7 +218,7 @@ void main() {
   late IntegratedMastersDao masters;
   late ImagesDao images;
 
-  /// What the scripted `.nsrecipe` chooser answers with, or null for a
+  /// What the scripted `.skrecipe` chooser answers with, or null for a
   /// dismissed chooser.
   DarkroomSidecarPick? sidecarAnswer;
   var sidecarCalls = 0;
@@ -1040,7 +1040,7 @@ void main() {
       ),
     );
     expect(
-      () => decodeDarkroomSidecar('{"kind":"nsrecipe"'),
+      () => decodeDarkroomSidecar('{"kind":"skrecipe"'),
       throwsA(
         isA<DarkroomRecipeFormatException>().having(
           (e) => e.message,
@@ -1051,7 +1051,7 @@ void main() {
     );
     // A truncated sidecar whose recipe object never arrived.
     expect(
-      () => decodeDarkroomSidecar('{"kind":"nsrecipe","schemaVersion":1}'),
+      () => decodeDarkroomSidecar('{"kind":"skrecipe","schemaVersion":1}'),
       throwsA(
         isA<DarkroomRecipeFormatException>().having(
           (e) => e.message,
@@ -1062,13 +1062,13 @@ void main() {
     );
   });
 
-  testWidgets('an imported .nsrecipe becomes a recipe over this master',
+  testWidgets('an imported .skrecipe becomes a recipe over this master',
       (tester) async {
     final masterId = await seedMaster(name: 'Master · B', path: _masterPath);
     sidecarAnswer = DarkroomSidecarPick(
-      path: '/tmp/skotiq-test/job_1_master_1_draft.jpg.nsrecipe',
+      path: '/tmp/skotiq-test/job_1_master_1_draft.jpg.skrecipe',
       text: jsonEncode({
-        'kind': 'nsrecipe',
+        'kind': 'skrecipe',
         'schemaVersion': 1,
         'fingerprint': '69dbbc0189442a0d7fb286a1bb06acb8',
         'masterPath': '/tmp/skotiq-test/somewhere_else.fits',
@@ -1084,9 +1084,9 @@ void main() {
     );
 
     await pump(tester, location: '/darkroom?master=$masterId');
-    expect(find.text('Import .nsrecipe'), findsOneWidget);
+    expect(find.text('Import .skrecipe'), findsOneWidget);
 
-    await tester.tap(find.text('Import .nsrecipe'));
+    await tester.tap(find.text('Import .skrecipe'));
     await settle(tester);
 
     expect(sidecarCalls, 1);
@@ -1101,7 +1101,7 @@ void main() {
     // The receipt says what was read and that the pixels are not the ones the
     // sidecar was written over.
     expect(
-        find.textContaining('Imported from a .nsrecipe sidecar',
+        find.textContaining('Imported from a .skrecipe sidecar',
             findRichText: true),
         findsOneWidget);
     expect(find.textContaining('Imported 2 steps from'), findsOneWidget);
@@ -1115,9 +1115,9 @@ void main() {
     darkroom.unregisteredOps = {'wavelet_sharpen@3'};
     final masterId = await seedMaster(name: 'Master · B', path: _masterPath);
     sidecarAnswer = DarkroomSidecarPick(
-      path: '/tmp/skotiq-test/future.fits.nsrecipe',
+      path: '/tmp/skotiq-test/future.fits.skrecipe',
       text: jsonEncode({
-        'kind': 'nsrecipe',
+        'kind': 'skrecipe',
         'schemaVersion': 1,
         'masterPath': _masterPath,
         'recipe': {
@@ -1130,7 +1130,7 @@ void main() {
     );
 
     await pump(tester, location: '/darkroom?master=$masterId');
-    await tester.tap(find.text('Import .nsrecipe'));
+    await tester.tap(find.text('Import .skrecipe'));
     await settle(tester);
 
     // Nothing was dropped on the way in: the row holds what the file held.
@@ -1155,26 +1155,26 @@ void main() {
     sidecarAnswer = null;
 
     await pump(tester, location: '/darkroom?master=$masterId');
-    await tester.tap(find.text('Import .nsrecipe'));
+    await tester.tap(find.text('Import .skrecipe'));
     await settle(tester);
 
     expect(sidecarCalls, 1);
     expect(await recipes.listForMaster(_masterPath), isEmpty);
     // Still the offer, with its controls live again.
     expect(find.text('Master · B has no recipe yet'), findsOneWidget);
-    expect(find.text('Import .nsrecipe'), findsOneWidget);
+    expect(find.text('Import .skrecipe'), findsOneWidget);
     await drain(tester);
   });
 
   testWidgets('a sidecar with no steps is refused by name', (tester) async {
     final masterId = await seedMaster(name: 'Master · B', path: _masterPath);
     sidecarAnswer = const DarkroomSidecarPick(
-      path: '/tmp/skotiq-test/empty.nsrecipe',
-      text: '{"kind":"nsrecipe","recipe":{"steps":[]}}',
+      path: '/tmp/skotiq-test/empty.skrecipe',
+      text: '{"kind":"skrecipe","recipe":{"steps":[]}}',
     );
 
     await pump(tester, location: '/darkroom?master=$masterId');
-    await tester.tap(find.text('Import .nsrecipe'));
+    await tester.tap(find.text('Import .skrecipe'));
     await settle(tester);
 
     expect(await recipes.listForMaster(_masterPath), isEmpty);
@@ -1192,7 +1192,7 @@ void main() {
   // The import refusal on the OTHER entry point
   //
   // Every test above imports from the start offer, which is the layout that
-  // renders `offerError`. `Import .nsrecipe` also sits in the branch bar over
+  // renders `offerError`. `Import .skrecipe` also sits in the branch bar over
   // an open recipe, and that layout rendered nothing at all: the chooser
   // closed, the recipe count did not move, and the sentence the controller had
   // already composed went nowhere. These drive the branch-bar control.
@@ -1209,17 +1209,17 @@ void main() {
     );
     // The first 900 bytes of a real sidecar: the JSON ends mid-string.
     sidecarAnswer = const DarkroomSidecarPick(
-      path: '/tmp/skotiq-test/truncated.nsrecipe',
-      text: '{"kind":"nsrecipe","schemaVersion":1,"masterPath":"/tmp/night',
+      path: '/tmp/skotiq-test/truncated.skrecipe',
+      text: '{"kind":"skrecipe","schemaVersion":1,"masterPath":"/tmp/night',
     );
 
     await pump(tester, location: '/darkroom?recipe=$recipeId');
     await settle(tester);
     // The editor is open, so this is the branch bar's control, not the offer's.
     expect(find.text('Master · B has no recipe yet'), findsNothing);
-    expect(find.text('Import .nsrecipe'), findsOneWidget);
+    expect(find.text('Import .skrecipe'), findsOneWidget);
 
-    await tester.tap(find.text('Import .nsrecipe'));
+    await tester.tap(find.text('Import .skrecipe'));
     await settle(tester);
 
     expect(sidecarCalls, 1);
@@ -1228,7 +1228,7 @@ void main() {
       hasLength(1),
       reason: 'nothing was written, so the refusal is the whole outcome',
     );
-    expect(find.textContaining('truncated.nsrecipe was not imported'),
+    expect(find.textContaining('truncated.skrecipe was not imported'),
         findsOneWidget);
     expect(find.textContaining('not JSON'), findsOneWidget);
     await drain(tester);
@@ -1242,13 +1242,13 @@ void main() {
       masterId: masterId,
     );
     sidecarAnswer = const DarkroomSidecarPick(
-      path: '/tmp/skotiq-test/empty.nsrecipe',
-      text: '{"kind":"nsrecipe","recipe":{"steps":[]}}',
+      path: '/tmp/skotiq-test/empty.skrecipe',
+      text: '{"kind":"skrecipe","recipe":{"steps":[]}}',
     );
 
     await pump(tester, location: '/darkroom?recipe=$recipeId');
     await settle(tester);
-    await tester.tap(find.text('Import .nsrecipe'));
+    await tester.tap(find.text('Import .skrecipe'));
     await settle(tester);
 
     final alert = find.byKey(const ValueKey('darkroom_import_refusal'));
@@ -1285,12 +1285,12 @@ void main() {
     // do. The missing-master error two inches away names two next steps.
     final masterId = await seedMaster(name: 'Master · B', path: _masterPath);
     sidecarAnswer = const DarkroomSidecarPick(
-      path: '/tmp/skotiq-test/notjson.nsrecipe',
+      path: '/tmp/skotiq-test/notjson.skrecipe',
       text: 'this is not json at all',
     );
 
     await pump(tester, location: '/darkroom?master=$masterId');
-    await tester.tap(find.text('Import .nsrecipe'));
+    await tester.tap(find.text('Import .skrecipe'));
     await settle(tester);
 
     final message = tester
@@ -1298,20 +1298,20 @@ void main() {
         .map((banner) => banner.message)
         .whereType<String>()
         .singleWhere((text) => text.contains('was not imported'));
-    expect(message, startsWith('notjson.nsrecipe was not imported:'));
+    expect(message, startsWith('notjson.skrecipe was not imported:'));
     expect(message, contains('not JSON'));
     // The next step, in the file's own vocabulary.
     expect(
       message,
       contains('Export the recipe again from the Darkroom that wrote it'),
     );
-    expect(message, contains('choose a different .nsrecipe file'));
+    expect(message, contains('choose a different .skrecipe file'));
     // The parser's words may FOLLOW the refusal, attributed to the reader that
     // produced them — they may never BE the refusal. Everything this screen
     // says on its own account is the part before that attribution.
     final spoken = message.split('The JSON reader stopped').first;
     expect(spoken, isNot(contains('Unexpected character')));
-    expect(spoken, endsWith('choose a different .nsrecipe file. '));
+    expect(spoken, endsWith('choose a different .skrecipe file. '));
     expect(message, contains('The JSON reader stopped'));
     expect(message, contains('Unexpected character'));
     await drain(tester);
@@ -1326,12 +1326,12 @@ void main() {
     // it.
     final masterId = await seedMaster(name: 'Master · B', path: _masterPath);
     sidecarAnswer = const DarkroomSidecarPick(
-      path: '/tmp/skotiq-test/notjson.nsrecipe',
+      path: '/tmp/skotiq-test/notjson.skrecipe',
       text: 'this is not json at all',
     );
 
     await pump(tester, location: '/darkroom?master=$masterId');
-    await tester.tap(find.text('Import .nsrecipe'));
+    await tester.tap(find.text('Import .skrecipe'));
     await settle(tester);
 
     final refusal =
@@ -1363,7 +1363,7 @@ void main() {
     expect(alert, findsNothing);
     expect(find.textContaining('was not imported'), findsNothing);
     expect(find.text('Master · B has no recipe yet'), findsOneWidget);
-    expect(find.text('Import .nsrecipe'), findsOneWidget);
+    expect(find.text('Import .skrecipe'), findsOneWidget);
     await drain(tester);
   });
 

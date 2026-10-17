@@ -83,7 +83,7 @@ void main() {
       findsOneWidget,
     );
 
-    pick.complete(XFile('/old-host-backup.nsbackup'));
+    pick.complete(XFile('/old-host-backup.skbackup'));
     await tester.pump();
     await tester.pump();
 
@@ -121,7 +121,7 @@ void main() {
       extraOverrides: [
         backupServiceProvider.overrideWithValue(service),
         backupImportPickerProvider.overrideWithValue(
-          () async => XFile('/selected-backup.nsbackup'),
+          () async => XFile('/selected-backup.skbackup'),
         ),
       ],
     );
@@ -139,7 +139,7 @@ void main() {
 
     verify(
       () => service.restoreBackup(
-        filePath: '/selected-backup.nsbackup',
+        filePath: '/selected-backup.skbackup',
         replaceExisting: false,
       ),
     ).called(1);

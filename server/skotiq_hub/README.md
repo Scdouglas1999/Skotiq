@@ -26,10 +26,10 @@ the whole community.
   `admin` scopes. Only token *hashes* are ever stored.
 - **Shared, cone-addressable targets.** The swarm converges on one shared stack
   per object instead of fragmenting.
-- **Server-side fusion.** Contributors upload their serialized `.nst` tile delta
+- **Server-side fusion.** Contributors upload their serialized `.skt` tile delta
   (the keystone's additive accumulator bytes). The hub fuses them with the
   **same additive co-add** the keystone uses — re-implemented in pure Dart and
-  bit-compatible with the `NST1` format for `clip == None`.
+  bit-compatible with the `SKT1` format for `clip == None`.
 - **Trust & robust rejection.** Each contributor carries a reputation/trust
   weight (earned from historical residuals + acceptance ratio). Trust scales a
   contributor's weighted sums in the merge, and a robust per-tile sigma gate
@@ -87,14 +87,14 @@ State (the sqlite DB and the fused tile sidecars) lives under `/data`.
 ## REST API (base path `/v1`)
 
 All bodies are JSON except tile blobs (binary `application/octet-stream`, the
-`.nst` payload). Errors use `{ "error": { "code", "message" }, "requestId" }`.
+`.skt` payload). Errors use `{ "error": { "code", "message" }, "requestId" }`.
 
 ```
 GET    /v1/info
 POST   /v1/accounts                 { publicKey, displayName, password? }
 POST   /v1/sessions                 { publicKey, password }            (login)
 GET    /v1/tiles/{tileId}?order=9&finalized=true        [read]
-POST   /v1/tiles/{tileId}/contributions?order=9         [contribute]  (binary .nst)
+POST   /v1/tiles/{tileId}/contributions?order=9         [contribute]  (binary .skt)
 DELETE /v1/contributions/{contributionId}               [contribute]  (retract)
 POST   /v1/targets                  { name, centerRaDeg, centerDecDeg, radiusDeg, priority? }
 GET    /v1/follow-the-night?latitudeDeg=&longitudeDeg=&minAltitudeDeg=   [contribute]
@@ -113,7 +113,7 @@ integrationSecondsAfter, contributorsAfter, quality }`.
 
 The hub never trusts a contributor's claimed pixels blindly:
 
-1. **Geometry gate.** The uploaded `.nst` must address the same tile id, order,
+1. **Geometry gate.** The uploaded `.skt` must address the same tile id, order,
    and channel count as the shared tile, or the merge is refused (409).
 2. **Robust outlier gate.** The contribution's finalized mean is compared,
    over the overlapping covered pixels, to the existing stack via a median/MAD

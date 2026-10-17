@@ -13,8 +13,8 @@ void main() {
         method: 'GET',
         body:
             '{"backups":['
-            '{"id":"one","fileName":"one.nsbackup"},'
-            '"bad",7,{"id":"two","fileName":"two.nsbackup"}'
+            '{"id":"one","fileName":"one.skbackup"},'
+            '"bad",7,{"id":"two","fileName":"two.skbackup"}'
             ']}',
       );
       final backend = NetworkBackend(

@@ -67,7 +67,7 @@ CD-only to CD+SIP, and it is the projection both the stitcher and the atlas use.
   `PerPixelAccumulator` from `master_accumulation.rs` (the six running vectors)
   plus a frozen `NormalizationReference` and the tile's `SipWcs`. Same
   serialisation discipline as the master (magic + version + JSON header + packed
-  payload), magic `"NST1"`.
+  payload), magic `"SKT1"`.
 - **Reproject-and-fold** — given a frame (`ImageData` + its solved `SipWcs` +
   scalar weight + exposure), for each output tile pixel: world ← tile WCS; pixel
   ← frame WCS (CD+SIP); resample (reuse the Lanczos3/Catmull/Bilinear kernels
@@ -88,7 +88,7 @@ The honesty caveat is the same one the master already documents: cross-batch
 ### 0.3 Where tiles live
 
 Tile accumulator sidecars are files under the app data dir
-(`<atlas_root>/tiles/<order>/<tileId>.nst`); the DB (`sky_tiles`,
+(`<atlas_root>/tiles/<order>/<tileId>.skt`); the DB (`sky_tiles`,
 `sky_atlas_regions`) is the **index** over them (which tiles exist, their depth,
 coverage, last-folded session, bounding cone), not the bulk pixel store —
 exactly the `integrated_masters` (DB row) + `.skmaster` (sidecar) split that

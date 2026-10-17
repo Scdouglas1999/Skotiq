@@ -266,10 +266,19 @@ fn identity_prefers_skotiq_session_cards_and_is_stable_on_reprocessing() {
     let other = u16_image(16, 16, 901);
     assert_ne!(light_identity(&h, &other).unwrap().frame_id, plain.frame_id);
 
-    h.set_string("NS-SESID", "7f1c2a");
-    h.set_int("NS-FIDX", 12);
-    let ns = light_identity(&h, &light).unwrap();
-    assert_eq!(ns.frame_id, "ns:7f1c2a:12");
+    h.set_string("SK-SESID", "7f1c2a");
+    h.set_int("SK-FIDX", 12);
+    let id = light_identity(&h, &light).unwrap();
+    assert_eq!(id.frame_id, "sk:7f1c2a:12");
+
+    // Pre-rename frames carry NS-SESID/NS-FIDX and land on the same identity.
+    let mut legacy = light_header();
+    legacy.set_string("NS-SESID", "7f1c2a");
+    legacy.set_int("NS-FIDX", 12);
+    assert_eq!(
+        light_identity(&legacy, &light).unwrap().frame_id,
+        "sk:7f1c2a:12"
+    );
 
     h.set_string("DATE-OBS", "not a date");
     assert!(light_identity(&h, &light).is_err());

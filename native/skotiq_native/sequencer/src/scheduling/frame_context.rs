@@ -18,8 +18,8 @@
 //!
 //! The bridge-side `api_save_fits_file` reads this struct and emits the
 //! corresponding FITS keywords. Custom Skotiq-specific keywords use the
-//! `NS-*` prefix (NS-MOSNM, NS-PIDX, NS-PROW, NS-PCOL, NS-SESID, NS-FIDX,
-//! NS-NPLN) to stay clear of standard astrophotography conventions while
+//! `NS-*` prefix (SK-MOSNM, SK-PIDX, SK-PROW, SK-PCOL, SK-SESID, SK-FIDX,
+//! SK-NPLN) to stay clear of standard astrophotography conventions while
 //! still being readable in any FITS viewer.
 
 use crate::MosaicPanelInfo;
@@ -67,7 +67,7 @@ pub struct FrameContext {
     // Session / run identification
     /// Unique session identifier so frames captured in the same run can
     /// be linked back to a logical session row in the database. Generated
-    /// once per executor start. Surfaced as the FITS keyword `NS-SESID`.
+    /// once per executor start. Surfaced as the FITS keyword `SK-SESID`.
     pub session_id: String,
 
     /// Stable identifier of the target being imaged. Distinct from
@@ -107,9 +107,9 @@ pub struct FrameContext {
 
     // Frame accounting (custom NS-* keywords)
     /// 1-based frame index within the current TakeExposure burst.
-    /// Surfaced as the FITS keyword `NS-FIDX`.
+    /// Surfaced as the FITS keyword `SK-FIDX`.
     pub frame_index: u32,
-    /// Total planned frames in the burst (1-based). Surfaced as `NS-NPLN`.
+    /// Total planned frames in the burst (1-based). Surfaced as `SK-NPLN`.
     pub total_planned_frames: Option<u32>,
 
     // Live device telemetry (CCD-TEMP / SET-TEMP / focuspos / rotatpos / guiderms)
@@ -177,7 +177,7 @@ pub struct FrameContext {
     /// sensors.
     pub bayer_pattern: Option<String>,
 
-    // Mosaic panel (custom NS-MOSNM / NS-PIDX / NS-PROW / NS-PCOL)
+    // Mosaic panel (custom SK-MOSNM / SK-PIDX / SK-PROW / SK-PCOL)
     /// Mosaic panel information when this target is one panel of a
     /// multi-panel mosaic. The audit's specific complaint: this field
     /// existed in `MosaicPanelInfo` but was never written to FITS headers.
@@ -268,7 +268,7 @@ pub struct FrameContext {
     // the FITS writer omits the keyword entirely. The secondary capture
     // loop ([`crate::dual_rig`]) stamps its `rig_label` here so subs are
     // attributable to the right rig and the session stats can be split.
-    // Surfaced as the custom FITS keyword `NS-RIG`.
+    // Surfaced as the custom FITS keyword `SK-RIG`.
     pub rig_label: Option<String>,
 }
 
@@ -312,7 +312,7 @@ pub struct FrameCaptureMetadata {
     /// `IMAGETYP` card gets.
     pub frame_type: String,
     /// Stable target identifier, so the row joins to the same target the
-    /// header's `NS-SESID` session was imaging.
+    /// header's `SK-SESID` session was imaging.
     pub target_id: Option<String>,
 }
 

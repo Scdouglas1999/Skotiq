@@ -413,7 +413,7 @@ class _DarkroomScreenState extends ConsumerState<DarkroomScreen> {
           onImportRecipe: () => unawaited(_controller.importRecipe()),
           importBusy: state.offerBusy,
         ),
-        // The branch bar's `Import .nsrecipe` writes its refusals into
+        // The branch bar's `Import .skrecipe` writes its refusals into
         // `offerError`, the same field the start offer's copy of that control
         // uses — and this layout has no offer, so until this alert existed
         // every refusal on this path (a file that is not JSON, a sidecar with
@@ -760,7 +760,7 @@ class _DarkroomStartOfferView extends StatelessWidget {
   final VoidCallback onDraftForMe;
 
   /// The third way to give a master a recipe: read one back out of a
-  /// `.nsrecipe` sidecar an export wrote.
+  /// `.skrecipe` sidecar an export wrote.
   final VoidCallback onImportRecipe;
 
   /// Put the standing import refusal away.
@@ -865,7 +865,7 @@ class _DarkroomStartOfferView extends StatelessWidget {
               ),
               const SizedBox(height: SkotiqTokens.spaceLg),
               SkotiqButton(
-                label: 'Import .nsrecipe',
+                label: 'Import .skrecipe',
                 icon: SkotiqIcons.upload,
                 variant: ButtonVariant.secondary,
                 onPressed: busy ? null : onImportRecipe,

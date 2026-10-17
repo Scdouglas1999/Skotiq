@@ -11,8 +11,8 @@
 #
 # Environment:
 #   MUTANTS_JOBS      parallel mutant builds (default 3; the dev machine is shared)
-#   MUTANTS_OUT       output root (default ~/.cache/ns-reports/w27-mutation)
-#   MUTANTS_TMP       scratch root for the workspace copies (default ~/.cache/ns-tmp/mutants)
+#   MUTANTS_OUT       output root (default ~/.cache/sk-reports/w27-mutation)
+#   MUTANTS_TMP       scratch root for the workspace copies (default ~/.cache/sk-tmp/mutants)
 #   MUTANTS_FAST=1    run only the sequencer's unit tests, and skip the
 #                     wall-clock-heavy focuser backlash and meridian-flip tests on
 #                     targets that do not mutate that code. Rerun the survivors
@@ -28,7 +28,7 @@ shift || true
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 workspace="$repo_root/native/skotiq_native"
-out_root="${MUTANTS_OUT:-$HOME/.cache/ns-reports/w27-mutation}"
+out_root="${MUTANTS_OUT:-$HOME/.cache/sk-reports/w27-mutation}"
 jobs="${MUTANTS_JOBS:-3}"
 
 # cargo-mutants copies the workspace into TMPDIR and builds each copy in its own
@@ -38,7 +38,7 @@ unset CARGO_TARGET_DIR
 # imaging/build.rs reads version.yaml three directories above its manifest,
 # which for a copy at $TMPDIR/cargo-mutants-*/imaging is $TMPDIR/.. — so the
 # copies live one level below a directory holding a copy of version.yaml.
-mutants_tmp="${MUTANTS_TMP:-$HOME/.cache/ns-tmp/mutants}"
+mutants_tmp="${MUTANTS_TMP:-$HOME/.cache/sk-tmp/mutants}"
 mkdir -p "$mutants_tmp/copies" "$out_root"
 cp "$repo_root/version.yaml" "$mutants_tmp/version.yaml"
 export TMPDIR="$mutants_tmp/copies"

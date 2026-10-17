@@ -52,7 +52,7 @@ pub struct SecondaryRigConfigApi {
     pub frame_count: Option<u32>,
     pub filter_name: Option<String>,
     pub target_temp_c: Option<f64>,
-    /// Human label for the rig, used in the save sub-folder + `NS-RIG` keyword.
+    /// Human label for the rig, used in the save sub-folder + `SK-RIG` keyword.
     pub rig_label: String,
     pub camera_make: Option<String>,
     pub camera_model: Option<String>,

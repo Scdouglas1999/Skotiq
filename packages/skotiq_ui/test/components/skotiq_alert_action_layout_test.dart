@@ -5,7 +5,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// The Darkroom's branch-delete refusal, raised at 430x900 on the running
 /// desktop build, laid its title out ONE GLYPH PER LINE — 'T/h/at/br/a/n/c/h' —
 /// in a ~14px column that ran off the bottom of the window and took the whole
-/// editor with it. The alert beside it on the same bar, the `.nsrecipe` import
+/// editor with it. The alert beside it on the same bar, the `.skrecipe` import
 /// refusal, reflowed correctly at the same width; the only difference between
 /// them is that the branch refusal carries a wide `action`.
 ///

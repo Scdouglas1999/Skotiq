@@ -326,7 +326,7 @@ When the active session is bound to a planner target, a compact card shows multi
 
 ### FITS Header Writeback
 
-Enabled by default (Settings → Science → Write science keywords to FITS). After calibration/transparency, Skotiq stamps `MAGZP`, `MAGZPERR`, `MAGZPSRC`, `TRANSPAR`, and `NSHA_VER` onto the original `.fits` capture so PixInsight, APP, and Siril read Skotiq measurements without the database.
+Enabled by default (Settings → Science → Write science keywords to FITS). After calibration/transparency, Skotiq stamps `MAGZP`, `MAGZPERR`, `MAGZPSRC`, `TRANSPAR`, and `SKHA_VER` onto the original `.fits` capture so PixInsight, APP, and Siril read Skotiq measurements without the database.
 
 ### KPI Strip with Trust Indicators
 

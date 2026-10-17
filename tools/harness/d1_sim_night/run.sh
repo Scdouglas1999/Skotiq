@@ -281,8 +281,8 @@ NR=$(Q "SELECT count(*) FROM recipes WHERE created_by='autopilot';")
 JOB=$(Q "SELECT id FROM darkroom_jobs ORDER BY id DESC LIMIT 1;")
 DRAFTS=$(ls "$OUT/darkroom/" 2>/dev/null | grep -c "_draft.jpg$")
 [ "${DRAFTS:-0}" -ge 1 ] && ok "draft JPEGs=$DRAFTS" || bad "no draft JPEGs in $OUT/darkroom"
-SIDE=$(ls "$OUT/darkroom/" 2>/dev/null | grep -c ".nsrecipe$")
-[ "${SIDE:-0}" -ge 1 ] && ok "nsrecipe sidecars=$SIDE" || bad "no sidecars"
+SIDE=$(ls "$OUT/darkroom/" 2>/dev/null | grep -c ".skrecipe$")
+[ "${SIDE:-0}" -ge 1 ] && ok "skrecipe sidecars=$SIDE" || bad "no sidecars"
 REPORT="$OUT/darkroom/job_${JOB}_report.json"
 [ -f "$REPORT" ] && ok "night report exists" || bad "night report missing ($REPORT)"
 if [ -f "$REPORT" ]; then

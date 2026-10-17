@@ -411,7 +411,10 @@ class BackupService {
         .where(
           (entity) =>
               entity is File &&
-              (entity.path.endsWith('.nsbackup') ||
+              (entity.path.endsWith('.skbackup') ||
+                  // `.nsbackup` is the pre-rename extension; backups made
+                  // before it must stay restorable.
+                  entity.path.endsWith('.nsbackup') ||
                   entity.path.endsWith('.json')),
         )
         .cast<File>()
@@ -460,7 +463,7 @@ class BackupService {
 
     final filePath = path.join(
       backupDir.path,
-      'skotiq_autosave_$timestamp.nsbackup',
+      'skotiq_autosave_$timestamp.skbackup',
     );
 
     // Unattended archive: nobody reads it in an editor, and the indentation
@@ -607,7 +610,7 @@ class BackupService {
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
     final backupDir = await _getBackupDirectory();
     await backupDir.create(recursive: true);
-    return path.join(backupDir.path, 'skotiq_backup_$timestamp.nsbackup');
+    return path.join(backupDir.path, 'skotiq_backup_$timestamp.skbackup');
   }
 
   Future<Directory> _getBackupDirectory() async {

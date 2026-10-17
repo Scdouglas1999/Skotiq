@@ -66,7 +66,7 @@ impl SipWcs {
 
 ```rust
 pub const TILE_STATE_VERSION: u32 = 1;
-pub const TILE_MAGIC: &[u8; 4] = b"NST1";
+pub const TILE_MAGIC: &[u8; 4] = b"SKT1";
 
 /// HEALPix NESTED tile id at a fixed base order. Builders pick the order const;
 /// it is recorded in every tile + DB row so mixed-order is detectable.
@@ -251,7 +251,7 @@ File: `api/sky_atlas.rs`. Dispatched on `action`.
 
 // action "exportDelta" — accumulator state for the folds since `sinceIso`
 { "action": "exportDelta", "atlasRoot": …, "order": 9, "tileId": 42,
-  "sinceIso": "2026-06-01T00:00:00Z", "outPath": "/…/delta_42.nst" }
+  "sinceIso": "2026-06-01T00:00:00Z", "outPath": "/…/delta_42.skt" }
 // -> { "ok": true, "outPath": "…", "framesInDelta": 30, "integrationSeconds": 9000.0 }
 
 // action "info" — provenance for one tile
@@ -286,11 +286,11 @@ File: `api/constellation.rs`. Pure native merge; called by client local-merge an
 by the hub.
 
 ```jsonc
-{ "basePath": "/…/hub/tiles/9/42.nst",       // existing hub/local accumulator
-  "deltaPath": "/…/incoming/delta_42.nst",   // contributor delta
+{ "basePath": "/…/hub/tiles/9/42.skt",       // existing hub/local accumulator
+  "deltaPath": "/…/incoming/delta_42.skt",   // contributor delta
   "trust": 0.85,                              // [0,1] trust weight
   "subtract": false,                          // true = retraction
-  "outPath": "/…/hub/tiles/9/42.nst" }
+  "outPath": "/…/hub/tiles/9/42.skt" }
 // -> { "ok": true, "tileId": 42, "totalFramesAfter": 130,
 //      "integrationSecondsAfter": 39000.0, "contributorsAfter": 7 }
 ```
@@ -316,7 +316,7 @@ centerDecDeg  real
 coverageMean  real               // mean sum-count across tile pixels
 totalFrames   integer  default 0
 integrationSeconds  real default 0
-sidecarPath   text               // path to the .nst accumulator
+sidecarPath   text               // path to the .skt accumulator
 lastFoldSessionId integer nullable references ImagingSessions(id)
 lastFoldAt    dateTime nullable
 regionId      integer nullable references SkyAtlasRegions(id)
@@ -459,7 +459,7 @@ latest candidate list to `NarratorContext` (`narrator_context.dart`).
 Dart shelf `Router` mirroring `headless_api_server.dart`; bearer-token middleware
 with scopes `contribute` / `read` / `admin`; SHA-256 server identity from
 `skotiq_remote_protocol/server_identity`. Base path `/v1`. All bodies JSON
-except tile blobs (binary `application/octet-stream`, the `.nst` payload).
+except tile blobs (binary `application/octet-stream`, the `.skt` payload).
 
 ```
 GET  /v1/info
@@ -471,11 +471,11 @@ POST /v1/accounts                          (open or admin-gated per hub policy)
   -> { "accountId": str, "bearerToken": str, "trust": 0.5 }
 
 GET  /v1/tiles/{tileId}?order=9&finalized=true   [read]
-  -> 200 application/octet-stream  (finalized FITS or merged .nst when finalized=false)
+  -> 200 application/octet-stream  (finalized FITS or merged .skt when finalized=false)
      headers: X-Total-Frames, X-Integration-Seconds, X-Contributors
 
 POST /v1/tiles/{tileId}/contributions?order=9    [contribute]
-  body: application/octet-stream  (the contributor's .nst delta)
+  body: application/octet-stream  (the contributor's .skt delta)
   query/headers: framesDelta, integrationSecondsDelta, medianFwhm, solver,
                  instrument (instrument fingerprint, not PII)
   -> { "contributionId": str, "accepted": true, "trustApplied": 0.85,
@@ -506,7 +506,7 @@ subtraction are the hub's test obligations.
 |---|---|---|
 | HEALPix order | `9` | `sky_atlas.rs::ATLAS_HEALPIX_ORDER`; echoed in hub `/v1/info`, `migration_v52` default, all `order` JSON fields |
 | Tile raster edge | `1024` | `sky_atlas.rs::TILE_PIXELS` |
-| Tile sidecar magic / version | `b"NST1"` / `1` | `sky_atlas.rs` |
+| Tile sidecar magic / version | `b"SKT1"` / `1` | `sky_atlas.rs` |
 | SIP coeff packing | `i*(order+1)+j` | `wcs_sip.rs`, matches `PlateSolveResult` + Dart |
 | Schema version | `52` | `database.dart`; single bump from 51 |
 | Interp wire names | `bilinear`/`catmullRom`/`lanczos3` | bridge + `AtlasInterp` |

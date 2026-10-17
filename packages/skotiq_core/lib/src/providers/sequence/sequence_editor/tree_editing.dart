@@ -101,7 +101,7 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
   ///
   /// A sequence reaches the editor with no usable root more often than the
   /// name suggests: `rootNodeId` is nullable in the model, in the `sequences`
-  /// table and in the `.nseq.json` schema (the importer only checks it is a
+  /// table and in the `.skeq.json` schema (the importer only checks it is a
   /// String *if present*), and the id-remapping copy paths resolve it through
   /// a lookup that can miss. Repairing the spine beats refusing to insert:
   /// bailing out on those documents lets a caller close its dialog having

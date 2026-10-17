@@ -3,7 +3,7 @@
 Use this guide before upgrading Skotiq, moving a profile to another
 computer, or restoring a headless imaging host.
 
-Skotiq backups are JSON files with a `.nsbackup` extension. The current
+Skotiq backups are JSON files with a `.skbackup` extension. The current
 backup format is version `2.0`.
 
 ## What a Backup Contains
@@ -34,7 +34,7 @@ machine or reinstalling the operating system.
 1. Open Skotiq on the existing install.
 2. Go to Settings > Backup & Restore.
 3. Select Create Backup.
-4. Store the `.nsbackup` file outside the Skotiq data directory, such as on
+4. Store the `.skbackup` file outside the Skotiq data directory, such as on
    another disk or cloud-synced folder.
 5. Copy captured images, PHD2 profiles, plate-solve indexes, and driver-specific
    configuration separately.
@@ -49,7 +49,7 @@ a manual upgrade from a real older profile.
 1. Install and launch the target Skotiq version.
 2. Go to Settings > Backup & Restore.
 3. Select Import Backup.
-4. Choose the `.nsbackup` or compatible `.json` backup file.
+4. Choose the `.skbackup` or compatible `.json` backup file.
 5. Confirm the restore.
 6. Restart Skotiq after a successful restore so settings, active profiles,
    and backend services reload from the restored data.
@@ -77,7 +77,7 @@ Available remote operations are backed by these headless routes:
 - `DELETE /api/backup/<id>`
 
 Remote restore requires an admin-scoped token. Uploaded restore files are limited
-to 256 MiB and must use a `.nsbackup` or `.json` filename. The server sanitizes
+to 256 MiB and must use a `.skbackup` or `.json` filename. The server sanitizes
 the uploaded filename and stores it in the host backup directory before restore.
 
 Recommended remote migration flow:
@@ -112,7 +112,7 @@ manual paths:
   `packages/skotiq_core`.
 - Confirm the schema-12 upgrade test reaches the current schema version and
   contains every current Drift-managed table.
-- Restore a `.nsbackup` from the previous public or internal build.
+- Restore a `.skbackup` from the previous public or internal build.
 - Manually upgrade a copied older release-authentic profile/database by launching the new app
   against it.
 - Confirm application settings, equipment profiles, targets, sequences, and
@@ -133,7 +133,7 @@ If a migration or restore fails:
 1. Stop Skotiq before changing files.
 2. Preserve the failed target data directory for debugging.
 3. Reinstall the prior known-good build.
-4. Restore the pre-upgrade `.nsbackup`.
+4. Restore the pre-upgrade `.skbackup`.
 5. Restore copied external assets such as captured images, catalogs, PHD2
    profiles, plate-solve indexes, and driver configuration.
 6. Record the failing source version, target version, platform, backup metadata,

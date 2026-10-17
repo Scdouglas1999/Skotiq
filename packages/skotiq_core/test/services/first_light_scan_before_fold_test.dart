@@ -1,6 +1,6 @@
 // Pillar B ("First Light") — difference-before-fold at the solve-persist hook.
 //
-// The diff reads its comparison template from the per-tile `.nst` atlas
+// The diff reads its comparison template from the per-tile `.skt` atlas
 // sidecars, so folding the freshly-solved frame in FIRST averages that frame's
 // own flux into the template it is differenced against (weight ~1/(N+1)). Every
 // transient self-suppresses; a faint SNR~5-6 source drops below the persist gate

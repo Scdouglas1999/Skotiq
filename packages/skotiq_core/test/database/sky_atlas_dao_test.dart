@@ -95,7 +95,7 @@ void main() {
       coverageMean: 3.0,
       totalFrames: 5,
       integrationSeconds: 1500,
-      sidecarPath: '/atlas/9/42.nst',
+      sidecarPath: '/atlas/9/42.skt',
       lastFoldSessionId: 1,
       lastFoldAt: DateTime.utc(2026, 6, 11, 22),
     );
@@ -108,7 +108,7 @@ void main() {
       coverageMean: 6.0,
       totalFrames: 11,
       integrationSeconds: 3300,
-      sidecarPath: '/atlas/9/42.nst',
+      sidecarPath: '/atlas/9/42.skt',
       lastFoldSessionId: 2,
       lastFoldAt: DateTime.utc(2026, 6, 12, 22),
     );
@@ -130,7 +130,7 @@ void main() {
       coverageMean: 1.0,
       totalFrames: 1,
       integrationSeconds: 100,
-      sidecarPath: '/atlas/8/42.nst',
+      sidecarPath: '/atlas/8/42.skt',
     );
     expect(other, isNot(first));
     expect(await dao.getAllTiles(), hasLength(2));
@@ -152,7 +152,7 @@ void main() {
       coverageMean: 1,
       totalFrames: 3,
       integrationSeconds: 600,
-      sidecarPath: '/a.nst',
+      sidecarPath: '/a.skt',
       regionId: region,
     );
     await dao.upsertTile(
@@ -163,7 +163,7 @@ void main() {
       coverageMean: 1,
       totalFrames: 4,
       integrationSeconds: 900,
-      sidecarPath: '/b.nst',
+      sidecarPath: '/b.skt',
       regionId: region,
     );
     // A tile NOT in the region must be excluded.
@@ -175,7 +175,7 @@ void main() {
       coverageMean: 1,
       totalFrames: 99,
       integrationSeconds: 9999,
-      sidecarPath: '/c.nst',
+      sidecarPath: '/c.skt',
     );
 
     await dao.refreshRegionRollups(region);
@@ -203,7 +203,7 @@ void main() {
         coverageMean: 1,
         totalFrames: 0,
         integrationSeconds: 0,
-        sidecarPath: '/7.nst',
+        sidecarPath: '/7.skt',
         regionId: region,
       );
 

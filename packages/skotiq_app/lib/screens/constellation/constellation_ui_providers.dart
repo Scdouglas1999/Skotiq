@@ -49,7 +49,7 @@ Future<void> clearConstellationCredentials(SettingsDao settings) {
 /// individual subframes. `subs` is the heavier, more revealing option a user
 /// can knowingly opt into for a hub that re-grades centrally.
 enum ConstellationPrivacy {
-  /// Additive co-add sums only (the `.nst` keystone bytes). Recommended.
+  /// Additive co-add sums only (the `.skt` keystone bytes). Recommended.
   sums,
 
   /// Raw calibrated subframes. More to upload, more revealing.

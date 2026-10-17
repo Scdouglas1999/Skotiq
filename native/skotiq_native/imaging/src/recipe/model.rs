@@ -9,7 +9,7 @@
 //! # Wire format
 //!
 //! JSON, `camelCase`, versioned by [`RECIPE_SCHEMA_VERSION`]. The same bytes are
-//! stored in the Dart-side database, written as a `.nsrecipe` sidecar, and
+//! stored in the Dart-side database, written as a `.skrecipe` sidecar, and
 //! embedded in FITS `HISTORY` cards, so field names are a contract: renaming one
 //! breaks recipes already on disk.
 //!

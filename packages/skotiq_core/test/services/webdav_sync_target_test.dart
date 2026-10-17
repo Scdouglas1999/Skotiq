@@ -37,7 +37,7 @@ void main() {
 
       await targetWith(
         client,
-      ).uploadFile('skotiq-sync/my laptop/bundle-1.nsbak', [1, 2, 3]);
+      ).uploadFile('skotiq-sync/my laptop/bundle-1.skbak', [1, 2, 3]);
 
       expect(seen, isNotNull);
       expect(seen!.method, 'PUT');
@@ -47,7 +47,7 @@ void main() {
       expect(
         seen!.url.toString(),
         'https://cloud.example.com/remote.php/dav/files/astro/'
-        'skotiq-sync/my%20laptop/bundle-1.nsbak',
+        'skotiq-sync/my%20laptop/bundle-1.skbak',
       );
     });
 
@@ -137,13 +137,13 @@ void main() {
 
       final bytes = await targetWith(
         client,
-      ).downloadFile('skotiq-sync/m/f.nsbak');
+      ).downloadFile('skotiq-sync/m/f.skbak');
       expect(bytes, [9, 8, 7]);
     });
 
     test('deleteFile treats 404 as a no-op', () async {
       final client = MockClient((request) async => http.Response('', 404));
-      await targetWith(client).deleteFile('skotiq-sync/m/gone.nsbak');
+      await targetWith(client).deleteFile('skotiq-sync/m/gone.skbak');
     });
   });
 
@@ -151,7 +151,7 @@ void main() {
     Future<SyncTargetException> captureError(int status) async {
       final client = MockClient((request) async => http.Response('', status));
       try {
-        await targetWith(client).downloadFile('x/y.nsbak');
+        await targetWith(client).downloadFile('x/y.skbak');
         fail('expected SyncTargetException');
       } on SyncTargetException catch (e) {
         return e;
@@ -188,7 +188,7 @@ void main() {
         throw http.ClientException('connection refused');
       });
       expect(
-        () => targetWith(client).downloadFile('x/y.nsbak'),
+        () => targetWith(client).downloadFile('x/y.skbak'),
         throwsA(
           isA<SyncTargetException>().having(
             (e) => e.kind,
@@ -214,14 +214,14 @@ void main() {
       expect(dir.name, 'obsy-pi');
 
       final bundle = entries.firstWhere(
-        (e) => e.name == 'bundle-2026-06-09.nsbak',
+        (e) => e.name == 'bundle-2026-06-09.skbak',
       );
       expect(bundle.isDirectory, isFalse);
       expect(bundle.sizeBytes, 4242);
       expect(bundle.modified, DateTime.utc(2026, 6, 9, 4, 30, 0));
 
       // Percent-encoded + XML-escaped name decodes cleanly.
-      expect(entries.any((e) => e.name == 'a b&c.nsbak'), isTrue);
+      expect(entries.any((e) => e.name == 'a b&c.skbak'), isTrue);
     });
 
     test('tolerates uppercase D: namespace prefix', () async {
@@ -269,7 +269,7 @@ const String _sampleMultistatus = '''<?xml version="1.0"?>
     </d:propstat>
   </d:response>
   <d:response>
-    <d:href>/remote.php/dav/files/astro/skotiq-sync/bundle-2026-06-09.nsbak</d:href>
+    <d:href>/remote.php/dav/files/astro/skotiq-sync/bundle-2026-06-09.skbak</d:href>
     <d:propstat>
       <d:prop>
         <d:resourcetype/>
@@ -280,7 +280,7 @@ const String _sampleMultistatus = '''<?xml version="1.0"?>
     </d:propstat>
   </d:response>
   <d:response>
-    <d:href>/remote.php/dav/files/astro/skotiq-sync/a%20b&amp;c.nsbak</d:href>
+    <d:href>/remote.php/dav/files/astro/skotiq-sync/a%20b&amp;c.skbak</d:href>
     <d:propstat>
       <d:prop><d:resourcetype/></d:prop>
       <d:status>HTTP/1.1 200 OK</d:status>

@@ -257,10 +257,10 @@ void main() {
   // `SKOTIQ_EMIT_FIXTURES=1 cargo test emit_hub_parity_fixtures`). If either
   // language's layout or merge math drifts, these tests FAIL — a silent
   // corruption of every community stack becomes a loud red test instead.
-  group('cross-language parity (Rust-produced .nst fixtures)', () {
+  group('cross-language parity (Rust-produced .skt fixtures)', () {
     final fixturesDir = Directory('test/fixtures');
-    final tileAFile = File('${fixturesDir.path}/tile_a.nst');
-    final tileBFile = File('${fixturesDir.path}/tile_b.nst');
+    final tileAFile = File('${fixturesDir.path}/tile_a.skt');
+    final tileBFile = File('${fixturesDir.path}/tile_b.skt');
     final expectedFile = File('${fixturesDir.path}/merge_expected.json');
 
     setUpAll(() {
@@ -280,6 +280,16 @@ void main() {
 
     TileAccumulator readTile(File f) =>
         TileAccumulator.deserialize(f.readAsBytesSync());
+
+    test('pre-rename NST1 sidecars still decode', () {
+      final legacyA = readTile(File('${fixturesDir.path}/tile_legacy_a.nst'));
+      final currentA = readTile(tileAFile);
+      // The legacy fixture is the same tile with the pre-rename magic, so both
+      // decodes must land on identical accumulators.
+      expect(legacyA.tileId, currentA.tileId);
+      expect(legacyA.order, currentA.order);
+      expect(legacyA.serialize(), currentA.serialize());
+    });
 
     Map<String, Object?> readExpected() =>
         (jsonDecode(expectedFile.readAsStringSync()) as Map)

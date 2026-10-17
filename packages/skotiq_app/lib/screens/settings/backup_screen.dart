@@ -27,7 +27,8 @@ Future<XFile?> _pickBackupImport() {
     acceptedTypeGroups: const [
       XTypeGroup(
         label: 'Skotiq backup',
-        extensions: ['nsbackup', 'json'],
+        // '.nsbackup' keeps pre-rename backup files selectable.
+        extensions: ['skbackup', 'nsbackup', 'json'],
       ),
     ],
   );
@@ -60,7 +61,7 @@ final backupDownloadSavePickerProvider =
         acceptedTypeGroups: const [
           XTypeGroup(
             label: 'Skotiq backup',
-            extensions: ['nsbackup', 'json'],
+            extensions: ['skbackup', 'json'],
           ),
         ],
       );

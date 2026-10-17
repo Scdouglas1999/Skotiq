@@ -29301,7 +29301,7 @@ class SkyTileRow extends DataClass implements Insertable<SkyTileRow> {
   final int swarmOverlayFrames;
   final double swarmOverlayIntegrationSeconds;
 
-  /// Path to the on-disk `.nst` streaming accumulator sidecar.
+  /// Path to the on-disk `.skt` streaming accumulator sidecar.
   final String sidecarPath;
 
   /// The session whose fold last touched this tile (null when that session was

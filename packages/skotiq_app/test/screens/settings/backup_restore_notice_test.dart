@@ -37,7 +37,7 @@ void main() {
     // tester.runAsync (which the list load below is).
     final directory = Directory.systemTemp.createTempSync('sk-backup-test');
     addTearDown(() => directory.deleteSync(recursive: true));
-    final backupFile = File('${directory.path}/skotiq-2026-08-01.nsbackup')
+    final backupFile = File('${directory.path}/skotiq-2026-08-01.skbackup')
       ..writeAsStringSync('{}');
 
     final service = _MockBackupService();
@@ -107,7 +107,7 @@ void main() {
       (tester) async {
     final directory = Directory.systemTemp.createTempSync('sk-backup-nav');
     addTearDown(() => directory.deleteSync(recursive: true));
-    final backupFile = File('${directory.path}/skotiq-2026-08-01.nsbackup')
+    final backupFile = File('${directory.path}/skotiq-2026-08-01.skbackup')
       ..writeAsStringSync('{}');
 
     final service = _MockBackupService();

@@ -3,7 +3,7 @@
 // What this service does:
 //   * push   — create a full backup bundle via [BackupService.createBackup]
 //              (the exact same bundling code the local Backup screen uses),
-//              upload it to `skotiq-sync/<machine>/bundle-<ts>.nsbak`
+//              upload it to `skotiq-sync/<machine>/bundle-<ts>.skbak`
 //              on the configured [SyncTarget], update the per-machine
 //              `manifest.json` (machine, app version, SHA-256 content
 //              hashes, timestamps) and prune bundles beyond the configured
@@ -645,7 +645,7 @@ class SyncService {
       // 1. Bundle — reuse the exact backup creation the Backup screen uses.
       tempDir = await Directory.systemTemp.createTemp('sk_sync_push_');
       final timestamp = _fileTimestamp(_clock());
-      final bundleName = 'bundle-$timestamp.nsbak';
+      final bundleName = 'bundle-$timestamp.skbak';
       final localPath = p.join(tempDir.path, bundleName);
       final backupResult = await backupService.createBackup(
         customPath: localPath,
@@ -808,7 +808,9 @@ class SyncService {
           .where(
             (e) =>
                 !e.isDirectory &&
-                e.name.endsWith('.nsbak') &&
+                // `.nsbak` is the pre-rename bundle extension; bundles a
+                // previous build uploaded still count toward the listing.
+                (e.name.endsWith('.skbak') || e.name.endsWith('.nsbak')) &&
                 !knownNames.contains(e.name),
           )
           .map(
@@ -879,7 +881,7 @@ class SyncService {
       final localFile = File(
         p.join(
           downloadDir.path,
-          'cloud-${sanitizeMachineName(machine)}-$stem.nsbackup',
+          'cloud-${sanitizeMachineName(machine)}-$stem.skbackup',
         ),
       );
       await localFile.writeAsBytes(bytes, flush: true);
