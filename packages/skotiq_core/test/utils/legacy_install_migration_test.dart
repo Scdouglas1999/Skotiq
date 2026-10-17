@@ -74,6 +74,13 @@ void main() {
     fileIn(oldDocs, 'nightshade.db', 'database-bytes');
     fileIn(oldDocs, 'pairing.db');
     fileIn(oldDocs, 'nightshade-corrupt-1710000000000.db', 'backup');
+    // The doctor flow also embeds the db name: a fully-purged file looks
+    // like what a fresh Skotiq install would have written.
+    fileIn(
+      oldDocs,
+      'nightshade-corrupt-1710000000001-nightshade.db',
+      'backup',
+    );
     fileIn(oldDocs, 'profiles/default.json');
 
     final newDocs = Directory(p.join(docsHome.path, 'Skotiq'));
@@ -229,6 +236,15 @@ void main() {
           p.join(
             fixture.newDocuments.path,
             'skotiq-corrupt-1710000000000.db',
+          ),
+        ).existsSync(),
+        isTrue,
+      );
+      expect(
+        File(
+          p.join(
+            fixture.newDocuments.path,
+            'skotiq-corrupt-1710000000001-skotiq.db',
           ),
         ).existsSync(),
         isTrue,

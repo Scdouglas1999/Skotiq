@@ -239,9 +239,12 @@ Future<LegacyInstallMigrationReport> migrateLegacyInstall({
         );
       });
     }
-    if (await Directory(documentsRoot).exists()) {
-      await attempt('rename legacy entries under $documentsRoot', () async {
-        await _renameLegacyEntries(Directory(documentsRoot), report, emit);
+    // Only the app's own subtree is renamed — the documents root is the
+    // user's whole Documents folder and must not be walked.
+    final skotiqDocs = p.join(documentsRoot, skotiqProductDirName);
+    if (await Directory(skotiqDocs).exists()) {
+      await attempt('rename legacy entries under $skotiqDocs', () async {
+        await _renameLegacyEntries(Directory(skotiqDocs), report, emit);
       });
     }
   }
@@ -621,8 +624,13 @@ Future<(int, int)> _treeStats(Directory dir) async {
 /// children before parents, so a `nightshade.db` inside a `Nightshade/`
 /// directory becomes `skotiq.db` inside `Skotiq/` in one pass.
 ///
-/// Rules: basename exactly `Nightshade` -> `Skotiq`; basename starting with
-/// `nightshade` -> same basename with `skotiq` substituted for the prefix.
+/// Rule: every `nightshade` in the basename becomes `skotiq` and every
+/// `Nightshade` becomes `Skotiq`, embedded occurrences included, so
+/// generated names such as `nightshade-corrupt-<ts>-nightshade.db` land on
+/// the same `skotiq-corrupt-<ts>-skotiq.db` a fresh install would produce.
+/// Every scanned root is app-owned, so any match is a name this product
+/// generated. Replacement is case-sensitive: `NIGHTSHADE_` env-style names
+/// do not appear as filenames, and mixed-case user files keep their case.
 /// Collisions never overwrite: the incoming file lands as `<target>.legacy`
 /// (then `.legacy2`, `.legacy3`, ...) so an install that already produced a
 /// `skotiq.db` keeps it and still retains the old file's data.
@@ -648,13 +656,10 @@ Future<void> _renameLegacyEntries(
       }
     }
     final base = p.basename(entity.path);
-    String? newBase;
-    if (base == legacyProductDirName) {
-      newBase = skotiqProductDirName;
-    } else if (base.startsWith(legacyFilePrefix)) {
-      newBase = '$skotiqFilePrefix${base.substring(legacyFilePrefix.length)}';
-    }
-    if (newBase == null || newBase == base) continue;
+    final newBase = base
+        .replaceAll(legacyFilePrefix, skotiqFilePrefix)
+        .replaceAll(legacyProductDirName, skotiqProductDirName);
+    if (newBase == base) continue;
 
     var target = p.join(dir.path, newBase);
     var n = 0;
