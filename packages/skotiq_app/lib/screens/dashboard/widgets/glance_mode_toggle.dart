@@ -111,10 +111,8 @@ class _GlanceModeToggleState extends ConsumerState<GlanceModeToggle> {
                 child: _saving
                     ? Padding(
                         padding: const EdgeInsets.all(10),
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: widget.colors.primary,
-                        ),
+                        child: SkotiqSpinner(
+                            size: 18, color: widget.colors.primary),
                       )
                     : Icon(
                         enabled ? LucideIcons.eye : LucideIcons.eyeOff,

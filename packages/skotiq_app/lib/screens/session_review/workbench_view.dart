@@ -633,7 +633,8 @@ class _FieldQualityCardState extends ConsumerState<_FieldQualityCard> {
                       child: SizedBox(
                         width: 22,
                         height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: SkotiqMark(
+                            motion: SkotiqMarkMotion.loading, size: 22),
                       ),
                     ),
                   );

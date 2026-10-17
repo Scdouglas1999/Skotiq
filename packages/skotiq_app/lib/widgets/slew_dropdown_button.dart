@@ -689,7 +689,7 @@ class _CenteringDialogWithResultState
               ),
               const SizedBox(height: 24),
               if (_isCentering) ...[
-                CircularProgressIndicator(color: colors.primary),
+                const SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
                 const SizedBox(height: 16),
                 Text(
                   centeringStatus.message ?? 'Centering...',

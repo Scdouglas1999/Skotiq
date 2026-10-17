@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import 'safety_fail_mode_labels.dart';
@@ -115,7 +116,9 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                       ),
                     ],
                   )
-                : const Center(child: CircularProgressIndicator()),
+                : const Center(
+                    child:
+                        SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
           ),
         ],
       );

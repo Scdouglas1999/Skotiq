@@ -119,12 +119,16 @@ class ExposureProgressOverlay extends StatelessWidget {
               height: 80,
               child: Stack(
                 children: [
-                  CircularProgressIndicator(
-                    value: isAborting ? null : progressValue,
-                    strokeWidth: 4,
-                    backgroundColor: colors.surfaceAlt,
-                    valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
-                  ),
+                  isAborting
+                      ? const SkotiqMark(
+                          motion: SkotiqMarkMotion.loading, size: 80)
+                      : CircularProgressIndicator(
+                          value: progressValue,
+                          strokeWidth: 4,
+                          backgroundColor: colors.surfaceAlt,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(colors.primary),
+                        ),
                   if (!isAborting)
                     Center(
                       child: Text(

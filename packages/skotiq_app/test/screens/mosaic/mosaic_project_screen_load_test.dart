@@ -130,7 +130,11 @@ void main() {
     expect(observer.distinctArgs, 1);
 
     // ...and the screen actually reached a usable state.
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(
+        find.byWidgetPredicate((w) =>
+            w is SkotiqMark && w.motion == SkotiqMarkMotion.loading ||
+            w is SkotiqSpinner),
+        findsNothing);
     expect(find.text('Veil Mosaic'), findsOneWidget);
 
     // Frames keep flowing without producing new work.
@@ -150,7 +154,11 @@ void main() {
     final observer = await pumpRouterScreen(tester, 9999);
 
     expect(observer.distinctArgs, 1);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(
+        find.byWidgetPredicate((w) =>
+            w is SkotiqMark && w.motion == SkotiqMarkMotion.loading ||
+            w is SkotiqSpinner),
+        findsNothing);
     expect(find.text('Mosaic project not found'), findsOneWidget);
 
     await disposeScreen(tester);
@@ -182,7 +190,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 20));
     }
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(
+        find.byWidgetPredicate((w) =>
+            w is SkotiqMark && w.motion == SkotiqMarkMotion.loading ||
+            w is SkotiqSpinner),
+        findsNothing);
     expect(find.text('Mosaic storage unavailable'), findsOneWidget);
     // No controller is built when the storage cannot be resolved.
     expect(observer.arguments, isEmpty);

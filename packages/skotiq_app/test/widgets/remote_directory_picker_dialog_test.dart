@@ -142,7 +142,7 @@ void main() {
     await openDialog(tester);
 
     // Dialog is mid-load (spinner). Close it via Cancel.
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(SkotiqMark), findsOneWidget);
     await tester.tap(find.text('Cancel'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));

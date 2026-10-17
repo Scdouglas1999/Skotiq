@@ -39,10 +39,8 @@ class _PhotometricTransformsCard extends ConsumerWidget {
                 child: SizedBox(
                   width: SkotiqTokens.iconMd,
                   height: SkotiqTokens.iconMd,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: colors.primary,
-                  ),
+                  child: SkotiqSpinner(
+                      size: SkotiqTokens.iconMd, color: colors.primary),
                 ),
               ),
             ),

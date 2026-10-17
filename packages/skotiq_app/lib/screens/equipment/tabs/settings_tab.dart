@@ -627,13 +627,13 @@ class _BuiltinGuiderSettingsCardState
 
     Widget body;
     if (_loading) {
-      body = const Padding(
+      body = Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
         child: Center(
           child: SizedBox(
             width: 18,
             height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            child: SkotiqSpinner(size: 18, color: colors.primary),
           ),
         ),
       );

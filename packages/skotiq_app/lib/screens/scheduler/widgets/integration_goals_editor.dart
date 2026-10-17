@@ -260,10 +260,7 @@ class _IntegrationGoalsEditorState
               SizedBox(
                 width: 14,
                 height: 14,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: colors.primary,
-                ),
+                child: SkotiqSpinner(size: 14, color: colors.primary),
               ),
             ],
           ],
@@ -275,15 +272,13 @@ class _IntegrationGoalsEditorState
         ),
         const SizedBox(height: SkotiqTokens.spaceMd),
         progressAsync.when(
-          loading: () => Padding(
+          loading: () => const Padding(
             padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
-            child: SizedBox(
+            child: const SizedBox(
               width: 18,
               height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: colors.primary,
-              ),
+              child:
+                  const SkotiqMark(motion: SkotiqMarkMotion.loading, size: 18),
             ),
           ),
           error: (e, _) => Text(

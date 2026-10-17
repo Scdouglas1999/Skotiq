@@ -355,7 +355,7 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
             ? const Center(
                 child: Padding(
                   padding: EdgeInsets.all(20),
-                  child: CircularProgressIndicator(),
+                  child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
                 ),
               )
             : Column(

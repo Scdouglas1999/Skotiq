@@ -429,10 +429,7 @@ class TargetPreviewTooltip extends ConsumerWidget {
                     child: SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: colors.textMuted,
-                      ),
+                      child: SkotiqSpinner(size: 16, color: colors.textMuted),
                     ),
                   ),
                 ),

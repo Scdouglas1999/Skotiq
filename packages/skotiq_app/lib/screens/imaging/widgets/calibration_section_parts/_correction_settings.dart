@@ -65,10 +65,10 @@ class _CorrectionSettings extends ConsumerWidget {
     if (settings.isLoading) {
       return Row(
         children: [
-          const SizedBox(
+          SizedBox(
             width: 16,
             height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            child: SkotiqSpinner(size: 16, color: colors.primary),
           ),
           const SizedBox(width: 8),
           Text(

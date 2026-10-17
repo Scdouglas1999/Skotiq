@@ -45,7 +45,7 @@ class _ListsTabState extends ConsumerState<ListsTab> {
         return _buildListSelector(lists, activeListId);
       },
       loading: () => const Center(
-        child: CircularProgressIndicator(strokeWidth: 2),
+        child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
       ),
       error: (e, _) => Center(
         child: Text('Error: $e', style: TextStyle(color: widget.colors.error)),
@@ -231,7 +231,7 @@ class _ListsTabState extends ConsumerState<ListsTab> {
               );
             },
             loading: () => const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
             ),
             error: (e, _) => Center(
               child: Text('Error: $e',
@@ -677,10 +677,7 @@ class _ExportToSequenceButtonState
               ? SizedBox(
                   width: 14,
                   height: 14,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: widget.colors.primary,
-                  ),
+                  child: SkotiqSpinner(size: 14, color: widget.colors.primary),
                 )
               : Icon(
                   LucideIcons.listPlus,

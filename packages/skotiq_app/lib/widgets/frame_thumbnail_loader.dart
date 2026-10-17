@@ -13,7 +13,7 @@ import 'package:skotiq_core/skotiq_core.dart'
         imagingBackendProvider,
         isRemoteModeProvider,
         loggingServiceProvider;
-import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqColors;
+import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqColors, SkotiqMark;
 
 /// Result of asking the backend (and then the local disk) for a frame's
 /// preview bytes.
@@ -201,10 +201,7 @@ class FrameThumbnail extends ConsumerWidget {
             SizedBox(
               width: iconSize,
               height: iconSize,
-              child: CircularProgressIndicator(
-                strokeWidth: 1.4,
-                valueColor: AlwaysStoppedAnimation<Color>(colors.textMuted),
-              ),
+              child: SkotiqMark(size: iconSize, color: colors.textMuted),
             ),
           );
         }

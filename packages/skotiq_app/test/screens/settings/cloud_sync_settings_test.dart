@@ -156,7 +156,7 @@ LoggingService _testLogger(Directory tempDir) => LoggingService(
 
 /// Pump [CloudSyncCard] with [service] overriding the production provider and
 /// drain the card's async `_load()` with bounded pumps (a bare pumpAndSettle
-/// would wait forever on the loading CircularProgressIndicator animation).
+/// would wait forever on the loading indicator animation).
 Future<void> _pumpCard(WidgetTester tester, SyncService service) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = const Size(1000, 1400);

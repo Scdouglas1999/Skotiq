@@ -479,8 +479,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         body: SafeArea(
           child: notifier.isLoaded
               ? _buildWizard(context, draft)
-              : Center(
-                  child: CircularProgressIndicator(color: colors.primary),
+              : const Center(
+                  child: const SkotiqMark(
+                      motion: SkotiqMarkMotion.loading, size: 36),
                 ),
         ),
       ),

@@ -58,9 +58,10 @@ class SecondaryRigCard extends ConsumerWidget {
                 Text('Secondary Rig', style: theme.textTheme.titleMedium),
                 const Spacer(),
                 if (operationInProgress)
-                  const SizedBox.square(
+                  SizedBox.square(
                     dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: SkotiqSpinner(
+                        size: 18, color: SkotiqColors.of(context).primary),
                   )
                 else if (status != null)
                   _StatusBadge(status: status),

@@ -323,10 +323,7 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                   ? SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: colors.primary,
-                      ),
+                      child: SkotiqSpinner(size: 18, color: colors.primary),
                     )
                   : Text(
                       _formatNextSave(

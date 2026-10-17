@@ -325,10 +325,8 @@ class _OnboardingFilterWheelStepState
                     SizedBox(
                       width: SkotiqTokens.iconXs,
                       height: SkotiqTokens.iconXs,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: colors.primary,
-                      ),
+                      child: SkotiqSpinner(
+                          size: SkotiqTokens.iconXs, color: colors.primary),
                     ),
                     const SizedBox(width: SkotiqTokens.spaceSm),
                     Text(

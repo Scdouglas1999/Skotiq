@@ -34,6 +34,7 @@ export 'widgets/animated_tab_bar_view.dart';
 export 'widgets/animated_tab_indicator.dart';
 export 'widgets/catalog_setup_dialog.dart';
 export 'widgets/staggered_animation.dart';
+export 'widgets/startup_splash_gate.dart';
 export 'widgets/annotation_painter.dart';
 export 'widgets/sequence_progress_card.dart';
 export 'widgets/mobile_sequence_overlay.dart';

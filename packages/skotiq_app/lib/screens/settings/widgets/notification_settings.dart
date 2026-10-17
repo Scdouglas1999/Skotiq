@@ -471,7 +471,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                 ],
               )
             else if (pushConfigAsync!.isLoading)
-              const SettingsSection(
+              SettingsSection(
                 title: 'Push to mobile',
                 children: [
                   SettingRow(
@@ -482,7 +482,8 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     trailing: SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: SkotiqSpinner(
+                          size: 18, color: SkotiqColors.of(context).primary),
                     ),
                     isLast: true,
                   ),

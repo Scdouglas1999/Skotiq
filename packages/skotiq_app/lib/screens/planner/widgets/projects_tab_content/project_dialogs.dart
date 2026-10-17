@@ -189,14 +189,12 @@ class _AddTargetDialogState extends ConsumerState<_AddTargetDialog> {
           const SizedBox(height: SkotiqTokens.spaceMd),
           Expanded(
             child: targetsAsync.when(
-              loading: () => Center(
-                child: SizedBox(
+              loading: () => const Center(
+                child: const SizedBox(
                   width: SkotiqTokens.iconLg,
                   height: SkotiqTokens.iconLg,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: colors.primary,
-                  ),
+                  child: const SkotiqMark(
+                      motion: SkotiqMarkMotion.loading, size: 24),
                 ),
               ),
               error: (err, _) => SkotiqBanner(
@@ -404,10 +402,8 @@ class _CatalogTargetTile extends StatelessWidget {
                 SizedBox(
                   width: SkotiqTokens.iconSm,
                   height: SkotiqTokens.iconSm,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: colors.primary,
-                  ),
+                  child: SkotiqSpinner(
+                      size: SkotiqTokens.iconSm, color: colors.primary),
                 )
               else
                 Icon(

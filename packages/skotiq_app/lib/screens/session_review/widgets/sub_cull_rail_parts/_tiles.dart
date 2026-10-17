@@ -186,10 +186,7 @@ class _SubDownloadButtonState extends ConsumerState<_SubDownloadButton> {
       child: _busy
           ? Padding(
               padding: const EdgeInsets.all(8),
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: widget.colors.textMuted,
-              ),
+              child: SkotiqMark(size: 16, color: widget.colors.textMuted),
             )
           : IconButton(
               padding: EdgeInsets.zero,

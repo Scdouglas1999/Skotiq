@@ -174,10 +174,7 @@ class EquipmentStatusWidget extends ConsumerWidget {
     return SizedBox(
       width: 16,
       height: 16,
-      child: CircularProgressIndicator(
-        strokeWidth: 2,
-        color: colors.textMuted,
-      ),
+      child: SkotiqMark(size: 16, color: colors.textMuted),
     );
   }
 

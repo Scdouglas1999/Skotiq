@@ -264,7 +264,7 @@ class DashboardLoading extends StatelessWidget {
     return const Center(
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: SkotiqTokens.space4xl),
-        child: CircularProgressIndicator(),
+        child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
       ),
     );
   }

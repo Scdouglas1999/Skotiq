@@ -219,10 +219,7 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
               SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: colors.primary,
-                ),
+                child: SkotiqSpinner(size: 20, color: colors.primary),
               )
             else
               Icon(LucideIcons.alertTriangle, color: colors.error, size: 20),
@@ -335,10 +332,7 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
             SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: colors.primary,
-              ),
+              child: SkotiqSpinner(size: 20, color: colors.primary),
             ),
           const SizedBox(width: 12),
           Expanded(

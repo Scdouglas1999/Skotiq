@@ -153,7 +153,8 @@ class _AbComparePanelState extends State<AbComparePanel> {
                   child: SizedBox(
                     width: 28,
                     height: 28,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child:
+                        SkotiqMark(motion: SkotiqMarkMotion.loading, size: 28),
                   ),
                 ),
               )
@@ -423,7 +424,7 @@ class _PreviewPlaceholder extends StatelessWidget {
                 const SizedBox(
                   width: 28,
                   height: 28,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 28),
                 ),
                 const SizedBox(height: SkotiqTokens.spaceSm),
                 Text(

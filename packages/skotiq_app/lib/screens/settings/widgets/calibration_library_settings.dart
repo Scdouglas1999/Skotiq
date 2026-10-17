@@ -211,7 +211,8 @@ class _CalibrationLibrarySettingsState
     if (_loading) {
       return const Padding(
         padding: EdgeInsets.all(24),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(
+            child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
       );
     }
     if (_error != null) {

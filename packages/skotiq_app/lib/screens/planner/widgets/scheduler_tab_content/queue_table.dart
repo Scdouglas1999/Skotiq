@@ -228,9 +228,10 @@ class _QueueTable extends ConsumerWidget {
             const _NoTargetsEmptyState(awaitingFirstEval: false)
           else
             goalsAsync.when(
-              loading: () => Padding(
+              loading: () => const Padding(
                 padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
-                child: CircularProgressIndicator(color: colors.primary),
+                child: const SkotiqMark(
+                    motion: SkotiqMarkMotion.loading, size: 36),
               ),
               error: (e, _) => Padding(
                 padding: const EdgeInsets.all(SkotiqTokens.spaceMd),

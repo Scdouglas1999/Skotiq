@@ -439,7 +439,7 @@ class TonightTab extends ConsumerWidget {
               loading: () => Container(
                 padding: const EdgeInsets.all(24),
                 child: const Center(
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
                 ),
               ),
               error: (e, _) => Container(
@@ -557,7 +557,7 @@ class _SatellitePassesSectionState
             Container(
               padding: const EdgeInsets.all(16),
               child: const Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
               ),
             )
           else if (passState.error != null)

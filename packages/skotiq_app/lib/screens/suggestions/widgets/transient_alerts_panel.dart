@@ -280,7 +280,8 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
                   child: SizedBox(
                     width: 24,
                     height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child:
+                        SkotiqMark(motion: SkotiqMarkMotion.loading, size: 24),
                   ),
                 ),
               ),

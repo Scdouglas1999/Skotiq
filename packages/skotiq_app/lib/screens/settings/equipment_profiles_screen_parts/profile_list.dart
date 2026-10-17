@@ -76,10 +76,7 @@ class _ProfileList extends StatelessWidget {
                     message: 'Importing profiles…',
                     child: Padding(
                       padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: colors.primary,
-                      ),
+                      child: SkotiqSpinner(size: 16, color: colors.primary),
                     ),
                   ),
                 )

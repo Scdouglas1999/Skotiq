@@ -434,7 +434,8 @@ class _DarkroomCompareViewState extends ConsumerState<_DarkroomCompareView> {
 
   Widget _paneEmpty(DarkroomState state) {
     if (state.loading || state.rendering) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const Center(
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36));
     }
     final loadError = state.loadError;
     if (loadError != null) {

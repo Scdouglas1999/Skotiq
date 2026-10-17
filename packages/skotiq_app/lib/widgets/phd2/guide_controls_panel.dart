@@ -881,10 +881,7 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
                     SizedBox(
                       width: small ? 14 : 16,
                       height: small ? 14 : 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(color),
-                      ),
+                      child: SkotiqSpinner(size: small ? 14 : 16, color: color),
                     )
                   else
                     Icon(

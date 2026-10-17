@@ -52,13 +52,13 @@ void main() {
     await tester.pump();
 
     expect(service.importCalls, 1);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(SkotiqSpinner), findsOneWidget);
 
     result.complete(null);
     await tester.pump();
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(SkotiqSpinner), findsNothing);
     expect(find.byTooltip('Import snippet from file…'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

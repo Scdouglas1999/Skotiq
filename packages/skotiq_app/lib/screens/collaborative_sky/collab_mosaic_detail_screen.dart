@@ -127,7 +127,9 @@ class _CollabMosaicDetailScreenState
             Expanded(
               child: detailAsync.when(
                 data: (mosaic) => _Body(mosaic: mosaic),
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(
+                    child:
+                        SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
                 error: (error, _) => EmptyState(
                   icon: LucideIcons.alertCircle,
                   title: 'Could not load the mosaic',

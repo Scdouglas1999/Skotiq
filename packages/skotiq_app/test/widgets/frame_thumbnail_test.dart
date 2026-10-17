@@ -214,7 +214,7 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(SkotiqMark), findsOneWidget);
     });
   });
 }

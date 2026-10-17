@@ -175,8 +175,9 @@ class _GlobalNotesDialogState extends ConsumerState<GlobalNotesDialog> {
                     ],
                   );
                 },
-                loading: () => Center(
-                  child: CircularProgressIndicator(color: colors.primary),
+                loading: () => const Center(
+                  child: const SkotiqMark(
+                      motion: SkotiqMarkMotion.loading, size: 36),
                 ),
                 error: (e, stack) {
                   developer.log(

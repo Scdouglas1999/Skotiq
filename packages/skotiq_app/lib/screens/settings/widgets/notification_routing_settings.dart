@@ -83,7 +83,8 @@ class NotificationRoutingSettings extends ConsumerWidget {
     return matrixAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.all(24),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(
+            child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
       ),
       error: (e, _) => Padding(
         padding: const EdgeInsets.all(16),

@@ -437,7 +437,9 @@ class _FullFrameDialog extends ConsumerWidget {
                   future: bytesFuture,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
+                      return const Center(
+                          child: SkotiqMark(
+                              motion: SkotiqMarkMotion.loading, size: 36));
                     }
                     final bytes = snapshot.data;
                     if (bytes != null && bytes.isNotEmpty) {

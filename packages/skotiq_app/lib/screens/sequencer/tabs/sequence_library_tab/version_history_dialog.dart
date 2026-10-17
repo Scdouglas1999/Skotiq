@@ -134,10 +134,11 @@ class _VersionHistoryDialogState extends ConsumerState<_VersionHistoryDialog> {
       future: _versionsFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData && !snapshot.hasError) {
-          return Padding(
+          return const Padding(
             padding: const EdgeInsets.all(32),
-            child: Center(
-              child: CircularProgressIndicator(color: colors.primary),
+            child: const Center(
+              child:
+                  const SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
             ),
           );
         }

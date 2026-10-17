@@ -7,6 +7,7 @@ import 'package:skotiq_app/screens/settings/equipment_profiles_screen.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../harness/harness.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _SwappableBackendNotifier extends BackendNotifier {
   _SwappableBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -70,7 +71,7 @@ void main() {
     await tester.tap(find.byTooltip('Import profiles'));
     await tester.pump();
     expect(pickerCalls, 1);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(SkotiqSpinner), findsOneWidget);
 
     final backendNotifier = handle.container.read(backendProvider.notifier)
         as _SwappableBackendNotifier;

@@ -17,10 +17,10 @@ class _FilterOffsetsStrip extends ConsumerWidget {
         height: 28,
         child: Row(
           children: [
-            const SizedBox(
+            SizedBox(
               width: 12,
               height: 12,
-              child: CircularProgressIndicator(strokeWidth: 1.5),
+              child: SkotiqSpinner(size: 12, color: colors.primary),
             ),
             const SizedBox(width: 8),
             Text('Loading filter offsets…',

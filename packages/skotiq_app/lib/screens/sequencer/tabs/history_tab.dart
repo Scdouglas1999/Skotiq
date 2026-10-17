@@ -213,8 +213,9 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
                     }
                     return _GroupedRunList(colors: colors, rows: rows);
                   },
-                  loading: () => Center(
-                      child: CircularProgressIndicator(color: colors.primary)),
+                  loading: () => const Center(
+                      child: const SkotiqMark(
+                          motion: SkotiqMarkMotion.loading, size: 36)),
                   error: (err, _) => Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -644,7 +645,7 @@ class _RunCard extends ConsumerWidget {
                     height: 28,
                     child: Padding(
                       padding: EdgeInsets.all(7),
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: SkotiqMark(size: 14),
                     ),
                   );
                 }

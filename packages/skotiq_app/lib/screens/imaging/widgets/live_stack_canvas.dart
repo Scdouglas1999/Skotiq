@@ -406,13 +406,11 @@ class _StackedImageSourceState extends State<StackedImageSource> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                SizedBox(
+                const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: widget.colors.primary,
-                  ),
+                  child: const SkotiqMark(
+                      motion: SkotiqMarkMotion.loading, size: 20),
                 ),
                 const SizedBox(height: SkotiqTokens.spaceSm),
                 Builder(

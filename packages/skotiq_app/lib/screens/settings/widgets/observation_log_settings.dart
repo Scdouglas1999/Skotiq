@@ -65,7 +65,8 @@ class _ObservationLogSettingsState
           // Stats summary
           statsAsync.when(
             data: (stats) => _buildStats(stats, colors),
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(
+                child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
             error: (e, _) => Text(
               'Could not load observation log stats.',
               style: SkotiqTypography.body.copyWith(
@@ -173,7 +174,8 @@ class _ObservationLogSettingsState
                     _buildLogEntry(filtered[index], colors),
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(
+                child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
             error: (e, _) => Text(
               'Could not load observation logs.',
               style: SkotiqTypography.body.copyWith(
@@ -376,10 +378,7 @@ class _ObservationLogSettingsState
               dimension: SkotiqTokens.iconButtonSizeSm,
               child: Padding(
                 padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: colors.textMuted,
-                ),
+                child: SkotiqSpinner(size: 12, color: colors.textMuted),
               ),
             )
           else

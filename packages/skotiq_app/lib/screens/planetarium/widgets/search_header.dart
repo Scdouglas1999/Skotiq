@@ -238,7 +238,8 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
                       return const Center(
                         child: Padding(
                           padding: EdgeInsets.all(16.0),
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: SkotiqMark(
+                              motion: SkotiqMarkMotion.loading, size: 36),
                         ),
                       );
                     }

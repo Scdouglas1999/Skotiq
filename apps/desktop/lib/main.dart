@@ -162,7 +162,7 @@ void main(List<String> args) async {
     // Opaque theme background — Colors.transparent + TitleBarStyle.hidden
     // composites to an undraggable black hole on Linux/Wayland when the first
     // Flutter frame is delayed. Match SkotiqColors.dark.background.
-    backgroundColor: Color(0xFF0A0C0F),
+    backgroundColor: Color(0xFF0B0D12),
     skipTaskbar: false,
     titleBarStyle: TitleBarStyle.hidden,
     title: 'Skotiq',

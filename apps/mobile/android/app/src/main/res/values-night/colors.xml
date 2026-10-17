@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Flutter dark theme background (SkotiqColors.background). See
+         values/colors.xml — the launch window must paint the same color the
+         first Flutter frame does. -->
+    <color name="skotiq_launch_background">#0B0D12</color>
+</resources>

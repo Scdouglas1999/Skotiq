@@ -460,11 +460,9 @@ extension _ProfileDetailsRendering on _ProfileDetailsState {
                       ? SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                                SkotiqColors.of(context).primary),
-                          ),
+                          child: SkotiqSpinner(
+                              size: 16,
+                              color: SkotiqColors.of(context).primary),
                         )
                       : SkotiqIconButton(
                           icon: LucideIcons.refreshCw,

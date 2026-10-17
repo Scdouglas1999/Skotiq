@@ -340,10 +340,7 @@ class AnnotationStatusIndicator extends ConsumerWidget {
         return SizedBox(
           width: 14,
           height: 14,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(_getTextColor(status)),
-          ),
+          child: SkotiqSpinner(size: 14, color: _getTextColor(status)),
         );
       case AnnotationStatus.complete:
         return Icon(SkotiqIcons.success,

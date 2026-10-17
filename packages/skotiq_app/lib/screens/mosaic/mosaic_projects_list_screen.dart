@@ -93,8 +93,9 @@ class MosaicProjectsListScreen extends ConsumerWidget {
                   await ref.read(mosaicProjectsListProvider.future);
                 },
                 child: projectsAsync.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
+                  loading: () => const Center(
+                      child: SkotiqMark(
+                          motion: SkotiqMarkMotion.loading, size: 36)),
                   error: (e, _) => _refreshableCenter(
                     EmptyState(
                       icon: SkotiqIcons.warning,

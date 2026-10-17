@@ -106,7 +106,8 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
     }
     final profilesState = profilesAsync.valueOrNull;
     if (profilesState == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36));
     }
     if (profilesState.error != null) {
       return _EquipmentProfilesUnavailable(

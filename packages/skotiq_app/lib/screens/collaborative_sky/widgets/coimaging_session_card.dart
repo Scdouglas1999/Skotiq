@@ -374,10 +374,8 @@ class _ActionRow extends StatelessWidget {
           SizedBox(
             width: SkotiqTokens.iconSm,
             height: SkotiqTokens.iconSm,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: colors.textMuted,
-            ),
+            child: SkotiqSpinner(
+                size: SkotiqTokens.iconSm, color: colors.textMuted),
           ),
           const SizedBox(width: SkotiqTokens.spaceSm),
           Text(

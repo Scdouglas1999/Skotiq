@@ -232,13 +232,11 @@ class AllSkyTargetReticle extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          SizedBox(
+                          const SizedBox(
                             width: 36,
                             height: 36,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: colors.primary,
-                            ),
+                            child: const SkotiqMark(
+                                motion: SkotiqMarkMotion.loading, size: 36),
                           ),
                           const SizedBox(height: 12),
                           Text(

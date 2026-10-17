@@ -245,10 +245,7 @@ class _LoadingIcon extends StatelessWidget {
           child: SizedBox(
             width: 8,
             height: 8,
-            child: CircularProgressIndicator(
-              strokeWidth: 1.5,
-              valueColor: AlwaysStoppedAnimation<Color>(colors.textMuted),
-            ),
+            child: SkotiqSpinner(size: 8, color: colors.textMuted),
           ),
         ),
       ],
@@ -501,13 +498,10 @@ class _TransientAlertDropdownContent extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 24),
       child: Column(
         children: [
-          SizedBox(
+          const SizedBox(
             width: 24,
             height: 24,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
-            ),
+            child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 24),
           ),
           const SizedBox(height: 8),
           Text(

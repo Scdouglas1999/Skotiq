@@ -113,40 +113,12 @@ class TitleBar extends ConsumerWidget {
 class _Brand extends StatelessWidget {
   const _Brand();
 
-  /// The rounded square that carries the mark.
-  static const double _markSize = 22.0;
-
   @override
   Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    final onPrimary = Theme.of(context).colorScheme.onPrimary;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: _markSize,
-          height: _markSize,
-          decoration: BoxDecoration(
-            color: colors.primary,
-            borderRadius: SkotiqTokens.borderRadiusSm,
-          ),
-          child: Icon(
-            LucideIcons.sparkles,
-            size: SkotiqTokens.iconXs,
-            color: onPrimary,
-          ),
-        ),
-        const SizedBox(width: SkotiqTokens.spaceSm + 2),
-        Text(
-          'SKOTIQ',
-          style: _wordmark.copyWith(color: colors.textPrimary),
-        ),
-      ],
-    );
+    // Mark plus "skotiq" wordmark at lockup proportions; 20px mark leaves
+    // the 44px bar room for the wordmark's cap height.
+    return const SkotiqLockup(markSize: 20);
   }
-
-  static const TextStyle _wordmark = SkotiqTypography.wordmark;
 }
 
 /// The global command field. Click it, or press Ctrl/Cmd+K, to open the

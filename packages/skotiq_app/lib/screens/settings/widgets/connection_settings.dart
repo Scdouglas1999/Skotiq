@@ -411,10 +411,7 @@ class _HostSettingsRefreshButtonState
           message: 'Refreshing the host settings…',
           child: Padding(
             padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: colors.primary,
-            ),
+            child: SkotiqSpinner(size: 16, color: colors.primary),
           ),
         ),
       );

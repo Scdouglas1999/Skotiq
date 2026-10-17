@@ -492,8 +492,8 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     final settingsAsync = ref.watch(appSettingsProvider);
 
     return settingsAsync.when(
-      loading: () => Center(
-        child: CircularProgressIndicator(color: colors.primary),
+      loading: () => const Center(
+        child: const SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
       ),
       error: (error, _) => SkotiqBanner(
         tone: BannerTone.error,

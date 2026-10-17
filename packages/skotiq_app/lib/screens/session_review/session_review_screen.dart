@@ -417,7 +417,8 @@ class _SessionReviewScreenState extends ConsumerState<SessionReviewScreen> {
             Expanded(
               child: state.loading
                   ? const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      child: SkotiqMark(
+                          motion: SkotiqMarkMotion.loading, size: 36))
                   : isNarrative
                       ? NarrativeView(scope: widget.scope)
                       : WorkbenchView(scope: widget.scope),

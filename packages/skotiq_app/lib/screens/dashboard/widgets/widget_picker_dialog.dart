@@ -122,7 +122,8 @@ class WidgetPickerDialog extends ConsumerWidget {
       },
       loading: () => const Padding(
         padding: EdgeInsets.all(32),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(
+            child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
       ),
       error: (error, _) => Padding(
         padding: const EdgeInsets.all(24),

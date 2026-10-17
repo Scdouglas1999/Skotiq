@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Efficient astronomy image viewer that supports both color and mono images
 /// with zoom/pan functionality including mousewheel support.
@@ -262,7 +263,7 @@ class _AstroImageViewerState extends State<AstroImageViewer> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Center(
-        child: CircularProgressIndicator(strokeWidth: 2),
+        child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
       );
     }
 

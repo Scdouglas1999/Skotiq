@@ -278,7 +278,8 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
     final uiState = ref.watch(plateSolverSettingsNotifierProvider);
 
     return detectionAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
       error: (error, stack) => Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -307,7 +308,8 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
         ),
       ),
       data: (detection) => prefAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(
+            child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
         error: (error, stack) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),

@@ -242,10 +242,10 @@ class _ImagePreview extends ConsumerWidget {
               child: SizedBox(
                 width: 24,
                 height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: colors.textMuted,
-                ),
+                child: SkotiqMark(
+                    motion: SkotiqMarkMotion.loading,
+                    size: 24,
+                    color: colors.textMuted),
               ),
             );
           }

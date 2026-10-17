@@ -611,11 +611,11 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                       children: [
                         TextButton.icon(
                           icon: _isImportingHorizon
-                              ? const SizedBox.square(
+                              ? SizedBox.square(
                                   dimension: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
+                                  child: SkotiqSpinner(
+                                      size: 14,
+                                      color: SkotiqColors.of(context).primary),
                                 )
                               : Icon(
                                   LucideIcons.upload,

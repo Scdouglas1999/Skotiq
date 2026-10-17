@@ -8,7 +8,8 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
     }
 
     if (_isComputing) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36));
     }
 
     final coeff = _computedCoefficients;

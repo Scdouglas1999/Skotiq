@@ -58,10 +58,8 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
                       icon: _isSnippetFileActionRunning
                           ? SizedBox.square(
                               dimension: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: widget.colors.primary,
-                              ),
+                              child: SkotiqSpinner(
+                                  size: 18, color: widget.colors.primary),
                             )
                           : Icon(
                               LucideIcons.fileInput,
@@ -174,10 +172,8 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
                           child: _isSnippetFileActionRunning
                               ? SizedBox.square(
                                   dimension: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: widget.colors.primary,
-                                  ),
+                                  child: SkotiqSpinner(
+                                      size: 16, color: widget.colors.primary),
                                 )
                               : Icon(
                                   LucideIcons.fileInput,

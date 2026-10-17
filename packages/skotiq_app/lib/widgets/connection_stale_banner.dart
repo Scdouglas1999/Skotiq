@@ -101,10 +101,7 @@ class _ConnectionStaleBannerState extends ConsumerState<ConnectionStaleBanner> {
             SizedBox(
               width: 14,
               height: 14,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(fg),
-              ),
+              child: SkotiqSpinner(size: 14, color: fg),
             ),
             const SizedBox(width: 10),
             Expanded(

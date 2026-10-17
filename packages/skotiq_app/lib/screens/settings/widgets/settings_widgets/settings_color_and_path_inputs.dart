@@ -476,10 +476,11 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
                     dimension: widget.isMobile
                         ? SkotiqTokens.iconSm
                         : SkotiqTokens.iconXs,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: colors.primary,
-                    ),
+                    child: SkotiqSpinner(
+                        size: widget.isMobile
+                            ? SkotiqTokens.iconSm
+                            : SkotiqTokens.iconXs,
+                        color: colors.primary),
                   )
                 : Icon(
                     LucideIcons.folderOpen,

@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/red_night_filter.dart';
 
@@ -153,7 +154,8 @@ class _ImageDisplayWidgetState extends ConsumerState<ImageDisplayWidget> {
     });
 
     if (_decodedImage == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36));
     }
 
     // The frame is image DATA: red night re-emits its luminance on the red

@@ -545,10 +545,10 @@ class _RadarLoadingCard extends StatelessWidget {
             SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation(colors.textMuted),
-              ),
+              child: SkotiqMark(
+                  motion: SkotiqMarkMotion.loading,
+                  size: 20,
+                  color: colors.textMuted),
             ),
             const SizedBox(height: 8),
             Text(

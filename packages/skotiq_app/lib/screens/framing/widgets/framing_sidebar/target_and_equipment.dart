@@ -67,10 +67,10 @@ class FramingTargetSearch extends ConsumerWidget {
               prefixIcon:
                   Icon(SkotiqIcons.search, size: 14, color: colors.textMuted),
               suffixIcon: searchState.isSearching
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 14,
                       height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: SkotiqSpinner(size: 14, color: colors.primary),
                     )
                   : searchController.text.isNotEmpty
                       ? SkotiqIconButton(
@@ -394,7 +394,8 @@ class FramingEquipmentSection extends StatelessWidget {
           },
           loading: () => const SizedBox(
             height: 60,
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            child: Center(
+                child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
           ),
           error: (e, _) => SkotiqBanner(
             tone: BannerTone.error,

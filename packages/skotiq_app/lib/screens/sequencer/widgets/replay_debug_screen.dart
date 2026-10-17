@@ -165,7 +165,8 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
         ],
       ),
       body: decisionsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(
+            child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
         error: (err, _) => EmptyState(
           icon: LucideIcons.alertTriangle,
           title: 'Could not load replay log',

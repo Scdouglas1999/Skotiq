@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 
 import '../../harness/harness.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _ColorHarness extends StatefulWidget {
   const _ColorHarness({required this.save});
@@ -129,11 +130,11 @@ void main() {
     await tester.pump();
 
     expect(calls, 1);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(SkotiqSpinner), findsOneWidget);
 
     completion.complete();
     await tester.pump();
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(SkotiqSpinner), findsNothing);
   });
 
   testWidgets('path browse reports async picker failures', (tester) async {
@@ -173,11 +174,11 @@ void main() {
 
     await tester.tap(find.byType(GestureDetector));
     await tester.pump();
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(SkotiqSpinner), findsOneWidget);
 
     authority.value = Object();
     await tester.pump();
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(SkotiqSpinner), findsNothing);
 
     completion.completeError(StateError('old host failed'));
     await tester.pump();

@@ -163,8 +163,8 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
     // The one loading, error and empty pattern (07, wave 3 checklist): a
     // centred spinner, ONE EmptyState with one button, never a stack of cards.
     return data.when(
-      loading: () =>
-          const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      loading: () => const Center(
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
       error: (error, _) => Center(
         child: EmptyState(
           icon: SkotiqIcons.imageOff,

@@ -412,10 +412,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
           SizedBox(
             width: 14,
             height: 14,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: widget.colors.primary,
-            ),
+            child: SkotiqSpinner(size: 14, color: widget.colors.primary),
           ),
           const SizedBox(width: 8),
           Text(

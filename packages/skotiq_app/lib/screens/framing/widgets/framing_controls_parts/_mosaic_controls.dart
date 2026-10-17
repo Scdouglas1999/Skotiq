@@ -394,10 +394,7 @@ class _FramingExportMosaicButtonState
                 SizedBox(
                   width: 14,
                   height: 14,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: onPrimary,
-                  ),
+                  child: SkotiqSpinner(size: 14, color: onPrimary),
                 )
               else
                 Icon(

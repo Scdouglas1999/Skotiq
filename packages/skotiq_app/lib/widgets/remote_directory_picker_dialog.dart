@@ -250,10 +250,10 @@ class _RemoteDirectoryPickerDialogState
               ? null
               : _selectCurrentDirectory,
           child: _validating
-              ? const SizedBox(
+              ? SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: SkotiqSpinner(size: 18, color: colors.primary),
                 )
               : const Text('Use this folder'),
         ),
@@ -264,7 +264,8 @@ class _RemoteDirectoryPickerDialogState
 
   Widget _buildBody(SkotiqColors colors) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36));
     }
     if (_loadError != null) {
       return Center(

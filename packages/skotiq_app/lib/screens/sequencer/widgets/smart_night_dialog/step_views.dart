@@ -80,10 +80,10 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
         // Cancel here just competed with it for the same action.
         FilledButton.icon(
           icon: _isBuildingPreview
-              ? const SizedBox(
+              ? SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: SkotiqSpinner(size: 16, color: colors.primary),
                 )
               : Icon(
                   isLast ? LucideIcons.play : LucideIcons.chevronRight,
@@ -501,7 +501,8 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                 },
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(
+                child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
             error: (e, _) => Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -693,7 +694,8 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
 
   Widget _buildPreviewStep(SkotiqColors colors) {
     if (_preview == null && _previewError == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36));
     }
     if (_previewError != null) {
       return Center(

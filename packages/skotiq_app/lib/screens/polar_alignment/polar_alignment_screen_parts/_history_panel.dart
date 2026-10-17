@@ -325,16 +325,14 @@ extension _HistoryPanel on _PolarAlignmentScreenState {
                 }).toList(),
               );
             },
-            loading: () => Center(
-              child: Padding(
+            loading: () => const Center(
+              child: const Padding(
                 padding: const EdgeInsets.all(16),
-                child: SizedBox(
+                child: const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: colors.primary,
-                  ),
+                  child: const SkotiqMark(
+                      motion: SkotiqMarkMotion.loading, size: 20),
                 ),
               ),
             ),

@@ -255,14 +255,12 @@ class _AutofocusProgressOverlayState
                           ? Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                SizedBox(
+                                const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor:
-                                        AlwaysStoppedAnimation(colors.primary),
-                                  ),
+                                  child: const SkotiqMark(
+                                      motion: SkotiqMarkMotion.loading,
+                                      size: 20),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
@@ -357,10 +355,7 @@ class _AutofocusProgressOverlayState
               child: SizedBox(
                 width: 12,
                 height: 12,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(colors.primary),
-                ),
+                child: SkotiqSpinner(size: 12, color: colors.primary),
               ),
             )
           else

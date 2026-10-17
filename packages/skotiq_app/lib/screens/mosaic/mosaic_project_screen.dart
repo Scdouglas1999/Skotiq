@@ -168,7 +168,7 @@ class _MosaicProjectScreenState extends ConsumerState<MosaicProjectScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(),
+              SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
               SizedBox(height: SkotiqTokens.spaceMd),
               Text('Preparing mosaic storage…'),
             ],
@@ -275,7 +275,7 @@ class _MosaicProjectScreenState extends ConsumerState<MosaicProjectScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(),
+                  SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
                   SizedBox(height: SkotiqTokens.spaceMd),
                   Text('Loading mosaic project…'),
                 ],

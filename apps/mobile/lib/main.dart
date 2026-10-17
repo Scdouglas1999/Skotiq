@@ -420,7 +420,15 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
             theme: theme,
             localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
             supportedLocales: SkotiqLocalizations.supportedLocales,
-            home: Builder(builder: (context) => _buildConnectionScreen()),
+            // The connection screen IS the app's ready state while it is
+            // disconnected — pairing, discovery and manual connect all have
+            // to stay reachable, so the splash plays its draw over it once
+            // and lifts instead of holding a loading mark in front of
+            // interactive prompts.
+            home: SkotiqSplashGate(
+              ready: true,
+              child: Builder(builder: (context) => _buildConnectionScreen()),
+            ),
           ),
         );
       }
@@ -809,7 +817,10 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                       padding: const EdgeInsets.all(24.0),
                       child: Column(
                         children: [
-                          CircularProgressIndicator(color: primaryColor),
+                          SkotiqMark(
+                            motion: SkotiqMarkMotion.loading,
+                            size: 36,
+                          ),
                           const SizedBox(height: 16),
                           Text(
                             _statusMessage.isNotEmpty

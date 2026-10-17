@@ -85,7 +85,7 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
       backgroundColor: colors.background,
       body: resultAsync.when(
         loading: () => const Center(
-          child: CircularProgressIndicator(strokeWidth: 2),
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
         ),
         error: (error, _) => _buildNotFound(context, error),
         data: (result) => _buildLoaded(
@@ -413,11 +413,12 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
       // first frame of a freshly stacked result would read "Image not
       // available" for the image it is in the middle of rendering.
       if (_renderPending) {
-        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        return const Center(
+            child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36));
       }
       return previewAsync.when(
         loading: () => const Center(
-          child: CircularProgressIndicator(strokeWidth: 2),
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
         ),
         error: (error, _) => EmptyState(
           icon: SkotiqIcons.imageOff,

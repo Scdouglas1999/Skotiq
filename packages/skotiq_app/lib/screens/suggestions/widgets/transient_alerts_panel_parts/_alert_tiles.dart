@@ -234,10 +234,8 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
                                 ? SizedBox(
                                     width: 14,
                                     height: 14,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: colors.success,
-                                    ),
+                                    child: SkotiqMark(
+                                        size: 14, color: colors.success),
                                   )
                                 : Icon(
                                     LucideIcons.plus,

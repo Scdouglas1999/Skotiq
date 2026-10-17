@@ -169,7 +169,8 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
             ),
             const SizedBox(height: 16),
             if (_loading)
-              const Center(child: CircularProgressIndicator())
+              const Center(
+                  child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36))
             else if (_error != null && status == null)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -421,7 +422,8 @@ class _RemoteBrowserDialogState extends State<_RemoteBrowserDialog> {
 
   Widget _buildBody(SkotiqColors colors) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+          child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36));
     }
     if (_error != null) {
       return Center(

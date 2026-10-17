@@ -21,6 +21,12 @@ class OnboardingWelcomeStep extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // FittedBox lets the lockup shrink on the narrowest supported
+          // phones instead of overflowing the step's column.
+          const Center(
+            child: FittedBox(child: SkotiqLockup(markSize: 32)),
+          ),
+          const SizedBox(height: SkotiqTokens.spaceLg),
           const SectionTitle(
             icon: SkotiqIcons.sparkle,
             title: 'Welcome to Skotiq',

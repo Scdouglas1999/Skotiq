@@ -90,7 +90,7 @@ class TargetsTab extends ConsumerWidget {
                 );
               },
               loading: () => Center(
-                child: CircularProgressIndicator(color: colors.primary),
+                child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
               ),
               error: (error, stack) => Center(
                 child: ConstrainedBox(

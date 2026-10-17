@@ -155,7 +155,7 @@ Widget _annotationAuthorityState({
         mainAxisSize: MainAxisSize.min,
         children: [
           if (error == null)
-            const CircularProgressIndicator(strokeWidth: 2)
+            const SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)
           else
             Icon(SkotiqIcons.warning, color: colors.error, size: 20),
           const SizedBox(height: 10),

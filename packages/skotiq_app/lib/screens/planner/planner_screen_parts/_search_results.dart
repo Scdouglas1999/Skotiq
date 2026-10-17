@@ -278,10 +278,7 @@ class _SearchProgressLine extends StatelessWidget {
           SizedBox(
             width: _spinner,
             height: _spinner,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: colors.primary,
-            ),
+            child: SkotiqSpinner(size: 14, color: colors.primary),
           ),
           const SizedBox(width: SkotiqTokens.spaceSm),
           Text(

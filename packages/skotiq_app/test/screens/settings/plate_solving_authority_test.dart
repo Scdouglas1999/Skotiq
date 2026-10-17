@@ -85,7 +85,7 @@ void main() {
     expect(
       find.descendant(
         of: astapInput,
-        matching: find.byType(CircularProgressIndicator),
+        matching: find.byType(SkotiqSpinner),
       ),
       findsOneWidget,
     );

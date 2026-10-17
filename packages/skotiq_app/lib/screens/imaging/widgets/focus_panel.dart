@@ -229,10 +229,8 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
                             child: SizedBox(
                               width: 12,
                               height: 12,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: widget.colors.primary,
-                              ),
+                              child: SkotiqSpinner(
+                                  size: 12, color: widget.colors.primary),
                             ),
                           ),
                       ],
