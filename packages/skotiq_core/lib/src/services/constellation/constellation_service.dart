@@ -669,7 +669,7 @@ class ConstellationService {
       final swarmDir = await _swarmDir();
       final pulled = <SwarmTile>[];
       for (final tileId in ids) {
-        final ext = finalized ? 'fits' : 'nst';
+        final ext = finalized ? 'fits' : 'skt';
         final outPath = '$swarmDir/tile_${tileId}_$_order.$ext';
         await client.pullTile(
           tileId: tileId,

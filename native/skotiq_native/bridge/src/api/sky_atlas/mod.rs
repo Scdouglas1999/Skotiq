@@ -157,7 +157,10 @@ fn list_tiles_on_disk(atlas: &SkyAtlas) -> Result<Vec<TileId>, String> {
     for entry in entries {
         let entry = entry.map_err(|e| format!("failed to read tile directory entry: {e}"))?;
         let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()) != Some("nst") {
+        // Scan both the current and pre-rename sidecar extensions so an
+        // atlas folded before the rename still reports its coverage.
+        let ext = path.extension().and_then(|s| s.to_str());
+        if ext != Some("skt") && ext != Some("nst") {
             continue;
         }
         if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
