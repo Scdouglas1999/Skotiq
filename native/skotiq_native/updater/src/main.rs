@@ -1401,21 +1401,23 @@ fn remove_pending_marker(pending_file: &Path) -> Result<()> {
 
 /// What to run to start the updated application.
 ///
-/// The Linux bundle ships the app as `skotiq`. When the bundle also carries a
-/// `skotiq.sh` wrapper it must win: the wrapper puts the bundled `lib/` first
-/// on the loader path and forces the X11 GDK backend, without which the
-/// window never appears under native Wayland, so relaunching the bare binary
-/// would bring the app back invisible. Windows has no launcher and runs the
-/// executable directly.
+/// The Linux bundle ships `skotiq` as a launcher script that owns the app
+/// name and execs the real binary at `skotiq.bin`: the script puts the
+/// bundled `lib/` first on the loader path and forces the X11 GDK backend,
+/// without which the window never appears under native Wayland, so the
+/// relaunch must go through it. `skotiq.bin` is only a fallback for a
+/// bundle where the script is missing. Windows has no launcher and runs
+/// the executable directly.
 fn launch_target(install_dir: &Path) -> PathBuf {
+    let exe = install_dir.join(from_posix(APP_EXECUTABLE));
     #[cfg(not(windows))]
-    {
-        let launcher = install_dir.join("skotiq.sh");
-        if launcher.is_file() {
-            return launcher;
+    if !exe.is_file() {
+        let bare_binary = install_dir.join("skotiq.bin");
+        if bare_binary.is_file() {
+            return bare_binary;
         }
     }
-    install_dir.join(from_posix(APP_EXECUTABLE))
+    exe
 }
 
 /// Launch the application from `install_dir` with the arguments it was
@@ -1503,10 +1505,15 @@ mod tests {
     fn linux_relaunch_goes_through_the_launcher_script() {
         let tmp = tempdir().unwrap();
         let install = tmp.path().join("install");
-        write(&install.join("skotiq"), b"elf");
+        // Shipped layout: `skotiq` is the launcher script, `skotiq.bin` the
+        // real binary. The relaunch must run `skotiq` so the loader-path and
+        // GDK env the script exports still apply.
+        write(&install.join("skotiq"), b"#!/usr/bin/env bash\n");
+        write(&install.join("skotiq.bin"), b"elf");
         assert_eq!(launch_target(&install), install.join("skotiq"));
-        write(&install.join("skotiq.sh"), b"#!/usr/bin/env bash\n");
-        assert_eq!(launch_target(&install), install.join("skotiq.sh"));
+        // If the script ever goes missing, the bare binary still launches.
+        fs::remove_file(install.join("skotiq")).unwrap();
+        assert_eq!(launch_target(&install), install.join("skotiq.bin"));
     }
 
     #[test]
