@@ -29,6 +29,7 @@ export 'src/utils/platform_shortcuts.dart';
 export 'src/utils/text_measure.dart';
 
 // Components
+export 'src/components/brand/brand.dart';
 export 'src/components/skotiq_button.dart';
 export 'src/components/skotiq_card.dart';
 export 'src/components/skotiq_dropdown.dart';
