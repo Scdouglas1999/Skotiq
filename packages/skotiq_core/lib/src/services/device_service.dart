@@ -38,6 +38,8 @@ import 'phd2_status_poll.dart';
 import 'predictive_af_service.dart';
 import 'switch_channel_service.dart';
 import 'device_service_lifecycle.dart';
+import 'device_service/profile_device_resolution.dart';
+import 'profile_service.dart' show profileServiceProvider;
 import '../models/focuser_backlash_calibration.dart';
 import '../models/mount_site_reconciliation.dart';
 import '../providers/mount_site_provider.dart';
@@ -133,6 +135,12 @@ class DeviceService {
   late final SwitchChannelService _switchChannels;
 
   static const Duration _filterWheelVerifyTimeout = Duration(seconds: 60);
+
+  /// Bound on the discovery that checks a profile's positional device ids
+  /// before Connect All. ASCOM enumeration is the slow part.
+  static const Duration _profilePositionDiscoveryTimeout = Duration(
+    seconds: 20,
+  );
   static const Duration _filterWheelVerifyPollInterval = Duration(
     milliseconds: 250,
   );

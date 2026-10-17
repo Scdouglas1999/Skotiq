@@ -388,6 +388,87 @@ void main() {
       }
     });
 
+    test('a profile camera saved at a position another camera now holds '
+        'connects the camera it names', () async {
+      // The imaging laptop, 2026-10-17: the profile saved the 1600MM-Cool as
+      // native:zwo:0 on a night it was the only camera. With the 178MM also
+      // plugged in, #0 is the 178MM and Connect All opened it.
+      when(() => mockBackend.discoverDevices(DeviceType.camera)).thenAnswer(
+        (_) async => const [
+          DeviceInfo(
+            id: 'native:zwo:0',
+            name: 'ZWO ASI178MM',
+            deviceType: DeviceType.camera,
+            driverType: DriverType.native,
+            description: '',
+            driverVersion: '',
+          ),
+          DeviceInfo(
+            id: 'native:zwo:1',
+            name: 'ZWO ASI1600MM-Cool',
+            deviceType: DeviceType.camera,
+            driverType: DriverType.native,
+            description: '',
+            driverVersion: '',
+          ),
+        ],
+      );
+      when(
+        () => mockBackend.connectDevice(DeviceType.camera, any()),
+      ).thenAnswer((_) async {});
+      when(() => mockBackend.getCameraStatus(any())).thenAnswer(
+        (_) async => const CameraStatus(
+          connected: true,
+          state: device_types.CameraState.idle,
+          sensorTemp: 0,
+          coolerPower: 0,
+          targetTemp: 0,
+          coolerOn: false,
+          gain: 0,
+          offset: 0,
+          binX: 1,
+          binY: 1,
+          sensorWidth: 100,
+          sensorHeight: 100,
+          pixelSizeX: 1,
+          pixelSizeY: 1,
+          maxAdu: 65535,
+          canCool: true,
+          canSetGain: false,
+          canSetOffset: false,
+        ),
+      );
+      when(
+        () => mockBackend.startDeviceHeartbeat(
+          deviceType: any(named: 'deviceType'),
+          deviceId: any(named: 'deviceId'),
+          intervalMs: any(named: 'intervalMs'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final service = container.read(deviceServiceProvider);
+      const profile = EquipmentProfileModel(
+        id: 1,
+        name: '10" Newt',
+        cameraId: 'native:zwo:0',
+        cameraName: 'ZWO ASI1600MM-Cool',
+      );
+
+      final events = <DeviceConnectProgress>[];
+      await for (final e in service.connectAllFromProfile(profile)) {
+        events.add(e);
+      }
+
+      verify(
+        () => mockBackend.connectDevice(DeviceType.camera, 'native:zwo:1'),
+      ).called(1);
+      verifyNever(
+        () => mockBackend.connectDevice(DeviceType.camera, 'native:zwo:0'),
+      );
+      expect(events.last.status, DeviceConnectProgressStatus.connected);
+      expect(events.last.deviceId, 'native:zwo:1');
+    });
+
     test('one device failing does not block other devices', () async {
       const cameraId = 'simulator:cam-1';
       const mountId = 'simulator:mount-1';

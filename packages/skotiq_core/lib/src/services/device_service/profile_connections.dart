@@ -41,21 +41,82 @@ extension _DeviceServiceProfileConnections on DeviceService {
   Stream<DeviceConnectProgress> _connectAllFromProfile(
     EquipmentProfileModel profile,
   ) {
-    // (id, deviceType label, connector). Order is informational only —
-    // every device is dispatched in parallel.
-    final entries = <(String?, String, Future<void> Function(String))>[
-      (profile.cameraId, 'camera', connectCamera),
-      (profile.mountId, 'mount', connectMount),
-      (profile.focuserId, 'focuser', connectFocuser),
-      (profile.filterWheelId, 'filter wheel', connectFilterWheel),
-      (profile.guiderId, 'guider', connectGuider),
-      (profile.rotatorId, 'rotator', connectRotator),
-      (profile.domeId, 'dome', connectDome),
-      (profile.weatherId, 'weather station', connectWeather),
-      (profile.safetyMonitorId, 'safety monitor', connectSafetyMonitor),
-      (profile.switchId, 'switch', connectSwitch),
-      (profile.coverCalibratorId, 'cover calibrator', connectCoverCalibrator),
-    ];
+    // (id, deviceType label, connector, saved name, discovery type). Order is
+    // informational only: every device is dispatched in parallel.
+    final entries =
+        <(String?, String, Future<void> Function(String), String?, DeviceType)>[
+          (
+            profile.cameraId,
+            'camera',
+            connectCamera,
+            profile.cameraName,
+            DeviceType.camera,
+          ),
+          (
+            profile.mountId,
+            'mount',
+            connectMount,
+            profile.mountName,
+            DeviceType.mount,
+          ),
+          (
+            profile.focuserId,
+            'focuser',
+            connectFocuser,
+            profile.focuserName,
+            DeviceType.focuser,
+          ),
+          (
+            profile.filterWheelId,
+            'filter wheel',
+            connectFilterWheel,
+            profile.filterWheelName,
+            DeviceType.filterWheel,
+          ),
+          (
+            profile.guiderId,
+            'guider',
+            connectGuider,
+            profile.guiderName,
+            DeviceType.guider,
+          ),
+          (
+            profile.rotatorId,
+            'rotator',
+            connectRotator,
+            profile.rotatorName,
+            DeviceType.rotator,
+          ),
+          (profile.domeId, 'dome', connectDome, null, DeviceType.dome),
+          (
+            profile.weatherId,
+            'weather station',
+            connectWeather,
+            null,
+            DeviceType.weather,
+          ),
+          (
+            profile.safetyMonitorId,
+            'safety monitor',
+            connectSafetyMonitor,
+            profile.safetyMonitorName,
+            DeviceType.safetyMonitor,
+          ),
+          (
+            profile.switchId,
+            'switch',
+            connectSwitch,
+            profile.switchName,
+            DeviceType.switch_,
+          ),
+          (
+            profile.coverCalibratorId,
+            'cover calibrator',
+            connectCoverCalibrator,
+            null,
+            DeviceType.coverCalibrator,
+          ),
+        ];
 
     // Use a single-subscription StreamController so events are buffered
     // until the caller subscribes. A broadcast controller would drop the
@@ -67,7 +128,7 @@ extension _DeviceServiceProfileConnections on DeviceService {
     // valid stream — the caller just sees no events before close.
     final active = entries
         .where((e) => e.$1 != null && e.$1!.isNotEmpty)
-        .map((e) => (e.$1!, e.$2, e.$3))
+        .map((e) => (e.$1!, e.$2, e.$3, e.$4, e.$5))
         .toList(growable: false);
 
     if (active.isEmpty) {
@@ -82,12 +143,28 @@ extension _DeviceServiceProfileConnections on DeviceService {
     // single-subscription controller buffers anyway, but emitting on the
     // next turn also keeps observable ordering deterministic in tests
     // that drive multiple sweeps in the same event-loop turn.
-    scheduleMicrotask(() {
+    scheduleMicrotask(() async {
+      final resolved = await _resolveProfilePositions(profile, active);
+
       // Dispatch every connect in parallel. Each future swallows its own
       // error and routes it onto the stream as a `failed` event so one
       // bad device cannot abort the sweep.
       final futures = <Future<void>>[];
-      for (final (id, deviceType, connect) in active) {
+      for (final (savedId, deviceType, connect, _, _) in active) {
+        final resolution = resolved[deviceType]!;
+        final id = resolution.deviceId ?? savedId;
+        if (resolution.refusal != null) {
+          controller.add(
+            DeviceConnectProgress(
+              deviceType: deviceType,
+              deviceId: savedId,
+              status: DeviceConnectProgressStatus.failed,
+              error: StateError(resolution.refusal!),
+              errorMessage: resolution.refusal,
+            ),
+          );
+          continue;
+        }
         controller.add(
           DeviceConnectProgress(
             deviceType: deviceType,
@@ -137,6 +214,90 @@ extension _DeviceServiceProfileConnections on DeviceService {
     });
 
     return controller.stream;
+  }
+
+  /// Check each positional native id in [active] against the name the profile
+  /// saved for it, and move it to the device that carries that name. The
+  /// corrected ids are written back to the profile so the next connect, and
+  /// every screen that shows the profile, names the right device.
+  ///
+  /// Discovery for a type that fails or does not answer in time leaves that
+  /// slot on its saved id: an unverifiable position is connected as before.
+  Future<Map<String, ProfileSlotResolution>> _resolveProfilePositions(
+    EquipmentProfileModel profile,
+    List<(String, String, Future<void> Function(String), String?, DeviceType)>
+    active,
+  ) async {
+    final resolutions = <String, ProfileSlotResolution>{};
+    final corrections = <DeviceType, String>{};
+    for (final (savedId, label, _, savedName, type) in active) {
+      if (!isPositionalDeviceId(savedId) ||
+          savedName == null ||
+          savedName.trim().isEmpty) {
+        resolutions[label] = ProfileSlotResolution.keep(savedId);
+        continue;
+      }
+      List<DeviceInfo> discovered;
+      try {
+        discovered = await _backend
+            .discoverDevices(type)
+            .timeout(DeviceService._profilePositionDiscoveryTimeout);
+      } catch (e) {
+        _ref
+            .read(loggingServiceProvider)
+            .warning(
+              'Could not check which $label is at $savedId ($e); '
+              'connecting the saved id',
+              source: 'DeviceService',
+            );
+        discovered = const [];
+      }
+      final resolution = resolveProfileSlot(
+        savedId: savedId,
+        savedName: savedName,
+        deviceLabel: label,
+        discovered: discovered,
+      );
+      resolutions[label] = resolution;
+      if (resolution.corrected) {
+        corrections[type] = resolution.deviceId!;
+        _ref
+            .read(loggingServiceProvider)
+            .warning(
+              'Profile ${profile.name}: $savedName moved from $savedId to '
+              '${resolution.deviceId}; connecting it there and updating the '
+              'profile',
+              source: 'DeviceService',
+            );
+      }
+    }
+    final profileId = profile.id;
+    if (corrections.isNotEmpty && profileId != null) {
+      try {
+        await _ref
+            .read(profileServiceProvider)
+            .updateProfileDevices(
+              profileId,
+              cameraId: corrections[DeviceType.camera],
+              mountId: corrections[DeviceType.mount],
+              focuserId: corrections[DeviceType.focuser],
+              filterWheelId: corrections[DeviceType.filterWheel],
+              guiderId: corrections[DeviceType.guider],
+              rotatorId: corrections[DeviceType.rotator],
+              safetyMonitorId: corrections[DeviceType.safetyMonitor],
+              switchId: corrections[DeviceType.switch_],
+            );
+      } catch (e) {
+        _ref
+            .read(loggingServiceProvider)
+            .warning(
+              'Could not save the corrected device ids to profile '
+              '${profile.name}: $e',
+              source: 'DeviceService',
+            );
+      }
+    }
+    return resolutions;
   }
 
   /// Disconnect all devices
