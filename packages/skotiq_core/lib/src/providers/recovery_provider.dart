@@ -173,27 +173,26 @@ class RecoveryEventEnvelope {
 /// `ref.watch`-ed somewhere in the widget tree (the Run Dashboard
 /// scaffolding watches it).
 final recoveryEventBridgeProvider = Provider<void>((ref) {
-  ref.listen<AsyncValue<bridge_event.SkotiqEvent>>(
-    skotiqEventsProvider,
-    (previous, next) {
-      next.when(
-        data: (event) {
-          final envelope = _recoveryEnvelopeFromBridge(event);
-          if (envelope == null) return;
-          _applyRecoveryEvent(ref, envelope);
-        },
-        loading: () {},
-        error: (error, _) {
-          developer.log(
-            '[recoveryEventBridge] Event stream error: $error',
-            name: 'recovery_provider',
-            level: 1000,
-          );
-        },
-      );
-    },
-    fireImmediately: true,
-  );
+  ref.listen<AsyncValue<bridge_event.SkotiqEvent>>(skotiqEventsProvider, (
+    previous,
+    next,
+  ) {
+    next.when(
+      data: (event) {
+        final envelope = _recoveryEnvelopeFromBridge(event);
+        if (envelope == null) return;
+        _applyRecoveryEvent(ref, envelope);
+      },
+      loading: () {},
+      error: (error, _) {
+        developer.log(
+          '[recoveryEventBridge] Event stream error: $error',
+          name: 'recovery_provider',
+          level: 1000,
+        );
+      },
+    );
+  }, fireImmediately: true);
 });
 
 /// Parses a [bridge_event.SkotiqEvent] into a typed

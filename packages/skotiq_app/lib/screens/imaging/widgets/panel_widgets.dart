@@ -169,9 +169,8 @@ class _BigActionButtonState extends State<BigActionButton>
                   style: SkotiqTypography.buttonSm.copyWith(
                     fontWeight: FontWeight.w600,
                     color: primaryForeground.withValues(
-                      alpha: widget.isEnabled
-                          ? 1.0
-                          : SkotiqTokens.opacityDisabled,
+                      alpha:
+                          widget.isEnabled ? 1.0 : SkotiqTokens.opacityDisabled,
                     ),
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -252,8 +251,8 @@ class _EditableCompactInputState extends State<EditableCompactInput> {
       children: [
         Text(
           widget.label,
-          style: SkotiqTypography.caption
-              .copyWith(color: widget.colors.textMuted),
+          style:
+              SkotiqTypography.caption.copyWith(color: widget.colors.textMuted),
         ),
         SizedBox(height: widget.isMobile ? 3 : 4),
         GestureDetector(
@@ -285,8 +284,7 @@ class _EditableCompactInputState extends State<EditableCompactInput> {
             ),
             decoration: BoxDecoration(
               color: widget.colors.surfaceAlt,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               border: Border.all(
                 color:
                     _isEditing ? widget.colors.primary : widget.colors.border,
@@ -402,8 +400,8 @@ class InputRow extends StatelessWidget {
           child: _panelRowLabel(
             context,
             label: label,
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
             helpId: helpId,
           ),
         ),
@@ -499,8 +497,8 @@ class _InputRowEditableState extends State<InputRowEditable> {
           child: _panelRowLabel(
             context,
             label: widget.label,
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
             helpId: widget.helpId,
           ),
         ),
@@ -515,16 +513,16 @@ class _InputRowEditableState extends State<InputRowEditable> {
             child: TextField(
               controller: _controller,
               focusNode: _focusNode,
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textPrimary),
+              style:
+                  SkotiqTypography.caption.copyWith(color: colors.textPrimary),
               decoration: InputDecoration(
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 border: InputBorder.none,
                 isDense: true,
                 suffixText: widget.suffix,
-                suffixStyle: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted),
+                suffixStyle:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
               ),
               onSubmitted: widget.onChanged,
               onChanged: widget.onChanged,
@@ -655,12 +653,11 @@ class SliderRowInteractive extends StatelessWidget {
     required double rowWidth,
     required bool hasHelp,
   }) {
-    const totalFlex = SkotiqTokens.panelRowLabelFlex +
-        SkotiqTokens.panelRowControlFlex;
-    final column = (rowWidth - _valueWidth) *
-            SkotiqTokens.panelRowLabelFlex /
-            totalFlex -
-        (hasHelp ? _helpAffordanceWidth : 0);
+    const totalFlex =
+        SkotiqTokens.panelRowLabelFlex + SkotiqTokens.panelRowControlFlex;
+    final column =
+        (rowWidth - _valueWidth) * SkotiqTokens.panelRowLabelFlex / totalFlex -
+            (hasHelp ? _helpAffordanceWidth : 0);
     return measureTextWidth(
           context,
           text: label,
@@ -981,8 +978,7 @@ class ReadOnlyField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
-    final base =
-        mono ? SkotiqTypography.inputMono : SkotiqTypography.bodySm;
+    final base = mono ? SkotiqTypography.inputMono : SkotiqTypography.bodySm;
     return Container(
       height: fieldHeight,
       padding: const EdgeInsets.symmetric(

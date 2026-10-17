@@ -199,8 +199,8 @@ class TonightCard extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     'Couldn’t generate tonight’s plan.',
-                    style: SkotiqTypography.caption
-                        .copyWith(color: colors.error),
+                    style:
+                        SkotiqTypography.caption.copyWith(color: colors.error),
                   ),
                 ),
                 TextButton.icon(
@@ -216,8 +216,7 @@ class TonightCard extends ConsumerWidget {
             const SizedBox(height: 6),
             Text(
               '+ ${optimization.alternates.length} more target${optimization.alternates.length == 1 ? '' : 's'}',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ],
           if (optimization != null && optimization.hasRecommendation) ...[
@@ -647,8 +646,8 @@ class _TonightRow extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
             overflow: TextOverflow.ellipsis,
           ),
         ),

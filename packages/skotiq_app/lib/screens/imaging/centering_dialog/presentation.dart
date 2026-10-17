@@ -102,8 +102,7 @@ extension _CenteringPresentationWidgets on _CenteringDialogState {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Row(children: [
-                      Icon(SkotiqIcons.target,
-                          size: 20, color: colors.accent),
+                      Icon(SkotiqIcons.target, size: 20, color: colors.accent),
                       const SizedBox(width: 8),
                       Expanded(
                           child: Text(

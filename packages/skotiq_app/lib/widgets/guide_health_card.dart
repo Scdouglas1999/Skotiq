@@ -327,8 +327,7 @@ class _GuideHealthCardState extends ConsumerState<GuideHealthCard> {
     );
   }
 
-  Widget _buildDisconnectedState(
-      BuildContext context, SkotiqColors colors) {
+  Widget _buildDisconnectedState(BuildContext context, SkotiqColors colors) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,

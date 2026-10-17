@@ -89,8 +89,7 @@ class _ScienceBadge extends StatelessWidget {
         ),
         child: icon != null
             ? Icon(icon,
-                size: SkotiqTokens.iconXs,
-                color: SkotiqColors.dark.textPrimary)
+                size: SkotiqTokens.iconXs, color: SkotiqColors.dark.textPrimary)
             : Text(
                 label ?? '',
                 style: SkotiqTypography.caption.copyWith(

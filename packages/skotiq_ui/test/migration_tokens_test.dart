@@ -87,46 +87,25 @@ void main() {
       () {
         // The mapping table says these named styles ARE these sizes; keep that
         // true so a migration can pick either form interchangeably.
-        expect(
-          SkotiqTypography.overline.fontSize,
-          SkotiqTypography.fontSize10,
-        );
+        expect(SkotiqTypography.overline.fontSize, SkotiqTypography.fontSize10);
         expect(
           SkotiqTypography.captionSm.fontSize,
           SkotiqTypography.fontSize11,
         );
-        expect(
-          SkotiqTypography.caption.fontSize,
-          SkotiqTypography.fontSize12,
-        );
-        expect(
-          SkotiqTypography.bodySm.fontSize,
-          SkotiqTypography.fontSize13,
-        );
-        expect(
-          SkotiqTypography.body.fontSize,
-          SkotiqTypography.fontSize14,
-        );
-        expect(
-          SkotiqTypography.h4.fontSize,
-          SkotiqTypography.fontSize16,
-        );
+        expect(SkotiqTypography.caption.fontSize, SkotiqTypography.fontSize12);
+        expect(SkotiqTypography.bodySm.fontSize, SkotiqTypography.fontSize13);
+        expect(SkotiqTypography.body.fontSize, SkotiqTypography.fontSize14);
+        expect(SkotiqTypography.h4.fontSize, SkotiqTypography.fontSize16);
         expect(
           SkotiqTypography.telemetryMd.fontSize,
           SkotiqTypography.fontSize18,
         );
-        expect(
-          SkotiqTypography.h3.fontSize,
-          SkotiqTypography.fontSize20,
-        );
+        expect(SkotiqTypography.h3.fontSize, SkotiqTypography.fontSize20);
         expect(
           SkotiqTypography.telemetryLg.fontSize,
           SkotiqTypography.fontSize22,
         );
-        expect(
-          SkotiqTypography.h2.fontSize,
-          SkotiqTypography.fontSize24,
-        );
+        expect(SkotiqTypography.h2.fontSize, SkotiqTypography.fontSize24);
       },
     );
 

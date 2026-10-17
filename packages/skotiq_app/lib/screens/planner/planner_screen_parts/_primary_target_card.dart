@@ -385,8 +385,7 @@ class _AltitudeCurvePainter extends CustomPainter {
 
     canvas.drawPath(
       fill,
-      Paint()
-        ..color = curve.withValues(alpha: SkotiqTokens.opacityAccentTint),
+      Paint()..color = curve.withValues(alpha: SkotiqTokens.opacityAccentTint),
     );
     canvas.drawPath(
       path,

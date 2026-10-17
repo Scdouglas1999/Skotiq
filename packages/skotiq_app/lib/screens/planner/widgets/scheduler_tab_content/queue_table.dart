@@ -29,15 +29,14 @@ class _QueueTable extends ConsumerWidget {
           backgroundColor: colors.surface,
           title: Text(
             'Remove from scheduler?',
-            style:
-                SkotiqTypography.body.copyWith(color: colors.textPrimary),
+            style: SkotiqTypography.body.copyWith(color: colors.textPrimary),
           ),
           content: Text(
             'Remove $targetName from the scheduler? The autopilot will not '
             'pick it again; its integration goals and constraints are '
             'deleted, and the target itself stays in your catalog.',
-            style: SkotiqTypography.bodySm
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
           ),
           actions: [
             SkotiqButton(
@@ -98,15 +97,14 @@ class _QueueTable extends ConsumerWidget {
           backgroundColor: colors.surface,
           title: Text(
             'Clear scheduler queue?',
-            style:
-                SkotiqTypography.body.copyWith(color: colors.textPrimary),
+            style: SkotiqTypography.body.copyWith(color: colors.textPrimary),
           ),
           content: Text(
             'Clear all targets from the scheduler? The autopilot will have '
             'nothing left to pick; integration goals and constraints are '
             'deleted, and the targets themselves stay in your catalog.',
-            style: SkotiqTypography.bodySm
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
           ),
           actions: [
             SkotiqButton(
@@ -200,8 +198,7 @@ class _QueueTable extends ConsumerWidget {
               if (decision != null)
                 Flexible(
                   child: Padding(
-                    padding:
-                        const EdgeInsets.only(right: SkotiqTokens.spaceSm),
+                    padding: const EdgeInsets.only(right: SkotiqTokens.spaceSm),
                     child: Text(
                       'Last evaluation ${_formatTime(decision!.evaluatedAt)}',
                       overflow: TextOverflow.ellipsis,
@@ -239,8 +236,7 @@ class _QueueTable extends ConsumerWidget {
                 padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
                 child: Text(
                   'Failed to load integration goals: $e',
-                  style: SkotiqTypography.caption
-                      .copyWith(color: colors.error),
+                  style: SkotiqTypography.caption.copyWith(color: colors.error),
                 ),
               ),
               data: (goals) {
@@ -297,8 +293,7 @@ class _ColumnHeaders extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    TextStyle h() =>
-        SkotiqTypography.eyebrow.copyWith(color: colors.textMuted);
+    TextStyle h() => SkotiqTypography.eyebrow.copyWith(color: colors.textMuted);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: SkotiqTokens.spaceLg),
       child: Row(

@@ -406,12 +406,8 @@ void main() {
     });
 
     test('findQuarantinedDatabases lists backups newest first', () async {
-      final older = File(
-        p.join(tempDir.path, 'skotiq-corrupt-1-skotiq.db'),
-      );
-      final newer = File(
-        p.join(tempDir.path, 'skotiq-corrupt-2-skotiq.db'),
-      );
+      final older = File(p.join(tempDir.path, 'skotiq-corrupt-1-skotiq.db'));
+      final newer = File(p.join(tempDir.path, 'skotiq-corrupt-2-skotiq.db'));
       await older.writeAsBytes(Uint8List(16), flush: true);
       await older.setLastModified(DateTime(2020));
       await newer.writeAsBytes(Uint8List(16), flush: true);

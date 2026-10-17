@@ -163,8 +163,7 @@ class RunDashboardQualityPanel extends ConsumerWidget {
                   '${summary.hfrSparkline.reduce((a, b) => a < b ? a : b).toStringAsFixed(2)}'
                   '–${summary.hfrSparkline.reduce((a, b) => a > b ? a : b).toStringAsFixed(2)} px',
                   style: SkotiqTypography.withTabular(
-                    SkotiqTypography.labelSm
-                        .copyWith(color: colors.textMuted),
+                    SkotiqTypography.labelSm.copyWith(color: colors.textMuted),
                   ),
                 ),
               ],

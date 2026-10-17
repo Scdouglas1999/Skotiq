@@ -965,10 +965,7 @@ class _ReachBadge extends StatelessWidget {
         children: [
           Icon(icon, size: 11, color: color),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: SkotiqTypography.overline.copyWith(color: color),
-          ),
+          Text(label, style: SkotiqTypography.overline.copyWith(color: color)),
         ],
       ),
     );

@@ -228,8 +228,7 @@ class _MobilePlaybackButton extends StatelessWidget {
                   : effectiveEnabled
                       ? colors.surfaceAlt
                       : colors.surface,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               border: Border.all(
                 color: isActive
                     ? colors.success.withValues(alpha: 0.5)

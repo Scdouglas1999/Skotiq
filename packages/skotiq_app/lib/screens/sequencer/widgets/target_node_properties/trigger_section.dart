@@ -134,8 +134,7 @@ class _TriggerBuilder extends StatelessWidget {
           value: _kindKey(trigger),
           dropdownColor: colors.surfaceAlt,
           style: TextStyle(
-              fontSize: SkotiqTypography.fontSize12,
-              color: colors.textPrimary),
+              fontSize: SkotiqTypography.fontSize12, color: colors.textPrimary),
           items: const [
             DropdownMenuItem(
                 value: 'AltitudeAbove', child: Text('Altitude above')),

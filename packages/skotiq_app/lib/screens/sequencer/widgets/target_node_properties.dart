@@ -281,8 +281,8 @@ class TargetGroupProperties extends ConsumerWidget {
                           horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
                         color: colors.surfaceAlt,
-                        borderRadius: BorderRadius.circular(
-                            SkotiqTokens.radiusInline8),
+                        borderRadius:
+                            BorderRadius.circular(SkotiqTokens.radiusInline8),
                         border: Border.all(color: colors.border),
                       ),
                       child: Row(
@@ -350,8 +350,8 @@ class TargetGroupProperties extends ConsumerWidget {
                           horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
                         color: colors.surfaceAlt,
-                        borderRadius: BorderRadius.circular(
-                            SkotiqTokens.radiusInline8),
+                        borderRadius:
+                            BorderRadius.circular(SkotiqTokens.radiusInline8),
                         border: Border.all(color: colors.border),
                       ),
                       child: Row(

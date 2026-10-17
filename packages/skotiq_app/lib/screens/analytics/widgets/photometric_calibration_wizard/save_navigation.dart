@@ -16,8 +16,7 @@ extension _PhotometricWizardSaveNavigation
       children: [
         Text(
           'Save Calibration',
-          style:
-              SkotiqTypography.button.copyWith(color: colors.textPrimary),
+          style: SkotiqTypography.button.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: 12),
         SkotiqPanel(
@@ -45,8 +44,7 @@ extension _PhotometricWizardSaveNavigation
           'measurements taken with the "$_filterName" filter. The standard '
           'equation M_std = m_inst - k*X + T*(B-V) + zp will be used '
           'to convert instrumental magnitudes to the standard system.',
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
         if (_statusMessage.isNotEmpty) ...[
           const SizedBox(height: 8),

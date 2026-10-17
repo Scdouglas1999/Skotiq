@@ -25,8 +25,7 @@ import 'package:skotiq_core/src/models/backend/image_result.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart'
     as seq_models;
-import 'package:skotiq_core/src/models/science/science_models.dart'
-    as science;
+import 'package:skotiq_core/src/models/science/science_models.dart' as science;
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';

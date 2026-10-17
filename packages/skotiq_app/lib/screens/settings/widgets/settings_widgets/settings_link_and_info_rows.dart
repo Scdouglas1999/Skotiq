@@ -33,12 +33,10 @@ class _SettingsLinkButtonState extends State<SettingsLinkButton> {
 
     final verticalPad = widget.compact ? SkotiqTokens.spaceSm : 10.0;
 
-    final iconSize =
-        widget.compact ? SkotiqTokens.iconXs : SkotiqTokens.iconSm;
+    final iconSize = widget.compact ? SkotiqTokens.iconXs : SkotiqTokens.iconSm;
 
-    final labelStyle = widget.compact
-        ? SkotiqTypography.captionSm
-        : SkotiqTypography.caption;
+    final labelStyle =
+        widget.compact ? SkotiqTypography.captionSm : SkotiqTypography.caption;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -104,15 +102,14 @@ class SettingsInfoRow extends StatelessWidget {
             width: 100,
             child: Text(
               label,
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: SkotiqTypography.monoSm
-                  .copyWith(color: colors.textSecondary),
+              style:
+                  SkotiqTypography.monoSm.copyWith(color: colors.textSecondary),
             ),
           ),
         ],

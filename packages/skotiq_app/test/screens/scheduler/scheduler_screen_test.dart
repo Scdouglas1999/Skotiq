@@ -240,8 +240,7 @@ void main() {
     // Re-evaluate (Pause/Resume/Stop hidden while idle).
     expect(find.widgetWithText(SkotiqButton, 'Run unattended all night'),
         findsOneWidget);
-    expect(
-        find.widgetWithText(SkotiqButton, 'Re-evaluate'), findsOneWidget);
+    expect(find.widgetWithText(SkotiqButton, 'Re-evaluate'), findsOneWidget);
 
     // Active target name appears in the decision panel.
     expect(find.text('NGC 7000'), findsAtLeastNWidgets(1));

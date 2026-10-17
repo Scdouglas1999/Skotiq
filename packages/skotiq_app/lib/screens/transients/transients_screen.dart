@@ -168,8 +168,7 @@ class TransientsView extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isMobile =
-            constraints.maxWidth < SkotiqTokens.breakpointTablet;
+        final isMobile = constraints.maxWidth < SkotiqTokens.breakpointTablet;
 
         return ListView.builder(
           padding: isMobile
@@ -556,9 +555,7 @@ class _TransientCardSkeleton extends StatelessWidget {
           Row(
             children: [
               SkeletonBox(
-                  width: 32,
-                  height: 32,
-                  borderRadius: SkotiqTokens.radiusMd),
+                  width: 32, height: 32, borderRadius: SkotiqTokens.radiusMd),
               SizedBox(width: SkotiqTokens.spaceMd),
               Expanded(
                 child: Column(
@@ -571,9 +568,7 @@ class _TransientCardSkeleton extends StatelessWidget {
                 ),
               ),
               SkeletonBox(
-                  width: 60,
-                  height: 24,
-                  borderRadius: SkotiqTokens.radiusFull),
+                  width: 60, height: 24, borderRadius: SkotiqTokens.radiusFull),
             ],
           ),
           SizedBox(height: SkotiqTokens.spaceMd),
@@ -584,19 +579,13 @@ class _TransientCardSkeleton extends StatelessWidget {
           Row(
             children: [
               SkeletonBox(
-                  width: 80,
-                  height: 32,
-                  borderRadius: SkotiqTokens.radiusSm),
+                  width: 80, height: 32, borderRadius: SkotiqTokens.radiusSm),
               SizedBox(width: SkotiqTokens.spaceSm),
               SkeletonBox(
-                  width: 100,
-                  height: 32,
-                  borderRadius: SkotiqTokens.radiusSm),
+                  width: 100, height: 32, borderRadius: SkotiqTokens.radiusSm),
               SizedBox(width: SkotiqTokens.spaceSm),
               SkeletonBox(
-                  width: 70,
-                  height: 32,
-                  borderRadius: SkotiqTokens.radiusSm),
+                  width: 70, height: 32, borderRadius: SkotiqTokens.radiusSm),
             ],
           ),
         ],
@@ -685,8 +674,7 @@ class _TransientSettingsDialogState
             'bot name and API key from Settings > Science. AAVSO, MPEC and '
             'CBAT have no working feed: VSX answers positional catalog '
             'queries, not alert notices.',
-            style: SkotiqTypography.captionSm
-                .copyWith(color: colors.textMuted),
+            style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
           ),
           const SizedBox(height: SkotiqTokens.spaceLg),
           Text(
@@ -736,8 +724,7 @@ class _TransientSettingsDialogState
           ),
           Text(
             'Only show alerts brighter than this magnitude',
-            style: SkotiqTypography.captionSm
-                .copyWith(color: colors.textMuted),
+            style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
           ),
           const SizedBox(height: SkotiqTokens.spaceLg),
           SkotiqSwitchRow(

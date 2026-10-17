@@ -481,9 +481,7 @@ class _TestSendButtonState extends ConsumerState<_TestSendButton> {
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: Icon(
-              _result!.success
-                  ? SkotiqIcons.success
-                  : SkotiqIcons.error,
+              _result!.success ? SkotiqIcons.success : SkotiqIcons.error,
               size: 18,
               color: _result!.success
                   ? SkotiqColors.of(context).success

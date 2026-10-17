@@ -82,8 +82,7 @@ void main() {
       (tester) async {
     final pending = await openPicker(tester);
 
-    await tester
-        .tap(find.widgetWithText(SkotiqButton, 'Any constellation'));
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Any constellation'));
     await tester.pumpAndSettle();
 
     // Empty string, not null: null is a barrier dismiss and must be a no-op.

@@ -124,11 +124,9 @@ class _SeverityStyle {
   ) {
     switch (severity) {
       case NightFindingSeverity.critical:
-        return _SeverityStyle(
-            colors.error, SkotiqIcons.critical, 'Critical');
+        return _SeverityStyle(colors.error, SkotiqIcons.critical, 'Critical');
       case NightFindingSeverity.warn:
-        return _SeverityStyle(
-            colors.warning, SkotiqIcons.warning, 'Warning');
+        return _SeverityStyle(colors.warning, SkotiqIcons.warning, 'Warning');
       case NightFindingSeverity.info:
         return _SeverityStyle(colors.info, SkotiqIcons.info, 'Info');
     }

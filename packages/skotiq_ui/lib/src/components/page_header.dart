@@ -79,9 +79,7 @@ class PageHeader extends StatelessWidget {
               ? ShellChromeMetrics.pageHeaderHeightNarrow
               : ShellChromeMetrics.pageHeaderHeight) +
           hairline,
-      padding: const EdgeInsets.symmetric(
-        horizontal: SkotiqTokens.space2xl,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: SkotiqTokens.space2xl),
       decoration: BoxDecoration(
         color: colors.background,
         border: Border(
@@ -111,9 +109,7 @@ class PageHeader extends StatelessWidget {
               // single action is pushed off a 360 px phone header.
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.only(
-                    right: SkotiqTokens.spaceMd,
-                  ),
+                  padding: const EdgeInsets.only(right: SkotiqTokens.spaceMd),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: _titleBlock(
@@ -192,9 +188,7 @@ class PageHeader extends StatelessWidget {
             Flexible(
               child: Text(
                 context!,
-                style: SkotiqTypography.body.copyWith(
-                  color: colors.textMuted,
-                ),
+                style: SkotiqTypography.body.copyWith(color: colors.textMuted),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),

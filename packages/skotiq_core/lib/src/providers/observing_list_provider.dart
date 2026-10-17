@@ -185,8 +185,7 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
   );
 
   bool _isCurrentAuthority(
-    ({int revision, SkotiqBackend backend, ObservingListsDao dao})
-    authority,
+    ({int revision, SkotiqBackend backend, ObservingListsDao dao}) authority,
   ) {
     return mounted &&
         authority.revision == _authorityRevision &&
@@ -197,8 +196,7 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
   Future<T> _mutate<T>(
     T staleResult,
     Future<T> Function(
-      ({int revision, SkotiqBackend backend, ObservingListsDao dao})
-      authority,
+      ({int revision, SkotiqBackend backend, ObservingListsDao dao}) authority,
     )
     operation,
   ) {

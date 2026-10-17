@@ -86,8 +86,7 @@ void main() {
         child: MaterialApp(
           theme: SkotiqTheme.dark,
           locale: locale,
-          localizationsDelegates:
-              SkotiqLocalizations.localizationsDelegates,
+          localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
           supportedLocales: SkotiqLocalizations.supportedLocales,
           home: const Scaffold(body: PlannerScreen()),
         ),

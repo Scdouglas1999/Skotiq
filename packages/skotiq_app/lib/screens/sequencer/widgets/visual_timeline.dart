@@ -5,8 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    as planetarium;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' as planetarium;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Toggle for timeline view visibility.
@@ -83,8 +82,7 @@ class VisualTimeline extends ConsumerWidget {
           child: Text(
             'No timeline data available',
             style: TextStyle(
-                fontSize: SkotiqTypography.fontSize12,
-                color: colors.textMuted),
+                fontSize: SkotiqTypography.fontSize12, color: colors.textMuted),
           ),
         ),
       );
@@ -167,8 +165,7 @@ class VisualTimeline extends ConsumerWidget {
           child: Text(
             'No timeline data available',
             style: TextStyle(
-                fontSize: SkotiqTypography.fontSize12,
-                color: colors.textMuted),
+                fontSize: SkotiqTypography.fontSize12, color: colors.textMuted),
           ),
         ),
       );
@@ -191,8 +188,7 @@ class VisualTimeline extends ConsumerWidget {
           child: Text(
             'Sequence has no estimated duration',
             style: TextStyle(
-                fontSize: SkotiqTypography.fontSize12,
-                color: colors.textMuted),
+                fontSize: SkotiqTypography.fontSize12, color: colors.textMuted),
           ),
         ),
       );

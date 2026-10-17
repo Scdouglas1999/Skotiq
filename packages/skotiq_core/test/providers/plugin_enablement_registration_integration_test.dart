@@ -95,10 +95,7 @@ void main() {
 
         // Every other bundled plugin defaults to enabled.
         expect(host.isEnabled(_pushoverId), isTrue);
-        expect(
-          host.isEnabled('com.skotiq.examples.home_assistant'),
-          isTrue,
-        );
+        expect(host.isEnabled('com.skotiq.examples.home_assistant'), isTrue);
         expect(host.isEnabled('com.skotiq.weatherlogger'), isTrue);
       },
     );

@@ -400,8 +400,7 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(14),
-              decoration: SkotiqDecorations.chip(
-                  SkotiqColors.of(context),
+              decoration: SkotiqDecorations.chip(SkotiqColors.of(context),
                   tone: SkotiqColors.of(context).primary),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -435,10 +434,8 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: SkotiqColors.of(context).surface,
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusLg),
-                    border:
-                        Border.all(color: SkotiqColors.of(context).border),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
+                    border: Border.all(color: SkotiqColors.of(context).border),
                   ),
                   child: Material(
                     type: MaterialType.transparency,

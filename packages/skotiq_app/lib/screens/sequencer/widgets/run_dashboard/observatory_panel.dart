@@ -238,8 +238,7 @@ class _ObservatoryBlock extends StatelessWidget {
             Expanded(
               child: Text(
                 name,
-                style:
-                    SkotiqTypography.h6.copyWith(color: colors.textPrimary),
+                style: SkotiqTypography.h6.copyWith(color: colors.textPrimary),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -267,8 +266,7 @@ class _ObservatoryBlock extends StatelessWidget {
           Text(
             deviceName!,
             style: TextStyle(
-                fontSize: SkotiqTypography.fontSize10,
-                color: colors.textMuted),
+                fontSize: SkotiqTypography.fontSize10, color: colors.textMuted),
             overflow: TextOverflow.ellipsis,
           ),
         ],

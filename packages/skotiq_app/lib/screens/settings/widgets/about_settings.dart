@@ -13,8 +13,7 @@ import '../../../utils/snackbar_helper.dart';
 import 'settings_widgets.dart';
 
 /// Canonical public home used by both mobile and desktop About layouts.
-const String kSkotiqRepositoryUrl =
-    'https://github.com/Scdouglas1999/Skotiq';
+const String kSkotiqRepositoryUrl = 'https://github.com/Scdouglas1999/Skotiq';
 
 /// One row of the About page's link strip.
 ///
@@ -63,11 +62,9 @@ const List<AboutLink> kAboutLinks = [
 /// The licence this build ships under, verbatim from the repository's LICENSE
 /// file. Settings search sends both `license` and `credits` to About, so the
 /// page has to actually carry them.
-const String kSkotiqLicenseName =
-    'Skotiq Source-Available License v1.2';
+const String kSkotiqLicenseName = 'Skotiq Source-Available License v1.2';
 const String kSkotiqCopyright = 'Copyright (c) 2025 Sean Douglas';
-const String kSkotiqLicenseUrl =
-    '$kSkotiqRepositoryUrl/blob/main/LICENSE';
+const String kSkotiqLicenseUrl = '$kSkotiqRepositoryUrl/blob/main/LICENSE';
 
 /// Opens an external URL. Injected so a widget test can assert which address a
 /// button actually hands to the platform rather than only that it was tapped.
@@ -349,8 +346,8 @@ class _LicenseCard extends ConsumerWidget {
         children: [
           Text(
             'License',
-            style: SkotiqTypography.bodyStrong
-                .copyWith(color: colors.textPrimary),
+            style:
+                SkotiqTypography.bodyStrong.copyWith(color: colors.textPrimary),
           ),
           const SizedBox(height: 12),
           Text(
@@ -385,8 +382,7 @@ class _LicenseCard extends ConsumerWidget {
                   applicationName: 'Skotiq',
                   applicationVersion:
                       'Version ${appVersion.version} (build ${appVersion.buildNumber})',
-                  applicationLegalese:
-                      '$kSkotiqCopyright\n$kSkotiqLicenseName',
+                  applicationLegalese: '$kSkotiqCopyright\n$kSkotiqLicenseName',
                 ),
               ),
             ],
@@ -530,8 +526,8 @@ class _SoftwareUpdateCardState extends ConsumerState<_SoftwareUpdateCard> {
         children: [
           Text(
             'Software update',
-            style: SkotiqTypography.bodyStrong
-                .copyWith(color: colors.textPrimary),
+            style:
+                SkotiqTypography.bodyStrong.copyWith(color: colors.textPrimary),
           ),
           const SizedBox(height: 12),
           Text(

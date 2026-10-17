@@ -2,8 +2,7 @@
 // overrides.
 part of '../disconnected_backend.dart';
 
-mixin _DisconnectedBackendProfileAndImage on Object
-    implements SkotiqBackend {
+mixin _DisconnectedBackendProfileAndImage on Object implements SkotiqBackend {
   Never _throwNotConnected();
 
   @override

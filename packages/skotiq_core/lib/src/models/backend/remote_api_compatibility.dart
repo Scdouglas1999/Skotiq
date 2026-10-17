@@ -10,8 +10,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 /// cannot drift apart. Only the decision-making is delegated: the core-side
 /// [SemanticVersion] / [RemoteApiCompatibilityResult] surface stays here.
 class RemoteApiCompatibility {
-  static const apiVersionHeader =
-      SkotiqServerCompatibility.apiVersionHeader;
+  static const apiVersionHeader = SkotiqServerCompatibility.apiVersionHeader;
   // 2.4.0 is the floor for the hardened remote API. Earlier 2.x builds did
   // not expose the auth, pairing, and version-negotiation contracts required
   // by current desktop, mobile, and WebRTC clients. Sourced from

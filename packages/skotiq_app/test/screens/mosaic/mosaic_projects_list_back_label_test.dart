@@ -48,8 +48,7 @@ Widget _pushedList({List<MosaicProject> projects = const []}) => ProviderScope(
 
 /// The header's back control: the one icon button whose tooltip says "Back".
 final Finder _backAction = find.byWidgetPredicate(
-  (widget) =>
-      widget is SkotiqIconButton && widget.tooltip.startsWith('Back'),
+  (widget) => widget is SkotiqIconButton && widget.tooltip.startsWith('Back'),
 );
 
 void main() {

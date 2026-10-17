@@ -213,8 +213,7 @@ class _VerdictChip extends StatelessWidget {
 
     final pill = DecoratedBox(
       decoration: BoxDecoration(
-        color:
-            statusColor.withValues(alpha: SkotiqTokens.opacityStatusFill),
+        color: statusColor.withValues(alpha: SkotiqTokens.opacityStatusFill),
         borderRadius: SkotiqTokens.borderRadiusSm,
         border: Border.all(
           color: statusColor.withValues(

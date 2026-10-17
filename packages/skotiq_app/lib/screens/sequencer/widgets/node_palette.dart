@@ -82,8 +82,7 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
             height: 4,
             decoration: BoxDecoration(
               color: widget.colors.border,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline2),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline2),
             ),
           ),
         ),
@@ -116,8 +115,7 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
                   color: widget.colors.surfaceAlt,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusLg),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                   border: Border.all(color: widget.colors.border),
                 ),
                 child: Row(
@@ -376,8 +374,7 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
                   EdgeInsets.fromLTRB(tipPadding, 0, tipPadding, tipPadding),
               decoration: SkotiqDecorations.iconChip(
                 widget.colors.info,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 borderAlpha: 0.2,
               ),
               child: Row(
@@ -620,8 +617,7 @@ class _DraggableNodeItemState extends ConsumerState<_DraggableNodeItem> {
                   height: 40,
                   decoration: SkotiqDecorations.tintedBadge(
                     widget.categoryColor,
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusLg),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                   ),
                   child: Icon(
                     widget.getIcon(widget.item.icon),
@@ -682,8 +678,7 @@ class _DraggableNodeItemState extends ConsumerState<_DraggableNodeItem> {
                 EdgeInsets.symmetric(horizontal: hPadding, vertical: vPadding),
             decoration: SkotiqDecorations.selectedSurface(
               widget.categoryColor,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               fillAlpha: 0.2,
             ),
             child: Row(

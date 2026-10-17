@@ -62,8 +62,7 @@ void main() {
     return result!;
   }
 
-  SkotiqButton applyButton(WidgetTester tester) =>
-      tester.widget<SkotiqButton>(
+  SkotiqButton applyButton(WidgetTester tester) => tester.widget<SkotiqButton>(
         find.ancestor(
           of: find.text('Apply'),
           matching: find.byType(SkotiqButton),

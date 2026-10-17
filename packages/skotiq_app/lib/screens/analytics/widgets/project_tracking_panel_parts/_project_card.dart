@@ -192,8 +192,7 @@ class _EnhancedProjectCard extends ConsumerWidget {
               children: [
                 Expanded(
                   child: ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusSm),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
                     child: LinearProgressIndicator(
                       value: progress.completionFraction,
                       minHeight: 10,
@@ -277,8 +276,7 @@ class _EnhancedProjectCard extends ConsumerWidget {
             const SizedBox(height: 10),
             Text(
               'Last imaged: ${DateFormat('MMM d, yyyy HH:mm').format(progress.lastSessionAt!)}',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ],
         ],
@@ -314,8 +312,7 @@ class _MetricChip extends StatelessWidget {
           children: [
             Text(
               label,
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
             Text(
               value,

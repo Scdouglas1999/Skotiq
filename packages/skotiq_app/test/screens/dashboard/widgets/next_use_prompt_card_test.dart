@@ -296,8 +296,7 @@ void main() {
     testWidgets(
       'suppressed while sequence state is ${executionState.name}',
       (tester) async {
-        final database =
-            db.SkotiqDatabase.forTesting(NativeDatabase.memory());
+        final database = db.SkotiqDatabase.forTesting(NativeDatabase.memory());
         final container = ProviderContainer(
           overrides: [
             databaseProvider.overrideWithValue(database),

@@ -24,8 +24,7 @@ class _StatChip extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-                fontSize: SkotiqTypography.fontSize10,
-                color: colors.textMuted),
+                fontSize: SkotiqTypography.fontSize10, color: colors.textMuted),
           ),
           const SizedBox(height: 2),
           Text(

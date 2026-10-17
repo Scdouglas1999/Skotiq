@@ -35,8 +35,7 @@ class CompactGuidingGraph extends StatelessWidget {
           if (hasData)
             Positioned.fill(
               child: ClipRRect(
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline9),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline9),
                 child: CustomPaint(
                   painter: _CompactGuidingGraphPainter(
                     data: data,
@@ -52,9 +51,7 @@ class CompactGuidingGraph extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    isGuiding
-                        ? SkotiqIcons.activity
-                        : SkotiqIcons.crosshair,
+                    isGuiding ? SkotiqIcons.activity : SkotiqIcons.crosshair,
                     size: 24,
                     color: isGuiding ? colors.success : colors.textMuted,
                   ),
@@ -130,15 +127,13 @@ class _CompactGuidingGraphPainter extends CustomPainter {
     if (data.isEmpty) return;
 
     final raPaint = Paint()
-      ..color = SkotiqChartColors.forTheme(
-              SkotiqChartColors.seriesRed, colors)
+      ..color = SkotiqChartColors.forTheme(SkotiqChartColors.seriesRed, colors)
           .withValues(alpha: 0.8)
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
     final decPaint = Paint()
-      ..color = SkotiqChartColors.forTheme(
-              SkotiqChartColors.seriesBlue, colors)
+      ..color = SkotiqChartColors.forTheme(SkotiqChartColors.seriesBlue, colors)
           .withValues(alpha: 0.8)
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
@@ -252,9 +247,8 @@ class GuideStarList extends ConsumerWidget {
     );
   }
 
-  static TextStyle _headerStyle(SkotiqColors colors) =>
-      SkotiqTypography.caption
-          .copyWith(fontWeight: FontWeight.w600, color: colors.textMuted);
+  static TextStyle _headerStyle(SkotiqColors colors) => SkotiqTypography.caption
+      .copyWith(fontWeight: FontWeight.w600, color: colors.textMuted);
 }
 
 class _GuideStarRow extends StatelessWidget {
@@ -340,8 +334,7 @@ class GuideStat extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ],
       ),

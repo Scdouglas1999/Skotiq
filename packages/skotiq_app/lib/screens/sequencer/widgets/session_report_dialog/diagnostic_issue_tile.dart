@@ -31,8 +31,8 @@ class _DiagnosticIssueTile extends StatelessWidget {
               children: [
                 Text(
                   issue.title,
-                  style: SkotiqTypography.h6
-                      .copyWith(color: colors.textPrimary),
+                  style:
+                      SkotiqTypography.h6.copyWith(color: colors.textPrimary),
                 ),
                 const SizedBox(height: 2),
                 Text(

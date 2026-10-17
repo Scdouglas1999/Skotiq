@@ -141,10 +141,7 @@ class FfiBackend extends _FfiBackendBase
         _FfiImagePolarOperations,
         _FfiSessionHeartbeatOperations,
         _FfiDepthLockOperations
-    implements
-        SkotiqBackend,
-        EnvironmentalStatusBackend,
-        DomeStatusBackend {
+    implements SkotiqBackend, EnvironmentalStatusBackend, DomeStatusBackend {
   /// [thumbnailSidecars] is a seam for tests that need to observe or stub
   /// thumbnail generation without a live Rust bridge; production leaves it
   /// null and gets the default service.

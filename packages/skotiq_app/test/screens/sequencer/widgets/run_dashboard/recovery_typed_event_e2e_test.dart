@@ -113,8 +113,7 @@ void main() {
         'progress notifier; Try Now reaches backend; Completed clears it',
         () async {
       final backend = _SpyBackend();
-      final controller =
-          StreamController<bridge_event.SkotiqEvent>.broadcast();
+      final controller = StreamController<bridge_event.SkotiqEvent>.broadcast();
       addTearDown(controller.close);
 
       final container = ProviderContainer(
@@ -179,8 +178,7 @@ void main() {
 
     test('GaveUp(abortedByUser=true) records aborted_by_user=true', () async {
       final backend = _SpyBackend();
-      final controller =
-          StreamController<bridge_event.SkotiqEvent>.broadcast();
+      final controller = StreamController<bridge_event.SkotiqEvent>.broadcast();
       addTearDown(controller.close);
 
       final container = ProviderContainer(

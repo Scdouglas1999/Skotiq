@@ -143,14 +143,12 @@ class UpdateService {
        _antiFreezeStore =
            antiFreezeStore ??
            AntiFreezeStore(
-             applicationSupportDirectoryProvider ??
-                 resolveSkotiqDataDirectory,
+             applicationSupportDirectoryProvider ?? resolveSkotiqDataDirectory,
            ),
        _httpClient = httpClient ?? http.Client(),
        _httpTimeout = httpTimeout,
        _applicationSupportDirectoryProvider =
-           applicationSupportDirectoryProvider ??
-           resolveSkotiqDataDirectory,
+           applicationSupportDirectoryProvider ?? resolveSkotiqDataDirectory,
        _installDirectoryProvider =
            installDirectoryProvider ?? _executableDirectory,
        _allowInsecureUpdateSource = allowInsecureUpdateSource,

@@ -108,8 +108,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
       buttons * extent +
       (buttons - groups) * SkotiqToolbar.itemGap +
       (groups - 1) *
-          (SkotiqToolbar.separatorWidth +
-              SkotiqToolbar.groupPadding * 2);
+          (SkotiqToolbar.separatorWidth + SkotiqToolbar.groupPadding * 2);
 
   /// The narrowest bar that can host [toolbarWidth] and still give the name
   /// its full [_nameWidthFraction] share.
@@ -180,8 +179,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
           ? SkotiqTokens.minTouchTarget + _bottomBorderWidth
           : _canvasBarHeight + _bottomBorderWidth,
       padding: EdgeInsets.symmetric(
-        horizontal:
-            isPhone ? SkotiqTokens.spaceSm : SkotiqTokens.spaceMd,
+        horizontal: isPhone ? SkotiqTokens.spaceSm : SkotiqTokens.spaceMd,
       ),
       decoration: BoxDecoration(
         color: colors.background,
@@ -1183,10 +1181,7 @@ class _CanvasBarMeta extends ConsumerWidget {
     )..layout();
     final width = painter.width;
     painter.dispose();
-    return width +
-        SkotiqChip.horizontalPadding * 2 +
-        SkotiqTokens.spaceXs +
-        2;
+    return width + SkotiqChip.horizontalPadding * 2 + SkotiqTokens.spaceXs + 2;
   }
 
   Widget _chips(

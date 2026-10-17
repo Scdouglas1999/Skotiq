@@ -81,8 +81,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         SettingRow(
           icon: LucideIcons.shieldOff,
           title: 'Disable broadcast everywhere',
-          subtitle:
-              'Master kill switch — every LiveStacking node will '
+          subtitle: 'Master kill switch — every LiveStacking node will '
               'build the stack in memory but refuse public requests. '
               'Useful when you want to test without exposing imagery.',
           trailing: SettingsSwitch(
@@ -97,8 +96,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         SettingRow(
           icon: LucideIcons.network,
           title: 'Default broadcast port',
-          subtitle:
-              'Port used by newly-created LiveStacking nodes. '
+          subtitle: 'Port used by newly-created LiveStacking nodes. '
               'Must not clash with the headless API server.',
           trailing: SettingsNumberInput(
             controller: _broadcastPortController,
@@ -118,8 +116,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         SettingRow(
           icon: LucideIcons.layers,
           title: 'Default stack method',
-          subtitle:
-              'Average is fastest; Median + Rejection and Sigma '
+          subtitle: 'Average is fastest; Median + Rejection and Sigma '
               'reject outliers but are slower.',
           trailing: settingsTrailingDropdown(
             context: context,
@@ -141,8 +138,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         SettingRow(
           icon: LucideIcons.type,
           title: 'Default watermark template',
-          subtitle:
-              'Rendered on the broadcast JPEG. Variable interpolation '
+          subtitle: 'Rendered on the broadcast JPEG. Variable interpolation '
               r'(e.g. "${target.name} — L ${integration.hms}") applied at '
               'render time. Leave empty for no watermark.',
           trailing: settingsTrailingTextInput(
@@ -167,8 +163,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         SettingRow(
           icon: LucideIcons.globe2,
           title: 'Public by default',
-          subtitle:
-              'Off → new nodes start with auth required. Turn on '
+          subtitle: 'Off → new nodes start with auth required. Turn on '
               'only if you routinely run public outreach events.',
           trailing: SettingsSwitch(
             value: defaults.livestackingPublicByDefault,
@@ -182,15 +177,13 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         SettingRow(
           icon: LucideIcons.image,
           title: 'Default thumbnail size',
-          subtitle:
-              'Output dimensions for the broadcast JPEG. Smaller '
+          subtitle: 'Output dimensions for the broadcast JPEG. Smaller '
               'is phone-friendly; larger preserves more detail.',
           trailing: settingsTrailingDropdown(
             context: context,
             value: defaults.livestackingDefaultThumbnailSize.label,
-            items: LiveStackingThumbnailSize.values
-                .map((s) => s.label)
-                .toList(),
+            items:
+                LiveStackingThumbnailSize.values.map((s) => s.label).toList(),
             designWidth: 220,
             isMobile: widget.isMobile,
             onChanged: (value) {
@@ -227,7 +220,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
           subtitle: standaloneSupported
               ? 'Monitor meridian even when no sequence is running'
               : '${flipSettings.triggerMethod.standaloneMonitoringLimitation} '
-                    'Standalone monitoring is unavailable for this trigger.',
+                  'Standalone monitoring is unavailable for this trigger.',
           trailing: SettingsSwitch(
             value:
                 flipSettings.standaloneMonitoringEnabled && standaloneSupported,
@@ -245,9 +238,8 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
           trailing: settingsTrailingDropdown(
             context: context,
             value: flipSettings.triggerMethod.displayName,
-            items: MeridianTriggerMethod.values
-                .map((e) => e.displayName)
-                .toList(),
+            items:
+                MeridianTriggerMethod.values.map((e) => e.displayName).toList(),
             designWidth: 200,
             isMobile: widget.isMobile,
             onChanged: (value) {
@@ -520,8 +512,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                 SettingRow(
                   icon: LucideIcons.shieldAlert,
                   title: 'Park on unsafe weather',
-                  subtitle:
-                      'Park the mount and close the cover and dome when '
+                  subtitle: 'Park the mount and close the cover and dome when '
                       'weather turns unsafe. When off, the run stops exposing '
                       'and waits for safe weather; nothing is parked or '
                       'closed. Same setting as Weather Safety > Auto-park '
@@ -599,8 +590,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                 SettingRow(
                   icon: LucideIcons.camera,
                   title: 'Camera retries',
-                  subtitle:
-                      'Times a failed exposure or image download is '
+                  subtitle: 'Times a failed exposure or image download is '
                       'tried again, after a short wait, before the run '
                       'treats it as a failure. Each retry is listed under '
                       'Session warnings. A camera that reports it is '
@@ -624,8 +614,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                 SettingRow(
                   icon: LucideIcons.disc,
                   title: 'Filter wheel retries',
-                  subtitle:
-                      'Times a failed filter change, or one where the '
+                  subtitle: 'Times a failed filter change, or one where the '
                       'wheel never reaches the filter, is tried again before '
                       'the run treats it as a failure. 0 tries once.',
                   trailing: SettingsNumberInput(
@@ -669,8 +658,8 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                   subtitle: 'Run auto focus periodically',
                   trailing: SettingsNumberInput(
                     controller: _autoFocusController,
-                    authoritativeValue: settings.autoFocusEveryMinutes
-                        .toDouble(),
+                    authoritativeValue:
+                        settings.autoFocusEveryMinutes.toDouble(),
                     authorityKey: authority,
                     suffix: 'min',
                     min: 0,
@@ -696,8 +685,8 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                       'Run autofocus every N completed exposures (frames-based)',
                   trailing: SettingsNumberInput(
                     controller: _autoFocusIntervalFramesController,
-                    authoritativeValue: seqDefaults.autofocusIntervalFrames
-                        .toDouble(),
+                    authoritativeValue:
+                        seqDefaults.autofocusIntervalFrames.toDouble(),
                     authorityKey: authority,
                     suffix: 'frames',
                     min: 1,
@@ -793,8 +782,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                 SettingRow(
                   icon: LucideIcons.bookOpen,
                   title: 'Prompt for notes after run',
-                  subtitle:
-                      'Show a quick journal-entry dialog when a sequence '
+                  subtitle: 'Show a quick journal-entry dialog when a sequence '
                       'finishes so you can capture seeing, dew, anomalies.',
                   trailing: SettingsSwitch(
                     value: settings.promptForNotesAfterRun,
@@ -819,8 +807,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                 SettingRow(
                   icon: LucideIcons.bell,
                   title: 'Dashboard auto-prompt',
-                  subtitle:
-                      'Show the Smart Night prompt on the dashboard '
+                  subtitle: 'Show the Smart Night prompt on the dashboard '
                       'when your equipment is ready.',
                   trailing: SettingsSwitch(
                     value: settings.smartNightAutoPromptEnabled,
@@ -834,14 +821,12 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                 SettingRow(
                   icon: LucideIcons.focus,
                   title: 'Autofocus cadence (frames)',
-                  subtitle:
-                      'How many exposures between autofocus runs '
+                  subtitle: 'How many exposures between autofocus runs '
                       'when the wizard picks frame-based cadence.',
                   trailing: SettingsNumberInput(
                     controller: _smartNightAfCadenceController,
-                    authoritativeValue: settings
-                        .smartNightDefaultAfCadenceFrames
-                        .toDouble(),
+                    authoritativeValue:
+                        settings.smartNightDefaultAfCadenceFrames.toDouble(),
                     authorityKey: authority,
                     suffix: 'frames',
                     min: 1,
@@ -881,8 +866,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                 SettingRow(
                   icon: LucideIcons.lamp,
                   title: 'Include flats at end',
-                  subtitle:
-                      'Append per-filter flats when the active '
+                  subtitle: 'Append per-filter flats when the active '
                       'profile has a cover calibrator.',
                   trailing: SettingsSwitch(
                     value: settings.smartNightIncludeFlatsAtEnd,
@@ -896,8 +880,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                 SettingRow(
                   icon: LucideIcons.listOrdered,
                   title: 'Scheduler for multi-target nights',
-                  subtitle:
-                      'Wrap multi-target plans in a TargetScheduler so '
+                  subtitle: 'Wrap multi-target plans in a TargetScheduler so '
                       'the executor can swap between them by altitude.',
                   trailing: SettingsSwitch(
                     value: settings.smartNightUseSchedulerForMultiTarget,
@@ -911,14 +894,12 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                 SettingRow(
                   icon: LucideIcons.hash,
                   title: 'Scheduler threshold (targets)',
-                  subtitle:
-                      'Use the scheduler when target count reaches this '
+                  subtitle: 'Use the scheduler when target count reaches this '
                       'number; otherwise chain them linearly.',
                   trailing: SettingsNumberInput(
                     controller: _smartNightSchedulerThresholdController,
-                    authoritativeValue: settings
-                        .smartNightSchedulerTargetThreshold
-                        .toDouble(),
+                    authoritativeValue:
+                        settings.smartNightSchedulerTargetThreshold.toDouble(),
                     authorityKey: authority,
                     suffix: '',
                     min: 2,
@@ -934,8 +915,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                 SettingRow(
                   icon: LucideIcons.compass,
                   title: 'Polar alignment stale after',
-                  subtitle:
-                      'If the last polar alignment is older than '
+                  subtitle: 'If the last polar alignment is older than '
                       'this, the wizard prepends a fresh alignment node.',
                   trailing: SettingsNumberInput(
                     controller: _smartNightPolarStaleController,

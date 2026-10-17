@@ -179,8 +179,7 @@ class _LeftColumn extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SectionTitle(
-            icon: SkotiqIcons.image, title: 'Subs & culling'),
+        const SectionTitle(icon: SkotiqIcons.image, title: 'Subs & culling'),
         const SizedBox(height: SkotiqTokens.spaceSm),
         // SubCullRail extends the existing sub gallery: blink + bulk-reject
         // plus multi-select / lasso cull and a curve-linked "drop to keepN".
@@ -364,8 +363,7 @@ class _RightColumn extends ConsumerWidget {
         const SizedBox(height: SkotiqTokens.spaceLg),
 
         // ── A/B compare two integration recipes. ─────────────────────────
-        const SectionTitle(
-            icon: SkotiqIcons.layers, title: 'A / B compare'),
+        const SectionTitle(icon: SkotiqIcons.layers, title: 'A / B compare'),
         const SizedBox(height: SkotiqTokens.spaceSm),
         AbComparePanel(controller: controller),
         const SizedBox(height: SkotiqTokens.spaceLg),
@@ -455,8 +453,8 @@ class _FinishingActions extends StatelessWidget {
           if (!hasMaster)
             Text(
               'Integrate a master first — finishing runs on the finished FITS.',
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textSecondary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             )
           else
             Wrap(
@@ -621,8 +619,8 @@ class _FieldQualityCardState extends ConsumerState<_FieldQualityCard> {
           if (subs.isEmpty)
             Text(
               'No accepted subs to map.',
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textSecondary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             )
           else
             FutureBuilder<List<PsfFieldTileRow>>(

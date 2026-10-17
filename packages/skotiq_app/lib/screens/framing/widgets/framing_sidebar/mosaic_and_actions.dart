@@ -138,8 +138,8 @@ class FramingMosaicSection extends ConsumerWidget {
           // Start corner dropdown
           Text(
             'Start Corner',
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: 6),
           FramingStartCornerSelector(
@@ -190,8 +190,7 @@ class FramingMosaicSection extends ConsumerWidget {
                                 color: isSelected
                                     ? colors.primary.withValues(alpha: 0.2)
                                     : Colors.transparent,
-                                borderRadius:
-                                    SkotiqTokens.borderRadiusInline4,
+                                borderRadius: SkotiqTokens.borderRadiusInline4,
                               ),
                               child: Row(
                                 children: [
@@ -213,12 +212,11 @@ class FramingMosaicSection extends ConsumerWidget {
                                     ),
                                     child: Text(
                                       '${panel.index + 1}',
-                                      style: SkotiqTypography.caption
-                                          .copyWith(
-                                              color: isSelected
-                                                  ? colors.textPrimary
-                                                  : colors.textSecondary,
-                                              fontWeight: FontWeight.w600),
+                                      style: SkotiqTypography.caption.copyWith(
+                                          color: isSelected
+                                              ? colors.textPrimary
+                                              : colors.textSecondary,
+                                          fontWeight: FontWeight.w600),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
@@ -343,8 +341,7 @@ class FramingActionsPanel extends ConsumerWidget {
         // Supplementary utility actions not covered by the guided rail.
         Text(
           'Utilities',
-          style:
-              SkotiqTypography.eyebrow.copyWith(color: colors.textPrimary),
+          style: SkotiqTypography.eyebrow.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: SkotiqTokens.spaceMd),
         // Utility actions use the design-system SkotiqButton (outline)

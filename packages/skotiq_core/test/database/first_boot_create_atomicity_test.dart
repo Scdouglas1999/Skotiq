@@ -154,10 +154,7 @@ void main() {
       final report = await discardInterruptedFirstCreate(dbFile);
       expect(report.discarded, isTrue);
       expect(report.tableCount, greaterThan(1));
-      expect(
-        p.basename(report.backupPath!),
-        startsWith('skotiq-incomplete-'),
-      );
+      expect(p.basename(report.backupPath!), startsWith('skotiq-incomplete-'));
       expect(File(report.backupPath!).existsSync(), isTrue);
       expect(dbFile.existsSync(), isFalse);
 

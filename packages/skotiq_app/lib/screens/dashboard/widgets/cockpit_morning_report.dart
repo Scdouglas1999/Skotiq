@@ -78,8 +78,8 @@ class _RunReportCard extends ConsumerWidget {
               const SizedBox(width: SkotiqTokens.spaceSm),
               Text(
                 'MORNING REPORT',
-                style: SkotiqTypography.eyebrow
-                    .copyWith(color: colors.textMuted),
+                style:
+                    SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
               ),
               const Spacer(),
               Icon(LucideIcons.chevronRight, size: 14, color: colors.textMuted),

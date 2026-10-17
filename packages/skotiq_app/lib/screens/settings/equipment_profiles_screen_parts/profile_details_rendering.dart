@@ -112,8 +112,7 @@ extension _ProfileDetailsRendering on _ProfileDetailsState {
                         children: [
                           Icon(LucideIcons.pencil,
                               size: 16,
-                              color:
-                                  SkotiqColors.of(context).textSecondary),
+                              color: SkotiqColors.of(context).textSecondary),
                           const SizedBox(width: 8),
                           Text('Edit',
                               style: SkotiqTypography.body.copyWith(
@@ -133,16 +132,14 @@ extension _ProfileDetailsRendering on _ProfileDetailsState {
                           children: [
                             Icon(LucideIcons.power,
                                 size: 16,
-                                color:
-                                    SkotiqColors.of(context).textSecondary),
+                                color: SkotiqColors.of(context).textSecondary),
                             const SizedBox(width: 8),
                             // Flexible: the popup menu is width-bounded and
                             // this is the longest item label on the menu.
                             Flexible(
                               child: Text('Set as default',
                                   style: SkotiqTypography.body.copyWith(
-                                    color: SkotiqColors.of(context)
-                                        .textPrimary,
+                                    color: SkotiqColors.of(context).textPrimary,
                                   )),
                             ),
                           ],
@@ -154,8 +151,7 @@ extension _ProfileDetailsRendering on _ProfileDetailsState {
                         children: [
                           Icon(LucideIcons.copy,
                               size: 16,
-                              color:
-                                  SkotiqColors.of(context).textSecondary),
+                              color: SkotiqColors.of(context).textSecondary),
                           const SizedBox(width: 8),
                           Text('Duplicate',
                               style: SkotiqTypography.body.copyWith(
@@ -170,8 +166,7 @@ extension _ProfileDetailsRendering on _ProfileDetailsState {
                         children: [
                           Icon(LucideIcons.upload,
                               size: 16,
-                              color:
-                                  SkotiqColors.of(context).textSecondary),
+                              color: SkotiqColors.of(context).textSecondary),
                           const SizedBox(width: 8),
                           Text('Export',
                               style: SkotiqTypography.body.copyWith(
@@ -186,8 +181,7 @@ extension _ProfileDetailsRendering on _ProfileDetailsState {
                       child: Row(
                         children: [
                           Icon(LucideIcons.trash2,
-                              size: 16,
-                              color: SkotiqColors.of(context).error),
+                              size: 16, color: SkotiqColors.of(context).error),
                           const SizedBox(width: 8),
                           Text('Delete',
                               style: SkotiqTypography.body.copyWith(
@@ -672,8 +666,7 @@ extension _ProfileDetailsRendering on _ProfileDetailsState {
             decoration: BoxDecoration(
               color: SkotiqColors.of(context).surface,
               border: Border(
-                  bottom:
-                      BorderSide(color: SkotiqColors.of(context).border)),
+                  bottom: BorderSide(color: SkotiqColors.of(context).border)),
             ),
             child: SafeArea(
               bottom: false,

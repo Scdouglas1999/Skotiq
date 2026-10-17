@@ -104,10 +104,7 @@ class _ComponentsSection extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: SkotiqTokens.spaceLg),
-              const SkotiqCheckbox(
-                value: true,
-                onChanged: _noopNullableBool,
-              ),
+              const SkotiqCheckbox(value: true, onChanged: _noopNullableBool),
               const SizedBox(width: SkotiqTokens.spaceSm),
               Text(
                 'Autosave',

@@ -155,8 +155,7 @@ class _SearchFilterControls extends StatelessWidget {
                   ),
                 ),
                 child: filters.observableNow
-                    ? Icon(SkotiqIcons.check,
-                        size: 12, color: colors.surface)
+                    ? Icon(SkotiqIcons.check, size: 12, color: colors.surface)
                     : null,
               ),
               const SizedBox(width: 8),

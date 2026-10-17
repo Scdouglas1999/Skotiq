@@ -251,8 +251,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                                     ? hit.label
                                     : '${hit.label} · ${hit.elevation!.round()} m',
                                 style: SkotiqTypography.body.copyWith(
-                                  color:
-                                      SkotiqColors.of(context).textPrimary,
+                                  color: SkotiqColors.of(context).textPrimary,
                                 ),
                               ),
                             ),
@@ -528,8 +527,8 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                       'Estimated naked-eye limit for Bortle ${settings.bortleClass}',
                   trailing: Text(
                     '${BortleScale.limitingMagnitude(settings.bortleClass).toStringAsFixed(1)}m',
-                    style: SkotiqTypography.bodyStrong.copyWith(
-                        color: SkotiqColors.of(context).textPrimary),
+                    style: SkotiqTypography.bodyStrong
+                        .copyWith(color: SkotiqColors.of(context).textPrimary),
                   ),
                   isLast: true,
                   isMobile: widget.isMobile,

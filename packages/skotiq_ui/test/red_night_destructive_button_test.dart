@@ -26,10 +26,8 @@ void main() {
     return container.decoration! as BoxDecoration;
   }
 
-  Finder buttonLabelled(String label) => find.ancestor(
-    of: find.text(label),
-    matching: find.byType(SkotiqButton),
-  );
+  Finder buttonLabelled(String label) =>
+      find.ancestor(of: find.text(label), matching: find.byType(SkotiqButton));
 
   Widget pair() => Row(
     mainAxisSize: MainAxisSize.min,

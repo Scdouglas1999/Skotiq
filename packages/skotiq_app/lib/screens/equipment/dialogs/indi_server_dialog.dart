@@ -235,8 +235,8 @@ class _IndiServerDialogState extends ConsumerState<IndiServerDialog> {
             'INDI gives Linux and macOS a common interface to astronomical '
             'equipment. Skotiq reads devices from the server at this '
             'address.',
-            style: SkotiqTypography.bodySm
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: SkotiqTokens.spaceLg),
           FormRow(

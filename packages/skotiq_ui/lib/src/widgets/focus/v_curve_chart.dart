@@ -1,8 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show FocusRange, VCurvePoint;
+import 'package:skotiq_core/skotiq_core.dart' show FocusRange, VCurvePoint;
 
 import '../../theme/skotiq_typography.dart';
 

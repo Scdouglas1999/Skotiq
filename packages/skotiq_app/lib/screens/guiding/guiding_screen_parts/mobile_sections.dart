@@ -332,8 +332,7 @@ mixin _GuidingMobileSections
   }
 
   /// The Settings tab's toggle, gap and padding above the body.
-  static const double _settingsTabChromeHeight =
-      28 + SkotiqTokens.spaceMd * 3;
+  static const double _settingsTabChromeHeight = 28 + SkotiqTokens.spaceMd * 3;
 
   /// Height below which the Settings tab body scrolls rather than compress.
   static const double _settingsTabBodyMinHeight = 200.0;

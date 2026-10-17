@@ -15,9 +15,7 @@ final hostMutationEventHubProvider = Provider<HostMutationEventHub>((ref) {
 });
 
 /// Broadcast stream of host mutation events for local EventBus merge and sync.
-final hostMutationEventStreamProvider = Provider<Stream<SkotiqEvent>>((
-  ref,
-) {
+final hostMutationEventStreamProvider = Provider<Stream<SkotiqEvent>>((ref) {
   return ref.watch(hostMutationEventHubProvider).stream;
 });
 

@@ -35,8 +35,7 @@ class _NoopDiscoveryNotifier extends UnifiedDiscoveryNotifier {
   }) async {}
 }
 
-SkotiqDatabase _newDb() =>
-    SkotiqDatabase.forTesting(NativeDatabase.memory());
+SkotiqDatabase _newDb() => SkotiqDatabase.forTesting(NativeDatabase.memory());
 
 /// Window sizes to prove this at: the desktop reference, two small desktop
 /// windows, and a phone (the phone layout has its own footer implementation).

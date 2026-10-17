@@ -103,9 +103,7 @@ class SingleInstanceLock {
     Map<String, String>? environment,
   }) async {
     final env = environment ?? Platform.environment;
-    final bypass = env[skotiqAllowMultipleInstancesEnv]
-        ?.trim()
-        .toLowerCase();
+    final bypass = env[skotiqAllowMultipleInstancesEnv]?.trim().toLowerCase();
     if (bypass == '1' || bypass == 'true' || bypass == 'yes') {
       return SingleInstanceLock._(lockPathFor(dbFile), null);
     }

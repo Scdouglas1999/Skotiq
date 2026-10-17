@@ -40,8 +40,8 @@ class ReAnnotateSuggestionBanner extends ConsumerWidget {
             child: Text(
               'Image quality improved ${suggestion.improvementPercent.toStringAsFixed(0)}% - '
               're-annotate to find more objects?',
-              style: SkotiqTypography.labelSm
-                  .copyWith(color: colors.textPrimary),
+              style:
+                  SkotiqTypography.labelSm.copyWith(color: colors.textPrimary),
             ),
           ),
           const SizedBox(width: 8),
@@ -56,13 +56,12 @@ class ReAnnotateSuggestionBanner extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: SkotiqDecorations.tintedBadge(
                 colors.success,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               ),
               child: Text(
                 'Re-annotate',
-                style: SkotiqTypography.labelStrongSm
-                    .copyWith(color: foreground),
+                style:
+                    SkotiqTypography.labelStrongSm.copyWith(color: foreground),
               ),
             ),
           ),

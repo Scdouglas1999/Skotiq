@@ -359,8 +359,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: SkotiqDecorations.tintedBadge(
                 widget.colors.primary,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,

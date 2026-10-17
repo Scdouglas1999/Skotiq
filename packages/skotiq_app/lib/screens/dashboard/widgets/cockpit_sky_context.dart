@@ -90,8 +90,8 @@ class CockpitSkyContext extends ConsumerWidget {
               const SizedBox(width: SkotiqTokens.spaceSm),
               Text(
                 'SKY CONTEXT',
-                style: SkotiqTypography.eyebrow
-                    .copyWith(color: colors.textMuted),
+                style:
+                    SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
               ),
             ],
           ),
@@ -239,8 +239,7 @@ class _StatTile extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               label,
-              style: SkotiqTypography.eyebrow
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
             ),
           ],
         ),

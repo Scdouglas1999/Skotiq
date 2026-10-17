@@ -9,8 +9,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/database/database.dart'
-    show SkotiqDatabase;
+import 'package:skotiq_core/src/database/database.dart' show SkotiqDatabase;
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_editor.dart';

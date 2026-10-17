@@ -47,8 +47,8 @@ class RunDashboardTriggerFeed extends ConsumerWidget {
           const SizedBox(height: SkotiqTokens.spaceMd),
           if (events.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(
-                  vertical: SkotiqTokens.spaceMd),
+              padding:
+                  const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceMd),
               child: Text(
                 'No events yet.',
                 style: TextStyle(

@@ -179,8 +179,8 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
   Widget _buildDialogLabel(String text) {
     return Text(
       text,
-      style: SkotiqTypography.labelSm
-          .copyWith(color: widget.colors.textSecondary),
+      style:
+          SkotiqTypography.labelSm.copyWith(color: widget.colors.textSecondary),
     );
   }
 
@@ -600,8 +600,7 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
                   decoration: BoxDecoration(
                     color: widget.colors.surfaceAlt,
                     border: Border.all(color: widget.colors.border),
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusMd),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                   ),
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(12),

@@ -129,8 +129,7 @@ class RunningSequenceMiniBar extends ConsumerWidget {
                                     Text(
                                       targetName,
                                       style: TextStyle(
-                                        fontSize:
-                                            SkotiqTypography.fontSize11,
+                                        fontSize: SkotiqTypography.fontSize11,
                                         color: colors.textMuted,
                                       ),
                                       overflow: TextOverflow.ellipsis,
@@ -233,8 +232,7 @@ class _MiniControlButton extends StatelessWidget {
             enabled: isEnabled,
             child: InkWell(
               onTap: isEnabled ? onPressed : null,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               child: Container(
                 width: 40,
                 height: 40,

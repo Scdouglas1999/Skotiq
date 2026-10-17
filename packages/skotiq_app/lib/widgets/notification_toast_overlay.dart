@@ -374,8 +374,7 @@ class _NotificationToastState extends State<_NotificationToast>
                   ),
                   decoration: BoxDecoration(
                     color: _getBackgroundColor(colors),
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusLg),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                     border: Border.all(
                       color: accentColor.withValues(alpha: 0.3),
                       width: 1,
@@ -389,8 +388,7 @@ class _NotificationToastState extends State<_NotificationToast>
                     ],
                   ),
                   child: ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusLg),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

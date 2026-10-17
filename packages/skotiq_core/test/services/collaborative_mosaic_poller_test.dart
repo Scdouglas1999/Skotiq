@@ -21,19 +21,17 @@ import 'package:skotiq_core/skotiq_core.dart';
 /// project complete. `assembleMosaic` can be gated on a [Completer] so the test
 /// can hold it "in flight" across overlapping ticks to exercise the guard.
 class _FakePollService extends CollaborativeMosaicService {
-  _FakePollService({
-    required SkotiqDatabase db,
-    required super.projectService,
-  }) : projectsDao = MosaicProjectsDao(db),
-       panelsDao = MosaicPanelsDao(db),
-       super(
-         credentialsResolver: _noCreds,
-         projectsDao: MosaicProjectsDao(db),
-         panelsDao: MosaicPanelsDao(db),
-         mastersDao: IntegratedMastersDao(db),
-         logger: LoggingService(),
-         assemblyDirResolver: _tmpDir,
-       );
+  _FakePollService({required SkotiqDatabase db, required super.projectService})
+    : projectsDao = MosaicProjectsDao(db),
+      panelsDao = MosaicPanelsDao(db),
+      super(
+        credentialsResolver: _noCreds,
+        projectsDao: MosaicProjectsDao(db),
+        panelsDao: MosaicPanelsDao(db),
+        mastersDao: IntegratedMastersDao(db),
+        logger: LoggingService(),
+        assemblyDirResolver: _tmpDir,
+      );
 
   static Future<ConstellationCredentials?> _noCreds() async => null;
   static Future<String> _tmpDir(String id) async => '/tmp/$id';

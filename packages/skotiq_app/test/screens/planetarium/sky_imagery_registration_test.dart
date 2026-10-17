@@ -42,8 +42,7 @@ import 'package:skotiq_core/src/services/hips/hips_tile_cache.dart';
 import 'package:skotiq_core/src/services/hips/hips_tile_loader.dart';
 // ignore: implementation_imports
 import 'package:skotiq_core/src/services/hips/hips_tile_selection.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    hide SurveySource;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' hide SurveySource;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

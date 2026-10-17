@@ -57,8 +57,7 @@ Future<void> _pump(WidgetTester tester, _MockNetworkBackend backend) async {
   await tester.pump();
 }
 
-SkotiqButton _checkButton(WidgetTester tester) =>
-    tester.widget<SkotiqButton>(
+SkotiqButton _checkButton(WidgetTester tester) => tester.widget<SkotiqButton>(
       find.widgetWithText(SkotiqButton, 'Check for Updates'),
     );
 

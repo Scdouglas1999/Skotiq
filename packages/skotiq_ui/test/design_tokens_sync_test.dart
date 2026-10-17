@@ -319,10 +319,7 @@ void main() {
     test('the opacity tokens match the JSON', () {
       final opacity = tokens['opacity'] as Map<String, dynamic>;
       expect(SkotiqTokens.opacityAccentTint, opacity['accentTint']);
-      expect(
-        SkotiqTokens.opacityAccentTintHover,
-        opacity['accentTintHover'],
-      );
+      expect(SkotiqTokens.opacityAccentTintHover, opacity['accentTintHover']);
       expect(SkotiqTokens.opacityStatusFill, opacity['statusFill']);
       expect(SkotiqTokens.opacityDisabled, opacity['disabled']);
       expect(SkotiqTokens.opacityHairline, opacity['hairline']);

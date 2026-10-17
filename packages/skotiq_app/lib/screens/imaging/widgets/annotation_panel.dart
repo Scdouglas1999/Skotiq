@@ -171,8 +171,7 @@ Widget _annotationAuthorityState({
             Text(
               error.toString(),
               textAlign: TextAlign.center,
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
             const SizedBox(height: 10),
             SkotiqButton(

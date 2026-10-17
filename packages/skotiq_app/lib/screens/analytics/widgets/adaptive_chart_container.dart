@@ -80,8 +80,7 @@ class AdaptiveChartContainer extends StatelessWidget {
   }
 
   /// Padding between the well's edge and the plot.
-  static const EdgeInsets wellPadding =
-      EdgeInsets.all(SkotiqTokens.spaceSm);
+  static const EdgeInsets wellPadding = EdgeInsets.all(SkotiqTokens.spaceSm);
 
   Widget _plot(BuildContext context, double height) {
     final box = SizedBox(

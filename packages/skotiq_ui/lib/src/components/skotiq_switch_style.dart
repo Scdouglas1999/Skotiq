@@ -37,10 +37,7 @@ abstract final class SkotiqSwitchStyle {
     return colors.surface;
   }
 
-  static Color trackBorderColor(
-    SkotiqColors colors, {
-    required bool selected,
-  }) {
+  static Color trackBorderColor(SkotiqColors colors, {required bool selected}) {
     return selected ? darken(colors.primary, 0.12) : colors.border;
   }
 
@@ -57,10 +54,7 @@ abstract final class SkotiqSwitchStyle {
   }
 
   /// Theme fallback for legacy Material [Switch] widgets.
-  static SwitchThemeData switchThemeData(
-    SkotiqColors colors,
-    Color onPrimary,
-  ) {
+  static SwitchThemeData switchThemeData(SkotiqColors colors, Color onPrimary) {
     return SwitchThemeData(
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       thumbColor: WidgetStateProperty.resolveWith((states) {

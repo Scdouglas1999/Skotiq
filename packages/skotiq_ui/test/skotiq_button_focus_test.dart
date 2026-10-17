@@ -90,10 +90,7 @@ void main() {
                 isLoading: true,
                 onPressed: () => loadingPresses++,
               ),
-              SkotiqButton(
-                label: 'Ready',
-                onPressed: () => enabledPresses++,
-              ),
+              SkotiqButton(label: 'Ready', onPressed: () => enabledPresses++),
             ],
           ),
         ),

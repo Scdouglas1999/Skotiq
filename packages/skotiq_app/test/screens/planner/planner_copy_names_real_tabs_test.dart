@@ -39,8 +39,7 @@ void main() {
 
   test('no planner copy sends the reader to a tab that does not exist', () {
     final dir = Directory('lib/screens/planner');
-    expect(dir.existsSync(), isTrue,
-        reason: 'run from packages/skotiq_app');
+    expect(dir.existsSync(), isTrue, reason: 'run from packages/skotiq_app');
 
     // "Foo tab" / "Foo Bar tab" — a capitalised proper name immediately before
     // the word "tab" is a direction to a specific tab.
@@ -95,8 +94,7 @@ void main() {
   // so no string in them can own a direction.
   test('no planner copy points the reader in a physical direction', () {
     final dir = Directory('lib/screens/planner');
-    expect(dir.existsSync(), isTrue,
-        reason: 'run from packages/skotiq_app');
+    expect(dir.existsSync(), isTrue, reason: 'run from packages/skotiq_app');
 
     // A direction word immediately after a named surface: "… queue below",
     // "… panel above", "… list on the right".

@@ -110,8 +110,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, 'NGC 7000');
     await tester.pumpAndSettle();
-    await tester
-        .tap(find.widgetWithText(SkotiqButton, 'Look up coordinates'));
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Look up coordinates'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('NGC 7000 North America Nebula'));

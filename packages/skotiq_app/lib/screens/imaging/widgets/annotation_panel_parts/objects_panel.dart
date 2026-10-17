@@ -700,9 +700,7 @@ class _AnnotationObjectsPanelState
               .copyWith(color: widget.colors.textSecondary),
         ),
         trailing: Icon(
-          _filtersExpanded
-              ? SkotiqIcons.chevronUp
-              : SkotiqIcons.chevronDown,
+          _filtersExpanded ? SkotiqIcons.chevronUp : SkotiqIcons.chevronDown,
           size: 16,
           color: widget.colors.textMuted,
         ),

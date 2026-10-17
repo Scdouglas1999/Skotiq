@@ -26,8 +26,7 @@ Future<void> _pumpActions(WidgetTester tester, {required bool standby}) async {
 }
 
 bool _editIsEnabled(WidgetTester tester) =>
-    tester.widget<SkotiqButton>(find.byType(SkotiqButton)).onPressed !=
-    null;
+    tester.widget<SkotiqButton>(find.byType(SkotiqButton)).onPressed != null;
 
 void main() {
   testWidgets('editing is refused while the checklist is showing',

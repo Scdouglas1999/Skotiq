@@ -310,9 +310,8 @@ void main() {
       findsNothing,
       reason: 'no night is imageable, so none of them is the "best night"',
     );
-    final cards = tester
-        .widgetList<SkotiqPanel>(find.byType(SkotiqPanel))
-        .toList();
+    final cards =
+        tester.widgetList<SkotiqPanel>(find.byType(SkotiqPanel)).toList();
     expect(
       cards.every((c) => c.selected == false),
       isTrue,

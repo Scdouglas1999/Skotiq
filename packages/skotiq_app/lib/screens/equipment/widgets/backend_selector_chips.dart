@@ -57,8 +57,7 @@ class BackendSelectorChips extends StatelessWidget {
       children: [
         Text(
           'Driver:',
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(width: 8),
         Wrap(
@@ -182,8 +181,7 @@ class _BackendChipState extends State<_BackendChip> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: backgroundColor,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 border: Border.all(color: borderColor, width: 1),
               ),
               child: Row(

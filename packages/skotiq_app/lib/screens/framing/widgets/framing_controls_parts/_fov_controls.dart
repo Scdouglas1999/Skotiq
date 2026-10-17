@@ -214,8 +214,7 @@ class FramingEquipmentFovOverlayControls extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'Shows your actual equipment field of view as an overlay',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ],
         ],

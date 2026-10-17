@@ -277,8 +277,7 @@ class _RungChip extends StatelessWidget {
                     width: 22,
                     height: 22,
                     alignment: Alignment.center,
-                    decoration:
-                        SkotiqDecorations.chip(colors, tone: accent),
+                    decoration: SkotiqDecorations.chip(colors, tone: accent),
                     child: state == RungState.done
                         ? Icon(LucideIcons.check, size: 12, color: accent)
                         : Text(

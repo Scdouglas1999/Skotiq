@@ -118,8 +118,7 @@ class RunDashboardWeatherSafetyCard extends ConsumerWidget {
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: SkotiqDecorations.statusChip(
                     statusColor,
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusXs),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,

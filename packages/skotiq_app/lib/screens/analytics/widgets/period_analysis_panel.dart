@@ -401,8 +401,7 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
 
         final customLabel = Text(
           'Custom period (d):',
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         );
         final customField = _buildPeriodField(
           controller: _customPeriodController,
@@ -518,8 +517,7 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
     );
   }
 
-  Widget _buildResults(
-      SkotiqColors colors, PeriodAnalysisState analysisState) {
+  Widget _buildResults(SkotiqColors colors, PeriodAnalysisState analysisState) {
     final result = analysisState.result!;
     final ls = result.lombScargle;
     final bls = result.bls;
@@ -687,8 +685,7 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
                   children: [
                     lsColumn,
                     Divider(
-                        height: SkotiqTokens.space2xl,
-                        color: colors.border),
+                        height: SkotiqTokens.space2xl, color: colors.border),
                     blsColumn,
                   ],
                 );

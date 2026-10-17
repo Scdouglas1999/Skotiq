@@ -365,8 +365,8 @@ class ProfileSidebar extends ConsumerWidget {
                   profile.isDefault
                       ? 'Starts up with this profile'
                       : 'Start up with this profile',
-                  style: SkotiqTypography.body
-                      .copyWith(color: colors.textPrimary),
+                  style:
+                      SkotiqTypography.body.copyWith(color: colors.textPrimary),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -405,8 +405,7 @@ class ProfileSidebar extends ConsumerWidget {
               Icon(LucideIcons.trash2, size: 16, color: colors.error),
               const SizedBox(width: 8),
               Text('Delete',
-                  style:
-                      SkotiqTypography.body.copyWith(color: colors.error)),
+                  style: SkotiqTypography.body.copyWith(color: colors.error)),
             ],
           ),
         ),
@@ -450,8 +449,8 @@ class ProfileSidebar extends ConsumerWidget {
         backgroundColor: colors.surface,
         title: Text(
           'Delete profile',
-          style: SkotiqTypography.sectionTitle
-              .copyWith(color: colors.textPrimary),
+          style:
+              SkotiqTypography.sectionTitle.copyWith(color: colors.textPrimary),
         ),
         // Say what actually happens: the delete raises a 6-second Undo that
         // restores the profile in full, so "This cannot be undone" would be
@@ -461,8 +460,7 @@ class ProfileSidebar extends ConsumerWidget {
         content: Text(
           'Delete "${profile.name}" (${profile.subtitle})?\n\n'
           'You can undo this from the message that appears, for a few seconds.',
-          style:
-              SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
         ),
         actions: [
           SkotiqButton(

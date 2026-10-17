@@ -226,8 +226,7 @@ class LogHandlers {
       );
       return jsonForbidden({
         'error': 'forbidden_filename',
-        'message':
-            'Filename must match skotiq.log[.YYYY-MM-DD] naming policy',
+        'message': 'Filename must match skotiq.log[.YYYY-MM-DD] naming policy',
       });
     }
 

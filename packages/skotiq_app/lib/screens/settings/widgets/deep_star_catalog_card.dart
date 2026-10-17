@@ -293,8 +293,7 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
             if (_busy && _progress != null) ...[
               const SizedBox(height: 16),
               ClipRRect(
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
                 child: LinearProgressIndicator(
                   value: _progress!.fraction,
                   backgroundColor: colors.border,

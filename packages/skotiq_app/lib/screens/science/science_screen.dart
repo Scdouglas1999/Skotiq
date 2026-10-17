@@ -193,9 +193,8 @@ class _ScienceWorkspaceViewState extends ConsumerState<ScienceWorkspaceView> {
                 Padding(
                   padding: EdgeInsets.only(
                     left: SkotiqTokens.spaceLg,
-                    right: isPhone
-                        ? SkotiqTokens.spaceSm
-                        : SkotiqTokens.spaceMd,
+                    right:
+                        isPhone ? SkotiqTokens.spaceSm : SkotiqTokens.spaceMd,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,

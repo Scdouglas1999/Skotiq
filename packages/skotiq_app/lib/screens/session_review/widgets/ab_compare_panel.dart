@@ -148,8 +148,7 @@ class _AbComparePanelState extends State<AbComparePanel> {
             ],
             if (recipeA == null || recipeB == null)
               const Padding(
-                padding:
-                    EdgeInsets.symmetric(vertical: SkotiqTokens.space4xl),
+                padding: EdgeInsets.symmetric(vertical: SkotiqTokens.space4xl),
                 child: Center(
                   child: SizedBox(
                     width: 28,
@@ -238,14 +237,13 @@ class _RecipeColumn extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: accent.withValues(
                         alpha: SkotiqTokens.opacityStatusFill),
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusSm),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
                     border: Border.all(color: accent),
                   ),
                   child: Text(
                     label,
-                    style: SkotiqTypography.labelStrongSm
-                        .copyWith(color: accent),
+                    style:
+                        SkotiqTypography.labelStrongSm.copyWith(color: accent),
                   ),
                 ),
                 const SizedBox(width: SkotiqTokens.spaceSm),
@@ -379,8 +377,8 @@ class _Chip extends StatelessWidget {
           const SizedBox(width: SkotiqTokens.spaceXs),
           Text(
             label,
-            style: SkotiqTypography.labelSm
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.labelSm.copyWith(color: colors.textSecondary),
           ),
         ],
       ),
@@ -443,8 +441,8 @@ class _PreviewPlaceholder extends StatelessWidget {
                 const SizedBox(height: SkotiqTokens.spaceSm),
                 Text(
                   'Run this recipe to preview',
-                  style: SkotiqTypography.bodySm
-                      .copyWith(color: colors.textMuted),
+                  style:
+                      SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
                 ),
               ],
             ),
@@ -512,13 +510,12 @@ class _Stat extends StatelessWidget {
       children: [
         Text(
           value,
-          style: SkotiqTypography.readoutMd
-              .copyWith(color: colors.textPrimary),
+          style: SkotiqTypography.readoutMd.copyWith(color: colors.textPrimary),
         ),
         Text(
           label.toUpperCase(),
-          style: SkotiqTypography.readoutLabel
-              .copyWith(color: colors.textMuted),
+          style:
+              SkotiqTypography.readoutLabel.copyWith(color: colors.textMuted),
         ),
       ],
     );
@@ -641,8 +638,7 @@ class _DiffPill extends StatelessWidget {
           ),
           Text(
             detail,
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ],
       ),

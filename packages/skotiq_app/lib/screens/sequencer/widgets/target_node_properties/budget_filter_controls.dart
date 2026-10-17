@@ -26,8 +26,7 @@ class _FilterRow extends StatelessWidget {
             width: 48,
             child: Text(
               filterName,
-              style:
-                  SkotiqTypography.h6.copyWith(color: colors.textPrimary),
+              style: SkotiqTypography.h6.copyWith(color: colors.textPrimary),
             ),
           ),
           const SizedBox(width: 8),
@@ -169,13 +168,11 @@ class _AddFilterRowState extends State<_AddFilterRow> {
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 border: OutlineInputBorder(
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusMd),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                   borderSide: BorderSide(color: widget.colors.border),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusMd),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                   borderSide: BorderSide(color: widget.colors.border),
                 ),
               ),

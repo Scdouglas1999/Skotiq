@@ -569,8 +569,7 @@ class QualitySettingsButton extends ConsumerWidget {
         tooltip: '',
         color: colors.surface,
         shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(SkotiqTokens.radiusInline8)),
+            borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8)),
         offset: const Offset(-120, 0),
         onSelected: (tier) {
           ref.read(renderQualityProvider.notifier).setQuality(tier);
@@ -706,8 +705,7 @@ class ProjectionSelectorButton extends ConsumerWidget {
         tooltip: '',
         color: colors.surface,
         shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(SkotiqTokens.radiusInline8)),
+            borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8)),
         offset: const Offset(-140, 0),
         onSelected: (projection) {
           ref.read(skyViewStateProvider.notifier).setProjection(projection);

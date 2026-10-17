@@ -225,8 +225,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
               constraints: BoxConstraints(maxHeight: layout.height),
               decoration: BoxDecoration(
                 color: widget.colors.surfaceOverlay.withValues(alpha: 0.95),
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 border: Border.all(
                   color: widget.colors.border,
                   width: 1,
@@ -240,8 +239,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
                 ],
               ),
               child: ClipRRect(
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 child: BackdropFilter(
                   filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Column(
@@ -329,8 +327,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: iconColor.withValues(alpha: 0.15),
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
             ),
             child: Icon(icon, size: 20, color: iconColor),
           ),
@@ -356,8 +353,8 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: widget.colors.primary.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(
-                            SkotiqTokens.radiusInline4),
+                        borderRadius:
+                            BorderRadius.circular(SkotiqTokens.radiusInline4),
                       ),
                       child: Text(
                         // A planet's id is the internal join key
@@ -401,8 +398,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.1),
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusMd),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                   ),
                   child: const Icon(LucideIcons.fileDown,
                       size: 14, color: Colors.white60),
@@ -569,9 +565,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    alt > 0
-                        ? SkotiqIcons.arrowUp
-                        : SkotiqIcons.arrowDown,
+                    alt > 0 ? SkotiqIcons.arrowUp : SkotiqIcons.arrowDown,
                     size: 12,
                     color: altColor,
                   ),
@@ -602,8 +596,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: altColor.withValues(alpha: 0.1),
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               ),
               child: Text(
                 statusText,

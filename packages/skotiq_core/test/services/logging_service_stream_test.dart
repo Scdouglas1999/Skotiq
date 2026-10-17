@@ -180,10 +180,7 @@ void main() {
 
     test('rejects path traversal and other extensions', () {
       expect(LoggingService.isSkotiqLogFileName('../etc/passwd'), isFalse);
-      expect(
-        LoggingService.isSkotiqLogFileName('skotiq.log.txt'),
-        isFalse,
-      );
+      expect(LoggingService.isSkotiqLogFileName('skotiq.log.txt'), isFalse);
       expect(
         LoggingService.isSkotiqLogFileName('SKOTIQ.LOG'),
         isFalse,
@@ -222,12 +219,8 @@ void main() {
     test('returns metadata for skotiq log files only', () async {
       final logsDir = Directory('${service.logDirectory}');
       // Plant three rotated logs and one decoy.
-      await File(
-        '${logsDir.path}/skotiq.log.2026-05-22',
-      ).writeAsString('day1');
-      await File(
-        '${logsDir.path}/skotiq.log.2026-05-23',
-      ).writeAsString('day2');
+      await File('${logsDir.path}/skotiq.log.2026-05-22').writeAsString('day1');
+      await File('${logsDir.path}/skotiq.log.2026-05-23').writeAsString('day2');
       await File('${logsDir.path}/skotiq.log').writeAsString('current');
       await File('${logsDir.path}/decoy.txt').writeAsString('not-a-log');
 

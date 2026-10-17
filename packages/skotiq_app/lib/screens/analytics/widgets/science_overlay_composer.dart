@@ -36,8 +36,8 @@ class ScienceOverlayComposer extends ConsumerWidget {
               const SizedBox(height: 6),
               Text(
                 prefsAsync.error.toString(),
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted),
+                style:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
               ),
               const SizedBox(height: 10),
               SkotiqButton(
@@ -70,8 +70,8 @@ class ScienceOverlayComposer extends ConsumerWidget {
               const Spacer(),
               Text(
                 'Tap ⓘ for what each layer means',
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted),
+                style:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
               ),
             ],
           ),

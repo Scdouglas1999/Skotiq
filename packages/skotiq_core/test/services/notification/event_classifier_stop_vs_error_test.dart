@@ -64,13 +64,11 @@ void main() {
   });
 }
 
-SkotiqEvent _sequencerWithData(
-  String eventType,
-  Map<String, dynamic> data,
-) => SkotiqEvent(
-  timestamp: DateTime.now().millisecondsSinceEpoch,
-  severity: EventSeverity.error,
-  category: EventCategory.sequencer,
-  eventType: eventType,
-  data: data,
-);
+SkotiqEvent _sequencerWithData(String eventType, Map<String, dynamic> data) =>
+    SkotiqEvent(
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      severity: EventSeverity.error,
+      category: EventCategory.sequencer,
+      eventType: eventType,
+      data: data,
+    );

@@ -163,9 +163,8 @@ Future<HarnessHandle> pumpAppScreen(
         // `SkotiqLocalizations.of` falls back to `en`, which is what the
         // whole suite has always asserted against.
         locale: locale,
-        localizationsDelegates: locale == null
-            ? null
-            : SkotiqLocalizations.localizationsDelegates,
+        localizationsDelegates:
+            locale == null ? null : SkotiqLocalizations.localizationsDelegates,
         supportedLocales: locale == null
             ? const [Locale('en', 'US')]
             : SkotiqLocalizations.supportedLocales,

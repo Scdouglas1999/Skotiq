@@ -26293,13 +26293,9 @@ class FocusModelEntry extends DataClass implements Insertable<FocusModelEntry> {
   ///   ...
   /// ]
   /// ```
-  /// Kept inline (rather than spilled to its own table) because:
-  ///   1. Read-after-write is always whole-list (we re-fit from all samples
-  ///      on every insertion), so per-sample indexing buys nothing.
-  ///   2. The cap is fixed (50 by default, 200 max), so the column is
-  ///      bounded in size.
-  ///   3. The user can export a whole model + its history as one JSON blob
-  ///      for sharing/backup without join queries.
+  /// Kept inline: reads are always whole-list (the fit re-runs over every
+  /// sample on insertion) and the retained count is capped (50 by default,
+  /// 200 max), so the column stays bounded.
   final String trainingSamplesJson;
 
   /// Maximum number of training samples retained in the JSON blob. User-
@@ -31014,7 +31010,7 @@ class ConstellationContributionRow extends DataClass
   /// Remote receipt id returned by the hub for this tile's contribution.
   /// Unblocks the privacy "Retract" action (subtract exactly what was shipped).
   ///
-  /// CONSENT/LICENSE (WS4): the AUTHORITATIVE consent + license record for a
+  /// CONSENT/LICENSE: the AUTHORITATIVE consent + license record for a
   /// contribution lives on the hub (`consent_records`, joined to the hub's
   /// contribution row by `consent_id`), recorded BEFORE any bytes are stored and
   /// stamped `revoked_at` on retraction. The client transmits the user's license
@@ -31040,7 +31036,7 @@ class ConstellationContributionRow extends DataClass
   final double? lastPulledIntegrationSeconds;
   final DateTime? lastPulledAt;
 
-  /// The live co-imaging session (WS3) this tile's contributions belong to, if
+  /// The live co-imaging session this tile's contributions belong to, if
   /// any — the hub's `coimaging_sessions.id`, mirrored locally so a swarm
   /// contribution receipt can be attributed to a coordinated session rather
   /// than a one-off async contribution. Null for a plain (non-session) tile
@@ -34650,9 +34646,7 @@ abstract class _$SkotiqDatabase extends GeneratedDatabase {
     this as SkotiqDatabase,
   );
   late final SessionsDao sessionsDao = SessionsDao(this as SkotiqDatabase);
-  late final SequencesDao sequencesDao = SequencesDao(
-    this as SkotiqDatabase,
-  );
+  late final SequencesDao sequencesDao = SequencesDao(this as SkotiqDatabase);
   late final SequenceCheckpointsDao sequenceCheckpointsDao =
       SequenceCheckpointsDao(this as SkotiqDatabase);
   late final TargetsDao targetsDao = TargetsDao(this as SkotiqDatabase);
@@ -35343,14 +35337,13 @@ final class $$EquipmentProfilesTableReferences
   }
 
   static MultiTypedResultKey<$FlatHistoryTable, List<FlatHistoryEntry>>
-  _flatHistoryRefsTable(_$SkotiqDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.flatHistory,
-        aliasName: $_aliasNameGenerator(
-          db.equipmentProfiles.id,
-          db.flatHistory.equipmentProfileId,
-        ),
-      );
+  _flatHistoryRefsTable(_$SkotiqDatabase db) => MultiTypedResultKey.fromTable(
+    db.flatHistory,
+    aliasName: $_aliasNameGenerator(
+      db.equipmentProfiles.id,
+      db.flatHistory.equipmentProfileId,
+    ),
+  );
 
   $$FlatHistoryTableProcessedTableManager get flatHistoryRefs {
     final manager = $$FlatHistoryTableTableManager($_db, $_db.flatHistory)
@@ -35451,14 +35444,13 @@ final class $$EquipmentProfilesTableReferences
   }
 
   static MultiTypedResultKey<$FocusModelsTable, List<FocusModelEntry>>
-  _focusModelsRefsTable(_$SkotiqDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.focusModels,
-        aliasName: $_aliasNameGenerator(
-          db.equipmentProfiles.id,
-          db.focusModels.equipmentProfileId,
-        ),
-      );
+  _focusModelsRefsTable(_$SkotiqDatabase db) => MultiTypedResultKey.fromTable(
+    db.focusModels,
+    aliasName: $_aliasNameGenerator(
+      db.equipmentProfiles.id,
+      db.focusModels.equipmentProfileId,
+    ),
+  );
 
   $$FocusModelsTableProcessedTableManager get focusModelsRefs {
     final manager = $$FocusModelsTableTableManager($_db, $_db.focusModels)
@@ -36937,14 +36929,10 @@ final class $$TargetsTableReferences
   }
 
   static MultiTypedResultKey<$SequenceNodesTable, List<SequenceNode>>
-  _sequenceNodesRefsTable(_$SkotiqDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.sequenceNodes,
-        aliasName: $_aliasNameGenerator(
-          db.targets.id,
-          db.sequenceNodes.targetId,
-        ),
-      );
+  _sequenceNodesRefsTable(_$SkotiqDatabase db) => MultiTypedResultKey.fromTable(
+    db.sequenceNodes,
+    aliasName: $_aliasNameGenerator(db.targets.id, db.sequenceNodes.targetId),
+  );
 
   $$SequenceNodesTableProcessedTableManager get sequenceNodesRefs {
     final manager = $$SequenceNodesTableTableManager(
@@ -37846,14 +37834,13 @@ final class $$SequencesTableReferences
   }
 
   static MultiTypedResultKey<$SequenceNodesTable, List<SequenceNode>>
-  _sequenceNodesRefsTable(_$SkotiqDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.sequenceNodes,
-        aliasName: $_aliasNameGenerator(
-          db.sequences.id,
-          db.sequenceNodes.sequenceId,
-        ),
-      );
+  _sequenceNodesRefsTable(_$SkotiqDatabase db) => MultiTypedResultKey.fromTable(
+    db.sequenceNodes,
+    aliasName: $_aliasNameGenerator(
+      db.sequences.id,
+      db.sequenceNodes.sequenceId,
+    ),
+  );
 
   $$SequenceNodesTableProcessedTableManager get sequenceNodesRefs {
     final manager = $$SequenceNodesTableTableManager(
@@ -37895,14 +37882,13 @@ final class $$SequencesTableReferences
   }
 
   static MultiTypedResultKey<$SequenceRunsTable, List<SequenceRun>>
-  _sequenceRunsRefsTable(_$SkotiqDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.sequenceRuns,
-        aliasName: $_aliasNameGenerator(
-          db.sequences.id,
-          db.sequenceRuns.sequenceId,
-        ),
-      );
+  _sequenceRunsRefsTable(_$SkotiqDatabase db) => MultiTypedResultKey.fromTable(
+    db.sequenceRuns,
+    aliasName: $_aliasNameGenerator(
+      db.sequences.id,
+      db.sequenceRuns.sequenceId,
+    ),
+  );
 
   $$SequenceRunsTableProcessedTableManager get sequenceRunsRefs {
     final manager = $$SequenceRunsTableTableManager(
@@ -38857,14 +38843,13 @@ final class $$ImagingSessionsTableReferences
   }
 
   static MultiTypedResultKey<$PsfFieldTilesTable, List<PsfFieldTileRow>>
-  _psfFieldTilesRefsTable(_$SkotiqDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.psfFieldTiles,
-        aliasName: $_aliasNameGenerator(
-          db.imagingSessions.id,
-          db.psfFieldTiles.sessionId,
-        ),
-      );
+  _psfFieldTilesRefsTable(_$SkotiqDatabase db) => MultiTypedResultKey.fromTable(
+    db.psfFieldTiles,
+    aliasName: $_aliasNameGenerator(
+      db.imagingSessions.id,
+      db.psfFieldTiles.sessionId,
+    ),
+  );
 
   $$PsfFieldTilesTableProcessedTableManager get psfFieldTilesRefs {
     final manager = $$PsfFieldTilesTableTableManager(
@@ -39081,14 +39066,13 @@ final class $$ImagingSessionsTableReferences
   }
 
   static MultiTypedResultKey<$SkyAtlasFoldsTable, List<SkyAtlasFoldRow>>
-  _skyAtlasFoldsRefsTable(_$SkotiqDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.skyAtlasFolds,
-        aliasName: $_aliasNameGenerator(
-          db.imagingSessions.id,
-          db.skyAtlasFolds.sessionId,
-        ),
-      );
+  _skyAtlasFoldsRefsTable(_$SkotiqDatabase db) => MultiTypedResultKey.fromTable(
+    db.skyAtlasFolds,
+    aliasName: $_aliasNameGenerator(
+      db.imagingSessions.id,
+      db.skyAtlasFolds.sessionId,
+    ),
+  );
 
   $$SkyAtlasFoldsTableProcessedTableManager get skyAtlasFoldsRefs {
     final manager = $$SkyAtlasFoldsTableTableManager(
@@ -41101,11 +41085,7 @@ typedef $$SequenceNodesTableUpdateCompanionBuilder =
 
 final class $$SequenceNodesTableReferences
     extends
-        BaseReferences<
-          _$SkotiqDatabase,
-          $SequenceNodesTable,
-          SequenceNode
-        > {
+        BaseReferences<_$SkotiqDatabase, $SequenceNodesTable, SequenceNode> {
   $$SequenceNodesTableReferences(
     super.$_db,
     super.$_table,
@@ -42099,11 +42079,7 @@ typedef $$CapturedImagesTableUpdateCompanionBuilder =
 
 final class $$CapturedImagesTableReferences
     extends
-        BaseReferences<
-          _$SkotiqDatabase,
-          $CapturedImagesTable,
-          CapturedImage
-        > {
+        BaseReferences<_$SkotiqDatabase, $CapturedImagesTable, CapturedImage> {
   $$CapturedImagesTableReferences(
     super.$_db,
     super.$_table,
@@ -42152,14 +42128,13 @@ final class $$CapturedImagesTableReferences
   }
 
   static MultiTypedResultKey<$ImageMetadataTable, List<ImageMetadatum>>
-  _imageMetadataRefsTable(_$SkotiqDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.imageMetadata,
-        aliasName: $_aliasNameGenerator(
-          db.capturedImages.id,
-          db.imageMetadata.imageId,
-        ),
-      );
+  _imageMetadataRefsTable(_$SkotiqDatabase db) => MultiTypedResultKey.fromTable(
+    db.imageMetadata,
+    aliasName: $_aliasNameGenerator(
+      db.capturedImages.id,
+      db.imageMetadata.imageId,
+    ),
+  );
 
   $$ImageMetadataTableProcessedTableManager get imageMetadataRefs {
     final manager = $$ImageMetadataTableTableManager(
@@ -42257,14 +42232,13 @@ final class $$CapturedImagesTableReferences
   }
 
   static MultiTypedResultKey<$PsfFieldTilesTable, List<PsfFieldTileRow>>
-  _psfFieldTilesRefsTable(_$SkotiqDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.psfFieldTiles,
-        aliasName: $_aliasNameGenerator(
-          db.capturedImages.id,
-          db.psfFieldTiles.capturedImageId,
-        ),
-      );
+  _psfFieldTilesRefsTable(_$SkotiqDatabase db) => MultiTypedResultKey.fromTable(
+    db.psfFieldTiles,
+    aliasName: $_aliasNameGenerator(
+      db.capturedImages.id,
+      db.psfFieldTiles.capturedImageId,
+    ),
+  );
 
   $$PsfFieldTilesTableProcessedTableManager get psfFieldTilesRefs {
     final manager = $$PsfFieldTilesTableTableManager(
@@ -44341,11 +44315,7 @@ typedef $$ImageMetadataTableUpdateCompanionBuilder =
 
 final class $$ImageMetadataTableReferences
     extends
-        BaseReferences<
-          _$SkotiqDatabase,
-          $ImageMetadataTable,
-          ImageMetadatum
-        > {
+        BaseReferences<_$SkotiqDatabase, $ImageMetadataTable, ImageMetadatum> {
   $$ImageMetadataTableReferences(
     super.$_db,
     super.$_table,
@@ -44761,10 +44731,8 @@ class $$AppSettingsTableTableManager
           AppSetting,
           PrefetchHooks Function()
         > {
-  $$AppSettingsTableTableManager(
-    _$SkotiqDatabase db,
-    $AppSettingsTable table,
-  ) : super(
+  $$AppSettingsTableTableManager(_$SkotiqDatabase db, $AppSettingsTable table)
+    : super(
         TableManagerState(
           db: db,
           table: table,
@@ -45234,11 +45202,7 @@ typedef $$FlatHistoryTableUpdateCompanionBuilder =
 
 final class $$FlatHistoryTableReferences
     extends
-        BaseReferences<
-          _$SkotiqDatabase,
-          $FlatHistoryTable,
-          FlatHistoryEntry
-        > {
+        BaseReferences<_$SkotiqDatabase, $FlatHistoryTable, FlatHistoryEntry> {
   $$FlatHistoryTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $EquipmentProfilesTable _equipmentProfileIdTable(
@@ -45535,10 +45499,8 @@ class $$FlatHistoryTableTableManager
           FlatHistoryEntry,
           PrefetchHooks Function({bool equipmentProfileId})
         > {
-  $$FlatHistoryTableTableManager(
-    _$SkotiqDatabase db,
-    $FlatHistoryTable table,
-  ) : super(
+  $$FlatHistoryTableTableManager(_$SkotiqDatabase db, $FlatHistoryTable table)
+    : super(
         TableManagerState(
           db: db,
           table: table,
@@ -48669,11 +48631,7 @@ typedef $$PsfFieldTilesTableUpdateCompanionBuilder =
 
 final class $$PsfFieldTilesTableReferences
     extends
-        BaseReferences<
-          _$SkotiqDatabase,
-          $PsfFieldTilesTable,
-          PsfFieldTileRow
-        > {
+        BaseReferences<_$SkotiqDatabase, $PsfFieldTilesTable, PsfFieldTileRow> {
   $$PsfFieldTilesTableReferences(
     super.$_db,
     super.$_table,
@@ -53138,10 +53096,8 @@ class $$DarkLibraryTableTableManager
           DarkLibraryEntry,
           PrefetchHooks Function()
         > {
-  $$DarkLibraryTableTableManager(
-    _$SkotiqDatabase db,
-    $DarkLibraryTable table,
-  ) : super(
+  $$DarkLibraryTableTableManager(_$SkotiqDatabase db, $DarkLibraryTable table)
+    : super(
         TableManagerState(
           db: db,
           table: table,
@@ -53235,11 +53191,7 @@ typedef $$DarkLibraryTableProcessedTableManager =
       $$DarkLibraryTableUpdateCompanionBuilder,
       (
         DarkLibraryEntry,
-        BaseReferences<
-          _$SkotiqDatabase,
-          $DarkLibraryTable,
-          DarkLibraryEntry
-        >,
+        BaseReferences<_$SkotiqDatabase, $DarkLibraryTable, DarkLibraryEntry>,
       ),
       DarkLibraryEntry,
       PrefetchHooks Function()
@@ -53834,11 +53786,7 @@ typedef $$ObservingListsTableUpdateCompanionBuilder =
 
 final class $$ObservingListsTableReferences
     extends
-        BaseReferences<
-          _$SkotiqDatabase,
-          $ObservingListsTable,
-          ObservingList
-        > {
+        BaseReferences<_$SkotiqDatabase, $ObservingListsTable, ObservingList> {
   $$ObservingListsTableReferences(
     super.$_db,
     super.$_table,
@@ -54644,8 +54592,7 @@ typedef $$SequenceRunsTableUpdateCompanionBuilder =
     });
 
 final class $$SequenceRunsTableReferences
-    extends
-        BaseReferences<_$SkotiqDatabase, $SequenceRunsTable, SequenceRun> {
+    extends BaseReferences<_$SkotiqDatabase, $SequenceRunsTable, SequenceRun> {
   $$SequenceRunsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $SequencesTable _sequenceIdTable(_$SkotiqDatabase db) =>
@@ -54877,10 +54824,8 @@ class $$SequenceRunsTableTableManager
           SequenceRun,
           PrefetchHooks Function({bool sequenceId})
         > {
-  $$SequenceRunsTableTableManager(
-    _$SkotiqDatabase db,
-    $SequenceRunsTable table,
-  ) : super(
+  $$SequenceRunsTableTableManager(_$SkotiqDatabase db, $SequenceRunsTable table)
+    : super(
         TableManagerState(
           db: db,
           table: table,
@@ -55856,11 +55801,7 @@ class $$DefectMapsTableTableManager
           $$DefectMapsTableUpdateCompanionBuilder,
           (
             DefectMapEntry,
-            BaseReferences<
-              _$SkotiqDatabase,
-              $DefectMapsTable,
-              DefectMapEntry
-            >,
+            BaseReferences<_$SkotiqDatabase, $DefectMapsTable, DefectMapEntry>,
           ),
           DefectMapEntry,
           PrefetchHooks Function()
@@ -55992,11 +55933,7 @@ typedef $$FocusModelsTableUpdateCompanionBuilder =
 
 final class $$FocusModelsTableReferences
     extends
-        BaseReferences<
-          _$SkotiqDatabase,
-          $FocusModelsTable,
-          FocusModelEntry
-        > {
+        BaseReferences<_$SkotiqDatabase, $FocusModelsTable, FocusModelEntry> {
   $$FocusModelsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $EquipmentProfilesTable _equipmentProfileIdTable(
@@ -56402,10 +56339,8 @@ class $$FocusModelsTableTableManager
           FocusModelEntry,
           PrefetchHooks Function({bool equipmentProfileId})
         > {
-  $$FocusModelsTableTableManager(
-    _$SkotiqDatabase db,
-    $FocusModelsTable table,
-  ) : super(
+  $$FocusModelsTableTableManager(_$SkotiqDatabase db, $FocusModelsTable table)
+    : super(
         TableManagerState(
           db: db,
           table: table,
@@ -57955,11 +57890,13 @@ final class $$SkyTilesTableReferences
     extends BaseReferences<_$SkotiqDatabase, $SkyTilesTable, SkyTileRow> {
   $$SkyTilesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $ImagingSessionsTable _lastFoldSessionIdTable(
-    _$SkotiqDatabase db,
-  ) => db.imagingSessions.createAlias(
-    $_aliasNameGenerator(db.skyTiles.lastFoldSessionId, db.imagingSessions.id),
-  );
+  static $ImagingSessionsTable _lastFoldSessionIdTable(_$SkotiqDatabase db) =>
+      db.imagingSessions.createAlias(
+        $_aliasNameGenerator(
+          db.skyTiles.lastFoldSessionId,
+          db.imagingSessions.id,
+        ),
+      );
 
   $$ImagingSessionsTableProcessedTableManager? get lastFoldSessionId {
     final $_column = $_itemColumn<int>('last_fold_session_id');
@@ -58580,11 +58517,7 @@ typedef $$SkyAtlasFoldsTableUpdateCompanionBuilder =
 
 final class $$SkyAtlasFoldsTableReferences
     extends
-        BaseReferences<
-          _$SkotiqDatabase,
-          $SkyAtlasFoldsTable,
-          SkyAtlasFoldRow
-        > {
+        BaseReferences<_$SkotiqDatabase, $SkyAtlasFoldsTable, SkyAtlasFoldRow> {
   $$SkyAtlasFoldsTableReferences(
     super.$_db,
     super.$_table,

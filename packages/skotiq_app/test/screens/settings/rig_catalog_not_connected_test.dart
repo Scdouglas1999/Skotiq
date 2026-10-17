@@ -72,8 +72,7 @@ void main() {
       (tester) async {
     final router = await _pump(tester);
 
-    final connect =
-        find.widgetWithText(SkotiqButton, 'Connect an appliance');
+    final connect = find.widgetWithText(SkotiqButton, 'Connect an appliance');
     expect(connect, findsOneWidget);
     expect(tester.widget<SkotiqButton>(connect).onPressed, isNotNull);
 

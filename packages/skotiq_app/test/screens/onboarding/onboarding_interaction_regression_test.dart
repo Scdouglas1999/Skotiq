@@ -42,8 +42,7 @@ class _MountOnlyDiscoveryNotifier extends _NoopDiscoveryNotifier {
   }
 }
 
-SkotiqDatabase _newDb() =>
-    SkotiqDatabase.forTesting(NativeDatabase.memory());
+SkotiqDatabase _newDb() => SkotiqDatabase.forTesting(NativeDatabase.memory());
 
 void main() {
   testWidgets('double-tapping Next cannot validate the following step',

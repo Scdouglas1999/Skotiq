@@ -36,8 +36,7 @@ class _MovingObjectCard extends StatelessWidget {
           if (moving.isEmpty)
             Text(
               'No candidates detected in current session window.',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             )
           else
             ...moving.take(6).map(
@@ -384,8 +383,8 @@ class _MetricLine extends StatelessWidget {
         children: [
           Text(
             label,
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           ),
           Text(
             value.toStringAsFixed(3),

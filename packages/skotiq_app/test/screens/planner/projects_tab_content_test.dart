@@ -157,8 +157,7 @@ void main() {
     // same thing three ways.
     expect(find.text('No projects yet'), findsOneWidget);
     expect(find.textContaining('campaign'), findsNothing);
-    expect(
-        find.widgetWithText(SkotiqButton, 'New project'), findsOneWidget);
+    expect(find.widgetWithText(SkotiqButton, 'New project'), findsOneWidget);
   });
 
   testWidgets(
@@ -284,8 +283,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // The dialog scaffold shows its title and name field.
-    expect(
-        find.widgetWithText(SkotiqDialog, 'New project'), findsOneWidget);
+    expect(find.widgetWithText(SkotiqDialog, 'New project'), findsOneWidget);
     expect(find.widgetWithText(SkotiqButton, 'Create'), findsOneWidget);
     expect(find.byIcon(LucideIcons.folder), findsWidgets);
   });

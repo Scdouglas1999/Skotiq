@@ -22,8 +22,7 @@ import 'tailnet_detector.dart';
 class _DiscoveryPrefs {
   static const lastServerHost = 'skotiq_last_server_host';
   static const lastServerPort = 'skotiq_last_server_port';
-  static const lastServerSignalingPort =
-      'skotiq_last_server_signaling_port';
+  static const lastServerSignalingPort = 'skotiq_last_server_signaling_port';
   static const lastServerName = 'skotiq_last_server_name';
   static const lastServerVersion = 'skotiq_last_server_version';
   static const lastServerApiVersion = 'skotiq_last_server_api_version';
@@ -551,8 +550,9 @@ class EnhancedSkotiqDiscovery {
 
   static Map<String, String> _authHeaders(String? authToken) {
     final headers = {
-      SkotiqServerCompatibility.apiVersionHeader:
-          SkotiqServerCompatibility.clientApiVersion.format(),
+      SkotiqServerCompatibility.apiVersionHeader: SkotiqServerCompatibility
+          .clientApiVersion
+          .format(),
     };
     if (authToken == null || authToken.isEmpty) {
       return headers;

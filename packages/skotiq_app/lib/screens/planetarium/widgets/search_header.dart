@@ -162,8 +162,7 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
             child: Material(
               elevation: 8,
               color: widget.colors.surface,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               child: Container(
                 decoration: BoxDecoration(
                   border: Border.all(color: widget.colors.border),
@@ -224,8 +223,7 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
                                   'RA ${CoordinateFormatUtils.formatRACompact(coord.ra)}, Dec ${CoordinateFormatUtils.formatDec(coord.dec)}',
                                   style: TextStyle(
                                       color: widget.colors.textMuted,
-                                      fontSize:
-                                          SkotiqTypography.fontSize11),
+                                      fontSize: SkotiqTypography.fontSize11),
                                 ),
                               ),
                             ),
@@ -363,8 +361,7 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
                                     child: Text(
                                       '${dsos.length - 20} more in Search tab...',
                                       style: TextStyle(
-                                        fontSize:
-                                            SkotiqTypography.fontSize11,
+                                        fontSize: SkotiqTypography.fontSize11,
                                         color: widget.colors.textMuted,
                                         fontStyle: FontStyle.italic,
                                       ),
@@ -387,8 +384,7 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
                                     child: Text(
                                       '${stars.length - 10} more in Search tab...',
                                       style: TextStyle(
-                                        fontSize:
-                                            SkotiqTypography.fontSize11,
+                                        fontSize: SkotiqTypography.fontSize11,
                                         color: widget.colors.textMuted,
                                         fontStyle: FontStyle.italic,
                                       ),
@@ -445,8 +441,7 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: widget.colors.surfaceAlt,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
             ),
             child: Text(
               catalogTag,
@@ -515,8 +510,7 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: widget.colors.accent.withValues(alpha: 0.15),
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
             ),
             child: Icon(
               isPlanet ? SkotiqIcons.globe : SkotiqIcons.sparkle,
@@ -568,8 +562,7 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: widget.colors.surfaceAlt,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
             ),
             child: Text(
               '\u2605',
@@ -676,8 +669,8 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: widget.colors.background,
-                          borderRadius: BorderRadius.circular(
-                              SkotiqTokens.radiusInline4),
+                          borderRadius:
+                              BorderRadius.circular(SkotiqTokens.radiusInline4),
                         ),
                         child: Text(
                           shortcutLabel('K'),
@@ -689,18 +682,18 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
                       filled: true,
                       fillColor: widget.colors.surfaceAlt,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                            SkotiqTokens.radiusInline8),
+                        borderRadius:
+                            BorderRadius.circular(SkotiqTokens.radiusInline8),
                         borderSide: BorderSide(color: widget.colors.border),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                            SkotiqTokens.radiusInline8),
+                        borderRadius:
+                            BorderRadius.circular(SkotiqTokens.radiusInline8),
                         borderSide: BorderSide(color: widget.colors.border),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                            SkotiqTokens.radiusInline8),
+                        borderRadius:
+                            BorderRadius.circular(SkotiqTokens.radiusInline8),
                         borderSide: BorderSide(color: widget.colors.primary),
                       ),
                       contentPadding: const EdgeInsets.symmetric(

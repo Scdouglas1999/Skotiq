@@ -159,8 +159,8 @@ class HipsAttributionBadge extends StatelessWidget {
                 .withValues(alpha: SkotiqTokens.opacityHoverBorder),
             borderRadius: SkotiqTokens.borderRadiusMd,
             border: Border.all(
-              color: colors.border
-                  .withValues(alpha: SkotiqTokens.opacitySubtle),
+              color:
+                  colors.border.withValues(alpha: SkotiqTokens.opacitySubtle),
             ),
           ),
           child: Row(

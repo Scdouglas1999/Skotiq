@@ -1,8 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show TwilightTimes;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' show TwilightTimes;
 
 import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';

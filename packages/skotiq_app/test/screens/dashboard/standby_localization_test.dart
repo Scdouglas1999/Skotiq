@@ -27,8 +27,7 @@ Future<void> _pumpStandby(WidgetTester tester, {Locale? locale}) async {
   await pumpAppScreen(
     tester,
     Builder(
-      builder: (context) =>
-          CockpitStandby(colors: SkotiqColors.of(context)),
+      builder: (context) => CockpitStandby(colors: SkotiqColors.of(context)),
     ),
     // Narrow enough that the live-astro widgets (which spin a 1 s planetarium
     // clock) stay out of the tree; the briefing's own copy is the subject.

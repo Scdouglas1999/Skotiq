@@ -369,8 +369,8 @@ class _SummaryTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted)),
+                style:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted)),
             const SizedBox(height: 4),
             Text(
               value,
@@ -450,8 +450,7 @@ class _OverallProgress extends StatelessWidget {
             // session took, so one card would read "Captured 0.0h" over
             // "0.17h captured".
             'Accepted ${(captured / 3600.0).toStringAsFixed(1)}h of ${(goal / 3600.0).toStringAsFixed(1)}h goal | Remaining: ${remainingHours.toStringAsFixed(1)}h',
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ],
       ),
@@ -523,8 +522,7 @@ class _FilterRow extends StatelessWidget {
           if (pct != null) ...[
             const SizedBox(height: 6),
             ClipRRect(
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               child: LinearProgressIndicator(
                 value: pct,
                 minHeight: 6,
@@ -537,8 +535,7 @@ class _FilterRow extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               '${(pct * 100).toStringAsFixed(0)}% complete | ${filter.remainingFrames} frames remaining',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ],
         ],
@@ -596,8 +593,7 @@ class _SessionRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: colors.surface,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 border: Border.all(color: colors.border),
               ),
               child: Row(
@@ -686,8 +682,7 @@ class _Chip extends StatelessWidget {
         children: [
           Text(
             '$label ',
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
           Text(
             value,

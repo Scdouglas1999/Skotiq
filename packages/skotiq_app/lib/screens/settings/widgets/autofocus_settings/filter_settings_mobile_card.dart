@@ -103,9 +103,7 @@ class _FilterSettingsMobileCardState extends State<_FilterSettingsMobileCard> {
             ? null
             : Border(
                 bottom: BorderSide(
-                  color: SkotiqColors.of(context)
-                      .border
-                      .withValues(alpha: 0.5),
+                  color: SkotiqColors.of(context).border.withValues(alpha: 0.5),
                 ),
               ),
       ),
@@ -118,8 +116,7 @@ class _FilterSettingsMobileCardState extends State<_FilterSettingsMobileCard> {
               Container(
                 width: 28,
                 height: 28,
-                decoration: SkotiqDecorations.chip(
-                    SkotiqColors.of(context),
+                decoration: SkotiqDecorations.chip(SkotiqColors.of(context),
                     tone: SkotiqColors.of(context).primary),
                 child: Center(
                   child: Text(

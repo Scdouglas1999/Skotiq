@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/dashboard/widgets/tonight_card.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    as planetarium;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' as planetarium;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';

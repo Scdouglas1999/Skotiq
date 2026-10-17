@@ -294,11 +294,7 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
     );
   }
 
-  Widget _buildParamRow(
-    BrainParam param,
-    String axis,
-    SkotiqColors colors,
-  ) {
+  Widget _buildParamRow(BrainParam param, String axis, SkotiqColors colors) {
     final controller = _controllers['${axis}_${param.name}']!;
 
     return Padding(

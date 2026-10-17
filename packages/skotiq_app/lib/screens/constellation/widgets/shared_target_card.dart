@@ -40,8 +40,7 @@ class SharedTargetCard extends ConsumerWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
-                decoration:
-                    SkotiqDecorations.chip(colors, tone: colors.accent),
+                decoration: SkotiqDecorations.chip(colors, tone: colors.accent),
                 child: Icon(
                   LucideIcons.users,
                   size: SkotiqTokens.iconSm,

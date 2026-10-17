@@ -218,8 +218,7 @@ class _WaitingState extends StatelessWidget {
           Text(
             'Waiting for first frame…',
             style: TextStyle(
-                fontSize: SkotiqTypography.fontSize12,
-                color: colors.textMuted),
+                fontSize: SkotiqTypography.fontSize12, color: colors.textMuted),
           ),
         ],
       ),

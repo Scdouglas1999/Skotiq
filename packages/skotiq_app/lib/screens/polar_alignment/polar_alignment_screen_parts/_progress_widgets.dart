@@ -39,8 +39,7 @@ class _MeasurementProgressItem extends StatelessWidget {
           ),
           child: Center(
             child: isComplete
-                ? Icon(SkotiqIcons.check,
-                    size: 12, color: colors.background)
+                ? Icon(SkotiqIcons.check, size: 12, color: colors.background)
                 : isActive
                     ? SizedBox(
                         width: 10,

@@ -466,10 +466,7 @@ class NetworkBackend extends _NetworkBackendTransport
         _NetworkBackendPlanningDataOperations,
         _NetworkBackendObservingListOperations,
         _NetworkBackendDepthLockOperations
-    implements
-        SkotiqBackend,
-        EnvironmentalStatusBackend,
-        DomeStatusBackend {
+    implements SkotiqBackend, EnvironmentalStatusBackend, DomeStatusBackend {
   static const _requestIdHeader = _NetworkBackendTransport._requestIdHeader;
 
   NetworkBackend({

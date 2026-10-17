@@ -72,8 +72,7 @@ class _TimeWindowField extends StatelessWidget {
         ),
         const SizedBox(width: SkotiqTokens.spaceSm),
         Text('to',
-            style: SkotiqTypography.body
-                .copyWith(color: colors.textSecondary)),
+            style: SkotiqTypography.body.copyWith(color: colors.textSecondary)),
         const SizedBox(width: SkotiqTokens.spaceSm),
         OutlinedButton.icon(
           icon: const Icon(LucideIcons.clock, size: 14),
@@ -89,8 +88,7 @@ class _TimeWindowField extends StatelessWidget {
           Flexible(
             child: Text(
               '(crosses midnight)',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
               overflow: TextOverflow.ellipsis,
             ),
           ),

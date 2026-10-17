@@ -163,8 +163,7 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
               },
               child: Text(
                 'Most recent',
-                style:
-                    SkotiqTypography.caption.copyWith(color: colors.accent),
+                style: SkotiqTypography.caption.copyWith(color: colors.accent),
               ),
             ),
           ],

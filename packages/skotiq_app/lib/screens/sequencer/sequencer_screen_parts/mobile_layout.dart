@@ -23,8 +23,7 @@ void showSequencerNodeSheet(BuildContext context, SkotiqColors colors) {
 /// Shows the selected node's properties as an adaptive modal. The
 /// properties form is content-heavy, so it gets a full-screen route on a phone
 /// and a centered dialog on tablet.
-void showSequencerPropertiesSheet(
-    BuildContext context, SkotiqColors colors) {
+void showSequencerPropertiesSheet(BuildContext context, SkotiqColors colors) {
   showAdaptiveModal<void>(
     context: context,
     designWidth: 560,
@@ -195,8 +194,8 @@ class _LandscapePropertiesPane extends ConsumerWidget {
                 child: Text(
                   'Select a node to edit',
                   textAlign: TextAlign.center,
-                  style: SkotiqTypography.bodySm
-                      .copyWith(color: colors.textMuted),
+                  style:
+                      SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
                 ),
               ),
             )

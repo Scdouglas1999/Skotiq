@@ -175,8 +175,7 @@ class _DoubleRow extends StatelessWidget {
     final sliderMax = thresholdSliderMax(rangeMin, rangeMax);
     final effectiveValue = maxRuleThumbValue(value, rangeMin, rangeMax);
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceXs + 2),
+      padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceXs + 2),
       child: Row(
         children: [
           SizedBox(
@@ -269,8 +268,7 @@ class _IntRow extends StatelessWidget {
     final enabled = available.isNotEmpty;
     final effective = minRuleThumbValue(value, rangeMin, rangeMax);
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceXs + 2),
+      padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceXs + 2),
       child: Row(
         children: [
           SizedBox(
@@ -385,8 +383,7 @@ class _PreviewSummary extends StatelessWidget {
           const SizedBox(height: SkotiqTokens.spaceSm),
           Text(
             activeRules,
-            style:
-                SkotiqTypography.monoXs.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.monoXs.copyWith(color: colors.textMuted),
           ),
         ],
       ),
@@ -470,8 +467,7 @@ class _RejectionListState extends State<_RejectionList> {
     final rejections = widget.rejections;
     if (rejections.isEmpty) {
       return Padding(
-        padding:
-            const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceMd + 2),
+        padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceMd + 2),
         child: Text(
           'No frames currently fail any rule.',
           style: SkotiqTypography.caption.copyWith(color: colors.textMuted),

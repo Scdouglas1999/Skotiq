@@ -42,12 +42,10 @@ bridge_event.SkotiqEvent _sequencerEvent(
 bridge_event.SkotiqEvent _midRunError(int id, {String message = _reason}) =>
     _sequencerEvent(id, bridge_event.SequencerEvent.error(message: message));
 
-bridge_event.SkotiqEvent _terminalFailure(int id,
-        {String error = _reason}) =>
+bridge_event.SkotiqEvent _terminalFailure(int id, {String error = _reason}) =>
     _sequencerEvent(id, bridge_event.SequencerEvent.failed(error: error));
 
-bridge_event.SkotiqEvent _runStarted(int id) =>
-    bridge_event.SkotiqEvent(
+bridge_event.SkotiqEvent _runStarted(int id) => bridge_event.SkotiqEvent(
       eventId: BigInt.from(id),
       timestamp: DateTime.now().millisecondsSinceEpoch,
       // A run start is informational, exactly as the bridge emits it.

@@ -331,8 +331,7 @@ class _FramingViewState extends ConsumerState<FramingView> {
     // gaps + 16 px gutter waste scarce vertical/horizontal space. Tablet/desktop
     // keep the roomier spacing.
     final isPhone = Responsive.isPhone(context);
-    final sectionGap =
-        isPhone ? SkotiqTokens.spaceMd : SidePanel.sectionGap;
+    final sectionGap = isPhone ? SkotiqTokens.spaceMd : SidePanel.sectionGap;
     final bodyPadding = isPhone
         ? const EdgeInsets.all(SkotiqTokens.spaceMd)
         : SidePanel.contentPadding;

@@ -173,8 +173,8 @@ class _CullToolbar extends StatelessWidget {
                 width: 36,
                 child: Text(
                   hfrThreshold.toStringAsFixed(1),
-                  style: SkotiqTypography.mono
-                      .copyWith(color: colors.textPrimary),
+                  style:
+                      SkotiqTypography.mono.copyWith(color: colors.textPrimary),
                 ),
               ),
             ],
@@ -205,8 +205,7 @@ class _SelectionPill extends StatelessWidget {
         vertical: SkotiqTokens.spaceXs,
       ),
       decoration: BoxDecoration(
-        color: colors.primary
-            .withValues(alpha: SkotiqTokens.opacityStatusFill),
+        color: colors.primary.withValues(alpha: SkotiqTokens.opacityStatusFill),
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusFull),
         border: Border.all(color: colors.primary),
       ),

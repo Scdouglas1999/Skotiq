@@ -538,9 +538,7 @@ class _Badge extends StatelessWidget {
           horizontal: SkotiqTokens.spaceXs + 1,
         ),
         decoration: BoxDecoration(
-          color: toneColor.withValues(
-            alpha: SkotiqTokens.opacityStatusFill,
-          ),
+          color: toneColor.withValues(alpha: SkotiqTokens.opacityStatusFill),
           borderRadius: SkotiqTokens.borderRadiusXs,
         ),
         child: Text(

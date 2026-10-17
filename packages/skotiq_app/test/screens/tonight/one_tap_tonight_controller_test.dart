@@ -3,8 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/tonight/one_tap_tonight_controller.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    as planetarium;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' as planetarium;
 
 /// Controller-level test of the one-tap chain (pick -> frame -> plan -> GO)
 /// using fake service seams. No DB / network / native bridge — the chain logic

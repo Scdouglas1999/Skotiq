@@ -971,8 +971,7 @@ class ObservationReportService {
 
   Future<Directory> _getExportDirectory() async {
     final docsDir = await _documentsDirectoryProvider();
-    final exportDir =
-        Directory(path.join(docsDir.path, 'Skotiq', 'exports'));
+    final exportDir = Directory(path.join(docsDir.path, 'Skotiq', 'exports'));
     if (!await exportDir.exists()) {
       await exportDir.create(recursive: true);
     }

@@ -278,8 +278,7 @@ class _EditorSection extends StatelessWidget {
         Row(
           children: [
             if (icon != null) ...[
-              Icon(icon,
-                  size: SkotiqTokens.iconXs, color: colors.textMuted),
+              Icon(icon, size: SkotiqTokens.iconXs, color: colors.textMuted),
               const SizedBox(width: SkotiqTokens.spaceXs),
             ],
             Flexible(

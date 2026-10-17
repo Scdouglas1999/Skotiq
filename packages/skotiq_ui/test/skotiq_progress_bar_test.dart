@@ -60,10 +60,7 @@ void main() {
       ) async {
         await tester.pumpWidget(
           _tight(
-            SkotiqProgressBar(
-              value: value,
-              style: SkotiqProgressStyle.thick,
-            ),
+            SkotiqProgressBar(value: value, style: SkotiqProgressStyle.thick),
           ),
         );
         await tester.pumpAndSettle();
@@ -115,9 +112,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(_fillWidth(tester), _innerWidth(tester));
 
-    await tester.pumpWidget(
-      _tight(const SkotiqProgressBar(value: double.nan)),
-    );
+    await tester.pumpWidget(_tight(const SkotiqProgressBar(value: double.nan)));
     await tester.pumpAndSettle();
     expect(_fillWidth(tester), 0.0);
     expect(tester.takeException(), isNull);

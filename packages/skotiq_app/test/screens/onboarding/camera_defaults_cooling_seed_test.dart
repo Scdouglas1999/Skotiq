@@ -14,8 +14,7 @@ import 'package:skotiq_app/screens/onboarding/steps/camera_defaults_step.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-SkotiqDatabase _newDb() =>
-    SkotiqDatabase.forTesting(NativeDatabase.memory());
+SkotiqDatabase _newDb() => SkotiqDatabase.forTesting(NativeDatabase.memory());
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

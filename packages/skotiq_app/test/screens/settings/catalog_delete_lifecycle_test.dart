@@ -70,8 +70,7 @@ void main() {
     );
     await _waitForDeleteButton(tester);
 
-    final deleteButton =
-        find.widgetWithText(SkotiqButton, 'Delete catalogs');
+    final deleteButton = find.widgetWithText(SkotiqButton, 'Delete catalogs');
     await tester.ensureVisible(deleteButton);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));

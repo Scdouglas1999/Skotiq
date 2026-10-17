@@ -159,8 +159,7 @@ void main() {
     await _openDetail(tester, 'Outer shell');
     expect(find.text('Tidal tail'), findsNothing);
     expect(find.widgetWithText(SkotiqButton, 'Re-measure'), findsOneWidget);
-    expect(
-        find.widgetWithText(SkotiqButton, 'Edit region'), findsOneWidget);
+    expect(find.widgetWithText(SkotiqButton, 'Edit region'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(SkotiqButton, 'All goals'));
     await tester.pumpAndSettle();

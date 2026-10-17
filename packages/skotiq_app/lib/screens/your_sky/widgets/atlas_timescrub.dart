@@ -97,14 +97,14 @@ class AtlasTimescrub extends StatelessWidget {
           children: [
             Text(
               _formatStopLabel(stops.first),
-              style: SkotiqTypography.captionSm
-                  .copyWith(color: colors.textMuted),
+              style:
+                  SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
             ),
             const Spacer(),
             Text(
               'Now',
-              style: SkotiqTypography.captionSm
-                  .copyWith(color: colors.textMuted),
+              style:
+                  SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
             ),
           ],
         ),

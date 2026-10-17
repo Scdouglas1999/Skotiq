@@ -25,8 +25,7 @@ void main() {
     final file = File(
       'lib/screens/sequencer/sequencer_screen_parts/toolbox_panel.dart',
     );
-    expect(file.existsSync(), isTrue,
-        reason: 'run from packages/skotiq_app');
+    expect(file.existsSync(), isTrue, reason: 'run from packages/skotiq_app');
     final source = file.readAsStringSync();
 
     expect(

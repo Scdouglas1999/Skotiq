@@ -421,9 +421,7 @@ void main() {
 
       test("the driver's own noImageAvailable answers the same", () async {
         await expectScopedRefusal(
-          await thumbnail(
-            raise: const bridge.SkotiqError.noImageAvailable(),
-          ),
+          await thumbnail(raise: const bridge.SkotiqError.noImageAvailable()),
         );
       });
 

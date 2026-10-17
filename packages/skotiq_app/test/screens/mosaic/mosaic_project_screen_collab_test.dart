@@ -296,8 +296,7 @@ void main() {
       findsNothing,
     );
     // A bounded batch is still offered so a contributor can take real work.
-    expect(find.widgetWithText(SkotiqButton, 'Claim 3 panels'),
-        findsOneWidget);
+    expect(find.widgetWithText(SkotiqButton, 'Claim 3 panels'), findsOneWidget);
     await disposeScreen(tester);
   });
 

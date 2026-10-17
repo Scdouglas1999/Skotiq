@@ -133,8 +133,9 @@ class RemotePairingClient {
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-    SkotiqServerCompatibility.apiVersionHeader:
-        SkotiqServerCompatibility.clientApiVersion.format(),
+    SkotiqServerCompatibility.apiVersionHeader: SkotiqServerCompatibility
+        .clientApiVersion
+        .format(),
   };
 
   /// Opens a pairing session on the desktop host. The pairing code itself is

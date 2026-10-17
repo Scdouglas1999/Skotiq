@@ -236,8 +236,7 @@ class SettingRow extends StatelessWidget {
   Widget _buildTitle(BuildContext context, SkotiqColors colors) {
     final titleText = Text(
       title,
-      style:
-          SkotiqTypography.bodyMedium.copyWith(color: colors.textPrimary),
+      style: SkotiqTypography.bodyMedium.copyWith(color: colors.textPrimary),
     );
     final id = helpId;
     if (id == null) {
@@ -269,8 +268,8 @@ class SettingRow extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             subtitle!,
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           ),
         ],
       ],
@@ -298,8 +297,7 @@ class SettingRow extends StatelessWidget {
         ),
         child: Padding(
           padding: EdgeInsets.symmetric(
-            horizontal:
-                isMobile ? SkotiqTokens.spaceMd : SkotiqTokens.spaceLg,
+            horizontal: isMobile ? SkotiqTokens.spaceMd : SkotiqTokens.spaceLg,
             vertical: SkotiqTokens.spaceMd,
           ),
           child: shouldStack

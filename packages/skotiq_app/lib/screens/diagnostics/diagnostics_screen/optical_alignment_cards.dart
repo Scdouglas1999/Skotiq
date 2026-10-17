@@ -169,8 +169,8 @@ class _CollimationCard extends StatelessWidget {
                 child: Text(
                   'Collimation',
                   overflow: TextOverflow.ellipsis,
-                  style: SkotiqTypography.h5
-                      .copyWith(color: colors.textPrimary),
+                  style:
+                      SkotiqTypography.h5.copyWith(color: colors.textPrimary),
                 ),
               ),
               const SizedBox(width: 8),

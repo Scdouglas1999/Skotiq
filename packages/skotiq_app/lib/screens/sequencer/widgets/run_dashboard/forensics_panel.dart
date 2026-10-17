@@ -173,8 +173,7 @@ class _CauseDistributionBar extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 1),
                 decoration: BoxDecoration(
                   color: forensicsCauseColor(e.key, colors),
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusXs),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                 ),
               ),
             );
@@ -246,8 +245,7 @@ class _ForensicsRow extends StatelessWidget {
               margin: const EdgeInsets.only(right: SkotiqTokens.spaceMd),
               decoration: BoxDecoration(
                 color: causeColor,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline2),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline2),
               ),
             ),
             Expanded(
@@ -259,8 +257,7 @@ class _ForensicsRow extends StatelessWidget {
                     children: [
                       Text(
                         record.likelyCause.humanLabel,
-                        style:
-                            SkotiqTypography.h6.copyWith(color: causeColor),
+                        style: SkotiqTypography.h6.copyWith(color: causeColor),
                       ),
                       const SizedBox(width: SkotiqTokens.spaceSm),
                       Text(

@@ -133,8 +133,7 @@ class _RejectionWarning extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: SkotiqTypography.labelStrongSm
-                      .copyWith(color: accent),
+                  style: SkotiqTypography.labelStrongSm.copyWith(color: accent),
                 ),
                 const SizedBox(height: 2),
                 Text(

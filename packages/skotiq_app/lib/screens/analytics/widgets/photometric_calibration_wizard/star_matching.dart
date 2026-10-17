@@ -7,16 +7,14 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
       children: [
         Text(
           'Matching detected stars to catalog',
-          style:
-              SkotiqTypography.button.copyWith(color: colors.textPrimary),
+          style: SkotiqTypography.button.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: 8),
         Text(
           'Skotiq is matching stars detected in the selected frame against '
           'the star catalog. Stars with a known V magnitude and B-V color '
           'index will be used for the transformation fit.',
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(height: 16),
         if (_isComputing)

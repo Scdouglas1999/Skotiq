@@ -178,8 +178,7 @@ class _NodeActionButtonState extends State<_NodeActionButton> {
               SkotiqTouchTarget.paddingToReach(context, _chipExtent),
             ),
             child: AnimatedContainer(
-              duration:
-                  animationDuration(context, SkotiqTokens.durationFast),
+              duration: animationDuration(context, SkotiqTokens.durationFast),
               curve: SkotiqTokens.curveStandard,
               width: _chipExtent,
               height: _chipExtent,
@@ -193,8 +192,7 @@ class _NodeActionButtonState extends State<_NodeActionButton> {
                         ),
                       ).color
                     : Colors.transparent,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               ),
               child: Icon(
                 widget.icon,
@@ -494,9 +492,8 @@ const double _childrenSlideDistance = 6.0;
 /// [SkotiqTokens.durationSmooth], so the rows have arrived by the time the
 /// block stops growing. Reversed, the rows leave before the gap closes, which
 /// is what stops a collapse reading as a row being crushed.
-final double _childrenFadeFraction =
-    SkotiqTokens.durationQuick.inMilliseconds /
-        SkotiqTokens.durationSmooth.inMilliseconds;
+final double _childrenFadeFraction = SkotiqTokens.durationQuick.inMilliseconds /
+    SkotiqTokens.durationSmooth.inMilliseconds;
 
 /// The expand / collapse motion of a container's children block (spec §9).
 ///

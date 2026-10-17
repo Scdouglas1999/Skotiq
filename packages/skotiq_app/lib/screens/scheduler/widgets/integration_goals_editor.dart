@@ -271,8 +271,7 @@ class _IntegrationGoalsEditorState
         const SizedBox(height: SkotiqTokens.spaceSm),
         Text(
           'How many frames in each filter does ${widget.targetName} still need?',
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(height: SkotiqTokens.spaceMd),
         progressAsync.when(
@@ -437,8 +436,8 @@ class _GoalRowState extends State<_GoalRow> {
                 controller: _countCtl,
                 enabled: !widget.busy,
                 keyboardType: TextInputType.number,
-                style: SkotiqTypography.bodySm
-                    .copyWith(color: colors.textPrimary),
+                style:
+                    SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
                 decoration: InputDecoration(
                   isDense: true,
                   labelText: 'Frames',
@@ -465,8 +464,8 @@ class _GoalRowState extends State<_GoalRow> {
                 controller: _priorityCtl,
                 enabled: !widget.busy,
                 keyboardType: TextInputType.number,
-                style: SkotiqTypography.bodySm
-                    .copyWith(color: colors.textPrimary),
+                style:
+                    SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
                 decoration: InputDecoration(
                   isDense: true,
                   labelText: 'Prio',

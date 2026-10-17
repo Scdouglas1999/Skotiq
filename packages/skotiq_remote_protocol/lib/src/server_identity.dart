@@ -16,9 +16,7 @@ String computeServerFingerprint(String serverSecret) {
       'must not be empty',
     );
   }
-  final digest = sha256.convert(
-    utf8.encode('skotiq-remote-v1:$normalized'),
-  );
+  final digest = sha256.convert(utf8.encode('skotiq-remote-v1:$normalized'));
   return digest.toString();
 }
 

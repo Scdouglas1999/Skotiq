@@ -15,9 +15,7 @@ import 'package:skotiq_core/src/services/night_analysis_service.dart';
 // analyze() is pure over NightData; the DAOs are never queried, so one
 // never-used in-memory DB underneath them is enough — and sharing it avoids
 // drift's "multiple databases" warning.
-final SkotiqDatabase _db = SkotiqDatabase.forTesting(
-  NativeDatabase.memory(),
-);
+final SkotiqDatabase _db = SkotiqDatabase.forTesting(NativeDatabase.memory());
 
 NightAnalysisService _pureService() {
   final db = _db;

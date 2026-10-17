@@ -68,8 +68,7 @@ class _DiagnosticsContent extends ConsumerWidget {
             const SizedBox(height: 12),
             Text(
               context.l10n.text('diagnosticsFailedTitle'),
-              style:
-                  SkotiqTypography.h4.copyWith(color: colors.textPrimary),
+              style: SkotiqTypography.h4.copyWith(color: colors.textPrimary),
             ),
             const SizedBox(height: 8),
             Text(

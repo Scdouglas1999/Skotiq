@@ -228,8 +228,7 @@ extension _RightPanel on _PolarAlignmentScreenState {
   /// These were label-above-value tiles printing "--" before the first solve.
   /// A Readout is value-loud, label-quiet (02 rule 3), and renders an unknown
   /// as an em dash from a null value — never a pair of hyphens.
-  Widget _buildErrorValues(
-      SkotiqColors colors, PolarAlignmentError? error) {
+  Widget _buildErrorValues(SkotiqColors colors, PolarAlignmentError? error) {
     return ReadoutRow(
       gap: SkotiqTokens.spaceLg,
       children: <Readout>[

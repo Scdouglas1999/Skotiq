@@ -108,8 +108,7 @@ class _LedgerColumnHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style =
-        SkotiqTypography.eyebrow.copyWith(color: colors.textMuted);
+    final style = SkotiqTypography.eyebrow.copyWith(color: colors.textMuted);
     return ExcludeSemantics(
       child: SizedBox(
         height: _ledgerHeaderHeight,
@@ -214,8 +213,7 @@ class _LedgerRowShell extends StatelessWidget {
             // hover only recomputes the fill.
             child: content,
             builder: (context, isHovered, child) => AnimatedContainer(
-              duration:
-                  animationDuration(context, SkotiqTokens.durationFast),
+              duration: animationDuration(context, SkotiqTokens.durationFast),
               curve: SkotiqTokens.curveStandard,
               decoration: BoxDecoration(
                 color: _ledgerRowFill(
@@ -302,8 +300,7 @@ class _LedgerProgressBar extends StatelessWidget {
           Positioned.fill(
             child: AnimatedOpacity(
               opacity: showTrack ? 1 : 0,
-              duration:
-                  animationDuration(context, SkotiqTokens.durationSmooth),
+              duration: animationDuration(context, SkotiqTokens.durationSmooth),
               curve: settle,
               child: ColoredBox(color: colors.surfaceHover),
             ),
@@ -312,8 +309,7 @@ class _LedgerProgressBar extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: TweenAnimationBuilder<double>(
               tween: Tween<double>(end: fraction),
-              duration:
-                  animationDuration(context, SkotiqTokens.durationFast),
+              duration: animationDuration(context, SkotiqTokens.durationFast),
               curve: SkotiqTokens.curveStandard,
               builder: (context, width, child) => FractionallySizedBox(
                 widthFactor: width,
@@ -409,8 +405,7 @@ class _LedgerActionsSlot extends StatelessWidget {
               excluding: !visible,
               child: AnimatedOpacity(
                 opacity: visible ? 1 : 0,
-                duration:
-                    animationDuration(context, SkotiqTokens.durationFast),
+                duration: animationDuration(context, SkotiqTokens.durationFast),
                 curve: SkotiqTokens.curveStandard,
                 child: isTouch
                     ? kebabChild

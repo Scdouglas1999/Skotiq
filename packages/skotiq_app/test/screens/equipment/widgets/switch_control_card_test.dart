@@ -176,8 +176,7 @@ void main() {
       find.textContaining('Channel refresh failed:'),
       findsOneWidget,
     );
-    expect(tester.widget<SkotiqIconButton>(refreshButton).onPressed,
-        isNotNull);
+    expect(tester.widget<SkotiqIconButton>(refreshButton).onPressed, isNotNull);
     expect(tester.takeException(), isNull);
   });
 
@@ -227,16 +226,14 @@ void main() {
     await tester.pump();
 
     final refreshButton = find.byType(SkotiqIconButton);
-    expect(
-        tester.widget<SkotiqIconButton>(refreshButton).onPressed, isNull);
+    expect(tester.widget<SkotiqIconButton>(refreshButton).onPressed, isNull);
 
     final container = ProviderScope.containerOf(
       tester.element(find.byType(SwitchControlCard)),
     );
     container.read(_serviceSlotProvider.notifier).state = serviceB;
     await tester.pump();
-    expect(tester.widget<SkotiqIconButton>(refreshButton).onPressed,
-        isNotNull);
+    expect(tester.widget<SkotiqIconButton>(refreshButton).onPressed, isNotNull);
 
     await tester.tap(refreshButton);
     await tester.pump();

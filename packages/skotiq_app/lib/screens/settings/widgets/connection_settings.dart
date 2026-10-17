@@ -85,8 +85,7 @@ class ConnectionSettings extends ConsumerWidget {
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: SkotiqDecorations.emphasisSurface(
                   statusColor,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusMd),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                 ),
                 child: Text(
                   connectionStatus,
@@ -225,8 +224,7 @@ class ConnectionSettings extends ConsumerWidget {
               SettingRow(
                 icon: LucideIcons.refreshCw,
                 title: 'Refresh host settings',
-                subtitle:
-                    'Reload this screen from the connected Skotiq host',
+                subtitle: 'Reload this screen from the connected Skotiq host',
                 trailing: _HostSettingsRefreshButton(
                   isMobile: isMobile,
                 ),

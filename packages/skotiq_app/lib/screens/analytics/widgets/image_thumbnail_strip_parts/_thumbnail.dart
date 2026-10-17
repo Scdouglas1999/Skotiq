@@ -89,8 +89,7 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
               width: 100,
               decoration: BoxDecoration(
                 color: colors.well,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 border: Border.all(
                   color: qualityBorderColor,
                   width: qualityBorderWidth,

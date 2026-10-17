@@ -267,10 +267,7 @@ class AnnotationService {
     }
   }
 
-  void handleBackendChanged(
-    SkotiqBackend? previous,
-    SkotiqBackend next,
-  ) {
+  void handleBackendChanged(SkotiqBackend? previous, SkotiqBackend next) {
     if (previous == null || identical(previous, next)) return;
     _annotationRunGeneration++;
     _lastProcessedImagePath = null;

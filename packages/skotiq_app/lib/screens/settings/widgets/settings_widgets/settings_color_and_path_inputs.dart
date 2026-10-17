@@ -454,9 +454,8 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
         GestureDetector(
           onTap: _browsing ? null : _browse,
           child: Container(
-            padding: EdgeInsets.all(widget.isMobile
-                ? SkotiqTokens.spaceSm
-                : SkotiqTokens.radiusSm),
+            padding: EdgeInsets.all(
+                widget.isMobile ? SkotiqTokens.spaceSm : SkotiqTokens.radiusSm),
             decoration: BoxDecoration(
               color: colors.well,
               borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),

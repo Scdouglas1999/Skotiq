@@ -1125,9 +1125,7 @@ void main() {
     await tester.tap(find.byType(SkotiqSwitch).last);
     await settle(tester);
     expect(
-      tester
-          .widget<SkotiqChip>(find.widgetWithText(SkotiqChip, 'PNG'))
-          .enabled,
+      tester.widget<SkotiqChip>(find.widgetWithText(SkotiqChip, 'PNG')).enabled,
       isTrue,
     );
 
@@ -1943,9 +1941,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      tester
-          .widget<SkotiqChip>(find.widgetWithText(SkotiqChip, 'PNG'))
-          .enabled,
+      tester.widget<SkotiqChip>(find.widgetWithText(SkotiqChip, 'PNG')).enabled,
       isTrue,
     );
 
@@ -1964,9 +1960,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      tester
-          .widget<SkotiqChip>(find.widgetWithText(SkotiqChip, 'PNG'))
-          .enabled,
+      tester.widget<SkotiqChip>(find.widgetWithText(SkotiqChip, 'PNG')).enabled,
       isFalse,
     );
 

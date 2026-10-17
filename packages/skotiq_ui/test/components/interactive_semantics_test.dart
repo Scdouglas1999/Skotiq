@@ -179,9 +179,7 @@ void main() {
     ) async {
       final handle = tester.ensureSemantics();
       await tester.pumpWidget(
-        host(
-          const SkotiqDropdown(value: 'Light', items: ['Light', 'Dark']),
-        ),
+        host(const SkotiqDropdown(value: 'Light', items: ['Light', 'Dark'])),
       );
 
       final data = nodeOf(
@@ -390,10 +388,7 @@ void main() {
           ),
         ),
       );
-      final data = nodeOf(
-        tester,
-        find.byType(SkotiqSwitch),
-      ).getSemanticsData();
+      final data = nodeOf(tester, find.byType(SkotiqSwitch)).getSemanticsData();
       expect(data.label, 'Start cooling when the camera connects');
       expect(data.hasFlag(SemanticsFlag.isToggled), isTrue);
       handle.dispose();
@@ -403,9 +398,7 @@ void main() {
       tester,
     ) async {
       final handle = tester.ensureSemantics();
-      await tester.pumpWidget(
-        host(const SkotiqTextField(label: 'Step size')),
-      );
+      await tester.pumpWidget(host(const SkotiqTextField(label: 'Step size')));
       expect(
         nodeOf(tester, find.byType(TextFormField)).getSemanticsData().label,
         'Step size',

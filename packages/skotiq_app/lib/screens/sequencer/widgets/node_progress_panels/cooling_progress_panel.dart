@@ -193,8 +193,7 @@ class _PowerGauge extends StatelessWidget {
               width: 40,
               height: 8,
               child: ClipRRect(
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
                 child: LinearProgressIndicator(
                   value: power / 100.0,
                   backgroundColor: colors.border,
@@ -211,8 +210,7 @@ class _PowerGauge extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               '${power.toStringAsFixed(0)}%',
-              style:
-                  SkotiqTypography.h6.copyWith(color: colors.textPrimary),
+              style: SkotiqTypography.h6.copyWith(color: colors.textPrimary),
             ),
           ],
         ),

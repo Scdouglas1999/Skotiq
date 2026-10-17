@@ -60,8 +60,7 @@ class EffectiveBacklashReadout extends ConsumerWidget {
           Text(
             'Backlash varies along the travel — measure again if you move a '
             'long way from that position.',
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ],
         // A figure they typed that the compensation-method switch is zeroing

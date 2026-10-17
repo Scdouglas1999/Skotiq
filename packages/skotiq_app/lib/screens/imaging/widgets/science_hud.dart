@@ -406,8 +406,8 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
           else
             Text(
               'Click an annotated object to select it.',
-              style: SkotiqTypography.captionSm
-                  .copyWith(color: colors.textMuted),
+              style:
+                  SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
             ),
           const SizedBox(height: SkotiqTokens.spaceSm),
           Row(
@@ -520,13 +520,11 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
           const SizedBox(height: 6),
           Text(
             'Target: ${photometryTarget?.label ?? 'auto-target'}',
-            style: SkotiqTypography.captionSm
-                .copyWith(color: colors.textMuted),
+            style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
           ),
           Text(
             'Comparisons: ${comparisonAnchors.isEmpty ? 'auto' : comparisonAnchors.length}',
-            style: SkotiqTypography.captionSm
-                .copyWith(color: colors.textMuted),
+            style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
           SizedBox(

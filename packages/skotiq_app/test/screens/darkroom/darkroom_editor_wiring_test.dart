@@ -1334,11 +1334,10 @@ void main() {
     await tester.tap(find.text('Import .nsrecipe'));
     await settle(tester);
 
-    final refusal = tester
-        .widgetList<SkotiqBanner>(find.byType(SkotiqBanner))
-        .singleWhere(
-          (banner) => banner.message?.contains('was not imported') ?? false,
-        );
+    final refusal =
+        tester.widgetList<SkotiqBanner>(find.byType(SkotiqBanner)).singleWhere(
+              (banner) => banner.message?.contains('was not imported') ?? false,
+            );
     expect(
       refusal.onDismiss,
       isNotNull,

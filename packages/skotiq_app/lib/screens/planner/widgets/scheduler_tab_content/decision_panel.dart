@@ -127,8 +127,7 @@ class _DecisionPanel extends ConsumerWidget {
                     ? 'Loading scheduler targets…'
                     : 'Add at least one target before starting unattended '
                         'autopilot.',
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.warning),
+                style: SkotiqTypography.caption.copyWith(color: colors.warning),
               ),
             ],
             const SizedBox(height: SkotiqTokens.spaceLg),
@@ -224,8 +223,7 @@ class _CurrentTargetSummary extends StatelessWidget {
             // scheduler loop, not something the operator acts on.
             : 'Autopilot is stopped. Start it and it will pick a target and '
                 'keep re-picking as the sky changes.',
-        style:
-            SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+        style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
       );
     }
     return Column(
@@ -238,8 +236,7 @@ class _CurrentTargetSummary extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           name,
-          style: SkotiqTypography.pageTitle
-              .copyWith(color: colors.textPrimary),
+          style: SkotiqTypography.pageTitle.copyWith(color: colors.textPrimary),
         ),
         if (decision != null) ...[
           const SizedBox(height: 2),
@@ -286,8 +283,8 @@ class _Countdown extends StatelessWidget {
         Flexible(
           child: Text(
             label,
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
             overflow: TextOverflow.ellipsis,
           ),
         ),

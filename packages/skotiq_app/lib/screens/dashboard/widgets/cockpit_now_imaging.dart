@@ -289,8 +289,7 @@ class _FrameChip extends ConsumerWidget {
               Text(
                 'This frame',
                 style: SkotiqTypography.glanceStyle(
-                  SkotiqTypography.eyebrow
-                      .copyWith(color: colors.textMuted),
+                  SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
                   enabled: glance,
                 ),
               ),
@@ -380,8 +379,7 @@ class _SequenceChip extends ConsumerWidget {
                 '~${formatSeconds(seq.estimatedRemainingSecs!)}',
                 style: SkotiqTypography.withTabular(
                   SkotiqTypography.glanceStyle(
-                    SkotiqTypography.caption
-                        .copyWith(color: colors.textMuted),
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
                     enabled: glance,
                   ),
                 ),

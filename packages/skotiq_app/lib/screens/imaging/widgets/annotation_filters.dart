@@ -58,13 +58,11 @@ class AnnotationFilterChip extends StatelessWidget {
         decoration: isSelected
             ? SkotiqDecorations.selectedSurface(
                 colors.primary,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               )
             : BoxDecoration(
                 color: colors.surfaceAlt,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
                 border: Border.all(color: colors.border),
               ),
         child: Row(

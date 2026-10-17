@@ -60,9 +60,8 @@ void debugResetSkotiqProcessEnvironment() {
 }
 
 String? _dataDirOverride(Map<String, String>? environment) {
-  final value =
-      (environment ?? skotiqProcessEnvironment)[skotiqDataDirEnv]
-          ?.trim();
+  final value = (environment ?? skotiqProcessEnvironment)[skotiqDataDirEnv]
+      ?.trim();
   if (value == null || value.isEmpty) return null;
   return value;
 }

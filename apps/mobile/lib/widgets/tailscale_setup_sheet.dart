@@ -230,9 +230,7 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
             children: [
               Text(
                 l10n.text('tailscaleConnect'),
-                style: SkotiqTypography.h4.copyWith(
-                  color: colors.textPrimary,
-                ),
+                style: SkotiqTypography.h4.copyWith(color: colors.textPrimary),
               ),
               const SizedBox(height: 2),
               Text(
@@ -292,9 +290,7 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
       children: [
         Text(
           l10n.text('tailscaleAddressLabel'),
-          style: SkotiqTypography.label.copyWith(
-            color: colors.textSecondary,
-          ),
+          style: SkotiqTypography.label.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(height: SkotiqTokens.spaceXs),
         SkotiqTextField(
@@ -363,9 +359,7 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
         const SizedBox(height: SkotiqTokens.spaceMd),
         Text(
           l10n.text('tailscaleTokenLabel'),
-          style: SkotiqTypography.label.copyWith(
-            color: colors.textSecondary,
-          ),
+          style: SkotiqTypography.label.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(height: SkotiqTokens.spaceXs),
         SkotiqTextField(

@@ -117,8 +117,7 @@ class RunDashboardExposureProgress extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: SkotiqDecorations.statusChip(
                   colors.primary,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusXs),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                   bordered: false,
                 ),
                 child: Text(

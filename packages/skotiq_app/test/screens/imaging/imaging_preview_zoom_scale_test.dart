@@ -48,8 +48,8 @@ Future<void> _drain(WidgetTester tester) async {
 /// Invoke the viewer toolbar's own `onPressed` for the button carrying
 /// [tooltip].
 void _pressToolbarButton(WidgetTester tester, String tooltip) {
-  final button = tester.widget<SkotiqIconButton>(find.byWidgetPredicate(
-      (w) => w is SkotiqIconButton && w.tooltip == tooltip));
+  final button = tester.widget<SkotiqIconButton>(find
+      .byWidgetPredicate((w) => w is SkotiqIconButton && w.tooltip == tooltip));
   button.onPressed!();
 }
 

@@ -98,8 +98,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           locale: locale,
-          localizationsDelegates:
-              SkotiqLocalizations.localizationsDelegates,
+          localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
           supportedLocales: SkotiqLocalizations.supportedLocales,
           home: Builder(
             builder: (context) {

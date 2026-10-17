@@ -13,8 +13,7 @@ import 'package:skotiq_app/screens/settings/widgets/rig_catalog_settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/widgets/update_settings.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/models/settings/app_settings.dart'
-    as models;
+import 'package:skotiq_core/src/models/settings/app_settings.dart' as models;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {

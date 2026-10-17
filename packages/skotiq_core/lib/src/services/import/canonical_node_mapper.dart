@@ -606,8 +606,7 @@ class CanonicalNodeMapper {
 
   void _bumpMapping(Map<String, _MappingCount> table, String src, String? dst) {
     final key = '$src->${dst ?? '<dropped>'}';
-    final entry =
-        table[key] ?? _MappingCount(sourceType: src, skotiqType: dst);
+    final entry = table[key] ?? _MappingCount(sourceType: src, skotiqType: dst);
     entry.count++;
     table[key] = entry;
   }

@@ -245,18 +245,16 @@ class NarratorEvidenceViz extends StatelessWidget {
     final valueStyle = SkotiqTypography.withTabular(
       TextStyle(
         color: colors.textPrimary,
-        fontSize: large
-            ? SkotiqTypography.fontSize14
-            : SkotiqTypography.fontSize12,
+        fontSize:
+            large ? SkotiqTypography.fontSize14 : SkotiqTypography.fontSize12,
         fontWeight: FontWeight.w700,
       ),
     );
     final fadedStyle = SkotiqTypography.withTabular(
       TextStyle(
         color: colors.textMuted,
-        fontSize: large
-            ? SkotiqTypography.fontSize13
-            : SkotiqTypography.fontSize11,
+        fontSize:
+            large ? SkotiqTypography.fontSize13 : SkotiqTypography.fontSize11,
         fontWeight: FontWeight.w600,
       ),
     );

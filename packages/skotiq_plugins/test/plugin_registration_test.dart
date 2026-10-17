@@ -263,9 +263,7 @@ void main() {
           overrides: [
             pluginHostProvider.overrideWithValue(host),
             pluginEnablementStoreProvider.overrideWithValue(
-              _FakeEnablementStore(
-                disabled: {'com.skotiq.examples.pushover'},
-              ),
+              _FakeEnablementStore(disabled: {'com.skotiq.examples.pushover'}),
             ),
           ],
         );
@@ -279,14 +277,8 @@ void main() {
         expect(host.isEnabled('com.skotiq.examples.pushover'), isFalse);
 
         // Others remain enabled.
-        expect(
-          host.isEnabled('com.skotiq.examples.discord_webhook'),
-          isTrue,
-        );
-        expect(
-          host.isEnabled('com.skotiq.examples.home_assistant'),
-          isTrue,
-        );
+        expect(host.isEnabled('com.skotiq.examples.discord_webhook'), isTrue);
+        expect(host.isEnabled('com.skotiq.examples.home_assistant'), isTrue);
         expect(host.isEnabled('com.skotiq.weatherlogger'), isTrue);
       },
     );

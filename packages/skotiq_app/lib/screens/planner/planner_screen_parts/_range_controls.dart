@@ -517,8 +517,8 @@ Future<double?> _showAngleSlider({
           return AlertDialog(
             backgroundColor: colors.surface,
             title: Text(title,
-                style: SkotiqTypography.body
-                    .copyWith(color: colors.textPrimary)),
+                style:
+                    SkotiqTypography.body.copyWith(color: colors.textPrimary)),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,

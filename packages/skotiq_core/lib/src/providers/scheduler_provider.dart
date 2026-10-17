@@ -73,15 +73,15 @@ final schedulerTriggerStreamProvider = Provider<Stream<SchedulerTriggerEvent>>((
   ref,
 ) {
   final controller = StreamController<SchedulerTriggerEvent>.broadcast();
-  final sub = ref.listen<AsyncValue<SkotiqEvent>>(
-    skotiqEventsProvider,
-    (previous, next) {
-      next.whenData((event) {
-        final mapped = _mapEventToTrigger(event);
-        if (mapped != null) controller.add(mapped);
-      });
-    },
-  );
+  final sub = ref.listen<AsyncValue<SkotiqEvent>>(skotiqEventsProvider, (
+    previous,
+    next,
+  ) {
+    next.whenData((event) {
+      final mapped = _mapEventToTrigger(event);
+      if (mapped != null) controller.add(mapped);
+    });
+  });
   ref.onDispose(() {
     sub.close();
     controller.close();

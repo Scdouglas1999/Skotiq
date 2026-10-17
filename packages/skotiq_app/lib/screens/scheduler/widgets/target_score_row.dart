@@ -239,8 +239,7 @@ class _GoalSummary extends StatelessWidget {
               color: p.isComplete
                   ? colors.success.withValues(alpha: 0.12)
                   : colors.well,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               border: Border.all(
                 color: p.isComplete
                     ? colors.success.withValues(alpha: 0.4)

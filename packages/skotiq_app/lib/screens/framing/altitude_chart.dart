@@ -325,9 +325,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
               child: Row(
                 children: [
                   Icon(
-                    _showAirmass
-                        ? LucideIcons.checkSquare
-                        : SkotiqIcons.stop,
+                    _showAirmass ? LucideIcons.checkSquare : SkotiqIcons.stop,
                     size: 12,
                     color: colors.textMuted,
                   ),
@@ -424,8 +422,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
         children: [
           Text(
             '$label: ',
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
           Text(
             value,
@@ -453,8 +450,8 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
               const SizedBox(height: 8),
               Text(
                 'Set location in Settings',
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted),
+                style:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
               ),
             ],
           ),
@@ -608,8 +605,8 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
                   label: VerticalLineLabel(
                     show: true,
                     alignment: Alignment.topRight,
-                    style: SkotiqTypography.caption
-                        .copyWith(color: colors.error),
+                    style:
+                        SkotiqTypography.caption.copyWith(color: colors.error),
                     labelResolver: (_) => 'Now',
                   ),
                 ),
@@ -794,8 +791,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
           const SizedBox(width: 4),
           Text(
             '$label: ',
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
           Text(
             value,

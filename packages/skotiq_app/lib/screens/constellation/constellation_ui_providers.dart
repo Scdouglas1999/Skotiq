@@ -5,8 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // `contributeTarget` consumes). This file declares the richer app-side enum of
 // the same name, so the core one is imported under a prefix to disambiguate.
 import 'package:skotiq_core/skotiq_core.dart' hide ConstellationPrivacy;
-import 'package:skotiq_core/skotiq_core.dart' as core
-    show ConstellationPrivacy;
+import 'package:skotiq_core/skotiq_core.dart' as core show ConstellationPrivacy;
 
 /// App-side Riverpod surface for the Constellation screens (Pillar C).
 ///

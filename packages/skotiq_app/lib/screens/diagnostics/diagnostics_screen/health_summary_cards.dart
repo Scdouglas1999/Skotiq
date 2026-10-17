@@ -135,8 +135,7 @@ class _ScoreBar extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-                fontSize: SkotiqTypography.fontSize11,
-                color: colors.textMuted),
+                fontSize: SkotiqTypography.fontSize11, color: colors.textMuted),
           ),
         ),
         Expanded(
@@ -152,8 +151,7 @@ class _ScoreBar extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   color: barColor,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusXs),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
                 ),
               ),
             ),
@@ -224,8 +222,8 @@ class _TiltAssessmentCard extends StatelessWidget {
                 child: Text(
                   'Tilt',
                   overflow: TextOverflow.ellipsis,
-                  style: SkotiqTypography.h5
-                      .copyWith(color: colors.textPrimary),
+                  style:
+                      SkotiqTypography.h5.copyWith(color: colors.textPrimary),
                 ),
               ),
               const SizedBox(width: 8),

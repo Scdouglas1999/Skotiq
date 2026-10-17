@@ -73,8 +73,8 @@ class _CorrectionSettings extends ConsumerWidget {
           const SizedBox(width: 8),
           Text(
             'Loading correction settings…',
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           ),
         ],
       );

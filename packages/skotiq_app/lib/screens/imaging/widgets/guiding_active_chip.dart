@@ -82,8 +82,7 @@ class GuidingActiveChip extends ConsumerWidget {
           : 'PHD2 guiding active — total RMS shown in arcseconds',
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color:
-              colors.surface.withValues(alpha: SkotiqTokens.opacityStrong),
+          color: colors.surface.withValues(alpha: SkotiqTokens.opacityStrong),
           borderRadius: SkotiqTokens.borderRadiusFull,
           border: Border.all(color: colors.border),
         ),

@@ -24,8 +24,7 @@ extension _FilterStep on _QuickStartWizardDialogState {
               final isSelected = _selectedPreset == preset;
               return InkWell(
                 onTap: () => _applyPreset(preset),
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -174,8 +173,7 @@ extension _FilterStep on _QuickStartWizardDialogState {
     );
   }
 
-  Widget _buildFilterRow(
-      _FilterExposureConfig config, SkotiqColors colors) {
+  Widget _buildFilterRow(_FilterExposureConfig config, SkotiqColors colors) {
     final controller = _filterControllers[config.filterIndex];
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -221,13 +219,11 @@ extension _FilterStep on _QuickStartWizardDialogState {
                       color: colors.textMuted,
                       fontSize: SkotiqTypography.fontSize11),
                   border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusMd),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                     borderSide: BorderSide(color: colors.border),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusMd),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                     borderSide: BorderSide(color: colors.border),
                   ),
                   filled: true,
@@ -261,13 +257,11 @@ extension _FilterStep on _QuickStartWizardDialogState {
                     fontSize: SkotiqTypography.fontSize12),
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusMd),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                     borderSide: BorderSide(color: colors.border),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusMd),
+                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                     borderSide: BorderSide(color: colors.border),
                   ),
                   filled: true,

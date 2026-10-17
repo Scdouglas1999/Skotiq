@@ -28,16 +28,15 @@ class _WizardHeader extends StatelessWidget {
         const SizedBox(width: SkotiqTokens.spaceSm),
         Text(
           'Add constraint',
-          style: SkotiqTypography.sectionTitle
-              .copyWith(color: colors.textPrimary),
+          style:
+              SkotiqTypography.sectionTitle.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(width: SkotiqTokens.spaceMd),
         Expanded(
           child: Text(
             label,
             textAlign: TextAlign.right,
-            style:
-                SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
           ),
         ),
       ],
@@ -64,8 +63,8 @@ class _Step1ChooseKind extends StatelessWidget {
       children: [
         Text(
           'What kind of constraint?',
-          style: SkotiqTypography.bodyStrong
-              .copyWith(color: colors.textPrimary),
+          style:
+              SkotiqTypography.bodyStrong.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: SkotiqTokens.spaceMd),
         _KindCard(
@@ -173,8 +172,7 @@ class _KindCard extends StatelessWidget {
             padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
             decoration: BoxDecoration(
               color: bg,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               border: Border.all(color: borderColor, width: selected ? 2 : 1),
             ),
             child: Row(

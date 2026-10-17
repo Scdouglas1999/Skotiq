@@ -79,8 +79,7 @@ class _TransientCardState extends State<TransientCard> {
     );
   }
 
-  Widget _buildHeader(
-      SkotiqColors colors, TransientAlertState effectiveState) {
+  Widget _buildHeader(SkotiqColors colors, TransientAlertState effectiveState) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -106,8 +105,7 @@ class _TransientCardState extends State<TransientCard> {
             children: [
               Text(
                 widget.alert.name,
-                style:
-                    SkotiqTypography.h4.copyWith(color: colors.textPrimary),
+                style: SkotiqTypography.h4.copyWith(color: colors.textPrimary),
               ),
               const SizedBox(height: SkotiqTokens.spaceXs),
               // One wrapping paragraph, not a Row of unconstrained Texts,
@@ -348,8 +346,7 @@ class _TransientCardState extends State<TransientCard> {
         children: [
           Icon(icon, size: SkotiqTokens.iconSm, color: color),
           const SizedBox(width: SkotiqTokens.spaceXs),
-          Text(label,
-              style: SkotiqTypography.labelSm.copyWith(color: color)),
+          Text(label, style: SkotiqTypography.labelSm.copyWith(color: color)),
         ],
       ),
     );
@@ -557,8 +554,7 @@ class _DetailRow extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon,
-                  size: SkotiqTokens.iconXs, color: colors.textMuted),
+              Icon(icon, size: SkotiqTokens.iconXs, color: colors.textMuted),
               const SizedBox(width: SkotiqTokens.spaceXs),
               Text(
                 label,
@@ -586,14 +582,13 @@ class _DetailRow extends StatelessWidget {
         const SizedBox(width: SkotiqTokens.spaceXs),
         Text(
           '$label: ',
-          style:
-              SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
+          style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
         ),
         Expanded(
           child: Text(
             value,
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
             overflow: TextOverflow.ellipsis,
           ),
         ),

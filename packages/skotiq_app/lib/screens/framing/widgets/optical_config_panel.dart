@@ -44,8 +44,7 @@ class OpticalConfigPanel extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Icon(SkotiqIcons.aperture,
-                      size: 14, color: colors.textMuted),
+                  Icon(SkotiqIcons.aperture, size: 14, color: colors.textMuted),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -105,16 +104,15 @@ class OpticalConfigPanel extends ConsumerWidget {
           activeProfile == null
               ? 'No equipment profile'
               : 'No optical configuration',
-          style: SkotiqTypography.bodyStrong
-              .copyWith(color: colors.textPrimary),
+          style:
+              SkotiqTypography.bodyStrong.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: 8),
         Text(
           activeProfile == null
               ? 'Create and activate an equipment profile to see your field of view.'
               : 'Set up your telescope and camera to see accurate field of view.',
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 16),
@@ -162,8 +160,7 @@ class OpticalConfigPanel extends ConsumerWidget {
         // Optical specs
         Text(
           _formatOpticalSpecs(config),
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
 
         const SizedBox(height: 12),
@@ -192,8 +189,8 @@ class OpticalConfigPanel extends ConsumerWidget {
         if (config.sensorWidth != null && config.sensorHeight != null)
           Text(
             _formatSensorSpecs(config),
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           ),
 
         const SizedBox(height: 16),
@@ -384,8 +381,7 @@ class _ProfileSwitcher extends ConsumerWidget {
             const SizedBox(width: 8),
             Text(
               'Loading...',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ],
         ),

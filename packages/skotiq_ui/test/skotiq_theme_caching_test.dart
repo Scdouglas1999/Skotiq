@@ -7,18 +7,12 @@ void main() {
     test('the three fixed themes are built once', () {
       expect(identical(SkotiqTheme.dark, SkotiqTheme.dark), isTrue);
       expect(identical(SkotiqTheme.light, SkotiqTheme.light), isTrue);
-      expect(
-        identical(SkotiqTheme.redNight, SkotiqTheme.redNight),
-        isTrue,
-      );
+      expect(identical(SkotiqTheme.redNight, SkotiqTheme.redNight), isTrue);
     });
 
     test('the fixed themes are still distinct from each other', () {
       expect(identical(SkotiqTheme.dark, SkotiqTheme.light), isFalse);
-      expect(
-        identical(SkotiqTheme.dark, SkotiqTheme.redNight),
-        isFalse,
-      );
+      expect(identical(SkotiqTheme.dark, SkotiqTheme.redNight), isFalse);
       expect(SkotiqTheme.dark.brightness, Brightness.dark);
       expect(SkotiqTheme.light.brightness, Brightness.light);
       expect(SkotiqTheme.redNight.brightness, Brightness.dark);

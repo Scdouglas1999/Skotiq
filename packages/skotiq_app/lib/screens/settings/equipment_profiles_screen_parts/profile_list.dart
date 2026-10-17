@@ -185,9 +185,8 @@ class _ProfileListItemState extends State<_ProfileListItem> {
             borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
             border: widget.isSelected
                 ? Border.all(
-                    color: SkotiqColors.of(context)
-                        .primary
-                        .withValues(alpha: 0.3))
+                    color:
+                        SkotiqColors.of(context).primary.withValues(alpha: 0.3))
                 : null,
           ),
           child: Row(
@@ -197,9 +196,7 @@ class _ProfileListItemState extends State<_ProfileListItem> {
                 height: 36,
                 decoration: BoxDecoration(
                   color: widget.isActive
-                      ? SkotiqColors.of(context)
-                          .primary
-                          .withValues(alpha: 0.2)
+                      ? SkotiqColors.of(context).primary.withValues(alpha: 0.2)
                       : SkotiqColors.of(context).well,
                   borderRadius:
                       BorderRadius.circular(SkotiqTokens.radiusInline8),
@@ -223,8 +220,7 @@ class _ProfileListItemState extends State<_ProfileListItem> {
                           child: Text(
                             widget.profile.name,
                             style: SkotiqTypography.labelStrong.copyWith(
-                                color:
-                                    SkotiqColors.of(context).textPrimary),
+                                color: SkotiqColors.of(context).textPrimary),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),

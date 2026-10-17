@@ -40,8 +40,8 @@ class _Header extends StatelessWidget {
         ),
         IconButton(
           onPressed: onCopyMarkdown,
-          icon: const Icon(LucideIcons.clipboardCopy,
-              size: SkotiqTokens.iconSm),
+          icon:
+              const Icon(LucideIcons.clipboardCopy, size: SkotiqTokens.iconSm),
           tooltip: 'Copy as Markdown',
         ),
         IconButton(
@@ -147,8 +147,8 @@ class _OverviewTile extends StatelessWidget {
           children: [
             Text(
               label,
-              style: SkotiqTypography.captionSm
-                  .copyWith(color: colors.textMuted),
+              style:
+                  SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
             ),
             const SizedBox(height: SkotiqTokens.spaceXs),
             Text(
@@ -184,8 +184,7 @@ class _SectionTitle extends StatelessWidget {
       child: Row(
         children: [
           Icon(icon,
-              size: SkotiqTokens.iconXs,
-              color: titleColor ?? colors.primary),
+              size: SkotiqTokens.iconXs, color: titleColor ?? colors.primary),
           const SizedBox(width: SkotiqTokens.spaceSm),
           Text(
             title,

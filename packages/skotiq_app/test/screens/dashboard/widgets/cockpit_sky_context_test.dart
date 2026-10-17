@@ -4,8 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/dashboard/widgets/cockpit_sky_context.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    as planetarium;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' as planetarium;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 TargetHeaderNode _target() => TargetHeaderNode(

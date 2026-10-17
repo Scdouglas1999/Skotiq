@@ -113,9 +113,7 @@ class SkotiqChip extends StatelessWidget {
 
     Color foreground = toneColor ?? colors.textSecondary;
     if (!enabled) {
-      foreground = foreground.withValues(
-        alpha: SkotiqTokens.opacityDisabled,
-      );
+      foreground = foreground.withValues(alpha: SkotiqTokens.opacityDisabled);
     }
 
     final decoration = SkotiqDecorations.chip(colors, tone: toneColor);

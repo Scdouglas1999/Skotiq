@@ -319,8 +319,8 @@ class TargetPreviewTooltip extends ConsumerWidget {
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: colors.surfaceAlt,
-                          borderRadius: BorderRadius.circular(
-                              SkotiqTokens.radiusInline8),
+                          borderRadius:
+                              BorderRadius.circular(SkotiqTokens.radiusInline8),
                         ),
                         child: Row(
                           children: [

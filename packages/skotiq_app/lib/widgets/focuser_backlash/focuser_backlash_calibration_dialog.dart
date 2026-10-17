@@ -252,8 +252,8 @@ class _IntroPanel extends StatelessWidget {
         ],
         Text(
           'Two scans, from opposite directions',
-          style: SkotiqTypography.bodyStrong
-              .copyWith(color: colors.textPrimary),
+          style:
+              SkotiqTypography.bodyStrong.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: SkotiqTokens.spaceSm),
         Text(
@@ -261,14 +261,13 @@ class _IntroPanel extends StatelessWidget {
           'from below, once from above — fit both curves and report the '
           "distance between them. That distance is your focuser's backlash, "
           'and autofocus uses it to compensate the final move.',
-          style:
-              SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(height: SkotiqTokens.spaceXl),
         Text(
           'What it needs',
-          style: SkotiqTypography.labelStrong
-              .copyWith(color: colors.textPrimary),
+          style:
+              SkotiqTypography.labelStrong.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: SkotiqTokens.spaceSm),
         Text(
@@ -304,8 +303,7 @@ class _PlanLoading extends StatelessWidget {
         children: [
           Text(
             'Reading the focuser position and travel limits…',
-            style:
-                SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
           const SkotiqProgressBar(
@@ -401,8 +399,8 @@ class _DetailRow extends StatelessWidget {
             children: [
               Text(
                 '$label: $value',
-                style: SkotiqTypography.bodySm
-                    .copyWith(color: colors.textPrimary),
+                style:
+                    SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
               ),
               if (note != null) ...[
                 const SizedBox(height: SkotiqTokens.spaceXs),
@@ -451,8 +449,8 @@ class _ProgressPanel extends StatelessWidget {
       children: [
         Text(
           _labelFor(state.phase),
-          style: SkotiqTypography.sectionTitle
-              .copyWith(color: colors.textPrimary),
+          style:
+              SkotiqTypography.sectionTitle.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: SkotiqTokens.spaceSm),
         if (state.totalPoints > 0)
@@ -621,8 +619,7 @@ class _MeasuredHeadline extends StatelessWidget {
       children: [
         Text(
           '${calibration.steps} steps',
-          style: SkotiqTypography.readoutLg
-              .copyWith(color: colors.textPrimary),
+          style: SkotiqTypography.readoutLg.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: SkotiqTokens.spaceXs),
         // The provenance sub-line, in the house style: the figure never appears
@@ -674,8 +671,7 @@ class _NoBacklashHeadline extends StatelessWidget {
           'No backlash larger than ${limit.toStringAsFixed(0)} steps was '
           'detectable — that is the smallest difference these two scans could '
           'resolve. Compensation stays at 0.',
-          style:
-              SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(height: SkotiqTokens.spaceXs),
         Text(
@@ -710,8 +706,7 @@ class _ConfidenceBlock extends StatelessWidget {
         // would make the next measurement better.
         Text(
           calibration.confidenceReason,
-          style:
-              SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
         ),
       ],
     );
@@ -801,8 +796,8 @@ class _FactRow extends StatelessWidget {
           width: 130,
           child: Text(
             label,
-            style: SkotiqTypography.readoutLabel
-                .copyWith(color: colors.textMuted),
+            style:
+                SkotiqTypography.readoutLabel.copyWith(color: colors.textMuted),
           ),
         ),
         const SizedBox(width: SkotiqTokens.spaceSm),
@@ -848,14 +843,13 @@ class _RefusalPanel extends StatelessWidget {
         const SizedBox(height: SkotiqTokens.spaceLg),
         Text(
           'What to try',
-          style: SkotiqTypography.labelStrong
-              .copyWith(color: colors.textPrimary),
+          style:
+              SkotiqTypography.labelStrong.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: SkotiqTokens.spaceSm),
         Text(
           refusal.remedy,
-          style:
-              SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(height: SkotiqTokens.spaceLg),
         Text(
@@ -1065,8 +1059,7 @@ class _LegendEntry extends StatelessWidget {
         const SizedBox(width: SkotiqTokens.spaceSm),
         Text(
           '$label — $detail',
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
       ],
     );

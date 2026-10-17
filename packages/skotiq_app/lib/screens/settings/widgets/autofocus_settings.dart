@@ -474,9 +474,7 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
             ? null
             : Border(
                 bottom: BorderSide(
-                  color: SkotiqColors.of(context)
-                      .border
-                      .withValues(alpha: 0.3),
+                  color: SkotiqColors.of(context).border.withValues(alpha: 0.3),
                 ),
               ),
       ),
@@ -487,8 +485,7 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
             height: 32,
             decoration: BoxDecoration(
               color: SkotiqColors.of(context).well,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusButton),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusButton),
             ),
             child: Icon(icon,
                 size: 14, color: SkotiqColors.of(context).textSecondary),
@@ -500,8 +497,8 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
               children: [
                 Text(
                   title,
-                  style: SkotiqTypography.labelSm.copyWith(
-                      color: SkotiqColors.of(context).textPrimary),
+                  style: SkotiqTypography.labelSm
+                      .copyWith(color: SkotiqColors.of(context).textPrimary),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 1),

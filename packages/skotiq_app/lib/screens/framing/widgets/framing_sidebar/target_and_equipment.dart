@@ -59,14 +59,13 @@ class FramingTargetSearch extends ConsumerWidget {
             key: FramingTutorialKeys.targetSearch,
             controller: searchController,
             focusNode: searchFocusNode,
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textPrimary),
+            style: SkotiqTypography.caption.copyWith(color: colors.textPrimary),
             decoration: InputDecoration(
               hintText: 'Search by name (M42, NGC7000, Orion)',
-              hintStyle: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
-              prefixIcon: Icon(SkotiqIcons.search,
-                  size: 14, color: colors.textMuted),
+              hintStyle:
+                  SkotiqTypography.caption.copyWith(color: colors.textMuted),
+              prefixIcon:
+                  Icon(SkotiqIcons.search, size: 14, color: colors.textMuted),
               suffixIcon: searchState.isSearching
                   ? const SizedBox(
                       width: 14,

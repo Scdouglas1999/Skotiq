@@ -15,8 +15,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 
 final _t0 = DateTime(2026, 8, 13, 1, 54, 26);
 
-be.SkotiqEvent _error(int id, String message, DateTime at) =>
-    be.SkotiqEvent(
+be.SkotiqEvent _error(int id, String message, DateTime at) => be.SkotiqEvent(
       eventId: BigInt.from(id),
       timestamp: at.millisecondsSinceEpoch,
       severity: be.EventSeverity.error,
@@ -26,8 +25,7 @@ be.SkotiqEvent _error(int id, String message, DateTime at) =>
       ),
     );
 
-be.SkotiqEvent _decision(int id, String summary, DateTime at) =>
-    be.SkotiqEvent(
+be.SkotiqEvent _decision(int id, String summary, DateTime at) => be.SkotiqEvent(
       eventId: BigInt.from(id),
       timestamp: at.millisecondsSinceEpoch,
       severity: be.EventSeverity.info,
@@ -59,8 +57,7 @@ be.SkotiqEvent _manualStop(int id, DateTime at) => be.SkotiqEvent(
       ),
     );
 
-be.SkotiqEvent _stopped(int id, DateTime at, {int? runId}) =>
-    be.SkotiqEvent(
+be.SkotiqEvent _stopped(int id, DateTime at, {int? runId}) => be.SkotiqEvent(
       eventId: BigInt.from(id),
       timestamp: at.millisecondsSinceEpoch,
       severity: be.EventSeverity.info,

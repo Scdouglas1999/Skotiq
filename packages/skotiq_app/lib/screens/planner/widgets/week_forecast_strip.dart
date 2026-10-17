@@ -188,8 +188,8 @@ class _NightCard extends StatelessWidget {
         Expanded(
           child: Text(
             _weekdayDate(night.nightDateLocal),
-            style: SkotiqTypography.bodyStrong
-                .copyWith(color: colors.textPrimary),
+            style:
+                SkotiqTypography.bodyStrong.copyWith(color: colors.textPrimary),
           ),
         ),
         if (isBest) ...[
@@ -223,8 +223,8 @@ class _NightCard extends StatelessWidget {
                 const SizedBox(height: SkotiqTokens.spaceSm),
                 Text(
                   'No forecast',
-                  style: SkotiqTypography.bodySm
-                      .copyWith(color: colors.textMuted),
+                  style:
+                      SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
                 ),
                 if (night.unavailableReason != null) ...[
                   const SizedBox(height: SkotiqTokens.spaceXs),
@@ -260,8 +260,7 @@ class _NightCard extends StatelessWidget {
             Text(
               'No astronomical darkness',
               textAlign: TextAlign.center,
-              style:
-                  SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
+              style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
             ),
           ],
         ),
@@ -323,8 +322,8 @@ class _NightCard extends StatelessWidget {
         Flexible(
           child: Text(
             '$clear / ${dark}h clear',
-            style: SkotiqTypography.monoSm
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.monoSm.copyWith(color: colors.textSecondary),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -339,8 +338,7 @@ class _NightCard extends StatelessWidget {
         alignment: Alignment.topLeft,
         child: Text(
           'No targets up',
-          style:
-              SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
+          style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
         ),
       );
     }

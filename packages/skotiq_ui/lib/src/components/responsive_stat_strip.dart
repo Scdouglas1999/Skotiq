@@ -145,12 +145,11 @@ class _StatCell extends StatelessWidget {
     // Values stay legible: monoSm is 12sp tabular; bump to 13 floor via body.
     final value = Text(
       stat.value,
-      style: SkotiqTypography.withTabular(SkotiqTypography.bodySm)
-          .copyWith(
-            color: stat.valueColor ?? colors.textPrimary,
-            fontWeight: FontWeight.w600,
-            fontFamily: SkotiqTypography.fontFamilyMono,
-          ),
+      style: SkotiqTypography.withTabular(SkotiqTypography.bodySm).copyWith(
+        color: stat.valueColor ?? colors.textPrimary,
+        fontWeight: FontWeight.w600,
+        fontFamily: SkotiqTypography.fontFamilyMono,
+      ),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );

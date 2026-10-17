@@ -16,8 +16,7 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
             height: 4,
             decoration: BoxDecoration(
               color: widget.colors.border,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline2),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline2),
             ),
           ),
         ),
@@ -168,8 +167,8 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
                         onTap: _isSnippetFileActionRunning
                             ? null
                             : _handleImportSnippet,
-                        borderRadius: BorderRadius.circular(
-                            SkotiqTokens.radiusInline4),
+                        borderRadius:
+                            BorderRadius.circular(SkotiqTokens.radiusInline4),
                         child: Padding(
                           padding: const EdgeInsets.all(4),
                           child: _isSnippetFileActionRunning
@@ -195,8 +194,8 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
                             : 'Collapse panel',
                         child: InkWell(
                           onTap: widget.onToggleCollapse,
-                          borderRadius: BorderRadius.circular(
-                              SkotiqTokens.radiusInline4),
+                          borderRadius:
+                              BorderRadius.circular(SkotiqTokens.radiusInline4),
                           child: Padding(
                             padding: const EdgeInsets.all(4),
                             child: Icon(
@@ -263,8 +262,7 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
             margin: const EdgeInsets.all(12),
             decoration: SkotiqDecorations.iconChip(
               widget.colors.info,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               borderAlpha: 0.2,
             ),
             child: Row(
@@ -298,9 +296,8 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
       padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 12),
       decoration: BoxDecoration(
         color: widget.colors.surfaceAlt,
-        borderRadius: BorderRadius.circular(isMobile
-            ? SkotiqTokens.radiusLg
-            : SkotiqTokens.radiusInline8),
+        borderRadius: BorderRadius.circular(
+            isMobile ? SkotiqTokens.radiusLg : SkotiqTokens.radiusInline8),
         border: Border.all(color: widget.colors.border),
       ),
       child: Row(

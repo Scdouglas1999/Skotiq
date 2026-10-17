@@ -143,8 +143,7 @@ extension _ReviewStep on _QuickStartWizardDialogState {
                 children: [
                   Text(
                     'Estimated Duration',
-                    style:
-                        SkotiqTypography.h6.copyWith(color: colors.primary),
+                    style: SkotiqTypography.h6.copyWith(color: colors.primary),
                   ),
                   Text(
                     _formatDuration(totalSecs),

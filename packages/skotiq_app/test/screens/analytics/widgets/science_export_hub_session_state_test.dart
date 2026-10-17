@@ -141,8 +141,7 @@ void main() {
 
     expect(find.text('All Sessions & Standalone'), findsOneWidget);
     final photometryButton = find.widgetWithText(SkotiqButton, 'CSV').first;
-    expect(
-        tester.widget<SkotiqButton>(photometryButton).onPressed, isNotNull);
+    expect(tester.widget<SkotiqButton>(photometryButton).onPressed, isNotNull);
     await tester.ensureVisible(photometryButton);
     await tester.tap(photometryButton);
     await tester.pump();

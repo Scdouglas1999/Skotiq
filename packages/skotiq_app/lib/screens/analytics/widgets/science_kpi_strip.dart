@@ -300,8 +300,8 @@ class _KpiCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             value,
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           ),
           if (trust.isNotEmpty) ...[
             const SizedBox(height: 8),

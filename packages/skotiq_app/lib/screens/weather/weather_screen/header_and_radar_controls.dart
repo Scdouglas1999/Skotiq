@@ -262,9 +262,8 @@ class _RadarSliderRow extends StatelessWidget {
 
   /// The icon plus its gap, taken out of the `FormRow` label column so the
   /// slider tracks line up with each other.
-  static const double _labelWidth = FormRow.defaultLabelWidth -
-      SkotiqTokens.iconSm -
-      SkotiqTokens.spaceSm;
+  static const double _labelWidth =
+      FormRow.defaultLabelWidth - SkotiqTokens.iconSm - SkotiqTokens.spaceSm;
 
   @override
   Widget build(BuildContext context) {

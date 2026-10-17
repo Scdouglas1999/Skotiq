@@ -70,9 +70,7 @@ class SkotiqSwitchRow extends StatelessWidget {
         children: [
           labelWidget,
           SizedBox(
-            width: compact
-                ? SkotiqTokens.spaceXs
-                : SkotiqTokens.spaceSm,
+            width: compact ? SkotiqTokens.spaceXs : SkotiqTokens.spaceSm,
           ),
           switchWidget,
         ],

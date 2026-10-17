@@ -176,8 +176,7 @@ class _HistoryTileState extends ConsumerState<_HistoryTile> {
               child: Container(
                 decoration: BoxDecoration(
                   color: colors.surface,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusSm),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
                   border: Border.all(
                     color: highlight ? colors.primary : colors.border,
                     width: highlight ? 2 : 1,

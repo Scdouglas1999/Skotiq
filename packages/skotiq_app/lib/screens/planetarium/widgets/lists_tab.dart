@@ -60,8 +60,7 @@ class _ListsTabState extends ConsumerState<ListsTab> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(SkotiqIcons.list,
-                size: 48, color: widget.colors.textMuted),
+            Icon(SkotiqIcons.list, size: 48, color: widget.colors.textMuted),
             const SizedBox(height: 16),
             Text(
               'No observing lists',
@@ -474,11 +473,9 @@ class _ObservingListCard extends ConsumerWidget {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: colors.primary.withValues(alpha: 0.15),
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               ),
-              child:
-                  Icon(SkotiqIcons.list, size: 16, color: colors.primary),
+              child: Icon(SkotiqIcons.list, size: 16, color: colors.primary),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -502,8 +499,7 @@ class _ObservingListCard extends ConsumerWidget {
                 ],
               ),
             ),
-            Icon(SkotiqIcons.chevronRight,
-                size: 14, color: colors.textMuted),
+            Icon(SkotiqIcons.chevronRight, size: 14, color: colors.textMuted),
           ],
         ),
       ),
@@ -579,8 +575,8 @@ class _ObservingListItemCardState extends State<_ObservingListItemCard> {
                             decoration: BoxDecoration(
                               color:
                                   widget.colors.primary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(
-                                  SkotiqTokens.radiusXs),
+                              borderRadius:
+                                  BorderRadius.circular(SkotiqTokens.radiusXs),
                             ),
                             child: Text(
                               widget.item.catalogId!,

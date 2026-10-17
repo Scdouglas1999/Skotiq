@@ -74,8 +74,7 @@ void main() {
 
     await tester.tap(find.text('GitHub'));
     await tester.pumpAndSettle();
-    expect(launched.last,
-        Uri.parse('https://github.com/Scdouglas1999/Skotiq'));
+    expect(launched.last, Uri.parse('https://github.com/Scdouglas1999/Skotiq'));
 
     await tester.tap(find.text('Documentation'));
     await tester.pumpAndSettle();

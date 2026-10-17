@@ -147,9 +147,7 @@ class ShowcaseSwatch extends StatelessWidget {
           if (showHex)
             Text(
               _hex(color),
-              style: SkotiqTypography.monoXs.copyWith(
-                color: colors.textMuted,
-              ),
+              style: SkotiqTypography.monoXs.copyWith(color: colors.textMuted),
             ),
         ],
       ),

@@ -49,8 +49,7 @@ class FirstLightDetailScreen extends ConsumerWidget {
         backgroundColor: colors.surface,
         elevation: 0,
         leading: IconButton(
-          icon:
-              const Icon(LucideIcons.arrowLeft, size: SkotiqTokens.iconMd),
+          icon: const Icon(LucideIcons.arrowLeft, size: SkotiqTokens.iconMd),
           color: colors.textPrimary,
           tooltip: 'Back',
           onPressed: () => Navigator.of(context).maybePop(),

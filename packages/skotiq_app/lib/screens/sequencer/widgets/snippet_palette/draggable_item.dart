@@ -67,8 +67,7 @@ class _DraggableSnippetItemState extends State<_DraggableSnippetItem> {
                 height: 40,
                 decoration: SkotiqDecorations.tintedBadge(
                   widget.categoryColor,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusLg),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                 ),
                 child: Icon(
                   widget.getIcon(widget.snippet.iconName),
@@ -235,11 +234,10 @@ class _DraggableSnippetItemState extends State<_DraggableSnippetItem> {
                                 Expanded(
                                   child: Text(
                                     widget.snippet.name,
-                                    style: SkotiqTypography.labelQuiet
-                                        .copyWith(
-                                            color: _isHovered
-                                                ? widget.colors.textPrimary
-                                                : widget.colors.textSecondary),
+                                    style: SkotiqTypography.labelQuiet.copyWith(
+                                        color: _isHovered
+                                            ? widget.colors.textPrimary
+                                            : widget.colors.textSecondary),
                                   ),
                                 ),
                                 if (widget.snippet.isBuiltIn)
@@ -248,8 +246,7 @@ class _DraggableSnippetItemState extends State<_DraggableSnippetItem> {
                                       horizontal: 4,
                                       vertical: 1,
                                     ),
-                                    decoration:
-                                        SkotiqDecorations.tintedBadge(
+                                    decoration: SkotiqDecorations.tintedBadge(
                                       widget.colors.info,
                                       borderRadius: BorderRadius.circular(
                                           SkotiqTokens.radiusXs),
@@ -257,8 +254,7 @@ class _DraggableSnippetItemState extends State<_DraggableSnippetItem> {
                                     child: Text(
                                       'Built-in',
                                       style: TextStyle(
-                                        fontSize:
-                                            SkotiqTypography.fontSize8,
+                                        fontSize: SkotiqTypography.fontSize8,
                                         fontWeight: FontWeight.w500,
                                         color: widget.colors.info,
                                       ),
@@ -401,8 +397,8 @@ class _DraggableSnippetItemState extends State<_DraggableSnippetItem> {
         Icon(icon, size: 14, color: color),
         const SizedBox(width: 10),
         Text(label,
-            style: TextStyle(
-                color: color, fontSize: SkotiqTypography.fontSize13)),
+            style:
+                TextStyle(color: color, fontSize: SkotiqTypography.fontSize13)),
       ],
     );
   }

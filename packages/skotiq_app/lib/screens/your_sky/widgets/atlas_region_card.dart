@@ -104,13 +104,11 @@ class AtlasRegionCard extends ConsumerWidget {
                     final phrase = _growthPhrase(folds);
                     if (phrase == null) return const SizedBox.shrink();
                     return Padding(
-                      padding:
-                          const EdgeInsets.only(top: SkotiqTokens.spaceSm),
+                      padding: const EdgeInsets.only(top: SkotiqTokens.spaceSm),
                       child: Row(
                         children: [
                           Icon(LucideIcons.trendingUp,
-                              size: SkotiqTokens.iconSm,
-                              color: colors.success),
+                              size: SkotiqTokens.iconSm, color: colors.success),
                           const SizedBox(width: SkotiqTokens.spaceXs),
                           Expanded(
                             child: Text(
@@ -251,8 +249,7 @@ class _Pill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon,
-              size: SkotiqTokens.iconSm, color: colors.textSecondary),
+          Icon(icon, size: SkotiqTokens.iconSm, color: colors.textSecondary),
           const SizedBox(width: SkotiqTokens.spaceXs),
           Text(
             label,

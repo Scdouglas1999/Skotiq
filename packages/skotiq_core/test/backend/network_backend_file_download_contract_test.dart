@@ -60,10 +60,7 @@ void main() {
         );
 
         expect(await File(path).readAsBytes(), bytes);
-        expect(
-          requestedPath,
-          '/api/logs/files/skotiq.log.2026-07-19/download',
-        );
+        expect(requestedPath, '/api/logs/files/skotiq.log.2026-07-19/download');
         expect(authHeader, 'Bearer log-token');
         expect(progress, isNotEmpty);
         expect(progress.last, 1.0);
@@ -82,9 +79,7 @@ void main() {
       addTearDown(() => server.close(force: true));
       final backend = _backend(server);
       addTearDown(backend.dispose);
-      final directory = await Directory.systemTemp.createTemp(
-        'skotiq-logdl-',
-      );
+      final directory = await Directory.systemTemp.createTemp('skotiq-logdl-');
       addTearDown(() => directory.delete(recursive: true));
 
       // A slash-bearing name must stay ONE path segment on the wire so the
@@ -139,9 +134,7 @@ void main() {
       addTearDown(() => server.close(force: true));
       final backend = _backend(server);
       addTearDown(backend.dispose);
-      final directory = await Directory.systemTemp.createTemp(
-        'skotiq-logdl-',
-      );
+      final directory = await Directory.systemTemp.createTemp('skotiq-logdl-');
       addTearDown(() => directory.delete(recursive: true));
 
       await expectLater(
@@ -166,9 +159,7 @@ void main() {
       addTearDown(() => server.close(force: true));
       final backend = _backend(server);
       addTearDown(backend.dispose);
-      final directory = await Directory.systemTemp.createTemp(
-        'skotiq-darkdl-',
-      );
+      final directory = await Directory.systemTemp.createTemp('skotiq-darkdl-');
       addTearDown(() => directory.delete(recursive: true));
       final path = '${directory.path}/master_dark.fits';
 

@@ -186,8 +186,8 @@ class _PanelTile extends StatelessWidget {
             children: [
               Text(
                 'Panel ${panel.panelIndex + 1}',
-                style: SkotiqTypography.bodySm
-                    .copyWith(color: colors.textPrimary),
+                style:
+                    SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
               ),
               const Spacer(),
               _PanelStatusDot(status: panel.status),
@@ -409,8 +409,7 @@ String mosaicPanelStatusLabel(MosaicPanelStatus status) {
 /// The design-system colour for a [MosaicPanelStatus]. Pulls only from the
 /// passed [colors] (no raw hex): muted for pending, primary for in-flight /
 /// captured, success for integrated, error for failed.
-Color mosaicPanelStatusColor(
-    MosaicPanelStatus status, SkotiqColors colors) {
+Color mosaicPanelStatusColor(MosaicPanelStatus status, SkotiqColors colors) {
   switch (status) {
     case MosaicPanelStatus.pending:
       return colors.textMuted;

@@ -229,8 +229,7 @@ class _MosaicContributeSheetState
           const SizedBox(height: SkotiqTokens.spaceLg),
           Text(
             'License',
-            style: SkotiqTypography.label
-                .copyWith(color: colors.textSecondary),
+            style: SkotiqTypography.label.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: SkotiqTokens.spaceXs),
           if (hubInfo.isLoading)

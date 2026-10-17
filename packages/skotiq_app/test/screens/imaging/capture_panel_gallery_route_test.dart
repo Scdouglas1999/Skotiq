@@ -71,9 +71,7 @@ class _SeededSessionState extends SessionStateNotifier {
 }
 
 SkotiqButton _galleryButton(WidgetTester tester) {
-  return tester
-      .widgetList<SkotiqButton>(find.byType(SkotiqButton))
-      .firstWhere(
+  return tester.widgetList<SkotiqButton>(find.byType(SkotiqButton)).firstWhere(
         (button) =>
             button.label == 'View gallery' ||
             button.label == 'View quick captures',

@@ -190,8 +190,7 @@ class _SortBar extends StatelessWidget {
         children: [
           Text(
             '$totalCount target${totalCount == 1 ? '' : 's'}',
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
           const Spacer(),
           Container(
@@ -514,8 +513,7 @@ class _PerFilterTable extends StatelessWidget {
           // goals are edited in Schedule.
           'No integration goals are defined for this target. Add filter '
           'goals in the Schedule tab to start tracking progress.',
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
       );
     }
@@ -526,8 +524,7 @@ class _PerFilterTable extends StatelessWidget {
           children: [
             Text(
               'Per filter',
-              style: SkotiqTypography.eyebrow
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
             ),
             const Spacer(),
             Text(
@@ -627,8 +624,8 @@ class _ProgressEmptyState extends StatelessWidget {
               'target with integration totals and an ETA at your current '
               'pace.',
               textAlign: TextAlign.center,
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textSecondary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             ),
           ],
         ),

@@ -284,8 +284,7 @@ class _StatChip extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ],
       ),

@@ -421,8 +421,7 @@ extension _LogViewerActions on _LogViewerState {
           return AlertDialog(
             backgroundColor: colors.surface,
             shape: RoundedRectangleBorder(
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               side: BorderSide(color: colors.border),
             ),
             title: Row(

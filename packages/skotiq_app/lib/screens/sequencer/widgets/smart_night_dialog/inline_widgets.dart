@@ -140,8 +140,7 @@ class _CompactNumberFieldState extends State<_CompactNumberField> {
                 vertical: 6,
               ),
               border: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               ),
             ),
             onSubmitted: (text) {
@@ -377,8 +376,8 @@ class _ProfileRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: SkotiqTypography.labelSm
-                  .copyWith(color: colors.textPrimary),
+              style:
+                  SkotiqTypography.labelSm.copyWith(color: colors.textPrimary),
             ),
           ),
         ],
@@ -628,8 +627,7 @@ class _TargetTile extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: SkotiqDecorations.emphasisSurface(
                 colors.primary,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
               ),
               child: Text(
                 '${suggestion.totalScore.toStringAsFixed(0)}/100',
@@ -696,14 +694,13 @@ class _PlannedTargetCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     planned.suggestion.targetName,
-                    style: SkotiqTypography.h5
-                        .copyWith(color: colors.textPrimary),
+                    style:
+                        SkotiqTypography.h5.copyWith(color: colors.textPrimary),
                   ),
                 ),
                 Text(
                   '${planned.suggestion.totalScore.toStringAsFixed(0)}/100',
-                  style:
-                      SkotiqTypography.h6.copyWith(color: colors.primary),
+                  style: SkotiqTypography.h6.copyWith(color: colors.primary),
                 ),
               ],
             ),
@@ -772,8 +769,7 @@ class _FilterRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: SkotiqDecorations.tintedBadge(
               colors.primary,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
             ),
             alignment: Alignment.center,
             child: Text(
@@ -794,8 +790,8 @@ class _FilterRow extends StatelessWidget {
             child: Text(
               '${plan.count} × ${plan.durationSecs.toStringAsFixed(0)}s',
               textAlign: TextAlign.center,
-              style: SkotiqTypography.labelSm
-                  .copyWith(color: colors.textPrimary),
+              style:
+                  SkotiqTypography.labelSm.copyWith(color: colors.textPrimary),
             ),
           ),
           IconButton(
@@ -893,8 +889,7 @@ class _SummaryRow extends StatelessWidget {
           ),
           Text(
             value,
-            style: SkotiqTypography.labelSm
-                .copyWith(color: colors.textPrimary),
+            style: SkotiqTypography.labelSm.copyWith(color: colors.textPrimary),
           ),
         ],
       ),

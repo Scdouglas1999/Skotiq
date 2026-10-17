@@ -17,9 +17,7 @@ void main() {
     late UpdateController controller;
 
     setUp(() async {
-      tempRoot = await Directory.systemTemp.createTemp(
-        'skotiq_ctrl_rollback_',
-      );
+      tempRoot = await Directory.systemTemp.createTemp('skotiq_ctrl_rollback_');
       final service = UpdateService(
         currentVersion: '2.1.0',
         currentBuildNumber: 42,

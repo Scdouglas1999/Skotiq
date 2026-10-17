@@ -525,8 +525,7 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style =
-        SkotiqTypography.eyebrow.copyWith(color: colors.textMuted);
+    final style = SkotiqTypography.eyebrow.copyWith(color: colors.textMuted);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         SkotiqTokens.spaceMd,
@@ -806,8 +805,7 @@ class _InSequenceRow extends ConsumerWidget {
                   ? colors.primary
                       .withValues(alpha: SkotiqTokens.opacityStatusFill)
                   : colors.well,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               border: Border.all(
                 color: isSelected ? colors.primary : colors.border,
               ),

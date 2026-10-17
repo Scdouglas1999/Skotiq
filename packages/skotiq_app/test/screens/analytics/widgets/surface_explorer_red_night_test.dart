@@ -83,8 +83,7 @@ List<ScienceTileMetricRow> _tiles() => [
 Future<void> _pump(WidgetTester tester, SkotiqColors colors) async {
   await tester.pumpWidget(
     MaterialApp(
-      theme:
-          colors.isRedNight ? SkotiqTheme.redNight : SkotiqTheme.dark,
+      theme: colors.isRedNight ? SkotiqTheme.redNight : SkotiqTheme.dark,
       home: Scaffold(
         body: SingleChildScrollView(
           child: ScienceSurfaceExplorer(colors: colors, tiles: _tiles()),
@@ -160,8 +159,7 @@ void main() {
     expect(
       stops,
       containsAll([
-        SkotiqChartColors.forTheme(
-            namedSurfaceLowValue, SkotiqColors.redNight),
+        SkotiqChartColors.forTheme(namedSurfaceLowValue, SkotiqColors.redNight),
         SkotiqChartColors.forTheme(
             namedSurfaceHighValue, SkotiqColors.redNight),
       ]),

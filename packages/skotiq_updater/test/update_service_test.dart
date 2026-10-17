@@ -14,9 +14,7 @@ void main() {
     late Directory tempRoot;
 
     setUp(() async {
-      tempRoot = await Directory.systemTemp.createTemp(
-        'skotiq_updater_test_',
-      );
+      tempRoot = await Directory.systemTemp.createTemp('skotiq_updater_test_');
     });
 
     tearDown(() async {
@@ -148,9 +146,7 @@ void main() {
     late Directory tempRoot;
 
     setUp(() async {
-      tempRoot = await Directory.systemTemp.createTemp(
-        'skotiq_rollback_test_',
-      );
+      tempRoot = await Directory.systemTemp.createTemp('skotiq_rollback_test_');
     });
 
     tearDown(() async {
@@ -366,9 +362,7 @@ void main() {
     late Directory tempRoot;
 
     setUp(() async {
-      tempRoot = await Directory.systemTemp.createTemp(
-        'skotiq_archive_test_',
-      );
+      tempRoot = await Directory.systemTemp.createTemp('skotiq_archive_test_');
     });
 
     tearDown(() async {

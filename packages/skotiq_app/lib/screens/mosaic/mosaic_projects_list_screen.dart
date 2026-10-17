@@ -130,8 +130,7 @@ class MosaicProjectsListScreen extends ConsumerWidget {
                         )
                       : ListView.separated(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          padding:
-                              const EdgeInsets.all(SkotiqTokens.spaceLg),
+                          padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
                           itemCount: projects.length,
                           separatorBuilder: (_, __) => const SizedBox(
                             height: SkotiqTokens.spaceSm,
@@ -235,8 +234,8 @@ class _ProjectRow extends StatelessWidget {
               children: [
                 Text(
                   project.name.isEmpty ? 'Mosaic project' : project.name,
-                  style: SkotiqTypography.body
-                      .copyWith(color: colors.textPrimary),
+                  style:
+                      SkotiqTypography.body.copyWith(color: colors.textPrimary),
                 ),
                 const SizedBox(height: SkotiqTokens.spaceXs),
                 Text(
@@ -250,9 +249,7 @@ class _ProjectRow extends StatelessWidget {
           ),
           const SizedBox(width: SkotiqTokens.spaceMd),
           StatusPill(
-            icon: project.isComplete
-                ? SkotiqIcons.success
-                : SkotiqIcons.clock,
+            icon: project.isComplete ? SkotiqIcons.success : SkotiqIcons.clock,
             label: '',
             value: mosaicProjectStatusLabel(project.status),
             status: project.isComplete

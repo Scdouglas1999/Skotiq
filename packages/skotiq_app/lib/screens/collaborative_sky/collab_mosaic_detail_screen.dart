@@ -434,8 +434,7 @@ class _PanelRow extends StatelessWidget {
               width: 36,
               height: 36,
               alignment: Alignment.center,
-              decoration:
-                  SkotiqDecorations.chip(colors, tone: colors.primary),
+              decoration: SkotiqDecorations.chip(colors, tone: colors.primary),
               child: Text(
                 '${panel.panelIndex + 1}',
                 style: SkotiqTypography.labelStrongSm.copyWith(

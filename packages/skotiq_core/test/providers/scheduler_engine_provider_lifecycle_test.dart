@@ -11,9 +11,7 @@ void main() {
   test(
     'corrupt persisted scheduler config is surfaced, not defaulted',
     () async {
-      final database = db.SkotiqDatabase.forTesting(
-        NativeDatabase.memory(),
-      );
+      final database = db.SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(database.close);
       final dao = SettingsDao(database);
       await dao.setSetting('scheduler_config', '{not valid json');

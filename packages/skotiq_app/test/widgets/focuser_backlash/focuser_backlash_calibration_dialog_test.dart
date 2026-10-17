@@ -621,8 +621,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.textContaining('This is not a refusal'), findsOneWidget);
-      expect(
-          find.widgetWithText(SkotiqButton, 'Try again'), findsOneWidget);
+      expect(find.widgetWithText(SkotiqButton, 'Try again'), findsOneWidget);
       expect(find.widgetWithText(SkotiqButton, 'Close'), findsOneWidget);
     });
   });

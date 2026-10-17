@@ -293,8 +293,7 @@ class SkotiqMobileApp extends ConsumerStatefulWidget {
   const SkotiqMobileApp({super.key});
 
   @override
-  ConsumerState<SkotiqMobileApp> createState() =>
-      _SkotiqMobileAppState();
+  ConsumerState<SkotiqMobileApp> createState() => _SkotiqMobileAppState();
 }
 
 class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
@@ -419,8 +418,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
             title: 'Skotiq',
             debugShowCheckedModeBanner: false,
             theme: theme,
-            localizationsDelegates:
-                SkotiqLocalizations.localizationsDelegates,
+            localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
             supportedLocales: SkotiqLocalizations.supportedLocales,
             home: Builder(builder: (context) => _buildConnectionScreen()),
           ),

@@ -38,8 +38,7 @@ class SharedLibraryCard extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
-                  decoration:
-                      SkotiqDecorations.chip(colors, tone: colors.info),
+                  decoration: SkotiqDecorations.chip(colors, tone: colors.info),
                   child: Icon(
                     LucideIcons.library,
                     size: SkotiqTokens.iconSm,

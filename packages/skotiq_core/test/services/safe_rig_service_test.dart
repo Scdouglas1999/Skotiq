@@ -33,10 +33,7 @@ class _RecordingSafeRig extends SafeRigService {
   final List<String> coverClosedFor = [];
 
   @override
-  Future<void> closeDomeShutter(
-    SkotiqBackend backend,
-    String deviceId,
-  ) async {
+  Future<void> closeDomeShutter(SkotiqBackend backend, String deviceId) async {
     domeClosedFor.add(deviceId);
     if (failDome) throw Exception('dome stuck');
   }

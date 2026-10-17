@@ -10,8 +10,7 @@ final class _NativeBridgeImplementation {
   bool _nativeAvailable = false;
   DynamicLibrary? _nativeLib;
   String? _loadedNativeLibraryPath;
-  final _eventController =
-      StreamController<_FallbackSkotiqEvent>.broadcast();
+  final _eventController = StreamController<_FallbackSkotiqEvent>.broadcast();
 
   final Map<String, bool> _connectedDevices = {};
   final Map<String, DeviceInfo> _connectedDeviceInfo = {};

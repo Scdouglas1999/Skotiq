@@ -15,8 +15,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 // cutout surveys the framing stack addresses (the one meant here), while the
 // planetarium's names its own single-image survey-preview sources. Hide the
 // latter so the reference is unambiguous rather than prefixed at every use.
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    hide SurveySource;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' hide SurveySource;
 
 /// Widest field of view, in degrees, at which the sky-imagery layer will fetch
 /// and draw survey tiles.

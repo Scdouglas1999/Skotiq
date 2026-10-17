@@ -315,8 +315,7 @@ class SequenceTreeContextMenu extends ConsumerWidget {
           child: Text(
             label,
             style: TextStyle(
-                fontSize: SkotiqTypography.fontSize13,
-                color: effectiveLabel),
+                fontSize: SkotiqTypography.fontSize13, color: effectiveLabel),
             overflow: TextOverflow.ellipsis,
             softWrap: false,
           ),
@@ -1012,13 +1011,12 @@ class _InsertNodePickerState extends ConsumerState<_InsertNodePicker> {
                                           Container(
                                             width: 28,
                                             height: 28,
-                                            decoration: SkotiqDecorations
-                                                .tintedBadge(
+                                            decoration:
+                                                SkotiqDecorations.tintedBadge(
                                               categoryColor,
                                               borderRadius:
                                                   BorderRadius.circular(
-                                                      SkotiqTokens
-                                                          .radiusMd),
+                                                      SkotiqTokens.radiusMd),
                                             ),
                                             child: Icon(
                                               nodePaletteIconFor(item.icon),
@@ -1034,8 +1032,7 @@ class _InsertNodePickerState extends ConsumerState<_InsertNodePicker> {
                                               children: [
                                                 Text(
                                                   item.name,
-                                                  style: SkotiqTypography
-                                                      .label
+                                                  style: SkotiqTypography.label
                                                       .copyWith(
                                                           color: colors
                                                               .textPrimary),
@@ -1043,9 +1040,8 @@ class _InsertNodePickerState extends ConsumerState<_InsertNodePicker> {
                                                 Text(
                                                   item.description,
                                                   style: TextStyle(
-                                                    fontSize:
-                                                        SkotiqTypography
-                                                            .fontSize11,
+                                                    fontSize: SkotiqTypography
+                                                        .fontSize11,
                                                     color: colors.textMuted,
                                                   ),
                                                   maxLines: 1,

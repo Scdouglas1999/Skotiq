@@ -157,8 +157,7 @@ class _CoordinateLookupSectionState
               padding: const EdgeInsets.all(10),
               decoration: SkotiqDecorations.tintedBadge(
                 colors.warning,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,8 +222,7 @@ class _CoordinateLookupSectionState
             constraints: const BoxConstraints(maxHeight: 190),
             decoration: BoxDecoration(
               color: colors.surfaceAlt,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               border: Border.all(color: colors.border),
             ),
             // The rows are ListTiles, which paint their ink on the nearest

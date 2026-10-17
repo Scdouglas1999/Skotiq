@@ -1401,14 +1401,12 @@ final Map<String, Map<String, String>> _localizedValues = {
         'Skotiq no pudo iniciar el modo de emparejamiento. Intentalo de nuevo.',
     'pairingErrorCancel':
         'Skotiq no pudo cancelar el emparejamiento. El codigo sigue activo; intentalo de nuevo.',
-    'pairingErrorLoad':
-        'Skotiq no pudo cargar tus dispositivos emparejados.',
+    'pairingErrorLoad': 'Skotiq no pudo cargar tus dispositivos emparejados.',
     'pairingErrorRevoke':
         'Skotiq no pudo revocar el acceso de ese dispositivo.',
     'pairingErrorRevokeAll':
         'Skotiq no pudo revocar el acceso de todos los dispositivos. Revisa la lista: puede que algunos sigan emparejados.',
-    'pairingErrorDelete':
-        'Skotiq no pudo eliminar ese dispositivo emparejado.',
+    'pairingErrorDelete': 'Skotiq no pudo eliminar ese dispositivo emparejado.',
     'plannerTitle': 'Planificar esta noche',
     'plannerLoading': 'Analizando las condiciones de esta noche...',
     'plannerCreateSequence': 'Crear secuencia',

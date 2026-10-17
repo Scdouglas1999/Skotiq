@@ -112,8 +112,7 @@ class MountControlCard extends ConsumerWidget {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: colors.surfaceAlt.withValues(alpha: 0.5),
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusMd),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                 ),
                 child: Row(
                   children: [
@@ -191,8 +190,8 @@ class MountControlCard extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         decoration: BoxDecoration(
                           color: colors.surfaceAlt,
-                          borderRadius: BorderRadius.circular(
-                              SkotiqTokens.radiusInline4),
+                          borderRadius:
+                              BorderRadius.circular(SkotiqTokens.radiusInline4),
                           border: Border.all(
                               color: colors.border.withValues(alpha: 0.5)),
                         ),
@@ -487,8 +486,7 @@ class _MountJogControlsState extends ConsumerState<MountJogControls> {
               padding: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
                 color: colors.surfaceAlt,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
                 border: Border.all(color: colors.border.withValues(alpha: 0.5)),
               ),
               child: DropdownButtonHideUnderline(

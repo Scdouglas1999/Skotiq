@@ -30,10 +30,10 @@ class _BlsSpectrumPainter extends StatelessWidget {
         trialPeriods: trialPeriods,
         srSpectrum: srSpectrum,
         bestPeriod: bestPeriod,
-        plotColor: SkotiqChartColors.forTheme(
-            SkotiqChartColors.seriesGreen, colors),
-        peakColor: SkotiqChartColors.forTheme(
-            SkotiqChartColors.seriesAmber, colors),
+        plotColor:
+            SkotiqChartColors.forTheme(SkotiqChartColors.seriesGreen, colors),
+        peakColor:
+            SkotiqChartColors.forTheme(SkotiqChartColors.seriesAmber, colors),
         borderColor: colors.border,
         textColor: colors.textSecondary,
         gridColor: colors.border.withValues(alpha: 0.3),

@@ -303,8 +303,7 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
                 const BoxConstraints(maxWidth: _autoDetectNoteMaxWidth),
             child: Text(
               disabledReason,
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ),
       ],
@@ -385,8 +384,8 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
               const SizedBox(height: SkotiqTokens.spaceSm),
               Text(
                 rec.notes,
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted),
+                style:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
               ),
             ],
             if (canApplyGain || canApplyOffset) ...[
@@ -418,8 +417,8 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
           width: _recommendationLabelWidth,
           child: Text(
             label,
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           ),
         ),
         Text(

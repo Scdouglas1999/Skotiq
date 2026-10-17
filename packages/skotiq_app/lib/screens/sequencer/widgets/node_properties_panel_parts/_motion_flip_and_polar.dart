@@ -101,8 +101,7 @@ class _MeridianFlipProperties extends ConsumerWidget {
               padding: const EdgeInsets.all(10),
               decoration: SkotiqDecorations.tintedBadge(
                 colors.info,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,

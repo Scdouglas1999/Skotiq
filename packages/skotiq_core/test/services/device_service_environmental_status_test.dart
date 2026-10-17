@@ -12,10 +12,7 @@ import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/services/device_service.dart';
 
 class _EnvironmentalBackend extends Mock
-    implements
-        SkotiqBackend,
-        EnvironmentalStatusBackend,
-        DomeStatusBackend {}
+    implements SkotiqBackend, EnvironmentalStatusBackend, DomeStatusBackend {}
 
 class _BackendNotifier extends BackendNotifier {
   _BackendNotifier(super.ref, SkotiqBackend backend) {

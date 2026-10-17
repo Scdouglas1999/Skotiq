@@ -54,8 +54,7 @@ void main() {
     await pumpAppScreen(
       tester,
       Builder(
-        builder: (context) =>
-            WindowControls(colors: SkotiqColors.of(context)),
+        builder: (context) => WindowControls(colors: SkotiqColors.of(context)),
       ),
       settle: false,
     );

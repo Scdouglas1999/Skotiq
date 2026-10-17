@@ -181,8 +181,7 @@ class _LightCurveChartCard extends StatelessWidget {
           child: Center(
             child: Text(
               'Differential Photometry has no data yet',
-              style:
-                  SkotiqTypography.body.copyWith(color: colors.textMuted),
+              style: SkotiqTypography.body.copyWith(color: colors.textMuted),
             ),
           ),
         ),
@@ -408,8 +407,8 @@ class _PsfHeatmapCard extends StatelessWidget {
               child: Center(
                 child: Text(
                   'No PSF tiles computed yet',
-                  style: SkotiqTypography.body
-                      .copyWith(color: colors.textMuted),
+                  style:
+                      SkotiqTypography.body.copyWith(color: colors.textMuted),
                 ),
               ),
             )
@@ -569,15 +568,14 @@ class _ResidualCard extends StatelessWidget {
             residuals.isEmpty
                 ? 'No residual vectors available for this session'
                 : 'RMS: ${rms.toStringAsFixed(3)}" across ${residuals.length} samples',
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: 8),
           if (residuals.isNotEmpty)
             Text(
               'Latest recommendation: ${residuals.last.recommendationCode ?? 'none'}',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
         ],
       ),

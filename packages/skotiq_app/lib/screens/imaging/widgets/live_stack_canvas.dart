@@ -241,9 +241,7 @@ class _StackCanvasToolbar extends ConsumerWidget {
             ),
           ),
           SkotiqIconButton(
-            icon: overlayVisible
-                ? SkotiqIcons.visible
-                : SkotiqIcons.hidden,
+            icon: overlayVisible ? SkotiqIcons.visible : SkotiqIcons.hidden,
             tooltip: overlayVisible
                 ? 'Hide saved goals on the stack'
                 : 'Draw saved goals on the stack',

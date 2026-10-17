@@ -144,8 +144,8 @@ void main() {
       'nautical': namedNauticalTwilightBand,
       'astro': namedAstroTwilightBand,
     }.entries) {
-      final resolved = SkotiqChartColors.forTheme(
-          entry.value, SkotiqColors.redNight);
+      final resolved =
+          SkotiqChartColors.forTheme(entry.value, SkotiqColors.redNight);
       expect(
         painted,
         contains(resolved),

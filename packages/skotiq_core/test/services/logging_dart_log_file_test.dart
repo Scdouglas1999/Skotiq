@@ -166,10 +166,7 @@ void main() {
       LoggingService.isSkotiqLogFileName('skotiq-dart.log.2026-08-18'),
       isTrue,
     );
-    expect(
-      LoggingService.isSkotiqLogFileName('skotiq.log.2026-08-18'),
-      isTrue,
-    );
+    expect(LoggingService.isSkotiqLogFileName('skotiq.log.2026-08-18'), isTrue);
     expect(LoggingService.isSkotiqLogFileName('skotiq.log'), isTrue);
     // The endpoint's whole job is refusing anything else in that directory.
     expect(

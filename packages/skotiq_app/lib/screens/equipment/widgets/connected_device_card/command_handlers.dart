@@ -184,15 +184,15 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
                       borderSide: BorderSide(color: colors.primary),
                     ),
                   ),
-                  style: SkotiqTypography.body
-                      .copyWith(color: colors.textPrimary),
+                  style:
+                      SkotiqTypography.body.copyWith(color: colors.textPrimary),
                 ),
                 if (errorText != null) ...[
                   const SizedBox(height: 8),
                   Text(
                     errorText!,
-                    style: SkotiqTypography.bodySm
-                        .copyWith(color: colors.error),
+                    style:
+                        SkotiqTypography.bodySm.copyWith(color: colors.error),
                   ),
                 ],
               ],

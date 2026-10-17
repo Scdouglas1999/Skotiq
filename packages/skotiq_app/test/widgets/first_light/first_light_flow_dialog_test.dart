@@ -276,9 +276,7 @@ void main() {
       );
 
       expect(
-        tester
-            .widget<SkotiqDialog>(find.byType(SkotiqDialog))
-            .closeEnabled,
+        tester.widget<SkotiqDialog>(find.byType(SkotiqDialog)).closeEnabled,
         isFalse,
         reason: 'the ✕ pops the route directly, bypassing PopScope',
       );
@@ -344,13 +342,10 @@ void main() {
       );
 
       expect(
-        tester
-            .widget<SkotiqDialog>(find.byType(SkotiqDialog))
-            .closeEnabled,
+        tester.widget<SkotiqDialog>(find.byType(SkotiqDialog)).closeEnabled,
         isTrue,
       );
-      expect(
-          find.widgetWithText(SkotiqButton, 'Stop capture'), findsNothing);
+      expect(find.widgetWithText(SkotiqButton, 'Stop capture'), findsNothing);
     });
 
     testWidgets('success without a solve shows the set-up-solver banner',
@@ -499,12 +494,11 @@ void main() {
         ],
       );
 
-      await tester.tap(
-          find.widgetWithText(SkotiqButton, 'Troubleshoot connection'));
+      await tester
+          .tap(find.widgetWithText(SkotiqButton, 'Troubleshoot connection'));
       await tester.pumpAndSettle();
 
-      await tester
-          .tap(find.widgetWithText(SkotiqButton, 'Retry connection'));
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Retry connection'));
       await tester.pumpAndSettle();
 
       // Retry re-ran the flow at the original exposure length.
@@ -525,8 +519,7 @@ void main() {
         find.widgetWithText(SkotiqButton, 'Troubleshoot connection'),
         findsNothing,
       );
-      expect(
-          find.widgetWithText(SkotiqButton, 'Try again'), findsOneWidget);
+      expect(find.widgetWithText(SkotiqButton, 'Try again'), findsOneWidget);
     });
 
     testWidgets('Try again resets the controller back to the intro panel',

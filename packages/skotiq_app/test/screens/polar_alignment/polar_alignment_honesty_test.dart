@@ -91,8 +91,7 @@ Future<HarnessHandle> _pumpScreen(
   return handle;
 }
 
-SkotiqButton _startButton(WidgetTester tester) =>
-    tester.widget<SkotiqButton>(
+SkotiqButton _startButton(WidgetTester tester) => tester.widget<SkotiqButton>(
       find.byKey(PolarAlignmentTutorialKeys.startBtn),
     );
 

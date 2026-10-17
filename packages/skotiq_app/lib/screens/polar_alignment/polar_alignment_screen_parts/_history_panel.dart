@@ -216,8 +216,7 @@ extension _HistoryPanel on _PolarAlignmentScreenState {
               const SizedBox(width: 8),
               Text(
                 'Alignment history',
-                style:
-                    SkotiqTypography.h6.copyWith(color: colors.textPrimary),
+                style: SkotiqTypography.h6.copyWith(color: colors.textPrimary),
               ),
             ],
           ),

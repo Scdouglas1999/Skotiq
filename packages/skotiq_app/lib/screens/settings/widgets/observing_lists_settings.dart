@@ -524,8 +524,7 @@ class _ActionChip extends StatelessWidget {
           decoration: isDestructive
               ? SkotiqDecorations.emphasisSurface(
                   colors.error,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusMd),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                 )
               : SkotiqDecorations.chip(colors, tone: colors.primary),
           child: Row(

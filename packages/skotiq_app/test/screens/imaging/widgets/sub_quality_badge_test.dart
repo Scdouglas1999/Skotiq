@@ -110,8 +110,7 @@ void main() {
     // The rejection reason must be wired into the tooltip so the user can see
     // *why* the sub was rejected on hover. Inspect the widget property rather
     // than driving the hover overlay (deterministic, no animation timing).
-    final tooltip =
-        tester.widget<SkotiqTooltip>(find.byType(SkotiqTooltip));
+    final tooltip = tester.widget<SkotiqTooltip>(find.byType(SkotiqTooltip));
     expect(tooltip.message, contains('HFR 4.50 > 3.20'));
   });
 
@@ -155,8 +154,7 @@ void main() {
 
     expect(find.text('REJECT'), findsOneWidget);
 
-    final tooltip =
-        tester.widget<SkotiqTooltip>(find.byType(SkotiqTooltip));
+    final tooltip = tester.widget<SkotiqTooltip>(find.byType(SkotiqTooltip));
     expect(tooltip.message, contains('Guiding 2.00" > 1.20"'));
   });
 }

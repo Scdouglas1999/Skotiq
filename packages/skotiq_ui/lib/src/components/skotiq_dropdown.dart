@@ -243,10 +243,7 @@ class _SkotiqDropdownState extends State<SkotiqDropdown> {
       height: widget.height,
       alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: fieldHorizontalPadding),
-      decoration: SkotiqDecorations.field(
-        colors,
-        focused: _open || _focused,
-      ),
+      decoration: SkotiqDecorations.field(colors, focused: _open || _focused),
       child: Row(
         mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -401,10 +398,8 @@ class _DropdownMenuState extends State<_DropdownMenu> {
 
   /// Row height: the sheet's 32 for a pointer, [SkotiqTokens.minTouchTarget]
   /// for a finger.
-  double _rowHeight(BuildContext context) => math.max(
-    SkotiqTokens.buttonHeight,
-    SkotiqTouchTarget.minExtent(context),
-  );
+  double _rowHeight(BuildContext context) =>
+      math.max(SkotiqTokens.buttonHeight, SkotiqTouchTarget.minExtent(context));
 
   void _reveal() {
     if (!mounted || !_scroll.hasClients) return;

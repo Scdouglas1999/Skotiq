@@ -293,9 +293,7 @@ Uint8List _buildConnectPacket(MqttTransportConfig cfg) {
 
   // Payload: client id, optional username, optional password
   final payload = BytesBuilder();
-  payload.add(
-    _encodeString(cfg.clientId.isEmpty ? 'skotiq' : cfg.clientId),
-  );
+  payload.add(_encodeString(cfg.clientId.isEmpty ? 'skotiq' : cfg.clientId));
   if (cfg.username != null && cfg.username!.isNotEmpty) {
     payload.add(_encodeString(cfg.username!));
   }

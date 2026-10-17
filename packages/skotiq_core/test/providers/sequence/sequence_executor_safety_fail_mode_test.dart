@@ -20,8 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart'
-    as bridge_event;
+import 'package:skotiq_core/src/backend/skotiq_backend.dart' as bridge_event;
 
 import '../../mocks/mock_backend.dart';
 
@@ -105,8 +104,7 @@ void main() {
     container = null;
     pushedModes = [];
     backend = _PermissiveBackend();
-    eventController =
-        StreamController<bridge_event.SkotiqEvent>.broadcast();
+    eventController = StreamController<bridge_event.SkotiqEvent>.broadcast();
     when(() => backend.eventStream).thenAnswer((_) => eventController.stream);
     when(
       () => backend.polarAlignmentEvents,

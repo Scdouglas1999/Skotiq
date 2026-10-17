@@ -61,8 +61,7 @@ class _FrameInspectDialog extends ConsumerWidget {
               const SizedBox(height: SkotiqTokens.spaceMd),
               Expanded(
                 child: ClipRRect(
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusMd),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                   child: Container(
                     color: colors.background,
                     width: double.infinity,

@@ -345,8 +345,7 @@ void main() {
     final handle = await pumpAppScreen(
       tester,
       Builder(
-        builder: (context) =>
-            SequenceTree(colors: SkotiqColors.of(context)),
+        builder: (context) => SequenceTree(colors: SkotiqColors.of(context)),
       ),
       size: const Size(1200, 900),
       settle: false,

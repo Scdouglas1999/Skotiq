@@ -68,8 +68,7 @@ class FramingControlsSection extends ConsumerWidget {
         ] else ...[
           Text(
             'Configure equipment to see the field-of-view overlay',
-            style:
-                SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
           ),
         ],
 
@@ -80,8 +79,7 @@ class FramingControlsSection extends ConsumerWidget {
         // row, and the panel already carries its own value readout.
         Text(
           'Preview field of view',
-          style:
-              SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(height: SkotiqTokens.spaceXs),
         FramingPreviewFovSlider(
@@ -253,8 +251,7 @@ class FramingCoordinatesPanel extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 8),
                 child: Row(
                   children: [
-                    Icon(SkotiqIcons.warning,
-                        size: 12, color: colors.warning),
+                    Icon(SkotiqIcons.warning, size: 12, color: colors.warning),
                     const SizedBox(width: 6),
                     Text(
                       'Target below horizon',

@@ -30,8 +30,7 @@ Widget _app(ProviderContainer container) {
       theme: SkotiqTheme.dark,
       home: Scaffold(
         body: Builder(
-          builder: (context) =>
-              CapturePanel(colors: SkotiqColors.of(context)),
+          builder: (context) => CapturePanel(colors: SkotiqColors.of(context)),
         ),
       ),
     ),

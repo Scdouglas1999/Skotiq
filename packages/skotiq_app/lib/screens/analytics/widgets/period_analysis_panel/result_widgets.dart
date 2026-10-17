@@ -24,8 +24,8 @@ class _ResultColumn extends StatelessWidget {
         children: [
           Text(
             label,
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: 2),
           Text(
@@ -40,8 +40,7 @@ class _ResultColumn extends StatelessWidget {
             detail,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             textAlign: TextAlign.center,
           ),
           if (verdict != null) ...[
@@ -108,8 +107,7 @@ class _BlsStat extends StatelessWidget {
       children: [
         Text(
           label,
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
         Text(
           value,

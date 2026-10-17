@@ -26,14 +26,12 @@ class AnnotationQuickSettingChip extends StatelessWidget {
         decoration: isSelected
             ? SkotiqDecorations.selectedSurface(
                 colors.primary,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
                 fillAlpha: 0.18,
               )
             : BoxDecoration(
                 color: colors.surfaceAlt,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline4),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
                 border: Border.all(color: colors.border),
               ),
         child: Text(

@@ -67,8 +67,8 @@ class _ConnectAllProgressStrip extends ConsumerWidget {
           children: [
             Text(
               _stripHeadline(state),
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textSecondary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             ),
             const SizedBox(height: SkotiqTokens.spaceSm),
             Wrap(

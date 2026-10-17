@@ -302,8 +302,7 @@ class _ConstellationPickerDialogState
       backgroundColor: colors.surface,
       title: Text(
         'Constellation',
-        style:
-            SkotiqTypography.bodyStrong.copyWith(color: colors.textPrimary),
+        style: SkotiqTypography.bodyStrong.copyWith(color: colors.textPrimary),
       ),
       content: SizedBox(
         width: dialogMaxWidth(context, 380),

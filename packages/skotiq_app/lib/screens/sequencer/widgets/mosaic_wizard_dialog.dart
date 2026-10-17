@@ -26,8 +26,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    as planetarium;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' as planetarium;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'package:go_router/go_router.dart';
@@ -462,8 +461,7 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog> {
               margin: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: colors.background,
-                borderRadius:
-                    BorderRadius.circular(SkotiqTokens.radiusInline8),
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
                 border: Border.all(color: colors.border),
               ),
               clipBehavior: Clip.antiAlias,

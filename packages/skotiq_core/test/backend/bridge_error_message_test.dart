@@ -28,9 +28,7 @@ void main() {
         "'Mount A' does not support pulse guiding",
       );
       expect(
-        bridgeErrorMessage(
-          const bridge.SkotiqError.deviceNotFound('Camera 1'),
-        ),
+        bridgeErrorMessage(const bridge.SkotiqError.deviceNotFound('Camera 1')),
         "Device 'Camera 1' was not found",
       );
     });

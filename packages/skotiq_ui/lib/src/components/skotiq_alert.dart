@@ -176,9 +176,7 @@ class SkotiqAlert extends StatelessWidget {
             color: iconColor,
           ),
           SizedBox(
-            width: compact
-                ? SkotiqTokens.spaceSm
-                : SkotiqTokens.spaceMd,
+            width: compact ? SkotiqTokens.spaceSm : SkotiqTokens.spaceMd,
           ),
         ],
         Expanded(
@@ -204,9 +202,7 @@ class SkotiqAlert extends StatelessWidget {
               Text(
                 message,
                 style:
-                    (compact
-                            ? SkotiqTypography.bodySm
-                            : SkotiqTypography.body)
+                    (compact ? SkotiqTypography.bodySm : SkotiqTypography.body)
                         .copyWith(color: textColor.withValues(alpha: 0.9)),
               ),
               if (stacked && title == null) ...[
@@ -227,9 +223,7 @@ class SkotiqAlert extends StatelessWidget {
         ],
         if (onDismiss != null) ...[
           SizedBox(
-            width: compact
-                ? SkotiqTokens.spaceSm
-                : SkotiqTokens.spaceMd,
+            width: compact ? SkotiqTokens.spaceSm : SkotiqTokens.spaceMd,
           ),
           IconButton(
             icon: Icon(
@@ -379,11 +373,7 @@ class SkotiqInlineBanner extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (showIcon) ...[
-          Icon(
-            icon ?? _defaultIcon,
-            size: SkotiqTokens.iconSm,
-            color: color,
-          ),
+          Icon(icon ?? _defaultIcon, size: SkotiqTokens.iconSm, color: color),
           const SizedBox(width: SkotiqTokens.spaceSm),
         ],
         Flexible(
@@ -463,11 +453,7 @@ class SkotiqToast extends StatelessWidget {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            Icon(
-              icon ?? _defaultIcon,
-              size: SkotiqTokens.iconMd,
-              color: color,
-            ),
+            Icon(icon ?? _defaultIcon, size: SkotiqTokens.iconMd, color: color),
             const SizedBox(width: SkotiqTokens.spaceMd),
             Flexible(
               child: Text(

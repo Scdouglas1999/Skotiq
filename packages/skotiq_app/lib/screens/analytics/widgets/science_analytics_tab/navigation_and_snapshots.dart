@@ -25,8 +25,8 @@ Future<File> exportScienceShortcutReport({
   if (bytes.isEmpty) {
     throw StateError('The imaging host returned an empty science report.');
   }
-  final documents = await (documentsDirectoryProvider ??
-      resolveSkotiqDocumentsDirectory)();
+  final documents =
+      await (documentsDirectoryProvider ?? resolveSkotiqDocumentsDirectory)();
   final exportDirectory = Directory(
     path.join(documents.path, 'Skotiq', 'exports'),
   );

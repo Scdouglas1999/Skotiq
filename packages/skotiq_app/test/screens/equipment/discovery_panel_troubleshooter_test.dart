@@ -121,8 +121,7 @@ void main() {
       expect(find.text('Technical details'), findsOneWidget);
 
       // Pressing "Retry connection" resolves the future to true.
-      await tester
-          .tap(find.widgetWithText(SkotiqButton, 'Retry connection'));
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Retry connection'));
       await tester.pumpAndSettle();
       expect(await showFuture, isTrue);
     });
@@ -207,8 +206,7 @@ void main() {
       await tester.tap(_iconButton('Expand'));
       await tester.pumpAndSettle();
 
-      final connectButton =
-          find.widgetWithText(SkotiqButton, 'Connect').first;
+      final connectButton = find.widgetWithText(SkotiqButton, 'Connect').first;
       expect(connectButton, findsOneWidget);
 
       await tester.tap(connectButton);
@@ -228,8 +226,7 @@ void main() {
       // exactly once. The second attempt fails too; the mixin's single-retry
       // contract then surfaces the bare snackbar rather than re-opening the
       // troubleshooter (bounded by construction — no unbounded recursion).
-      await tester
-          .tap(find.widgetWithText(SkotiqButton, 'Retry connection'));
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Retry connection'));
       // Let the dialog's exit transition finish and the second connect attempt
       // fail. The dialog route's fade is ~150ms; pump well past it.
       await tester.pump();

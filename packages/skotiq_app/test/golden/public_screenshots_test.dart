@@ -21,8 +21,7 @@ import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard
 import 'package:skotiq_app/screens/settings/settings_screen.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 // Prefixed: this package and skotiq_core both export a TargetScore.
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    as planetarium;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' as planetarium;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../harness/harness.dart';

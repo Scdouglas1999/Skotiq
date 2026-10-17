@@ -404,8 +404,8 @@ class _PreFlightValidationDialogState
         children: [
           Text(
             explanation,
-            style: SkotiqTypography.bodySm
-                .copyWith(color: colors.textSecondary),
+            style:
+                SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
           Container(
@@ -414,8 +414,7 @@ class _PreFlightValidationDialogState
             decoration: SkotiqDecorations.well(colors),
             child: Text(
               error.toString(),
-              style:
-                  SkotiqTypography.monoXs.copyWith(color: colors.textMuted),
+              style: SkotiqTypography.monoXs.copyWith(color: colors.textMuted),
             ),
           ),
         ],

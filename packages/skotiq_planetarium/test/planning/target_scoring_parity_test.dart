@@ -186,9 +186,7 @@ void main() {
       // the REAL Dart scorer over a sweep and assert agreement. Editing either
       // side's constants without the other trips this.
       final candidates = [
-        File(
-          '../../native/skotiq_native/sequencer/src/scheduling/scoring.rs',
-        ),
+        File('../../native/skotiq_native/sequencer/src/scheduling/scoring.rs'),
         File(
           '${Directory.current.path}/../../native/skotiq_native/sequencer/'
           'src/scheduling/scoring.rs',
@@ -298,9 +296,7 @@ void main() {
       // parses only `fn score_altitude` cannot see the two scorers disagree
       // about moonlight, and `score_targets` picks the next target mid-run.
       final candidates = [
-        File(
-          '../../native/skotiq_native/sequencer/src/scheduling/scoring.rs',
-        ),
+        File('../../native/skotiq_native/sequencer/src/scheduling/scoring.rs'),
         File(
           '${Directory.current.path}/../../native/skotiq_native/sequencer/'
           'src/scheduling/scoring.rs',

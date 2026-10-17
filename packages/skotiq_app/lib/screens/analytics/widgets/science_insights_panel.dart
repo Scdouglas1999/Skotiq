@@ -87,8 +87,7 @@ class ScienceInsightsPanel extends ConsumerWidget {
           if (insights.isEmpty)
             Text(
               'No actionable insights yet. Keep capturing frames.',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             )
           else
             ...insights.map(

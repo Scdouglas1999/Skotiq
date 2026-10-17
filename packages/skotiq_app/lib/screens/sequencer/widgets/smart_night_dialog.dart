@@ -283,8 +283,8 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
                 Text(
                   'Cannot load Smart Night settings',
                   textAlign: TextAlign.center,
-                  style: SkotiqTypography.h5
-                      .copyWith(color: colors.textPrimary),
+                  style:
+                      SkotiqTypography.h5.copyWith(color: colors.textPrimary),
                 ),
                 const SizedBox(height: 6),
                 Text(

@@ -345,8 +345,8 @@ class _VersionRow extends StatelessWidget {
                             horizontal: 6, vertical: 1),
                         decoration: SkotiqDecorations.tintedBadge(
                           colors.success,
-                          borderRadius: BorderRadius.circular(
-                              SkotiqTokens.radiusInline4),
+                          borderRadius:
+                              BorderRadius.circular(SkotiqTokens.radiusInline4),
                         ),
                         child: Text(
                           'Latest',

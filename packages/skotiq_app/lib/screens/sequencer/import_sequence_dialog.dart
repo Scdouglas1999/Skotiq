@@ -360,8 +360,7 @@ class ImportSequenceFlow {
                 const SizedBox(height: 12),
                 if (errors.isNotEmpty) ...[
                   Text('Errors',
-                      style: SkotiqTypography.h6
-                          .copyWith(color: colors.error)),
+                      style: SkotiqTypography.h6.copyWith(color: colors.error)),
                   const SizedBox(height: 4),
                   for (final issue in errors)
                     Padding(
@@ -395,8 +394,8 @@ class ImportSequenceFlow {
                 if (warnings.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text('Warnings',
-                      style: SkotiqTypography.h6
-                          .copyWith(color: colors.warning)),
+                      style:
+                          SkotiqTypography.h6.copyWith(color: colors.warning)),
                   const SizedBox(height: 4),
                   for (final issue in warnings)
                     Padding(
@@ -410,8 +409,7 @@ class ImportSequenceFlow {
                 if (infos.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text('Info',
-                      style:
-                          SkotiqTypography.h6.copyWith(color: colors.info)),
+                      style: SkotiqTypography.h6.copyWith(color: colors.info)),
                   const SizedBox(height: 4),
                   for (final issue in infos)
                     Padding(
@@ -580,8 +578,7 @@ class ImportSequenceFlow {
   /// `true` on success, `false` if the user cancelled.
   static Future<bool> _loadSequenceWithDirtyCheck(
       BuildContext context, WidgetRef ref, Sequence sequence,
-      {bool discardUnsaved = false,
-      required SkotiqBackend authority}) async {
+      {bool discardUnsaved = false, required SkotiqBackend authority}) async {
     final editor = ref.read(currentSequenceProvider.notifier);
     try {
       editor.loadSequence(sequence, discardUnsaved: discardUnsaved);

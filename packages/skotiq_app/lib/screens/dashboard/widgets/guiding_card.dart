@@ -88,8 +88,7 @@ class _GuidingCardState extends ConsumerState<GuidingCard> {
             height: 60,
             decoration: BoxDecoration(
               color: colors.surfaceAlt,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
             ),
             child: isConnected && guideGraphData.isNotEmpty
                 ? ClipRRect(
@@ -197,14 +196,12 @@ class _DashboardGuidingGraphPainter extends CustomPainter {
     if (data.isEmpty) return;
 
     final paintRa = Paint()
-      ..color = SkotiqChartColors.forTheme(
-          SkotiqChartColors.seriesRed, colors)
+      ..color = SkotiqChartColors.forTheme(SkotiqChartColors.seriesRed, colors)
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
     final paintDec = Paint()
-      ..color = SkotiqChartColors.forTheme(
-          SkotiqChartColors.seriesBlue, colors)
+      ..color = SkotiqChartColors.forTheme(SkotiqChartColors.seriesBlue, colors)
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 

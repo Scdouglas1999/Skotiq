@@ -129,8 +129,7 @@ void main() {
 
       // Discovery now has two Configure buttons (INDI, then Alpaca); the
       // INDI row is declared first, so `.first` is the one under test.
-      final configure =
-          find.widgetWithText(SkotiqButton, 'Configure').first;
+      final configure = find.widgetWithText(SkotiqButton, 'Configure').first;
       await tester.ensureVisible(configure);
       await tester.tap(configure);
       await tester.pumpAndSettle();

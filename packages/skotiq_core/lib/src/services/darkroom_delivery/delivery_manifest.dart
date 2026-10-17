@@ -30,8 +30,7 @@ const int kDeliveryManifestVersion = 1;
 
 /// Domain separator for the manifest signing key, so the derived key cannot
 /// be reused as, or confused with, any other use of the same token digest.
-const String kDeliveryManifestSigningContext =
-    'skotiq.delivery.manifest.v1';
+const String kDeliveryManifestSigningContext = 'skotiq.delivery.manifest.v1';
 
 /// Algorithm name written into the signature envelope.
 const String kDeliveryManifestSignatureAlgorithm = 'hmac-sha256-token-v1';

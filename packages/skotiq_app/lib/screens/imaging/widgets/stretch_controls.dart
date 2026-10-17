@@ -206,8 +206,8 @@ class _ExpandedStretchControls extends StatelessWidget {
         SkotiqSwitchRow(
           label: 'Auto-Stretch',
           value: settings.enabled,
-          labelStyle: SkotiqTypography.labelStrong
-              .copyWith(color: colors.textPrimary),
+          labelStyle:
+              SkotiqTypography.labelStrong.copyWith(color: colors.textPrimary),
           onChanged: (value) {
             onSettingsChanged(settings.copyWith(enabled: value));
           },
@@ -515,8 +515,7 @@ class _MethodDropdown extends StatelessWidget {
             ),
             dropdownColor: colors.surface,
             borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textPrimary),
+            style: SkotiqTypography.caption.copyWith(color: colors.textPrimary),
             items: AutoStretchMethod.values.map((method) {
               return DropdownMenuItem<AutoStretchMethod>(
                 value: method,
@@ -608,8 +607,7 @@ class _SettingRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: SkotiqTypography.caption
-              .copyWith(color: colors.textSecondary),
+          style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
         if (tooltip != null) ...[
           const SizedBox(width: 4),
@@ -767,8 +765,7 @@ class _TextButtonState extends State<_TextButton> {
             decoration: BoxDecoration(
               color:
                   _isHovered ? widget.colors.surfaceHover : Colors.transparent,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
             ),
             child: Text(
               widget.label,

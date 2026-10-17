@@ -32,8 +32,8 @@ class _NoteTile extends StatelessWidget {
             children: [
               if (note.sentiment != null) ...[
                 Text(note.sentiment!,
-                    style: const TextStyle(
-                        fontSize: SkotiqTypography.fontSize14)),
+                    style:
+                        const TextStyle(fontSize: SkotiqTypography.fontSize14)),
                 const SizedBox(width: 6),
               ],
               if (note.title != null && note.title!.isNotEmpty)

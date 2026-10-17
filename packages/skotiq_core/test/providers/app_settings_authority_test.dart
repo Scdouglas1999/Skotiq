@@ -8,8 +8,7 @@ import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/database/daos/settings_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
-import 'package:skotiq_core/src/models/settings/app_settings.dart'
-    as models;
+import 'package:skotiq_core/src/models/settings/app_settings.dart' as models;
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';

@@ -50,8 +50,7 @@ Future<void> _pumpToolbar(
   await pumpAppScreen(
     tester,
     Builder(
-      builder: (context) =>
-          SequenceToolbar(colors: SkotiqColors.of(context)),
+      builder: (context) => SequenceToolbar(colors: SkotiqColors.of(context)),
     ),
     size: const Size(1600, 900),
     extraOverrides: [

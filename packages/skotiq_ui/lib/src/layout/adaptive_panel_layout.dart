@@ -619,8 +619,7 @@ class _PhoneSheet extends StatelessWidget {
                       const SizedBox(height: SkotiqTokens.spaceSm),
                     ],
                     for (var i = 0; i < panels.length; i++) ...[
-                      if (i > 0)
-                        const SizedBox(height: SkotiqTokens.spaceLg),
+                      if (i > 0) const SizedBox(height: SkotiqTokens.spaceLg),
                       if (panels.length > 1)
                         Padding(
                           padding: const EdgeInsets.only(

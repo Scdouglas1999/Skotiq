@@ -246,8 +246,7 @@ class _ApplyToggle extends ConsumerWidget {
         Expanded(
           child: Text(
             'Apply during capture',
-            style: SkotiqTypography.caption
-                .copyWith(color: colors.textPrimary),
+            style: SkotiqTypography.caption.copyWith(color: colors.textPrimary),
           ),
         ),
         SkotiqSwitch(
@@ -359,8 +358,7 @@ class _ClearButton extends ConsumerWidget {
       label: uiState.isClearing
           ? 'Clearing...'
           : 'Clear defect map for this camera at this temperature',
-      icon:
-          uiState.isClearing ? SkotiqIcons.loading : SkotiqIcons.delete,
+      icon: uiState.isClearing ? SkotiqIcons.loading : SkotiqIcons.delete,
       isOutline: true,
       colors: colors,
       isEnabled: buttonEnabled,

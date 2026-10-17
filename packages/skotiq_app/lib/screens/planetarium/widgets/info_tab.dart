@@ -415,8 +415,7 @@ class ImagingHistorySection extends ConsumerWidget {
               color: colors.textMuted.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
             ),
-            child:
-                Icon(SkotiqIcons.camera, size: 14, color: colors.textMuted),
+            child: Icon(SkotiqIcons.camera, size: 14, color: colors.textMuted),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -466,11 +465,10 @@ class ImagingHistorySection extends ConsumerWidget {
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: colors.primary.withValues(alpha: 0.15),
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusMd),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                 ),
-                child: Icon(SkotiqIcons.camera,
-                    size: 14, color: colors.primary),
+                child:
+                    Icon(SkotiqIcons.camera, size: 14, color: colors.primary),
               ),
               const SizedBox(width: 10),
               Text(
@@ -676,8 +674,7 @@ class ImagingHistorySection extends ConsumerWidget {
             height: 8,
             decoration: BoxDecoration(
               color: _filterColor(filterName),
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline2),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline2),
             ),
           ),
           const SizedBox(width: 8),

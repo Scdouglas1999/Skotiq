@@ -100,8 +100,8 @@ class SmartNightSafetyWatchdogsSection extends StatelessWidget {
         const SizedBox(height: 12),
         Text(
           'Safety & Watchdogs',
-          style: SkotiqTypography.labelStrong
-              .copyWith(color: colors.textPrimary),
+          style:
+              SkotiqTypography.labelStrong.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: 4),
         Text(

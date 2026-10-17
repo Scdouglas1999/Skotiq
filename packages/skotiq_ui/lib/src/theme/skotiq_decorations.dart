@@ -85,9 +85,7 @@ abstract final class SkotiqDecorations {
   /// [SkotiqColors.primary] at the call site.
   static BoxDecoration railItemSelected(SkotiqColors colors) {
     return BoxDecoration(
-      color: colors.primary.withValues(
-        alpha: SkotiqTokens.opacityAccentTint,
-      ),
+      color: colors.primary.withValues(alpha: SkotiqTokens.opacityAccentTint),
       borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
     );
   }
@@ -127,10 +125,7 @@ abstract final class SkotiqDecorations {
   ///
   /// Rare by design: 02 rule 4 says one panel style. Reach for it only where
   /// the tone IS the message — a warning block, a "session only" surface.
-  static BoxDecoration panelTinted(
-    SkotiqColors colors, {
-    required Color tone,
-  }) {
+  static BoxDecoration panelTinted(SkotiqColors colors, {required Color tone}) {
     return BoxDecoration(
       color: tone.withValues(alpha: SkotiqTokens.opacityStatusFill),
       borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),

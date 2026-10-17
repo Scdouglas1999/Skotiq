@@ -935,8 +935,7 @@ class _CampaignBadge extends ConsumerWidget {
             margin: const EdgeInsets.only(right: 4),
             decoration: SkotiqDecorations.emphasisSurface(
               colors.primary,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline4),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,

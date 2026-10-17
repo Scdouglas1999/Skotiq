@@ -178,8 +178,7 @@ void main() {
       await dao.setSetting('observer_name', 'restored-observer');
       final backupId = const Uuid().v4();
       final created = await service.createBackup(
-        customPath:
-            '${backupDir.path}/skotiq-backup-manual-$backupId.nsbackup',
+        customPath: '${backupDir.path}/skotiq-backup-manual-$backupId.nsbackup',
       );
       expect(created.success, isTrue, reason: created.errorMessage);
 

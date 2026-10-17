@@ -27,8 +27,7 @@ class _NoopDiscoveryNotifier extends UnifiedDiscoveryNotifier {
   }) async {}
 }
 
-SkotiqDatabase _newDb() =>
-    SkotiqDatabase.forTesting(NativeDatabase.memory());
+SkotiqDatabase _newDb() => SkotiqDatabase.forTesting(NativeDatabase.memory());
 
 /// Records whether the engine was asked to leave the app.
 class _SystemExitRecorder {

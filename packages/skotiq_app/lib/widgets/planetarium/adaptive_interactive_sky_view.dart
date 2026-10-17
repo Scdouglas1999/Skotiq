@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    as planetarium_v1;
+import 'package:skotiq_planetarium/skotiq_planetarium.dart' as planetarium_v1;
 
 /// Renders the planetarium sky using the v1 `skotiq_planetarium` engine.
 ///

@@ -126,8 +126,7 @@ class _FocusRingState extends State<FocusRing>
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
     final effectiveFocusColor = widget.focusColor ?? colors.primary;
-    final effectiveRadius =
-        widget.borderRadius ?? SkotiqTokens.borderRadiusMd;
+    final effectiveRadius = widget.borderRadius ?? SkotiqTokens.borderRadiusMd;
 
     return Focus(
       focusNode: _focusNode,

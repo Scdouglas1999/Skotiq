@@ -17,8 +17,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
-SkotiqDatabase _newDb() =>
-    SkotiqDatabase.forTesting(NativeDatabase.memory());
+SkotiqDatabase _newDb() => SkotiqDatabase.forTesting(NativeDatabase.memory());
 
 Widget _wrap(Widget child, ProviderContainer container) {
   return UncontrolledProviderScope(

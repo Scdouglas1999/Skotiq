@@ -160,10 +160,7 @@ class SkotiqTheme {
   /// `build()`, so a getter here re-derives a `ColorScheme`, a full `TextTheme`
   /// and ~30 sub-themes on every root rebuild only to have `ThemeData.==`
   /// discard the result. The inputs are compile-time constants.
-  static final ThemeData dark = _buildTheme(
-    SkotiqColors.dark,
-    Brightness.dark,
-  );
+  static final ThemeData dark = _buildTheme(SkotiqColors.dark, Brightness.dark);
 
   static final ThemeData light = _buildTheme(
     SkotiqColors.light,
@@ -277,9 +274,7 @@ class SkotiqTheme {
         systemOverlayStyle: systemUiOverlayStyleFor(
           ThemeData(brightness: brightness, extensions: [colors]),
         ),
-        titleTextStyle: SkotiqTypography.h4.copyWith(
-          color: colors.textPrimary,
-        ),
+        titleTextStyle: SkotiqTypography.h4.copyWith(color: colors.textPrimary),
       ),
       cardTheme: CardThemeData(
         color: colors.surfaceAlt,
@@ -295,9 +290,7 @@ class SkotiqTheme {
         surfaceTintColor: Colors.transparent,
         alignment: Alignment.center,
         shape: shape.copyWith(side: BorderSide(color: colors.border)),
-        titleTextStyle: SkotiqTypography.h4.copyWith(
-          color: colors.textPrimary,
-        ),
+        titleTextStyle: SkotiqTypography.h4.copyWith(color: colors.textPrimary),
         contentTextStyle: SkotiqTypography.body.copyWith(
           color: colors.textPrimary,
         ),
@@ -417,18 +410,14 @@ class SkotiqTheme {
           borderRadius: SkotiqTokens.borderRadiusSm,
           border: Border.all(color: colors.border),
         ),
-        textStyle: SkotiqTypography.caption.copyWith(
-          color: colors.textPrimary,
-        ),
+        textStyle: SkotiqTypography.caption.copyWith(color: colors.textPrimary),
       ),
       popupMenuTheme: PopupMenuThemeData(
         color: colors.surfaceElevated,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         shape: shape.copyWith(side: BorderSide(color: colors.border)),
-        textStyle: SkotiqTypography.body.copyWith(
-          color: colors.textPrimary,
-        ),
+        textStyle: SkotiqTypography.body.copyWith(color: colors.textPrimary),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: colors.surfaceElevated,

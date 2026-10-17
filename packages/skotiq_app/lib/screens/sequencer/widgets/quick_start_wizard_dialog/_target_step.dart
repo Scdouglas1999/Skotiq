@@ -39,18 +39,15 @@ extension _TargetStep on _QuickStartWizardDialogState {
                   )
                 : null,
             border: OutlineInputBorder(
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               borderSide: BorderSide(color: colors.border),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               borderSide: BorderSide(color: colors.border),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               borderSide: BorderSide(color: colors.primary),
             ),
             filled: true,
@@ -68,8 +65,7 @@ extension _TargetStep on _QuickStartWizardDialogState {
             constraints: const BoxConstraints(maxHeight: 150),
             decoration: BoxDecoration(
               color: colors.surfaceAlt,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
               border: Border.all(color: colors.border),
             ),
             // The rows are ListTiles inside a decorated box, so without an
@@ -191,8 +187,7 @@ extension _TargetStep on _QuickStartWizardDialogState {
             padding: const EdgeInsets.all(12),
             decoration: SkotiqDecorations.emphasisSurface(
               colors.primary,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
             ),
             child: Row(
               children: [

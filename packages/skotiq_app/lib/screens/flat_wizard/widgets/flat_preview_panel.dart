@@ -272,8 +272,7 @@ class _HistogramChart extends StatelessWidget {
           child: Text(
             'No data',
             style: TextStyle(
-                fontSize: SkotiqTypography.fontSize9,
-                color: colors.textMuted),
+                fontSize: SkotiqTypography.fontSize9, color: colors.textMuted),
           ),
         ),
       );

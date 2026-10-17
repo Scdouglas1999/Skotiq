@@ -458,8 +458,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
             padding: const EdgeInsets.all(12),
             decoration: SkotiqDecorations.tintedBadge(
               colors.primary,
-              borderRadius:
-                  BorderRadius.circular(SkotiqTokens.radiusInline8),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
             ),
             child: Row(
               children: [

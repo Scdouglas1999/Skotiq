@@ -388,8 +388,7 @@ class _StartersError extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'Failed to load starter sequences',
-              style:
-                  SkotiqTypography.h5.copyWith(color: colors.textPrimary),
+              style: SkotiqTypography.h5.copyWith(color: colors.textPrimary),
             ),
             const SizedBox(height: 6),
             Text(

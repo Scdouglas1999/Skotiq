@@ -97,9 +97,7 @@ void main() {
       'adds the column and reads a pre-v59 row as a recipe nobody drafted',
       () async {
         final seeded = await createV58Database(await tempDir('schema_'));
-        final upgraded = SkotiqDatabase.forTesting(
-          NativeDatabase(seeded.file),
-        );
+        final upgraded = SkotiqDatabase.forTesting(NativeDatabase(seeded.file));
         try {
           expect(
             await columnNames(upgraded, 'recipes'),
@@ -124,9 +122,7 @@ void main() {
       'the draft account round-trips through the DAO after upgrade',
       () async {
         final seeded = await createV58Database(await tempDir('roundtrip_'));
-        final upgraded = SkotiqDatabase.forTesting(
-          NativeDatabase(seeded.file),
-        );
+        final upgraded = SkotiqDatabase.forTesting(NativeDatabase(seeded.file));
         try {
           final dao = RecipesDao(upgraded);
           const notes = [
@@ -174,9 +170,7 @@ void main() {
 
     test('an id with no row is named, and corrupt text is refused', () async {
       final seeded = await createV58Database(await tempDir('errors_'));
-      final upgraded = SkotiqDatabase.forTesting(
-        NativeDatabase(seeded.file),
-      );
+      final upgraded = SkotiqDatabase.forTesting(NativeDatabase(seeded.file));
       try {
         final dao = RecipesDao(upgraded);
         // Reading an absent recipe's account as "none" would show a draft with

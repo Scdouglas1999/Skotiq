@@ -158,8 +158,7 @@ class FocuserBacklashOfferDialog extends ConsumerWidget {
                 ? 'Right now autofocus compensates ${effective.steps} steps, '
                     '${effective.provenance}.'
                 : 'Backlash compensation is off: ${effective.provenance}.',
-            style:
-                SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
+            style: SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
           Text(
@@ -167,8 +166,7 @@ class FocuserBacklashOfferDialog extends ConsumerWidget {
             'afterwards. Skipping focuses now and leaves the offer for next '
             "time; \"Don't ask again\" stops it for good — you can still "
             'measure from the Equipment screen whenever you want.',
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ],
       ),

@@ -167,8 +167,7 @@ class PopupInfoChip extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             value,
-            style:
-                SkotiqTypography.labelQuiet.copyWith(color: Colors.white70),
+            style: SkotiqTypography.labelQuiet.copyWith(color: Colors.white70),
           ),
         ],
       ),

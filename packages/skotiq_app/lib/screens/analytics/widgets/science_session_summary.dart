@@ -244,8 +244,7 @@ class ScienceSessionSummary extends ConsumerWidget {
     );
   }
 
-  Color _toneForTransparency(
-      TransparencySampleRow? t, SkotiqColors colors) {
+  Color _toneForTransparency(TransparencySampleRow? t, SkotiqColors colors) {
     if (t == null) return colors.textMuted;
     if (t.transparencyPercent >= 90) return colors.success;
     if (t.transparencyPercent >= 75) return colors.info;

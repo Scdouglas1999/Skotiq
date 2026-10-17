@@ -212,8 +212,7 @@ class _SeriesChartCard extends StatelessWidget {
           child: Center(
             child: Text(
               '$title has no data yet',
-              style:
-                  SkotiqTypography.body.copyWith(color: colors.textMuted),
+              style: SkotiqTypography.body.copyWith(color: colors.textMuted),
             ),
           ),
         ),

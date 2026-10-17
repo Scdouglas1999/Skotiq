@@ -555,10 +555,7 @@ class _TabCount extends StatelessWidget {
       // which would expand the chip to the width the tab was offered.
       child: Center(
         widthFactor: 1,
-        child: Text(
-          count,
-          style: SkotiqChip.textStyle().copyWith(color: tone),
-        ),
+        child: Text(count, style: SkotiqChip.textStyle().copyWith(color: tone)),
       ),
     );
   }

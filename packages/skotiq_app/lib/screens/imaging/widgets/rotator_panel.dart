@@ -322,16 +322,15 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
               (mechanicalAngle - angle).abs() > 0.1)
             Text(
               'Mechanical: ${mechanicalAngle.toStringAsFixed(1)}°',
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textMuted),
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           if (!_isConnected)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
                 'Rotator not connected',
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted),
+                style:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
               ),
             ),
         ],
@@ -359,8 +358,8 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
             child: TextField(
               controller: _angleController,
               focusNode: _angleFocusNode,
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textPrimary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
               decoration: InputDecoration(
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -368,11 +367,11 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
                 isDense: true,
                 hintText:
                     '${minAngle.toStringAsFixed(1)} - ${maxAngle.toStringAsFixed(1)}',
-                hintStyle: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted),
+                hintStyle:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
                 suffixText: '°',
-                suffixStyle: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted),
+                suffixStyle:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
               ),
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
@@ -412,19 +411,19 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
             ),
             child: TextField(
               controller: _syncController,
-              style: SkotiqTypography.bodySm
-                  .copyWith(color: colors.textPrimary),
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
               decoration: InputDecoration(
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 border: InputBorder.none,
                 isDense: true,
                 hintText: 'Sky PA 0 - 360',
-                hintStyle: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted),
+                hintStyle:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
                 suffixText: '°',
-                suffixStyle: SkotiqTypography.caption
-                    .copyWith(color: colors.textMuted),
+                suffixStyle:
+                    SkotiqTypography.caption.copyWith(color: colors.textMuted),
               ),
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
@@ -516,13 +515,11 @@ class _RelativeMoveButtonState extends State<_RelativeMoveButton> {
           decoration: _isHovered && isEnabled
               ? SkotiqDecorations.selectedSurface(
                   widget.colors.primary,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusMd),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                 )
               : BoxDecoration(
                   color: widget.colors.background,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusMd),
+                  borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
                   border: Border.all(color: widget.colors.border),
                 ),
           // The cells are flexible, so the box narrows with the panel. Left as
