@@ -3,11 +3,11 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_bridge/nightshade_bridge.dart' as bridge;
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/auth_policy.dart';
-import 'package:nightshade_desktop/headless_api/handlers/depthlock_handlers.dart';
-import 'package:nightshade_desktop/headless_api/handlers/system_handlers.dart'
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/auth_policy.dart';
+import 'package:skotiq_desktop/headless_api/handlers/depthlock_handlers.dart';
+import 'package:skotiq_desktop/headless_api/handlers/system_handlers.dart'
     show availableHeadlessEndpoints;
 import 'package:shelf/shelf.dart';
 
@@ -83,7 +83,7 @@ DepthLockGoalDefinition definition({
 ///
 /// Extends [DisconnectedBackend] so every method this feature does not touch
 /// keeps failing closed, and raises the same
-/// `NightshadeError.operationFailed(<reason>)` with the same sentences the
+/// `SkotiqError.operationFailed(<reason>)` with the same sentences the
 /// Rust store raises — the handler classifies on those sentences, so a fake
 /// that invented friendlier ones would test nothing.
 class _FakeDepthLockBackend extends DisconnectedBackend {
@@ -91,7 +91,7 @@ class _FakeDepthLockBackend extends DisconnectedBackend {
   final List<String> ingested = [];
   var _generated = 0;
 
-  Never _missing(String goalId) => throw bridge.NightshadeError.operationFailed(
+  Never _missing(String goalId) => throw bridge.SkotiqError.operationFailed(
     'DepthLock goal $goalId does not exist',
   );
 
@@ -99,7 +99,7 @@ class _FakeDepthLockBackend extends DisconnectedBackend {
     final goal = goals[goalId];
     if (goal == null) _missing(goalId);
     if (goal.revision != expectedRevision) {
-      throw bridge.NightshadeError.operationFailed(
+      throw bridge.SkotiqError.operationFailed(
         'stale revision for DepthLock goal $goalId',
       );
     }
@@ -151,7 +151,7 @@ class _FakeDepthLockBackend extends DisconnectedBackend {
     String? goalId,
   }) async {
     if (definition.automaticCompletion && !definition.enabled) {
-      throw bridge.NightshadeError.operationFailed(
+      throw bridge.SkotiqError.operationFailed(
         'automaticCompletion requires enabled',
       );
     }
@@ -259,7 +259,7 @@ class _FakeDepthLockBackend extends DisconnectedBackend {
     DepthLockMeasurement measurement,
   ) async {
     if (measurement.scaleArcsec <= 0) {
-      throw bridge.NightshadeError.operationFailed(
+      throw bridge.SkotiqError.operationFailed(
         'scaleArcsec must be positive',
       );
     }
@@ -294,7 +294,7 @@ class _FakeDepthLockBackend extends DisconnectedBackend {
       pixelScaleArcsec: pixelScaleArcsec,
     );
     if (referencePath.endsWith('unsolved.fits') && pixelScaleArcsec == null) {
-      throw bridge.NightshadeError.operationFailed(
+      throw bridge.SkotiqError.operationFailed(
         '$referencePath carries no undistorted TAN solution',
       );
     }
@@ -337,7 +337,7 @@ class _FakeDepthLockBackend extends DisconnectedBackend {
 }
 
 class _TestBackendNotifier extends BackendNotifier {
-  _TestBackendNotifier(super.ref, NightshadeBackend backend) {
+  _TestBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
   }
 }

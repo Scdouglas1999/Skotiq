@@ -4,8 +4,8 @@ Source of items: `reports/release-pass/waveD-result.json` (`still_broken`:
 SKY-4 / SKY-10 / SKY-16; `new_findings`: D-1..D-4) and the cluster narrative
 `reports/release-pass/gui/waveD-sky-discovery.md`.
 
-Scope honoured: `packages/nightshade_planetarium/**`,
-`packages/nightshade_app/lib/screens/{planetarium,your_sky}/**` plus the owning
+Scope honoured: `packages/skotiq_planetarium/**`,
+`packages/skotiq_app/lib/screens/{planetarium,your_sky}/**` plus the owning
 packages' test dirs. No GUI harness was launched and no bundle was rebuilt (per
 the batch charter), so every claim below is pinned by a test that was **proved
 failing at HEAD behaviour** before the fix, by reverting the one line under test
@@ -30,7 +30,7 @@ partly right, and that is the whole finding:
   colour.
 
 I could not settle *why* the disabled flag does not survive to AT-SPI without
-the GUI harness (`NightshadeButton` does set `Semantics(enabled: !isDisabled)`,
+the GUI harness (`SkotiqButton` does set `Semantics(enabled: !isDisabled)`,
 and the harness prints `[DISABLED]` correctly for other node classes). So the
 fix does not depend on the answer: in the one state where the mode can never
 succeed — `From a target` with a loaded, empty library — the sheet no longer
@@ -121,10 +121,10 @@ re-pointing the provider at the observation clock: 2 of 3 failed, off by
 ## D-2 (P3) — planetarium tooltips never leave the a11y tree — BLOCKED (out of scope)
 
 Every string Wave D listed (`Search the sky`, `Reset view (zenith, FOV 60)`,
-`Equatorial view — …`, `Layers`) is produced by `NightshadeTooltip`, and the
+`Equatorial view — …`, `Layers`) is produced by `SkotiqTooltip`, and the
 planetarium call sites pass nothing but a message and a position — there is
 nothing wrong on this side to fix. The lifecycle lives in
-`packages/nightshade_ui/lib/src/components/nightshade_tooltip.dart`:
+`packages/skotiq_ui/lib/src/components/skotiq_tooltip.dart`:
 `_hideTooltip()` (~line 134) hangs the actual `_overlayController.hide()` off
 `_animController.reverse().then(...)`, and a `TickerFuture` that is interrupted by
 a later `forward()` **never completes** — so a tooltip re-shown during its own
@@ -178,10 +178,10 @@ the drawer's left edge at 620.
 
 ## Gates run
 
-- `packages/nightshade_planetarium`: `flutter test test/ --exclude-tags golden` →
+- `packages/skotiq_planetarium`: `flutter test test/ --exclude-tags golden` →
   **558 passing**. `flutter analyze lib test` → 6 infos, all `hasFlag`
   deprecations, the same idiom five existing app tests already use.
-- `packages/nightshade_app`: `flutter test test/screens/planetarium
+- `packages/skotiq_app`: `flutter test test/screens/planetarium
   test/screens/your_sky` → **204 passing**. `flutter analyze` on the four touched
   dirs → clean apart from 4 pre-existing `clampPanelWidth` deprecation infos in
   `planetarium_screen/layouts.dart`.
@@ -198,7 +198,7 @@ the drawer's left edge at 620.
   test file from a concurrent D-fix batch, failing against its own in-flight edit
   to `dashboard_header_actions.dart`. It passed in my first run of that directory
   and failed in the next, with no change of mine in between.
-- Mid-session, `nightshade_core`'s `SchedulerEngine` briefly did not compile
+- Mid-session, `skotiq_core`'s `SchedulerEngine` briefly did not compile
   (`ownsRun` / `_ownsDispatchedRun` undefined) — another batch's SEQ-12 work
   landing. It cleared on its own.
 
@@ -206,7 +206,7 @@ the drawer's left edge at 620.
 
 `dart format` was run only on the three planetarium files whose new code it
 touched (that package is format-clean, so the diff is my additions only). The
-`nightshade_app` package is **not** `dart format`-clean at HEAD — formatting
+`skotiq_app` package is **not** `dart format`-clean at HEAD — formatting
 `planetarium_shell.dart` straight from `git show HEAD` rewrites it — so its edits
 were hand-matched to the surrounding style rather than formatted, per the
 no-repo-wide-formatter rule.

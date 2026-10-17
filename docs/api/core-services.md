@@ -1,12 +1,12 @@
 # Core Services API Reference
 
-Core services provide high-level business logic and data management for the Nightshade application. Services are located in `packages/nightshade_core/lib/src/services/`.
+Core services provide high-level business logic and data management for the Skotiq application. Services are located in `packages/skotiq_core/lib/src/services/`.
 
 ## ImagingService
 
 Service for managing camera capture operations.
 
-**Location:** `packages/nightshade_core/lib/src/services/imaging_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/imaging_service.dart`
 
 ### `captureImage`
 
@@ -45,7 +45,7 @@ final image = await service.captureImage(
 
 Service for device discovery, connection management, and communication.
 
-**Location:** `packages/nightshade_core/lib/src/services/device_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/device_service.dart`
 
 Handles:
 - Device discovery across ASCOM, INDI, Alpaca, and native protocols
@@ -57,7 +57,7 @@ Handles:
 
 Service for managing imaging sessions with checkpoint recovery.
 
-**Location:** `packages/nightshade_core/lib/src/services/session_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/session_service.dart`
 
 Features:
 - Session lifecycle management (start, pause, resume, end)
@@ -69,7 +69,7 @@ Features:
 
 Service for plate solving operations.
 
-**Location:** `packages/nightshade_core/lib/src/services/plate_solve_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/plate_solve_service.dart`
 
 Provides:
 - ASTAP plate solver integration
@@ -81,7 +81,7 @@ Provides:
 
 Service for managing equipment profiles.
 
-**Location:** `packages/nightshade_core/lib/src/services/profile_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/profile_service.dart`
 
 Handles:
 - Equipment profile CRUD operations
@@ -93,7 +93,7 @@ Handles:
 
 Service for sequence file I/O operations.
 
-**Location:** `packages/nightshade_core/lib/src/services/sequence_file_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/sequence_file_service.dart`
 
 Provides:
 - Sequence JSON serialization/deserialization
@@ -104,7 +104,7 @@ Provides:
 
 Repository for sequence data management and persistence.
 
-**Location:** `packages/nightshade_core/lib/src/services/sequence_repository.dart`
+**Location:** `packages/skotiq_core/lib/src/services/sequence_repository.dart`
 
 Handles:
 - Sequence CRUD in database
@@ -115,7 +115,7 @@ Handles:
 
 Service for focus modeling and prediction.
 
-**Location:** `packages/nightshade_core/lib/src/services/focus_model_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/focus_model_service.dart`
 
 Features:
 - Temperature compensation modeling
@@ -126,7 +126,7 @@ Features:
 
 Service for automated target centering.
 
-**Location:** `packages/nightshade_core/lib/src/services/centering_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/centering_service.dart`
 
 Provides:
 - Iterative plate solving for centering
@@ -137,7 +137,7 @@ Provides:
 
 Service for image annotations and catalog overlays.
 
-**Location:** `packages/nightshade_core/lib/src/services/annotation_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/annotation_service.dart`
 
 Features:
 - Celestial object identification
@@ -148,7 +148,7 @@ Features:
 
 Service for World Coordinate System overlays on images.
 
-**Location:** `packages/nightshade_core/lib/src/services/wcs_overlay.dart`
+**Location:** `packages/skotiq_core/lib/src/services/wcs_overlay.dart`
 
 Provides:
 - Coordinate grid rendering
@@ -159,7 +159,7 @@ Provides:
 
 Service for automated flat frame capture.
 
-**Location:** `packages/nightshade_core/lib/src/services/flat_wizard_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/flat_wizard_service.dart`
 
 Features:
 - Optimal exposure calculation
@@ -170,7 +170,7 @@ Features:
 
 Service for mosaic planning and execution.
 
-**Location:** `packages/nightshade_core/lib/src/services/mosaic_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/mosaic_service.dart`
 
 Provides:
 - Panel layout calculation
@@ -181,7 +181,7 @@ Provides:
 
 Service for sequence scheduling and time-based automation.
 
-**Location:** `packages/nightshade_core/lib/src/services/scheduler_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/scheduler_service.dart`
 
 Handles:
 - Target scheduling based on altitude/visibility
@@ -191,49 +191,49 @@ Handles:
 ## Weather Services
 
 ### WeatherRadarService
-**Location:** `packages/nightshade_core/lib/src/services/weather/weather_radar_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/weather/weather_radar_service.dart`
 
 Fetches and processes weather radar imagery.
 
 ### WeatherAlertService
-**Location:** `packages/nightshade_core/lib/src/services/weather/weather_alert_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/weather/weather_alert_service.dart`
 
 Generates safety alerts based on conditions.
 
 ### CloudMotionAnalyzer
-**Location:** `packages/nightshade_core/lib/src/services/weather/cloud_motion_analyzer.dart`
+**Location:** `packages/skotiq_core/lib/src/services/weather/cloud_motion_analyzer.dart`
 
 Analyzes cloud motion patterns for prediction.
 
 ## Utility Services
 
 ### BackupService
-**Location:** `packages/nightshade_core/lib/src/services/backup_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/backup_service.dart`
 
 Database and settings backup/restore.
 
 ### AutoSaveService
-**Location:** `packages/nightshade_core/lib/src/services/auto_save_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/auto_save_service.dart`
 
 Automatic state persistence.
 
 ### LoggingService
-**Location:** `packages/nightshade_core/lib/src/services/logging_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/logging_service.dart`
 
 Application logging and diagnostics.
 
 ### ErrorService
-**Location:** `packages/nightshade_core/lib/src/services/error_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/error_service.dart`
 
 Error reporting and handling.
 
 ### SessionExportService
-**Location:** `packages/nightshade_core/lib/src/services/session_export_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/session_export_service.dart`
 
 Session data export to various formats.
 
 ### DeviceMatchingService
-**Location:** `packages/nightshade_core/lib/src/services/device_matching_service.dart`
+**Location:** `packages/skotiq_core/lib/src/services/device_matching_service.dart`
 
 Profile-to-device matching for auto-connect.
 

@@ -18,7 +18,7 @@ refused **every** frame it was handed. So the stack really did contain one frame
 reference), and `Stacked Frames 1` was true; the Stop dialog was not under-reporting.
 
 **The real defect, same shape, worse.** `Stacker::add_frame`
-(`native/nightshade_native/imaging/src/stacking.rs`) increments
+(`native/skotiq_native/imaging/src/stacking.rs`) increments
 `total_frames_attempted` and `rejected_alignment_failures` **before** returning its
 error. The Dart side threw that error away (`catch (e) { log warning }`), so the panel
 kept the statistics of the last ACCEPTED frame: `Total Attempted 1 · Rejected
@@ -33,7 +33,7 @@ Fix:
 * `LiveStackingNotifier._publishRejectionStats` publishes that tally for both the
   local and the remote (host-polled) paths.
 
-Ladder: `packages/nightshade_core/test/services/live_stacking_rejection_stats_test.dart`
+Ladder: `packages/skotiq_core/test/services/live_stacking_rejection_stats_test.dart`
 — with the publish disabled the counter test fails `Expected: <180> Actual: <1>`,
 which is the live symptom exactly.
 
@@ -41,7 +41,7 @@ which is the live symptom exactly.
 
 Two of IMG-4's three pieces of evidence do not survive re-reading:
 * "no `.wcs` on disk" — since the SCI-48 fix each attempt runs in
-  `/tmp/nightshade-solve-<pid>-N/`, so the sidecar is no longer written beside the
+  `/tmp/skotiq-solve-<pid>-N/`, so the sidecar is no longer written beside the
   operator's frame. The verifier's own report notes that change.
 * "no outcome line in the log" — `app.log` carries only the Rust tracing stream; the
   solve outcome is logged Dart-side. It was, however, genuinely absent for the
@@ -93,7 +93,7 @@ regenerate. Reading the profile inside the service is both smaller and better: t
 hint cannot go missing at one call site.)
 
 **BLOCKED (native).** The path that runs in production is Rust, and it drops the hint
-on purpose: `native/nightshade_native/imaging/src/platesolve.rs:832` —
+on purpose: `native/skotiq_native/imaging/src/platesolve.rs:832` —
 "hint_scale: ASTAP expects -fov in degrees (field of view), not arcsec/pixel. We don't
 have sensor pixel size here, so skip it." The image height IS available (the solver has
 the FITS path), so the fix is `-fov = hint_scale × NAXIS2 ÷ 3600` there. It needs no FRB
@@ -178,7 +178,7 @@ correct — that half of ND-5 no longer reproduces.
 
 **Not done here:** the same shape on the Guide Graph's two dropdowns
 (`panel: Time: 5m [DISABLED]`, `panel: Scale: ±2" [DISABLED]`). They live in
-`packages/nightshade_ui/lib/src/widgets/phd2/guide_graph_advanced.dart` — the shared
+`packages/skotiq_ui/lib/src/widgets/phd2/guide_graph_advanced.dart` — the shared
 design-system package, outside this batch's scope and the natural property of whoever
 owns the a11y/design-system batch.
 
@@ -186,13 +186,13 @@ owns the a11y/design-system batch.
 
 ## Verification
 
-* `nightshade_core`: `test/services` + `test/providers` — **4373 passed, 4 skipped, 0
+* `skotiq_core`: `test/services` + `test/providers` — **4373 passed, 4 skipped, 0
   failed**.
-* `nightshade_app`: `test/screens/{imaging,guiding,polar_alignment}` + `test/widgets/phd2`,
+* `skotiq_app`: `test/screens/{imaging,guiding,polar_alignment}` + `test/widgets/phd2`,
   `--exclude-tags golden` — 323 + 23 green. The two `captures_landscape_test.dart`
   golden failures are host-specific baselines, `@Tags(['golden'])`, excluded by
   `melos run test`, and fail at HEAD on this machine too.
-* `nightshade_app` FULL suite, `--exclude-tags golden` — **3378 passed, 4 failed**. All
+* `skotiq_app` FULL suite, `--exclude-tags golden` — **3378 passed, 4 failed**. All
   four failures are in `screens/onboarding` and `screens/settings`
   (`device_picker_backend_failure`, `filter_wheel_slot_cap` ×2,
   `remote_access_pairing_phrase`), whose production files

@@ -9,195 +9,195 @@ apps/desktop/lib/headless_api_server/event_forwarding.dart:320:  /// scaffolds t
 apps/mobile/lib/screens/replay/session_replay_screen.dart:57:      // genuinely not implemented, and an empty timeline would read as a
 apps/mobile/lib/services/voice_control_service.dart:40:/// becomes a visible failure rather than a silent no-op.
 apps/mobile/lib/services/voice_control_service.dart:40:/// failure rather than a silent no-op.
-native/nightshade_native/alpaca/src/client/config.rs:199:        .unwrap_or_default()
-native/nightshade_native/alpaca/src/safetymonitor.rs:286:            driver_info: driver_info.unwrap_or_default(),
-native/nightshade_native/alpaca/src/switch.rs:159:            let request_line = request.lines().next().unwrap_or_default().to_string();
-native/nightshade_native/alpaca/src/telescope.rs:1046:            let request_line = request.lines().next().unwrap_or_default().to_string();
-native/nightshade_native/alpaca/src/telescope.rs:1047:                "HTTP error 400: Method not implemented: canfindhome".to_string()
-native/nightshade_native/alpaca/src/telescope.rs:16:        Err(error) if error.to_ascii_lowercase().contains("not implemented") => Ok(false),
-native/nightshade_native/ascom/src/windows/connection.rs:1380:                description: "Property Gain is not implemented by this camera",
-native/nightshade_native/ascom/src/windows/connection.rs:1389:            err.contains("Property Gain is not implemented by this camera"),
-native/nightshade_native/ascom/src/windows/connection.rs:181:            let registry_description = get_driver_description(&key, &prog_id).unwrap_or_default();
-native/nightshade_native/ascom/src/windows/switch.rs:317:        let max_switch = self.max_switch().ok();
-native/nightshade_native/bridge/src/api/finishing_analyze.rs:593:            .unwrap_or_default(),
-native/nightshade_native/bridge/src/api/finishing_analyze.rs:597:            .unwrap_or_default(),
-native/nightshade_native/bridge/src/api/imaging.rs:1733:        let mut ext = p.extension().map(|e| e.to_owned()).unwrap_or_default();
-native/nightshade_native/bridge/src/api/imaging.rs:1964:    let config = config.unwrap_or_default();
-native/nightshade_native/bridge/src/api/imaging/sim_exposure_tests.rs:320:    let previous = crate::state::get_platesolver_preference().unwrap_or_default();
-native/nightshade_native/bridge/src/api/imaging/sim_exposure_tests.rs:60:    let previous = crate::state::get_platesolver_preference().unwrap_or_default();
-native/nightshade_native/bridge/src/api/mod.rs:103:        .unwrap_or_default()
-native/nightshade_native/bridge/src/api/mod.rs:122:/// silent no-op — and silent no-ops mask real bugs. If a
-native/nightshade_native/bridge/src/api/post_session/helpers.rs:136:            .unwrap_or_default(),
-native/nightshade_native/bridge/src/api/post_session/helpers.rs:140:            .unwrap_or_default(),
-native/nightshade_native/bridge/src/api/post_session/helpers.rs:487:    let data = master.as_f32().unwrap_or_default();
-native/nightshade_native/bridge/src/api/sequencer/mosaic.rs:190:            auth_token: s.config.auth_token.clone().unwrap_or_default(),
-native/nightshade_native/bridge/src/api/sequencer/mosaic.rs:191:            watermark_template: s.config.watermark_text.clone().unwrap_or_default(),
-native/nightshade_native/bridge/src/api/sky_atlas/tests.rs:135:    std::fs::remove_dir_all(&dir).ok();
-native/nightshade_native/bridge/src/api/sky_atlas/tests.rs:154:    std::fs::remove_dir_all(&dir).ok();
-native/nightshade_native/bridge/src/api/sky_atlas/tests.rs:195:    std::fs::remove_dir_all(&dir).ok();
-native/nightshade_native/bridge/src/api/sky_atlas/tests.rs:265:    std::fs::remove_dir_all(&dir).ok();
-native/nightshade_native/bridge/src/api/sky_atlas/tests.rs:306:    std::fs::remove_dir_all(&dir).ok();
-native/nightshade_native/bridge/src/api/sky_atlas/tests.rs:355:    std::fs::remove_dir_all(&dir).ok();
-native/nightshade_native/bridge/src/api/sky_atlas/tests.rs:387:    std::fs::remove_dir_all(&dir).ok();
-native/nightshade_native/bridge/src/api/sky_atlas/tests.rs:444:    std::fs::remove_dir_all(&dir).ok();
-native/nightshade_native/bridge/src/api/sky_atlas/tests.rs:472:    std::fs::remove_dir_all(&dir).ok();
-native/nightshade_native/bridge/src/ascom_wrapper/camera.rs:1229:            .unwrap_or_default()
-native/nightshade_native/bridge/src/ascom_wrapper/camera.rs:1361:            .unwrap_or_default()
-native/nightshade_native/bridge/src/ascom_wrapper/camera.rs:1554:            Err("not implemented".to_string())
-native/nightshade_native/bridge/src/ascom_wrapper/camera.rs:1562:            Err("not implemented".to_string())
-native/nightshade_native/bridge/src/ascom_wrapper/camera.rs:1590:            "CoolerPower is not implemented (reported by ASCOM.Simulator.Camera, 0x80040400)";
-native/nightshade_native/bridge/src/ascom_wrapper/camera.rs:474:                            let readout_modes = cam.readout_modes().unwrap_or_default();
-native/nightshade_native/bridge/src/depthlock_service/store.rs:293:                .unwrap_or_default() // Why: a non-UTF-8 file stem yields "", which valid_goal_id below rejects
-native/nightshade_native/bridge/src/device_capabilities/alpaca.rs:172:                camera.disconnect().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/alpaca.rs:209:                focuser.disconnect().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/alpaca.rs:264:                fw.disconnect().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/alpaca.rs:298:                rotator.disconnect().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/alpaca.rs:343:                dome.disconnect().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/alpaca.rs:393:                cc.disconnect().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/alpaca.rs:445:                weather.disconnect().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/alpaca.rs:471:                safety.disconnect().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/alpaca.rs:500:                let description = switch.get_switch_description(i).await.unwrap_or_default(); // Why: ISwitchV2.GetSwitchDescription(i) — empty string OK; UI hides empty descriptions
-native/nightshade_native/bridge/src/device_capabilities/alpaca.rs:532:                switch.disconnect().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/alpaca.rs:53:                .unwrap_or_default()
-native/nightshade_native/bridge/src/device_capabilities/alpaca.rs:97:                telescope.disconnect().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/ascom.rs:373:            let position = wrapper.get_position().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/ascom.rs:440:        let position = fw.position().ok();
-native/nightshade_native/bridge/src/device_capabilities/ascom.rs:646:            let description = switch.get_switch_description(i).unwrap_or_default(); // Why: ISwitchV2.GetSwitchDescription(i) — empty OK; UI hides empty descriptions
-native/nightshade_native/bridge/src/device_capabilities/indi.rs:317:        let filter_names = filter_wheel.get_names().await.unwrap_or_default();
-native/nightshade_native/bridge/src/device_capabilities/native.rs:144:                let tracking = mount.get_tracking().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/native.rs:172:                let position = focuser.get_position().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/native.rs:203:                let names = fw.get_filter_names().await.unwrap_or_default();
-native/nightshade_native/bridge/src/device_capabilities/native.rs:236:                let position = rotator.get_position().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/native.rs:237:                let mechanical_position = rotator.get_mechanical_position().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/native.rs:275:                let azimuth = dome.get_azimuth().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/native.rs:404:                    .unwrap_or_default()
-native/nightshade_native/bridge/src/device_capabilities/native.rs:443:                let brightness = cover.get_brightness().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/native.rs:64:                let gain_range = camera.get_gain_range().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/native.rs:65:                let offset_range = camera.get_offset_range().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/native.rs:70:                let readout_modes = camera.get_readout_modes().await.unwrap_or_default();
-native/nightshade_native/bridge/src/device_capabilities/native.rs:71:                let status = camera.get_status().await.ok();
-native/nightshade_native/bridge/src/device_capabilities/types.rs:586:        // signal for a driver whose MaxStep is not implemented.
-native/nightshade_native/bridge/src/device_id/mod.rs:397:            let device_index = idx_str.parse::<i32>().ok();
-native/nightshade_native/bridge/src/device_id/mod.rs:434:                    let device_index = payload.parse::<i32>().ok();
-native/nightshade_native/bridge/src/device_id/mod.rs:456:        let device_index = device_id_str.parse::<i32>().ok();
-native/nightshade_native/bridge/src/device_manager/connection.rs:814:    /// `connect_simulator`): a silent no-op would hide bugs where the user
-native/nightshade_native/bridge/src/device_manager/ops/camera/download.rs:242:                        let temp = camera.get_temperature().await.ok();
-native/nightshade_native/bridge/src/device_manager/ops/camera/download.rs:575:                offset_x: Err("BayerOffsetX not implemented".to_string()),
-native/nightshade_native/bridge/src/device_manager/ops/camera/download.rs:576:                offset_y: Err("BayerOffsetY not implemented".to_string()),
-native/nightshade_native/bridge/src/device_manager/ops/camera/download.rs:683:            offset_y: Err("BayerOffsetY not implemented".to_string()),
-native/nightshade_native/bridge/src/device_manager/ops/camera/download.rs:96:                    let temp = camera.ccd_temperature().await.ok();
-native/nightshade_native/bridge/src/device_manager/ops/camera/mod.rs:461:        let previous = crate::state::get_platesolver_preference().unwrap_or_default();
-native/nightshade_native/bridge/src/device_manager/ops/camera/mod.rs:571:        let previous = crate::state::get_platesolver_preference().unwrap_or_default();
-native/nightshade_native/bridge/src/device_manager/ops/camera/status.rs:141:                    let gain = camera.gain().await.ok();
-native/nightshade_native/bridge/src/device_manager/ops/camera/status.rs:142:                    let offset = camera.offset().await.ok();
-native/nightshade_native/bridge/src/device_manager/ops/camera/status.rs:26:                        let ascom_caps = camera_guard.get_capabilities().await.ok();
-native/nightshade_native/bridge/src/dispatch/device_common_metadata.rs:132:    let interface_version = device.interface_version().await.ok();
-native/nightshade_native/bridge/src/dispatch/device_common_metadata.rs:133:    let driver_version = device.driver_version().await.ok();
-native/nightshade_native/bridge/src/dispatch/device_common_metadata.rs:134:    let driver_info = device.driver_info().await.ok();
-native/nightshade_native/bridge/src/dispatch/native.rs:113:                            .unwrap_or_default()
-native/nightshade_native/bridge/src/event/correlation.rs:123:/// `duration_since(UNIX_EPOCH).unwrap_or_default()` — only fails if the
-native/nightshade_native/bridge/src/event/correlation.rs:134:        .unwrap_or_default()
-native/nightshade_native/bridge/src/hotplug.rs:190:    tracing::debug!("USB hotplug listener is not implemented for this Unix platform yet");
-native/nightshade_native/bridge/src/hotplug.rs:536:        .unwrap_or_default()
-native/nightshade_native/bridge/src/lib.rs:334:        LOG_DIR.set(log_path.clone()).ok();
-native/nightshade_native/bridge/src/lib.rs:341:        LOG_GUARD.set(guard).ok();
-native/nightshade_native/bridge/src/lib.rs:445:    writeln!(output, "=== Nightshade Log Export ===").ok();
-native/nightshade_native/bridge/src/lib.rs:446:    writeln!(output, "Exported: {}", chrono::Local::now().to_rfc3339()).ok();
-native/nightshade_native/bridge/src/lib.rs:447:    writeln!(output, "").ok();
-native/nightshade_native/bridge/src/lib.rs:454:        writeln!(output, "\n=== {} ===\n", log_file).ok();
-native/nightshade_native/bridge/src/lib.rs:456:            write!(output, "{}", content).ok();
-native/nightshade_native/bridge/src/sim_sky.rs:644:                let home = std::env::var("HOME").unwrap_or_default();
-native/nightshade_native/bridge/src/util/supervisor.rs:269:            GLOBAL_WRITER.set(writer.clone()).ok();
-native/nightshade_native/imaging/src/background_extraction.rs:947:        image.as_u16().unwrap_or_default()
-native/nightshade_native/imaging/src/platesolve.rs:1751:        stdout: stdout_reader.join().unwrap_or_default(),
-native/nightshade_native/imaging/src/platesolve.rs:1752:        stderr: stderr_reader.join().unwrap_or_default(),
-native/nightshade_native/imaging/src/platesolve.rs:2758:                .unwrap_or_default()
-native/nightshade_native/imaging/src/platesolve.rs:2812:                .unwrap_or_default()
-native/nightshade_native/imaging/src/platesolve.rs:2864:                .unwrap_or_default()
-native/nightshade_native/imaging/src/platesolve.rs:2983:        let combined = auto_result.error.unwrap_or_default();
-native/nightshade_native/imaging/src/platesolve.rs:3016:            .unwrap_or_default()
-native/nightshade_native/imaging/src/platesolve.rs:3076:                .unwrap_or_default()
-native/nightshade_native/imaging/src/platesolve.rs:571:                    return value.parse::<f64>().ok();
-native/nightshade_native/imaging/src/platesolve.rs:988:        let stdout_bytes = stdout_reader.join().unwrap_or_default();
-native/nightshade_native/imaging/src/platesolve.rs:989:        let stderr_bytes = stderr_reader.join().unwrap_or_default();
-native/nightshade_native/imaging/src/raw.rs:13://! * The remaining sites (`user_sat.unwrap_or_default()`,
-native/nightshade_native/imaging/src/raw.rs:15://!   `max_memory_mb.unwrap_or_default()`) are all paired with a
-native/nightshade_native/imaging/src/raw.rs:527:            user_sat: params.user_sat.unwrap_or_default(),
-native/nightshade_native/imaging/src/raw.rs:543:            max_memory_mb: params.max_memory_mb.unwrap_or_default() as c_uint,
-native/nightshade_native/indi/src/autofocus.rs:169:        let current_temperature = self.focuser.get_temperature().await.ok();
-native/nightshade_native/indi/src/client/properties.rs:228:            .unwrap_or_default();
-native/nightshade_native/indi/src/client/reader.rs:409:                                            group: get_attribute(e, "group").unwrap_or_default(),
-native/nightshade_native/indi/src/client/reader.rs:669:                    let text = e.unescape().unwrap_or_default().to_string();
-native/nightshade_native/indi/src/error.rs:155:                    .unwrap_or_default();
-native/nightshade_native/native/src/vendor/player_one/camera_ops.rs:157:        let sensor_temp = self.get_control_float(POAConfig::POA_TEMPERATURE).ok();
-native/nightshade_native/native/src/vendor/player_one/camera_ops.rs:170:            let live_enabled = self.get_control_bool(POAConfig::POA_COOLER).ok();
-native/nightshade_native/native/src/vendor/player_one/camera_ops.rs:348:        let temperature = self.get_control_float(POAConfig::POA_TEMPERATURE).ok();
-native/nightshade_native/native/src/vendor/player_one/camera_ops.rs:353:        let heater_power = self.get_control_int(POAConfig::POA_HEATER_POWER).ok();
-native/nightshade_native/native/src/vendor/qhy/camera_ops.rs:178:            .ok();
-native/nightshade_native/native/src/vendor/qhy/camera_ops.rs:380:        let temperature = self.get_control(QhyControl::CONTROL_CURTEMP).ok();
-native/nightshade_native/native/src/vendor/touptek/camera.rs:10:// SAFETY: HOgmacam is a `*mut c_void` opaque camera handle returned by Ogmacam_Open. The struct is always wrapped in `Mutex<HandleWrapper>` in TouptekCamera; the pointer is never dereferenced or modified outside `touptek_mutex().lock().await` + `handle.lock().unwrap()` sections (see all call sites in this module — every SDK call captures the handle value while both locks are held). Marking Send is therefore equivalent to a hand-serialized capability. Sync is intentionally NOT implemented (see comment block below).
-native/nightshade_native/native/src/vendor/zwo/camera_ops.rs:247:        let temp = self.read_temperature_celsius_sync().ok();
-native/nightshade_native/native/src/vendor/zwo/camera_ops.rs:520:            .ok();
-native/nightshade_native/sequencer/src/executor/start.rs:373:            .unwrap_or_default();
-native/nightshade_native/sequencer/src/executor/start.rs:420:            .unwrap_or_default();
-native/nightshade_native/sequencer/src/executor/start.rs:4455:                                                    result.message.unwrap_or_default()
-native/nightshade_native/sequencer/src/executor/start.rs:4639:                                                result.message.unwrap_or_default()
-native/nightshade_native/sequencer/src/executor/start.rs:4773:                                                            .unwrap_or_default()
-native/nightshade_native/sequencer/src/executor/start/trigger_monitor.rs:1789:                                    result.message.unwrap_or_default()
-native/nightshade_native/sequencer/src/executor/start/trigger_monitor.rs:1959:                                result.message.unwrap_or_default()
-native/nightshade_native/sequencer/src/executor/start/trigger_monitor.rs:2087:                                            .unwrap_or_default()
-native/nightshade_native/sequencer/src/instructions/autofocus.rs:202:                config.filter.as_deref().unwrap_or_default().trim()
-native/nightshade_native/sequencer/src/instructions/grading.rs:489:                            .unwrap_or_default(),
-native/nightshade_native/sequencer/src/meridian_flip_executor.rs:1093:        ctx.autofocus_config.clone().unwrap_or_default()
-native/nightshade_native/sequencer/src/node/instructions/expose.rs:1202:            .unwrap_or_default();
-native/nightshade_native/sequencer/src/node/instructions/expose.rs:471:                    .unwrap_or_default();
-native/nightshade_native/sequencer/src/node/instructions/science_photometry.rs:572:    states.get(node_id).cloned().unwrap_or_default()
-native/nightshade_native/sequencer/src/node/instructions/smart_exposure.rs:619:    states.get(node_id).cloned().unwrap_or_default()
-native/nightshade_native/sequencer/src/node/logic/target_scheduler.rs:1005:            .unwrap_or_default();
-native/nightshade_native/sequencer/src/node/logic/target_scheduler.rs:632:                header.brightness_tier_hint.unwrap_or_default(),
-native/nightshade_native/sequencer/src/node/logic/target_scheduler.rs:645:                .unwrap_or_default(),
-native/nightshade_native/sequencer/src/node/progress.rs:555:                    .unwrap_or_default();
-native/nightshade_native/sequencer/src/node/progress.rs:654:                    .unwrap_or_default();
-native/nightshade_native/sequencer/src/node/progress.rs:713:                .unwrap_or_default();
-native/nightshade_native/sequencer/src/scheduling/adaptive_swap.rs:418:        self.checked_duration_since(other).unwrap_or_default()
-packages/nightshade_app/lib/screens/analytics/analytics_screen/session_detail_dialog.dart:117:                          // "UnimplementedError: shareXFiles() has not been
-packages/nightshade_app/lib/screens/analytics/analytics_screen/session_detail_dialog.dart:387:  /// `UnimplementedError: shareXFiles() has not been implemented on Linux` in
-packages/nightshade_app/lib/screens/diagnostics/diagnostic_dump_screen.dart:182:      // Android/iOS, so asking for one there threw UnimplementedError and this
-packages/nightshade_app/lib/screens/imaging/tabs/mount_tab.dart:103:    // `canPark` no longer ships a button that hits a "Not implemented"
-packages/nightshade_app/lib/screens/imaging/widgets/annotation_panel.dart:103:/// UnimplementedError), which made both annotation exports dead on a phone. On
-packages/nightshade_app/lib/screens/imaging/widgets/annotation_panel_parts/objects_panel.dart:15:/// Android/iOS have no save dialog (`getSavePath` throws UnimplementedError),
-packages/nightshade_app/lib/screens/planetarium/planetarium_screen/actions.dart:180:      // UnimplementedError there — so the chart goes to a sandbox path and
-packages/nightshade_app/lib/screens/planetarium/widgets/view_controls.dart:366:      // UnimplementedError there — so the chart goes to a sandbox path and
-packages/nightshade_app/lib/screens/sequencer/tabs/sequence_library_tab/sequence_card.dart:838:        // UnimplementedError: getSavePath() has not been implemented."
-packages/nightshade_app/lib/screens/sequencer/widgets/node_summary_inline_editors.dart:203:    // '+' re-applies 4+1 and is a silent no-op, while the popup keeps
-packages/nightshade_app/lib/screens/settings/backup_screen.dart:410:  /// UnimplementedError — so on those platforms the file goes to a sandbox path
-packages/nightshade_app/lib/screens/settings/backup_screen.dart:44:/// iOS have no save dialog (`getSavePath` throws UnimplementedError), so
-packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/screen_shell.dart:74:/// save dialog (`getSavePath` throws UnimplementedError), so exporting a
-packages/nightshade_app/lib/screens/settings/widgets/notification_routing_settings/discord_transport_section.dart:94:          return const _PrepResult.ok();
-packages/nightshade_app/lib/screens/settings/widgets/notification_routing_settings/email_transport_section.dart:98:          return const _PrepResult.ok();
-packages/nightshade_app/lib/screens/settings/widgets/notification_routing_settings/mqtt_transport_section.dart:101:          return const _PrepResult.ok();
-packages/nightshade_app/lib/screens/settings/widgets/notification_routing_settings/pushover_transport_section.dart:112:          return const _PrepResult.ok();
-packages/nightshade_app/lib/screens/settings/widgets/notification_routing_settings/telegram_transport_section.dart:66:          return const _PrepResult.ok();
-packages/nightshade_app/lib/screens/settings/widgets/notification_routing_settings/webhook_transport_section.dart:64:          return const _PrepResult.ok();
-packages/nightshade_app/lib/screens/settings/widgets/solver_detection_card.dart:393:    // error rather than a silent no-op.
-packages/nightshade_app/lib/screens/tonight/one_tap_tonight_controller.dart:88:/// loud failure rather than a silent no-op so the screen can explain *why*
-packages/nightshade_app/lib/services/file_download_service.dart:115:    // throws UnimplementedError on Android/iOS, so this branch must never be
-packages/nightshade_app/lib/services/sequence_action_service.dart:159:  /// this async callback) we return a silent no-op instead of issuing a
-packages/nightshade_bridge/lib/src/api.dart:21:/// silent no-op — and silent no-ops mask real bugs. If a
-packages/nightshade_core/lib/src/backend/network_backend/device_operations.dart:541:          'cameraGetRecommendedSettings not implemented on remote '
-packages/nightshade_core/lib/src/models/sequence/instruction_progress_detail.dart:7:/// newer native emitters do not become silent no-ops on older Dart clients.
-packages/nightshade_core/lib/src/providers/remote_sync/equipment_mirror.dart:289:    } catch (_) {}
-packages/nightshade_core/lib/src/providers/settings_sections/app_settings_partial_persistence_mapping.dart:223:  /// Errors are a feature here: a silent no-op here would mean a
-packages/nightshade_core/lib/src/services/device_service/connections/imaging_chain.dart:228:      // instead of a silent no-op so the equipment screen's bulk-disconnect
-packages/nightshade_core/lib/src/services/notification/transports/email_transport.dart:154:      return NotificationResult.ok();
-packages/nightshade_core/lib/src/services/notification/transports/in_app_transport.dart:50:    return NotificationResult.ok();
-packages/nightshade_core/lib/src/services/notification/transports/mqtt_transport.dart:119:          '[Notifications/MQTT] QoS 2 downgraded to QoS 1 (PUBREC/PUBREL not implemented).',
-packages/nightshade_core/lib/src/services/notification/transports/mqtt_transport.dart:14:// QoS 2 is intentionally not implemented; a user choice of 2 downgrades to 1
-packages/nightshade_core/lib/src/services/notification/transports/mqtt_transport.dart:14:// QoS 2 is intentionally not implemented; if the user picks 2 we
-packages/nightshade_core/lib/src/services/notification/transports/mqtt_transport.dart:160:      return NotificationResult.ok();
-packages/nightshade_core/lib/src/services/notification/transports/system_push_transport.dart:50:      return NotificationResult.ok();
-packages/nightshade_core/lib/src/services/notification/transports/system_push_transport.dart:55:      return NotificationResult.ok();
-packages/nightshade_core/lib/src/services/notification/transports/system_push_transport.dart:68:    return NotificationResult.ok();
-packages/nightshade_core/lib/src/services/snippet_file_service.dart:146:  /// threw UnimplementedError and snippet export was dead on a phone. There the
-packages/nightshade_core/lib/src/utils/export_target.dart:41:/// throws `UnimplementedError: getSavePath() has not been implemented.` Every
-packages/nightshade_core/lib/src/utils/export_target.dart:45:/// emulator: "Failed to export: UnimplementedError: getSavePath() has not been
+native/skotiq_native/alpaca/src/client/config.rs:199:        .unwrap_or_default()
+native/skotiq_native/alpaca/src/safetymonitor.rs:286:            driver_info: driver_info.unwrap_or_default(),
+native/skotiq_native/alpaca/src/switch.rs:159:            let request_line = request.lines().next().unwrap_or_default().to_string();
+native/skotiq_native/alpaca/src/telescope.rs:1046:            let request_line = request.lines().next().unwrap_or_default().to_string();
+native/skotiq_native/alpaca/src/telescope.rs:1047:                "HTTP error 400: Method not implemented: canfindhome".to_string()
+native/skotiq_native/alpaca/src/telescope.rs:16:        Err(error) if error.to_ascii_lowercase().contains("not implemented") => Ok(false),
+native/skotiq_native/ascom/src/windows/connection.rs:1380:                description: "Property Gain is not implemented by this camera",
+native/skotiq_native/ascom/src/windows/connection.rs:1389:            err.contains("Property Gain is not implemented by this camera"),
+native/skotiq_native/ascom/src/windows/connection.rs:181:            let registry_description = get_driver_description(&key, &prog_id).unwrap_or_default();
+native/skotiq_native/ascom/src/windows/switch.rs:317:        let max_switch = self.max_switch().ok();
+native/skotiq_native/bridge/src/api/finishing_analyze.rs:593:            .unwrap_or_default(),
+native/skotiq_native/bridge/src/api/finishing_analyze.rs:597:            .unwrap_or_default(),
+native/skotiq_native/bridge/src/api/imaging.rs:1733:        let mut ext = p.extension().map(|e| e.to_owned()).unwrap_or_default();
+native/skotiq_native/bridge/src/api/imaging.rs:1964:    let config = config.unwrap_or_default();
+native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs:320:    let previous = crate::state::get_platesolver_preference().unwrap_or_default();
+native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs:60:    let previous = crate::state::get_platesolver_preference().unwrap_or_default();
+native/skotiq_native/bridge/src/api/mod.rs:103:        .unwrap_or_default()
+native/skotiq_native/bridge/src/api/mod.rs:122:/// silent no-op — and silent no-ops mask real bugs. If a
+native/skotiq_native/bridge/src/api/post_session/helpers.rs:136:            .unwrap_or_default(),
+native/skotiq_native/bridge/src/api/post_session/helpers.rs:140:            .unwrap_or_default(),
+native/skotiq_native/bridge/src/api/post_session/helpers.rs:487:    let data = master.as_f32().unwrap_or_default();
+native/skotiq_native/bridge/src/api/sequencer/mosaic.rs:190:            auth_token: s.config.auth_token.clone().unwrap_or_default(),
+native/skotiq_native/bridge/src/api/sequencer/mosaic.rs:191:            watermark_template: s.config.watermark_text.clone().unwrap_or_default(),
+native/skotiq_native/bridge/src/api/sky_atlas/tests.rs:135:    std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/bridge/src/api/sky_atlas/tests.rs:154:    std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/bridge/src/api/sky_atlas/tests.rs:195:    std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/bridge/src/api/sky_atlas/tests.rs:265:    std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/bridge/src/api/sky_atlas/tests.rs:306:    std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/bridge/src/api/sky_atlas/tests.rs:355:    std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/bridge/src/api/sky_atlas/tests.rs:387:    std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/bridge/src/api/sky_atlas/tests.rs:444:    std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/bridge/src/api/sky_atlas/tests.rs:472:    std::fs::remove_dir_all(&dir).ok();
+native/skotiq_native/bridge/src/ascom_wrapper/camera.rs:1229:            .unwrap_or_default()
+native/skotiq_native/bridge/src/ascom_wrapper/camera.rs:1361:            .unwrap_or_default()
+native/skotiq_native/bridge/src/ascom_wrapper/camera.rs:1554:            Err("not implemented".to_string())
+native/skotiq_native/bridge/src/ascom_wrapper/camera.rs:1562:            Err("not implemented".to_string())
+native/skotiq_native/bridge/src/ascom_wrapper/camera.rs:1590:            "CoolerPower is not implemented (reported by ASCOM.Simulator.Camera, 0x80040400)";
+native/skotiq_native/bridge/src/ascom_wrapper/camera.rs:474:                            let readout_modes = cam.readout_modes().unwrap_or_default();
+native/skotiq_native/bridge/src/depthlock_service/store.rs:293:                .unwrap_or_default() // Why: a non-UTF-8 file stem yields "", which valid_goal_id below rejects
+native/skotiq_native/bridge/src/device_capabilities/alpaca.rs:172:                camera.disconnect().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/alpaca.rs:209:                focuser.disconnect().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/alpaca.rs:264:                fw.disconnect().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/alpaca.rs:298:                rotator.disconnect().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/alpaca.rs:343:                dome.disconnect().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/alpaca.rs:393:                cc.disconnect().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/alpaca.rs:445:                weather.disconnect().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/alpaca.rs:471:                safety.disconnect().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/alpaca.rs:500:                let description = switch.get_switch_description(i).await.unwrap_or_default(); // Why: ISwitchV2.GetSwitchDescription(i) — empty string OK; UI hides empty descriptions
+native/skotiq_native/bridge/src/device_capabilities/alpaca.rs:532:                switch.disconnect().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/alpaca.rs:53:                .unwrap_or_default()
+native/skotiq_native/bridge/src/device_capabilities/alpaca.rs:97:                telescope.disconnect().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/ascom.rs:373:            let position = wrapper.get_position().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/ascom.rs:440:        let position = fw.position().ok();
+native/skotiq_native/bridge/src/device_capabilities/ascom.rs:646:            let description = switch.get_switch_description(i).unwrap_or_default(); // Why: ISwitchV2.GetSwitchDescription(i) — empty OK; UI hides empty descriptions
+native/skotiq_native/bridge/src/device_capabilities/indi.rs:317:        let filter_names = filter_wheel.get_names().await.unwrap_or_default();
+native/skotiq_native/bridge/src/device_capabilities/native.rs:144:                let tracking = mount.get_tracking().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/native.rs:172:                let position = focuser.get_position().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/native.rs:203:                let names = fw.get_filter_names().await.unwrap_or_default();
+native/skotiq_native/bridge/src/device_capabilities/native.rs:236:                let position = rotator.get_position().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/native.rs:237:                let mechanical_position = rotator.get_mechanical_position().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/native.rs:275:                let azimuth = dome.get_azimuth().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/native.rs:404:                    .unwrap_or_default()
+native/skotiq_native/bridge/src/device_capabilities/native.rs:443:                let brightness = cover.get_brightness().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/native.rs:64:                let gain_range = camera.get_gain_range().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/native.rs:65:                let offset_range = camera.get_offset_range().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/native.rs:70:                let readout_modes = camera.get_readout_modes().await.unwrap_or_default();
+native/skotiq_native/bridge/src/device_capabilities/native.rs:71:                let status = camera.get_status().await.ok();
+native/skotiq_native/bridge/src/device_capabilities/types.rs:586:        // signal for a driver whose MaxStep is not implemented.
+native/skotiq_native/bridge/src/device_id/mod.rs:397:            let device_index = idx_str.parse::<i32>().ok();
+native/skotiq_native/bridge/src/device_id/mod.rs:434:                    let device_index = payload.parse::<i32>().ok();
+native/skotiq_native/bridge/src/device_id/mod.rs:456:        let device_index = device_id_str.parse::<i32>().ok();
+native/skotiq_native/bridge/src/device_manager/connection.rs:814:    /// `connect_simulator`): a silent no-op would hide bugs where the user
+native/skotiq_native/bridge/src/device_manager/ops/camera/download.rs:242:                        let temp = camera.get_temperature().await.ok();
+native/skotiq_native/bridge/src/device_manager/ops/camera/download.rs:575:                offset_x: Err("BayerOffsetX not implemented".to_string()),
+native/skotiq_native/bridge/src/device_manager/ops/camera/download.rs:576:                offset_y: Err("BayerOffsetY not implemented".to_string()),
+native/skotiq_native/bridge/src/device_manager/ops/camera/download.rs:683:            offset_y: Err("BayerOffsetY not implemented".to_string()),
+native/skotiq_native/bridge/src/device_manager/ops/camera/download.rs:96:                    let temp = camera.ccd_temperature().await.ok();
+native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs:461:        let previous = crate::state::get_platesolver_preference().unwrap_or_default();
+native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs:571:        let previous = crate::state::get_platesolver_preference().unwrap_or_default();
+native/skotiq_native/bridge/src/device_manager/ops/camera/status.rs:141:                    let gain = camera.gain().await.ok();
+native/skotiq_native/bridge/src/device_manager/ops/camera/status.rs:142:                    let offset = camera.offset().await.ok();
+native/skotiq_native/bridge/src/device_manager/ops/camera/status.rs:26:                        let ascom_caps = camera_guard.get_capabilities().await.ok();
+native/skotiq_native/bridge/src/dispatch/device_common_metadata.rs:132:    let interface_version = device.interface_version().await.ok();
+native/skotiq_native/bridge/src/dispatch/device_common_metadata.rs:133:    let driver_version = device.driver_version().await.ok();
+native/skotiq_native/bridge/src/dispatch/device_common_metadata.rs:134:    let driver_info = device.driver_info().await.ok();
+native/skotiq_native/bridge/src/dispatch/native.rs:113:                            .unwrap_or_default()
+native/skotiq_native/bridge/src/event/correlation.rs:123:/// `duration_since(UNIX_EPOCH).unwrap_or_default()` — only fails if the
+native/skotiq_native/bridge/src/event/correlation.rs:134:        .unwrap_or_default()
+native/skotiq_native/bridge/src/hotplug.rs:190:    tracing::debug!("USB hotplug listener is not implemented for this Unix platform yet");
+native/skotiq_native/bridge/src/hotplug.rs:536:        .unwrap_or_default()
+native/skotiq_native/bridge/src/lib.rs:334:        LOG_DIR.set(log_path.clone()).ok();
+native/skotiq_native/bridge/src/lib.rs:341:        LOG_GUARD.set(guard).ok();
+native/skotiq_native/bridge/src/lib.rs:445:    writeln!(output, "=== Skotiq Log Export ===").ok();
+native/skotiq_native/bridge/src/lib.rs:446:    writeln!(output, "Exported: {}", chrono::Local::now().to_rfc3339()).ok();
+native/skotiq_native/bridge/src/lib.rs:447:    writeln!(output, "").ok();
+native/skotiq_native/bridge/src/lib.rs:454:        writeln!(output, "\n=== {} ===\n", log_file).ok();
+native/skotiq_native/bridge/src/lib.rs:456:            write!(output, "{}", content).ok();
+native/skotiq_native/bridge/src/sim_sky.rs:644:                let home = std::env::var("HOME").unwrap_or_default();
+native/skotiq_native/bridge/src/util/supervisor.rs:269:            GLOBAL_WRITER.set(writer.clone()).ok();
+native/skotiq_native/imaging/src/background_extraction.rs:947:        image.as_u16().unwrap_or_default()
+native/skotiq_native/imaging/src/platesolve.rs:1751:        stdout: stdout_reader.join().unwrap_or_default(),
+native/skotiq_native/imaging/src/platesolve.rs:1752:        stderr: stderr_reader.join().unwrap_or_default(),
+native/skotiq_native/imaging/src/platesolve.rs:2758:                .unwrap_or_default()
+native/skotiq_native/imaging/src/platesolve.rs:2812:                .unwrap_or_default()
+native/skotiq_native/imaging/src/platesolve.rs:2864:                .unwrap_or_default()
+native/skotiq_native/imaging/src/platesolve.rs:2983:        let combined = auto_result.error.unwrap_or_default();
+native/skotiq_native/imaging/src/platesolve.rs:3016:            .unwrap_or_default()
+native/skotiq_native/imaging/src/platesolve.rs:3076:                .unwrap_or_default()
+native/skotiq_native/imaging/src/platesolve.rs:571:                    return value.parse::<f64>().ok();
+native/skotiq_native/imaging/src/platesolve.rs:988:        let stdout_bytes = stdout_reader.join().unwrap_or_default();
+native/skotiq_native/imaging/src/platesolve.rs:989:        let stderr_bytes = stderr_reader.join().unwrap_or_default();
+native/skotiq_native/imaging/src/raw.rs:13://! * The remaining sites (`user_sat.unwrap_or_default()`,
+native/skotiq_native/imaging/src/raw.rs:15://!   `max_memory_mb.unwrap_or_default()`) are all paired with a
+native/skotiq_native/imaging/src/raw.rs:527:            user_sat: params.user_sat.unwrap_or_default(),
+native/skotiq_native/imaging/src/raw.rs:543:            max_memory_mb: params.max_memory_mb.unwrap_or_default() as c_uint,
+native/skotiq_native/indi/src/autofocus.rs:169:        let current_temperature = self.focuser.get_temperature().await.ok();
+native/skotiq_native/indi/src/client/properties.rs:228:            .unwrap_or_default();
+native/skotiq_native/indi/src/client/reader.rs:409:                                            group: get_attribute(e, "group").unwrap_or_default(),
+native/skotiq_native/indi/src/client/reader.rs:669:                    let text = e.unescape().unwrap_or_default().to_string();
+native/skotiq_native/indi/src/error.rs:155:                    .unwrap_or_default();
+native/skotiq_native/native/src/vendor/player_one/camera_ops.rs:157:        let sensor_temp = self.get_control_float(POAConfig::POA_TEMPERATURE).ok();
+native/skotiq_native/native/src/vendor/player_one/camera_ops.rs:170:            let live_enabled = self.get_control_bool(POAConfig::POA_COOLER).ok();
+native/skotiq_native/native/src/vendor/player_one/camera_ops.rs:348:        let temperature = self.get_control_float(POAConfig::POA_TEMPERATURE).ok();
+native/skotiq_native/native/src/vendor/player_one/camera_ops.rs:353:        let heater_power = self.get_control_int(POAConfig::POA_HEATER_POWER).ok();
+native/skotiq_native/native/src/vendor/qhy/camera_ops.rs:178:            .ok();
+native/skotiq_native/native/src/vendor/qhy/camera_ops.rs:380:        let temperature = self.get_control(QhyControl::CONTROL_CURTEMP).ok();
+native/skotiq_native/native/src/vendor/touptek/camera.rs:10:// SAFETY: HOgmacam is a `*mut c_void` opaque camera handle returned by Ogmacam_Open. The struct is always wrapped in `Mutex<HandleWrapper>` in TouptekCamera; the pointer is never dereferenced or modified outside `touptek_mutex().lock().await` + `handle.lock().unwrap()` sections (see all call sites in this module — every SDK call captures the handle value while both locks are held). Marking Send is therefore equivalent to a hand-serialized capability. Sync is intentionally NOT implemented (see comment block below).
+native/skotiq_native/native/src/vendor/zwo/camera_ops.rs:247:        let temp = self.read_temperature_celsius_sync().ok();
+native/skotiq_native/native/src/vendor/zwo/camera_ops.rs:520:            .ok();
+native/skotiq_native/sequencer/src/executor/start.rs:373:            .unwrap_or_default();
+native/skotiq_native/sequencer/src/executor/start.rs:420:            .unwrap_or_default();
+native/skotiq_native/sequencer/src/executor/start.rs:4455:                                                    result.message.unwrap_or_default()
+native/skotiq_native/sequencer/src/executor/start.rs:4639:                                                result.message.unwrap_or_default()
+native/skotiq_native/sequencer/src/executor/start.rs:4773:                                                            .unwrap_or_default()
+native/skotiq_native/sequencer/src/executor/start/trigger_monitor.rs:1789:                                    result.message.unwrap_or_default()
+native/skotiq_native/sequencer/src/executor/start/trigger_monitor.rs:1959:                                result.message.unwrap_or_default()
+native/skotiq_native/sequencer/src/executor/start/trigger_monitor.rs:2087:                                            .unwrap_or_default()
+native/skotiq_native/sequencer/src/instructions/autofocus.rs:202:                config.filter.as_deref().unwrap_or_default().trim()
+native/skotiq_native/sequencer/src/instructions/grading.rs:489:                            .unwrap_or_default(),
+native/skotiq_native/sequencer/src/meridian_flip_executor.rs:1093:        ctx.autofocus_config.clone().unwrap_or_default()
+native/skotiq_native/sequencer/src/node/instructions/expose.rs:1202:            .unwrap_or_default();
+native/skotiq_native/sequencer/src/node/instructions/expose.rs:471:                    .unwrap_or_default();
+native/skotiq_native/sequencer/src/node/instructions/science_photometry.rs:572:    states.get(node_id).cloned().unwrap_or_default()
+native/skotiq_native/sequencer/src/node/instructions/smart_exposure.rs:619:    states.get(node_id).cloned().unwrap_or_default()
+native/skotiq_native/sequencer/src/node/logic/target_scheduler.rs:1005:            .unwrap_or_default();
+native/skotiq_native/sequencer/src/node/logic/target_scheduler.rs:632:                header.brightness_tier_hint.unwrap_or_default(),
+native/skotiq_native/sequencer/src/node/logic/target_scheduler.rs:645:                .unwrap_or_default(),
+native/skotiq_native/sequencer/src/node/progress.rs:555:                    .unwrap_or_default();
+native/skotiq_native/sequencer/src/node/progress.rs:654:                    .unwrap_or_default();
+native/skotiq_native/sequencer/src/node/progress.rs:713:                .unwrap_or_default();
+native/skotiq_native/sequencer/src/scheduling/adaptive_swap.rs:418:        self.checked_duration_since(other).unwrap_or_default()
+packages/skotiq_app/lib/screens/analytics/analytics_screen/session_detail_dialog.dart:117:                          // "UnimplementedError: shareXFiles() has not been
+packages/skotiq_app/lib/screens/analytics/analytics_screen/session_detail_dialog.dart:387:  /// `UnimplementedError: shareXFiles() has not been implemented on Linux` in
+packages/skotiq_app/lib/screens/diagnostics/diagnostic_dump_screen.dart:182:      // Android/iOS, so asking for one there threw UnimplementedError and this
+packages/skotiq_app/lib/screens/imaging/tabs/mount_tab.dart:103:    // `canPark` no longer ships a button that hits a "Not implemented"
+packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel.dart:103:/// UnimplementedError), which made both annotation exports dead on a phone. On
+packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel_parts/objects_panel.dart:15:/// Android/iOS have no save dialog (`getSavePath` throws UnimplementedError),
+packages/skotiq_app/lib/screens/planetarium/planetarium_screen/actions.dart:180:      // UnimplementedError there — so the chart goes to a sandbox path and
+packages/skotiq_app/lib/screens/planetarium/widgets/view_controls.dart:366:      // UnimplementedError there — so the chart goes to a sandbox path and
+packages/skotiq_app/lib/screens/sequencer/tabs/sequence_library_tab/sequence_card.dart:838:        // UnimplementedError: getSavePath() has not been implemented."
+packages/skotiq_app/lib/screens/sequencer/widgets/node_summary_inline_editors.dart:203:    // '+' re-applies 4+1 and is a silent no-op, while the popup keeps
+packages/skotiq_app/lib/screens/settings/backup_screen.dart:410:  /// UnimplementedError — so on those platforms the file goes to a sandbox path
+packages/skotiq_app/lib/screens/settings/backup_screen.dart:44:/// iOS have no save dialog (`getSavePath` throws UnimplementedError), so
+packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/screen_shell.dart:74:/// save dialog (`getSavePath` throws UnimplementedError), so exporting a
+packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/discord_transport_section.dart:94:          return const _PrepResult.ok();
+packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/email_transport_section.dart:98:          return const _PrepResult.ok();
+packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/mqtt_transport_section.dart:101:          return const _PrepResult.ok();
+packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/pushover_transport_section.dart:112:          return const _PrepResult.ok();
+packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/telegram_transport_section.dart:66:          return const _PrepResult.ok();
+packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings/webhook_transport_section.dart:64:          return const _PrepResult.ok();
+packages/skotiq_app/lib/screens/settings/widgets/solver_detection_card.dart:393:    // error rather than a silent no-op.
+packages/skotiq_app/lib/screens/tonight/one_tap_tonight_controller.dart:88:/// loud failure rather than a silent no-op so the screen can explain *why*
+packages/skotiq_app/lib/services/file_download_service.dart:115:    // throws UnimplementedError on Android/iOS, so this branch must never be
+packages/skotiq_app/lib/services/sequence_action_service.dart:159:  /// this async callback) we return a silent no-op instead of issuing a
+packages/skotiq_bridge/lib/src/api.dart:21:/// silent no-op — and silent no-ops mask real bugs. If a
+packages/skotiq_core/lib/src/backend/network_backend/device_operations.dart:541:          'cameraGetRecommendedSettings not implemented on remote '
+packages/skotiq_core/lib/src/models/sequence/instruction_progress_detail.dart:7:/// newer native emitters do not become silent no-ops on older Dart clients.
+packages/skotiq_core/lib/src/providers/remote_sync/equipment_mirror.dart:289:    } catch (_) {}
+packages/skotiq_core/lib/src/providers/settings_sections/app_settings_partial_persistence_mapping.dart:223:  /// Errors are a feature here: a silent no-op here would mean a
+packages/skotiq_core/lib/src/services/device_service/connections/imaging_chain.dart:228:      // instead of a silent no-op so the equipment screen's bulk-disconnect
+packages/skotiq_core/lib/src/services/notification/transports/email_transport.dart:154:      return NotificationResult.ok();
+packages/skotiq_core/lib/src/services/notification/transports/in_app_transport.dart:50:    return NotificationResult.ok();
+packages/skotiq_core/lib/src/services/notification/transports/mqtt_transport.dart:119:          '[Notifications/MQTT] QoS 2 downgraded to QoS 1 (PUBREC/PUBREL not implemented).',
+packages/skotiq_core/lib/src/services/notification/transports/mqtt_transport.dart:14:// QoS 2 is intentionally not implemented; a user choice of 2 downgrades to 1
+packages/skotiq_core/lib/src/services/notification/transports/mqtt_transport.dart:14:// QoS 2 is intentionally not implemented; if the user picks 2 we
+packages/skotiq_core/lib/src/services/notification/transports/mqtt_transport.dart:160:      return NotificationResult.ok();
+packages/skotiq_core/lib/src/services/notification/transports/system_push_transport.dart:50:      return NotificationResult.ok();
+packages/skotiq_core/lib/src/services/notification/transports/system_push_transport.dart:55:      return NotificationResult.ok();
+packages/skotiq_core/lib/src/services/notification/transports/system_push_transport.dart:68:    return NotificationResult.ok();
+packages/skotiq_core/lib/src/services/snippet_file_service.dart:146:  /// threw UnimplementedError and snippet export was dead on a phone. There the
+packages/skotiq_core/lib/src/utils/export_target.dart:41:/// throws `UnimplementedError: getSavePath() has not been implemented.` Every
+packages/skotiq_core/lib/src/utils/export_target.dart:45:/// emulator: "Failed to export: UnimplementedError: getSavePath() has not been

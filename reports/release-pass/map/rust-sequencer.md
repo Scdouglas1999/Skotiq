@@ -1,6 +1,6 @@
 # Release-pass map — Rust sequencer crate
 
-Subsystem: `native/nightshade_native/sequencer/`
+Subsystem: `native/skotiq_native/sequencer/`
 Mapped: 2026-08-11. Read-only pass; no source file was modified.
 
 Scope note: the brief named five files. I measured every `.rs` under `sequencer/src/`
@@ -22,11 +22,11 @@ lines from `#[cfg(test)]` lines because several files are mostly tests.
 | `src/executor/scenario_sim_tests.rs` | 1322 | (all test) | 0 | no (test file) |
 
 None of these are generated. There is no `frb_generated` / `*.g.*` output inside this
-crate — the FRB codegen lives in `native/nightshade_native/bridge/`. Everything below
+crate — the FRB codegen lives in `native/skotiq_native/bridge/`. Everything below
 is hand-written.
 
 The crate re-exports through `lib.rs` (`pub use instructions::*;`, `pub use executor::*;`,
-`pub use triggers::*;`, …) and the bridge consumes types as `nightshade_sequencer::X`
+`pub use triggers::*;`, …) and the bridge consumes types as `skotiq_sequencer::X`
 (e.g. `bridge/src/sequencer_ops.rs:39`, `bridge/src/sequencer_api.rs:4`). **Every split
 below keeps those `pub use` globs, so no bridge or FRB path changes.** That is the
 single invariant an implementer must not break.
@@ -114,7 +114,7 @@ Tests (8080–11732) move **with the code they exercise**: each new file grows i
 `#[cfg(test)] mod tests { use super::*; use crate::instructions::testing::*; … }`.
 This is the highest-effort part of the split (~3650 lines to re-home) and the only
 place a mistake can silently drop coverage. Mitigation for the implementer: after the
-move, `cargo test -p nightshade_sequencer -- --list | wc -l` must match the
+move, `cargo test -p skotiq_sequencer -- --list | wc -l` must match the
 pre-split count exactly.
 
 Effort: **large**. Behaviour-preserving: yes — pure code motion plus visibility
@@ -266,7 +266,7 @@ Create `src/config/` and keep `lib.rs` at ~180 lines (module decls, `pub use` gl
 
 | new file | moves in |
 |---|---|
-| `config/mod.rs` | `pub use` of every submodule below; `lib.rs` gains `mod config; pub use config::*;` so all existing `nightshade_sequencer::ExposureConfig` paths hold |
+| `config/mod.rs` | `pub use` of every submodule below; `lib.rs` gains `mod config; pub use config::*;` so all existing `skotiq_sequencer::ExposureConfig` paths hold |
 | `config/capture.rs` | 1835–1962 (`ExposureConfig`, `Binning`), 2214–2247 (`DitherConfig`, `DitherPattern`), 2305–2363 (`FilterConfig`, `CoolConfig`, `WarmConfig`), 2364–2402 (`RotatorConfig`, `WaitTimeConfig`, `TwilightType`, `DelayConfig`) |
 | `config/autofocus.rs` | 1936–2213 (`AutofocusFilterConfig`, `AutofocusConfig`, `AutofocusFailureAction`, `AutofocusMethod`, the 16 `default_af_*` fns, `From<&AutofocusConfig>`) |
 | `config/guiding.rs` | 2248–2304 (`StartGuidingConfig` + defaults) |
@@ -381,7 +381,7 @@ Both paths converge on `MeridianFlipExecutor::execute`, but:
 
 `MeridianFlipOutcome` is what the bridge maps to `SequencerEvent::MeridianFlipOutcome`
 (`bridge/src/api/sequencer.rs:823`) and what Dart renders
-(`packages/nightshade_bridge/lib/src/event_display.dart:386`). So a sequence that
+(`packages/skotiq_bridge/lib/src/event_display.dart:386`). So a sequence that
 flips via an **explicit MeridianFlip node** reports no flip at all.
 
 **Canonical survivor:** move the outcome-event emission *into*
@@ -445,17 +445,17 @@ either delete `execute_exposure` or mark it `#[cfg(test)]`. Effort: **small**.
   `sequencer/src/scheduling/astronomy.rs:131` (law of cosines, deg),
   `bridge/src/api/difference_image.rs:411`, `bridge/src/api/devices/simulation.rs:673`.
 * `sequencer/src/scheduling/astronomy.rs` is documented (lines 1–12) as a
-  byte-for-byte port of `packages/nightshade_planetarium/lib/src/astronomy/astronomy_calculations.dart`
+  byte-for-byte port of `packages/skotiq_planetarium/lib/src/astronomy/astronomy_calculations.dart`
   — whole-file cross-language duplication, deliberate, but the parity test needs auditing.
 * Sun/twilight math (D3) also exists in Dart:
-  `packages/nightshade_planetarium/lib/src/astronomy/observability.dart` and
+  `packages/skotiq_planetarium/lib/src/astronomy/observability.dart` and
   `astronomy_calculations.dart` — a fourth and fifth answer to the same question.
 * The 123-method `DeviceOps` trait (`sequencer/src/device_ops.rs:93`) is implemented in
   full three times: `NullDeviceOps` (same file, 593), `bridge/src/sequencer_ops.rs`,
   `bridge/src/unified_device_ops.rs` — plus a 330-line test double in
   `instructions.rs:8809`.
 * `SmartExposureCheckpoint` / `SessionCheckpoint` shapes are mirrored on the Dart side
-  for resume UI; worth checking against `packages/nightshade_core` sequence models.
+  for resume UI; worth checking against `packages/skotiq_core` sequence models.
 
 ---
 
@@ -465,7 +465,7 @@ either delete `execute_exposure` or mark it `#[cfg(test)]`. Effort: **small**.
 `ExecutorCommand::Start`, `::UpdateDitherConfig`, `::UpdateFilterOffsets`,
 `::UpdateLocation`.
 
-Evidence: `grep -rn "ExecutorCommand::<V>" native/nightshade_native/{sequencer,bridge}/src`
+Evidence: `grep -rn "ExecutorCommand::<V>" native/skotiq_native/{sequencer,bridge}/src`
 returns exactly one hit for each — the match arm itself:
 `Start` → `executor/mod.rs:4031`; `UpdateDitherConfig` → `:4063`;
 `UpdateLocation` → `:4089`; `UpdateFilterOffsets` → `:4149`.
@@ -647,7 +647,7 @@ Fix: make `update_location` forward `ExecutorCommand::UpdateLocation` per the fi
 documented contract (which un-deads that arm), and correct the doc comment.
 
 ## R3 — `ExecutorEvent::NodeCompleted` has exactly one producer, and it is a synthetic node — severity: **medium**
-`grep -rn "ExecutorEvent::NodeCompleted" native/nightshade_native/{sequencer,bridge}/src`
+`grep -rn "ExecutorEvent::NodeCompleted" native/skotiq_native/{sequencer,bridge}/src`
 → `sequencer/src/executor/mod.rs:6464` (producer) and
 `bridge/src/api/sequencer.rs:652` (consumer). The producer at `:6464` sits inside the
 `RecoveryAction::Autofocus` trigger arm and its `id` is the synthetic
@@ -657,7 +657,7 @@ Meanwhile `ExecutorEvent::NodeStarted` **is** emitted for every node
 (`mod.rs:3685`, inside the progress callback's `status == Running` branch), and the
 terminal branch at `:3704–3747` emits only `TargetCompleted` (`:3737`) for target nodes
 — never `NodeCompleted`. So every real node produces a start with no matching
-completion. Downstream, `packages/nightshade_core/lib/src/backend/bridge_event_mapper.dart:245`
+completion. Downstream, `packages/skotiq_core/lib/src/backend/bridge_event_mapper.dart:245`
 and `services/notification/event_classifier.dart:144` both have live
 `nodeCompleted` handling with dedicated tests
 (`test/services/notification/event_classifier_node_completed_test.dart`) — a consumer

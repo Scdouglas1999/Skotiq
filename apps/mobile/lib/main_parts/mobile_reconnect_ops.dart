@@ -266,10 +266,10 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       // server-supplied fields; if it didn't, we still allow the user
       // to connect for this session but refuse to write the server to
       // disk (next launch should re-discover or re-prompt).
-      final fetched = await EnhancedNightshadeDiscovery.fetchServerInfo(server);
+      final fetched = await EnhancedSkotiqDiscovery.fetchServerInfo(server);
       if (!_isCurrentConnectionOperation(operationGeneration)) return;
       var enrichedServer = fetched ?? server;
-      final compatibility = NightshadeServerCompatibility.check(
+      final compatibility = SkotiqServerCompatibility.check(
         enrichedServer.apiVersion ?? enrichedServer.version,
       );
       if (!compatibility.isCompatible) {
@@ -365,7 +365,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       }
 
       // Test connection first
-      final isReachable = await EnhancedNightshadeDiscovery.testServerConnection(
+      final isReachable = await EnhancedSkotiqDiscovery.testServerConnection(
         enrichedServer.host,
         enrichedServer.webPort,
         authToken: authToken,
@@ -439,7 +439,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           // keychain failure must not turn a successful connection into a
           // misleading connection error.
           try {
-            await EnhancedNightshadeDiscovery.saveLastServer(enrichedServer);
+            await EnhancedSkotiqDiscovery.saveLastServer(enrichedServer);
           } catch (e, stackTrace) {
             developer.log(
               'Could not cache connected server for startup reconnect: $e',
@@ -563,7 +563,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         // directory with one that cannot exist there, so every checkpoint
         // write failed and a mid-night crash became unrecoverable.
         if (ref.read(backendProvider) is! NetworkBackend) {
-          final docsDir = await resolveNightshadeDocumentsDirectory();
+          final docsDir = await resolveSkotiqDocumentsDirectory();
           await executor.initializeCheckpoints(docsDir.path);
         }
 
@@ -585,7 +585,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
             if (shouldResume) {
               await executor.resumeFromCheckpoint();
               if (!context.mounted) return;
-              final colors = Theme.of(context).extension<NightshadeColors>();
+              final colors = Theme.of(context).extension<SkotiqColors>();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: const Text('Sequence resumed from checkpoint'),

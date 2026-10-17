@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Dialog to prompt user to resume from a checkpoint
 class CheckpointResumeDialog extends StatelessWidget {
@@ -28,18 +28,18 @@ class CheckpointResumeDialog extends StatelessWidget {
         ? '${integrationMins.toStringAsFixed(1)} min'
         : '${(integrationMins / 60).toStringAsFixed(1)} hr';
 
-    return NightshadeDialog(
+    return SkotiqDialog(
       title: 'Resume Sequence?',
       icon: LucideIcons.rotateCcw,
       width: 420,
       actions: [
-        NightshadeButton(
+        SkotiqButton(
           onPressed: onDiscard,
           label: 'Discard',
           variant: ButtonVariant.destructive,
           size: ButtonSize.small,
         ),
-        NightshadeButton(
+        SkotiqButton(
           onPressed: onResume,
           label: 'Resume',
           icon: LucideIcons.play,
@@ -73,11 +73,11 @@ class CheckpointResumeDialog extends StatelessWidget {
     required String integrationText,
   }) {
     final theme = Theme.of(context);
-    final colors = NightshadeColors.of(context);
+    final colors = SkotiqColors.of(context);
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: NightshadeDecorations.emphasisSurface(
+      decoration: SkotiqDecorations.emphasisSurface(
         colors.primary,
         borderRadius: BorderRadius.circular(8),
       ),
@@ -135,7 +135,7 @@ class CheckpointResumeDialog extends StatelessWidget {
     required String value,
   }) {
     final theme = Theme.of(context);
-    final colors = NightshadeColors.of(context);
+    final colors = SkotiqColors.of(context);
 
     return Row(
       children: [

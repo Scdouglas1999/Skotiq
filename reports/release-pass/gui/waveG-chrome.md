@@ -3,7 +3,7 @@
 Driver: `tools/ui_audit/drive_linux.py`, display `:91`, profile `waveG-chrome`,
 started `--fresh`. Bundle driven:
 `apps/desktop/build/linux/x64/release/bundle/lib/libapp.so` and
-`libnightshade_bridge.so`, **both Aug 14 01:44** — the F-fix build; the app was
+`libskotiq_bridge.so`, **both Aug 14 01:44** — the F-fix build; the app was
 launched at 01:45. Window 1600x900 unless a step names another size.
 **Nothing was fixed in this pass.**
 
@@ -13,7 +13,7 @@ Simulated Camera / Mount / Focuser / Filter Wheel connected from Discovery.
 Two real sequencer runs were driven (1 s × 3, then 1 s × 6) so that "most recent
 night" has something to be wrong about.
 
-Orientation: one `graphify query "toast device disconnect naming, NightshadeButton
+Orientation: one `graphify query "toast device disconnect naming, SkotiqButton
 disabled semantics, projection cycler tooltip"`.
 
 Evidence shots: `reports/release-pass/gui/shots/waveG-*.png`.
@@ -195,7 +195,7 @@ accumulate as the pointer sweeps the row.
 
 ---
 
-## 4. Disabled `NightshadeButton` — WF-SN-N4 / WF-SCI-N3 — VERIFIED
+## 4. Disabled `SkotiqButton` — WF-SN-N4 / WF-SCI-N3 — VERIFIED
 ### with a harness correction the charter's wording depends on
 
 **The literal charter test cannot pass on this bridge.** `drive_linux.py tree`
@@ -234,7 +234,7 @@ role='button' name='Re-check\nRe-check'   states=['enabled','focusable','sensiti
 role='button' name='Start Anyway'         states=['enabled','focusable','sensitive','showing','visible'] actions=['Tap','Focus']
 ```
 
-So: a disabled `NightshadeButton` no longer advertises `SemanticsAction.tap`,
+So: a disabled `SkotiqButton` no longer advertises `SemanticsAction.tap`,
 no longer carries `enabled`/`focusable`, and states its reason in its name.
 The same node with warnings instead of errors round-trips to the enabled
 signature — the same button, both directions.

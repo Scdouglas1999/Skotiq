@@ -3,10 +3,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_app/nightshade_app.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
-import 'package:nightshade_updater/nightshade_updater.dart';
+import 'package:skotiq_app/skotiq_app.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
+import 'package:skotiq_updater/skotiq_updater.dart';
 
 import 'desktop_app_bootstrap.dart';
 import 'desktop_logging_init.dart';
@@ -22,7 +22,7 @@ import 'headless_api_server.dart';
 
 const _headlessLogSource = 'HeadlessMain';
 
-/// Headless entry point for Nightshade
+/// Headless entry point for Skotiq
 ///
 /// This entry point runs without a GUI window, suitable for:
 /// - Server/daemon mode
@@ -34,8 +34,8 @@ const _headlessLogSource = 'HeadlessMain';
 ///   Linux:   flutter run -d linux --target=lib/main_headless.dart
 ///
 ///   Or build and run:
-///   Windows: .\\build\\windows\\x64\\runner\\Release\\nightshade_desktop.exe --headless
-///   Linux:   ./build/linux/`<arch>`/release/bundle/nightshade_desktop --headless
+///   Windows: .\\build\\windows\\x64\\runner\\Release\\skotiq_desktop.exe --headless
+///   Linux:   ./build/linux/`<arch>`/release/bundle/skotiq_desktop --headless
 ///
 /// Authentication:
 ///   --auth-token=`<token>`  Set a specific authentication token
@@ -74,7 +74,7 @@ const _headlessLogSource = 'HeadlessMain';
 ///   --tls-key=`<path>` Use the supplied private-key PEM instead
 ///                         of generating a self-signed one.
 ///   --relay-url=`<url>`     v4 couch-grade remote: dial OUT to a self-hosted
-///                         Nightshade relay (ws(s)://host[:port]) so the rig
+///                         Skotiq relay (ws(s)://host[:port]) so the rig
 ///                         is reachable from anywhere with no port-forwarding.
 ///                         The appliance id minted on first contact is printed
 ///                         to stdout/log; enter it + the relay URL in the app.
@@ -83,11 +83,11 @@ const _headlessLogSource = 'HeadlessMain';
 ///                         you operate yourself before getting a real cert.
 ///
 ///   Environment variables:
-///   NIGHTSHADE_AUTH_TOKEN  Authentication token
-///   NIGHTSHADE_VIEW_TOKEN  Optional read-only token
-///   NIGHTSHADE_CONTROL_TOKEN
+///   SKOTIQ_AUTH_TOKEN  Authentication token
+///   SKOTIQ_VIEW_TOKEN  Optional read-only token
+///   SKOTIQ_CONTROL_TOKEN
 ///                         Optional imaging-control token
-///   NIGHTSHADE_SCOPED_TOKEN
+///   SKOTIQ_SCOPED_TOKEN
 ///                         Fine-grained token(s). One or more
 ///                         `<token>=<grant-spec>` entries separated by `;`,
 ///                         where a grant-spec is a coarse name (`view`,
@@ -95,22 +95,22 @@ const _headlessLogSource = 'HeadlessMain';
 ///                         `camera:control,mount:view`. Same effect as passing
 ///                         --scoped-token repeatedly. Existing coarse tokens are
 ///                         unchanged — a coarse token covers every resource.
-///   NIGHTSHADE_PORT        Server port (default: 8080)
-///   NIGHTSHADE_DATA_DIR    Native persistence root (defect maps, etc.). When
+///   SKOTIQ_PORT        Server port (default: 8080)
+///   SKOTIQ_DATA_DIR    Native persistence root (defect maps, etc.). When
 ///                         unset, matches the GUI application-support path.
-///   NIGHTSHADE_DATABASE_DIR
+///   SKOTIQ_DATABASE_DIR
 ///                         Drift database directory. Headless systemd/Pi
-///                         installs pin this under /var/lib/nightshade so the
+///                         installs pin this under /var/lib/skotiq so the
 ///                         daemon does not depend on a user Documents folder.
-///   NIGHTSHADE_BROWSE_ROOTS
+///   SKOTIQ_BROWSE_ROOTS
 ///                         Semicolon-separated remote directory browse roots
 ///                         for headless clients, e.g.
-///                         Captures=/mnt/captures;USB=/media/nightshade.
-///   NIGHTSHADE_ALLOW_UNAUTHENTICATED=true
+///                         Captures=/mnt/captures;USB=/media/skotiq.
+///   SKOTIQ_ALLOW_UNAUTHENTICATED=true
 ///                         Same as --allow-unauthenticated
-///   NIGHTSHADE_ALLOW_UNAUTHENTICATED_LAN=true
+///   SKOTIQ_ALLOW_UNAUTHENTICATED_LAN=true
 ///                         Same as --allow-unauthenticated-lan
-///   NIGHTSHADE_TRUST_PROXY=true
+///   SKOTIQ_TRUST_PROXY=true
 ///                         Believe the X-Forwarded-For / X-Real-IP headers when
 ///                         deriving the rate-limit / pairing-lockout key. OFF by
 ///                         default: in direct-bind mode those headers are client-
@@ -119,21 +119,21 @@ const _headlessLogSource = 'HeadlessMain';
 ///                         ("TLS with nginx"); without it every proxied client
 ///                         shares one rate-limit/lockout bucket. Honoured only
 ///                         when the socket peer is loopback.
-///   NIGHTSHADE_ALLOW_INSECURE_UPDATE_SOURCE
+///   SKOTIQ_ALLOW_INSECURE_UPDATE_SOURCE
 ///                         Not an environment variable: a build-time
 ///                         `--dart-define` (testing builds only) that lets the
 ///                         OTA updater fetch over plain http. Setting it in the
 ///                         environment of a release build does nothing.
-///   NIGHTSHADE_CORS_ORIGINS
+///   SKOTIQ_CORS_ORIGINS
 ///                         Comma-separated CORS allow-list (same effect as
 ///                         passing --cors-origin repeatedly).
-///   NIGHTSHADE_PAIRING_PRINT_CODES=true
+///   SKOTIQ_PAIRING_PRINT_CODES=true
 ///                         Same as --pairing-print-codes.
-///   NIGHTSHADE_TLS=true   Same as --tls.
-///   NIGHTSHADE_TLS_CERT   Same as --tls-cert=`<path>`.
-///   NIGHTSHADE_TLS_KEY    Same as --tls-key=`<path>`.
-///   NIGHTSHADE_RELAY_URL  Same as --relay-url=`<url>`.
-///   NIGHTSHADE_RELAY_ALLOW_INSECURE_TLS=true
+///   SKOTIQ_TLS=true   Same as --tls.
+///   SKOTIQ_TLS_CERT   Same as --tls-cert=`<path>`.
+///   SKOTIQ_TLS_KEY    Same as --tls-key=`<path>`.
+///   SKOTIQ_RELAY_URL  Same as --relay-url=`<url>`.
+///   SKOTIQ_RELAY_ALLOW_INSECURE_TLS=true
 ///                         Same as --relay-allow-insecure-tls.
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -141,7 +141,7 @@ void main(List<String> args) async {
   // Operator-facing stdout banner. The LoggingService isn't bootable yet
   // (no ProviderContainer), so write directly to stdout. Once the logger
   // is initialised below, all subsequent diagnostics route through it.
-  stdout.writeln('Nightshade - Headless Mode');
+  stdout.writeln('Skotiq - Headless Mode');
   stdout.writeln('==============================');
 
   LoggingService? logger;
@@ -158,7 +158,7 @@ void main(List<String> args) async {
   AutoSaveService? autoSaveService;
   // v4 couch-grade remote: outbound relay uplink (optional). Owned here so
   // SIGINT/SIGTERM tear down the WebSocket cleanly. Null unless a relay URL
-  // was supplied via --relay-url / NIGHTSHADE_RELAY_URL.
+  // was supplied via --relay-url / SKOTIQ_RELAY_URL.
   RelayUplink? relayUplink;
 
   Future<void> safeRigForShutdown() async {
@@ -230,13 +230,13 @@ void main(List<String> args) async {
     // SAME default database path, so running both on one machine would put two
     // SQLite writers on one file — and the loser's SQLITE_BUSY reads as
     // corruption, quarantining the operator's real database. Refuse before any
-    // service starts. Use NIGHTSHADE_DATABASE_DIR to give this daemon its own
+    // service starts. Use SKOTIQ_DATABASE_DIR to give this daemon its own
     // data directory if it is genuinely meant to run alongside a GUI.
     final contended = await SingleInstanceLock.probe(
       await resolveDefaultDatabaseFile(),
     );
     if (contended != null) {
-      stderr.writeln('Nightshade: ${contended.message}');
+      stderr.writeln('Skotiq: ${contended.message}');
       exit(75); // EX_TEMPFAIL — retry once the other instance exits.
     }
 
@@ -390,7 +390,7 @@ void main(List<String> args) async {
       onApplianceId: (id) => apiServer?.setRelayApplianceId(id),
     );
 
-    // register `_nightshade._tcp` via mDNS. This MUST happen after
+    // register `_skotiq._tcp` via mDNS. This MUST happen after
     // `apiServer.start()` so the advertised port is the actually-bound one
     // (matters when the caller started us with port 0). Failures here are
     // logged-and-continue — UDP broadcast and manual entry remain available.
@@ -398,7 +398,7 @@ void main(List<String> args) async {
       // Refresh the static Avahi service file so the advertised <port> and
       // scheme= TXT match the actually-bound port/scheme. The file installed
       // by packaging/appliance/systemd/install.sh hardcodes 8080/http, so a
-      // changed NIGHTSHADE_PORT or `--tls` would otherwise silently break
+      // changed SKOTIQ_PORT or `--tls` would otherwise silently break
       // mDNS discovery. Best-effort: a missing/read-only services dir (i.e.
       // not running as the appliance) is logged-and-skipped.
       refreshAvahiServiceFile(
@@ -615,7 +615,7 @@ void main(List<String> args) async {
     // Operator-facing console message announcing service readiness. Logged
     // through the structured logger too so it shows up in log files alongside
     // the timestamped service-started events.
-    stdout.writeln('\nNightshade is running in headless mode.');
+    stdout.writeln('\nSkotiq is running in headless mode.');
     stdout.writeln('Press Ctrl+C to stop.\n');
     runtimeLogger.info(
       'Headless mode running; waiting for SIGINT/SIGTERM',

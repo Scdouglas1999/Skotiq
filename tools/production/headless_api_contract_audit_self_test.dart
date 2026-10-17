@@ -11,7 +11,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_headless_api_contract_audit_self_test_',
+    'skotiq_headless_api_contract_audit_self_test_',
   );
   try {
     await _writePassingFixture(temp);
@@ -122,7 +122,7 @@ List<String> availableHeadlessEndpoints() {
   );
   await _writeFile(
     root,
-    'packages/nightshade_core/lib/src/backend/network_backend.dart',
+    'packages/skotiq_core/lib/src/backend/network_backend.dart',
     r'''
 void calls() {
   _get('info');
@@ -171,7 +171,7 @@ List<String> availableHeadlessEndpoints() {
   );
   await _writeFile(
     root,
-    'packages/nightshade_core/lib/src/backend/network_backend.dart',
+    'packages/skotiq_core/lib/src/backend/network_backend.dart',
     r'''
 void calls() {
   _get('info');
@@ -188,7 +188,7 @@ void buildOpenApiSpec() {}
   );
   await _writeFile(
     root,
-    'packages/nightshade_core/test/backend/network_backend_websocket_test.dart',
+    'packages/skotiq_core/test/backend/network_backend_websocket_test.dart',
     r'''
 void main() {}
 ''',
@@ -202,12 +202,12 @@ void main() {}
   );
   await _writeFile(
     root,
-    'packages/nightshade_core/lib/src/models/backend/remote_api_compatibility.dart',
+    'packages/skotiq_core/lib/src/models/backend/remote_api_compatibility.dart',
     'class RemoteApiCompatibility {}',
   );
   await _writeFile(
     root,
-    'packages/nightshade_core/test/models/remote_api_compatibility_test.dart',
+    'packages/skotiq_core/test/models/remote_api_compatibility_test.dart',
     'void main() {}',
   );
   await _writeFile(
@@ -218,7 +218,7 @@ void main() {}
   await _writeFile(
     root,
     'apps/desktop/web_dashboard/js/api.js',
-    'class NightshadeApi {}',
+    'class SkotiqApi {}',
   );
   await _writeFile(root, 'docs/api/web-server-api.md', '# API');
 }
@@ -263,7 +263,7 @@ void buildOpenApiSpec() {
 Future<void> _writePassingWebSocketTestFixture(Directory root) async {
   await _writeFile(
     root,
-    'packages/nightshade_core/test/backend/network_backend_websocket_test.dart',
+    'packages/skotiq_core/test/backend/network_backend_websocket_test.dart',
     r'''
 void main() {
   'sends ping heartbeats and accepts pong replies';
@@ -310,22 +310,22 @@ void main() {
 Future<void> _writePassingVersionNegotiationFixtures(Directory root) async {
   await _writeFile(
     root,
-    'packages/nightshade_core/lib/src/models/backend/remote_api_compatibility.dart',
+    'packages/skotiq_core/lib/src/models/backend/remote_api_compatibility.dart',
     r'''
 class RemoteApiCompatibility {
   static final minimumSupportedVersion =
-      NightshadeServerCompatibility.minimumSupportedVersion;
+      SkotiqServerCompatibility.minimumSupportedVersion;
   static void check(String version) {
-    NightshadeServerCompatibility.check(version);
+    SkotiqServerCompatibility.check(version);
   }
 }
 ''',
   );
   await _writeFile(
     root,
-    'packages/nightshade_remote_protocol/lib/src/server_compatibility.dart',
+    'packages/skotiq_remote_protocol/lib/src/server_compatibility.dart',
     r'''
-class NightshadeServerCompatibility {
+class SkotiqServerCompatibility {
   static const minimumSupportedVersion = ServerSemanticVersion(2, 4, 0);
   static void check(String version) {
     print('server_too_old');
@@ -337,7 +337,7 @@ class NightshadeServerCompatibility {
   );
   await _writeFile(
     root,
-    'packages/nightshade_core/test/models/remote_api_compatibility_test.dart',
+    'packages/skotiq_core/test/models/remote_api_compatibility_test.dart',
     r'''
 void main() {
   'rejects old servers with a clear code and message';
@@ -363,10 +363,10 @@ void main() {
 ''',
   );
   await _writeFile(root, 'apps/desktop/web_dashboard/js/api.js', r'''
-class NightshadeApi {
+class SkotiqApi {
   constructor() { this._apiVersion = '2.5.0'; }
   _headers() {
-    return {'X-Nightshade-API-Version': this._apiVersion};
+    return {'X-Skotiq-API-Version': this._apiVersion};
   }
   _connectWebSocket() {
     query.push('apiVersion=' + encodeURIComponent(this._apiVersion));

@@ -49,7 +49,7 @@ the brief asked me to remove, so both had to go.
 
 ## What was built
 
-### The resolution chain (`packages/nightshade_core/lib/src/services/sensor_specs/`)
+### The resolution chain (`packages/skotiq_core/lib/src/services/sensor_specs/`)
 
 `CameraSensorSpecResolver.resolve(CameraSensorSpecInputs)` returns a
 `ResolvedCameraSensorSpecs` in which every field carries the tier it came from
@@ -197,7 +197,7 @@ against each other (a transcription typo in either shows up as a mismatch).
 
 `SmartNightMissingSpecsDialog` (a `part` of the sequencer's Smart Night dialog,
 so unreachable from anywhere else) is promoted to
-`packages/nightshade_app/lib/widgets/camera_sensor_specs_dialog.dart` as
+`packages/skotiq_app/lib/widgets/camera_sensor_specs_dialog.dart` as
 `CameraSensorSpecsDialog`, on the design system, and:
 
 * arrives **prefilled** with what the chain resolved, each field labelled with
@@ -231,7 +231,7 @@ section, the field it should carry is:
   `originLabel` as its trailing text (watch `activeCameraSensorSpecsProvider`),
   and opening `CameraSensorSpecsDialog.show(context, specs)` on tap. That is
   exactly the `CameraSensorSpecsRow` widget already built for the Plan detail
-  column (`packages/nightshade_app/lib/screens/planner/widgets/planning_risks_banner.dart`)
+  column (`packages/skotiq_app/lib/screens/planner/widgets/planning_risks_banner.dart`)
   — it is self-contained and can be dropped in as-is.
 
 No new DB columns are needed: overrides live in the settings key, keyed by
@@ -247,12 +247,12 @@ Commands run unpiped in the worktree with
 
 | # | command | exit |
 | --- | --- | --- |
-| 1 | `dart format --output=none --set-exit-if-changed packages/nightshade_core packages/nightshade_app` | 0 |
-| 2 | `dart analyze` in `packages/nightshade_core` | 0 — zero errors, zero warnings. 16 pre-existing infos, none in a file this branch touches |
-| 3 | `dart analyze` in `packages/nightshade_app` | 0 — zero errors, zero warnings. 873 pre-existing infos (820 `deprecated_member_use` from the design-system wave); the only three that land in a file I edited (`smart_night_dialog.dart` h4/h5/outline) are verified present at `5b2235cc7` in lines I did not change |
-| 4 | `flutter test test/services test/providers test/models --concurrency=4` in `packages/nightshade_core` | 0 — 5796 passed, 4 pre-existing skips |
-| 5 | `flutter test test/screens/planner test/widgets test/screens/sequencer test/screens/settings test/screens/framing --concurrency=4` in `packages/nightshade_app` | 1 — 1963 passed, 2 failed: both pre-existing golden failures, proved identical at `5b2235cc7` (see below) |
-| 5b | `flutter test test/screens/planner test/widgets --concurrency=4` in `packages/nightshade_app`, re-run after the last banner change | 0 — 442 passed |
+| 1 | `dart format --output=none --set-exit-if-changed packages/skotiq_core packages/skotiq_app` | 0 |
+| 2 | `dart analyze` in `packages/skotiq_core` | 0 — zero errors, zero warnings. 16 pre-existing infos, none in a file this branch touches |
+| 3 | `dart analyze` in `packages/skotiq_app` | 0 — zero errors, zero warnings. 873 pre-existing infos (820 `deprecated_member_use` from the design-system wave); the only three that land in a file I edited (`smart_night_dialog.dart` h4/h5/outline) are verified present at `5b2235cc7` in lines I did not change |
+| 4 | `flutter test test/services test/providers test/models --concurrency=4` in `packages/skotiq_core` | 0 — 5796 passed, 4 pre-existing skips |
+| 5 | `flutter test test/screens/planner test/widgets test/screens/sequencer test/screens/settings test/screens/framing --concurrency=4` in `packages/skotiq_app` | 1 — 1963 passed, 2 failed: both pre-existing golden failures, proved identical at `5b2235cc7` (see below) |
+| 5b | `flutter test test/screens/planner test/widgets --concurrency=4` in `packages/skotiq_app`, re-run after the last banner change | 0 — 442 passed |
 | 6 | `flutter test test/headless_api/science_handlers_test.dart --concurrency=4` in `apps/desktop` | 0 — 9 passed |
 | 7 | `flutter build linux --release` in `apps/desktop`, at `5b2235cc7` and at the branch tip | 0 both |
 | 8 | `graphify update .` | 0 |
@@ -273,7 +273,7 @@ asserted the word "remembered" and were getting "Sensor size **R**emembered
 from …" — a sentence assembled by capitalising a phrase that was already the
 tail of one. Both now pass against a per-tier sentence.
 
-`packages/nightshade_core/lib/src/services/scheduler/rejection_labels.dart`
+`packages/skotiq_core/lib/src/services/scheduler/rejection_labels.dart`
 carries two pre-existing `curly_braces_in_flow_control_structures` infos; that
 file is untouched by this branch.
 
@@ -295,10 +295,10 @@ file is untouched by this branch.
   planner with no invalidation.
 * `test/providers/framing_fov_remembered_sensor_test.dart` — a known camera
   model working in Framing before it has ever been connected.
-* `packages/nightshade_app/test/screens/planner/planning_risks_banner_test.dart`
+* `packages/skotiq_app/test/screens/planner/planning_risks_banner_test.dart`
   — banner collapsing, the camera named, the no-camera case, the provenance row
   and its single activatable semantics node.
-* `packages/nightshade_app/test/widgets/camera_sensor_specs_dialog_test.dart`
+* `packages/skotiq_app/test/widgets/camera_sensor_specs_dialog_test.dart`
   — prefill, per-field provenance, the one-unpublished-field case, the
   nothing-published case, gain and QE validation, correcting one field while
   keeping the rest, and the remote write.
@@ -415,14 +415,14 @@ resolved, and per-field only where an empty field is the exception.
 
 ## One more thing the reviewer should know
 
-`native/nightshade_native/target` in this worktree was a 48-byte TEXT file
+`native/skotiq_native/target` in this worktree was a 48-byte TEXT file
 containing the path `/home/scdouglas/.cache/ns-worktrees/cargo-target` — an
 intended symlink that had not been made one, which made `cargo build` fail with
 "Not a directory". I replaced it with the symlink it was meant to be so the
-Linux release bundle could pick up `libnightshade_bridge.so`. The path is
+Linux release bundle could pick up `libskotiq_bridge.so`. The path is
 git-ignored, so it is not part of this branch; it is noted because the next
 agent to build in a fresh worktree will hit the same thing.
 
 No Rust was changed by this workstream, so both the before and after bundles
-were built against the same `libnightshade_bridge.so` from the wave's shared
+were built against the same `libskotiq_bridge.so` from the wave's shared
 cargo target directory.

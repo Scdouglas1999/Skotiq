@@ -1,6 +1,6 @@
 # Backend API Reference
 
-The `NightshadeBackend` interface provides a high-level abstraction for controlling astronomical equipment. It supports multiple implementations:
+The `SkotiqBackend` interface provides a high-level abstraction for controlling astronomical equipment. It supports multiple implementations:
 
 - **FfiBackend** - Direct FFI calls to native Rust code
 - **NetworkBackend** - REST API client for headless server mode
@@ -9,8 +9,8 @@ The `NightshadeBackend` interface provides a high-level abstraction for controll
 ## Overview
 
 ```dart
-abstract class NightshadeBackend {
-  Stream<NightshadeEvent> get eventStream;
+abstract class SkotiqBackend {
+  Stream<SkotiqEvent> get eventStream;
   
   // Device Discovery & Connection
   Future<List<DeviceInfo>> discoverDevices(DeviceType deviceType);
@@ -57,7 +57,7 @@ Future<void> connectDevice(DeviceType deviceType, String deviceId)
 - `deviceType` - The type of device
 - `deviceId` - Unique identifier for the device (e.g., "ascom:ASCOM.Simulator.Telescope", "alpaca:192.168.1.100:11111:0")
 
-**Throws:** `NightshadeError` if connection fails
+**Throws:** `SkotiqError` if connection fails
 
 ### `disconnectDevice`
 
@@ -655,7 +655,7 @@ Future<Uint8List> debayerImage(
 Stream of backend events.
 
 ```dart
-Stream<NightshadeEvent> get eventStream
+Stream<SkotiqEvent> get eventStream
 ```
 
 **Example:**
@@ -670,19 +670,19 @@ backend.eventStream.listen((event) {
 
 ## Error Handling
 
-All methods may throw `NightshadeError` exceptions. Common error types:
+All methods may throw `SkotiqError` exceptions. Common error types:
 
-- `NightshadeError.deviceNotFound` - Device not found
-- `NightshadeError.connectionFailed` - Connection failed
-- `NightshadeError.notConnected` - Device not connected
-- `NightshadeError.timeout` - Operation timed out
-- `NightshadeError.operationFailed` - Operation failed
+- `SkotiqError.deviceNotFound` - Device not found
+- `SkotiqError.connectionFailed` - Connection failed
+- `SkotiqError.notConnected` - Device not connected
+- `SkotiqError.timeout` - Operation timed out
+- `SkotiqError.operationFailed` - Operation failed
 
 **Example:**
 ```dart
 try {
   await backend.connectDevice(DeviceType.camera, 'camera-1');
-} on NightshadeError catch (e) {
+} on SkotiqError catch (e) {
   print('Error: ${e.toString()}');
 }
 ```

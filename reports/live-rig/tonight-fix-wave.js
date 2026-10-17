@@ -1,5 +1,5 @@
 export const meta = {
-  name: 'nightshade-tonight-critical',
+  name: 'skotiq-tonight-critical',
   description: 'Fix the defects that would break tonight\'s unattended imaging run',
   phases: [
     { title: 'Fix', detail: 'one agent per tonight-critical defect' },
@@ -38,9 +38,9 @@ appliance yourself (a rebuild takes the rig offline and the owner may be using i
 against the Linux simulator build instead and say clearly which one you used.
 
 Simulator devices are \`sim_camera_1\`, \`sim_mount_1\`, \`sim_focuser_1\`, \`sim_filterwheel_1\`. The
-Linux release bundle is at \`apps/desktop/build/linux/x64/release/bundle/nightshade_desktop\` and runs
+Linux release bundle is at \`apps/desktop/build/linux/x64/release/bundle/skotiq_desktop\` and runs
 headless with \`--headless --auth-token=<anything> --allow-unauthenticated-lan\`. Give it a scratch
-\`NIGHTSHADE_DATABASE_DIR\`.
+\`SKOTIQ_DATABASE_DIR\`.
 
 ## Sequence wire format — this cost four rejections to work out, do not repeat it
 
@@ -53,7 +53,7 @@ requires, and the Dart test fixtures get wrong: \`SequenceDefinition.id\` and \`
 * Run \`graphify query "<question>"\` to orient before grepping or reading source.
 * Tests: \`dart run melos exec --scope="<package>" -- flutter test <path>\`. Never
   \`flutter test packages/<pkg>/...\` from the root. Rust: \`cargo test\` under
-  \`native/nightshade_native\`. Redirect long runs to a file rather than piping through \`tail\`.
+  \`native/skotiq_native\`. Redirect long runs to a file rather than piping through \`tail\`.
 * Every fix needs a test that fails when the fix is reverted. Sever the PRODUCTION CALL SITE, not
   just the logic, and say what happened when you did.
 * Run \`dart format\` / \`cargo fmt\` on what you touch.
@@ -64,7 +64,7 @@ const DEFECTS = [
     key: 'phantom-connect',
     title: 'The app reports a phantom device as connected (fix written, NOT validated)',
     body: `See L4 in the live-rig findings. \`AscomDeviceConnection::connect\`
-(\`native/nightshade_native/ascom/src/windows/connection.rs\`) set \`Connected = true\`, saw no COM
+(\`native/skotiq_native/ascom/src/windows/connection.rs\`) set \`Connected = true\`, saw no COM
 exception, and returned success without reading the property back. On the real rig, the ASI Mount
 driver — installed but with no hardware behind it — accepted the write, then reported
 \`Connected = False\`, \`Slewing = True\`, \`SiderealTime = -1\` and RA/Dec/Alt/Az all zero. The app
@@ -120,7 +120,7 @@ and returns the same error, instead of returning immediately.`,
     key: 'meridian-stall',
     title: 'A run stalls waiting for a meridian flip that is hours overdue and will never fire',
     body: `P1 in \`reports/coverage/closeout/FINDINGS.md\`, at
-\`native/nightshade_native/sequencer/src/instructions.rs:1954\`. Live repro: 12 x 5 s lights on a
+\`native/skotiq_native/sequencer/src/instructions.rs:1954\`. Live repro: 12 x 5 s lights on a
 target at RA 12.5 h / Dec +70 from a site at 40N 42E. Frame 1 saved normally, then the run froze at
 \`1/12 8%\` for the rest of the session. Log:
 
@@ -138,7 +138,7 @@ routine. The UI said only "Running" throughout — so it stalls silently.`,
     title: 'The Imaging screen still paints random stars, so simulated capture cannot be plate-solved',
     body: `Two P1s in the closeout findings, one root cause. S9's real-sky renderer was wired into
 \`device_manager/ops/camera.rs:1217\` and genuinely works —
-\`cargo test -p nightshade_bridge --lib sim_sky_wiring -- --ignored\` prints
+\`cargo test -p skotiq_bridge --lib sim_sky_wiring -- --ignored\` prints
 \`downloaded frame solved, centre error 0.5"\`. But the capture the **Imaging screen** performs goes
 through \`api/imaging.rs:791\`, whose \`device_id.starts_with("sim_")\` branch calls
 \`generate_simulated_image()\` at \`imaging.rs:1304-1344\` — background plus \`rand::thread_rng()\` stars

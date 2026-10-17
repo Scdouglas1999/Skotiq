@@ -5,15 +5,15 @@
 
   Long labels are bounded to ~25 chars by Android (anything longer is
   truncated by the launcher), so we keep them tight. Translations live
-  in nightshade_app/localization for the Dart UI; the shortcut labels
+  in skotiq_app/localization for the Dart UI; the shortcut labels
   are static and English-only for the launcher menu.
 -->
 <resources>
     <string name="voice_shortcut_pause">Pause sequence</string>
-    <string name="voice_shortcut_pause_long">Pause Nightshade sequence</string>
+    <string name="voice_shortcut_pause_long">Pause Skotiq sequence</string>
     <string name="voice_shortcut_resume">Resume sequence</string>
-    <string name="voice_shortcut_resume_long">Resume Nightshade sequence</string>
+    <string name="voice_shortcut_resume_long">Resume Skotiq sequence</string>
     <string name="voice_shortcut_last_image">Last image</string>
-    <string name="voice_shortcut_last_image_long">Show last Nightshade image</string>
+    <string name="voice_shortcut_last_image_long">Show last Skotiq image</string>
     <string name="voice_dynamic_status_default">No active sequence</string>
 </resources>

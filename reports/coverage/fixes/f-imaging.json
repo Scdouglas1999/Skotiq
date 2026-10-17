@@ -6,12 +6,12 @@
       "outcome": "fixed",
       "summary": "Fixed at the choke point: ImagingService.captureImage now stamps the frame with the filter the CONNECTED WHEEL is parked on (FilterWheelState.currentFilterName) instead of trusting the ExposureSettings mirror, so the FITS FILTER card, the $FILTER filename token, captured_images.filter and the session image all name the same physical glass no matter which call site forgot to mirror. Also wired the missing onFilterSelected on the Imaging bottom banner's filter strip so exposureSettingsProvider (read by the Dashboard session card) follows the selection.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/services/imaging_service.dart",
-        "packages/nightshade_app/lib/screens/imaging/widgets/imaging_bottom_banner.dart",
-        "packages/nightshade_core/test/services/imaging_service_filter_provenance_test.dart",
-        "packages/nightshade_app/test/screens/imaging/imaging_bottom_banner_filter_test.dart"
+        "packages/skotiq_core/lib/src/services/imaging_service.dart",
+        "packages/skotiq_app/lib/screens/imaging/widgets/imaging_bottom_banner.dart",
+        "packages/skotiq_core/test/services/imaging_service_filter_provenance_test.dart",
+        "packages/skotiq_app/test/screens/imaging/imaging_bottom_banner_filter_test.dart"
       ],
-      "test": "packages/nightshade_core/test/services/imaging_service_filter_provenance_test.dart (5 cases) + packages/nightshade_app/test/screens/imaging/imaging_bottom_banner_filter_test.dart (1 case)",
+      "test": "packages/skotiq_core/test/services/imaging_service_filter_provenance_test.dart (5 cases) + packages/skotiq_app/test/screens/imaging/imaging_bottom_banner_filter_test.dart (1 case)",
       "test_fails_without_fix": true,
       "caveats": "Verified by reverting: with `settings = _withLiveFilter(settings)` commented out, 3 of the 5 core cases fail (the two negative cases correctly still pass); with onFilterSelected removed the banner case fails. Two PRE-EXISTING failures in imaging_service_test.dart (DATE-OBS) come from ANOTHER agent's concurrent in-flight edit to the same file (exposureStartedAt vs captureTimestamp), not from this change - confirmed by testing against HEAD."
     },
@@ -20,10 +20,10 @@
       "outcome": "fixed",
       "summary": "The flow can no longer report an outcome it has not verified, and can no longer end in silence. (1) addFramedTargetToExistingSequence now READS THE INSERT BACK out of currentSequenceProvider - every inserted header id must be present in the sequence's node map - before returning true; when it is not, it shows 'Could not add <target> to the sequence. Open the Sequencer and add it there.' and returns false. (2) The destination picker is no longer barrierDismissible: it is a commit surface with its own Cancel, and a barrier dismissal returned the SAME null a real cancel does - the one outcome the caller deliberately says nothing about - so a stray click was indistinguishable from 'I pressed Add target and nothing happened'. (3) A catch-all now reports unexpected exceptions instead of letting them escape as unhandled async errors into a Future the button never inspects.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/framing/add_target_to_sequence_flow.dart",
-        "packages/nightshade_app/test/screens/framing/add_target_to_sequence_silent_failure_test.dart"
+        "packages/skotiq_app/lib/screens/framing/add_target_to_sequence_flow.dart",
+        "packages/skotiq_app/test/screens/framing/add_target_to_sequence_silent_failure_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/framing/add_target_to_sequence_silent_failure_test.dart (3 cases)",
+      "test": "packages/skotiq_app/test/screens/framing/add_target_to_sequence_silent_failure_test.dart (3 cases)",
       "test_fails_without_fix": true,
       "caveats": "HONESTY: I could not reproduce the exact internal step that dropped the write. I drove the REAL FramingScreen through the REAL button in a widget test (Utilities -> Add to Sequence -> Add target, with and without the savedSequencesProvider override) and the target lands correctly every time, and the pre-existing add_target_to_sequence_flow_test.dart passes at HEAD. What the audit evidence proves is narrower and certain: the editor held NO sequence afterwards (the Sequencer's postFrameCallback only creates its 'New Sequence' default when currentSequenceProvider is null), so the flow returned before createSequence(name:'M92') - i.e. `chosen == null` or an early return - and reported nothing either way. The fix closes that class: the two ways to reach a silent null (barrier dismissal, unhandled exception) are gone, and success is now verified rather than assumed. Verified by reverting both: removing the read-back fails 'an insert that does not land is reported', removing barrierDismissible:false fails 'a click on the barrier cannot discard the choice in silence'. Also fixed one existing test's implicit fixture (framing_goto_step_mount_gate_test.dart seeded a connected mount and relied on MountState.isParked defaulting to true); it now says parked:false explicitly. Note for future work: addTargetHeader is an EXTENSION method on CurrentSequenceNotifier, so it is statically dispatched and cannot be overridden in a test subclass."
     },
@@ -32,14 +32,14 @@
       "outcome": "fixed",
       "summary": "Loop is now a live-view mode. ImagingService.startLoopCapture gained `saveFrames` (default FALSE) and routes non-keeper frames through a NEW live-view branch: one reused scratch file per camera under the system temp dir, never the operator's configured light-frame folder and never a captured_images row. Plate solving / annotation / preview still work because the frame is still on disk. The Imaging banner grew a visible 'Save' toggle next to Loop (loopSavesFramesProvider, default off, locked while a loop is live) and the screen passes it through; when frames are discarded the session's completedExposures / integration total no longer counts them, because a discarded frame is not integration the operator has. captureImage() stayed keeper-only (it delegates to a private _capture) so no subclass signature changed.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/services/imaging_service.dart",
-        "packages/nightshade_app/lib/screens/imaging/widgets/imaging_bottom_banner.dart",
-        "packages/nightshade_app/lib/screens/imaging/imaging_screen/imaging_screen_actions.dart",
-        "packages/nightshade_core/test/services/imaging_service_loop_retention_test.dart",
-        "packages/nightshade_app/test/screens/imaging/imaging_loop_frame_retention_test.dart",
-        "packages/nightshade_app/test/screens/imaging/imaging_screen_test.dart"
+        "packages/skotiq_core/lib/src/services/imaging_service.dart",
+        "packages/skotiq_app/lib/screens/imaging/widgets/imaging_bottom_banner.dart",
+        "packages/skotiq_app/lib/screens/imaging/imaging_screen/imaging_screen_actions.dart",
+        "packages/skotiq_core/test/services/imaging_service_loop_retention_test.dart",
+        "packages/skotiq_app/test/screens/imaging/imaging_loop_frame_retention_test.dart",
+        "packages/skotiq_app/test/screens/imaging/imaging_screen_test.dart"
       ],
-      "test": "packages/nightshade_core/test/services/imaging_service_loop_retention_test.dart (3 cases) + packages/nightshade_app/test/screens/imaging/imaging_loop_frame_retention_test.dart (2 cases)",
+      "test": "packages/skotiq_core/test/services/imaging_service_loop_retention_test.dart (3 cases) + packages/skotiq_app/test/screens/imaging/imaging_loop_frame_retention_test.dart (2 cases)",
       "test_fails_without_fix": true,
       "caveats": "Verified by reverting: flipping startLoopCapture's default back to saveFrames:true fails 'a loop run writes no frames into the configured image folder' (the other two still pass, as they should); removing the screen's saveFrames/session-count wiring fails both widget cases. 3 golden tests in imaging_landscape_capture_test.dart fail, but they fail identically with imaging_bottom_banner.dart reverted to HEAD - pre-existing Windows-captured goldens on Linux (missing-glyph boxes across the whole frame). The naming-collision suffix the finding noted (0001_001) is by design (_ensureUniqueFilePath) and untouched."
     },
@@ -48,13 +48,13 @@
       "outcome": "fixed",
       "summary": "Step-4 readiness now derives from the state that actually decides whether a GoTo can happen. `canSlew = hasTarget && isMountConnected && !isMountParked` (park state only consulted once the mount is CONNECTED, because MountState.isParked defaults to true on an unknown mount), and that same predicate is passed to SlewDropdownButton.isEnabled - previously the framing rail never passed isEnabled at all, so the button stayed live over a parked mount and swallowed every click. The pill now reads No target / No mount / Parked / Below horizon / Ready, and the step body says what to do ('The mount is parked. Unpark it (Imaging -> Mount) before slewing.'). Target altitude is computed from the configured site and reported as an advisory warning (button stays enabled - a target that has not risen is a legitimate pre-point) with no claim made when no site is configured.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/framing/widgets/framing_actions_panel.dart",
-        "packages/nightshade_app/test/screens/framing/framing_goto_readiness_test.dart"
+        "packages/skotiq_app/lib/screens/framing/widgets/framing_actions_panel.dart",
+        "packages/skotiq_app/test/screens/framing/framing_goto_readiness_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/framing/framing_goto_readiness_test.dart (4 cases)",
+      "test": "packages/skotiq_app/test/screens/framing/framing_goto_readiness_test.dart (4 cases)",
       "test_fails_without_fix": true,
       "caveats": "Verified by reverting canSlew to `hasTarget && isMountConnected`: 'a parked mount is not \"Ready\" and the slew button is disabled' fails, the other three pass. The 'Below horizon' badge is new text that does not exist at HEAD (git show HEAD: greps 0 for 'Below horizon' and 'isParked' in this file), so its case cannot pass without the change. NOT FIXED here: the underlying silent slew. SlewDropdownButton and MountCommandService are outside my ownership - see needs_shared_change.",
-      "needs_shared_change": "packages/nightshade_app/lib/widgets/slew_dropdown_button.dart: (1) the primary 'Slew to Target' face is a PopupMenuButton child, so the first click only opens a menu - a filled primary button that does not perform its own labelled action is the other half of this finding; (2) _handleSlewMode has no try/catch around the mode handlers, so an exception thrown by mountService.slewTo (or by _getCapabilities, which THROWS StateError when capabilities are unavailable) escapes as an unhandled async error and the operator sees nothing at all. Wrap the switch in try/catch and report via context.showErrorSnackBar. Also worth logging the refusal in packages/nightshade_app/lib/services/mount_command_service.dart: slewTo() returns CommandActionResult.failure(...) without ever writing to the log, which is why the audit found zero app.log lines across four attempts."
+      "needs_shared_change": "packages/skotiq_app/lib/widgets/slew_dropdown_button.dart: (1) the primary 'Slew to Target' face is a PopupMenuButton child, so the first click only opens a menu - a filled primary button that does not perform its own labelled action is the other half of this finding; (2) _handleSlewMode has no try/catch around the mode handlers, so an exception thrown by mountService.slewTo (or by _getCapabilities, which THROWS StateError when capabilities are unavailable) escapes as an unhandled async error and the operator sees nothing at all. Wrap the switch in try/catch and report via context.showErrorSnackBar. Also worth logging the refusal in packages/skotiq_app/lib/services/mount_command_service.dart: slewTo() returns CommandActionResult.failure(...) without ever writing to the log, which is why the audit found zero app.log lines across four attempts."
     }
   ]
 }

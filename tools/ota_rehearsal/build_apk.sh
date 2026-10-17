@@ -19,7 +19,7 @@ KS="$KS_DIR/rehearsal.jks"
 if [ ! -f "$KS" ]; then
   keytool -genkeypair -keystore "$KS" -storepass rehearsal -keypass rehearsal \
     -alias rehearsal -keyalg RSA -keysize 2048 -validity 30 \
-    -dname "CN=Nightshade OTA rehearsal (throwaway)"
+    -dname "CN=Skotiq OTA rehearsal (throwaway)"
 fi
 
 case "$ABI" in
@@ -36,7 +36,7 @@ sed -i -E "s/^version: .*/version: ${VERSION}+${BUILD}/" pubspec.yaml
 
 KEYSTORE_FILE="$KS" KEYSTORE_PASSWORD=rehearsal KEY_ALIAS=rehearsal KEY_PASSWORD=rehearsal \
   flutter build apk --release --split-per-abi --target-platform "$PLATFORM" \
-  "--dart-define=NIGHTSHADE_UPDATE_PUBLIC_KEY=$PUBKEY"
+  "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=$PUBKEY"
 
 mkdir -p "$(dirname "$OUT")"
 cp -f "build/app/outputs/flutter-apk/app-$ABI-release.apk" "$OUT"

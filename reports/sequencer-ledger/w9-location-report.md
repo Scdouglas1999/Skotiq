@@ -12,7 +12,7 @@ answered and how precise it claims to be, and the confirmation says so.
 
 ## What changed
 
-### `packages/nightshade_planetarium/lib/src/services/geolocation_service.dart`
+### `packages/skotiq_planetarium/lib/src/services/geolocation_service.dart`
 
 - New `GeolocationSource { device, internet }` and `GeolocationFix`
   (`latitude`, `longitude`, `locationName`, `source`, `providerHost`,
@@ -35,7 +35,7 @@ answered and how precise it claims to be, and the confirmation says so.
 - Docs on `fetchLocationFromGPS` rewritten — they still claimed Settings and
   the wizard passed `false`.
 
-### `packages/nightshade_app/lib/screens/settings/widgets/location_settings.dart`
+### `packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart`
 
 - `DeviceLocationFetcher` typedef → `Future<GeolocationFix?> Function()`;
   `deviceLocationFetcherProvider` calls
@@ -55,7 +55,7 @@ answered and how precise it claims to be, and the confirmation says so.
   Search for a place by name, or enter coordinates.` (both paths failed —
   the old "No GPS fix" wording was wrong for a machine with no receiver).
 
-### `packages/nightshade_app/lib/screens/onboarding/steps/site_step.dart`
+### `packages/skotiq_app/lib/screens/onboarding/steps/site_step.dart`
 
 - New `DeviceLocationLookup` typedef (`Future<GeolocationFix?>`);
   `onboardingDeviceLocationProvider` calls
@@ -71,13 +71,13 @@ answered and how precise it claims to be, and the confirmation says so.
 - Class doc bullet clarified: the explicit Detect path is consented and
   provenance-labelled, distinct from the passive IP-estimate offer.
 
-### `packages/nightshade_app/lib/widgets/geolocation_consent.dart`
+### `packages/skotiq_app/lib/widgets/geolocation_consent.dart`
 
 Unchanged. The `includeIpFallback` parameter stays (brief names it): both
 surfaces pass `true`; the `false` copy branch remains for a hypothetical
 device-only consent.
 
-### `packages/nightshade_app/lib/screens/settings/settings_search_index.g.dart`
+### `packages/skotiq_app/lib/screens/settings/settings_search_index.g.dart`
 
 Regenerated via `dart run tools/production/settings_search_index_gen.dart`
 (it embeds row text; the old subtitle was indexed). One-term diff:
@@ -113,28 +113,28 @@ artifact of `location_settings.dart` and a `--check` CI gate fails if stale.
 - `git rev-parse --short HEAD` → `1d8e6957f`, clean tree. EXIT=0
 - `dart run tools/production/settings_search_index_gen.dart` → wrote index
   (722 terms). EXIT=0
-- `cd packages/nightshade_planetarium && dart analyze` → 9 issues, all
+- `cd packages/skotiq_planetarium && dart analyze` → 9 issues, all
   pre-existing `deprecated_member_use` infos in `test/time_*` files, zero in
   geolocation files. EXIT=0
-- `cd packages/nightshade_app && dart analyze` → 891 issues, ALL
+- `cd packages/skotiq_app && dart analyze` → 891 issues, ALL
   pre-existing base lint debt (8 unused-import warnings + 883 info in files
   I did not touch; `grep geolocation|location_settings|site_step` = 0 hits).
   EXIT=2 (warnings). Base state verified: the same files produce the same
   findings with my touched files checked out at `1d8e6957f`.
 - `dart format --output=none --set-exit-if-changed` on the three verification
   packages (+planetarium) → 41 files changed, ALL pre-existing drift in
-  files I did not touch (`ip_geolocation.dart`, `nightshade_tooltip.dart`,
+  files I did not touch (`ip_geolocation.dart`, `skotiq_tooltip.dart`,
   …). Scoped to my 9 touched files: `Formatted 9 files (0 changed)`.
   EXIT=0.
-- `cd packages/nightshade_planetarium && flutter test
+- `cd packages/skotiq_planetarium && flutter test
   test/geolocation_transport_test.dart --concurrency=4` → +10 all passed.
   EXIT=0
-- `cd packages/nightshade_planetarium && flutter test --concurrency=4` →
+- `cd packages/skotiq_planetarium && flutter test --concurrency=4` →
   +588 −1. EXIT=1. Sole failure: `test/benchmark/golden_compare_test.dart`
   "benchmark golden checkpoints (compare)" — pixel-diff benchmark
   (maxDelta=218, 4.43% changed vs 0.20% limit). Verified PRE-EXISTING on
   base `1d8e6957f` with identical deltas — renderer/environment, unrelated.
-- `cd packages/nightshade_app && flutter test test/screens/settings
+- `cd packages/skotiq_app && flutter test test/screens/settings
   test/screens/onboarding --concurrency=4` → +758 −4. EXIT=1. Failing:
   `backup_restore_notice_test` ×2, `pairing_observatory_kit_test` ×1,
   `settings_search_query_test` ×1 — all confirmed PRE-EXISTING on base by

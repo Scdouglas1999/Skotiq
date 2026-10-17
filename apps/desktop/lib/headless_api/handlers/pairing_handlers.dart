@@ -33,7 +33,7 @@ library;
 
 import 'dart:io';
 
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
@@ -269,7 +269,7 @@ class PairingHandlers {
   /// Write [code] where a headless operator can actually read it.
   ///
   /// Deliberately NOT the structured log. `LoggingService.log()` does not
-  /// write the on-disk `nightshade.log.<date>` file at all — that file carries
+  /// write the on-disk `skotiq.log.<date>` file at all — that file carries
   /// only the native Rust tracing output — it appends to an in-memory ring
   /// buffer that is served over HTTP by `/api/logs/recent` and `/api/logs/tail`.
   /// Logging the code would therefore do the exact inverse of what this
@@ -278,7 +278,7 @@ class PairingHandlers {
   ///
   /// The file is written 0600 and lives outside the logs directory, so it is
   /// not enumerable or downloadable through `/api/logs/files/...` (those routes
-  /// only ever serve `nightshade.log*`).
+  /// only ever serve `skotiq.log*`).
   Future<String?> _writeOperatorPairingCode(
     String code,
     DateTime expiresAt,
@@ -389,7 +389,7 @@ class PairingHandlers {
     );
 
     // When the headless operator passed --pairing-print-codes (or set
-    // NIGHTSHADE_PAIRING_PRINT_CODES=true), ALSO echo the code to stdout as a
+    // SKOTIQ_PAIRING_PRINT_CODES=true), ALSO echo the code to stdout as a
     // convenience for an attended console/journalctl session. This stays
     // opt-in so accidental stdout capture in a CI/recording context does not
     // leak the code; the always-written 0600 file above is what makes code

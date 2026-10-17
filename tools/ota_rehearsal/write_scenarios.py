@@ -20,14 +20,14 @@ def assets(folder):
 
 
 def release(folder, version, body=None):
-    return {"tag_name": f"v{version}", "name": f"Nightshade {version}",
+    return {"tag_name": f"v{version}", "name": f"Skotiq {version}",
             "body": body or f"Rehearsal release {version} ({folder}).\n\n"
                             f"**Full Changelog**: https://github.com/x/y/compare",
             "assets": assets(folder)}
 
 
 good = release("good", n1v)
-zip_name = f"nightshade-{n1v}-linux-x64.zip"
+zip_name = f"skotiq-{n1v}-linux-x64.zip"
 scenarios = [
     {"name": "happy_path", "release": good, "expect": "updated",
      "target_version": n1v, "target_build": n1b, "target_marker": n1mark,
@@ -36,7 +36,7 @@ scenarios = [
      "expect": "refused_at_download", "reason_contains": "integrity"},
     {"name": "wrong_key", "release": release("wrongkey", n1v),
      "expect": "refused_at_download",
-     "reason_contains": "not signed by the Nightshade update key"},
+     "reason_contains": "not signed by the Skotiq update key"},
     {"name": "unsigned_manifest", "release": release("unsigned", n1v),
      "expect": "refused_at_download",
      "reason_contains": "published without a signature"},

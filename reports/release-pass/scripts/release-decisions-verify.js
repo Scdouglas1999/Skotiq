@@ -20,7 +20,7 @@ const CHECK_SCHEMA = {
 phase('Check')
 const results = await parallel([
   () => agent(
-    `You are the live DRIVER verifying the owner-decision implementations (see "Owner decisions (made 2026-08-14...)" in reports/release-pass/RELEASE-PASS-2026-08-11.md). Drive the fresh bundle at apps/desktop/build/linux/x64/release/bundle/nightshade_desktop via tools/ui_audit/drive_linux.py (profile AFTER subcommand; the AT-SPI tree lags — re-dump before judging; fresh profile opens onboarding: Skip by image coordinates if the tree lacks geometry). One graphify query first. Verify with evidence:
+    `You are the live DRIVER verifying the owner-decision implementations (see "Owner decisions (made 2026-08-14...)" in reports/release-pass/RELEASE-PASS-2026-08-11.md). Drive the fresh bundle at apps/desktop/build/linux/x64/release/bundle/skotiq_desktop via tools/ui_audit/drive_linux.py (profile AFTER subcommand; the AT-SPI tree lags — re-dump before judging; fresh profile opens onboarding: Skip by image coordinates if the tree lacks geometry). One graphify query first. Verify with evidence:
 1. AUTOPILOT PAUSE (decision 1): dispatch a run via the autopilot/scheduler with sim devices, press Stop → the autopilot does NOT re-dispatch (~44s wait), and a visible "Autopilot paused — resume?" affordance appears; Resume restores dispatching.
 2. REMOVAL = INELIGIBLE (decision 3): remove a target from the scheduler → the autopilot never picks it afterwards (watch at least one evaluation cycle).
 3. IMG-9 (decision 9): loop exposures on the imaging screen → the Frame Count label counts loop frames and resets on a new loop.

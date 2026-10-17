@@ -19,14 +19,14 @@ HTTP API, the way a remote client or the web dashboard does:
    protocol, guides a make-believe star, and can lose the star, refuse to
    re-lock, fail a settle or drop the connection on a schedule. It writes a
    timeline of what the guider really did.
-3. The app is relaunched with the scenario's `NIGHTSHADE_SIM_FAULTS` and a
-   cooling night (`NIGHTSHADE_SIM_NIGHT_COOLING_C_PER_HOUR`, which moves best
+3. The app is relaunched with the scenario's `SKOTIQ_SIM_FAULTS` and a
+   cooling night (`SKOTIQ_SIM_NIGHT_COOLING_C_PER_HOUR`, which moves best
    focus as the tube cools so the temperature and HFR refocus triggers have
    something to do). The site is a real observatory where it is currently
    about 23:00 local solar time, so the executor's Sun check passes and no dawn
    logic arms.
 4. It configures a simulator profile (camera, mount, 7-slot wheel
-   L/R/G/B/Ha/OIII/SII, focuser), ASTAP from `~/.local/share/nightshade-audit/astap/bin`
+   L/R/G/B/Ha/OIII/SII, focuser), ASTAP from `~/.local/share/skotiq-audit/astap/bin`
    when present, connects everything and PHD2, loads the night and starts it.
 5. While the run goes it polls the status every 2 s, performs any scheduled
    operator actions (pause, resume, stop) and times them, and samples the app
@@ -59,9 +59,9 @@ mean HFR whatever the focuser position). The grading HFR ceiling is raised to
 Build first. `flutter build linux --release` does not rebuild the Rust bridge,
 so after any native change build the bridge and copy it into the bundle:
 
-    cd native/nightshade_native
-    CARGO_TARGET_DIR=... cargo build --release -p nightshade_bridge
-    cp $CARGO_TARGET_DIR/release/libnightshade_bridge.so \
+    cd native/skotiq_native
+    CARGO_TARGET_DIR=... cargo build --release -p skotiq_bridge
+    cp $CARGO_TARGET_DIR/release/libskotiq_bridge.so \
        ../../apps/desktop/build/linux/x64/release/bundle/lib/
 
 Then:
@@ -119,6 +119,6 @@ never counted as a pass).
 
 Real mounts take and report coordinates of date; the simulator used to store
 raw J2000 and so could never show a J2000/of-date mix. It now behaves like an
-of-date mount by default (`NIGHTSHADE_SIM_MOUNT_FRAME=j2000` restores the old
+of-date mount by default (`SKOTIQ_SIM_MOUNT_FRAME=j2000` restores the old
 behavior) and the simulated camera renders the J2000 field the of-date pointing
-looks at. See `native/nightshade_native/bridge/src/device_manager/epoch.rs`.
+looks at. See `native/skotiq_native/bridge/src/device_manager/epoch.rs`.

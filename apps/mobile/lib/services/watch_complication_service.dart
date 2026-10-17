@@ -25,7 +25,7 @@ class WatchComplicationUnsupportedPlatformException implements Exception {
 /// complication's App Group container.
 ///
 /// Field names MUST stay in lockstep with the Swift `SnapshotPayload`
-/// inside `NightshadeWatchTimelineProvider.swift` — the JSON keys are
+/// inside `SkotiqWatchTimelineProvider.swift` — the JSON keys are
 /// the schema between the two layers.
 class WatchComplicationSnapshot {
   WatchComplicationSnapshot({
@@ -104,18 +104,18 @@ class WatchComplicationSnapshot {
 }
 
 /// Host-side bridge for the Apple Watch complication declared in
-/// `apps/mobile/ios/NightshadeWatchComplication/`.
+/// `apps/mobile/ios/SkotiqWatchComplication/`.
 ///
 /// Lifecycle:
 ///   * [publish] writes the snapshot JSON into the App Group `UserDefaults`
-///     suite (`group.com.nightshade.app`) under
+///     suite (`group.com.skotiq.app`) under
 ///     `watch_complication_snapshot` and triggers
 ///     `WidgetCenter.shared.reloadAllTimelines()` so WidgetKit re-renders
 ///     the complication immediately. The watch complication's
 ///     `TimelineProvider` reads the same key when WidgetKit invokes
 ///     `getTimeline(...)`.
 ///
-/// MethodChannel: `nightshade/watch_complication`. The single method
+/// MethodChannel: `skotiq/watch_complication`. The single method
 /// `publishSnapshot` takes the full JSON payload as a string argument
 /// (we send a pre-encoded string rather than a `Map` so the host can
 /// write it into `UserDefaults` verbatim — that way the same UTF-8
@@ -130,7 +130,7 @@ class WatchComplicationService {
 
   /// Public for tests.
   static const String channelName = _channelName;
-  static const String _channelName = 'nightshade/watch_complication';
+  static const String _channelName = 'skotiq/watch_complication';
 
   /// MethodChannel method name. Public so tests can match against the
   /// same string the host expects.

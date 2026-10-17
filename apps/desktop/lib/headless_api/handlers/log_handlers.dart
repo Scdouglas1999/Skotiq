@@ -39,8 +39,8 @@
 // Filename safety: `download` rejects anything that contains a path
 // separator, contains `..`, or does not match the daily-rolling Rust
 // tracing appender's output pattern (validated via
-// `LoggingService.isNightshadeLogFileName`, which anchors the regex
-// `^nightshade\.log(?:\.\d{4}-\d{2}-\d{2})?$`). We additionally resolve
+// `LoggingService.isSkotiqLogFileName`, which anchors the regex
+// `^skotiq\.log(?:\.\d{4}-\d{2}-\d{2})?$`). We additionally resolve
 // the requested path and verify its parent is exactly the configured
 // log directory so a symlink-into-logs trick cannot escape.
 import 'dart:async';
@@ -48,7 +48,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
@@ -187,7 +187,7 @@ class LogHandlers {
   ///
   /// Streams a specific log file as attachment with RFC 7233 Range
   /// support. The filename MUST match
-  /// `LoggingService.isNightshadeLogFileName`; anything else returns 403.
+  /// `LoggingService.isSkotiqLogFileName`; anything else returns 403.
   ///
   /// Why 403 (not 404) for an invalid filename: 404 would let an
   /// attacker probe the directory by file name. 403 indicates that
@@ -219,7 +219,7 @@ class LogHandlers {
       });
     }
 
-    if (!LoggingService.isNightshadeLogFileName(filename)) {
+    if (!LoggingService.isSkotiqLogFileName(filename)) {
       _logger.warning(
         '[API] /api/logs/files: filename "$filename" does not match log naming policy',
         source: 'LogHandlers',
@@ -227,7 +227,7 @@ class LogHandlers {
       return jsonForbidden({
         'error': 'forbidden_filename',
         'message':
-            'Filename must match nightshade.log[.YYYY-MM-DD] naming policy',
+            'Filename must match skotiq.log[.YYYY-MM-DD] naming policy',
       });
     }
 

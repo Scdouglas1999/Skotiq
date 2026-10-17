@@ -17,12 +17,12 @@ license](https://creativecommons.org/licenses/by-sa/4.0/):
 
 - **OpenNGC:** compiled by Mattia Verga and OpenNGC contributors. Source:
   <https://github.com/mattiaverga/OpenNGC>. The build filters and converts the
-  source CSV into Nightshade's fixed-width `dso-opengnc-v1.bin` format.
+  source CSV into Skotiq's fixed-width `dso-opengnc-v1.bin` format.
 - **HYG Database:** compiled by David Nash / Astronexus and contributors.
   Source: <https://codeberg.org/astronexus/hyg>. The build filters HYG v4.2 to
-  magnitude 15 and partitions it into Nightshade's HEALPix tile format.
+  magnitude 15 and partitions it into Skotiq's HEALPix tile format.
 
-The resulting catalog pack data is licensed CC BY-SA 4.0. Nightshade's program
+The resulting catalog pack data is licensed CC BY-SA 4.0. Skotiq's program
 code remains governed by its own license; no additional restrictions are
 asserted over the source datasets.
 
@@ -30,19 +30,19 @@ asserted over the source datasets.
 
 | Tool | Source CSV | Setup |
 |------|------------|--------|
-| `build_opengnc` | `packages/nightshade_planetarium/assets/opengnc/NGC.csv` | [OpenNGC README](../../../../../packages/nightshade_planetarium/assets/opengnc/README.md) |
-| `build_hyg_tiles` | `packages/nightshade_planetarium/assets/hyg/hyg_v42.csv` | [HYG README](../../../../../packages/nightshade_planetarium/assets/hyg/README.md) |
+| `build_opengnc` | `packages/skotiq_planetarium/assets/opengnc/NGC.csv` | [OpenNGC README](../../../../../packages/skotiq_planetarium/assets/opengnc/README.md) |
+| `build_hyg_tiles` | `packages/skotiq_planetarium/assets/hyg/hyg_v42.csv` | [HYG README](../../../../../packages/skotiq_planetarium/assets/hyg/README.md) |
 
 ## Build steps (from repository root)
 
-Run from `native/nightshade_native` (or pass an explicit repo root as the first CLI argument):
+Run from `native/skotiq_native` (or pass an explicit repo root as the first CLI argument):
 
 ```bash
 # Core pack — OpenNGC → dso-opengnc-v1.bin
-cargo run -p nightshade_planetarium --bin build_opengnc
+cargo run -p skotiq_planetarium --bin build_opengnc
 
 # Stars pack — HYG → HEALPix tiles (768 files, nside=8, mag ≤ 15)
-cargo run -p nightshade_planetarium --bin build_hyg_tiles
+cargo run -p skotiq_planetarium --bin build_hyg_tiles
 ```
 
 **Outputs**

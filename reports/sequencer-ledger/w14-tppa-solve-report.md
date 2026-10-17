@@ -72,7 +72,7 @@ blind solve, and a downsample factor that was inherited rather than chosen.
   stars the solve needs). The polar path now passes an explicit factor instead of
   inheriting a global.
 - `downsample` is threaded as `Option<u32>` through `plate_solve_{blind,near}_scaled` and
-  `nightshade_imaging::{blind_solve_with_timeout, solve_near_with_timeout}`. `None` keeps
+  `skotiq_imaging::{blind_solve_with_timeout, solve_near_with_timeout}`. `None` keeps
   the configured default; the two existing `device_ops.rs` call sites pass `None` and are
   behaviourally unchanged.
 - `build_astap_args` now emits `-z` for any factor ≥ 1 (was > 1). `0` still means "ASTAP
@@ -230,7 +230,7 @@ Two separate defects, one in each language.
 
 ### The hint was the framing target, not the telescope
 
-`_solveCurrentFrame` (`packages/nightshade_app/lib/screens/framing/widgets/framing_actions_panel.dart`)
+`_solveCurrentFrame` (`packages/skotiq_app/lib/screens/framing/widgets/framing_actions_panel.dart`)
 passed `target.raHours` / `target.decDegrees`. The framing target is resolved once and then
 outlives every slew of the session, so the hint decays from "where the scope is" to "where
 the operator wanted it hours ago" — and a 5° radius around a hint that is 30° stale is a
@@ -284,7 +284,7 @@ cover every path instead of one.
 
 ### Noted, not changed
 
-`NightshadeBackend.plateSolve`'s `fovDegrees` parameter is the search RADIUS, not a field of
+`SkotiqBackend.plateSolve`'s `fovDegrees` parameter is the search RADIUS, not a field of
 view (`plate_solve_service.dart:211` passes `config.searchRadius` into it). The name is
 wrong at three backend implementations and one role interface; renaming it touches files
 other agents hold, and it is not tonight's bug.
@@ -328,18 +328,18 @@ other agents hold, and it is not tonight's bug.
 
 | Command | Exit |
 | --- | --- |
-| `cargo test -p nightshade_bridge -p nightshade_native -p nightshade_sequencer --lib` (TMPDIR=~/.cache/ns-tests, CARGO_TARGET_DIR=~/.cache/ns-worktrees/cargo-target) | 0 — 713 + 202 + 868 passed, 0 failed |
-| `cargo test -p nightshade_imaging --lib` | 0 — 865 passed, 0 failed |
-| `cargo build --release -p nightshade_bridge` | 0 (Linux preview stays buildable) |
-| `cargo clippy -p nightshade_bridge -p nightshade_imaging -p nightshade_sequencer --lib --all-targets` | 0, no warnings |
+| `cargo test -p skotiq_bridge -p skotiq_native -p skotiq_sequencer --lib` (TMPDIR=~/.cache/ns-tests, CARGO_TARGET_DIR=~/.cache/ns-worktrees/cargo-target) | 0 — 713 + 202 + 868 passed, 0 failed |
+| `cargo test -p skotiq_imaging --lib` | 0 — 865 passed, 0 failed |
+| `cargo build --release -p skotiq_bridge` | 0 (Linux preview stays buildable) |
+| `cargo clippy -p skotiq_bridge -p skotiq_imaging -p skotiq_sequencer --lib --all-targets` | 0, no warnings |
 | `rustfmt --check` on the seven files this branch touches | 0. Repo-wide `cargo fmt --check` is red at the base commit (depthlock/mod.rs, sequencer/src/lib.rs, sequencer/tests/dart_wire_contract.rs); those were left as they were found. |
-| `flutter test test/screens/polar_alignment --concurrency=3` (nightshade_app) | 0 — 62 passed |
-| `flutter test test/screens/framing --concurrency=3` (nightshade_app) | 1 — 146 passed, **2 pre-existing golden failures** (`framing_hips_layer_wiring`, `framing_canvas_golden`) at 100.00% pixel diff: Windows-captured goldens on Linux. This branch touches no canvas, HiPS or rendering file (`git diff --name-only` = plate_solve.rs, polar_alignment/solve.rs, framing_actions_panel.dart). The three new hint-freshness tests pass. |
-| `flutter test test/models/polar_alignment_config_validation_test.dart test/providers/polar_alignment_{run_control,stop_acknowledgement}_test.dart` (nightshade_core) | 0 — 35 passed |
+| `flutter test test/screens/polar_alignment --concurrency=3` (skotiq_app) | 0 — 62 passed |
+| `flutter test test/screens/framing --concurrency=3` (skotiq_app) | 1 — 146 passed, **2 pre-existing golden failures** (`framing_hips_layer_wiring`, `framing_canvas_golden`) at 100.00% pixel diff: Windows-captured goldens on Linux. This branch touches no canvas, HiPS or rendering file (`git diff --name-only` = plate_solve.rs, polar_alignment/solve.rs, framing_actions_panel.dart). The three new hint-freshness tests pass. |
+| `flutter test test/models/polar_alignment_config_validation_test.dart test/providers/polar_alignment_{run_control,stop_acknowledgement}_test.dart` (skotiq_core) | 0 — 35 passed |
 | `flutter test test/headless_api/session_handlers_test.dart` (apps/desktop) | 0 — 22 passed |
-| `dart format --output=none --set-exit-if-changed packages/nightshade_app packages/nightshade_core apps/desktop/…/session_handlers.dart` | 0 — 3714 files, 0 changed |
-| `dart analyze` (nightshade_app) | 0 — 873 issues, all pre-existing `info` deprecations, 0 errors/warnings, none in the changed lines |
-| `dart analyze` (nightshade_core) | 0 — 16 pre-existing `info`s |
+| `dart format --output=none --set-exit-if-changed packages/skotiq_app packages/skotiq_core apps/desktop/…/session_handlers.dart` | 0 — 3714 files, 0 changed |
+| `dart analyze` (skotiq_app) | 0 — 873 issues, all pre-existing `info` deprecations, 0 errors/warnings, none in the changed lines |
+| `dart analyze` (skotiq_core) | 0 — 16 pre-existing `info`s |
 | `dart analyze lib/headless_api` (apps/desktop) | 0 — no issues found |
 
 ## Tests added
@@ -353,7 +353,7 @@ deadline with the watchdog behind it, a follower on a coalesced frame receives t
 result (not the first rung, and the ladder runs once), and a frame no rung solves names
 every rung it tried plus the hint it tried them around.
 
-Dart (`packages/nightshade_app/test/screens/framing/framing_solve_hint_freshness_test.dart`)
+Dart (`packages/skotiq_app/test/screens/framing/framing_solve_hint_freshness_test.dart`)
 — two clicks with the mount moved between them produce two different hints (the target
 unchanged throughout, which is the point), no mount falls back to the target, and a connected
 mount that has not reported a position falls back to the target rather than hinting at 0h/0°.
@@ -377,7 +377,7 @@ ASTAP owning the deadline with the watchdog behind it.
 Rust (`imaging/src/platesolve.rs`): `-z 1` reaches ASTAP, `-z 0` sends no flag, and
 `-fov` is identical at `-z 1` and `-z 2`.
 
-Dart (`packages/nightshade_app/test/screens/polar_alignment/polar_alignment_solve_defaults_test.dart`):
+Dart (`packages/skotiq_app/test/screens/polar_alignment/polar_alignment_solve_defaults_test.dart`):
 the fresh config is binning 2 / 90 s and passes its own validator, every preset budgets
 ≥ 60 s, the wizard opens on binning 2 with the quarter-of-the-time explanation, and the
 Advanced slider opens on 90 s.

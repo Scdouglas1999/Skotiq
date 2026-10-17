@@ -1,6 +1,6 @@
 # Support
 
-## Using Nightshade
+## Using Skotiq
 
 1. Start with the **[user documentation](../docs/index.md)** (install → first connection → first image).
 2. Check **[known limitations](../docs/known-limitations.md)** and **[troubleshooting](../docs/troubleshooting/common-issues.md)** for your platform.
@@ -10,12 +10,12 @@
 
 | Need | Where |
 |------|--------|
-| Bug or regression | [Open a bug report](https://github.com/Scdouglas1999/Nightshade/issues/new?template=bug_report.yml) |
-| Feature idea | [Open a feature request](https://github.com/Scdouglas1999/Nightshade/issues/new?template=feature_request.yml) |
+| Bug or regression | [Open a bug report](https://github.com/Scdouglas1999/Skotiq/issues/new?template=bug_report.yml) |
+| Feature idea | [Open a feature request](https://github.com/Scdouglas1999/Skotiq/issues/new?template=feature_request.yml) |
 | Security concern | [SECURITY.md](SECURITY.md) — private report only |
-| Releases & upgrades | [GitHub Releases](https://github.com/Scdouglas1999/Nightshade/releases) and [CHANGELOG.md](../docs/CHANGELOG.md) |
+| Releases & upgrades | [GitHub Releases](https://github.com/Scdouglas1999/Skotiq/releases) and [CHANGELOG.md](../docs/CHANGELOG.md) |
 
-Include **Nightshade version**, **OS**, **driver backend** (ASCOM / Alpaca / INDI / native), and **equipment models** when reporting hardware issues.
+Include **Skotiq version**, **OS**, **driver backend** (ASCOM / Alpaca / INDI / native), and **equipment models** when reporting hardware issues.
 
 ## Contributing code
 

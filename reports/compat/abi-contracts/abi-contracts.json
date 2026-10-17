@@ -10,9 +10,9 @@
     {
         "vendor":  "ZWO",
         "kind":  "rust-wrapper",
-        "item":  "native/nightshade_native/native/src/vendor/zwo.rs",
+        "item":  "native/skotiq_native/native/src/vendor/zwo.rs",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/zwo.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/zwo.rs",
         "reason":  "production Rust wrapper is present"
     },
     {
@@ -84,7 +84,7 @@
         "kind":  "rust-symbol-load",
         "item":  "ASIGetNumOfConnectedCameras",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/zwo.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/zwo.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -92,7 +92,7 @@
         "kind":  "rust-symbol-load",
         "item":  "ASIGetCameraProperty",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/zwo.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/zwo.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -100,7 +100,7 @@
         "kind":  "rust-symbol-load",
         "item":  "ASIStartExposure",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/zwo.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/zwo.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -108,7 +108,7 @@
         "kind":  "rust-symbol-load",
         "item":  "ASIGetDataAfterExp",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/zwo.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/zwo.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -116,7 +116,7 @@
         "kind":  "rust-symbol-load",
         "item":  "EAFGetNum",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/zwo.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/zwo.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -124,7 +124,7 @@
         "kind":  "rust-symbol-load",
         "item":  "EAFMove",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/zwo.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/zwo.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -132,7 +132,7 @@
         "kind":  "rust-symbol-load",
         "item":  "EFWGetNum",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/zwo.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/zwo.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -140,7 +140,7 @@
         "kind":  "rust-symbol-load",
         "item":  "EFWSetPosition",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/zwo.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/zwo.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -148,7 +148,7 @@
         "kind":  "rust-struct-order",
         "item":  "ASICameraInfo",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/zwo.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/zwo.rs",
         "reason":  "repr(C) wrapper keeps expected field order"
     },
     {
@@ -162,9 +162,9 @@
     {
         "vendor":  "Atik",
         "kind":  "rust-wrapper",
-        "item":  "native/nightshade_native/native/src/vendor/atik.rs",
+        "item":  "native/skotiq_native/native/src/vendor/atik.rs",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/atik.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/atik.rs",
         "reason":  "production Rust wrapper is present"
     },
     {
@@ -220,7 +220,7 @@
         "kind":  "rust-symbol-load",
         "item":  "ArtemisDeviceCount",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/atik.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/atik.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -228,7 +228,7 @@
         "kind":  "rust-symbol-load",
         "item":  "ArtemisConnect",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/atik.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/atik.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -236,7 +236,7 @@
         "kind":  "rust-symbol-load",
         "item":  "ArtemisStartExposure",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/atik.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/atik.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -244,7 +244,7 @@
         "kind":  "rust-symbol-load",
         "item":  "ArtemisGetImageData",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/atik.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/atik.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -252,7 +252,7 @@
         "kind":  "rust-symbol-load",
         "item":  "ArtemisSetCooling",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/atik.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/atik.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -260,7 +260,7 @@
         "kind":  "rust-symbol-load",
         "item":  "ArtemisDeviceHasFilterWheel",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/atik.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/atik.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -268,7 +268,7 @@
         "kind":  "rust-struct-order",
         "item":  "ArtemisProperties",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/atik.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/atik.rs",
         "reason":  "repr(C) wrapper keeps expected field order"
     },
     {
@@ -282,9 +282,9 @@
     {
         "vendor":  "SVBONY",
         "kind":  "rust-wrapper",
-        "item":  "native/nightshade_native/native/src/vendor/svbony.rs",
+        "item":  "native/skotiq_native/native/src/vendor/svbony.rs",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/svbony.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/svbony.rs",
         "reason":  "production Rust wrapper is present"
     },
     {
@@ -332,7 +332,7 @@
         "kind":  "rust-symbol-load",
         "item":  "SVBGetNumOfConnectedCameras",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/svbony.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/svbony.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -340,7 +340,7 @@
         "kind":  "rust-symbol-load",
         "item":  "SVBGetCameraProperty",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/svbony.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/svbony.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -348,7 +348,7 @@
         "kind":  "rust-symbol-load",
         "item":  "SVBOpenCamera",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/svbony.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/svbony.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -356,7 +356,7 @@
         "kind":  "rust-symbol-load",
         "item":  "SVBStartVideoCapture",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/svbony.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/svbony.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -364,7 +364,7 @@
         "kind":  "rust-symbol-load",
         "item":  "SVBGetVideoData",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/svbony.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/svbony.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -378,9 +378,9 @@
     {
         "vendor":  "Player One",
         "kind":  "rust-wrapper",
-        "item":  "native/nightshade_native/native/src/vendor/player_one.rs",
+        "item":  "native/skotiq_native/native/src/vendor/player_one.rs",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/player_one.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/player_one.rs",
         "reason":  "production Rust wrapper is present"
     },
     {
@@ -436,7 +436,7 @@
         "kind":  "rust-symbol-load",
         "item":  "POAGetCameraCount",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/player_one.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/player_one.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -444,7 +444,7 @@
         "kind":  "rust-symbol-load",
         "item":  "POAGetCameraProperties",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/player_one.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/player_one.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -452,7 +452,7 @@
         "kind":  "rust-symbol-load",
         "item":  "POAOpenCamera",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/player_one.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/player_one.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -460,7 +460,7 @@
         "kind":  "rust-symbol-load",
         "item":  "POAStartExposure",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/player_one.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/player_one.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -468,7 +468,7 @@
         "kind":  "rust-symbol-load",
         "item":  "POAImageReady",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/player_one.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/player_one.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -476,7 +476,7 @@
         "kind":  "rust-symbol-load",
         "item":  "POAGetImageData",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/player_one.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/player_one.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -484,7 +484,7 @@
         "kind":  "rust-struct-order",
         "item":  "POACameraProperties",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/player_one.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/player_one.rs",
         "reason":  "repr(C) wrapper keeps expected field order"
     },
     {
@@ -498,9 +498,9 @@
     {
         "vendor":  "QHYCCD",
         "kind":  "rust-wrapper",
-        "item":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "item":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "reason":  "production Rust wrapper is present"
     },
     {
@@ -564,7 +564,7 @@
         "kind":  "rust-symbol-load",
         "item":  "InitQHYCCDResource",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -572,7 +572,7 @@
         "kind":  "rust-symbol-load",
         "item":  "ScanQHYCCD",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -580,7 +580,7 @@
         "kind":  "rust-symbol-load",
         "item":  "OpenQHYCCD",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -588,7 +588,7 @@
         "kind":  "rust-symbol-load",
         "item":  "GetQHYCCDChipInfo",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -596,7 +596,7 @@
         "kind":  "rust-symbol-load",
         "item":  "ExpQHYCCDSingleFrame",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -604,7 +604,7 @@
         "kind":  "rust-symbol-load",
         "item":  "GetQHYCCDSingleFrame",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -612,7 +612,7 @@
         "kind":  "rust-symbol-load",
         "item":  "IsQHYCCDCFWPlugged",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -620,7 +620,7 @@
         "kind":  "rust-enum-value",
         "item":  "QhyControl.CONTROL_GAIN = 6",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "reason":  "Rust enum discriminant matches SDK header expectation"
     },
     {
@@ -628,7 +628,7 @@
         "kind":  "rust-enum-value",
         "item":  "QhyControl.CONTROL_OFFSET = 7",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "reason":  "Rust enum discriminant matches SDK header expectation"
     },
     {
@@ -636,7 +636,7 @@
         "kind":  "rust-enum-value",
         "item":  "QhyControl.CONTROL_EXPOSURE = 8",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "reason":  "Rust enum discriminant matches SDK header expectation"
     },
     {
@@ -644,7 +644,7 @@
         "kind":  "rust-enum-value",
         "item":  "QhyControl.CONTROL_CURTEMP = 14",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "reason":  "Rust enum discriminant matches SDK header expectation"
     },
     {
@@ -652,7 +652,7 @@
         "kind":  "rust-enum-value",
         "item":  "QhyControl.CONTROL_COOLER = 18",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "reason":  "Rust enum discriminant matches SDK header expectation"
     },
     {
@@ -660,7 +660,7 @@
         "kind":  "rust-enum-value",
         "item":  "QhyControl.CAM_BIN2X2MODE = 22",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "reason":  "Rust enum discriminant matches SDK header expectation"
     },
     {
@@ -668,7 +668,7 @@
         "kind":  "rust-enum-value",
         "item":  "QhyControl.CAM_16BITS = 35",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "reason":  "Rust enum discriminant matches SDK header expectation"
     },
     {
@@ -676,7 +676,7 @@
         "kind":  "rust-enum-value",
         "item":  "QhyControl.CAM_IS_COLOR = 59",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/qhy.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/qhy.rs",
         "reason":  "Rust enum discriminant matches SDK header expectation"
     },
     {
@@ -690,9 +690,9 @@
     {
         "vendor":  "ToupTek/Altair/OGMA",
         "kind":  "rust-wrapper",
-        "item":  "native/nightshade_native/native/src/vendor/touptek.rs",
+        "item":  "native/skotiq_native/native/src/vendor/touptek.rs",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/touptek.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/touptek.rs",
         "reason":  "production Rust wrapper is present"
     },
     {
@@ -748,7 +748,7 @@
         "kind":  "rust-symbol-load",
         "item":  "sym(\"EnumV2\")",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/touptek.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/touptek.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -756,7 +756,7 @@
         "kind":  "rust-symbol-load",
         "item":  "sym(\"OpenByIndex\")",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/touptek.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/touptek.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -764,7 +764,7 @@
         "kind":  "rust-symbol-load",
         "item":  "sym(\"PullImageV3\")",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/touptek.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/touptek.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -772,7 +772,7 @@
         "kind":  "rust-symbol-load",
         "item":  "sym(\"put_Option\")",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/touptek.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/touptek.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -780,7 +780,7 @@
         "kind":  "rust-symbol-load",
         "item":  "sym(\"get_Temperature\")",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/touptek.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/touptek.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -788,7 +788,7 @@
         "kind":  "rust-struct-order",
         "item":  "OgmacamDeviceV2",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/touptek.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/touptek.rs",
         "reason":  "repr(C) wrapper keeps expected field order"
     },
     {
@@ -802,9 +802,9 @@
     {
         "vendor":  "Moravian",
         "kind":  "rust-wrapper",
-        "item":  "native/nightshade_native/native/src/vendor/moravian.rs",
+        "item":  "native/skotiq_native/native/src/vendor/moravian.rs",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/moravian.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/moravian.rs",
         "reason":  "production Rust wrapper is present"
     },
     {
@@ -868,7 +868,7 @@
         "kind":  "rust-symbol-load",
         "item":  "Enumerate",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/moravian.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/moravian.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -876,7 +876,7 @@
         "kind":  "rust-symbol-load",
         "item":  "Initialize",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/moravian.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/moravian.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -884,7 +884,7 @@
         "kind":  "rust-symbol-load",
         "item":  "Open",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/moravian.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/moravian.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -892,7 +892,7 @@
         "kind":  "rust-symbol-load",
         "item":  "BeginExposure",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/moravian.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/moravian.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -900,7 +900,7 @@
         "kind":  "rust-symbol-load",
         "item":  "GetImage",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/moravian.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/moravian.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -908,7 +908,7 @@
         "kind":  "rust-symbol-load",
         "item":  "SetTemperature",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/moravian.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/moravian.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -916,7 +916,7 @@
         "kind":  "rust-symbol-load",
         "item":  "SetFilter",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/moravian.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/moravian.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -930,9 +930,9 @@
     {
         "vendor":  "FLI",
         "kind":  "rust-wrapper",
-        "item":  "native/nightshade_native/native/src/vendor/fli.rs",
+        "item":  "native/skotiq_native/native/src/vendor/fli.rs",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/fli.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/fli.rs",
         "reason":  "production Rust wrapper is present"
     },
     {
@@ -988,7 +988,7 @@
         "kind":  "rust-symbol-load",
         "item":  "FLIOpen",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/fli.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/fli.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -996,7 +996,7 @@
         "kind":  "rust-symbol-load",
         "item":  "FLIExposeFrame",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/fli.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/fli.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -1004,7 +1004,7 @@
         "kind":  "rust-symbol-load",
         "item":  "FLIGrabRow",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/fli.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/fli.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -1012,7 +1012,7 @@
         "kind":  "rust-symbol-load",
         "item":  "FLISetTemperature",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/fli.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/fli.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -1020,7 +1020,7 @@
         "kind":  "rust-symbol-load",
         "item":  "FLISetFilterPos",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/fli.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/fli.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -1028,7 +1028,7 @@
         "kind":  "rust-symbol-load",
         "item":  "FLIStepMotor",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/fli.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/fli.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -1042,9 +1042,9 @@
     {
         "vendor":  "Fujifilm",
         "kind":  "rust-wrapper",
-        "item":  "native/nightshade_native/native/src/vendor/fujifilm.rs",
+        "item":  "native/skotiq_native/native/src/vendor/fujifilm.rs",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/fujifilm.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/fujifilm.rs",
         "reason":  "production Rust wrapper is present"
     },
     {
@@ -1100,7 +1100,7 @@
         "kind":  "rust-symbol-load",
         "item":  "XSDK_Init",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/fujifilm.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/fujifilm.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -1108,7 +1108,7 @@
         "kind":  "rust-symbol-load",
         "item":  "XSDK_Detect",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/fujifilm.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/fujifilm.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -1116,7 +1116,7 @@
         "kind":  "rust-symbol-load",
         "item":  "XSDK_OpenEx",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/fujifilm.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/fujifilm.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -1124,7 +1124,7 @@
         "kind":  "rust-symbol-load",
         "item":  "XSDK_Release",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/fujifilm.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/fujifilm.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -1132,7 +1132,7 @@
         "kind":  "rust-symbol-load",
         "item":  "XSDK_ReadImageInfo",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/fujifilm.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/fujifilm.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -1140,7 +1140,7 @@
         "kind":  "rust-symbol-load",
         "item":  "XSDK_ReadImage",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/fujifilm.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/fujifilm.rs",
         "reason":  "Rust FFI loader references the same SDK symbol"
     },
     {
@@ -1148,7 +1148,7 @@
         "kind":  "rust-struct-order",
         "item":  "XsdkCameraList",
         "verdict":  "pass",
-        "evidence":  "native/nightshade_native/native/src/vendor/fujifilm.rs",
+        "evidence":  "native/skotiq_native/native/src/vendor/fujifilm.rs",
         "reason":  "repr(C) wrapper keeps expected field order"
     }
 ]

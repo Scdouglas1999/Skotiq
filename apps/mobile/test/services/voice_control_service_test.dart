@@ -18,7 +18,7 @@
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_mobile/services/voice_control_service.dart';
+import 'package:skotiq_mobile/services/voice_control_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -38,7 +38,7 @@ void main() {
     });
 
     test('wire ids match the cross-platform contract', () {
-      // These strings are baked into iOS NightshadeAppIntents.swift and
+      // These strings are baked into iOS SkotiqAppIntents.swift and
       // Android shortcuts.xml. Renaming any of them is a wire-protocol
       // change — this assertion exists so a Dart-side rename can't slip
       // through without an explicit test update.

@@ -1,6 +1,6 @@
 # Third-Party Libraries
 
-This directory contains pre-compiled third-party libraries required for building Nightshade.
+This directory contains pre-compiled third-party libraries required for building Skotiq.
 
 ## LibRaw
 

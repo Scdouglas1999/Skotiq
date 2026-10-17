@@ -1,6 +1,6 @@
 # Planetarium
 
-The Planetarium is Nightshade's GPU-rendered interactive sky visualization system. Use it to explore the night sky, plan observations, select targets, and preview framing for your imaging sessions.
+The Planetarium is Skotiq's GPU-rendered interactive sky visualization system. Use it to explore the night sky, plan observations, select targets, and preview framing for your imaging sessions.
 
 ## Overview
 

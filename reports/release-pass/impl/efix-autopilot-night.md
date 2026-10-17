@@ -1,7 +1,7 @@
 # E-fix batch `autopilot-night`
 
-Scope: `packages/nightshade_core/lib/src/services/scheduler/**`,
-`packages/nightshade_core/lib/src/providers/sequence/**`.
+Scope: `packages/skotiq_core/lib/src/services/scheduler/**`,
+`packages/skotiq_core/lib/src/providers/sequence/**`.
 Every item below has a failing-test-first pin; the refutation items encode the
 refuter's own counter-input. No GUI harness, no bundle rebuild, no FRB regen, no
 git writes.
@@ -113,7 +113,7 @@ never confirmed.
   priority edit writes nothing.
 * Pin: `test/providers/sequence/target_repoint_undo_sync_test.dart` with the
   refuter's exact input (M42-TEST 5.5885 h/−5.39° → 21.42 h/−35.0°, then undo)
-  against a real in-memory `NightshadeDatabase`: failed first with
+  against a real in-memory `SkotiqDatabase`: failed first with
   `Expected: 5.5885 Actual: 21.42`.
 
 ## Verification
@@ -133,7 +133,7 @@ never confirmed.
   (`stash@{0}: WIP on audit/end-to-end-campaign`) and, later, all changes back and
   **staged**. Nothing of this batch was lost, but `stash@{1}` and `stash@{0}` both
   still exist and the index is now non-empty — worth checking before the commit.
-* `packages/nightshade_app` suites could not be trusted while this ran: sibling
+* `packages/skotiq_app` suites could not be trusted while this ran: sibling
   batches were mid-edit in `planetarium/widgets/redesign/command_bar.dart` (a
   syntax error) and `time_control_panel.dart` (missing method), which fails the
   whole package's compilation. The 6 `test/screens/planner/captures_*` failures

@@ -4,24 +4,24 @@
     "outcome": "fixed",
     "summary": "The desktop snippet card bound ONLY onDoubleTap, and the LucideIcons.plus was a bare Icon painted on hover with no handler behind it. Made the + a real always-visible button (Semantics(button) + Tooltip + GestureDetector.onTap) wired to the same onSnippetTap the drag target uses. The honest fix was bigger than the item implied: the card body's onDoubleTap had to be RESTRUCTURED to wrap only the leading icon/text column instead of the whole row. As an ancestor of the +, its DoubleTapGestureRecognizer holds the gesture arena, so even after adding the handler a click on + fired nothing until kDoubleTapTimeout elapsed. Measured directly: with the old nesting the callback did not fire in the pumped frame; after the restructure it fires immediately. Footer copy corrected from the false 'or tap to insert' to 'or press + (or double-click) to insert'.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/sequencer/widgets/snippet_palette/draggable_item.dart",
-      "packages/nightshade_app/lib/screens/sequencer/widgets/snippet_palette/rendering.dart"
+      "packages/skotiq_app/lib/screens/sequencer/widgets/snippet_palette/draggable_item.dart",
+      "packages/skotiq_app/lib/screens/sequencer/widgets/snippet_palette/rendering.dart"
     ],
-    "test": "packages/nightshade_app/test/screens/sequencer/sequencer_jank_p3_test.dart -> group 'snippet palette insert affordance'",
+    "test": "packages/skotiq_app/test/screens/sequencer/sequencer_jank_p3_test.dart -> group 'snippet palette insert affordance'",
     "revert_check": "RAN: replaced the whole Semantics/Tooltip/GestureDetector block in _buildDesktopItem with `const Icon(LucideIcons.plus, size: 12)` -> \"the card's + inserts on a single tap\" failed at find.byTooltip('Insert into sequence') ('Found 0 widgets'). Restored -> passes.",
     "caveats": "The overflow (…) menu stays hover-gated by design; only the primary insert affordance was promoted to always-visible."
   },
   {
     "title": "Palette search never ranks the exact node-name match first, so typing a node's name adds a different node",
     "outcome": "fixed",
-    "summary": "Both palette surfaces filtered on name.contains || description.contains and rendered survivors in catalogue order, so a description hit outranked an exact name hit. Added packages/nightshade_app/lib/screens/sequencer/widgets/node_palette_search.dart: exact name 100 / prefix 80 / substring 60 / description 20, items sorted within a category and CATEGORIES hoisted by their best score (required for 'start guiding', whose exact match lives in a later category than the decoy). Ties fall back to catalogue order explicitly because List.sort is not stable. Wired into BOTH copies of the duplicated filter (sequencer_screen_parts/node_palette.dart and widgets/node_palette.dart) so they cannot drift apart again.",
+    "summary": "Both palette surfaces filtered on name.contains || description.contains and rendered survivors in catalogue order, so a description hit outranked an exact name hit. Added packages/skotiq_app/lib/screens/sequencer/widgets/node_palette_search.dart: exact name 100 / prefix 80 / substring 60 / description 20, items sorted within a category and CATEGORIES hoisted by their best score (required for 'start guiding', whose exact match lives in a later category than the decoy). Ties fall back to catalogue order explicitly because List.sort is not stable. Wired into BOTH copies of the duplicated filter (sequencer_screen_parts/node_palette.dart and widgets/node_palette.dart) so they cannot drift apart again.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/sequencer/widgets/node_palette_search.dart",
-      "packages/nightshade_app/lib/screens/sequencer/sequencer_screen_parts/node_palette.dart",
-      "packages/nightshade_app/lib/screens/sequencer/widgets/node_palette.dart",
-      "packages/nightshade_app/lib/screens/sequencer/sequencer_screen.dart"
+      "packages/skotiq_app/lib/screens/sequencer/widgets/node_palette_search.dart",
+      "packages/skotiq_app/lib/screens/sequencer/sequencer_screen_parts/node_palette.dart",
+      "packages/skotiq_app/lib/screens/sequencer/widgets/node_palette.dart",
+      "packages/skotiq_app/lib/screens/sequencer/sequencer_screen.dart"
     ],
-    "test": "packages/nightshade_app/test/screens/sequencer/sequencer_jank_p3_test.dart -> group 'node palette search ranking' (3 widget tests drive the REAL SequencerScreen palette and compare on-screen Y order of the rendered rows, plus 3 unit tests on the ranker)",
+    "test": "packages/skotiq_app/test/screens/sequencer/sequencer_jank_p3_test.dart -> group 'node palette search ranking' (3 widget tests drive the REAL SequencerScreen palette and compare on-screen Y order of the rendered rows, plus 3 unit tests on the ranker)",
     "revert_check": "RAN: restored the old `.where((item) => name.contains(q) || description.contains(q))` block in sequencer_screen_parts/node_palette.dart -> all three widget cases failed with the exact reported symptom: 'Dither' -> [Smart Exposure, Dither], 'loop' -> [Instruction Set, Loop], 'start guiding' -> [Photometry Run (template), Start Guiding]. Restored -> pass.",
     "caveats": "The order helper had to be scoped to the palette's ListView: a global find.text also matches the query the test just typed into the search box, which sits above every row and made the reverted code look like it passed. Caught and fixed before claiming the revert check."
   },
@@ -30,10 +30,10 @@
     "outcome": "fixed",
     "summary": "_target_step.dart had only `if (_searchResults.isNotEmpty)` and the search's catch block collapsed errors into the same empty list, so three different outcomes rendered as identical silence. Added completion/error/library-empty state to the search and an else branch that names which one happened: lookup failed (with the error), library empty, or no match for the typed name -- each pointing at the manual RA/Dec fields directly below. The empty-vs-no-match probe (allDbTargetsProvider) runs ONLY when a search comes back empty, so the happy path costs nothing. Also fixed a latent defect found while testing: the results rows are ListTiles inside a DecoratedBox with no Material ancestor, so they painted no ink splash and Flutter asserted about it on every render -- wrapped in Material(type: transparency).",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/sequencer/widgets/quick_start_wizard_dialog.dart",
-      "packages/nightshade_app/lib/screens/sequencer/widgets/quick_start_wizard_dialog/_target_step.dart"
+      "packages/skotiq_app/lib/screens/sequencer/widgets/quick_start_wizard_dialog.dart",
+      "packages/skotiq_app/lib/screens/sequencer/widgets/quick_start_wizard_dialog/_target_step.dart"
     ],
-    "test": "packages/nightshade_app/test/screens/sequencer/sequencer_jank_p3_test.dart -> group 'Quick-Start wizard target search' (empty library / populated-but-no-match / hit still shows the list)",
+    "test": "packages/skotiq_app/test/screens/sequencer/sequencer_jank_p3_test.dart -> group 'Quick-Start wizard target search' (empty library / populated-but-no-match / hit still shows the list)",
     "revert_check": "RAN: deleted the `if (_searchResults.isEmpty && _searchCompleted && !_isSearching) _buildTargetSearchEmptyState(colors)` line in _target_step.dart -> both empty-state tests failed ('Found 0 widgets with text containing ...'). Restored -> pass.",
     "caveats": "The finding attributed the 0 rows to 'catalogs not downloaded'. That is WRONG and the copy deliberately does not repeat it: the wizard searches the user's saved target library (the `targets` table, written by Sky/Planner/imports), which no catalog download populates. Telling the user to download a catalog would not have fixed their search. The deeper product question -- that the field hints 'e.g., M42, NGC 7000' but only searches saved targets, with no name resolver behind it -- is out of scope for this P3 and left open."
   },
@@ -42,22 +42,22 @@
     "outcome": "fixed",
     "summary": "EquipmentConnectionRule emitted a generic 'No Guider Connected' summary AND a per-node 'Guider Not Connected' for every node needing one, with the identical resolution hint. Because `required` is derived from the same enabled-node scan the loop walks, the summary was ALWAYS redundant -- not merely sometimes. The per-node issues now win (they carry affectedNodeId, which is what highlights the tree borders and names the offending node) and the summary is emitted only as a fallback when no enabled node can be attributed.",
     "files_changed": [
-      "packages/nightshade_core/lib/src/providers/sequence/rules/equipment_rules.dart"
+      "packages/skotiq_core/lib/src/providers/sequence/rules/equipment_rules.dart"
     ],
-    "test": "packages/nightshade_core/test/providers/sequence/sequence_validation_ref_aware_test.dart -> 'reports a missing guider once per affected node, with no duplicate summary' + 'one warning per guiding node, not one plus a summary' + the disabled-node case",
+    "test": "packages/skotiq_core/test/providers/sequence/sequence_validation_ref_aware_test.dart -> 'reports a missing guider once per affected node, with no duplicate summary' + 'one warning per guiding node, not one plus a summary' + the disabled-node case",
     "revert_check": "RAN implicitly by rewriting the pre-existing test that PINNED the defect ('emits per-node + summary guider issues when missing', expect hasLength(2)). Restoring the unconditional summary `issues.add` before the loop makes the new test fail with hasLength(2) vs expected 1.",
-    "caveats": "This file is in nightshade_core, outside the stated ownership list, but it is where the defect lives and no other agent in reports/coverage/fix3/ claims it (grepped). De-duplicating in the dialog instead would have relocated the defect rather than fixed it."
+    "caveats": "This file is in skotiq_core, outside the stated ownership list, but it is where the defect lives and no other agent in reports/coverage/fix3/ claims it (grepped). De-duplicating in the dialog instead would have relocated the defect rather than fixed it."
   },
   {
     "title": "Header node count includes the invisible root container, so an empty sequence reads '1 node' next to '0 steps'",
     "outcome": "fixed",
-    "summary": "Added visibleInstructionCount() in packages/nightshade_app/lib/screens/sequencer/sequence_counts.dart (nodes.length minus the root, falling back to the raw size for an unrooted sequence) and used it for the header chip via the existing countLabel() pluraliser.",
+    "summary": "Added visibleInstructionCount() in packages/skotiq_app/lib/screens/sequencer/sequence_counts.dart (nodes.length minus the root, falling back to the raw size for an unrooted sequence) and used it for the header chip via the existing countLabel() pluraliser.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/sequencer/sequence_counts.dart",
-      "packages/nightshade_app/lib/screens/sequencer/widgets/sequence_tree.dart",
-      "packages/nightshade_app/lib/screens/sequencer/widgets/sequence_tree/sequence_header.dart"
+      "packages/skotiq_app/lib/screens/sequencer/sequence_counts.dart",
+      "packages/skotiq_app/lib/screens/sequencer/widgets/sequence_tree.dart",
+      "packages/skotiq_app/lib/screens/sequencer/widgets/sequence_tree/sequence_header.dart"
     ],
-    "test": "packages/nightshade_app/test/screens/sequencer/sequencer_jank_p3_test.dart -> group 'node counts exclude the implicit root'",
+    "test": "packages/skotiq_app/test/screens/sequencer/sequencer_jank_p3_test.dart -> group 'node counts exclude the implicit root'",
     "revert_check": "RAN: put `'${sequence.nodes.length} ${sequence.nodes.length == 1 ? 'node' : 'nodes'}'` back in sequence_header.dart -> 'the header chip matches the tree, not the map' failed ('Found 0 widgets with text \"2 nodes\"'). Restored -> passes.",
     "caveats": "A concurrent agent overwrote sequence_tree.dart / sequence_header.dart / templates_tab.dart mid-session and dropped these edits; they were detected by a marker grep and re-applied, then re-verified green."
   },
@@ -66,9 +66,9 @@
     "outcome": "fixed",
     "summary": "_ToolbarIconButton wrapped a bare GestureDetector+Icon in a Tooltip, which annotates a node but never names or roles it as a button. Wrapped it in MergeSemantics(Semantics(button: true, enabled:, label: tooltip)) with excludeFromSemantics on the Tooltip, so the name and the tap action land on ONE node rather than a nameless-parent / actionless-child pair. All 13 actions render through this single widget, so one change covers them all; the test asserts both the label AND that the same node carries SemanticsAction.tap.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/sequencer/widgets/sequence_toolbar/icon_and_status.dart"
+      "packages/skotiq_app/lib/screens/sequencer/widgets/sequence_toolbar/icon_and_status.dart"
     ],
-    "test": "packages/nightshade_app/test/screens/sequencer/sequencer_jank_p3_test.dart -> group 'toolbar accessibility'",
+    "test": "packages/skotiq_app/test/screens/sequencer/sequencer_jank_p3_test.dart -> group 'toolbar accessibility'",
     "revert_check": "RAN: dropped the MergeSemantics/Semantics wrapper back to a bare Tooltip -> the test failed at find.bySemanticsLabel('New Sequence') ('Found 0 widgets with a semantics label named \"New Sequence\"'). Restored -> passes.",
     "caveats": "The verifier's location correction was right: the wrapper lives in sequence_toolbar/icon_and_status.dart, not sequence_toolbar.dart:439-521 (that range holds the label strings). find.byTooltip in the existing toolbar tests is unaffected by excludeFromSemantics."
   },
@@ -77,10 +77,10 @@
     "outcome": "fixed",
     "summary": "The dialog interpolated widget.sequence.nodes.length with a hardcoded 'nodes' and gated its primary action only on _isSaving. It now counts real instructions via the shared visibleInstructionCount(), pluralises through countLabel(), swaps the info line for 'This sequence has no instructions yet. Add at least one node before saving it as a template.' at zero, and disables Save Template.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/sequencer/tabs/templates_tab.dart",
-      "packages/nightshade_app/lib/screens/sequencer/tabs/templates_tab_parts/_save_template_dialog.dart"
+      "packages/skotiq_app/lib/screens/sequencer/tabs/templates_tab.dart",
+      "packages/skotiq_app/lib/screens/sequencer/tabs/templates_tab_parts/_save_template_dialog.dart"
     ],
-    "test": "packages/nightshade_app/test/screens/sequencer/sequencer_jank_p3_test.dart -> group 'Save as Template on an empty sequence'",
+    "test": "packages/skotiq_app/test/screens/sequencer/sequencer_jank_p3_test.dart -> group 'Save as Template on an empty sequence'",
     "revert_check": "RAN: restored `onPressed: _isSaving ? null : _saveTemplate` -> 'refuses to save an empty template' failed (onPressed was the live _saveTemplate closure). Restored -> passes.",
     "caveats": "The gate deliberately applies to CREATING a template only, not to re-saving an existing template row. My first version gated both and broke templates_catalog_test's 'Edit opens a custom template with its backing row intact' -- that fixture is a saved template with zero nodes, and blocking it would have left the user unable to fix the name/description of a template they already own. That is exactly the inversion class this campaign warned about, so the gate is now `_instructionCount == 0 && !_isExistingTemplate`. A Tooltip on the disabled button was also dropped: it changed the button's hit-test box and broke the same test; the reason is stated in the dialog's info line instead, which is more visible anyway. Verifier's path correction confirmed: tabs/templates_tab_parts/, not tabs/template_tab/."
   }

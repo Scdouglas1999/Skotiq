@@ -54,7 +54,7 @@ const String _pairPageHtml = r'''
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pair with Nightshade</title>
+<title>Pair with Skotiq</title>
 <style>
   :root {
     color-scheme: dark;
@@ -159,7 +159,7 @@ const String _pairPageHtml = r'''
 </head>
 <body>
   <div class="card">
-    <h1>Pair with Nightshade</h1>
+    <h1>Pair with Skotiq</h1>
     <p class="rig" id="rig-name">Connecting to this appliance…</p>
     <span class="mode" id="mode-badge">checking…</span>
 
@@ -174,7 +174,7 @@ const String _pairPageHtml = r'''
     <div id="code-required" class="hidden">
       <p>This appliance requires a pairing code. Click below to start pairing,
         then read the code from the appliance's log
-        (<code>journalctl -fu nightshade-headless</code>) and enter it here.</p>
+        (<code>journalctl -fu skotiq-headless</code>) and enter it here.</p>
       <button id="start-btn" type="button">Start pairing</button>
       <div id="code-entry" class="hidden">
         <input id="code-input" type="text"
@@ -256,7 +256,7 @@ const String _pairPageHtml = r'''
     fetch('/api/info', { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (info) {
-        rigName.textContent = (info.name || 'Nightshade')
+        rigName.textContent = (info.name || 'Skotiq')
           + ' · v' + (info.version || '?');
         var mode = info.pairingMode || (info.lanPairing ? 'lan-open' : 'code-required');
         modeBadge.textContent = mode;

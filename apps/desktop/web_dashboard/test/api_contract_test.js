@@ -20,7 +20,7 @@ function createClient(overrides) {
     setTimeout,
   };
   vm.createContext(sandbox);
-  vm.runInContext(`${source}\nthis.TestApi = NightshadeApi;`, sandbox);
+  vm.runInContext(`${source}\nthis.TestApi = SkotiqApi;`, sandbox);
   return new sandbox.TestApi();
 }
 
@@ -88,20 +88,20 @@ test('bearer gallery media uses authenticated blob requests, never URL tokens', 
       };
     },
   });
-  client.configure('http://nightshade.local:8080', 'secret-token', 'browser-1');
+  client.configure('http://skotiq.local:8080', 'secret-token', 'browser-1');
 
   assert.equal(client.usesHeaderAuth, true);
   assert.equal(
     client.imageDownloadUrl(7),
-    'http://nightshade.local:8080/api/images/7/download',
+    'http://skotiq.local:8080/api/images/7/download',
   );
   assert.equal(client.imageDownloadUrl(7).includes('access_token'), false);
 
   await client.imageThumbnailBlob(7, { maxWidth: 280, quality: 70 });
   await client.imageDownloadBlob(7);
   assert.deepEqual(fetches.map((entry) => entry.url), [
-    'http://nightshade.local:8080/api/images/7/thumbnail?maxWidth=280&quality=70',
-    'http://nightshade.local:8080/api/images/7/download',
+    'http://skotiq.local:8080/api/images/7/thumbnail?maxWidth=280&quality=70',
+    'http://skotiq.local:8080/api/images/7/download',
   ]);
   assert.equal(fetches[0].options.headers.Authorization, 'Bearer secret-token');
   assert.equal(fetches[1].options.headers.Authorization, 'Bearer secret-token');
@@ -120,7 +120,7 @@ test('remembered cookie sessions mint a WebSocket ticket', async () => {
   }
 
   const client = createClient({ WebSocket: FakeWebSocket });
-  client.configure('http://nightshade.local:8080', '', 'browser-1');
+  client.configure('http://skotiq.local:8080', '', 'browser-1');
   client._useSessionCookie = true;
   client._csrfToken = 'cookie-csrf';
   let ticketRequests = 0;
@@ -159,7 +159,7 @@ test('raw image data decodes the little-endian u16 wire contract', async () => {
       text: async () => '',
     }),
   });
-  client.configure('http://nightshade.local:8080', 'secret-token', 'browser-1');
+  client.configure('http://skotiq.local:8080', 'secret-token', 'browser-1');
 
   const pixels = await client.getLastRawImageData('cam-1');
 
@@ -223,7 +223,7 @@ test('WebSocket heartbeat frames emit activity without becoming app events', asy
   }
 
   const client = createClient({ WebSocket: FakeWebSocket });
-  client.configure('http://nightshade.local:8080', 'secret-token', 'browser-1');
+  client.configure('http://skotiq.local:8080', 'secret-token', 'browser-1');
   const activity = [];
   const events = [];
   client.on('ws:activity', (data) => activity.push(data));
@@ -397,10 +397,10 @@ test('every wrapper method routes through the same shape guard', async () => {
 
 test('an object body is still delivered untouched', async () => {
   const client = answeringClient(
-    '{"name":"Nightshade Headless","version":"6.2.0","authRequired":true}',
+    '{"name":"Skotiq Headless","version":"6.2.0","authRequired":true}',
   );
   const info = JSON.parse(JSON.stringify(await client.getInfo()));
-  assert.equal(info.name, 'Nightshade Headless');
+  assert.equal(info.name, 'Skotiq Headless');
   assert.equal(info.version, '6.2.0');
   assert.equal(info.authRequired, true);
 });

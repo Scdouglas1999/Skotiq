@@ -1,1 +1,1 @@
-error: no Nightshade accessibility root found for our pid. The app exposes a tree only when semantics are enabled; fall back to click-xy.
+error: no Skotiq accessibility root found for our pid. The app exposes a tree only when semantics are enabled; fall back to click-xy.

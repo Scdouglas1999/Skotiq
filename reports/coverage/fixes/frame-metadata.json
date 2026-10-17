@@ -9,7 +9,7 @@
     {
       "id": "F1",
       "claim": "captured_images already HAS every column the task asked for",
-      "evidence": "packages/nightshade_core/lib/src/database/tables/captured_images.dart:48-91 (gain, offset, sensorTemp, coolerPower, mountRa/Dec/Altitude/Azimuth, pierSide, focuserPosition, focuserTemp, rotatorAngle)",
+      "evidence": "packages/skotiq_core/lib/src/database/tables/captured_images.dart:48-91 (gain, offset, sensorTemp, coolerPower, mountRa/Dec/Altitude/Azimuth, pierSide, focuserPosition, focuserTemp, rotatorAngle)",
       "consequence": "NO schema migration was needed and none was added. Columns have existed since v18 and were simply never written by the sequencer path."
     },
     {
@@ -27,33 +27,33 @@
     {
       "id": "F4",
       "claim": "PRE-EXISTING, unrelated: the committed frb_generated.rs was stale, so any full FRB regen broke the Rust build",
-      "evidence": "git show HEAD:native/nightshade_native/bridge/src/frb_generated.rs | grep -c SimExposureRequest -> 0, while the struct is in committed source. First regen emitted E0308/E0277 resolving nightshade_native::camera::FrameType to crate::device::FrameType.",
+      "evidence": "git show HEAD:native/skotiq_native/bridge/src/frb_generated.rs | grep -c SimExposureRequest -> 0, while the struct is in committed source. First regen emitted E0308/E0277 resolving skotiq_native::camera::FrameType to crate::device::FrameType.",
       "consequence": "Fixed at cause with #[frb(ignore)] on SimExposureRequest, matching its own doc comment ('Dart has no use for this')."
     }
   ],
   "tests": [
     {
       "name": "database_row_and_fits_header_agree_for_the_same_frame",
-      "file": "native/nightshade_native/bridge/src/sequencer_ops.rs",
+      "file": "native/skotiq_native/bridge/src/sequencer_ops.rs",
       "asserts": "writes a real FITS file from one FrameContext, reads it back off disk, and checks GAIN/OFFSET/CCD-TEMP/EXPTIME/XBINNING/YBINNING/IMAGETYP/FOCUSPOS/FOCTEMP/ROTATPOS/RA/DEC against the FrameCaptureMetadata the row is written from",
       "revert_drill": "restored the ImageData gain override in build_rich_header -> FAILED (GAIN card Some(100) vs row Some(139)); restored -> passes"
     },
     {
       "name": "frame_event_carries_the_fits_writers_own_capture_context",
-      "file": "native/nightshade_native/sequencer/src/instructions.rs",
+      "file": "native/skotiq_native/sequencer/src/instructions.rs",
       "asserts": "emit_grade_progress emits FrameAccepted whose capture payload equals FrameCaptureMetadata::from(the FrameContext save_fits got)",
       "revert_drill": "changed capture: capture.clone() to capture: Default::default() -> FAILED (all-None/zero vs the real struct); restored -> passes"
     },
     {
-      "name": "packages/nightshade_core/test/providers/sequence/sequence_frame_capture_metadata_test.dart",
+      "name": "packages/skotiq_core/test/providers/sequence/sequence_frame_capture_metadata_test.dart",
       "asserts": "3 tests: accepted frame persists every capture field; rejected frame persists the same; a frame event WITHOUT the payload leaves the columns NULL (no fabricated zeros)",
       "revert_drill": "restored the pre-fix insertSequenceFrame call (attribution-only, no new columns) -> 2 of 3 FAILED with row.gain == null, the reported defect verbatim; restored -> all 3 pass"
     }
   ],
   "verification": {
-    "cargo_test": "nightshade_sequencer + nightshade_bridge: 435 + 703 + 5 + 4 + 12 passed, 0 failed",
-    "flutter_test_core": "5204 passed, 0 failed (full nightshade_core suite)",
-    "analyzer": "0 errors in nightshade_core, nightshade_bridge, nightshade_app, apps/desktop",
+    "cargo_test": "skotiq_sequencer + skotiq_bridge: 435 + 703 + 5 + 4 + 12 passed, 0 failed",
+    "flutter_test_core": "5204 passed, 0 failed (full skotiq_core suite)",
+    "analyzer": "0 errors in skotiq_core, skotiq_bridge, skotiq_app, apps/desktop",
     "fmt": "rustfmt clean on every file touched; dart format clean. bridge/src/api/post_session.rs has 3 PRE-EXISTING rustfmt diffs, untouched by this work."
   },
   "not_done": [
@@ -61,27 +61,27 @@
     "Not validated on hardware: the mount/pier/cooler reads in build_frame_context_for_save were exercised against NullDeviceOps, not a real driver."
   ],
   "files_changed": [
-    "native/nightshade_native/sequencer/src/scheduling/frame_context.rs",
-    "native/nightshade_native/sequencer/src/instructions.rs",
-    "native/nightshade_native/sequencer/src/node/progress.rs",
-    "native/nightshade_native/bridge/src/event.rs",
-    "native/nightshade_native/bridge/src/api/sequencer.rs",
-    "native/nightshade_native/bridge/src/sequencer_ops.rs",
-    "native/nightshade_native/bridge/src/api/devices/simulation.rs",
-    "native/nightshade_native/bridge/src/frb_generated.rs (generated)",
-    "packages/nightshade_bridge/lib/src/event.dart (generated)",
-    "packages/nightshade_bridge/lib/src/event.freezed.dart (generated)",
-    "packages/nightshade_bridge/lib/src/frb_generated.dart (generated)",
-    "packages/nightshade_bridge/lib/src/frb_generated.io.dart (generated)",
-    "packages/nightshade_bridge/lib/src/api/devices/simulation.dart (generated comment-only)",
-    "packages/nightshade_bridge/lib/src/api/imaging.dart (generated comment-only)",
-    "packages/nightshade_core/lib/src/backend/frame_capture_metadata.dart (new)",
-    "packages/nightshade_core/lib/src/backend/ffi_backend/event_mapping.dart",
-    "packages/nightshade_core/lib/src/backend/bridge_events.dart",
-    "packages/nightshade_core/lib/nightshade_core.dart",
-    "packages/nightshade_core/lib/src/providers/sequence/sequence_executor.dart",
-    "packages/nightshade_core/lib/src/providers/sequence/sequence_executor/event_operations.dart",
-    "packages/nightshade_core/lib/src/database/daos/images_dao.dart",
-    "packages/nightshade_core/test/providers/sequence/sequence_frame_capture_metadata_test.dart (new)"
+    "native/skotiq_native/sequencer/src/scheduling/frame_context.rs",
+    "native/skotiq_native/sequencer/src/instructions.rs",
+    "native/skotiq_native/sequencer/src/node/progress.rs",
+    "native/skotiq_native/bridge/src/event.rs",
+    "native/skotiq_native/bridge/src/api/sequencer.rs",
+    "native/skotiq_native/bridge/src/sequencer_ops.rs",
+    "native/skotiq_native/bridge/src/api/devices/simulation.rs",
+    "native/skotiq_native/bridge/src/frb_generated.rs (generated)",
+    "packages/skotiq_bridge/lib/src/event.dart (generated)",
+    "packages/skotiq_bridge/lib/src/event.freezed.dart (generated)",
+    "packages/skotiq_bridge/lib/src/frb_generated.dart (generated)",
+    "packages/skotiq_bridge/lib/src/frb_generated.io.dart (generated)",
+    "packages/skotiq_bridge/lib/src/api/devices/simulation.dart (generated comment-only)",
+    "packages/skotiq_bridge/lib/src/api/imaging.dart (generated comment-only)",
+    "packages/skotiq_core/lib/src/backend/frame_capture_metadata.dart (new)",
+    "packages/skotiq_core/lib/src/backend/ffi_backend/event_mapping.dart",
+    "packages/skotiq_core/lib/src/backend/bridge_events.dart",
+    "packages/skotiq_core/lib/skotiq_core.dart",
+    "packages/skotiq_core/lib/src/providers/sequence/sequence_executor.dart",
+    "packages/skotiq_core/lib/src/providers/sequence/sequence_executor/event_operations.dart",
+    "packages/skotiq_core/lib/src/database/daos/images_dao.dart",
+    "packages/skotiq_core/test/providers/sequence/sequence_frame_capture_metadata_test.dart (new)"
   ]
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install the Nightshade pre-commit hook.
+# Install the Skotiq pre-commit hook.
 #
 # Run once after cloning the repo:
 #   ./scripts/install-hooks.sh

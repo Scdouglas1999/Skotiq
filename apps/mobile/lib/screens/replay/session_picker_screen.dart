@@ -12,8 +12,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'session_replay_screen.dart';
 
@@ -41,7 +41,7 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
   bool _loading = false;
   bool _exhausted = false;
   Object? _error;
-  NightshadeBackend? _loadedBackend;
+  SkotiqBackend? _loadedBackend;
 
   @override
   void initState() {
@@ -165,12 +165,12 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<NightshadeBackend>(backendProvider, (previous, next) {
+    ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (previous != null && !identical(previous, next)) {
         unawaited(_refresh());
       }
     });
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
@@ -193,7 +193,7 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
     );
   }
 
-  Widget _buildBody(NightshadeColors colors) {
+  Widget _buildBody(SkotiqColors colors) {
     final err = _error;
     if (err != null && _runs.isEmpty) {
       if (err is _LocalBackendNotSupported) {
@@ -201,7 +201,7 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
           icon: LucideIcons.wifiOff,
           title: 'Connect to a server',
           body:
-              'Session replay requires the phone to be paired with a Nightshade server. '
+              'Session replay requires the phone to be paired with a Skotiq server. '
               "Replay reads from the server's database, not local-only state.",
         );
       }
@@ -263,7 +263,7 @@ class _RunRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     final duration = run.endedAt?.difference(run.startedAt);
     final stats = _parseStats(run.statsJson);
     final frameCount =
@@ -370,7 +370,7 @@ class _RunRow extends StatelessWidget {
         '${two(local.hour)}:${two(local.minute)}';
   }
 
-  Color _statusColor(String status, NightshadeColors colors) {
+  Color _statusColor(String status, SkotiqColors colors) {
     switch (status.toLowerCase()) {
       case 'completed':
         return colors.success;
@@ -388,7 +388,7 @@ class _RunRow extends StatelessWidget {
 class _Chip extends StatelessWidget {
   final IconData icon;
   final String label;
-  final NightshadeColors colors;
+  final SkotiqColors colors;
   final Color? accent;
 
   const _Chip({
@@ -440,7 +440,7 @@ class _LoadMoreTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     return InkWell(
       onTap: loading ? null : onTap,
       child: Padding(
@@ -473,7 +473,7 @@ class _ErrorRetry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -497,7 +497,7 @@ class _ErrorRetry extends StatelessWidget {
               style: TextStyle(fontSize: 12, color: colors.textSecondary),
             ),
             const SizedBox(height: 16),
-            NightshadeButton(label: 'Retry', onPressed: onRetry),
+            SkotiqButton(label: 'Retry', onPressed: onRetry),
           ],
         ),
       ),

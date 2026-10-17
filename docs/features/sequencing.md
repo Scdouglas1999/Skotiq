@@ -1,6 +1,6 @@
 # Sequencing and Automation
 
-The Sequencer is Nightshade's powerful automation engine that lets you plan and execute complex imaging sessions. Build sophisticated workflows with the visual behavior tree editor.
+The Sequencer is Skotiq's powerful automation engine that lets you plan and execute complex imaging sessions. Build sophisticated workflows with the visual behavior tree editor.
 
 ## Overview
 
@@ -36,7 +36,7 @@ The Builder tab has three main areas:
 
 **File Operations**
 - **New Sequence**: Create blank sequence
-- **Open Sequence**: Import .nightshade file
+- **Open Sequence**: Import .skotiq file
 - **Save Sequence**: Export sequence to file
 
 **Navigation**
@@ -650,7 +650,7 @@ Make templates flexible with parameters:
 
 ### Pre-flight Validation Dialog
 
-Before running, Nightshade validates your sequence with a comprehensive check.
+Before running, Skotiq validates your sequence with a comprehensive check.
 
 **Validation Process**
 1. Click **Run** to open Pre-Flight Validation Dialog

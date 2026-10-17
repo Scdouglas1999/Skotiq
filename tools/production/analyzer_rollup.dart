@@ -22,7 +22,7 @@ class _AnalyzerPolicy {
   });
 
   static const defaults = _AnalyzerPolicy(
-    include: <String>['apps/**', 'packages/**', 'native/nightshade_native/**'],
+    include: <String>['apps/**', 'packages/**', 'native/skotiq_native/**'],
     exclude: <String>[
       '**/.dart_tool/**',
       '**/.git/**',

@@ -1,7 +1,7 @@
-# Release-pass map — `nightshade_core` sequence execution
+# Release-pass map — `skotiq_core` sequence execution
 
 **Subsystem:** core-sequence
-**Paths mapped:** `packages/nightshade_core/lib/src/providers/sequence/` (whole directory; deep focus on `sequence_executor.dart` + the `sequence_executor/` part files)
+**Paths mapped:** `packages/skotiq_core/lib/src/providers/sequence/` (whole directory; deep focus on `sequence_executor.dart` + the `sequence_executor/` part files)
 **Mode:** read-only. No source file was modified.
 **Date:** 2026-08-11
 
@@ -44,7 +44,7 @@ Four files over the 1000-line Dart threshold. Counts verified with `wc -l`.
 
 ---
 
-### 1.1 `packages/nightshade_core/lib/src/providers/sequence/sequence_executor.dart` — **2288 lines** (risk: **high**)
+### 1.1 `packages/skotiq_core/lib/src/providers/sequence/sequence_executor.dart` — **2288 lines** (risk: **high**)
 
 **Why it is big.** It is the whole run lifecycle in one class: start admission + transactional acquisition, the one-per-run finalization transaction (`_RunFinalization` + `_driveFinalization` + native-stop confirmation), the transport command surface (pause/resume/stop/skip/skipToTarget/reset), and the entire checkpoint/resume path — plus ~40 instance fields and 40 imports. The finalization state machine alone is ~600 lines of extremely dense, heavily-commented invariant code that several prior audits have already had to fix in place. Every change to any one of those five concerns has to be made inside a file where a mis-scoped edit can touch the other four.
 
@@ -147,7 +147,7 @@ The resume path also omits `_ensureSequencePersisted` ordering nuances and `prog
 
 Then `_resumeFromCheckpointInner` calls both, plus `attachHostListenersForNativeRun()` (which already is the canonical "install the native subscription" method — see §2.4). Net: ~90 lines deleted, and the resume path can no longer drift from the start path.
 
-**Regression guard for the implementer:** `packages/nightshade_core/test/providers/sequence/sequence_executor_run_lifecycle_test.dart` and `.../sequence_executor_lifecycle_test.dart` pin the ordering; run them before and after.
+**Regression guard for the implementer:** `packages/skotiq_core/test/providers/sequence/sequence_executor_run_lifecycle_test.dart` and `.../sequence_executor_lifecycle_test.dart` pin the ordering; run them before and after.
 
 ---
 
@@ -165,7 +165,7 @@ Then `_resumeFromCheckpointInner` calls both, plus `attachHostListenersForNative
 | `seedDefectMapRuntimeForSequence(_ref)` | 116 | 2080 | none |
 | `_seedRuntimeConfigFromSettings(backend)` | 136 | 2081 | none |
 
-**Canonical survivor:** a new `Future<void> _pushLaunchConfig(NightshadeBackend backend, AppSettingsState settings, {required bool isResume})` in `runtime_config_operations.dart`, with the two real differences expressed as `if (!isResume)` / `if (!isResume || cameraConnected)` and the existing comments carried over verbatim. Both callers then have one line. ~55 lines deleted, and the class of bug the resume path already suffered ("resume pushed the raw configured safety mode and aborted instantly") becomes structurally impossible.
+**Canonical survivor:** a new `Future<void> _pushLaunchConfig(SkotiqBackend backend, AppSettingsState settings, {required bool isResume})` in `runtime_config_operations.dart`, with the two real differences expressed as `if (!isResume)` / `if (!isResume || cameraConnected)` and the existing comments carried over verbatim. Both callers then have one line. ~55 lines deleted, and the class of bug the resume path already suffered ("resume pushed the raw configured safety mode and aborted instantly") becomes structurally impossible.
 
 ---
 
@@ -195,7 +195,7 @@ Two of the three do `await _nativeEventSubscription?.cancel()` first; `_startNat
 
 ### 2.5 Two independent writers interpret the same native events into the same providers — **effort: large**
 
-`SequenceExecutor._handleSequencerEvent` (`event_operations.dart:4-451`) and `applySequencerEventToSequenceProviders` (`sequence_progress.dart:264-446`) both decode the *same* `NightshadeEvent` stream into the *same* `sequenceProgressProvider` / `sequenceExecutionStateProvider`. On a desktop host with a Dart-owned run, **both are live simultaneously** (DeviceService subscribes at app start; the executor subscribes at run start).
+`SequenceExecutor._handleSequencerEvent` (`event_operations.dart:4-451`) and `applySequencerEventToSequenceProviders` (`sequence_progress.dart:264-446`) both decode the *same* `SkotiqEvent` stream into the *same* `sequenceProgressProvider` / `sequenceExecutionStateProvider`. On a desktop host with a Dart-owned run, **both are live simultaneously** (DeviceService subscribes at app start; the executor subscribes at run start).
 
 The codebase already carries three separate defences against their divergence, each added after a real bug:
 
@@ -205,7 +205,7 @@ The codebase already carries three separate defences against their divergence, e
 
 They still disagree today: `NodeCompleted` maps `null` status to `NodeStatus.failure` in the executor (`event_operations.dart:50-56`) but to "leave alone" in the pump (`sequence_progress.dart:235-249`); `ExposureStarted`/`ExposureCompleted` drive `cameraStateProvider.setExposing` only in the pump.
 
-**Canonical survivor:** the *decoding* should be one pure function. Recommended shape: extract a `SequencerEventDecoder` (a pure `NightshadeEvent -> SequenceProgressDelta` mapper, no provider reads) used by both, leaving the executor with only the side-effects a Dart-owned run adds (frame registration, run stats, live stacking, finalization) and the pump with only the writes it makes when no executor owns the run. This is the largest single item in this report and should be scheduled as its own work order, not folded into a split.
+**Canonical survivor:** the *decoding* should be one pure function. Recommended shape: extract a `SequencerEventDecoder` (a pure `SkotiqEvent -> SequenceProgressDelta` mapper, no provider reads) used by both, leaving the executor with only the side-effects a Dart-owned run adds (frame registration, run stats, live stacking, finalization) and the pump with only the writes it makes when no executor owns the run. This is the largest single item in this report and should be scheduled as its own work order, not folded into a split.
 
 ---
 
@@ -225,7 +225,7 @@ On a `FrameAccepted` event the switch calls `_registerSequenceFrame` (which buil
 
 ### 3.1 `SequenceExecutor.validateSequence` — no callers, and its own doc comment is false
 
-`packages/nightshade_core/lib/src/providers/sequence/sequence_executor.dart:494-499`
+`packages/skotiq_core/lib/src/providers/sequence/sequence_executor.dart:494-499`
 
 ```dart
 /// Backwards-compatible structural-only validator. Kept because external
@@ -236,17 +236,17 @@ List<validation.ValidationIssue> validateSequence(Sequence sequence) =>
 
 **Evidence:** `grep -rn "\.validateSequence(" --include="*.dart" packages apps server` returns exactly one hit — line 499, the delegation inside the method itself. Every real consumer calls the *top-level* `validateSequence` from `sequence_validation.dart:475` directly: `sequence_file_service.dart:56`, `conversational_builder_service.dart:322`, `sequence_importer.dart:78`, and the tests at `sequence_validation_rules_test.dart:727`. The stated reason for keeping it ("external callers… still depend on") is not true of any caller in the repo.
 
-**Caveat for the verifier:** `SequenceExecutor` is exported from the `nightshade_core` barrel, so this is technically public API of an internal monorepo package. There is no plugin/reflection path to it (no `dart:mirrors`, no registry lookup by name in this repo).
+**Caveat for the verifier:** `SequenceExecutor` is exported from the `skotiq_core` barrel, so this is technically public API of an internal monorepo package. There is no plugin/reflection path to it (no `dart:mirrors`, no registry lookup by name in this repo).
 
 ### 3.2 `SequenceRunStats.recordDither()` — zero callers, and `ditherCount` is rendered in four places
 
-`packages/nightshade_core/lib/src/providers/sequence_stats_provider.dart:163` (the *symbol* is just outside these paths; the *missing caller* is inside them).
+`packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart:163` (the *symbol* is just outside these paths; the *missing caller* is inside them).
 
 **Evidence:** `grep -rn "recordDither" --include="*.dart" packages apps server` returns only the definition. Meanwhile `ditherCount` is read and displayed by `cockpit_session_vitals.dart:162`, `post_session_stats_dialog.dart:177`, `session_report_dialog/target_conditions.dart:25`, and is serialized into `sequence_runs.stats_json` (documented at `database/tables/sequence_runs.dart:49`) and `models/session_report.dart:211`.
 
 So the Session Report's "Dithers" figure is a **hard zero for every run**. This is the identical shape as the `recordAutofocus()` bug the code itself documents at `event_operations.dart:59-77` ("had ZERO production call sites… the run still persisted `autofocusRuns:0`") — which was fixed for autofocus and not for dither.
 
-The wiring exists to fix it: the native side emits `GuidingEvent::DitherCompleted` (`native/nightshade_native/bridge/src/event.rs:389`) and a `Dither` node produces a `NodeCompleted` with `node_type == "Dither"` (`native/nightshade_native/sequencer/src/node/registry.rs:188`). `_handleSequencerEvent` handles neither.
+The wiring exists to fix it: the native side emits `GuidingEvent::DitherCompleted` (`native/skotiq_native/bridge/src/event.rs:389`) and a `Dither` node produces a `NodeCompleted` with `node_type == "Dither"` (`native/skotiq_native/sequencer/src/node/registry.rs:188`). `_handleSequencerEvent` handles neither.
 
 ### 3.3 Four orphan doc comments
 
@@ -291,7 +291,7 @@ Honest sizing: for a typical 50-200 node sequence this is microseconds and does 
 
 `sequence_progress.dart:94-134`: `updateNodeProgress` copies **two** maps and `updateNodeStructuredProgress` copies two maps on every call. Both are invoked from the `InstructionProgress` / `InstructionProgressStructured` cases (`event_operations.dart:293`, `:322`), which the native autofocus/centring instructions emit at high rate during a sweep. O(touched-nodes) allocation per progress tick. Only worth addressing if a profile shows it; noted for completeness.
 
-**Not claimed:** I did not find evidence of a provider rebuild storm, a non-builder long list, sync IO on the UI isolate, or an unbounded cache inside these paths. `_frameDurations` is explicitly bounded to `kEtaWindowSize` (`serialization_operations.dart:285-288`); `_pendingStatWrites` and `_inFlightFrameRegistrations` are drained. Who watches `sequenceProgressProvider` high in the widget tree is a `nightshade_app` question — flagged as a cross-package suspect below.
+**Not claimed:** I did not find evidence of a provider rebuild storm, a non-builder long list, sync IO on the UI isolate, or an unbounded cache inside these paths. `_frameDurations` is explicitly bounded to `kEtaWindowSize` (`serialization_operations.dart:285-288`); `_pendingStatWrites` and `_inFlightFrameRegistrations` are drained. Who watches `sequenceProgressProvider` high in the widget tree is a `skotiq_app` question — flagged as a cross-package suspect below.
 
 ---
 
@@ -375,14 +375,14 @@ Covered in §2.4. `runtime_config_operations.dart:161` assigns `_nativeEventSubs
 
 ## 6. SUSPECTED CROSS-PACKAGE DUPLICATION (for the cross-cutting agent)
 
-* `_nodeToConfig` (`serialization_operations.dart:339-791`) is a Dart→Rust wire codec that must mirror `native/nightshade_native/sequencer/src/node/registry.rs` and the per-instruction serde structs; a parallel node→wire mapper may exist in `packages/nightshade_core/lib/src/services/sequence_file_service.dart` (`sequenceToMap` / `parseFromMap`, used at `sequence_executor.dart:775` and `:1978`).
+* `_nodeToConfig` (`serialization_operations.dart:339-791`) is a Dart→Rust wire codec that must mirror `native/skotiq_native/sequencer/src/node/registry.rs` and the per-instruction serde structs; a parallel node→wire mapper may exist in `packages/skotiq_core/lib/src/services/sequence_file_service.dart` (`sequenceToMap` / `parseFromMap`, used at `sequence_executor.dart:775` and `:1978`).
 * The enum→PascalCase string tables (`_binningToString`, `_twilightToString`, `_loopConditionToString`, `_conditionalTypeToString`, `_recoveryActionToString`, `_meridianTriggerMethodToString`, `_flipFailureActionToString`, `serialization_operations.dart:889-1072`) smell like they also exist on the model side (`models/sequence/sequence_models.dart` `storageKey` / `wireValue` accessors are already used for some enums at `:536`, `:779-780`).
 * `applySequencerEventToSequenceProviders` (`sequence_progress.dart:264`) vs `SequenceExecutor._handleSequencerEvent` — see §2.5; the third decoder of the same stream may be in `apps/desktop/lib/headless_api/handlers/sequencer_handlers.dart` and/or the run-watch snapshot builder.
-* `_pushObserverProfile`'s camera-make/model split and focal-length/aperture fallbacks probably duplicate FITS-header assembly logic in `nightshade_core/lib/src/services/` and/or `native/nightshade_native/imaging/src/fits.rs`.
+* `_pushObserverProfile`'s camera-make/model split and focal-length/aperture fallbacks probably duplicate FITS-header assembly logic in `skotiq_core/lib/src/services/` and/or `native/skotiq_native/imaging/src/fits.rs`.
 * `_lookupFilterIndex` (`serialization_operations.dart:216-247`) resolves a filter name→wheel index from the active profile; the same resolution almost certainly exists in the filter-wheel provider and in `DeviceService`.
 * `_effectiveSafetyFailMode` (`runtime_config_operations.dart:193-198`) pairs with a Dart-side weather verdict in `weather_safety_provider`; confirm there is exactly one definition of "weather safety is off ⇒ fail open".
 * `enclosingTargetHeader` (`frame_attribution.dart:152`) deliberately re-derives parent links by inverting `childIds` because `Sequence.parentOf` is unreliable for generated sequences — `Sequence.parentOf` itself is used at `sequence_executor.dart:1798`. Two different notions of "parent" in one subsystem is worth a cross-package look at `sequence_models.dart`.
-* Who watches `sequenceProgressProvider` (updated ~1 Hz plus per-event) high in the `nightshade_app` widget tree — outside these paths, but this subsystem is the producer.
+* Who watches `sequenceProgressProvider` (updated ~1 Hz plus per-event) high in the `skotiq_app` widget tree — outside these paths, but this subsystem is the producer.
 
 ---
 

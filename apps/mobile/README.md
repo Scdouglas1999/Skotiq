@@ -1,4 +1,4 @@
-# nightshade_mobile
+# skotiq_mobile
 
 A new Flutter project.
 

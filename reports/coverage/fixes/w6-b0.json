@@ -7,10 +7,10 @@
       "outcome": "already-correct",
       "summary": "Closed before this wave. session_review_controller.dart:1536-1581 exposes `cullRecommendationOffer`, which applies the whole staleness test (population length, duplicate paths, population-vs-accepted divergence, keepN >= population, gainPct <= 0) at RENDER time; cullToRecommended() at :1589-1599 now switches on that same getter instead of re-deriving it, so render and press can no longer disagree. sub_cull_rail.dart:289 gates the action on `_offer.isOfferable` and :503/:515 render an explanatory chip for the stale / already-optimal cases instead of a quantified button.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/session_review/session_review_controller.dart",
-        "packages/nightshade_app/lib/screens/session_review/widgets/sub_cull_rail.dart"
+        "packages/skotiq_app/lib/screens/session_review/session_review_controller.dart",
+        "packages/skotiq_app/lib/screens/session_review/widgets/sub_cull_rail.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/session_review/sub_cull_rail_stale_curve_test.dart (4 tests)",
+      "test": "packages/skotiq_app/test/screens/session_review/sub_cull_rail_stale_curve_test.dart (4 tests)",
       "revert_check": "Reverted sub_cull_rail.dart:289 `_offer.isOfferable ? ... : null` to `_offer.keepN > 0 ? ... : null` (the pre-fix condition). 4 of 4 tests failed, incl. 'a stale curve renders an out-of-date chip, not a quantified \"Keep best N\" action'. Restored: all pass.",
       "caveats": "Verified by reading the current source and revert-checking; not re-driven live (needs a session with real FITS subs)."
     },
@@ -19,9 +19,9 @@
       "outcome": "already-correct",
       "summary": "Closed before this wave. integration_settings.dart:737-757 now returns ransacThresholdPx 1.0 (vs the 2.0 default), maxRefStars 120 (vs 60) and normalization local (vs global), so the preset differs from Balanced in the bridge payload the native side actually reads, not only in the `sourcePreset` label.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/models/imaging/integration_settings.dart"
+        "packages/skotiq_core/lib/src/models/imaging/integration_settings.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/session_review/integration_settings_panel_test.dart \u2014 'no two integration profiles produce the same stack' (compares toBridgeSettings() across all five presets), 'Maximum Quality actually costs something over Balanced', 'the readout names the knobs the active profile changes'",
+      "test": "packages/skotiq_app/test/screens/session_review/integration_settings_panel_test.dart \u2014 'no two integration profiles produce the same stack' (compares toBridgeSettings() across all five presets), 'Maximum Quality actually costs something over Balanced', 'the readout names the knobs the active profile changes'",
       "revert_check": "Reverted the maximumQuality case to `const IntegrationSettings(sourcePreset: IntegrationPreset.maximumQuality)`. All three tests failed. Restored: all pass.",
       "caveats": ""
     },
@@ -30,9 +30,9 @@
       "outcome": "already-correct",
       "summary": "Closed before this wave. session_review_controller.dart:636-642 adds `_withLiveProgress`, a try/finally that clears `state.progress` on every exit path, and every seam-driven action now runs inside it: integrate (:857), reIntegratePreview (:1122 \u2014 what A/B 'Run both' calls), runColorCalibration (:1175), the shared _runFinishingStep behind background extraction / deconvolve / star reduction (:1349) and runNarrowband (:1426). I checked every postSessionSeamProvider / postSessionIntegrationServiceProvider read in the file (:863, :1124, :1351, :1428) \u2014 no unwrapped action remains, so the fix is not confined to the one reported entry point.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/session_review/session_review_controller.dart"
+        "packages/skotiq_app/lib/screens/session_review/session_review_controller.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/session_review/session_review_progress_strip_test.dart \u2014 'the preview progress strip is torn down when reIntegratePreview returns'",
+      "test": "packages/skotiq_app/test/screens/session_review/session_review_progress_strip_test.dart \u2014 'the preview progress strip is torn down when reIntegratePreview returns'",
       "revert_check": "Reverted reIntegratePreview's body out of the `_withLiveProgress(...)` wrapper (inlined the try/catch as it shipped). The test failed. Restored: passes.",
       "caveats": ""
     },
@@ -41,9 +41,9 @@
       "outcome": "already-correct",
       "summary": "Closed before this wave. stack_and_share_service.dart:400-432 wraps the follower `_addStackFrame` await in a try/catch that counts the frame, records the reason, emits progress and CONTINUES; only a loss of provider authority still propagates. :459-466 fails the run only when nothing but the reference survived, naming the dominant reason, instead of persisting a one-frame 'stack'.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/services/stack_and_share_service.dart"
+        "packages/skotiq_core/lib/src/services/stack_and_share_service.dart"
       ],
-      "test": "packages/nightshade_core/test/services/stack_and_share_service_test.dart \u2014 'a rejected follower is counted and skipped; the run continues' plus 'a run whose followers are ALL rejected fails with the dominant reason'",
+      "test": "packages/skotiq_core/test/services/stack_and_share_service_test.dart \u2014 'a rejected follower is counted and skipped; the run continues' plus 'a run whose followers are ALL rejected fails with the dominant reason'",
       "revert_check": "Replaced the try/catch with the bare `final result = await _addStackFrame(...)` the finding cited. Both tests failed (the rejected follower aborted the run; the all-rejected run returned a Future<StackAndShareResult> instead of throwing). Restored: all 33 tests pass.",
       "caveats": ""
     },
@@ -52,7 +52,7 @@
       "outcome": "already-correct",
       "summary": "Closed before this wave, and closed at the cause rather than by moving a threshold. stacking.rs:834-919 adds `fit_transform_robust`: it fits, measures each pair's post-fit deviation, clips anything beyond 3x the MEDIAN deviation (floored at 1.5px), refits, up to 5 passes, never below a fittable set. add_frame (:490-497) now uses it, so the residual is the RMS over the pairs that agree rather than over every greedy nearest-neighbour pairing \u2014 which is what the 50px match radius poisoned. Only with that in place does the ceiling mean anything, so :97 tightens max_alignment_residual_px from 10.0 to 2.0, and :499-513 rejects a frame whose inlier count falls under min_matched_pairs with a message that names the disagreement.",
       "files_changed": [
-        "native/nightshade_native/imaging/src/stacking.rs"
+        "native/skotiq_native/imaging/src/stacking.rs"
       ],
       "test": "3 tests in stacking.rs: mis_paired_stars_do_not_wreck_the_transform_fit, a_clean_match_set_keeps_every_pair, add_frame_survives_a_matcher_cascade_from_missing_stars",
       "revert_check": "Reverted the add_frame call site to `compute_affine_transform` + `compute_alignment_residual` over all matches (inlier_count = matches.len()). add_frame_survives_a_matcher_cascade_from_missing_stars FAILED at stacking.rs:2639; the other 26 stacking tests still passed, so the end-to-end wiring is what the test holds. Restored: 27/27 pass, cargo fmt --check clean.",
@@ -63,9 +63,9 @@
       "outcome": "already-correct",
       "summary": "Closed before this wave. share_card_renderer.dart:321-348 adds `fitCaption`, which walks a font ladder (arial48/24/14) down from the height-derived choice and greedy-wraps whole 'LABEL value' segments (:353-379) until every segment measures inside the card width minus padding, in at most 3 rows. _drawBottomBar (:475) now sizes the bar from those wrapped rows rather than assuming one row at the height-derived font.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/services/share_card_renderer.dart"
+        "packages/skotiq_core/lib/src/services/share_card_renderer.dart"
       ],
-      "test": "packages/nightshade_core/test/services/share_card_renderer_test.dart \u2014 'no glyph is drawn in the right-hand padding of a 512px card' (scans the rendered pixels) and 'every wrapped row measures within the card width, losing nothing'",
+      "test": "packages/skotiq_core/test/services/share_card_renderer_test.dart \u2014 'no glyph is drawn in the right-hand padding of a 512px card' (scans the rendered pixels) and 'every wrapped row measures within the card width, losing nothing'",
       "revert_check": "Replaced `fitCaption(font, segments, bitmap.width)` with `barFont = font; rows = [segments]`. The rendered-pixel test failed. Restored: 27 tests pass.",
       "caveats": ""
     },
@@ -74,20 +74,20 @@
       "outcome": "already-correct",
       "summary": "Closed before this wave, and at the real link (the Retry button already called ref.invalidate; the dead part was downstream). transient_detections_provider.dart:163-175 makes the local feed `yield await dao.recentDetections(...)` first and only then `yield* dao.watchRecentDetections(...).skip(1)`. Drift caches a query stream by its SQL and a cached stream that has thrown stays thrown for the process, so re-subscribing \u2014 all ref.invalidate can do \u2014 replayed the failure; a fresh one-shot read re-executes the query, and the .skip(1) stops the cached stream's stale replay from undoing it.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/providers/transient_detections_provider.dart"
+        "packages/skotiq_core/lib/src/providers/transient_detections_provider.dart"
       ],
-      "test": "packages/nightshade_core/test/providers/first_light_candidates_resilience_test.dart \u2014 'a fixed row is picked up by a re-subscription, not only by a restart'",
+      "test": "packages/skotiq_core/test/providers/first_light_candidates_resilience_test.dart \u2014 'a fixed row is picked up by a re-subscription, not only by a restart'",
       "revert_check": "Removed the leading one-shot read and dropped the .skip(1). The test failed. Restored: passes.",
       "caveats": "The finding's second claim \u2014 that the list is fetched once per app launch \u2014 was not confirmed by the verifier either; the provider is a live Drift watch, and the external sqlite3 edit used in the repro is invisible to Drift's stream store by design. One narrow residual I looked at and deliberately left alone: the `.skip(1)` drops the watch stream's replay, and a write landing between the one-shot read and the subscription would be carried only by that replay, so it would wait for the next change notification. The window is microseconds inside one isolate, and closing it means subscribing before reading, which reintroduces the stale-replay problem the fix exists to solve. The remote (NetworkBackend) branch has no such issue: _remoteFirstLightStream builds a fresh controller and refetches per provider build, so Retry re-fetches there too."
     },
     {
       "title": "In the Submit-discovery dialog all three network chips are dead, and only the selected network's blocker is explained",
       "outcome": "already-correct",
-      "summary": "Closed before this wave. transient_report_panel.dart:131-140 passes `enabled: enabled` to NightshadeChip so an unavailable network renders as disabled instead of pixel-identical to one the operator simply had not picked, and :153-170 renders `_disabledNotices(...)` \u2014 every blocked format's own reason, de-duplicated when one blocker (an unconfirmed detection) covers all three \u2014 instead of only the selected format's. The Preview/Copy/primary buttons at :296-343 are NightshadeButtons, which do render a disabled affordance (nightshade_button.dart:157,182,196,240).",
+      "summary": "Closed before this wave. transient_report_panel.dart:131-140 passes `enabled: enabled` to SkotiqChip so an unavailable network renders as disabled instead of pixel-identical to one the operator simply had not picked, and :153-170 renders `_disabledNotices(...)` \u2014 every blocked format's own reason, de-duplicated when one blocker (an unconfirmed detection) covers all three \u2014 instead of only the selected format's. The Preview/Copy/primary buttons at :296-343 are SkotiqButtons, which do render a disabled affordance (skotiq_button.dart:157,182,196,240).",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/analytics/widgets/transient_report_panel.dart"
+        "packages/skotiq_app/lib/screens/analytics/widgets/transient_report_panel.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/analytics/widgets/transient_report_reasons_test.dart \u2014 'a disabled AAVSO and MPC chip each state their own reason', 'an unconfirmed detection states its one shared blocker once'",
+      "test": "packages/skotiq_app/test/screens/analytics/widgets/transient_report_reasons_test.dart \u2014 'a disabled AAVSO and MPC chip each state their own reason', 'an unconfirmed detection states its one shared blocker once'",
       "revert_check": "Removed `enabled: enabled,` from the chip. The first test failed on the enabled-flag assertion. Restored: passes.",
       "caveats": ""
     },
@@ -96,9 +96,9 @@
       "outcome": "already-correct",
       "summary": "Closed before this wave. transient_alert_mapper.dart:50 now sets `magnitude: null` \u2014 a difference-image detection has no apparent magnitude and no photometric zero point behind it \u2014 and the delta is carried as its own labelled quantity ('D2.35 mag brighter than template') in the classification line (:33-37, :55-57) and spelled out in the notes, so the NAKED EYE / BINOCULAR / SMALL SCOPE bucketing at transient_card.dart:580-588 never runs on a delta.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/services/transients/transient_alert_mapper.dart"
+        "packages/skotiq_core/lib/src/services/transients/transient_alert_mapper.dart"
       ],
-      "test": "packages/nightshade_core/test/services/transients/transient_alert_mapper_test.dart (3 tests incl. 'never reports a delta magnitude as an apparent magnitude' and an explicit naked-eye-bucket guard)",
+      "test": "packages/skotiq_core/test/services/transients/transient_alert_mapper_test.dart (3 tests incl. 'never reports a delta magnitude as an apparent magnitude' and an explicit naked-eye-bucket guard)",
       "revert_check": "Set `magnitude: detection.deltaMag?.abs()` back. 3 tests failed. Restored: pass.",
       "caveats": ""
     },
@@ -107,19 +107,19 @@
       "outcome": "fixed",
       "summary": "Wave 5 fixed the reported surface but left the same defect on three others, so this wave finished it. The cause is that `transientAlertStatesProvider` holds ONLY the queue/dismiss actions taken through the alert surfaces, and reading that map bare falls back to newAlert for any alert whose state lives on itself (First Light detections, via transientAlertFromDetection). transient_alert_provider.dart:924-929 already exposes `resolveTransientAlertState(alert, overrides)`; Observing Alerts (transients_screen.dart:180, :213-225) and the badge count were routed through it, but three consumers were not, so one confirmed detection still read 'Confirmed' on Observing Alerts and 'NEW' in the status-bar dropdown and the suggestions panel. Routed through the shared resolver: transient_alert_badge.dart:433 (dropdown NEW chip), transient_alerts_panel.dart:131 (tile state) and :206-207 (the actionable-first sort, which put confirmed alerts back at the top), and apps/desktop transient_handlers.dart:70-84/:278-284/:334-339 (the /api/transients active filter, dismissed/queued counts and the per-alert isQueued/isDismissed flags). Also wrapped the dropdown header title in a Flexible+ellipsis (transient_alert_badge.dart:346-357) \u2014 the fixed ~280px popup overflowed it under a wide text scale.",
       "files_changed": [
-        "packages/nightshade_app/lib/widgets/transient_alert_badge.dart",
-        "packages/nightshade_app/lib/screens/suggestions/widgets/transient_alerts_panel.dart",
+        "packages/skotiq_app/lib/widgets/transient_alert_badge.dart",
+        "packages/skotiq_app/lib/screens/suggestions/widgets/transient_alerts_panel.dart",
         "apps/desktop/lib/headless_api/handlers/transient_handlers.dart",
         "apps/desktop/pubspec.yaml",
-        "packages/nightshade_app/test/screens/transients/alert_state_across_surfaces_test.dart",
+        "packages/skotiq_app/test/screens/transients/alert_state_across_surfaces_test.dart",
         "apps/desktop/test/headless_api/transient_handlers_detection_state_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/transients/alert_state_across_surfaces_test.dart (4 tests: the suggestions panel and the status-bar dropdown each must not re-badge a confirmed detection NEW, and must still badge an unconfirmed one) + apps/desktop/test/headless_api/transient_handlers_detection_state_test.dart (2 tests: a dismissed alert is not served as active and is counted dismissed; an undismissed one is served with isDismissed false). The pre-existing packages/nightshade_app/test/screens/transients/transients_confirmed_state_test.dart covers the Observing Alerts surface wave 5 fixed.",
+      "test": "packages/skotiq_app/test/screens/transients/alert_state_across_surfaces_test.dart (4 tests: the suggestions panel and the status-bar dropdown each must not re-badge a confirmed detection NEW, and must still badge an unconfirmed one) + apps/desktop/test/headless_api/transient_handlers_detection_state_test.dart (2 tests: a dismissed alert is not served as active and is counted dismissed; an undismissed one is served with isDismissed false). The pre-existing packages/skotiq_app/test/screens/transients/transients_confirmed_state_test.dart covers the Observing Alerts surface wave 5 fixed.",
       "revert_check": "Reverted all three production sites at once \u2014 badge back to `states[alert.id]` with a null fallback, panel tile back to `alertStates[limited[i].id]`, handler back to `states[a.id] != dismissed` / `_countState(states, ...)` / `states[alert.id] == dismissed`. Failures: 'suggestions panel a confirmed detection is not re-badged NEW', 'status-bar alert dropdown a confirmed detection is not re-badged NEW', 'a detection dismissed in the app is not served as an active alert'. Restored: 12/12 app transients tests and 6/6 desktop transient-handler tests pass. Separately revert-checked wave 5's Observing Alerts fix by putting transients_screen.dart back to `states[alert.id]`: both transients_confirmed_state_test.dart assertions failed.",
       "caveats": "The /api/transients change is consistency hardening rather than a live-observable fix: that endpoint's alert list comes from TransientAlertService.getAllAlerts, which fetches only the external upstreams, so no First Light detection reaches it today (they have their own /api/firstlight/candidates endpoint). Whether the headless alert feed SHOULD merge First Light detections the way the in-app provider does is a separate question this wave did not open. The two mutation endpoints (queue/dismiss) still echo a count over the overrides map alone \u2014 resolving there would need a network fetch of the alert population on every mutation \u2014 and that is now stated at the helper."
     }
   ],
-  "suites_run": "cargo test -p nightshade_imaging --lib: 500/500 pass, cargo fmt --check clean. apps/desktop full suite: 1004/1004 pass (headless_api alone re-run: 907/907). nightshade_core test/providers: 1402/1402 pass; transients services+providers: 69/69; stack/share/integration models+services: 122/122. nightshade_app targeted (transients, first_light, analytics-transient, session_review, shell nav, alert badge, suggestions): 124+12 pass. dart analyze over packages/nightshade_core/lib, packages/nightshade_app/lib and apps/desktop/lib: clean apart from one pre-existing doc-comment info in export_target.dart (untouched by this wave). nightshade_app FULL suite: 2820 pass / 46 fail \u2014 every failure is in test/golden/ or a captures_landscape_test.dart, the Windows-captured golden class that drifts on Linux. Proven not mine twice by measurement, not assertion: restoring both edited app files to their pre-wave content and re-running gives byte-identical diffs \u2014 stack_result 7138px/17530px, and the dashboard captures (which host the status-bar alert badge I edited) 162249/160502/95665px at ~40%, identical with and without the change. Non-golden re-runs after the restore: test/widgets 260/260, test/screens/{shell,dashboard} 245 pass with only those 4 capture goldens failing, and session_review + first_light + transients + suggestions + analytics/widgets 216/216.",
-  "pre_existing_failures": "Two unrelated pre-existing failures observed and proven not mine. (1) nightshade_core test/services/imaging_service_test.dart fails only under parallel load (6 failures in one full-suite run, 23 in another) and passes 68/68 in isolation \u2014 the known cold-start flake already tracked as an open task; this wave changed nothing in nightshade_core. (2) packages/nightshade_app/test/screens/stack_result/captures_landscape_test.dart fails two golden captures (1.78% / 4.37% pixel diff). I proved these are not mine by restoring both edited app files to their pre-wave content and re-running: byte-identical diffs (7138px and 17530px). These are the Windows-captured goldens that drift on Linux.",
+  "suites_run": "cargo test -p skotiq_imaging --lib: 500/500 pass, cargo fmt --check clean. apps/desktop full suite: 1004/1004 pass (headless_api alone re-run: 907/907). skotiq_core test/providers: 1402/1402 pass; transients services+providers: 69/69; stack/share/integration models+services: 122/122. skotiq_app targeted (transients, first_light, analytics-transient, session_review, shell nav, alert badge, suggestions): 124+12 pass. dart analyze over packages/skotiq_core/lib, packages/skotiq_app/lib and apps/desktop/lib: clean apart from one pre-existing doc-comment info in export_target.dart (untouched by this wave). skotiq_app FULL suite: 2820 pass / 46 fail \u2014 every failure is in test/golden/ or a captures_landscape_test.dart, the Windows-captured golden class that drifts on Linux. Proven not mine twice by measurement, not assertion: restoring both edited app files to their pre-wave content and re-running gives byte-identical diffs \u2014 stack_result 7138px/17530px, and the dashboard captures (which host the status-bar alert badge I edited) 162249/160502/95665px at ~40%, identical with and without the change. Non-golden re-runs after the restore: test/widgets 260/260, test/screens/{shell,dashboard} 245 pass with only those 4 capture goldens failing, and session_review + first_light + transients + suggestions + analytics/widgets 216/216.",
+  "pre_existing_failures": "Two unrelated pre-existing failures observed and proven not mine. (1) skotiq_core test/services/imaging_service_test.dart fails only under parallel load (6 failures in one full-suite run, 23 in another) and passes 68/68 in isolation \u2014 the known cold-start flake already tracked as an open task; this wave changed nothing in skotiq_core. (2) packages/skotiq_app/test/screens/stack_result/captures_landscape_test.dart fails two golden captures (1.78% / 4.37% pixel diff). I proved these are not mine by restoring both edited app files to their pre-wave content and re-running: byte-identical diffs (7138px and 17530px). These are the Windows-captured goldens that drift on Linux.",
   "housekeeping": "The golden/screenshot tests WRITE their outputs, so running them regenerated docs/design/goldens/*.png and assets/screenshots/desktop-dashboard.png on this Linux box. Two of them (morning-report-sub-cull-rail.png, surface-guiding-panel-builtin-multistar.png) had been clean before my run and were restored with git checkout. The other ten were ALREADY modified in the working tree when this wave started \u2014 an earlier agent had regenerated them \u2014 so their pre-run bytes were not mine to restore; the modified-PNG set is now exactly what it was before I ran anything. Standing rule: do not commit Linux-regenerated goldens."
 }

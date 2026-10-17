@@ -220,7 +220,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
       // production unit is impossible to miss in the logs.
       _logWarning(
         '[AUTH] UNAUTHENTICATED ACCESS IS ENABLED via --allow-unauthenticated '
-        '(NIGHTSHADE_ALLOW_UNAUTHENTICATED). EVERY endpoint is served WITHOUT a '
+        '(SKOTIQ_ALLOW_UNAUTHENTICATED). EVERY endpoint is served WITHOUT a '
         'token. Only use this on a fully trusted LAN or for local development.',
       );
       if (!bindLocalOnly) {
@@ -236,9 +236,9 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
       _logInfo(
         '[AUTH] No tokens configured. Server is FAIL CLOSED: only the pairing '
         'and dashboard bootstrap endpoints are reachable. Pair a device (or set '
-        'NIGHTSHADE_AUTH_TOKEN / --auth-token) to unlock control. To deliberately '
+        'SKOTIQ_AUTH_TOKEN / --auth-token) to unlock control. To deliberately '
         'serve everything unauthenticated on a trusted LAN, pass '
-        '--allow-unauthenticated (NIGHTSHADE_ALLOW_UNAUTHENTICATED=1).',
+        '--allow-unauthenticated (SKOTIQ_ALLOW_UNAUTHENTICATED=1).',
       );
     }
 
@@ -474,7 +474,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
         .read(sequenceCatalogUpdateBusProvider)
         .stream
         .listen((update) {
-          broadcastEvent(update.toNightshadeEvent());
+          broadcastEvent(update.toSkotiqEvent());
         });
   }
 
@@ -521,7 +521,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
           _ => EventSeverity.info,
         };
         broadcastEvent(
-          NightshadeEvent(
+          SkotiqEvent(
             timestamp: DateTime.now().millisecondsSinceEpoch,
             severity: severity,
             category: EventCategory.catalog,
@@ -614,7 +614,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     }
   }
 
-  void _dispatchPluginNodeIfRequested(NightshadeEvent event) {
+  void _dispatchPluginNodeIfRequested(SkotiqEvent event) {
     if (!dispatchPluginNodes ||
         event.category != EventCategory.sequencer ||
         event.eventType != 'PluginNodeRequested') {

@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/sequence_management_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/sequence_management_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -16,10 +16,10 @@ void main() {
   group('SequenceManagementHandlers', () {
     late ProviderContainer container;
     late SequenceManagementHandlers handlers;
-    late NightshadeDatabase db;
+    late SkotiqDatabase db;
 
     setUp(() async {
-      db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       container = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(db)],
       );
@@ -269,7 +269,7 @@ void main() {
         final saveBody = jsonDecode(await saveResponse.readAsString()) as Map;
         final sequenceId = saveBody['id'] as int;
 
-        final published = <NightshadeEvent>[];
+        final published = <SkotiqEvent>[];
         container.read(hostMutationEventHubProvider).wsBroadcast =
             published.add;
 

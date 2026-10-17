@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../services/network_service.dart';
 
@@ -104,7 +104,7 @@ class _NetworkStatusIndicatorState
     super.dispose();
   }
 
-  void _attachToBackend(NightshadeBackend backend) {
+  void _attachToBackend(SkotiqBackend backend) {
     if (identical(backend, _trackedBackend)) return;
     final generation = ++_backendGeneration;
     _latencySubscription?.cancel();
@@ -135,7 +135,7 @@ class _NetworkStatusIndicatorState
     // Rebuild + re-attach whenever the backend instance changes (connect,
     // disconnect, swap). `ref.listen` keeps the StreamSubscription scoped
     // to the live backend so we don't leak handlers across reconnects.
-    ref.listen<NightshadeBackend>(backendProvider, (previous, next) {
+    ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       _attachToBackend(next);
     });
 
@@ -157,7 +157,7 @@ class _NetworkStatusIndicatorState
 
   Widget _buildForBackend(
     BuildContext context,
-    NightshadeBackend backend,
+    SkotiqBackend backend,
     NetworkServiceState osState,
   ) {
     // When the backend itself is a NetworkBackend we also want to rebuild
@@ -242,7 +242,7 @@ class _NetworkStatusIndicatorState
 
     return Container(
       padding: const EdgeInsets.all(8),
-      decoration: NightshadeDecorations.statusChip(
+      decoration: SkotiqDecorations.statusChip(
         color,
         borderRadius: BorderRadius.circular(8),
         bordered: false,
@@ -265,7 +265,7 @@ class _NetworkStatusIndicatorState
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: NightshadeDecorations.statusChip(
+      decoration: SkotiqDecorations.statusChip(
         color,
         borderRadius: BorderRadius.circular(8),
       ),
@@ -329,7 +329,7 @@ class _NetworkStatusIndicatorState
 
   Color _statusColor(BuildContext context, _CombinedConnectionStatus status) {
     final theme = Theme.of(context);
-    final colors = theme.extension<NightshadeColors>();
+    final colors = theme.extension<SkotiqColors>();
     switch (status) {
       case _CombinedConnectionStatus.connected:
         return colors?.success ?? theme.colorScheme.primary;
@@ -409,14 +409,14 @@ class _NetworkStatusIndicatorState
     NetworkServiceState osState,
     NetworkBackend? backend,
   ) {
-    final colors = NightshadeColors.of(context);
+    final colors = SkotiqColors.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       barrierColor: colors.background.withValues(alpha: 0.72),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(NightshadeTokens.radiusLg),
+          top: Radius.circular(SkotiqTokens.radiusLg),
         ),
       ),
       builder: (sheetContext) => _ConnectionDetailsSheet(
@@ -431,7 +431,7 @@ class _NetworkStatusIndicatorState
 
 /// Latency chip rendered next to the server name. Coloured by threshold:
 /// green <50ms, amber 50-200ms, red >200ms. Falls back to the parent
-/// status colour if no NightshadeColors extension is found.
+/// status colour if no SkotiqColors extension is found.
 class _LatencyBadge extends StatelessWidget {
   final Duration latency;
   final Color baseColor;
@@ -441,7 +441,7 @@ class _LatencyBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = theme.extension<NightshadeColors>();
+    final colors = theme.extension<SkotiqColors>();
     final ms = latency.inMicroseconds / 1000.0;
     Color color;
     if (colors != null) {
@@ -532,7 +532,7 @@ class _ConnectionDetailsSheetState
     DiscoveredServer? server;
     Object? discoveryError;
     try {
-      server = await EnhancedNightshadeDiscovery.discoverWithFallback();
+      server = await EnhancedSkotiqDiscovery.discoverWithFallback();
     } catch (e) {
       discoveryError = e;
     }
@@ -560,7 +560,7 @@ class _ConnectionDetailsSheetState
             scheme: server.scheme,
             pinnedFingerprint: server.fingerprint,
           );
-      await EnhancedNightshadeDiscovery.saveLastServer(server);
+      await EnhancedSkotiqDiscovery.saveLastServer(server);
     } catch (e) {
       if (!mounted) return;
       setState(() => _searching = false);
@@ -592,7 +592,7 @@ class _ConnectionDetailsSheetState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = NightshadeColors.of(context);
+    final colors = SkotiqColors.of(context);
     final status = widget.status;
     final osState = widget.osState;
 
@@ -600,12 +600,12 @@ class _ConnectionDetailsSheetState
       decoration: BoxDecoration(
         color: colors.surfaceElevated,
         borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(NightshadeTokens.radiusLg),
+          top: Radius.circular(SkotiqTokens.radiusLg),
         ),
         border: Border(top: BorderSide(color: colors.border)),
-        boxShadow: NightshadeTokens.shadowLg,
+        boxShadow: SkotiqTokens.shadowLg,
       ),
-      padding: NightshadeTokens.dialogPadding.add(
+      padding: SkotiqTokens.dialogPadding.add(
         EdgeInsets.only(bottom: MediaQuery.viewPaddingOf(context).bottom),
       ),
       child: Column(
@@ -720,7 +720,7 @@ class _ConnectionDetailsSheetState
               status != _CombinedConnectionStatus.notConnected) ...[
             SizedBox(
               width: double.infinity,
-              child: NightshadeButton(
+              child: SkotiqButton(
                 onPressed: _reconnecting ? null : _handleReconnectNow,
                 icon: LucideIcons.refreshCw,
                 label: _reconnecting ? 'Reconnecting...' : 'Reconnect now',
@@ -735,7 +735,7 @@ class _ConnectionDetailsSheetState
               status == _CombinedConnectionStatus.notConnected)
             SizedBox(
               width: double.infinity,
-              child: NightshadeButton(
+              child: SkotiqButton(
                 onPressed: _searching ? null : _handleSearchForServers,
                 icon: LucideIcons.search,
                 label: _searching ? 'Searching...' : 'Search for Servers',
@@ -746,7 +746,7 @@ class _ConnectionDetailsSheetState
           if (status == _CombinedConnectionStatus.connected)
             SizedBox(
               width: double.infinity,
-              child: NightshadeButton(
+              child: SkotiqButton(
                 onPressed: _disconnecting ? null : _handleDisconnect,
                 icon: LucideIcons.logOut,
                 label: _disconnecting ? 'Disconnecting...' : 'Disconnect',
@@ -778,7 +778,7 @@ class _ConnectionDetailsSheetState
 
   Color _headerColor(BuildContext context, _CombinedConnectionStatus status) {
     final theme = Theme.of(context);
-    final colors = theme.extension<NightshadeColors>();
+    final colors = theme.extension<SkotiqColors>();
     switch (status) {
       case _CombinedConnectionStatus.connected:
         return colors?.success ?? theme.colorScheme.primary;
@@ -843,7 +843,7 @@ class _DetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = NightshadeColors.of(context);
+    final colors = SkotiqColors.of(context);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),

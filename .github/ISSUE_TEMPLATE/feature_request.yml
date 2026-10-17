@@ -20,7 +20,7 @@ body:
     id: proposal
     attributes:
       label: Proposed solution
-      description: How would you expect Nightshade to behave?
+      description: How would you expect Skotiq to behave?
     validations:
       required: true
 

@@ -43,98 +43,98 @@
   },
   "changes": [
     {
-      "file": "native/nightshade_native/bridge/src/api/imaging.rs",
+      "file": "native/skotiq_native/bridge/src/api/imaging.rs",
       "what": "FitsWriteHeaderRich::from_frame_context now takes altitude from ctx.mount_altitude_deg, and takes RA/DEC from the mount's pointing as a PAIR (falling back to the target's nominal coordinates) so the altitude and the coordinates it was derived from can never come from different sources.",
       "why": "Closes AIRMASS for the two save paths that build the header from the context alone, and stops the sequencer path's fix from living in a different file than the data."
     },
     {
-      "file": "native/nightshade_native/bridge/src/api/imaging.rs",
+      "file": "native/skotiq_native/bridge/src/api/imaging.rs",
       "what": "set_optional_airmass -> set_horizon_keywords, which now also writes the OBJCTALT card. Called from all three FITS writers.",
       "why": "The altitude is a measurement; the airmass is a model evaluated at it. They are gated differently on purpose: OBJCTALT is written even below the horizon (a parked mount really is at -9.9 degrees), AIRMASS is not (it is undefined there). Recording only the airmass is lossy in the direction that matters - the published formulae disagree by 20% at the horizon, so a photometry pipeline cannot recover the altitude to apply its own extinction model."
     },
     {
-      "file": "native/nightshade_native/sequencer/src/scheduling/astronomy.rs",
-      "what": "airmass() now delegates to nightshade_imaging::calculate_airmass, keeping only the scheduler's INFINITY-at-or-below-the-horizon sentinel.",
+      "file": "native/skotiq_native/sequencer/src/scheduling/astronomy.rs",
+      "what": "airmass() now delegates to skotiq_imaging::calculate_airmass, keeping only the scheduler's INFINITY-at-or-below-the-horizon sentinel.",
       "why": "One formula. The 31.73-vs-infinity disagreement the backlog measured is a POLICY difference (unobservable target -> zero score) not a formula difference, so it is now stated once, explicitly, in the one place that means it. Dart parity survives: calculate_airmass is the identical Pickering expression at h >= 10 and switches to Young below it, where every altitude already scores in score_airmass's bottom bucket under either formula."
     },
     {
-      "file": "native/nightshade_native/sequencer/src/node/instructions/science_photometry.rs",
-      "what": "Deleted the inline third copy; read_frame_metrics now calls nightshade_imaging::calculate_airmass.",
+      "file": "native/skotiq_native/sequencer/src/node/instructions/science_photometry.rs",
+      "what": "Deleted the inline third copy; read_frame_metrics now calls skotiq_imaging::calculate_airmass.",
       "why": "See headline_finding."
     }
   ],
   "not_changed_deliberately": [
     {
-      "file": "native/nightshade_native/imaging/src/fits.rs",
+      "file": "native/skotiq_native/imaging/src/fits.rs",
       "reason": "calculate_airmass was already the correct, single, well-documented implementation (Pickering 2002 above 10 degrees, Young 1994 below, error rather than clamp below the horizon). Unification meant making the other two CALL it, not editing it. It is also being edited concurrently by another agent (405 insertions in validate_image / saturation territory); an earlier attempt to add tests there was clobbered, so the published-value pin was placed in bridge/src/api/imaging.rs instead - arguably its better home, since that is where the value reaches a file."
     }
   ],
   "tests": [
     {
       "name": "sequenced_frame_records_where_in_the_sky_it_was_taken",
-      "file": "native/nightshade_native/bridge/src/api/imaging.rs",
+      "file": "native/skotiq_native/bridge/src/api/imaging.rs",
       "kind": "wiring",
       "asserts": "Builds a FrameContext carrying exactly what instructions.rs stamps on one (mount RA/Dec + derived altitude, plus DIFFERENT nominal target coordinates), runs it through the real from_frame_context and the real writer, reads the cards back off disk: OBJCTALT is the mount's 30.0; AIRMASS is below the plane-parallel ceiling sec(60 deg) = 2.0 but within 0.02 of it (physics, not a re-run of the formula); RA/DEC are the mount's, in degrees.",
       "revert_drill": "D1 - restored altitude: None in from_frame_context -> FAILED ('a sequenced frame must record the altitude it was taken at'); restored -> passes. D2 - commented out the OBJCTALT card write -> FAILED; restored -> passes."
     },
     {
       "name": "below_horizon_altitude_still_writes_the_frame (extended)",
-      "file": "native/nightshade_native/bridge/src/api/imaging.rs",
+      "file": "native/skotiq_native/bridge/src/api/imaging.rs",
       "kind": "contract",
       "asserts": "A parked mount at -9.9 deg still records OBJCTALT = -9.9 while AIRMASS is omitted - the measurement is kept, only the undefined model output is dropped.",
       "revert_drill": "D2 - commented out the OBJCTALT card write -> FAILED ('OBJCTALT records the altitude even below the horizon'); restored -> passes."
     },
     {
       "name": "airmass_agrees_with_hardie_1962_over_its_published_range",
-      "file": "native/nightshade_native/bridge/src/api/imaging.rs",
+      "file": "native/skotiq_native/bridge/src/api/imaging.rs",
       "kind": "published-value pin",
       "asserts": "Sweeps 10-90 deg at 0.25 deg steps and requires agreement to better than 0.02 airmass with Hardie (1962), a DIFFERENT functional form (polynomial in sec z) fitted to different data - the reduction photoelectric photometry used for three decades. Measured worst case 0.0172 at h=10. Anti-tautology: the reference formula is written out in the test, not derived from ours.",
       "revert_drill": "n/a - this pins the shared implementation rather than any line this fix changed. Falsified by construction: fed the deleted photometry-gate formula, it fails by a factor of ~3."
     },
     {
       "name": "airmass_is_physical_over_the_whole_sky",
-      "file": "native/nightshade_native/bridge/src/api/imaging.rs",
+      "file": "native/skotiq_native/bridge/src/api/imaging.rs",
       "kind": "physics",
       "asserts": "Over 0-89.75 deg: airmass >= 1 (nothing is shorter than the zenith path), strictly increasing toward the horizon, and <= sec z (a curved atmosphere is a shorter path than a flat one). This is the shape check the deleted copy violated on two of three counts."
     },
     {
       "name": "young_to_pickering_handover_step_stays_small",
-      "file": "native/nightshade_native/bridge/src/api/imaging.rs",
+      "file": "native/skotiq_native/bridge/src/api/imaging.rs",
       "kind": "bounded residual",
       "asserts": "Measures the 10-degree branch seam directly (0.0349 airmass) rather than stepping around it, and fails if it grows past 0.05. Written after the first draft of the physics sweep hid the seam at 0.25 deg resolution - see caveats."
     },
     {
       "name": "airmass_card_agrees_with_the_scheduler_that_chose_the_target",
-      "file": "native/nightshade_native/bridge/src/api/imaging.rs",
+      "file": "native/skotiq_native/bridge/src/api/imaging.rs",
       "kind": "cross-crate wiring",
-      "asserts": "For 80/45/24/12/6/1 deg: writes a FITS, reads AIRMASS back off disk, compares to a live call of nightshade_sequencer::scheduling::airmass. Disk on one side, the scheduler's live function on the other.",
+      "asserts": "For 80/45/24/12/6/1 deg: writes a FITS, reads AIRMASS back off disk, compares to a live call of skotiq_sequencer::scheduling::airmass. Disk on one side, the scheduler's live function on the other.",
       "revert_drill": "D3 - restored astronomy.rs's private Pickering copy -> the sequencer-side twin FAILED; restored -> passes."
     },
     {
       "name": "airmass_is_the_same_function_the_fits_writer_uses",
-      "file": "native/nightshade_native/sequencer/src/scheduling/astronomy.rs",
+      "file": "native/skotiq_native/sequencer/src/scheduling/astronomy.rs",
       "kind": "contract",
-      "asserts": "Exact (not approximate) equality between scheduling::airmass and nightshade_imaging::calculate_airmass over 0.25-90 deg at 0.25 deg steps. Equality is exact on purpose: the claim is that there is one function, not two that currently happen to be close.",
+      "asserts": "Exact (not approximate) equality between scheduling::airmass and skotiq_imaging::calculate_airmass over 0.25-90 deg at 0.25 deg steps. Equality is exact on purpose: the claim is that there is one function, not two that currently happen to be close.",
       "revert_drill": "D3 - restored the private Pickering copy -> FAILED ('at 0.25 deg the scheduler scores airmass 34.889 while the frame it produces would record 29.312'); restored -> passes."
     },
     {
       "name": "max_airmass_gate_rejects_a_frame_taken_at_twenty_degrees",
-      "file": "native/nightshade_native/sequencer/src/node/instructions/science_photometry.rs",
+      "file": "native/skotiq_native/sequencer/src/node/instructions/science_photometry.rs",
       "kind": "wiring + physics",
       "asserts": "Drives the real read_frame_metrics against a real ExecutionContext and feeds the result to the real PhotometryQualityGates::evaluate. Fixture trick: a target at the celestial pole sits at altitude == observer latitude at EVERY instant, so the geometry is exact with no clock, no mock and no hour angle. At 20 deg (airmass 2.90, limit 2.50) the verdict must be Reject-for-airmass, and the value must be the real 2.90.",
       "revert_drill": "D4 - restored the hand-rolled inline formula -> FAILED with 'a frame at 20 deg altitude was accepted against a 2.50 airmass limit - the gate saw 1.95: Pass'; restored -> passes."
     },
     {
       "name": "gate_airmass_is_the_value_written_to_the_fits_header",
-      "file": "native/nightshade_native/sequencer/src/node/instructions/science_photometry.rs",
+      "file": "native/skotiq_native/sequencer/src/node/instructions/science_photometry.rs",
       "kind": "contract",
       "asserts": "For 70/45/30/20/8 deg the number the gate rejects on equals the number the header records, exactly. Otherwise a user can read a rejection reason off the log and find the file disagreeing with it.",
       "revert_drill": "D4 -> FAILED ('at 70 deg the gate sees 1.0135 and the header records 1.0639'); restored -> passes."
     }
   ],
-  "verification": "cd native/nightshade_native && cargo test --package nightshade_bridge --lib -> ok. 463 passed; 0 failed. cargo test --package nightshade_sequencer -> ok. 713 + 5 + 4 + 12 passed; 0 failed (all 4 test binaries). cargo test --package nightshade_imaging --lib -> ok. 484 passed; 0 failed. cargo clippy --package nightshade_bridge --package nightshade_sequencer --lib --all-targets -> 0 warnings. cargo fmt --package nightshade_bridge --package nightshade_sequencer -- --check -> clean.",
+  "verification": "cd native/skotiq_native && cargo test --package skotiq_bridge --lib -> ok. 463 passed; 0 failed. cargo test --package skotiq_sequencer -> ok. 713 + 5 + 4 + 12 passed; 0 failed (all 4 test binaries). cargo test --package skotiq_imaging --lib -> ok. 484 passed; 0 failed. cargo clippy --package skotiq_bridge --package skotiq_sequencer --lib --all-targets -> 0 warnings. cargo fmt --package skotiq_bridge --package skotiq_sequencer -- --check -> clean.",
   "caveats": [
-    "OBJCTAZ is still not written. FrameContext already carries mount_azimuth_deg (populated alongside the altitude at instructions.rs:3569) and from_frame_context drops it, but FitsWriteHeaderRich is FRB-exposed (16 references in frb_generated.rs, plus packages/nightshade_bridge/lib/src/frb_generated.io.dart), so adding a field needs an FRB regen touching frb_generated.rs and the Dart side - both shared files another agent has in flight. Its doc comment claims 'Not FRB-exposed', which is now false and worth fixing separately. One-line change once the struct can be extended: azimuth: ctx.mount_azimuth_deg, plus header.set_float(\"OBJCTAZ\", az) in set_horizon_keywords.",
+    "OBJCTAZ is still not written. FrameContext already carries mount_azimuth_deg (populated alongside the altitude at instructions.rs:3569) and from_frame_context drops it, but FitsWriteHeaderRich is FRB-exposed (16 references in frb_generated.rs, plus packages/skotiq_bridge/lib/src/frb_generated.io.dart), so adding a field needs an FRB regen touching frb_generated.rs and the Dart side - both shared files another agent has in flight. Its doc comment claims 'Not FRB-exposed', which is now false and worth fixing separately. One-line change once the struct can be extended: azimuth: ctx.mount_azimuth_deg, plus header.set_float(\"OBJCTAZ\", az) in set_horizon_keywords.",
     "The altitude is sampled when the mount is read, not at the exposure MIDPOINT as the brief asked. instructions.rs:3569 derives alt/az at chrono::Utc::now() during post-exposure telemetry collection, and sequencer_ops.rs context_altitude_pointing does the same at save time. For a 300s sub near the horizon that is worth ~1.25 deg of sky rotation, about 6% of airmass at 20 deg altitude. Fixing it properly means passing frame_ctx.exposure_started_at + duration_secs/2 into the alt/az derivation - a change inside sequencer/src/instructions.rs and bridge/src/sequencer_ops.rs, both owned by other agents (the frame-metadata / frame-metadata-harden work), so it is described here rather than made. Note the same struct already documents photometry_mjd_obs as 'MJD at exposure midpoint', so the file can end up with a midpoint timestamp beside a post-readout altitude.",
     "imaging/src/fits.rs::calculate_airmass has a 0.035-airmass (0.6%) discontinuity at exactly 10 deg altitude where it hands over from Young 1994 to Pickering 2002. Airmass briefly RISES with altitude across that seam, which is unphysical. It is bounded by a test (young_to_pickering_handover_step_stays_small) rather than smoothed away: 0.035 airmass is 0.009 mag at k=0.25, at an altitude no photometry gate admits, and the alternative was changing the AIRMASS of every frame the app has ever written. Flagged so a later pass can decide deliberately.",
     "Dart has at least three further airmass implementations that were NOT unified, all outside this fix's Rust scope: AstronomyCalculations.airmass (planetarium, Pickering, infinity below the horizon - the one the Rust scheduler is a port of, so it still disagrees with the FITS writer below 10 deg); cockpit_sky_context.dart:175 which uses plain plane-parallel sec z; and photometric_calibration_wizard/star_matching.dart:271 which uses a clamped sec z. The wizard's is the one that matters scientifically - it fits extinction coefficients against a different airmass than the AIRMASS card of the frames it is fitting.",

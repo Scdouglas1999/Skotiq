@@ -15,7 +15,7 @@
 #   case_sensitive    : optional; default true.
 #   multi_line        : optional; default false. Set true to allow `^`/`$`
 #                       to match line boundaries inside the source.
-#   since_version     : the Nightshade version in which this rule started
+#   since_version     : the Skotiq version in which this rule started
 #                       being enforced. Informational only — used in the
 #                       audit report so a reviewer knows the rule's age.
 #   require_present   : optional; if true, the rule fails when ZERO files
@@ -31,28 +31,28 @@
 rules:
   - id: bridge_unimplemented
     description: Disallow UnimplementedError in production backend paths
-    glob: packages/nightshade_bridge/lib/src/bridge_stub.dart
+    glob: packages/skotiq_bridge/lib/src/bridge_stub.dart
     forbidden_pattern: 'UnimplementedError\('
     require_present: true
     since_version: 2.5.0
 
   - id: ffi_backend_unimplemented
     description: Disallow UnimplementedError in production backend paths
-    glob: packages/nightshade_core/lib/src/backend/ffi_backend.dart
+    glob: packages/skotiq_core/lib/src/backend/ffi_backend.dart
     forbidden_pattern: 'UnimplementedError\('
     require_present: true
     since_version: 2.5.0
 
   - id: network_backend_unimplemented
     description: Disallow UnimplementedError in production backend paths
-    glob: packages/nightshade_core/lib/src/backend/network_backend.dart
+    glob: packages/skotiq_core/lib/src/backend/network_backend.dart
     forbidden_pattern: 'UnimplementedError\('
     require_present: true
     since_version: 2.5.0
 
   - id: bridge_stub_noop_log
     description: Disallow sequencer checkpoint no-op stub logging
-    glob: packages/nightshade_bridge/lib/src/bridge_stub.dart
+    glob: packages/skotiq_bridge/lib/src/bridge_stub.dart
     forbidden_pattern: 'sequencer.*no-op in stub mode'
     case_sensitive: false
     require_present: true
@@ -60,7 +60,7 @@ rules:
 
   - id: focuser_halt_noop
     description: Disconnected backend focuserHalt must not be a no-op
-    glob: packages/nightshade_core/lib/src/backend/disconnected_backend.dart
+    glob: packages/skotiq_core/lib/src/backend/disconnected_backend.dart
     forbidden_pattern: 'Future<void>\s+focuserHalt\s*\([^)]*\)\s*async\s*\{\s*\}'
     multi_line: true
     require_present: true
@@ -68,7 +68,7 @@ rules:
 
   - id: autofocus_cancel_noop
     description: Disconnected backend autofocusCancel must not be a no-op
-    glob: packages/nightshade_core/lib/src/backend/disconnected_backend.dart
+    glob: packages/skotiq_core/lib/src/backend/disconnected_backend.dart
     forbidden_pattern: 'Future<void>\s+autofocusCancel\s*\([^)]*\)\s*async\s*\{\s*\}'
     multi_line: true
     require_present: true
@@ -76,7 +76,7 @@ rules:
 
   - id: targets_dao_return_all
     description: Targets DAO must not return all targets for observability filtering
-    glob: packages/nightshade_core/lib/src/database/daos/targets_dao.dart
+    glob: packages/skotiq_core/lib/src/database/daos/targets_dao.dart
     forbidden_pattern: 'For now,\s*return all targets'
     case_sensitive: false
     require_present: true

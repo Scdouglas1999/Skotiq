@@ -11,7 +11,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_external_evidence_self_test_',
+    'skotiq_external_evidence_self_test_',
   );
   try {
     await _prepareWorkspace(temp);
@@ -247,7 +247,7 @@ Future<void> _prepareWorkspace(Directory root) async {
   ).writeAsString('# Supported Hardware By Platform\n');
   await File(
     '${root.path}/docs/release-notes-template.md',
-  ).writeAsString('# Nightshade Release Notes Template\n');
+  ).writeAsString('# Skotiq Release Notes Template\n');
   await File(
     '${root.path}/docs/production-readiness/public-release-gate.json',
   ).writeAsString(
@@ -258,10 +258,10 @@ Future<void> _prepareWorkspace(Directory root) async {
 }
 
 Future<void> _writeStaleLinuxEvidence(Directory root) async {
-  final artifact = File('${root.path}/nightshade-linux.tar.gz');
+  final artifact = File('${root.path}/skotiq-linux.tar.gz');
   await artifact.writeAsString('linux artifact bytes\n');
   final sidecar = File('${artifact.path}.sha256');
-  await sidecar.writeAsString('not-the-real-hash  nightshade-linux.tar.gz\n');
+  await sidecar.writeAsString('not-the-real-hash  skotiq-linux.tar.gz\n');
   final smoke = File(
     '${root.path}/docs/production-readiness/linux-runtime-smoke.log',
   );
@@ -280,7 +280,7 @@ Future<void> _writeStaleLinuxEvidence(Directory root) async {
       'buildCommand': 'dart run melos run build:desktop:linux --no-select',
       'toolVersions': {'dartVersion': 'Dart VM fixture'},
       'buildPassed': true,
-      'packageArtifactPath': 'nightshade-linux.tar.gz',
+      'packageArtifactPath': 'skotiq-linux.tar.gz',
       'packageSizeBytes': 1,
       'packageSha256':
           '0000000000000000000000000000000000000000000000000000000000000000',
@@ -293,7 +293,7 @@ Future<void> _writeStaleLinuxEvidence(Directory root) async {
 }
 
 Future<void> _writePassingLinuxEvidence(Directory root) async {
-  final artifact = File('${root.path}/nightshade-linux.tar.gz');
+  final artifact = File('${root.path}/skotiq-linux.tar.gz');
   await artifact.writeAsString('linux artifact bytes\n');
   final smoke = File(
     '${root.path}/docs/production-readiness/linux-runtime-smoke.log',
@@ -304,7 +304,7 @@ Future<void> _writePassingLinuxEvidence(Directory root) async {
     throw StateError('Could not compute SHA256 for ${artifact.path}');
   }
   final sidecar = File('${artifact.path}.sha256');
-  await sidecar.writeAsString('$sha  nightshade-linux.tar.gz\n');
+  await sidecar.writeAsString('$sha  skotiq-linux.tar.gz\n');
   final metadata = File(
     '${root.path}/docs/production-readiness/linux-release-package-metadata.json',
   );
@@ -316,7 +316,7 @@ Future<void> _writePassingLinuxEvidence(Directory root) async {
         'operatingSystem': 'linux',
         'dartVersion': 'Dart VM fixture',
       },
-      'artifactPath': 'nightshade-linux.tar.gz',
+      'artifactPath': 'skotiq-linux.tar.gz',
       'artifactSizeBytes': 0,
       'artifactSha256': '',
       'fileCount': 1,
@@ -374,7 +374,7 @@ Future<void> _writeLocalhostSecondDeviceEvidence(Directory root) async {
       'clientIp': '192.168.1.55',
       'serverLanUrl': 'http://localhost:8080',
       'windowsFirewallRule': {
-        'name': 'Nightshade Headless API',
+        'name': 'Skotiq Headless API',
         'profile': 'Private',
         'port': 7624,
         'action': 'Allow',
@@ -432,7 +432,7 @@ Future<void> _writePassingSecondDeviceEvidence(Directory root) async {
       'clientIp': '192.168.1.55',
       'serverLanUrl': 'http://192.168.1.20:7624',
       'windowsFirewallRule': {
-        'name': 'Nightshade Headless API',
+        'name': 'Skotiq Headless API',
         'profile': 'Private',
         'port': 7624,
         'action': 'Allow',
@@ -464,7 +464,7 @@ Future<void> _writeMissingReconnectSecondDeviceEvidence(Directory root) async {
       'clientIp': '192.168.1.55',
       'serverLanUrl': 'http://192.168.1.20:7624',
       'windowsFirewallRule': {
-        'name': 'Nightshade Headless API',
+        'name': 'Skotiq Headless API',
         'profile': 'Private',
         'port': 7624,
         'action': 'Allow',
@@ -728,7 +728,7 @@ Future<void> _writeRemoteControlEvidenceWithMissingAuditRequestId(
 Future<void> _prepareGitRepo(Directory root) async {
   await _runGit(root, ['init']);
   await _runGit(root, ['config', 'user.email', 'self-test@example.invalid']);
-  await _runGit(root, ['config', 'user.name', 'Nightshade Self Test']);
+  await _runGit(root, ['config', 'user.name', 'Skotiq Self Test']);
   await _runGit(root, ['add', '.']);
   await _runGit(root, ['commit', '-m', 'self-test fixture']);
 }
@@ -764,7 +764,7 @@ Future<void> _writePassingFinalSignoffEvidence(Directory root) async {
     }),
   );
   await File('${root.path}/docs/release-notes.md').writeAsString('''
-# Nightshade Release Notes
+# Skotiq Release Notes
 
 ## Release
 2026-05-05 test release.

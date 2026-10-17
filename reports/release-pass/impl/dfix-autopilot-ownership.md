@@ -13,7 +13,7 @@ dispatched". Wave D's refuter showed `currentTargetId != null` is a **stale-stat
 an ownership test, and that `stop()` races a dispatch that is still starting.
 
 Adopted the refuter's throwaway `seq12_race_test.dart` into the repo as
-`packages/nightshade_core/test/services/scheduler/scheduler_autopilot_ownership_test.dart`,
+`packages/skotiq_core/test/services/scheduler/scheduler_autopilot_ownership_test.dart`,
 hardened: its `_ExecutorSink` now MODELS the executor (`activeRunId`) instead of only counting
 calls, so ownership can be asked the way production asks it.
 
@@ -63,7 +63,7 @@ change was live). What was stale is the **row**: the builder tree and `targets` 
 (`SequenceExecutor._refreshCatalogCoordinates`). Editing without re-running left the scheduler on
 the old position.
 
-* New `packages/nightshade_core/lib/src/providers/sequence/target_catalog_coordinate_sync.dart`:
+* New `packages/skotiq_core/lib/src/providers/sequence/target_catalog_coordinate_sync.dart`:
   pushes a re-pointed `TargetHeaderNode`'s coordinates onto its catalog row. Resolves the row by
   `catalogTargetId` when bound, else by the same trimmed/case-insensitive name identity
   `TargetsDao.findOrCreateByName` uses. Only ever UPDATES (never creates — editing the builder must
@@ -74,7 +74,7 @@ the old position.
   entirely when `catalogTargetId != null`, so a target picked from the library and then re-pointed
   stayed stale even across a re-run.
 
-Tests: `packages/nightshade_core/test/providers/sequence/target_repoint_sync_test.dart` (catalog
+Tests: `packages/skotiq_core/test/providers/sequence/target_repoint_sync_test.dart` (catalog
 write + the editor trigger, 7 cases).
 
 ## WD-SEQ-N4 (P3) — "Below horizon" at +9.8°
@@ -105,13 +105,13 @@ Recommendation: (2) for 6.x — it is the smallest change that makes the button 
 ## WD-SEQ-N6 (P3) — nothing warned that autopilot was armed
 
 New pre-flight rule `AutopilotArmedRule`
-(`packages/nightshade_core/lib/src/providers/sequence/rules/autopilot_rules.dart`), registered in
+(`packages/skotiq_core/lib/src/providers/sequence/rules/autopilot_rules.dart`), registered in
 `defaultRefAwareSequenceValidators`. Warns (equipment category) when a run is started while the
 scheduler is `running` or `paused` AND the plan owner is not the autopilot itself — naming the
 target it is on and the fact that it parks the mount at dawn. Fails at HEAD trivially (no such
 rule; pre-flight listed only Disk space / Dark Library / Equipment Health).
 
-Tests: `packages/nightshade_core/test/providers/sequence/autopilot_armed_rule_test.dart` (4 cases,
+Tests: `packages/skotiq_core/test/providers/sequence/autopilot_armed_rule_test.dart` (4 cases,
 including "the autopilot's own dispatched run is not warned about itself").
 
 ---
@@ -120,14 +120,14 @@ including "the autopilot's own dispatched run is not warned about itself").
 
 | suite | result |
 |---|---|
-| `nightshade_core test/services/scheduler` (incl. the 4 new ownership + 2 new label cases) | 121 passed |
-| `nightshade_core test/providers/sequence` (686 cases; includes `sequence_validation_ref_aware_test.dart`, which runs the whole ref-aware registry with the new rule in it) | all passed |
-| `nightshade_core test/providers/scheduler_engine_provider_lifecycle_test.dart`, `scheduler_project_filter_test.dart` | 12 passed |
-| `nightshade_app test/screens/scheduler` | 18 passed |
-| `nightshade_app test/screens/sequencer/preflight_*_test.dart` | 11 passed |
+| `skotiq_core test/services/scheduler` (incl. the 4 new ownership + 2 new label cases) | 121 passed |
+| `skotiq_core test/providers/sequence` (686 cases; includes `sequence_validation_ref_aware_test.dart`, which runs the whole ref-aware registry with the new rule in it) | all passed |
+| `skotiq_core test/providers/scheduler_engine_provider_lifecycle_test.dart`, `scheduler_project_filter_test.dart` | 12 passed |
+| `skotiq_app test/screens/scheduler` | 18 passed |
+| `skotiq_app test/screens/sequencer/preflight_*_test.dart` | 11 passed |
 | `apps/desktop test/headless_api/scheduler_handlers_test.dart` (its sink is untouched — proof the interface change is non-breaking) | 11 passed |
 
-Pre-existing failures, NOT from this batch: `nightshade_app test/screens/planner/captures_*_test.dart`
+Pre-existing failures, NOT from this batch: `skotiq_app test/screens/planner/captures_*_test.dart`
 golden pixel diffs. Re-ran them with every file of this batch reverted to `HEAD:` — identical
 diffs (11.25% landscape / 6.97% portrait), so they fail at HEAD too. (Known class: goldens captured
 on Windows.)
@@ -135,6 +135,6 @@ on Windows.)
 ## Environment note
 
 Concurrent agents were mid-edit in the same tree during this batch: `equipment_health_provider.dart`
-+ `device_last_contact_provider.dart` and, later, `nightshade_planetarium`'s
++ `device_last_contact_provider.dart` and, later, `skotiq_planetarium`'s
 `interactive_sky_view*.dart` and `time_control_panel.dart` were transiently uncompilable. Those
 failures are not from this batch; test runs were repeated until the package compiled.

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 /// Network connection status
 enum NetworkStatus { connected, disconnected, reconnecting }
@@ -77,7 +77,7 @@ class NetworkService {
     developer.log('Initializing...', name: 'NetworkService', level: 800);
 
     // Load last known server
-    _lastKnownServer = await EnhancedNightshadeDiscovery.loadLastServer();
+    _lastKnownServer = await EnhancedSkotiqDiscovery.loadLastServer();
     if (_lastKnownServer != null) {
       developer.log(
         'Loaded last known server: ${_lastKnownServer!.name}',
@@ -294,7 +294,7 @@ class NetworkService {
       // only on https, so probe with the server's recorded scheme; a longer
       // timeout for a tailnet host rides out DERP-relay latency on cellular.
       final isReachable =
-          await EnhancedNightshadeDiscovery.testServerConnection(
+          await EnhancedSkotiqDiscovery.testServerConnection(
             _lastKnownServer!.host,
             _lastKnownServer!.webPort,
             authToken: _lastKnownServer!.authToken,
@@ -387,7 +387,7 @@ class NetworkService {
     );
 
     try {
-      final server = await EnhancedNightshadeDiscovery.discoverWithFallback(
+      final server = await EnhancedSkotiqDiscovery.discoverWithFallback(
         onStatus: (status) {
           _updateState(_state.copyWith(statusMessage: status));
         },
@@ -434,7 +434,7 @@ class NetworkService {
     );
 
     // Save as last known server
-    await EnhancedNightshadeDiscovery.saveLastServer(server);
+    await EnhancedSkotiqDiscovery.saveLastServer(server);
     _lastKnownServer = server;
 
     _updateState(
@@ -455,7 +455,7 @@ class NetworkService {
     );
 
     // Clear saved server
-    await EnhancedNightshadeDiscovery.clearLastServer();
+    await EnhancedSkotiqDiscovery.clearLastServer();
     _lastKnownServer = null;
 
     _updateState(

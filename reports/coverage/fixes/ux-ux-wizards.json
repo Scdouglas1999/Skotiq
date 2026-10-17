@@ -4,10 +4,10 @@
     "outcome": "fixed",
     "summary": "CockpitMorningReport returned SizedBox.shrink() when sequenceRunsProvider was empty, so ticking the picker checkbox produced no tile anywhere and read as a broken toggle. It now renders the same _ReportStatusCard shell the loading/error states use, headed 'No completed runs yet' and saying what will appear there once a sequence finishes — the shape Storage and Last Run already use.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/dashboard/widgets/cockpit_morning_report.dart",
-      "packages/nightshade_app/test/screens/dashboard/cockpit_morning_report_empty_test.dart"
+      "packages/skotiq_app/lib/screens/dashboard/widgets/cockpit_morning_report.dart",
+      "packages/skotiq_app/test/screens/dashboard/cockpit_morning_report_empty_test.dart"
     ],
-    "test": "packages/nightshade_app/test/screens/dashboard/cockpit_morning_report_empty_test.dart — 'renders an empty state instead of vanishing' plus a guard that a finished run still shows the report.",
+    "test": "packages/skotiq_app/test/screens/dashboard/cockpit_morning_report_empty_test.dart — 'renders an empty state instead of vanishing' plus a guard that a finished run still shows the report.",
     "revert_check": "Reverted cockpit_morning_report.dart:30 back to `if (runs.isEmpty) return const SizedBox.shrink();` — test fails ('No completed runs yet' not found); restored — passes."
   },
   {
@@ -15,15 +15,15 @@
     "outcome": "fixed",
     "summary": "Added one shared formatter, formatPolarError, that follows the magnitude the way NINA/SharpCap do: arcseconds with a decimal under 1', arcmin+arcsec under 1 degree, degrees+arcmin+arcsec above that, sign preserved, non-finite rendered as '--'. Wired into every readout that previously printed a raw arcsecond count: the Adjust Mount az/alt/total tiles and its threshold caption, the right-rail Azimuth/Altitude/Total tiles, the completion headline (both the 'Final error' and 'Still N off' branches), the Before/After summary boxes, the history rows, and the All-Sky reticle caption. The fixed 30\"/60\"/120\" ring labels on the bullseye were deliberately left in arcseconds — that is the regime where the arcsecond IS the unit.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_error_format.dart",
-      "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen.dart",
-      "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_measurement_panel.dart",
-      "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_right_panel.dart",
-      "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_completion_panel.dart",
-      "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_history_panel.dart",
-      "packages/nightshade_app/lib/screens/polar_alignment/widgets/all_sky_target_reticle.dart",
-      "packages/nightshade_app/test/screens/polar_alignment/polar_alignment_error_format_test.dart",
-      "packages/nightshade_app/test/screens/polar_alignment/polar_alignment_wizard_ux_test.dart"
+      "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_error_format.dart",
+      "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen.dart",
+      "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_measurement_panel.dart",
+      "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_right_panel.dart",
+      "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_completion_panel.dart",
+      "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_history_panel.dart",
+      "packages/skotiq_app/lib/screens/polar_alignment/widgets/all_sky_target_reticle.dart",
+      "packages/skotiq_app/test/screens/polar_alignment/polar_alignment_error_format_test.dart",
+      "packages/skotiq_app/test/screens/polar_alignment/polar_alignment_wizard_ux_test.dart"
     ],
     "test": "polar_alignment_error_format_test.dart (6 unit cases incl. the 2287.9\" -> 38' 08\" and 40104\" -> 11 deg 08' 24\" the audit saw, plus the 3599.7\" carry and sign/NaN handling) and polar_alignment_wizard_ux_test.dart 'a run that reached its target reads in arcminutes' / 'a run that missed its target reads in arcminutes too'.",
     "revert_check": "Reverted _completion_panel.dart:57 to `'Final error: ${state.currentError!.totalError.toStringAsFixed(1)} arcseconds'` — polar_alignment_wizard_ux_test fails; restored — passes."
@@ -33,10 +33,10 @@
     "outcome": "fixed",
     "summary": "The screen now owns the configuration column's ScrollController, and toggling History ON animates that column to the panel it just appended (and selects the Settings tab on the compact layout, where the column is a tab). The button also carries a tooltip saying where the panel appears. The panel stays where it is structurally — the defect was that the toggle's only effect was below the fold, not where the panel lives.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen.dart",
-      "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_configuration_panel.dart",
-      "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_screen_shell.dart",
-      "packages/nightshade_app/test/screens/polar_alignment/polar_alignment_wizard_ux_test.dart"
+      "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen.dart",
+      "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_configuration_panel.dart",
+      "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_screen_shell.dart",
+      "packages/skotiq_app/test/screens/polar_alignment/polar_alignment_wizard_ux_test.dart"
     ],
     "test": "'History scrolls its panel into view' — reproduces the audit's conditions (short viewport, Common + Advanced expanded) and asserts the rendered rect of 'Alignment History' lies inside the viewport, not merely that the widget was built.",
     "revert_check": "Removed the `_revealHistoryPanel();` call from the showHistoryPanel listener — test fails (panel bottom 621.0 past a 560px viewport); restored — passes."
@@ -46,8 +46,8 @@
     "outcome": "fixed",
     "summary": "The controls were already genuinely disabled (every callback is `isRunning ? null : ...`), so the defect was purely that nothing said so: SegmentedButton.styleFrom used the same surfaceAlt for enabled and disabled, so the column kept full contrast. The column now shows a 'Settings are locked while aligning — press Stop to change them.' note above the groups while a run is in flight, and the three settings groups dim to the muted opacity token. Kept above the disabled threshold so the operator can still READ the hemisphere/binning the run is using.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_configuration_panel.dart",
-      "packages/nightshade_app/test/screens/polar_alignment/polar_alignment_wizard_ux_test.dart"
+      "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_configuration_panel.dart",
+      "packages/skotiq_app/test/screens/polar_alignment/polar_alignment_wizard_ux_test.dart"
     ],
     "test": "'the configuration column says why it is locked mid-run' and its negative twin 'an idle wizard does not claim its settings are locked'.",
     "revert_check": "Removed the `if (isRunning) ...[_buildSettingsLockedNote(colors), ...]` block — test fails; restored — passes."
@@ -57,8 +57,8 @@
     "outcome": "fixed",
     "summary": "polarAlignmentStateProvider is app-scoped, so Done (which pops to Imaging) left the terminal state standing and re-entry landed on the old completion summary with Restart as the only way back to the instructions. The screen now releases a FINISHED run on dispose: only phase complete/error, via a post-frame callback (mutating a provider inside dispose lands mid-teardown), and a PolarAlignmentBusyException is swallowed so an in-flight history save is never forced. A run still in flight is untouched — coming back to a live measurement must show it. The controller and phase are snapshotted each build because `ref` is invalid inside a ConsumerState dispose.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen.dart",
-      "packages/nightshade_app/test/screens/polar_alignment/polar_alignment_wizard_ux_test.dart"
+      "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen.dart",
+      "packages/skotiq_app/test/screens/polar_alignment/polar_alignment_wizard_ux_test.dart"
     ],
     "test": "'leaving a finished run reopens the wizard on idle' — pops the wizard and asserts the provider phase is idle and that re-entry shows neither 'Alignment Stopped' nor 'Alignment Complete'.",
     "revert_check": "Removed the `_releaseFinishedRun();` call from dispose() — test fails (phase stays complete); restored — passes."
@@ -68,9 +68,9 @@
     "outcome": "fixed",
     "summary": "The read-only number between the -/+ steppers is now a real TextField: digits-only, 3-char limit, commits on submit and on focus loss, and normalises itself to whatever survives the notifier's 1..999 clamp so the field can never disagree with the run it will start. The steppers stay for gloved nudging and keep the field in sync; they now also carry tooltips and the + button disables at the ceiling.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/flat_wizard/flat_wizard_screen/tuning_controls.dart",
-      "packages/nightshade_app/lib/screens/flat_wizard/flat_wizard_screen.dart",
-      "packages/nightshade_app/test/screens/flat_wizard/flat_wizard_tuning_controls_test.dart"
+      "packages/skotiq_app/lib/screens/flat_wizard/flat_wizard_screen/tuning_controls.dart",
+      "packages/skotiq_app/lib/screens/flat_wizard/flat_wizard_screen.dart",
+      "packages/skotiq_app/test/screens/flat_wizard/flat_wizard_tuning_controls_test.dart"
     ],
     "test": "flat_wizard_tuning_controls_test.dart — 'the frame count accepts a typed value in one edit' (30 -> typed 3), 'a typed frame count outside the accepted range snaps back' (0 -> 1, field shows 1), 'the steppers still work and keep the field in sync'.",
     "revert_check": "Reverted `_commit()` to drop its `widget.onChanged(resolved)` call — test fails (frame count stays 30); restored — passes."
@@ -80,9 +80,9 @@
     "outcome": "fixed",
     "summary": "Added a _FieldLabel caption widget and used it on both tabs so Histogram Target, Tolerance and Frame Count are named exactly as they are on Quick Capture, instead of a bare '11%' stacked over a bare '±10%'.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/flat_wizard/flat_wizard_screen/tuning_controls.dart",
-      "packages/nightshade_app/lib/screens/flat_wizard/flat_wizard_screen/capture_mode_controls.dart",
-      "packages/nightshade_app/test/screens/flat_wizard/flat_wizard_tuning_controls_test.dart"
+      "packages/skotiq_app/lib/screens/flat_wizard/flat_wizard_screen/tuning_controls.dart",
+      "packages/skotiq_app/lib/screens/flat_wizard/flat_wizard_screen/capture_mode_controls.dart",
+      "packages/skotiq_app/test/screens/flat_wizard/flat_wizard_tuning_controls_test.dart"
     ],
     "test": "'Multi-Filter Batch captions its global-settings sliders' and 'Sky Flats captions its global-settings sliders'.",
     "revert_check": "Removed both `const _FieldLabel('Histogram Target'),` lines — both tab tests fail; restored — passes."
@@ -92,9 +92,9 @@
     "outcome": "fixed",
     "summary": "Added localMosaicProjectForHubProvider (mosaic_projects_dao.getByHubMosaicId, the same join key joinMosaicAsParticipant already uses) and branched the card on it: collab_role 'owner' now reads 'Your mosaic' / 'You published this mosaic...' / 'Open the local project'; an already-joined participant gets \"You've joined this mosaic\" / 'Open the local project'; only a mosaic with no local mirror still says 'Join mosaic'. The 'Joined X — claim open panels' snackbar is suppressed when the project was already linked, since joinMosaicAsParticipant returns the existing id without touching the hub. The provider is added to collaborativeMosaicStateProviders so publish/join invalidate it.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/collaborative_sky/collab_mosaic_detail_screen.dart",
-      "packages/nightshade_app/lib/screens/collaborative_sky/collaborative_sky_providers.dart",
-      "packages/nightshade_app/test/screens/collaborative_sky/collab_mosaic_owner_cta_test.dart"
+      "packages/skotiq_app/lib/screens/collaborative_sky/collab_mosaic_detail_screen.dart",
+      "packages/skotiq_app/lib/screens/collaborative_sky/collaborative_sky_providers.dart",
+      "packages/skotiq_app/test/screens/collaborative_sky/collab_mosaic_owner_cta_test.dart"
     ],
     "test": "collab_mosaic_owner_cta_test.dart — owner, already-joined participant, and stranger cases; the stranger case is the guard that the Join path was not simply deleted.",
     "revert_check": "Forced `isOwner = false` — the owner test fails ('Open the local project' not found); restored — passes."
@@ -104,8 +104,8 @@
     "outcome": "fixed",
     "summary": "Added a back bar (pop, falling back to /analytics where the entry point lives) to BOTH the populated list and the remote host-only state, mirroring the bar the mosaic project screen and the collaborative detail screen already carry. Added a 'New mosaic' action in the header that opens the same MosaicWizardDialog the sequencer toolbar uses; its 'Create mosaic project' action persists the design and routes to /mosaic/:id, so the loop closes on this screen. The empty state already named Framing/Planetarium as the design surfaces and was left alone.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/mosaic/mosaic_projects_list_screen.dart",
-      "packages/nightshade_app/test/screens/mosaic/mosaic_projects_list_actions_test.dart"
+      "packages/skotiq_app/lib/screens/mosaic/mosaic_projects_list_screen.dart",
+      "packages/skotiq_app/test/screens/mosaic/mosaic_projects_list_actions_test.dart"
     ],
     "test": "mosaic_projects_list_actions_test.dart — a populated list has both Back and 'New mosaic'; the remote host-only state keeps its Back.",
     "revert_check": "Removed both `_BackBar(colors: colors),` lines — both tests fail; restored — passes."
@@ -115,8 +115,8 @@
     "outcome": "fixed",
     "summary": "Not in the findings list — my tab-switching test hit it. FlatWizardTutorialKeys.filterSelect/targetAdu/frameCount were passed by BOTH _BatchCaptureControls and _SkyFlatsControls, and startBtn by all three tabs. A TabBarView keeps the outgoing tab mounted across a switch, so changing tab threw 'The following GlobalKey was specified multiple times in the widget tree' in a debug build (and silently reparents state in release). Each shared key is now claimed only by the tab whose mode is selected.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/flat_wizard/flat_wizard_screen/capture_mode_controls.dart",
-      "packages/nightshade_app/lib/screens/flat_wizard/flat_wizard_screen/action_buttons.dart"
+      "packages/skotiq_app/lib/screens/flat_wizard/flat_wizard_screen/capture_mode_controls.dart",
+      "packages/skotiq_app/lib/screens/flat_wizard/flat_wizard_screen/action_buttons.dart"
     ],
     "test": "The two tab-switching cases in flat_wizard_tuning_controls_test.dart fail on the duplicate-key assertion without this.",
     "revert_check": "Covered by the 'flat-slider-captions' revert run: with the keys unscoped the tab tests fail at teardown on the duplicate GlobalKey."
@@ -126,9 +126,9 @@
     "outcome": "fixed",
     "summary": "Split the finding. The measurable half is fixed: the All-Sky readout now carries 'Drift baseline: 4m 12s' under the az/alt/total tiles, computed from the exact interval the misalignment was derived over — state.initialError is the FIRST drift solve of the adjustment phase and state.currentError the latest, so their timestamp gap IS the baseline. It reads '0s' on the first sample, which is precisely the warning the audit's 0.0\\\" reading needed, and needs no native/wire change. WITHHOLDING the green 'Within acceptance' verdict below a minimum baseline is NOT done — see the needs-decision item below; picking that minimum is a product call. While fixing this I also closed a latent overflow: the All-Sky reticle is a Column that cannot shrink past its own caption, so unlike the TPPA bullseye it overflows rather than squashing when the flex path starves it; its layout floor now reserves a usable reticle slot.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_right_panel.dart",
-      "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_error_format.dart",
-      "packages/nightshade_app/test/screens/polar_alignment/polar_alignment_wizard_ux_test.dart"
+      "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_right_panel.dart",
+      "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_error_format.dart",
+      "packages/skotiq_app/test/screens/polar_alignment/polar_alignment_wizard_ux_test.dart"
     ],
     "test": "'All-Sky states how long its drift baseline has run' — a 252-second gap between the first and current drift solves renders 'Drift baseline: 4m 12s'.",
     "revert_check": "Removed the `if (isAllSky) ...[_buildDriftBaselineCaption(...)]` block — test fails; restored — passes. Correcting my own earlier count: the area's golden failures are FOUR, not two — both cases in polar_alignment/captures_landscape_test.dart and both in flat_wizard/captures_landscape_test.dart. All four are pure pixel diffs (40.6%/40.6%/51.0%/51.2% — whole-screen rasterizer differences from Windows-captured baselines on Linux, per docs/testing/golden-tests.md), the baseline PNGs are unmodified, and grepping the runs for RenderFlex/overflow returns nothing, so none of them is masking a layout regression from the frame-count TextField. All four are @Tags(['golden']) and excluded from `melos run test`."
@@ -138,8 +138,8 @@
     "outcome": "fixed",
     "summary": "The sheet already prefilled from the framing target when one was set (the finding missed that), but inside the sheet there was no way to resolve a name and no way to take the mount's pointing. Added both, above the RA/Dec fields: 'Look up coordinates' resolves the typed name through targetCoordinateLookupProvider — the app's existing two-source resolver (target library, over the wire on a remote client, then the installed planetarium catalogs) — and applying a match fills the canonical name plus RA/Dec (converting the resolver's RA HOURS to this form's RA DEGREES); 'From mount' fills the centre from mountStateProvider and is disabled with a reason when no mount is connected or it has no coordinates. Both fields stay editable. Noted in the code: the resolver is declared inside the sequencer's Target-editor library and should move to a shared providers/ file — I did not move it because that file is being edited concurrently, and duplicating the two-source search here would be a second thing to keep in step with the catalogs.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/collaborative_sky/coimaging_create_sheet.dart",
-      "packages/nightshade_app/test/screens/collaborative_sky/coimaging_create_sources_test.dart"
+      "packages/skotiq_app/lib/screens/collaborative_sky/coimaging_create_sheet.dart",
+      "packages/skotiq_app/test/screens/collaborative_sky/coimaging_create_sources_test.dart"
     ],
     "test": "coimaging_create_sources_test.dart — 'From mount fills the centre from where the scope points' (20.979722h -> 314.6958 deg), 'From mount is unavailable with no mount connected', 'a catalog match fills name and centre in one tap' (and leaves Start session enabled).",
     "revert_check": "Replaced the _CoordinateSources row with SizedBox.shrink() — all three tests fail; restored — passes."
@@ -149,9 +149,9 @@
     "outcome": "fixed",
     "summary": "Found while disproving the 'Claim all pending' finding below — it is the one true residual in it. The card reported '${panelsUploaded} of N panels uploaded to the hub', which is a different quantity from the one you need when deciding whether to claim more or hand some back. It now leads with 'You hold X of N panels · Y uploaded to the hub'; a local panel row only carries a claim token after this device's own successful claim, so the count is genuinely 'mine', not 'claimed by anyone'.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/mosaic/mosaic_project_screen.dart",
-      "packages/nightshade_app/lib/screens/mosaic/mosaic_project_controller.dart",
-      "packages/nightshade_app/test/screens/mosaic/mosaic_project_screen_collab_test.dart"
+      "packages/skotiq_app/lib/screens/mosaic/mosaic_project_screen.dart",
+      "packages/skotiq_app/lib/screens/mosaic/mosaic_project_controller.dart",
+      "packages/skotiq_app/test/screens/mosaic/mosaic_project_screen_collab_test.dart"
     ],
     "test": "'the card says how many panels THIS rig is holding' — 3-panel published mosaic with 1 claimed renders 'You hold 1 of 3 panels'.",
     "revert_check": "Reverted the caption to the old uploaded-only string — test fails; restored — passes. test/screens/mosaic/ is fully green (55 tests). The previously-open question about test/golden/mosaic_project_screen_golden_test.dart is now SETTLED as pre-existing, by experiment rather than by argument: I restored all four changed mosaic lib files to their HEAD contents (git show HEAD:<path>, backed up first) and re-ran it serially — it failed IDENTICALLY, 'Failed assertion: line 2542 pos 12: !timersPending' followed by TimeoutException after 0:10:00. Same failure with my changes present and absent, so it is not attributable to this work. Consistent with the static evidence: the diff adds no Timer/Future.delayed/periodic anywhere, and neither the screen nor the controller nor the test contains one. Files restored from backup afterwards and re-verified (55 green, analyzer clean)."
@@ -173,7 +173,7 @@
     "outcome": "fixed",
     "summary": "Housekeeping, not a finding. A final `dart analyze` over the whole changed surface returned 3 infos; two are in unmodified files (the @Tags-before-imports pattern in the two captures_landscape_test.dart golden files, pre-existing), but collab_mosaic_publish_refresh_test.dart is new in this campaign and carried a use_super_parameters info on _FakeHub's mastersDao. Converted it to `required super.mastersDao` and dropped the now-redundant forward in the super() call.",
     "files_changed": [
-      "packages/nightshade_app/test/screens/collaborative_sky/collab_mosaic_publish_refresh_test.dart"
+      "packages/skotiq_app/test/screens/collaborative_sky/collab_mosaic_publish_refresh_test.dart"
     ],
     "test": "Its own two cases still pass ('publishing a project refreshes the hub mosaic listing', 'claiming a panel refreshes the hub mosaic listing'); `dart analyze` on the file now reports 'No issues found!'.",
     "revert_check": "N/A — a lint cleanup with no behaviour change; the guard is that the file's existing tests still pass, which they do."

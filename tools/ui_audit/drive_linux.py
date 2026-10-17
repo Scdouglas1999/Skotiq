@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive the Nightshade desktop app on Linux for audit sweeps.
+"""Drive the Skotiq desktop app on Linux for audit sweeps.
 
 WHY THIS EXISTS
 ---------------
@@ -20,7 +20,7 @@ only to ask whether a named control is present and enabled.
 ENVIRONMENT NOTES (each of these cost a debugging session to learn)
   * GALLIUM_DRIVER=softpipe, not llvmpipe. Under Mesa 26 llvmpipe crashes this
     app's shader setup on a virtual display; softpipe is slow but survives.
-  * NIGHTSHADE_DATABASE_DIR points at a scratch dir so a sweep never mutates the
+  * SKOTIQ_DATABASE_DIR points at a scratch dir so a sweep never mutates the
     developer's real observing data, and so each run starts from a known state.
   * The app takes a single-instance lock. A second launch exits silently and
     looks identical to a crash, so `start` refuses when one is already up.
@@ -63,8 +63,8 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-BUNDLE = REPO / "apps/desktop/build/linux/x64/release/bundle/nightshade_desktop"
-DEBUG_BUNDLE = REPO / "apps/desktop/build/linux/x64/debug/bundle/nightshade_desktop"
+BUNDLE = REPO / "apps/desktop/build/linux/x64/release/bundle/skotiq_desktop"
+DEBUG_BUNDLE = REPO / "apps/desktop/build/linux/x64/debug/bundle/skotiq_desktop"
 RUNTIME = Path(os.environ.get("NS_AUDIT_RUNTIME", "/tmp/ns-audit"))
 DISPLAY = os.environ.get("NS_AUDIT_DISPLAY", ":77")
 GEOMETRY = os.environ.get("NS_AUDIT_GEOMETRY", "1920x1200x24")
@@ -90,8 +90,8 @@ def _env(profile: str) -> dict[str, str]:
             "GDK_BACKEND": "x11",
             "LIBGL_ALWAYS_SOFTWARE": "1",
             "GALLIUM_DRIVER": "softpipe",
-            "NIGHTSHADE_DATABASE_DIR": str(p["data"]),
-            "NIGHTSHADE_DATA_DIR": str(p["data"]),
+            "SKOTIQ_DATABASE_DIR": str(p["data"]),
+            "SKOTIQ_DATA_DIR": str(p["data"]),
             # Flutter's Linux embedder only builds an accessibility tree when a
             # client asks for one; without this the tree is empty and every
             # click has to fall back to pixel coordinates.
@@ -323,7 +323,7 @@ def _atspi_root(profile: str):
 
     Matching on the application NAME is not good enough and is actively
     dangerous: the AT-SPI registry is per login session, not per X display, so a
-    developer's own Nightshade running on their real desktop shows up in the same
+    developer's own Skotiq running on their real desktop shows up in the same
     desktop enumeration as the sandboxed instance. Selecting by name picked up
     the developer's app -- meaning the tree being audited was the wrong process's
     tree, and a `click` would have driven their live session. Matching the pid we
@@ -433,7 +433,7 @@ def _norm(s: str) -> str:
 def cmd_tree(args: argparse.Namespace) -> int:
     app = _atspi_root(args.profile)
     if app is None:
-        print("error: no Nightshade accessibility root found for our pid. The "
+        print("error: no Skotiq accessibility root found for our pid. The "
               "app exposes a tree only when semantics are enabled; fall back to "
               "click-xy.", file=sys.stderr)
         return 1

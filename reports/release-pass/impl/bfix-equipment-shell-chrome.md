@@ -18,9 +18,9 @@ Fix (a): `deviceHealthSnapshotsProvider` only admits devices whose connection st
 heartbeat list as unhealthy and cost 25 points. Genuine mid-session drops still arrive
 through the USB disconnect log that `buildSnapshots` folds in.
 Fix (b): the "Unhealthy devices detected" insight prints `displayName`, not `deviceId`.
-Test: `packages/nightshade_core/test/providers/device_health_snapshots_test.dart` (3/3
+Test: `packages/skotiq_core/test/providers/device_health_snapshots_test.dart` (3/3
 failed before).
-Scope note: (b) touches `nightshade_core/lib/src/services/equipment_health_service.dart`
+Scope note: (b) touches `skotiq_core/lib/src/services/equipment_health_service.dart`
 (one identifier) — the device-health service behind the in-scope provider.
 
 ## EQP-10 — three device counts on one screen (P1)
@@ -93,7 +93,7 @@ Fixes in `discovery_panel.dart` / `device_row_item.dart`:
 ## EQP-23 — silent process death (P2) — BLOCKED
 The fix (a last-gasp shutdown record + device safing on a fatal render error) belongs in
 the desktop entry point (`apps/desktop/lib/main.dart` / the Linux runner), outside this
-batch's scope paths. Nothing in `packages/nightshade_app` can install the process-level
+batch's scope paths. Nothing in `packages/skotiq_app` can install the process-level
 handler honestly.
 
 ## Existing tests adjusted (contract changes, not test-fixing)
@@ -129,5 +129,5 @@ comparisons) fail on this tree right now. Proved independent of CON-44 by restor
 - `flutter test test/screens/dashboard` — 172 passed, 4 failed, all four the golden
   `captures_landscape_test`; the same four fail with `contextual_tour_prompt.dart`
   restored from HEAD, so they are not this batch's.
-- `nightshade_core`: device_health_snapshots + preflight_rules + the whole services
+- `skotiq_core`: device_health_snapshots + preflight_rules + the whole services
   suite — 2797 passed.

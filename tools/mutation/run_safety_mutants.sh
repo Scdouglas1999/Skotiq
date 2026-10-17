@@ -27,7 +27,7 @@ target="${1:?usage: $0 <recovery|slew|meridian|autofocus|grading|updater|all> [c
 shift || true
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-workspace="$repo_root/native/nightshade_native"
+workspace="$repo_root/native/skotiq_native"
 out_root="${MUTANTS_OUT:-$HOME/.cache/ns-reports/w27-mutation}"
 jobs="${MUTANTS_JOBS:-3}"
 

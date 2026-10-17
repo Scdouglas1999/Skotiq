@@ -2,8 +2,8 @@
 
 **Date:** 2026-08-13 (late evening). **Harness:** `tools/ui_audit/drive_linux.py`, display `:86`,
 profile `waveE-science-collab` (`--profile` after the subcommand).
-**Binary:** `apps/desktop/build/linux/x64/release/bundle/nightshade_desktop` with
-`lib/libapp.so` and `lib/libnightshade_bridge.so` both timestamped **20:33**, i.e. built
+**Binary:** `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop` with
+`lib/libapp.so` and `lib/libskotiq_bridge.so` both timestamped **20:33**, i.e. built
 *after* the D-fix commit `baddf35fd` (20:30:48). Freshness cross-checked by string-grep:
 `Quick captures (no session)` and `Optical Train Diagnostics` are both present in
 `libapp.so`, so the D-fix Dart is in the binary under test.
@@ -38,7 +38,7 @@ projects created through the wizard. Screenshots and tree dumps in
 | CON-48 | **VERIFIED_FIXED** (in the Analytics tab) | Analytics ▸ Diagnostics no longer renders the `Optical Train Diagnostics` H1, and the paragraph is one line: *"Optical-train health across the whole session: collimation, tilt, backfocus and field flatness. Lower scores are better."* (~20 words, was ~95). `button: Learn more about optical diagnostics` still sits beside it. I could not reach the standalone `/diagnostics` shell from the desktop GUI, so the `showTitle: true` half is unverified here. |
 | NEW-C2 | **VERIFIED_FIXED inside the scoped directories; STILL_BROKEN outside** | Swept all five Analytics tabs with data and the Science sub-tabs: the only `[DISABLED]` string anywhere in those dumps is the shared status-bar chip (see NEW-E4). Outside the batch: Imaging's `panel: G100 [DISABLED]` is now `button: Exposure settings, gain 100`, but `panel: Overlays [DISABLED]` survives; the Sequencer palette tabs have lost `[DISABLED]` yet are still role-less `panel: Nodes / Tab 1 of 3` etc.; the mosaic wizard still exposes `panel: Advanced (numerical) [DISABLED]`. |
 | NEW-C3 | **STILL_BROKEN** (recorded blocked by D-fix) | Imaging ▸ `tree`: `button: Light` and `button: 1x1` with the words in adjacent, unassociated `panel: Frame Type` / `panel: Binning` nodes. Settings ▸ Appearance still exposes the paired form `button: Theme / <hint> / Dark`. |
-| NEW-C4 | **VERIFIED_FIXED** for `NightshadeDropdown` | Settings ▸ Appearance ▸ Theme menu: `button: Dark [ON]`, `button: Light [off]`, `button: Red night [off]`. Font size menu: `Small [off]`, `Medium [ON]`, `Large [off]`. Residual: the Analytics session pickers are `PopupMenuButton`s, not this component — they highlight the current row visually (`47-picker.png`) but publish no checked state. |
+| NEW-C4 | **VERIFIED_FIXED** for `SkotiqDropdown` | Settings ▸ Appearance ▸ Theme menu: `button: Dark [ON]`, `button: Light [off]`, `button: Red night [off]`. Font size menu: `Small [off]`, `Medium [ON]`, `Large [off]`. Residual: the Analytics session pickers are `PopupMenuButton`s, not this component — they highlight the current row visually (`47-picker.png`) but publish no checked state. |
 
 **Score: 8 verified fixed, 8 still broken** — and 7 of the 8 still-broken are the items the
 D-fix itself recorded as blocked/out of scope, reproduced here unchanged. Only NEW-C2 is
@@ -55,7 +55,7 @@ project. `tree` reports **`panel: Back`** — no button role, no `[DISABLED]` �
 projects *list* screen one route below reports `button: Back`.
 Clicking the **word** "Back" (image x=218 and x=227, y=51) does nothing across two attempts
 with a 6 s and a 10 s settle; clicking the **chevron** (x=199) pops immediately.
-Source confirms the shape: `packages/nightshade_app/lib/screens/mosaic/mosaic_project_screen.dart`
+Source confirms the shape: `packages/skotiq_app/lib/screens/mosaic/mosaic_project_screen.dart`
 `_BackBar` is an `IconButton` followed by a bare `Text(label)` in a `Row`.
 Why it matters: the label reads as part of the affordance and is the larger target; and a
 screen-reader user is not told the only way off this screen is a control.
@@ -88,7 +88,7 @@ present on **all** screens, and it is not one of the four sites Wave D named.
 ### NEW-E5 (P2) — Night Doctor still scores a night of POOR subs 100/100 with "0 findings"
 
 The WD-SCI-N5 fix discloses the disagreement but does not change the verdict, which the D-fix
-was explicit about (scoring lives in `nightshade_core`, out of that batch's scope). The state
+was explicit about (scoring lives in `skotiq_core`, out of that batch's scope). The state
 on one screen at one instant: **100 / 100**, *"A clean night — no problems detected."*,
 `Excellent`, `0 findings` — over a run whose every sub the same app grades POOR
 (`Good: 0 · Poor: 4`, DB `quality_score` 35.3–35.4, HFR 5.69–5.74 against the panel's 3.5 cull

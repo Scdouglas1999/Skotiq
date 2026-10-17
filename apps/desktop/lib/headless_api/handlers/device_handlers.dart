@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_bridge/nightshade_bridge.dart' as bridge_error;
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import '../command_correlator.dart';
@@ -28,7 +28,7 @@ part 'device_handlers/helpers.dart';
 /// the audit's spec keeps the legacy path so pinned mobile builds stay
 /// functional during the rollout.
 const String legacyBlockingAcceptType =
-    'application/x.nightshade.legacy-blocking';
+    'application/x.skotiq.legacy-blocking';
 
 /// True when the request's `Accept` header explicitly opts into the
 /// legacy synchronous response shape.
@@ -46,7 +46,7 @@ class DeviceHandlers {
 
   /// optional command correlator. When set, every action POST
   /// generates a UUID v4 commandId and includes it in the response. The
-  /// later NightshadeEvent that completes the command picks the id back
+  /// later SkotiqEvent that completes the command picks the id back
   /// up via `correlatingCommandId`. Null in unit tests that don't care
   /// about correlation (those tests still validate the legacy response
   /// shape).

@@ -1,5 +1,5 @@
 export const meta = {
-  name: 'nightshade-verify-remaining-product-fixes',
+  name: 'skotiq-verify-remaining-product-fixes',
   description: 'Adversarially verify the 73 product fixes that no verifier ever reached',
   phases: [
     { title: 'Refute', detail: 'one verifier per shard of ~6 fixes, told to break them' },
@@ -50,7 +50,7 @@ const SCHEMA = {
 }
 
 function brief(shard) {
-  return `You are an ADVERSARIAL VERIFIER on the Nightshade astrophotography app (Flutter/Dart monorepo + Rust via flutter_rust_bridge), repo root /home/scdouglas/Documents/Nightshade2.
+  return `You are an ADVERSARIAL VERIFIER on the Skotiq astrophotography app (Flutter/Dart monorepo + Rust via flutter_rust_bridge), repo root /home/scdouglas/Documents/Skotiq2.
 
 A previous wave landed fixes for product-critique findings (UX / wrong-default / missing-capability). Your job is to REFUTE them, not to admire them. Every earlier verify pass in this campaign refuted roughly one fix in six, so a shard where everything holds is possible but should make you look harder before you believe it.
 
@@ -78,9 +78,9 @@ For each item:
 4. **Did the fix break something else?** Run the tests covering the files it touched and report anything in \`regressionsFound\`. One fix in this wave added a third element to a Row header and overflowed the Equipment screen by 24px at 360dp — caught only because a non-golden mobile-layout test failed two files away.
 
 ## Running tests
-From the repo root: \`dart run melos exec --scope="<package>" -- flutter test <path>\`. Do NOT run \`flutter test packages/<pkg>/...\` from the root — it fails with a flutter_test dependency error. Package names: nightshade_app, nightshade_core, nightshade_ui, nightshade_desktop, nightshade_planetarium, nightshade_bridge. Redirect long runs to a file rather than piping through \`tail\`, which destroys the failure detail.
+From the repo root: \`dart run melos exec --scope="<package>" -- flutter test <path>\`. Do NOT run \`flutter test packages/<pkg>/...\` from the root — it fails with a flutter_test dependency error. Package names: skotiq_app, skotiq_core, skotiq_ui, skotiq_desktop, skotiq_planetarium, skotiq_bridge. Redirect long runs to a file rather than piping through \`tail\`, which destroys the failure detail.
 
-If a widget test you add gives a scope a real (in-memory) database, disposing it makes drift schedule a ZERO-DURATION timer in \`StreamQueryStore.markAsClosed\` and the binding fails with \`'!timersPending'\` against whatever assertion ran last. A \`tearDown\` cannot fix it (the binding checks first) and neither can a bare \`pump()\`. Use \`settleProviderTeardown(tester)\` from \`packages/nightshade_app/test/harness/provider_teardown.dart\`.
+If a widget test you add gives a scope a real (in-memory) database, disposing it makes drift schedule a ZERO-DURATION timer in \`StreamQueryStore.markAsClosed\` and the binding fails with \`'!timersPending'\` against whatever assertion ran last. A \`tearDown\` cannot fix it (the binding checks first) and neither can a bare \`pump()\`. Use \`settleProviderTeardown(tester)\` from \`packages/skotiq_app/test/harness/provider_teardown.dart\`.
 
 ## Repairing
 If a verdict is anything other than HOLDS and the repair is CONFINED to the area you are verifying, fix it properly, set \`repaired: true\` with a \`repairSummary\`, and add or strengthen a test that fails when the fix is reverted. If the repair would touch shared or foundational code that other areas use, do NOT edit it — describe it precisely in \`blockedOnSharedCode\` so it can be handled without two agents editing one file.

@@ -172,12 +172,12 @@ Future<void> _generateSelfSignedPair({
     );
   }
 
-  // 3. CSR with CN=Nightshade Headless. We use this as scaffolding for the
+  // 3. CSR with CN=Skotiq Headless. We use this as scaffolding for the
   // self-signed cert (basic_utils' generateSelfSignedCertificate takes a
   // CSR as input).
   final attributes = <String, String>{
-    'CN': 'Nightshade Headless',
-    'O': 'Nightshade',
+    'CN': 'Skotiq Headless',
+    'O': 'Skotiq',
   };
   final csrPem = butils.X509Utils.generateRsaCsrPem(
     attributes,

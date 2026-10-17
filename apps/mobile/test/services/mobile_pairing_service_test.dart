@@ -13,8 +13,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_mobile/services/mobile_pairing_service.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_mobile/services/mobile_pairing_service.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// In-process HTTP server emulating the headless pairing surface. Records the

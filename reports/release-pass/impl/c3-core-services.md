@@ -1,6 +1,6 @@
 # Wave C3 — batch `core-services`
 
-Scope: `packages/nightshade_core/lib/src/services/**` files over 1000 lines at HEAD
+Scope: `packages/skotiq_core/lib/src/services/**` files over 1000 lines at HEAD
 (`sequence_executor.dart` belongs to `core-providers` and was not touched).
 
 Plans followed: `reports/release-pass/map/core-services-devices.md` §1 and
@@ -117,7 +117,7 @@ was left for an explicit decision.
 
 ## Verification
 
-* `dart analyze lib` in `packages/nightshade_core` — **No issues found**.
+* `dart analyze lib` in `packages/skotiq_core` — **No issues found**.
 * `flutter test` (whole package, JSON reporter): **667 suites / 7217 tests, all success**,
   `"success": true`. No test file was edited — not even an import line; `part` files
   share the parent's library, so no import anywhere in the repo changed.

@@ -5,7 +5,7 @@ Ladder: failing test first, then fix, then green. Log appended as work proceeds.
 
 ## IMG-1 — capture-folder validation latches
 
-Located at `packages/nightshade_app/lib/screens/onboarding/steps/capture_dir_step.dart`
+Located at `packages/skotiq_app/lib/screens/onboarding/steps/capture_dir_step.dart`
 (outside the batch's nominal scope dirs but the item is assigned here; the file is
 touched only for this defect).
 
@@ -16,7 +16,7 @@ text — exactly the latch in the report. Clicking Next does not move focus off 
 
 Fix: `onChanged` drops a verdict that no longer describes the box and re-runs the
 check 500 ms after typing settles. Tests:
-`packages/nightshade_app/test/screens/onboarding/capture_dir_revalidate_on_edit_test.dart`
+`packages/skotiq_app/test/screens/onboarding/capture_dir_revalidate_on_edit_test.dart`
 (both cases proved failing at HEAD first). All 7 capture-dir suites green.
 
 ## IMG-8 — guider never leaves Settling
@@ -103,10 +103,10 @@ error was coalesced to 0).
 
 ## Verification
 
-- `nightshade_app`: 492 tests green with `--exclude-tags golden`.
-- `nightshade_core`: 4285 tests green (`test/services`, `test/providers`).
-- `cargo test -p nightshade_bridge --lib`: 538 green.
-- `dart analyze` over nightshade_core/lib, nightshade_app/lib, apps/desktop/lib:
+- `skotiq_app`: 492 tests green with `--exclude-tags golden`.
+- `skotiq_core`: 4285 tests green (`test/services`, `test/providers`).
+- `cargo test -p skotiq_bridge --lib`: 538 green.
+- `dart analyze` over skotiq_core/lib, skotiq_app/lib, apps/desktop/lib:
   0 errors, 0 warnings (17 pre-existing `info` deprecations).
 - The `captures_landscape_test.dart` golden captures fail on Linux at HEAD too
   (`@Tags(['golden'])`, host-specific baselines, excluded by `melos run test`).

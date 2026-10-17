@@ -11,7 +11,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_checklist_audit_self_test_',
+    'skotiq_checklist_audit_self_test_',
   );
   try {
     await _writeBlockedChecklist(temp);

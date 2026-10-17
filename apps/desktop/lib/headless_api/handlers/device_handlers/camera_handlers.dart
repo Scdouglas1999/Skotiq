@@ -272,7 +272,7 @@ extension CameraDeviceHandlers on DeviceHandlers {
     } catch (error, stackTrace) {
       final message = error.toString();
       final isBridgeCancellation =
-          error is bridge_error.NightshadeError &&
+          error is bridge_error.SkotiqError &&
           error.maybeMap(
             exposureCancelled: (_) => true,
             cancelled: (_) => true,
@@ -520,7 +520,7 @@ extension CameraDeviceHandlers on DeviceHandlers {
     CapturedImageResult? image;
     try {
       image = await backend.cameraGetLastImage(deviceId);
-    } on bridge_error.NightshadeError catch (error) {
+    } on bridge_error.SkotiqError catch (error) {
       final isEmptyBuffer = error.maybeMap(
         noImageAvailable: (_) => true,
         orElse: () => false,
@@ -629,7 +629,7 @@ extension CameraDeviceHandlers on DeviceHandlers {
           'x-frame-device-id': deviceId,
         },
       );
-    } on bridge_error.NightshadeError catch (e) {
+    } on bridge_error.SkotiqError catch (e) {
       final message = e.maybeMap(
         operationFailed: (v) => v.field0,
         notSupported: (v) =>

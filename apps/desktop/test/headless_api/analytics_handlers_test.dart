@@ -5,8 +5,8 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/analytics_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/analytics_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -119,7 +119,7 @@ void main() {
     );
 
     test('summary and integration endpoints honor their date range', () async {
-      final database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(database.close);
       final rangedContainer = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(database)],
@@ -226,7 +226,7 @@ void main() {
     });
 
     test('session stats retain the persisted HFR without image rows', () async {
-      final database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(database.close);
       final testContainer = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(database)],
@@ -257,7 +257,7 @@ void main() {
 
     test('session stats carry the culling verdict, not just the camera\'s '
         'exposure outcome', () async {
-      final database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(database.close);
       final testContainer = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(database)],
@@ -332,7 +332,7 @@ void main() {
     // operator the night worked while `/api/sessions/<id>/stats` said nothing
     // survived. Same night, two answers. Both surfaces now read the frames.
     test('every session surface reports the same grading verdict', () async {
-      final database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(database.close);
       final testContainer = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(database)],
@@ -510,7 +510,7 @@ void main() {
     test(
       'every session surface answers the HFR question the same way',
       () async {
-        final database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+        final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
         addTearDown(database.close);
         final testContainer = ProviderContainer(
           overrides: [databaseProvider.overrideWithValue(database)],
@@ -639,7 +639,7 @@ void main() {
     );
 
     test('an accepted night reports one HFR on every surface', () async {
-      final database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(database.close);
       final testContainer = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(database)],
@@ -713,7 +713,7 @@ void main() {
     test(
       'a session with no frames on record claims no accepted lights',
       () async {
-        final database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+        final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
         addTearDown(database.close);
         final testContainer = ProviderContainer(
           overrides: [databaseProvider.overrideWithValue(database)],
@@ -749,7 +749,7 @@ void main() {
     );
 
     test('session creation rejects empty and unknown payloads', () async {
-      final database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(database.close);
       final testContainer = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(database)],
@@ -777,7 +777,7 @@ void main() {
     });
 
     test('only one imaging session can be active at a time', () async {
-      final database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(database.close);
       final testContainer = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(database)],

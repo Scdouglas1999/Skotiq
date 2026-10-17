@@ -68,7 +68,7 @@ A pure planner plus the listeners that drive it.
   listener and from the tree's layout pass.
 - Rendering: `_StickyAncestorStack` — `surfaceElevated`, a bottom hairline and
   the design system's one floating shadow
-  (`NightshadeDecorations.popover(colors).boxShadow`), taking the scroll
+  (`SkotiqDecorations.popover(colors).boxShadow`), taking the scroll
   view's own horizontal padding so a pin sits over the column of the row it
   stands for. Ledger pins are real `_LedgerRow(pinned: true)`; Compact pins
   are `_PinnedCompactRow`, a single 28 px line (Compact keeps today's cards,
@@ -144,7 +144,7 @@ replaced gave it.
    strip therefore loses its outside scrim.
 9. **Block colours moved to `nodeCategoryTint`.** The old painter carried its
    own copy of the same four-way switch. The `success` block's alpha moves
-   0.7 → `NightshadeTokens.opacityMuted` (0.6) so it is a token rather than a
+   0.7 → `SkotiqTokens.opacityMuted` (0.6) so it is a token rather than a
    literal.
 10. **The gutter's drag is delta-based** from the grab point, not an absolute
     gutter-y → offset mapping: grabbing the viewport rectangle anywhere inside
@@ -186,7 +186,7 @@ replaced gave it.
 
 ## Tests
 
-New, all under `packages/nightshade_app/test/screens/sequencer/`:
+New, all under `packages/skotiq_app/test/screens/sequencer/`:
 
 - `auto_collapse_plan_test.dart` — 12 pure cases: ancestor order, run start
   (expand the branch, fold finished ones, outermost only), derived container
@@ -221,7 +221,7 @@ without it the tap-a-pin test silently asserted nothing.
 ## Commands run (unpiped exit codes)
 
 ```
-cd packages/nightshade_app && dart analyze
+cd packages/skotiq_app && dart analyze
 ```
 EXIT=2 — **891 issues, identical to the base commit's 891**: zero net new
 diagnostics (0 errors, 0 warnings in `lib/screens/sequencer`). The base commit
@@ -230,7 +230,7 @@ info lints WS1 recorded.
 
 ```
 dart format --output=none --set-exit-if-changed \
-  packages/nightshade_app packages/nightshade_core packages/nightshade_ui
+  packages/skotiq_app packages/skotiq_core packages/skotiq_ui
 ```
 EXIT=1 — 11 files, ALL pre-existing drift on the base commit in files this
 workstream does not own (`status_bar*`, `mount_site_*`, `imaging_chain.dart`,
@@ -238,7 +238,7 @@ workstream does not own (`status_bar*`, `mount_site_*`, `imaging_chain.dart`,
 10 files this workstream touched: `Formatted 10 files (0 changed)`, EXIT=0.
 
 ```
-cd packages/nightshade_app && flutter test test/screens/sequencer \
+cd packages/skotiq_app && flutter test test/screens/sequencer \
   --concurrency=3        # TMPDIR=$HOME/.cache/ns-tmp/w2a-navigation
 ```
 EXIT=0 — **644 passed** (base: 611; +33 new: 12 pure + 21 widget).

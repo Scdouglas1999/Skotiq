@@ -16,17 +16,17 @@ dead-code table, `core-services-devices.md` §3.4, `rust-devices.md` DC5).
 
 | File | Lines |
 |---|---:|
-| `packages/nightshade_bridge/lib/src/phd2_client.dart` | 970 |
-| `packages/nightshade_bridge/lib/src/alpaca_client.dart` | 619 |
-| `packages/nightshade_bridge/lib/src/ascom_client.dart` | 508 |
-| `packages/nightshade_bridge/lib/src/utils/circuit_breaker.dart` | 294 |
-| `packages/nightshade_bridge/lib/src/utils/retry.dart` | 193 |
+| `packages/skotiq_bridge/lib/src/phd2_client.dart` | 970 |
+| `packages/skotiq_bridge/lib/src/alpaca_client.dart` | 619 |
+| `packages/skotiq_bridge/lib/src/ascom_client.dart` | 508 |
+| `packages/skotiq_bridge/lib/src/utils/circuit_breaker.dart` | 294 |
+| `packages/skotiq_bridge/lib/src/utils/retry.dart` | 193 |
 | **subtotal (production)** | **2,584** |
-| `packages/nightshade_bridge/test/alpaca_client_test.dart` | 224 |
-| `packages/nightshade_bridge/test/connection_resilience_test.dart` | 326 |
-| `packages/nightshade_bridge/test/phd2_event_parsing_test.dart` | 218 |
-| `packages/nightshade_bridge/test/phd2_rpc_test.dart` | 153 |
-| `packages/nightshade_bridge/test/fakes/fake_phd2_server.dart` | 140 |
+| `packages/skotiq_bridge/test/alpaca_client_test.dart` | 224 |
+| `packages/skotiq_bridge/test/connection_resilience_test.dart` | 326 |
+| `packages/skotiq_bridge/test/phd2_event_parsing_test.dart` | 218 |
+| `packages/skotiq_bridge/test/phd2_rpc_test.dart` | 153 |
+| `packages/skotiq_bridge/test/fakes/fake_phd2_server.dart` | 140 |
 | **subtotal (tests/fakes)** | **1,061** |
 
 `fake_phd2_server.dart` was orphaned by the two PHD2 test deletions (zero remaining
@@ -35,18 +35,18 @@ references; it is not in `test/fakes/fakes.dart`).
 ### Deviation from the decision's "2,656 lines" figure — recorded honestly
 
 The map's §2.2 table reached 2,656 by including
-`packages/nightshade_bridge/lib/src/rolling_rms_calculator.dart` (72 lines).
+`packages/skotiq_bridge/lib/src/rolling_rms_calculator.dart` (72 lines).
 **That file was NOT deleted**: it has a live production consumer —
-`packages/nightshade_core/lib/src/providers/guiding_provider/stats_and_graph.dart:73,74`
+`packages/skotiq_core/lib/src/providers/guiding_provider/stats_and_graph.dart:73,74`
 (`RollingRmsCalculator(windowSize: 100)` for the RA/Dec guide RMS readouts). The batch
 brief names only the three clients plus retry/circuit_breaker, and those total exactly
 2,584. `rolling_rms_calculator_test.dart` is likewise kept.
 
 ### Files edited
 
-* `packages/nightshade_bridge/lib/nightshade_bridge.dart` — dropped the three client
+* `packages/skotiq_bridge/lib/skotiq_bridge.dart` — dropped the three client
   exports.
-* `packages/nightshade_bridge/lib/src/bridge_stub.dart` — dropped the three client
+* `packages/skotiq_bridge/lib/src/bridge_stub.dart` — dropped the three client
   imports and the now-unused `utils/safe_cast.dart` import; **rewrote the library
   docstring to state the truth**: the native library is the only device path and a
   missing bridge fails closed, with no Dart-side device implementation to fall back to.
@@ -62,7 +62,7 @@ brief names only the three clients plus retry/circuit_breaker, and those total e
   snapshot.
   * `isPhd2Running` is **kept and still works without the bridge**: it is a plain TCP
     reachability probe behind the onboarding "Test connection" button
-    (`nightshade_app/lib/screens/onboarding/steps/guider_step.dart:95`), not a device
+    (`skotiq_app/lib/screens/onboarding/steps/guider_step.dart:95`), not a device
     operation. `checkPhd2Running` + `_resolvePhd2ConnectHost` were moved verbatim out of
     the deleted `phd2_client.dart` into this file (the localhost→127.0.0.1 normalisation
     matters: PHD2 listens on IPv4 only).
@@ -88,14 +88,14 @@ brief names only the three clients plus retry/circuit_breaker, and those total e
 
 `phd2_client.dart` also held `Phd2State`, the enum on `phd2StateProvider` that drives the
 guiding screen, the imaging guiding chip, the guide-health card and the Home Assistant
-`guiding` entity — ~90 live references across `nightshade_core` and `nightshade_app`. It
+`guiding` entity — ~90 live references across `skotiq_core` and `skotiq_app`. It
 is a domain value type, not part of the fallback client, so it was **moved** to its
-natural home, `packages/nightshade_core/lib/src/models/phd2_models.dart` (verbatim, next
+natural home, `packages/skotiq_core/lib/src/models/phd2_models.dart` (verbatim, next
 to `Phd2GuidingState`, which already documented it). Nine files dropped their
-`import 'package:nightshade_bridge/nightshade_bridge.dart' show Phd2State;` line;
+`import 'package:skotiq_bridge/skotiq_bridge.dart' show Phd2State;` line;
 `home_assistant_discovery_service.dart` gained `import '../../models/phd2_models.dart';`.
 `guiding_provider.dart` dropped the now-stale `Phd2GuideStats` from its `hide` list
-(nightshade_core owns its own freezed `Phd2GuideStats`).
+(skotiq_core owns its own freezed `Phd2GuideStats`).
 
 `Phd2ConnectionState`, `Phd2SettleProgress`, `Phd2Event` had zero references outside the
 deleted file and went with it.
@@ -111,14 +111,14 @@ Evidence re-checked in this tree before deleting: zero `insert(` against
 `native_switches` / `native_cover_calibrators` anywhere in `bridge/src`; the only writes
 are `remove()` on the disconnect path. Zero production implementors of the six traits.
 
-* `native/nightshade_native/native/src/traits.rs` — **−225 lines**: deleted the traits
+* `native/skotiq_native/native/src/traits.rs` — **−225 lines**: deleted the traits
   `NativeRotator`, `NativeDome`, `NativeCoverCalibrator`, `NativeSwitch`, `NativeWeather`,
   `NativeSafetyMonitor`, plus the four value types that served only them and had no other
   user in the workspace: `ShutterState`, `NativeCoverState`, `NativeCalibratorState`,
   `NativeSwitchChannel`. (`bridge::device::ShutterState` is a different, live type and is
   untouched.)
 * `bridge/src/device_manager/mod.rs` — deleted the six registry fields and their three
-  construction sites; narrowed the `nightshade_native::traits` import.
+  construction sites; narrowed the `skotiq_native::traits` import.
 * `bridge/src/device_manager/connection.rs` — the six per-type `remove()` arms on the
   native disconnect path collapsed into one no-op arm alongside `Guider`, with a comment
   saying why (the generic `native_devices` removal above is the whole cleanup).
@@ -140,7 +140,7 @@ are `remove()` on the disconnect path. Zero production implementors of the six t
 
 Rust net: **−1,745 / +164 lines** across 11 files.
 
-### 6b — the `NIGHTSHADE_COMPANION_UI` mobile dashboard
+### 6b — the `SKOTIQ_COMPANION_UI` mobile dashboard
 
 | File | Lines |
 |---|---:|
@@ -169,7 +169,7 @@ The map counted 4,845 production lines for `screens/dashboard/**`; the tree meas
 
 Edits: `apps/mobile/lib/main.dart` dropped the two imports, the `useCompanionUi` branch
 and its `MaterialApp`, and the stale comment; the phone/tablet path is now unconditionally
-`NightshadeApp(isMobile: true)`. `packages/nightshade_app/lib/router/app_router.dart`
+`SkotiqApp(isMobile: true)`. `packages/skotiq_app/lib/router/app_router.dart`
 dropped `mobileDashboardBuilder` (18 lines) — a placeholder builder with zero references
 anywhere in the repo, wired to no route — and its then-unused `flutter/material.dart`
 import.
@@ -180,7 +180,7 @@ Each was re-verified in this tree: the only non-definition references were tests
 
 | Symbol | File | Lines removed |
 |---|---|---:|
-| `CenteringService.plateAndCenter` + `CenteringService.verifyCenter` | `nightshade_core/lib/src/services/centering_service.dart` | 151 |
+| `CenteringService.plateAndCenter` + `CenteringService.verifyCenter` | `skotiq_core/lib/src/services/centering_service.dart` | 151 |
 | `ImagingService.resetFrameCounter` | `…/services/imaging_service.dart` | 5 |
 | `DeviceService.connectProfile` + `DeviceService.connectActiveProfile` (public forwarders) | `…/services/device_service.dart` | 29 (incl. the now-unused `_connectProfileDeviceTimeout`) |
 | `_connectProfile` + `_connectActiveProfile` (the sequential-with-abort path) | `…/services/device_service/profile_connections.dart` | 104 |
@@ -211,19 +211,19 @@ advertises the deleted API.
 
 | Gate | Result |
 |---|---|
-| `dart analyze` — `packages/nightshade_bridge` | clean (3 pre-existing `dangling_library_doc_comments` infos in untouched test files) |
-| `dart analyze` — `packages/nightshade_core` | clean (5 pre-existing infos/warnings in files this batch never touched) |
-| `dart analyze` — `packages/nightshade_app` | clean (33 pre-existing infos, 0 errors/warnings) |
+| `dart analyze` — `packages/skotiq_bridge` | clean (3 pre-existing `dangling_library_doc_comments` infos in untouched test files) |
+| `dart analyze` — `packages/skotiq_core` | clean (5 pre-existing infos/warnings in files this batch never touched) |
+| `dart analyze` — `packages/skotiq_app` | clean (33 pre-existing infos, 0 errors/warnings) |
 | `dart analyze` — `apps/mobile` | clean (2 pre-existing infos) |
-| `flutter test` — `packages/nightshade_bridge` | **65/65 pass** |
-| `flutter test` — `packages/nightshade_core` | **5127 pass, 4 skipped, 0 fail** |
+| `flutter test` — `packages/skotiq_bridge` | **65/65 pass** |
+| `flutter test` — `packages/skotiq_core` | **5127 pass, 4 skipped, 0 fail** |
 | `flutter test` — `apps/mobile` | **216/216 pass** |
-| `flutter test` — `packages/nightshade_app` | see below |
+| `flutter test` — `packages/skotiq_app` | see below |
 | `cargo build --workspace` | clean, zero warnings |
 | `cargo clippy --workspace --all-targets` | clean, zero warnings |
 | `cargo fmt --all -- --check` | clean |
-| `cargo test -p nightshade_bridge --lib` | **416/416 pass** |
-| `cargo test -p nightshade_native --lib --tests` | **150 + 14 pass, 11 ignored** |
+| `cargo test -p skotiq_bridge --lib` | **416/416 pass** |
+| `cargo test -p skotiq_native --lib --tests` | **150 + 14 pass, 11 ignored** |
 
 No failing-test-first step was owed: every change is a deletion of unreachable code or a
 verbatim relocation. The one place a behaviour *could* have moved — the 38
@@ -245,18 +245,18 @@ table because several files drifted since the stale base).
 
 | File | Lines |
 |---|---:|
-| `packages/nightshade_bridge/lib/src/phd2_client.dart` | 1000 |
-| `packages/nightshade_bridge/lib/src/alpaca_client.dart` | 619 |
-| `packages/nightshade_bridge/lib/src/ascom_client.dart` | 508 |
-| `packages/nightshade_bridge/lib/src/utils/circuit_breaker.dart` | 294 |
-| `packages/nightshade_bridge/lib/src/utils/retry.dart` | 193 |
+| `packages/skotiq_bridge/lib/src/phd2_client.dart` | 1000 |
+| `packages/skotiq_bridge/lib/src/alpaca_client.dart` | 619 |
+| `packages/skotiq_bridge/lib/src/ascom_client.dart` | 508 |
+| `packages/skotiq_bridge/lib/src/utils/circuit_breaker.dart` | 294 |
+| `packages/skotiq_bridge/lib/src/utils/retry.dart` | 193 |
 | **subtotal (bridge production)** | **2,614** |
-| `packages/nightshade_bridge/test/connection_resilience_test.dart` | 328 |
-| `packages/nightshade_bridge/test/alpaca_client_test.dart` | 226 |
-| `packages/nightshade_bridge/test/phd2_event_parsing_test.dart` | 220 |
-| `packages/nightshade_bridge/test/fakes/fake_phd2_server.dart` | 166 |
-| `packages/nightshade_bridge/test/phd2_rpc_test.dart` | 155 |
-| `packages/nightshade_bridge/test/phd2_framing_test.dart` | 104 |
+| `packages/skotiq_bridge/test/connection_resilience_test.dart` | 328 |
+| `packages/skotiq_bridge/test/alpaca_client_test.dart` | 226 |
+| `packages/skotiq_bridge/test/phd2_event_parsing_test.dart` | 220 |
+| `packages/skotiq_bridge/test/fakes/fake_phd2_server.dart` | 166 |
+| `packages/skotiq_bridge/test/phd2_rpc_test.dart` | 155 |
+| `packages/skotiq_bridge/test/phd2_framing_test.dart` | 104 |
 | **subtotal (bridge tests/fakes)** | **1,199** |
 | `apps/mobile/lib/screens/dashboard/tabs/camera_tab.dart` | 1221 |
 | `apps/mobile/lib/screens/dashboard/tabs/mount_tab.dart` | 1120 |
@@ -300,7 +300,7 @@ gave: it still has a live consumer in `guiding_provider/stats_and_graph.dart`.
 | 8 | `bridge_stub.dart` | Re-landed: docstring now states Rust is the only device path, `_fallbackErrorMessage` → `_nativeMissingErrorMessage` with a truthful body, three client imports plus `utils/safe_cast.dart` dropped. `dart:convert` and `dart:typed_data` also became unused once `phd2GetStarImage`'s base64/cast body went, and were dropped. |
 | 9 | `connection.rs` | Re-landed: six `remove()` arms collapsed to one no-op arm beside `Guider`. |
 | 10 | `predictive_af_service_test.dart` | Re-landed to the batch's shape: the export/import round-trip group became a single `exported JSON carries the schema and every sample` test asserting schema, filter name, sample count and recovered slope. Net −14 lines. |
-| 11 | `centering_service_test.mocks.dart` | Regenerated via `build_runner` in `nightshade_core`; −50 lines, zero remaining references to any deleted method. No other generated file changed. |
+| 11 | `centering_service_test.mocks.dart` | Regenerated via `build_runner` in `skotiq_core`; −50 lines, zero remaining references to any deleted method. No other generated file changed. |
 | 12 | `ops/weather.rs` + `ops/safety.rs` | Re-landed (1 arm each). |
 
 ## Deviations from the batch, recorded honestly
@@ -351,20 +351,20 @@ gave: it still has a live consumer in `guiding_provider/stats_and_graph.dart`.
 
 | Gate | Result |
 |---|---|
-| `dart analyze` — `nightshade_bridge` | **clean, 0 issues** |
-| `dart analyze` — `nightshade_core` | 0 errors, 1 pre-existing warning (`scheduler_rejection_labels_test.dart`, untouched) |
-| `dart analyze` — `nightshade_app` | 0 errors, 3 pre-existing warnings in untouched test files |
+| `dart analyze` — `skotiq_bridge` | **clean, 0 issues** |
+| `dart analyze` — `skotiq_core` | 0 errors, 1 pre-existing warning (`scheduler_rejection_labels_test.dart`, untouched) |
+| `dart analyze` — `skotiq_app` | 0 errors, 3 pre-existing warnings in untouched test files |
 | `dart analyze` — `apps/mobile` | 0 errors, 0 warnings |
-| `flutter test` — `nightshade_bridge` | **63/63 pass** |
-| `flutter test` — `nightshade_core` | **5934 pass, 4 skipped, 0 fail** |
+| `flutter test` — `skotiq_bridge` | **63/63 pass** |
+| `flutter test` — `skotiq_core` | **5934 pass, 4 skipped, 0 fail** |
 | `flutter test` — `apps/mobile` | **222/222 pass** |
-| `flutter test` — `nightshade_app` | 3552 pass, **42 fail** — the documented pre-existing golden/layout debt, spread across 29 files. Only one (`guiding_screen_test.dart`) is a file this port touched, and it passes in isolation together with every other file this port edited; those two are cross-test ordering flakes within the known 42. |
-| `cargo build -p nightshade_bridge` | **clean** |
+| `flutter test` — `skotiq_app` | 3552 pass, **42 fail** — the documented pre-existing golden/layout debt, spread across 29 files. Only one (`guiding_screen_test.dart`) is a file this port touched, and it passes in isolation together with every other file this port edited; those two are cross-test ordering flakes within the known 42. |
+| `cargo build -p skotiq_bridge` | **clean** |
 | `cargo build --workspace` | clean (3 pre-existing ambiguous-glob-re-export warnings in untouched files) |
 | `cargo clippy --workspace --all-targets` | 5 warnings, all pre-existing, none on a touched line |
 | `cargo fmt --all -- --check` | **clean** |
-| `cargo test -p nightshade_bridge --lib` | **556 pass, 0 fail, 4 ignored** |
-| `cargo test -p nightshade_native --lib --tests` | **160 + 14 pass, 0 fail, 11 ignored** |
+| `cargo test -p skotiq_bridge --lib` | **556 pass, 0 fail, 4 ignored** |
+| `cargo test -p skotiq_native --lib --tests` | **160 + 14 pass, 0 fail, 11 ignored** |
 
 Rust net across 13 files: **+164 / −1,738**.
 

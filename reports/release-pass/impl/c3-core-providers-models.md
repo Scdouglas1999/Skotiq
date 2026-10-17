@@ -1,6 +1,6 @@
 # Wave C3 — batch `core-providers-models`
 
-Scope: `packages/nightshade_core/lib/src/{providers,models,repositories,database}/**`, files >1000
+Scope: `packages/skotiq_core/lib/src/{providers,models,repositories,database}/**`, files >1000
 lines per the Wave A maps (`map/core-providers.md`, `map/core-models.md`). There is no
 `lib/src/repositories/` directory; the two repository classes live under `lib/src/services/`
 (out of this batch's literal path scope — see SKIPPED).
@@ -37,7 +37,7 @@ anywhere in the repo changed (one test `show` clause excepted, below).
    `weather_safety/` and the two under `flat_wizard/` carry
    `// ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member`
    — the same header the existing split at
-   `nightshade_app/lib/screens/equipment/dialogs/profile_editor_dialog/*.dart` already uses.
+   `skotiq_app/lib/screens/equipment/dialogs/profile_editor_dialog/*.dart` already uses.
 2. **Static members of the extended type must be qualified inside an extension.** Six call sites
    were qualified with the owning class name, nothing else changed:
    `WeatherSafetyNotifier.{_cloudMotionPushInterval,_adaptiveConditionsPushInterval,_cloudCoverTtl,
@@ -87,9 +87,9 @@ anywhere in the repo changed (one test `show` clause excepted, below).
 ## VERIFICATION
 
 - `dart analyze` clean on every touched library.
-- `dart analyze` on `packages/nightshade_app`, `apps/desktop`, `apps/mobile`, `packages/nightshade_ui`:
+- `dart analyze` on `packages/skotiq_app`, `apps/desktop`, `apps/mobile`, `packages/skotiq_ui`:
   no error attributable to this batch.
-- `flutter test` in `packages/nightshade_core`: 5790 tests. All green except failures owned by
+- `flutter test` in `packages/skotiq_core`: 5790 tests. All green except failures owned by
   other in-flight batches (below). `test/backend/{ffi_backend_tracked_stars,network_backend_seq,
   network_backend_tailnet}_test.dart` failed only in the whole-suite run and pass in isolation
   (concurrent-agent file churn during the run).
@@ -109,6 +109,6 @@ anywhere in the repo changed (one test `show` clause excepted, below).
    outside the library: 11 `undefined_method` errors in `providers/sky_atlas_provider.dart`,
    `services/auto_save_service.dart`, `services/constellation/constellation_service.dart`.
    Fix: make those extensions public (same trap this batch hit with `FlatWizardSettingsOps`).
-3. **`nightshade_app/lib/screens/sequencer/widgets/quick_start_wizard_dialog/_wizard_helpers.dart:199`**
+3. **`skotiq_app/lib/screens/sequencer/widgets/quick_start_wizard_dialog/_wizard_helpers.dart:199`**
    — `super` used inside an extension (`super_in_extension`); a `dispose` override cannot move to
    an extension.

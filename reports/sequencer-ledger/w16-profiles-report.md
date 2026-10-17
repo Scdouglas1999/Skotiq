@@ -4,10 +4,10 @@ Workstream `w16-profiles`, branch `agent/w16-profiles`, base `5b2235cc7`.
 
 ## 0. The screen the owner meant is NOT the one the brief pointed at
 
-The brief orients on `packages/nightshade_app/lib/screens/settings/equipment_profiles_screen.dart`
+The brief orients on `packages/skotiq_app/lib/screens/settings/equipment_profiles_screen.dart`
 (Settings › Equipment profiles). The owner's words were "Profiles **in Equipment**" and "the
 profiles **sub tab**". Live, that is the **Equipment screen's `Profiles` tab** —
-`packages/nightshade_app/lib/screens/equipment/equipment_screen.dart` (`PageHeader` tabs
+`packages/skotiq_app/lib/screens/equipment/equipment_screen.dart` (`PageHeader` tabs
 `Devices | Profiles 2 | Optical train`, `equipmentTabIndexProvider`). Settings ›
 Equipment profiles has no tabs and no three-dot menu on a profile row.
 
@@ -18,14 +18,14 @@ Settings screen was left alone. Evidence: `shots/08-BEFORE-profiles-tab.png` (th
 ## 1. Live reproduction setup
 
 Release bundle built from this worktree; the Rust bridge is required or the app aborts at startup
-(`libnightshade_bridge.so could not be loaded, or it is stale`). `native/nightshade_native/target`
+(`libskotiq_bridge.so could not be loaded, or it is stale`). `native/skotiq_native/target`
 is a git symlink to a shared cargo dir that this worktree materialised as a plain FILE, so cargo
 could not create `target/release`; built with `CARGO_TARGET_DIR=/home/scdouglas/.cache/ns-worktrees/cargo-target`
 instead of modifying the tracked entry.
 
     flutter build linux --release                  # EXIT=0
-    cargo build --release --package nightshade_bridge   # EXIT=0 (CARGO_TARGET_DIR set)
-    cp .../libnightshade_bridge.so apps/desktop/build/linux/x64/release/bundle/lib/
+    cargo build --release --package skotiq_bridge   # EXIT=0 (CARGO_TARGET_DIR set)
+    cp .../libskotiq_bridge.so apps/desktop/build/linux/x64/release/bundle/lib/
 
 Harness: `NS_AUDIT_DISPLAY=:91 NS_AUDIT_RUNTIME=/tmp/ns-audit-w16 LIBGL_ALWAYS_SOFTWARE=1`,
 `drive_linux.py start --profile w16`, `resize 1920 1080` (the owner's laptop size).
@@ -158,11 +158,11 @@ Audited every one:
   child. Left alone: changing it is a title-bar change with no live defect behind it.
 
 **Explicitly checked and NOT affected (the brief asked):**
-* `NightshadeDropdown` (`nightshade_ui/lib/src/components/nightshade_dropdown.dart:112`) —
+* `SkotiqDropdown` (`skotiq_ui/lib/src/components/skotiq_dropdown.dart:112`) —
   `field.localToGlobal(Offset.zero, ancestor: overlay) & field.size`. Correct.
 * `PopupMenuButton` under Settings — `settings/equipment_profiles_screen_parts/profile_details_rendering.dart:85`
   (the Settings profile pane's three-dot), `settings/pairing_screen.dart:419`, and
-  `nightshade_ui/.../phd2/guide_graph_advanced.dart:310`. Flutter's implementation converts with
+  `skotiq_ui/.../phd2/guide_graph_advanced.dart:310`. Flutter's implementation converts with
   `ancestor: overlay`, and the overlay IS an ancestor of the button under this shell, so these are
   correct. **Verified live**, not just read: `shots/20-settings-menu2.png` shows the Settings
   profile menu opening on its button (button at image (1245,105), menu spanning x 1186-1258,
@@ -175,7 +175,7 @@ workstream's files and belong to other screens; the reviewer should route them.
 
 ## 5. What changed
 
-`packages/nightshade_app/lib/screens/equipment/widgets/profile_sidebar.dart`
+`packages/skotiq_app/lib/screens/equipment/widgets/profile_sidebar.dart`
 * `_showProfileContextMenu` takes a `Rect globalAnchor` and converts it with
   `overlay.globalToLocal(...)` before building the `RelativeRect`. Fixed at the cause: the
   conversion works for any overlay origin and for an intervening transform, rather than subtracting
@@ -186,7 +186,7 @@ workstream's files and belong to other screens; the reviewer should route them.
   offset there is how a menu ships in the wrong place instead of failing.
 * Right-click / long-press pass `details.globalPosition & Size.zero` — a point, in the same space.
 
-`packages/nightshade_app/lib/screens/equipment/dialogs/profile_editor_dialog.dart`
+`packages/skotiq_app/lib/screens/equipment/dialogs/profile_editor_dialog.dart`
 * New `ProfileEditorMode.profilePage`: the whole editor as a page, no dialog chrome, no
   `Navigator.pop` (`_closeAfterSave` already handled `mode != full`), footer = Save alone
   (`_footerActions` already gated Cancel on `full`). Form column capped at
@@ -195,12 +195,12 @@ workstream's files and belong to other screens; the reviewer should route them.
   export/duplicate/delete/set-active/set-default/edit/save and the validation and error paths are
   untouched.
 
-`packages/nightshade_app/lib/screens/equipment/equipment_screen.dart`
+`packages/skotiq_app/lib/screens/equipment/equipment_screen.dart`
 * `_ProfilesTab` is now a `ConsumerWidget` with a `LayoutBuilder`: 360 px list + `Expanded`
   inspector above `_profilesTwoPaneMinWidth` (360 + 520), single column below it and when there are
   no profiles.
 * `_ProfileInspector` holds the editor keyed on profile id, inside an `AnimatedSwitcher` at
-  `animationDuration(context, NightshadeTokens.durationQuick)` / `curveStandard` — a cross-fade,
+  `animationDuration(context, SkotiqTokens.durationQuick)` / `curveStandard` — a cross-fade,
   top-left aligned so the incoming form's heading does not slide, and zero-duration under
   `MediaQuery.disableAnimations` via the shared helper.
 * `_NoProfileSelected` covers "profiles exist, none selected" only. With no profiles the tab is ONE
@@ -249,10 +249,10 @@ and after the resize; the after-shots above are all at a confirmed `1920x1080+0+
 ## 8. Verification commands and exit codes
 
     flutter build linux --release                                        EXIT=0
-    cargo build --release --package nightshade_bridge                    EXIT=0
+    cargo build --release --package skotiq_bridge                    EXIT=0
       (CARGO_TARGET_DIR=/home/scdouglas/.cache/ns-worktrees/cargo-target)
-    dart format --output=none --set-exit-if-changed packages/nightshade_app   EXIT=0  (0 changed)
-    dart analyze  (in packages/nightshade_app)                           EXIT=0
+    dart format --output=none --set-exit-if-changed packages/skotiq_app   EXIT=0  (0 changed)
+    dart analyze  (in packages/skotiq_app)                           EXIT=0
       873 issues: ALL `info`, 0 error, 0 warning. All pre-existing
       `deprecated_member_use` from the Flutter 3.44 / pinned-CI drift; NONE in a file I touched.
     flutter test test/screens/equipment --concurrency=4                  EXIT=0  (+173)
@@ -281,7 +281,7 @@ tree carries none of them. Anyone running that test locally should expect the sa
   brief's three candidate causes were all for that screen and none of them is the owner's defect.
 * **On-sky / owner-hardware validation** is owed as always; this was verified on the Linux release
   bundle under Xvfb, not on the imaging laptop.
-* **`native/nightshade_native/target`** is committed as a symlink but materialised in this worktree
+* **`native/skotiq_native/target`** is committed as a symlink but materialised in this worktree
   as a plain text file holding the shared cargo path, which breaks a bare `cargo build`. Worked
   around with `CARGO_TARGET_DIR`; the tracked entry was NOT modified, so the tree stays clean. Worth
   a look by whoever owns worktree creation.
@@ -314,7 +314,7 @@ only hand-rolled `showMenu` calls can carry this defect.
 
 ## 11. The shared helper — yes, and why
 
-`packages/nightshade_ui/lib/src/utils/menu_position.dart`, exported from the barrel:
+`packages/skotiq_ui/lib/src/utils/menu_position.dart`, exported from the barrel:
 
     RelativeRect menuPositionFromRect(BuildContext, Rect globalAnchor)   // core
     RelativeRect menuPositionFromPoint(BuildContext, Offset globalPoint) // cursor
@@ -410,14 +410,14 @@ it is not this workstream's defect.
 
 ## 13. Tests
 
-`packages/nightshade_ui/test/menu_position_test.dart` (new, 8 cases) — the numeric guard on the one
+`packages/skotiq_ui/test/menu_position_test.dart` (new, 8 cases) — the numeric guard on the one
 implementation. A nested `Navigator` inset by 0 / 64 / 220 px, covering all three public entry
 points plus a drift case asserting the anchor offset does not track the inset. With the
 `globalToLocal` conversion removed from the helper it fails **5/8**, each failure reporting a
 displacement exactly equal to the inset, and the drift case printing
 `[Offset(0.0, 8.0), Offset(220.0, 228.0)]`.
 
-`packages/nightshade_app/test/screens/sequencer/sequence_tree_context_menu_anchor_test.dart`
+`packages/skotiq_app/test/screens/sequencer/sequence_tree_context_menu_anchor_test.dart`
 (new, 7 cases) — the node menu at insets 0/64/220, long-press, the anchor-drift case, and the
 **fold-group menu** at insets 0/220. On the pre-fix maths it fails **5/7**: "it is 64.0 px off
 horizontally" at inset 64, "220.0 px off" at inset 220, drift `got [0.0, 220.0]`. The inset-0 cases
@@ -432,17 +432,17 @@ row itself and re-pumping over a still-animating popup route leaves nothing to m
 
 No widget test mounts the planetarium screen. Its own test file documents why — ~30 providers and a
 GPU sky renderer that loads shaders from disk — and the one line it now calls is covered
-numerically in `nightshade_ui` and verified live above.
+numerically in `skotiq_ui` and verified live above.
 
 ## 14. Verification — extension
 
-    dart format --output=none --set-exit-if-changed packages/nightshade_app   EXIT=0
-    dart format --output=none --set-exit-if-changed packages/nightshade_ui    EXIT=0
-    dart analyze  (packages/nightshade_app)                                  EXIT=0  873 issues
+    dart format --output=none --set-exit-if-changed packages/skotiq_app   EXIT=0
+    dart format --output=none --set-exit-if-changed packages/skotiq_ui    EXIT=0
+    dart analyze  (packages/skotiq_app)                                  EXIT=0  873 issues
       Exactly the 873-issue baseline the coordinator measured on `5b2235cc7`. All `info`
       (`deprecated_member_use` from the Flutter 3.44 / pinned-CI drift); 0 error, 0 warning,
       none in a file touched here.
-    dart analyze  (packages/nightshade_ui)                                   EXIT=0  59 issues
+    dart analyze  (packages/skotiq_ui)                                   EXIT=0  59 issues
       All `info`; 0 error, 0 warning.
     flutter test test/screens/sequencer   --concurrency=4                    EXIT=0  (+771)
     flutter test test/screens/planetarium --concurrency=4                    EXIT=0  (+156)
@@ -450,7 +450,7 @@ numerically in `nightshade_ui` and verified live above.
     flutter test test/screens/shell       --concurrency=4                    EXIT=0  (+105)
     flutter test test/screens/analytics   --concurrency=4                    EXIT=0  (+274)
     flutter test test/widgets             --concurrency=4                    EXIT=0  (+311)
-    flutter test  (all of packages/nightshade_ui)                            EXIT=0  (+538)
+    flutter test  (all of packages/skotiq_ui)                            EXIT=0  (+538)
     flutter build linux --release                                            EXIT=0
 
 Bundle freshness for the live check was confirmed by mtime rather than a string grep — this change
@@ -465,11 +465,11 @@ workstream and both had to be reverted by hand before committing; a run on CI or
 will show them as spurious modifications, and a careless `git add -A` commits regenerated binaries
 nobody reviewed.
 
-* `packages/nightshade_app/test/golden/public_screenshots_test.dart` — a passing run rewrites
+* `packages/skotiq_app/test/golden/public_screenshots_test.dart` — a passing run rewrites
   **12 files** in `assets/screenshots/`: `analytics.png`, `desktop-dashboard.png`, `equipment.png`,
   `flat-wizard.png`, `framing.png`, `guiding.png`, `imaging.png`, `plan-tonight.png`,
   `planetarium.png`, `sequencer.png`, `settings-equipment-profiles.png`, `weather.png`.
-* `packages/nightshade_ui/test/golden/design_gallery_golden_test.dart` — a passing run rewrites
+* `packages/skotiq_ui/test/golden/design_gallery_golden_test.dart` — a passing run rewrites
   **6 files** in `docs/design/goldens/`: `gallery-dark.png`, `gallery-light.png`,
   `gallery-rednight.png`, `gallery-observatory-dark.png`, `gallery-observatory-light.png`,
   `gallery-observatory-rednight.png`.
@@ -481,20 +481,20 @@ knows about for Windows-captured goldens — so "the test rewrote them" is not b
 a UI regression. Whoever picks this up should decide whether these are generators that belong
 behind a flag (`--dart-define` or an env guard) rather than plain tests.
 
-### 15b. `native/nightshade_native/target` materialises as a plain file in a new worktree
+### 15b. `native/skotiq_native/target` materialises as a plain file in a new worktree
 
 It is committed as a **symlink** (git mode `120000`, blob `db097f88e9cf68a6b953fa5b3485e379ad24713f`)
 pointing at the shared cargo dir `/home/scdouglas/.cache/ns-worktrees/cargo-target`. In this
 worktree it was checked out as a **regular 48-byte text file** containing that path as text, so
 cargo cannot create `target/release` inside it and any bare `cargo build` in the crate dies with:
 
-    error: failed to create directory `.../native/nightshade_native/target/release`
+    error: failed to create directory `.../native/skotiq_native/target/release`
     Caused by: Not a directory (os error 20)
 
 Worked around throughout by exporting
 `CARGO_TARGET_DIR=/home/scdouglas/.cache/ns-worktrees/cargo-target` — the same directory the symlink
 names — so the tracked entry was never modified and the tree stays clean. Two consequences for
 whoever owns worktree creation: a fresh agent worktree cannot build the Rust bridge without knowing
-this, and because the bridge is required at startup (`libnightshade_bridge.so could not be loaded,
+this, and because the bridge is required at startup (`libskotiq_bridge.so could not be loaded,
 or it is stale`) that blocks every live verification. Likely `core.symlinks=false` or a
 symlink-less checkout in whatever creates these worktrees.

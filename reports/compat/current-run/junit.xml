@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="nightshade_hardware_compat" tests="560" failures="0" skipped="84">
+<testsuite name="skotiq_hardware_compat" tests="560" failures="0" skipped="84">
   <testcase classname="compat" name="zwo-native-camera-eaf-efw">
   </testcase>
   <testcase classname="compat" name="zwo-fake-sdk-contract">

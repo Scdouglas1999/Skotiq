@@ -40,7 +40,7 @@ why; the streaming task did not.
 * Docs aligned: the mosaic module header no longer claims the wizard "is already wired…
   without further work" (it now describes the live wiring and records that on-rig
   validation is owed); the node header points at the two production tests;
-  `packages/nightshade_core/lib/src/services/mosaic_service.dart` now says the
+  `packages/skotiq_core/lib/src/services/mosaic_service.dart` now says the
   `wizard_states["mosaic"]` slot is unused *under the static-expansion path* rather than
   "dormant", and notes the Rust `Mosaic` node persists for real.
 
@@ -64,16 +64,16 @@ null-sink line and re-ran to confirm, then reverted:
 
 Verdicts (all run in this worktree):
 
-* `cargo test -p nightshade_sequencer --lib mosaic` — 12 passed, 0 failed.
-* `cargo test -p nightshade_sequencer --lib checkpoint` — 24 passed, 0 failed.
-* `cargo test -p nightshade_sequencer --lib` (full crate) — **697 passed, 0 failed**.
+* `cargo test -p skotiq_sequencer --lib mosaic` — 12 passed, 0 failed.
+* `cargo test -p skotiq_sequencer --lib checkpoint` — 24 passed, 0 failed.
+* `cargo test -p skotiq_sequencer --lib` (full crate) — **697 passed, 0 failed**.
 * `cargo check --workspace --all-targets` — clean.
-* `cargo clippy -p nightshade_sequencer --lib --all-targets` — clean (the one warning it
+* `cargo clippy -p skotiq_sequencer --lib --all-targets` — clean (the one warning it
   raised, "items after a test module", is fixed).
 * `cargo fmt --all -- --check` — clean.
 * Dart: the only Dart edit is a doc comment in `mosaic_service.dart`. `dart analyze` in
   this worktree reports unresolved-package errors for that file (`package:uuid`,
-  `package:nightshade_planetarium`) because the worktree has no `.dart_tool` — environmental,
+  `package:skotiq_planetarium`) because the worktree has no `.dart_tool` — environmental,
   not from this change. Honest caveat: the Dart analyzer was not run against a bootstrapped
   worktree.
 
@@ -111,7 +111,7 @@ current tree with identical semantics. Every hunk moved; no logic was changed.
 | `sequencer/src/mosaic/mod.rs` | unchanged path; the pre-image at HEAD matched the spec's pre-image byte for byte. |
 | `sequencer/src/node/context.rs` | unchanged path. |
 | `sequencer/src/node/instructions/mosaic.rs` | unchanged path; the spec diff already targeted the split node file. |
-| `packages/nightshade_core/lib/src/services/mosaic_service.dart` | unchanged path. |
+| `packages/skotiq_core/lib/src/services/mosaic_service.dart` | unchanged path. |
 
 ### Deliberate deviations
 
@@ -124,10 +124,10 @@ current tree with identical semantics. Every hunk moved; no logic was changed.
 
 ### Verdicts (run on this tree, not the worktree)
 
-* `cargo test -p nightshade_sequencer` — **825 passed, 0 failed, 1 ignored** across all
+* `cargo test -p skotiq_sequencer` — **825 passed, 0 failed, 1 ignored** across all
   targets (lib 803, decision_smoke 6, dual_rig_loop 4, interpolation_smoke 12; the 1 ignored
   is the pre-existing hanging plate-solve test from commit `6429c854b`, unrelated).
-* `cargo test -p nightshade_sequencer --lib mosaic` — 12 passed, 0 failed (the 9 pre-existing
+* `cargo test -p skotiq_sequencer --lib mosaic` — 12 passed, 0 failed (the 9 pre-existing
   `resume_tests` plus the 3 new ones).
 * **Failing-first re-proved on this tree.** I temporarily neutered the sink selection
   (`.filter(|_| false)` on the `session_sink`) and re-ran: `production_entry_resumes_through_the_session_sink`
@@ -137,11 +137,11 @@ current tree with identical semantics. Every hunk moved; no logic was changed.
 * `cargo check --workspace --all-targets` — clean. (No caller of `execute_mosaic` or
   `run_mosaic_wizard` exists outside `sequencer/src`, so the two signature changes are
   crate-local.)
-* `cargo clippy -p nightshade_sequencer --all-targets` — no warnings attributable to this
+* `cargo clippy -p skotiq_sequencer --all-targets` — no warnings attributable to this
   crate; the 3 `doc list item overindented` warnings emitted during that run belong to
-  `nightshade_imaging` and pre-date this batch.
-* `cargo fmt -p nightshade_sequencer -- --check` — clean.
-* `dart analyze lib/src/services/mosaic_service.dart` (from `packages/nightshade_core`, a
+  `skotiq_imaging` and pre-date this batch.
+* `cargo fmt -p skotiq_sequencer -- --check` — clean.
+* `dart analyze lib/src/services/mosaic_service.dart` (from `packages/skotiq_core`, a
   bootstrapped tree this time) — **No issues found**, which closes the honest caveat the
   frozen worktree had to leave open.
 

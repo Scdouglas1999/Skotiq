@@ -1,4 +1,4 @@
-/// Owner-only persistence for the small credential files Nightshade keeps in
+/// Owner-only persistence for the small credential files Skotiq keeps in
 /// the application-support directory.
 ///
 /// Two of those files — `remote_access_token.txt` (the persistent bearer token

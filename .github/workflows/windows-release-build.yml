@@ -45,7 +45,7 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: native/nightshade_native
+          workspaces: native/skotiq_native
 
       - name: Install Melos
         run: dart pub global activate melos
@@ -58,7 +58,7 @@ jobs:
       # only executes its first line (cargo) on the Windows shell, silently
       # skipping the flutter build + staging and producing no Release output.
       - name: Build Rust native bridge (release)
-        run: cargo build --locked --release --manifest-path native/nightshade_native/bridge/Cargo.toml
+        run: cargo build --locked --release --manifest-path native/skotiq_native/bridge/Cargo.toml
 
       - name: Build Flutter Windows app (release)
         working-directory: apps/desktop
@@ -73,7 +73,7 @@ jobs:
         run: |
           $rel = "apps/desktop/build/windows/x64/runner/Release"
           $missing = @()
-          foreach ($f in @("nightshade_desktop.exe", "nightshade_bridge.dll", "libraw.dll")) {
+          foreach ($f in @("skotiq_desktop.exe", "skotiq_bridge.dll", "libraw.dll")) {
             if (-not (Test-Path (Join-Path $rel $f))) { $missing += $f }
           }
           if ($missing.Count -gt 0) {
@@ -89,15 +89,15 @@ jobs:
         shell: pwsh
         run: |
           $rel = "apps/desktop/build/windows/x64/runner/Release"
-          Compress-Archive -Path "$rel/*" -DestinationPath "nightshade-windows-x64.zip" -Force
-          (Get-FileHash "nightshade-windows-x64.zip" -Algorithm SHA256).Hash | Out-File "nightshade-windows-x64.zip.sha256"
+          Compress-Archive -Path "$rel/*" -DestinationPath "skotiq-windows-x64.zip" -Force
+          (Get-FileHash "skotiq-windows-x64.zip" -Algorithm SHA256).Hash | Out-File "skotiq-windows-x64.zip.sha256"
 
       - name: Upload Windows release package
         uses: actions/upload-artifact@v7
         with:
-          name: nightshade-windows-x64-${{ github.sha }}
+          name: skotiq-windows-x64-${{ github.sha }}
           path: |
-            nightshade-windows-x64.zip
-            nightshade-windows-x64.zip.sha256
+            skotiq-windows-x64.zip
+            skotiq-windows-x64.zip.sha256
           if-no-files-found: error
           retention-days: 14

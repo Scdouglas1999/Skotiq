@@ -15,7 +15,7 @@
 
 import 'dart:async';
 
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
 /// Snapshot of the current operator. Immutable; manager rebuilds a new
 /// snapshot on every claim/release/heartbeat.
@@ -101,7 +101,7 @@ class SessionOwnershipManager {
   /// [HeadlessApiServer] to broadcastEvent so OwnershipClaimed /
   /// TakenOver / Released / AutoReleased frames fan out to every
   /// connected client.
-  final void Function(NightshadeEvent event) _emitEvent;
+  final void Function(SkotiqEvent event) _emitEvent;
 
   SessionOwner? _current;
   Timer? _sweepTimer;
@@ -116,7 +116,7 @@ class SessionOwnershipManager {
       StreamController<SessionOwner?>.broadcast(sync: true);
 
   SessionOwnershipManager({
-    required void Function(NightshadeEvent event) emitEvent,
+    required void Function(SkotiqEvent event) emitEvent,
     required String Function(String token) digestToken,
     this.heartbeatTimeout = const Duration(minutes: 5),
     DateTime Function()? now,
@@ -302,7 +302,7 @@ class SessionOwnershipManager {
       'lastSeenAt': owner.lastSeenAt.toUtc().toIso8601String(),
       if (extraData != null) ...extraData,
     };
-    final event = NightshadeEvent(
+    final event = SkotiqEvent(
       timestamp: _now().toUtc().millisecondsSinceEpoch,
       severity: severity,
       category: EventCategory.session,

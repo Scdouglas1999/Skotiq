@@ -11,7 +11,7 @@ controls, corrupted frames, or device disconnects during long sessions.
 - Use native SDK paths only when the needed vendor library is installed on the
   system or supplied in a legally cleared custom bundle. Official 5.0.0
   artifacts do not redistribute vendor SDK binaries.
-- Use simulator paths to separate Nightshade workflow issues from hardware
+- Use simulator paths to separate Skotiq workflow issues from hardware
   issues.
 
 ## Install And Verify
@@ -20,7 +20,7 @@ controls, corrupted frames, or device disconnects during long sessions.
 2. Install the device-specific driver or vendor SDK.
 3. Reboot or reconnect hardware if the vendor installer requires it.
 4. Test the device in the vendor utility or platform diagnostic tool.
-5. Start Nightshade after the device works outside Nightshade.
+5. Start Skotiq after the device works outside Skotiq.
 
 ## Common Driver Failure Modes
 
@@ -45,5 +45,5 @@ Reinstall or update the driver when:
 ## Release-Gate Evidence
 
 For public-release sign-off, record backend, driver version, vendor utility test
-result, Nightshade discovery result, connect result, and any native library that
+result, Skotiq discovery result, connect result, and any native library that
 must be bundled or deliberately excluded.

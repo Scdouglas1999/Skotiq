@@ -1,7 +1,7 @@
 # C2 — coordinate-formatters
 
 Topic: the ~39 private RA/Dec sexagesimal formatter copies (Wave A cross-cutting
-cluster 7). Survivor: `packages/nightshade_core/lib/src/utils/coordinate_format.dart`
+cluster 7). Survivor: `packages/skotiq_core/lib/src/utils/coordinate_format.dart`
 (`CoordinateFormat`), whose C1 seconds-carry fix is the canonical base — not forked.
 
 Baseline: commit b07d91c9d, tree green.
@@ -45,14 +45,14 @@ real bug in the first cut of this change; the parity sweep caught it.
 
 ## Call sites re-pointed (27 helper pairs across 4 packages)
 
-`nightshade_core`
+`skotiq_core`
 * `providers/framing_provider/support.dart` — `CoordinateUtils.formatRA/formatDec`
   (3 external callers) now delegate.
 * `services/device_service/mount_controls.dart` — `_formatRA`/`_formatDec` deleted,
   the one call site formats inline.
 * `services/science/narrator/detectors/first_light_detectors.dart` — both delegate.
 
-`nightshade_app`
+`skotiq_app`
 * `screens/analytics/widgets/mpc_export_panel.dart` (RA only)
 * `screens/dashboard/widgets/mount_control_card.dart`
 * `screens/imaging/centering_dialog.dart`
@@ -119,7 +119,7 @@ decomposition fails.
 
 ## Left alone (divergent — recorded, not unified)
 
-* `nightshade_core/services/science/mpc_export_service.dart` `_formatRa/_formatDec`
+* `skotiq_core/services/science/mpc_export_service.dart` `_formatRa/_formatDec`
   — the MPC **wire** format: fixed 12-character fields, `59.995 → 59.99` clamp
   instead of a carry (a carry would change the degree field of a submitted
   observation), `assert(result.length == 12)`. Not presentation; keep separate.
@@ -137,17 +137,17 @@ decomposition fails.
 * `CoordinateFormatUtils.formatDecCompact` (`+45°`, degrees only) and
   `formatAltitude/formatAzimuth/formatFOV/formatLatLon/formatRADecPrecise` —
   already a single shared util, not sexagesimal.
-* `nightshade_planetarium/src/rendering/sky_renderer/coordinate_layers.dart`
+* `skotiq_planetarium/src/rendering/sky_renderer/coordinate_layers.dart`
   `_formatRaLabel/_formatDecLabel` — grid labels whose field count varies with
   the grid spacing; also blocked (below).
 
 ## Blocked
 
-`packages/nightshade_planetarium` (`src/coordinate_system.dart` `formatRA`/
+`packages/skotiq_planetarium` (`src/coordinate_system.dart` `formatRA`/
 `formatDec`, `src/rendering/sky_renderer/coordinate_layers.dart`) cannot use the
-canonical: the package has **no dependency on `nightshade_core`** and is
+canonical: the package has **no dependency on `skotiq_core`** and is
 deliberately a leaf (the standalone planetarium lab app depends on that). Both
-`nightshade_app` and `apps/mobile` depend on it, so adding a core dependency
+`skotiq_app` and `apps/mobile` depend on it, so adding a core dependency
 would invert the layering. Options for a later wave: extract `CoordinateFormat`
 into its own leaf package both can depend on, or leave the planetarium's two
 copies as the accepted cost of the leaf boundary. `coordinate_system.dart`'s
@@ -156,20 +156,20 @@ copies as the accepted cost of the leaf boundary. `coordinate_system.dart`'s
 
 ## Tests
 
-* `packages/nightshade_core/test/utils/coordinate_format_parity_test.dart` (new,
+* `packages/skotiq_core/test/utils/coordinate_format_parity_test.dart` (new,
   23 tests) — one group per retired shape pinning its exact strings, plus the
   three correction classes and the non-finite behaviour.
-* `packages/nightshade_core/test/utils/coordinate_format_test.dart` — unchanged,
+* `packages/skotiq_core/test/utils/coordinate_format_test.dart` — unchanged,
   still green (its `SecondsPrecision.values` round-trip loop now also covers
   `oneDecimalPadded`).
-* `packages/nightshade_app/test/screens/your_sky/sky_atlas_format_test.dart` —
+* `packages/skotiq_app/test/screens/your_sky/sky_atlas_format_test.dart` —
   unchanged, still green (it pins `formatRaDeg`/`formatDecDeg` output directly).
 
 Suite runs after the change:
 
-* `packages/nightshade_core` — 5730 passed, 0 failed.
+* `packages/skotiq_core` — 5730 passed, 0 failed.
 * `apps/mobile` — 239 passed, 0 failed.
-* `packages/nightshade_app` — 3303 passed, **42 failed**. All 42 are whole-screen
+* `packages/skotiq_app` — 3303 passed, **42 failed**. All 42 are whole-screen
   golden pixel diffs (1.4%–81% of pixels) from `captures_landscape_test` /
   `captures_fold_cover_test` / `public_screenshots_test`. Not attributable to
   this batch: the failing set includes `settings`, `weather`, `onboarding`,

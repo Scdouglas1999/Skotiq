@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless/headless_security_advisories.dart';
+import 'package:skotiq_desktop/headless/headless_security_advisories.dart';
 
 void main() {
   group('headlessSecurityAdvisories', () {

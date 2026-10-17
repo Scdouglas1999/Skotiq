@@ -6,7 +6,7 @@ Workstream `w12-known-issues`, branch `agent/w12-known-issues`, base `94f13cd6d`
 
 Fence: everything except `screens/imaging/tabs/*.dart`,
 `screens/imaging/widgets/imaging_side_panel.dart` (agent a) and the geolocation
-set — `nightshade_planetarium/.../geolocation_service.dart`,
+set — `skotiq_planetarium/.../geolocation_service.dart`,
 `services/positioning/`, `screens/settings/widgets/location_settings.dart`,
 `screens/onboarding/steps/site_step.dart`, `widgets/geolocation_consent.dart`,
 `settings_search_index.g.dart` (agent b).
@@ -15,14 +15,14 @@ set — `nightshade_planetarium/.../geolocation_service.dart`,
 
 | package | tests | failing |
 |---|---|---|
-| nightshade_app | 4318 | **40** |
-| nightshade_planetarium (`--exclude-tags golden`) | 588 | 0 |
+| skotiq_app | 4318 | **40** |
+| skotiq_planetarium (`--exclude-tags golden`) | 588 | 0 |
 
 The brief named 18 known failures. The full run found **40** in
-`nightshade_app`: the 18, plus 22 more in darkroom / equipment / collaborative
+`skotiq_app`: the 18, plus 22 more in darkroom / equipment / collaborative
 sky / dashboard / planner that no brief had listed.
 
-## Root cause of 5 of the 18: `NightshadeButton` is greedy in a loose slot
+## Root cause of 5 of the 18: `SkotiqButton` is greedy in a loose slot
 
 `AnimatedContainer(alignment: Alignment.center, …)` inside the button's
 `Stack(fit: StackFit.passthrough)`. A `Container` that aligns its child sizes to
@@ -37,7 +37,7 @@ COLUMN=209.3   ROW=138.8   EXPANDED=600.0     (after)
 
 Removing the `alignment` keeps both documented behaviours — the `passthrough`
 comment in the same file says a button handed TIGHT constraints
-(`Expanded(child: NightshadeButton(...))`) must still stretch, and it does; the
+(`Expanded(child: SkotiqButton(...))`) must still stretch, and it does; the
 `Row`'s own `mainAxisAlignment: center` centres the label inside a stretched
 box. The greedy width is what pushed the session-handoff chips, the mosaic
 wizard's footer and the backup screen's Restore row below their containers'
@@ -45,22 +45,22 @@ folds, and what stretched the pairing screen's one primary to 1198 px.
 
 ## Root cause of 10 of the 18: `LayoutBuilder` refuses intrinsics
 
-`NightshadeTextField._singleLineWell` chose `MainAxisSize`/`FlexFit` from
+`SkotiqTextField._singleLineWell` chose `MainAxisSize`/`FlexFit` from
 `constraints.hasBoundedWidth` inside a `LayoutBuilder`. `AlertDialog` measures
 its content through `IntrinsicWidth` (`dialog.dart:925`), and `LayoutBuilder`
 throws on every intrinsic query — so a single field anywhere inside an
-`AlertDialog` took the dialog down. `git show e90e3184b:…nightshade_text_field.dart`
+`AlertDialog` took the dialog down. `git show e90e3184b:…skotiq_text_field.dart`
 has the same `LayoutBuilder` at line 231, so this predates the w7 centring work
 rather than being caused by it.
 
-New `packages/nightshade_ui/lib/src/utils/field_width.dart` — `FieldWidthBox`, a
+New `packages/skotiq_ui/lib/src/utils/field_width.dart` — `FieldWidthBox`, a
 `RenderProxyBox` that resolves the same rule in `performLayout` (bounded slot →
 `constraints.maxWidth`; unbounded → the child's max intrinsic width) and hands
 the child a TIGHT width, so one widget tree serves both cases and intrinsics
 pass straight through. Two live call sites were crashing:
 `focus_panel.dart:637` (the 10 failing tests) and `sequence_toolbar.dart:1060`.
 
-w7's centring measurements are unchanged: `nightshade_text_field_test.dart`
+w7's centring measurements are unchanged: `skotiq_text_field_test.dart`
 still passes, including `numeric, lowercase and unit ink centres on the well`
 (`lowercase ink offset: 0.00 px`).
 
@@ -75,12 +75,12 @@ still passes, including `numeric, lowercase and unit ink centres on the well`
 | 5 | `settings/pairing_observatory_kit_test.dart` (1) | **product** | same; the page's one primary measured 1198 px against the test's `< 320`. The product comment at `pairing_screen.dart:112` already claimed the button was "sized to its label" — the button component made that false. |
 | 6 | `settings/settings_search_query_test.dart` (1) | **test** | the page renders `GLADE+ galaxy catalog` (`view_builders.dart:326`), sentence case per the design contract; `git log -S "GLADE+ galaxy catalog"` dates it to `e90e3184b`, and the generated index matches. The test's title-cased literal is stale. Also fixed the one site still using the old spelling (`catalog_settings_screen.dart:589`, the download-progress label — the import path at :636 already said sentence case, so the same catalog was named two ways on one screen). |
 | 7 | `shell/checkpoint_recovery_dialog_test.dart` (2) | **product** | `RenderFlex overflowed by 57 pixels` — the barrier-locked "Recover Sequence?" `AlertDialog` put an unbounded-length backend failure message in a bare `Column`. Content is now a `SingleChildScrollView`. |
-| 8 | `nightshade_planetarium` `test/benchmark/golden_compare_test.dart` (1) | **environmental, already registered** | see below. |
+| 8 | `skotiq_planetarium` `test/benchmark/golden_compare_test.dart` (1) | **environmental, already registered** | see below. |
 
 ### The planetarium golden gate
 
 Already `@Tags(['golden'])` at file level with the tag declared in
-`packages/nightshade_planetarium/dart_test.yaml`, so the CI command
+`packages/skotiq_planetarium/dart_test.yaml`, so the CI command
 (`flutter test --exclude-tags golden`, what `melos run test` runs) never
 selects it — that package is 588/588 green under the CI command. Run
 explicitly it reports 1.9–4.4 % changed pixels against a 0.20 % limit on all
@@ -97,16 +97,16 @@ does not treat 4 % as evidence of a regression.
 
 ## The 22 failures nobody had listed
 
-The brief's 18 were not the whole of it: the full `nightshade_app` suite on
+The brief's 18 were not the whole of it: the full `skotiq_app` suite on
 `94f13cd6d` failed **40**. The extra 22 split three ways.
 
 | tests | verdict | reason |
 |---|---|---|
-| `collaborative_sky/adaptive_modal_no_slab_test.dart` (3), `darkroom_branch_and_export_test.dart` (1), `darkroom_editor_wiring_test.dart` (2), `darkroom_screen_test.dart` (7), `darkroom_zoom_readout_test.dart` (1), `dashboard/standby_prompt_reserve_test.dart` (1) | **product** | all 15 were the same greedy-button width: overflowing columns, modals that no longer wrapped their content, cards pushed off their panes. Fixed by the `NightshadeButton` change; no test touched. |
-| `equipment/profile_editor_dialog_validation_test.dart` (3), `equipment/profile_editor_reducer_round_trip_test.dart` (3) | **test** | the optics finders required `TextField.decoration.suffixText == 'mm'`, a property `NightshadeTextField` has NEVER set (`git show e90e3184b:…nightshade_text_field.dart` has the unit as a sibling `Text` in the Row; w7 moved it to `decoration.suffix`, still not `suffixText`). The finders matched nothing, so `enterText` threw `Bad state: No element` and six cases never reached an assertion. Now matched on `NightshadeTextField`'s own `hint`/`suffix`. |
-| `planner/planner_screen_test.dart` (1) | **test** | `tester.getSize(find.widgetWithText(TextField, 'Search catalogs')).height` measured the Material `TextField` INSIDE the field, which is the 14 px editable slot, not the 28 px dense control. Expected 28, read 14. Now measured on the `NightshadeTextField` ancestor — the thing the assertion is about. |
+| `collaborative_sky/adaptive_modal_no_slab_test.dart` (3), `darkroom_branch_and_export_test.dart` (1), `darkroom_editor_wiring_test.dart` (2), `darkroom_screen_test.dart` (7), `darkroom_zoom_readout_test.dart` (1), `dashboard/standby_prompt_reserve_test.dart` (1) | **product** | all 15 were the same greedy-button width: overflowing columns, modals that no longer wrapped their content, cards pushed off their panes. Fixed by the `SkotiqButton` change; no test touched. |
+| `equipment/profile_editor_dialog_validation_test.dart` (3), `equipment/profile_editor_reducer_round_trip_test.dart` (3) | **test** | the optics finders required `TextField.decoration.suffixText == 'mm'`, a property `SkotiqTextField` has NEVER set (`git show e90e3184b:…skotiq_text_field.dart` has the unit as a sibling `Text` in the Row; w7 moved it to `decoration.suffix`, still not `suffixText`). The finders matched nothing, so `enterText` threw `Bad state: No element` and six cases never reached an assertion. Now matched on `SkotiqTextField`'s own `hint`/`suffix`. |
+| `planner/planner_screen_test.dart` (1) | **test** | `tester.getSize(find.widgetWithText(TextField, 'Search catalogs')).height` measured the Material `TextField` INSIDE the field, which is the 14 px editable slot, not the 28 px dense control. Expected 28, read 14. Now measured on the `SkotiqTextField` ancestor — the thing the assertion is about. |
 
-And one in `nightshade_core` (`+6508 ~4 -1` on the base commit, also unlisted):
+And one in `skotiq_core` (`+6508 ~4 -1` on the base commit, also unlisted):
 `sequence_data_classes_serde_test.dart: FilterPlan to_json_shape_uses_snake_case_and_pascal_binning`. That one found a **product** defect — see the commit below.
 
 ## Everything else
@@ -115,7 +115,7 @@ And one in `nightshade_core` (`+6508 ~4 -1` on the base commit, also unlisted):
 43 drifted files, formatted in one commit (`3eac83a72`). None in either
 parallel workstream's fence — the drift is the DepthLock tree, the imaging
 widgets, `title_bar.dart`, `smart_exposure_properties.dart`,
-`nightshade_tooltip.dart` and three `nightshade_core` test files.
+`skotiq_tooltip.dart` and three `skotiq_core` test files.
 `dart format --output=none --set-exit-if-changed packages lib` → **EXIT 0**.
 
 ### 2. `FilterPlan` lost its DepthLock binding on the way out
@@ -159,7 +159,7 @@ warnings: 0` → **EXIT 0**.
 - **21 were line shifts, not new findings**: the DepthLock work added two lines
   above every `rust_let_underscore` / `unwrap_or_literal` site in
   `sequencer/src/executor/start.rs` (all 16 moved +2), and similarly for
-  `bridge/src/event/sequencer.rs`, `nightshade_bridge`'s `sequencer.dart` and
+  `bridge/src/event/sequencer.rs`, `skotiq_bridge`'s `sequencer.dart` and
   `sequencer.freezed.dart`, and `live_stacking_provider.dart`. My own
   scroll-view edit moved `_startup_checkpoint.dart`'s probe catch 304 → 310.
   Each row was remapped by matching same-file/same-kind rows to findings in
@@ -186,7 +186,7 @@ baseline entry. → **EXIT 0**.
 ### 5. The small UI debts
 
 - **`target_header_card.dart`** — the selection ring and hover wash animated
-  through a raw `NightshadeTokens.durationNormal` instead of
+  through a raw `SkotiqTokens.durationNormal` instead of
   `animationDuration(context, …)`, so a user who has turned animations off
   still saw the card move. The running target's `_SpinningIcon` repeated
   regardless of the setting (a repeat cannot be shortened, so it is refused
@@ -210,8 +210,8 @@ baseline entry. → **EXIT 0**.
 
 ## Left open, and why
 
-- **`NightshadeDropdown` has the same `LayoutBuilder` trap as the text field**
-  (`nightshade_dropdown.dart:157`, `expand: widget.isExpanded ||
+- **`SkotiqDropdown` has the same `LayoutBuilder` trap as the text field**
+  (`skotiq_dropdown.dart:157`, `expand: widget.isExpanded ||
   constraints.hasBoundedWidth`). No live `AlertDialog` contains one today — the
   only file holding both, `capture_panel.dart`, keeps its dropdowns (166, 188)
   outside its dialog (423) — so it is latent, not failing. The fix is the one
@@ -224,9 +224,9 @@ baseline entry. → **EXIT 0**.
   fence exists to prevent; it wants doing in one pass once both parallel
   branches have landed.
 
-- **`packages/nightshade_core/lib/src/services/ip_geolocation.dart`** appears in
+- **`packages/skotiq_core/lib/src/services/ip_geolocation.dart`** appears in
   the format commit. It is not in the geolocation workstream's stated fence
-  (which names `nightshade_planetarium/.../geolocation_service.dart` and
+  (which names `skotiq_planetarium/.../geolocation_service.dart` and
   `services/positioning/`), and the change is formatter-only — but it is the
   one file in my diff adjacent to theirs, so it is called out here.
 
@@ -241,13 +241,13 @@ baseline entry. → **EXIT 0**.
   per-package runs on this commit (they appear nowhere in the base or final
   failure lists). Nothing to fix; the note is stale for this branch.
 
-- **Four skipped tests in `nightshade_core`** are environment opt-ins (a live
+- **Four skipped tests in `skotiq_core`** are environment opt-ins (a live
   HiPS network fetch, a real sshd, two POSIX-permission cases guarded on
   Windows), not silenced failures.
 
 ## One more: a flaky test the full suite hid
 
-`nightshade_core`'s `device_service_connect_all_test.dart` passed in BOTH
+`skotiq_core`'s `device_service_connect_all_test.dart` passed in BOTH
 baselines and then failed in the final full run — a different case each time
 (`every device-type connect rejects malformed ids`, then `malformed device id
 surfaces as a per-device failed event`). Run six times in parallel it failed
@@ -270,22 +270,22 @@ test).
 
 | package | before | after |
 |---|---|---|
-| `nightshade_app` | +4318 **-40** | **+4358, 0 failing**, EXIT 0 |
-| `nightshade_core` | +6508 ~4 **-1** | **+6512 ~4, 0 failing**, EXIT 0 |
-| `nightshade_ui` | +524 | +524, EXIT 0 |
-| `nightshade_planetarium` | +588 | +588, EXIT 0 |
-| `nightshade_bridge` | +63 | +63, EXIT 0 |
+| `skotiq_app` | +4318 **-40** | **+4358, 0 failing**, EXIT 0 |
+| `skotiq_core` | +6508 ~4 **-1** | **+6512 ~4, 0 failing**, EXIT 0 |
+| `skotiq_ui` | +524 | +524, EXIT 0 |
+| `skotiq_planetarium` | +588 | +588, EXIT 0 |
+| `skotiq_bridge` | +63 | +63, EXIT 0 |
 | `apps/desktop` | +1274 | +1274, EXIT 0 |
 
 All with `flutter test --exclude-tags golden --concurrency=3`, the CI command
 (`melos run test` = `dart run melos exec --concurrency=1 --flutter -- flutter
 test --exclude-tags golden`, melos.yaml:318).
 
-The rest of the `melos` set, run for completeness: `nightshade_plugins` +60,
-`nightshade_remote_protocol` +200, `nightshade_updater` +95, `apps/mobile`
+The rest of the `melos` set, run for completeness: `skotiq_plugins` +60,
+`skotiq_remote_protocol` +200, `skotiq_updater` +95, `apps/mobile`
 +233 — all EXIT 0.
 
-The four `~` in `nightshade_core` are environment opt-ins (live HiPS fetch,
+The four `~` in `skotiq_core` are environment opt-ins (live HiPS fetch,
 real sshd, two POSIX-permission cases skipped on Windows), not silenced
 failures.
 
@@ -293,7 +293,7 @@ failures.
 
 | file | result |
 |---|---|
-| `nightshade_app/test/widgets/go_to_position_dialog_test.dart` | +10 |
+| `skotiq_app/test/widgets/go_to_position_dialog_test.dart` | +10 |
 | `…/sequencer/session_handoff_dialog_test.dart`, `…/widgets/mosaic_wizard_resume_test.dart`, `…/settings/backup_restore_notice_test.dart` | +12 together |
 | `…/settings/pairing_observatory_kit_test.dart` | +3 |
 | `…/settings/settings_search_query_test.dart` | +7 |
@@ -301,10 +301,10 @@ failures.
 | `…/equipment/profile_editor_dialog_validation_test.dart` + `…/profile_editor_reducer_round_trip_test.dart` | +10 together |
 | `…/planner/planner_screen_test.dart` | +25 |
 | `…/screens/planetarium` (whole dir, after the copy change) | +156 |
-| `nightshade_ui/test/nightshade_text_field_test.dart` | +5, `lowercase ink offset: 0.00 px` |
-| `nightshade_core/test/models/sequence/sequence_data_classes_serde_test.dart` | +94 |
-| `nightshade_core/test/services/mount_site_reconciler_test.dart` | +12 (was +10) |
-| `nightshade_core/test/services/device_service_connect_all_test.dart` | +11, 5/5 under contention |
+| `skotiq_ui/test/skotiq_text_field_test.dart` | +5, `lowercase ink offset: 0.00 px` |
+| `skotiq_core/test/models/sequence/sequence_data_classes_serde_test.dart` | +94 |
+| `skotiq_core/test/services/mount_site_reconciler_test.dart` | +12 (was +10) |
+| `skotiq_core/test/services/device_service_connect_all_test.dart` | +11, 5/5 under contention |
 | the six unused-import files | +40 together |
 
 ### Format, analyzer, gates
@@ -321,7 +321,7 @@ failures.
 `docs/production-readiness/analyzer-rollup.json`; deleted after the run, as
 w5 did.
 
-**No golden PNG is in the diff.** The `nightshade_ui` suite rewrites the six
+**No golden PNG is in the diff.** The `skotiq_ui` suite rewrites the six
 `docs/design/goldens/gallery-*.png` review captures on every run and a
 `git add -A` had swept them into the first commit; they are restored to their
 committed (Windows-captured) bytes and `git diff --name-only 94f13cd6d HEAD`

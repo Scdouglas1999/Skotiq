@@ -2,7 +2,7 @@
 
 ## Our pledge
 
-Nightshade is a welcoming, harassment-free community for everyone, regardless of
+Skotiq is a welcoming, harassment-free community for everyone, regardless of
 experience level, background, or identity. Contributors and maintainers commit
 to interacting in ways that keep participation open, respectful, and
 constructive.

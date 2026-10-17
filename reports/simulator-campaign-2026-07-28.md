@@ -1,4 +1,4 @@
-# Nightshade 6.0.0 — no-hardware test campaign, 2026-07-28
+# Skotiq 6.0.0 — no-hardware test campaign, 2026-07-28
 
 Everything below was exercised **live** against the shipping `main` build
 (desktop Linux bundle + a freshly built Android release APK), driven entirely by
@@ -80,7 +80,7 @@ Driven against a real Alpaca safety monitor with injectable faults.
    `POST /api/devices/connect` resumed polling, after which it immediately went
    back to unsafe.
 
-Root cause, `packages/nightshade_core/lib/src/providers/weather_safety_provider.dart:489-503`:
+Root cause, `packages/skotiq_core/lib/src/providers/weather_safety_provider.dart:489-503`:
 
 ```dart
 bool hardwareWeatherSafe = true;          // default TRUE
@@ -94,7 +94,7 @@ A device in `error` state is not `connected`, so the branch is skipped and the
 absent, so it never engages when one sensor merely breaks.
 
 Operator impact: a rain sensor drops off the network while it is raining →
-Nightshade cancels the park order and declares the sky safe, permanently.
+Skotiq cancels the park order and declares the sky safe, permanently.
 
 **Independently reproduced by the lead on a separate rig, which also pinned the
 precondition.** Alpaca safety monitor connected and reporting `issafe=false`;
@@ -179,13 +179,13 @@ sqlite3: bortle_class|5   default_gain|100  observer_name|(empty)  # all 184 res
 `invalidate` calls (verified by grep), so the process keeps its pre-restore
 `AppSettings` snapshot; the next write merges onto that stale state and persists
 the whole map. The GUI at least invalidates three providers and prints "Restart
-Nightshade before the next run" — the HTTP API says nothing. Restore itself is
+Skotiq before the next run" — the HTTP API says nothing. Restore itself is
 sound: restore into a fresh rig and restart before touching anything and
 everything comes back byte-correct.
 
 ### D2. A sequencer run with no save path reports 100% complete and writes nothing
 
-`native/nightshade_native/sequencer/src/node/instructions/expose.rs:302` —
+`native/skotiq_native/sequencer/src/node/instructions/expose.rs:302` —
 `build_save_path_renderer` does `base_path.as_ref()?;` and returns `None`. The
 `Option` is handed to `execute_exposure_with_renderer` while the per-frame
 progress callback (`:133`) fires regardless, so frames are captured, counted, and
@@ -195,7 +195,7 @@ would silently discard a real night's data.**
 ### D2b. `POST /api/sequencer/save-path` accepts a path that cannot possibly work
 
 ```
-{"path":"/proc/nightshade-cannot-write"}  -> {"status":"ok"}    # unwritable
+{"path":"/proc/skotiq-cannot-write"}  -> {"status":"ok"}    # unwritable
 {"path":"/nonexistent-root-dir/x"}        -> {"status":"ok"}    # uncreatable
 {"path":""}                               -> {"status":"ok"}    # empty string
 ```
@@ -213,7 +213,7 @@ warning. The backup format drops target `id` entirely, so every restore mints ne
 rows. Profiles keep their id and `insertOrIgnore` correctly, so the behaviour is
 inconsistent *within a single restore*.
 
-### D4. A database from a newer Nightshade is silently accepted and relabelled backwards
+### D4. A database from a newer Skotiq is silently accepted and relabelled backwards
 
 `PRAGMA user_version = 99` + a future table and column → the app starts, works
 normally, and **rewrites `user_version` to 57**. There is no `onDowngrade`
@@ -230,7 +230,7 @@ is a supported action that permanently mismarks the DB.
 
 `CelestialCoordinate.ra` is documented *"Right Ascension in hours (0-24)"* with
 `double get raDegrees => ra * 15`
-(`packages/nightshade_planetarium/lib/src/coordinate_system.dart:5-14`), but the
+(`packages/skotiq_planetarium/lib/src/coordinate_system.dart:5-14`), but the
 HYG parser stores degrees into it:
 
 ```dart
@@ -399,7 +399,7 @@ calibration with a dimension mismatch.
 calibrated FITS: InvalidFormat("FITS string value too long for DARKFILE")`. The
 pixel maths succeeds and the whole operation is lost. 68 is the FITS
 single-record string limit; the CONTINUE long-string convention exists for exactly
-this. A default Windows layout (`C:\Users\<name>\Documents\Nightshade\Calibration\
+this. A default Windows layout (`C:\Users\<name>\Documents\Skotiq\Calibration\
 Darks\master_dark_...fits`) blows straight past it.
 
 ### C12. The eccentricity grading gate cannot reject a trailed frame
@@ -1024,7 +1024,7 @@ updater configuration**: `updateChannel`, `updateServerUrl`, `updateCheckEnabled
 per-key. `GET` exports the full freezed model; writes go through a switch covering
 135 keys and no-op for the rest. Consequence beyond cry-wolf: the app ships with
 `updateServerUrl: ""` and reports *"Update server URL not configured"*, and **there
-is no way to fix that through the API** — only the `NIGHTSHADE_UPDATE_SERVER` env
+is no way to fix that through the API** — only the `SKOTIQ_UPDATE_SERVER` env
 var. The shipping updater is unconfigurable on a headless appliance.
 
 ### R6. `POST /api/system/update/check` has no timeout, and Abort lies
@@ -1172,7 +1172,7 @@ byte-identical and match. All four URLs returned 200, so neither catalog is dead
   unsafe conditions"*. `WeatherThresholdResult.breach` knows which sensor tripped
   and is discarded at `weather_safety_provider.dart:1260`.
 * **Raw internal error text reaches the operator**, e.g.
-  `Dome slew failed: NightshadeError.invalidParameter(field0: Dome azimuth must be
+  `Dome slew failed: SkotiqError.invalidParameter(field0: Dome azimuth must be
   finite and in [0, 360))` — from a dialog whose own prompt says "0 - 360 degrees".
 * **The object detail panel is not clamped to the viewport** — clicking a star on
   the right of the planetarium pushes it off-screen, truncating the coordinates and
@@ -1223,7 +1223,7 @@ byte-identical and match. All four URLs returned 200, so neither catalog is dead
   one line with a middle ellipsis, so this is a bug and not a style choice. Any
   Windows path triggers it.
 * **A raw Dart exception is shown in a user-facing tooltip**, verbatim and
-  edge-to-edge: `Exception: Failed to connect … NightshadeError.connectionFailed(
+  edge-to-edge: `Exception: Failed to connect … SkotiqError.connectionFailed(
   deviceId: …, reason: …)`. The failed chip never clears and offers no retry.
 * **"Estimated integration: 3h 60m"** on the Plan Tonight card, 30 px below a chip
   reading "~4.0h". `_primary_target_card.dart:295` rounds minutes without carrying
@@ -1266,7 +1266,7 @@ byte-identical and match. All four URLs returned 200, so neither catalog is dead
 within **3 seconds** of Meeus across six sites × six dates including both DST
 boundaries; polar nulls correct at the exact poles; transit instants exact (hour
 angle < 1 s) and transit altitudes exactly `90 − |φ − δ|`; moon position and
-illumination in `nightshade_planetarium` within 0.15°/0.1 pp. DSO astrometry exact
+illumination in `skotiq_planetarium` within 0.15°/0.1 pp. DSO astrometry exact
 (M31 → NGC0224, RA 10.68479°, Dec +41.26906°, 177.8′×69.7′). FOV overlay maths
 exact — 1000 mm / 3.76 µm / 4144×2822 → 0.89° × 0.61°, 0.78 ″/px, f/10.0, and the
 drawn rectangle measured to match.

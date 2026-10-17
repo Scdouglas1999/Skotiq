@@ -1,16 +1,16 @@
 // Crash-recovery checkpoints must be scoped to the INSTANCE.
 //
 // The platform application-support folder is per-application, so two headless
-// daemons each given their own NIGHTSHADE_DATA_DIR still resolved one shared
-// `nightshade_session.checkpoint`: on restart either would offer the operator
+// daemons each given their own SKOTIQ_DATA_DIR still resolved one shared
+// `skotiq_session.checkpoint`: on restart either would offer the operator
 // the other rig's interrupted run, and whichever choice they made rewrote or
 // deleted the other's recovery state.
 
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless/host_checkpoint_directory.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless/host_checkpoint_directory.dart';
 
 void main() {
   late Directory sharedSupportDir;
@@ -32,7 +32,7 @@ void main() {
 
   test('an instance data directory owns its own checkpoint folder', () async {
     final resolved = await resolveHostCheckpointDirectory(
-      environment: {nightshadeDataDirEnv: ownDataRoot.path},
+      environment: {skotiqDataDirEnv: ownDataRoot.path},
       applicationSupportDirectoryProvider: () async => sharedSupportDir,
     );
 
@@ -58,7 +58,7 @@ void main() {
     // recovery file nobody can find again.
     await expectLater(
       resolveHostCheckpointDirectory(
-        environment: const {nightshadeDataDirEnv: 'relative/state'},
+        environment: const {skotiqDataDirEnv: 'relative/state'},
         applicationSupportDirectoryProvider: () async => sharedSupportDir,
       ),
       throwsA(isA<FileSystemException>()),

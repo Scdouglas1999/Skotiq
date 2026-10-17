@@ -11,7 +11,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_ui_consistency_audit_self_test_',
+    'skotiq_ui_consistency_audit_self_test_',
   );
   try {
     await _writePassingFixture(temp);
@@ -100,14 +100,14 @@ List<String> _getAvailableEndpoints() {
   ];
 }
 ''');
-  await _writeFile(root, 'packages/nightshade_ui/lib/nightshade_ui.dart', '''
+  await _writeFile(root, 'packages/skotiq_ui/lib/skotiq_ui.dart', '''
 export 'src/widgets/design_system_gallery.dart';
 ''');
   await _writeFile(
     root,
-    'packages/nightshade_ui/lib/src/widgets/design_system_gallery.dart',
+    'packages/skotiq_ui/lib/src/widgets/design_system_gallery.dart',
     '''
-class NightshadeDesignSystemGallery {
+class SkotiqDesignSystemGallery {
   final markers = const [
     'Panels and wells',
     'Readouts',
@@ -125,25 +125,25 @@ class NightshadeDesignSystemGallery {
     'Checklist',
     'Night band',
     'Buttons and icon buttons',
-    'NightshadeButton',
-    'NightshadeIconButton',
-    'NightshadePanel',
+    'SkotiqButton',
+    'SkotiqIconButton',
+    'SkotiqPanel',
     'PanelHead',
     'Readout(',
     'AdaptiveTabBar',
     'SegmentedControl',
-    'NightshadeToolbar',
-    'NightshadeTextField',
-    'NightshadeDropdown',
-    'NightshadeCheckbox',
-    'NightshadeSwitch',
+    'SkotiqToolbar',
+    'SkotiqTextField',
+    'SkotiqDropdown',
+    'SkotiqCheckbox',
+    'SkotiqSwitch',
     'FormRow',
-    'NightshadeChip',
+    'SkotiqChip',
     'StatusDot',
     'InstrumentPill',
-    'NightshadeBanner',
+    'SkotiqBanner',
     'EmptyState',
-    'NightshadeDialog',
+    'SkotiqDialog',
     'SidePanel(',
     'SectionTitle',
     'Checklist(',
@@ -154,21 +154,21 @@ class NightshadeDesignSystemGallery {
   );
   await _writeFile(
     root,
-    'packages/nightshade_ui/test/design_system_gallery_test.dart',
+    'packages/skotiq_ui/test/design_system_gallery_test.dart',
     '''
 void galleryTestMarkers() {
   const markers = [
-    'NightshadeTheme.dark',
-    'NightshadeTheme.light',
-    'NightshadeTheme.redNight',
+    'SkotiqTheme.dark',
+    'SkotiqTheme.light',
+    'SkotiqTheme.redNight',
     'gallery controls update representative states',
     'gallery-button-primary',
     'gallery-button-secondary',
     'gallery-dropdown',
     'gallery-switch',
-    'NightshadeDropdown',
-    'NightshadeCheckbox',
-    'NightshadeSwitch',
+    'SkotiqDropdown',
+    'SkotiqCheckbox',
+    'SkotiqSwitch',
   ];
   markers.length;
 }
@@ -178,7 +178,7 @@ void galleryTestMarkers() {
 
 Future<void> _writeFailingFixture(Directory root) async {
   await _resetWorkspace(root);
-  await _writeFile(root, 'packages/nightshade_app/lib/bad_panel.dart', '''
+  await _writeFile(root, 'packages/skotiq_app/lib/bad_panel.dart', '''
 void buildPanel() {
   final style = ElevatedButton.styleFrom();
   final radius = BorderRadius.circular(24);

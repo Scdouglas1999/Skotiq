@@ -1,4 +1,4 @@
-# Nightshade Update Server Docker Compose
+# Skotiq Update Server Docker Compose
 #
 # Usage:
 #   docker-compose up -d
@@ -7,14 +7,14 @@
 #
 # To publish an update:
 #   1. Copy manifest to ./manifests/2.1.0.json
-#   2. Copy package to ./releases/2.1.0/nightshade-2.1.0-windows-x64.zip
+#   2. Copy package to ./releases/2.1.0/skotiq-2.1.0-windows-x64.zip
 
 version: '3.8'
 
 services:
   update-server:
     build: .
-    container_name: nightshade-update-server
+    container_name: skotiq-update-server
     ports:
       - "8090:8090"
     volumes:

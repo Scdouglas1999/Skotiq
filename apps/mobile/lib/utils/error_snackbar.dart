@@ -21,8 +21,8 @@
 // helper has no way to recover from a tear-down race.
 
 import 'package:flutter/material.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Show a SnackBar describing an API error.
 ///
@@ -36,7 +36,7 @@ import 'package:nightshade_ui/nightshade_ui.dart';
 /// fades after 4 seconds because those are often expected (rate limit,
 /// pairing required) and the operator just needs the cue.
 void showApiError(BuildContext context, Object error) {
-  final colors = Theme.of(context).extension<NightshadeColors>();
+  final colors = Theme.of(context).extension<SkotiqColors>();
   final theme = Theme.of(context);
 
   final String text;
@@ -109,7 +109,7 @@ void showApiErrorWithPrefix(BuildContext context, String prefix, Object error) {
   // Wrap a generic exception so the prefix lands in the text path of
   // showApiError too. We don't mutate `error` — Exception is opaque, so
   // we just stringify here.
-  final colors = Theme.of(context).extension<NightshadeColors>();
+  final colors = Theme.of(context).extension<SkotiqColors>();
   final messenger = ScaffoldMessenger.maybeOf(context);
   if (messenger == null) return;
   messenger.hideCurrentSnackBar();

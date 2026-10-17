@@ -4,10 +4,10 @@
   "outcome": "fixed",
   "summary": "_CompactSettingField (Exp/Gain on the Dashboard Capture card) only wired onSubmitted, so a value typed and abandoned by Tab - or by clicking Capture, which unfocuses the field on desktop - was never committed and the box kept showing a number the rig was never told about. Added a FocusNode whose blur handler commits the typed text and then re-syncs the controller onto the authoritative provider value on the next frame, so a good edit renormalises (2 -> 2.0) and a rejected edit snaps back instead of sitting there looking committed.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/dashboard/widgets/capture_settings_card.dart",
-   "packages/nightshade_app/test/screens/dashboard/capture_settings_commit_test.dart"
+   "packages/skotiq_app/lib/screens/dashboard/widgets/capture_settings_card.dart",
+   "packages/skotiq_app/test/screens/dashboard/capture_settings_commit_test.dart"
   ],
-  "test": "3 tests in packages/nightshade_app/test/screens/dashboard/capture_settings_commit_test.dart (exposure blur-commit, gain blur-commit, unparseable snap-back)",
+  "test": "3 tests in packages/skotiq_app/test/screens/dashboard/capture_settings_commit_test.dart (exposure blur-commit, gain blur-commit, unparseable snap-back)",
   "test_fails_without_fix": true,
   "caveats": "Verified by removing the addListener line: all 3 fail; restored: all 3 pass plus the pre-existing capture_settings_card_test.dart (4 tests) still green."
  },
@@ -16,10 +16,10 @@
   "outcome": "fixed",
   "summary": "RunDashboardWeatherSafetyCard switched the header pill on WeatherSafetyStatus alone, which collapses 'a sensor reported safe' and 'nothing was assessed' into the same `safe` value - the provider's own monitoringEnabled doc says so and the card never read it. Added a top-level runDashboardSafetyBadge(status, monitoringEnabled, dataSource) with two extra states: monitoring off -> 'Not monitored' (muted, shieldOff), monitoring on with SafetyDataSource.unavailable -> 'No data' (amber). Green 'Safe' now requires a real source. The no-data case was NOT in the original finding but is the same lie via the permissive fail mode, so it is covered too.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/sequencer/widgets/run_dashboard/weather_safety_card.dart",
-   "packages/nightshade_app/test/screens/sequencer/run_dashboard/weather_safety_badge_test.dart"
+   "packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/weather_safety_card.dart",
+   "packages/skotiq_app/test/screens/sequencer/run_dashboard/weather_safety_badge_test.dart"
   ],
-  "test": "6 tests in packages/nightshade_app/test/screens/sequencer/run_dashboard/weather_safety_badge_test.dart (4 pure-function + 2 rendered-pill)",
+  "test": "6 tests in packages/skotiq_app/test/screens/sequencer/run_dashboard/weather_safety_badge_test.dart (4 pure-function + 2 rendered-pill)",
   "test_fails_without_fix": true,
   "caveats": "Location in the finding was wrong; used the verifier's corrected path (run_dashboard/weather_safety_card.dart), which is inside my ownership."
  },
@@ -28,10 +28,10 @@
   "outcome": "fixed",
   "summary": "Twilight/Window were formatted straight off twilightTimesProvider, which falls back to 0N 0E when no site is set, producing a plausible equatorial dusk and ~9h window. Gated both rows on appObserverLocationProvider != null (the same null-at-(0,0) predicate the Target row already relies on) so they render '--:--'. Moon illumination is a phase, not a site quantity, so it still renders.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/dashboard/widgets/tonight_card.dart",
-   "packages/nightshade_app/test/screens/dashboard/tonight_card_site_gate_test.dart"
+   "packages/skotiq_app/lib/screens/dashboard/widgets/tonight_card.dart",
+   "packages/skotiq_app/test/screens/dashboard/tonight_card_site_gate_test.dart"
   ],
-  "test": "2 tests in packages/nightshade_app/test/screens/dashboard/tonight_card_site_gate_test.dart (no-site placeholders; with-site real numbers)",
+  "test": "2 tests in packages/skotiq_app/test/screens/dashboard/tonight_card_site_gate_test.dart (no-site placeholders; with-site real numbers)",
   "test_fails_without_fix": true,
   "caveats": "The test file's own teardown was broken on first run: it disposes the ProviderContainer inside the test body (the observation-time notifier holds a 1s periodic timer), and that dispose closes drift's watch streams, each of which posts a zero-duration StreamQueryStore cleanup timer. A bare tester.pump() does not elapse the fake clock, so the file hung for 10 minutes and reported a false failure. Fixed by pumping WITH a duration after dispose. Both tests now pass; forcing hasSite true makes the no-site test fail."
  },
@@ -40,8 +40,8 @@
   "outcome": "fixed",
   "summary": "_buildCompleteStatus painted the success icon and headline unconditionally off the terminal phase, and _buildCompletionSummary painted the improvement chip (and the 'After' box, and the trend icon) in colors.success regardless of sign. Added polarAlignmentReachedThreshold(state) (currentError <= config.autoCompleteThreshold) to drive the headline/icon ('Alignment Stopped' + amber + 'Still X\" off - the Y\" target was not reached'), and polarAlignmentImprovementArcsec(state) to recover the SIGN that the model's clamped improvementPercent throws away, so the chip reads '+N%' green / 'No change' muted / 'Worse' red.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_completion_panel.dart",
-   "packages/nightshade_app/test/screens/polar_alignment/polar_alignment_honesty_test.dart"
+   "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_completion_panel.dart",
+   "packages/skotiq_app/test/screens/polar_alignment/polar_alignment_honesty_test.dart"
   ],
   "test": "3 tests in polar_alignment_honesty_test.dart: 'a run that ends far above threshold is not called Complete', 'a run that got worse says so', plus the positive control 'a run inside the threshold still reads Complete'",
   "test_fails_without_fix": true,
@@ -52,14 +52,14 @@
   "outcome": "fixed",
   "summary": "_startAlignment validated camera, mount and solver but never the site, and the native guard is dead because the app installs a real (0,0) observer at startup. Three changes: (1) a site pre-flight in _startAlignment that awaits appSettingsProvider and refuses when lat==0 && lon==0; (2) an idle-screen amber banner; and (3) - the part the finding did not imply - the site is now a first-class prerequisite in the footer's canStart/disabledReason, exactly like the camera, mount and solver, so Start is DISABLED with the reason 'No observing location set' instead of only failing on the way in. While adding that I had to replace the disabledReason if/else cascade with a joined list of every unmet prerequisite: the cascade let a missing site hide behind an unconnected camera, which is the same class of defect.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen.dart",
-   "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_center_panel.dart",
-   "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_screen_shell.dart",
-   "packages/nightshade_app/test/screens/polar_alignment/polar_alignment_honesty_test.dart"
+   "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen.dart",
+   "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_center_panel.dart",
+   "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_screen_shell.dart",
+   "packages/skotiq_app/test/screens/polar_alignment/polar_alignment_honesty_test.dart"
   ],
   "test": "3 tests in polar_alignment_honesty_test.dart: 'no observing location is disclosed on the idle screen', 'Start Alignment is blocked while no site is set', and the control 'a configured site is not what blocks Start'",
   "test_fails_without_fix": true,
-  "needs_shared_change": "native/nightshade_native/bridge/src/state.rs set_observer_location + the startup path that installs lat=0/lon=0/elev=0 should leave the observer location None until the user sets one, so the existing polar_align/mod.rs:389-399 guard can actually fire. Same for every other consumer that treats (0,0) as a real site. Out of my ownership (Rust).",
+  "needs_shared_change": "native/skotiq_native/bridge/src/state.rs set_observer_location + the startup path that installs lat=0/lon=0/elev=0 should leave the observer location None until the user sets one, so the existing polar_align/mod.rs:389-399 guard can actually fire. Same for every other consumer that treats (0,0) as a real site. Out of my ownership (Rust).",
   "caveats": "Verified twice: forcing showSiteBanner false fails the banner test; forcing siteReady true fails the Start-blocked test while the control still passes. The two pre-existing Windows-captured goldens in polar_alignment/captures_landscape_test.dart still fail on Linux, but so do screens I never touched (weather 47%, guiding 14%, diagnostics 1.5%) - that is the known Windows-goldens-on-Linux debt, not a regression from this change."
  },
  {
@@ -67,9 +67,9 @@
   "outcome": "fixed",
   "summary": "Caller passed `state.currentError?.azimuthError ?? 0.0`, so the idle reticle computed totalError == 0, judged it inside the threshold and announced acceptance. Made AllSkyTargetReticle's azimuth/altitude parameters nullable, taught the widget an explicit unmeasured state ('\u2014' / 'Not measured', no marker drawn), and dropped the ?? 0.0 at the call site. The painter now skips the marker whenever either axis is null, so no dot is drawn on the bullseye without a solve.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/polar_alignment/widgets/all_sky_target_reticle.dart",
-   "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_right_panel.dart",
-   "packages/nightshade_app/test/screens/polar_alignment/polar_alignment_honesty_test.dart"
+   "packages/skotiq_app/lib/screens/polar_alignment/widgets/all_sky_target_reticle.dart",
+   "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_right_panel.dart",
+   "packages/skotiq_app/test/screens/polar_alignment/polar_alignment_honesty_test.dart"
   ],
   "test": "'idle All-Sky reticle does not claim acceptance' in polar_alignment_honesty_test.dart",
   "test_fails_without_fix": true,
@@ -80,52 +80,52 @@
   "outcome": "fixed",
   "summary": "The row icon was `autoCompleted ? target : check` (a checkmark for a cancelled run) and the badge always read '+N%', green above 50%. Added polarAlignmentHistoryOutcome(), which grades a row on the residual against the threshold read back out of the row's own stored configJson - deliberately NOT on autoCompleted, since that flag only records whether the NATIVE layer finished the run, so a manual Done inside threshold would be graded a failure. A row that did not reach its target now renders a muted circleSlash and the word 'Stopped' instead of an improvement percentage.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_history_panel.dart",
-   "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen.dart",
-   "packages/nightshade_app/test/screens/polar_alignment/polar_alignment_honesty_test.dart"
+   "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_history_panel.dart",
+   "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen.dart",
+   "packages/skotiq_app/test/screens/polar_alignment/polar_alignment_honesty_test.dart"
   ],
   "test": "2 tests in polar_alignment_honesty_test.dart: 'a stopped run is listed as Stopped, not as an improvement' + the control 'a run that reached the target keeps its improvement badge'",
   "test_fails_without_fix": true,
-  "needs_shared_change": "packages/nightshade_core/lib/src/providers/polar_alignment_provider.dart: stopAlignment() calls _saveHistoryOnce() so a cancelled run is persisted at all, and PolarAlignmentState.initialError is whichever noisy sample landed first, which is what makes '+97%' possible. Persisting a terminal status enum (completed/stopped/failed) on the row and anchoring 'initial' on a settled measurement rather than the first sample belongs in that provider + the polar_alignment_history table. Out of my ownership.",
+  "needs_shared_change": "packages/skotiq_core/lib/src/providers/polar_alignment_provider.dart: stopAlignment() calls _saveHistoryOnce() so a cancelled run is persisted at all, and PolarAlignmentState.initialError is whichever noisy sample landed first, which is what makes '+97%' possible. Persisting a terminal status enum (completed/stopped/failed) on the row and anchoring 'initial' on a settled measurement rather than the first sample belongs in that provider + the polar_alignment_history table. Out of my ownership.",
   "caveats": "The verifier disproved the finding's claim that the tick was green (it was already amber); the untrue elements were the check GLYPH and the badge, which is what I changed."
  },
  {
   "title": "Flat Frame Wizard captures at a different camera offset than the Imaging screen (10 vs 50) and never shows which gain/offset it will use",
   "outcome": "fixed",
-  "summary": "Added a _CaptureConfigSummary to all three flat-wizard modes (Quick / Batch / Sky Flats) that renders the gain, offset and binning the run will actually command, read from the same flatCameraConfigProvider the run publishes - and, when those disagree with the light-frame exposure settings, an explicit amber warning naming the divergence ('offset 10 vs 50') and why it matters (the library matcher requires an exact match). The UI half of the finding is closed: the wizard can no longer command a value the operator cannot see. The two-sources-of-truth half lives in nightshade_core and is reported below.",
+  "summary": "Added a _CaptureConfigSummary to all three flat-wizard modes (Quick / Batch / Sky Flats) that renders the gain, offset and binning the run will actually command, read from the same flatCameraConfigProvider the run publishes - and, when those disagree with the light-frame exposure settings, an explicit amber warning naming the divergence ('offset 10 vs 50') and why it matters (the library matcher requires an exact match). The UI half of the finding is closed: the wizard can no longer command a value the operator cannot see. The two-sources-of-truth half lives in skotiq_core and is reported below.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/flat_wizard/flat_wizard_screen/tuning_controls.dart",
-   "packages/nightshade_app/lib/screens/flat_wizard/flat_wizard_screen/capture_mode_controls.dart",
-   "packages/nightshade_app/test/screens/flat_wizard/flat_wizard_capture_config_test.dart"
+   "packages/skotiq_app/lib/screens/flat_wizard/flat_wizard_screen/tuning_controls.dart",
+   "packages/skotiq_app/lib/screens/flat_wizard/flat_wizard_screen/capture_mode_controls.dart",
+   "packages/skotiq_app/test/screens/flat_wizard/flat_wizard_capture_config_test.dart"
   ],
-  "test": "3 tests in packages/nightshade_app/test/screens/flat_wizard/flat_wizard_capture_config_test.dart",
+  "test": "3 tests in packages/skotiq_app/test/screens/flat_wizard/flat_wizard_capture_config_test.dart",
   "test_fails_without_fix": true,
-  "needs_shared_change": "packages/nightshade_core/lib/src/services/flat_wizard_service.dart:307-323 resolves gain/offset as `profileDefaultGain ?? currentGain ?? status.gain` (fed from flat_wizard_provider.dart:144-149), while the light path commands the app-settings exposure defaults. With equipment_profiles.default_offset NULL the flat run falls through to the camera's driver-reported offset and silently diverges from the lights. The resolution should prefer the SAME source the light capture uses (or the two should be unified behind one resolver), and the wizard should offer an override. Out of my ownership (nightshade_core).",
+  "needs_shared_change": "packages/skotiq_core/lib/src/services/flat_wizard_service.dart:307-323 resolves gain/offset as `profileDefaultGain ?? currentGain ?? status.gain` (fed from flat_wizard_provider.dart:144-149), while the light path commands the app-settings exposure defaults. With equipment_profiles.default_offset NULL the flat run falls through to the camera's driver-reported offset and silently diverges from the lights. The resolution should prefer the SAME source the light capture uses (or the two should be unified behind one resolver), and the wizard should offer an override. Out of my ownership (skotiq_core).",
   "caveats": "The warning is a disclosure, not a correction: until the shared resolver change lands the wizard can still command a divergent offset, it just can no longer do it silently."
  },
  {
   "title": "Flat wizard cannot capture a flat when a filter move is needed - its wheel move neither takes effect nor is confirmed, while the same move works from Equipment",
   "outcome": "blocked",
-  "summary": "Confirmed real and confirmed entirely outside my ownership. flat_wizard_provider.dart:1351-1394 calls deviceBackend.filterWheelSetPosition(...) directly and then polls `ref.read(filterWheelStateProvider)` in a loop where NOTHING fetches status, so the provider can never change and the run always fails closed after maxWait. Its working counterpart, DeviceService._verifyFilterWheelPosition (control_helpers.dart:314-361), polls `_backend.getFilterWheelStatus(deviceId)` and pushes the result into the provider via updatePosition/setMoving. No change in packages/nightshade_app/lib/screens/flat_wizard/** can fix that loop.",
+  "summary": "Confirmed real and confirmed entirely outside my ownership. flat_wizard_provider.dart:1351-1394 calls deviceBackend.filterWheelSetPosition(...) directly and then polls `ref.read(filterWheelStateProvider)` in a loop where NOTHING fetches status, so the provider can never change and the run always fails closed after maxWait. Its working counterpart, DeviceService._verifyFilterWheelPosition (control_helpers.dart:314-361), polls `_backend.getFilterWheelStatus(deviceId)` and pushes the result into the provider via updatePosition/setMoving. No change in packages/skotiq_app/lib/screens/flat_wizard/** can fix that loop.",
   "files_changed": [],
-  "test": "none possible - the defect is in a nightshade_core provider I do not own; a test would have to live beside it in packages/nightshade_core/test",
+  "test": "none possible - the defect is in a skotiq_core provider I do not own; a test would have to live beside it in packages/skotiq_core/test",
   "test_fails_without_fix": false,
-  "needs_shared_change": "packages/nightshade_core/lib/src/providers/flat_wizard_provider.dart:1370-1394: the settle loop must re-read the wheel from the backend (getFilterWheelStatus) and push the result into filterWheelStateProvider, exactly as DeviceService._verifyFilterWheelPosition does - or the move should simply be delegated to DeviceService.changeFilter so there is one confirmation path. The verifier also found the stale provider makes the NEXT run unsafe: the skip-if-already-there branch (line ~1346) then exposes seven frames labelled Ha while the driver sits on B.",
-  "caveats": "Not fixed; reported for the nightshade_core owner."
+  "needs_shared_change": "packages/skotiq_core/lib/src/providers/flat_wizard_provider.dart:1370-1394: the settle loop must re-read the wheel from the backend (getFilterWheelStatus) and push the result into filterWheelStateProvider, exactly as DeviceService._verifyFilterWheelPosition does - or the move should simply be delegated to DeviceService.changeFilter so there is one confirmation path. The verifier also found the stale provider makes the NEXT run unsafe: the skip-if-already-there branch (line ~1346) then exposes seven frames labelled Ha while the driver sits on B.",
+  "caveats": "Not fixed; reported for the skotiq_core owner."
  },
  {
   "title": "Co-imaging card says \"You are pooling light here\" after you explicitly decline to share your subs",
   "outcome": "fixed",
   "summary": "The caption was gated on `joined == true` alone, but membership and contribution are separate facts: the auto-contribute egress fails closed without an unattended MosaicUploadConsent. Added a nullable `contributing` flag (plus an `onEnableSharing` action) to CoImagingSessionCard and rendered three states - contributing (green check, 'You are pooling light here'), joined-but-sharing-off (muted circleSlash, 'Joined - not contributing (sharing off)' + a 'Turn on sharing' button), and consent-still-resolving ('Joined - checking sharing...'). New coImagingSharingEnabledProvider derives the flag from the persisted consent, so the caption also stops asserting anything while the consent dialog is still open.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/collaborative_sky/widgets/coimaging_session_card.dart",
-   "packages/nightshade_app/lib/screens/collaborative_sky/collaborative_sky_providers.dart",
-   "packages/nightshade_app/lib/screens/collaborative_sky/collaborative_sky_screen.dart",
-   "packages/nightshade_app/test/screens/collaborative_sky/coimaging_contribution_caption_test.dart",
-   "packages/nightshade_app/test/screens/collaborative_sky/coimaging_session_card_test.dart",
-   "packages/nightshade_app/test/screens/collaborative_sky/collaborative_sky_screen_test.dart"
+   "packages/skotiq_app/lib/screens/collaborative_sky/widgets/coimaging_session_card.dart",
+   "packages/skotiq_app/lib/screens/collaborative_sky/collaborative_sky_providers.dart",
+   "packages/skotiq_app/lib/screens/collaborative_sky/collaborative_sky_screen.dart",
+   "packages/skotiq_app/test/screens/collaborative_sky/coimaging_contribution_caption_test.dart",
+   "packages/skotiq_app/test/screens/collaborative_sky/coimaging_session_card_test.dart",
+   "packages/skotiq_app/test/screens/collaborative_sky/collaborative_sky_screen_test.dart"
   ],
-  "test": "3 tests in packages/nightshade_app/test/screens/collaborative_sky/coimaging_contribution_caption_test.dart",
+  "test": "3 tests in packages/skotiq_app/test/screens/collaborative_sky/coimaging_contribution_caption_test.dart",
   "test_fails_without_fix": true,
   "caveats": "Two pre-existing tests asserted the OLD caption from membership alone and legitimately went red; both were updated to state the new contract (the card test now passes contributing: true; the screen test's host gained a `sharing` override defaulting to true, since those tests are about membership, not consent). Whole collaborative_sky suite: 49 tests green."
  },
@@ -134,12 +134,12 @@
   "outcome": "fixed",
   "summary": "Two causes, both addressed from the pushed page. (1) ScreenHeader has no leading slot, so the screen now carries its own back row above it (the same shape mosaic_project_screen already uses), falling back to context.go when there is nothing to pop. (2) The page is pushed imperatively onto the ROOT navigator above the AppShell's ShellRoute child, so a rail tap (context.go) swapped the page underneath it and left the pushed route on screen while the rail claimed a different destination. CollabMosaicDetailScreen is now stateful, records the router location it was opened at, listens to routeInformationProvider and pops itself (post-frame) when the shell navigates away, so the pushed route can no longer outlive its host.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/collaborative_sky/collab_mosaic_detail_screen.dart",
-   "packages/nightshade_app/test/screens/collaborative_sky/collab_mosaic_detail_nav_test.dart"
+   "packages/skotiq_app/lib/screens/collaborative_sky/collab_mosaic_detail_screen.dart",
+   "packages/skotiq_app/test/screens/collaborative_sky/collab_mosaic_detail_nav_test.dart"
   ],
-  "test": "2 tests in packages/nightshade_app/test/screens/collaborative_sky/collab_mosaic_detail_nav_test.dart (back control pops; router.go dismisses the pushed page)",
+  "test": "2 tests in packages/skotiq_app/test/screens/collaborative_sky/collab_mosaic_detail_nav_test.dart (back control pops; router.go dismisses the pushed page)",
   "test_fails_without_fix": true,
-  "needs_shared_change": "The general fix belongs in lib/router/app_router.dart + lib/screens/shell/app_shell.dart (neither in my ownership): give the collaborative mosaic detail a real GoRoute inside the ShellRoute instead of an imperative root-navigator push, and/or have the shell's destination handler pop pushed routes before switching. Until then any OTHER page pushed the same way keeps the same trap; nightshade_ui's ScreenHeader also has no leading/back slot (screen_header.dart:8-22), which is why each screen has to hand-roll a back row.",
+  "needs_shared_change": "The general fix belongs in lib/router/app_router.dart + lib/screens/shell/app_shell.dart (neither in my ownership): give the collaborative mosaic detail a real GoRoute inside the ShellRoute instead of an imperative root-navigator push, and/or have the shell's destination handler pop pushed routes before switching. Until then any OTHER page pushed the same way keeps the same trap; skotiq_ui's ScreenHeader also has no leading/back slot (screen_header.dart:8-22), which is why each screen has to hand-roll a back row.",
   "caveats": ""
  }
 ]

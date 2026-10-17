@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/transient_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/transient_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -16,10 +16,10 @@ void main() {
   group('TransientHandlers', () {
     late ProviderContainer container;
     late TransientHandlers handlers;
-    late NightshadeDatabase database;
+    late SkotiqDatabase database;
 
     setUp(() {
-      database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      database = SkotiqDatabase.forTesting(NativeDatabase.memory());
       container = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(database)],
       );

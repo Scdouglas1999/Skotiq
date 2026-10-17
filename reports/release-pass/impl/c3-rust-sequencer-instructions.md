@@ -1,7 +1,7 @@
 # C3 — rust-sequencer-instructions
 
 Batch: `rust-sequencer-instructions`
-Scope: `native/nightshade_native/sequencer/src/instructions.rs` + its module tree
+Scope: `native/skotiq_native/sequencer/src/instructions.rs` + its module tree
 Date: 2026-08-13
 Plan followed: `reports/release-pass/map/rust-sequencer.md` §1.1
 
@@ -33,7 +33,7 @@ which is what rustc asked for.
 
 Every existing path survives: `crate::instructions::InstructionContext`,
 `crate::instructions::DEFAULT_MAX_SUN_ALTITUDE_DEGREES`, `lib.rs:72`'s
-`pub use instructions::*;`, and `nightshade_sequencer::instructions::{…}` as imported by
+`pub use instructions::*;`, and `skotiq_sequencer::instructions::{…}` as imported by
 `bridge/src/api/imaging.rs:183` all resolve exactly as before. No FRB regeneration is
 involved — the codegen lives in `bridge/` and none of its inputs moved.
 
@@ -136,17 +136,17 @@ The working tree could not be used as the verification target: two other C3 batc
 concurrently mid-split in the same crate (`sequencer/src/triggers/` and
 `sequencer/src/executor/`), leaving it transiently non-compiling for reasons unrelated to
 this batch. Verification therefore ran in an isolated copy of
-`native/nightshade_native/` carrying this batch's split and no other in-flight edit.
+`native/skotiq_native/` carrying this batch's split and no other in-flight edit.
 
-- `cargo check -p nightshade_sequencer --all-targets` — clean, 0 errors, 0 warnings.
+- `cargo check -p skotiq_sequencer --all-targets` — clean, 0 errors, 0 warnings.
 - `cargo check --workspace --all-targets` — 0 errors. The only warnings are pre-existing
   ones in `bridge/src/device_capabilities/mod.rs` (a C1/C2 split, untouched here).
-- `cargo test -p nightshade_sequencer` — **782 passed, 0 failed** in the lib target, plus
+- `cargo test -p skotiq_sequencer` — **782 passed, 0 failed** in the lib target, plus
   5 + 4 + 12 in the three integration targets and 1 ignored doc-test. Identical to the
   pre-split baseline captured before any file was moved.
 - Test inventory: `cargo test -- --list` gives 782 tests before and after; the 92
   `instructions::*` test names diff **identical** when compared on their leaf names.
-- Against the live working tree, `cargo check -p nightshade_sequencer --all-targets`
+- Against the live working tree, `cargo check -p skotiq_sequencer --all-targets`
   reports errors only in `executor/start.rs`, `executor/mod.rs` and `executor/tests/*` —
   the other batch's in-flight work. **Zero diagnostics point into `instructions/`.**
 
@@ -156,9 +156,9 @@ was invoked and no file outside `instructions/` was touched.
 
 ## Files
 
-Deleted: `native/nightshade_native/sequencer/src/instructions.rs`
+Deleted: `native/skotiq_native/sequencer/src/instructions.rs`
 
-Created (all under `native/nightshade_native/sequencer/src/instructions/`):
+Created (all under `native/skotiq_native/sequencer/src/instructions/`):
 `mod.rs`, `autofocus.rs`, `center.rs`, `context.rs`, `cooling.rs`, `cover_calibrator.rs`,
 `delay.rs`, `disconnect.rs`, `dither.rs`, `dome.rs`, `expose.rs`, `filter.rs`,
 `frame_context.rs`, `gating.rs`, `grading.rs`, `guiding.rs`, `meridian_flip.rs`,

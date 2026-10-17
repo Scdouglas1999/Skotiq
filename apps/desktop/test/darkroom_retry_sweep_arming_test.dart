@@ -20,13 +20,13 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/desktop_app_bootstrap.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/desktop_app_bootstrap.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late NightshadeDatabase database;
+  late SkotiqDatabase database;
   late ProviderContainer container;
 
   /// The overrides every case shares: the in-memory database and a keyring
@@ -39,7 +39,7 @@ void main() {
   ];
 
   setUp(() {
-    database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+    database = SkotiqDatabase.forTesting(NativeDatabase.memory());
     container = ProviderContainer(overrides: baseOverrides());
   });
 

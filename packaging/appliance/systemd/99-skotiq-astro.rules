@@ -1,0 +1,38 @@
+# Skotiq headless appliance USB access.
+#
+# Keep these rules narrower than vendor defaults: upstream SDKs often suggest
+# MODE="0666", but the appliance only needs the skotiq daemon group plus
+# logind/uaccess for an interactive desktop user.
+
+ACTION!="add|change", GOTO="skotiq_astro_end"
+
+# Increase usbfs buffering for high-throughput astronomy cameras. Ignore write
+# failures on hosts where usbfs_memory_mb is absent or locked down.
+SUBSYSTEM=="usb", ATTR{idVendor}=="03c3", RUN+="/bin/sh -c 'test -w /sys/module/usbcore/parameters/usbfs_memory_mb && echo 256 > /sys/module/usbcore/parameters/usbfs_memory_mb || true'"
+SUBSYSTEM=="usb", ATTR{idVendor}=="a0a0", RUN+="/bin/sh -c 'test -w /sys/module/usbcore/parameters/usbfs_memory_mb && echo 256 > /sys/module/usbcore/parameters/usbfs_memory_mb || true'"
+
+# Native astronomy camera/filter-wheel SDKs with vendor IDs present in bundled
+# vendor SDK rule files or headers:
+#   03c3 ZWO ASI/EAF/EFW
+#   1618 QHYCCD
+#   a0a0 Player One
+#   0547 ToupTek/Ogma-style cameras
+#   04b4/20e7/1e10 Atik and related camera/filter-wheel paths
+SUBSYSTEM=="usb", ATTR{idVendor}=="03c3", GROUP="skotiq", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="1618", GROUP="skotiq", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="a0a0", GROUP="skotiq", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="0547", GROUP="skotiq", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="04b4", GROUP="skotiq", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="20e7", GROUP="skotiq", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="1e10", GROUP="skotiq", MODE="0660", TAG+="uaccess"
+KERNEL=="hidraw*", ATTRS{idVendor}=="04d8", GROUP="skotiq", MODE="0660", TAG+="uaccess"
+
+# Common USB-serial chipsets used by mounts, focusers, rotators, GPS dongles,
+# and weather boxes. The daemon also joins dialout, but this keeps appliance
+# access deterministic on distributions with different tty group defaults.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", GROUP="skotiq", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", GROUP="skotiq", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="067b", GROUP="skotiq", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", GROUP="skotiq", MODE="0660", TAG+="uaccess"
+
+LABEL="skotiq_astro_end"

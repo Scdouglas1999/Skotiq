@@ -1,5 +1,5 @@
 {
-  "$comment": "Single source of truth for the Observatory design language. 03-tokens.md section 0 maps every key here to its Dart name; tools/check_tokens.py validates contrast and emits mockups/tokens.css. Change values HERE first, run the script, then mirror into nightshade_ui.",
+  "$comment": "Single source of truth for the Observatory design language. 03-tokens.md section 0 maps every key here to its Dart name; tools/check_tokens.py validates contrast and emits mockups/tokens.css. Change values HERE first, run the script, then mirror into skotiq_ui.",
   "version": "2.0.0",
   "palettes": {
     "dark": {

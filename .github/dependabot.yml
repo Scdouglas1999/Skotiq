@@ -14,7 +14,7 @@ updates:
           - "*"
 
   - package-ecosystem: cargo
-    directory: /native/nightshade_native
+    directory: /native/skotiq_native
     schedule:
       interval: weekly
       day: monday

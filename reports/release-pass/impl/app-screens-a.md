@@ -17,12 +17,12 @@ Fresh re-proof (`grep -rnw --include="*.dart" <symbol> packages apps tools nativ
 | `AddProfileChip` | 4 (class, ctor, createState, State) | dead |
 
 File-path proof: `grep -rn "<basename>" --include="*.dart" packages apps tools native`
-- `sequence_enhancements` → only `nightshade_app.dart:62` (the barrel export)
+- `sequence_enhancements` → only `skotiq_app.dart:62` (the barrel export)
 - `playback_footer` → zero hits
 - `session_report_forensics_section` → zero hits
 
 No test references `CompactBackendSelector` or `ControlSection`
-(`grep -rn "CompactBackendSelector\|ControlSection" packages/nightshade_app/test tools` → empty),
+(`grep -rn "CompactBackendSelector\|ControlSection" packages/skotiq_app/test tools` → empty),
 so no test is deleted with them. `backend_selector_chips.dart` and `panel_widgets.dart` both survive
 (their other symbols are used, incl. by `tools/production/platform_capability_audit.dart`).
 
@@ -34,7 +34,7 @@ adjudicated item only authorises removing `AddProfileChip`, so that is all I rem
 
 **Result:** deleted `sequence_enhancements.dart` (544), `playback_footer.dart` (334),
 `session_report_forensics_section.dart` (389) + the barrel export and its comment at
-`nightshade_app.dart:61-62`; removed `CompactBackendSelector` (108 lines,
+`skotiq_app.dart:61-62`; removed `CompactBackendSelector` (108 lines,
 `backend_selector_chips.dart`), `ControlSection` (33, `panel_widgets.dart`), `AddProfileChip` +
 `_AddProfileChipState` (66, `profile_chip.dart`). `unsupportedBackendReasonFor` (`@visibleForTesting`,
 used by `BackendSelectorChips`) was deliberately kept.
@@ -156,7 +156,7 @@ The predecessor's log above records items 1, 4 and 5 as done. Re-verified each o
   `ActiveBranchHighlight`, `RunDashboardPlaybackFooter`, `ForensicsRunSection`,
   `CompactBackendSelector`, `ControlSection`, `AddProfileChip`); **0** for the three basenames; and
   **0** for the same names in `*.json` / `*.yaml` / `*.rs` / `*.md` (no route table, registry or
-  string lookup). The barrel line at `nightshade_app.dart:62` is gone.
+  string lookup). The barrel line at `skotiq_app.dart:62` is gone.
 - **Item 4 — verified.** `hfr_sparkline_test.dart` → 7/7 pass.
 - **Item 5 — the fix was NOT on the tree.** Only the explanatory comment at
   `live_frame_panel.dart:752-756` survived the predecessor's file-truncation incident; the
@@ -217,7 +217,7 @@ the two rules genuinely disagreed and the allowlist is the one in force.
 
 ## Stray files
 
-`packages/nightshade_app/lib/screens/stack_result/stack_result_screen.dart.tmp.5604.de4da0067575`
+`packages/skotiq_app/lib/screens/stack_result/stack_result_screen.dart.tmp.5604.de4da0067575`
 exists but `stack_result/` is not in this batch's scope, so I left it for its owner.
 
 Note for whoever runs next: the session scratchpad
@@ -232,7 +232,7 @@ Targeted (all green):
 |---|---|
 | `science_settings_rows_test` + `science_settings_validation_test` + `settings_number_input_test` + `remote_settings_host_switch_test` | `+26: All tests passed!` |
 | `hfr_sparkline_test` + `live_frame_history_tile_key_test` + `live_frame_panel_unbounded_height_test` + `forensics_panel_test` + the four analytics thumbnail tests + `exposure_node_thumbnail_strip_test` + `captured_images_host_switch_test` | `+38: All tests passed!` |
-| `app_shell_settings_rebuild_test` | passes (it was blocked earlier in the session by another agent's mid-edit compile error in `nightshade_planetarium/.../content_sections.dart`, which cleared on retry) |
+| `app_shell_settings_rebuild_test` | passes (it was blocked earlier in the session by another agent's mid-edit compile error in `skotiq_planetarium/.../content_sections.dart`, which cleared on retry) |
 | `test/widgets/frame_thumbnail_test` | `+8: All tests passed!` |
 
 Whole-package `flutter test` reached `+3006 -48` before I stopped watching it. **None of the 48 is

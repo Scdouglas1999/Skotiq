@@ -7,8 +7,8 @@
   "what_happened": "With the planetarium plan panel open and the caret blinking in the 'Search objects, names...' field, typing 'Vega' deterministically leaves 'Va' in the field: the 'e' toggled the ecliptic layer on and the 'g' toggled the equatorial grid on instead of entering text. Typing the full lowercase alphabet 'abcdefghijklmnopqrstuvwxyz' left only 'abd' in the field - c/e/f/g/h/m/n/r are all bound to view actions (constellation lines, ecliptic, FOV overlay, grid, reset view, minimap, now) and after 'h' (reset view) the field lost focus entirely so i..z were dropped too. Reproduced at 30ms, 250ms, 400ms and 2000ms inter-key delays: it is a shortcut conflict, not a dropped-keystroke race.",
   "expected": "A focused text field must consume ordinary character keys. Planetarium single-letter hotkeys should be suppressed whenever the primary focus is a text input (Flutter: check FocusManager.instance.primaryFocus?.context?.widget is EditableText, or move the shortcuts into a Shortcuts/Actions scope that a TextField's own shortcut scope shadows).",
   "repro": "Plan Tonight > Planetarium > click the sidebar toggle (top right) > click the 'Search objects, names...' field > type Vega. Field shows 'Va'; the ecliptic line and the RA/Dec grid have both switched on behind the panel.",
-  "evidence": "/tmp/ns-audit/shots/r-planetarium-11.png (grid + ecliptic appeared while typing 'Vega'), /tmp/ns-audit/shots/r-planetarium-18.png ('Va' after 400ms/char), /tmp/ns-audit/shots/r-planetarium-19.png ('Va' after 2000ms/char), /tmp/ns-audit/shots/r-planetarium-20.png ('abd' after typing the whole alphabet). Handler: packages/nightshade_app/lib/screens/planetarium/planetarium_screen/actions.dart:507-624",
-  "where": "packages/nightshade_app/lib/screens/planetarium/planetarium_screen/actions.dart:551-600"
+  "evidence": "/tmp/ns-audit/shots/r-planetarium-11.png (grid + ecliptic appeared while typing 'Vega'), /tmp/ns-audit/shots/r-planetarium-18.png ('Va' after 400ms/char), /tmp/ns-audit/shots/r-planetarium-19.png ('Va' after 2000ms/char), /tmp/ns-audit/shots/r-planetarium-20.png ('abd' after typing the whole alphabet). Handler: packages/skotiq_app/lib/screens/planetarium/planetarium_screen/actions.dart:507-624",
+  "where": "packages/skotiq_app/lib/screens/planetarium/planetarium_screen/actions.dart:551-600"
  },
  {
   "title": "At a 1-degree imaging FOV the sky renders essentially empty - measured 1 star in 0.6 sq deg at astronomical dark",
@@ -19,7 +19,7 @@
   "expected": "An imaging-scale field is the whole point of a planetarium inside an astrophotography app - it is what you check framing and guide stars against. At 1 deg it should show tens of stars. The bundled catalog is the binding constraint, not the FOV-adaptive magnitude ramp, which the code intends to add up to +7 mag by 1 deg.",
   "repro": "Plan Tonight > Planetarium > wheel-zoom to FOV 1.0 deg > press TONIGHT in the time bar > look at the sky.",
   "evidence": "/tmp/ns-audit/shots/fov1-night2.png (the empty 800x400 field), /tmp/ns-audit/shots/fovzoom-2.png .. fovzoom-16.png (counts above). Bundled catalog: apps/desktop/.../assets/planetarium/catalogs/stars-hyg-v1/tiles = 3,458,592 bytes over 768 tiles, ~28.7 bytes/star -> ~119,600 stars = full HYG.",
-  "where": "packages/nightshade_planetarium/lib/src/providers/planetarium_providers/render_config.dart:434-489"
+  "where": "packages/skotiq_planetarium/lib/src/providers/planetarium_providers/render_config.dart:434-489"
  },
  {
   "title": "Object info popup keeps the old object's name and coordinates but recomputes Alt/Az for the NEW selection - it said Deneb was 'Below Horizon' while Deneb was 11.5 deg up",
@@ -30,7 +30,7 @@
   "expected": "The popup must either follow the new selection wholesale or close. Half-following - identity and catalogue coordinates from object A, live altitude/azimuth and the 'Below Horizon' warning from object B - is the worst of the three, because the visible result is a true-looking sentence about the wrong star.",
   "repro": "Plan Tonight > Planetarium. Click a bright star (Deneb) to open its info popup. Leave it open. In the right panel's Search tab type '6720' and click the M57 result. The popup still says Deneb but its Current Position row now reports M57's altitude and azimuth and flags 'Below Horizon'.",
   "evidence": "/tmp/ns-audit/shots/rp2-26.png (popup for Deneb: Alt 12.2, Az 320.1, 'Daylight'), /tmp/ns-audit/shots/rp2-33.png (after selecting M57: view centred at RA 18h53m35s Dec +33 01', popup still headed Deneb, Alt -10.3 Az 331.2 'Below Horizon'), /tmp/ns-audit/shots/rp2-34.png (74 s later: Deneb, -10.4, Az 331.4, still 'Below Horizon'). Computed truth at 14:51:01 UTC from 40N/105W: Deneb +11.46/320.93, M57 -10.33/331.20.",
-  "where": "packages/nightshade_app/lib/screens/planetarium/widgets/object_info_popup.dart"
+  "where": "packages/skotiq_app/lib/screens/planetarium/widgets/object_info_popup.dart"
  },
  {
   "title": "Planetarium hotkeys are dead unless a text field has focus - clicking the sky never restores it",
@@ -40,8 +40,8 @@
   "what_happened": "After clicking anywhere in the planetarium (the sky canvas, the command bar, a panel), every documented view hotkey stops working. With the sky clicked and an object selected, 15 presses of '=' left FOV at 28.9 deg (should zoom in), and 'h' (reset view) left the view at RA 8h25m/FOV 28.9 deg instead of resetting to zenith/FOV 60. The same keys DID fire minutes earlier, while the search text field held focus.",
   "expected": "Tapping the sky canvas should re-request focus for the planetarium Focus node so the documented shortcuts keep working; today only the initial autofocus works and the first click anywhere kills it permanently.",
   "repro": "Plan Tonight > Planetarium > click any star or empty sky > press '=' repeatedly, then 'h'. FOV readout at the bottom never changes.",
-  "evidence": "/tmp/ns-audit/shots/r-planetarium-32.png (FOV 28.9 after 15x '='), /tmp/ns-audit/shots/r-planetarium-33.png (FOV still 28.9 after 'h'). Source: Focus(autofocus:true, onKeyEvent:_handleKeyEvent) wraps a GestureDetector that never calls requestFocus - packages/nightshade_app/lib/screens/planetarium/planetarium_screen.dart:259-262",
-  "where": "packages/nightshade_app/lib/screens/planetarium/planetarium_screen.dart:259"
+  "evidence": "/tmp/ns-audit/shots/r-planetarium-32.png (FOV 28.9 after 15x '='), /tmp/ns-audit/shots/r-planetarium-33.png (FOV still 28.9 after 'h'). Source: Focus(autofocus:true, onKeyEvent:_handleKeyEvent) wraps a GestureDetector that never calls requestFocus - packages/skotiq_app/lib/screens/planetarium/planetarium_screen.dart:259-262",
+  "where": "packages/skotiq_app/lib/screens/planetarium/planetarium_screen.dart:259"
  },
  {
   "title": "Mouse-wheel zoom discards ~99% of scroll events - 172 notches move the FOV from 60 to 29 degrees",
@@ -51,8 +51,8 @@
   "what_happened": "Each wheel notch is supposed to zoom 1.15-1.2x. Measured live: 5 notches spaced 2.0s apart took FOV 28.9 -> 14.4 deg (exactly 1.15^5, correct). 12 notches spaced 0.3s took 60.0 -> 41.7 deg (the effect of ~2.6 notches). 120 notches spaced 0.05s took 34.7 -> 28.9 deg (the effect of ~1.3 notches out of 120). Spinning the wheel at any natural speed therefore barely zooms; it took 172 notches over two minutes to get from the default 60 deg to 28.9 deg, and there is no other zoom control on the desktop layout (no +/- buttons, no FOV field, and the '=' / '-' hotkeys are dead - see the focus finding).",
   "expected": "Successive wheel events must compound onto the pending zoom target, not restart the animation from the current (barely-moved) FOV. A user should reach an imaging FOV in a few flicks of the wheel.",
   "repro": "Plan Tonight > Planetarium > point at the sky > spin the wheel up 20 notches quickly, watch 'FOV (short axis)' in the bottom bar.",
-  "evidence": "/tmp/ns-audit/shots/r-planetarium-28.png (41.7 after 12 notches), -29.png (34.7 after 40 more), -31.png (28.9 after 120 more), -36.png (14.4 after 5 slow notches). Source: _animateZoom sets _startFOV = current provider FOV and calls _zoomController.forward(from:0) on every event - packages/nightshade_planetarium/lib/src/widgets/interactive_sky_view.dart:475-485,660-668",
-  "where": "packages/nightshade_planetarium/lib/src/widgets/interactive_sky_view.dart:475"
+  "evidence": "/tmp/ns-audit/shots/r-planetarium-28.png (41.7 after 12 notches), -29.png (34.7 after 40 more), -31.png (28.9 after 120 more), -36.png (14.4 after 5 slow notches). Source: _animateZoom sets _startFOV = current provider FOV and calls _zoomController.forward(from:0) on every event - packages/skotiq_planetarium/lib/src/widgets/interactive_sky_view.dart:475-485,660-668",
+  "where": "packages/skotiq_planetarium/lib/src/widgets/interactive_sky_view.dart:475"
  },
  {
   "title": "Layers panel claims stars brighter than mag 11.5 are available; the bundled catalog stops around mag 9",
@@ -62,8 +62,8 @@
   "what_happened": "The Layers panel row 'Deep stars (Tycho-2 / Gaia tier)' reads 'No tileset installed - stars below mag 11.5 are unavailable', which tells the user everything brighter than 11.5 IS drawn. Measured on-screen star density is 2.9/sq deg at every zoom level, which is the entire bundled HYG catalog and corresponds to a limit near mag 9. The constant behind the string, kHygFaintFloorMag = 11.5, is documented as 'the bundled HYG catalog's faint floor' and is also used as minMagnitude when querying the deep-star store, so even after installing a tileset the 9-11.5 gap would never be filled.",
   "expected": "State the real depth of what is installed (about mag 9) and set the merge seam there.",
   "repro": "Plan Tonight > Planetarium > Layers icon in the command bar > read the second row.",
-  "evidence": "/tmp/ns-audit/shots/r-planetarium-30.png; density measurements in the previous finding. packages/nightshade_planetarium/lib/src/providers/deep_star_providers.dart:25-28,91",
-  "where": "packages/nightshade_app/lib/screens/planetarium/widgets/redesign/layers_panel.dart:440"
+  "evidence": "/tmp/ns-audit/shots/r-planetarium-30.png; density measurements in the previous finding. packages/skotiq_planetarium/lib/src/providers/deep_star_providers.dart:25-28,91",
+  "where": "packages/skotiq_app/lib/screens/planetarium/widgets/redesign/layers_panel.dart:440"
  },
  {
   "title": "Home button tooltip says 'Reset view (center 0,0, FOV 60)' but the action centres on the zenith",
@@ -73,8 +73,8 @@
   "what_happened": "The command bar's home button is labelled 'Reset view (center 0,0, FOV 60)'. The action it runs (_resetView) deliberately centres on the observer's zenith instead - the code comment says RA 0/Dec 0 'sat 14 deg BELOW the horizon, so reset view pointed the map at the ground'. The tooltip was not updated with the fix.",
   "expected": "Tooltip should read 'Reset view (zenith, FOV 60)'.",
   "repro": "Plan Tonight > Planetarium > hover the house icon in the command bar.",
-  "evidence": "packages/nightshade_app/lib/screens/planetarium/widgets/redesign/command_bar.dart:78 vs actions.dart:649-658. Observed live: pressing the reset hotkey moved the centre to RA 8h17m31s / Dec +40 00' at LST 08:19 (the zenith), not 0,0 - /tmp/ns-audit/shots/r-planetarium-21.png",
-  "where": "packages/nightshade_app/lib/screens/planetarium/widgets/redesign/command_bar.dart:78"
+  "evidence": "packages/skotiq_app/lib/screens/planetarium/widgets/redesign/command_bar.dart:78 vs actions.dart:649-658. Observed live: pressing the reset hotkey moved the centre to RA 8h17m31s / Dec +40 00' at LST 08:19 (the zenith), not 0,0 - /tmp/ns-audit/shots/r-planetarium-21.png",
+  "where": "packages/skotiq_app/lib/screens/planetarium/widgets/redesign/command_bar.dart:78"
  },
  {
   "title": "Planetarium opens centred on RA 0h/Dec 0 - 25 degrees below the horizon at the configured site",
@@ -85,7 +85,7 @@
   "expected": "First paint should use the same home centre the reset action uses (skyViewHomeCenterProvider = zenith), so the user opens on sky that is actually up.",
   "repro": "Settings > Location > set lat 40, lon -105 > Plan Tonight > Planetarium. Read the bottom bar and the compass HUD.",
   "evidence": "/tmp/ns-audit/shots/r-planetarium-09.png - 'Center RA: 0h 0m 0s  Center Dec: +0 0'  FOV 60.0' with the compass rose showing 293 deg and the altitude gauge showing -25 deg; independently computed alt/az for RA 0/Dec 0 at 40N/105W at 18:30:10Z is alt -24.6, az 292.6.",
-  "where": "packages/nightshade_app/lib/screens/planetarium/planetarium_screen.dart"
+  "where": "packages/skotiq_app/lib/screens/planetarium/planetarium_screen.dart"
  },
  {
   "title": "Alt/az readouts ignore precession - stated positions are up to 1.4 degrees off",
@@ -96,7 +96,7 @@
   "expected": "Apply precession (and ideally refraction) before the horizontal transform. 26 years from J2000 is already ~22 arcmin of position, and the azimuth error near the zenith reaches 1.4 deg, which is enough to mis-call a meridian-flip or an obstruction check.",
   "repro": "Set the site to 40N 105W, open the planetarium at a known UTC, click Capella and Pollux, read 'Current Position'.",
   "evidence": "/tmp/ns-audit/shots/r-planetarium-22.png (Capella: HYG118360, RA 5h16m40.7s Dec +45 59' 52\", Alt 56.5 Az 295.7), /tmp/ns-audit/shots/r-planetarium-24.png (Pollux: HIP37826, RA 7h45m17.7s Dec +28 1' 33\", Alt 76.0 Az 214.0).",
-  "where": "packages/nightshade_planetarium (horizontal transform)"
+  "where": "packages/skotiq_planetarium (horizontal transform)"
  },
  {
   "title": "Clicking Capella opens an info popup titled 'HYG118360' while the chart labels the same star 'Capella'",
@@ -107,7 +107,7 @@
   "expected": "The popup heading should use the same proper name the chart uses, and the magnitude should match the catalogue value used to size the star.",
   "repro": "Plan Tonight > Planetarium > reset to zenith at ~18:38Z from 40N/105W > click the bright star labelled Capella.",
   "evidence": "/tmp/ns-audit/shots/r-planetarium-22.png vs /tmp/ns-audit/shots/r-planetarium-24.png",
-  "where": "packages/nightshade_app/lib/screens/planetarium/widgets/object_info_popup.dart"
+  "where": "packages/skotiq_app/lib/screens/planetarium/widgets/object_info_popup.dart"
  },
  {
   "title": "Moon is always drawn full and always labelled 'MOON 100%' - percent is fed into a 0-1 fraction and clamped",
@@ -117,8 +117,8 @@
   "what_happened": "On 2026-08-02 14:26:36 UTC from 40N/105W the planetarium drew the Moon as a solid, fully-lit white disc with the label 'MOON 100%'. The true illuminated fraction at that instant is 84.6% (independent Meeus computation, elongation 133.7 deg), and the app's own Dashboard Moon card says 'Waning Gibbous 84% illuminated' while Plan Tonight's target card says 'Moon is 79% illuminated'. Three surfaces, three different numbers, and the planetarium's is the one that is impossible. Root cause is a unit mismatch: AstronomyCalculations.moonIllumination() returns a PERCENT (0-100) and its doc comment says so, but SkyRenderer._drawMoon documents its third tuple element as 'illuminated fraction (0 = new, 1 = full)' and does rawIllumination.clamp(0.0, 1.0). Any real phase above 1% therefore clamps to exactly 1.0, so both the terminator geometry and the label are pinned at full moon for 29 of every 29.5 days. Only within a few hours of new moon does the value fall below 1 and render anything else - and then it renders a 1%-lit crescent as if it were 100%-scaled.",
   "expected": "The label should read the real illuminated percentage (84% here) and the disc should be drawn with the corresponding terminator, matching the Dashboard's Moon card.",
   "repro": "Settings > Location > lat 40, lon -105 > Plan Tonight > Planetarium. The Moon glyph is near the default 0h/0deg view. Read its label; then compare with Dashboard > Moon card.",
-  "evidence": "/tmp/ns-audit/shots/rp2-10.png (full white disc, label 'MOON 100%'), /tmp/ns-audit/shots/rp2-02.png (Dashboard: 'Waning Gibbous 84% illuminated'), /tmp/ns-audit/shots/rp2-07.png (Plan Tonight: 'Moon is 79% illuminated'). Source: packages/nightshade_planetarium/lib/src/astronomy/astronomy_calculations.dart:761-785 returns 0-100; packages/nightshade_planetarium/lib/src/rendering/sky_renderer/solar_system_and_markers.dart:481-486 clamps to 0..1 and :571 does (illumination * 100).round().",
-  "where": "packages/nightshade_planetarium/lib/src/rendering/sky_renderer/solar_system_and_markers.dart:481"
+  "evidence": "/tmp/ns-audit/shots/rp2-10.png (full white disc, label 'MOON 100%'), /tmp/ns-audit/shots/rp2-02.png (Dashboard: 'Waning Gibbous 84% illuminated'), /tmp/ns-audit/shots/rp2-07.png (Plan Tonight: 'Moon is 79% illuminated'). Source: packages/skotiq_planetarium/lib/src/astronomy/astronomy_calculations.dart:761-785 returns 0-100; packages/skotiq_planetarium/lib/src/rendering/sky_renderer/solar_system_and_markers.dart:481-486 clamps to 0..1 and :571 does (illumination * 100).round().",
+  "where": "packages/skotiq_planetarium/lib/src/rendering/sky_renderer/solar_system_and_markers.dart:481"
  },
  {
   "title": "'Best Targets Tonight' transit times are computed for the night after tomorrow - every time is ~8 minutes wrong",
@@ -128,8 +128,8 @@
   "what_happened": "On 2026-08-02 at 40N/105W the Tonight sidebar listed IC311 with transit 09:24 and NGC6685 with transit 00:48. Selecting each object shows its coordinates in the bottom bar: IC311 = RA 3h16m46s Dec +40d00', NGC6685 = RA 18h39m58s Dec +39d58'. The true meridian crossings for those coordinates at lon -105 are 09:32 / 00:57 tonight (2026-08-02) and 09:28 / 00:53 the next night. The app's numbers match neither - they match 2026-08-04 (09:24 / 00:49), i.e. two sidereal days of drift. Root cause: bestTargetsProvider passes imagingTime = twilight.astronomicalDusk as the 'date', and at this site astronomical dusk falls at 00:00-00:02 LOCAL, so its calendar day is already tomorrow; calculateObjectVisibility then builds its search window as DateTime(date.year, date.month, date.day, 12) + 24h, i.e. noon TOMORROW to noon the day after. Whether the list slips a day therefore depends on whether dusk lands before or after local midnight, which flips with longitude-within-timezone, DST and season - so the same code is right in winter and a day out in summer. The app also contradicts itself on the same screen: with NGC6685 selected, the sidebar's Info tab reports 'Transit 00:52' for the very object whose Best-Targets card two tabs away says 00:48.",
   "expected": "The visibility window for 'tonight' should start at the local noon preceding the dusk being planned for (or simply take a night-start date, not a dusk timestamp). Transit for IC311 tonight is 09:32, not 09:24.",
   "repro": "Settings > Location > lat 40, lon -105 > Plan Tonight > Planetarium > open the right sidebar > Tonight tab > scroll to 'Best Targets Tonight'. Note the transit time of a row, then click the row and read 'Center RA/Dec' in the bottom bar; compute the meridian crossing for that RA at that longitude.",
-  "evidence": "/tmp/ns-audit/shots/rp2-14.png (IC311 90 deg 09:24, NGC5311 19:58, NGC5313 19:59, IC4155 19:13, NGC6685 00:48), /tmp/ns-audit/shots/rp2-15.png (IC311 selected: Center RA 3h16m46s, Center Dec +40 00'), /tmp/ns-audit/shots/rp2-16.png (NGC6685 selected: Center RA 18h39m58s, Center Dec +39 58'). Source: packages/nightshade_planetarium/lib/src/providers/planetarium_providers/mosaic_targets.dart:145-159 and astronomy_calculations.dart:1024-1025. /tmp/ns-audit/shots/rp2-17.png (Info tab for NGC6685: Transit 00:52) against rp2-14.png (Best Targets card for NGC6685: 00:48).",
-  "where": "packages/nightshade_planetarium/lib/src/providers/planetarium_providers/mosaic_targets.dart:146"
+  "evidence": "/tmp/ns-audit/shots/rp2-14.png (IC311 90 deg 09:24, NGC5311 19:58, NGC5313 19:59, IC4155 19:13, NGC6685 00:48), /tmp/ns-audit/shots/rp2-15.png (IC311 selected: Center RA 3h16m46s, Center Dec +40 00'), /tmp/ns-audit/shots/rp2-16.png (NGC6685 selected: Center RA 18h39m58s, Center Dec +39 58'). Source: packages/skotiq_planetarium/lib/src/providers/planetarium_providers/mosaic_targets.dart:145-159 and astronomy_calculations.dart:1024-1025. /tmp/ns-audit/shots/rp2-17.png (Info tab for NGC6685: Transit 00:52) against rp2-14.png (Best Targets card for NGC6685: 00:48).",
+  "where": "packages/skotiq_planetarium/lib/src/providers/planetarium_providers/mosaic_targets.dart:146"
  },
  {
   "title": "The command bar's 'Search' button (and its Ctrl/Cmd+K shortcut) never focuses the search field, and does not even switch the panel to the Search tab",
@@ -139,8 +139,8 @@
   "what_happened": "With the right-hand plan panel already open on the Info tab, clicking the command bar's 'Search  \u2318K' button only showed a 'Search the sky' tooltip: the panel stayed on the Info tab and the caret was not placed in 'Search objects, names...'. Typing 'Albireo' immediately after produced nothing in the field. Selecting the Search tab by hand left the field still unfocused - typing 'Albireo' again produced nothing, the panel kept showing its 'Search for objects / Try \"M42\", \"Andromeda Galaxy\", or \"Sirius\"' empty state. Ctrl+K and Super+K also did nothing. Source: the handler is _openPlanPanelOnSearch, which on desktop sets _planPanelOpen = true and _layersPanelOpen = false and stops - it never selects the search tab and never requests focus for the text field.",
   "expected": "A control labelled Search with a keyboard-shortcut badge should open the panel ON the search tab with the caret in the field, so the user can type immediately. Finding an object by name is the single most common thing anyone does in a planetarium; it currently takes three separate clicks (open panel, Search tab, click into the field) before the first keystroke.",
   "repro": "Plan Tonight > Planetarium > open the right sidebar and select any tab except Search > click the 'Search  \u2318K' button in the command bar > type 'Albireo'. Nothing is entered. Repeat after clicking the Search tab: still nothing.",
-  "evidence": "/tmp/ns-audit/shots/rp2-27.png (tooltip shown, panel unchanged), /tmp/ns-audit/shots/rp2-28.png (still on Info tab, field empty after typing 'Albireo'), /tmp/ns-audit/shots/rp2-29.png (Search tab selected by hand, field still empty after typing 'Albireo'), /tmp/ns-audit/shots/rp2-30.png (empty after Ctrl+K + 'M42'), /tmp/ns-audit/shots/rp2-31.png (empty after Super+K + 'M42'). Source: packages/nightshade_app/lib/screens/planetarium/widgets/redesign/planetarium_shell.dart:437-447.",
-  "where": "packages/nightshade_app/lib/screens/planetarium/widgets/redesign/planetarium_shell.dart:443"
+  "evidence": "/tmp/ns-audit/shots/rp2-27.png (tooltip shown, panel unchanged), /tmp/ns-audit/shots/rp2-28.png (still on Info tab, field empty after typing 'Albireo'), /tmp/ns-audit/shots/rp2-29.png (Search tab selected by hand, field still empty after typing 'Albireo'), /tmp/ns-audit/shots/rp2-30.png (empty after Ctrl+K + 'M42'), /tmp/ns-audit/shots/rp2-31.png (empty after Super+K + 'M42'). Source: packages/skotiq_app/lib/screens/planetarium/widgets/redesign/planetarium_shell.dart:437-447.",
+  "where": "packages/skotiq_app/lib/screens/planetarium/widgets/redesign/planetarium_shell.dart:443"
  },
  {
   "title": "After picking a search result the list silently re-runs on the object's name while the box still shows the typed query",
@@ -151,7 +151,7 @@
   "expected": "Either leave the result list exactly as typed (so the user can pick a second object from the same search), or clear the field when the query is replaced. Showing results for a query the box does not contain means 'back' from a wrong pick lands the user in a list they never asked for.",
   "repro": "Plan Tonight > Planetarium > right panel > Search tab > click the field > type '6720' > click the M57 row > look at the field and the list.",
   "evidence": "/tmp/ns-audit/shots/rp2-32.png (query '6720': 175 results, Deep Sky Objects (6) = M57, NGC7107, IC728, NGC7112, IC5118, IC59), /tmp/ns-audit/shots/rp2-33.png and /tmp/ns-audit/shots/rp2-35.png (query still '6720', list is now M57, M7, M47, 57 Cygnus, 57 Gemini, 57 Pegasus, 57 Virgo, 57 Ursa Major).",
-  "where": "packages/nightshade_app/lib/screens/planetarium/widgets/mobile_widgets/search_sheet.dart"
+  "where": "packages/skotiq_app/lib/screens/planetarium/widgets/mobile_widgets/search_sheet.dart"
  },
  {
   "title": "The Alt/Az view toggle throws away where you were looking and jumps the chart to the zenith",
@@ -162,7 +162,7 @@
   "expected": "Changing the coordinate frame is a change of grid, not a change of target. The same patch of sky should stay under the cursor, just with the horizon-aligned grid and the up-vector rotated - that is what Stellarium and SkySafari do. If the app genuinely cannot express the current centre in the alt/az frame (e.g. the target is below the horizon) it should say so rather than silently slewing the view.",
   "repro": "Plan Tonight > Planetarium > centre on any object and zoom to a narrow FOV > click the second command bar icon ('Alt/Az view'). Read Center RA / Center Dec in the bottom bar and compare with the LST in the status bar and the site latitude.",
   "evidence": "/tmp/ns-audit/shots/rp2-37.png (before: Center RA 18h53m35s, Dec +33 01', FOV 2.0), /tmp/ns-audit/shots/rp2-40.png (immediately after the toggle: Center RA 4h42m52s, Dec +39 59', tooltip 'Alt/Az view - tap for Equatorial', LST 04:43 in the status bar), /tmp/ns-audit/shots/rp2-41.png (toggled back: 18h53m35s / +33 01'), /tmp/ns-audit/shots/rp2-42.png (toggled again: 4h43m52s / +39 59' at LST 04:44).",
-  "where": "packages/nightshade_app/lib/screens/planetarium/widgets/redesign/command_bar.dart"
+  "where": "packages/skotiq_app/lib/screens/planetarium/widgets/redesign/command_bar.dart"
  },
  {
   "title": "The app states three different, all-wrong depths for the bundled star catalog: 'mag <= 15.0', '~mag 11.5' and 'below mag 11.5 unavailable'",
@@ -173,18 +173,18 @@
   "expected": "State the completeness limit, not the faintest entry: about mag 9 for HYG. And make the three surfaces agree.",
   "repro": "Plan Tonight > Planetarium > command bar Layers icon > 'Deep stars (Tycho-2 / Gaia tier)' > Install > read the HYG card, then scroll to the Deep-Star Tier card.",
   "evidence": "/tmp/ns-audit/shots/rp2-51.png (HYG card: Objects 119.6k, Package Complete, Depth mag <= 15.0), /tmp/ns-audit/shots/rp2-56.png (Deep-Star Tier card: 'below the bundled HYG floor (~mag 11.5)'), /tmp/ns-audit/shots/rp2-43.png (Layers panel: 'No tileset installed - stars below mag 11.5 are unavailable'), /tmp/ns-audit/shots/rp2-37.png (the measured field at FOV 2.0).",
-  "where": "packages/nightshade_planetarium/lib/src/providers/deep_star_providers.dart:25"
+  "where": "packages/skotiq_planetarium/lib/src/providers/deep_star_providers.dart:25"
  },
  {
   "title": "'Install' on the deep-star tier leads to a form asking the user to build and self-host a tileset - no tileset exists to install",
   "severity": "P2",
   "kind": "defect",
   "unit": "screen:planetarium/layers_panel.dart",
-  "what_happened": "The Layers panel row 'Deep stars (Tycho-2 / Gaia tier)' carries a button labelled 'Install'. Pressing it opens Catalog Settings; scrolling to the matching card reveals 'Deep-Star Tier (Tycho-2 / Gaia)' with an empty 'Tileset base URL' text field, a Download button, and the line 'No official tileset is published yet - point this at a tileset you host yourself (see tools/catalog_prep in the Nightshade repository).' So the button named Install cannot install anything: the user is expected to clone the repo, run a catalog-preparation tool, and stand up a web server. Meanwhile the same row is what the app blames for the empty sky at imaging FOVs.",
+  "what_happened": "The Layers panel row 'Deep stars (Tycho-2 / Gaia tier)' carries a button labelled 'Install'. Pressing it opens Catalog Settings; scrolling to the matching card reveals 'Deep-Star Tier (Tycho-2 / Gaia)' with an empty 'Tileset base URL' text field, a Download button, and the line 'No official tileset is published yet - point this at a tileset you host yourself (see tools/catalog_prep in the Skotiq repository).' So the button named Install cannot install anything: the user is expected to clone the repo, run a catalog-preparation tool, and stand up a web server. Meanwhile the same row is what the app blames for the empty sky at imaging FOVs.",
   "expected": "Either publish and host the tileset (the DSS survey layer already proves the app can fetch remote sky data), or stop calling the button 'Install' - label it 'Configure source...' and say up front that no public tileset exists. As shipped this is the single biggest gap between what the planetarium claims and what it can draw.",
   "repro": "Plan Tonight > Planetarium > Layers > Install (on the Deep stars row) > scroll Catalog Settings to 'Deep-Star Tier (Tycho-2 / Gaia)'.",
   "evidence": "/tmp/ns-audit/shots/rp2-43.png (the Install button), /tmp/ns-audit/shots/rp2-56.png (the card it leads to, with the empty Tileset base URL field and the 'No official tileset is published yet' note).",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/deep_star_catalog_card.dart"
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/deep_star_catalog_card.dart"
  },
  {
   "title": "Planets are computed for the equinox of date but stars and DSOs are drawn at J2000 - the two are mixed on one chart, so planets sit ~22 arcmin off the star background",
@@ -195,7 +195,7 @@
   "expected": "One reference frame for everything on the chart. Either precess the catalog to the epoch of observation before projecting (correct, and it also fixes the alt/az error already filed), or express the planetary ephemeris in J2000. Mixing them is worse than either.",
   "repro": "Settings > Location 40N 105W > Plan Tonight > Planetarium > press the home/reset icon so the zenith is centred > click Jupiter and read its Coordinates, then click a bright star and read its Coordinates. The planet is equinox-of-date, the star is J2000.",
   "evidence": "/tmp/ns-audit/shots/rp2-66.png (Jupiter: RA 8h 39m 30.9s, Dec +18 53' 53\", Alt 38.1, Az 96.9, drawn beside 'M44 - Beehive'), /tmp/ns-audit/shots/rp2-26.png (Deneb: RA 20h 41m 25.9s, Dec +45 16' 49\" = J2000 exactly). Computation: J2000 Jupiter 8h37m58.3s/+18d59'31\"; precessed 8h39m29.5s/+18d53'50\"; alt/az from precessed 38.11/96.94 vs from J2000 38.46/97.12.",
-  "where": "packages/nightshade_planetarium/lib/src/astronomy/astronomy_calculations.dart"
+  "where": "packages/skotiq_planetarium/lib/src/astronomy/astronomy_calculations.dart"
  },
  {
   "title": "Planets are typed as 'Star' in the object popup and written to the observation log that way, and the popup shows the internal id 'PLANET_Jupiter'",
@@ -205,8 +205,8 @@
   "what_happened": "Clicking Jupiter opens a popup headed 'Jupiter' with an identifier chip reading 'PLANET_Jupiter', 'mag -1.8' and a 'Type' field that says 'Star'. Logging an observation from that popup persists the same mistake: the row written to observation_logs is (object_name 'Jupiter', object_type 'star', catalog_id 'PLANET_Jupiter', ra 8.65857 h, dec 18.898, altitude 38.68, azimuth 97.48, rating 3, seeing good, transparency good, latitude 40, longitude -105). So the app's permanent observing record classifies a planet as a star, and the user-visible catalogue identifier is an internal enum token rather than a designation anyone would recognise.",
   "expected": "Type should read 'Planet' and the chip should show something meaningful (or nothing) rather than the internal key. object_type in observation_logs should be 'planet' so the log can later be filtered or exported (an observing log is data the user keeps for years).",
   "repro": "Plan Tonight > Planetarium > press home to centre the zenith > click Jupiter. Read the Type row and the chip. Then Log Observation > Log Observation, and read the observation_logs table.",
-  "evidence": "/tmp/ns-audit/shots/rp2-67.png and /tmp/ns-audit/shots/rp2-69.png (popup: 'Jupiter', chip 'PLANET_Jupiter', 'Type: Star'). DB after saving: sqlite3 /tmp/ns-audit/r-planetarium/data/nightshade.db 'select * from observation_logs' -> 1|1785683758|Jupiter|star|PLANET_Jupiter|8.65857259173372|18.8980441804957|38.6778254522709|97.4768462200507||3||good|good||40.0|-105.0",
-  "where": "packages/nightshade_app/lib/screens/planetarium/widgets/object_info_popup.dart"
+  "evidence": "/tmp/ns-audit/shots/rp2-67.png and /tmp/ns-audit/shots/rp2-69.png (popup: 'Jupiter', chip 'PLANET_Jupiter', 'Type: Star'). DB after saving: sqlite3 /tmp/ns-audit/r-planetarium/data/skotiq.db 'select * from observation_logs' -> 1|1785683758|Jupiter|star|PLANET_Jupiter|8.65857259173372|18.8980441804957|38.6778254522709|97.4768462200507||3||good|good||40.0|-105.0",
+  "where": "packages/skotiq_app/lib/screens/planetarium/widgets/object_info_popup.dart"
  },
  {
   "title": "Your Sky says '1 region imaged' for a region that has zero frames, zero tiles and zero seconds of integration",
@@ -217,7 +217,7 @@
   "expected": "'1 region' (or '1 region, none imaged yet'). The count should say what it counts; 'imaged' is a claim about captured data that the same screen contradicts twice.",
   "repro": "Plan Tonight > Discover > Your Sky > Name a region > Custom RA/Dec > RA 283.4, Dec 33.03, name anything > Create region. Read the Regions header against the Atlas coverage tiles.",
   "evidence": "/tmp/ns-audit/shots/rp2-77.png ('Atlas coverage 0s / 0 / 0' above 'Regions - 1 region imaged' above a card reading 'Ring Region  18h 54m . +33 02'  0s  0 tiles').",
-  "where": "packages/nightshade_app/lib/screens/your_sky/your_sky_screen.dart"
+  "where": "packages/skotiq_app/lib/screens/your_sky/your_sky_screen.dart"
  },
  {
   "title": "'Name a region' keeps showing the validation error 'Pick a target first.' after you switch to the Custom RA/Dec mode that has no target to pick",
@@ -228,6 +228,6 @@
   "expected": "Clear the validation message when the mode changes or any field is edited, and disable Create region while the form cannot be submitted (rather than enabling it and explaining afterwards).",
   "repro": "Plan Tonight > Discover > Your Sky > Name a region > Create region (error appears) > switch to 'Custom RA/Dec' > fill RA/Dec/name. The error is still displayed.",
   "evidence": "/tmp/ns-audit/shots/rp2-74.png (error in 'From a target' mode), /tmp/ns-audit/shots/rp2-75.png (still shown after switching to Custom RA/Dec), /tmp/ns-audit/shots/rp2-76.png (still shown with RA 283.4, Dec 33.03 and 'Ring Region' filled in).",
-  "where": "packages/nightshade_app/lib/screens/your_sky/your_sky_screen.dart"
+  "where": "packages/skotiq_app/lib/screens/your_sky/your_sky_screen.dart"
  }
 ]

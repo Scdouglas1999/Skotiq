@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_bridge/nightshade_bridge.dart' as bridge_error;
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
@@ -40,7 +40,7 @@ class DepthLockHandlers {
   Future<T> _translating<T>(Future<T> Function() action) async {
     try {
       return await action();
-    } on bridge_error.NightshadeError catch (error, stackTrace) {
+    } on bridge_error.SkotiqError catch (error, stackTrace) {
       final reason = describeBackendError(error);
       final code = _depthLockErrorCode(reason);
       throw HandlerFailure(

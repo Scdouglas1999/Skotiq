@@ -47,17 +47,17 @@
 	<!--
 	  App Group. Shared UserDefaults container used by:
 	    * AppDelegate.swift watch-complication snapshot publisher
-	      (UserDefaults(suiteName: "group.com.nightshade.app")), and
-	    * the NightshadeAppIntents / voice-control snapshot.
+	      (UserDefaults(suiteName: "group.com.skotiq.app")), and
+	    * the SkotiqAppIntents / voice-control snapshot.
 	  AppDelegate.swift fails loudly with `app_group_unavailable` if this
 	  entitlement is absent, so it must be present on the Runner target AND on
 	  every extension target that reads the suite. The App Group itself must be
 	  created in the Apple Developer portal and enabled on the App ID — see
-	  docs/ios-release-setup.md and NightshadeWatchComplication/SETUP.md.
+	  docs/ios-release-setup.md and SkotiqWatchComplication/SETUP.md.
 	-->
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.nightshade.app</string>
+		<string>group.com.skotiq.app</string>
 	</array>
 </dict>
 </plist>

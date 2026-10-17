@@ -398,7 +398,7 @@
  ],
  "shell": [
   "screen:shell/app_shell.dart",
-  "screen:shell/nightshade_bottom_navigation.dart",
+  "screen:shell/skotiq_bottom_navigation.dart",
   "screen:shell/session_sharing.dart"
  ],
  "stack_result": [

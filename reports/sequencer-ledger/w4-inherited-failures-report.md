@@ -10,8 +10,8 @@ workstream's brief names `19a6a5a86`, and `git rev-parse --short HEAD` in the wo
 returned `19a6a5a86`. Worked from `19a6a5a86` per the brief; nothing was detached or
 re-checked-out.
 
-Scope: the ten tests in `packages/nightshade_app` that were already failing on the base
-commit. Nothing under `packages/nightshade_app/lib/screens/sequencer` or its tests was
+Scope: the ten tests in `packages/skotiq_app` that were already failing on the base
+commit. Nothing under `packages/skotiq_app/lib/screens/sequencer` or its tests was
 touched (another agent owns it).
 
 ---
@@ -54,7 +54,7 @@ string does not exist anywhere in the repo.
   where it labelled nothing.
 - The legend half was not. A **penalty score** is the one number on that surface a
   reader cannot infer the direction of: 0 is a clean optical train, 100 is the worst
-  measured, and every other figure in Nightshade reads better as it rises.
+  measured, and every other figure in Skotiq reads better as it rises.
 
 And the legend had in fact survived the removal — on `_HealthGradeCard`, directly above
 the two `_ScoreBar`s whose figures it reads. But it was wrong there in two ways:
@@ -73,7 +73,7 @@ the two `_ScoreBar`s whose figures it reads. But it was wrong there in two ways:
 
 **Product fix** (`lib/screens/diagnostics/diagnostics_screen/health_summary_cards.dart`):
 the legend becomes `'Lower scores are better.'`, the hint sentence goes, and the raw
-`TextStyle(fontSize: fontSize11, …)` becomes the named `NightshadeTypography.captionSm`.
+`TextStyle(fontSize: fontSize11, …)` becomes the named `SkotiqTypography.captionSm`.
 
 **Test fix** (`test/screens/analytics/analytics_empty_state_test.dart`): the assertion
 was pinned in a harness where the widget it names cannot exist — `DiagnosticsTabContent`
@@ -105,7 +105,7 @@ Evidence, in order of weight:
    `framing_hips_layer_wiring_test.dart:329` both carry `tags: 'golden'` — a per-test
    tag on the single golden case inside a file that otherwise holds non-golden geometry
    guards (all of which pass).
-2. **`packages/nightshade_app/dart_test.yaml`** declares that tag with the reason:
+2. **`packages/skotiq_app/dart_test.yaml`** declares that tag with the reason:
    *"Pixel-diff / capture golden tests whose baselines are host-specific… EXCLUDED from
    `melos run test` (Linux CI + default local runs) via `--exclude-tags golden`."*
 3. **`melos.yaml:318`** — `test` runs `flutter test --exclude-tags golden`; `test:golden`
@@ -158,18 +158,18 @@ on the canonical host, per `docs/testing/golden-tests.md`.
 **Cause.** `discovery_panel.dart` wraps the drawer's head row in
 `SizedBox(height: _discoveryHeadHeight)` where `_discoveryHeadHeight = 44.0` *("The
 drawer's head row height, per 06 §Equipment")*. Below `_discoveryHeadCompactWidth`
-(520 px) the two labelled scan buttons collapse to `NightshadeIconButton`s, and that
+(520 px) the two labelled scan buttons collapse to `SkotiqIconButton`s, and that
 control already does the right thing — `math.max(widget.extent,
-NightshadeTouchTarget.minExtent(context))` grows its interactive box to 48 on a touch
+SkotiqTouchTarget.minExtent(context))` grows its interactive box to 48 on a touch
 platform. But a `Row` can only hand down the height it was itself given, so the 48-tall
 box was squeezed back to 44 by the fixed-height parent. Width 48, height 44 — exactly
 what the test reported.
 
 **Fix.** The sheet's 44 is a *pointer* height. The row now takes
-`math.max(_discoveryHeadHeight, NightshadeTouchTarget.minExtent(context))`: 44 on
+`math.max(_discoveryHeadHeight, SkotiqTouchTarget.minExtent(context))`: 44 on
 desktop (`minExtent` returns 0 there, so the mockup's density is untouched), 48 on a
 phone. This is the helper's documented contract, used the same way
-`NightshadeIconButton` uses it.
+`SkotiqIconButton` uses it.
 
 The test's assertion is right as written and was not touched.
 
@@ -226,8 +226,8 @@ full `FlutterErrorDetails`; the scratch file was deleted, nothing of it is commi
   (`constraints.maxHeight < 120`), and the controls bar *did* zero its vertical padding
   in response. That is not enough: the overflowing `RenderFlex` is the controls bar's
   own `Row`, at **49 px** against a 29 px slot — a 20 px overflow, exactly as reported.
-- The 49 is the **Filters chip**: `_ControlChip` → `NightshadeFilterChip` →
-  `NightshadeTouchTarget.hitBox`, which is a 48 dp interactive box on a touch platform,
+- The 49 is the **Filters chip**: `_ControlChip` → `SkotiqFilterChip` →
+  `SkotiqTouchTarget.hitBox`, which is a 48 dp interactive box on a touch platform,
   plus the bar's 1 px hairline. Zeroing padding cannot buy 48 px out of 29.
 
 **Fix.** `07:237` — *"Do not scale fonts down to make something fit. Reduce content or
@@ -238,7 +238,7 @@ let it scroll."* Vertical space is the constraint, so content reduces:
   only signal that survives an outer shell consuming the insets on its behalf, which is
   the whole point of the test.
 - It drops the Filters chip (and, below the desktop breakpoint, the sort with it) when
-  `availableHeight < max(NightshadeFilterChip.height, NightshadeTouchTarget.minExtent) +
+  `availableHeight < max(SkotiqFilterChip.height, SkotiqTouchTarget.minExtent) +
   hairline` — i.e. only when the slot genuinely cannot hold one, never merely because a
   keyboard is up. The filters return the moment it closes, and nothing loses its control
   permanently: they all live in the Filters sheet either way.
@@ -256,7 +256,7 @@ always been true.
 ## Commands and exit codes
 
 All unpiped, `TMPDIR=$HOME/.cache/ns-tmp/w4-inherited-failures`, from
-`packages/nightshade_app` unless noted.
+`packages/skotiq_app` unless noted.
 
 | Command | Exit | Result |
 |---|---|---|
@@ -267,7 +267,7 @@ All unpiped, `TMPDIR=$HOME/.cache/ns-tmp/w4-inherited-failures`, from
 | `flutter test test/screens/planner --concurrency=3` | 0 | 109 pass |
 | `flutter test test/screens/analytics/analytics_empty_state_test.dart --concurrency=3` | 0 | 7 pass |
 | `flutter test test/screens/diagnostics test/screens/analytics test/screens/equipment --concurrency=3` | 0 | 457 pass |
-| `dart analyze` (in `packages/nightshade_app`) | 2 | **890 issues — identical to the documented baseline of 890; zero new** |
+| `dart analyze` (in `packages/skotiq_app`) | 2 | **890 issues — identical to the documented baseline of 890; zero new** |
 | `dart format --output=none --set-exit-if-changed <touched files>` | 0 | clean |
 
 `dart analyze` exits 2 whenever any `info` is present; the number, not the exit code, is
@@ -292,7 +292,7 @@ one `melos run test` and CI actually execute — is 3753 / 0.
 
 No test outside the ten changed verdict in either direction, and the sequencer directory
 is untouched at 688: this workstream wrote nothing under
-`packages/nightshade_app/lib/screens/sequencer` or its tests.
+`packages/skotiq_app/lib/screens/sequencer` or its tests.
 
 ---
 

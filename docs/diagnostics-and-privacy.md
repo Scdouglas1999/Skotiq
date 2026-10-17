@@ -1,6 +1,6 @@
 # Diagnostics and Privacy
 
-How Nightshade 4.1.0 produces logs and diagnostic data, what that data can
+How Skotiq 4.1.0 produces logs and diagnostic data, what that data can
 contain, and how to share it safely. This applies to the desktop app, the
 headless server (Pi / embedded appliance), and the mobile companion that
 reads logs over the LAN.
@@ -13,11 +13,11 @@ If you are configuring remote access, read this alongside
 
 ## Where logs live and who can read them
 
-Nightshade writes a structured log through `LoggingService`. Entries land in
+Skotiq writes a structured log through `LoggingService`. Entries land in
 three places:
 
 - **On-disk log files** under the platform app-data directory. The Rust
-  `tracing` appender rolls daily (`nightshade.log`, `nightshade.log.YYYY-MM-DD`).
+  `tracing` appender rolls daily (`skotiq.log`, `skotiq.log.YYYY-MM-DD`).
   These files are **not auto-pruned** — they accumulate until an operator
   clears them. Anyone with filesystem or SSH access to the host can read them.
 - **An in-memory ring buffer** (the most recent ~1000 entries), surfaced for
@@ -83,7 +83,7 @@ value, do not):
 - Notification or push credentials (FCM/APNs registration tokens, etc.).
 - Passwords or API keys.
 
-> Note on scope: Nightshade's push notifications use the platform FCM/APNs
+> Note on scope: Skotiq's push notifications use the platform FCM/APNs
 > channels, so there are **no** Pushover/Discord/webhook URLs or third-party
 > API keys stored or logged by this build. If such integrations are added
 > later, their secrets fall under the redaction rules below.

@@ -1,7 +1,7 @@
 # C3 — mechanical file splits: `rust-devices`
 
 Batch: `rust-devices`
-Scope: `native/nightshade_native/{indi,alpaca,ascom,native}/**`, files > 1500 lines
+Scope: `native/skotiq_native/{indi,alpaca,ascom,native}/**`, files > 1500 lines
 Plan source: `reports/release-pass/map/rust-devices.md` §1
 Branch: `audit/end-to-end-campaign`, started from `b07d91c9d` (tree green).
 
@@ -197,7 +197,7 @@ widening below is **crate-internal**; the crates' public surfaces are byte-ident
 - **Test-count preservation**: `#[test]`/`#[tokio::test]` counts per group are
   unchanged (61→61 indi client, 24→24 alpaca camera, 19→19 alpaca client,
   15/12/33/11/10/7/1/1/16/7/13 for the vendors).
-- **`cargo test -p nightshade_indi -p nightshade_alpaca -p nightshade_native`**:
+- **`cargo test -p skotiq_indi -p skotiq_alpaca -p skotiq_native`**:
   **348 passed, 0 failed, 20 ignored** across 8 test binaries. No test file was
   edited (no import lines needed changing — every test module moved with its
   `use super::*;` intact).

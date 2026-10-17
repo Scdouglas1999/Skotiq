@@ -92,7 +92,7 @@ def main() -> int:
         if c < AA:
             failures.append(f"{name}: onStart on startFill = {c:.2f}:1")
         for sw in p.get("accentSwatches", []):
-            ink = "#0B0D12" if luminance(sw) > 0.1791 else "#FFFFFF"   # NightshadeColors._prefersDarkInk
+            ink = "#0B0D12" if luminance(sw) > 0.1791 else "#FFFFFF"   # SkotiqColors._prefersDarkInk
             c_fill = contrast(ink, sw)
             c_text = min(contrast(sw, p["bg"]), contrast(sw, p["surface"]))
             flag = "" if (c_fill >= AA and c_text >= AA) else "  <-- FAIL"

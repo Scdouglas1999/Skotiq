@@ -8,7 +8,7 @@
   "what_happened": "Checking 'Morning Report' in the Dashboard Widgets dialog produced no visible tile anywhere on the dashboard (both columns scrolled to the end). The widget returns SizedBox.shrink() when there are no completed runs, so on a fresh profile the toggle reads as broken.",
   "expected": "Either render an empty state ('No completed runs yet - last night's accepted/rejected counts will appear here'), consistent with how Storage and Last Run already do it, or mark the row in the picker as unavailable with the reason.",
   "repro": "Dashboard -> Edit Dashboard -> Widgets -> check Morning Report -> Done -> scroll both columns.",
-  "where": "packages/nightshade_app/lib/screens/dashboard/widgets/cockpit_morning_report.dart:30",
+  "where": "packages/skotiq_app/lib/screens/dashboard/widgets/cockpit_morning_report.dart:30",
   "location_wrong": null,
   "proposed_fix": "Render the tile with an empty state rather than shrinking it, so the picker toggle and the dashboard agree.",
   "verdict_reasoning": null
@@ -22,7 +22,7 @@
   "what_happened": "Every error readout in the wizard is a raw arcsecond count with one decimal: the Adjust Mount card said 'Azimuth Left 427.6\"', 'Altitude Up 2287.9\"', 'Total Error 2327.5\"', and the completion screen said 'Final error: 1800.0 arcseconds'. A user turning altitude/azimuth bolts thinks in arcminutes and degrees; converting 2287.9 arcsec to 38' in their head, in the dark, while the number updates every 3 s, is not reasonable.",
   "expected": "Format adaptively as NINA/SharpCap do: <60\" -> arcsec, <60' -> arcmin+arcsec (38' 08\"), above that degrees+arcmin (0deg 38' 08\"). Keep the bare arcsecond figure only near the threshold where it is the meaningful unit.",
   "repro": "Run TPPA to the adjust phase and read the Adjust Mount card and the completion headline.",
-  "where": "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_measurement_panel.dart and the completion panel",
+  "where": "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_measurement_panel.dart and the completion panel",
   "location_wrong": null,
   "proposed_fix": "One shared formatter (formatAngleError) used by the adjust card, the summary, the right-rail totals and the history rows.",
   "verdict_reasoning": null
@@ -36,7 +36,7 @@
   "what_happened": "Clicking 'History' in the top-right of the Polar Alignment screen highlights the button (primary variant) but produces no visible change anywhere on screen: the Alignment History card is appended to the BOTTOM of the left configuration column, below Essential/Common/Advanced, and with Common+Advanced expanded it sits past the bottom of the viewport. I had to scroll the left column ~10 wheel clicks to discover it existed.",
   "expected": "Toggling History should scroll/animate the panel into view, or open it as an overlay/right-rail panel. A header toggle whose only effect is off-screen is indistinguishable from a dead control.",
   "repro": "Polar Alignment -> expand Common and Advanced -> click History (top right). Compare /tmp/ns-audit/shots/rw-116.png (before) and rw-117.png (after) - identical apart from the button tint. Then scroll the left column: /tmp/ns-audit/shots/rw-118.png shows the panel.",
-  "where": "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_configuration_panel.dart:54-57 (history appended after the collapsible sections) and _screen_shell.dart:31-36 (the toggle)",
+  "where": "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_configuration_panel.dart:54-57 (history appended after the collapsible sections) and _screen_shell.dart:31-36 (the toggle)",
   "location_wrong": null,
   "proposed_fix": "On toggleHistoryPanel(true), animate the config ScrollController to the panel; or move history to the top of the column / into the right rail where the empty space already is.",
   "verdict_reasoning": null
@@ -50,7 +50,7 @@
   "what_happened": "All-Sky measures polar error from the drift between a baseline solve and the current solve (native all_sky_polar/mod.rs keeps the baseline fixed and re-solves every 3 s). Its precision is therefore entirely a function of elapsed baseline, but the screen never shows elapsed time, iteration count, or a confidence indicator. In my run the headline number went 0.0\\\" (green, 'Within acceptance') at ~8 s, then 40104\\\" (11 degrees) at the next sample, then settled near 1376\\\". A user watching only the reticle would have believed all three.",
   "expected": "Show elapsed baseline time and iteration count next to the error, and withhold the acceptance verdict until the baseline is long enough for the number to mean anything (SharpCap's drift routine does exactly this).",
   "repro": "Polar Alignment -> All-Sky -> Start Alignment; watch the right-rail Azimuth/Altitude/Total tiles from the first solve onward.",
-  "where": "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_right_panel.dart; native/nightshade_native/sequencer/src/all_sky_polar/mod.rs",
+  "where": "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_right_panel.dart; native/skotiq_native/sequencer/src/all_sky_polar/mod.rs",
   "location_wrong": null,
   "proposed_fix": "Publish elapsed-baseline seconds and sample count in the progress event and render them; gate the green 'Within acceptance' caption on a minimum baseline.",
   "verdict_reasoning": null
@@ -64,7 +64,7 @@
   "what_happened": "With an All-Sky run in progress I clicked Hemisphere 'South' and Binning '4x4'. Neither changed (they correctly stayed North / 2x2 - the run is not corrupted), but nothing indicated why: no dimming, no tooltip, no snackbar. The whole Essential/Common/Advanced column renders at full contrast during a run.",
   "expected": "Dim/disable the configuration column while a run is active, with a tooltip such as 'Stop the alignment to change settings'.",
   "repro": "Start an alignment, then click South and 4x4 in the left column. Compare /tmp/ns-audit/shots/rw-128.png (during run, controls at full contrast) with /tmp/ns-audit/shots/rw-129.png (after the clicks - unchanged).",
-  "where": "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_configuration_panel.dart",
+  "where": "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_configuration_panel.dart",
   "location_wrong": null,
   "proposed_fix": "Wrap the column in AbsorbPointer + Opacity keyed on phase != idle, with an explanatory tooltip.",
   "verdict_reasoning": null
@@ -78,7 +78,7 @@
   "what_happened": "After finishing a TPPA run and pressing Done (which navigates back to Imaging), re-entering Imaging -> Mount -> Three-Point Polar Alignment reopens straight onto the old completion screen: green tick, 'Alignment Complete', 'Final error: 1800.0 arcseconds', Before/After summary. The only way to get the instructions back is to press Restart.",
   "expected": "Entering the wizard should show the idle/instructions state; the previous result belongs in the History panel, which already exists.",
   "repro": "Run TPPA to completion -> Done -> Imaging -> Mount -> Three-Point Polar Alignment.",
-  "where": "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_screen_shell.dart / polarAlignmentStateProvider lifetime",
+  "where": "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_screen_shell.dart / polarAlignmentStateProvider lifetime",
   "location_wrong": null,
   "proposed_fix": "Reset the alignment state to idle on screen dispose (or on entry) once the result has been persisted to history.",
   "verdict_reasoning": null
@@ -92,9 +92,9 @@
   "what_happened": "Frame Count is a -/+ stepper with a step of 1 and the number itself is not editable: I clicked the number, pressed Ctrl+A, typed '3' and pressed Enter, and it stayed at 30. Getting from the default 30 to 5 took 25 clicks on '-'. There is no keyboard entry, no long-press acceleration, and no presets.",
   "expected": "Make the number a text field (as the Exposure and Gain fields elsewhere in the app are), or add hold-to-repeat and 5/10-step presets. NINA and SGP both take a typed count.",
   "repro": "Flat Wizard -> Quick Capture -> click the Frames number, Ctrl+A, type 3, Enter -> it stays 30. Then click '-' and watch it fall by 1 per click.",
-  "where": "packages/nightshade_app/lib/screens/flat_wizard/tuning_controls.dart",
+  "where": "packages/skotiq_app/lib/screens/flat_wizard/tuning_controls.dart",
   "location_wrong": null,
-  "proposed_fix": "Replace the read-only number with a NightshadeNumberField; keep the steppers for fine adjustment.",
+  "proposed_fix": "Replace the read-only number with a SkotiqNumberField; keep the steppers for fine adjustment.",
   "verdict_reasoning": null
  },
  {
@@ -106,7 +106,7 @@
   "what_happened": "In Quick Capture the two sliders are captioned 'Histogram Target' and 'Tolerance'. On the Multi-Filter Batch and Sky Flats tabs the same two sliders appear under a single 'Global Settings' heading with no captions at all - just '11%' and '+-10%' stacked above 'Frames:'. A user who has not visited Quick Capture cannot tell which is the target and which is the tolerance.",
   "expected": "Keep the same captions on every tab.",
   "repro": "Flat Wizard -> Multi-Filter Batch (or Sky Flats) -> scroll to Global Settings.",
-  "where": "packages/nightshade_app/lib/screens/flat_wizard/tuning_controls.dart",
+  "where": "packages/skotiq_app/lib/screens/flat_wizard/tuning_controls.dart",
   "location_wrong": null,
   "proposed_fix": "Reuse the captioned slider widget from Quick Capture on all three tabs.",
   "verdict_reasoning": null
@@ -120,7 +120,7 @@
   "what_happened": "The Sky Flats tab offers exactly Dawn/Dusk, a filter checklist with Auto-Order, a histogram target, a tolerance and a frame count. There is no twilight clock (the app already computes civil/nautical/astronomical twilight for the site - the Tonight card shows it), no 'start when the sky reaches N ADU' trigger, no window countdown, and no slew to the anti-solar point at ~75 deg altitude, which is where sky flats have to be taken. The user is left to eyeball when to press Start and to aim the scope themselves.",
   "expected": "Show 'Dusk flats: civil twilight 20:31, usable window 20:35-20:58 (23 min)' with a countdown and an arm-at-time option; offer 'slew to flat spot' (anti-solar azimuth, ~75 deg alt) as NINA's Sky Flat wizard does; auto-start when the measured sky ADU enters the target band.",
   "repro": "Flat Wizard -> Sky Flats. Observing location set to 40N/-105E; nothing on the tab refers to the sun, twilight or time.",
-  "where": "packages/nightshade_app/lib/screens/flat_wizard/ (Sky Flats tab)",
+  "where": "packages/skotiq_app/lib/screens/flat_wizard/ (Sky Flats tab)",
   "location_wrong": null,
   "proposed_fix": "Bind the tab to the existing twilight service and add an arm/countdown plus a flat-spot slew action.",
   "verdict_reasoning": null
@@ -134,7 +134,7 @@
   "what_happened": "'Start co-imaging session' asks for Target name, Center RA (degrees), Center Dec (degrees) and a radius as four free-text fields, with placeholder examples ('e.g. NGC 7000', 'e.g. 314.75 or 20:58:47'). There is no catalog search, no 'use the mount's current position', and no 'use the target I already have in Plan Tonight / the sequencer', even though the app has a 1082-target catalog search on the adjacent Recommendation tab and a connected mount reporting RA/Dec.",
   "expected": "A target field that searches the installed catalogs and fills RA/Dec (as Plan Tonight and Framing already do), plus a 'from mount' and 'from current sequence target' shortcut.",
   "repro": "Plan Tonight -> Discover -> Collaborate -> Start session.",
-  "where": "packages/nightshade_app/lib/screens/collaborative_sky/ (start-session dialog)",
+  "where": "packages/skotiq_app/lib/screens/collaborative_sky/ (start-session dialog)",
   "location_wrong": null,
   "proposed_fix": "Reuse the catalog autocomplete widget from the planner in this dialog.",
   "verdict_reasoning": null
@@ -148,7 +148,7 @@
   "what_happened": "Opening the mosaic I had just published (collab_role='owner' in my own DB, and the detail header lists me as the only contributor) shows a card titled 'Image with this club' reading 'Join this mosaic to mirror its panel grid into a local project, then claim open panels and capture them on your rig' with a 'Join mosaic' button. Pressing it correctly navigates to my existing local project and does not duplicate it (mosaic_projects still has exactly 1 row), but the wording tells the owner to join something they own.",
   "expected": "For collab_role='owner' the card should read 'Open the local project' / 'Manage panels'. Reserve 'Join mosaic' for mosaics owned by someone else.",
   "repro": "Publish a mosaic to a hub -> Plan Tonight -> Discover -> Collaborate -> Refresh -> tap the mosaic row.",
-  "where": "packages/nightshade_app/lib/screens/collaborative_sky/collab_mosaic_detail_screen.dart",
+  "where": "packages/skotiq_app/lib/screens/collaborative_sky/collab_mosaic_detail_screen.dart",
   "location_wrong": null,
   "proposed_fix": "Branch the CTA on the local project's collab_role.",
   "verdict_reasoning": null
@@ -162,7 +162,7 @@
   "what_happened": "The only claim affordance on the mosaic project screen is 'Claim all pending'. One click took all six panels (verified: 6 of 6 rows in the hub's collaborative_mosaic_panels now carry a claim_token, all assigned to AuditRig) and held them for the hub's full 12-hour claimTtl (mosaic_broker_service.dart:55). The panel list on the collaborative detail screen shows each panel's claim state but offers no per-panel claim/release control, so a member with one clear night has no way to take just the two panels they can actually shoot, and no way to hand back the rest short of releasing the whole project.",
   "expected": "Claim per panel from the panel card (with a 'claim N panels' bulk option), show a running 'you hold X of Y', and offer Release on each claimed panel. A 12-hour blanket claim by the first rig to open the project defeats the point of splitting the mosaic across a club.",
   "repro": "Publish a mosaic to a hub -> Claim all pending -> sqlite3 /tmp/ns-audit/hub/hub.db 'select count(*), sum(claim_token is not null) from collaborative_mosaic_panels' -> 6|6.",
-  "where": "packages/nightshade_app/lib/screens/mosaic/mosaic_project_screen.dart (collaborative section) and packages/nightshade_app/lib/screens/collaborative_sky/collab_mosaic_detail_screen.dart (panel rows)",
+  "where": "packages/skotiq_app/lib/screens/mosaic/mosaic_project_screen.dart (collaborative section) and packages/skotiq_app/lib/screens/collaborative_sky/collab_mosaic_detail_screen.dart (panel rows)",
   "location_wrong": null,
   "proposed_fix": "Add per-panel claim/release buttons to the panel rows and change the bulk action to 'Claim N panels...' with a count picker.",
   "verdict_reasoning": null
@@ -176,7 +176,7 @@
   "what_happened": "Analytics -> Projects -> 'Mosaic projects' opens a full-page list titled 'Multi-panel mosaics: capture, integrate, stitch' with rows and nothing else: no 'New mosaic' button, no back arrow, no hint that mosaics are created from the Framing sidebar (which itself only exposes the mosaic panel once camera pixel specs are configured - with a Simulated Camera connected the sidebar still said 'Camera Not Configured' and never showed a mosaic section).",
   "expected": "A 'New mosaic' action on the list (opening the same wizard Framing uses) and a back control. Otherwise the empty list is a dead end.",
   "repro": "Analytics -> Projects -> Mosaic projects.",
-  "where": "packages/nightshade_app/lib/screens/mosaic/mosaic_projects_list_screen.dart",
+  "where": "packages/skotiq_app/lib/screens/mosaic/mosaic_projects_list_screen.dart",
   "location_wrong": null,
   "proposed_fix": "Add a primary 'New mosaic' action that opens the mosaic wizard, and a leading back button.",
   "verdict_reasoning": null
@@ -190,7 +190,7 @@
   "what_happened": "Typing 'Smart Night' into the Settings search returned one result, 'Sequencer'. Clicking it opened the Sequencer settings page scrolled to the top, at 'Auto focus on filter change' - the Smart Night Defaults group was about 30 wheel-clicks further down, with no highlight and no anchor.",
   "expected": "Deep-link to the matched row and flash it, or list the matching rows rather than just the section.",
   "repro": "Settings -> search 'Smart Night' -> click the Sequencer result.",
-  "where": "packages/nightshade_app/lib/screens/settings/settings_search_index.g.dart consumers",
+  "where": "packages/skotiq_app/lib/screens/settings/settings_search_index.g.dart consumers",
   "location_wrong": null,
   "proposed_fix": "Carry the matched row key through the navigation and scroll/highlight it on arrival.",
   "verdict_reasoning": null

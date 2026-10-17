@@ -11,14 +11,14 @@ graphify query attempted: graph.json absent (hook satisfied).
 - Deleted the legacy `DarkLibraryService.findMatchingDark` / `FlatLibraryService.findBestMatch`
   branch; `calibrationLibrary` is now a required ctor arg and `darkLibrary`/`flatLibrary`/
   `darkTolerances` params + fields are gone (nothing else in the class used them).
-- Retargeted every ctor site at the live path: 3 core tests + 2 nightshade_app tests (the app-test
+- Retargeted every ctor site at the live path: 3 core tests + 2 skotiq_app tests (the app-test
   edits were forced by the required-arg change; they are mechanical arg swaps).
 - New regression test: "an unmatched master surfaces the library matcher warning on the outcome
   (no unwarned calibration path exists)" — fails on baseline because the legacy branch built a
   `ResolvedCalibration` with an empty `warnings` list.
 - Green: post_session_integration_service_test.dart 24/24; collaborative_mosaic_service_test +
   collaborative_mosaic_poller_test + mosaic_project_service_test 47/47;
-  nightshade_app collab_mosaic_publish_refresh_test + mosaic_project_controller_test 25/25.
+  skotiq_app collab_mosaic_publish_refresh_test + mosaic_project_controller_test 25/25.
 
 ## Item 2 — BUG: ConstellationClient._download had an unbounded body read + left partial files
 - Work-order line ref for the callers was wrong: `pullTile` uses `_send` (already bounded). The
@@ -114,11 +114,11 @@ graphify query attempted: graph.json absent (hook satisfied).
 - Green: mosaic_service_test.dart 45/45; `rg checkVisibilityConstraints` now returns nothing.
 
 ## Verification summary
-- packages/nightshade_core: `dart analyze lib` clean; `flutter test test/services` 2749 passed
+- packages/skotiq_core: `dart analyze lib` clean; `flutter test test/services` 2749 passed
   (4 skipped). `test/providers test/database` 1682 passed with one load flake in
   test/providers/sequence/rules/adaptive_exposure_rules_test.dart (a file outside my scope being
   edited concurrently); it passes 13/13 when run on its own.
 - apps/desktop: test/headless_api/backup_handlers_test.dart 7/7 (the `createBackup` signature
   change is source-compatible).
-- packages/nightshade_app: the two mosaic/collab test files I had to retarget 25/25.
+- packages/skotiq_app: the two mosaic/collab test files I had to retarget 25/25.
 - `dart format` clean on every file touched. No stray *.tmp.* files in scope.

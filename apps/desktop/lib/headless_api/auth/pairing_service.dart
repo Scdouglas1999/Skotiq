@@ -1,4 +1,4 @@
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart'
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show PairingDatabase, PairingResult, TokenManager;
 
 /// Outcome of a verify attempt against the [PairingService].

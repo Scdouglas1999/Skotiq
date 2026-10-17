@@ -1,8 +1,8 @@
 # Wave D verification — cluster: imaging-spine
 
 Harness: `tools/ui_audit/drive_linux.py`, display `:81`, profile `waveD-imaging-spine`,
-release bundle `apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`
-(libapp.so + libnightshade_bridge.so both dated Aug 13 18:31 — the fresh build).
+release bundle `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`
+(libapp.so + libskotiq_bridge.so both dated Aug 13 18:31 — the fresh build).
 Devices: built-in **Sim** driver (Simulated Camera / Mount / Focuser / Filter wheel / Guider).
 Optical train re-created to match the original run: 600 mm, 100 mm, 3.76 um -> **1.29 arcsec/px**.
 
@@ -44,12 +44,12 @@ Same repro. The top-left viewport chip renders **green with a tick: `Found 0 obj
 So a solve that produced no WCS is still reported to the user in the success treatment. Unchanged.
 
 *(Related improvement seen in passing, not a finding: the solver now copies the frame into a
-per-attempt scratch dir `/tmp/nightshade-solve-<pid>-N/` instead of writing `.ini` debris beside the
+per-attempt scratch dir `/tmp/skotiq-solve-<pid>-N/` instead of writing `.ini` debris beside the
 user's images — that is the SCI-48 shape, and it is fixed.)*
 
 ### IMG-14 (related detail: hinted solves) — PARTIALLY FIXED
 The log now shows the **position hint** on the first attempt:
-`Running ASTAP: … -f /tmp/nightshade-solve-1491575-0/Unknown_R_2026-08-13_0001.fits
+`Running ASTAP: … -f /tmp/skotiq-solve-1491575-0/Unknown_R_2026-08-13_0001.fits
  "-ra" "0.000000" "-spd" "90.000000" "-r" "30.00" "-z" "2" "-d" … "-wcs"`
 preceded by `Plate solving near RA:0.00°, Dec:0.00°`, and the blind attempt is now the **fallback**
 (second), not the first. That is the ordering the finding asked for.
@@ -272,7 +272,7 @@ state.
 - **Live Stacking Statistics** now group under `FRAMES` and `PIXELS REJECTED BY SIGMA CLIPPING`
   headings with `frames` / `px` units — the SCI-47 shape is closed.
 - **Plate-solve scratch files** no longer land in the capture folder; each attempt gets
-  `/tmp/nightshade-solve-<pid>-N/` (the SCI-48 shape).
+  `/tmp/skotiq-solve-<pid>-N/` (the SCI-48 shape).
 - **No layout exceptions** anywhere in the session: `RenderFlex` / `overflowed by` count **0**,
   at both 1600x900 and 900x900.
 

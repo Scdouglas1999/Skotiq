@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 import '../headless_api/auth/pairing_service.dart';
 import '../headless_api/auth_policy.dart';
@@ -60,7 +60,7 @@ Future<HeadlessApiServer> startHeadlessServices(
   // mid-flight.
   TlsProvisionResult? tlsProvision;
   if (tlsEnabled) {
-    final appData = await resolveNightshadeDataDirectory();
+    final appData = await resolveSkotiqDataDirectory();
     try {
       tlsProvision = await provisionTlsContext(
         appDataDirectory: appData.path,
@@ -214,12 +214,12 @@ Future<HeadlessApiServer> startHeadlessServices(
   // of the LAN-bind state because the cellular path reaches a phone hours from
   // the rig even when the server is loopback-only behind a reverse proxy. The
   // delivery is chosen from push_config.json (app-support dir, or the
-  // NIGHTSHADE_PUSH_CONFIG override): the real FCM/APNs senders activate when
+  // SKOTIQ_PUSH_CONFIG override): the real FCM/APNs senders activate when
   // the operator supplies a service-account JSON / .p8 key. With no cloud
   // channel the cellular path stays disabled; a would-send mock is permitted
   // only when the operator explicitly sets `mock:true` for development.
   try {
-    final pushAppSupportDir = await resolveNightshadeDataDirectory();
+    final pushAppSupportDir = await resolveSkotiqDataDirectory();
     final delivery = await apiServer.wireRemotePushDelivery(
       appSupportDir: pushAppSupportDir.path,
       log: (message) => logger.info(message, source: _headlessLogSource),

@@ -1,8 +1,8 @@
 # Optional vendor device SDKs for local Windows development
 
 Native camera/focuser/filter-wheel drivers are loaded at runtime by the native
-bridge (`native/nightshade_native/native/src/vendor/*`). The loader
-(`sdk_loader.rs`) searches **next to `nightshade_desktop.exe` first**, then the
+bridge (`native/skotiq_native/native/src/vendor/*`). The loader
+(`sdk_loader.rs`) searches **next to `skotiq_desktop.exe` first**, then the
 vendor's install path (`C:\Program Files\<vendor>\...`).
 
 The staging script does **not** copy this folder by default. For a local-only

@@ -2,8 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_bridge/nightshade_bridge.dart' as bridge;
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:path/path.dart' as path;
 import 'package:shelf/shelf.dart';
 
@@ -364,7 +364,7 @@ class ImagingHandlers {
       throw HandlerFailure(
         code: 'path_not_allowed',
         message:
-            'The FITS output path is outside Nightshade\'s configured '
+            'The FITS output path is outside Skotiq\'s configured '
             'filesystem roots',
         statusCode: HttpStatus.forbidden,
       );

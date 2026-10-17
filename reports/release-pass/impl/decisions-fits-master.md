@@ -86,12 +86,12 @@ route does not exist — noted as owed, not silently faked.
 
 | Suite | Verdict |
 | --- | --- |
-| `cargo test -p nightshade_imaging` (incl. new `tests/stack_master_fits.rs`) | 538 + 12 + 4 + 6 + 1 doc passed, 0 failed |
-| `cargo test -p nightshade_bridge --lib stacking_api` | 16 passed (2 new) |
-| `flutter test test/services/live_stacking_master_format_test.dart` etc. (nightshade_core) | 40 passed |
-| `flutter test test/screens/imaging/` (nightshade_app) | 243 passed |
+| `cargo test -p skotiq_imaging` (incl. new `tests/stack_master_fits.rs`) | 538 + 12 + 4 + 6 + 1 doc passed, 0 failed |
+| `cargo test -p skotiq_bridge --lib stacking_api` | 16 passed (2 new) |
+| `flutter test test/services/live_stacking_master_format_test.dart` etc. (skotiq_core) | 40 passed |
+| `flutter test test/screens/imaging/` (skotiq_app) | 243 passed |
 | `cargo fmt --all` | clean |
-| `cargo clippy -p nightshade_imaging / -p nightshade_bridge --all-targets` | no new warnings (the 3 doc-overindent + 3 bridge lints are pre-existing, in `platesolve.rs` / `plate_solve.rs` / `weather.rs` / `sim_capture.rs`) |
+| `cargo clippy -p skotiq_imaging / -p skotiq_bridge --all-targets` | no new warnings (the 3 doc-overindent + 3 bridge lints are pre-existing, in `platesolve.rs` / `plate_solve.rs` / `weather.rs` / `sim_capture.rs`) |
 | `flutter analyze` (core, app, bridge) | no errors |
 
 The first Rust test written was `headerless_stack_still_writes_exptime_and_date_obs`
@@ -102,10 +102,10 @@ The first Rust test written was `headerless_stack_still_writes_exptime_and_date_
 ## Wave hazards found while doing this (NOT fixed here)
 
 1. **`.gitignore:276 profiles/` swallows source directories.**
-   `packages/nightshade_core/lib/src/providers/profiles/{equipment_profile_model,
+   `packages/skotiq_core/lib/src/providers/profiles/{equipment_profile_model,
    equipment_profiles_notifier,profile_derived_providers}.dart` are **untracked**
    — they exist only in the main checkout. Every fresh worktree (and every fresh
-   clone) fails to compile `nightshade_core`. I copied them in locally to run the
+   clone) fails to compile `skotiq_core`. I copied them in locally to run the
    Dart tests; they are still ignored, so they are not in my diff. The rule needs
    narrowing (or a `!` negation for `lib/**/profiles/`) and the three files need
    committing by whoever owns that split.

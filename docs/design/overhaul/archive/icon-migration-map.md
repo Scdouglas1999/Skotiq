@@ -1,32 +1,32 @@
-# Screen icon-migration map (Material `Icons.*` → `NightshadeIcons` / Lucide)
+# Screen icon-migration map (Material `Icons.*` → `SkotiqIcons` / Lucide)
 
 > **Archived 2026-09-09.** This map records the Material → Lucide pass on the 7.0.0
 > screens, including the handful of glyphs it deliberately kept as Material. It is history,
-> not guidance. Lucide via `NightshadeIcons` is the icon family; see
+> not guidance. Lucide via `SkotiqIcons` is the icon family; see
 > [`../05-components.md`](../05-components.md) for how icons are sized and coloured.
 
 This is the canonical "Material icon → semantic icon" mapping for the
-per-directory migration of `packages/nightshade_app/lib/screens` onto the
-`nightshade_ui` design system. Lucide is the **go-forward** icon family (the
+per-directory migration of `packages/skotiq_app/lib/screens` onto the
+`skotiq_ui` design system. Lucide is the **go-forward** icon family (the
 node-palette and most screens already use `LucideIcons.*`); the remaining
 Material `Icons.*` call sites are the gap this pass closes.
 
-**Prefer the semantic role** (`NightshadeIcons.<role>`) — it names *intent*, not
+**Prefer the semantic role** (`SkotiqIcons.<role>`) — it names *intent*, not
 a glyph, so a later design change re-points every adopting site at once. Where no
 role is a clean fit, a bare `LucideIcons.<glyph>` is given. A handful of Material
 icons have **no clean Lucide equivalent**; those are flagged **KEEP MATERIAL** —
 do NOT substitute a misleading glyph for them.
 
-Surface: `packages/nightshade_ui/lib/src/theme/nightshade_icons.dart`
-(exported from `nightshade_ui.dart`). Lucide pkg: `lucide_icons ^0.257.0`.
+Surface: `packages/skotiq_ui/lib/src/theme/skotiq_icons.dart`
+(exported from `skotiq_ui.dart`). Lucide pkg: `lucide_icons ^0.257.0`.
 
 ## In-use Material icons (67 distinct)
 
-Counts are occurrences in `nightshade_app/lib/screens`. "Replacement" is the
+Counts are occurrences in `skotiq_app/lib/screens`. "Replacement" is the
 adopt target; an empty "role" column means use the bare `LucideIcons.*` glyph
 (no semantic role is a natural fit).
 
-| Material `Icons.*` | n | `NightshadeIcons` role | Lucide glyph (if no role) | Notes |
+| Material `Icons.*` | n | `SkotiqIcons` role | Lucide glyph (if no role) | Notes |
 |--------------------|---|------------------------|---------------------------|-------|
 | `refresh` | 6 | `refresh` | | |
 | `error_outline` | 6 | `error` | | outline → Lucide `xCircle` |
@@ -106,14 +106,14 @@ the glyph later.
 |--------------------|--------------------------|
 | `blur_circular` | Lucide has no "out-of-focus / Gaussian-blur disc" glyph; it conveys image *softness* (e.g. an FWHM/seeing indicator). `circle`/`disc` would read as a solid status dot and lose the blur semantics. |
 
-Everything else (66 of 67) maps cleanly to a `NightshadeIcons` role or a bare
+Everything else (66 of 67) maps cleanly to a `SkotiqIcons` role or a bare
 Lucide glyph. **`star_border`** is worth a note: Lucide icons are line-art, so
 the filled/outline Material distinction collapses to a single `star` — adopt
-`NightshadeIcons.star` and convey selection with color/fill at the call site.
+`SkotiqIcons.star` and convey selection with color/fill at the call site.
 
 ## Pinned mappings (test of record)
 
 A few load-bearing mappings are pinned in
-`packages/nightshade_ui/test/nightshade_icons_test.dart` so the semantic roles
+`packages/skotiq_ui/test/skotiq_icons_test.dart` so the semantic roles
 stay wired to their intended Lucide glyphs (a silent re-point would shift every
 adopting screen). Device/status/action roles are asserted there.

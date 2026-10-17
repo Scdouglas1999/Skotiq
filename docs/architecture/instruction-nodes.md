@@ -206,7 +206,7 @@ The new instruction is **NOT** required to be touched in `RuntimeNode::execute`
 ## Why not `inventory` for the registry?
 
 `inventory` requires global linker tricks that don't play well with the
-cdylib + staticlib combination used by `nightshade_bridge`. A hand-rolled
+cdylib + staticlib combination used by `skotiq_bridge`. A hand-rolled
 registry is explicit, debuggable, and easy to extend (one line per new
 instruction). See `InstructionRegistry::new` in `node/registry.rs`.
 

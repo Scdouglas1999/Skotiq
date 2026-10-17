@@ -1,5 +1,5 @@
 # =============================================================================
-# Nightshade 2.0 .gitignore
+# Skotiq 2.0 .gitignore
 # =============================================================================
 
 # =============================================================================
@@ -139,22 +139,22 @@ build/
 **/target/
 
 # Same path without the trailing slash, because `**/target/` matches only
-# DIRECTORIES. Developers here point native/nightshade_native/target at a
+# DIRECTORIES. Developers here point native/skotiq_native/target at a
 # shared cargo cache with a symlink, which git sees as a file, not a directory
 # — so the rule above let it through and a snapshot commit tracked a symlink
 # holding one machine's absolute cache path. Every worktree made from that
 # branch then materialised it as a plain text file (git's core.symlinks can be
 # false) and `cargo build` died with "Not a directory (os error 20)".
-/native/nightshade_native/target
+/native/skotiq_native/target
 **/*.rs.bk
 Cargo.lock
-!native/nightshade_native/Cargo.lock
+!native/skotiq_native/Cargo.lock
 
 # Negation: the Dart models/target/ directory holds source files (catalog
 # target types), not Rust build output. Without this, **/target/ above swallows
 # target_models.dart and the package fails to compile from a fresh clone.
-!packages/nightshade_core/lib/src/models/target/
-!packages/nightshade_core/lib/src/models/target/**
+!packages/skotiq_core/lib/src/models/target/
+!packages/skotiq_core/lib/src/models/target/**
 
 # But keep Cargo.lock for apps (not libraries) - uncomment if needed:
 # !apps/**/Cargo.lock
@@ -203,7 +203,7 @@ SDKs/
 
 # 17 MB JPL DE421 ephemeris kernel. No reader for it exists in any crate or
 # package; sun and moon positions come from the analytic series in
-# native/nightshade_native/sequencer/src/scheduling/ephemeris.rs.
+# native/skotiq_native/sequencer/src/scheduling/ephemeris.rs.
 /de421.bsp
 
 # =============================================================================
@@ -290,7 +290,7 @@ secrets.json
 # Profiles and User Data
 # =============================================================================
 # Anchored to the repo root on purpose: the bare `profiles/` form also
-# matched packages/nightshade_core/lib/src/providers/profiles/ and silently
+# matched packages/skotiq_core/lib/src/providers/profiles/ and silently
 # excluded three production source files from every commit.
 /profiles/
 
@@ -307,7 +307,7 @@ lcov.info
 # =============================================================================
 *.d
 .melos_tool/
-nightshade.db
+skotiq.db
 .worktrees/
 
 # HiPS framing verification scratch output (rendered PNGs for human inspection)
@@ -340,7 +340,7 @@ dist-release/
 
 # Local one-off analysis / desktop automation scratch
 /.narrative_hits.txt
-/.codex-kwin-focus-nightshade.js
+/.codex-kwin-focus-skotiq.js
 
 # Phase D — cellular push operator secrets (never committed). The FCM
 # service-account JSON and the APNs .p8 auth key are referenced by path from

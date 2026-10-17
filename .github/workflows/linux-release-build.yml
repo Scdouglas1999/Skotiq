@@ -6,7 +6,7 @@ on:
     paths:
       - '.github/workflows/linux-release-build.yml'
       - 'apps/desktop/**'
-      - 'native/nightshade_native/**'
+      - 'native/skotiq_native/**'
       - 'packages/**'
       - 'scripts/**'
       - 'tools/production/linux_release_package_metadata.dart'
@@ -39,7 +39,7 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: native/nightshade_native
+          workspaces: native/skotiq_native
 
       - name: Install Linux build dependencies
         run: |
@@ -80,8 +80,8 @@ jobs:
           # the melos build script runs `cargo build` then `flutter build` and
           # does NOT fail-fast if cargo fails, so a missing system dep would
           # otherwise silently produce a bundle that can't load its bridge.
-          if [ ! -e "$BUNDLE_LIB/libnightshade_bridge.so" ]; then
-            echo "libnightshade_bridge.so is MISSING from the bundle — the Rust build likely failed." >&2
+          if [ ! -e "$BUNDLE_LIB/libskotiq_bridge.so" ]; then
+            echo "libskotiq_bridge.so is MISSING from the bundle — the Rust build likely failed." >&2
             ls -l "$BUNDLE_LIB" >&2 || true
             exit 1
           fi
@@ -117,11 +117,11 @@ jobs:
             printf '%s\n' '# (no surface ever shows); XWayland is the path every tested launch'
             printf '%s\n' '# used. Force it until the Wayland surface path is fixed and proven.'
             printf '%s\n' 'export GDK_BACKEND=x11'
-            printf '%s\n' 'exec "$HERE/nightshade_desktop" "$@"'
-          } > "$BUNDLE/nightshade"
-          chmod +x "$BUNDLE/nightshade"
+            printf '%s\n' 'exec "$HERE/skotiq_desktop" "$@"'
+          } > "$BUNDLE/skotiq"
+          chmod +x "$BUNDLE/skotiq"
           echo "Bundle lib contents:"
-          ls -l "$BUNDLE_LIB" "$BUNDLE/nightshade"
+          ls -l "$BUNDLE_LIB" "$BUNDLE/skotiq"
 
       - name: Verify runnable-bundle parity with release.yml (sqlite + launcher)
         run: |
@@ -139,8 +139,8 @@ jobs:
           if [ -e "$BUNDLE_LIB/libsqlite3_flutter_libs_plugin.so" ]; then
             echo "UNEXPECTED: sqlite3_flutter_libs plugin still linked — remove the dependency" >&2; fail=1
           fi
-          if [ ! -x "$BUNDLE/nightshade" ]; then
-            echo "MISSING: $BUNDLE/nightshade launcher wrapper" >&2; fail=1
+          if [ ! -x "$BUNDLE/skotiq" ]; then
+            echo "MISSING: $BUNDLE/skotiq launcher wrapper" >&2; fail=1
           fi
           if [ "$fail" -ne 0 ]; then
             echo "::error::Linux release artifact diverges from release.yml — not a runnable cross-distro bundle (BUILD-002)." >&2
@@ -155,14 +155,14 @@ jobs:
           # Debian/Raspberry Pi OS Bookworm glibc 2.36 floor. Keep this guard so
           # a future runner or prebuilt library cannot silently raise the floor.
           # The Docker path performs the same check on Bookworm:
-          #   docker run --rm -e NIGHTSHADE_GLIBC_FLOOR=2.36 \
+          #   docker run --rm -e SKOTIQ_GLIBC_FLOOR=2.36 \
           #     -v "$PWD":/host:ro -v "$PWD/dist-linux":/out \
           #     debian:bookworm-slim bash /host/scripts/docker_build_linux.sh
-          FLOOR="${NIGHTSHADE_GLIBC_FLOOR:-2.36}"
+          FLOOR="${SKOTIQ_GLIBC_FLOOR:-2.36}"
           BUNDLE="apps/desktop/build/linux/x64/release/bundle"
           floor_major=${FLOOR%%.*}; floor_minor=${FLOOR#*.}
           violations=0
-          for bin in "$BUNDLE"/nightshade_desktop "$BUNDLE"/lib/*.so; do
+          for bin in "$BUNDLE"/skotiq_desktop "$BUNDLE"/lib/*.so; do
             [ -f "$bin" ] || continue
             maxv=$(objdump -T "$bin" 2>/dev/null \
               | grep -oE 'GLIBC_2\.[0-9]+' | sort -V | tail -1 || true)
@@ -184,7 +184,7 @@ jobs:
         run: |
           set -euo pipefail
           BUNDLE="apps/desktop/build/linux/x64/release/bundle"
-          cp LICENSE "$BUNDLE/NIGHTSHADE-LICENSE.txt"
+          cp LICENSE "$BUNDLE/SKOTIQ-LICENSE.txt"
           cp docs/THIRD_PARTY_NOTICES.md "$BUNDLE/THIRD_PARTY_NOTICES.md"
           printf '%s\n' "$GITHUB_SHA" > "$BUNDLE/SOURCE-COMMIT.txt"
           mkdir -p "$BUNDLE/LICENSES"
@@ -205,7 +205,7 @@ jobs:
           dart run tools/production/linux_release_package_metadata.dart \
             --bundle-dir=apps/desktop/build/linux/x64/release/bundle \
             --output-dir=build/release-linux \
-            --artifact-name=nightshade-linux-x64-${{ github.sha }}.tar.gz \
+            --artifact-name=skotiq-linux-x64-${{ github.sha }}.tar.gz \
             --metadata-output=docs/production-readiness/linux-release-package-metadata.json \
             --runtime-smoke-log=build/release-linux/headless-runtime-smoke.log \
             --runtime-smoke-passed \
@@ -214,7 +214,7 @@ jobs:
       - name: Upload Linux release package
         uses: actions/upload-artifact@v7
         with:
-          name: nightshade-linux-x64-${{ github.sha }}
+          name: skotiq-linux-x64-${{ github.sha }}
           path: |
             build/release-linux/*.tar.gz
             build/release-linux/*.sha256

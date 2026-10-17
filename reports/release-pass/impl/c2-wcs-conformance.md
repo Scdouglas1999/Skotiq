@@ -24,8 +24,8 @@ New shared fixture, read by both languages:
 
 New consumers:
 
-- `packages/nightshade_core/test/services/wcs_conformance_test.dart` (21 tests).
-- `native/nightshade_native/imaging/src/platesolve_wcs_conformance_tests.rs`
+- `packages/skotiq_core/test/services/wcs_conformance_test.dart` (21 tests).
+- `native/skotiq_native/imaging/src/platesolve_wcs_conformance_tests.rs`
   (4 tests), hooked in from `platesolve.rs` as
   `#[cfg(test)] #[path = …] mod wcs_conformance;` — declared inside the module
   because the parsers it pins (`fits_header_cards`, `parse_wcs_file_inner`) are
@@ -140,15 +140,15 @@ Pinning means a future guard has to update both sides at once.
 
 ## Verification
 
-- `cargo test -p nightshade_imaging wcs_conformance` → 4 passed / 0 failed.
-- `cargo test -p nightshade_imaging platesolve` → **41 passed / 0 failed** (the
+- `cargo test -p skotiq_imaging wcs_conformance` → 4 passed / 0 failed.
+- `cargo test -p skotiq_imaging platesolve` → **41 passed / 0 failed** (the
   8 pre-existing hand-rolled `.wcs` tests still pass unchanged).
-- `cargo test -p nightshade_bridge --lib sim_sky` → 16 passed / 0 failed /
+- `cargo test -p skotiq_bridge --lib sim_sky` → 16 passed / 0 failed /
   3 ignored (the doc-comment edit).
 - `flutter test test/services/wcs_conformance_test.dart` → `+21 All tests passed`.
 - `flutter test .../plate_solve_service_test.dart .../plate_solve_service_lifecycle_test.dart`
   plus the conformance suite → `+37 All tests passed` (existing suites unchanged).
-- `flutter analyze` (nightshade_core) → 2 issues, both pre-existing
+- `flutter analyze` (skotiq_core) → 2 issues, both pre-existing
   `deprecated_member_use` infos in `test/database/restore_clears_recovery_marker_test.dart`.
 - `dart run tools/production/placeholder_audit.dart --fail-on-new-highrisk …` →
   "No new high-risk markers compared to baseline."

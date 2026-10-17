@@ -32,7 +32,7 @@ the chip the operator actually reads is the widget's, so the screen was
 unchanged: a target at +9.8° under a 30° site minimum still read
 `Below horizon` beside its own correct sentence.
 
-* New `packages/nightshade_core/lib/src/services/scheduler/rejection_labels.dart`
+* New `packages/skotiq_core/lib/src/services/scheduler/rejection_labels.dart`
   — ONE classifier (`classifySchedulerRejection`) with two renderings
   (`schedulerRejectionChipLabel` for the chip, `schedulerRejectionSummary` for
   the decision record). Also fixes a latent bug the old widget ladder had:
@@ -77,7 +77,7 @@ every id they both know.
 Wave D put the reason in `Semantics(hint:)` and a widget test passed; the live
 AT-SPI probe returned `button: 'Edit Dashboard\nEdit Dashboard' desc=''
 states=['sensitive',…]` — enabled, no description, byte-identical to the enabled
-state. Two causes: `NightshadeButton` publishes its own node (so the wrapper was
+state. Two causes: `SkotiqButton` publishes its own node (so the wrapper was
 contradicted and the label doubled), and the Linux bridge does not carry `hint`.
 
 * `excludeSemantics: !canEdit` makes the wrapper the ONE node for the control.
@@ -115,13 +115,13 @@ contradicted and the label doubled), and the Linux bridge does not carry `hint`.
 ## Not done
 
 * **CON-56** (`NOW` / `TONIGHT` all-caps) — **BLOCKED.** The strings live in
-  `packages/nightshade_planetarium/lib/src/widgets/time_control_panel.dart`,
+  `packages/skotiq_planetarium/lib/src/widgets/time_control_panel.dart`,
   outside this batch's scope, and that file was **actively modified by another
   E-fix batch** during this run (`git status` showed it dirty with a 26-line
   diff). Editing it concurrently would have risked the clobber this batch
   already suffered once. Reassign to the sky-planetarium batch.
 * **WD-EQ-2 half (a)** — the disconnect TOAST still interpolates the raw id. The
-  template lives in `nightshade_core/services/notification/notification_router
+  template lives in `skotiq_core/services/notification/notification_router
   .dart` + `event_classifier.dart`, outside scope, and `event_classifier.dart`
   was being edited concurrently by the WD-SEQ-N1 batch (its sequencer-stop
   classification landed mid-run). I prepared the two-line fix
@@ -140,15 +140,15 @@ New: `target_score_row_status_test.dart`, `device_display_name_parity_test.dart`
 Rewritten: `edit_dashboard_refusal_test.dart` (three tests, now encoding the
 refuter's counter-checks).
 
-Green: those files, plus `nightshade_app` `test/widgets` (299),
+Green: those files, plus `skotiq_app` `test/widgets` (299),
 `test/utils/snackbar_placement_test.dart` + `transient_bottom_inset_test.dart`
 (10), `test/screens/analytics/widgets` (170),
 `test/screens/settings/help_tutorials_replay_hub_test.dart` (6),
 `test/screens/sequencer` + `test/screens/equipment` (no failures in the 798-test
-combined run), and `nightshade_core` `test/services/scheduler/` (144),
+combined run), and `skotiq_core` `test/services/scheduler/` (144),
 `test/utils` (132) and `sample_sequence_service_test.dart` (8).
 `flutter analyze` over every touched area of both packages: 0 errors, 0 warnings
-(11 pre-existing infos in nightshade_app, none in nightshade_core).
+(11 pre-existing infos in skotiq_app, none in skotiq_core).
 
 Pre-existing, unrelated: the whole `captures_*` golden suite fails on this
 machine — the documented Windows-captured-goldens-on-Linux problem. Proved, not

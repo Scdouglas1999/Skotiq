@@ -11,7 +11,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_migration_regression_audit_self_test_',
+    'skotiq_migration_regression_audit_self_test_',
   );
   try {
     await _writePassingFixture(temp);
@@ -74,12 +74,12 @@ Future<void> main() async {
 /// (process exit code -> audit issue) that the real suite drives in CI.
 Future<void> _runBehavioralCases(File script) async {
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_migration_regression_audit_behavioral_',
+    'skotiq_migration_regression_audit_behavioral_',
   );
   try {
     await _writePassingFixture(temp);
     await _writeFile(temp, 'pubspec.yaml', '''
-name: nightshade_migration_audit_behavioral_fixture
+name: skotiq_migration_audit_behavioral_fixture
 environment:
   sdk: '>=3.0.0 <4.0.0'
 dev_dependencies:
@@ -101,7 +101,7 @@ dev_dependencies:
       // behavioral signal under test.
       await _writeFile(
         temp,
-        'packages/nightshade_core/test/services/database_migration_test.dart',
+        'packages/skotiq_core/test/services/database_migration_test.dart',
         '$body\n${_requiredTestPresenceLiterals()}',
       );
       await _runAudit(
@@ -184,7 +184,7 @@ void main() {
 Future<void> _writePassingFixture(Directory root) async {
   await _writeFile(
     root,
-    'packages/nightshade_core/test/fixtures/synthetic_old_profile_fixtures.dart',
+    'packages/skotiq_core/test/fixtures/synthetic_old_profile_fixtures.dart',
     '''
 class SyntheticOldProfileFixture {
   Future<void> schema17WithCapturedImageMetadata() async {
@@ -219,7 +219,7 @@ class SyntheticOldProfileFixture {
   );
   await _writeFile(
     root,
-    'packages/nightshade_core/test/services/database_migration_test.dart',
+    'packages/skotiq_core/test/services/database_migration_test.dart',
     '''
 void main() {
   'synthetic schema 17 image fixture preserves metadata cascade';
@@ -253,10 +253,10 @@ void main() {
   );
   await _writeFile(
     root,
-    'packages/nightshade_core/tool/production_migration_probe.dart',
+    'packages/skotiq_core/tool/production_migration_probe.dart',
     '''
 void main() {
-  'NIGHTSHADE_OLD_DATABASE';
+  'SKOTIQ_OLD_DATABASE';
   'sourceSizeBytes';
   'sourceSha256';
   'copiedSourceSha256';
@@ -273,17 +273,17 @@ void main() {
 Future<void> _writeFailingFixture(Directory root) async {
   await _writeFile(
     root,
-    'packages/nightshade_core/test/fixtures/synthetic_old_profile_fixtures.dart',
+    'packages/skotiq_core/test/fixtures/synthetic_old_profile_fixtures.dart',
     'class SyntheticOldProfileFixture {}',
   );
   await _writeFile(
     root,
-    'packages/nightshade_core/test/services/database_migration_test.dart',
+    'packages/skotiq_core/test/services/database_migration_test.dart',
     'void main() {}',
   );
   await _writeFile(
     root,
-    'packages/nightshade_core/tool/production_migration_probe.dart',
+    'packages/skotiq_core/tool/production_migration_probe.dart',
     'void main() {}',
   );
 }

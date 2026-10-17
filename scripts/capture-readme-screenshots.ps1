@@ -1,7 +1,7 @@
 # Captures README screenshots from a built Windows desktop app and the headless web dashboard.
 #
 # Requires a Release (or Debug) build at:
-#   apps/desktop/build/windows/x64/runner/<Configuration>/nightshade_desktop.exe
+#   apps/desktop/build/windows/x64/runner/<Configuration>/skotiq_desktop.exe
 #
 # IMPORTANT: run this from an interactive desktop session (a normal PowerShell window
 # you can see). The app is a GPU-rendered Flutter desktop app; launched from a
@@ -17,7 +17,7 @@
 #   .\scripts\capture-readme-screenshots.ps1 -NavTop 96 -NavRow 56   # tune sidebar geometry
 #
 # The 11 desktop shots map 1:1 to the side-nav order in
-# packages/nightshade_app/lib/screens/shell/shell_navigation.dart. If a row lands on
+# packages/skotiq_app/lib/screens/shell/shell_navigation.dart. If a row lands on
 # the wrong screen, nudge -NavTop / -NavRow and re-run the affected -Only subset.
 
 param(
@@ -36,9 +36,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path | Split-Path -Parent
 $DesktopDir = Join-Path $ProjectRoot 'apps\desktop'
-$Exe = Join-Path $DesktopDir "build\windows\x64\runner\$Configuration\nightshade_desktop.exe"
+$Exe = Join-Path $DesktopDir "build\windows\x64\runner\$Configuration\skotiq_desktop.exe"
 $OutDir = Join-Path $ProjectRoot 'assets\screenshots'
-$HeadlessLog = Join-Path $env:TEMP 'nightshade-headless-screenshot.log'
+$HeadlessLog = Join-Path $env:TEMP 'skotiq-headless-screenshot.log'
 
 # Side-nav order (desktop). Index = position in ShellNavigation.primaryDestinations.
 # File = the committed README screenshot it replaces. Settle = extra ms to let the
@@ -179,7 +179,7 @@ function Get-AppWindowHandle {
         $h = $Process.MainWindowHandle
         if ($h -ne [IntPtr]::Zero) { return $h }
     }
-    throw "Nightshade process started but no main window handle (pid $($Process.Id))"
+    throw "Skotiq process started but no main window handle (pid $($Process.Id))"
 }
 
 function Wait-AppProcess {
@@ -189,14 +189,14 @@ function Wait-AppProcess {
     )
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
     while ((Get-Date) -lt $deadline) {
-        $proc = Get-Process -Name 'nightshade_desktop' -ErrorAction SilentlyContinue |
+        $proc = Get-Process -Name 'skotiq_desktop' -ErrorAction SilentlyContinue |
             Where-Object { $_.Id -ne $ParentPid -or $_.MainWindowHandle -ne 0 } |
             Sort-Object StartTime -Descending |
             Select-Object -First 1
         if ($proc) { return $proc }
         Start-Sleep -Milliseconds 400
     }
-    throw 'Timed out waiting for nightshade_desktop process'
+    throw 'Timed out waiting for skotiq_desktop process'
 }
 
 function Get-WindowRect {
@@ -260,7 +260,7 @@ function Save-Screen {
     }
 }
 
-Write-Host '==> Launching Nightshade desktop...' -ForegroundColor Cyan
+Write-Host '==> Launching Skotiq desktop...' -ForegroundColor Cyan
 $app = Start-Process -FilePath $Exe -WorkingDirectory (Split-Path $Exe) -PassThru
 try {
     $proc = Wait-AppProcess -ParentPid $app.Id
@@ -287,7 +287,7 @@ finally {
 
 if (-not $SkipWeb) {
     Write-Host '==> Capturing web dashboard (headless)...' -ForegroundColor Cyan
-    $HeadlessErr = Join-Path $env:TEMP 'nightshade-headless-screenshot.err.log'
+    $HeadlessErr = Join-Path $env:TEMP 'skotiq-headless-screenshot.err.log'
     if (Test-Path $HeadlessLog) { Remove-Item $HeadlessLog -Force }
     if (Test-Path $HeadlessErr) { Remove-Item $HeadlessErr -Force }
     $headless = Start-Process -FilePath $Exe `

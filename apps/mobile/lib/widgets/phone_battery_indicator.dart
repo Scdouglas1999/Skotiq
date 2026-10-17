@@ -15,7 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../services/battery_service.dart';
 
@@ -44,7 +44,7 @@ class PhoneBatteryIndicator extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     final isLowPower = state.isLowPower;
     final tint = isLowPower
         ? (colors.error)

@@ -38,13 +38,13 @@ still runs instead of throwing `StateError`.
   partial file is deliberately left on disk because the next attempt resumes it via
   the `Range` header.
 
-**Tests** — `packages/nightshade_updater/test/update_http_timeout_test.dart` (new, 4 tests)
+**Tests** — `packages/skotiq_updater/test/update_http_timeout_test.dart` (new, 4 tests)
 - `checkForUpdates fails fast when the update server never responds`
 - `a blackholed check releases the controller for the next operation`
 - `download aborts when the body stalls mid-transfer`
 - `download aborts when the server never sends headers`
 
-**Result** — `flutter test` in `packages/nightshade_updater`: `00:03 +93: All tests passed!`
+**Result** — `flutter test` in `packages/skotiq_updater`: `00:03 +93: All tests passed!`
 (one earlier run showed a load failure for `update_manager_widget_test.dart`; it passes
 in isolation and on the clean re-run — a concurrent-agent transient, not a regression.)
 
@@ -133,10 +133,10 @@ decryptJson|secure_discovery|channel_encryption` and separately for `\bDiscovery
 **Deleted** `lib/src/discovery/secure_discovery.dart` (620), `lib/src/crypto/
 channel_encryption.dart` (205), and `test/channel_encryption_test.dart` (208 — its only
 purpose was exercising the deleted class). Both barrel exports removed
-(`nightshade_remote_protocol.dart`), package description updated.
+(`skotiq_remote_protocol.dart`), package description updated.
 
 **Docs.** `QUICK_START.md` presented `SecureDiscovery` as the recommended API in four places
-and was rewritten around what actually ships (`EnhancedNightshadeDiscovery` + QR pairing +
+and was rewritten around what actually ships (`EnhancedSkotiqDiscovery` + QR pairing +
 `POST /api/ws/ticket`); every type and route it now names was checked to exist.
 `SECURITY.md` and `INTEGRATION.md` lose their `SecureDiscovery` / encryption-helper sections;
 `PRODUCTION_READY_VERIFICATION.md` gains a historical-record banner.
@@ -144,7 +144,7 @@ and was rewritten around what actually ships (`EnhancedNightshadeDiscovery` + QR
 **Dependency check:** `crypto` and `pointycastle` both still have live users
 (`server_identity.dart`, `token_manager.dart`, `push_jwt.dart`), so no pubspec dep is now dead.
 
-**Result** — `packages/nightshade_remote_protocol`: `00:01 +190: All tests passed!`;
+**Result** — `packages/skotiq_remote_protocol`: `00:01 +190: All tests passed!`;
 `flutter analyze`: `No issues found!`.
 
 ---
@@ -230,10 +230,10 @@ Advertised not registered: 0`, and it regenerated
 - No `*.tmp.*` files anywhere in scope; both scratch proof files deleted after recording.
 - `dart format` run on the 15 touched files (2 needed reformatting).
 - `flutter analyze`: desktop `lib/headless_api` + `test/headless_api`, mobile `lib/services` +
-  `test/services`, `nightshade_remote_protocol`, `nightshade_updater` — all
+  `test/services`, `skotiq_remote_protocol`, `skotiq_updater` — all
   `No issues found!`.
 - Suites: `apps/desktop` `+1083`, `apps/mobile` `+239`,
-  `packages/nightshade_updater` `+93`, `packages/nightshade_remote_protocol` `+190`.
+  `packages/skotiq_updater` `+93`, `packages/skotiq_remote_protocol` `+190`.
   All green.
-- `packages/nightshade_plugins` untouched: the work order's dead-code entries there (§3.3,
+- `packages/skotiq_plugins` untouched: the work order's dead-code entries there (§3.3,
   §3.4) are flagged as product decisions and are not in this batch's item list.

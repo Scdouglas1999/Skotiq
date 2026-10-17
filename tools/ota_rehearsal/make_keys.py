@@ -10,8 +10,8 @@
                              an Android emulator reaching the host)
 
 The formats are exactly what build_update_manifest.dart reads from
-NIGHTSHADE_UPDATE_PRIVATE_KEY and what UpdateVerifier reads from
-NIGHTSHADE_UPDATE_PUBLIC_KEY. Nothing here is ever a release key; keep <out>
+SKOTIQ_UPDATE_PRIVATE_KEY and what UpdateVerifier reads from
+SKOTIQ_UPDATE_PUBLIC_KEY. Nothing here is ever a release key; keep <out>
 outside the repository.
 """
 
@@ -63,7 +63,7 @@ def main():
     now = datetime.datetime.now(datetime.timezone.utc)
     ca_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,
-                                            "Nightshade OTA rehearsal CA")])
+                                            "Skotiq OTA rehearsal CA")])
     ca = (x509.CertificateBuilder()
           .subject_name(ca_name).issuer_name(ca_name)
           .public_key(ca_key.public_key())

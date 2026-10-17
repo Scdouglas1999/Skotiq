@@ -1,5 +1,5 @@
 export const meta = {
-  name: 'nightshade-coverage-closeout',
+  name: 'skotiq-coverage-closeout',
   description: 'Exercise the 80 units no sweep ever reached, with product critique, not just defect-hunting',
   phases: [
     { title: 'Close', detail: 'one agent per cluster of unreached units' },
@@ -65,7 +65,7 @@ Build a short sequence (a few 2-5 s exposures so it completes quickly), run it, 
 
 Units: widget:remote_directory_picker_dialog.dart, widget:remote_host_path_dialog.dart, widget:connection_stale_banner.dart, settings:rig-catalogs (connected state), settings:updates (connected state), settings:backup (WebDAV/S3 push and remote restore), screen:constellation/shared_target_detail_screen.dart, mobile:session_replay_screen.dart, mobile:checkpoint_resume_dialog.dart, mobile:first_run_setup_screen.dart.
 
-Bind the appliance to the real interface (192.168.1.20), not loopback — a LAN claim over loopback is refused by design. Give the client its own NIGHTSHADE_DATABASE_DIR; the single-instance lock refuses two instances sharing one database path. For settings:backup, stand up a throwaway local WebDAV or S3-compatible endpoint if you can; if you cannot, say so plainly rather than calling the unit reached.`,
+Bind the appliance to the real interface (192.168.1.20), not loopback — a LAN claim over loopback is refused by design. Give the client its own SKOTIQ_DATABASE_DIR; the single-instance lock refuses two instances sharing one database path. For settings:backup, stand up a throwaway local WebDAV or S3-compatible endpoint if you can; if you cannot, say so plainly rather than calling the unit reached.`,
   },
   {
     key: 'narrow-mobile',
@@ -81,7 +81,7 @@ Two routes. \`tools/ui_audit/drive_android.py\` drives a real Android emulator w
 
 Units: widget:catalog_setup_dialog.dart (needs BOTH star and DSO catalogs missing — note CatalogManager uses the SHARED application-support directory, so a fresh profile alone does not do it; point the app at an empty catalog dir), widget:database_recovery_launcher.dart (needs the database open to fail with a recovery/backup path present), screen:planetarium/star_catalog_fallback_banner.dart (bundled star catalog fails to load), screen:imaging/centering_dialog.dart and widget:details_panel.dart (both need a plate-SOLVED frame — see below), screen:transients/transient_card.dart (needs a transient alert; check whether one can be injected through the DB rather than a live feed).
 
-centering_dialog and details_panel were blocked because the simulator could never be plate-solved. That is being closed in parallel (S9 in simulator-fidelity-backlog.md, and \`tools/sim_fidelity/plate_solve_probe.py\`). Check whether \`native/nightshade_native/bridge/src/sim_sky.rs\` has landed; if it has, configure the plate solver at ~/.local/share/nightshade-audit/astap/bin (astap_cli plus the d05 database are already there) and drive the real thing. If it has not, say so and leave those two unreached with an accurate reason.`,
+centering_dialog and details_panel were blocked because the simulator could never be plate-solved. That is being closed in parallel (S9 in simulator-fidelity-backlog.md, and \`tools/sim_fidelity/plate_solve_probe.py\`). Check whether \`native/skotiq_native/bridge/src/sim_sky.rs\` has landed; if it has, configure the plate solver at ~/.local/share/skotiq-audit/astap/bin (astap_cli plus the d05 database are already there) and drive the real thing. If it has not, say so and leave those two unreached with an accurate reason.`,
   },
   {
     key: 'survivors-of-the-dead-code-cull',
@@ -89,9 +89,9 @@ centering_dialog and details_panel were blocked because the simulator could neve
     body: `Nine units were recorded unreached because a sweeper judged them dead. Six of those files have since been deleted outright and the regenerated inventory no longer lists them; \`settings:focus-model\` turned out to be a live design fault and is fixed. Two claims were simply WRONG, and they are yours:
 
 * \`screen:suggestions/transient_alerts_panel.dart\` — recorded as "zero call sites, not even a test". False: \`screens/planner/planner_screen_parts/_recommendation_tab.dart\` instantiates \`TransientAlertsPanel\`. Reach it through the planner's Recommendation tab and sweep it properly.
-* \`widget:variable_picker.dart\` — recorded at a path that no longer exists; the file now lives at \`packages/nightshade_app/lib/widgets/sequence/variable_picker.dart\`. Re-establish the truth about \`VariablePickerField\` and \`VariablePickerButton\`: count real INSTANTIATIONS outside tests and barrels (a bare grep counts a file's own declaration and its barrel export as "references"). If it is genuinely unreachable from any sequencer text field, that is a missing-capability finding, not a deletion — the sequencer's own settings advertise variables.
+* \`widget:variable_picker.dart\` — recorded at a path that no longer exists; the file now lives at \`packages/skotiq_app/lib/widgets/sequence/variable_picker.dart\`. Re-establish the truth about \`VariablePickerField\` and \`VariablePickerButton\`: count real INSTANTIATIONS outside tests and barrels (a bare grep counts a file's own declaration and its barrel export as "references"). If it is genuinely unreachable from any sequencer text field, that is a missing-capability finding, not a deletion — the sequencer's own settings advertise variables.
 
-Then take \`widget:details_panel.dart\`, a \`part of\` catalog_overlay_widget.dart whose overlay only builds once the live preview holds a plate-SOLVED frame. Coordinate with the forced-failure cluster: if \`native/nightshade_native/bridge/src/sim_sky.rs\` has landed, the simulator can now be solved (ASTAP and its d05 database are at ~/.local/share/nightshade-audit/astap/bin) and this is reachable for the first time.
+Then take \`widget:details_panel.dart\`, a \`part of\` catalog_overlay_widget.dart whose overlay only builds once the live preview holds a plate-SOLVED frame. Coordinate with the forced-failure cluster: if \`native/skotiq_native/bridge/src/sim_sky.rs\` has landed, the simulator can now be solved (ASTAP and its d05 database are at ~/.local/share/skotiq-audit/astap/bin) and this is reachable for the first time.
 
 Careful with \`part of\` files generally: widget:actions.dart and widget:filter_offsets.dart are parts of focus_model_curve_card.dart, which apps/mobile DOES instantiate — a desktop-routing gap, not dead code, and they belong to the narrow-mobile cluster.`,
   },
@@ -123,7 +123,7 @@ Reach each one, exercise every control, and critique it as well as testing it.`,
 ]
 
 function brief(cluster) {
-  return `You are closing coverage gaps on the Nightshade astrophotography app (Flutter/Dart + Rust), repo root /home/scdouglas/Documents/Nightshade2.
+  return `You are closing coverage gaps on the Skotiq astrophotography app (Flutter/Dart + Rust), repo root /home/scdouglas/Documents/Skotiq2.
 
 ## Why this exists
 Every previous audit of this app wandered a path, found what was on it, and declared the area complete. This campaign built a denominator instead: \`reports/coverage/inventory.json\` lists every screen, settings row, sequence node and dialog, and \`reports/coverage/status.json\` records what has actually been exercised. 347 units are visited; **68 were recorded unreached with a reason and 12 were never claimed at all**. You are closing one cluster of those.
@@ -160,7 +160,7 @@ If something would decide *what the app is* rather than having an objectively ri
 
 Hard-won environment facts, all verified:
 * Mesa 26 on this box only survives with \`GALLIUM_DRIVER=softpipe\` — llvmpipe crashes. \`LIBGL_ALWAYS_SOFTWARE=1\`, \`GDK_BACKEND=x11\`.
-* \`NIGHTSHADE_DATABASE_DIR\` isolates the database. Use a scratch dir; never point a sweep at the real one.
+* \`SKOTIQ_DATABASE_DIR\` isolates the database. Use a scratch dir; never point a sweep at the real one.
 * The single-instance lock refuses two instances sharing a database path, and \`pkill\`/\`pgrep\` patterns can match your own shell — kill by recorded PID.
 * **Screenshots are what kill agents in this harness** (~2k tokens each). Prefer the accessibility tree, budget roughly 40 image reads for the whole run, and write findings to disk AS YOU FIND THEM rather than holding them to emit at the end. A context-exhausted agent loses its entire cluster.
 

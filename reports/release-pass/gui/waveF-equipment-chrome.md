@@ -2,7 +2,7 @@
 
 Driver: `tools/ui_audit/drive_linux.py`, display `:84`, profile `waveE-equipment-chrome`,
 `start --fresh`. Build under test:
-`apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`
+`apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`
 (`lib/libapp.so` stamped 2026-08-13 23:56, i.e. AFTER the E-fix batch).
 
 **Freshness proof (the E-fix strings are in this binary):** `strings lib/libapp.so`
@@ -203,7 +203,7 @@ Settings → Help & Tutorials (`44-help.png`, `45-help2.png`).
   `event_classifier.dart`, which the E-fix batch reverted rather than collide with a
   concurrent batch.
 * **CON-56** — Plan Tonight → Planetarium still exposes `button: NOW` and
-  `button: TONIGHT`. Owner: `nightshade_planetarium/.../time_control_panel.dart`,
+  `button: TONIGHT`. Owner: `skotiq_planetarium/.../time_control_panel.dart`,
   reassigned to the sky-planetarium batch.
 
 ---

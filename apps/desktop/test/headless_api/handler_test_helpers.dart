@@ -1,15 +1,15 @@
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless_api/response_helpers.dart';
-import 'package:nightshade_desktop/headless_api/validation.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_desktop/headless_api/response_helpers.dart';
+import 'package:skotiq_desktop/headless_api/validation.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 ProviderContainer createHeadlessTestContainer({
   List<Override> overrides = const [],
 }) {
-  final database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+  final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
   addTearDown(database.close);
   return ProviderContainer(
     overrides: [databaseProvider.overrideWithValue(database), ...overrides],

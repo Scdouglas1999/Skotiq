@@ -19,11 +19,11 @@ Future<void> _writeTemplates() async {
         'rustcVersion': 'replace with rustc --version output',
       },
       'buildPassed': true,
-      'packageArtifactPath': '/path/to/nightshade-linux-artifact',
+      'packageArtifactPath': '/path/to/skotiq-linux-artifact',
       'packageSizeBytes': 1,
       'packageSha256':
           '0000000000000000000000000000000000000000000000000000000000000000',
-      'packageSha256Path': '/path/to/nightshade-linux-artifact.sha256',
+      'packageSha256Path': '/path/to/skotiq-linux-artifact.sha256',
       'metadataPath':
           'docs/production-readiness/linux-release-package-metadata.json',
       'runtimeSmokePassed': true,
@@ -99,7 +99,7 @@ Future<void> _writeTemplates() async {
       'clientIp': '192.168.1.50',
       'serverLanUrl': 'http://192.168.1.10:7624',
       'windowsFirewallRule': {
-        'name': 'Nightshade Headless API',
+        'name': 'Skotiq Headless API',
         'profile': 'Private',
         'port': 7624,
         'action': 'Allow',

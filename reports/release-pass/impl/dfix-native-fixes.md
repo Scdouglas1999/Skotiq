@@ -11,18 +11,18 @@ The Session Report printed "2 of 3 rejected" beside "900 s integrated" on a
 night with 300 s of usable data.
 
 Root cause: `SequenceRunStats.recordFrame`
-(packages/nightshade_core/lib/src/providers/sequence_stats_provider.dart:140)
+(packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart:140)
 credited `integrationSecs` and `FilterStats.integrationSecs` unconditionally
 while the counters honoured the verdict. Native has always excluded rejected
 exposure time from the integration budget (the `FrameRejected` contract in
-native/nightshade_native/sequencer/src/node/progress.rs).
+native/skotiq_native/sequencer/src/node/progress.rs).
 
 Fix: integration (aggregate and per-filter) is credited only when
 `accepted`. Rejected exposure time now falls into `overheadSecs`, which is
 what it is.
 
 Tests (adopted from the refuter's counter-input, in the batch's own harness
-packages/nightshade_core/test/providers/sequence/sequence_run_frame_verdict_test.dart):
+packages/skotiq_core/test/providers/sequence/sequence_run_frame_verdict_test.dart):
 - `rejected exposure time is not credited as integration` — 1 accepted +
   2 rejected 300 s subs; asserts 300.0 aggregate AND 300.0 in the per-filter
   breakdown, with captured=3/rejected=2 unchanged. FAILED at HEAD (900.0).
@@ -31,7 +31,7 @@ packages/nightshade_core/test/providers/sequence/sequence_run_frame_verdict_test
   through `toJson`/`ParsedRunStats.fromJson` and pins
   `overheadSecs == wallClockSecs - 300.0`. FAILED at HEAD (600.0).
 
-Verify: `flutter test test/providers/sequence/` in packages/nightshade_core —
+Verify: `flutter test test/providers/sequence/` in packages/skotiq_core —
 564 passed.
 
 ## 2. REFUTED phd2AutoSelectStar — the refusal was RELOCATED into the _phd2 path
@@ -52,7 +52,7 @@ calls `gen_api.apiPhd2FindStar()`.
 Test: the refuter's proof is a source-path argument (the branch cannot be
 driven under `flutter test`, where `_nativeAvailable` is false — which is why
 the batch's behavioural test passed on baseline AND fix). So the pin is a
-source contract in packages/nightshade_bridge/test/native_guard_contract_test.dart,
+source contract in packages/skotiq_bridge/test/native_guard_contract_test.dart,
 in the same style as the existing guard-polarity test:
 `every _phd2Client user has a native branch` scans guiding_operations.dart
 method by method and fails any method that dereferences `_phd2Client` without
@@ -64,7 +64,7 @@ and nothing else — every other PHD2 method already had its native branch.
 Green after the fix. The stale claim in the old test's comment ("no
 apiPhd2AutoSelectStar ... sole implementation in either mode") was corrected.
 
-Verify: `flutter test` in packages/nightshade_bridge — 124 passed.
+Verify: `flutter test` in packages/skotiq_bridge — 124 passed.
 
 ## 3. REFUTED SCI-48 — the sparing rule was a string prefix, not a base name
 
@@ -83,7 +83,7 @@ solve-field actually emit). `<stem>-indx.xyls`, the one suffixed form
 solve-field produces, is admitted explicitly rather than by loosening the
 base-name test.
 
-Tests (native/nightshade_native/imaging/src/platesolve.rs):
+Tests (native/skotiq_native/imaging/src/platesolve.rs):
 - `reclaim_spares_files_that_merely_share_the_stem_as_a_prefix` — the refuter's
   fixture verbatim (M31.fits + M31.ini/.wcs debris + M31_L_0008.fits +
   M31_session.log + M31_dark.ini). FAILED at HEAD on the new light.
@@ -93,12 +93,12 @@ Tests (native/nightshade_native/imaging/src/platesolve.rs):
 The two pre-existing tests the refuter showed were blind (their "another
 frame" fixture M42_L_0001.ini shares no prefix) still pass unchanged.
 
-Verify: `cargo test -p nightshade_imaging --lib` — 524 passed, 0 failed.
+Verify: `cargo test -p skotiq_imaging --lib` — 524 passed, 0 failed.
 `cargo fmt --check` and `cargo clippy --all-targets` clean.
 
 ## Notes
 - No FRB regeneration; no generated files touched; no git writes.
-- One full-suite run of nightshade_core showed 8 test FILES failing at
+- One full-suite run of skotiq_core showed 8 test FILES failing at
   "loading" — a `flutter pub get` race from concurrent agents, not a
   regression: each passes in isolation and `test/backend/` re-ran 269/269
   green immediately after.

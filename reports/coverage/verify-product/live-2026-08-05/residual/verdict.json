@@ -2,7 +2,7 @@
   "date": "2026-08-05",
   "profile": "verify-product",
   "display": ":78",
-  "binary": "apps/desktop/build/linux/x64/release/bundle/nightshade_desktop",
+  "binary": "apps/desktop/build/linux/x64/release/bundle/skotiq_desktop",
   "driver": "tools/ui_audit/drive_linux.py (AT-SPI by pid, tree-first; Tap via do_action when click extents unavailable)",
   "residual_of": ["../NOTES.md", "../cont/NOTES.md"],
   "product_decisions_updated": true,

@@ -1,10 +1,10 @@
 # Error Handling Reference
 
-Complete guide to error handling in the Nightshade API.
+Complete guide to error handling in the Skotiq API.
 
-## NightshadeError
+## SkotiqError
 
-All API methods may throw `NightshadeError` exceptions. This is a sealed class with multiple error variants.
+All API methods may throw `SkotiqError` exceptions. This is a sealed class with multiple error variants.
 
 ### Error Types
 
@@ -13,7 +13,7 @@ All API methods may throw `NightshadeError` exceptions. This is a sealed class w
 Device not found.
 
 ```dart
-NightshadeError.deviceNotFound('Device camera-1 not found')
+SkotiqError.deviceNotFound('Device camera-1 not found')
 ```
 
 #### ConnectionFailed
@@ -21,7 +21,7 @@ NightshadeError.deviceNotFound('Device camera-1 not found')
 Device connection failed.
 
 ```dart
-NightshadeError.connectionFailed('Failed to connect: timeout')
+SkotiqError.connectionFailed('Failed to connect: timeout')
 ```
 
 #### AlreadyConnected
@@ -29,7 +29,7 @@ NightshadeError.connectionFailed('Failed to connect: timeout')
 Device already connected.
 
 ```dart
-NightshadeError.alreadyConnected('Device camera-1 is already connected')
+SkotiqError.alreadyConnected('Device camera-1 is already connected')
 ```
 
 #### NotConnected
@@ -37,7 +37,7 @@ NightshadeError.alreadyConnected('Device camera-1 is already connected')
 Device not connected.
 
 ```dart
-NightshadeError.notConnected('Device camera-1 is not connected')
+SkotiqError.notConnected('Device camera-1 is not connected')
 ```
 
 #### Timeout
@@ -45,7 +45,7 @@ NightshadeError.notConnected('Device camera-1 is not connected')
 Operation timed out.
 
 ```dart
-NightshadeError.timeout('Exposure timed out after 60 seconds')
+SkotiqError.timeout('Exposure timed out after 60 seconds')
 ```
 
 #### InvalidParameter
@@ -53,7 +53,7 @@ NightshadeError.timeout('Exposure timed out after 60 seconds')
 Invalid parameter value.
 
 ```dart
-NightshadeError.invalidParameter('Exposure time must be positive')
+SkotiqError.invalidParameter('Exposure time must be positive')
 ```
 
 #### InvalidInput
@@ -61,7 +61,7 @@ NightshadeError.invalidParameter('Exposure time must be positive')
 Invalid input data.
 
 ```dart
-NightshadeError.invalidInput('Invalid coordinates: RA must be 0-24 hours')
+SkotiqError.invalidInput('Invalid coordinates: RA must be 0-24 hours')
 ```
 
 #### InvalidDeviceId
@@ -69,7 +69,7 @@ NightshadeError.invalidInput('Invalid coordinates: RA must be 0-24 hours')
 Invalid device identifier.
 
 ```dart
-NightshadeError.invalidDeviceId('Invalid device ID format')
+SkotiqError.invalidDeviceId('Invalid device ID format')
 ```
 
 #### OperationFailed
@@ -77,7 +77,7 @@ NightshadeError.invalidDeviceId('Invalid device ID format')
 Operation failed.
 
 ```dart
-NightshadeError.operationFailed('Slew failed: mount error')
+SkotiqError.operationFailed('Slew failed: mount error')
 ```
 
 #### ImageError
@@ -85,7 +85,7 @@ NightshadeError.operationFailed('Slew failed: mount error')
 Image processing error.
 
 ```dart
-NightshadeError.imageError('Failed to decode image data')
+SkotiqError.imageError('Failed to decode image data')
 ```
 
 #### IoError
@@ -93,7 +93,7 @@ NightshadeError.imageError('Failed to decode image data')
 File I/O error.
 
 ```dart
-NightshadeError.ioError('Failed to read file: permission denied')
+SkotiqError.ioError('Failed to read file: permission denied')
 ```
 
 #### PlateSolveError
@@ -101,7 +101,7 @@ NightshadeError.ioError('Failed to read file: permission denied')
 Plate solving error.
 
 ```dart
-NightshadeError.plateSolveError('Plate solve failed: no stars detected')
+SkotiqError.plateSolveError('Plate solve failed: no stars detected')
 ```
 
 #### SequenceError
@@ -109,7 +109,7 @@ NightshadeError.plateSolveError('Plate solve failed: no stars detected')
 Sequence execution error.
 
 ```dart
-NightshadeError.sequenceError('Sequence node failed: exposure error')
+SkotiqError.sequenceError('Sequence node failed: exposure error')
 ```
 
 #### NoImageAvailable
@@ -117,7 +117,7 @@ NightshadeError.sequenceError('Sequence node failed: exposure error')
 No image available.
 
 ```dart
-NightshadeError.noImageAvailable()
+SkotiqError.noImageAvailable()
 ```
 
 #### ExposureCancelled
@@ -125,7 +125,7 @@ NightshadeError.noImageAvailable()
 Exposure was cancelled.
 
 ```dart
-NightshadeError.exposureCancelled()
+SkotiqError.exposureCancelled()
 ```
 
 #### Cancelled
@@ -133,7 +133,7 @@ NightshadeError.exposureCancelled()
 Operation was cancelled.
 
 ```dart
-NightshadeError.cancelled()
+SkotiqError.cancelled()
 ```
 
 #### CameraError
@@ -141,7 +141,7 @@ NightshadeError.cancelled()
 Camera-specific error.
 
 ```dart
-NightshadeError.cameraError('Camera temperature too high')
+SkotiqError.cameraError('Camera temperature too high')
 ```
 
 #### Internal
@@ -149,7 +149,7 @@ NightshadeError.cameraError('Camera temperature too high')
 Internal error.
 
 ```dart
-NightshadeError.internal('Unexpected error in device driver')
+SkotiqError.internal('Unexpected error in device driver')
 ```
 
 ## Error Handling Patterns
@@ -159,7 +159,7 @@ NightshadeError.internal('Unexpected error in device driver')
 ```dart
 try {
   await backend.connectDevice(DeviceType.camera, 'camera-1');
-} on NightshadeError catch (e) {
+} on SkotiqError catch (e) {
   print('Error: ${e.toString()}');
 }
 ```
@@ -173,15 +173,15 @@ try {
     exposureTime: 60.0,
     frameType: FrameType.light,
   );
-} on NightshadeError catch (e) {
+} on SkotiqError catch (e) {
   switch (e) {
-    case NightshadeError_NotConnected():
+    case SkotiqError_NotConnected():
       print('Camera not connected');
       break;
-    case NightshadeError_Timeout():
+    case SkotiqError_Timeout():
       print('Exposure timed out');
       break;
-    case NightshadeError_OperationFailed(field0: final message):
+    case SkotiqError_OperationFailed(field0: final message):
       print('Operation failed: $message');
       break;
     default:
@@ -195,7 +195,7 @@ try {
 ```dart
 try {
   await backend.mountSlewToCoordinates('mount-1', 5.5, -5.0);
-} on NightshadeError catch (e) {
+} on SkotiqError catch (e) {
   e.when(
     deviceNotFound: (msg) => showError('Device not found: $msg'),
     connectionFailed: (msg) => showError('Connection failed: $msg'),
@@ -215,12 +215,12 @@ Future<void> captureImage() async {
   try {
     final image = await backend.cameraGetLastImage('camera-1');
     if (image == null) {
-      throw NightshadeError.noImageAvailable();
+      throw SkotiqError.noImageAvailable();
     }
     // Process image
-  } on NightshadeError_NoImageAvailable {
+  } on SkotiqError_NoImageAvailable {
     print('No image available yet');
-  } on NightshadeError_NotConnected {
+  } on SkotiqError_NotConnected {
     print('Camera not connected');
   } catch (e) {
     print('Unexpected error: $e');
@@ -234,7 +234,7 @@ Future<void> captureImage() async {
 Future<void> startSequence() async {
   try {
     await backend.sequencerStart();
-  } on NightshadeError catch (e) {
+  } on SkotiqError catch (e) {
     // Log error
     logger.error('Sequence start failed', error: e);
     // Re-throw or handle
@@ -250,7 +250,7 @@ All error types (except parameterless ones) include a message string that provid
 ```dart
 try {
   await backend.connectDevice(DeviceType.camera, 'invalid-id');
-} on NightshadeError_ConnectionFailed catch (e) {
+} on SkotiqError_ConnectionFailed catch (e) {
   print(e.field0); // "Connection failed: Device not found"
 }
 ```
@@ -283,22 +283,22 @@ Future<bool> connectCamera(String deviceId) async {
   try {
     await backend.connectDevice(DeviceType.camera, deviceId);
     return true;
-  } on NightshadeError_DeviceNotFound catch (e) {
+  } on SkotiqError_DeviceNotFound catch (e) {
     showError('Camera not found: ${e.field0}');
     return false;
-  } on NightshadeError_ConnectionFailed catch (e) {
+  } on SkotiqError_ConnectionFailed catch (e) {
     showError('Connection failed: ${e.field0}');
     // Retry logic could go here
     return false;
-  } on NightshadeError_AlreadyConnected {
+  } on SkotiqError_AlreadyConnected {
     // Already connected, this is OK
     return true;
-  } on NightshadeError catch (e) {
+  } on SkotiqError catch (e) {
     logger.error('Unexpected error connecting camera', error: e);
     showError('Unexpected error: ${e.toString()}');
     return false;
   } catch (e) {
-    logger.error('Non-Nightshade error', error: e);
+    logger.error('Non-Skotiq error', error: e);
     showError('System error: ${e.toString()}');
     return false;
   }

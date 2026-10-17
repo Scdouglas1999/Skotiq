@@ -8,7 +8,7 @@
   "what_happened": "With Ha, OIII and SII masters present the mixer opens labelled 'Custom mix' with all nine R/G/B weights at 0.00. Applying that state would map every channel to zero.",
   "expected": "When the resolved channel set is Ha+OIII+SII, default to SHO; when it is Ha+OIII only, default to HOO; when it is a single narrowband master, default that channel to a luminance mapping. A user should never have to make three clicks to get out of a state that cannot produce an image.",
   "repro": "1. Seed Ha/OIII/SII masters. 2. Session Review > Workbench > Narrowband mixer. 3. Read the nine weight values and the 'Custom mix' label.",
-  "where": "packages/nightshade_app/lib/screens/session_review/widgets/narrowband_mixer_panel.dart:92 (_palette = 'custom') and the zero-initialised _weights",
+  "where": "packages/skotiq_app/lib/screens/session_review/widgets/narrowband_mixer_panel.dart:92 (_palette = 'custom') and the zero-initialised _weights",
   "location_wrong": null,
   "proposed_fix": "Initialise _palette/_weights from the best-matching preset for widget.channels in initState/didUpdateWidget instead of 'custom' + zeros.",
   "verdict_reasoning": null
@@ -22,7 +22,7 @@
   "what_happened": "Pressing 'AstroBin' asks for one filename and then writes two sibling files with its own extensions -- rsr-astrobin.json and rsr-astrobin.md -- ignoring the .csv extension I typed. The JSON is {subjectType, integrationSecs, integrationHms, frames, perFrameExposureSecs, title, filter} and the Markdown is a four-line summary. AstroBin's acquisition importer takes a CSV whose columns are date, number, duration, filter, binning, gain, sensorCooling, darks, flats, bias, bortle, meanSqm, meanFwhm, temperature. Neither exported file can be imported; the user has to retype the numbers into AstroBin's form. The export also has no `date` field at all, and AstroBin requires a date on every acquisition row.",
   "expected": "Emit AstroBin's acquisition CSV (long-exposure format) with the session date filled in from the stack's frames, so the button does what its name promises: one file the user drops into AstroBin's importer. Keep the Markdown as a secondary 'copy for a forum post' output if desired, and honour the extension the user chose in the save dialog.",
   "repro": "1. Stack result > 'AstroBin'. 2. Save as /tmp/ns-audit/rsr-astrobin.csv. 3. ls -> rsr-astrobin.json and rsr-astrobin.md exist; the .csv does not.",
-  "where": "packages/nightshade_core/lib/src/services/stack_share_export_service.dart:367 buildAstroBinMetadata (no date field on AstroBinExportMetadata); the two-file write in the same service.",
+  "where": "packages/skotiq_core/lib/src/services/stack_share_export_service.dart:367 buildAstroBinMetadata (no date field on AstroBinExportMetadata); the two-file write in the same service.",
   "location_wrong": null,
   "proposed_fix": "Add `date` (from the earliest/latest frame captured_at) and emit CSV as the primary format.",
   "verdict_reasoning": null
@@ -33,10 +33,10 @@
   "corrected_severity": null,
   "kind": "missing",
   "unit": "screen:stack_result/stack_result_screen.dart",
-  "what_happened": "The stack result screen offers exactly four actions: Export PNG, Export JPEG, Share Card, AstroBin. Export PNG writes an 8-bit RGBA PNG (verified: 512x512, bit depth 8, colour type 6) of the STF-stretched view; Export JPEG writes an 8-bit JPEG. The integrated data itself -- which the engine holds as u16 and which the app already persists as a raw buffer for the viewer -- can never be taken out of Nightshade.",
+  "what_happened": "The stack result screen offers exactly four actions: Export PNG, Export JPEG, Share Card, AstroBin. Export PNG writes an 8-bit RGBA PNG (verified: 512x512, bit depth 8, colour type 6) of the STF-stretched view; Export JPEG writes an 8-bit JPEG. The integrated data itself -- which the engine holds as u16 and which the app already persists as a raw buffer for the viewer -- can never be taken out of Skotiq.",
   "expected": "A 'Save FITS' (32-bit float or 16-bit, unstretched, with the acquisition header) or 16-bit TIFF action. Every user of NINA, SGP or the ASIAIR takes the integration into PixInsight, Siril, APP or Photoshop for the actual processing; an 8-bit screen-stretched PNG is a preview, not a deliverable. As shipped, Stack & Share is a dead end: the app is the only place the stack can live.",
   "repro": "1. Complete a Stack & Share run. 2. Read the four buttons in the header; there is no other export surface. 3. `drive_linux.py tree` on the result screen lists exactly: Export PNG, Export JPEG, Share Card, AstroBin, and the Stretch dropdown.",
-  "where": "packages/nightshade_app/lib/screens/stack_result/stack_result_screen.dart (action row)",
+  "where": "packages/skotiq_app/lib/screens/stack_result/stack_result_screen.dart (action row)",
   "location_wrong": null,
   "proposed_fix": "Add 'Save FITS' writing the unstretched integration with EXPTIME = total integration, STACKCNT, FILTER and the acquisition keywords; the native side already writes FITS elsewhere.",
   "verdict_reasoning": null
@@ -50,7 +50,7 @@
   "what_happened": "The dialog opens with the TNS chip selected and the primary action reading 'Submit to TNS', with the footnote 'Submits live to the TNS via your bot API key -- creates a public AT record.' AAVSO and MPC, which write a file to disk that the user uploads themselves, are the non-default options.",
   "expected": "Default to the reversible action. The first-listed and pre-selected network should be a local export (AAVSO), with TNS an explicit opt-in -- creating a public Astronomical Transient record on a mis-classified residual is not undoable, and a first-time user reaching this dialog has by definition never submitted anything before.",
   "repro": "1. Analytics > Science > First Light > Submit on any confirmed candidate. 2. Read which chip is selected and what the primary button says.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/transient_report_panel.dart (_format initial value)",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/transient_report_panel.dart (_format initial value)",
   "location_wrong": null,
   "proposed_fix": "Initialise _format to the first ENABLED format, preferring aavso > mpc > tns; if none is enabled, select aavso and show its (cheapest) blocker.",
   "verdict_reasoning": null
@@ -64,7 +64,7 @@
   "what_happened": "TransientKind.fromWire falls back to TransientKind.dipole for any token it does not recognise. The candidate card then renders a 'Dipole' chip -- a specific, factual claim about the residual's morphology -- and Submit refuses with 'Dipole artefacts are not real transients - they cannot be submitted.' I hit this with a row whose kind was 'new_source' instead of the wire token 'newSource': the card asserted the detection was a dipole artefact and would not let it be reported. The fallback is deliberate and documented ('the least-exciting, artefact-leaning class'), but the UI presents the fallback as a measurement.",
   "expected": "Keep the conservative gating, but label it honestly: an unknown token should render as 'Unclassified' and the refusal message should read 'This detection has an unrecognised classification and cannot be submitted', not assert a dipole morphology the differencing code never reported.",
   "repro": "1. Insert a transient_detections row with kind='new_source'. 2. Analytics > Science > First Light. 3. The card shows a 'Dipole' chip; pressing Submit toasts 'Dipole artefacts are not real transients - they cannot be submitted.' 4. Change kind to 'newSource' and restart -> the same row now reads 'New source' and Submit opens the dialog.",
-  "where": "packages/nightshade_core/lib/src/services/transients/transient_candidate.dart:45 fromWire; rendered at packages/nightshade_app/lib/screens/first_light/widgets/transient_candidate_card.dart:383-405",
+  "where": "packages/skotiq_core/lib/src/services/transients/transient_candidate.dart:45 fromWire; rendered at packages/skotiq_app/lib/screens/first_light/widgets/transient_candidate_card.dart:383-405",
   "location_wrong": null,
   "proposed_fix": "Add an `unknown` member to TransientKind, make fromWire return it, label it 'Unclassified', and gate submission on `kind == newSource || kind == pointBrightening || kind == movingStreak` rather than on `!= dipole`.",
   "verdict_reasoning": null
@@ -78,7 +78,7 @@
   "what_happened": "Analytics > Science shows a 'Science guide' with rungs 1-5 (Measure your sky / Track a star / Build a light curve / Find the period / Contribute it) and a single page-level 'Run calibration' button. Opening rung 2 gives 'Point at a target and let the photometry follow it frame to frame...' plus the gate 'Calibrate your sky first so brightness reads true.' and one button: 'Got it'. Rung 5 gives 'Your measurements are good enough to share...' plus 'Find a period - or build out the curve - before exporting.' and again only 'Got it'. Neither sheet offers the action it is describing, or a link to where that action lives. The only actionable rung is rung 1, whose button is on the page rather than in the sheet.",
   "expected": "Each rung sheet should carry the action for that rung -- 'Pick a target' (rung 2), 'Open the light curve' (rung 3), 'Run period search' (rung 4), 'Open the export hub' (rung 5) -- enabled or disabled with the stated prerequisite. As built, a user who reads the ladder has to go find each surface themselves, which is exactly the discoverability problem the ladder exists to solve.",
   "repro": "1. Analytics > Science. 2. Click rung 2 'Track a star' -> sheet with text and 'Got it'. 3. Escape, click rung 5 'Contribute it' -> sheet with text and 'Got it'.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/science_rung_sheet.dart, hosted by packages/nightshade_app/lib/screens/science/science_screen.dart",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/science_rung_sheet.dart, hosted by packages/skotiq_app/lib/screens/science/science_screen.dart",
   "location_wrong": null,
   "proposed_fix": "Give ScienceRungSheet a primary action per rung that routes to that rung's surface, disabled with the prerequisite as its tooltip when the gate is unmet.",
   "verdict_reasoning": null

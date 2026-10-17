@@ -1,0 +1,82 @@
+name: skotiq_app
+description: Unified Skotiq application UI
+version: 0.0.1
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1
+  skotiq_core:
+    path: ../skotiq_core
+  skotiq_bridge:
+    path: ../skotiq_bridge
+  skotiq_ui:
+    path: ../skotiq_ui
+  skotiq_remote_protocol:
+    path: ../skotiq_remote_protocol
+  skotiq_planetarium:
+    path: ../skotiq_planetarium
+  skotiq_plugins:
+    path: ../skotiq_plugins
+  skotiq_updater:
+    path: ../skotiq_updater
+
+  # Other dependencies
+  go_router: ^14.0.0
+  shared_preferences: ^2.2.2
+  path_provider: ^2.1.2
+  window_manager: ^0.3.8
+  lucide_icons: ^0.257.0
+  file_selector: ^1.0.3
+  url_launcher: ^6.2.4
+  intl: ^0.20.2
+  collection: ^1.18.0
+  equatable: ^2.0.5
+  uuid: ^4.3.3
+  image: ^4.1.7
+  path: ^1.8.3
+  drift: ^2.30.0
+  fl_chart: ^0.68.0
+  share_plus: ^7.2.2
+  # Stack-and-Share Loop (component C9): native save-file picker used by the
+  # Stack Result viewer to choose an export destination for PNG/JPEG/share-card
+  # exports before handing the file to share_plus.
+  file_picker: ^8.1.2
+  csv: ^6.0.0
+  pdf: ^3.10.8
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.1
+  sensors_plus: ^6.1.1
+  # Wave 6 Agent 5 — render markdown in journal note bodies (notes_panel).
+  # Pulled at ^0.7.x for compatibility with our flutter SDK; this is the
+  # last release that supports the inline Markdown syntax we need (bold,
+  # italics, code blocks, links, lists) without dragging in the larger
+  # flutter_markdown_plus tree.
+  flutter_markdown: ^0.7.0
+  qr_flutter: ^4.1.0
+  http: ^1.2.0
+  # Declared explicitly (normally transitive via drift/skotiq_core) because
+  # melos resolves this package on its own: CI floated it to 3.5.0 here while
+  # every other package held 3.3.2, and the Linux release build lost its
+  # hermetic libsqlite3 native asset. Keep in step with skotiq_core.
+  sqlite3: ">=3.3.2 <3.4.0"
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # Pinned across all 10 workspace packages to prevent mixed-version drift.
+  flutter_lints: ^5.0.0
+  # The widget-test harness (test/harness/) uses mocktail's `Mock` base to
+  # implement `SkotiqBackend` without restating ~700 LoC of method
+  # signatures. Matches the version pinned in skotiq_core.
+  mocktail: ^1.0.4
+  fake_async: ^1.3.1
+
+flutter:
+  uses-material-design: true

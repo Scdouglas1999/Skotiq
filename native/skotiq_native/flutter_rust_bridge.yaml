@@ -1,0 +1,34 @@
+# Flutter Rust Bridge configuration
+# https://cjycode.com/flutter_rust_bridge/
+
+rust_input: crate::api
+rust_root: bridge/
+dart_output: ../../packages/skotiq_bridge/lib/src/
+c_output: ../../packages/skotiq_bridge/ios/bridge_generated.h
+duplicated_c_output:
+  - ../../packages/skotiq_bridge/macos/bridge_generated.h
+  - ../../packages/skotiq_bridge/linux/bridge_generated.h
+
+# LLVM path for ffigen. IMPORTANT: run codegen via scripts/dev.sh (Linux) or
+# scripts/dev.ps1 (Windows), which set CPATH so libclang finds the C stdlib
+# headers (stdbool.h). Running bare `flutter_rust_bridge_codegen generate`
+# WITHOUT that CPATH mis-generates FFI typedefs (e.g. `typedef bool = ...`) that
+# pass `flutter analyze` but break the Dart VM kernel transform at runtime.
+#   - Linux:   CPATH="$(clang -print-resource-dir)/include:/usr/include"
+#   - Windows: CPATH to LLVM/MSVC/Windows-SDK include dirs (see dev.ps1); or:
+#       llvm_path:
+#         - 'C:\Program Files\LLVM'
+
+# Enable features
+full_dep: true
+
+# Disable web platform (not needed - using headless server architecture)
+web: false
+
+# Enable error details and debugging
+stop_on_error: true
+dump_all: true
+
+# Enable lifetime support for &'static references
+enable_lifetime: true
+

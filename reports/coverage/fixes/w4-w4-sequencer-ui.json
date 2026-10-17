@@ -4,21 +4,21 @@
     {
       "title": "Sequence Library card reports 10m for a 20-frame sequence - Smart Exposure integration is dropped from the stored duration",
       "outcome": "fixed",
-      "summary": "Sequence._estimateNodeIntegration had an ExposureNode branch and a SciencePhotometryNode branch but none for SmartExposureNode, so Sequence.totalIntegrationSecs - which sequence_repository writes into sequences.estimated_duration_mins and SequenceSummary re-derives for the library card - counted only the plain exposure nodes. Added a SmartExposureNode branch (sequence_state.dart:385) plus the same omission on the no-root-node fallback path. The new _smartExposureIntegration helper follows the executor's real stopping rules (native/.../smart_exposure.rs): a positive integrationBudgetSecs caps the estimate because the run short-circuits at the cap, loopUntilStopped with a budget estimates the budget, and loopUntilStopped without one is reported unbounded with a single rotation rather than quoting per-plan counts the executor ignores. This was the item the previous wave recorded as 'blocked' - the fix needed nightshade_core, which that agent was fenced out of.",
+      "summary": "Sequence._estimateNodeIntegration had an ExposureNode branch and a SciencePhotometryNode branch but none for SmartExposureNode, so Sequence.totalIntegrationSecs - which sequence_repository writes into sequences.estimated_duration_mins and SequenceSummary re-derives for the library card - counted only the plain exposure nodes. Added a SmartExposureNode branch (sequence_state.dart:385) plus the same omission on the no-root-node fallback path. The new _smartExposureIntegration helper follows the executor's real stopping rules (native/.../smart_exposure.rs): a positive integrationBudgetSecs caps the estimate because the run short-circuits at the cap, loopUntilStopped with a budget estimates the budget, and loopUntilStopped without one is reported unbounded with a single rotation rather than quoting per-plan counts the executor ignores. This was the item the previous wave recorded as 'blocked' - the fix needed skotiq_core, which that agent was fenced out of.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/models/sequence/sequence_models/sequence_state.dart",
-        "packages/nightshade_core/test/models/sequence/smart_exposure_integration_estimate_test.dart"
+        "packages/skotiq_core/lib/src/models/sequence/sequence_models/sequence_state.dart",
+        "packages/skotiq_core/test/models/sequence/smart_exposure_integration_estimate_test.dart"
       ],
-      "test": "packages/nightshade_core/test/models/sequence/smart_exposure_integration_estimate_test.dart - 8 tests. The last drives the production wiring end to end: SequenceRepository.saveSequence into an in-memory NightshadeDatabase, then reads back sequences.estimated_duration_mins == 20 and SequenceSummary.totalIntegrationSecs == 1200 for 10x60s TakeExposure + 10x60s SmartExposure.",
+      "test": "packages/skotiq_core/test/models/sequence/smart_exposure_integration_estimate_test.dart - 8 tests. The last drives the production wiring end to end: SequenceRepository.saveSequence into an in-memory SkotiqDatabase, then reads back sequences.estimated_duration_mins == 20 and SequenceSummary.totalIntegrationSecs == 1200 for 10x60s TakeExposure + 10x60s SmartExposure.",
       "revert_check": "Deleted the call site `if (node is SmartExposureNode) { return _smartExposureIntegration(node); }` from _estimateNodeIntegration (sequence_state.dart:385). 6 of 8 tests failed, including the persisted-column one (stored 10, not 20). Restored; 8/8 pass.",
       "caveats": "Rows saved before this fix keep their old estimated_duration_mins until the sequence is saved again - the column is persisted, not recomputed on read."
     },
     {
       "title": "Target header card under-reports planned exposures and integration time by the loop multiplier",
       "outcome": "already-correct",
-      "summary": "Fixed by the previous wave and still in the tree. TargetHeaderCard._calculateTargetPlan (target_header_card.dart:671) now delegates to the shared plannedCaptureUnder walk in packages/nightshade_app/lib/screens/sequencer/plan_math.dart, which carries an accumulated loop multiplier exactly like Sequence._countExposures: count loops multiply by repeatCount, other loop kinds keep the single-pass multiplier and raise hasUnboundedRepeat so the label says 'per pass' instead of quoting a floor as the plan.",
+      "summary": "Fixed by the previous wave and still in the tree. TargetHeaderCard._calculateTargetPlan (target_header_card.dart:671) now delegates to the shared plannedCaptureUnder walk in packages/skotiq_app/lib/screens/sequencer/plan_math.dart, which carries an accumulated loop multiplier exactly like Sequence._countExposures: count loops multiply by repeatCount, other loop kinds keep the single-pass multiplier and raise hasUnboundedRepeat so the label says 'per pass' instead of quoting a floor as the plan.",
       "files_changed": [],
-      "test": "packages/nightshade_app/test/screens/sequencer/widgets/target_header_card_plan_test.dart - 4 widget tests that pump the real TargetHeaderCard and assert the rendered text ('10 planned exposures - 20m' for the Quick-Start shape, 24 for nested loops).",
+      "test": "packages/skotiq_app/test/screens/sequencer/widgets/target_header_card_plan_test.dart - 4 widget tests that pump the real TargetHeaderCard and assert the rendered text ('10 planned exposures - 20m' for the Quick-Start shape, 24 for nested loops).",
       "revert_check": "Set `childMult = mult;` in plan_math.dart (removing the `* (node.repeatCount ?? 1)`). 2 of 4 tests failed - the count-loop and nested-loop cases. Restored; all pass."
     },
     {
@@ -26,8 +26,8 @@
       "outcome": "already-correct",
       "summary": "Fixed by the previous wave and still in the tree, in two places. sequencer_screen.dart:467 wraps the CallbackShortcuts subtree in a FocusScope (not a bare Focus), so an ambient unfocus() from any text field falls back INTO the shortcut subtree instead of onto the route scope above it; node_item.dart:512 requests focus on the clicked row before selecting, so clicking a node moves primary focus into that subtree. The false dialog copy is gone too - delete_node_confirmation.dart and batch_operations_toolbar.dart now say 'Recover it with Undo in the toolbar (or Ctrl+Z)'. All 12 shortcuts listed in the help sheet (tab_bar.dart:217-227) have bindings.",
       "files_changed": [],
-      "test": "packages/nightshade_app/test/screens/sequencer/sequencer_shortcut_focus_test.dart - 6 tests driving the real SequencerScreen through the palette-search-then-click path.",
-      "revert_check": "Changed the FocusScope back to `Focus(autofocus: true)` at sequencer_screen.dart:467. 2 tests failed: 'Alt+3 still switches tab after focus was dropped' and 'Ctrl+Z still reaches the editor once focus has been dropped entirely'. Restored; all 6 pass. Severing the second layer (node_item's _rowFocusNode.requestFocus()) could not be measured in the same run because a concurrent agent had nightshade_core temporarily non-compiling.",
+      "test": "packages/skotiq_app/test/screens/sequencer/sequencer_shortcut_focus_test.dart - 6 tests driving the real SequencerScreen through the palette-search-then-click path.",
+      "revert_check": "Changed the FocusScope back to `Focus(autofocus: true)` at sequencer_screen.dart:467. 2 tests failed: 'Alt+3 still switches tab after focus was dropped' and 'Ctrl+Z still reaches the editor once focus has been dropped entirely'. Restored; all 6 pass. Severing the second layer (node_item's _rowFocusNode.requestFocus()) could not be measured in the same run because a concurrent agent had skotiq_core temporarily non-compiling.",
       "caveats": "The two layers are independent, so reverting either one alone still leaves the Delete-on-a-clicked-row case working; only the FocusScope layer is pinned by a failing-on-revert test."
     },
     {
@@ -35,7 +35,7 @@
       "outcome": "already-correct",
       "summary": "Fixed by the previous wave and still in the tree. Triggers live on ExposureNodes, so on a sequence with none the write loop had nothing to write to while the success snackbar fired anyway. sequence_toolbar.dart resolves the exposure nodes up front: the bell action is disabled with the reason in its tooltip ('Exposure Triggers (add an exposure node first)'), openExposureTriggers keeps a guard that refuses with an error snackbar for any other caller, and the dialog names its owner ('Applies to the exposure node \"Lum\".'). TriggerConfigurationDialog has exactly one production call site, so the toolbar guard covers everything.",
       "files_changed": [],
-      "test": "packages/nightshade_app/test/screens/sequencer/sequence_toolbar_exposure_triggers_test.dart - 2 tests on the real SequenceToolbar; the no-exposure case taps the action and asserts no dialog opens, the exposure case asserts Save lands on the node's triggers list.",
+      "test": "packages/skotiq_app/test/screens/sequencer/sequence_toolbar_exposure_triggers_test.dart - 2 tests on the real SequenceToolbar; the no-exposure case taps the action and asserts no dialog opens, the exposure case asserts Save lands on the node's triggers list.",
       "revert_check": "Restored the pre-fix toolbar: removed the exposureNodes.isEmpty guard from openExposureTriggers AND reverted the label/onPressed to the unconditional form. The no-exposure test failed (the disabled-with-reason tooltip is not found). Restored; both pass. Note reverting ONLY the disabled state still passes, because the in-function guard then catches it - the two layers are redundant by design."
     },
     {
@@ -43,7 +43,7 @@
       "outcome": "already-correct",
       "summary": "Fixed by the previous wave and still in the tree. initState seeds the panel size from opticalConfigProvider.fieldOfView (the same focal-length + sensor inputs the framing box uses) and records provenance in _PanelSizeSource. With neither a rig nor a user value the Plan summary reads 'unknown' instead of '1.00 deg x 0.67 deg', a warning banner carries the framing dialog's own wording, and both build actions ('Load into Sequencer', 'Create mosaic project') are disabled with the reason in their tooltips.",
       "files_changed": [],
-      "test": "packages/nightshade_app/test/screens/sequencer/widgets/mosaic_wizard_visual_test.dart - 'with no rig it says the panel size is unknown and refuses to build' asserts the rendered 'unknown', the absence of '1.00 deg x 0.67 deg', and onPressed == null on both buttons; a sibling test asserts a rig's real field is used.",
+      "test": "packages/skotiq_app/test/screens/sequencer/widgets/mosaic_wizard_visual_test.dart - 'with no rig it says the panel size is unknown and refuses to build' asserts the rendered 'unknown', the absence of '1.00 deg x 0.67 deg', and onPressed == null on both buttons; a sibling test asserts a rig's real field is used.",
       "revert_check": "Changed the field initialiser to `_PanelSizeSource _panelSizeSource = _PanelSizeSource.measured;` (mosaic_wizard_dialog.dart:89), which restores 'the hardcoded 60x40 default is a fact'. The no-rig test failed. Restored; all 7 pass."
     }
   ]

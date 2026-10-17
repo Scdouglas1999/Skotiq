@@ -1,4 +1,4 @@
-# Slave Local-Store Read Audit — Nightshade2
+# Slave Local-Store Read Audit — Skotiq2
 
 *Branch: `feature/v5-living-sky` · 2026-06-21 · scope: features that read the local SQLite/in-memory store directly and therefore render empty/wrong on a remote-client slave*
 
@@ -6,7 +6,7 @@
 
 ## 1. Executive Summary
 
-**This bug class is widespread, not rare.** A focused sweep of six subsystems found **27 confirmed slave-breaking read sites**, plus 2 surfaces that are correctly host-only-by-design and 1 that is already remote-aware. Every confirmed issue shares the same root cause: a provider/service reads `databaseProvider` (always a live, **locally-empty** `NightshadeDatabase` on a slave — see `database_provider.dart:24-28`) or an in-memory `StateNotifier` fed only by the local capture loop, with **no `backend is NetworkBackend` branch**. On a remote client those rows live only on the master, so the surface silently renders empty/zero — and crucially **looks structurally correct**, so the gap is easy to miss in casual testing.
+**This bug class is widespread, not rare.** A focused sweep of six subsystems found **27 confirmed slave-breaking read sites**, plus 2 surfaces that are correctly host-only-by-design and 1 that is already remote-aware. Every confirmed issue shares the same root cause: a provider/service reads `databaseProvider` (always a live, **locally-empty** `SkotiqDatabase` on a slave — see `database_provider.dart:24-28`) or an in-memory `StateNotifier` fed only by the local capture loop, with **no `backend is NetworkBackend` branch**. On a remote client those rows live only on the master, so the surface silently renders empty/zero — and crucially **looks structurally correct**, so the gap is easy to miss in casual testing.
 
 **How worried should we be: moderately-to-quite worried, but the remediation is mostly mechanical.** The severity is tempered by three facts:
 
@@ -96,7 +96,7 @@ Severity legend: **HIGH** = silently-wrong automation or a hard functional block
 `equipment_screen.dart:439-444` — `dao.setActiveProfile(restoredId)` writes only the local DB. *Fix:* `ref.read(equipmentProfilesProvider.notifier).setActiveProfile(restoredId)` (already NetworkBackend-branched, `profiles_provider.dart:808-819`).
 
 **M12 — Filter focus offsets / temperature model render empty on slave**
-`filter_offset_provider.dart:114-117` (service `focus_model_service.dart:333-344`) — reads per-profile JSON under `getApplicationDocumentsDirectory()/Nightshade/focus_models`, which lives only on the master's disk; a *separate* store from the SQLite `filterFocusOffsets` that does sync. *Fix:* branch `_loadOffsetsForActiveProfile` on `NetworkBackend` → `backend.getFocusModel()` (the endpoint `FocusModelSettings` already uses); gate the local-JSON path on the non-network case. (Repo already calls the local path "orphaned … empty over the network" at `focus_model_settings.dart:12-15`.)
+`filter_offset_provider.dart:114-117` (service `focus_model_service.dart:333-344`) — reads per-profile JSON under `getApplicationDocumentsDirectory()/Skotiq/focus_models`, which lives only on the master's disk; a *separate* store from the SQLite `filterFocusOffsets` that does sync. *Fix:* branch `_loadOffsetsForActiveProfile` on `NetworkBackend` → `backend.getFocusModel()` (the endpoint `FocusModelSettings` already uses); gate the local-JSON path on the non-network case. (Repo already calls the local path "orphaned … empty over the network" at `focus_model_settings.dart:12-15`.)
 
 **M13 — Session Report mount/errors/warnings silently zero on slave**
 `session_report_service.dart:458` (`_findRelatedSequenceRuns → _sequenceRunsDao.getAllRuns()`) — frame counts/integration are remote-aware, but autofocus runs, meridian flips, dithers, trigger fires, and the error/warning lists read the empty local `sequence_runs`. A confident-but-false "no flips, no errors" report. *Fix:* once a remote run accessor exists (H3), route related runs through it; interim, short-circuit those sections to "unavailable on companion". Also resolve target names via the remote target list, not `targetsDao.getAllTargets()`.

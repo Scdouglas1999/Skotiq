@@ -1,5 +1,5 @@
 export const meta = {
-  name: 'nightshade-sim-sky',
+  name: 'skotiq-sim-sky',
   description: 'Make the simulated camera render the real sky so plate solving works with no hardware',
   phases: [
     { title: 'Build', detail: 'sim_sky.rs + sim_frame wiring + tests' },
@@ -9,9 +9,9 @@ export const meta = {
 
 const BACKGROUND = `## The problem
 
-\`native/nightshade_native/bridge/src/sim_frame.rs\` paints 45 pseudo-random Gaussian stars (\`add_stars\`, fixed LCG seed 0x5EED_1234_ABCD_0001) and translates the whole field as a rigid body with the mount's guide offset. It does NOT render the sky the mount is pointing at.
+\`native/skotiq_native/bridge/src/sim_frame.rs\` paints 45 pseudo-random Gaussian stars (\`add_stars\`, fixed LCG seed 0x5EED_1234_ABCD_0001) and translates the whole field as a rigid body with the mount's guide offset. It does NOT render the sky the mount is pointing at.
 
-Plate solving is not special-cased for the simulator: \`native/nightshade_native/bridge/src/api/plate_solve.rs\` shells out to the real ASTAP binary. So under the simulator every plate-solve-dependent feature is unexercisable without hardware — Slew & Center, the centering dialog, the framing wizard, mosaic tile solving, meridian-flip recentre, blind solve, the catalog overlay (it needs a WCS), the plate-solving settings Test button, and polar alignment's solve path. That is the single largest simulator-fidelity gap left in the product.
+Plate solving is not special-cased for the simulator: \`native/skotiq_native/bridge/src/api/plate_solve.rs\` shells out to the real ASTAP binary. So under the simulator every plate-solve-dependent feature is unexercisable without hardware — Slew & Center, the centering dialog, the framing wizard, mosaic tile solving, meridian-flip recentre, blind solve, the catalog overlay (it needs a WCS), the plate-solving settings Test button, and polar alignment's solve path. That is the single largest simulator-fidelity gap left in the product.
 
 ## The design, already proven
 
@@ -24,7 +24,7 @@ Plate solving is not special-cased for the simulator: \`native/nightshade_native
 
 Sub-pixel at every focal length. Reproduce it before you start:
 
-    python3 tools/sim_fidelity/plate_solve_probe.py --astap ~/.local/share/nightshade-audit/astap/bin
+    python3 tools/sim_fidelity/plate_solve_probe.py --astap ~/.local/share/skotiq-audit/astap/bin
 
 ## Everything you need is already native-side — no Dart plumbing
 
@@ -35,7 +35,7 @@ Sub-pixel at every focal length. Reproduce it before you start:
 
 ## What to build
 
-1. A new \`native/nightshade_native/bridge/src/sim_sky.rs\`:
+1. A new \`native/skotiq_native/bridge/src/sim_sky.rs\`:
    * Parse ASTAP's \`.1476\` record-format-5 files. 110-byte text header whose \`byte[109]\` is the record size; 5-byte records; RA in three little-endian bytes scaled \`24/(2^24-1)\` hours; DEC's high byte comes from the most recent header record (RA == 0xFFFFFF), which also carries the magnitude as \`(byte - 16)/10\`. DEC scale is \`90/(128*256*256-1)\`.
    * An area index built ONCE and cached: per file a unit vector and an angular radius. **Do not use an RA/Dec bounding box** — it tears at the RA=0 wrap and is degenerate near the poles, and a dropped file leaves a blank wedge that makes ASTAP fail to match. The Python probe has the exact algorithm.
    * \`field(ra_deg, dec_deg, radius_deg, limit)\` returning stars sorted BRIGHTEST FIRST. Truncating on anything else leaves the frame complete to no particular depth, which breaks quad matching.
@@ -51,7 +51,7 @@ Sub-pixel at every focal length. Reproduce it before you start:
 * \`cargo fmt\`, \`cargo clippy\`, and the existing Rust workspace suite (2086 tests) must all stay green. Report the numbers you actually saw.
 * NEVER run \`git stash\`, \`git checkout\` or \`git restore\` — other agents are working in this tree.`
 
-const BUILD = `You are implementing a simulator-fidelity feature in the Nightshade astrophotography app (Flutter/Dart + Rust via flutter_rust_bridge), repo root /home/scdouglas/Documents/Nightshade2.
+const BUILD = `You are implementing a simulator-fidelity feature in the Skotiq astrophotography app (Flutter/Dart + Rust via flutter_rust_bridge), repo root /home/scdouglas/Documents/Skotiq2.
 
 ${BACKGROUND}
 
@@ -60,7 +60,7 @@ The repo has a knowledge graph: \`graphify query "<question>"\` before grepping.
 
 Work end to end and leave the tree green. Report honestly what you ran and what it printed — if the ASTAP integration test does not solve, say so with the solver's output rather than describing the feature as done.`
 
-const VERIFY = `You are an ADVERSARIAL VERIFIER on the Nightshade astrophotography app, repo root /home/scdouglas/Documents/Nightshade2.
+const VERIFY = `You are an ADVERSARIAL VERIFIER on the Skotiq astrophotography app, repo root /home/scdouglas/Documents/Skotiq2.
 
 Another agent has just implemented a simulated-sky renderer so that simulated camera frames can be plate-solved. Your job is to REFUTE it.
 
@@ -73,7 +73,7 @@ $$IMPL$$
 ## How to refute it
 
 1. **Does the claimed code exist and do what is claimed?** Open the files. In this campaign ~38% of cited \`file:line\` references did not contain the claim.
-2. **Run the acceptance test yourself.** \`python3 tools/sim_fidelity/plate_solve_probe.py --astap ~/.local/share/nightshade-audit/astap/bin\` must still solve. Then run the Rust integration test the implementer added (it is \`#[ignore]\`d; run it explicitly) and confirm a real solve on a frame produced by the PRODUCTION path, not by a test-only helper that re-implements the renderer.
+2. **Run the acceptance test yourself.** \`python3 tools/sim_fidelity/plate_solve_probe.py --astap ~/.local/share/skotiq-audit/astap/bin\` must still solve. Then run the Rust integration test the implementer added (it is \`#[ignore]\`d; run it explicitly) and confirm a real solve on a frame produced by the PRODUCTION path, not by a test-only helper that re-implements the renderer.
 3. **Sever the wiring, not the logic.** Comment out the call that attaches the sky view in \`camera.rs\`, re-run the tests, confirm something goes red, restore. A batch was caught in this campaign whose entire production wiring could be deleted with all 434 tests still green. Say what happened.
 4. **Check the fallback is really unchanged.** With no catalogue configured the old pseudo-random field must be byte-identical. Verify by construction, not by trusting a test name.
 5. **Check the capture path did not get slower.** If the index is rebuilt per frame, say so.

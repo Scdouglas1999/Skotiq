@@ -16,15 +16,15 @@ const _responseHelperPath =
 const _oversizedAuditPath =
     'docs/production-readiness/oversized-file-audit.json';
 const _loggingServicePath =
-    'packages/nightshade_core/lib/src/services/logging_service.dart';
+    'packages/skotiq_core/lib/src/services/logging_service.dart';
 const _loggingServiceTestPath =
-    'packages/nightshade_core/test/services/logging_service_test.dart';
+    'packages/skotiq_core/test/services/logging_service_test.dart';
 const _headlessServerPath = 'apps/desktop/lib/headless_api_server.dart';
 const _headlessServerPartsDirectory = 'apps/desktop/lib/headless_api_server';
 const _networkBackendPath =
-    'packages/nightshade_core/lib/src/backend/network_backend.dart';
+    'packages/skotiq_core/lib/src/backend/network_backend.dart';
 const _networkBackendPartsDirectory =
-    'packages/nightshade_core/lib/src/backend/network_backend';
+    'packages/skotiq_core/lib/src/backend/network_backend';
 
 Future<void> main(List<String> args) async {
   final root = Directory(_argValue(args, '--root') ?? Directory.current.path);

@@ -1,6 +1,6 @@
 {
-    "name": "nightshade_desktop",
-    "short_name": "nightshade_desktop",
+    "name": "skotiq_desktop",
+    "short_name": "skotiq_desktop",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -1,7 +1,7 @@
 part of '../targets_tab.dart';
 
 class _ActionButton extends StatefulWidget {
-  final NightshadeColors colors;
+  final SkotiqColors colors;
   final IconData icon;
   final String label;
   final bool isPrimary;

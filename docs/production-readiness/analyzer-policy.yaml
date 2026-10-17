@@ -2,7 +2,7 @@ production:
   include:
     - apps/*/lib/**
     - packages/*/lib/**
-    - native/nightshade_native/**/src/**
+    - native/skotiq_native/**/src/**
   exclude:
     - '**/.dart_tool/**'
     - '**/.git/**'

@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 const _defaultExePath =
-    'apps/desktop/build/linux/x64/release/bundle/nightshade_desktop';
-const _adminToken = 'nightshade-full-hardware-smoke-admin-token';
+    'apps/desktop/build/linux/x64/release/bundle/skotiq_desktop';
+const _adminToken = 'skotiq-full-hardware-smoke-admin-token';
 const _smokeLogPath =
     'docs/production-readiness/full-hardware-control-smoke.log';
 const _smokeEvidencePath =
@@ -68,7 +68,7 @@ Future<void> main(List<String> args) async {
   final connected = <_Device>[];
 
   try {
-    transcript.note('Nightshade packaged full hardware/control smoke');
+    transcript.note('Skotiq packaged full hardware/control smoke');
     transcript.note('Executable: ${exe.absolute.path}');
     transcript.note('Server: $baseUri');
     await _waitForServer(api, () => exited, () => processExitCode);

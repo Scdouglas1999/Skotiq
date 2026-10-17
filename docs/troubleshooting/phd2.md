@@ -1,14 +1,14 @@
 # PHD2 Troubleshooting
 
-Nightshade uses PHD2 as the primary public-release guiding path. PHD2 must be
-running and its server must be enabled before Nightshade can connect.
+Skotiq uses PHD2 as the primary public-release guiding path. PHD2 must be
+running and its server must be enabled before Skotiq can connect.
 
 ## Quick Checks
 
 1. Start PHD2.
 2. Connect the guide camera and mount inside PHD2.
 3. In PHD2, enable the server from Tools > Enable Server.
-4. Confirm the host and port in Nightshade. The common default is
+4. Confirm the host and port in Skotiq. The common default is
    `localhost:4400`.
 5. Confirm the firewall allows local traffic to PHD2.
 
@@ -18,7 +18,7 @@ running and its server must be enabled before Nightshade can connect.
 - Confirm no other app changed the PHD2 server port.
 - Restart PHD2 after enabling the server.
 - Check PHD2 logs for server startup errors.
-- If Nightshade runs on another machine, open the configured PHD2 server port
+- If Skotiq runs on another machine, open the configured PHD2 server port
   only on the trusted observatory network.
 
 ## Guiding Starts Then Fails
@@ -40,4 +40,4 @@ running and its server must be enabled before Nightshade can connect.
 
 For public-release sign-off, record PHD2 version, host/port, guide camera, mount
 connection method, connect/start/stop/dither behavior, lost-star behavior, and
-how Nightshade surfaces PHD2 errors.
+how Skotiq surfaces PHD2 errors.

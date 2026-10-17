@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 
 const _defaultExePath =
-    'apps/desktop/build/windows/x64/runner/Release/nightshade_desktop.exe';
-const _adminToken = 'nightshade-smoke-admin-token';
-const _viewToken = 'nightshade-smoke-view-token';
-const _controlToken = 'nightshade-smoke-control-token';
+    'apps/desktop/build/windows/x64/runner/Release/skotiq_desktop.exe';
+const _adminToken = 'skotiq-smoke-admin-token';
+const _viewToken = 'skotiq-smoke-view-token';
+const _controlToken = 'skotiq-smoke-control-token';
 
 void main(List<String> args) async {
   if (!Platform.isWindows) {

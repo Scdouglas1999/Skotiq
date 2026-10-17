@@ -8,7 +8,7 @@
   "what_happened": "With 16 frames in the session only 12 thumbnails fit. Pointing at the rail and turning the wheel scrolls the PAGE, not the rail; the remaining 4 frames stay off-screen. Only a horizontal-wheel / shift+wheel gesture moved it. There is no scrollbar and no left/right affordance.",
   "expected": "On desktop, a horizontal rail must be reachable with the wheel a user actually has - either map vertical wheel to the rail, or show a Scrollbar and arrow affordances. A 200-frame night is unusable otherwise.",
   "repro": "Analytics > Session > Night A - M31; hover the Captured Images rail; wheel down (page scrolls). Shift+wheel to reveal the trailing frames.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart:178 ListView.builder(scrollDirection: Axis.horizontal) with no Scrollbar and default desktop ScrollBehavior",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart:178 ListView.builder(scrollDirection: Axis.horizontal) with no Scrollbar and default desktop ScrollBehavior",
   "location_wrong": null,
   "proposed_fix": "Wrap in a Scrollbar(thumbVisibility: true) and add a Listener that maps PointerScrollEvent.dy onto the horizontal controller, as the app already does for the sequencer node rail.",
   "verdict_reasoning": null
@@ -22,7 +22,7 @@
   "what_happened": "Clicking a thumbnail in the Session tab and in the session detail dialog produces no reaction: no preview, no grade action, no metadata. ImageThumbnailStrip takes an onImageTap callback and no caller in the app passes one.",
   "expected": "A gallery of the night frames is the obvious place to enlarge a frame, read its FITS header, or accept/reject it. NINA and the ASIAIR both open the frame from the thumbnail. The ImageGraderDialog that would do this exists but is reachable only from the Science tab.",
   "repro": "Analytics > Session > Night A - M31; click any thumbnail. Nothing happens. Same in History > session detail.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart:42/189, session_tab.dart:307, session_detail_dialog.dart:266",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart:42/189, session_tab.dart:307, session_detail_dialog.dart:266",
   "location_wrong": null,
   "proposed_fix": "Pass onImageTap that opens ImageGraderDialog (or a frame inspector) from both call sites.",
   "verdict_reasoning": null
@@ -36,7 +36,7 @@
   "what_happened": "With a full session history seeded, Mount shows Total Slews / Total Tracking Time / Meridian Flips = Not tracked, Focuser shows Total Movements = Not tracked, Guider shows Total Guide Time and Star Lost Events = Not tracked. Six of the twelve figures are hardcoded strings.",
   "expected": "An \"Equipment Stats\" tab whose Mount card contains no numbers at all is not worth a tab. Several of these are already derivable from data the app stores: meridian flips are recorded as sequencer decisions/narrator events, guide time and star-lost from guide_rms_history, focuser movements from focus_models/autofocus runs.",
   "repro": "Analytics > Equipment Stats with 3 sessions and 27 frames seeded.",
-  "where": "packages/nightshade_app/lib/screens/analytics/analytics_screen/equipment_stats.dart:137-139,150,156,162",
+  "where": "packages/skotiq_app/lib/screens/analytics/analytics_screen/equipment_stats.dart:137-139,150,156,162",
   "location_wrong": null,
   "proposed_fix": "Either wire the six to the tables that already hold the data, or drop the Mount card and rename the tab to what it measures (camera + focus + guiding quality).",
   "verdict_reasoning": null
@@ -50,7 +50,7 @@
   "what_happened": "The recovery dialog offers only Discard and Resume; Escape does not dismiss it and there is no barrier dismiss. The Incomplete Sessions dialog on the same startup path does offer 'Decide Later'.",
   "expected": "A user who wants to look at the sequence before deciding is forced to destroy the checkpoint or start a run. Match the sibling dialog and offer 'Decide later'.",
   "repro": "Launch with a checkpoint present; press Escape - dialog remains.",
-  "where": "packages/nightshade_app/lib/screens/shell/app_shell.dart startup checkpoint flow",
+  "where": "packages/skotiq_app/lib/screens/shell/app_shell.dart startup checkpoint flow",
   "location_wrong": null,
   "proposed_fix": "Add a third action that leaves the checkpoint on disk and closes the dialog, as the Incomplete Sessions dialog does.",
   "verdict_reasoning": null
@@ -64,7 +64,7 @@
   "what_happened": "After adding a 2-frame session (Night E - M13, no photometry, no solves) that started later than the 120-frame photometry night, the Science tab opened on Night E and showed '0% - 0 of 2 solved', 'Warming up', and the empty-state 'Turn pretty pictures into real measurements'. The 120-frame calibrated night was two clicks away in a dropdown.",
   "expected": "The default should be the most recent session that actually has science products. Otherwise a user who took two test frames after a long photometry run comes back to an empty Science tab.",
   "repro": "Analytics > Science with sessions 4 (120 frames, solved+photometry) and 5 (2 frames, nothing) where 5 starts later.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/science_analytics_tab.dart session selection",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/science_analytics_tab.dart session selection",
   "location_wrong": null,
   "proposed_fix": "Default to the newest session with >0 photometry measurements or >0 solved frames; fall back to newest overall.",
   "verdict_reasoning": null
@@ -75,10 +75,10 @@
   "corrected_severity": null,
   "kind": "ux",
   "unit": "screen:analytics/science_export_hub.dart",
-  "what_happened": "The exported report's Session block reads '**Started:** 2026-07-31T23:00:00.000'. The DB stores that session's start as 1785574800 = 2026-08-01T03:00:00Z. The report prints local wall time in ISO-8601 shape but with no offset and no 'Z', while the footer prints '_Generated by Nightshade 6.1.0 on 2026-08-02T14:42:11.518312Z._' with a Z.",
+  "what_happened": "The exported report's Session block reads '**Started:** 2026-07-31T23:00:00.000'. The DB stores that session's start as 1785574800 = 2026-08-01T03:00:00Z. The report prints local wall time in ISO-8601 shape but with no offset and no 'Z', while the footer prints '_Generated by Skotiq 6.1.0 on 2026-08-02T14:42:11.518312Z._' with a Z.",
   "expected": "One convention, stated. Photometry reports are shared with AAVSO/TNS and read by people in other timezones; an unlabelled local ISO timestamp next to a labelled UTC one invites a whole-night error.",
   "repro": "Analytics > Science > Export report; read the Session block and the footer of the .md.",
-  "where": "packages/nightshade_core/lib/src/services/science/science_report_exporter.dart:131 (Session block)",
+  "where": "packages/skotiq_core/lib/src/services/science/science_report_exporter.dart:131 (Session block)",
   "location_wrong": null,
   "proposed_fix": "Emit UTC with the Z suffix (and optionally the local time in parentheses with its offset), as the footer already does.",
   "verdict_reasoning": null
@@ -92,7 +92,7 @@
   "what_happened": "Rung 3's sheet says 'Turn on live photometry and track a star to start collecting points' and offers only Close and 'Got it'. Rung 5's says 'Find a period - or build out the curve - before exporting' and offers only Close and 'Got it'. Neither has a control that does the named thing; the user has to close the sheet and go hunt for the Settings > Science toggle or the target picker themselves.",
   "expected": "A guided-onboarding sheet that states a precondition should offer the action that satisfies it, the way the ladder card itself does for rung 1 ('Run calibration'). NINA's and the ASIAIR's equivalents deep-link.",
   "repro": "Analytics > Science > click any locked rung in the Science guide.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/science_onboarding/science_rung_sheet.dart",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/science_onboarding/science_rung_sheet.dart",
   "location_wrong": null,
   "proposed_fix": "Give each rung an optional primary action (rung 2: open the photometry target picker; rung 3: open Settings > Science live photometry; rung 4: scroll to and run Period Analysis; rung 5: open the AAVSO/MPC export) and render it beside 'Got it'.",
   "verdict_reasoning": null
@@ -106,7 +106,7 @@
   "what_happened": "With a 5x5 uniformity grid seeded (values 0.10 at tile (0,0) rising to 0.32 at (4,4)) the card renders 25 coloured dots on an otherwise empty ~450px-tall panel. There is no x/y axis, no indication which corner of the sensor is which, no colour bar, no min/max value, no units, and no hover/tap readout. The only text is the title, the layer dropdown, 'Z Exaggeration' and 'Contours'.",
   "expected": "A field-quality map's entire purpose is to say WHERE on the sensor the problem is and HOW BAD. Without an orientation cue (top-left of frame, etc.) and a value scale the user cannot act on it - they cannot tell a 2% uniformity spread from a 40% one, and cannot map a red corner onto a physical tilt adjustment. NINA's Hocus Focus and ASTAP's tilt map both label corners and print numbers.",
   "repro": "Analytics > Science with science_tile_metrics seeded; look at the 3D Surface Explorer card.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/science_surface_explorer.dart:60-118 (card contents) and the _SurfacePainter at :300-332 which draws only circles and optional stems",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/science_surface_explorer.dart:60-118 (card contents) and the _SurfacePainter at :300-332 which draws only circles and optional stems",
   "location_wrong": null,
   "proposed_fix": "Add corner labels (TL/TR/BL/BR), a colour bar with min/median/max in the layer's units, and a tap-to-read tooltip giving tile (row,col) and value. Shrink the fixed 240-480px plot box to the space actually used.",
   "verdict_reasoning": null
@@ -120,7 +120,7 @@
   "what_happened": "On one scroll of the Period Analysis card the same detected period is written as '20.0 min' (BLS headline and detail table), 'P=0.014d' (the marker on the Lomb-Scargle periodogram), and 'P=0.33h' (the marker on the BLS spectrum). The two input fields are labelled 'Min period (d)' and 'Max period (d)', and the BLS spectrum's x axis is in hours (0.2h, 0.4h, 0.7h, 1.2h, 2.0h) while the LS periodogram's x axis is in 1/day.",
   "expected": "One unit per card, or at least one unit for the markers that annotate the headline result. A user cross-checking 20.0 min against 0.33 h against 0.014 d has to do arithmetic to confirm the app is talking about the same peak.",
   "repro": "Analytics > Science > Period Analysis > Run Period Search; compare the headline, the two chart markers and the two x axes.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/period_analysis_panel/periodogram_painter.dart (marker label in days) vs bls_spectrum_painter.dart (marker label in hours) vs period_analysis_panel.dart _formatPeriod (minutes)",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/period_analysis_panel/periodogram_painter.dart (marker label in days) vs bls_spectrum_painter.dart (marker label in hours) vs period_analysis_panel.dart _formatPeriod (minutes)",
   "location_wrong": null,
   "proposed_fix": "Use _formatPeriod for both chart markers so they read '20.0 min' like the headline; keep the axes in their natural units but label them explicitly.",
   "verdict_reasoning": null
@@ -134,7 +134,7 @@
   "what_happened": "In the Image grader, 'Max FWHM' reads 'off' with its thumb pinned at the far LEFT of the track, while the next row 'Max eccentricity' also reads 'off' with its thumb pinned at the far RIGHT. The two disabled rules look like opposite settings.",
   "expected": "One visual convention for a disabled rule - e.g. thumb at the permissive end for every rule, or grey the whole row out.",
   "repro": "Analytics > Science > 'Grade N frames' on a session whose frames have NULL fwhm and NULL eccentricity.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/image_grader_dialog.dart (per-rule slider construction)",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/image_grader_dialog.dart (per-rule slider construction)",
   "location_wrong": null,
   "proposed_fix": "Render an off rule as a dimmed track with the thumb at a single fixed end, and put the enable/disable affordance in one place instead of a +/- glyph that differs per row.",
   "verdict_reasoning": null
@@ -148,7 +148,7 @@
   "what_happened": "The MPC Report Export card is subtitled 'Select observations to include in MPC 80-column format report' and produces only that format. The sibling TransientReportPanel's own header comment states 'MPC - generates an ADES PSV astrometry report you submit via the MPC web form.' Two paths in the same product target the same recipient in two different formats, and the one wired to the moving-object detector is the legacy one.",
   "expected": "The MPC has been migrating submitters to ADES (PSV/XML) and the 80-column format is deprecated for new programmes. The moving-object export should emit ADES PSV (with the observatory code, telescope aperture/design and observer/measurer names ADES requires), or at least offer it as a choice, and the two panels should agree.",
   "repro": "Analytics > Science > ANOMALIES > MPC Report Export; compare the subtitle with the class doc of transient_report_panel.dart.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/mpc_export_panel.dart and packages/nightshade_core/lib/src/services/science/mpc_export_service.dart",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/mpc_export_panel.dart and packages/skotiq_core/lib/src/services/science/mpc_export_service.dart",
   "location_wrong": null,
   "proposed_fix": "Add an ADES PSV writer alongside the 80-column one and a format selector defaulting to ADES; carry the observer/measurer/telescope fields from the equipment profile.",
   "verdict_reasoning": null
@@ -162,7 +162,7 @@
   "what_happened": "Analytics > Science > Photometric Transforms > Calibrate > step 1. The instructions read 'selecting frames of the same field at different altitudes adds airmass spread, which lets the fit also recover the atmospheric extinction coefficient.' For Night D the list is 120 rows, every one reading 'vt_0NN.fits / V | 120.0s | Stars: 1500 | RA: 120.0000 Dec: 25.0000'. There is no Select All, no Clear, no range select, no altitude or airmass column, and no way to sort. The only filter is a free-text Filter box for the filter NAME.",
   "expected": "If the wizard wants an airmass spread it should show altitude/airmass per frame and offer 'pick N spread across altitude' or at least Select All / shift-click ranges. As built the user must find high- and low-altitude frames by eye from rows that do not show altitude at all.",
   "repro": "Analytics > Science > Calibrate > choose a session with many solved frames.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/photometric_calibration_wizard/frame_selection.dart:250-262 (row subtitle) - no bulk-selection controls anywhere in the file",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/photometric_calibration_wizard/frame_selection.dart:250-262 (row subtitle) - no bulk-selection controls anywhere in the file",
   "location_wrong": null,
   "proposed_fix": "Add an Airmass / Altitude column derived from mount_altitude (already stored on captured_images), sort by it, and add Select All / Select spread (lowest, median, highest airmass).",
   "verdict_reasoning": null
@@ -176,7 +176,7 @@
   "what_happened": "Every frame row in the calibration wizard reads 'RA: 120.0000 Dec: 25.0000'. No degree sign, no h/m/s, nothing to say the value is degrees rather than hours - and 'RA' is conventionally quoted in hours.",
   "expected": "'RA 08h00m00s  Dec +25 00 00' or at minimum 'RA 120.0000 deg'. The app elsewhere (MPC export) formats RA sexagesimally, so the two disagree.",
   "repro": "Analytics > Science > Calibrate > pick a session with plate-solved frames; read any row.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/photometric_calibration_wizard/frame_selection.dart:258-259",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/photometric_calibration_wizard/frame_selection.dart:258-259",
   "location_wrong": null,
   "proposed_fix": "Reuse the sexagesimal formatter the MPC export already has, or append the unit.",
   "verdict_reasoning": null
@@ -190,7 +190,7 @@
   "what_happened": "With imaging_sessions and captured_images both emptied (a brand-new user's state), Analytics opens on Session showing a card headed 'Quick Capture / Standalone snapshots taken outside sequences' with DURATION '\u2014', EXPOSURES 0, INTEGRATION 'No data', MEDIAN HFR 'No data', a 'Captured Images' block reading 'No images captured in this session', and four empty charts. There is no session-picker bar and nothing that says the user has not imaged yet. The History tab in the same state does it properly: 'No session history / Complete an imaging session to see history here'.",
   "expected": "The first tab of Analytics is the first thing a new user sees, and it should say 'No sessions yet - your first night will appear here' (the Dashboard already uses that wording) rather than render a fabricated session with four blank charts. Presenting a named card with a duration and an exposure count for something that does not exist is the same class of claim as the rest of this report.",
   "repro": "Empty imaging_sessions and captured_images (or use a fresh profile), restart, open Analytics.",
-  "where": "packages/nightshade_app/lib/screens/analytics/analytics_screen/session_tab.dart (the synthetic standalone/quick-capture session is used as the fallback when no real session exists)",
+  "where": "packages/skotiq_app/lib/screens/analytics/analytics_screen/session_tab.dart (the synthetic standalone/quick-capture session is used as the fallback when no real session exists)",
   "location_wrong": null,
   "proposed_fix": "Only show the Quick Capture bucket when it actually contains standalone frames; otherwise render the same empty state History uses.",
   "verdict_reasoning": null
@@ -204,7 +204,7 @@
   "what_happened": "The four Session-tab charts build their empty text from the axis label, giving 'No HFR (px) recorded for these frames', 'No RMS (arcsec) recorded for these frames', 'No Focuser position (steps) recorded for these frames' and - worst - 'No \u00b0C recorded for these frames'.",
   "expected": "Use the chart's title, not its axis label: 'No sensor temperature recorded for these frames'. The unit-in-parentheses reads as a typo and the bare degree sign is meaningless as a noun.",
   "repro": "Analytics > Session with a session that has no frames (or a fresh profile).",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/session_chart.dart (empty-state text composed from the y-axis label)",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/session_chart.dart (empty-state text composed from the y-axis label)",
   "location_wrong": null,
   "proposed_fix": "Pass a separate humanLabel ('sensor temperature', 'guiding RMS', 'focuser position', 'half-flux radius') for the empty message.",
   "verdict_reasoning": null

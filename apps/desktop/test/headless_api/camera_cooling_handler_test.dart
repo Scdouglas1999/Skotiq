@@ -12,10 +12,10 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/src/backend/disconnected_backend.dart';
-import 'package:nightshade_core/src/backend/nightshade_backend.dart';
-import 'package:nightshade_core/src/providers/backend_provider.dart';
-import 'package:nightshade_desktop/headless_api/handlers/device_handlers.dart';
+import 'package:skotiq_core/src/backend/disconnected_backend.dart';
+import 'package:skotiq_core/src/backend/skotiq_backend.dart';
+import 'package:skotiq_core/src/providers/backend_provider.dart';
+import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -147,7 +147,7 @@ class _CoolingCaptureBackend extends DisconnectedBackend {
 }
 
 class _TestBackendNotifier extends BackendNotifier {
-  _TestBackendNotifier(super.ref, NightshadeBackend backend) {
+  _TestBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
   }
 }

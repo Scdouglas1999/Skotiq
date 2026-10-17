@@ -1,4 +1,4 @@
-NIGHTSHADE SOURCE-AVAILABLE LICENSE
+SKOTIQ SOURCE-AVAILABLE LICENSE
 Version 1.2, January 2025
 
 Copyright (c) 2025 Sean Douglas. All rights reserved.
@@ -7,7 +7,7 @@ TERMS AND CONDITIONS
 
 1. DEFINITIONS
 
-   "Software" refers to Nightshade, including all source code, object code,
+   "Software" refers to Skotiq, including all source code, object code,
    documentation, assets, and any associated files in this repository.
 
    "Author" refers to Sean Douglas, the sole copyright holder.
@@ -30,7 +30,7 @@ TERMS AND CONDITIONS
    non-exclusive, worldwide right to:
 
    a) USE the Software for any purpose, including personal, educational,
-      and commercial use (e.g., using Nightshade for your astrophotography
+      and commercial use (e.g., using Skotiq for your astrophotography
       business or paid imaging services).
 
    b) VIEW, DOWNLOAD, AND STUDY the source code for personal learning,
@@ -104,7 +104,7 @@ TERMS AND CONDITIONS
    a) The Software, including all intellectual property rights therein,
       is and shall remain the sole and exclusive property of the Author.
 
-   b) This License does not grant You any rights to the "Nightshade" name,
+   b) This License does not grant You any rights to the "Skotiq" name,
       trademarks, service marks, trade names, logos, or branding.
 
    c) Nothing in this License grants any patent rights held by the Author.
@@ -199,7 +199,7 @@ OR USE THE SOFTWARE.
 
 QUICK REFERENCE (not legally binding, see above for full terms):
 
-  ✓ Use Nightshade for any purpose (personal, educational, commercial imaging)
+  ✓ Use Skotiq for any purpose (personal, educational, commercial imaging)
   ✓ View and study the source code
   ✓ Modify the code for your own personal use
   ✓ Share official unmodified releases with others

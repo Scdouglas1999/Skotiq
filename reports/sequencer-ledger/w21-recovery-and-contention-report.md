@@ -174,25 +174,25 @@ Run from the worktree with `TMPDIR=$HOME/.cache/ns-tmp/w21-recovery`.
 
 | Command | Exit |
 | --- | --- |
-| `cargo check -p nightshade_sequencer --all-targets` (baseline, before any edit) | 0 |
+| `cargo check -p skotiq_sequencer --all-targets` (baseline, before any edit) | 0 |
 | `cargo check --workspace --all-targets` | 0 |
 | `cargo clippy --workspace --all-targets` | 0 (zero warnings) |
 | `cargo fmt --all -- --check` | 0 |
-| `cargo test -p nightshade_sequencer` | 0 — 891 lib + all integration targets |
-| `cargo build -p nightshade_bridge --release` | 0 |
+| `cargo test -p skotiq_sequencer` | 0 — 891 lib + all integration targets |
+| `cargo build -p skotiq_bridge --release` | 0 |
 | `flutter build linux --release` | 0 |
-| `dart format --output=none --set-exit-if-changed packages/nightshade_bridge` | 0 |
-| `dart format --output=none --set-exit-if-changed packages/nightshade_core` | 0 |
+| `dart format --output=none --set-exit-if-changed packages/skotiq_bridge` | 0 |
+| `dart format --output=none --set-exit-if-changed packages/skotiq_core` | 0 |
 | `dart format --output=none --set-exit-if-changed apps/desktop` | 0 |
-| `dart analyze` in `packages/nightshade_bridge` | 0 — "No issues found!" |
-| `dart analyze` in `packages/nightshade_core` | 0 — 19 pre-existing infos, none in files I touched |
+| `dart analyze` in `packages/skotiq_bridge` | 0 — "No issues found!" |
+| `dart analyze` in `packages/skotiq_core` | 0 — 19 pre-existing infos, none in files I touched |
 | `dart analyze` in `apps/desktop` | 0 — 9 pre-existing infos (deprecated wave-4 tokens), none in files I touched |
 | `flutter test test/headless_api/sequencer_handlers_test.dart --concurrency=4` | 0 — 40 tests |
 | `flutter test test/backend --concurrency=4` (core) | 0 — 306 tests |
 | `flutter test test/providers --concurrency=4` (core) | 0 — 1710 tests |
 | `flutter_rust_bridge_codegen generate` (with `CC=clang CPATH=$(clang -print-resource-dir)/include:/usr/include`) | 0 |
 
-`dart analyze` initially reported 87,208 issues in `nightshade_core`. That was an
+`dart analyze` initially reported 87,208 issues in `skotiq_core`. That was an
 unbootstrapped worktree — no `.dart_tool`, so every cross-package import was unresolved.
 After `melos bootstrap` (exit 0, 11 packages) it is the 19 pre-existing infos above.
 
@@ -208,10 +208,10 @@ owner's, on 2026-09-14, and the evidence file is that reproduction.
 
 For the fix I verified against the binary I built:
 
-1. `cargo build -p nightshade_bridge --release` into
-   `native/nightshade_native/target/release` (where `apps/desktop/linux/CMakeLists.txt`
+1. `cargo build -p skotiq_bridge --release` into
+   `native/skotiq_native/target/release` (where `apps/desktop/linux/CMakeLists.txt`
    looks), then `flutter build linux --release`. Confirmed the **bundle's**
-   `lib/libnightshade_bridge.so` carries the new strings (`park-and-close policy`,
+   `lib/libskotiq_bridge.so` carries the new strings (`park-and-close policy`,
    `holding the run for a human`, `stopped guiding for its sweep`,
    `is using the camera and filter wheel`) and that `UNATTENDED rig` and
    `requested retry attempt` are gone from it — 0 occurrences.
@@ -219,9 +219,9 @@ For the fix I verified against the binary I built:
 2. Ran that bundle headless and drove the route live:
 
 ```
-NIGHTSHADE_PORT=18123 NIGHTSHADE_DATABASE_DIR=<scratch>/nsdb \
-NIGHTSHADE_DATA_DIR=<scratch>/nsdata NIGHTSHADE_ALLOW_UNAUTHENTICATED=true \
-LIBGL_ALWAYS_SOFTWARE=1 ./nightshade_desktop --headless
+SKOTIQ_PORT=18123 SKOTIQ_DATABASE_DIR=<scratch>/nsdb \
+SKOTIQ_DATA_DIR=<scratch>/nsdata SKOTIQ_ALLOW_UNAUTHENTICATED=true \
+LIBGL_ALWAYS_SOFTWARE=1 ./skotiq_desktop --headless
 ```
 
   * payload **without** `parkAndCloseWhenRecoveryGivesUp` (an older client):

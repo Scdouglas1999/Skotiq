@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_mobile/services/android_system_ui.dart';
+import 'package:skotiq_mobile/services/android_system_ui.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

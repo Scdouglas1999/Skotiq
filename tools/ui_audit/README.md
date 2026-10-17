@@ -1,6 +1,6 @@
 # Driving the app for an audit (Linux)
 
-`drive_linux.py` launches a sandboxed Nightshade instance on a private X server
+`drive_linux.py` launches a sandboxed Skotiq instance on a private X server
 and lets you read and operate it. Everything below was learned by getting it
 wrong first; none of it is optional.
 
@@ -60,7 +60,7 @@ work behind.
 ## The traps
 
 **Bind to the pid, never the app name.** The AT-SPI registry is per login
-session, not per X display, so the developer's own Nightshade — running on their
+session, not per X display, so the developer's own Skotiq — running on their
 real desktop against their real observing database — appears in the same
 enumeration as the sandbox. Selecting the accessibility root by name picked up
 the wrong process, and a click would have driven their live session. `tree` and
@@ -85,8 +85,8 @@ control and the sweep reports that control's behaviour under the wrong name.
 `[DISABLED]` for dead interactive controls and `[offscreen]`. Auditing "every
 switch" means reading these, not just seeing that a row rendered.
 
-**The scratch profile is real.** `NIGHTSHADE_DATABASE_DIR` and
-`NIGHTSHADE_DATA_DIR` point into `/tmp/ns-audit/<profile>/data`, so a sweep never
+**The scratch profile is real.** `SKOTIQ_DATABASE_DIR` and
+`SKOTIQ_DATA_DIR` point into `/tmp/ns-audit/<profile>/data`, so a sweep never
 touches real observing data — but it also means a fresh profile starts at
 onboarding step 1 every time, and any state a test depends on must be set up
 first.

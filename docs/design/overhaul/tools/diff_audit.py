@@ -4,8 +4,8 @@
     python3 docs/design/overhaul/tools/diff_audit.py <base-sha> [<head>] [--repo PATH]
 
 Prints, per forbidden pattern, the number of added lines that match and the first few
-file:line locations. Exit 1 if any pattern matches in files under packages/nightshade_ui/lib or
-packages/nightshade_app/lib (tests, tools and docs are reported but do not fail).
+file:line locations. Exit 1 if any pattern matches in files under packages/skotiq_ui/lib or
+packages/skotiq_app/lib (tests, tools and docs are reported but do not fail).
 
 Patterns are the "No new raw literals" rule from 07-implementation-waves.md rule 4, plus the
 deprecated names each wave must not introduce.
@@ -25,7 +25,7 @@ PATTERNS = {
     "Icons.* (Material)": re.compile(r"\bIcons\.[a-zA-Z_]+"),
     "EdgeInsets.all(odd)": re.compile(r"EdgeInsets\.all\(\s*(1|3|5|7|9|11|13|15|17|19|21|23)(\.0)?\s*\)"),
     "Duration(milliseconds: <n>) inline": re.compile(r"Duration\(milliseconds:\s*\d"),
-    "deprecated: NightshadeTypography.h1..h6": re.compile(r"NightshadeTypography\.h[1-6]\b"),
+    "deprecated: SkotiqTypography.h1..h6": re.compile(r"SkotiqTypography\.h[1-6]\b"),
     "deprecated: surfaceAlt": re.compile(r"\.surfaceAlt\b"),
     "deprecated: SubTabButton": re.compile(r"\bSubTabButton\("),
     "deprecated: ScreenHeader": re.compile(r"\bScreenHeader\("),
@@ -34,9 +34,9 @@ PATTERNS = {
     "placeholder ---": re.compile(r"['\"]---['\"]|--:--"),
     "Co-Authored-By trailer": re.compile(r"Co-Authored-By"),
 }
-FAIL_PREFIXES = ("packages/nightshade_ui/lib/", "packages/nightshade_app/lib/")
+FAIL_PREFIXES = ("packages/skotiq_ui/lib/", "packages/skotiq_app/lib/")
 # The theme directory DEFINES the literals everyone else must reference; report, never fail.
-EXEMPT_PREFIXES = ("packages/nightshade_ui/lib/src/theme/", "packages/nightshade_ui/lib/src/tokens/")
+EXEMPT_PREFIXES = ("packages/skotiq_ui/lib/src/theme/", "packages/skotiq_ui/lib/src/tokens/")
 
 
 def main() -> int:

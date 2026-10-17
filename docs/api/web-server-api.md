@@ -1,6 +1,6 @@
 # Web Server API Reference
 
-The Nightshade Web Server provides a REST API for remote control of the desktop application. This allows mobile devices and other clients to control Nightshade over the network.
+The Skotiq Web Server provides a REST API for remote control of the desktop application. This allows mobile devices and other clients to control Skotiq over the network.
 
 ## Overview
 
@@ -94,7 +94,7 @@ Remote clients use `/api/info.apiVersion` for API compatibility checks before
 switching into network-control mode. The `version` field is the application
 release version shown to operators. Clients fall back to `version` when talking
 to older servers that do not advertise `apiVersion`. The current client accepts
-Nightshade server API versions `2.4.0` and newer within major version `2`.
+Skotiq server API versions `2.4.0` and newer within major version `2`.
 Servers older than `2.4.0`, servers with an unknown/malformed version, and
 servers with a newer major API version are rejected with user-facing "server
 too old/new" guidance.
@@ -109,8 +109,8 @@ When authentication is enabled, tokens can be scoped:
 | `control` | View access plus imaging and device-control routes. |
 | `admin` | Full protected API access, including settings, self-test, file browsing, and backup/restore. |
 
-The legacy `--auth-token` and `NIGHTSHADE_AUTH_TOKEN` values are admin tokens.
-Optional `NIGHTSHADE_VIEW_TOKEN`, `NIGHTSHADE_CONTROL_TOKEN`, `--view-token`,
+The legacy `--auth-token` and `SKOTIQ_AUTH_TOKEN` values are admin tokens.
+Optional `SKOTIQ_VIEW_TOKEN`, `SKOTIQ_CONTROL_TOKEN`, `--view-token`,
 and `--control-token` values can grant narrower access.
 
 ### GET /api/status
@@ -141,7 +141,7 @@ API route count without connecting to hardware.
   "platform": {
     "operatingSystem": "windows",
     "operatingSystemVersion": "Windows 10 ...",
-    "executable": "C:\\Program Files\\Nightshade\\nightshade_desktop.exe"
+    "executable": "C:\\Program Files\\Skotiq\\skotiq_desktop.exe"
   },
   "server": {
     "port": 8080,
@@ -201,7 +201,7 @@ and excludes WebSocket-only routes.
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Nightshade Headless API",
+    "title": "Skotiq Headless API",
     "version": "2.6.0"
   },
   "servers": [
@@ -683,7 +683,7 @@ the grading result for sequencer-captured frames.
 | `RotatorMoveStarted` / `RotatorMoveCompleted` | `{ "target_angle"\|"angle": number }` |
 | `CameraCoolingStarted` | `{ "target_temp": number }` |
 | `CameraCoolingReached` | `{ "temperature": number }` |
-| `HeartbeatStarted` / `HeartbeatStopped` / `HeartbeatStatusChanged` / `HeartbeatReconnecting` / `HeartbeatReconnected` | See `nightshade_bridge/event.dart`. |
+| `HeartbeatStarted` / `HeartbeatStopped` / `HeartbeatStatusChanged` / `HeartbeatReconnecting` / `HeartbeatReconnected` | See `skotiq_bridge/event.dart`. |
 
 #### `category: safety`
 
@@ -832,7 +832,7 @@ print(f"Sequence state: {status['state']}")
 The web server can be configured when creating an instance:
 
 ```dart
-final server = NightshadeWebServer(
+final server = SkotiqWebServer(
   port: 8080,
   webRoot: '/path/to/web/build', // Optional: for serving static files
   devicesHandler: () async => {...},

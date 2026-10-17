@@ -3,21 +3,21 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 // ignore: implementation_imports
-import 'package:nightshade_core/src/providers/plugin_enablement_provider.dart';
-import 'package:nightshade_desktop/headless_api/handlers/plugin_handlers.dart';
-import 'package:nightshade_plugins/nightshade_plugins.dart';
+import 'package:skotiq_core/src/providers/plugin_enablement_provider.dart';
+import 'package:skotiq_desktop/headless_api/handlers/plugin_handlers.dart';
+import 'package:skotiq_plugins/skotiq_plugins.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
 
-class _TestPlugin extends NightshadePlugin {
+class _TestPlugin extends SkotiqPlugin {
   int enableCalls = 0;
   int disableCalls = 0;
 
   @override
-  String get id => 'com.nightshade.test.runtime';
+  String get id => 'com.skotiq.test.runtime';
 
   @override
   String get name => 'Runtime Plugin';
@@ -26,7 +26,7 @@ class _TestPlugin extends NightshadePlugin {
   String get version => '1.2.3';
 
   @override
-  String get author => 'Nightshade';
+  String get author => 'Skotiq';
 
   @override
   String get description => 'Compiled into the test host';
@@ -166,7 +166,7 @@ void main() {
             'http://localhost/api/plugins/upload?filename=sample.nsplugin',
           ),
           body: _archive({
-            'id': 'com.nightshade.sample',
+            'id': 'com.skotiq.sample',
             'name': 'Sample',
             'version': '1.0.0',
           }),
@@ -187,7 +187,7 @@ void main() {
           .read(pluginManagementServiceProvider)
           .installFromBytes(
             _archive({
-              'id': 'com.nightshade.legacy',
+              'id': 'com.skotiq.legacy',
               'name': 'Legacy Upload',
               'version': '0.9.0',
             }),
@@ -199,7 +199,7 @@ void main() {
       );
       final listBody = await _body(list);
       final legacy = (listBody['items'] as List).cast<Map>().singleWhere(
-        (item) => item['id'] == 'com.nightshade.legacy',
+        (item) => item['id'] == 'com.skotiq.legacy',
       );
       expect(legacy['enabled'], isFalse);
       expect(legacy['runtimeLoaded'], isFalse);
@@ -208,7 +208,7 @@ void main() {
 
       final enable = await handlers.handleEnablePlugin(
         Request('POST', Uri.parse('http://localhost/api/plugins/legacy')),
-        'com.nightshade.legacy',
+        'com.skotiq.legacy',
       );
       expect(enable.statusCode, HttpStatus.conflict);
       expect((await _body(enable))['error'], 'archived_plugin_not_runnable');
@@ -219,7 +219,7 @@ void main() {
           .read(pluginManagementServiceProvider)
           .installFromBytes(
             _archive({
-              'id': 'com.nightshade.legacy',
+              'id': 'com.skotiq.legacy',
               'name': 'Legacy Upload',
               'version': '0.9.0',
             }),
@@ -228,7 +228,7 @@ void main() {
 
       final removed = await handlers.handleUninstallPlugin(
         Request('DELETE', Uri.parse('http://localhost/api/plugins/legacy')),
-        'com.nightshade.legacy',
+        'com.skotiq.legacy',
       );
       expect(removed.statusCode, HttpStatus.ok);
       expect((await _body(removed))['status'], 'archive_removed');

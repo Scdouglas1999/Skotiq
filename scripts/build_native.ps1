@@ -1,15 +1,15 @@
-# Build script for Nightshade native Rust library (Windows PowerShell)
+# Build script for Skotiq native Rust library (Windows PowerShell)
 # Builds for Windows
 
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $ScriptDir
-$NativeDir = Join-Path $ProjectRoot "native\nightshade_native"
+$NativeDir = Join-Path $ProjectRoot "native\skotiq_native"
 
 Set-Location $NativeDir
 
-Write-Host "Building Nightshade native library..."
+Write-Host "Building Skotiq native library..."
 Write-Host "Project root: $ProjectRoot"
 Write-Host "Native dir: $NativeDir"
 

@@ -4,21 +4,21 @@
     "outcome": "partial",
     "summary": "Root cause: ExecutorEvent::TargetStarted had a bridge mapping (bridge/src/api/sequencer.rs:677) and a Dart handler (event_operations.dart 'TargetStarted'/'TargetChanged') but ZERO producers anywhere in the sequencer crate, so SequenceProgress.currentTarget was null on every run ever executed and stats_json.targetBreakdown fell through its documented fallback to the sequence name. The executor now indexes TargetHeader/TargetGroup nodes at start (target_node_metadata) and emits TargetStarted on subtree entry and TargetCompleted on Success. An unnamed target is deliberately left off the wire rather than announced under an invented label.",
     "files_changed": [
-      "native/nightshade_native/sequencer/src/executor/mod.rs",
-      "packages/nightshade_core/test/providers/sequence/sequence_executor_run_record_truth_test.dart"
+      "native/skotiq_native/sequencer/src/executor/mod.rs",
+      "packages/skotiq_core/test/providers/sequence/sequence_executor_run_record_truth_test.dart"
     ],
-    "test": "cargo test -p nightshade_sequencer --lib -- entering_a_target_announces_the_target_by_name an_unnamed_target_is_not_announced ; flutter test test/providers/sequence/sequence_executor_run_record_truth_test.dart (group 'target attribution')",
+    "test": "cargo test -p skotiq_sequencer --lib -- entering_a_target_announces_the_target_by_name an_unnamed_target_is_not_announced ; flutter test test/providers/sequence/sequence_executor_run_record_truth_test.dart (group 'target attribution')",
     "revert_check": "Deleted the `if let Some((target_name, ra, dec)) = target_node_metadata.get(&update.node_id) { ... ExecutorEvent::TargetStarted ... }` block in executor/mod.rs (~line 3249). Test failed: left: [] right: [(\"M31\", 0.712, 41.269)]. Restored; both pass; full crate 715/715 green.",
-    "needs_shared_change": "Session Report Targets section still labels the group 'Untargeted' because it groups on captured_images.target_id, which is honestly NULL when the TargetHeader carries no catalogTargetId. Owner of packages/nightshade_app/lib/screens/sequencer/session_report_dialog.dart should group/label from the run's target breakdown (or the sequence snapshot's TargetHeader name) instead of the catalog FK."
+    "needs_shared_change": "Session Report Targets section still labels the group 'Untargeted' because it groups on captured_images.target_id, which is honestly NULL when the TargetHeader carries no catalogTargetId. Owner of packages/skotiq_app/lib/screens/sequencer/session_report_dialog.dart should group/label from the run's target breakdown (or the sequence snapshot's TargetHeader name) instead of the catalog FK."
   },
   {
     "title": "Session report says 'Autofocus 0' after an autofocus that ran 9 points and completed successfully",
     "outcome": "fixed",
     "summary": "SequenceRunStats.recordAutofocus() had zero production call sites; the counter was declared, serialised into sequence_runs.stats_json and rendered by the Session Report, and nothing incremented it. NodeCompleted(success) now counts the node when its own last structured progress payload was ProgressDetail::Autofocus (identity via node id, not the operator-editable display name). Also wired the trigger-fired refocus path, which streamed Autofocus progress under the synthetic node id trigger:<id>:autofocus and then went silent: the executor now publishes NodeCompleted with the sweep's real status for it.",
     "files_changed": [
-      "packages/nightshade_core/lib/src/providers/sequence/sequence_executor/event_operations.dart",
-      "native/nightshade_native/sequencer/src/executor/mod.rs",
-      "packages/nightshade_core/test/providers/sequence/sequence_executor_run_record_truth_test.dart"
+      "packages/skotiq_core/lib/src/providers/sequence/sequence_executor/event_operations.dart",
+      "native/skotiq_native/sequencer/src/executor/mod.rs",
+      "packages/skotiq_core/test/providers/sequence/sequence_executor_run_record_truth_test.dart"
     ],
     "test": "flutter test test/providers/sequence/sequence_executor_run_record_truth_test.dart (group 'autofocus run counter', 5 tests)",
     "revert_check": "Deleted `if (nodeStatus == NodeStatus.success && _nodeRanAutofocus(nodeId)) { _incrementRunStat((stats) => stats.recordAutofocus()); }` from event_operations.dart. 3 of 5 tests failed (Expected <1>, Actual <0>). Restored; 9/9 pass.",
@@ -29,8 +29,8 @@
     "outcome": "partial",
     "summary": "Closed the surface I own: the run-stats bucket read SequencerEvent.ExposureCompleted.filter, a field the native event does not carry at all, so it filed every frame under 'Unknown' while _registerSequenceFrame independently resolved 'R' for the same frame and wrote it to captured_images. Both now call one _resolveActiveFilter() (progress currentFilter, then the wheel's live position), so the DB column and the stats bucket cannot disagree again. 'Unknown' is still the bucket when nothing can name the filter — that is honest, not a fallback.",
     "files_changed": [
-      "packages/nightshade_core/lib/src/providers/sequence/sequence_executor/event_operations.dart",
-      "packages/nightshade_core/test/providers/sequence/sequence_executor_run_record_truth_test.dart"
+      "packages/skotiq_core/lib/src/providers/sequence/sequence_executor/event_operations.dart",
+      "packages/skotiq_core/test/providers/sequence/sequence_executor_run_record_truth_test.dart"
     ],
     "test": "flutter test test/providers/sequence/sequence_executor_run_record_truth_test.dart (group 'run-stats filter attribution', 3 tests)",
     "revert_check": "Replaced `final resolvedFilter = (filter != null && filter.isNotEmpty) ? filter : _resolveActiveFilter();` with `final resolvedFilter = filter;` in _recordRunFrame. 2 of 3 tests failed (Expected ['R'] / ['Ha'], Actual ['Unknown']). Restored; all pass.",
@@ -39,11 +39,11 @@
   {
     "title": "Pre-flight warns that a step is scheduled 'before target rises' when it is scheduled AFTER the rise time it prints",
     "outcome": "blocked",
-    "summary": "Confirmed at the verifier's location, which is outside my ownership. SequenceTimeEstimator.findTimingConflicts (packages/nightshade_core/lib/src/services/sequence_time_estimator.dart:786-798) emits the 'before target rises at' literal, and _formatTime (line 411) prints HH:mm only, so a rise on the next calendar day reads as one that already passed.",
+    "summary": "Confirmed at the verifier's location, which is outside my ownership. SequenceTimeEstimator.findTimingConflicts (packages/skotiq_core/lib/src/services/sequence_time_estimator.dart:786-798) emits the 'before target rises at' literal, and _formatTime (line 411) prints HH:mm only, so a rise on the next calendar day reads as one that already passed.",
     "files_changed": [],
     "test": "n/a — not edited",
     "revert_check": "n/a",
-    "needs_shared_change": "packages/nightshade_core/lib/src/services/sequence_time_estimator.dart: findTimingConflicts must compare the scheduled instant against the rise/set interval that CONTAINS it (not a bare isBefore(riseTime)), and print the boundary actually violated with a date when it is not today."
+    "needs_shared_change": "packages/skotiq_core/lib/src/services/sequence_time_estimator.dart: findTimingConflicts must compare the scheduled instant against the rise/set interval that CONTAINS it (not a bare isBefore(riseTime)), and print the boundary actually violated with a date when it is not today."
   },
   {
     "title": "Pre-flight dark-library check uses the camera default temperature (-10C), not the temperature the sequence's Cool Camera node will actually reach (15C)",
@@ -52,12 +52,12 @@
     "files_changed": [],
     "test": "n/a — not edited",
     "revert_check": "n/a",
-    "needs_shared_change": "packages/nightshade_core/lib/src/providers/sequence/rules/preflight_rules.dart: walk the sequence for the cooling instruction that precedes each exposure and use its setpoint; fall back to the camera's current setpoint only when no Cool Camera node precedes the exposures, and say so in the message."
+    "needs_shared_change": "packages/skotiq_core/lib/src/providers/sequence/rules/preflight_rules.dart: walk the sequence for the cooling instruction that precedes each exposure and use its setpoint; fall back to the camera's current setpoint only when no Cool Camera node precedes the exposures, and say so in the message."
   },
   {
     "title": "The top-bar run chip still reads 'Sequence Running' (green) while the sequence is paused",
     "outcome": "blocked",
-    "summary": "Confirmed: packages/nightshade_app/lib/screens/sequencer/sequencer_screen_parts/tab_bar.dart:112 hard-codes the literal 'Sequence Running' with colors.success and has no paused variant. Outside my ownership.",
+    "summary": "Confirmed: packages/skotiq_app/lib/screens/sequencer/sequencer_screen_parts/tab_bar.dart:112 hard-codes the literal 'Sequence Running' with colors.success and has no paused variant. Outside my ownership.",
     "files_changed": [],
     "test": "n/a — not edited",
     "revert_check": "n/a",
@@ -70,7 +70,7 @@
     "files_changed": [],
     "test": "n/a — not edited",
     "revert_check": "n/a",
-    "needs_shared_change": "packages/nightshade_core/lib/src/database/daos/sequence_runs_dao.dart: add `Future<void> markRunStatus(int runId, String status)` that updates ONLY the status column (never ended_at). It can then be called from the 'Paused' / 'Resumed' cases in event_operations.dart with 'paused' / 'running'. _finalizeRun's stats seal does not apply — this is a status write, not a stats write."
+    "needs_shared_change": "packages/skotiq_core/lib/src/database/daos/sequence_runs_dao.dart: add `Future<void> markRunStatus(int runId, String status)` that updates ONLY the status column (never ended_at). It can then be called from the 'Paused' / 'Resumed' cases in event_operations.dart with 'paused' / 'running'. _finalizeRun's stats seal does not apply — this is a status write, not a stats write."
   },
   {
     "title": "The Continue Session handoff dialog says 'Unknown Profile' and 'No Sequence' while naming the sequence in its own header and with a real profile active",
@@ -79,7 +79,7 @@
     "files_changed": [],
     "test": "n/a — not edited",
     "revert_check": "n/a",
-    "needs_shared_change": "Stamp profile_id / sequence_id (and the equipment snapshot) onto the imaging_sessions row at run start: SessionStateNotifier.startSession must accept them, and packages/nightshade_core/lib/src/providers/sequence/sequence_executor.dart:623 must pass the active profile id and sequence.databaseId. Changing only the fallback strings in quick_start_dialog.dart would relocate the defect."
+    "needs_shared_change": "Stamp profile_id / sequence_id (and the equipment snapshot) onto the imaging_sessions row at run start: SessionStateNotifier.startSession must accept them, and packages/skotiq_core/lib/src/providers/sequence/sequence_executor.dart:623 must pass the active profile id and sequence.databaseId. Changing only the fallback strings in quick_start_dialog.dart would relocate the defect."
   },
   {
     "title": "Continue Session dialog dates yesterday's session as 'Today at 14:57'",
@@ -88,7 +88,7 @@
     "files_changed": [],
     "test": "n/a — not edited",
     "revert_check": "n/a",
-    "needs_shared_change": "packages/nightshade_app/lib/widgets/quick_start_dialog.dart: compare CALENDAR days (e.g. DateUtils.dateOnly(now).difference(DateUtils.dateOnly(dt)).inDays) rather than elapsed duration."
+    "needs_shared_change": "packages/skotiq_app/lib/widgets/quick_start_dialog.dart: compare CALENDAR days (e.g. DateUtils.dateOnly(now).difference(DateUtils.dateOnly(dt)).inDays) rather than elapsed duration."
   },
   {
     "title": "'Load Previous Setup' is inert: it restores no equipment, no sequence and writes nothing to the log - it just closes the dialog",
@@ -102,7 +102,7 @@
   {
     "title": "Builder and Pre-Flight disagree about how long the same sequence takes: '~18m 54s' vs 'Duration 27m'",
     "outcome": "blocked",
-    "summary": "Confirmed as two independent engines, both outside my ownership: the Builder chip/timeline uses SequenceTimeEstimator (packages/nightshade_core/lib/src/services/sequence_time_estimator.dart) while the Pre-Flight panel uses PreSessionSimulator().simulate(...) (preflight_validation_dialog.dart:134).",
+    "summary": "Confirmed as two independent engines, both outside my ownership: the Builder chip/timeline uses SequenceTimeEstimator (packages/skotiq_core/lib/src/services/sequence_time_estimator.dart) while the Pre-Flight panel uses PreSessionSimulator().simulate(...) (preflight_validation_dialog.dart:134).",
     "files_changed": [],
     "test": "n/a — not edited",
     "revert_check": "n/a",

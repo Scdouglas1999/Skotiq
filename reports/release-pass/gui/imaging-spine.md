@@ -2,7 +2,7 @@
 
 Cluster: Imaging, Guiding, Flat Wizard, Polar Alignment (plus the first-run path used to reach them).
 Harness: `tools/ui_audit/drive_linux.py`, profile `gui-imaging-spine`, display `:81`, release bundle
-`apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`.
+`apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`.
 Devices: built-in Simulator camera / mount / focuser / filter wheel, native Built-in Multi-Star Guider.
 
 ---
@@ -525,7 +525,7 @@ match your light frames (offset 10 vs 50)") is specific and genuinely useful.
 - **Flat Wizard: Sky Flats tab** — opened only far enough to confirm the tab exists; not driven, as a sky
   flat run needs a twilight sky model that the sun-up sim scene does not provide.
 - **Guiding: calibration UI** — the Built-in Guider states "Calibration is managed automatically by
-  Nightshade", so there is no calibration flow on this screen to review with this guider.
+  Skotiq", so there is no calibration flow on this screen to review with this guider.
 - **Guiding: dither** — `Dither Now` and `Settle Settings` sit below the fold of a short internally-
   scrolling rail; I could not scroll that rail with the harness (click/key/type only, no wheel).
 - **Mid-use device disconnect** — not attempted; deliberately traded for depth on the four screens above.

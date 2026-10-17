@@ -1,9 +1,9 @@
 # rust-bridge implementation log
 
-Baseline: b07d91c9d. Scope: `native/nightshade_native/bridge/**` except `frb_generated.rs`.
+Baseline: b07d91c9d. Scope: `native/skotiq_native/bridge/**` except `frb_generated.rs`.
 
 ## Resume state found on the tree
-`git diff b07d91c9d -- native/nightshade_native/bridge/` showed only compile-fixups from
+`git diff b07d91c9d -- native/skotiq_native/bridge/` showed only compile-fixups from
 the concurrent rust-sequencer batch (`update_location`/`update_dither_config`/
 `update_filter_offsets` became `async`) in `api/sequencer.rs` and `sequencer_api.rs`.
 No predecessor work on any of my items; no `*.tmp.*` files under my scope.
@@ -31,7 +31,7 @@ Into `api/imaging.rs` (as PRIVATE `fn`, so FRB's `crate::api` scan cannot pick t
 
 ### 2. Re-point the 9 FITS-header pointing tests at `UnifiedDeviceOps::save_fits` — DONE
 
-`cargo test -p nightshade_bridge --lib unified_device_ops::pointing_tests` → 9 passed.
+`cargo test -p skotiq_bridge --lib unified_device_ops::pointing_tests` → 9 passed.
 
 ### 3. BUG — `save_fits` precedence / midpoint epoch / mount fallback — CONFIRMED + FIXED
 
@@ -81,7 +81,7 @@ surface (`api/sequencer.rs::SequencerState`) exposes raw `completed_exposures` /
 re-point at. `real_device_ops.rs` had no tests; `sequencer_ops.rs`'s 9 and
 `imaging_ops.rs`'s 4 were both carried across (above).
 
-Build proof that FRB needs no regeneration: `cargo build -p nightshade_bridge --lib`
+Build proof that FRB needs no regeneration: `cargo build -p skotiq_bridge --lib`
 compiles against the untouched `frb_generated.rs`.
 
 ### 5. MOVE `device_manager/mod.rs`'s test module → `device_manager/tests.rs` — DONE
@@ -89,7 +89,7 @@ compiles against the untouched `frb_generated.rs`.
 Pure move (body extracted verbatim, then `rustfmt`; `mod.rs` keeps `#[cfg(test)] mod tests;`).
 `mod.rs` 3391 → 1056 lines; `tests.rs` 2314 lines. Module path unchanged
 (`device_manager::tests::*`), so `use super::*` still reaches the private items.
-`cargo test -p nightshade_bridge --lib device_manager::tests` → **47 passed** (identical set).
+`cargo test -p skotiq_bridge --lib device_manager::tests` → **47 passed** (identical set).
 
 ### 6. DEDUP — the hand-rolled INDI id parses — DONE (48 sites)
 
@@ -147,12 +147,12 @@ Tests: `api::imaging::display_diagnostic_tests` — `fused_summary_matches_three
 
 ## Final verification
 
-- `cargo check -p nightshade_bridge --all-targets` → clean (0 errors, 0 warnings in the
+- `cargo check -p skotiq_bridge --all-targets` → clean (0 errors, 0 warnings in the
   bridge; the only warning in the workspace is `native/src/vendor/gphoto2.rs`, another
   agent's crate).
-- `cargo build -p nightshade_bridge --lib` → Finished (proves `frb_generated.rs` is
+- `cargo build -p skotiq_bridge --lib` → Finished (proves `frb_generated.rs` is
   unchanged and still compiles).
-- `cargo test -p nightshade_bridge` → **534 passed; 0 failed; 4 ignored**.
+- `cargo test -p skotiq_bridge` → **534 passed; 0 failed; 4 ignored**.
   Baseline was 530 passed / 4 ignored; net +4 = −2 (dead `sequencer_api` helper tests)
   +3 (INDI parity) +3 (fused-fold).
 - Net: **−9853 / +1261 lines** across the crate.

@@ -4,14 +4,14 @@
   {
    "title": "Session tab reports Duration \"0s\" for any session that has no end_time",
    "outcome": "fixed",
-   "summary": "Root cause was two independent expressions answering the same question. Added packages/nightshade_app/lib/screens/analytics/session_elapsed.dart: sessionElapsed(session, isLive:, lastFrameAt:) returns a duration plus the BASIS it came from (closed / running / lastFrame / unknown), and lastFrameBySessionProvider folds allDbImagesProvider into a last-frame-per-session map (works in remote mode too, since that provider polls the host). The Session tab's stat now renders elapsed.valueLabel with the basis appended to the caption ('DURATION - TO LAST FRAME'), so an unclosed session shows the 20m it actually recorded instead of 0s, and shows an em-dash only when it captured nothing.",
+   "summary": "Root cause was two independent expressions answering the same question. Added packages/skotiq_app/lib/screens/analytics/session_elapsed.dart: sessionElapsed(session, isLive:, lastFrameAt:) returns a duration plus the BASIS it came from (closed / running / lastFrame / unknown), and lastFrameBySessionProvider folds allDbImagesProvider into a last-frame-per-session map (works in remote mode too, since that provider polls the host). The Session tab's stat now renders elapsed.valueLabel with the basis appended to the caption ('DURATION - TO LAST FRAME'), so an unclosed session shows the 20m it actually recorded instead of 0s, and shows an em-dash only when it captured nothing.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/analytics/session_elapsed.dart",
-    "packages/nightshade_app/lib/screens/analytics/analytics_screen.dart",
-    "packages/nightshade_app/lib/screens/analytics/analytics_screen/session_tab.dart",
-    "packages/nightshade_app/test/screens/analytics/session_elapsed_agreement_test.dart"
+    "packages/skotiq_app/lib/screens/analytics/session_elapsed.dart",
+    "packages/skotiq_app/lib/screens/analytics/analytics_screen.dart",
+    "packages/skotiq_app/lib/screens/analytics/analytics_screen/session_tab.dart",
+    "packages/skotiq_app/test/screens/analytics/session_elapsed_agreement_test.dart"
    ],
-   "test": "'the Session tab does not report 0s for an unclosed session' in packages/nightshade_app/test/screens/analytics/session_elapsed_agreement_test.dart - renders AnalyticsScreen(initialTab: session) over an end_time-NULL session with 3 frames spanning 20 minutes.",
+   "test": "'the Session tab does not report 0s for an unclosed session' in packages/skotiq_app/test/screens/analytics/session_elapsed_agreement_test.dart - renders AnalyticsScreen(initialTab: session) over an end_time-NULL session with 3 frames spanning 20 minutes.",
    "test_fails_without_fix": true,
    "revert_check": "Restored session_tab.dart's stat to `formatSessionDuration((reviewSession.endTime ?? reviewSession.startTime).difference(reviewSession.startTime))`; the test failed with 'Found 1 widget with text \"0s\"'. Restored, green.",
    "caveats": "The two Analytics capture goldens (captures_landscape_test.dart, 17.1%/23.8% pixel diff) fail. They already failed on this working tree before I touched it - the previous fix pass recorded them at 8.4%/17.6% in reports/coverage/fixes/f-analytics.json, and the masters are Windows-captured while this host is Linux. Not regenerating them: repo policy is never to commit Linux-regenerated goldens. The remaining 145 tests under test/screens/analytics pass."
@@ -21,13 +21,13 @@
    "outcome": "fixed",
    "summary": "FrameQualityAssessmentService.assessFrame walks DOWN from an advisory 75 and is only ever decremented by a metric, so a frame with hfr/starCount/guidingRmsTotal/qualityScore all null comes back FrameQualityLevel.good with a 75 score. image_thumbnail_strip.dart now only hands the assessor frames it can judge (_hasQualityMeasurement), counts the rest in a new neutral 'Unrated' chip, keeps 'Total' as the real frame count, and badges those tiles UNRATED with a tooltip naming the four missing metrics instead of a green GOOD. The strip is the only analytics consumer; the other two call sites of assessBatch are in screens/session_review and are listed as a shared change.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart",
-    "packages/nightshade_app/test/screens/analytics/widgets/image_thumbnail_unrated_frames_test.dart"
+    "packages/skotiq_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart",
+    "packages/skotiq_app/test/screens/analytics/widgets/image_thumbnail_unrated_frames_test.dart"
    ],
-   "test": "'unmeasured calibration frames are not counted as Good' and 'an unmeasured frame is badged UNRATED, not GOOD' in packages/nightshade_app/test/screens/analytics/widgets/image_thumbnail_unrated_frames_test.dart. The lights are seeded at hfr 2.6 / guiding 1.4\" - the heuristic's own fallback values - because that is what makes an unmeasured dark score identically to a real light, which is the live case.",
+   "test": "'unmeasured calibration frames are not counted as Good' and 'an unmeasured frame is badged UNRATED, not GOOD' in packages/skotiq_app/test/screens/analytics/widgets/image_thumbnail_unrated_frames_test.dart. The lights are seeded at hfr 2.6 / guiding 1.4\" - the heuristic's own fallback values - because that is what makes an unmeasured dark score identically to a real light, which is the live case.",
    "test_fails_without_fix": true,
    "revert_check": "Changed `assessor.assessBatch(gradable)` back to `assessor.assessBatch(widget.images)`: both tests failed ('Found 0 widgets with text \"Good: 2\"' - it showed Good: 6 - and 'Found 0 widgets with text \"UNRATED\"'). Restored, green.",
-   "needs_shared_change": "packages/nightshade_core/lib/src/services/frame_quality_assessment_service.dart should carry the notion itself so the Sub Gallery and Cull Rail stop doing the same thing: add `FrameQualityLevel.unassessed` (or return no entry from assessBatch for a frame with hfr, starCount, guidingRmsTotal and qualityScore all null) and have summarize() report it separately. Then packages/nightshade_app/lib/screens/session_review/widgets/sub_gallery_panel.dart:108 and sub_cull_rail.dart:248 - which both call assessBatch over an unfiltered list - inherit the fix.",
+   "needs_shared_change": "packages/skotiq_core/lib/src/services/frame_quality_assessment_service.dart should carry the notion itself so the Sub Gallery and Cull Rail stop doing the same thing: add `FrameQualityLevel.unassessed` (or return no entry from assessBatch for a frame with hfr, starCount, guidingRmsTotal and qualityScore all null) and have summarize() report it separately. Then packages/skotiq_app/lib/screens/session_review/widgets/sub_gallery_panel.dart:108 and sub_cull_rail.dart:248 - which both call assessBatch over an unfiltered list - inherit the fix.",
    "caveats": "The two Analytics capture goldens (captures_landscape_test.dart, 17.1%/23.8% pixel diff) fail. They already failed on this working tree before I touched it - the previous fix pass recorded them at 8.4%/17.6% in reports/coverage/fixes/f-analytics.json, and the masters are Windows-captured while this host is Linux. Not regenerating them: repo policy is never to commit Linux-regenerated goldens. The remaining 145 tests under test/screens/analytics pass."
   },
   {
@@ -35,9 +35,9 @@
    "outcome": "fixed",
    "summary": "Same root cause, other half. history_cards.dart's `DateTime.now().difference(session.startTime)` fallback is gone; the card now calls the same sessionElapsed() helper, passing isLive from sessionStateProvider (only the session actually running gets a wall-clock figure) and the same lastFrameBySessionProvider entry the Session tab uses. Deleted the card's private _formatDuration so there is no second formatter to drift. Both surfaces now print '20m / to last frame' for the crashed session instead of '46h 2m elapsed' and '0s'.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/analytics/analytics_screen/history_cards.dart",
-    "packages/nightshade_app/lib/screens/analytics/session_elapsed.dart",
-    "packages/nightshade_app/test/screens/analytics/session_elapsed_agreement_test.dart"
+    "packages/skotiq_app/lib/screens/analytics/analytics_screen/history_cards.dart",
+    "packages/skotiq_app/lib/screens/analytics/session_elapsed.dart",
+    "packages/skotiq_app/test/screens/analytics/session_elapsed_agreement_test.dart"
    ],
    "test": "'the History card does not accrue wall-clock time after a crash' and 'History and Session agree on the same session' in the same file.",
    "test_fails_without_fix": true,
@@ -48,10 +48,10 @@
    "outcome": "fixed",
    "summary": "campaign_rollup_service.dart:166 collapses an empty efficiency sample with `simpleMean(efficiencyInputs) ?? 0.0`, and only sessions with a non-null end_time feed it (:130). The service is outside my ownership, so the dialog now applies the same predicate to the session refs it already holds - hasClosedSession = any(endTime != null && sessionIntegrationSecs > 0) - and renders '-' exactly like the Mean seeing tile beside it when there is nothing to average. A campaign with a closed session still shows its real percentage.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/analytics/widgets/campaign_rollup_dialog.dart",
-    "packages/nightshade_app/test/screens/analytics/widgets/campaign_rollup_populations_test.dart"
+    "packages/skotiq_app/lib/screens/analytics/widgets/campaign_rollup_dialog.dart",
+    "packages/skotiq_app/test/screens/analytics/widgets/campaign_rollup_populations_test.dart"
    ],
-   "test": "'effective imaging is blank until a session closes' + 'a closed session still gets its measured percentage' in packages/nightshade_app/test/screens/analytics/widgets/campaign_rollup_populations_test.dart (renders CampaignRollupDialog over an overridden campaignRollupProvider).",
+   "test": "'effective imaging is blank until a session closes' + 'a closed session still gets its measured percentage' in packages/skotiq_app/test/screens/analytics/widgets/campaign_rollup_populations_test.dart (renders CampaignRollupDialog over an overridden campaignRollupProvider).",
    "test_fails_without_fix": true,
    "revert_check": "Restored the tile to the unconditional `'${(rollup.meanEffectiveImagingFraction * 100).toStringAsFixed(1)}%'`; the test failed with 'Found 1 widget with text \"0.0%\"'. Restored, green.",
    "needs_shared_change": "Better still, make CampaignRollup.meanEffectiveImagingFraction nullable: campaign_rollup_service.dart:166 `meanEffectiveImagingFraction: simpleMean(efficiencyInputs)` and models/campaign_rollup.dart `final double? meanEffectiveImagingFraction`. Then the dialog's local predicate can go. The JSON in toJson() and any headless consumer would need the same null handling."
@@ -59,57 +59,57 @@
   {
    "title": "Sequencer crash-recovery checkpoint is stored outside the profile data dir",
    "outcome": "already-correct",
-   "summary": "Already fixed in the working tree by the agent that owns packages/nightshade_app/lib/screens/shell/app_shell.dart (file mtime 18:43 today, uncommitted). resolveGuiCheckpointDirectory() (:82-89) now anchors the checkpoint on the directory holding the OPEN DATABASE - `databaseFile.parent/checkpoints` via resolveDefaultDatabaseFile, which honours NIGHTSHADE_DATABASE_DIR - instead of getApplicationSupportDirectory(), and adoptLegacyGuiCheckpoint() migrates a pre-existing support-folder checkpoint only when the override is unset (where there is provably one database). packages/nightshade_app/test/screens/shell/checkpoint_directory_test.dart covers it. Nothing for me to do; the finding's own `unit` (screen:analytics/session_tab.dart) was wrong - this is app startup, not Analytics.",
+   "summary": "Already fixed in the working tree by the agent that owns packages/skotiq_app/lib/screens/shell/app_shell.dart (file mtime 18:43 today, uncommitted). resolveGuiCheckpointDirectory() (:82-89) now anchors the checkpoint on the directory holding the OPEN DATABASE - `databaseFile.parent/checkpoints` via resolveDefaultDatabaseFile, which honours SKOTIQ_DATABASE_DIR - instead of getApplicationSupportDirectory(), and adoptLegacyGuiCheckpoint() migrates a pre-existing support-folder checkpoint only when the override is unset (where there is provably one database). packages/skotiq_app/test/screens/shell/checkpoint_directory_test.dart covers it. Nothing for me to do; the finding's own `unit` (screen:analytics/session_tab.dart) was wrong - this is app startup, not Analytics.",
    "files_changed": [],
-   "test": "packages/nightshade_app/test/screens/shell/checkpoint_directory_test.dart (owned by the app_shell fixer).",
+   "test": "packages/skotiq_app/test/screens/shell/checkpoint_directory_test.dart (owned by the app_shell fixer).",
    "test_fails_without_fix": false,
    "revert_check": "Not applicable - no change of mine. Verified by reading app_shell.dart:66-140 and 427-445 in the current working tree."
   },
   {
    "title": "Recovering a stale session stamps end_time = now, inflating its duration by days",
    "outcome": "blocked",
-   "summary": "Confirmed present and unfixed. The verifier's correction is right: session_service.dart:431 is only the scan; the write is markSessionAborted (session_service.dart:538-545) -> ImagingRecordsRepository.endSession -> packages/nightshade_core/lib/src/database/daos/sessions_dao.dart:108-115, whose body is `endTime: Value(DateTime.now())` with no way for a caller to say otherwise. Neither file is in my ownership list (I own only images_dao and science_dao), so I did not edit them. My session-elapsed work for findings 1 and 3 does NOT paper over this: it only chooses an honest figure while end_time is NULL, and once recovery stamps `now` the row looks like a legitimately closed 60-hour session everywhere.",
+   "summary": "Confirmed present and unfixed. The verifier's correction is right: session_service.dart:431 is only the scan; the write is markSessionAborted (session_service.dart:538-545) -> ImagingRecordsRepository.endSession -> packages/skotiq_core/lib/src/database/daos/sessions_dao.dart:108-115, whose body is `endTime: Value(DateTime.now())` with no way for a caller to say otherwise. Neither file is in my ownership list (I own only images_dao and science_dao), so I did not edit them. My session-elapsed work for findings 1 and 3 does NOT paper over this: it only chooses an honest figure while end_time is NULL, and once recovery stamps `now` the row looks like a legitimately closed 60-hour session everywhere.",
    "files_changed": [],
    "test": "None - the fix belongs in a file I cannot edit, and a test asserting the corrected write would fail until it lands.",
    "test_fails_without_fix": false,
    "revert_check": "Not applicable - no change of mine. Verified by reading sessions_dao.dart:107-115 and session_service.dart:538-545 in the current working tree.",
-   "needs_shared_change": "(1) packages/nightshade_core/lib/src/database/daos/sessions_dao.dart:108 - `Future<void> endSession(int id, {String status = 'completed', DateTime? endTime})` writing `endTime: Value(endTime ?? DateTime.now())`. (2) The same optional parameter through ImagingRecordsRepository.endSession (imaging_records_repository.dart:181). (3) session_service.dart markSessionAborted: close an abandoned session at its last frame, not at the clock - `final last = await _imagesDao.getLastCapturedAtForSession(sessionId); await _records.endSession(sessionId, status: 'aborted', endTime: (last != null && last.isAfter(session.startTime)) ? last : session.startTime);`. There is no such DAO method yet; the one-line query is `SELECT MAX(captured_at) FROM captured_images WHERE session_id = ?`. I deliberately did NOT add it to images_dao.dart as dead code - add it in the same change that calls it. Suggested test: seed a session with status='active', end_time NULL and frames ending two days ago, run the recovery path, assert end_time equals the last frame's captured_at (not now)."
+   "needs_shared_change": "(1) packages/skotiq_core/lib/src/database/daos/sessions_dao.dart:108 - `Future<void> endSession(int id, {String status = 'completed', DateTime? endTime})` writing `endTime: Value(endTime ?? DateTime.now())`. (2) The same optional parameter through ImagingRecordsRepository.endSession (imaging_records_repository.dart:181). (3) session_service.dart markSessionAborted: close an abandoned session at its last frame, not at the clock - `final last = await _imagesDao.getLastCapturedAtForSession(sessionId); await _records.endSession(sessionId, status: 'aborted', endTime: (last != null && last.isAfter(session.startTime)) ? last : session.startTime);`. There is no such DAO method yet; the one-line query is `SELECT MAX(captured_at) FROM captured_images WHERE session_id = ?`. I deliberately did NOT add it to images_dao.dart as dead code - add it in the same change that calls it. Suggested test: seed a session with status='active', end_time NULL and frames ending two days ago, run the recovery path, assert end_time equals the last frame's captured_at (not now)."
   },
   {
    "title": "Both periodogram Y axes print five ticks with only two distinct values",
    "outcome": "fixed",
    "summary": "Both painters placed five ticks at maxValue*1.1*i/4 and formatted them with toStringAsFixed(1), so a normalised LS power of 0.07 - the ordinary insignificant detection - printed 0.1/0.1/0.0/0.0/0.0 and the BLS SR axis printed 0.0 five times. Both now build the axis with the NiceAxis helper the session charts already use (snapped top, tick count from the interval, precision from the interval), and the grid lines moved to the same tick positions so the labels sit on real gridlines. The periodogram's X (frequency) axis had the same latent bug - fixed one decimal for a range that runs from 0.01 to 100 cycles/day - and now takes its precision from the range too.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/analytics/widgets/period_analysis_panel.dart",
-    "packages/nightshade_app/lib/screens/analytics/widgets/period_analysis_panel/periodogram_painter.dart",
-    "packages/nightshade_app/lib/screens/analytics/widgets/period_analysis_panel/bls_spectrum_painter.dart",
-    "packages/nightshade_app/test/screens/analytics/widgets/periodogram_axis_labels_test.dart"
+    "packages/skotiq_app/lib/screens/analytics/widgets/period_analysis_panel.dart",
+    "packages/skotiq_app/lib/screens/analytics/widgets/period_analysis_panel/periodogram_painter.dart",
+    "packages/skotiq_app/lib/screens/analytics/widgets/period_analysis_panel/bls_spectrum_painter.dart",
+    "packages/skotiq_app/test/screens/analytics/widgets/periodogram_axis_labels_test.dart"
    ],
-   "test": "'every tick on both spectrum axes carries a distinct value' in packages/nightshade_app/test/screens/analytics/widgets/periodogram_axis_labels_test.dart - runs the REAL PeriodAnalysisService over an 80-point 90s-cadence noise curve, renders PeriodAnalysisPanel with that result and reads powerAxisLabels / srAxisLabels off the two painters. Canvas text leaves nothing in the widget tree, so paint() now draws exactly the strings those two getters return and the test reads them via dynamic dispatch.",
+   "test": "'every tick on both spectrum axes carries a distinct value' in packages/skotiq_app/test/screens/analytics/widgets/periodogram_axis_labels_test.dart - runs the REAL PeriodAnalysisService over an 80-point 90s-cadence noise curve, renders PeriodAnalysisPanel with that result and reads powerAxisLabels / srAxisLabels off the two painters. Canvas text leaves nothing in the widget tree, so paint() now draws exactly the strings those two getters return and the test reads them via dynamic dispatch.",
    "test_fails_without_fix": true,
    "revert_check": "Put the old expression back inside both getters (`for (var i = 0; i <= 4; i++) (_peakPower * 1.1 * i / 4.0).toStringAsFixed(1)`); the test failed with 'duplicate tick labels make the axis unreadable: [0.0, 0.0, 0.0, 0.1, 0.1]'. Restored, green."
   },
   {
    "title": "\"Export report\" produces a Science Report with no light curve and no period analysis",
    "outcome": "blocked",
-   "summary": "Confirmed present and unfixed. buildMarkdown (science_report_exporter.dart:61-100) writes seven sections and never reads photometry_measurements at all - _photometrySnapshot (:168-206) is fed only getCalibrationsForSession(), so its no-data sentence 'No photometric calibration produced this session.' sits under a heading called '## Photometry' for a session with 80 measurements. The exporter is in packages/nightshade_core/lib/src/services/science/ and is not mine. Note for the fixer: no new DAO method is needed - ScienceDao.getPhotometryForSession(sessionId) already exists at science_dao.dart:118 (that file IS in my ownership and needs no change).",
+   "summary": "Confirmed present and unfixed. buildMarkdown (science_report_exporter.dart:61-100) writes seven sections and never reads photometry_measurements at all - _photometrySnapshot (:168-206) is fed only getCalibrationsForSession(), so its no-data sentence 'No photometric calibration produced this session.' sits under a heading called '## Photometry' for a session with 80 measurements. The exporter is in packages/skotiq_core/lib/src/services/science/ and is not mine. Note for the fixer: no new DAO method is needed - ScienceDao.getPhotometryForSession(sessionId) already exists at science_dao.dart:118 (that file IS in my ownership and needs no change).",
    "files_changed": [],
    "test": "None - the fix belongs in a file I cannot edit.",
    "test_fails_without_fix": false,
    "revert_check": "Not applicable - no change of mine. Verified by reading science_report_exporter.dart:61-100 and :168-206 in the current working tree.",
-   "needs_shared_change": "packages/nightshade_core/lib/src/services/science/science_report_exporter.dart. (1) Rename the existing section to '## Photometric calibration' in both branches of _photometrySnapshot so its no-data sentence stops reading as 'you have no photometry'. (2) In buildMarkdown add `final photometry = await _scienceDao.getPhotometryForSession(sessionId);` and a `_lightCurveSnapshot(photometry)` section between _frameCounts and the calibration block: N points, first/last timestamp in UTC, the target object id (role == 'target'), the comparison ids, and mean/RMS differential magnitude. (3) Add a '## Period analysis' section. The period result is UI state (periodAnalysisProvider), not a stored product, so the exporter should take an optional `PeriodAnalysisResult? period` parameter that the Science tab's Export button passes from ref.read(periodAnalysisProvider).result, and print LS best period + FAP + searched range and BLS period/depth/SDE when it is non-null (and 'Not run for this session.' when null - which is true, unlike today's silence)."
+   "needs_shared_change": "packages/skotiq_core/lib/src/services/science/science_report_exporter.dart. (1) Rename the existing section to '## Photometric calibration' in both branches of _photometrySnapshot so its no-data sentence stops reading as 'you have no photometry'. (2) In buildMarkdown add `final photometry = await _scienceDao.getPhotometryForSession(sessionId);` and a `_lightCurveSnapshot(photometry)` section between _frameCounts and the calibration block: N points, first/last timestamp in UTC, the target object id (role == 'target'), the comparison ids, and mean/RMS differential magnitude. (3) Add a '## Period analysis' section. The period result is UI state (periodAnalysisProvider), not a stored product, so the exporter should take an optional `PeriodAnalysisResult? period` parameter that the Science tab's Export button passes from ref.read(periodAnalysisProvider).result, and print LS best period + FAP + searched range and BLS period/depth/SDE when it is non-null (and 'Not run for this session.' when null - which is true, unlike today's silence)."
   },
   {
    "title": "Science guide ladder is stuck on rung 1 while the same page plots an 80-point curve, a period and an Export button",
    "outcome": "fixed",
    "summary": "evaluateLadder computed every rung from the state of the rung above it, so one missing photometric calibration cascaded four locks: track locked -> curve locked -> period locked -> contribute locked, no matter what the session actually contained. Each rung is now judged on its OWN evidence: track is done when the session has photometry points (or live tracking) and is never locked, since picking a star needs nothing first; curve is done at >=10 points; period is done when a result exists; contribute is ready whenever there is exportable data. The three prerequisite strings in science_ladder_card.dart were rewritten to match the one condition that can now lock each rung - the old 'Turn on live photometry...' and 'Find a period... before exporting' lines described the cascade, not the state.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/analytics/widgets/science_onboarding/science_ladder_model.dart",
-    "packages/nightshade_app/lib/screens/analytics/widgets/science_onboarding/science_ladder_card.dart",
-    "packages/nightshade_app/test/screens/analytics/widgets/science_ladder_evidence_test.dart",
-    "packages/nightshade_app/test/screens/analytics/science_ladder_model_test.dart"
+    "packages/skotiq_app/lib/screens/analytics/widgets/science_onboarding/science_ladder_model.dart",
+    "packages/skotiq_app/lib/screens/analytics/widgets/science_onboarding/science_ladder_card.dart",
+    "packages/skotiq_app/test/screens/analytics/widgets/science_ladder_evidence_test.dart",
+    "packages/skotiq_app/test/screens/analytics/science_ladder_model_test.dart"
    ],
-   "test": "'the light-curve rung is not padlocked over an 80-point curve', 'the contribute rung offers its export when data exists' and 'evidence beats the cascade' in packages/nightshade_app/test/screens/analytics/widgets/science_ladder_evidence_test.dart - renders ScienceLadderCard with the audit's exact inputs (80 points, a period result, exportable data, NO calibration) and opens rungs 3 and 5.",
+   "test": "'the light-curve rung is not padlocked over an 80-point curve', 'the contribute rung offers its export when data exists' and 'evidence beats the cascade' in packages/skotiq_app/test/screens/analytics/widgets/science_ladder_evidence_test.dart - renders ScienceLadderCard with the audit's exact inputs (80 points, a period result, exportable data, NO calibration) and opens rungs 3 and 5.",
    "test_fails_without_fix": true,
    "revert_check": "Restored the two cascade branches (`if (measure != done) track = locked` and `if (track == locked) curve = locked`); the widget test failed with 'Found 1 widget with text containing start collecting points' and the model test with 'Actual: RungState.locked'. Restored, green (23 tests).",
    "caveats": "Two assertions in the pre-existing science_ladder_model_test.dart encoded the old cascade for the track rung ('locked until calibration'); they now assert the new contract, with a comment saying why. That is a deliberate contract change, not a weakened test - the surrounding 18 assertions are untouched."
@@ -119,19 +119,19 @@
    "outcome": "partial",
    "summary": "The ordering defect is real and is NOT fixed: I re-read period_analysis_service.dart:604-621 and the statistic is computed over the whole SR spectrum, peak included, so a coherent signal inflates its own baseline mean and std and deflates its own SDE. (I checked the one thing that would have been a cheap unit bug - srSpectrum[ip] is already sqrt'ed at :557 and peakSr is sqrt(globalBestSr) at :620, so the units DO match; the problem is the unmasked baseline, not a scale error.) That file is outside my ownership. What I did fix is the half that is mine: the BLS column printed a bare 'SDE: 3.1' with no threshold, so a user comparing two runs would rank 2.6 below 3.1. It now reads 'SDE: 3.1 (below the 6.0 significance threshold; compare SDE only within one light curve)'.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/analytics/widgets/period_analysis_panel.dart",
-    "packages/nightshade_app/test/screens/analytics/widgets/periodogram_axis_labels_test.dart"
+    "packages/skotiq_app/lib/screens/analytics/widgets/period_analysis_panel.dart",
+    "packages/skotiq_app/test/screens/analytics/widgets/periodogram_axis_labels_test.dart"
    ],
    "test": "The threshold assertion is in 'every tick on both spectrum axes carries a distinct value' (periodogram_axis_labels_test.dart), which renders the panel over a real analysis result.",
    "test_fails_without_fix": true,
    "revert_check": "Restored the bare 'SDE: ${sde.toStringAsFixed(1)}' detail string; the test failed with 'Found 0 widgets with text containing significance threshold'. Restored, green.",
    "caveats": "The label makes the number honest; it does NOT make the number right. A genuine injected transit still only reaches SDE 4.8 on this implementation and will read 'below the threshold'.",
-   "needs_shared_change": "packages/nightshade_core/lib/src/services/science/period_analysis_service.dart:604-621. Exclude the peak's own neighbourhood from the baseline before computing mean/std - standard BLS-SDE practice: find `peakIndex` (the trial whose srSpectrum entry equals peakSr), build the baseline from trials whose period differs from globalBestPeriod by more than ~20% (or simply outside +/- nTrials/20 indices), and compute srMean/srStd over that subset only, falling back to the full spectrum when fewer than ~20 trials survive. Verify with the three controlled 80-point curves from the finding (pure noise, injected 20-min sinusoid amplitude 0.10 mag, injected box transit depth 0.150 mag at P=20 min): the ordering must become noise < sinusoid < transit, and the transit must clear the 6.0 threshold the service's own doc comment at :81 states. Once it does, period_analysis_panel.dart:592-599's Strong/Noteworthy badge starts firing and the 'compare SDE only within one light curve' caveat I added can be dropped."
+   "needs_shared_change": "packages/skotiq_core/lib/src/services/science/period_analysis_service.dart:604-621. Exclude the peak's own neighbourhood from the baseline before computing mean/std - standard BLS-SDE practice: find `peakIndex` (the trial whose srSpectrum entry equals peakSr), build the baseline from trials whose period differs from globalBestPeriod by more than ~20% (or simply outside +/- nTrials/20 indices), and compute srMean/srStd over that subset only, falling back to the full spectrum when fewer than ~20 trials survive. Verify with the three controlled 80-point curves from the finding (pure noise, injected 20-min sinusoid amplitude 0.10 mag, injected box transit depth 0.150 mag at P=20 min): the ordering must become noise < sinusoid < transit, and the transit must clear the 6.0 threshold the service's own doc comment at :81 states. Once it does, period_analysis_panel.dart:592-599's Strong/Noteworthy badge starts firing and the 'compare SDE only within one light curve' caveat I added can be dropped."
   },
   {
    "title": "Diagnostics tab shows loading skeletons forever for a session it cannot analyse",
    "outcome": "blocked",
-   "summary": "Confirmed present and unfixed, and the verifier's diagnosis holds up on inspection: packages/nightshade_core/lib/src/providers/optical_train_diagnostics_provider.dart:31-38 composes with the deprecated `ref.watch(provider.stream)`, which forwards only FUTURE events. When the Science tab has already subscribed to sessionPsfTilesProvider(id) / sessionResidualVectorsProvider(id) the source has already emitted its only value, so the derived StreamProviders never emit, psfAsync/residualsAsync stay isLoading and :65-67 returns AsyncValue.loading() forever - which is exactly why only the session the user had just viewed in Science hangs. That file is a core provider, not mine, and no change inside the Analytics screen could fix it without relocating the defect (a UI timeout would replace an indefinite skeleton with a false error).",
+   "summary": "Confirmed present and unfixed, and the verifier's diagnosis holds up on inspection: packages/skotiq_core/lib/src/providers/optical_train_diagnostics_provider.dart:31-38 composes with the deprecated `ref.watch(provider.stream)`, which forwards only FUTURE events. When the Science tab has already subscribed to sessionPsfTilesProvider(id) / sessionResidualVectorsProvider(id) the source has already emitted its only value, so the derived StreamProviders never emit, psfAsync/residualsAsync stay isLoading and :65-67 returns AsyncValue.loading() forever - which is exactly why only the session the user had just viewed in Science hangs. That file is a core provider, not mine, and no change inside the Analytics screen could fix it without relocating the defect (a UI timeout would replace an indefinite skeleton with a false error).",
    "files_changed": [],
    "test": "None - the fix belongs in a file I cannot edit.",
    "test_fails_without_fix": false,
@@ -143,18 +143,18 @@
    "outcome": "fixed",
    "summary": "HfrTrendCard filters on isAccepted; UniformityTrendCard read science_frame_quality_metrics with no acceptance filter, so grading a night out emptied one chart and left the other unchanged. UniformityTrendCard now takes rejectedImageIds and drops metric rows whose captured_image_id was rejected (rows with no image link stay, since they cannot be attributed), and science_analytics_tab.dart passes the rejected ids from the same lightFrames list the HFR card gets. Both subtitles now state the population ('Accepted frames only (N rejected, not plotted).'), and the HFR empty state says the true reason - 'No accepted frames with star metrics - 2 frames with HFR were rejected.' - instead of sending the user after a star-detection problem that does not exist.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/analytics/widgets/science_trend_cards.dart",
-    "packages/nightshade_app/lib/screens/analytics/widgets/science_analytics_tab.dart",
-    "packages/nightshade_app/test/screens/analytics/widgets/field_quality_population_test.dart"
+    "packages/skotiq_app/lib/screens/analytics/widgets/science_trend_cards.dart",
+    "packages/skotiq_app/lib/screens/analytics/widgets/science_analytics_tab.dart",
+    "packages/skotiq_app/test/screens/analytics/widgets/field_quality_population_test.dart"
    ],
-   "test": "'rejected frames leave both Field Quality charts, and the empty state says why' + 'accepted frames feed both charts' in packages/nightshade_app/test/screens/analytics/widgets/field_quality_population_test.dart (renders ScienceAnalyticsTab over 2 frames with hfr 2.20 / 3000 stars and 2 uniformity rows).",
+   "test": "'rejected frames leave both Field Quality charts, and the empty state says why' + 'accepted frames feed both charts' in packages/skotiq_app/test/screens/analytics/widgets/field_quality_population_test.dart (renders ScienceAnalyticsTab over 2 frames with hfr 2.20 / 3000 stars and 2 uniformity rows).",
    "test_fails_without_fix": true,
    "revert_check": "Deleted the `rejectedImageIds:` argument at the science_analytics_tab.dart call site - i.e. cut the wiring, not the logic - and the test failed ('Found 0 widgets with text containing No accepted frames with...'). Restored, green (7 tests incl. the pre-existing science_trend_cards_test.dart)."
   },
   {
    "title": "Exported MPC 80-column report puts the CCD observation-type code in column 14 instead of column 15",
    "outcome": "blocked",
-   "summary": "Confirmed present and unfixed, and it is a two-line fix in a file I do not own: packages/nightshade_core/lib/src/services/science/mpc_export_service.dart:181-185 reads `// Column 14: Note 1 - C = CCD observation` / `const note1 = 'C';` / `// Column 15: Note 2 - blank` / `const note2 = ' ';`, assembled at :225. The MPC optical-observation format puts the observation type in Note 2 (column 15); Note 1 (column 14) is a program/publication note. As shipped every record reaches the MPC with no observation type and a non-standard Note 1. The panel side (mpc_export_panel.dart) IS mine and does no formatting of its own - it only selects rows - so there is nothing to change there.",
+   "summary": "Confirmed present and unfixed, and it is a two-line fix in a file I do not own: packages/skotiq_core/lib/src/services/science/mpc_export_service.dart:181-185 reads `// Column 14: Note 1 - C = CCD observation` / `const note1 = 'C';` / `// Column 15: Note 2 - blank` / `const note2 = ' ';`, assembled at :225. The MPC optical-observation format puts the observation type in Note 2 (column 15); Note 1 (column 14) is a program/publication note. As shipped every record reaches the MPC with no observation type and a non-standard Note 1. The panel side (mpc_export_panel.dart) IS mine and does no formatting of its own - it only selects rows - so there is nothing to change there.",
    "files_changed": [],
    "test": "None - the fix belongs in a file I cannot edit.",
    "test_fails_without_fix": false,
@@ -166,10 +166,10 @@
    "outcome": "fixed",
    "summary": "mpcCandidates was a constructor argument defaulting to const [], and two of the three entry points (science_screen.dart's `const ScienceExportHub()` and science_analytics_tab.dart's header icon) passed nothing - so the row asserted there were no candidates and _openMpcPanel returned early, which is why Open did nothing. The hub now resolves the list itself, exactly as it already did for transient detections: caller's snapshot when non-empty, else sessionMovingObjectCandidatesProvider for the selected session (or the newest session when no filter is set). The row's disabled text distinguishes loading and error from genuinely-none, and both the panel and the early-return use the resolved list rather than the widget argument.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/analytics/widgets/science_export_hub.dart",
-    "packages/nightshade_app/test/screens/analytics/widgets/science_export_hub_truth_test.dart"
+    "packages/skotiq_app/lib/screens/analytics/widgets/science_export_hub.dart",
+    "packages/skotiq_app/test/screens/analytics/widgets/science_export_hub_truth_test.dart"
    ],
-   "test": "'the MPC row finds the candidates the page behind it lists' in packages/nightshade_app/test/screens/analytics/widgets/science_export_hub_truth_test.dart - builds `const ScienceExportHub()` (the header entry point, no argument) with two candidates on the newest session and asserts the row is enabled.",
+   "test": "'the MPC row finds the candidates the page behind it lists' in packages/skotiq_app/test/screens/analytics/widgets/science_export_hub_truth_test.dart - builds `const ScienceExportHub()` (the header entry point, no argument) with two candidates on the newest session and asserts the row is enabled.",
    "test_fails_without_fix": true,
    "revert_check": "Put `enabled: widget.mpcCandidates.isNotEmpty` and `description: widget.mpcCandidates.isEmpty ...` back; the test failed with 'Found 1 widget with text \"No moving object candidates available to report yet.\"'. Restored, green."
   },
@@ -178,8 +178,8 @@
    "outcome": "fixed",
    "summary": "All seven CSV builders called toIso8601String() on the LOCAL DateTime drift returns for a unix-seconds column, so a 09:00 UTC measurement exported as '2026-08-01T05:00:00.000' with no offset and no Z on this UTC-4 host. Added _utcStamp() (toUtc().toIso8601String(), always ending in Z) and routed all seven through it; the column header is now 'Timestamp (UTC)'. Added a JD column to the photometry export (_julianDate), since that is the time system AAVSO/AID submissions and the period analysis actually use. The two export FILENAME stamps were local too - they now use UTC with a trailing Z so a file exported at 00:30 local is not filed under the wrong night.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/analytics/widgets/science_export_hub.dart",
-    "packages/nightshade_app/test/screens/analytics/widgets/science_export_hub_truth_test.dart"
+    "packages/skotiq_app/lib/screens/analytics/widgets/science_export_hub.dart",
+    "packages/skotiq_app/test/screens/analytics/widgets/science_export_hub_truth_test.dart"
    ],
    "test": "'photometry CSV timestamps are UTC and carry a JD column' in the same file. The seeded row's timestamp is DateTime.fromMillisecondsSinceEpoch(...) - LOCAL-flagged, which is what drift hands back - so the assertion is timezone-independent: on a UTC host the old code still omits the Z.",
    "test_fails_without_fix": true,
@@ -190,10 +190,10 @@
    "outcome": "fixed",
    "summary": "The reason text was rendered only for _format (transient_report_panel.dart:143), and a disabled chip is built with onTap: null - so the user could not move the selection onto a disabled network and the AAVSO/MPC explanations, which the app had already computed, were unreachable by any sequence of clicks. The panel now renders one line per unavailable network, prefixed with the network name, straight under the chip row. When the blocker is the detection itself (not confirmed, or a dipole artefact) all three share one reason, so it is stated once instead of three times.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/analytics/widgets/transient_report_panel.dart",
-    "packages/nightshade_app/test/screens/analytics/widgets/transient_report_reasons_test.dart"
+    "packages/skotiq_app/lib/screens/analytics/widgets/transient_report_panel.dart",
+    "packages/skotiq_app/test/screens/analytics/widgets/transient_report_reasons_test.dart"
    ],
-   "test": "'a disabled AAVSO and MPC chip each state their own reason' + 'an unconfirmed detection states its one shared blocker once' in packages/nightshade_app/test/screens/analytics/widgets/transient_report_reasons_test.dart (confirmed newSource detection, no credentials configured - the audit's exact state).",
+   "test": "'a disabled AAVSO and MPC chip each state their own reason' + 'an unconfirmed detection states its one shared blocker once' in packages/skotiq_app/test/screens/analytics/widgets/transient_report_reasons_test.dart (confirmed newSource detection, no credentials configured - the audit's exact state).",
    "test_fails_without_fix": true,
    "revert_check": "Replaced the notices block with the old `if (!_formatEnabled(_format, ...)) Text(_disabledReason(_format, ...))`; the test failed with 'Found 0 widgets with text containing MPC astrometry is for moving objects'. Restored, green together with the pre-existing transient_report_panel_calibration_test.dart (4 tests)."
   },
@@ -202,8 +202,8 @@
    "outcome": "fixed",
    "summary": "The card printed three populations with one vocabulary. Renamed the header tile 'Total integration' -> 'Integration (accepted)' (it counts accepted light frames), added an 'Integration (captured)' tile that appears only when the session rows' own total differs, so '0.0h accepted' and '0.2h captured' are stated together instead of contradicting each other; changed the session row's '0.17h integration' -> '0.17h captured'; and replaced the flatly false 'No frames captured for this target yet.' with 'No accepted frames yet - 0.2h captured across 1 session was rejected or has not been graded.' when the sessions did capture something. The old sentence is still used when nothing was ever captured.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/analytics/widgets/campaign_rollup_dialog.dart",
-    "packages/nightshade_app/test/screens/analytics/widgets/campaign_rollup_populations_test.dart"
+    "packages/skotiq_app/lib/screens/analytics/widgets/campaign_rollup_dialog.dart",
+    "packages/skotiq_app/test/screens/analytics/widgets/campaign_rollup_populations_test.dart"
    ],
    "test": "'a campaign whose frames were all rejected is not told it has no frames' + 'accepted and captured integration are named separately' in the same file.",
    "test_fails_without_fix": true,

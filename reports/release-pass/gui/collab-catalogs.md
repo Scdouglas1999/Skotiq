@@ -12,10 +12,10 @@ here are numbered `COL2-n` and are new unless they explicitly say "wave 1 ... st
 
 ## Harness note (not a product finding)
 
-The release bundle was missing `lib/libnightshade_bridge.so` when this pass started (deleted from
+The release bundle was missing `lib/libskotiq_bridge.so` when this pass started (deleted from
 the bundle at 08:16 by a concurrent job); every GUI profile died at boot with "Native bridge failed
 to initialize". Restored by copying the freshly built
-`native/nightshade_native/target/release/libnightshade_bridge.so` into the bundle's `lib/`. Also
+`native/skotiq_native/target/release/libskotiq_bridge.so` into the bundle's `lib/`. Also
 note `drive_linux.py` only binds `--profile` when it is passed *after* the subcommand
 (`start --profile X`), not before it — a leading `--profile` silently runs profile `main`.
 
@@ -32,7 +32,7 @@ Repro:
 3. Press "Refresh Now" and wait ~8 s. The date advances to 2026-08-13; the counts stay 312 / 762.
 
 Expected: either MPCORB (~1.4 M objects), or copy that names the subset actually fetched.
-Actual: the fetch is real but it is not MPCORB. `~/.local/share/com.example.nightshade_desktop/
+Actual: the fetch is real but it is not MPCORB. `~/.local/share/com.skotiq.desktop/
 catalogs/element_refresh_metadata.json` after the refresh records
 `"asteroidsUrl":"https://www.minorplanetcenter.net/iau/Ephemerides/Bright/2026/Soft00Bright.txt"`,
 `"asteroidsCount":312` — the Minor Planet Center's *Bright Minor Planets* ephemeris file, three
@@ -80,7 +80,7 @@ Actual copy, verbatim, in the shipping release bundle: "Streams faint stars belo
 floor (mag 9.0) as view-culled tiles when zoomed in. **No tileset is published yet: host one built
 with tools/catalog_prep and point the URL below at it.**" and, under the field, "No official
 tileset is published yet — point this at a tileset you host yourself (see **tools/catalog_prep in
-the Nightshade repository**)." A paying customer is being told to build their own tileset from a
+the Skotiq repository**)." A paying customer is being told to build their own tileset from a
 directory in a source repository they do not have.
 Evidence: `/tmp/ns-audit/shots-collab3/11-scrolled.png`.
 
@@ -99,7 +99,7 @@ Evidence: `/tmp/ns-audit/shots-collab3/08-catalogs.png`.
 Screen: Settings -> Imaging -> Catalogs, on a profile started with a wiped data directory.
 
 Repro:
-1. Start the app with `NIGHTSHADE_DATA_DIR` / `NIGHTSHADE_DATABASE_DIR` pointing at an empty
+1. Start the app with `SKOTIQ_DATA_DIR` / `SKOTIQ_DATABASE_DIR` pointing at an empty
    directory (`drive_linux.py start --fresh`).
 2. Open Settings -> Imaging -> Catalogs.
 
@@ -107,12 +107,12 @@ Expected: on a data directory with no catalogues, the cards read "Not installed"
 invites a download.
 Actual: every card reads `Installed` with install dates from previous sessions (HYG 4.4 /
 2026-08-11, OpenNGC 2023.12 / 2026-08-11, GLADE+ 2026-08-03). The files are in
-`~/.local/share/com.example.nightshade_desktop/catalogs/`, which no data-directory setting moves.
+`~/.local/share/com.skotiq.desktop/catalogs/`, which no data-directory setting moves.
 Consequences: (a) the "Files & Storage" data directory does not actually contain the app's largest
-data set, so a user who points Nightshade at a big disk still fills the system drive with ~52 MB of
+data set, so a user who points Skotiq at a big disk still fills the system drive with ~52 MB of
 catalogues; (b) "Delete Catalogs" on any profile destroys them for every profile on the machine.
-Evidence: `ls ~/.local/share/com.example.nightshade_desktop/catalogs/` (52 MB of csv/txt) against
-`find /tmp/ns-audit/gui-collab-catalogs/data -type f` (nightshade.db, a backup and a log — no
+Evidence: `ls ~/.local/share/com.skotiq.desktop/catalogs/` (52 MB of csv/txt) against
+`find /tmp/ns-audit/gui-collab-catalogs/data -type f` (skotiq.db, a backup and a log — no
 catalogues).
 
 ## COL2-7 — Tonight's top-ranked imaging target is a bare naked-eye star, typed "Star" (P2)
@@ -344,7 +344,7 @@ Evidence: `/tmp/ns-audit/shots-collab3/08-catalogs.png` (tour up, panes clipped)
   Connection refused" in ~0.7 s; `http://10.255.255.1:8090` -> "Request to 10.255.255.1 timed out"
   after ~60-90 s, with a spinner in the button throughout. Only the a11y side is wrong (COL2-14).
 - **Collaborative Sky's disconnected empty state** is honest and specific ("Connect to a
-  self-hosted hub… There is no Nightshade cloud"), with a single clear CTA.
+  self-hosted hub… There is no Skotiq cloud"), with a single clear CTA.
 - **Transient alert settings persist** across close/reopen of the dialog within a session
   (AAVSO on, TNS off round-tripped correctly), and the checkboxes report `[ON]`/`[off]` properly.
 - **Settings search** ("catalog") is fast and returns deep links into sub-sections
@@ -382,13 +382,13 @@ Screens I could not reach, and why:
   was therefore unreachable this pass.
 - **All hub-connected Collaborative Sky surfaces** — collaborative mosaic listings, co-imaging
   session cards and the consent sheet, the shared calibration section, panel claiming. Wave 1
-  reached these by standing up a local `server/nightshade_hub`; I did not stand one up this pass,
+  reached these by standing up a local `server/skotiq_hub`; I did not stand one up this pass,
   so wave 1's COL-1, COL-2, COL-4, COL-5, COL-7 and COL-8 are **not re-verified** here and should
   be treated as still open.
 - **Discover -> Constellation tab** — not driven (no budget left after the Collaborate paths).
 - **Catalog destructive/download actions** — "Delete Catalogs" and "Download Selected Package" were
   deliberately not exercised: per COL2-6 the catalogues live in the developer's real
-  `~/.local/share/com.example.nightshade_desktop/catalogs/`, not in the scratch profile, so running
+  `~/.local/share/com.skotiq.desktop/catalogs/`, not in the scratch profile, so running
   either would have rewritten or destroyed their actual installation. Wave 1's COL-10 and COL-12
   are therefore not re-verified.
 - **Live transient alert content** (an alert card, its detail view, "auto-queue" firing) — no real

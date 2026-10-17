@@ -1,7 +1,7 @@
 // Plugin management endpoints.
 //
 // Dart AOT builds cannot load an uploaded source/archive at runtime. The
-// executable plugin set is therefore the set compiled into this Nightshade
+// executable plugin set is therefore the set compiled into this Skotiq
 // build and registered in PluginHost. These endpoints deliberately expose
 // that live host state: enable/disable runs the real lifecycle hooks and saves
 // the preference. Upload returns 501 instead of persisting an inert archive
@@ -9,12 +9,12 @@
 // visible as non-runnable rows and can be deleted for cleanup.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 // Plugin enablement is app-composition wiring and is intentionally not in the
 // public core barrel.
 // ignore: implementation_imports
-import 'package:nightshade_core/src/providers/plugin_enablement_provider.dart';
-import 'package:nightshade_plugins/nightshade_plugins.dart';
+import 'package:skotiq_core/src/providers/plugin_enablement_provider.dart';
+import 'package:skotiq_plugins/skotiq_plugins.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
@@ -67,7 +67,7 @@ class PluginHandlers {
     'canEnable': false,
     'loadError':
         plugin.loadError ??
-        'This archive is stored for cleanup only. This Nightshade build '
+        'This archive is stored for cleanup only. This Skotiq build '
             'cannot load Dart plugins at runtime.',
   };
 
@@ -110,7 +110,7 @@ class PluginHandlers {
     return jsonNotImplemented({
       'error': 'runtime_plugin_install_unavailable',
       'message':
-          'This Nightshade build cannot load uploaded Dart plugins. Plugins '
+          'This Skotiq build cannot load uploaded Dart plugins. Plugins '
           'must be compiled into the application; no file was stored.',
     });
   }

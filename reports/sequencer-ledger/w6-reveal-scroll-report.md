@@ -28,7 +28,7 @@ renders `SizedBox.shrink()` for a tab not yet visited.
 
 ## 2. The helper
 
-`packages/nightshade_app/lib/screens/sequencer/widgets/sequence_tree.dart`,
+`packages/skotiq_app/lib/screens/sequencer/widgets/sequence_tree.dart`,
 next to `treeNodeKeyRegistryProvider`:
 
 ```dart
@@ -44,7 +44,7 @@ void revealSequenceRow(
     target,
     alignment: alignment,
     duration: animationDuration(rowContext, duration),
-    curve: NightshadeTokens.curveStandard,
+    curve: SkotiqTokens.curveStandard,
   );
 }
 ```
@@ -59,7 +59,7 @@ so a provider-published controller would add plumbing without adding
 information. It lives beside the registry provider it is always used with.
 
 The curve is fixed inside the helper because all five sites passed
-`NightshadeTokens.curveStandard` — the map's jump and the run's own scroll are
+`SkotiqTokens.curveStandard` — the map's jump and the run's own scroll are
 one movement started by different hands (spec §9).
 
 ## 3. Sites converted
@@ -90,7 +90,7 @@ one hit: the sentence in the helper's own doc comment explaining the bug.
 
 ## 4. Proof — widget tests
 
-`packages/nightshade_app/test/screens/sequencer/sequence_reveal_no_pager_scroll_test.dart`
+`packages/skotiq_app/test/screens/sequencer/sequence_reveal_no_pager_scroll_test.dart`
 (new, 5 cases) pumps the whole `SequencerScreen` at 1400x700 with a 20-sub tree
 that overflows its viewport, and for each entry point asserts **on every frame**
 of the transition that
@@ -118,7 +118,7 @@ frame; with the helper in place all five pass.
 
 Bundle built in this worktree (`flutter build linux --release`) with the
 campaign bridge copied over it
-(`libnightshade_bridge.campaign-1858542796.so`; `rustContentHash => -1858542796`).
+(`libskotiq_bridge.campaign-1858542796.so`; `rustContentHash => -1858542796`).
 Harness on `:93`, profile `w6reveal` seeded from the ledger preview with
 `observer_longitude` set to `67.0` so the executor accepts the run. Measurement:
 `ffmpeg -f x11grab` at 20-25 fps over a 1600x46 band across the canvas bar —
@@ -158,9 +158,9 @@ Evidence: `/tmp/ns-audit/{iframes_pre,iframes_post,gframes_pre2,gframes_post,rfr
 ```
 flutter test test/screens/sequencer --concurrency=3    EXIT=0   749 passed
 flutter test <this file>                               EXIT=0   5 passed
-dart analyze (packages/nightshade_app)                 EXIT=2   886 issues, zero naming a touched file
+dart analyze (packages/skotiq_app)                 EXIT=2   886 issues, zero naming a touched file
 dart format --output=none --set-exit-if-changed
-  packages/nightshade_app nightshade_core nightshade_ui EXIT=0
+  packages/skotiq_app skotiq_core skotiq_ui EXIT=0
 flutter build linux --release                          EXIT=0
 ```
 

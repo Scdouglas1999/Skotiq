@@ -4,7 +4,7 @@ import '../route_metadata.dart' as route_metadata;
 ///
 /// Explicit allow-list, never origin reflection: echoing the request `Origin`
 /// whenever it matches the bound host:port would let a malicious local-loopback
-/// app on `http://127.0.0.1:NNNN` script Nightshade through the browser, which
+/// app on `http://127.0.0.1:NNNN` script Skotiq through the browser, which
 /// sees same-origin and proceeds. By default only the dashboard's own origin is
 /// allowed; high-risk control endpoints get a stricter check that omits the
 /// CORS header entirely on a disallowed origin, so the browser blocks the

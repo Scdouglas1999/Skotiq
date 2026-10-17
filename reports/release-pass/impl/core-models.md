@@ -152,10 +152,10 @@ Re-proved zero callers myself with a fresh repo-wide grep over
 export, registry or string lookup reaches them; no test existed for any of them.
 
 - Deleted `lib/src/utils/plate_solver_utils.dart` (384 lines) + both barrel
-  exports (`nightshade_core.dart`, `nightshade_core_services.dart`).
+  exports (`skotiq_core.dart`, `skotiq_core_services.dart`).
 - Deleted `TargetVisibility`, `SessionPlan`, `PlannedTarget` from
   `models/target/target_models.dart` (90 lines). `_TargetVisibility` in
-  `nightshade_app` is an unrelated private class and is untouched.
+  `skotiq_app` is an unrelated private class and is untouched.
 - Deleted the 19-line re-export shim `lib/src/utils/device_id_utils.dart`; both
   barrels now export `isValidDeviceIdFormat` from `src/utils/device_id.dart`,
   the one test import is repointed, and the stale doc references in
@@ -170,7 +170,7 @@ export, registry or string lookup reaches them; no test existed for any of them.
 
 ## Verification
 
-- `flutter analyze` on `nightshade_core`: clean for every file I touched. The 2
+- `flutter analyze` on `skotiq_core`: clean for every file I touched. The 2
   remaining infos are pre-existing `deprecated_member_use` in
   `test/database/restore_clears_recovery_marker_test.dart` (not my scope).
 - `dart format` run on the 23 files I touched, nothing else.
@@ -184,5 +184,5 @@ export, registry or string lookup reaches them; no test existed for any of them.
 - Full package suite, final run: **`02:39 +5629 ~4: All tests passed!`**
 - Downstream consumers of what this batch changed, spot-checked green:
   `apps/desktop test/headless_api/sequencer_handlers_test.dart` (36/36, mocks
-  `SequenceRepository`) and `packages/nightshade_app
+  `SequenceRepository`) and `packages/skotiq_app
   test/screens/sequencer/sequence_library_authority_test.dart` (2/2).

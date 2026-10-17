@@ -1,0 +1,98 @@
+# cargo-deny configuration for the skotiq_native workspace.
+#
+# Policy seed for cargo-deny. The exact resolved-graph gate in CI reads
+# `duplicate-versions-baseline.txt`, which records the accepted duplicate
+# semvers (base64, thiserror, socket2, getrandom, hashbrown, windows-sys,
+# windows-targets).
+#
+# Format reference: https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+# Include all targets so Windows-only crates (windows-*, ascom transitive
+# deps) are scanned even when running on Linux CI.
+all-features = true
+
+[bans]
+# Keep local cargo-deny runs informative. CI separately enforces the exact
+# resolved set through duplicate-versions-baseline.txt.
+multiple-versions = "warn"
+
+# Known-bloaters that the table called out. As each
+# duplicate is consolidated, remove the entry from this skip list so we
+# don't re-introduce it.
+skip = [
+    # Mixed transitive: reqwest vs mdns-sd.
+    { name = "socket2" },
+    # Mixed transitive: indexmap variants.
+    { name = "hashbrown" },
+    # Heavy: mixed via `windows` crate transitive. Tracked under the
+    # windows-upgrade work.
+    { name = "windows-sys" },
+    { name = "windows-targets" },
+    { name = "windows_aarch64_gnullvm" },
+    { name = "windows_aarch64_msvc" },
+    { name = "windows_i686_gnu" },
+    { name = "windows_i686_gnullvm" },
+    { name = "windows_i686_msvc" },
+    { name = "windows_x86_64_gnu" },
+    { name = "windows_x86_64_gnullvm" },
+    { name = "windows_x86_64_msvc" },
+    # Varied: small footprint.
+    { name = "getrandom" },
+    { name = "wasi" },
+    { name = "rand" },
+    { name = "rand_core" },
+    { name = "rand_chacha" },
+    # Bytes layer: minor.
+    { name = "bitflags" },
+    # Pin / unicode-bidi minors.
+    { name = "syn" },
+    { name = "linux-raw-sys" },
+]
+
+# Remove entries as dependency upgrades consolidate these transitive versions.
+
+[licenses]
+# Don't enforce license policy from cargo-deny — that's out of scope for
+# the duplicate check. Use a permissive allow-list so the command does
+# not exit non-zero on license issues alone.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-DFS-2016",
+    "Unicode-3.0",
+    "Zlib",
+    "CC0-1.0",
+    "MPL-2.0",
+    "0BSD",
+    "OpenSSL",
+    "BSL-1.0",
+]
+confidence-threshold = 0.8
+
+# First-party Skotiq crates use the repository's custom source-available
+# license and are all marked `publish = false`. The third-party policy below is
+# intentionally not applied to them.
+[licenses.private]
+ignore = true
+
+# allo-isolate 0.1.27 ships the complete Apache-2.0 text in its crate tarball
+# but declares it through `license-file` instead of an SPDX expression.
+[[licenses.clarify]]
+name = "allo-isolate"
+version = "0.1.27"
+expression = "Apache-2.0"
+license-files = [
+    { path = "LICENSE", hash = 0xc71d239d },
+]
+
+[advisories]
+# Vulnerability advisories are handled separately by the rust audit job;
+# this file only governs duplicates today. Ignore unmaintained-only
+# advisories so the duplicate run isn't gated on them.
+yanked = "warn"
+ignore = []

@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
 import 'mobile_preferences.dart';
 import 'notification_service.dart';
 
-/// Subscribes to the backend's `NightshadeEvent` stream and converts critical
+/// Subscribes to the backend's `SkotiqEvent` stream and converts critical
 /// events into local OS notifications via [MobileNotificationService].
 ///
 /// This is the mobile-direct path. The desktop also runs a
@@ -25,18 +25,18 @@ import 'notification_service.dart';
 /// observatory wall sharing the same server.
 class MobileEventNotifier {
   MobileEventNotifier({
-    required Stream<NightshadeEvent> eventStream,
+    required Stream<SkotiqEvent> eventStream,
     required MobilePreferences preferences,
     MobileNotificationSink? notificationService,
   }) : _eventStream = eventStream,
        _preferences = preferences,
        _notifications = notificationService ?? MobileNotificationService();
 
-  final Stream<NightshadeEvent> _eventStream;
+  final Stream<SkotiqEvent> _eventStream;
   final MobilePreferences _preferences;
   final MobileNotificationSink _notifications;
 
-  StreamSubscription<NightshadeEvent>? _subscription;
+  StreamSubscription<SkotiqEvent>? _subscription;
 
   /// Tracks the last-fired wall clock per `(category, eventType)` pair so we
   /// can debounce repeat fires of the same event within [_repeatWindow].
@@ -107,7 +107,7 @@ class MobileEventNotifier {
     return DateTime.now().difference(last) < _pushDedupeWindow;
   }
 
-  Future<void> _handle(NightshadeEvent event) async {
+  Future<void> _handle(SkotiqEvent event) async {
     try {
       switch (event.category) {
         case EventCategory.safety:
@@ -158,7 +158,7 @@ class MobileEventNotifier {
     }
   }
 
-  Future<void> _handleSafety(NightshadeEvent event) async {
+  Future<void> _handleSafety(SkotiqEvent event) async {
     if (!_preferences.notifySafety) return;
     final key = 'safety:${event.eventType}';
     if (_firedRecently(key, _repeatWindow)) return;
@@ -199,7 +199,7 @@ class MobileEventNotifier {
     }
   }
 
-  Future<void> _handleGuiding(NightshadeEvent event) async {
+  Future<void> _handleGuiding(SkotiqEvent event) async {
     if (!_preferences.notifyGuiding) return;
     final key = 'guiding:${event.eventType}';
     if (_firedRecently(key, _repeatWindow)) return;
@@ -224,7 +224,7 @@ class MobileEventNotifier {
     }
   }
 
-  Future<void> _handleImaging(NightshadeEvent event) async {
+  Future<void> _handleImaging(SkotiqEvent event) async {
     final key = 'imaging:${event.eventType}';
     switch (event.eventType) {
       case 'ExposureFailed':
@@ -242,7 +242,7 @@ class MobileEventNotifier {
     }
   }
 
-  Future<void> _handleEquipment(NightshadeEvent event) async {
+  Future<void> _handleEquipment(SkotiqEvent event) async {
     if (!_preferences.notifyEquipmentDisconnected) return;
     final key = 'equipment:${event.eventType}';
     if (_firedRecently(key, _repeatWindow)) return;
@@ -287,7 +287,7 @@ class MobileEventNotifier {
     }
   }
 
-  Future<void> _handleSequencer(NightshadeEvent event) async {
+  Future<void> _handleSequencer(SkotiqEvent event) async {
     final key = 'sequencer:${event.eventType}';
     switch (event.eventType) {
       case 'NodeCompleted':
@@ -336,7 +336,7 @@ class MobileEventNotifier {
     }
   }
 
-  Future<void> _handleSystem(NightshadeEvent event) async {
+  Future<void> _handleSystem(SkotiqEvent event) async {
     final key = 'system:${event.eventType}';
     switch (event.eventType) {
       case 'DiskSpaceLow':
@@ -376,7 +376,7 @@ class MobileEventNotifier {
   /// loudly (per the no-silent-fallback rule) but not surfaced —
   /// so when a new long-running job is added server-side, the logs will
   /// reveal the gap.
-  Future<void> _handleJob(NightshadeEvent event) async {
+  Future<void> _handleJob(SkotiqEvent event) async {
     if (event.eventType != 'JobFailed') {
       // Drop JobStarted/JobProgress/JobCompleted/JobCancelled entirely.
       // No log spam: these are normal and we explicitly chose not to
@@ -455,7 +455,7 @@ class MobileEventNotifier {
   /// before broadcasting (a take-over event reaches the previous owner;
   /// the new owner's own claim doesn't generate a separate displaced
   /// event for them).
-  Future<void> _handleSession(NightshadeEvent event) async {
+  Future<void> _handleSession(SkotiqEvent event) async {
     final key = 'session:${event.eventType}';
     if (_firedRecently(key, _repeatWindow)) return;
     if (_pushAlreadyCovered(event.eventType)) return;

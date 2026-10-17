@@ -1,5 +1,5 @@
-name: nightshade_update_server
-description: Self-hosted update server for Nightshade OTA updates
+name: skotiq_update_server
+description: Self-hosted update server for Skotiq OTA updates
 version: 1.0.0
 publish_to: 'none'
 

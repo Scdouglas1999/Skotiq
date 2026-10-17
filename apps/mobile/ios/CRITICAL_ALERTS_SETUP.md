@@ -1,6 +1,6 @@
 # iOS Critical Alerts setup
 
-Nightshade Mobile uses iOS Critical Alerts for a small, well-defined set of
+Skotiq Mobile uses iOS Critical Alerts for a small, well-defined set of
 safety notifications that must wake an operator who has gone to sleep next
 to a running rig. Apple gates Critical Alerts behind a special entitlement,
 `com.apple.developer.usernotifications.critical-alerts`, which is **not**
@@ -24,7 +24,7 @@ which corresponds in Dart to `InterruptionLevel.critical` on
 - Sleep schedule quiet hours.
 
 It plays a sound (defaults to the system critical-alert sound) at the
-volume the user set in **Settings → Notifications → Nightshade → Critical
+volume the user set in **Settings → Notifications → Skotiq → Critical
 Alerts**, which is independent of the system ringer volume. Without the
 entitlement, iOS silently ignores the `critical` interruption level and
 the notification falls back to the next-lowest level — meaning a sleeping
@@ -76,7 +76,7 @@ entitlement.
    `MobileNotificationService.refreshCriticalAlertsAuthorization()` re-reads
    the current authorization state via `checkPermissions().isCriticalEnabled`
    and exposes it through `iosCriticalAlertsAuthorizedProvider`
-   (`packages/nightshade_app/lib/widgets/ios_background_banner.dart`).
+   (`packages/skotiq_app/lib/widgets/ios_background_banner.dart`).
    `IosBackgroundBanner` switches its copy based on that state so the
    operator can see at a glance whether safety alerts will wake the
    device.
@@ -119,12 +119,12 @@ Apple requires a written justification per app, submitted through the
 "Request Critical Alerts Entitlement" form linked from
 <https://developer.apple.com/contact/request/notifications-critical-alerts-entitlement/>.
 You must use the developer account that owns the App Store Connect record
-for Nightshade Mobile (currently bundle id
-`com.nightshade.nightshadeMobile`).
+for Skotiq Mobile (currently bundle id
+`com.skotiq.mobile`).
 
 **Submission text** (paste this into the justification field verbatim):
 
-> Nightshade is an unattended astrophotography control app. Imaging
+> Skotiq is an unattended astrophotography control app. Imaging
 > sessions run for 4-12 hours overnight while the operator sleeps.
 > Critical Alerts are used exclusively for: weather safety
 > (clouds/rain/wind sensors), mount runaway / emergency stop, USB device
@@ -145,7 +145,7 @@ configuration screen.
 1. Apple sends an email approving the request. The entitlement is added
    to your developer account at the team level.
 2. In **Certificates, Identifiers & Profiles** (developer.apple.com),
-   open the App ID for `com.nightshade.nightshadeMobile` and enable
+   open the App ID for `com.skotiq.mobile` and enable
    **Critical Alerts** under the Notifications capability. Save.
 3. **Regenerate** your provisioning profiles — both App Store and any
    ad-hoc / development profiles you use. The Critical Alerts entitlement

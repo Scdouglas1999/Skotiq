@@ -2,7 +2,7 @@
 
 Fields:
   about             one line for --list
-  sim_faults        NIGHTSHADE_SIM_FAULTS for the app (key=trigger:effect,...)
+  sim_faults        SKOTIQ_SIM_FAULTS for the app (key=trigger:effect,...)
   phd2_faults       fake_phd2.py --faults (times are seconds after the first guide)
   actions           operator actions: [{"verb": pause|resume|stop, "at_min": M, "budget_s": S}]
   stop_after_pause_s  if the run pauses on its own, wait this long, then Stop it

@@ -9,13 +9,13 @@
   make all of it reachable by any component holding a grant.
 
   `updates/staging` must stay in step with _getStagingDirectory() in
-  packages/nightshade_updater/lib/src/services/update_service.dart, which
+  packages/skotiq_updater/lib/src/services/update_service.dart, which
   builds it as <getApplicationSupportDirectory()>/updates/staging.
   getApplicationSupportDirectory() is getFilesDir() on Android, which is what
   <files-path> resolves against.
 -->
 <paths>
     <files-path
-        name="nightshade_update_staging"
+        name="skotiq_update_staging"
         path="updates/staging/" />
 </paths>

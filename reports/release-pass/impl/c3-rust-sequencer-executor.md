@@ -11,8 +11,8 @@ Plan followed: `reports/release-pass/map/rust-sequencer.md` §1.2 (executor) and
 
 | file | lines | over threshold (1500)? |
 |---|---|---|
-| `native/nightshade_native/sequencer/src/executor/mod.rs` | 11593 | yes |
-| `native/nightshade_native/sequencer/src/triggers.rs` | 4467 | yes |
+| `native/skotiq_native/sequencer/src/executor/mod.rs` | 11593 | yes |
+| `native/skotiq_native/sequencer/src/triggers.rs` | 4467 | yes |
 
 ## 1. `executor/mod.rs` 11593 → 346
 
@@ -65,7 +65,7 @@ leaves the Step-0 refactor a self-contained follow-up against one file.
 | `triggers/cross_run_target_hygiene_tests.rs` | 130 | 4338–4466 |
 
 `lib.rs`'s `pub use triggers::*;` is unchanged; `triggers/mod.rs` re-exports
-each submodule with a glob so every `nightshade_sequencer::Trigger*` path holds.
+each submodule with a glob so every `skotiq_sequencer::Trigger*` path holds.
 The map's `evaluators.rs` idea (turning `Trigger::check`'s 20 match arms into
 20 free functions) was **not** done — that rewrites the dispatch rather than
 moving it, so `check` stays intact inside `trigger.rs`.
@@ -113,12 +113,12 @@ removed).
   only lines dropped are the `mod tests {` wrappers and their closing braces;
   the only lines added are file docs, module decls, `use` lines and the
   `impl SequenceExecutor {` wrapper in `start.rs`.
-* `cargo check -p nightshade_sequencer` and `--tests`: clean, zero warnings.
-* `cargo test -p nightshade_sequencer`: **803 passed, 0 failed** (782 lib +
+* `cargo check -p skotiq_sequencer` and `--tests`: clean, zero warnings.
+* `cargo test -p skotiq_sequencer`: **803 passed, 0 failed** (782 lib +
   5 + 4 + 12 integration, 1 pre-existing ignored doc-test). No test file was
   edited beyond the import lines noted above.
-* `cargo fmt -p nightshade_sequencer -- --check`: clean. Only the files listed
+* `cargo fmt -p skotiq_sequencer -- --check`: clean. Only the files listed
   here were formatted.
-* `cargo check -p nightshade_bridge`: clean — the FRB-facing
-  `nightshade_sequencer::X` paths are unchanged (no bridge source references
-  `nightshade_sequencer::executor::` or `::triggers::` sub-paths).
+* `cargo check -p skotiq_bridge`: clean — the FRB-facing
+  `skotiq_sequencer::X` paths are unchanged (no bridge source references
+  `skotiq_sequencer::executor::` or `::triggers::` sub-paths).

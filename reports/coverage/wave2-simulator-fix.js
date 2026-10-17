@@ -1,5 +1,5 @@
 export const meta = {
-  name: 'nightshade-simulator-fidelity',
+  name: 'skotiq-simulator-fidelity',
   description: 'Close the verified simulator-fidelity gaps so no-hardware audits stop having blind spots',
   phases: [
     { title: 'Fix', detail: 'one agent per gap, disjoint file ownership' },
@@ -46,7 +46,7 @@ Add tests at 12-bit, 14-bit and 16-bit ceilings.`,
   },
   {
     key: 'S4-eccentricity-ceiling',
-    files: 'imaging/src/stats.rs (+ the grading settings copy in packages/nightshade_app)',
+    files: 'imaging/src/stats.rs (+ the grading settings copy in packages/skotiq_app)',
     brief: `stats.rs:190 sets max_eccentricity 0.7 and :309 DISCARDS every star above it, so the
 image-grading eccentricity rule can never fire above 0.70 -- while the settings UI
 (image_grading_settings.dart:190) recommends 0.8 as the threshold that "catches catastrophic
@@ -108,9 +108,9 @@ const done = await pipeline(
   GAPS,
   (g) =>
     agent(
-      `You are closing a verified simulator-fidelity gap in the Nightshade astrophotography app.
+      `You are closing a verified simulator-fidelity gap in the Skotiq astrophotography app.
 
-Repo root is the working directory. Native code is under native/nightshade_native/.
+Repo root is the working directory. Native code is under native/skotiq_native/.
 Your files: ${g.files}
 
 ## THE GAP
@@ -129,7 +129,7 @@ it is "a real device could behave this way and the app cannot tell the differenc
   assert the PHYSICS or the CONTRACT (bias independent of binning, saturation at the sensor's real
   ceiling, a trailed frame actually rejected).
 * Build and test what you touched:
-    cd native/nightshade_native && cargo test --package <the package you changed>
+    cd native/skotiq_native && cargo test --package <the package you changed>
   Do NOT run a full workspace build if you can avoid it, and do NOT run flutter build.
 * If you find the gap is already fixed, or the described fix is wrong, say so plainly with evidence
   rather than inventing work. That is a valid and useful result.

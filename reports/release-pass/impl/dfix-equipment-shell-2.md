@@ -24,7 +24,7 @@ to print `20676d ago`); the timestamp itself was never obtained.
 
 **Why an event listener could not fix it.** The Rust monitor only publishes
 `HeartbeatStatusChanged` on a *transition*
-(`native/nightshade_native/bridge/src/device_manager/heartbeat.rs:471` —
+(`native/skotiq_native/bridge/src/device_manager/heartbeat.rs:471` —
 inside `if consecutive_failures > 0`, i.e. only on recovery — plus the degraded
 and disconnected branches). A steadily healthy device emits nothing, so the
 existing `deviceHeartbeatHealthProvider` can never learn "it answered again".
@@ -33,7 +33,7 @@ The value *is* recorded natively (`heartbeat.rs:492`) and is already exposed:
 `(lastSuccessfulCommunicationMs, isHealthy)`, implemented for FFI, network and
 disconnected backends — **and called by nothing in the app**.
 
-**Fix.** New `packages/nightshade_core/lib/src/providers/device_last_contact_provider.dart`:
+**Fix.** New `packages/skotiq_core/lib/src/providers/device_last_contact_provider.dart`:
 `DeviceLastContactNotifier` polls `getDeviceHealth` for the currently
 connected devices (10 s), stores `DeviceContact{lastContact, isResponsive}`,
 drops records for devices that disconnect, keeps the previous record when a
@@ -45,7 +45,7 @@ the snapshot provider merges the contact record in — including
 `isHealthy && contact.isResponsive`, so a device the backend considers
 unresponsive stops contributing "100 - Excellent".
 
-**Tests** (`packages/nightshade_core/test/providers/device_last_contact_test.dart`, 7):
+**Tests** (`packages/skotiq_core/test/providers/device_last_contact_test.dart`, 7):
 contact recorded per device; zero timestamp stays absent; untracking prunes;
 a throwing probe preserves the last record; **a connected mount's snapshot
 carries the backend timestamp** (this is the regression: 0 at HEAD); an
@@ -66,10 +66,10 @@ navigation' / 'Expand navigation')`.
 publishes correct semantics, and I proved it against the **compiled
 SemanticsNode tree** (not widget properties) in the exact arrangement the
 desktop shell builds — title bar above, rail beside the content:
-`packages/nightshade_app/test/screens/shell/shell_chrome_semantics_test.dart`
+`packages/skotiq_app/test/screens/shell/shell_chrome_semantics_test.dart`
 asserts `Settings`, `Equipment Profiles`, `Close window`, a `Dashboard`
 destination, `Collapse navigation` and the routed content are all present.
-All four tests pass. `NavItem` (nightshade_ui) has carried
+All four tests pass. `NavItem` (skotiq_ui) has carried
 `Semantics(enabled/button/selected/label)` all along, so waveD-consistency's
 note that "`side_navigation.dart` contains no `Semantics` at all" is true of
 the file and false of the rail's destinations.
@@ -92,18 +92,18 @@ word can miss a node that is present.
 
 * **(b) Dashboard RECENT EVENTS `Camera · sim_camera_1` — FIXED.** The feed
   row's subtitle comes from the bridge's `_equipmentDetail`
-  (`packages/nightshade_bridge/lib/src/event_display.dart:167`), which is
+  (`packages/skotiq_bridge/lib/src/event_display.dart:167`), which is
   outside this batch's scope, so the substitution is done where the feed model
   is built: `_toDashboardEvent` in
   `screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart` now
   passes the detail through `_humanizeDeviceIds`, replacing
-  `NightshadeEvent.deviceId` with `friendlyNameFromDeviceId(...)`.
+  `SkotiqEvent.deviceId` with `friendlyNameFromDeviceId(...)`.
 * **(a) the disconnect toast — BLOCKED (scope).** The string is
   `'${equipment.device_type} ${equipment.device_id} disconnected.'`, the
   default body template at
-  `packages/nightshade_core/lib/src/services/notification/notification_router.dart:598`,
+  `packages/skotiq_core/lib/src/services/notification/notification_router.dart:598`,
   filled from `event_classifier.dart:256-259`. Both are in
-  `nightshade_core/lib/src/services/**`, which this batch may not edit (its
+  `skotiq_core/lib/src/services/**`, which this batch may not edit (its
   core scope is `providers/**`, heartbeat state only). The fix is to carry a
   device *name* in the substitution map and template it instead of the id.
 
@@ -112,11 +112,11 @@ word can miss a node that is present.
 ## WD-EQ-3 (P3) — three toasts for one failed connect — BLOCKED (scope)
 
 The duplicate pair is raised through the notification pipeline
-(`nightshade_core/lib/src/services/notification/**` +
+(`skotiq_core/lib/src/services/notification/**` +
 `ui_notification_provider.dart`), and the third ("Equipment disconnected") is
 the same `event_classifier` path as WD-EQ-2(a) firing for a device that never
 connected. All three sites are in core `services/`, outside this batch's
-scope. Nothing in `nightshade_app/lib/screens/**` raises them, so there was no
+scope. Nothing in `skotiq_app/lib/screens/**` raises them, so there was no
 in-scope emission site to dedupe.
 
 ---
@@ -144,8 +144,8 @@ and now shares one `_showSection` implementation with the listener.
 ## WD-EQ-4 (P3) — Edit Dashboard silently inert in standby — FIXED
 
 `dashboard_header_actions.dart` already disabled the button
-(`onPressed: canEdit ? onToggleEdit : null`, and `NightshadeButton` publishes
-`enabled: !isDisabled` at `nightshade_button.dart:196` with
+(`onPressed: canEdit ? onToggleEdit : null`, and `SkotiqButton` publishes
+`enabled: !isDisabled` at `skotiq_button.dart:196` with
 `isDisabled = onPressed == null`), but the *reason* lived only in a `Tooltip`,
 which is pointer-only. The refusal reason is now one named constant
 (`standbyEditRefusalReason`) used as the tooltip AND as a semantics `hint`, so
@@ -195,7 +195,7 @@ was updated to the new contract.
 
 **Scope note:** `lib/utils/snackbar_helper.dart` is one directory outside the
 listed SCOPE globs (`screens/**`, `widgets/**`). It is the only place the
-geometry lives — the alternative is `nightshade_ui`'s theme, which is further
+geometry lives — the alternative is `skotiq_ui`'s theme, which is further
 out — so the fix was made there and is flagged here rather than left undone.
 
 ---
@@ -207,7 +207,7 @@ stacks a second timer is not visible from the log". It replaces:
 `DeviceManager::start_heartbeat_with_config` calls
 `self.stop_heartbeat(device_id).await?` — "Stop any existing heartbeat for this
 device" — before spawning
-(`native/nightshade_native/bridge/src/device_manager/heartbeat.rs:307`). So at
+(`native/skotiq_native/bridge/src/device_manager/heartbeat.rs:307`). So at
 most one heartbeat task per device exists, and the disconnect's single stop is
 symmetric with the single live task. What remains is a redundant Dart-side
 start (`DeviceHeartbeatRouter.start`, core `services/`) duplicating the native
@@ -251,7 +251,7 @@ Not done, with the reason:
 * **CON-51 / CON-52 / CON-58 / CON-59 / CON-62** — in-scope but not reached in
   this batch; they are copy/treatment edits with no behavioural risk. CON-59's
   "~1 hr 15 min" / "~3 min capture" strings are not produced anywhere in
-  `nightshade_app/lib` (grep is clean), so the starter estimates are built
+  `skotiq_app/lib` (grep is clean), so the starter estimates are built
   outside this package and the fix site has to be located first.
 * **CON-55** — the Framing half (`panel: Open Settings`) is
   `screens/framing/**`, outside SCOPE.
@@ -264,7 +264,7 @@ Not done, with the reason:
 
 Core: `lib/src/providers/device_last_contact_provider.dart` (new),
 `lib/src/providers/equipment_health_provider.dart`, plus one export line each
-in `nightshade_core.dart` and `nightshade_core_providers.dart`.
+in `skotiq_core.dart` and `skotiq_core_providers.dart`.
 
 App: `screens/shell/widgets/side_navigation.dart`,
 `screens/shell/widgets/title_bar.dart`, `screens/settings/settings_screen.dart`,
@@ -280,26 +280,26 @@ Tests: 4 new files + 2 existing files extended/updated (listed per item above).
 ## Environment note
 
 The working tree was NOT green throughout: other D-fix agents were mid-edit in
-`nightshade_core` (`SchedulerSequenceSink.ownsRun` missing from its
-implementation) and in `nightshade_planetarium` at several points, which made
-`flutter test` in `nightshade_app` and `nightshade_core` fail to compile for
+`skotiq_core` (`SchedulerSequenceSink.ownsRun` missing from its
+implementation) and in `skotiq_planetarium` at several points, which made
+`flutter test` in `skotiq_app` and `skotiq_core` fail to compile for
 reasons unrelated to this batch. Every test result quoted above was taken in a
 window where the tree compiled.
 
 ## Verification runs (all on this working tree)
 
 New/extended, all green:
-* `nightshade_core`: `test/providers/device_last_contact_test.dart` — 7/7.
-* `nightshade_app`: `test/screens/shell/shell_chrome_semantics_test.dart` 4/4;
+* `skotiq_core`: `test/providers/device_last_contact_test.dart` — 7/7.
+* `skotiq_app`: `test/screens/shell/shell_chrome_semantics_test.dart` 4/4;
   `test/utils/snackbar_placement_test.dart` 4/4;
   `test/screens/dashboard/edit_dashboard_refusal_test.dart` 2/2;
   `test/screens/settings/settings_section_route_update_test.dart` 5/5 (2 new);
   `test/widgets/contextual_tour_prompt_layout_test.dart` (1 new) green.
 
 Regression sweeps:
-* `nightshade_core`: `test/providers` + `test/services/device_disconnect_test.dart`
+* `skotiq_core`: `test/providers` + `test/services/device_disconnect_test.dart`
   — **1585/1585 pass**.
-* `nightshade_app`: `test/screens/shell`, `test/screens/equipment`,
+* `skotiq_app`: `test/screens/shell`, `test/screens/equipment`,
   `test/screens/dashboard`, `test/utils`, `test/screens/sequencer/run_dashboard`,
   `test/screens/planner` — the only failures are `captures_*.dart`
   golden-image tests and three pre-existing `equipment_stats*` failures.

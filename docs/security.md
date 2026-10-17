@@ -1,10 +1,10 @@
 # Security architecture (remote / headless control)
 
 This document describes the threat model and security architecture of the
-Nightshade remote-control surface — the headless API that drives observatory
+Skotiq remote-control surface — the headless API that drives observatory
 hardware (mount slew, park, focuser, dome, capture, sequence start, backup
 restore) over the network for the desktop dashboard, mobile app, and automation
-clients. It targets Nightshade **4.1.0**.
+clients. It targets Skotiq **4.1.0**.
 
 It complements two sibling documents and does not duplicate them:
 
@@ -19,7 +19,7 @@ hazardous hardware; over-claiming would be worse than admitting a gap.
 
 ## 1. Trust model
 
-Nightshade is designed for a **trusted local observatory LAN**. The threat model
+Skotiq is designed for a **trusted local observatory LAN**. The threat model
 assumes the network the headless server is bound to is operated by the user and
 not directly reachable from the public internet. Direct WAN exposure of the
 headless API or web dashboard is **out of scope for default configurations**, as
@@ -35,9 +35,9 @@ and firewalling — none of which are forced on by default.
 
 Authentication is **off by default**. `parseHeadlessAuthConfig`
 (`apps/desktop/lib/headless/headless_auth_config.dart`) only requires auth when
-one of `--auth-token` / `NIGHTSHADE_AUTH_TOKEN`, `--require-auth`, or a scoped
-token (`--view-token` / `--control-token` / `NIGHTSHADE_VIEW_TOKEN` /
-`NIGHTSHADE_CONTROL_TOKEN`) is supplied. When none is set, the server binds to
+one of `--auth-token` / `SKOTIQ_AUTH_TOKEN`, `--require-auth`, or a scoped
+token (`--view-token` / `--control-token` / `SKOTIQ_VIEW_TOKEN` /
+`SKOTIQ_CONTROL_TOKEN`) is supplied. When none is set, the server binds to
 loopback (see §3) rather than exposing an unauthenticated LAN port — that is the
 fail-safe default.
 
@@ -50,7 +50,7 @@ fail-safe default.
 | `control` | `view` plus device/capture/mount/guider/sequencer/dome/safety/switch/cover control |
 | `admin` | Full protected API: self-test, settings, file browse, backup/restore |
 
-The legacy `--auth-token` / `NIGHTSHADE_AUTH_TOKEN` value is an **admin** token.
+The legacy `--auth-token` / `SKOTIQ_AUTH_TOKEN` value is an **admin** token.
 Give monitoring clients a `view` token instead.
 
 **Fail-closed on unknown scope.** `HeadlessAuthPolicy.requiredScopeFor` resolves
@@ -64,7 +64,7 @@ dashboard**, the token can be exchanged for an `HttpOnly; Secure;
 SameSite=Strict` session cookie (`AuthCookieManager`,
 `apps/desktop/lib/headless_api/auth/auth_cookie.dart`). Because that cookie is
 not JS-readable, state-changing requests made with it must echo a server-issued
-CSRF token via the `X-Nightshade-CSRF` header; `_methodNeedsCsrf` enforces this
+CSRF token via the `X-Skotiq-CSRF` header; `_methodNeedsCsrf` enforces this
 for `POST/PUT/DELETE/PATCH`. Bearer-header clients (mobile, automation) are not
 cookie-bearing and are not subject to CSRF — CSRF only applies to the
 cookie-session path.
@@ -75,7 +75,7 @@ The default bind is **loopback (`127.0.0.1`) only**. `bindLocalOnly` is computed
 as `!hasAuthentication && !allowUnauthenticatedLan` in
 `headless_auth_config.dart`: enabling any form of authentication flips the bind
 to the LAN interface, and `--allow-unauthenticated-lan` /
-`NIGHTSHADE_ALLOW_UNAUTHENTICATED_LAN=true` forces LAN exposure without auth.
+`SKOTIQ_ALLOW_UNAUTHENTICATED_LAN=true` forces LAN exposure without auth.
 
 `startHeadlessServices` (`apps/desktop/lib/headless/headless_services_bootstrap.dart`)
 gates the LAN-facing surfaces on `bindLocalOnly`: UDP discovery (port `45679`)
@@ -98,7 +98,7 @@ plus host firewall rules (see §11 and the
 
 - **Mobile app (iOS / Android):** bearer tokens for saved servers are stored
   **only** in `flutter_secure_storage` (iOS Keychain, Android Keystore-backed
-  `EncryptedSharedPreferences`), keyed by `nightshade_saved_server_token::<id>`
+  `EncryptedSharedPreferences`), keyed by `skotiq_saved_server_token::<id>`
   (`apps/mobile/lib/services/saved_servers_service.dart`). Non-secret server
   metadata (host, port, name, fingerprint, notes) lives in a SharedPreferences
   JSON blob via `toJsonNonSecret()`; the token is deliberately excluded from
@@ -112,7 +112,7 @@ plus host firewall rules (see §11 and the
   Windows they inherit the per-user app-data ACL. The relay appliance secret is
   persisted to `relay_credentials.json` under the application-support directory.
 
-Note: tokens passed via `NIGHTSHADE_AUTH_TOKEN` or `--auth-token` are visible in
+Note: tokens passed via `SKOTIQ_AUTH_TOKEN` or `--auth-token` are visible in
 the process environment / argument list to other processes and users on the host;
 treat the headless host as part of the trust boundary.
 
@@ -138,7 +138,7 @@ link-local / ULA addresses qualify (`isPrivateLanAddress`); loopback is rejected
 on purpose because a self-hosted relay tunnels remote clients in over loopback,
 and the Tailscale CGNAT ranges (`100.64.0.0/10`, `fd7a:115c::/32`) are excluded
 so remote clients always fall back to the code flow. Operators who do not trust
-every host on the LAN can set `NIGHTSHADE_PAIRING_MODE=code-required` to require
+every host on the LAN can set `SKOTIQ_PAIRING_MODE=code-required` to require
 the code even on the LAN.
 
 **Assumption.** `lan-open` treats LAN membership as authorization. On a network
@@ -149,7 +149,7 @@ obtain a `control` token. Use `code-required` there.
 
 TLS is **off by default**; the pairing code, bearer token, and every WebSocket
 frame travel in cleartext over plain HTTP unless TLS is enabled. Enable it with
-`--tls` / `NIGHTSHADE_TLS=true`, or by supplying `--tls-cert` + `--tls-key`
+`--tls` / `SKOTIQ_TLS=true`, or by supplying `--tls-cert` + `--tls-key`
 (which implies TLS).
 
 When enabled with no supplied cert, `provisionTlsContext`
@@ -177,7 +177,7 @@ dashboard.
 
 ## 7. Relay mode
 
-Relay mode (`--relay-url` / `NIGHTSHADE_RELAY_URL`,
+Relay mode (`--relay-url` / `SKOTIQ_RELAY_URL`,
 `apps/desktop/lib/headless/headless_relay_bootstrap.dart`) is an **opt-in,
 additive** outbound uplink for reaching the rig from outside the LAN (e.g. from
 a phone on cellular). It is off unless a relay URL is supplied, and it never
@@ -191,7 +191,7 @@ transports the session but is not granted control by virtue of carrying it.
 
 Trust implication: the relay is on the path between phone and rig. By default
 the uplink requires a valid relay TLS cert; `--relay-allow-insecure-tls` /
-`NIGHTSHADE_RELAY_ALLOW_INSECURE_TLS` disables that check and should only be
+`SKOTIQ_RELAY_ALLOW_INSECURE_TLS` disables that check and should only be
 used for a relay you operate yourself before it has a real certificate. Run your
 own relay, or trust the relay operator, before relying on this path for control.
 
@@ -200,7 +200,7 @@ own relay, or trust the relay operator, before relying on this path for control.
 CORS uses an explicit **allow-list**, not origin reflection
 (`apps/desktop/lib/headless_api/auth/cors_policy.dart`). By default only the
 dashboard's own (same) origin is allowed; additional origins come from
-`--cors-origin` / `NIGHTSHADE_CORS_ORIGINS`. `resolve()` returns an
+`--cors-origin` / `SKOTIQ_CORS_ORIGINS`. `resolve()` returns an
 `Access-Control-Allow-Origin` value only when the request origin is in the
 allow-list or is same-origin; otherwise the header is omitted and the browser
 blocks the response. High-risk control paths (`isHighRiskControlPath`) get the
@@ -253,13 +253,13 @@ rules.
       cleartext; pin the printed SPKI SHA-256 fingerprint on first connect.
 - [ ] **Use long, random tokens** and **rotate** them when a client device is
       lost or decommissioned.
-- [ ] **Set `NIGHTSHADE_PAIRING_MODE=code-required`** if untrusted devices share
+- [ ] **Set `SKOTIQ_PAIRING_MODE=code-required`** if untrusted devices share
       the LAN subnet.
-- [ ] **Firewall the TCP API port** (`8080` / `NIGHTSHADE_PORT`) and the UDP
+- [ ] **Firewall the TCP API port** (`8080` / `SKOTIQ_PORT`) and the UDP
       discovery port (`45679`) off untrusted networks.
 - [ ] **Run your own relay** (or trust the operator) and never leave
       `--relay-allow-insecure-tls` on past initial bring-up.
-- [ ] **Restrict file-browse roots** with `NIGHTSHADE_BROWSE_ROOTS`; only
+- [ ] **Restrict file-browse roots** with `SKOTIQ_BROWSE_ROOTS`; only
       allow-listed directories are reachable.
 - [ ] **Treat the headless host as part of the trust boundary** — env/arg tokens
       and the TLS key are readable by host users; keep the machine patched and

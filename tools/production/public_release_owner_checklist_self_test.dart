@@ -11,7 +11,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_public_release_owner_checklist_self_test_',
+    'skotiq_public_release_owner_checklist_self_test_',
   );
   try {
     await _writeFixtureAudit(temp);

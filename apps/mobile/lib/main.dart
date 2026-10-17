@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
-import 'package:nightshade_app/nightshade_app.dart';
-import 'package:nightshade_app/localization/nightshade_localizations.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/skotiq_app.dart';
+import 'package:skotiq_app/localization/skotiq_localizations.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:nightshade_planetarium/nightshade_planetarium.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/qr_scanner_screen.dart';
 import 'screens/servers/saved_servers_screen.dart';
@@ -76,7 +76,7 @@ Duration lostSessionRetryDelay(int attempt) {
 }
 
 void main() async {
-  developer.log('Starting Nightshade...', name: 'Main', level: 800);
+  developer.log('Starting Skotiq...', name: 'Main', level: 800);
   WidgetsFlutterBinding.ensureInitialized();
 
   // Respect the user's immersive-mode preference. Edge-to-edge keeps the
@@ -90,7 +90,7 @@ void main() async {
 
   // Initialize CatalogManager
   try {
-    final appDir = await resolveNightshadeDocumentsDirectory();
+    final appDir = await resolveSkotiqDocumentsDirectory();
     await CatalogManager.instance.initialize(appDir.path);
   } catch (e) {
     developer.log(
@@ -221,7 +221,7 @@ void main() async {
         // re-enabled by the default all-enabled store.
         pluginEnablementStoreOverride(),
       ],
-      child: const NightshadeMobileApp(),
+      child: const SkotiqMobileApp(),
     ),
   );
 }
@@ -289,15 +289,15 @@ Future<_CollaborationIdentityBundle> _buildCollaborationIdentity(
   );
 }
 
-class NightshadeMobileApp extends ConsumerStatefulWidget {
-  const NightshadeMobileApp({super.key});
+class SkotiqMobileApp extends ConsumerStatefulWidget {
+  const SkotiqMobileApp({super.key});
 
   @override
-  ConsumerState<NightshadeMobileApp> createState() =>
-      _NightshadeMobileAppState();
+  ConsumerState<SkotiqMobileApp> createState() =>
+      _SkotiqMobileAppState();
 }
 
-class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
+class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
     with
         WidgetsBindingObserver,
         _MobileConnectionState,
@@ -320,7 +320,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
     // Automatically discover and connect on startup
     _autoConnect();
 
-    // "Hey Siri, show the last Nightshade image": the voice lifecycle
+    // "Hey Siri, show the last Skotiq image": the voice lifecycle
     // controller receives this action but owns no router, so the shell
     // navigates from here. Reading the provider also keeps the inbound
     // method-channel handler alive.
@@ -378,7 +378,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
       // DisconnectedBackend, return to the connection screen. Listening
       // (instead of watching+addPostFrameCallback in build) avoids the
       // build-time setState cycle flagged
-      ref.listen<NightshadeBackend>(backendProvider, (previous, next) {
+      ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
         if (!mounted) return;
         if (_connectedServer != null &&
             next is DisconnectedBackend &&
@@ -408,7 +408,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
       // If not connected and not skipped, show connection screen
       if (_connectedServer == null && !_skippedConnection) {
         final settings = ref.watch(appSettingsProvider).valueOrNull;
-        final theme = resolveNightshadeThemeData(
+        final theme = resolveSkotiqThemeData(
           themeSetting: settings?.theme ?? 'dark',
           accentColorHex: settings?.accentColor,
         );
@@ -416,19 +416,19 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
           value: systemUiOverlayStyleFor(theme),
           child: MaterialApp(
             navigatorKey: _connectionNavigatorKey,
-            title: 'Nightshade',
+            title: 'Skotiq',
             debugShowCheckedModeBanner: false,
             theme: theme,
             localizationsDelegates:
-                NightshadeLocalizations.localizationsDelegates,
-            supportedLocales: NightshadeLocalizations.supportedLocales,
+                SkotiqLocalizations.localizationsDelegates,
+            supportedLocales: SkotiqLocalizations.supportedLocales,
             home: Builder(builder: (context) => _buildConnectionScreen()),
           ),
         );
       }
 
       // Full UI parity: phones and tablets both route through the shared
-      // GoRouter shell (`NightshadeApp(isMobile: true)`).
+      // GoRouter shell (`SkotiqApp(isMobile: true)`).
       return Consumer(
         builder: (context, ref, _) {
           // Activate location sync
@@ -481,7 +481,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
           // Check for checkpoint on first connection
           _checkForCheckpoint(context, ref);
 
-          return const NightshadeApp(isMobile: true);
+          return const SkotiqApp(isMobile: true);
         },
       );
     } catch (e, stackTrace) {
@@ -494,10 +494,10 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
         stackTrace: stackTrace,
       );
       return MaterialApp(
-        title: 'Nightshade',
+        title: 'Skotiq',
         debugShowCheckedModeBanner: false,
-        localizationsDelegates: NightshadeLocalizations.localizationsDelegates,
-        supportedLocales: NightshadeLocalizations.supportedLocales,
+        localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
+        supportedLocales: SkotiqLocalizations.supportedLocales,
         home: Scaffold(
           body: Center(
             child: Padding(
@@ -512,7 +512,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    NightshadeLocalizations.of(
+                    SkotiqLocalizations.of(
                       context,
                     ).text('mobileErrorLoadingApp'),
                     style: const TextStyle(
@@ -537,7 +537,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
                       _autoConnect();
                     },
                     child: Text(
-                      NightshadeLocalizations.of(context).text('mobileRetry'),
+                      SkotiqLocalizations.of(context).text('mobileRetry'),
                     ),
                   ),
                 ],
@@ -555,7 +555,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
       builder: (context) {
         final l10n = context.l10n;
         final theme = Theme.of(context);
-        final colors = theme.extension<NightshadeColors>();
+        final colors = theme.extension<SkotiqColors>();
 
         // If colors extension not available, use default Material colors
         final bgColor = colors?.background ?? theme.scaffoldBackgroundColor;
@@ -581,7 +581,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
                 Container(
                   width: 28,
                   height: 28,
-                  decoration: NightshadeDecorations.iconChip(
+                  decoration: SkotiqDecorations.iconChip(
                     primaryColor,
                     borderRadius: BorderRadius.circular(6),
                   ),
@@ -593,7 +593,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Nightshade',
+                  'Skotiq',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -644,7 +644,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
                         const SizedBox(height: 12),
                         Container(
                           padding: const EdgeInsets.all(12),
-                          decoration: NightshadeDecorations.emphasisSurface(
+                          decoration: SkotiqDecorations.emphasisSurface(
                             errorColor,
                           ),
                           child: Text(
@@ -664,7 +664,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      NightshadeButton(
+                      SkotiqButton(
                         onPressed: () {
                           setState(() {
                             _showManualEntry = true;
@@ -677,7 +677,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
                         size: ButtonSize.small,
                       ),
                       const SizedBox(width: 8),
-                      NightshadeButton(
+                      SkotiqButton(
                         onPressed: _scanQrCode,
                         icon: Icons.qr_code_scanner,
                         label: l10n.text('mobileScanQr'),
@@ -691,7 +691,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
                   // distinct from QR/manual because it carries its own guided
                   // setup (install Tailscale, find the MagicDNS name, etc.).
                   Center(
-                    child: NightshadeButton(
+                    child: SkotiqButton(
                       onPressed: _connectViaTailscale,
                       icon: LucideIcons.radioTower,
                       label: l10n.text('tailscaleConnect'),
@@ -704,7 +704,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
                   // self-hosted relay (no VPN / port-forwarding). Collects the
                   // relay URL + appliance id, then tunnels via _connectViaRelay.
                   Center(
-                    child: NightshadeButton(
+                    child: SkotiqButton(
                       onPressed: _showRelayConnectDialog,
                       icon: LucideIcons.globe,
                       label: l10n.text('relayConnect'),
@@ -717,7 +717,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
                   // Lets an operator who manages multiple rigs roam between
                   // previously-paired hosts without re-discovering.
                   Center(
-                    child: NightshadeButton(
+                    child: SkotiqButton(
                       onPressed: _openSavedServers,
                       icon: LucideIcons.server,
                       label: l10n.text('savedServersTitle'),
@@ -734,7 +734,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
                     controller: _ipController,
                     decoration: InputDecoration(
                       labelText: l10n.text('mobileServerIpAddress'),
-                      hintText: 'nightshade.local:8080',
+                      hintText: 'skotiq.local:8080',
                       prefixIcon: const Icon(Icons.computer),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -782,7 +782,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
                   Row(
                     children: [
                       Expanded(
-                        child: NightshadeButton(
+                        child: SkotiqButton(
                           onPressed: () {
                             setState(() {
                               _showManualEntry = false;
@@ -794,7 +794,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: NightshadeButton(
+                        child: SkotiqButton(
                           onPressed: _connectManually,
                           label: l10n.text('connect'),
                         ),
@@ -829,7 +829,7 @@ class _NightshadeMobileAppState extends ConsumerState<NightshadeMobileApp>
                 else if (!_showManualEntry)
                   SizedBox(
                     width: double.infinity,
-                    child: NightshadeButton(
+                    child: SkotiqButton(
                       onPressed: _autoConnect,
                       icon: Icons.search,
                       label: l10n.text('searchForServer'),

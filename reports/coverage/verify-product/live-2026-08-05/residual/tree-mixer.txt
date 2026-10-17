@@ -1,5 +1,5 @@
-application: com.example.nightshade_desktop
-frame: Nightshade
+application: com.skotiq.desktop
+frame: Skotiq
 panel: North America Nebula · HaOIII · 2026-08-05 15:39
 button: GOOD
 HFR 2.1

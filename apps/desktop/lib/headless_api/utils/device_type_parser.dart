@@ -1,4 +1,4 @@
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
 /// Parse a device-type string (case-insensitive) into [DeviceType], or
 /// null if no match. Mirrors the wire-format convention used by the

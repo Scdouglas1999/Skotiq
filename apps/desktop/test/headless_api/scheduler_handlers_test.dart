@@ -5,8 +5,8 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/scheduler_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/scheduler_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -167,7 +167,7 @@ void main() {
     test(
       'priority optimization puts higher values first and keeps ties stable',
       () async {
-        final database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+        final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
         final scoped = ProviderContainer(
           overrides: [databaseProvider.overrideWithValue(database)],
         );
@@ -435,7 +435,7 @@ void main() {
     test(
       'scheduler config validates ranges, persists, then updates the engine',
       () async {
-        final database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+        final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
         final engine = _testEngine();
         final scoped = ProviderContainer(
           overrides: [

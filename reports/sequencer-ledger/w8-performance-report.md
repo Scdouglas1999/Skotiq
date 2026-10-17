@@ -1,4 +1,4 @@
-# w8-performance — Nightshade desktop performance audit
+# w8-performance — Skotiq desktop performance audit
 
 Workstream `w8-performance`, base `d6a1caeb3`, branch `agent/w8-performance`.
 Owner's brief: "Make sure the app is running using low resources and constantly
@@ -14,18 +14,18 @@ Measure first. Every claim below carries the command and the number.
 | bridge hash | `rustContentHash` = `-1467366630` (dart) == `FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH` = `-1467366630` (rust) | match, no rebuild |
 
 `apps/desktop/linux/CMakeLists.txt` resolves the bridge at
-`native/nightshade_native/target/release/libnightshade_bridge.so`, not at
+`native/skotiq_native/target/release/libskotiq_bridge.so`, not at
 `CARGO_TARGET_DIR`. In this worktree that path did not exist and the first
 `flutter build linux --release` failed with "Rust library not found". Symlinked
-`native/nightshade_native/target -> /home/scdouglas/.cache/ns-worktrees/cargo-target`
+`native/skotiq_native/target -> /home/scdouglas/.cache/ns-worktrees/cargo-target`
 (worktree-local, untracked) and the build proceeds.
 
 ## 1. Baseline: idle CPU per screen (release bundle, GUI harness)
 
 Harness: `tools/ui_audit/drive_linux.py --profile w8perf`, `NS_AUDIT_DISPLAY=:96`,
 Xvfb `1920x1200x24`, `LIBGL_ALWAYS_SOFTWARE=1` + `GALLIUM_DRIVER=softpipe`.
-Profile seeded from `~/.cache/nightshade-ledger-preview/data` minus
-`nightshade.db.lock` (past onboarding, Sim Rig connected, two saved sequences).
+Profile seeded from `~/.cache/skotiq-ledger-preview/data` minus
+`skotiq.db.lock` (past onboarding, Sim Rig connected, two saved sequences).
 
 `pidstat` is not installed on this host, so CPU is sampled from `/proc/<pid>/stat`
 (utime+stime deltas against wall clock) by `/tmp/ns-audit/w8perf/measure.py`,
@@ -58,7 +58,7 @@ Per-thread split on Tonight, 12 s window (`threads.py 12`):
 ```
 window=12.0s  total=98.4%
     70.99%  io.flutter.rast    (raster thread)
-    27.41%  nightshade_desk    (GTK platform thread — GL swap/blit)
+    27.41%  skotiq_desk    (GTK platform thread — GL swap/blit)
 ```
 
 `io.flutter.ui` — the Dart thread that runs `build()` — does not even clear the
@@ -129,7 +129,7 @@ not the screens.
 
 ### Source B identified: the mount position poll, through a whole-object watch
 
-`packages/nightshade_core/lib/src/providers/equipment/mount_state_provider.dart:34`
+`packages/skotiq_core/lib/src/providers/equipment/mount_state_provider.dart:34`
 
 ```dart
 static const _normalPollInterval = Duration(seconds: 2);
@@ -138,7 +138,7 @@ static const _normalPollInterval = Duration(seconds: 2);
 `_pollPosition()` publishes a fresh `MountState` every 2 s while a mount is
 connected — RA/DEC/ALT move continuously, so it is never a no-op write.
 
-`packages/nightshade_app/lib/screens/shell/widgets/status_bar.dart:281` watched
+`packages/skotiq_app/lib/screens/shell/widgets/status_bar.dart:281` watched
 the **whole** provider:
 
 ```dart
@@ -180,7 +180,7 @@ remaining idle frames. That is the owner's call, so it is reported, not taken.
 * `flutter_displaymode` is not a dependency (`grep -rn "displaymode" apps/desktop packages/*/lib` → no matches outside the planetarium's own FPS *readout*).
 * `apps/desktop/linux/runner/{main.cc,my_application.cc}` is the stock Flutter GTK runner. It forwards `argv` to `fl_dart_project_set_dart_entrypoint_arguments` and nothing else — no GL swap-interval call, no engine switches, no frame throttling.
 * The only explicit cadence control in the app is `AlignedTicker`
-  (`packages/nightshade_core/lib/src/utils/aligned_ticker.dart`), and it does not
+  (`packages/skotiq_core/lib/src/utils/aligned_ticker.dart`), and it does not
   cap anything: it *phase-aligns* the app's 1 Hz clocks to the epoch second so
   their ticks coalesce into one frame instead of three. It is the fix for the
   historical "idle frame rate = number of independently-phased clocks" defect,
@@ -213,14 +213,14 @@ the owner's desktop, against a scratch database at `/tmp/ns-audit/w8real/data`
 closed again. Exactly what was launched and closed:
 
 ```
-DISPLAY=:0 NIGHTSHADE_DATABASE_DIR=/tmp/ns-audit/w8real/data \
-  NIGHTSHADE_DATA_DIR=/tmp/ns-audit/w8real/data \
-  apps/desktop/build/linux/x64/profile/bundle/nightshade_desktop     # pid 2177316
+DISPLAY=:0 SKOTIQ_DATABASE_DIR=/tmp/ns-audit/w8real/data \
+  SKOTIQ_DATA_DIR=/tmp/ns-audit/w8real/data \
+  apps/desktop/build/linux/x64/profile/bundle/skotiq_desktop     # pid 2177316
 ...measured for ~2 minutes on the Tonight screen...
 kill 2177316                                                         # "closed 2177316 cleanly"
 ```
 
-`~/.cache/nightshade-ledger-preview` was not touched and the owner's preview
+`~/.cache/skotiq-ledger-preview` was not touched and the owner's preview
 process was not signalled.
 
 **The monitor is 5120x1440 @ 239.90 Hz** (`DISPLAY=:0 xrandr`). That is a
@@ -296,7 +296,7 @@ user never pays.**
 
 ### Fix 1 — the status bar watched five device providers whole (`30bb65e5a`)
 
-`packages/nightshade_app/lib/screens/shell/widgets/status_bar.dart` and
+`packages/skotiq_app/lib/screens/shell/widgets/status_bar.dart` and
 `.../status_bar/temperature_and_time.dart`.
 
 The bar is mounted on every screen. It watched `cameraStateProvider`,
@@ -329,7 +329,7 @@ the position.
 
 ### Fix 2 — a `RepaintBoundary` per dashboard tile (`30bb65e5a`)
 
-`packages/nightshade_app/lib/screens/dashboard/widgets/dashboard_tile.dart` had
+`packages/skotiq_app/lib/screens/dashboard/widgets/dashboard_tile.dart` had
 **zero** `RepaintBoundary` in the whole dashboard directory
 (`grep -rc RepaintBoundary screens/dashboard` → 0), on the screen with the
 highest idle cost. Every tile shared one layer, so the once-a-second clock tick
@@ -439,7 +439,7 @@ are recorded so the owning agent has the numbers.
   (`super(repaint: scrollController)`, boundary above it). No finding.
 * `target_queue_panel.dart`, `toolbox_panel.dart`, `node_properties_panel.dart`,
   `builder_layout.dart`, `collapsible_panel.dart`, `sequence_toolbar.dart`,
-  `nightshade_text_field.dart` — nothing in the idle or scroll traces attributed
+  `skotiq_text_field.dart` — nothing in the idle or scroll traces attributed
   a frame to any of them. No findings.
 
 ## 8. Recommendation the owner has to decide (not taken unilaterally)
@@ -465,10 +465,10 @@ worth and measured an ~18% reduction. That is a piece of work, not a patch.
 | # | command | exit | notes |
 |---|---|---|---|
 | 1 | `melos bootstrap` | 0 | |
-| 2 | `flutter build linux --release` | 0 | after symlinking `native/nightshade_native/target` |
+| 2 | `flutter build linux --release` | 0 | after symlinking `native/skotiq_native/target` |
 | 3 | `flutter build linux --profile` | 0 | |
-| 4 | `dart format --output=none --set-exit-if-changed packages/nightshade_app packages/nightshade_core packages/nightshade_ui` | 1 | **pre-existing**: 41 files changed, none mine. `dart format` on my three files reports "0 changed". |
-| 5 | `cd packages/nightshade_app && dart analyze` | 2 | **pre-existing**: 887 issues, ALL severity `info` (deprecations), **zero** in any file I touched. Confirmed by grepping the log for `status_bar.dart`, `dashboard_tile.dart`, `temperature_and_time.dart` — no hits. |
+| 4 | `dart format --output=none --set-exit-if-changed packages/skotiq_app packages/skotiq_core packages/skotiq_ui` | 1 | **pre-existing**: 41 files changed, none mine. `dart format` on my three files reports "0 changed". |
+| 5 | `cd packages/skotiq_app && dart analyze` | 2 | **pre-existing**: 887 issues, ALL severity `info` (deprecations), **zero** in any file I touched. Confirmed by grepping the log for `status_bar.dart`, `dashboard_tile.dart`, `temperature_and_time.dart` — no hits. |
 | 6 | `flutter test test/screens/sequencer --concurrency=3` | 1 | 734 pass, **2 fail, both pre-existing** — see below |
 | 7 | `flutter test test/screens/shell --concurrency=3` | 1 | 101 pass, **2 fail, both pre-existing** |
 | 8 | `flutter test test/screens/dashboard --concurrency=3` | 1 | 182 pass, **1 fail, pre-existing** |
@@ -500,7 +500,7 @@ They belong to other workstreams and are not touched by this change.
   all under `/tmp/ns-audit/`). None is committed — they are scratch instruments,
   not deliverables.
 * `apps/desktop/linux/CMakeLists.txt` looks for the bridge at
-  `native/nightshade_native/target/release/`, NOT at `CARGO_TARGET_DIR`. A fresh
+  `native/skotiq_native/target/release/`, NOT at `CARGO_TARGET_DIR`. A fresh
   worktree needs that path to exist or `flutter build linux` fails with "Rust
   library not found".
 * Driving the app on the owner's desktop is not possible with `xdotool`: the
@@ -521,10 +521,10 @@ should treat as binding:
 * **No synthetic input to `:0`, ever.** A `:0` instance is passive measurement
   only — VM-service reads. No `xdotool`, no key/mouse, no window resize/raise.
 * **No screenshots of `:0`.**
-* **Exactly one `:0` instance at a time**, scratch `NIGHTSHADE_DATABASE_DIR`,
+* **Exactly one `:0` instance at a time**, scratch `SKOTIQ_DATABASE_DIR`,
   killed by pid with `/proc/<pid>` verification. `/tmp/ns-audit/run_real.sh`
   refuses to launch while any previous instance's pid is still alive.
-* The owner's preview (pid 2184559, `~/.cache/nightshade-ledger-preview`) was
+* The owner's preview (pid 2184559, `~/.cache/skotiq-ledger-preview`) was
   verified alive and untouched after every single run.
 
 Because interaction is not allowed on `:0`, all three measurements are **idle on
@@ -827,7 +827,7 @@ nothing at all (addendum 1, measurement (c)).
 
 ## Answer to the owner
 
-Two things are true at once, and only one of them is about Nightshade.
+Two things are true at once, and only one of them is about Skotiq.
 
 Your idle CPU is high because your GPU driver is broken, not because the app is
 busy: Mesa cannot find a driver for the RTX 4080 (`10de:2704, driver (null)`),

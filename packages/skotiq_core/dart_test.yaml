@@ -1,0 +1,67 @@
+# Test configuration for the skotiq_core package.
+#
+# This file is owned by the HiPS framing tile layer (component C11). Its single
+# job today is to register and *gate* the live-network tag so that the opt-in
+# HiPS live-fetch smoke test never runs in CI or in a normal `flutter test`
+# invocation, while still being trivially runnable on demand by a developer who
+# wants to confirm the real CDS HiPS endpoints are reachable and serving the
+# survey the framing assistant streams.
+#
+# How the gate works (two independent layers, both required to actually hit the
+# network):
+#
+#   1. Tag registration (this file). The `live-network` tag is declared in the
+#      top-level `tags:` map below so the test runner recognises it: a test that
+#      carries an *undeclared* tag is itself an error under `dart test`, so a
+#      `@Tags(['live-network'])` annotation will not even load without this
+#      declaration. Declaring it here is also what lets the tag be selected or
+#      excluded by name on the command line (`--tags` / `--exclude-tags`).
+#
+#   2. Environment gate (in the test body). The live test marks itself skipped
+#      unless `SKOTIQ_LIVE_NETWORK=1` is set in the environment. CI (`melos
+#      run test`) and a developer's plain `flutter test` never set that variable,
+#      so they never open a socket — the suite stays fully offline and
+#      deterministic. To actually run the live check the operator both selects
+#      the tag and sets the variable:
+#
+#          SKOTIQ_LIVE_NETWORK=1 flutter test --tags live-network
+#
+#      This deliberately does *not* use a config-level `skip:` on the tag: a hard
+#      skip in this file cannot be overridden by `--tags` (it requires the extra
+#      `--run-skipped` flag), which would make the opt-in path awkward and easy
+#      to get wrong. The env-var gate is the single, explicit switch; the tag is
+#      the selector. A network test that ran by accident in CI would be a flaky,
+#      slow, externally-dependent failure — the exact opposite of the rest of
+#      this package's suite — and the env-var gate is what structurally prevents
+#      it.
+
+tags:
+  # The live-network tag covers any test that performs real outbound network
+  # I/O against an external service (the CDS HiPS mirrors, for the HiPS framing
+  # tile layer). Registered here so the runner recognises the tag; it is *not*
+  # hard-skipped in config — the env-var gate in the test body
+  # (SKOTIQ_LIVE_NETWORK=1) is the single switch that enables real fetches,
+  # keeping CI and default `flutter test` runs offline and deterministic.
+  live-network:
+
+  # The real-sshd tag covers tests that start a userland OpenSSH server on
+  # loopback (127.0.0.1, first free port in 2299-2310, its own temp directory)
+  # and drive the SFTP delivery transport against it. Nothing leaves the
+  # machine and nothing outside the temp directory is written, so unlike
+  # live-network this tag is NOT env-gated: on a machine that has sshd the
+  # tests run and prove the transport against the real wire, and on one that
+  # does not they skip themselves with a reason naming the missing binary.
+  # Registered here so the runner recognises the tag and so a run that wants
+  # only these (`--tags real-sshd`) or none of them
+  # (`--exclude-tags real-sshd`) can say so.
+  real-sshd:
+
+  # The golden tag covers pixel-diff / perceptual golden tests whose baselines
+  # are host-specific (GPU rasteriser + font hinting differ across OSes). The
+  # committed baselines were captured on one host and produce ~1-1.5% diffs on
+  # others, so these are EXCLUDED from `melos run test` (Linux CI + default
+  # local runs) via `--exclude-tags golden` and run opt-in via
+  # `melos run test:golden`. Registered here so `dart test` recognises the tag;
+  # not hard-skipped in config so the opt-in command can still select it.
+  # See docs/testing/golden-tests.md.
+  golden:

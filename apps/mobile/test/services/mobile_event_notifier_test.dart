@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_mobile/services/mobile_event_notifier.dart';
-import 'package:nightshade_mobile/services/mobile_preferences.dart';
-import 'package:nightshade_mobile/services/notification_service.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_mobile/services/mobile_event_notifier.dart';
+import 'package:skotiq_mobile/services/mobile_preferences.dart';
+import 'package:skotiq_mobile/services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// A test double that records every notify call instead of touching the
@@ -153,13 +153,13 @@ class NotifyCall {
   String toString() => 'NotifyCall($kind, $data)';
 }
 
-NightshadeEvent _ev(
+SkotiqEvent _ev(
   EventCategory category,
   String type, {
   Map<String, dynamic>? data,
   EventSeverity severity = EventSeverity.warning,
 }) {
-  return NightshadeEvent(
+  return SkotiqEvent(
     timestamp: DateTime.now().millisecondsSinceEpoch,
     severity: severity,
     category: category,
@@ -169,7 +169,7 @@ NightshadeEvent _ev(
 }
 
 void main() {
-  late StreamController<NightshadeEvent> eventStream;
+  late StreamController<SkotiqEvent> eventStream;
   late _RecordingNotificationService notifications;
   late MobileEventNotifier notifier;
   late MobilePreferences prefs;
@@ -178,7 +178,7 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final raw = await SharedPreferences.getInstance();
     prefs = MobilePreferences(raw);
-    eventStream = StreamController<NightshadeEvent>.broadcast();
+    eventStream = StreamController<SkotiqEvent>.broadcast();
     notifications = _RecordingNotificationService();
     notifier = MobileEventNotifier(
       eventStream: eventStream.stream,
@@ -193,7 +193,7 @@ void main() {
     await eventStream.close();
   });
 
-  Future<void> emit(NightshadeEvent event) async {
+  Future<void> emit(SkotiqEvent event) async {
     eventStream.add(event);
     // The subscriber handles asynchronously; let the broadcast deliver and
     // the async _handle complete before assertions.

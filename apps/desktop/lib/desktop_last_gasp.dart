@@ -120,7 +120,7 @@ class DesktopSessionRecord {
 }
 
 /// The file a desktop session records its ending in, under the data root this
-/// instance actually uses (`NIGHTSHADE_DATA_DIR` when the operator set one).
+/// instance actually uses (`SKOTIQ_DATA_DIR` when the operator set one).
 File resolveDesktopSessionRecordFile(String dataRoot) =>
     File(path.join(dataRoot, 'last_session.json'));
 
@@ -196,7 +196,7 @@ class DesktopLastGasp {
       );
       if (record == null) {
         _onCritical?.call(
-          'The previous Nightshade session left an unreadable shutdown record '
+          'The previous Skotiq session left an unreadable shutdown record '
           'at ${_recordFile.path} — it was cut off mid-write, so that session '
           'ended without a shutdown path and nothing was safed. Check the rig.',
         );

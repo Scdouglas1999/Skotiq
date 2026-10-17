@@ -85,7 +85,7 @@ $contracts = @(
     @{
         vendor = "ZWO"
         headers = @("SDKs/ZWO/**/ASICamera2.h", "SDKs/ZWO/**/EAF_focuser.h", "SDKs/ZWO/**/EFW_filter.h")
-        rust = "native/nightshade_native/native/src/vendor/zwo.rs"
+        rust = "native/skotiq_native/native/src/vendor/zwo.rs"
         header_symbols = @("ASIGetNumOfConnectedCameras", "ASIGetCameraProperty", "ASIStartExposure", "ASIGetDataAfterExp", "EAFGetNum", "EAFMove", "EFWGetNum", "EFWSetPosition")
         rust_symbols = @("ASIGetNumOfConnectedCameras", "ASIGetCameraProperty", "ASIStartExposure", "ASIGetDataAfterExp", "EAFGetNum", "EAFMove", "EFWGetNum", "EFWSetPosition")
         ordered_structs = @(
@@ -95,7 +95,7 @@ $contracts = @(
     @{
         vendor = "Atik"
         headers = @("SDKs/Atik/**/AtikCameras.h", "SDKs/Atik/**/AtikDefs.h")
-        rust = "native/nightshade_native/native/src/vendor/atik.rs"
+        rust = "native/skotiq_native/native/src/vendor/atik.rs"
         header_symbols = @("ArtemisDeviceCount", "ArtemisConnect", "ArtemisStartExposure", "ArtemisGetImageData", "ArtemisSetCooling", "ArtemisEFWConnect")
         rust_symbols = @("ArtemisDeviceCount", "ArtemisConnect", "ArtemisStartExposure", "ArtemisGetImageData", "ArtemisSetCooling", "ArtemisDeviceHasFilterWheel")
         ordered_structs = @(
@@ -105,7 +105,7 @@ $contracts = @(
     @{
         vendor = "SVBONY"
         headers = @("SDKs/SVBony/**/*.h", "SDKs/SVBONY/**/*.h")
-        rust = "native/nightshade_native/native/src/vendor/svbony.rs"
+        rust = "native/skotiq_native/native/src/vendor/svbony.rs"
         header_symbols = @("SVBGetNumOfConnectedCameras", "SVBGetCameraProperty", "SVBOpenCamera", "SVBStartVideoCapture", "SVBGetVideoData")
         rust_symbols = @("SVBGetNumOfConnectedCameras", "SVBGetCameraProperty", "SVBOpenCamera", "SVBStartVideoCapture", "SVBGetVideoData")
         ordered_structs = @()
@@ -113,7 +113,7 @@ $contracts = @(
     @{
         vendor = "Player One"
         headers = @("SDKs/PlayerOne/**/PlayerOneCamera.h")
-        rust = "native/nightshade_native/native/src/vendor/player_one.rs"
+        rust = "native/skotiq_native/native/src/vendor/player_one.rs"
         header_symbols = @("POAGetCameraCount", "POAGetCameraProperties", "POAOpenCamera", "POAStartExposure", "POAImageReady", "POAGetImageData")
         rust_symbols = @("POAGetCameraCount", "POAGetCameraProperties", "POAOpenCamera", "POAStartExposure", "POAImageReady", "POAGetImageData")
         ordered_structs = @(
@@ -123,7 +123,7 @@ $contracts = @(
     @{
         vendor = "QHYCCD"
         headers = @("SDKs/QHY/**/qhyccd.h", "SDKs/QHY/**/qhyccdstruct.h")
-        rust = "native/nightshade_native/native/src/vendor/qhy.rs"
+        rust = "native/skotiq_native/native/src/vendor/qhy.rs"
         header_symbols = @("InitQHYCCDResource", "ScanQHYCCD", "OpenQHYCCD", "GetQHYCCDChipInfo", "ExpQHYCCDSingleFrame", "GetQHYCCDSingleFrame", "IsQHYCCDCFWPlugged")
         rust_symbols = @("InitQHYCCDResource", "ScanQHYCCD", "OpenQHYCCD", "GetQHYCCDChipInfo", "ExpQHYCCDSingleFrame", "GetQHYCCDSingleFrame", "IsQHYCCDCFWPlugged")
         enum_values = @(
@@ -134,7 +134,7 @@ $contracts = @(
     @{
         vendor = "ToupTek/Altair/OGMA"
         headers = @("SDKs/Touptek/**/ogmacam.h", "SDKs/ToupTek/**/ogmacam.h")
-        rust = "native/nightshade_native/native/src/vendor/touptek.rs"
+        rust = "native/skotiq_native/native/src/vendor/touptek.rs"
         header_symbols = @("Ogmacam_EnumV2", "Ogmacam_Open", "Ogmacam_StartPullModeWithCallback", "Ogmacam_PullImage", "Ogmacam_put_Option", "Ogmacam_get_Temperature")
         rust_symbols = @("sym(""EnumV2"")", "sym(""OpenByIndex"")", "sym(""PullImageV3"")", "sym(""put_Option"")", "sym(""get_Temperature"")")
         ordered_structs = @(
@@ -144,7 +144,7 @@ $contracts = @(
     @{
         vendor = "Moravian"
         headers = @("SDKs/Moravian/**/*.h")
-        rust = "native/nightshade_native/native/src/vendor/moravian.rs"
+        rust = "native/skotiq_native/native/src/vendor/moravian.rs"
         header_symbols = @("Enumerate", "Initialize", "Open", "BeginExposure", "GetImage", "SetTemperature", "SetFilter")
         rust_symbols = @("Enumerate", "Initialize", "Open", "BeginExposure", "GetImage", "SetTemperature", "SetFilter")
         ordered_structs = @()
@@ -152,7 +152,7 @@ $contracts = @(
     @{
         vendor = "FLI"
         headers = @("SDKs/FLI/**/libfli.h")
-        rust = "native/nightshade_native/native/src/vendor/fli.rs"
+        rust = "native/skotiq_native/native/src/vendor/fli.rs"
         header_symbols = @("FLIOpen", "FLIExposeFrame", "FLIGrabRow", "FLISetTemperature", "FLISetFilterPos", "FLIStepMotor")
         rust_symbols = @("FLIOpen", "FLIExposeFrame", "FLIGrabRow", "FLISetTemperature", "FLISetFilterPos", "FLIStepMotor")
         ordered_structs = @()
@@ -160,7 +160,7 @@ $contracts = @(
     @{
         vendor = "Fujifilm"
         headers = @("SDKs/Fujifilm/**/XAPI.H", "SDKs/Fujifilm/**/XAPI.h")
-        rust = "native/nightshade_native/native/src/vendor/fujifilm.rs"
+        rust = "native/skotiq_native/native/src/vendor/fujifilm.rs"
         header_symbols = @("XSDK_Init", "XSDK_Detect", "XSDK_OpenEx", "XSDK_Release", "XSDK_ReadImageInfo", "XSDK_ReadImage")
         rust_symbols = @("XSDK_Init", "XSDK_Detect", "XSDK_OpenEx", "XSDK_Release", "XSDK_ReadImageInfo", "XSDK_ReadImage")
         ordered_structs = @(

@@ -6,10 +6,10 @@
       "outcome": "fixed",
       "summary": "NiceAxis.forRange's zero-variance branch built its window from the raw centre (min = centre - 2*interval), so for a flat 0.70\" guiding series it returned min = 0.20 against ticks at multiples of 0.25 and fl_chart printed the boundary label '0.20' on top of the '0.25' tick - the exact collision the class exists to prevent. Snapping the min/max by flooring/ceiling instead would have produced a five-interval window (six labels) that overlapped vertically at large magnitudes (flat 15220 -> 15000 over 15100), so the fix snaps the CENTRE to a tick multiple and keeps the window exactly four intervals wide: bounds are always tick multiples and the label count is always five.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/analytics/widgets/chart_axis.dart",
-        "packages/nightshade_app/test/screens/analytics/widgets/session_chart_axis_test.dart"
+        "packages/skotiq_app/lib/screens/analytics/widgets/chart_axis.dart",
+        "packages/skotiq_app/test/screens/analytics/widgets/session_chart_axis_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/analytics/widgets/session_chart_axis_test.dart - three new cases render SessionChart with flat 0.70 / 0.60 / 15220 series and assert no two different labels on the same axis have overlapping rects.",
+      "test": "packages/skotiq_app/test/screens/analytics/widgets/session_chart_axis_test.dart - three new cases render SessionChart with flat 0.70 / 0.60 / 15220 series and assert no two different labels on the same axis have overlapping rects.",
       "revert_check": "Replaced 'min: snappedCentre - interval * 2, max: snappedCentre + interval * 2' (chart_axis.dart:46-47) with the old 'min: centre - interval * 2, max: centre + interval * 2': all three new tests failed ('\"0.20\" overlaps \"0.25\"' etc.); restoring made all 8 pass.",
       "caveats": "REPO-WIDE EVENT, not specific to this fix: at 22:45 something ran `git stash` on the whole working tree (460 files / 29k insertions of campaign work) and every tracked file reverted to HEAD, wiping seven of my eight edits mid-run. I extracted my files from stash@{0} and restored them, then re-ran every test. `stash@{0}` STILL EXISTS and still holds the rest of the campaign's uncommitted work - recover it with `git checkout stash@{0} -- .` (a `git stash pop` will now conflict on the analytics paths I restored; taking the stash side for those paths is correct, they are identical)."
     },
@@ -18,11 +18,11 @@
       "outcome": "fixed",
       "summary": "The Statistics row reads the session's denormalised light-frame counters; the list below it enumerates every captured_images row (lights + calibration). Neither said so. The stats row now carries the caption 'Exposure counts are light frames only.' and the image list carries '12 light \\u00B7 4 calibration', so the two numbers are visibly different measurements instead of one count the app cannot keep straight.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/analytics/analytics_screen/session_detail_dialog.dart",
-        "packages/nightshade_app/lib/localization/nightshade_localizations/translations.dart",
-        "packages/nightshade_app/test/screens/analytics/session_detail_frame_mix_test.dart"
+        "packages/skotiq_app/lib/screens/analytics/analytics_screen/session_detail_dialog.dart",
+        "packages/skotiq_app/lib/localization/skotiq_localizations/translations.dart",
+        "packages/skotiq_app/test/screens/analytics/session_detail_frame_mix_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/analytics/session_detail_frame_mix_test.dart - opens the real dialog from the History tab with 12 lights + 4 darks and asserts 'Images (16)', '12 light \\u00B7 4 calibration' and the light-only caption all render.",
+      "test": "packages/skotiq_app/test/screens/analytics/session_detail_frame_mix_test.dart - opens the real dialog from the History tab with 12 lights + 4 darks and asserts 'Images (16)', '12 light \\u00B7 4 calibration' and the light-only caption all render.",
       "revert_check": "Changed the caption's guard at session_detail_dialog.dart:275 from 'if (images.isNotEmpty) ...[' to 'if (false) ...[': the test failed on the missing '12 light \\u00B7 4 calibration'; restoring made it pass. Ran with test/localization/translation_completeness_test.dart to prove the two new keys exist in both locales."
     },
     {
@@ -30,10 +30,10 @@
       "outcome": "fixed",
       "summary": "The tile folded over PROJECTS with a cutoff of DateTime(now.year, now.month, 1), so an observing run on Jul 25/28/30 read '0 Active This Month' on Aug 1. The window is now a rolling 30 nights and the label reads 'Active (30d)' - a period, not a subject, since the tile sits in a row of target-scoped stats (Targets / Tracked / Completed / Total Integration) and genuinely counts targets. The local variable was also renamed off 'sessionsThisMonth', which is what made it read as a session count. _SummaryStatsHeader became a ConsumerWidget so the window is measured against clockProvider rather than a bare DateTime.now(), which is also what makes the boundary testable.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/analytics/widgets/project_tracking_panel.dart",
-        "packages/nightshade_app/test/screens/analytics/widgets/project_tracking_active_window_test.dart"
+        "packages/skotiq_app/lib/screens/analytics/widgets/project_tracking_panel.dart",
+        "packages/skotiq_app/test/screens/analytics/widgets/project_tracking_active_window_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/analytics/widgets/project_tracking_active_window_test.dart - freezes the clock at 2026-08-01, seeds targets last imaged Jul 25/28/30 plus one from May, and asserts the tile reads 3 under the label 'Active (30d)'.",
+      "test": "packages/skotiq_app/test/screens/analytics/widgets/project_tracking_active_window_test.dart - freezes the clock at 2026-08-01, seeds targets last imaged Jul 25/28/30 plus one from May, and asserts the tile reads 3 under the label 'Active (30d)'.",
       "revert_check": "Put the calendar-month cutoff back ('final activeCutoff = DateTime(now.year, now.month, 1);' plus label 'Active This Month' at project_tracking_panel.dart:363/418): the test failed (no 'Active (30d)' label, count 0); restoring made it pass alongside the pre-existing project_tracking_cleanup_authority_test."
     },
     {
@@ -41,10 +41,10 @@
       "outcome": "fixed",
       "summary": "The l10n string behind the Captured Images caption (analyticsQualityAdvisory) made a blanket claim the app contradicts itself: Science > Field Quality > 'Grade N frames' sets is_accepted = 0 and writes rejection_reason 'Auto-grade: ...'. Reworded in both locales to scope the claim to the badges and to name the grader: 'Quality badges are advisory and never change acceptance on their own. Nothing is deleted. Science > Grade frames is what rejects frames.'",
       "files_changed": [
-        "packages/nightshade_app/lib/localization/nightshade_localizations/translations.dart",
-        "packages/nightshade_app/test/screens/analytics/session_tab_advisory_caption_test.dart"
+        "packages/skotiq_app/lib/localization/skotiq_localizations/translations.dart",
+        "packages/skotiq_app/test/screens/analytics/session_tab_advisory_caption_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/analytics/session_tab_advisory_caption_test.dart - renders the Session tab and asserts the caption points at the grader and that no rendered string contains 'auto-rejected'.",
+      "test": "packages/skotiq_app/test/screens/analytics/session_tab_advisory_caption_test.dart - renders the Session tab and asserts the caption points at the grader and that no rendered string contains 'auto-rejected'.",
       "revert_check": "Restored the old value 'Quality labels are advisory only. No frames are deleted or auto-rejected.' at translations.dart:258-260: the test failed; restoring made it pass.",
       "caveats": "The caption is the only user-facing claim that was false; the grader itself already tells the truth (it stamps the reason and the header flips to EXPOSURES 0/2)."
     },
@@ -53,10 +53,10 @@
       "outcome": "fixed",
       "summary": "Implemented the control the label promises rather than renaming it: marching squares over the tile grid at five interior iso-levels, with each crossing point projected through the SAME 3D transform as the markers (extracted into a shared project() closure), so the lines lie on the surface instead of hanging off it. Degenerate segments (a level passing exactly through a grid node) are dropped, and cells with a missing tile are skipped rather than interpolated, so a partial field map shows a gap instead of an invented contour. The old 'drawLine(point, Offset(point.dx, size.height - 10))' stem is gone.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/analytics/widgets/science_surface_explorer.dart",
-        "packages/nightshade_app/test/screens/analytics/widgets/science_surface_contours_test.dart"
+        "packages/skotiq_app/lib/screens/analytics/widgets/science_surface_explorer.dart",
+        "packages/skotiq_app/test/screens/analytics/widgets/science_surface_contours_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/analytics/widgets/science_surface_contours_test.dart - three unit tests for isoContourSegments (ramp crossings, level outside the data, missing tile) plus a widget test that taps the real 'Contours' chip and, via the paints matcher, asserts the painter draws exactly the 40 iso-segments of the seeded 5x5 dome and that they do not all terminate at one y.",
+      "test": "packages/skotiq_app/test/screens/analytics/widgets/science_surface_contours_test.dart - three unit tests for isoContourSegments (ramp crossings, level outside the data, missing tile) plus a widget test that taps the real 'Contours' chip and, via the paints matcher, asserts the painter draws exactly the 40 iso-segments of the seeded 5x5 dome and that they do not all terminate at one y.",
       "revert_check": "Re-inserted the old stem loop ('canvas.drawLine(point, Offset(point.dx, size.height - 10))' for every marker) at the top of the contour branch: the widget test failed with 25 lines all ending at y = 425.4 instead of 40 iso-segments; restoring made all 4 pass."
     },
     {
@@ -64,11 +64,11 @@
       "outcome": "fixed",
       "summary": "The banner's states all came from the in-memory pipeline tracker, which is empty after every app launch, so reviewing a stored session denied that session's own frames. ScienceStatusBanner gained a storedFrameCount input and a fourth state - 'Reviewing stored results / N frames on record \\u00b7 nothing processing right now' - and all three call sites in the Science tab now pass the reviewed session's light-frame count. The Imaging HUD and mobile science tab pass nothing, so they are unchanged.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/analytics/widgets/science_status_banner.dart",
-        "packages/nightshade_app/lib/screens/analytics/widgets/science_analytics_tab.dart",
-        "packages/nightshade_app/test/screens/analytics/widgets/science_status_review_mode_test.dart"
+        "packages/skotiq_app/lib/screens/analytics/widgets/science_status_banner.dart",
+        "packages/skotiq_app/lib/screens/analytics/widgets/science_analytics_tab.dart",
+        "packages/skotiq_app/test/screens/analytics/widgets/science_status_review_mode_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/analytics/widgets/science_status_review_mode_test.dart - renders the real ScienceAnalyticsTab against a stored 3-frame session and asserts the banner reads 'Reviewing stored results' / '3 frames on record' and never 'Waiting for the first captured frame'.",
+      "test": "packages/skotiq_app/test/screens/analytics/widgets/science_status_review_mode_test.dart - renders the real ScienceAnalyticsTab against a stored 3-frame session and asserts the banner reads 'Reviewing stored results' / '3 frames on record' and never 'Waiting for the first captured frame'.",
       "revert_check": "Replaced all three 'ScienceStatusBanner(storedFrameCount: ...)' call sites in science_analytics_tab.dart with 'const ScienceStatusBanner()': the test failed ('Found 0 widgets with text \"Reviewing stored results\"'); restoring made it pass.",
       "caveats": "The test exercises the science-data-loading branch (line 994) because the science product providers have no database under test; the other two call sites pass the same lightFrames.length from the same computation. Reverting only the other two leaves the test green."
     },
@@ -77,22 +77,22 @@
       "outcome": "fixed",
       "summary": "A negative BLS depth means the best-fitting box is BRIGHTER than the out-of-box baseline - an anti-transit, which is what pure noise usually yields. The card printed it as 'Depth: -53.6 mmag' under a 'Transit Search' heading. It now names the sign instead of printing it: the stat and the summary line read 'Brightening (anti-transit): 53.6 mmag', the BLS section carries 'Best box is brighter than the baseline: this is an anti-transit (a brightening), not a transit candidate.', and a negative-depth solution can no longer carry a Strong/Noteworthy detection verdict.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/analytics/widgets/period_analysis_panel.dart",
-        "packages/nightshade_app/test/screens/analytics/widgets/bls_anti_transit_test.dart"
+        "packages/skotiq_app/lib/screens/analytics/widgets/period_analysis_panel.dart",
+        "packages/skotiq_app/test/screens/analytics/widgets/bls_anti_transit_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/analytics/widgets/bls_anti_transit_test.dart - runs the real PeriodAnalysisService over an injected brightening box and over an injected transit box, and asserts the panel names the anti-transit, prints no signed 'mmag' value and no 'Depth' label in the first case, and still says 'Depth' in the second.",
+      "test": "packages/skotiq_app/test/screens/analytics/widgets/bls_anti_transit_test.dart - runs the real PeriodAnalysisService over an injected brightening box and over an injected transit box, and asserts the panel names the anti-transit, prints no signed 'mmag' value and no 'Depth' label in the first case, and still says 'Depth' in the second.",
       "revert_check": "Restored '_depthLabel => Depth' / '_depthMmag => transitDepth * 1000' and disabled the anti-transit notice ('if (false) ...['): the first test failed on the missing 'Brightening (anti-transit)'; restoring made both pass.",
-      "caveats": "The sign-blind statistic itself lives in packages/nightshade_core/lib/src/services/science/period_analysis_service.dart:537-545 (SR = s^2/(r(1-r))) and :599 (globalBestDepth), which is outside this agent's ownership. Constraining the search to fainter-than-baseline boxes would be the algorithmic half of this fix; the UI half is that a brightening can no longer be read as a transit result."
+      "caveats": "The sign-blind statistic itself lives in packages/skotiq_core/lib/src/services/science/period_analysis_service.dart:537-545 (SR = s^2/(r(1-r))) and :599 (globalBestDepth), which is outside this agent's ownership. Constraining the search to fainter-than-baseline boxes would be the algorithmic half of this fix; the UI half is that a brightening can no longer be read as a transit result."
     },
     {
       "title": "Image grader's list of frames it is about to reject is clipped behind the dialog footer",
       "outcome": "fixed",
-      "summary": "The finding's stated location was wrong (NightshadeDialog already wraps the body in Flexible + SingleChildScrollView); the real cause is that the whole body was ONE scroll view, so the confirmation list for a destructive-looking action landed below the fold behind the action bar with no scroll affordance. The dialog now owns its layout: scrollableBody: false, the intro/sliders/preview scroll in an Expanded region, and the rejection list is pinned directly above the footer in its own bounded box (max 190 px, capped at 28% of the viewport for phone-sized dialogs) with a permanently visible scrollbar. _RejectionList became stateful to own that scroll controller.",
+      "summary": "The finding's stated location was wrong (SkotiqDialog already wraps the body in Flexible + SingleChildScrollView); the real cause is that the whole body was ONE scroll view, so the confirmation list for a destructive-looking action landed below the fold behind the action bar with no scroll affordance. The dialog now owns its layout: scrollableBody: false, the intro/sliders/preview scroll in an Expanded region, and the rejection list is pinned directly above the footer in its own bounded box (max 190 px, capped at 28% of the viewport for phone-sized dialogs) with a permanently visible scrollbar. _RejectionList became stateful to own that scroll controller.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/analytics/widgets/image_grader_dialog.dart",
-        "packages/nightshade_app/test/screens/analytics/widgets/image_grader_rejection_list_visible_test.dart"
+        "packages/skotiq_app/lib/screens/analytics/widgets/image_grader_dialog.dart",
+        "packages/skotiq_app/test/screens/analytics/widgets/image_grader_rejection_list_visible_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/analytics/widgets/image_grader_rejection_list_visible_test.dart - opens the real dialog with two 0.60\" frames against a 0.24\" guiding rule and asserts both filenames and both reasons render with their rects entirely above the Cancel button, plus that a Scrollbar exists.",
+      "test": "packages/skotiq_app/test/screens/analytics/widgets/image_grader_rejection_list_visible_test.dart - opens the real dialog with two 0.60\" frames against a 0.24\" guiding rule and asserts both filenames and both reasons render with their rects entirely above the Cancel button, plus that a Scrollbar exists.",
       "revert_check": "Moved _RejectionList back inside the scrolling column and dropped the maxHeight constraint: the test failed with 'm13_0.fits is clipped by the action bar' (row bottom 787 vs footer top 724) - the exact reported symptom; restoring made it pass."
     }
   ]

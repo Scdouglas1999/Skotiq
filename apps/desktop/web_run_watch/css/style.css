@@ -1,11 +1,11 @@
 /* ============================================================================
-   Nightshade Run-Watch — mobile-first stylesheet.
-   Tokens aligned with nightshade_ui NightshadeColors.dark and
+   Skotiq Run-Watch — mobile-first stylesheet.
+   Tokens aligned with skotiq_ui SkotiqColors.dark and
    web_dashboard/css/dashboard.css.
    ============================================================================ */
 
 :root {
-  /* Core palette — matches packages/nightshade_ui NightshadeColors.dark */
+  /* Core palette — matches packages/skotiq_ui SkotiqColors.dark */
   --color-primary: #5B9EC4;
   --color-accent: #7AB8D4;
   --color-background: #0A0C0F;

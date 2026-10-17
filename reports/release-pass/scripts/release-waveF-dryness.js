@@ -30,7 +30,7 @@ const REFUTE_SCHEMA = {
   },
 }
 
-const DRIVE_CHARTER = `You are the SECOND DRYNESS check for the Nightshade release pass: the campaign ends when you find nothing new. Drive the FRESH release bundle at apps/desktop/build/linux/x64/release/bundle/nightshade_desktop via tools/ui_audit/drive_linux.py (profile AFTER the subcommand; 'wheel' command available; role-based [DISABLED]; the AT-SPI tree can lag navigation by tens of seconds — re-dump before judging). One graphify query first. Verify EXACTLY the assigned D-fix items against their Wave-D evidence (reports/release-pass/waveE-result.json + reports/release-pass/impl/efix-*.md list what was claimed fixed and how); classify verified_fixed / still_broken with evidence. Then ONE adversarial sweep pass of your screens for anything the fixes broke. Report to reports/release-pass/gui/waveF-<cluster>.md. Do not fix anything.`
+const DRIVE_CHARTER = `You are the SECOND DRYNESS check for the Skotiq release pass: the campaign ends when you find nothing new. Drive the FRESH release bundle at apps/desktop/build/linux/x64/release/bundle/skotiq_desktop via tools/ui_audit/drive_linux.py (profile AFTER the subcommand; 'wheel' command available; role-based [DISABLED]; the AT-SPI tree can lag navigation by tens of seconds — re-dump before judging). One graphify query first. Verify EXACTLY the assigned D-fix items against their Wave-D evidence (reports/release-pass/waveE-result.json + reports/release-pass/impl/efix-*.md list what was claimed fixed and how); classify verified_fixed / still_broken with evidence. Then ONE adversarial sweep pass of your screens for anything the fixes broke. Report to reports/release-pass/gui/waveF-<cluster>.md. Do not fix anything.`
 
 const CLUSTERS = [
   { key: 'autopilot-night', display: ':81', ids: 'WE-SEQ-N1 (fail a dispatched run: the next eligible tick MUST dispatch again — check the new reconcile log line says which branch ran), WE-SEQ-N5 (generated plan starts with Unpark; dispatch after a park succeeds), WE-SEQ-N6 (operator stop of an autopilot run records Stopped, no critical), WE-SEQ-N3 (armed warning persists after a dispatch), refuted SEQ-12/SEQ-13 seams per the efix impl logs' },
@@ -55,7 +55,7 @@ const drives = parallel(CLUSTERS.map(c => () =>
 ))
 const refutes = parallel(REFUTERS.map(w => () =>
   agent(
-    `You are an adversarial verifier in the dryness check of the Nightshade release pass. One graphify query first. ${w.hint} Do not edit the repo; throwaway tests under /tmp only. Return ONLY the structured result.`,
+    `You are an adversarial verifier in the dryness check of the Skotiq release pass. One graphify query first. ${w.hint} Do not edit the repo; throwaway tests under /tmp only. Return ONLY the structured result.`,
     { label: `E:refute:${w.key}`, phase: 'Refute', schema: REFUTE_SCHEMA, model: 'opus', effort: 'high' }
   )
 ))

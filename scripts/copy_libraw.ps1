@@ -69,8 +69,8 @@ $targets = @(
     "..\apps\desktop\windows\libraw.dll",
 
     # Rust target directories
-    "..\native\nightshade_native\target\debug\libraw.dll",
-    "..\native\nightshade_native\target\release\libraw.dll",
+    "..\native\skotiq_native\target\debug\libraw.dll",
+    "..\native\skotiq_native\target\release\libraw.dll",
 
     # Flutter runner directories
     "..\apps\desktop\windows\runner\Debug\libraw.dll",

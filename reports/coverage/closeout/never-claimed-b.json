@@ -1,6 +1,6 @@
 {
   "cluster": "never-claimed-b",
-  "testsRun": "dart run melos exec --scope=\"nightshade_app\" -- flutter test test/screens/settings test/screens/dashboard test/widgets test/utils -> 933 passed, 6 failed; all 6 failures are in @Tags(['golden']) capture files (captures_landscape_test.dart), which `melos run test` excludes by design and which pixel-diff on this Linux box regardless. Targeted re-runs all green: connection_alpaca_address_test.dart, next_use_prompt_card_test.dart, settings_picker_controls_test.dart, geolocation_consent_width_test.dart (new), indi_server_dialog_test_connection_test.dart, file_path_settings_authority_test.dart, file_path_typed_path_test.dart, location_settings_truth_test.dart. flutter analyze clean on every edited file.",
+  "testsRun": "dart run melos exec --scope=\"skotiq_app\" -- flutter test test/screens/settings test/screens/dashboard test/widgets test/utils -> 933 passed, 6 failed; all 6 failures are in @Tags(['golden']) capture files (captures_landscape_test.dart), which `melos run test` excludes by design and which pixel-diff on this Linux box regardless. Targeted re-runs all green: connection_alpaca_address_test.dart, next_use_prompt_card_test.dart, settings_picker_controls_test.dart, geolocation_consent_width_test.dart (new), indi_server_dialog_test_connection_test.dart, file_path_settings_authority_test.dart, file_path_typed_path_test.dart, location_settings_truth_test.dart. flutter analyze clean on every edited file.",
   "units": [
     {
       "unit": "widget:geolocation_consent.dart",
@@ -30,7 +30,7 @@
     {
       "unit": "screen:sequencer/secondary_rig_card.dart",
       "state": "visited",
-      "evidence": "It is a dashboard tile, not a sequencer surface: Dashboard > Edit Dashboard > Widgets > 'Secondary Rig' (off by default) > Done renders it in the secondary column. With only the one simulated camera the card fails closed correctly -- 'No additional camera detected.', camera dropdown and 'Start secondary' both disabled, the button inert (no log entry on click). Exercised Exposure (s)=30, Gain=100, Frames=5 and 'On dither' -> 'Abort immediately'; all four survived navigating to Equipment and back. NOT exercised: arming/running the secondary loop and its status badge -- scan_simulator_for_type (native/nightshade_native/bridge/src/api/discovery.rs:874) advertises exactly one sim camera, so a second camera is unobtainable here."
+      "evidence": "It is a dashboard tile, not a sequencer surface: Dashboard > Edit Dashboard > Widgets > 'Secondary Rig' (off by default) > Done renders it in the secondary column. With only the one simulated camera the card fails closed correctly -- 'No additional camera detected.', camera dropdown and 'Start secondary' both disabled, the button inert (no log entry on click). Exercised Exposure (s)=30, Gain=100, Frames=5 and 'On dither' -> 'Abort immediately'; all four survived navigating to Equipment and back. NOT exercised: arming/running the secondary loop and its status badge -- scan_simulator_for_type (native/skotiq_native/bridge/src/api/discovery.rs:874) advertises exactly one sim camera, so a second camera is unobtainable here."
     },
     {
       "unit": "seq-node:PluginInstructionNode",
@@ -43,17 +43,17 @@
       "kind": "defect",
       "severity": "P2",
       "title": "Alpaca and INDI \"Test Connection\" print the Dart error object's debug form to the operator",
-      "location": "packages/nightshade_app/lib/screens/settings/widgets/connection_settings_alpaca_dialog.dart:141 and packages/nightshade_app/lib/screens/equipment/dialogs/indi_server_dialog.dart:151",
-      "detail": "Both dialogs build their failure line as 'No response on ${host}:${port}. $e', and $e is the flutter_rust_bridge freezed union, whose toString() is its DEBUG rendering. Live, Settings > Connection > Alpaca > Configure > Test Connection against a dead localhost:11111 displayed, inside the red status box: 'No response on localhost:11111. NightshadeError.connectionFailed(deviceId: localhost:11111, reason: Failed to connect to Alpaca server: error sending request for url (http://localhost:11111/management/v1/configureddevices): error trying to connect: tcp connect error: Connection refused (os error 111))'. The INDI dialog does the identical thing ('... NightshadeError.connectionFailed(deviceId: localhost:7624, reason: ...)'). The app already ships utils/user_facing_error.dart for exactly this, and neither dialog used it; it also did not understand the bridge union.",
+      "location": "packages/skotiq_app/lib/screens/settings/widgets/connection_settings_alpaca_dialog.dart:141 and packages/skotiq_app/lib/screens/equipment/dialogs/indi_server_dialog.dart:151",
+      "detail": "Both dialogs build their failure line as 'No response on ${host}:${port}. $e', and $e is the flutter_rust_bridge freezed union, whose toString() is its DEBUG rendering. Live, Settings > Connection > Alpaca > Configure > Test Connection against a dead localhost:11111 displayed, inside the red status box: 'No response on localhost:11111. SkotiqError.connectionFailed(deviceId: localhost:11111, reason: Failed to connect to Alpaca server: error sending request for url (http://localhost:11111/management/v1/configureddevices): error trying to connect: tcp connect error: Connection refused (os error 111))'. The INDI dialog does the identical thing ('... SkotiqError.connectionFailed(deviceId: localhost:7624, reason: ...)'). The app already ships utils/user_facing_error.dart for exactly this, and neither dialog used it; it also did not understand the bridge union.",
       "fixed": true,
-      "fixSummary": "userFacingError() now reads the authored text out of a bridge NightshadeError (30 of its 36 variants carry one; the rest fall through to the previous behaviour rather than losing their numbers), and both dialogs interpolate userFacingError(e) instead of the raw object. Every other userFacingError call site benefits. Guarded by a new case in test/screens/settings/connection_alpaca_address_test.dart that asserts the cause is shown and that 'NightshadeError.' and 'deviceId:' never appear.",
+      "fixSummary": "userFacingError() now reads the authored text out of a bridge SkotiqError (30 of its 36 variants carry one; the rest fall through to the previous behaviour rather than losing their numbers), and both dialogs interpolate userFacingError(e) instead of the raw object. Every other userFacingError call site benefits. Guarded by a new case in test/screens/settings/connection_alpaca_address_test.dart that asserts the cause is shown and that 'SkotiqError.' and 'deviceId:' never appear.",
       "needsOwnerDecision": false
     },
     {
       "kind": "defect",
       "severity": "P3",
       "title": "A failed Test Connection verdict stays on screen after the address it describes is replaced",
-      "location": "packages/nightshade_app/lib/screens/settings/widgets/connection_settings_alpaca_dialog.dart (host/port onChanged) and the same pair in indi_server_dialog.dart",
+      "location": "packages/skotiq_app/lib/screens/settings/widgets/connection_settings_alpaca_dialog.dart (host/port onChanged) and the same pair in indi_server_dialog.dart",
       "detail": "Reproduced live: tested localhost:11111, got 'No response on localhost:11111. ...', then typed 192.168.1.50 into the host field. The per-field errors cleared but the red failure box kept reporting localhost, with nothing marking it stale -- the natural reading is that the address now in the field is the one that failed. On a rig where the whole point of the dialog is finding a LAN address by trial, that is a wrong answer at exactly the moment the operator is deciding whether their new guess worked.",
       "fixed": true,
       "fixSummary": "Both dialogs clear _statusMessage/_statusSuccess from the host and port onChanged handlers (_clearStaleProbeResult). Asserted in the same new alpaca test case: after retyping the host, 'No response on' is gone.",
@@ -63,7 +63,7 @@
       "kind": "defect",
       "severity": "P2",
       "title": "The next-use prompt's \"Not now\" button permanently retires the step",
-      "location": "packages/nightshade_app/lib/screens/dashboard/widgets/next_use_prompt_card.dart (_buildCard action row)",
+      "location": "packages/skotiq_app/lib/screens/dashboard/widgets/next_use_prompt_card.dart (_buildCard action row)",
       "detail": "Reproduced live on the dashboard: with the card showing 'Confirm your plate solver' I pressed 'Not now', then navigated to Equipment and back -- the card had moved on to 'Capture first light' and the plate-solver step never returned. 'Not now' calls the same _dismissStep as the overflow menu's 'Skip this step', which writes the next_use.<id> dismissal row (the method's own doc comment says 'Permanently retire a single step'). The label promises a deferral the card does not implement, and the word means something different two cards away: the Smart Night prompt's 'Not now' really is a one-day dismissal.",
       "fixed": true,
       "fixSummary": "Relabelled the ghost button 'Skip this step', matching the menu item that runs the same code. next_use_prompt_card_test.dart now asserts find.text('Not now') findsNothing and taps the new label to prove the dismissal row is still written.",
@@ -73,7 +73,7 @@
       "kind": "ux",
       "severity": "P2",
       "title": "In the shipping default configuration the next-use coach can never appear",
-      "location": "packages/nightshade_app/lib/screens/dashboard/widgets/next_use_prompt_card.dart:_smartNightPromptEligibleProvider",
+      "location": "packages/skotiq_app/lib/screens/dashboard/widgets/next_use_prompt_card.dart:_smartNightPromptEligibleProvider",
       "detail": "The card suppresses itself whenever Smart Night is BASE-eligible, and base eligibility is: active profile + usable optics + auto-prompt setting on (the default) + no active sequence + a real site. Those are almost exactly the conditions under which the card's own gate (readiness.isReadyToImage) is satisfied, so the two are nearly co-extensive. Reproduced live on a fresh profile with the simulators connected: Smart Night appeared, I pressed its 'Not now', the bottom-centre slot went EMPTY, and the next-use card still did not appear -- the suppression deliberately does not mirror Smart Night's per-day dismissal, so the slot stays reserved for a card that has stood down for the night. Only after turning off Settings > Sequencer > 'Dashboard auto-prompt' did the coach ever render. That also means the only configuration in which the coach appears is the one where its own first step ('Plan tonight automatically' -> 'Build Smart Night') is pushing the feature the user just switched off. Four sessions of an earlier sweep never saw this card, which is the same finding arrived at by accident.",
       "fixed": false,
       "fixSummary": "Not fixed: the options trade off against each other and none is objectively right. (a) Let the next-use card take the slot once Smart Night has dismissed for the day -- costs the 'never double-occupied' guarantee the current comment defends. (b) Move the next-use card to a different anchor so the two never contend. (c) Drop the buildSmartNight step from kNextUseSteps when the auto-prompt is off, so the coach at least does not lead with a disabled feature. (d) Accept that the coach is Smart-Night-off-only and say so in the setting's subtitle.",
@@ -83,7 +83,7 @@
       "kind": "defect",
       "severity": "P3",
       "title": "The accent-colour swatches have no accessibility semantics at all",
-      "location": "packages/nightshade_app/lib/screens/settings/widgets/settings_widgets/settings_color_and_path_inputs.dart:_buildColorCircle",
+      "location": "packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_color_and_path_inputs.dart:_buildColorCircle",
       "detail": "Live accessibility dump of Settings > Appearance (drive_linux.py tree --all) showed 'panel: Accent color / Primary accent color' followed immediately by 'panel: Display' -- ZERO child nodes for the seven swatches -- while the switch one row down reported itself as 'toggle button: Sidebar collapsed by default [off]'. They were bare GestureDetectors: no name, no button role, no selected state, no focus, no tooltip. A screen-reader or keyboard user cannot pick an accent colour or learn which one is active, and the control whose only description is its own pixels is the one that most needs a label. The colour names ('Amber', 'Deep sky', ...) were already in the accentColors list and were being discarded with `final (hex, _) = colorData`.",
       "fixed": true,
       "fixSummary": "Each swatch is now MergeSemantics(Semantics(button, inMutuallyExclusiveGroup, selected, label: name)) wrapping a Tooltip and an InkWell (so it also focuses and ripples like every other control). accentColors moved onto the public SettingsColorPicker so tests can enumerate it. New case in settings_picker_controls_test.dart walks all seven and asserts label, isButton, and isSelected only on the active one.",
@@ -93,7 +93,7 @@
       "kind": "ux",
       "severity": "P3",
       "title": "The geolocation consent dialog rendered ~1520px wide on a 1600px window",
-      "location": "packages/nightshade_app/lib/widgets/geolocation_consent.dart",
+      "location": "packages/skotiq_app/lib/widgets/geolocation_consent.dart",
       "detail": "Captured live during onboarding step 11: the AlertDialog had no width constraint, so it filled the window minus the 40px inset and its body ran as one unbroken edge-to-edge line. Every other dialog reached in this sweep (SequenceIssuesDialog, the unwritable-capture-folder confirm, the Alpaca editor) is bounded near 480px. This is the consent gate for the app's only outbound request that carries the operator's public IP, so it is the dialog that most needs to look deliberate.",
       "fixed": true,
       "fixSummary": "Body wrapped in Align + ConstrainedBox(AdaptiveDialogConstraints.hybrid(designMaxWidth: 480)). The Align is required, not cosmetic: AlertDialog stretches its content with a tight width, and a ConstrainedBox can only narrow a loose constraint -- with ConstrainedBox alone the body still measured 672px. New test/widgets/geolocation_consent_width_test.dart pumps the dialog at 1600x900 and fails above 480px (it measured 672 before the Align was added, so it is a real guard).",
@@ -103,7 +103,7 @@
       "kind": "missing",
       "severity": "P2",
       "title": "Plugin sequence nodes are configured by hand-writing JSON whose keys are undiscoverable",
-      "location": "packages/nightshade_plugins/lib/src/plugin_api.dart:270 (SequenceNodeDefinition) and the PluginNode properties panel",
+      "location": "packages/skotiq_plugins/lib/src/plugin_api.dart:270 (SequenceNodeDefinition) and the PluginNode properties panel",
       "detail": "Live: adding the bundled 'Discord Webhook' node gives a properties panel whose only configuration control is a free-text 'Configuration (JSON)' field pre-filled with '{}'. The JSON is validated well (invalid input reports 'Invalid JSON: FormatException ...' with a caret at the offending column), but nothing anywhere in the UI names the keys the node reads -- webhookUrl, username, content, embedTitle, embedDescription, embedColor -- and the node's description does not list them. Configuring a plugin node therefore requires reading the plugin's Dart source. The root cause is the SDK: SequenceNodeDefinition carries only id/name/category/description/createNode, so there is no schema and no defaults for the app to render, and no way for a plugin author to supply one. This makes a shipped, enabled-by-default feature effectively unusable by a normal user.",
       "fixed": false,
       "fixSummary": "Not fixed: the shape of the schema is a product/API decision (typed field descriptors vs JSON Schema vs a plugin-supplied config widget), it is a breaking SDK addition, and it needs a migration story for the free-text field. Minimum viable alternative if a schema is too much: let SequenceNodeDefinition supply a defaultConfig map so the field opens pre-filled with the keys and their defaults instead of '{}'.",
@@ -113,20 +113,20 @@
       "kind": "missing",
       "severity": "P3",
       "title": "The simulator advertises exactly one device per type, so no dual-device feature can be exercised without hardware",
-      "location": "native/nightshade_native/bridge/src/api/discovery.rs:872 scan_simulator_for_type",
+      "location": "native/skotiq_native/bridge/src/api/discovery.rs:872 scan_simulator_for_type",
       "detail": "The function returns a single hard-coded DeviceInfo per DeviceType (sim_camera_1, sim_mount_1, ...). The Secondary Rig card therefore cannot be driven past its 'No additional camera detected.' state on any machine without a second real camera: the camera dropdown and Start button stay disabled, and the arm/status/dither-coordination half of the feature is unverifiable. Same limitation applies to any multi-camera profile work. This is the pass-making direction of simulator failure the campaign has already flagged twice.",
       "fixed": false,
-      "fixSummary": "Not fixed: it is a Rust change outside this cluster and it needs a decision about how a second simulated device is requested (an env var like the existing NIGHTSHADE_SIM_FAULTS, a count per type, or always advertising two cameras). Belongs in reports/coverage/simulator-fidelity-backlog.md.",
+      "fixSummary": "Not fixed: it is a Rust change outside this cluster and it needs a decision about how a second simulated device is requested (an env var like the existing SKOTIQ_SIM_FAULTS, a count per type, or always advertising two cameras). Belongs in reports/coverage/simulator-fidelity-backlog.md.",
       "needsOwnerDecision": true
     },
     {
       "kind": "ux",
       "severity": "P3",
-      "title": "The Secondary Rig card is built from stock Material widgets, not the Nightshade design system",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/secondary_rig_card.dart",
-      "detail": "Seen live in the dashboard's secondary column: a raw Material Card with Theme.of(context).textTheme typography, DropdownButtonFormField and outlined TextFields with floating labels, sitting between panels that use Nightshade tokens throughout -- it reads as a different application. The file says so itself ('Strings are intentionally hardcoded English', 'Kept self-contained so it can be dropped into the sequencer or equipment area'), so the debt is known. Concretely visible: the 'Frames (blank = until end)' field label is ellipsised to 'Frames (blank = until...' at the tile's natural width.",
+      "title": "The Secondary Rig card is built from stock Material widgets, not the Skotiq design system",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/secondary_rig_card.dart",
+      "detail": "Seen live in the dashboard's secondary column: a raw Material Card with Theme.of(context).textTheme typography, DropdownButtonFormField and outlined TextFields with floating labels, sitting between panels that use Skotiq tokens throughout -- it reads as a different application. The file says so itself ('Strings are intentionally hardcoded English', 'Kept self-contained so it can be dropped into the sequencer or equipment area'), so the debt is known. Concretely visible: the 'Frames (blank = until end)' field label is ellipsised to 'Frames (blank = until...' at the tile's natural width.",
       "fixed": false,
-      "fixSummary": "Not fixed: restyling it onto nightshade_ui is a rewrite of the whole card rather than a confined edit, and the label truncation goes away with the design-system field. Recorded so the tile is not shipped enabled-by-default in this state.",
+      "fixSummary": "Not fixed: restyling it onto skotiq_ui is a rewrite of the whole card rather than a confined edit, and the label truncation goes away with the design-system field. Recorded so the tile is not shipped enabled-by-default in this state.",
       "needsOwnerDecision": false
     },
     {
@@ -134,7 +134,7 @@
       "severity": "P4",
       "title": "The unwritable-capture-folder dialog quotes a raw Dart PathAccessException",
       "location": "Settings > Files & Storage > Image output confirm dialog",
-      "detail": "Typing an unreachable path produced: 'Nightshade could not create or reach \"/root/definitely-not-writable-xyz\": PathAccessException: Exists failed, path = '/root/definitely-not-writable-xyz' (OS Error: Permission denied, errno = 13)'. The dialog itself is good -- correct title, correct 'store it anyway if the share is not mounted yet' escape hatch -- but the cause is quoted as the Dart exception class plus errno rather than 'Permission denied'. Same family as the Alpaca/INDI finding, one severity lower because the useful words are at least in the string.",
+      "detail": "Typing an unreachable path produced: 'Skotiq could not create or reach \"/root/definitely-not-writable-xyz\": PathAccessException: Exists failed, path = '/root/definitely-not-writable-xyz' (OS Error: Permission denied, errno = 13)'. The dialog itself is good -- correct title, correct 'store it anyway if the share is not mounted yet' escape hatch -- but the cause is quoted as the Dart exception class plus errno rather than 'Permission denied'. Same family as the Alpaca/INDI finding, one severity lower because the useful words are at least in the string.",
       "fixed": false,
       "fixSummary": "Not fixed: outside the units in this cluster (it is the file-path settings dialog, not settings_color_and_path_inputs.dart), and userFacingError() does already handle PathAccessException-style errors if that call site is switched over.",
       "needsOwnerDecision": false

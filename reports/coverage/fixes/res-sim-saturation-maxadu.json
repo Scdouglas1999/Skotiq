@@ -3,7 +3,7 @@
  "outcome": "fixed",
  "pass": "third pass (2026-08-03, independent re-verification); prior records preserved under `earlier_passes`",
  "files_changed": [
-  "native/nightshade_native/imaging/src/fits.rs"
+  "native/skotiq_native/imaging/src/fits.rs"
  ],
  "summary": "The named sub-item was already closed and I confirmed it first-hand rather than on the prior report's word. What was NOT closed: two production lines of the same fix were shipped with nothing holding them in place, and one of them had a test that passed with or without the guard. Deleting 255 (SVBony RAW8 / QHY 8-bit transfer) or 1023 (10-bit Touptek) from RIGHT_JUSTIFIED_FULL_SCALES left all 494 tests green, and so did deleting the filter that discards a declared ceiling the frame itself exceeds. Both are now pinned through the public validators.",
  "item_sub_claims_verified_first_hand": {
@@ -33,7 +33,7 @@
   }
  ],
  "revert_check": {
-  "method": "Backed the file up, severed one production line at a time, ran cargo test -p nightshade_imaging --lib fits::, restored, re-ran. No test file was touched during a sever.",
+  "method": "Backed the file up, severed one production line at a time, ran cargo test -p skotiq_imaging --lib fits::, restored, re-ran. No test file was touched during a sever.",
   "severs": [
    {
     "line": "const RIGHT_JUSTIFIED_FULL_SCALES: [u16; 4] = [255, 1023, 4095, 16383]; -> [u16; 3] = [1023, 4095, 16383]",
@@ -84,7 +84,7 @@
     "result": "FAILED. 68 passed; 2 failed"
    }
   ],
-  "restored": "file md5 457d0900219751a46c390878b80c2a48; cargo test -p nightshade_imaging --lib = 495 passed, 0 failed"
+  "restored": "file md5 457d0900219751a46c390878b80c2a48; cargo test -p skotiq_imaging --lib = 495 passed, 0 failed"
  },
  "alternatives_evaluated_and_rejected": [
   {
@@ -102,16 +102,16 @@
  ],
  "residual_i_could_not_fix": {
   "id": "R1 (carried over from the second pass, re-confirmed)",
-  "claim": "The bridge->validator wiring itself is still unpinned: deleting `sensor_max_adu` from the options literal at unified_device_ops.rs:758 leaves all 495 nightshade_imaging tests green, because every test builds ImageValidationOptions by hand.",
+  "claim": "The bridge->validator wiring itself is still unpinned: deleting `sensor_max_adu` from the options literal at unified_device_ops.rs:758 leaves all 495 skotiq_imaging tests green, because every test builds ImageValidationOptions by hand.",
   "why_not_fixed": "unified_device_ops.rs is outside my ownership list. See needs_shared_change."
  },
  "gates": {
-  "cargo test --package nightshade_imaging --lib": "495 passed; 0 failed (was 494)",
+  "cargo test --package skotiq_imaging --lib": "495 passed; 0 failed (was 494)",
   "rustfmt --check imaging/src/fits.rs": "clean"
  },
  "caveats": [
   "No hardware: the RAW8/10-bit container behaviour is reasoned from native/src/vendor/{svbony,qhy,touptek}.rs, not from a physical camera.",
-  "cargo fmt --check -p nightshade_imaging still reports imaging/src/stats.rs (another agent's file); fits.rs itself is clean."
+  "cargo fmt --check -p skotiq_imaging still reports imaging/src/stats.rs (another agent's file); fits.rs itself is clean."
  ],
  "earlier_passes": {
   "outcome": "already-correct",
@@ -152,7 +152,7 @@
    {
     "id": "R1",
     "severity": "test-coverage",
-    "claim": "The bridge->validator wiring is not pinned by any test. Deleting `sensor_max_adu` from the options literal at unified_device_ops.rs:758 leaves all 494 nightshade_imaging tests green, because every test constructs ImageValidationOptions itself.",
+    "claim": "The bridge->validator wiring is not pinned by any test. Deleting `sensor_max_adu` from the options literal at unified_device_ops.rs:758 leaves all 494 skotiq_imaging tests green, because every test constructs ImageValidationOptions itself.",
     "why_not_fixed": "unified_device_ops.rs is outside my ownership list. See needs_shared_change."
    },
    {
@@ -170,7 +170,7 @@
    "count_at_max counts only the exact peak, so a clip spread across per-column ADC offsets is undercounted. Worked the numbers: min_pile_up is 0.05% of the frame, so even a clip smeared over the full 32-ADU band retains ~30x the required pile-up."
   ],
   "gates": {
-   "cargo test --package nightshade_imaging --lib": "494 passed; 0 failed",
+   "cargo test --package skotiq_imaging --lib": "494 passed; 0 failed",
    "rustfmt --check imaging/src/fits.rs": "clean",
    "file_unchanged": "md5 f52e297f9e623411788525a5911fcfd3 identical before and after the session"
   },
@@ -185,7 +185,7 @@
     "test_signal_floor_still_catches_a_frame_with_nothing_in_it"
    ],
    "caveats": [
-    "`cargo fmt --check -p nightshade_imaging` reports diffs in imaging/src/stats.rs, another agent's file; fits.rs itself is rustfmt-clean.",
+    "`cargo fmt --check -p skotiq_imaging` reports diffs in imaging/src/stats.rs, another agent's file; fits.rs itself is rustfmt-clean.",
     "No on-sky/hardware validation: the RAW8 path was reasoned from vendor/svbony.rs (container_max_adu -> 255 and the Raw8 -> u16::from widening), not against a physical SVBony camera."
    ]
   }

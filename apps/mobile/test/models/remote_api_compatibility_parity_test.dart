@@ -1,42 +1,42 @@
-// Cross-package parity test for the Nightshade version-compatibility policy.
+// Cross-package parity test for the Skotiq version-compatibility policy.
 //
 // Two halves of the mobile connect flow gate on the policy:
-//   * the pre-flight check uses NightshadeServerCompatibility (in
-//     nightshade_remote_protocol), and
+//   * the pre-flight check uses SkotiqServerCompatibility (in
+//     skotiq_remote_protocol), and
 //   * the NetworkBackend WS-handshake gate uses RemoteApiCompatibility (in
-//     nightshade_core).
+//     skotiq_core).
 //
-// RemoteApiCompatibility now delegates to NightshadeServerCompatibility, so the
+// RemoteApiCompatibility now delegates to SkotiqServerCompatibility, so the
 // two are structurally a single source of truth. This test is the standing
 // guard that the delegation stays faithful: if anyone re-forks the policy, the
 // constants or per-version verdicts diverge and this test fails CI.
 //
 // The mobile package depends on both packages, so it is the natural home for a
-// test that imports both (nightshade_remote_protocol must not depend on
-// nightshade_core, so the parity test cannot live there).
+// test that imports both (skotiq_remote_protocol must not depend on
+// skotiq_core, so the parity test cannot live there).
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 void main() {
-  group('RemoteApiCompatibility <-> NightshadeServerCompatibility parity', () {
+  group('RemoteApiCompatibility <-> SkotiqServerCompatibility parity', () {
     test('policy constants agree', () {
       expect(
         RemoteApiCompatibility.apiVersionHeader,
-        NightshadeServerCompatibility.apiVersionHeader,
+        SkotiqServerCompatibility.apiVersionHeader,
       );
       expect(
         RemoteApiCompatibility.minimumSupportedVersion.format(),
-        NightshadeServerCompatibility.minimumSupportedVersion.format(),
+        SkotiqServerCompatibility.minimumSupportedVersion.format(),
       );
       expect(
         RemoteApiCompatibility.serverApiVersion.format(),
-        NightshadeServerCompatibility.serverApiVersion.format(),
+        SkotiqServerCompatibility.serverApiVersion.format(),
       );
       expect(
         RemoteApiCompatibility.clientApiVersion.format(),
-        NightshadeServerCompatibility.clientApiVersion.format(),
+        SkotiqServerCompatibility.clientApiVersion.format(),
       );
     });
 
@@ -61,7 +61,7 @@ void main() {
     test('check() returns the same verdict + code for every version', () {
       for (final v in versions) {
         final core = RemoteApiCompatibility.check(v);
-        final proto = NightshadeServerCompatibility.check(v);
+        final proto = SkotiqServerCompatibility.check(v);
         expect(
           core.isCompatible,
           proto.isCompatible,
@@ -83,7 +83,7 @@ void main() {
     test('checkClient() returns the same verdict + code for every version', () {
       for (final v in versions) {
         final core = RemoteApiCompatibility.checkClient(v);
-        final proto = NightshadeServerCompatibility.checkClient(v);
+        final proto = SkotiqServerCompatibility.checkClient(v);
         expect(
           core.isCompatible,
           proto.isCompatible,

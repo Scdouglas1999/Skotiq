@@ -2,7 +2,7 @@
   {
     "area": "settings-general",
     "title": "'Reset All to 0 deg' wipes an imported horizon with no confirmation, one click from the Import button",
-    "summary": "Reset now runs through _resetHorizon, which asks first whenever there is anything to lose \u2014 a destructive ConfirmDialog naming exactly what goes ('The imported survey of 36 samples, and the eight sector values below it, will be replaced by a flat 0 degree horizon') and stating that Nightshade does not keep the file it was imported from, so it cannot be undone. A hand-edited mask (any sector above 0) is guarded the same way. An already-flat horizon still resets with no dialog, so the guard is not noise on the case where nothing is at risk."
+    "summary": "Reset now runs through _resetHorizon, which asks first whenever there is anything to lose \u2014 a destructive ConfirmDialog naming exactly what goes ('The imported survey of 36 samples, and the eight sector values below it, will be replaced by a flat 0 degree horizon') and stating that Skotiq does not keep the file it was imported from, so it cannot be undone. A hand-edited mask (any sector above 0) is guarded the same way. An already-flat horizon still resets with no dialog, so the guard is not noise on the case where nothing is at risk."
   },
   {
     "area": "settings-general",
@@ -17,7 +17,7 @@
   {
     "area": "settings-general",
     "title": "Files & Storage refuses to name the application data folder, so a user cannot find their own database, logs or backups",
-    "summary": "The 'Database and logs' row now resolves the real directory (applicationDataPathProvider -> resolveDefaultDatabaseFile().parent) and shows it, with the same 'Open folder' / 'Copy path' action the Backups row one line below already had, and a sentence saying what is in there (nightshade.db, the logs folder, quarantined/recovered database files) and that this is what to attach to a bug report. When NIGHTSHADE_DATABASE_DIR is actually set the row says the folder is pinned by it; on a normal desktop install that line is not shown, because it would be noise."
+    "summary": "The 'Database and logs' row now resolves the real directory (applicationDataPathProvider -> resolveDefaultDatabaseFile().parent) and shows it, with the same 'Open folder' / 'Copy path' action the Backups row one line below already had, and a sentence saying what is in there (skotiq.db, the logs folder, quarantined/recovered database files) and that this is what to attach to a bug report. When SKOTIQ_DATABASE_DIR is actually set the row says the folder is pinned by it; on a normal desktop install that line is not shown, because it would be noise."
   },
   {
     "area": "settings-general",

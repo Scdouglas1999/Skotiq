@@ -11,10 +11,10 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/auth_policy.dart';
-import 'package:nightshade_desktop/headless_api/handlers/darkroom_delivery_handlers.dart';
-import 'package:nightshade_desktop/headless_api/request_context.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/auth_policy.dart';
+import 'package:skotiq_desktop/headless_api/handlers/darkroom_delivery_handlers.dart';
+import 'package:skotiq_desktop/headless_api/request_context.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
@@ -25,7 +25,7 @@ void main() {
 
   group('DarkroomDeliveryHandlers', () {
     late ProviderContainer container;
-    late NightshadeDatabase db;
+    late SkotiqDatabase db;
     late DarkroomDeliveryHandlers handlers;
     late Directory tempDir;
     late int jobId;
@@ -46,7 +46,7 @@ void main() {
         kind: ArtifactDestinationKind.peer,
         // `rigId` is pinned so the name the desktop writes does not depend on
         // this machine's host name; the component itself is covered in
-        // nightshade_core's delivery_naming_test.dart.
+        // skotiq_core's delivery_naming_test.dart.
         configJson: jsonEncode({'peerId': 'office-pc', 'rigId': 'shed-rig'}),
         content: const {ArtifactContent.linearMasters},
       );
@@ -231,7 +231,7 @@ void main() {
 
       test('names the file the way the manifest promised it', () async {
         // The header used to carry the rig's own file name while the manifest
-        // listed `shed-rig-<name>`. Nightshade's puller writes the manifest
+        // listed `shed-rig-<name>`. Skotiq's puller writes the manifest
         // entry's name and never noticed; `curl -OJ`, a browser or any
         // third-party puller writes what this header says — which is exactly
         // the two-rigs-one-share collision the namespacing exists to prevent.

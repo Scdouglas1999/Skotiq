@@ -1,4 +1,4 @@
-# Nightshade - Single Source of Truth for Version Info
+# Skotiq - Single Source of Truth for Version Info
 # This file is read by build scripts to update pubspec.yaml, installer.iss, etc.
 
 version: "7.1.0"

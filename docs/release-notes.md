@@ -1,4 +1,4 @@
-# Nightshade 7.1.0 Release Notes
+# Skotiq 7.1.0 Release Notes
 
 ## Release
 
@@ -21,9 +21,9 @@ database, and what was and was not tested.
 
 | Platform | Status | Build artifact | Tested? |
 | --- | --- | --- | --- |
-| Linux x64 | supported | `nightshade-7.1.0-linux-x64.tar.gz` | Yes. The test suites and all the project's checks were run on Linux against this tree, and the release bundle was built from it. |
-| Windows x64 | supported, not tested for this release | `nightshade-7.1.0-windows-x64.zip` | No. Built by CI on a Windows runner, but not installed or run. No bundle audit, no golden re-capture. The ASCOM COM worker change here compiles and was reviewed, but has not been run. |
-| Android | supported, not tested for this release | `nightshade-7.1.0-*.apk` | No. Built and signed by CI, not installed. |
+| Linux x64 | supported | `skotiq-7.1.0-linux-x64.tar.gz` | Yes. The test suites and all the project's checks were run on Linux against this tree, and the release bundle was built from it. |
+| Windows x64 | supported, not tested for this release | `skotiq-7.1.0-windows-x64.zip` | No. Built by CI on a Windows runner, but not installed or run. No bundle audit, no golden re-capture. The ASCOM COM worker change here compiles and was reviewed, but has not been run. |
+| Android | supported, not tested for this release | `skotiq-7.1.0-*.apk` | No. Built and signed by CI, not installed. |
 | macOS | unsupported | — | Builds in CI, not tested. |
 
 ## Supported hardware
@@ -89,7 +89,7 @@ Unchanged from 7.0.0. Two things specific to this release:
 - The constellation hub's own analysis and tests pass
 - `dart format` and `cargo fmt --check` clean
 - The Linux release bundle builds from this tree and contains
-  `libnightshade_bridge.so`
+  `libskotiq_bridge.so`
 
 Not done for this release: Windows runtime, Android runtime, and any use on a
 telescope.

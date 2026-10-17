@@ -14,7 +14,7 @@ void apiInit()
 
 **Example:**
 ```dart
-import 'package:nightshade_bridge/nightshade_bridge.dart' as bridge;
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 void main() {
   bridge.apiInit();
@@ -946,5 +946,5 @@ Future<void> apiSetLocation({ObserverLocation? location})
 
 ## Error Handling
 
-All Bridge API functions may throw `NightshadeError` exceptions. See [Error Handling](./error-handling.md) for details.
+All Bridge API functions may throw `SkotiqError` exceptions. See [Error Handling](./error-handling.md) for details.
 

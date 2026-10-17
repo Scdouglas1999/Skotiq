@@ -1,6 +1,6 @@
 # Impl log — batch `ui-package`
 
-Scope: `packages/nightshade_ui/**` (+ its test dir) + running
+Scope: `packages/skotiq_ui/**` (+ its test dir) + running
 `tools/production/ui_consistency_audit.dart`. Baseline = `b07d91c9d`.
 
 Resumed onto a partial tree left by a killed predecessor. Every item below was
@@ -35,41 +35,41 @@ Deleted (1745 lines of `lib/` + 124 lines of test):
 | `lib/src/widgets/focus_traversal_scaffold.dart` | 80 |
 | `ErrorMessageHelper` (in `error_dialog.dart`) | 78 |
 | `FocusBuilder` (in `focus_ring.dart`) | 77 |
-| `WithTooltip` (in `nightshade_tooltip.dart`) | 25 |
+| `WithTooltip` (in `skotiq_tooltip.dart`) | 25 |
 | `SkeletonCircle` (in `shimmer_loading.dart`) | 22 |
 | `test/collapsible_sidebar_test.dart` | 124 |
 
 `test/collapsible_sidebar_test.dart` existed only to exercise the deleted
 component, so it went with it. Barrel exports removed one line at a time from
-`lib/nightshade_ui.dart` (5 lines).
+`lib/skotiq_ui.dart` (5 lines).
 
 `flutter_riverpod` dropped from `pubspec.yaml` — `grep -rn riverpod` over
-`packages/nightshade_ui` (lib + test + yaml) returns nothing.
+`packages/skotiq_ui` (lib + test + yaml) returns nothing.
 
 ### `scaled_config.dart` — NOT deleted (blocked)
 
 `ScaledConfig.of` / `.maybeOf` are indeed unreferenced, but the file is not dead:
 `ScaledConfigProvider` is mounted in production at
-`packages/nightshade_app/lib/app.dart:196`. Deleting the file requires that
-`nightshade_app` edit, which is outside this batch's scope, so the item is left
+`packages/skotiq_app/lib/app.dart:196`. Deleting the file requires that
+`skotiq_app` edit, which is outside this batch's scope, so the item is left
 untouched and recorded blocked rather than half-done.
 
-## 2. `NightshadeColors` value equality
+## 2. `SkotiqColors` value equality
 
 `operator ==` / `hashCode` over all 19 fields.
 
-`test/nightshade_colors_equality_test.dart` — 5 tests. Against baseline
-`nightshade_colors.dart`, 3 fail (identical-field equality, full-`copyWith`
+`test/skotiq_colors_equality_test.dart` — 5 tests. Against baseline
+`skotiq_colors.dart`, 3 fail (identical-field equality, full-`copyWith`
 round trip, and the `ThemeData`-carrying-equal-palettes case that is the actual
 rebuild-storm mechanism).
 
-## 3. `NightshadeTheme` caching
+## 3. `SkotiqTheme` caching
 
 `.dark` / `.light` / `.redNight` are `static final`; `darkWithAccent` /
 `lightWithAccent` keep an LRU-of-1 per brightness keyed on the accent colour.
 
-`test/nightshade_theme_caching_test.dart` — 6 tests. Against baseline
-`nightshade_theme.dart`, 4 fail.
+`test/skotiq_theme_caching_test.dart` — 6 tests. Against baseline
+`skotiq_theme.dart`, 4 fail.
 
 ## 4. Showcase-primitive dedup
 
@@ -85,11 +85,11 @@ Two corrections to the predecessor's version:
   `test/design_system_gallery_test.dart` could no longer hit the "View" button
   (tap landed at y=2259 in a 2200px tree). Removed.
 - It had also merged the card specimen into the shared file. That removed the
-  last literal `NightshadeCard` from `design_system_gallery.dart`, and the
+  last literal `SkotiqCard` from `design_system_gallery.dart`, and the
   release gate requires that substring in **that** file:
   `dart tools/production/ui_consistency_audit.dart` reported
   `design_system_gallery_missing: 1`
-  (`…:0:design_system_gallery_missing:component_marker:NightshadeCard`).
+  (`…:0:design_system_gallery_missing:component_marker:SkotiqCard`).
   The card specimen was moved back out into each file's own private class.
 
 Verification:
@@ -107,9 +107,9 @@ Verification:
   rather than off the *incoming* widget's `focusNode`.
   `test/focus_ring_node_ownership_test.dart` — 4 tests; the first fails against
   baseline `focus_ring.dart`.
-- `NightshadeTooltip`'s 300 ms hover delay is a cancellable `Timer` cancelled in
+- `SkotiqTooltip`'s 300 ms hover delay is a cancellable `Timer` cancelled in
   `dispose()` / `_hideTooltip()` / the touch path, replacing an `async void`
-  `Future.delayed`. `test/nightshade_tooltip_lifecycle_test.dart` — 3 tests;
+  `Future.delayed`. `test/skotiq_tooltip_lifecycle_test.dart` — 3 tests;
   "disposing mid-delay leaves no pending timer" fails against baseline.
 
 ## 6. `AdaptivePanelLayout` doc vs code — code wins
@@ -124,7 +124,7 @@ presence at 800.
 ## 7. Naming / constant reconciliation
 
 - `clampPanelWidth` → `panelWidthFromFraction`, with a `@Deprecated` alias that
-  delegates. No caller inside `nightshade_ui` uses the alias (the parity test
+  delegates. No caller inside `skotiq_ui` uses the alias (the parity test
   aside).
 - `dialogMaxWidth` and `Responsive.dialogConstraints` now read
   `AdaptiveDialogConstraints.defaultWidthFraction` / `defaultHeightFraction`.
@@ -132,7 +132,7 @@ presence at 800.
   moves 0.90 → 0.92, so a `Responsive`-sized dialog is no longer 2% narrower
   than an `AdaptiveDialogConstraints`-sized one. `test/responsive_dialog_constraints_test.dart`
   gains `all three dialog-sizing helpers agree at the same viewport`.
-- `Responsive.compactPhoneMaxWidth` now reads `NightshadeTokens.breakpointMobile`.
+- `Responsive.compactPhoneMaxWidth` now reads `SkotiqTokens.breakpointMobile`.
 
 ---
 
@@ -164,18 +164,18 @@ ticker can satisfy. That assertion fails against the pre-fix gate.
 
 ## Verification
 
-- `flutter test` in `packages/nightshade_ui`: **281 passed, 0 failed**
+- `flutter test` in `packages/skotiq_ui`: **281 passed, 0 failed**
   (baseline for comparison: 279 passed / 2 failed once the theme caching landed).
-- `dart analyze` in `packages/nightshade_ui`: 4 issues, all pre-existing
+- `dart analyze` in `packages/skotiq_ui`: 4 issues, all pre-existing
   `deprecated_member_use` infos for `SemanticsFlag.hasFlag` in
-  `test/components/nightshade_button_disabled_semantics_test.dart` (untouched).
+  `test/components/skotiq_button_disabled_semantics_test.dart` (untouched).
 - `dart tools/production/ui_consistency_audit.dart`: `design_system_gallery_missing`
   absent (=0).
 - `docs/design/goldens/gallery-{light,dark,rednight}.png` regenerate identical.
 
 ## For the orchestrator (outside this batch's scope)
 
-- 14 free-function call sites in `packages/nightshade_app` now resolve to the
+- 14 free-function call sites in `packages/skotiq_app` now resolve to the
   deprecated `clampPanelWidth` alias and will emit `deprecated_member_use`
   infos: `diagnostics/…/content_layout.dart:106`,
   `imaging/centering_dialog.dart:364`,
@@ -186,9 +186,9 @@ ticker can satisfy. That assertion fails against the pre-fix gate.
   `planner/planner_screen_parts/_candidate_list.dart:358,665`,
   `widgets/catalog_overlay_widget.dart:250,687,752`,
   `widgets/catalog_overlay_widget/details_panel.dart:20`.
-- `Responsive.dialogConstraints` widened 0.90 → 0.92; any `nightshade_app`
+- `Responsive.dialogConstraints` widened 0.90 → 0.92; any `skotiq_app`
   golden that sizes a dialog through it will shift by 2% and needs a deliberate
   regeneration.
-- `ScaledConfigProvider` at `packages/nightshade_app/lib/app.dart:196` publishes
+- `ScaledConfigProvider` at `packages/skotiq_app/lib/app.dart:196` publishes
   an `InheritedWidget` nothing reads; removing it there unblocks deleting
-  `packages/nightshade_ui/lib/src/utils/scaled_config.dart` (208 lines).
+  `packages/skotiq_ui/lib/src/utils/scaled_config.dart` (208 lines).

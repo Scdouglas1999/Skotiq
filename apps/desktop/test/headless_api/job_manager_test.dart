@@ -1,20 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/job_manager.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 
 /// Test harness that records every event emitted by the manager so
 /// assertions can verify the wire-format payload directly.
 class _EventRecorder {
-  final events = <NightshadeEvent>[];
+  final events = <SkotiqEvent>[];
 
-  void record(NightshadeEvent event) => events.add(event);
+  void record(SkotiqEvent event) => events.add(event);
 
-  List<NightshadeEvent> ofType(String eventType) =>
+  List<SkotiqEvent> ofType(String eventType) =>
       events.where((e) => e.eventType == eventType).toList();
 
-  List<NightshadeEvent> forJob(String jobId) => events
+  List<SkotiqEvent> forJob(String jobId) => events
       .where((e) => e.category == EventCategory.job)
       .where((e) => e.data['jobId'] == jobId)
       .toList();

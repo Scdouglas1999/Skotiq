@@ -26,7 +26,7 @@ class HeadlessAuthConfig {
 
   /// Fine-grained tokens, each carrying a per-resource [HeadlessAuthGrant]
   /// (e.g. "control camera but not mount"). Sourced from
-  /// `NIGHTSHADE_SCOPED_TOKEN` / repeated `--scoped-token=`.
+  /// `SKOTIQ_SCOPED_TOKEN` / repeated `--scoped-token=`.
   final Map<String, HeadlessAuthGrant> fineGrainedTokens;
   final List<String> corsAllowedOrigins;
   final bool pairingPrintCodes;
@@ -61,48 +61,48 @@ HeadlessAuthConfig parseHeadlessAuthConfig(List<String> args) {
   var requireAuth = false;
   // Serve-open escape hatch (authentication), distinct from the LAN-bind flag
   // below (network exposure). Default off => FAIL CLOSED.
-  var allowUnauthenticated = envFlag('NIGHTSHADE_ALLOW_UNAUTHENTICATED');
-  var allowUnauthenticatedLan = envFlag('NIGHTSHADE_ALLOW_UNAUTHENTICATED_LAN');
+  var allowUnauthenticated = envFlag('SKOTIQ_ALLOW_UNAUTHENTICATED');
+  var allowUnauthenticatedLan = envFlag('SKOTIQ_ALLOW_UNAUTHENTICATED_LAN');
   var port = 8080;
   final scopedTokens = <String, HeadlessTokenScope>{};
   final fineGrainedTokens = <String, HeadlessAuthGrant>{};
   final corsAllowedOrigins = <String>[];
-  var pairingPrintCodes = envFlag('NIGHTSHADE_PAIRING_PRINT_CODES');
+  var pairingPrintCodes = envFlag('SKOTIQ_PAIRING_PRINT_CODES');
   // Default to one-tap LAN pairing; operators can tighten to code-required.
   final pairingMode = PairingMode.fromWire(
-    Platform.environment['NIGHTSHADE_PAIRING_MODE'],
+    Platform.environment['SKOTIQ_PAIRING_MODE'],
   );
-  var tlsEnabled = envFlag('NIGHTSHADE_TLS');
-  String? tlsCertPath = trimToNull(Platform.environment['NIGHTSHADE_TLS_CERT']);
-  String? tlsKeyPath = trimToNull(Platform.environment['NIGHTSHADE_TLS_KEY']);
+  var tlsEnabled = envFlag('SKOTIQ_TLS');
+  String? tlsCertPath = trimToNull(Platform.environment['SKOTIQ_TLS_CERT']);
+  String? tlsKeyPath = trimToNull(Platform.environment['SKOTIQ_TLS_KEY']);
 
-  token = Platform.environment['NIGHTSHADE_AUTH_TOKEN'];
+  token = Platform.environment['SKOTIQ_AUTH_TOKEN'];
   _addScopedTokenFromEnv(
     scopedTokens,
-    'NIGHTSHADE_VIEW_TOKEN',
+    'SKOTIQ_VIEW_TOKEN',
     HeadlessTokenScope.view,
   );
   _addScopedTokenFromEnv(
     scopedTokens,
-    'NIGHTSHADE_CONTROL_TOKEN',
+    'SKOTIQ_CONTROL_TOKEN',
     HeadlessTokenScope.control,
   );
-  // Fine-grained tokens: NIGHTSHADE_SCOPED_TOKEN carries one or more
+  // Fine-grained tokens: SKOTIQ_SCOPED_TOKEN carries one or more
   // `<token>=<grant-spec>` entries separated by `;`, e.g.
   // `secretA=camera:control,mount:view;secretB=admin`.
-  final envScoped = Platform.environment['NIGHTSHADE_SCOPED_TOKEN'];
+  final envScoped = Platform.environment['SKOTIQ_SCOPED_TOKEN'];
   if (envScoped != null && envScoped.trim().isNotEmpty) {
     for (final entry in envScoped.split(';')) {
       _addFineGrainedToken(fineGrainedTokens, entry);
     }
   }
-  if (Platform.environment['NIGHTSHADE_PORT'] != null) {
-    port = int.tryParse(Platform.environment['NIGHTSHADE_PORT']!) ?? 8080;
+  if (Platform.environment['SKOTIQ_PORT'] != null) {
+    port = int.tryParse(Platform.environment['SKOTIQ_PORT']!) ?? 8080;
   }
 
-  // Why env-first: NIGHTSHADE_CORS_ORIGINS is the systemd/docker idiom; CLI
+  // Why env-first: SKOTIQ_CORS_ORIGINS is the systemd/docker idiom; CLI
   // overrides allow operators to extend the list at launch time.
-  final envCors = Platform.environment['NIGHTSHADE_CORS_ORIGINS'];
+  final envCors = Platform.environment['SKOTIQ_CORS_ORIGINS'];
   if (envCors != null && envCors.trim().isNotEmpty) {
     for (final raw in envCors.split(',')) {
       final trimmed = raw.trim();
@@ -162,7 +162,7 @@ HeadlessAuthConfig parseHeadlessAuthConfig(List<String> args) {
 
   // Explicit cert/key paths imply TLS even without --tls; otherwise the
   // operator's paths would be silently ignored. Same rule for the env-var
-  // equivalents — passing NIGHTSHADE_TLS_CERT must enable TLS.
+  // equivalents — passing SKOTIQ_TLS_CERT must enable TLS.
   if (tlsCertPath != null || tlsKeyPath != null) {
     tlsEnabled = true;
   }

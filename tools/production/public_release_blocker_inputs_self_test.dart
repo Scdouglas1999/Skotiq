@@ -11,7 +11,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_blocker_inputs_self_test_',
+    'skotiq_blocker_inputs_self_test_',
   );
   try {
     await _prepareWorkspace(temp);

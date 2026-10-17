@@ -11,7 +11,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_windows_bundle_audit_self_test_',
+    'skotiq_windows_bundle_audit_self_test_',
   );
   try {
     final missingBundle = await _runAudit(
@@ -76,11 +76,11 @@ Future<void> main() async {
     final disallowed = failing['disallowedFiles'] as List? ?? const [];
     _expect(
       missing.contains('sqlite3.dll') &&
-          missing.contains('nightshade_bridge.dll (empty)'),
+          missing.contains('skotiq_bridge.dll (empty)'),
       'failing fixture should identify missing and empty required files',
     );
     _expect(
-      disallowed.contains('nightshade_desktop.pdb') &&
+      disallowed.contains('skotiq_desktop.pdb') &&
           disallowed.contains('data/flutter_assets/test/fixture.txt'),
       'failing fixture should identify disallowed files and segments',
     );
@@ -104,8 +104,8 @@ Future<void> _writePassingBundle(Directory bundle) async {
 Future<void> _writeFailingBundle(Directory bundle) async {
   await _writePassingBundle(bundle);
   await File('${bundle.path}/sqlite3.dll').delete();
-  await File('${bundle.path}/nightshade_bridge.dll').writeAsString('');
-  await _writeFile(bundle, 'nightshade_desktop.pdb', 'debug symbols');
+  await File('${bundle.path}/skotiq_bridge.dll').writeAsString('');
+  await _writeFile(bundle, 'skotiq_desktop.pdb', 'debug symbols');
   await _writeFile(
     bundle,
     'data/flutter_assets/test/fixture.txt',
@@ -160,8 +160,8 @@ void _expect(bool condition, String message) {
 }
 
 const _requiredFiles = <String>[
-  'nightshade_desktop.exe',
-  'nightshade_bridge.dll',
+  'skotiq_desktop.exe',
+  'skotiq_bridge.dll',
   'flutter_windows.dll',
   'sqlite3.dll',
   'libraw.dll',

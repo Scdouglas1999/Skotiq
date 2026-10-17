@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/coimaging_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/coimaging_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -15,19 +15,19 @@ import 'handler_test_helpers.dart';
 /// These exercise the endpoints end-to-end through the real provider graph; with no hub configured the service seam fails closed,
 /// which is exactly the contract an appliance relies on (no silent slew/claim
 /// without a hub). The deep coordination behaviour is covered by the hub +
-/// nightshade_core suites.
+/// skotiq_core suites.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('CoImagingHandlers wiring', () {
     late ProviderContainer container;
-    late NightshadeDatabase db;
+    late SkotiqDatabase db;
     late CoImagingHandlers handlers;
 
     setUp(() {
       // An in-memory DB (empty settings -> no hub configured) so the service
       // seam resolves "no membership" cleanly instead of reaching path_provider.
-      db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       container = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(db)],
       );

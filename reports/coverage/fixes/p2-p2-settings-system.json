@@ -4,11 +4,11 @@
   "outcome": "fixed",
   "summary": "The detail pane rendered whatever model the State last held, with no check that the row still existed. After a delete the provider refresh keeps painting the pre-delete snapshot for a frame, and the desktop auto-select post-frame callback re-selected the deleted active profile from that stale snapshot. Selection is now resolved against the authoritative list every build (_selectionIn) and a selection whose row is gone is dropped after the frame; Set Active/Set default now run through _setActiveProfile/_setDefaultProfile which catch a rejected mutation and surface it as a snackbar instead of an unhandled zone exception.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/screen_shell.dart",
-   "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen.dart",
-   "packages/nightshade_app/test/screens/settings/equipment_profile_lifecycle_truth_test.dart"
+   "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/screen_shell.dart",
+   "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen.dart",
+   "packages/skotiq_app/test/screens/settings/equipment_profile_lifecycle_truth_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/settings/equipment_profile_lifecycle_truth_test.dart: 'deleting the last profile leaves no control over the dead row' + 'a rejected activation is reported, not thrown into the log'",
+  "test": "packages/skotiq_app/test/screens/settings/equipment_profile_lifecycle_truth_test.dart: 'deleting the last profile leaves no control over the dead row' + 'a rejected activation is reported, not thrown into the log'",
   "revert_check": "screen_shell.dart _selectionIn: 'return null;' -> 'return _selectedProfile;' => delete test FAILS. _setActiveProfile: replaced the catch clause with 'finally {}' => activation test FAILS (uncaught StateError). Both restored, 6/6 green."
  },
  {
@@ -16,9 +16,9 @@
   "outcome": "fixed",
   "summary": "0 is the model's documented 'unspecified' sentinel for focal length/aperture, but the editor pre-loaded it as a literal '0' and ProfileValidator rejects any typed value <= 0, so every save of an optics-less profile was refused. The editor now renders the sentinel as blank (_opticText) and the read-only card shows 'Not set' instead of '0 mm'; rejected fields now carry the reason inline (errorText on _FieldCard, red label+border) because the summary snackbar is drawn behind the persistent bottom status bar.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/profile_details.dart",
-   "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/profile_details_rendering.dart",
-   "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/profile_controls.dart"
+   "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/profile_details.dart",
+   "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/profile_details_rendering.dart",
+   "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/profile_controls.dart"
   ],
   "test": "equipment_profile_lifecycle_truth_test.dart: 'a profile stored without optics can still be edited and saved' + 'a rejected optic says why on the field itself'",
   "revert_check": "profile_details.dart _opticText: 'value > 0 ? value.toStringAsFixed(0) : \"\"' -> 'value.toStringAsFixed(0)' => save test FAILS (0 saved rows). profile_controls.dart: 'final hasError = errorText != null && ...' -> 'const hasError = false;' => inline-error test FAILS. Restored, green."
@@ -28,7 +28,7 @@
   "outcome": "fixed",
   "summary": "_awaitMutatedProfile asserted the new id was present in the first refreshed list and threw a StateError whose text went straight to showErrorSnackBar. The profiles provider rebuilds off Drift table streams, so that refresh can resolve from an emission predating the write (reproduced 3 of 5 times live). It now waits for the row to appear via ref.listenManual with a bounded 5 s window and treats expiry as 'not selectable yet', never as a failed write - the mutation already returned the id.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/screen_shell.dart"
+   "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/screen_shell.dart"
   ],
   "test": "equipment_profile_lifecycle_truth_test.dart: 'a duplicate that lands one refresh late is not called a failure'",
   "revert_check": "screen_shell.dart: replaced 'if (immediate != null) return immediate;' with the old throw StateError('... was absent from the refreshed profile list.') => test FAILS on the snackbar assertion. Restored, green."
@@ -38,10 +38,10 @@
   "outcome": "fixed",
   "summary": "EquipmentProfilesNotifier.setDefaultProfile already existed but nothing in the UI called it and nothing showed isDefault. Added a 'Set as default' overflow action (shown only when the profile is not already the default) wired to setDefaultProfile(id, makeActive: false) so the startup default is a separate flag from the active profile, and a 'Default' badge next to 'Active' in the profile list.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/profile_details_rendering.dart",
-   "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/profile_details.dart",
-   "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/profile_list.dart",
-   "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/screen_shell.dart"
+   "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/profile_details_rendering.dart",
+   "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/profile_details.dart",
+   "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/profile_list.dart",
+   "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/screen_shell.dart"
   ],
   "test": "equipment_profile_lifecycle_truth_test.dart: 'the startup default is visible and can be moved'",
   "revert_check": "Removed the `case 'default': widget.onSetDefault();` arm from the overflow onSelected and forced the badge condition to false => test FAILS (0 recorded setDefaultProfile calls). Restored, green."
@@ -51,11 +51,11 @@
   "outcome": "fixed",
   "summary": "Settings > Catalogs and Settings > Equipment Profiles reported every outcome by snackbar only and never touched the logging service, so the in-app viewer and the exported log file had no record of five failed catalog downloads, rejected saves/imports, or (per the verifier) even of a download that SUCCEEDED. Both screens now funnel user-visible failures through a logger call before the snackbar (_showError / _reportProfileFailure, logged even when the widget is gone) and record catalog lifecycle outcomes - download started/completed/cancelled, imported, deleted - at info with the package/type as structured fields under source 'CatalogSettings'.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/settings/catalog_settings_screen.dart",
-   "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/screen_shell.dart",
-   "packages/nightshade_app/test/screens/settings/catalog_logging_record_test.dart"
+   "packages/skotiq_app/lib/screens/settings/catalog_settings_screen.dart",
+   "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/screen_shell.dart",
+   "packages/skotiq_app/test/screens/settings/catalog_logging_record_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/settings/catalog_logging_record_test.dart (asserts on the same LoggingService instance the screen resolves from the provider graph - the one that feeds the viewer and the export)",
+  "test": "packages/skotiq_app/test/screens/settings/catalog_logging_record_test.dart (asserts on the same LoggingService instance the screen resolves from the provider graph - the one that feeds the viewer and the export)",
   "revert_check": "Removed the '_logger.error(message, source: _logSource);' line from _showError => 'a failed catalog import is written to the log' FAILS. Removed the _logOutcome('Catalog imported') call => 'a successful catalog import is recorded too' FAILS. Both restored, 2/2 green.",
   "caveats": "The star/DSO/annotation DOWNLOAD paths call CatalogManager.instance directly (a singleton, not provider-injected), so their new start/complete/cancel log lines are covered by inspection rather than by the widget test; the failure funnel they share (_showError) is the part under test."
  },
@@ -64,10 +64,10 @@
   "outcome": "fixed",
   "summary": "Nothing observed pairing completion: loadPairedDevices ran only at init and on the manual refresh button, so a code the server had already destroyed kept counting down and the list stayed a refresh behind. The HTTP endpoint uses a SEPARATE PairingDatabase instance over the same file, so there is no Drift stream to subscribe to - the notifier now asks, on the countdown's existing 1 s tick, whether the outstanding session row is gone or used (completePairing marks used then deletes used sessions). On completion it cancels the timers, clears the code, reloads the device list and publishes the device that consumed the code, which the screen renders as a '<name> paired' banner. The device is identified by joining deviceId+pairedAt against a snapshot taken when the code was issued, so a re-pairing device (deleted and re-added under the same id) is still identified and a list-length comparison is never used.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/settings/pairing_screen.dart",
-   "packages/nightshade_app/test/screens/settings/pairing_completion_test.dart"
+   "packages/skotiq_app/lib/screens/settings/pairing_screen.dart",
+   "packages/skotiq_app/test/screens/settings/pairing_completion_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/settings/pairing_completion_test.dart - 4 cases against a real in-memory PairingDatabase with a second TokenManager playing the server, including a negative case (an untouched code keeps counting down) and a widget case asserting the rendered panel",
+  "test": "packages/skotiq_app/test/screens/settings/pairing_completion_test.dart - 4 cases against a real in-memory PairingDatabase with a second TokenManager playing the server, including a negative case (an untouched code keeps counting down) and a widget case asserting the rendered panel",
   "revert_check": "Deleted the entire production call site - `unawaited(_checkPairingCompleted());` in the countdown Timer.periodic - and 3 of the 4 tests FAILED (only the negative 'untouched code' case still passed). Restored; 7/7 green including the pre-existing pairing_screen_test.dart.",
   "caveats": "Detection is a 1 s poll of the session row rather than a push. A push would need the headless server (apps/desktop/lib/headless_api_server/*) to emit a pairing-completed event - out of this agent's ownership; recorded under needs_shared_change."
  },
@@ -78,20 +78,20 @@
   "files_changed": [],
   "test": "none - not fixed",
   "revert_check": "n/a",
-  "needs_shared_change": "apps/desktop/lib/headless_api_server/http_middleware.dart: where a bearer resolves against _pairedSessionTokens (~:1030), stamp last_connected_at for the matched deviceId, throttled to at most once per minute per device (a per-device DateTime map next to the grant map), and do the same on the /events WebSocket upgrade. The write itself already exists: PairingDatabase.updateLastConnected(deviceId). Once it is written, packages/nightshade_app/lib/screens/settings/pairing_screen.dart already renders it (_deviceStatus / pairingLastConnected) with no further change."
+  "needs_shared_change": "apps/desktop/lib/headless_api_server/http_middleware.dart: where a bearer resolves against _pairedSessionTokens (~:1030), stamp last_connected_at for the matched deviceId, throttled to at most once per minute per device (a per-device DateTime map next to the grant map), and do the same on the /events WebSocket upgrade. The write itself already exists: PairingDatabase.updateLastConnected(deviceId). Once it is written, packages/skotiq_app/lib/screens/settings/pairing_screen.dart already renders it (_deviceStatus / pairingLastConnected) with no further change."
  },
  {
   "title": "Remote Access claims 'Localhost stays frictionless for this machine' -- localhost is not exempt from auth at all",
   "outcome": "fixed",
   "summary": "Confirmed there is no loopback branch anywhere in the auth chain (http_middleware.dart: the token == null -> 401 return fires regardless of peer; the only 'loopback' mentions concern the rate-limit trusted-proxy header and CORS), so the claim is false in every configuration. I did NOT add a loopback bypass - exempting a socket peer from authentication on a server bound to 0.0.0.0 is a security decision, and it lives outside this agent's ownership. Instead the page now states what is true: describeRemoteAccessPairing()/describeLocalDashboardAction() in the owned widget replace the two false strings, keyed on webState.requiresAuthentication so the no-auth configuration is described honestly too, and the 'Open on this computer' card no longer tells the operator to use that link to confirm the dashboard works.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/settings/widgets/remote_access_settings/status_rows.dart",
-   "packages/nightshade_app/lib/screens/settings/widgets/remote_access_settings.dart",
-   "packages/nightshade_app/test/screens/settings/remote_access_auth_truth_test.dart"
+   "packages/skotiq_app/lib/screens/settings/widgets/remote_access_settings/status_rows.dart",
+   "packages/skotiq_app/lib/screens/settings/widgets/remote_access_settings.dart",
+   "packages/skotiq_app/test/screens/settings/remote_access_auth_truth_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/settings/remote_access_auth_truth_test.dart: 'the page never claims localhost is exempt from pairing' (asserts on rendered widget text) + the copy-contract unit tests",
+  "test": "packages/skotiq_app/test/screens/settings/remote_access_auth_truth_test.dart: 'the page never claims localhost is exempt from pairing' (asserts on rendered widget text) + the copy-contract unit tests",
   "revert_check": "Pointed the two call sites back at l10n.text('remoteAccessInfoBody') / ('remoteAccessLocalActionBody') => the widget test FAILS on both the absent-false-claim and present-true-claim assertions. Restored; 31 tests green across all four remote-access test files.",
-  "needs_shared_change": "packages/nightshade_app/lib/localization/nightshade_localizations/translations.dart (en :389 remoteAccessInfoBody, :398-399 remoteAccessLocalActionTitle/Body, plus the es mirrors - the completeness test requires both): lift the two new sentences from status_rows.dart into keys and switch the widget back to l10n.text so Spanish is not left on English strings. Separately, IF a loopback grant is ever wanted, it belongs in apps/desktop/lib/headless_api_server/http_middleware.dart keyed on the shelf connectionInfo remote address and never on a forwarded header.",
+  "needs_shared_change": "packages/skotiq_app/lib/localization/skotiq_localizations/translations.dart (en :389 remoteAccessInfoBody, :398-399 remoteAccessLocalActionTitle/Body, plus the es mirrors - the completeness test requires both): lift the two new sentences from status_rows.dart into keys and switch the widget back to l10n.text so Spanish is not left on English strings. Separately, IF a loopback grant is ever wanted, it belongs in apps/desktop/lib/headless_api_server/http_middleware.dart keyed on the shelf connectionInfo remote address and never on a forwarded header.",
   "caveats": "The two sentences are English literals in the widget for now (this file already emits English literals via explainRemoteAccessError). The Spanish build shows English for these two strings until the l10n follow-up lands - a smaller wrong than shipping a false security claim in two languages."
  },
  {
@@ -99,12 +99,12 @@
   "outcome": "partial",
   "summary": "The number is real but it is not what the label said: WebServerState.activeViewers is mutated only by setActiveViewers, whose only non-test caller assigns collabState.viewers.length from the co-imaging collaboration manager. Nothing anywhere in the app publishes a connected-remote-client count, and producing one requires the headless API server's WS/SSE registry, which this agent does not own. Within ownership the row is now labelled 'Co-imaging viewers', which is true, so the Remote Access page no longer answers 'is anyone connected?' with a number about something else.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/settings/widgets/remote_access_settings.dart",
-   "packages/nightshade_app/test/screens/settings/remote_access_auth_truth_test.dart"
+   "packages/skotiq_app/lib/screens/settings/widgets/remote_access_settings.dart",
+   "packages/skotiq_app/test/screens/settings/remote_access_auth_truth_test.dart"
   ],
   "test": "remote_access_auth_truth_test.dart: 'the collaboration count is not presented as remote clients' (expands Connection details and asserts on the rendered label)",
   "revert_check": "Restored the label to l10n.text('remoteAccessActiveViewers') => the test FAILS. Restored; green.",
-  "needs_shared_change": "apps/desktop/lib/headless_api_server/*: publish a live connected-client count (the /events WS + SSE registry size) into packages/nightshade_core/lib/src/providers/web_server_provider.dart as a NEW field (e.g. connectedClients) - do not overload activeViewers, which the status bar's session-sharing chip reads for co-imaging. Then add a 'Connected clients' row next to the co-imaging one. Also consider packages/nightshade_app/.../translations.dart remoteAccessDetailsBody, which still advertises this panel as the place to find 'viewer counts'.",
+  "needs_shared_change": "apps/desktop/lib/headless_api_server/*: publish a live connected-client count (the /events WS + SSE registry size) into packages/skotiq_core/lib/src/providers/web_server_provider.dart as a NEW field (e.g. connectedClients) - do not overload activeViewers, which the status bar's session-sharing chip reads for co-imaging. Then add a 'Connected clients' row next to the co-imaging one. Also consider packages/skotiq_app/.../translations.dart remoteAccessDetailsBody, which still advertises this panel as the place to find 'viewer counts'.",
   "caveats": "This is a relabel, not the count the operator wants. Flagged as partial deliberately rather than claimed as fixed."
  },
  {
@@ -112,21 +112,21 @@
   "outcome": "fixed",
   "summary": "Two halves. (1) The false claim: Appliance Updates said 'The local desktop app updates itself through its own installer' - untrue of every shipped build (nothing calls UpdateNotifier.configure on desktop, so UpdateManagerWidget's launch check returns early on an empty updateServerUrl and no version request is ever issued; the Linux build is a tarball with no installer). That page now says it manages a REMOTE appliance and points at the local check. (2) The missing capability: Settings > About gained a Software Update card - version + build number, a 'Check for updates' button that queries the project's published releases feed on demand, and a 'View release notes' button. It reports only; it never downloads or installs, so it needs none of the signing material the OTA path correctly refuses to run without, and it makes no claim it cannot support (an unparseable tag is named without a newer/older verdict, and a failed check says it failed rather than implying you are current).",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/settings/widgets/about_settings.dart",
-   "packages/nightshade_app/lib/screens/settings/widgets/update_settings.dart",
-   "packages/nightshade_app/test/screens/settings/about_update_check_test.dart"
+   "packages/skotiq_app/lib/screens/settings/widgets/about_settings.dart",
+   "packages/skotiq_app/lib/screens/settings/widgets/update_settings.dart",
+   "packages/skotiq_app/test/screens/settings/about_update_check_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/settings/about_update_check_test.dart - newer/current/failed check paths, the launched release URL, the appliance-page copy, and version-comparison unit tests (6.10.0 > 6.9.0, 'nightly' -> null)",
+  "test": "packages/skotiq_app/test/screens/settings/about_update_check_test.dart - newer/current/failed check paths, the launched release URL, the appliance-page copy, and version-comparison unit tests (6.10.0 > 6.9.0, 'nightly' -> null)",
   "revert_check": "Removed the _SoftwareUpdateCard call site from the About page => 3 of 5 widget tests FAIL. Separately restored the 'updates itself through its own installer' sentence => the appliance-page test FAILS. Both restored; 11/11 green with the pre-existing about_links_test.dart.",
-  "caveats": "This is a manual check, not the auto-check-at-launch NINA/SGP do: the bundled updater still has no server configured and no signing key provisioned, and wiring a launch-time network call is a product decision. The release feed is the GitHub releases API for the canonical repo already hardcoded in this file (kNightshadeRepositoryUrl); unauthenticated it is rate-limited to 60 requests/hour per IP, which a manual button cannot realistically exceed."
+  "caveats": "This is a manual check, not the auto-check-at-launch NINA/SGP do: the bundled updater still has no server configured and no signing key provisioned, and wiring a launch-time network call is a product decision. The release feed is the GitHub releases API for the canonical repo already hardcoded in this file (kSkotiqRepositoryUrl); unauthenticated it is rate-limited to 60 requests/hour per IP, which a manual button cannot realistically exceed."
  },
  {
   "title": "Tutorial Tours run as a modal on whatever screen you are on and tell you to click tabs that are not there",
   "outcome": "blocked",
-  "summary": "Confirmed the cited locations by reading them: help_tutorials_settings.dart:179-183 wires onStart/onRestart straight to notifier.restartTutorial(TutorialCategory.equipmentSetup), and tutorial_provider.dart _restartTutorial only writes activeCategory/currentStepIndex - it never routes. The overlay is mounted by app_shell.dart over whatever screen is showing, so the steps ('Click the Profiles tab', 'Click the Connections tab') describe a screen the user is not on, behind a scrim that swallows the clicks that would take them there. Every file involved (screens/settings/widgets/help_tutorials_settings.dart, widgets/tutorial_overlay*.dart, screens/shell/app_shell.dart, nightshade_core tutorial_provider.dart + tutorial models) is outside this agent's ownership list.",
+  "summary": "Confirmed the cited locations by reading them: help_tutorials_settings.dart:179-183 wires onStart/onRestart straight to notifier.restartTutorial(TutorialCategory.equipmentSetup), and tutorial_provider.dart _restartTutorial only writes activeCategory/currentStepIndex - it never routes. The overlay is mounted by app_shell.dart over whatever screen is showing, so the steps ('Click the Profiles tab', 'Click the Connections tab') describe a screen the user is not on, behind a scrim that swallows the clicks that would take them there. Every file involved (screens/settings/widgets/help_tutorials_settings.dart, widgets/tutorial_overlay*.dart, screens/shell/app_shell.dart, skotiq_core tutorial_provider.dart + tutorial models) is outside this agent's ownership list.",
   "files_changed": [],
   "test": "none - not fixed",
   "revert_check": "n/a",
-  "needs_shared_change": "The machinery is already half-built: TutorialStep (packages/nightshade_core/lib/src/models/tutorial/tutorial_models.dart) already carries targetKey, actionTarget, isInteractive and a spotlight shape, and the equipmentSetup steps simply set none of them. (1) Add a target route to TutorialStep and have tutorial_provider's _restartTutorial/resumeTutorial push it before publishing step 0, so the tour opens the screen it describes. (2) Populate targetKey/isInteractive for the equipmentSetup + connection steps so the overlay spotlights the real control instead of rendering a centred card, and let taps outside the cutout reach the UI. (3) packages/nightshade_app/lib/screens/settings/widgets/help_tutorials_settings.dart: the row still reads 'Not started' while a tour is running - bind its status to state.activeCategory."
+  "needs_shared_change": "The machinery is already half-built: TutorialStep (packages/skotiq_core/lib/src/models/tutorial/tutorial_models.dart) already carries targetKey, actionTarget, isInteractive and a spotlight shape, and the equipmentSetup steps simply set none of them. (1) Add a target route to TutorialStep and have tutorial_provider's _restartTutorial/resumeTutorial push it before publishing step 0, so the tour opens the screen it describes. (2) Populate targetKey/isInteractive for the equipmentSetup + connection steps so the overlay spotlights the real control instead of rendering a centred card, and let taps outside the cutout reach the UI. (3) packages/skotiq_app/lib/screens/settings/widgets/help_tutorials_settings.dart: the row still reads 'Not started' while a tour is running - bind its status to state.activeCategory."
  }
 ]

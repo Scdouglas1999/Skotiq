@@ -7,7 +7,7 @@
 /// DB binding belongs next to the server that owns the database file.
 library;
 
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 /// Reads registered push tokens + per-device preferences out of a
 /// [PairingDatabase] for the FCM/APNs/mock deliveries to fan out over.

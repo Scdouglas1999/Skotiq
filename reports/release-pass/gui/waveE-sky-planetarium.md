@@ -1,6 +1,6 @@
 # Wave E — dryness check: sky-planetarium
 
-Bundle: `apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`
+Bundle: `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`
 (launcher 18:31, `lib/libapp.so` **20:33**). Freshness proved by byte-grep before
 launching: the .so contains `switch to Alt/Az` (UTF-16LE, 1 hit — the SKY-16
 string), `Choose a date` and `Switch to Custom RA/Dec` (the D-3 / SKY-4 strings),
@@ -98,7 +98,7 @@ each, parked the pointer at root (1100,900) over the star field, waited 12 s.
 `panel: Projection: Stereographic` and `panel: Layers`, while the screenshot
 taken at the same instant shows a completely clean command bar
 (`shots/waveE-sky-d2-tt-clean-screen.png`). Owner is
-`packages/nightshade_ui/lib/src/components/nightshade_tooltip.dart`.
+`packages/skotiq_ui/lib/src/components/skotiq_tooltip.dart`.
 
 ### D-3 (P3) — transport buttons have no accessible names — **PARTIALLY FIXED**
 
@@ -184,7 +184,7 @@ are unreadable in a state the fix itself creates.
 ### E-SKY-2 (P4) — play/pause announces its action and its state as opposites
 
 `_accessibleControl(label: running ? 'Pause' : 'Play', toggled: !running)` in
-`packages/nightshade_planetarium/lib/src/widgets/time_control_panel.dart:341`
+`packages/skotiq_planetarium/lib/src/widgets/time_control_panel.dart:341`
 swaps *both* the name and the toggle state, so an assistive client reads
 "Play, toggle button, **on**" at the moment time is held, and "Pause, toggle
 button, **off**" while it is running. Observed live: `button: Pause [off]` with

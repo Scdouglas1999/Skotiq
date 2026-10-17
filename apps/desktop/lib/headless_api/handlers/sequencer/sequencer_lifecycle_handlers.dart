@@ -271,7 +271,7 @@ extension _SequencerLifecycle on SequencerHandlers {
       // body — it selects the status code and nothing more.
       const marker = 'No sequence loaded';
       final isNoSequenceLoaded =
-          (error is bridge_api.NightshadeError &&
+          (error is bridge_api.SkotiqError &&
               error.maybeMap(
                 operationFailed: (failure) => failure.field0.contains(marker),
                 orElse: () => false,

@@ -19,8 +19,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// The replay screen. Built on top of [SessionReplayNotifier] (a
 /// [StateNotifierProvider.family] keyed on `(runId, dataSource)`).
@@ -47,7 +47,7 @@ class _SessionReplayScreenState extends ConsumerState<SessionReplayScreen> {
   SessionReplayDataSource? _dataSource;
   NetworkBackend? _dataSourceBackend;
 
-  SessionReplayDataSource _resolveDataSource(NightshadeBackend backend) {
+  SessionReplayDataSource _resolveDataSource(SkotiqBackend backend) {
     final override = widget.dataSourceOverride;
     if (override != null) return override;
     if (backend is! NetworkBackend) {
@@ -72,7 +72,7 @@ class _SessionReplayScreenState extends ConsumerState<SessionReplayScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     final backend = ref.watch(backendProvider);
     late final SessionReplayDataSource dataSource;
     try {
@@ -124,7 +124,7 @@ class _ReplayErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -147,7 +147,7 @@ class _ReplayErrorView extends StatelessWidget {
             style: TextStyle(fontSize: 12, color: colors.textSecondary),
           ),
           const SizedBox(height: 16),
-          NightshadeButton(label: 'Retry', onPressed: onRetry),
+          SkotiqButton(label: 'Retry', onPressed: onRetry),
         ],
       ),
     );
@@ -162,7 +162,7 @@ class _ReplayReadyBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     final notifier = ref.read(sessionReplayNotifierProvider(stateKey).notifier);
     return Column(
       children: [
@@ -204,7 +204,7 @@ class _RunHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     final duration = ready.run.duration;
     final start = ready.run.startedAt.toLocal();
     String two(int n) => n.toString().padLeft(2, '0');
@@ -268,7 +268,7 @@ class _HeaderChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxWidth: MediaQuery.sizeOf(context).width - 48,
@@ -298,7 +298,7 @@ class _PartialBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     final body = switch (reason) {
       'no_buffered_entries' =>
         'Server has no buffered events for this run. Events from before the last server restart are not stored persistently.',
@@ -343,7 +343,7 @@ class _TimelineBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     return Container(
       key: const Key('timeline_bar'),
       color: colors.surface,
@@ -456,7 +456,7 @@ class _TimelineBar extends StatelessWidget {
 
 class _TimelinePainter extends CustomPainter {
   final SessionReplayReady ready;
-  final NightshadeColors colors;
+  final SkotiqColors colors;
   final double Function(int) offsetToX;
 
   _TimelinePainter({
@@ -552,7 +552,7 @@ class _TransportControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     return Container(
       color: colors.surface,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -595,7 +595,7 @@ class _SpeedChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
@@ -627,7 +627,7 @@ class _SnapshotPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     final wallClock = snapshot.playheadWallClock.toLocal();
     String two(int n) => n.toString().padLeft(2, '0');
     final timeStr =
@@ -706,7 +706,7 @@ class _SnapshotPanel extends StatelessWidget {
 
 class _SnapshotCard extends StatelessWidget {
   final String title;
-  final NightshadeColors colors;
+  final SkotiqColors colors;
   final Widget child;
 
   const _SnapshotCard({
@@ -748,7 +748,7 @@ class _SnapshotCard extends StatelessWidget {
 class _SnapshotRow extends StatelessWidget {
   final String label;
   final String value;
-  final NightshadeColors colors;
+  final SkotiqColors colors;
 
   const _SnapshotRow({
     required this.label,
@@ -787,7 +787,7 @@ class _SnapshotRow extends StatelessWidget {
 
 class _EventLogList extends StatelessWidget {
   final List<ReplayMarker> markers;
-  final NightshadeColors colors;
+  final SkotiqColors colors;
 
   const _EventLogList({required this.markers, required this.colors});
 
@@ -818,7 +818,7 @@ class _EventLogList extends StatelessWidget {
 
 class _MarkerRow extends StatelessWidget {
   final ReplayMarker marker;
-  final NightshadeColors colors;
+  final SkotiqColors colors;
 
   const _MarkerRow({required this.marker, required this.colors});
 
@@ -874,7 +874,7 @@ class _MarkerRow extends StatelessWidget {
     );
   }
 
-  Color _severityColor(String severity, NightshadeColors colors) {
+  Color _severityColor(String severity, SkotiqColors colors) {
     switch (severity.toLowerCase()) {
       case 'critical':
       case 'error':
@@ -895,7 +895,7 @@ class _DataSourceFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     final events = ready.markers.whereType<ReplayEventMarker>().length;
     final frames = ready.markers.whereType<ReplayFrameMarker>().length;
     return Padding(

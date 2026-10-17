@@ -1,19 +1,19 @@
 <#
 .SYNOPSIS
-    Push Nightshade updates to instances on the local network.
+    Push Skotiq updates to instances on the local network.
 
 .DESCRIPTION
     This script wraps the push_update.dart CLI tool to push updates to
-    Nightshade instances discovered on the local network.
+    Skotiq instances discovered on the local network.
 
 .PARAMETER Discover
-    Discover Nightshade instances on the network without pushing.
+    Discover Skotiq instances on the network without pushing.
 
 .PARAMETER Target
     Push update to a specific IP address.
 
 .PARAMETER All
-    Push update to all discovered Nightshade instances.
+    Push update to all discovered Skotiq instances.
 
 .PARAMETER Package
     Path to the update package ZIP file. Defaults to auto-detect.
@@ -23,11 +23,11 @@
 
 .PARAMETER Secret
     LAN push shared secret. Can also be provided via
-    NIGHTSHADE_UPDATE_PUSH_SECRET.
+    SKOTIQ_UPDATE_PUSH_SECRET.
 
 .EXAMPLE
     .\push_update.ps1 -Discover
-    Discover all Nightshade instances on the network.
+    Discover all Skotiq instances on the network.
 
 .EXAMPLE
     .\push_update.ps1 -All
@@ -90,11 +90,11 @@ try {
         }
     }
     else {
-        Write-Host "Nightshade Update Pusher" -ForegroundColor Cyan
+        Write-Host "Skotiq Update Pusher" -ForegroundColor Cyan
         Write-Host "========================" -ForegroundColor Cyan
         Write-Host ""
         Write-Host "Usage:"
-        Write-Host "  .\push_update.ps1 -Discover              # Find Nightshade instances"
+        Write-Host "  .\push_update.ps1 -Discover              # Find Skotiq instances"
         Write-Host "  .\push_update.ps1 -All                   # Push to all instances"
         Write-Host "  .\push_update.ps1 -Target <ip>           # Push to specific IP"
         Write-Host "  .\push_update.ps1 -All -Secret <secret>  # Push with auth secret"

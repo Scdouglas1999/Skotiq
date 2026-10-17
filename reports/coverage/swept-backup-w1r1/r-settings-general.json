@@ -30,7 +30,7 @@
    "expected": "Either translate the product surfaces too, or label the control honestly and scope it (the English subtitle 'app chrome' is closer to the truth than the Spanish one). Shipping a language picker that leaves the main working screens untranslated is worse than not offering the language.",
    "repro": "Fresh profile -> Settings > General -> Language dropdown -> Spanish -> click Dashboard in nav rail -> tree shows all English strings.",
    "evidence": "/tmp/ns-audit/shots/rsg/05-spanish.png (Settings fully Spanish, status bar English); tree of Dashboard after switching: 0 of ~12 visible dashboard strings translated. sqlite3 app_settings language='es'.",
-   "where": "packages/nightshade_app/lib/screens/settings/widgets/general_settings.dart:79-93 (SettingsDropdown offers languageEnglish/languageSpanish); localization coverage in packages/nightshade_app/lib/localization/",
+   "where": "packages/skotiq_app/lib/screens/settings/widgets/general_settings.dart:79-93 (SettingsDropdown offers languageEnglish/languageSpanish); localization coverage in packages/skotiq_app/lib/localization/",
    "proposed_fix": "Either finish the es catalogue for the dashboard/imaging/sequencer surfaces, or hide the Spanish option behind a flag until it is complete."
   },
   {
@@ -42,7 +42,7 @@
    "expected": "Red night should red-shift or dim the moon graphic like everything else (e.g. desaturate to a red-grey ramp). A user at the eyepiece opens the dashboard and gets a white disc in the face.",
    "repro": "Settings > Appearance > Theme > Red night, then click Dashboard in the nav rail. Moon card, left column.",
    "evidence": "/tmp/ns-audit/shots/rsg/10-rednight-dash.png; sampled pixel (293,416) = (214,220,226) vs page background (600,600) = (10,0,0). Brightest pixel in the whole frame is inside the disc at (302,390) = (229,238,244).",
-   "where": "Dashboard moon-phase widget (moon card) \u2014 theme-independent colours; theme applied in nightshade_ui red night theme.",
+   "where": "Dashboard moon-phase widget (moon card) \u2014 theme-independent colours; theme applied in skotiq_ui red night theme.",
    "proposed_fix": "Drive the moon disc fill/limb colours from the theme's surface/onSurface ramp instead of hardcoded greys, so Red night maps them to dim red."
   },
   {
@@ -54,7 +54,7 @@
    "expected": "Either suppress the swatch row in red night (the accent has no visible effect in a monochrome red theme anyway), or dim/annotate it. As shipped, opening Appearance at the telescope to check the theme is the thing that ruins your dark adaptation.",
    "repro": "Settings > Appearance > Theme > Red night; the Accent color row is directly under Theme.",
    "evidence": "/tmp/ns-audit/shots/rsg/09-rednight.png, pixels sampled at y=234, x=1091..1231.",
-   "where": "packages/nightshade_app/lib/screens/settings/widgets/appearance_settings.dart (accent colour swatch row)",
+   "where": "packages/skotiq_app/lib/screens/settings/widgets/appearance_settings.dart (accent colour swatch row)",
    "proposed_fix": "Hide or grey the accent row when theme == redNight, or render each swatch as a red-luminance equivalent with a small label."
   },
   {
@@ -66,7 +66,7 @@
    "expected": "The status bar should drop or scroll items when it runs out of width, never overlap them. NINA collapses status items into an overflow chevron.",
    "repro": "Settings > Appearance: Font size = Large, UI scale = Extra Large (1.4x). Look at the bottom bar between the Focus chip and 'No save path'.",
    "evidence": "/tmp/ns-audit/shots/rsg/13-xlscale.png and the 4x crop /tmp/ns-audit/shots/rsg/13-statusbar-crop.png, which shows 'Idl' with the thermometer glyph painted over the final letter.",
-   "where": "app shell bottom status bar (packages/nightshade_app/lib/screens/shell/) \u2014 driven by ui_scale from appearance settings",
+   "where": "app shell bottom status bar (packages/skotiq_app/lib/screens/shell/) \u2014 driven by ui_scale from appearance settings",
    "proposed_fix": "Wrap the status groups in a Flexible/Wrap with ellipsis per group, or hide the lowest-priority groups below a width threshold."
   },
   {
@@ -78,7 +78,7 @@
    "expected": "The dropdown width should scale with ui_scale/font size, or the labels should be short enough ('1.4x') to survive.",
    "repro": "Settings > Appearance > UI scale > Extra Large (1.4x).",
    "evidence": "/tmp/ns-audit/shots/rsg/13-xlscale.png, UI scale row.",
-   "where": "packages/nightshade_app/lib/screens/settings/widgets/settings_widgets/settings_switch_and_dropdown.dart (fixed `width:` on SettingsDropdown)",
+   "where": "packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_switch_and_dropdown.dart (fixed `width:` on SettingsDropdown)",
    "proposed_fix": "Make the dropdown width intrinsic (IntrinsicWidth / min-width) instead of a hardcoded 150."
   },
   {
@@ -86,11 +86,11 @@
    "kind": "defect",
    "severity": "P1",
    "unit": "settings:location",
-   "what_happened": "Settings > Location > Time: I turned 'Use system time' OFF and set Timezone = America/Los_Angeles, then Asia/Tokyo, then UTC. app_settings.timezone and use_system_time persist correctly each time, but NOTHING on screen changes: the status-bar clock stayed 14:44 (host America/New_York) when it should have read 11:44 PDT / 03:44 JST / 18:44 UTC, the Dashboard header clock stayed host-local, and the Dashboard twilight strip stayed byte-identical (Sunset 23:48 / Astro dark 02:00 / Astro dawn 06:31 / Sunrise 08:43) across all three timezones. Root cause in source: packages/nightshade_core/lib/src/providers/clock_provider.dart:219 _parseTimezoneOffset accepts only 'UTC' or 'UTC+HH[:MM]' and returns null for anything else, so clockProvider falls back to SystemClock for all 17 IANA entries the picker offers. The fallback is completely silent \u2014 the file's own comment claims 'Failure to parse is explicit and logged at the Clock.fromUtc call sites', but nothing appears in app.log (grep for timezone/clock/tz over the whole 151-line log: zero hits).",
+   "what_happened": "Settings > Location > Time: I turned 'Use system time' OFF and set Timezone = America/Los_Angeles, then Asia/Tokyo, then UTC. app_settings.timezone and use_system_time persist correctly each time, but NOTHING on screen changes: the status-bar clock stayed 14:44 (host America/New_York) when it should have read 11:44 PDT / 03:44 JST / 18:44 UTC, the Dashboard header clock stayed host-local, and the Dashboard twilight strip stayed byte-identical (Sunset 23:48 / Astro dark 02:00 / Astro dawn 06:31 / Sunrise 08:43) across all three timezones. Root cause in source: packages/skotiq_core/lib/src/providers/clock_provider.dart:219 _parseTimezoneOffset accepts only 'UTC' or 'UTC+HH[:MM]' and returns null for anything else, so clockProvider falls back to SystemClock for all 17 IANA entries the picker offers. The fallback is completely silent \u2014 the file's own comment claims 'Failure to parse is explicit and logged at the Clock.fromUtc call sites', but nothing appears in app.log (grep for timezone/clock/tz over the whole 151-line log: zero hits).",
    "expected": "Picking a site timezone must change displayed times, or the picker must not exist. clockProvider feeds imaging_service capture timestamps, session_provider and scheduler_provider, so a remote-observatory operator who sets the site timezone gets host-local timestamps on their frames and host-local scheduler decisions while the UI shows the timezone they chose.",
    "repro": "Settings > Location, scroll to Time. Toggle 'Use system time' OFF. Set Timezone = Asia/Tokyo. Look at the status-bar clock and at Dashboard > twilight strip. Repeat with America/Los_Angeles and UTC.",
    "evidence": "/tmp/ns-audit/shots/rsg/24-status.png (LA, sys-time on: 14:43), /tmp/ns-audit/shots/rsg/25-status.png (LA, sys-time OFF: 14:44 \u2014 unchanged), /tmp/ns-audit/shots/rsg/27-status.png (Asia/Tokyo, sys-time OFF: 14:44), /tmp/ns-audit/shots/rsg/31-status.png (UTC, sys-time OFF: 14:46 while `date -u` says 18:46), /tmp/ns-audit/shots/rsg/28-crop.png (twilight strip unchanged under Asia/Tokyo). sqlite3 confirms timezone/use_system_time persisted each time.",
-   "where": "packages/nightshade_core/lib/src/providers/clock_provider.dart:98-113 and :219-240; picker at packages/nightshade_app/lib/screens/settings/widgets/location_settings.dart:463",
+   "where": "packages/skotiq_core/lib/src/providers/clock_provider.dart:98-113 and :219-240; picker at packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart:463",
    "proposed_fix": "Either store real IANA zones and resolve them with the `timezone` package (correct, handles DST), or change the picker to emit the UTC+HH:MM labels the parser already understands. At minimum make the fallback loud instead of silent."
   },
   {
@@ -102,7 +102,7 @@
    "expected": "A searchable IANA zone list (as NINA and every OS settings panel provide), or \u2014 better for an astro app \u2014 derive the site timezone from the lat/long that is already entered three rows above, with an override.",
    "repro": "Settings > Location > Time > Timezone dropdown.",
    "evidence": "tree of the open popup lists all 18 entries; /tmp/ns-audit/shots/rsg/23-crop.png, /tmp/ns-audit/shots/rsg/29-crop.png.",
-   "where": "packages/nightshade_app/lib/screens/settings/widgets/location_settings.dart (timezone items list)",
+   "where": "packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart (timezone items list)",
    "proposed_fix": "Replace with a searchable IANA list, plus a 'from location' button that resolves lat/long -> tz."
   },
   {
@@ -114,7 +114,7 @@
    "expected": "ASIAIR and SkySafari let you pick a city; NINA accepts DMS and can pull from the mount. At minimum accept DMS input ('47 36 22 N') in the same field, and offer an offline city list \u2014 the app already ships large catalogs.",
    "repro": "Settings > Location, top card.",
    "evidence": "/tmp/ns-audit/shots/rsg/18-location.png",
-   "where": "packages/nightshade_app/lib/screens/settings/widgets/location_settings.dart",
+   "where": "packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart",
    "proposed_fix": "Add a DMS-tolerant parser to the lat/long fields and a bundled city picker; optionally 'read from connected mount'."
   },
   {
@@ -122,11 +122,11 @@
    "kind": "defect",
    "severity": "P1",
    "unit": "settings:location",
-   "what_happened": "The row reads 'Use Device Location / Get location from GPS'. Clicking it on Linux desktop returned 'Location updated: Newtown Square, Pennsylvania, United States' and wrote observer_latitude=39.9817, observer_longitude=-75.4072 \u2014 but observer_elevation stayed at 1234.0, the value from the previous (Seattle) site. The stored site is now a Pennsylvania coordinate at 1234 m; the highest point in Pennsylvania is 979 m. The success message says 'Location updated' with no hint that one of the three fields was not updated. Source: location_settings.dart:270 passes `elevation: settings.elevation` unchanged, and GeolocationService.fetchLocationFromGPS() (packages/nightshade_planetarium/lib/src/services/geolocation_service.dart:7-14) is not GPS at all \u2014 it does an HTTPS GET to the third-party service https://ipapi.co/json/.",
+   "what_happened": "The row reads 'Use Device Location / Get location from GPS'. Clicking it on Linux desktop returned 'Location updated: Newtown Square, Pennsylvania, United States' and wrote observer_latitude=39.9817, observer_longitude=-75.4072 \u2014 but observer_elevation stayed at 1234.0, the value from the previous (Seattle) site. The stored site is now a Pennsylvania coordinate at 1234 m; the highest point in Pennsylvania is 979 m. The success message says 'Location updated' with no hint that one of the three fields was not updated. Source: location_settings.dart:270 passes `elevation: settings.elevation` unchanged, and GeolocationService.fetchLocationFromGPS() (packages/skotiq_planetarium/lib/src/services/geolocation_service.dart:7-14) is not GPS at all \u2014 it does an HTTPS GET to the third-party service https://ipapi.co/json/.",
    "expected": "(a) Do not call it GPS when it is IP geolocation \u2014 say 'Estimate from IP address (city-level, ~10 km)'. (b) Either fetch/clear elevation, or say plainly that elevation was not changed and needs review. (c) Disclose that clicking sends the user's IP to a third party before doing it \u2014 this is a silent outbound request from an app people run on isolated observatory networks.",
    "repro": "Settings > Location > set elevation to 1234 and latitude 47.6062 (Seattle). Click the crosshair on 'Use Device Location'. Read the snackbar, then sqlite3 app_settings observer_*.",
    "evidence": "Snackbar text captured via tree: 'Location updated: Newtown Square, Pennsylvania, United States'. sqlite3 immediately after: observer_latitude|39.9817, observer_longitude|-75.4072, observer_elevation|1234.0.",
-   "where": "packages/nightshade_app/lib/screens/settings/widgets/location_settings.dart:240-285; packages/nightshade_planetarium/lib/src/services/geolocation_service.dart:7-70",
+   "where": "packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart:240-285; packages/skotiq_planetarium/lib/src/services/geolocation_service.dart:7-70",
    "proposed_fix": "Rename the row, blank or refetch elevation alongside lat/long, and gate the network call behind an explicit one-time consent."
   },
   {
@@ -138,7 +138,7 @@
    "expected": "The row should be hidden or disabled when no headless host is connected \u2014 exactly the way the same file already hides 'Start minimized' and 'Confirm before closing' in remote mode. A green 'synced from server' when there is no server is a false claim, and it trains the user to trust that message when it matters.",
    "repro": "Fresh desktop profile, no pairing. Settings > Location > click the icon on the 'Sync from Server' row.",
    "evidence": "tree captured the snackbar 'Location synced from server'; sqlite3 app_settings observer_* identical before and after the click.",
-   "where": "packages/nightshade_app/lib/screens/settings/widgets/location_settings.dart:182-232",
+   "where": "packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart:182-232",
    "proposed_fix": "Gate the row on isRemoteMode / a connected host, and word the success as 'Location read from <host>'."
   },
   {
@@ -150,7 +150,7 @@
    "expected": "Real horizon files from Stellarium/HorizonBox have 1-degree resolution and are the reason people generate them. Max-per-sector means one 29-degree tree at azimuth 190 marks everything from 157.5 to 202.5 as blocked, so the planner and Tonight will refuse targets that are actually clear \u2014 this costs imaging time on exactly the targets a southern-horizon site cares about. At minimum the import must say 'imported 36 samples, reduced to 8 sectors (worst case per sector)'. Better: store the full profile and interpolate.",
    "repro": "Create a .hor with one line per 10 deg azimuth; Settings > Location > Local Horizon Mask > Import .hor / CSV; compare the eight resulting fields with the file.",
    "evidence": "Input /tmp/ns-audit/rsg-files/test36.hor; resulting horizon_profile_json from sqlite3: {\"N\":25.0,\"NE\":16.0,\"E\":21.0,\"SE\":25.0,\"S\":29.0,\"SW\":14.0,\"W\":19.0,\"NW\":23.0} \u2014 verified by hand to be the per-sector maxima. Snackbar text captured from tree.",
-   "where": "packages/nightshade_app/lib/screens/settings/widgets/location_settings.dart:498-539; LegacyHorizonProfile.parseHorizonText",
+   "where": "packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart:498-539; LegacyHorizonProfile.parseHorizonText",
    "proposed_fix": "Persist the full sampled profile and interpolate at query time; keep the 8 fields as a coarse editor/summary. Failing that, report the sample count and the reduction in the success message."
   },
   {
@@ -162,7 +162,7 @@
    "expected": "Confirm before discarding a non-zero horizon, or offer undo in the snackbar.",
    "repro": "Import a horizon, then click 'Reset All to 0 deg' on the same row.",
    "evidence": "horizon_profile_json went from {\"N\":25.0,...} to {\"N\":0.0,\"NE\":0.0,...} with no prompt; /tmp/ns-audit/shots/rsg/33-afterimport.png shows the two buttons adjacent.",
-   "where": "packages/nightshade_app/lib/screens/settings/widgets/location_settings.dart (Reset All action)",
+   "where": "packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart (Reset All action)",
    "proposed_fix": "Add a confirm when any value is non-zero, or an 'Undo' action on the snackbar."
   }
  ]

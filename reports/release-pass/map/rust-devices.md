@@ -1,6 +1,6 @@
 # Release-pass map — Rust device crates (indi / alpaca / ascom / native)
 
-Subsystem: `native/nightshade_native/{indi,alpaca,ascom,native}/src/`
+Subsystem: `native/skotiq_native/{indi,alpaca,ascom,native}/src/`
 Mode: read-only mapping. No source file was edited.
 Date: 2026-08-11. Branch: `audit/end-to-end-campaign` @ b07d91c9d.
 
@@ -18,21 +18,21 @@ shape**, so §1.2 gives a single reusable recipe rather than repeating it ten ti
 
 | File | Lines |
 |---|---|
-| `native/nightshade_native/indi/src/client.rs` | 4146 |
-| `native/nightshade_native/native/src/vendor/zwo.rs` | 3928 |
-| `native/nightshade_native/native/src/vendor/qhy.rs` | 3015 |
-| `native/nightshade_native/native/src/vendor/fujifilm.rs` | 2976 |
-| `native/nightshade_native/native/src/vendor/gphoto2.rs` | 2973 |
-| `native/nightshade_native/alpaca/src/camera.rs` | 2391 |
-| `native/nightshade_native/native/src/vendor/touptek.rs` | 2295 |
-| `native/nightshade_native/native/src/vendor/atik.rs` | 2135 |
-| `native/nightshade_native/native/src/vendor/player_one.rs` | 2134 |
-| `native/nightshade_native/native/src/vendor/fli.rs` | 1947 |
-| `native/nightshade_native/native/src/vendor/svbony.rs` | 1853 |
-| `native/nightshade_native/native/src/vendor/moravian.rs` | 1807 |
-| `native/nightshade_native/alpaca/src/client.rs` | 1767 |
-| `native/nightshade_native/native/src/vendor/lx200.rs` | 1651 |
-| `native/nightshade_native/ascom/src/windows/connection.rs` | 1601 |
+| `native/skotiq_native/indi/src/client.rs` | 4146 |
+| `native/skotiq_native/native/src/vendor/zwo.rs` | 3928 |
+| `native/skotiq_native/native/src/vendor/qhy.rs` | 3015 |
+| `native/skotiq_native/native/src/vendor/fujifilm.rs` | 2976 |
+| `native/skotiq_native/native/src/vendor/gphoto2.rs` | 2973 |
+| `native/skotiq_native/alpaca/src/camera.rs` | 2391 |
+| `native/skotiq_native/native/src/vendor/touptek.rs` | 2295 |
+| `native/skotiq_native/native/src/vendor/atik.rs` | 2135 |
+| `native/skotiq_native/native/src/vendor/player_one.rs` | 2134 |
+| `native/skotiq_native/native/src/vendor/fli.rs` | 1947 |
+| `native/skotiq_native/native/src/vendor/svbony.rs` | 1853 |
+| `native/skotiq_native/native/src/vendor/moravian.rs` | 1807 |
+| `native/skotiq_native/alpaca/src/client.rs` | 1767 |
+| `native/skotiq_native/native/src/vendor/lx200.rs` | 1651 |
+| `native/skotiq_native/ascom/src/windows/connection.rs` | 1601 |
 
 ### 1.1 `indi/src/client.rs` — 4146 lines
 
@@ -64,7 +64,7 @@ module reaches it through `&self`/`&mut self`.
 
 **What must not change:** `IndiClient`'s fields stay private; `mod.rs` must `pub use` the
 same set of names `indi/src/lib.rs` currently re-exports, or every consumer in `bridge/`
-breaks. Verify with `cargo check -p nightshade_indi` plus a `git diff` of the crate's
+breaks. Verify with `cargo check -p skotiq_indi` plus a `git diff` of the crate's
 public paths.
 
 Result: no file above ~900 lines; the 739-line parse function becomes the only remaining
@@ -117,7 +117,7 @@ directory `native/src/vendor/V/`:
 
 **Sequencing.** Do `zwo.rs` first — it is the largest, it is the only vendor already on the
 shared `load_vendor_sdk!` macro, and it contains three devices, so it exercises every branch
-of the recipe. Land it, confirm `cargo test -p nightshade_native` is unchanged, then batch
+of the recipe. Land it, confirm `cargo test -p skotiq_native` is unchanged, then batch
 the rest.
 
 ### 1.3 `alpaca/src/camera.rs` — 2391 lines
@@ -397,7 +397,7 @@ the `Default` bodies differ only in `target_c` (`-10.0` vs `0.0`). Move to
 
 ## 3. SUSPECTED CROSS-PACKAGE DUPLICATION (one line each — for the cross-cutting agent)
 
-- `packages/nightshade_bridge/lib/src/ascom_client.dart` implements ASCOM registry discovery (`discoverAscomDrivers:49`), the chooser (`showAscomChooser:469`) and COM invocation (`callMethod`) in Dart over win32 FFI — a second implementation of `ascom/src/windows/connection.rs::discover_devices:55` and `AscomDeviceConnection`.
+- `packages/skotiq_bridge/lib/src/ascom_client.dart` implements ASCOM registry discovery (`discoverAscomDrivers:49`), the chooser (`showAscomChooser:469`) and COM invocation (`callMethod`) in Dart over win32 FFI — a second implementation of `ascom/src/windows/connection.rs::discover_devices:55` and `AscomDeviceConnection`.
 - Six separate timeout/retry policy types: `ascom/src/windows/timeout.rs:5 TimeoutConfig`, `alpaca/src/client.rs:229 TimeoutConfig`, `alpaca/src/client.rs:338 RetryConfig`, `indi/src/lib.rs:216 IndiTimeoutConfig`, `indi/src/client.rs:382 ReconnectionConfig`, `native/src/traits.rs:30 NativeTimeoutConfig`, plus `bridge/src/timeout_ops.rs:299 RetryConfig`.
 - The per-frame full-image statistics scan exists twice: `native/src/vendor/zwo.rs:1453–1470` and `bridge/src/api/imaging.rs:1052–1074` — both labelled `DIAGNOSTIC`, both scanning every pixel and logging at `info`/`error`.
 - Device-discovery aggregation and de-duplication appears in `native/src/discovery.rs:90+` (vendor SDKs), `indi/src/discovery.rs`, `alpaca/src/discovery.rs`, and again in `bridge/src/api/discovery.rs` (1489 lines).
@@ -412,7 +412,7 @@ the `Default` bodies differ only in `target_c` (`-10.0` vs `0.0`). Move to
 Method note: every claim below was checked with a repo-wide `grep` excluding `target/`,
 `graphify-out/`, `.git/`. FRB exports, headless routes and registry lookups were considered —
 none of these crates is FRB-exported directly (only `bridge/` is), and none is published
-(`nightshade_alpaca` etc. are path dependencies), so `pub` does not imply an external caller.
+(`skotiq_alpaca` etc. are path dependencies), so `pub` does not imply an external caller.
 
 ### DC1 — `ascom::probe_device_name` (high confidence)
 
@@ -422,7 +422,7 @@ the definition (`:275`) and a comment (`:189`). The only other mentions are the 
 re-exports (`ascom/src/lib.rs:88`, `ascom/src/windows/mod.rs:31`) and a doc comment in
 `bridge/src/device_manager/connection.rs:612` which explicitly explains **why it cannot be
 used**: *"an unconnected `ASCOM.ASICamera2.Camera` answers `Name = "ASI Camera (1)"` … so the
-existing `nightshade_ascom::probe_device_name` helper — which reads `Name` without
+existing `skotiq_ascom::probe_device_name` helper — which reads `Name` without
 connecting — cannot supply it."*
 
 This directly touches open task **L36 ("ASCOM devices report their ProgID, never their

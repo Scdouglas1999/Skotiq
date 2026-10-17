@@ -1,6 +1,6 @@
 # OTA Update System Testing Guide
 
-This document describes how to test the Nightshade OTA (Over-The-Air) update system, specifically the LAN push functionality for pushing updates from your development machine to your imaging laptop.
+This document describes how to test the Skotiq OTA (Over-The-Air) update system, specifically the LAN push functionality for pushing updates from your development machine to your imaging laptop.
 
 ## Quick Start
 
@@ -22,10 +22,10 @@ This will:
 
 ### Real Network Testing
 
-With Nightshade running on your imaging laptop:
+With Skotiq running on your imaging laptop:
 
 ```powershell
-# Discover Nightshade instances on the network
+# Discover Skotiq instances on the network
 .\scripts\test_lan_push.ps1 -DiscoveryOnly
 
 # Push to a specific machine
@@ -92,10 +92,10 @@ Comprehensive test runner for the entire update system.
 
 ## Dart Unit Tests
 
-The `packages/nightshade_updater` package includes unit tests for the LAN push protocol:
+The `packages/skotiq_updater` package includes unit tests for the LAN push protocol:
 
 ```powershell
-cd packages/nightshade_updater
+cd packages/skotiq_updater
 dart pub get
 dart test test/lan_push_test.dart
 ```
@@ -119,9 +119,9 @@ Tests cover:
 ```
 
 This creates:
-- `apps/desktop/build/update/nightshade-<version>-windows-x64.zip`
+- `apps/desktop/build/update/skotiq-<version>-windows-x64.zip`
 - `apps/desktop/build/update/manifest.json`
-- `apps/desktop/build/update/nightshade-update.zip` (generic name for pusher)
+- `apps/desktop/build/update/skotiq-update.zip` (generic name for pusher)
 
 ### Step 2: Discover Targets
 
@@ -131,12 +131,12 @@ This creates:
 
 Expected output:
 ```
-Nightshade Update Pusher
+Skotiq Update Pusher
 ========================
 
-Discovering Nightshade instances...
+Discovering Skotiq instances...
 
-  Found: Nightshade v2.0.0 (192.168.1.50:45680)
+  Found: Skotiq v2.0.0 (192.168.1.50:45680)
 
 Found 1 instance(s).
 ```
@@ -153,7 +153,7 @@ Found 1 instance(s).
 
 Expected output:
 ```
-Nightshade Update Pusher
+Skotiq Update Pusher
 ========================
 
 Pushing to 192.168.1.50:45680...
@@ -168,9 +168,9 @@ Pushing to 192.168.1.50:45680...
 ### Step 4: Verify on Target
 
 On the imaging laptop:
-1. Nightshade should show an "Update Ready" banner
-2. Check `%APPDATA%\Nightshade\updates\staging\ready.json` exists
-3. The extracted files should be in `%APPDATA%\Nightshade\updates\staging\extracted\`
+1. Skotiq should show an "Update Ready" banner
+2. Check `%APPDATA%\Skotiq\updates\staging\ready.json` exists
+3. The extracted files should be in `%APPDATA%\Skotiq\updates\staging\extracted\`
 
 ## Troubleshooting
 
@@ -178,7 +178,7 @@ On the imaging laptop:
 
 1. **Firewall**: Ensure UDP port 45679 and TCP port 45680 are allowed
 2. **Same network**: Both machines must be on the same local network
-3. **Nightshade running**: The target must have Nightshade running with LAN push enabled
+3. **Skotiq running**: The target must have Skotiq running with LAN push enabled
 
 ```powershell
 # Check if ports are listening on target machine
@@ -216,7 +216,7 @@ build explicitly opts in via `allowInsecureUpdateSource` (intended only for
 trusted loopback testing).
 
 The production Ed25519 pair was provisioned on 2026-10-08 in the repository's
-`NIGHTSHADE_UPDATE_PUBLIC_KEY` and `NIGHTSHADE_UPDATE_PRIVATE_KEY` Actions secrets.
+`SKOTIQ_UPDATE_PUBLIC_KEY` and `SKOTIQ_UPDATE_PRIVATE_KEY` Actions secrets.
 The matching public key is also the default in `UpdateVerifier`, so local builds
 trust production releases without an environment override. The private seed is
 never stored in the repository. Existing installed builds without a trusted key
@@ -250,15 +250,15 @@ For a testing or rotation key, set the env var before the release build to
 override the built-in production public key via `--dart-define`:
 
 ```powershell
-$env:NIGHTSHADE_UPDATE_PUBLIC_KEY = "<base64 vendor public key>"
+$env:SKOTIQ_UPDATE_PUBLIC_KEY = "<base64 vendor public key>"
 .\scripts\package_windows.ps1
 ```
 
 `package_windows.ps1` passes
-`--dart-define=NIGHTSHADE_UPDATE_PUBLIC_KEY=$env:NIGHTSHADE_UPDATE_PUBLIC_KEY`
+`--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=$env:SKOTIQ_UPDATE_PUBLIC_KEY`
 to `flutter build windows --release` only when the variable is nonempty.
 Without it, the app uses its built-in production key. An explicitly empty
-`--dart-define=NIGHTSHADE_UPDATE_PUBLIC_KEY=` disables trust for testing.
+`--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=` disables trust for testing.
 CI passes its public-key secret explicitly; keep it paired with the signing seed.
 
 ### 3. Sign each manifest with the PRIVATE key
@@ -266,14 +266,14 @@ CI passes its public-key secret explicitly; keep it paired with the signing seed
 Set the env var before building the update package so the manifest is signed:
 
 ```powershell
-$env:NIGHTSHADE_UPDATE_PRIVATE_KEY = "<base64 32-byte private seed>"
+$env:SKOTIQ_UPDATE_PRIVATE_KEY = "<base64 32-byte private seed>"
 .\scripts\build_update_package.ps1
 ```
 
 `build_update_package.ps1` packages and signs through
-`packages/nightshade_updater/tool/build_update_manifest.dart` (so `dart` and a
-resolved `packages/nightshade_updater` are needed) when
-`NIGHTSHADE_UPDATE_PRIVATE_KEY` is present. A manifest signed with a private key
+`packages/skotiq_updater/tool/build_update_manifest.dart` (so `dart` and a
+resolved `packages/skotiq_updater` are needed) when
+`SKOTIQ_UPDATE_PRIVATE_KEY` is present. A manifest signed with a private key
 whose public half is **not** embedded in the target build cannot be applied.
 
 ### Result
@@ -294,11 +294,11 @@ whose public half is **not** embedded in the target build cannot be applied.
 
 ### Discovery Protocol
 
-1. Pusher broadcasts `NIGHTSHADE_UPDATE_PUSH` to UDP port 45679
-2. Running Nightshade instances respond with JSON:
+1. Pusher broadcasts `SKOTIQ_UPDATE_PUSH` to UDP port 45679
+2. Running Skotiq instances respond with JSON:
    ```json
-   NIGHTSHADE_UPDATE_TARGET:{
-     "name": "Nightshade",
+   SKOTIQ_UPDATE_TARGET:{
+     "name": "Skotiq",
      "version": "2.0.0",
      "buildNumber": 42,
      "pushPort": 45680,
@@ -324,21 +324,21 @@ whose public half is **not** embedded in the target build cannot be applied.
 `.github/workflows/release.yml` produces and publishes a signed OTA manifest as
 part of every tagged release. The Windows job:
 
-1. Bakes `NIGHTSHADE_UPDATE_PUBLIC_KEY` into the binary via `--dart-define` on
+1. Bakes `SKOTIQ_UPDATE_PUBLIC_KEY` into the binary via `--dart-define` on
    `flutter build windows --release`.
 2. Builds + stages `updater.exe`, Authenticode-signs the Release binaries, then
    runs `scripts/build_update_package.ps1 -SkipBuild -SkipUpdaterBuild
    -NoPusherCopy -DownloadUrl <per-tag asset URL>` in the
-   **"Package + sign OTA manifest"** step. With `NIGHTSHADE_UPDATE_PRIVATE_KEY`
+   **"Package + sign OTA manifest"** step. With `SKOTIQ_UPDATE_PRIVATE_KEY`
    present, `manifest.json` is signed against the canonical payload the runtime
    verifier checks; absent, the manifest is emitted unsigned (OTA stays
    fail-closed-disabled).
 3. Publishes `manifest-windows-x64.json` alongside
-   `nightshade-<version>-windows-x64.zip`.
+   `skotiq-<version>-windows-x64.zip`.
 
 The Linux and Android jobs bake the same public key into `flutter build linux`
 and `flutter build apk`, and sign their manifests through
-`packages/nightshade_updater/tool/build_update_manifest.dart`, the same tool
+`packages/skotiq_updater/tool/build_update_manifest.dart`, the same tool
 `build_update_package.ps1` calls for Windows. `build_update_manifest_tool_test.dart`
 hands its output to the real verifier, and the release workflow checks every
 published manifest against the public key before publishing.
@@ -352,7 +352,7 @@ the fail-closed contract are documented in
 There is no update server to run. On startup the app asks the GitHub Releases
 API for the newest release on its channel, picks the manifest asset matching
 its own platform and architecture, and hands that manifest to the same
-verification the LAN-push path uses. Setting `NIGHTSHADE_UPDATE_SERVER`
+verification the LAN-push path uses. Setting `SKOTIQ_UPDATE_SERVER`
 overrides this with the older `/api/version` + manifest-URL source, which is
 how an appliance is pointed at a private build host and how the tests drive a
 loopback mock.

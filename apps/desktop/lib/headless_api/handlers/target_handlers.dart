@@ -1,8 +1,8 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/database_entities.dart'
+import 'package:skotiq_core/database_entities.dart'
     show Target, TargetsCompanion;
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';

@@ -1,4 +1,4 @@
-# Workspace-root analysis options for the Nightshade monorepo.
+# Workspace-root analysis options for the Skotiq monorepo.
 #
 # Every package's `analysis_options.yaml` includes this file (relative path
 # `../../analysis_options.yaml` from packages/*; `../analysis_options.yaml`
@@ -27,12 +27,12 @@ analyzer:
     # package includes this file but analyzes only its own lib/test).
     #
     # NOTE: deliberately NOT using "**/target/**" — that glob would also
-    # silence the real source dir packages/nightshade_core/lib/src/models/
+    # silence the real source dir packages/skotiq_core/lib/src/models/
     # target/. The native build artifacts live under native/**/target/ and
     # are covered by the scoped "native/**" entry below.
     # ------------------------------------------------------------------
     # Rust build tree + generated flutter_rust_bridge Dart dumps under
-    # native/nightshade_native/**/target/frb_dump (9,237 errors). No
+    # native/skotiq_native/**/target/frb_dump (9,237 errors). No
     # hand-written Dart lives under native/ outside target/.
     - "native/**"
     # Vendored lucide_icons package — analyzed without its own pubspec
@@ -86,15 +86,15 @@ linter:
     # Tracked as a follow-on lint-debt item.
     use_string_in_part_of_directives: false
 
-    # 2,101 findings in nightshade_planetarium and
-    # 129 in nightshade_core after the 5.x bump (~2,232 total). The
+    # 2,101 findings in skotiq_planetarium and
+    # 129 in skotiq_core after the 5.x bump (~2,232 total). The
     # The v2.5.x plan is explicit: skip the prefer_const_constructors
     # blanket-fix to avoid massive diffs; introduce it per-screen during
     # the screen-decomposition work. Keep off until those screen splits land.
     prefer_const_constructors: false
 
-    # 20 findings in nightshade_core + 1 in
-    # nightshade_planetarium. Same rationale as above — defer to the
+    # 20 findings in skotiq_core + 1 in
+    # skotiq_planetarium. Same rationale as above — defer to the
     # per-screen const sweep during screen decomposition so the diff stays scoped.
     prefer_const_literals_to_create_immutables: false
 

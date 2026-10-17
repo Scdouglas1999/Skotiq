@@ -29,7 +29,7 @@ DriverType::Indi => {
         let device_name = parts[3..].join(":");
         let clients = self.indi_clients.read().await;
         if let Some(client) = clients.get(&server_key) {
-            let mount = nightshade_indi::IndiMount::new(client.clone(), &device_name);
+            let mount = skotiq_indi::IndiMount::new(client.clone(), &device_name);
             return mount.sync_to_coordinates(ra, dec).await;
         }
         return Err(format!("INDI client not connected for {}", server_key));
@@ -132,7 +132,7 @@ DriverType::Indi => {
         let device_name = parts[3..].join(":");
         let clients = self.indi_clients.read().await;
         if let Some(client) = clients.get(&server_key) {
-            let mount = nightshade_indi::IndiMount::new(client.clone(), &device_name);
+            let mount = skotiq_indi::IndiMount::new(client.clone(), &device_name);
             return mount.METHOD_NAME().await;
         }
         return Err(format!("INDI client not connected for {}", server_key));

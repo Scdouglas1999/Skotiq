@@ -3,7 +3,7 @@
   "landed": true,
   "gap": "Simulator applied the offset pedestal and a read-noise draw per SENSOR pixel, then summed them in the binning loop, so a binned frame carried one pedestal and one read-noise draw per binned well: bias read 499.5 ADU at bin 1 and 1999.5 ADU at bin 2, and read noise grew by sqrt(bin area) (3.21 -> 6.40 ADU at 1 ADU/e-). Real on-chip binning sums charge and reads it out ONCE.",
   "files_changed": [
-    "native/nightshade_native/bridge/src/sim_frame.rs"
+    "native/skotiq_native/bridge/src/sim_frame.rs"
   ],
   "change": "Split synthesize_sim_frame into collect_electrons (charge + shot noise, per sensor pixel) and read_out (bin charge, then ONE read-noise draw and ONE offset pedestal per output pixel, then gain conversion and ADC clip). Shot noise stays per sensor pixel because it is already in the well when the charge is summed, so binning still adds it in quadrature. One seeded LCG drives both stages, so seed determinism is preserved.",
   "tests_added": [
@@ -11,6 +11,6 @@
     "sim_frame::tests::binned_signal_scales_with_bin_area_above_the_pedestal",
     "sim_frame::tests::read_noise_does_not_grow_with_binning"
   ],
-  "verification": "cargo test --package nightshade_bridge -> 443 passed / 0 failed. Revert check: spliced HEAD's production code under the new tests -> the 3 new tests FAIL with 'bin 2x2 bias frame sat at 1999.5 ADU', 'bin 2x2 collected 20.78x the unbinned signal', 'bin 2x2 bias spread 6.40 ADU against 3.21 unbinned'; restored -> 22/22 sim_frame tests pass. cargo fmt --check and cargo clippy --all-targets clean.",
+  "verification": "cargo test --package skotiq_bridge -> 443 passed / 0 failed. Revert check: spliced HEAD's production code under the new tests -> the 3 new tests FAIL with 'bin 2x2 bias frame sat at 1999.5 ADU', 'bin 2x2 collected 20.78x the unbinned signal', 'bin 2x2 bias spread 6.40 ADU against 3.21 unbinned'; restored -> 22/22 sim_frame tests pass. cargo fmt --check and cargo clippy --all-targets clean.",
   "caveats": "Production wiring (device_manager/ops/camera.rs:1115-1132) is unchanged and untouched: it builds SimFrameRequest from the sim camera singleton's bin_x/bin_y and calls synthesize_sim_frame, which is the exact entry point the new tests exercise. No end-to-end DeviceManager download test was added because the sim camera is a process-global singleton shared with other tests in the crate."
 }

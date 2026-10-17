@@ -1,12 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/database_entities.dart' as settings_models;
-// `NightshadeEvent` / `EventCategory` / `EventSeverity` /
+import 'package:skotiq_core/database_entities.dart' as settings_models;
+// `SkotiqEvent` / `EventCategory` / `EventSeverity` /
 // `settingsChangedEventType` are re-exported through
-// `nightshade_backend.dart` → `backend_types.dart` → `event_types.dart`,
+// `skotiq_backend.dart` → `backend_types.dart` → `event_types.dart`,
 // so the public barrel below is enough.
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
@@ -27,7 +27,7 @@ class ProfileHandlers {
   /// embedded server has hooked up; the broadcast is then a no-op so test
   /// containers that exercise the handler in isolation don't need a
   /// server.
-  void Function(NightshadeEvent event)? emitEvent;
+  void Function(SkotiqEvent event)? emitEvent;
 
   ProfileHandlers(this.container, {this.emitEvent});
 
@@ -537,7 +537,7 @@ class ProfileHandlers {
     // `settings.changed` event emitted below. The originating client
     // uses this to skip its own echo and avoid re-applying a value it
     // just wrote.
-    final commandId = request.headers['x-nightshade-command-id'];
+    final commandId = request.headers['x-skotiq-command-id'];
     final payload = await readJsonObject(request);
     final settingsJson = requireObject(payload, 'settings');
 
@@ -832,8 +832,8 @@ class ProfileHandlers {
     final changedAt = DateTime.now().toUtc().toIso8601String();
     final nowMillis = DateTime.now().millisecondsSinceEpoch;
 
-    NightshadeEvent buildEvent({required String key, required dynamic value}) {
-      return NightshadeEvent(
+    SkotiqEvent buildEvent({required String key, required dynamic value}) {
+      return SkotiqEvent(
         timestamp: nowMillis,
         severity: EventSeverity.info,
         category: EventCategory.system,

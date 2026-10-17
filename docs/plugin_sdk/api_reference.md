@@ -1,15 +1,15 @@
 # Plugin SDK API Reference
 
-Complete API reference for the Nightshade Plugin SDK. All types are exported from `package:nightshade_plugins/nightshade_plugins.dart`.
+Complete API reference for the Skotiq Plugin SDK. All types are exported from `package:skotiq_plugins/skotiq_plugins.dart`.
 
 ## Core Interfaces
 
-### NightshadePlugin
+### SkotiqPlugin
 
 Base class for all plugins. Every plugin must extend this class.
 
 ```dart
-abstract class NightshadePlugin {
+abstract class SkotiqPlugin {
   String get id;
   String get name;
   String get version;
@@ -33,7 +33,7 @@ abstract class NightshadePlugin {
 | `version` | `String` | Semantic version string |
 | `description` | `String` | Brief description of functionality |
 | `author` | `String` | Author name or organization |
-| `minAppVersion` | `String?` | Minimum Nightshade version required. Returns `null` by default |
+| `minAppVersion` | `String?` | Minimum Skotiq version required. Returns `null` by default |
 
 #### Methods
 
@@ -45,7 +45,7 @@ Called once when the plugin is first loaded into memory. Use this to:
 - Subscribe to events
 - Restore persisted state from storage
 
-The `context` is the primary interface to Nightshade services. Store it as an instance variable.
+The `context` is the primary interface to Skotiq services. Store it as an instance variable.
 
 Throwing from `onLoad` puts the plugin in an error state (disabled) and raises a `PluginException` to the caller.
 
@@ -82,7 +82,7 @@ After this call, the plugin instance will be garbage collected.
 
 ### PluginContext
 
-Provided to plugins via `onLoad`. Contains all services a plugin needs to interact with Nightshade.
+Provided to plugins via `onLoad`. Contains all services a plugin needs to interact with Skotiq.
 
 ```dart
 class PluginContext {
@@ -228,17 +228,17 @@ Thrown when:
 
 ### UiPlugin
 
-Extends `NightshadePlugin` to add UI extension points.
+Extends `SkotiqPlugin` to add UI extension points.
 
 ```dart
-abstract class UiPlugin extends NightshadePlugin {
+abstract class UiPlugin extends SkotiqPlugin {
   List<UiExtensionPoint> get extensionPoints;
 }
 ```
 
 #### UiExtensionPoint
 
-Defines where and what widget to inject into the Nightshade UI.
+Defines where and what widget to inject into the Skotiq UI.
 
 ```dart
 class UiExtensionPoint {
@@ -270,10 +270,10 @@ enum UiExtensionPointType {
 
 ### DevicePlugin
 
-Extends `NightshadePlugin` to declare hardware device support.
+Extends `SkotiqPlugin` to declare hardware device support.
 
 ```dart
-abstract class DevicePlugin extends NightshadePlugin {
+abstract class DevicePlugin extends SkotiqPlugin {
   List<DevicePluginType> get supportedDevices;
 }
 ```
@@ -297,10 +297,10 @@ enum DevicePluginType {
 
 ### SequencePlugin
 
-Extends `NightshadePlugin` to provide custom sequence automation nodes.
+Extends `SkotiqPlugin` to provide custom sequence automation nodes.
 
 ```dart
-abstract class SequencePlugin extends NightshadePlugin {
+abstract class SequencePlugin extends SkotiqPlugin {
   List<SequenceNodeDefinition> get nodeDefinitions;
 }
 ```
@@ -353,15 +353,15 @@ Central registry that manages plugin lifecycle. Available via Riverpod provider.
 
 ```dart
 class PluginHost {
-  List<NightshadePlugin> get plugins;
+  List<SkotiqPlugin> get plugins;
   List<PluginInfo> get pluginInfo;
 
-  List<T> getPlugins<T extends NightshadePlugin>();
-  NightshadePlugin? getPlugin(String pluginId);
+  List<T> getPlugins<T extends SkotiqPlugin>();
+  SkotiqPlugin? getPlugin(String pluginId);
   bool isLoaded(String pluginId);
   bool isEnabled(String pluginId);
 
-  Future<void> registerPlugin(NightshadePlugin plugin, {bool enabled = true});
+  Future<void> registerPlugin(SkotiqPlugin plugin, {bool enabled = true});
   Future<void> unregisterPlugin(String pluginId);
   Future<bool> setPluginEnabled(String pluginId, bool enabled);
   Future<void> dispose();

@@ -1,9 +1,9 @@
 # Migration, Backup, and Restore Guide
 
-Use this guide before upgrading Nightshade, moving a profile to another
+Use this guide before upgrading Skotiq, moving a profile to another
 computer, or restoring a headless imaging host.
 
-Nightshade backups are JSON files with a `.nsbackup` extension. The current
+Skotiq backups are JSON files with a `.nsbackup` extension. The current
 backup format is version `2.0`.
 
 ## What a Backup Contains
@@ -31,14 +31,14 @@ machine or reinstalling the operating system.
 
 ## Before You Upgrade
 
-1. Open Nightshade on the existing install.
+1. Open Skotiq on the existing install.
 2. Go to Settings > Backup & Restore.
 3. Select Create Backup.
-4. Store the `.nsbackup` file outside the Nightshade data directory, such as on
+4. Store the `.nsbackup` file outside the Skotiq data directory, such as on
    another disk or cloud-synced folder.
 5. Copy captured images, PHD2 profiles, plate-solve indexes, and driver-specific
    configuration separately.
-6. Shut down Nightshade cleanly before replacing binaries or moving the profile.
+6. Shut down Skotiq cleanly before replacing binaries or moving the profile.
 
 For release-candidate validation, also keep a copy of the entire old profile or
 database directory. Automated migration tests are useful, but they do not replace
@@ -46,12 +46,12 @@ a manual upgrade from a real older profile.
 
 ## Restore on the Same Computer
 
-1. Install and launch the target Nightshade version.
+1. Install and launch the target Skotiq version.
 2. Go to Settings > Backup & Restore.
 3. Select Import Backup.
 4. Choose the `.nsbackup` or compatible `.json` backup file.
 5. Confirm the restore.
-6. Restart Nightshade after a successful restore so settings, active profiles,
+6. Restart Skotiq after a successful restore so settings, active profiles,
    and backend services reload from the restored data.
 7. Verify the equipment profile, saved targets, and sequence library before
    connecting hardware.
@@ -63,7 +63,7 @@ and imaging session history is preserved.
 ## Restore to a Remote or Headless Host
 
 When the desktop UI is connected to a `NetworkBackend`, the Backup & Restore
-screen manages files stored on the connected Nightshade host.
+screen manages files stored on the connected Skotiq host.
 
 Available remote operations are backed by these headless routes:
 
@@ -109,7 +109,7 @@ Before declaring a release candidate upgrade-ready, verify both automated and
 manual paths:
 
 - Run `flutter test test\services\database_migration_test.dart` from
-  `packages/nightshade_core`.
+  `packages/skotiq_core`.
 - Confirm the schema-12 upgrade test reaches the current schema version and
   contains every current Drift-managed table.
 - Restore a `.nsbackup` from the previous public or internal build.
@@ -130,7 +130,7 @@ limitations must remain aligned with `docs/known-limitations.md`.
 
 If a migration or restore fails:
 
-1. Stop Nightshade before changing files.
+1. Stop Skotiq before changing files.
 2. Preserve the failed target data directory for debugging.
 3. Reinstall the prior known-good build.
 4. Restore the pre-upgrade `.nsbackup`.

@@ -1,6 +1,6 @@
 # End-to-end audit campaign — final state
 
-The complaint this campaign answers: *every serious audit of Nightshade finds more bugs, gets
+The complaint this campaign answers: *every serious audit of Skotiq finds more bugs, gets
 declared done, and the next one finds more again.* The cause was never that nobody looked. Coverage
 was **exploratory** — each pass wandered a path, found what was on it, and reported the area
 complete. Nothing recorded which of the app's ~1,800 controls had been exercised, so "done" could
@@ -18,9 +18,9 @@ not mean anything.
 | Product critique | **78 fixed** · **23 escalated to the owner** · 9 already correct · 3 not real |
 | Product fixes independently verified | **85 of 85** — 55 held, **30 did not** |
 
-Gates, all green on one tree: `nightshade_core` **5538** · `nightshade_app` **3046** ·
-`nightshade_ui` **263** · `nightshade_desktop` **1014** · `nightshade_planetarium` **501** ·
-`nightshade_mobile` **233** · bridge **120** · plugins **62** · remote_protocol **207** · updater
+Gates, all green on one tree: `skotiq_core` **5538** · `skotiq_app` **3046** ·
+`skotiq_ui` **263** · `skotiq_desktop` **1014** · `skotiq_planetarium` **501** ·
+`skotiq_mobile` **233** · bridge **120** · plugins **62** · remote_protocol **207** · updater
 **89** · Rust workspace **2086** · `dart analyze` **0 errors 0 warnings** · analyzer rollup
 **0/0/0 production** · `dart format` clean · `cargo fmt --check` clean · `semantics_audit` **16/16** ·
 `placeholder_audit` and `behavioral_audit` pass. App suites run with the `golden` tag excluded,
@@ -97,7 +97,7 @@ below.
 
 Two of the thirty are worth naming because of what they were:
 
-* **A hard compile error shipped in `nightshade_app`'s lib.** `stack_result_screen.dart:914` passed
+* **A hard compile error shipped in `skotiq_app`'s lib.** `stack_result_screen.dart:914` passed
   a `Future<DateTime?>` into a `DateTime?` parameter, so the app could not build and every test
   importing `StackResultScreen` failed to load. Caught and repaired by the shard verifying that
   area.
@@ -133,14 +133,14 @@ in three of the fixes it checked, so no fix wave is terminal on its own.
 0. **The ledger was measuring one package's screen tree. Real coverage is 29%, not 97%.**
    This is the most serious item on the list, because every other coverage number in this document
    was a fraction of a denominator that left most of the product out.
-   `coverage_inventory.dart` built its units from five sources only: `nightshade_app/lib/screens`,
-   the settings search index, the sequence-node models, `nightshade_app/lib/widgets`, and
+   `coverage_inventory.dart` built its units from five sources only: `skotiq_app/lib/screens`,
+   the settings search index, the sequence-node models, `skotiq_app/lib/widgets`, and
    `apps/mobile/lib`. It has now been extended, and the ledger went from **402 units to 1,143**:
 
    | added | units |
    |---|---|
    | headless HTTP/WS routes (`api:*`) | 577 |
-   | design system (`nightshade_ui/lib`) | 36 |
+   | design system (`skotiq_ui/lib`) | 36 |
    | planetarium package | 8 |
    | desktop app + headless handlers | 6 |
    | web dashboard, run-watch page | 2 |
@@ -204,7 +204,7 @@ in three of the fixes it checked, so no fix wave is terminal on its own.
   of its six red.
 * **The idle-repaint question is settled** — and it was not what the first measurement implied. A
   purpose-built frame counter (`apps/desktop/lib/frame_timing_probe.dart`, armed by
-  `NIGHTSHADE_FRAME_TIMING=1`) showed a rock-steady **1.0 fps** at idle with `buildAvgMs=0.1`: no
+  `SKOTIQ_FRAME_TIMING=1`) showed a rock-steady **1.0 fps** at idle with `buildAvgMs=0.1`: no
   runaway animation, just the status-bar clock's `setState` rebuilding the entire bar once a second
   to move one digit. The tick now lives in the clock chip behind a `RepaintBoundary`. Re-measured
   after the fix, the idle frame rate is **unchanged** (a clock showing seconds must produce a frame
@@ -212,22 +212,22 @@ in three of the fixes it checked, so no fix wave is terminal on its own.
   scoped rebuild, not a performance win, and the write-up says so. Full numbers in
   `lead-findings-2026-08-01.md`.
 * **The "cold-start" test flakiness was never cold-start.** `databaseProvider` builds a fresh
-  `NightshadeDatabase` per `ProviderContainer`, and every one of them resolves the SAME per-isolate
+  `SkotiqDatabase` per `ProviderContainer`, and every one of them resolves the SAME per-isolate
   temp file. Two containers alive at once put two SQLite writers on one file and both ran schema
   creation; the loser died with `database is locked` or `index idx_profiles_name already exists`,
   which surfaced as an unrelated-looking failure in whatever the test was doing — a capture test
   reporting that the frame "could not be saved". Reproduced directly with a two-instance probe, then
   closed by giving every affected container a private in-memory database
-  (`packages/nightshade_core/test/harness/in_memory_database.dart`, applied across the core suite).
-  The same hazard existed in `nightshade_app`, realised as `plan_tonight` failures under gate load.
+  (`packages/skotiq_core/test/harness/in_memory_database.dart`, applied across the core suite).
+  The same hazard existed in `skotiq_app`, realised as `plan_tonight` failures under gate load.
   Closed there by exporting `inMemoryDatabaseOverride()` from
-  `packages/nightshade_app/test/harness/mock_database.dart` and wiring it into tests that
+  `packages/skotiq_app/test/harness/mock_database.dart` and wiring it into tests that
   build `ProviderContainer`s or multiple scopes (plus the plan-tonight helpers).
 
   Two things about that closure are worth keeping, because both are traps for anyone repeating it.
 
   **Drift's own warning is not a hazard count.** "You've created the database class
-  NightshadeDatabase multiple times" fires for two *in-memory* databases as readily as for two
+  SkotiqDatabase multiple times" fires for two *in-memory* databases as readily as for two
   writers on one file, so grepping it out of a test log over-counts: after the override was applied
   it fired *more*, not less. The real signal is the shared temp path, not the instance count.
 

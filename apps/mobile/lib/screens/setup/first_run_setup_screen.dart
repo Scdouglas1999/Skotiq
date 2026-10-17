@@ -1,6 +1,6 @@
 // Mobile first-run setup wizard.
 //
-// When the operator pairs their phone to a freshly-installed Nightshade
+// When the operator pairs their phone to a freshly-installed Skotiq
 // server, three things are usually missing and must be addressed before
 // the dashboard becomes useful:
 //
@@ -9,7 +9,7 @@
 //      broken until the user pulls down at least one starlist.
 //   3. No equipment profile exists — connecting devices is impossible.
 //
-// The full equipment-onboarding wizard in nightshade_app handles (3) in
+// The full equipment-onboarding wizard in skotiq_app handles (3) in
 // depth (auto-discovery, optical train, etc.); this companion wizard
 // is intentionally minimal — three steps tied to the three missing
 // bootstrap conditions — so a phone operator can get the server running
@@ -18,7 +18,7 @@
 // device pickers inside the wizard.
 //
 // The wizard is reached from `mobile_dashboard_screen.dart` and any
-// `NightshadeApp(isMobile: true)` shell when `shouldRunFirstRunSetup`
+// `SkotiqApp(isMobile: true)` shell when `shouldRunFirstRunSetup`
 // resolves true. It writes the `firstRunCompleted` flag through
 // `MobilePreferences` so it never auto-appears again, even if a future
 // connection lands on a server with the same empty state.
@@ -29,9 +29,9 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:nightshade_app/widgets/remote_directory_picker_dialog.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_app/widgets/remote_directory_picker_dialog.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../services/mobile_preferences.dart';
 import '../../utils/error_snackbar.dart';
@@ -438,7 +438,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
@@ -515,12 +515,12 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
         : StepState.complete;
   }
 
-  Widget _buildImagePathStep(NightshadeColors colors) {
+  Widget _buildImagePathStep(SkotiqColors colors) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Choose where Nightshade should save captured images on the imaging '
+          'Choose where Skotiq should save captured images on the imaging '
           'host. The folder must already exist and be writable.',
           style: TextStyle(color: colors.textSecondary, fontSize: 13),
         ),
@@ -539,7 +539,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
         const SizedBox(height: 10),
         Align(
           alignment: Alignment.centerLeft,
-          child: NightshadeButton(
+          child: SkotiqButton(
             onPressed: _busy ? null : _browseImageOutputPath,
             label: 'Browse host folders',
             icon: LucideIcons.folderOpen,
@@ -547,7 +547,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        NightshadeButton(
+        SkotiqButton(
           onPressed: _busy ? null : _commitImageOutputPath,
           label: _busy ? 'Saving...' : 'Save and continue',
         ),
@@ -555,7 +555,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     );
   }
 
-  Widget _buildCatalogsStep(NightshadeColors colors) {
+  Widget _buildCatalogsStep(SkotiqColors colors) {
     if (_catalogLoadError != null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -565,7 +565,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
             style: TextStyle(color: colors.error),
           ),
           const SizedBox(height: 12),
-          NightshadeButton(
+          SkotiqButton(
             onPressed: _busy
                 ? null
                 : () {
@@ -650,7 +650,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
         Row(
           children: [
             Expanded(
-              child: NightshadeButton(
+              child: SkotiqButton(
                 onPressed: _busy ? null : _commitCatalogs,
                 label: _busy
                     ? 'Starting downloads...'
@@ -672,7 +672,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     );
   }
 
-  Widget _buildProfileStep(NightshadeColors colors) {
+  Widget _buildProfileStep(SkotiqColors colors) {
     final loadError = _profileLoadError;
     if (loadError != null) {
       return Column(
@@ -683,7 +683,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
             style: TextStyle(color: colors.error),
           ),
           const SizedBox(height: 12),
-          NightshadeButton(
+          SkotiqButton(
             onPressed: _busy || _loadingBootstrapData
                 ? null
                 : () {
@@ -731,7 +731,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
               contentPadding: EdgeInsets.zero,
             ),
           const SizedBox(height: 16),
-          NightshadeButton(
+          SkotiqButton(
             onPressed: _busy ? null : _finish,
             label: 'Finish setup',
           ),
@@ -749,7 +749,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
           style: TextStyle(color: colors.textSecondary, fontSize: 13),
         ),
         const SizedBox(height: 16),
-        NightshadeButton(
+        SkotiqButton(
           onPressed: _busy ? null : _finish,
           label: 'Finish without a profile',
         ),

@@ -1,9 +1,9 @@
-# Nightshade 6.0.0 — no-hardware campaign, round 2, 2026-07-28
+# Skotiq 6.0.0 — no-hardware campaign, round 2, 2026-07-28
 
 Second campaign of the day against shipping `main`, run after
 `reports/simulator-campaign-2026-07-28.md`. ~13 agents plus the lead, driving the Linux
 release bundle under Xvfb, a freshly built Android release APK on an emulator, a live
-`nightshade_hub` server with two real accounts, and Rust-level harnesses with known ground
+`skotiq_hub` server with two real accounts, and Rust-level harnesses with known ground
 truth. No hardware at any point.
 
 **The first finding was that round 1 fixed nothing.** It documented ~140 defects; every P0 was
@@ -44,7 +44,7 @@ and `parallactic` has zero references repo-wide despite being surfaced as a feat
 
 # Lead findings — no-hardware campaign round 2, 2026-07-28
 
-Live rig: Linux release bundle `apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`
+Live rig: Linux release bundle `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`
 under Xvfb :77, `LIBGL_ALWAYS_SOFTWARE=1 GDK_BACKEND=x11 GALLIUM_DRIVER=llvmpipe`.
 All simulators; no hardware.
 
@@ -80,7 +80,7 @@ when a source is in fact supplying data. The card contradicts itself in three li
 Toast on the Weather screen: *"Safe the rig — CRITICAL: Heavy cloud cover overhead (100%
 density) - consider pausing. Rig safed: secondary rig stopped, mount already safe."*
 No secondary rig is configured or armed in this profile.
-Source: `packages/nightshade_core/lib/src/services/safe_rig_service.dart:218-220` sets
+Source: `packages/skotiq_core/lib/src/services/safe_rig_service.dart:218-220` sets
 `secondaryRigQuiesced: true` whenever `_stopSecondaryRig()` returns without throwing —
 there is no check that a secondary rig was ever armed — and `:456` renders that flag as
 the user-facing string `'secondary rig stopped'`.
@@ -179,7 +179,7 @@ answers to "how high does this get?".
 ## L8 — CONFIRMED-LIVE, P3 UX — truncated labels and a cramped path field on the Imaging screen
 `nav_imaging.png`: the right-hand tab strip ellipsizes "Annotatio…", the session button
 ellipsizes "Clear Sess…", and the Save Path field wraps
-`/home/scdouglas/nightshade-captures-test` across four lines inside a small box.
+`/home/scdouglas/skotiq-captures-test` across four lines inside a small box.
 
 ## L9 — CONFIRMED-LIVE, P1 — a user with no filter wheel cannot build a sequence from Plan Tonight at all
 Clicking the primary CTA **"Review in Sequencer"** on Plan Tonight fails with the red
@@ -191,15 +191,15 @@ missed the snackbar, which is transient. Verified the instrument by clicking the
 neighbouring "Send to Framing" control, which navigated correctly.
 
 Hard gate with no fallback:
-- `packages/nightshade_app/lib/utils/plan_tonight_sequencer_helper.dart:85-91`
+- `packages/skotiq_app/lib/utils/plan_tonight_sequencer_helper.dart:85-91`
   `final filters = ref.read(effectiveFiltersProvider); if (filters.isEmpty) throw ...`
-- same gate in `packages/nightshade_core/lib/src/services/smart_night_service.dart:669`,
+- same gate in `packages/skotiq_core/lib/src/services/smart_night_service.dart:669`,
   which also backs One-Tap Tonight / Autopilot.
 - `effectiveFiltersProvider` (`filter_wheel_state_provider.dart:378`) returns the profile
   filter list when no wheel is connected — empty on a default profile.
 
 The inconsistency that makes this a defect rather than a policy: **manual capture already
-has the fallback.** `packages/nightshade_app/lib/widgets/capture_settings_panel.dart:318`
+has the fallback.** `packages/skotiq_app/lib/widgets/capture_settings_panel.dart:318`
 does `wheelConnected ? ref.watch(effectiveFiltersProvider) : _defaultFilters`. So the same
 build lets you take frames without a wheel, but refuses to plan a sequence without one.
 Manual capture even writes frames named `..._NoFilter_...` — I have those on disk.
@@ -307,7 +307,7 @@ settings before building config (they previously read cold, which also silently 
 solver path on a fast start), and the no-sync branch made genuinely corrective.
 
 ## L16 — CONFIRMED AT SOURCE, P1 — weather safety ships DISABLED by default, under a green "Safe" badge
-`packages/nightshade_core/lib/src/models/weather/weather_settings.dart:48`
+`packages/skotiq_core/lib/src/models/weather/weather_settings.dart:48`
 `@Default(false) bool weatherSafetyEnabled` — verified unmodified by any agent (`git diff`
 on that file is empty). So out of the box the rig does no weather safety evaluation, and
 the Dashboard SAFETY card still presents a reassuring green **"✓ Safe"** badge. An operator
@@ -349,7 +349,7 @@ should be confirmed against the new tests rather than assumed.
 ## L0 DATE-OBS — FIXED
 Both ends of the boundary made explicit: all five Rust sites now emit
 `to_rfc3339_opts(SecondsFormat::Millis, true)` (trailing `Z`), and a new shared
-`packages/nightshade_core/lib/src/utils/utc_timestamp.dart`
+`packages/skotiq_core/lib/src/utils/utc_timestamp.dart`
 (`parseUtcTimestamp`/`tryParseUtcTimestamp`/`normalizeUtcTimestamp`) is used at the Dart
 ingress. `display_buffer_jpeg.dart` now delegates to that one helper instead of carrying a
 second private copy. Also fixed: the Flat Wizard local-time DATE-OBS, the MPC-epoch double
@@ -488,7 +488,7 @@ lying — was DISPROVED, and I am recording that I was wrong about the mechanism
 that something was broken.
 
 ## P1 — the fallback bright-star catalogue stores RA in DEGREES in a field that means HOURS
-`packages/nightshade_planetarium/lib/src/catalogs/star_catalog.dart:553` — all **79** entries.
+`packages/skotiq_planetarium/lib/src/catalogs/star_catalog.dart:553` — all **79** entries.
 `Arcturus … CelestialCoordinate(ra: 213.918, …)` while `CelestialCoordinate.ra` is hours
 (`coordinate_system.dart:5-6`, `:14 raDegrees => ra * 15`). The projection computes
 `213.918 * 15 = 3208.8° = 328.8° = 21.918h` instead of 14.261h. **Declinations are correct**,
@@ -557,7 +557,7 @@ NOT a `SmartExposureNode` with an empty filter — the latter would still fire
 changes and reuses the existing `nofilter` label convention (`resolver.rs:22`).
 Evidence: 3/3 new app tests fail against `HEAD` with the exact live snackbar text and pass
 after; 5 of 6 new core tests fail before (the 6th is the control, proving genuine
-misconfiguration still errors). `nightshade_core` full suite 5024 pass / 0 fail.
+misconfiguration still errors). `skotiq_core` full suite 5024 pass / 0 fail.
 Owed: an actual sim-camera run of a no-wheel Plan Tonight sequence — the proof stops at the
 Dart build boundary.
 
@@ -568,7 +568,7 @@ own directory at the rig too**. Same bug, second caller, now fixed. Host refuses
 client-supplied path with `403 checkpoint_dir_host_owned` + a warn log, validates its own
 (absolute/creatable/writable), and clients no longer push a local path to a `NetworkBackend`.
 **I verified this myself**: the desktop suite now includes "refuses client-supplied path
-/data/user/0/com.nightshade.mobile/app_flutter" — the exact string from the live host log —
+/data/user/0/com.skotiq.mobile/app_flutter" — the exact string from the live host log —
 and 885 headless tests pass. Before: all 3 cases returned 200.
 Catalog: made the primary screen remote-aware rather than merging the two screens (the
 device's own catalogs are genuinely used by the on-device planetarium/atlas). Cards now carry
@@ -594,7 +594,7 @@ same app launch — the old regression is fixed** (four runs per launch, twice, 
 start-after-failure, start-after-stop and start-after-completion).
 
 ## THE WORST DEFECT OF THE CAMPAIGN — P0, SAFETY — Pause is cosmetic; the camera keeps exposing
-`native/nightshade_native/sequencer/src/instructions.rs:1934` — the capture loop has **no
+`native/skotiq_native/sequencer/src/instructions.rs:1934` — the capture loop has **no
 pause check**. `wait_while_paused()` is called in exactly ONE instruction in that entire
 file: `execute_delay` at `:6043`.
 Live: Take Exposures 3x8s, Start, Pause during frame 2. UI showed a PAUSED badge, a Resume
@@ -757,7 +757,7 @@ Checked at source myself rather than accepting the agents' reports:
    because stars above 0.70 are discarded before grading sees them.
 
 ### Test-suite note
-`nightshade_app` full run showed 1 failure (`analytics_remote_image_poll_test.dart`). It
+`skotiq_app` full run showed 1 failure (`analytics_remote_image_poll_test.dart`). It
 **passes in isolation** — a parallel-execution flake, not a regression. The `captures/*.png`
 golden failures are pre-existing (Windows-captured goldens on Linux) and were independently
 confirmed pre-existing by an agent stashing all work and reproducing byte-identical diffs.
@@ -780,7 +780,7 @@ removed that from the owed-actions list. My reasoning was plausible and unverifi
 is the campaign's own: a controlled A/B beats a good story.
 
 ### The planetarium golden baseline encoded the bug
-`packages/nightshade_planetarium/test/benchmark/golden_compare_test.dart` perceptually diffs
+`packages/skotiq_planetarium/test/benchmark/golden_compare_test.dart` perceptually diffs
 rendered sky frames against **committed baselines**. Those baselines were captured while the
 RA-in-degrees defect was live, so they encode a sky with every bright star in the wrong place.
 Consequence: the golden test could never have caught this defect — it would only ever fail on
@@ -809,7 +809,7 @@ the tree).
 ### The `.clamp` inversion audit — a latent crash class, found beyond the brief
 All 862 non-test call sites parsed; 240 had a non-literal bound; **9 provably invertible and
 fixed**. The most serious was NOT the reported one:
-- `nightshade_ui/.../adaptive_dialog_constraints.dart:63` — `minWidth` 200 vs a cap of
+- `skotiq_ui/.../adaptive_dialog_constraints.dart:63` — `minWidth` 200 vs a cap of
   `viewport*0.4`, so it inverts on **any phone under 500 dp**. Two callers take the defaults
   (`framing_assistant_inline.dart:152`, `mosaic_wizard_dialog.dart:786`), so **both throw on a
   phone today**.
@@ -826,7 +826,7 @@ fixed**. The most serious was NOT the reported one:
   lie, so it is a real risk on real gear.
 
 ### Honest caveat recorded from the implementer
-The widget-test environment reports as Linux, so `NightshadeTouchTarget.minExtent` returns 0
+The widget-test environment reports as Linux, so `SkotiqTouchTarget.minExtent` returns 0
 and the graph's scale-selector row measures ~25 dp instead of the 48 dp it occupies on Android.
 The fix was sized against the device numbers, not the test's, so the exact plot height on
 hardware will differ from what the tests measure — worth re-eyeballing on a real phone.
@@ -840,11 +840,11 @@ edits, and none were regenerated on Linux.
 | check | result |
 |-------|--------|
 | `cargo check --workspace --all-targets` | clean |
-| `cargo test -p nightshade_sequencer` | 708 pass, 0 fail |
-| `cargo test -p nightshade_bridge` | 386 pass (2 in-flight slew-pacing tests red while that agent works) |
+| `cargo test -p skotiq_sequencer` | 708 pass, 0 fail |
+| `cargo test -p skotiq_bridge` | 386 pass (2 in-flight slew-pacing tests red while that agent works) |
 | `apps/desktop` headless_api | 885 pass |
-| `nightshade_core` providers | 1231 pass |
-| `nightshade_ui` full | 226 pass |
+| `skotiq_core` providers | 1231 pass |
+| `skotiq_ui` full | 226 pass |
 | `imaging_service` under UTC / Tokyo / New York | 68 x 3 pass |
 | `utc_timestamp` under UTC / Tokyo / New York | 12 x 3 pass |
 | analyzer: core / planetarium / ui / desktop | **0 errors, 0 campaign-introduced warnings** (the single `unused_import` in `auto_save_status_hydration_test.dart` is pre-existing — that file is unmodified in the diff) |
@@ -975,13 +975,13 @@ Defect 4 evidence: before the fix a below-horizon view drew **0%** ground at az 
 a **zenith** view at az 0 drew **97.6%** ground. After: correct.
 
 ### Final flake accounting
-`nightshade_core` full suite: 5025 pass, 4 skipped, 2 failures — both
+`skotiq_core` full suite: 5025 pass, 4 skipped, 2 failures — both
 (`sequence_executor_live_stacking_autofeed_test`, `settings_sync_test`) **pass in isolation**,
 so parallel-execution flakes, not regressions. Same pattern as the Rust `sky_atlas` and Dart
 `analytics_remote_image_poll` cases. Four independent flakes surfaced only under full-suite
 parallelism across this campaign — worth its own look, but none is a regression from this work.
 
-### Settled `nightshade_app` suite figure (two agents disagreed; lead adjudicated)
+### Settled `skotiq_app` suite figure (two agents disagreed; lead adjudicated)
 One agent reported 1950/1950, another 1972 pass / 44 fail. Neither was right for the final
 tree — the first ran before later fixes landed, the second included goldens. My own run on the
 final tree, `flutter test --exclude-tags golden`:

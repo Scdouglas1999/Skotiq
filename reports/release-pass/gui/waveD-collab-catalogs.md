@@ -1,7 +1,7 @@
 # Wave D verification — cluster: collab-catalogs
 
 Driven live on `NS_AUDIT_DISPLAY=:87`, profile `waveD-collab-catalogs`, fresh scratch profile,
-release bundle `apps/desktop/build/linux/x64/release/bundle` (binary + `libnightshade_bridge.so`
+release bundle `apps/desktop/build/linux/x64/release/bundle` (binary + `libskotiq_bridge.so`
 both dated 2026-08-13 18:31), window 1600x900. Onboarding skipped; site set to 40.02 / -105.27 via
 Settings -> Location (LST started ticking, so the site took).
 
@@ -88,7 +88,7 @@ count no longer reads as a truncated MPCORB (`27-mpc.png`).
 Clicking "Refresh Now" and reading the tree immediately: the button's accessible name becomes
 `button: Refreshing…`, and on screen it is dimmed along with the Auto-refresh dropdown
 (`28-mpc-inflight.png`). The dead-button ambiguity the finding was about is gone, in both channels.
-The fetch is real: `~/.local/share/com.example.nightshade_desktop/catalogs/mpc_asteroids.txt` and
+The fetch is real: `~/.local/share/com.skotiq.desktop/catalogs/mpc_asteroids.txt` and
 `mpc_comets.txt` were rewritten at 18:41:50/51 by the click.
 
 Residual: there is still no explicit completion confirmation. Trees at T+2 s and T+4 s after the
@@ -162,9 +162,9 @@ demonstrable in both directions.
 
 I could not manufacture the precondition. The banner is gated on the native sequencer reporting an
 interrupted checkpoint whose sequence name starts with "Mosaic " (`_probeForInterruptedMosaic` in
-`packages/nightshade_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog/wizard_logic.dart`),
+`packages/skotiq_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog/wizard_logic.dart`),
 which needs a started-then-interrupted mosaic run — i.e. a connected camera, a run, and a kill.
-That was out of budget for this pass, and hand-writing a `nightshade_session.checkpoint` is not
+That was out of budget for this pass, and hand-writing a `skotiq_session.checkpoint` is not
 viable (it embeds a whole `SequenceDefinition`).
 
 What I can say:
@@ -172,8 +172,8 @@ What I can say:
   and the panel-size warning sits at the top of the left column — correct for that state.
 - The ordering is unconditional in source: the resume banner is emitted before the
   `if (!_panelSizeKnown)` warning in the same `Column`
-  (`packages/nightshade_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog.dart:303-313`).
-- `packages/nightshade_app/test/screens/sequencer/widgets/mosaic_wizard_resume_test.dart` passes
+  (`packages/skotiq_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog.dart:303-313`).
+- `packages/skotiq_app/test/screens/sequencer/widgets/mosaic_wizard_resume_test.dart` passes
   (6/6) but asserts presence/absence and the Resume/Start Over lifecycles — **no test asserts the
   vertical order**, so the ordering claim is currently backed by source only.
 
@@ -250,7 +250,7 @@ cluster's fixes touched, so it belongs to whoever owns the consistency cluster.
 ## Adjacent findings I re-checked but was not assigned (state recorded, not adjudicated)
 
 - **COL2-4 still reproduces** — the Deep-Star card still ships "host one built with
-  tools/catalog_prep" and "see tools/catalog_prep in the Nightshade repository" as user copy
+  tools/catalog_prep" and "see tools/catalog_prep in the Skotiq repository" as user copy
   (`25-cat2.png`).
 - **COL2-5 still reproduces** — HYG shows `Installed` + an orange `Update available` chip with no
   update action anywhere on the page (`24-catalogs.png`).

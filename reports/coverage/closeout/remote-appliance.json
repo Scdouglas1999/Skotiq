@@ -1,6 +1,6 @@
 {
   "cluster": "remote-appliance",
-  "testsRun": "dart run melos exec --scope=nightshade_core -- flutter test test/services/webdav_sync_target_test.dart test/services/cloud_sync_service_test.dart test/services/s3_sync_target_test.dart test/providers/host_local_sync_test.dart test/backend/network_backend_cloud_sync_test.dart (SUCCESS); --scope=nightshade_desktop -- flutter test test/headless_api/imaging_handlers_test.dart (10/10); --scope=nightshade_app -- flutter test test/screens/settings (467 passed, 2 failed: captures_landscape golden pixel diffs, 4.38% - host-specific goldens, untouched by these edits) and test/screens/imaging (224 passed, 3 failed: imaging_landscape golden pixel diffs 21%); plus the three new/extended files run individually green.",
+  "testsRun": "dart run melos exec --scope=skotiq_core -- flutter test test/services/webdav_sync_target_test.dart test/services/cloud_sync_service_test.dart test/services/s3_sync_target_test.dart test/providers/host_local_sync_test.dart test/backend/network_backend_cloud_sync_test.dart (SUCCESS); --scope=skotiq_desktop -- flutter test test/headless_api/imaging_handlers_test.dart (10/10); --scope=skotiq_app -- flutter test test/screens/settings (467 passed, 2 failed: captures_landscape golden pixel diffs, 4.38% - host-specific goldens, untouched by these edits) and test/screens/imaging (224 passed, 3 failed: imaging_landscape golden pixel diffs 21%); plus the three new/extended files run individually green.",
   "units": [
     {
       "unit": "settings:rig-catalogs (connected state)",
@@ -10,17 +10,17 @@
     {
       "unit": "settings:updates (connected state)",
       "state": "visited",
-      "evidence": "Settings > Appliance Updates rendered the connected state against the paired appliance: 'Current Build 6.1.0 (build 25)', 'Platform: linux', 'No update server configured (set NIGHTSHADE_UPDATE_SERVER)', 'Update Status / Ready to check', and the five action buttons. Pressed 'Check for Updates': green snackbar 'Check request accepted' while the status card flipped to 'Update failed' + 'Last error: UpdateException: Update server URL not configured'. 'Apply Staged' and 'Rollback' were correctly inert (gated on hasStaged / rollbackAvailable)."
+      "evidence": "Settings > Appliance Updates rendered the connected state against the paired appliance: 'Current Build 6.1.0 (build 25)', 'Platform: linux', 'No update server configured (set SKOTIQ_UPDATE_SERVER)', 'Update Status / Ready to check', and the five action buttons. Pressed 'Check for Updates': green snackbar 'Check request accepted' while the status card flipped to 'Update failed' + 'Last error: UpdateException: Update server URL not configured'. 'Apply Staged' and 'Rollback' were correctly inert (gated on hasStaged / rollbackAvailable)."
     },
     {
       "unit": "settings:backup (remote half)",
       "state": "visited",
-      "evidence": "Settings > Backup & Restore on the thin client rendered the REMOTE variant 'Manage backups stored on the connected Nightshade host': Quick Actions (Create Backup / Import Backup), a read-only 'Backup & Sync (imaging host)' card (Status 'Not configured', Machine 'home', Automatic push 'Disabled', Last push 'Never', 'Push Host Backup Now' correctly disabled), and Recent Backups. 'Create Backup' created nightshade-backup-manual-2026-08-09T17-09-43-611011-90e80f12-\u2026.nsbackup on the APPLIANCE and it appeared in the list beside the appliance's own autosave, each with restore / download / delete actions."
+      "evidence": "Settings > Backup & Restore on the thin client rendered the REMOTE variant 'Manage backups stored on the connected Skotiq host': Quick Actions (Create Backup / Import Backup), a read-only 'Backup & Sync (imaging host)' card (Status 'Not configured', Machine 'home', Automatic push 'Disabled', Last push 'Never', 'Push Host Backup Now' correctly disabled), and Recent Backups. 'Create Backup' created skotiq-backup-manual-2026-08-09T17-09-43-611011-90e80f12-\u2026.nsbackup on the APPLIANCE and it appeared in the list beside the appliance's own autosave, each with restore / download / delete actions."
     },
     {
       "unit": "widget:remote_directory_picker_dialog.dart",
       "state": "visited",
-      "evidence": "Imaging > Capture > File Settings > Save Path (Host) > folder button opened the dialog titled 'Select host capture folder' listing the APPLIANCE's filesystem (path box, 'Parent folder', child rows data/icons/lib, Cancel, 'Use this folder'). 'Parent folder' navigated up to \u2026/x64/release and re-listed; 'Use this folder' validated and wrote the path back to the host \u2014 the panel row changed from 'Not set \u2014 choose a folder' to '/home/scdouglas/Documents/Nightshade2/apps/desktop/build/linux/x64/release' and the status bar changed from 'No save path' to 'release'."
+      "evidence": "Imaging > Capture > File Settings > Save Path (Host) > folder button opened the dialog titled 'Select host capture folder' listing the APPLIANCE's filesystem (path box, 'Parent folder', child rows data/icons/lib, Cancel, 'Use this folder'). 'Parent folder' navigated up to \u2026/x64/release and re-listed; 'Use this folder' validated and wrote the path back to the host \u2014 the panel row changed from 'Not set \u2014 choose a folder' to '/home/scdouglas/Documents/Skotiq2/apps/desktop/build/linux/x64/release' and the status bar changed from 'No save path' to 'release'."
     },
     {
       "unit": "widget:remote_host_path_dialog.dart",
@@ -30,12 +30,12 @@
     {
       "unit": "settings:backup (WebDAV push)",
       "state": "visited",
-      "evidence": "Stood up a throwaway pure-Python WebDAV server on 127.0.0.1:8181 (PROPFIND/MKCOL/PUT/GET/DELETE), wrote the appliance's cloud_sync_* rows into its app_settings (provider=webdav, serverUrl=http://127.0.0.1:8181/nightshade, machine=audit-appliance), and pressed 'Push Host Backup Now' on the paired desktop client. The card flipped from 'Not configured' to 'Configured', the button enabled, and the server logged PROPFIND / -> MKCOL /nightshade/nightshade-sync/ -> MKCOL /nightshade/nightshade-sync/audit-appliance/ -> PUT bundle-2026-08-09T21-43-26-223980Z.nsbak -> GET+PUT manifest.json, with both files on disk and /api/sync/status reporting lastPushAt 2026-08-09T17:43:26."
+      "evidence": "Stood up a throwaway pure-Python WebDAV server on 127.0.0.1:8181 (PROPFIND/MKCOL/PUT/GET/DELETE), wrote the appliance's cloud_sync_* rows into its app_settings (provider=webdav, serverUrl=http://127.0.0.1:8181/skotiq, machine=audit-appliance), and pressed 'Push Host Backup Now' on the paired desktop client. The card flipped from 'Not configured' to 'Configured', the button enabled, and the server logged PROPFIND / -> MKCOL /skotiq/skotiq-sync/ -> MKCOL /skotiq/skotiq-sync/audit-appliance/ -> PUT bundle-2026-08-09T21-43-26-223980Z.nsbak -> GET+PUT manifest.json, with both files on disk and /api/sync/status reporting lastPushAt 2026-08-09T17:43:26."
     },
     {
       "unit": "settings:backup (remote restore)",
       "state": "visited",
-      "evidence": "Recent Backups on the remote client listed the appliance's own bundles with restore / download / delete affordances per row (nightshade-backup-manual-2026-08-09T17-09-43-\u2026nsbackup 5.7 KB and nightshade_autosave_2026-08-09T17-02-23\u2026nsbackup). Restore itself was NOT executed -- see the honesty note in findings; the listing and its actions were rendered from the host over /api/backup/list."
+      "evidence": "Recent Backups on the remote client listed the appliance's own bundles with restore / download / delete affordances per row (skotiq-backup-manual-2026-08-09T17-09-43-\u2026nsbackup 5.7 KB and skotiq_autosave_2026-08-09T17-02-23\u2026nsbackup). Restore itself was NOT executed -- see the honesty note in findings; the listing and its actions were rendered from the host over /api/backup/list."
     },
     {
       "unit": "settings:backup (S3 push)",
@@ -45,12 +45,12 @@
     {
       "unit": "screen:constellation/shared_target_detail_screen.dart",
       "state": "unreached",
-      "why": "Both call sites (constellation_screen.dart:312 and :673) push the screen with a SharedTarget obtained from a Constellation hub. There is no hub server in this tree -- packages/ contains app, bridge, core, planetarium, plugins, remote_protocol, ui, updater and no nightshade_hub -- and the paired appliance is a rig, not a hub. Faking one was rejected on cost: constellation_client.dart is 1145 lines implementing the whole \u00a75 hub contract, not a single endpoint the way the WebDAV target was."
+      "why": "Both call sites (constellation_screen.dart:312 and :673) push the screen with a SharedTarget obtained from a Constellation hub. There is no hub server in this tree -- packages/ contains app, bridge, core, planetarium, plugins, remote_protocol, ui, updater and no skotiq_hub -- and the paired appliance is a rig, not a hub. Faking one was rejected on cost: constellation_client.dart is 1145 lines implementing the whole \u00a75 hub contract, not a single endpoint the way the WebDAV target was."
     },
     {
       "unit": "mobile:first_run_setup_screen.dart",
       "state": "unreached",
-      "why": "Reached the mobile app paired to the appliance (Android emulator-5556, code COSMOS-QUASAR-5851 accepted, admin scope granted) and confirmed the screen still cannot appear: FirstRunSetupScreen's ONLY mount point is mobile_dashboard_screen.dart:96, and MobileDashboardScreen's only instantiation is main.dart:509 inside `if (useCompanionUi)`. useCompanionUi = isPhone && isCompanionUiEnabled, and isCompanionUiEnabled is a --dart-define that defaults false plus a Platform.environment lookup that an Android app has no way to satisfy. The paired phone got the shared NightshadeApp shell and its 13-step 'Set up your rig' wizard instead. Recorded as a finding."
+      "why": "Reached the mobile app paired to the appliance (Android emulator-5556, code COSMOS-QUASAR-5851 accepted, admin scope granted) and confirmed the screen still cannot appear: FirstRunSetupScreen's ONLY mount point is mobile_dashboard_screen.dart:96, and MobileDashboardScreen's only instantiation is main.dart:509 inside `if (useCompanionUi)`. useCompanionUi = isPhone && isCompanionUiEnabled, and isCompanionUiEnabled is a --dart-define that defaults false plus a Platform.environment lookup that an Android app has no way to satisfy. The paired phone got the shared SkotiqApp shell and its 13-step 'Set up your rig' wizard instead. Recorded as a finding."
     },
     {
       "unit": "mobile:checkpoint_resume_dialog.dart",
@@ -73,18 +73,18 @@
       "kind": "defect",
       "severity": "P2",
       "title": "Remote folder picker opens in the appliance's install directory, and the curated 'Host roots' list is never reachable",
-      "detail": "Reproduced live: with no capture folder set ('Not set \u2014 choose a folder'), the host folder picker opened at /home/\u2026/build/linux/x64/release/bundle \u2014 the appliance process's working directory. The appliance already serves a curated root list for exactly this case: GET /api/files/browse with no path returns {\"currentPath\":null,\"directories\":[Documents, Backups, Scratch]} (Image Output / Sequences / Logs / NIGHTSHADE_BROWSE_ROOTS entries too), and the dialog even has a label for it ('Host roots'). It is never asked, because NamingPattern.baseDir defaults to '.', capture_panel passes that raw string as initialPath (the 'Not set' label special-cases '.', the picker call does not), initialPath.isEmpty is false, and the appliance resolves path=. to Directory.current. On a systemd Pi that is whatever directory the unit started in, so the operator lands somewhere with no plausible capture destination and can only walk up one level per click.",
-      "location": "packages/nightshade_app/lib/screens/imaging/widgets/capture_panel.dart:198,651",
+      "detail": "Reproduced live: with no capture folder set ('Not set \u2014 choose a folder'), the host folder picker opened at /home/\u2026/build/linux/x64/release/bundle \u2014 the appliance process's working directory. The appliance already serves a curated root list for exactly this case: GET /api/files/browse with no path returns {\"currentPath\":null,\"directories\":[Documents, Backups, Scratch]} (Image Output / Sequences / Logs / SKOTIQ_BROWSE_ROOTS entries too), and the dialog even has a label for it ('Host roots'). It is never asked, because NamingPattern.baseDir defaults to '.', capture_panel passes that raw string as initialPath (the 'Not set' label special-cases '.', the picker call does not), initialPath.isEmpty is false, and the appliance resolves path=. to Directory.current. On a systemd Pi that is whatever directory the unit started in, so the operator lands somewhere with no plausible capture destination and can only walk up one level per click.",
+      "location": "packages/skotiq_app/lib/screens/imaging/widgets/capture_panel.dart:198,651",
       "fixed": true,
       "needsOwnerDecision": false,
-      "fixSummary": "capture_panel now normalises the picker's initialPath: both '' and '.' (NamingPattern.baseDir's default, which the row already labels 'Not set') resolve to null, so the remote picker asks /api/files/browse with no path and gets the host's curated root list instead of the appliance's process working directory. New test packages/nightshade_app/test/screens/imaging/capture_save_path_unset_test.dart covers '.', '  .  ', '' and a real path; it goes red if the normalisation is reverted."
+      "fixSummary": "capture_panel now normalises the picker's initialPath: both '' and '.' (NamingPattern.baseDir's default, which the row already labels 'Not set') resolve to null, so the remote picker asks /api/files/browse with no path and gets the host's curated root list instead of the appliance's process working directory. New test packages/skotiq_app/test/screens/imaging/capture_save_path_unset_test.dart covers '.', '  .  ', '' and a real path; it goes red if the normalisation is reverted."
     },
     {
       "kind": "missing",
       "severity": "P3",
       "title": "The host folder picker cannot create a folder or accept a typed path",
       "detail": "Observed in the live dialog: the only controls are Parent folder, the child-directory rows, Cancel and 'Use this folder'. There is no 'New folder' and no editable path field, so a remote operator whose appliance has no suitable directory yet (the common case on a fresh Pi or a newly mounted USB disk) cannot create one from the app at all \u2014 they must SSH in. The sibling remote_host_path_dialog does accept a typed path, so the capability gap is inconsistent within the same product.",
-      "location": "packages/nightshade_app/lib/widgets/remote_directory_picker_dialog.dart",
+      "location": "packages/skotiq_app/lib/widgets/remote_directory_picker_dialog.dart",
       "fixed": false,
       "needsOwnerDecision": false
     },
@@ -93,7 +93,7 @@
       "severity": "P2",
       "title": "Appliance catalog Verify always reports failure, in raw Dart error text",
       "detail": "Reproduced live on the paired appliance: Settings > Appliance Catalogs > Verify (stars) shows the red snackbar 'Verify failed: Bad state: no_expected_hash'. The appliance is answering POST /api/catalog/verify with {\"stars\":{\"ok\":false,\"actualHash\":\"b2983a8d\u2026\",\"errors\":[\"no_expected_hash\"]}} -- it computed the digest but has no recorded baseline to compare it against, because none of the installed catalogs' *_metadata.json sidecars carry a sha256 field. So 'cannot verify' is being reported to the user as 'verification failed', which for a plate-solve catalog reads as 'your catalog is corrupt'. The string itself is StateError.toString() leaking an internal code.",
-      "location": "packages/nightshade_app/lib/screens/settings/widgets/rig_catalog_settings.dart:207 (_verifyCatalog) / packages/nightshade_planetarium/lib/src/catalogs/catalog_manager/unified_catalog_api.dart:747",
+      "location": "packages/skotiq_app/lib/screens/settings/widgets/rig_catalog_settings.dart:207 (_verifyCatalog) / packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/unified_catalog_api.dart:747",
       "fixed": true,
       "needsOwnerDecision": false,
       "fixSummary": "rig_catalog_settings._verifyCatalog now treats a lone 'no_expected_hash' as 'cannot verify', not 'verification failed': it shows an info snackbar ('No checksum was recorded for <catalog> when it was installed, so there is nothing to verify it against. Re-download it to record one.') instead of a red 'Verify failed: Bad state: \u2026'. The remaining codes get plain-English text via _describeVerifyErrors ('hash_mismatch' -> 're-download it', 'not_installed' -> \u2026). New case in rig_catalog_actions_test.dart asserts no 'Verify failed' and no raw code for that result, and the pre-existing 'checksum mismatch' test still demands a failure for a real mismatch."
@@ -102,18 +102,18 @@
       "kind": "defect",
       "severity": "P3",
       "title": "'Check for Updates' is enabled on an appliance with no update server, and answers with a green success and a red failure at once",
-      "detail": "Reproduced live: the Appliance Updates card already states 'No update server configured (set NIGHTSHADE_UPDATE_SERVER)', yet 'Check for Updates' is enabled. Pressing it shows the green snackbar 'Check request accepted' and simultaneously flips Update Status to 'Update failed' with 'Last error: UpdateException: Update server URL not configured'. Two problems in one press: the user gets contradictory success/failure feedback, and a *check* that could not run is labelled 'Update failed', which on an observatory appliance reads as a broken installation.",
-      "location": "packages/nightshade_app/lib/screens/settings/widgets/update_settings.dart:614 (canAct) and :693 (_statusLabel)",
+      "detail": "Reproduced live: the Appliance Updates card already states 'No update server configured (set SKOTIQ_UPDATE_SERVER)', yet 'Check for Updates' is enabled. Pressing it shows the green snackbar 'Check request accepted' and simultaneously flips Update Status to 'Update failed' with 'Last error: UpdateException: Update server URL not configured'. Two problems in one press: the user gets contradictory success/failure feedback, and a *check* that could not run is labelled 'Update failed', which on an observatory appliance reads as a broken installation.",
+      "location": "packages/skotiq_app/lib/screens/settings/widgets/update_settings.dart:614 (canAct) and :693 (_statusLabel)",
       "fixed": true,
       "needsOwnerDecision": false,
-      "fixSummary": "update_settings gates the Check button on a configured update server (_hasUpdateServer, derived from RemoteVersionInfo.updateServerUrl, treating 'not loaded yet' as available so a slow poll does not disable it). The card's existing orange 'No update server configured (set NIGHTSHADE_UPDATE_SERVER)' line is the explanation. New test packages/nightshade_app/test/screens/settings/appliance_update_check_gate_test.dart pins both directions."
+      "fixSummary": "update_settings gates the Check button on a configured update server (_hasUpdateServer, derived from RemoteVersionInfo.updateServerUrl, treating 'not loaded yet' as available so a slow poll does not disable it). The card's existing orange 'No update server configured (set SKOTIQ_UPDATE_SERVER)' line is the explanation. New test packages/skotiq_app/test/screens/settings/appliance_update_check_gate_test.dart pins both directions."
     },
     {
       "kind": "ux",
       "severity": "P3",
       "title": "Installed appliance catalogs are labelled with internal keys while the same catalogs below use product names",
       "detail": "On one screen: 'Installed on appliance' lists stars / dso / annotation, and 'Available to download' immediately below lists HYG Star Database / OpenNGC Deep Sky Objects / GLADE+ Galaxy Catalog -- the same three catalogs, twice, under two naming schemes. Nothing on the page connects 'annotation' to 'GLADE+ Galaxy Catalog', so the Remove confirmation reads 'Remove annotation catalog?'. _installedTile renders c.name (the wire key) where _availableTile renders a.displayName.",
-      "location": "packages/nightshade_app/lib/screens/settings/widgets/rig_catalog_settings.dart:374",
+      "location": "packages/skotiq_app/lib/screens/settings/widgets/rig_catalog_settings.dart:374",
       "fixed": true,
       "needsOwnerDecision": false,
       "fixSummary": "Installed rows, the Remove confirmation and the action snackbars now resolve the wire key against the manifest via _displayNameFor, with _catalogPhrase avoiding 'GLADE+ Galaxy Catalog catalog'. Covered by the new verify test (asserts the product name is what the message names) and by the existing removal test, which still expects 'stars catalog removed' when no manifest entry exists."
@@ -122,8 +122,8 @@
       "kind": "defect",
       "severity": "P2",
       "title": "Plate Solving page contradicts the host's own /api/plate-solver/config, and the host has two disagreeing solver stores",
-      "detail": "Reproduced, then partly REFUTED on root cause \u2014 recorded honestly rather than as first written. What is proven: with the thin client paired, GET /api/plate-solver/config on the appliance returned {\"astapPath\":\"/home/scdouglas/.local/share/nightshade-audit/astap/bin/astap_cli\",\"astrometryPath\":\"\",\"catalogPath\":\"/home/scdouglas/.local/share/nightshade-audit/astap/bin\",\"solverChoice\":\"auto\"}, while Settings > Plate Solving showed 'ASTAP executable /tmp/ns-audit/fake-astap/astap' and 'ASTAP catalog directory: Auto-detect - not found / Not set'; after POSTing a distinctive config (/opt/HOSTMARKER/*) and forcing a rebuild via Dashboard -> Settings -> Plate Solving, the page still showed the old values. So the page and the host's config API disagree, and the page did not pick up a config change. What I first wrote \u2014 that the page shows THIS device's local settings \u2014 is NOT established: both processes logged the same native startup line 'Plate-solver preference loaded at startup: astap=\"/tmp/ns-audit/fake-astap/astap\" catalog=\"(auto)\"', i.e. the native platesolver store is shared and NOT isolated by NIGHTSHADE_DATA_DIR, so the displayed string identifies the STORE, not the machine. Both PlateSolveService.detect() and getConfig() do route through the backend (sequencer_operations.dart:84/109 hit /api/plate-solver/detect and /config), which makes 'the appliance's detect store and its config store disagree' the likelier reading. Left unfixed deliberately: the campaign rule is no fix without an isolated, reproduced cause, and I did not isolate which of the two stores the page is rendering.",
-      "location": "packages/nightshade_app/lib/screens/settings/plate_solving_settings_screen.dart + packages/nightshade_core/lib/src/services/plate_solve_service.dart:908/945 (detect vs getConfig) + the native platesolver store",
+      "detail": "Reproduced, then partly REFUTED on root cause \u2014 recorded honestly rather than as first written. What is proven: with the thin client paired, GET /api/plate-solver/config on the appliance returned {\"astapPath\":\"/home/scdouglas/.local/share/skotiq-audit/astap/bin/astap_cli\",\"astrometryPath\":\"\",\"catalogPath\":\"/home/scdouglas/.local/share/skotiq-audit/astap/bin\",\"solverChoice\":\"auto\"}, while Settings > Plate Solving showed 'ASTAP executable /tmp/ns-audit/fake-astap/astap' and 'ASTAP catalog directory: Auto-detect - not found / Not set'; after POSTing a distinctive config (/opt/HOSTMARKER/*) and forcing a rebuild via Dashboard -> Settings -> Plate Solving, the page still showed the old values. So the page and the host's config API disagree, and the page did not pick up a config change. What I first wrote \u2014 that the page shows THIS device's local settings \u2014 is NOT established: both processes logged the same native startup line 'Plate-solver preference loaded at startup: astap=\"/tmp/ns-audit/fake-astap/astap\" catalog=\"(auto)\"', i.e. the native platesolver store is shared and NOT isolated by SKOTIQ_DATA_DIR, so the displayed string identifies the STORE, not the machine. Both PlateSolveService.detect() and getConfig() do route through the backend (sequencer_operations.dart:84/109 hit /api/plate-solver/detect and /config), which makes 'the appliance's detect store and its config store disagree' the likelier reading. Left unfixed deliberately: the campaign rule is no fix without an isolated, reproduced cause, and I did not isolate which of the two stores the page is rendering.",
+      "location": "packages/skotiq_app/lib/screens/settings/plate_solving_settings_screen.dart + packages/skotiq_core/lib/src/services/plate_solve_service.dart:908/945 (detect vs getConfig) + the native platesolver store",
       "fixed": false,
       "needsOwnerDecision": false
     },
@@ -142,7 +142,7 @@
       "severity": "P3",
       "title": "The remote host-path dialog cannot browse the host it is already connected to",
       "detail": "remote_host_path_dialog is a blind text field: the operator must type an absolute path on the appliance from memory ('C:\\Program Files\\astap or /opt/astap'), on a tablet, with no completion and no existence check. The same app already ships remote_directory_picker_dialog, which lists the host's directories over /api/files/browse, and the appliance also exposes /api/files/validate. Two remote path pickers, one of which browses and one of which does not, chosen per call site.",
-      "location": "packages/nightshade_app/lib/widgets/remote_host_path_dialog.dart",
+      "location": "packages/skotiq_app/lib/widgets/remote_host_path_dialog.dart",
       "fixed": false,
       "needsOwnerDecision": false
     },
@@ -150,17 +150,17 @@
       "kind": "defect",
       "severity": "P2",
       "title": "First backup push to a spec-compliant WebDAV server always fails with a 409 'remote state conflict'",
-      "detail": "Reproduced by making the throwaway DAV server obey RFC 4918 9.3.1 (MKCOL on a path whose parent collection is absent MUST return 409). The push then failed and /api/sync/status recorded lastError: 'Create directory \"nightshade-sync\" failed: remote state conflict (HTTP 409)'. WebDavSyncTarget.ensureDirectory walks only the segments of the RELATIVE path, while _uriFor prepends baseUrl.pathSegments, so with serverUrl http://host/nightshade the very first request is MKCOL /nightshade/nightshade-sync/ and /nightshade was never created. My first (permissive, makedirs-based) server auto-created the parent, which is exactly how this stays hidden. Any user whose configured base folder does not already exist on the server -- a new Nextcloud/ownCloud subfolder is the normal case -- gets a failed backup with an error that does not say to create the folder.",
-      "location": "packages/nightshade_core/lib/src/services/sync/webdav_sync_target.dart:137-149 (ensureDirectory)",
+      "detail": "Reproduced by making the throwaway DAV server obey RFC 4918 9.3.1 (MKCOL on a path whose parent collection is absent MUST return 409). The push then failed and /api/sync/status recorded lastError: 'Create directory \"skotiq-sync\" failed: remote state conflict (HTTP 409)'. WebDavSyncTarget.ensureDirectory walks only the segments of the RELATIVE path, while _uriFor prepends baseUrl.pathSegments, so with serverUrl http://host/skotiq the very first request is MKCOL /skotiq/skotiq-sync/ and /skotiq was never created. My first (permissive, makedirs-based) server auto-created the parent, which is exactly how this stays hidden. Any user whose configured base folder does not already exist on the server -- a new Nextcloud/ownCloud subfolder is the normal case -- gets a failed backup with an error that does not say to create the folder.",
+      "location": "packages/skotiq_core/lib/src/services/sync/webdav_sync_target.dart:137-149 (ensureDirectory)",
       "fixed": true,
       "needsOwnerDecision": false,
-      "fixSummary": "WebDavSyncTarget.ensureDirectory now recovers from the RFC 4918 409: on the first conflict it MKCOLs each collection of the base URL's own path (tolerating 405/403 for mount roots it may not create) and retries once. New case in packages/nightshade_core/test/services/webdav_sync_target_test.dart drives a strict fake server that 409s on a missing parent; it fails on the old code with exactly the live error string."
+      "fixSummary": "WebDavSyncTarget.ensureDirectory now recovers from the RFC 4918 409: on the first conflict it MKCOLs each collection of the base URL's own path (tolerating 405/403 for mount roots it may not create) and retries once. New case in packages/skotiq_core/test/services/webdav_sync_target_test.dart drives a strict fake server that 409s on a missing parent; it fails on the old code with exactly the live error string."
     },
     {
       "kind": "defect",
       "severity": "P2",
       "title": "FirstRunSetupScreen is unreachable in any shipped build",
-      "detail": "apps/mobile/lib/screens/setup/first_run_setup_screen.dart (First-run setup: image output path, catalogs, equipment profile -- including its own 'Choose capture folder on host' remote picker) is mounted only by mobile_dashboard_screen.dart:96, and MobileDashboardScreen is instantiated only at main.dart:509 inside `if (useCompanionUi)`. isCompanionUiEnabled is false unless the APK was compiled with --dart-define=NIGHTSHADE_COMPANION_UI=1 or the process has NIGHTSHADE_COMPANION_UI=1 in its environment, which an Android app cannot have. Verified live on a paired phone: the shared shell rendered instead. Same shape as the settings:focus-model fault this campaign already fixed -- a screen that ships with no way to open it.",
+      "detail": "apps/mobile/lib/screens/setup/first_run_setup_screen.dart (First-run setup: image output path, catalogs, equipment profile -- including its own 'Choose capture folder on host' remote picker) is mounted only by mobile_dashboard_screen.dart:96, and MobileDashboardScreen is instantiated only at main.dart:509 inside `if (useCompanionUi)`. isCompanionUiEnabled is false unless the APK was compiled with --dart-define=SKOTIQ_COMPANION_UI=1 or the process has SKOTIQ_COMPANION_UI=1 in its environment, which an Android app cannot have. Verified live on a paired phone: the shared shell rendered instead. Same shape as the settings:focus-model fault this campaign already fixed -- a screen that ships with no way to open it.",
       "location": "apps/mobile/lib/screens/dashboard/mobile_dashboard_screen.dart:96 / apps/mobile/lib/main.dart:509 / apps/mobile/lib/companion_ui_config.dart:7",
       "fixed": false,
       "needsOwnerDecision": true
@@ -170,7 +170,7 @@
       "severity": "P2",
       "title": "Mobile app renders a working dashboard while its event websocket is being refused 401, and floods unhandled exceptions",
       "detail": "Reproduced twice on the emulator (against an appliance on :8099 and again against mine on :8080 before pairing). logcat shows a continuous storm of 'Unhandled Exception: WebSocketChannelException: \u2026 /events?apiVersion=2.6.0 was not upgraded to websocket, HTTP status code: 401' -- several per second, each a full unhandled-error dump through dart_vm_initializer -- while the UI showed the normal dashboard (TONIGHT'S BRIEFING, Readiness, latency chip '3 ms') with nothing saying the device is unauthorised or that live events are dead. An operator would believe they are watching their rig. The auth failure should surface as a 'pair this device' state, and a rejected upgrade should be a handled error with backoff, not an unhandled exception per attempt.",
-      "location": "packages/nightshade_core/lib/src/backend/network_backend/connection_lifecycle.dart:281",
+      "location": "packages/skotiq_core/lib/src/backend/network_backend/connection_lifecycle.dart:281",
       "fixed": false,
       "needsOwnerDecision": false
     },
@@ -188,7 +188,7 @@
       "severity": "P4",
       "title": "A remote client keeps claiming a healthy 2 ms link for ~90 seconds after the appliance stops answering",
       "detail": "With the appliance SIGSTOPped (socket open, nothing answering), the desktop client's status chip still read a green 'LAN 192.168.1.20 2 ms' 90 seconds later; it flipped to red 'Offline 192.168.1.20' at about the two-minute mark. It does detect the outage, so this is a latency complaint rather than a lie that persists -- but two minutes is a long time to keep telling an operator their rig is 2 ms away while a run could be failing.",
-      "location": "packages/nightshade_core/lib/src/backend/network_backend (heartbeat/latency chip)",
+      "location": "packages/skotiq_core/lib/src/backend/network_backend (heartbeat/latency chip)",
       "fixed": false,
       "needsOwnerDecision": false
     }

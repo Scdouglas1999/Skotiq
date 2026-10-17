@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Nightshade Mobile</string>
+	<string>Skotiq Mobile</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>nightshade_mobile</string>
+	<string>skotiq_mobile</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -47,25 +47,25 @@
 	<true/>
 	<!-- Local Network Access Permission -->
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Nightshade needs access to your local network to discover and connect to your astrophotography equipment server.</string>
+	<string>Skotiq needs access to your local network to discover and connect to your astrophotography equipment server.</string>
 	<!-- Bonjour Services for mDNS Discovery -->
 	<key>NSBonjourServices</key>
 	<array>
-		<string>_nightshade._tcp</string>
+		<string>_skotiq._tcp</string>
 	</array>
 	<!-- Camera Permission (for QR code scanning) -->
 	<key>NSCameraUsageDescription</key>
-	<string>Nightshade needs access to your camera to scan QR codes for quick server connection.</string>
+	<string>Skotiq needs access to your camera to scan QR codes for quick server connection.</string>
 	<!-- Photo Library Permission (for saving captured images) -->
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Nightshade needs permission to save captured astrophotography images to your photo library.</string>
+	<string>Skotiq needs permission to save captured astrophotography images to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Nightshade needs permission to access your photo library to view and manage captured images.</string>
+	<string>Skotiq needs permission to access your photo library to view and manage captured images.</string>
 	<!-- Location Permission (for astronomical calculations) -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Nightshade needs your location to accurately calculate celestial positions and optimize your astrophotography session.</string>
+	<string>Skotiq needs your location to accurately calculate celestial positions and optimize your astrophotography session.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Nightshade needs your location to accurately calculate celestial positions and optimize your astrophotography session.</string>
+	<string>Skotiq needs your location to accurately calculate celestial positions and optimize your astrophotography session.</string>
 	<!-- Live Activities (iOS 16.2+). Pins a rich, dynamic UI to the
 	     lock screen and Dynamic Island for the duration of an imaging
 	     sequence so the operator gets at-a-glance progress without

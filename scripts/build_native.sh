@@ -1,16 +1,16 @@
 #!/bin/bash
-# Build script for Nightshade native Rust library
+# Build script for Skotiq native Rust library
 # Builds for Windows, Linux, and macOS (when run on respective platforms)
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-NATIVE_DIR="$PROJECT_ROOT/native/nightshade_native"
+NATIVE_DIR="$PROJECT_ROOT/native/skotiq_native"
 
 cd "$NATIVE_DIR"
 
-echo "Building Nightshade native library..."
+echo "Building Skotiq native library..."
 echo "Project root: $PROJECT_ROOT"
 echo "Native dir: $NATIVE_DIR"
 
@@ -31,7 +31,7 @@ if [[ "$PLATFORM" == "Linux" ]]; then
         # Install cross-compilation target if needed
         rustup target add aarch64-unknown-linux-gnu 2>/dev/null || true
         cargo build --release --target aarch64-unknown-linux-gnu --manifest-path bridge/Cargo.toml
-        LIB_NAME="libnightshade_bridge.so"
+        LIB_NAME="libskotiq_bridge.so"
         TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/linux/arm64/release/bundle/lib"
         mkdir -p "$TARGET_DIR"
         cp "target/aarch64-unknown-linux-gnu/release/$LIB_NAME" "$TARGET_DIR/"
@@ -41,7 +41,7 @@ if [[ "$PLATFORM" == "Linux" ]]; then
         # Install cross-compilation target if needed
         rustup target add armv7-unknown-linux-gnueabihf 2>/dev/null || true
         cargo build --release --target armv7-unknown-linux-gnueabihf --manifest-path bridge/Cargo.toml
-        LIB_NAME="libnightshade_bridge.so"
+        LIB_NAME="libskotiq_bridge.so"
         TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/linux/arm64/release/bundle/lib"
         mkdir -p "$TARGET_DIR"
         cp "target/armv7-unknown-linux-gnueabihf/release/$LIB_NAME" "$TARGET_DIR/"
@@ -49,7 +49,7 @@ if [[ "$PLATFORM" == "Linux" ]]; then
     else
         # x86_64 or other
         cargo build --release --manifest-path bridge/Cargo.toml
-        LIB_NAME="libnightshade_bridge.so"
+        LIB_NAME="libskotiq_bridge.so"
         TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/linux/x64/release/bundle/lib"
         mkdir -p "$TARGET_DIR"
         cp "target/release/$LIB_NAME" "$TARGET_DIR/"
@@ -62,8 +62,8 @@ elif [[ "$PLATFORM" == "Darwin" ]]; then
     # Build for Intel Mac
     if [[ "$ARCH" == "x86_64" ]]; then
         cargo build --release --target x86_64-apple-darwin --manifest-path bridge/Cargo.toml
-        LIB_NAME="libnightshade_bridge.dylib"
-        TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/macos/Build/Products/Release/nightshade_desktop.app/Contents/Frameworks"
+        LIB_NAME="libskotiq_bridge.dylib"
+        TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/macos/Build/Products/Release/skotiq_desktop.app/Contents/Frameworks"
         mkdir -p "$TARGET_DIR"
         cp "target/x86_64-apple-darwin/release/$LIB_NAME" "$TARGET_DIR/"
         echo "Copied $LIB_NAME to $TARGET_DIR"
@@ -72,8 +72,8 @@ elif [[ "$PLATFORM" == "Darwin" ]]; then
     # Build for Apple Silicon
     if [[ "$ARCH" == "arm64" ]] || [[ "$ARCH" == "aarch64" ]]; then
         cargo build --release --target aarch64-apple-darwin --manifest-path bridge/Cargo.toml
-        LIB_NAME="libnightshade_bridge.dylib"
-        TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/macos/Build/Products/Release/nightshade_desktop.app/Contents/Frameworks"
+        LIB_NAME="libskotiq_bridge.dylib"
+        TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/macos/Build/Products/Release/skotiq_desktop.app/Contents/Frameworks"
         mkdir -p "$TARGET_DIR"
         cp "target/aarch64-apple-darwin/release/$LIB_NAME" "$TARGET_DIR/"
         echo "Copied $LIB_NAME to $TARGET_DIR"
@@ -84,7 +84,7 @@ elif [[ "$PLATFORM" == MINGW* ]] || [[ "$PLATFORM" == MSYS* ]] || [[ "$PLATFORM"
     cargo build --release --manifest-path bridge/Cargo.toml
     
     # Copy to Flutter app directory
-    LIB_NAME="nightshade_bridge.dll"
+    LIB_NAME="skotiq_bridge.dll"
     TARGET_DIR="$PROJECT_ROOT/apps/desktop/build/windows/x64/runner/Release"
     mkdir -p "$TARGET_DIR"
     cp "target/release/$LIB_NAME" "$TARGET_DIR/"

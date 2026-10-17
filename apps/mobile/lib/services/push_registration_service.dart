@@ -7,7 +7,7 @@
 //      lifecycle: `registerForRemoteNotifications` -> the OS issues a device
 //      token -> `didRegisterForRemoteNotificationsWithDeviceToken` encodes it
 //      as lowercase hex and either pushes it to Dart via the
-//      `nightshade/push` MethodChannel method `onApnsToken`, or caches it for
+//      `skotiq/push` MethodChannel method `onApnsToken`, or caches it for
 //      a later `getApnsToken` pull.
 //   2. This service asks the host to register (once the phone is paired),
 //      receives the hex token, and POSTs it to the desktop's
@@ -20,7 +20,7 @@
 //      and sends an APNs push.
 //
 // Android (FCM) rides the same flow through the same channel: the native
-// half is PushBridge.kt (+ NightshadePushService for token rotation), the
+// half is PushBridge.kt (+ SkotiqPushService for token rotation), the
 // callbacks are `onFcmToken` / `getFcmToken`, and the POST registers with
 // `platform=fcm`. PROVISIONING GATE: without `android/app/google-services.json`
 // (owner's Firebase project) the native side answers
@@ -34,7 +34,7 @@
 //
 // Platform gating: a no-op on every platform except iOS and Android, where
 // `ensureRegistered` returns immediately without touching the (absent)
-// `nightshade/push` channel, so a `MissingPluginException` can never be
+// `skotiq/push` channel, so a `MissingPluginException` can never be
 // thrown.
 //
 // Server contract note: the endpoint validates `platform` against the set
@@ -52,7 +52,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
 /// Registers this device's push token (APNs on iOS, FCM on Android) with a
 /// paired desktop server so the server can deliver off-LAN critical alerts.
@@ -63,7 +63,7 @@ class PushRegistrationService {
     @visibleForTesting http.Client? httpClient,
     @visibleForTesting bool? isIosOverride,
     @visibleForTesting bool? isAndroidOverride,
-  }) : _channel = channel ?? const MethodChannel('nightshade/push'),
+  }) : _channel = channel ?? const MethodChannel('skotiq/push'),
        _http = httpClient ?? http.Client(),
        _ownsHttpClient = httpClient == null,
        _isIos = isIosOverride ?? Platform.isIOS,
@@ -150,7 +150,7 @@ class PushRegistrationService {
       // registers the channel). Treat as "host has no push support" rather
       // than crashing.
       developer.log(
-        'nightshade/push channel unavailable; $_platform registration skipped',
+        'skotiq/push channel unavailable; $_platform registration skipped',
         name: 'PushRegistration',
       );
       return;
@@ -236,7 +236,7 @@ class PushRegistrationService {
         // Unknown host->Dart call. Surface loudly in dev logs but don't throw
         // back across the channel.
         developer.log(
-          'Unhandled nightshade/push call: ${call.method}',
+          'Unhandled skotiq/push call: ${call.method}',
           name: 'PushRegistration',
           level: 900,
         );

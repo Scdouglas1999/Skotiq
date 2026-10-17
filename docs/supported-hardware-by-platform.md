@@ -2,7 +2,7 @@
 
 This page describes public-release hardware support by driver backend and
 platform. It is intentionally conservative: a backend being available means
-Nightshade can attempt discovery and connection on that platform. Individual
+Skotiq can attempt discovery and connection on that platform. Individual
 devices can still expose narrower capabilities after connection.
 
 The same backend availability is surfaced in-app under
@@ -11,9 +11,9 @@ Settings > Connection > Platform Capabilities and through
 
 ## Verified Hardware (4.1.0)
 
-This table records devices that have actually been run against Nightshade, and at
+This table records devices that have actually been run against Skotiq, and at
 what level — **separate from, and narrower than, the backend-availability tables
-below.** A device appearing in a backend column below means Nightshade can
+below.** A device appearing in a backend column below means Skotiq can
 *attempt* it; a row here means it was *exercised*. Code presence never implies
 support. Source: [`release-evidence/4.1.0.md`](release-evidence/4.1.0.md) (rig
 test, 2026-06-17, shipped 4.1.0 Windows binary).
@@ -102,15 +102,15 @@ supported based only on code presence. The package must prove the relevant
 library loads, permissions allow device access, and the runtime smoke exercised
 the supported workflow from the shipped artifact.
 
-The Nightshade systemd/Pi appliance installs
-`99-nightshade-astro.rules` as a baseline permission layer for common astronomy
+The Skotiq systemd/Pi appliance installs
+`99-skotiq-astro.rules` as a baseline permission layer for common astronomy
 USB vendors and USB-serial adapters. Those rules intentionally grant `0660`
-access to the `nightshade` group rather than upstream-style world-writable
+access to the `skotiq` group rather than upstream-style world-writable
 device nodes. They do not replace vendor firmware packages, INDI driver
 packages, or redistributable native SDK libraries.
 
 Linux release bundles can include redistributable vendor SDK libraries by
-setting `NIGHTSHADE_VENDOR_LIB_DIR` when running `scripts/docker_build_linux.sh`;
+setting `SKOTIQ_VENDOR_LIB_DIR` when running `scripts/docker_build_linux.sh`;
 matching `.so`/`.so.*` files are copied into `bundle/lib`. Native SDK loaders
 search the executable directory and `bundle/lib` before system library paths,
 so the same artifact can run on a clean Raspberry Pi when the required

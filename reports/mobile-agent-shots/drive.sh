@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Helper for driving the Nightshade Android app on emulator-5554.
+# Helper for driving the Skotiq Android app on emulator-5554.
 export ANDROID_HOME=/home/scdouglas/Android/Sdk
 export PATH=$ANDROID_HOME/platform-tools:$PATH
-SHOTS=/home/scdouglas/Documents/Nightshade2/reports/mobile-agent-shots
+SHOTS=/home/scdouglas/Documents/Skotiq2/reports/mobile-agent-shots
 
 shot() {  # shot <name>
   adb exec-out screencap -p > "$SHOTS/$1.png"

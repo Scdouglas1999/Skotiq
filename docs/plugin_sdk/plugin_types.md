@@ -1,13 +1,13 @@
 # Plugin Types
 
-Nightshade supports four plugin types, each extending the base `NightshadePlugin` with specialized capabilities.
+Skotiq supports four plugin types, each extending the base `SkotiqPlugin` with specialized capabilities.
 
-## Base Plugin (NightshadePlugin)
+## Base Plugin (SkotiqPlugin)
 
 The simplest plugin type. Useful for background tasks, event processing, or integrations that don't need UI, device, or sequencer extensions.
 
 ```dart
-class BackgroundPlugin extends NightshadePlugin {
+class BackgroundPlugin extends SkotiqPlugin {
   PluginContext? _context;
   StreamSubscription? _subscription;
 
@@ -47,7 +47,7 @@ class BackgroundPlugin extends NightshadePlugin {
 
 ## UI Plugin (UiPlugin)
 
-Adds custom widgets to predefined extension points in the Nightshade UI. Each extension point defines where the widget appears and a builder function that creates it.
+Adds custom widgets to predefined extension points in the Skotiq UI. Each extension point defines where the widget appears and a builder function that creates it.
 
 ### Extension Point Locations
 
@@ -63,7 +63,7 @@ Adds custom widgets to predefined extension points in the Nightshade UI. Each ex
 
 ```dart
 import 'package:flutter/widgets.dart';
-import 'package:nightshade_plugins/nightshade_plugins.dart';
+import 'package:skotiq_plugins/skotiq_plugins.dart';
 
 class MyUiPlugin extends UiPlugin {
   PluginContext? _context;
@@ -111,7 +111,7 @@ class MyUiPlugin extends UiPlugin {
 
 ### Accessing Extension Points
 
-The Nightshade UI uses the `uiExtensionPointsProvider` to render plugin widgets:
+The Skotiq UI uses the `uiExtensionPointsProvider` to render plugin widgets:
 
 ```dart
 final extensions = ref.watch(uiExtensionPointsProvider);
@@ -205,7 +205,7 @@ for (final plugin in devicePlugins) {
 
 ## Sequence Plugin (SequencePlugin)
 
-Adds custom automation nodes to the Nightshade sequencer. These nodes appear in the sequence editor alongside built-in nodes like Expose, Slew, and Autofocus.
+Adds custom automation nodes to the Skotiq sequencer. These nodes appear in the sequence editor alongside built-in nodes like Expose, Slew, and Autofocus.
 
 ### Node Definition
 

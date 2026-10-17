@@ -482,7 +482,7 @@ void _requireReleaseNotesComplete(
   }
 
   final content = releaseNotes.readAsStringSync();
-  if (content.contains('Nightshade Release Notes Template') ||
+  if (content.contains('Skotiq Release Notes Template') ||
       content.contains('Replace bracketed values')) {
     issues.add('release notes still contain template instructions.');
   }

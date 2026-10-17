@@ -16,10 +16,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_mobile/screens/setup/first_run_setup_screen.dart';
-import 'package:nightshade_mobile/services/mobile_preferences.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_mobile/screens/setup/first_run_setup_screen.dart';
+import 'package:skotiq_mobile/services/mobile_preferences.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -163,7 +163,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
-            theme: ThemeData(extensions: const [NightshadeColors.dark]),
+            theme: ThemeData(extensions: const [SkotiqColors.dark]),
             home: FirstRunSetupScreen(
               needs: const FirstRunSetupNeeds(
                 missingImageOutputPath: true,
@@ -204,7 +204,7 @@ void main() {
               ),
             ],
             child: MaterialApp(
-              theme: ThemeData(extensions: const [NightshadeColors.dark]),
+              theme: ThemeData(extensions: const [SkotiqColors.dark]),
               home: FirstRunSetupScreen(
                 needs: const FirstRunSetupNeeds(
                   missingImageOutputPath: false,
@@ -246,7 +246,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData(extensions: const [NightshadeColors.dark]),
+            theme: ThemeData(extensions: const [SkotiqColors.dark]),
             home: FirstRunSetupScreen(
               needs: const FirstRunSetupNeeds(
                 missingImageOutputPath: true,
@@ -281,7 +281,7 @@ void main() {
           'valid': true,
           'exists': true,
           'writable': true,
-          'normalizedPath': '/srv/nightshade/captures',
+          'normalizedPath': '/srv/skotiq/captures',
         },
       );
       await tester.pumpWidget(
@@ -292,7 +292,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData(extensions: const [NightshadeColors.dark]),
+            theme: ThemeData(extensions: const [SkotiqColors.dark]),
             home: FirstRunSetupScreen(
               needs: const FirstRunSetupNeeds(
                 missingImageOutputPath: true,
@@ -313,7 +313,7 @@ void main() {
       expect(backend.validatedPath, '/host/captures/../data');
       expect(
         backend.updatedSettings?.imageOutputPath,
-        '/srv/nightshade/captures',
+        '/srv/skotiq/captures',
       );
       expect(find.textContaining('Pick catalogs to install'), findsOneWidget);
     });
@@ -344,7 +344,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData(extensions: const [NightshadeColors.dark]),
+            theme: ThemeData(extensions: const [SkotiqColors.dark]),
             home: FirstRunSetupScreen(
               needs: const FirstRunSetupNeeds(
                 missingImageOutputPath: true,
@@ -393,7 +393,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData(extensions: const [NightshadeColors.dark]),
+            theme: ThemeData(extensions: const [SkotiqColors.dark]),
             home: FirstRunSetupScreen(
               needs: const FirstRunSetupNeeds(
                 missingImageOutputPath: true,
@@ -430,7 +430,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData(extensions: const [NightshadeColors.dark]),
+            theme: ThemeData(extensions: const [SkotiqColors.dark]),
             home: FirstRunSetupScreen(
               needs: const FirstRunSetupNeeds(
                 missingImageOutputPath: false,
@@ -523,7 +523,7 @@ class _DetectionFailureBackend extends NetworkBackend {
 }
 
 class _TestBackendNotifier extends BackendNotifier {
-  _TestBackendNotifier(super.ref, NightshadeBackend backend) {
+  _TestBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
   }
 }

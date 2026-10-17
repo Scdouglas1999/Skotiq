@@ -3,21 +3,21 @@ import 'dart:io';
 
 /// Bridge-boundary audit.
 ///
-/// Architecture rule (docs/architecture.md §1): `nightshade_core` is the only
-/// Dart package that may talk to the Rust bridge (`package:nightshade_bridge`).
+/// Architecture rule (docs/architecture.md §1): `skotiq_core` is the only
+/// Dart package that may talk to the Rust bridge (`package:skotiq_bridge`).
 /// `apps` and every other `packages/*` must reach Rust through a
-/// `nightshade_core` backend/role seam, never by importing the FRB surface
+/// `skotiq_core` backend/role seam, never by importing the FRB surface
 /// directly.
 ///
 /// This audit scans `lib/` and `bin/` (excluding `test/`) under every workspace
-/// root for `import`/`export 'package:nightshade_bridge/...'`. Files inside the
-/// two allowed packages (`nightshade_core`, `nightshade_bridge`) are exempt.
+/// root for `import`/`export 'package:skotiq_bridge/...'`. Files inside the
+/// two allowed packages (`skotiq_core`, `skotiq_bridge`) are exempt.
 /// Any other importer is a boundary violation unless it is listed in the
 /// whitelist data file (a pragmatic, reviewed exception).
 ///
 /// It complements `dependency_hygiene.dart`, which only verifies that imported
 /// packages are *declared* in pubspec — that check would happily allow a UI
-/// package to import `nightshade_bridge` so long as the dependency is declared.
+/// package to import `skotiq_bridge` so long as the dependency is declared.
 /// This audit enforces the *direction* the dependency-hygiene check does not.
 ///
 /// Output: docs/production-readiness/bridge-boundary.{json,md}
@@ -31,12 +31,12 @@ const _workspaceRoots = <String>['apps', 'packages'];
 
 /// Packages permitted to import the bridge directly.
 const _allowedPackagePrefixes = <String>[
-  'packages/nightshade_core/',
-  'packages/nightshade_bridge/',
+  'packages/skotiq_core/',
+  'packages/skotiq_bridge/',
 ];
 
 final _bridgeImportPattern = RegExp(
-  r'''(?:import|export)\s+['"]package:nightshade_bridge/[^'"]+['"]''',
+  r'''(?:import|export)\s+['"]package:skotiq_bridge/[^'"]+['"]''',
 );
 
 void main(List<String> args) {
@@ -81,8 +81,8 @@ void main(List<String> args) {
     'generatedAt': DateTime.now().toUtc().toIso8601String(),
     'passed': violations.isEmpty,
     'rule':
-        'nightshade_core is the only Dart package that may import '
-        'package:nightshade_bridge (docs/architecture.md §1).',
+        'skotiq_core is the only Dart package that may import '
+        'package:skotiq_bridge (docs/architecture.md §1).',
     'allowedPackages': _allowedPackagePrefixes,
     'whitelistPath': _normalize(
       whitelistPath,
@@ -121,7 +121,7 @@ void main(List<String> args) {
   }
 
   stderr.writeln(
-    'Bridge boundary violations (move behind a nightshade_core '
+    'Bridge boundary violations (move behind a skotiq_core '
     'backend/role seam, or add to the whitelist with a reason):',
   );
   for (final v in violations) {
@@ -261,9 +261,9 @@ String _renderMarkdown({
     ..writeln('# Bridge Boundary Audit')
     ..writeln()
     ..writeln(
-      'Rule: `nightshade_core` is the only Dart package that may import '
-      '`package:nightshade_bridge` (docs/architecture.md §1). Every other '
-      'package and app must reach Rust through a `nightshade_core` '
+      'Rule: `skotiq_core` is the only Dart package that may import '
+      '`package:skotiq_bridge` (docs/architecture.md §1). Every other '
+      'package and app must reach Rust through a `skotiq_core` '
       'backend/role seam.',
     )
     ..writeln()

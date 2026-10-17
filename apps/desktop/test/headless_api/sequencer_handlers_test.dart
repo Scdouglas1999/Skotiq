@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:nightshade_desktop/headless_api/handlers/sequencer_handlers.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/sequencer_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -154,7 +154,7 @@ void main() {
         // update set deletes and re-inserts every node row, and
         // `SequenceDiffService` matches by id, so re-running an untouched
         // sequence reports every node as both added AND removed. See
-        // nightshade_core's load_copy_for_editing_test.dart.
+        // skotiq_core's load_copy_for_editing_test.dart.
         expect(loaded?.rootNodeId, 'root');
         verify(() => repository.loadSequence(42)).called(1);
         verify(() => executor.start()).called(1);
@@ -362,7 +362,7 @@ void main() {
             body: jsonEncode({
               'cameraId': 'sim:secondary',
               'exposureSecs': 60,
-              'saveBasePath': '/tmp/nightshade-secondary',
+              'saveBasePath': '/tmp/skotiq-secondary',
               'frameCount': 2.5,
             }),
           ),
@@ -640,7 +640,7 @@ void main() {
     }
 
     test('rejects a directory that cannot be created', () async {
-      final response = await post({'path': '/proc/nightshade-cannot-write'});
+      final response = await post({'path': '/proc/skotiq-cannot-write'});
 
       expect(response.statusCode, HttpStatus.badRequest);
       final body = jsonDecode(await response.readAsString()) as Map;
@@ -712,7 +712,7 @@ void main() {
     );
 
     for (final rejected in <String>[
-      '/data/user/0/com.nightshade.mobile/app_flutter',
+      '/data/user/0/com.skotiq.mobile/app_flutter',
       '/tmp',
       'relative/checkpoints',
     ]) {

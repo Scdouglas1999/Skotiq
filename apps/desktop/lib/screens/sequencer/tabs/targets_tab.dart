@@ -3,8 +3,8 @@ import 'package:file_selector/file_selector.dart' as file_selector;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 part 'targets_tab/targets_header.dart';
 part 'targets_tab/action_button.dart';
@@ -29,7 +29,7 @@ class TargetsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     final targetsAsync = ref.watch(targetsProvider);
     final searchQuery = ref.watch(sequenceTargetSearchProvider);
     final typeFilter = ref.watch(targetTypeFilterProvider);

@@ -8,7 +8,7 @@
   "what_happened": "With no observing location configured, the Tonight screen shows 'Nothing imageable right now \u2014 The sky may be below your horizon or your location is not set. Check Settings, then refresh.' with a Refresh button as the only action. The app knows unambiguously that the location is unset \u2014 every other surface says so plainly: Plan Tonight shows 'Location not configured / Set your observing latitude and longitude in Settings before using the planner' with an 'Open Settings' button, the Weather screen shows 'Location Not Configured' with 'Open Location Settings', and the dashboard shows 'Set an observing location for twilight times' with a 'Set location' button.",
   "expected": "Same treatment as the other three surfaces: state the actual cause and offer a one-click 'Open Settings'. The Refresh button offered here can never succeed.",
   "repro": "Fresh profile, skip onboarding, Dashboard > 'Image tonight'.",
-  "where": "packages/nightshade_app/lib/screens/tonight/tonight_screen.dart:273-279 (and the same hedged string at one_tap_tonight_controller.dart:94)",
+  "where": "packages/skotiq_app/lib/screens/tonight/tonight_screen.dart:273-279 (and the same hedged string at one_tap_tonight_controller.dart:94)",
   "location_wrong": null,
   "proposed_fix": "Branch on settings.latitude==0 && settings.longitude==0 before rendering the generic no-target card and show the 'Location not configured' state with an Open Settings action, exactly as the planner does.",
   "verdict_reasoning": null
@@ -22,7 +22,7 @@
   "what_happened": "The Schedule tab's left panel header renders as 'Unattended Aut\u2026' (or 'Unattended \u2026' when the status badge is wider), in every state I saw \u2014 Idle, Running, and with no location set. The panel is ~265px wide with plenty of vertical room below.",
   "expected": "The full name 'Unattended Autopilot' should be readable; wrap to two lines or move the status badge below the title.",
   "repro": "Plan Tonight > Schedule, look at the left panel header in any state.",
-  "where": "packages/nightshade_app/lib/screens/planner/widgets/scheduler_tab_content/decision_panel.dart",
+  "where": "packages/skotiq_app/lib/screens/planner/widgets/scheduler_tab_content/decision_panel.dart",
   "location_wrong": null,
   "proposed_fix": "Wrap the title (maxLines: 2) or put the Idle/Running badge on its own row.",
   "verdict_reasoning": null
@@ -36,7 +36,7 @@
   "what_happened": "The 'Object types' dialog lays its 7 chips out in a Wrap. Selecting 'Nebula' adds a checkmark, which widens the chip, pushes the layout from 2 rows to 3, and moves the Clear/Apply row down ~20px. My click at the previous Apply position landed on empty space; I had to look at a screenshot to find the button again.",
   "expected": "The dialog's action row should not move when a chip is toggled.",
   "repro": "Plan Tonight > Recommendation > 'Type: any' > click 'Nebula' > note Apply has moved from y=427 to y=447.",
-  "where": "packages/nightshade_app/lib/screens/planner/planner_screen_parts/_filter_controls.dart (object-types dialog)",
+  "where": "packages/skotiq_app/lib/screens/planner/planner_screen_parts/_filter_controls.dart (object-types dialog)",
   "location_wrong": null,
   "proposed_fix": "Reserve the checkmark's width in the unselected chip (fixed-width leading slot) or give the chip area a fixed height.",
   "verdict_reasoning": null
@@ -47,10 +47,10 @@
   "corrected_severity": null,
   "kind": "missing",
   "unit": "screen:suggestions/sort_and_reset_controls.dart",
-  "what_happened": "packages/nightshade_app/lib/screens/suggestions/ contains SuggestionFilters (with chip_controls, slider_controls, sort_and_reset_controls), ScoreBreakdown and TransientAlertsPanel. Repo-wide grep finds no import of screens/suggestions outside that directory except one test (test/screens/suggestions/suggestion_filters_remote_test.dart:54). ScoreBreakdown and TransientAlertsPanel have zero references anywhere, including tests. The controls the running app actually uses are the planner's own _SortDropdown/_ResetChip in screens/planner/planner_screen_parts/_filter_controls.dart:598-680.",
+  "what_happened": "packages/skotiq_app/lib/screens/suggestions/ contains SuggestionFilters (with chip_controls, slider_controls, sort_and_reset_controls), ScoreBreakdown and TransientAlertsPanel. Repo-wide grep finds no import of screens/suggestions outside that directory except one test (test/screens/suggestions/suggestion_filters_remote_test.dart:54). ScoreBreakdown and TransientAlertsPanel have zero references anywhere, including tests. The controls the running app actually uses are the planner's own _SortDropdown/_ResetChip in screens/planner/planner_screen_parts/_filter_controls.dart:598-680.",
   "expected": "Either wire these surfaces into a screen or delete them. In particular TransientAlertsPanel looks like the intended 'transients in your planner' integration that today does not exist \u2014 the Observing Alerts view is only reachable under Analytics > Science.",
   "repro": "Navigate every Plan Tonight tab (Recommendation, Projects, Schedule, Framing, Planetarium, Discover) and Analytics > Science; none render these widgets. Then `grep -rn 'SuggestionFilters\\|ScoreBreakdown\\|TransientAlertsPanel' packages/ --include=*.dart`.",
-  "where": "packages/nightshade_app/lib/screens/suggestions/widgets/suggestion_filters.dart:30, .../widgets/suggestion_filters/sort_and_reset_controls.dart, .../widgets/suggestion_filters/slider_controls.dart, .../widgets/score_breakdown.dart, .../widgets/transient_alerts_panel.dart:29",
+  "where": "packages/skotiq_app/lib/screens/suggestions/widgets/suggestion_filters.dart:30, .../widgets/suggestion_filters/sort_and_reset_controls.dart, .../widgets/suggestion_filters/slider_controls.dart, .../widgets/score_breakdown.dart, .../widgets/transient_alerts_panel.dart:29",
   "location_wrong": null,
   "proposed_fix": "Delete the directory, or land TransientAlertsPanel on the Plan Tonight Recommendation tab (which is where an observer would expect tonight's transient alerts to appear). Also retire suggestion_filters_remote_test.dart \u2014 a green test over an unshipped widget is worse than no test.",
   "verdict_reasoning": null
@@ -64,7 +64,7 @@
   "what_happened": "On 2026-08-01 at 40N/-75W with 1114 candidates, the ranking was NGC6015 (mag 11.2, 5.8') score 76 and IC1231 (mag 13.2, 1.9') score 76 at the top, with M31 at 64 and M27 at 68. Filtering to Type=Nebula put Cat's Eye (54 arcsec) at 75 and NGC6210 (30 arcsec) at 74 in the top two. The score is peak altitude + moon distance + window hours + transit proximity; nothing in it accounts for whether the object is worth imaging or fits the user's sensor. Notably the app HAS the information: the equipment profile gives a 0.69\u00b0 x 0.39\u00b0 FOV, and the Tonight one-tap ranker does use it ('Well-framed at 62% of FOV' for M92). So the two 'best target tonight' rankers on the same product disagree \u2014 Plan Tonight says NGC6015/M92 depending on state, Tonight says M92 with a framing term.",
   "expected": "The default ranking should surface targets a user can actually image with their rig. A 30-arcsec planetary nebula at 1.29 arcsec/px is 23 pixels across.",
   "repro": "Site 40/-75, no equipment profile: Plan Tonight > Recommendation > scroll the candidate list. Then 'Type: any' > Nebula > Apply.",
-  "where": "packages/nightshade_planetarium/lib/src/planning/target_scoring.dart:447-460 (altScore, moonScore, transitScore, darknessScore \u2014 no size or magnitude term)",
+  "where": "packages/skotiq_planetarium/lib/src/planning/target_scoring.dart:447-460 (altScore, moonScore, transitScore, darknessScore \u2014 no size or magnitude term)",
   "location_wrong": null,
   "proposed_fix": "Add a framing term to the composite score: fraction of the short sensor axis the target subtends, peaking around 0.2-0.7 and falling off hard below ~0.05 (unresolvable) and above 1.0 (needs a mosaic), plus a mild surface-brightness/magnitude term. Reuse the same computation the Tonight screen already does so the two rankers agree. Failing that, default the 'Size' filter to the FOV-fitting range instead of 'any' \u2014 the app knows the FOV the moment a profile exists.",
   "verdict_reasoning": null
@@ -78,7 +78,7 @@
   "what_happened": "Following the app's own instructions from a fresh profile: (1) Schedule > Target queue: 'Add a target to your catalog, then set how many frames you want in each filter' with a button labelled 'Open target catalog' \u2014 which navigates to Plan Tonight > Projects showing 'No projects yet'. (2) New Project > 'No targets yet \u2014 Add catalog targets to this project' > 'Add Target'. (3) The Add Target sheet says 'No targets in the catalog. Add targets to your library first, then attach them to this project' \u2014 with no button, link or hint for how. Meanwhile 'Add to observing list' on a recommendation card creates an observing_lists row that is a completely separate concept and never reaches the catalog (verified: observing_list_items got a row, targets stayed at 0). The only writer of the targets table in the whole app is framing_provider.saveTarget() \u2014 i.e. the real path is Recommendation > Send to Framing > save, which nothing tells you.",
   "expected": "The button labelled 'Open target catalog' should open a target catalog with an 'Add target' action. Any of these three screens should be able to add a catalog target directly.",
   "repro": "Fresh profile with a location: Plan Tonight > Schedule > 'Open target catalog' > New Project > Add Target.",
-  "where": "packages/nightshade_app/lib/screens/planner/widgets/scheduler_tab_content/empty_state.dart (button label/route), packages/nightshade_app/lib/screens/planner/widgets/projects_tab_content/ (Add Target sheet); sole targets writer at packages/nightshade_core/lib/src/providers/framing_provider.dart:799",
+  "where": "packages/skotiq_app/lib/screens/planner/widgets/scheduler_tab_content/empty_state.dart (button label/route), packages/skotiq_app/lib/screens/planner/widgets/projects_tab_content/ (Add Target sheet); sole targets writer at packages/skotiq_core/lib/src/providers/framing_provider.dart:799",
   "location_wrong": null,
   "proposed_fix": "Put a 'Save to catalog' action on the recommendation card next to 'Add to observing list' (it already has the RA/Dec/type/mag/size it needs), and give the Add Target sheet a 'New target...' row that opens the same form. Also reconcile the three overlapping concepts \u2014 observing lists, catalog targets, project targets \u2014 or at least explain them in the empty states.",
   "verdict_reasoning": null
@@ -92,7 +92,7 @@
   "what_happened": "The Add-constraint wizard's Moon avoidance step offers exactly one parameter: 'max illumination', default 30%, described as 'Skip this target when the moon's illumination is above a set percentage.' The saved payload is {\"max\":0.3} with kind moonIlluminationMax. Meanwhile the planner filter bar has 'Minimum moon separation' in degrees, every recommendation card prints a separation ('Moon 93\u00b0', 'Moon 46\u00b0'), and the score already uses _scoreMoonDistance(moonDist, moonIllumination).",
   "expected": "The hard constraint a user actually wants is separation-based, ideally illumination-scaled (NINA's moon-avoidance lorentzian; SGP's moon distance). Illumination alone rejects a 90%-moon target 150 degrees away and accepts a 40%-moon target 10 degrees away \u2014 exactly backwards in both cases.",
   "repro": "Plan Tonight > Schedule > click a queued target > Add constraint > Moon avoidance > Next.",
-  "where": "packages/nightshade_app/lib/screens/scheduler/widgets/target_constraints_editor/wizard_kind_step.dart and constraint_fields.dart; TargetConstraintKind in nightshade_core",
+  "where": "packages/skotiq_app/lib/screens/scheduler/widgets/target_constraints_editor/wizard_kind_step.dart and constraint_fields.dart; TargetConstraintKind in skotiq_core",
   "location_wrong": null,
   "proposed_fix": "Add a moonSeparationMin constraint kind (degrees) and, better, a combined 'avoid when separation < f(illumination)' with the standard width/decay parameters. The wizard also has no minimum-altitude / maximum-airmass / meridian-side constraint, which are the three most-used per-target constraints in NINA and SGP.",
   "verdict_reasoning": null
@@ -106,7 +106,7 @@
   "what_happened": "Plan Tonight > Recommendation shows scores on a 0-100 badge (M92 77, M31 63, NGC6015 76). Plan Tonight > Schedule > Target queue shows a SCORE column reading 1.655, 1.500, 1.300 for the same objects. Nothing on either screen says what either number means or that they are different scales.",
   "expected": "One scale, or at least a unit/tooltip. A user comparing the two tabs cannot tell whether 1.655 is good.",
   "repro": "Plan Tonight > Recommendation (badges), then Plan Tonight > Schedule (SCORE column) with the same targets.",
-  "where": "packages/nightshade_app/lib/screens/scheduler/widgets/target_score_row.dart vs packages/nightshade_planetarium/lib/src/planning/target_scoring.dart (totalScore 0-100)",
+  "where": "packages/skotiq_app/lib/screens/scheduler/widgets/target_score_row.dart vs packages/skotiq_planetarium/lib/src/planning/target_scoring.dart (totalScore 0-100)",
   "location_wrong": null,
   "proposed_fix": "Normalise the scheduler score to 0-100 for display, or label the column 'weight' and add a tooltip breaking it down (the decision panel already has the per-factor weights in 'Scoring weights').",
   "verdict_reasoning": null
@@ -120,7 +120,7 @@
   "what_happened": "One click on 'Run unattended all night' put the autopilot into Running, evaluating every 60s and ready to dispatch a sequence to the mount \u2014 with weather safety off, the guider disconnected, no dark/flat library, and no pre-flight summary shown. There is no confirmation dialog and no summary of what will happen. (Stop and Pause do work correctly, and the Idle/Running/countdown states were truthful.)",
   "expected": "A single click that will slew a telescope and run unattended for 8 hours should first show what it is about to do: chosen target, filters, weather-safety state, guiding state, park-at-dawn state \u2014 and require confirmation. NINA and SGP both make you build and start a sequence explicitly.",
   "repro": "Plan Tonight > Schedule > 'Run unattended all night'.",
-  "where": "packages/nightshade_app/lib/screens/planner/widgets/scheduler_tab_content/decision_panel.dart",
+  "where": "packages/skotiq_app/lib/screens/planner/widgets/scheduler_tab_content/decision_panel.dart",
   "location_wrong": null,
   "proposed_fix": "Gate the start behind the existing readiness checklist (the onboarding 'What's next' screen already links to one) rendered as a confirm sheet: green/amber rows for weather safety, guider, park-at-dawn, disk space and the first target, plus a 'Start anyway' for the amber cases.",
   "verdict_reasoning": null
@@ -134,7 +134,7 @@
   "what_happened": "The filter chip is 'Minimum altitude right now'. Driven at 10:12 local \u2014 12 hours before darkness \u2014 it filtered 1114 candidates down to 147 by the daytime altitude of objects that will be nowhere near that altitude tonight. The night-outlook chips right next to it are all whole-night quantities (peak in dark, hours visible).",
   "expected": "Filter on altitude within the imaging window (peak altitude in dark, or altitude at a chosen time), which is what the cards already compute and display.",
   "repro": "Plan Tonight > Recommendation in the daytime > 'Alt now: any' > drag to 45 > Apply. Top result IC1805 at 53\u00b0 now, an object that will be at a different altitude all night.",
-  "where": "packages/nightshade_app/lib/screens/planner/planner_screen_parts/_filter_controls.dart (alt-now dialog) and packages/nightshade_core/lib/src/providers/suggestion_filter_provider.dart",
+  "where": "packages/skotiq_app/lib/screens/planner/planner_screen_parts/_filter_controls.dart (alt-now dialog) and packages/skotiq_core/lib/src/providers/suggestion_filter_provider.dart",
   "location_wrong": null,
   "proposed_fix": "Rename to 'Minimum peak altitude tonight' and filter on visibility.peakAltitude (already on every suggestion), keeping 'right now' as a secondary option for people at the eyepiece.",
   "verdict_reasoning": null
@@ -148,7 +148,7 @@
   "what_happened": "The Recommendation tab ends with 'Rationale \u2014 Why this plan was chosen' containing 'Excellent peak altitude (62\u00b0), far from the 87% moon (102\u00b0). 5.0 hours above minimum altitude...'. Those are NGC6015's numbers. With a search active the block sits directly under an M31 card whose own chips read 'Peak in dark 79\u00b0, Moon 46\u00b0, 4.8h visible', so it reads as an explanation of the card above it and contradicts every number on it. The block also asserts 'Large unfinished dataset makes this an efficient completion target' for an object with zero captured frames (the same block says 'No data collected yet').",
   "expected": "Name the target ('Why NGC6015 was chosen'), and do not describe a target with no frames as a 'large unfinished dataset'.",
   "repro": "Plan Tonight > Recommendation > type 'M31' in the search box > scroll to the bottom.",
-  "where": "packages/nightshade_app/lib/screens/planner/planner_screen_parts/_recommendation_tab.dart (rationale section rendered from plan, after the candidate list)",
+  "where": "packages/skotiq_app/lib/screens/planner/planner_screen_parts/_recommendation_tab.dart (rationale section rendered from plan, after the candidate list)",
   "location_wrong": null,
   "proposed_fix": "Title the section with the plan's primary target name, and move it directly under the hero card instead of below the candidate list. Drop the 'large unfinished dataset' phrasing when capturedFrames == 0.",
   "verdict_reasoning": null
@@ -162,7 +162,7 @@
   "what_happened": "'Constellation: any' opens a plain dropdown listing 'Constellation: And', 'Constellation: Aql', 'Constellation: Aqr', 'Constellation: Ari', 'Constellation: Aur', 'Constellation: Boo', 'Constellation: CVn', 'Constellation: Cam', 'Constellation: Cas', 'Constellation: Cep', ... \u2014 88 entries, abbreviations only, no type-ahead, and the redundant 'Constellation: ' prefix repeated on every row eats the width.",
   "expected": "Full names (or 'Andromeda (And)'), with a search field, and only the constellations that actually have candidates tonight.",
   "repro": "Plan Tonight > Recommendation > 'Constellation: any'.",
-  "where": "packages/nightshade_app/lib/screens/planner/planner_screen_parts/_filter_controls.dart",
+  "where": "packages/skotiq_app/lib/screens/planner/planner_screen_parts/_filter_controls.dart",
   "location_wrong": null,
   "proposed_fix": "Drop the repeated prefix, show full names, add a filter field, and sort/limit to constellations present in the current candidate set.",
   "verdict_reasoning": null

@@ -1,5 +1,5 @@
-name: nightshade_desktop
-description: Nightshade Desktop - Cross-platform astrophotography suite
+name: skotiq_desktop
+description: Skotiq Desktop - Cross-platform astrophotography suite
 publish_to: 'none'
 version: 7.1.0+28
 
@@ -11,22 +11,22 @@ dependencies:
     sdk: flutter
 
   # Shared packages
-  nightshade_core:
-    path: ../../packages/nightshade_core
-  nightshade_ui:
-    path: ../../packages/nightshade_ui
-  nightshade_planetarium:
-    path: ../../packages/nightshade_planetarium
-  nightshade_bridge:
-    path: ../../packages/nightshade_bridge
-  nightshade_plugins:
-    path: ../../packages/nightshade_plugins
-  nightshade_remote_protocol:
-    path: ../../packages/nightshade_remote_protocol
-  nightshade_app:
-    path: ../../packages/nightshade_app
-  nightshade_updater:
-    path: ../../packages/nightshade_updater
+  skotiq_core:
+    path: ../../packages/skotiq_core
+  skotiq_ui:
+    path: ../../packages/skotiq_ui
+  skotiq_planetarium:
+    path: ../../packages/skotiq_planetarium
+  skotiq_bridge:
+    path: ../../packages/skotiq_bridge
+  skotiq_plugins:
+    path: ../../packages/skotiq_plugins
+  skotiq_remote_protocol:
+    path: ../../packages/skotiq_remote_protocol
+  skotiq_app:
+    path: ../../packages/skotiq_app
+  skotiq_updater:
+    path: ../../packages/skotiq_updater
 
   # State management
   flutter_riverpod: ^2.5.1
@@ -34,7 +34,7 @@ dependencies:
   # Navigation
   go_router: ^14.0.0
 
-  # Database — package:sqlite3 ^3 (via nightshade_core) ships SQLite through
+  # Database — package:sqlite3 ^3 (via skotiq_core) ships SQLite through
   # Dart build hooks. Do not add sqlite3_flutter_libs: it embeds a second
   # un-namespaced libsqlite3 that clashes with GTK→tinysparql on modern Linux
   # and segfaults in sqlite3_initialize at startup.
@@ -100,20 +100,20 @@ dev_dependencies:
   json_serializable: ^6.9.0
   drift_dev: ^2.33.0
   # Pinned to match the version already used across the workspace test suites
-  # (e.g. nightshade_core). Test-only: lets the headless bootstrap tests mint an
+  # (e.g. skotiq_core). Test-only: lets the headless bootstrap tests mint an
   # `is FfiBackend` role double without dragging in the native backend.
   mocktail: ^1.0.4
   # Test-only: the transient handler tests stand in a fixed alert service, and
   # `TransientAlertService`'s constructor takes an `http.Client`. Pinned to the
-  # version nightshade_core already resolves.
+  # version skotiq_core already resolves.
   http: ^1.2.0
 
 flutter:
   uses-material-design: true
 
   # NOTE: bundled sample sequences for the Sequencer > Library tab live in
-  # the nightshade_core package's own pubspec asset declaration. Flutter
-  # automatically picks them up as `packages/nightshade_core/assets/...`
+  # the skotiq_core package's own pubspec asset declaration. Flutter
+  # automatically picks them up as `packages/skotiq_core/assets/...`
   # at runtime via rootBundle — they do NOT need to be re-declared here.
 
   assets:

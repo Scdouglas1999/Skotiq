@@ -5,9 +5,9 @@ Collaborative-Sky / Diagnostics surfaces. Evidence read first from
 `reports/release-pass/waveD-result.json` and the three cluster narratives
 (`waveD-science-review.md`, `waveD-collab-catalogs.md`, `waveD-consistency.md`).
 
-Scope allowed: `packages/nightshade_app/lib/screens/{analytics,science,
+Scope allowed: `packages/skotiq_app/lib/screens/{analytics,science,
 session_review,mosaic,collaborative_sky,suggestions,transients,diagnostics}/**`
-plus `packages/nightshade_ui/lib/src/components/nightshade_dropdown.dart`
+plus `packages/skotiq_ui/lib/src/components/skotiq_dropdown.dart`
 (selected-state only), plus the owning packages' test directories.
 
 ---
@@ -64,7 +64,7 @@ over the eight directories. It listed 26 offenders before the fix.
 
 The two panels read different inputs: the verdict is a session-level degradation
 score, the badges come from `FrameQualityAssessmentService` per frame. Scoring
-lives in `nightshade_core` (out of scope), so the reconciliation was made at the
+lives in `skotiq_core` (out of scope), so the reconciliation was made at the
 view layer, where both inputs are already in hand: `narrative_view.dart` now
 reads the same grader the Workbench reads and, when a *clean graded* verdict with
 zero findings sits over POOR-graded subs, states the disagreement under the
@@ -114,13 +114,13 @@ beside the slider that owns it.
 
 ### NEW-C4 (P4) — no dropdown menu marks its current option
 
-`NightshadeDropdown` did already set `selected:` on the chosen entry — but
+`SkotiqDropdown` did already set `selected:` on the chosen entry — but
 AT-SPI carries that as SELECTED, which no menu consumer reads and which never
 appeared in a live tree dump. A menu of mutually exclusive options is a radio
 group and CHECKED is the state that role publishes, so each entry now carries
 `checked: item == value` alongside `selected:`.
 
-Pin: extended `packages/nightshade_ui/test/components/interactive_semantics_test.dart`.
+Pin: extended `packages/skotiq_ui/test/components/interactive_semantics_test.dart`.
 Verified failing at HEAD ("Light offers no checked state, so nothing in the menu
 says which option is in force") and passing after.
 
@@ -141,7 +141,7 @@ batch's scope. Recorded blocked, not fixed.
 | ID | Where the fix has to land | Note |
 | --- | --- | --- |
 | WD-SCI-N3 | `lib/screens/sequencer/**` (pre-flight validation dialog) | "Start Anyway" needs the same `Semantics(button:…)` treatment as the sweep applied here. |
-| WD-SCI-N4 | `packages/nightshade_ui/lib/src/components/adaptive_tab_bar.dart` | The chevrons are `Positioned` inside a `Stack` in the shared component; the scope grant for `nightshade_ui` was the dropdown's selected state only. |
+| WD-SCI-N4 | `packages/skotiq_ui/lib/src/components/adaptive_tab_bar.dart` | The chevrons are `Positioned` inside a `Stack` in the shared component; the scope grant for `skotiq_ui` was the dropdown's selected state only. |
 | WD-COL-N2 | `lib/screens/sequencer/widgets/mosaic_wizard_dialog.dart` | Gated footer buttons must be disabled with the inline reason. |
 | WD-COL-N3 | `lib/screens/sequencer/widgets/mosaic_wizard_dialog/config_controls.dart` | The auto-fill that swallows keystrokes in the second panel-dimension field. |
 | WD-COL-N4 | shared shell status bar | Clips "Mou" at 900 px. |
@@ -161,13 +161,13 @@ caught both.
 
 ## Verification
 
-- `packages/nightshade_ui`: `test/components/interactive_semantics_test.dart` — 22/22.
-- `packages/nightshade_app`: the four new/extended suites pass; the
+- `packages/skotiq_ui`: `test/components/interactive_semantics_test.dart` — 22/22.
+- `packages/skotiq_app`: the four new/extended suites pass; the
   analytics / session_review / mosaic / diagnostics / suggestions / transients
   suites were re-run for regressions.
 - `dart analyze lib/screens` — no errors or warnings introduced (the remaining
   `info` lines are the pre-existing `clampPanelWidth` deprecations).
-- `packages/nightshade_ui`: full suite 306/306.
+- `packages/skotiq_ui`: full suite 306/306.
 
 Four failures remain across those suites, all in `captures_landscape_test.dart`
 (analytics ×2, diagnostics ×2). These are the documented Windows-captured-golden
@@ -181,8 +181,8 @@ reference host once this batch lands.
 
 ## Environment note for the next agent
 
-Two concurrent D-fix batches broke `nightshade_core`
-(`SchedulerSequenceSink.ownsRun`) and `nightshade_planetarium`
+Two concurrent D-fix batches broke `skotiq_core`
+(`SchedulerSequenceSink.ownsRun`) and `skotiq_planetarium`
 (`_holdZoomAnchor`, `focalPoint`) mid-session, which fails **every**
-`nightshade_app` test with a compile error unrelated to the batch under test.
+`skotiq_app` test with a compile error unrelated to the batch under test.
 Re-run rather than concluding a fix is broken.

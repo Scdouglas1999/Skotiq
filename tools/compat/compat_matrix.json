@@ -5,7 +5,7 @@
       "manufacturer": "ZWO",
       "device_type": "Camera,Focuser,FilterWheel",
       "driver_type": "Native SDK",
-      "confidence_tier": "SDK runtime + Nightshade tests",
+      "confidence_tier": "SDK runtime + Skotiq tests",
       "platforms": ["all"],
       "patterns": ["SDKs/ZWO/**/ASICamera2.dll", "SDKs/ZWO/**/EAF_focuser.dll", "SDKs/ZWO/**/EFW_filter.dll", "SDKs/ZWO/**/libASICamera2.*"],
       "runtime_probe": true,
@@ -20,7 +20,7 @@
         { "id": "zwo-efw-position", "device": "FilterWheel", "function": "Set/read filter", "capability": "set_filter", "symbols": ["EFWOpen", "EFWSetPosition", "EFWGetPosition"], "physical": true }
       ],
       "commands": [
-        { "name": "zwo_native_tests", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_native", "--test", "native_driver_tests", "zwo", "--", "--skip", "connect_disconnect", "--skip", "operations"] }
+        { "name": "zwo_native_tests", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_native", "--test", "native_driver_tests", "zwo", "--", "--skip", "connect_disconnect", "--skip", "operations"] }
       ]
     },
     {
@@ -38,7 +38,7 @@
         { "id": "zwo-shim-filterwheel-flow", "device": "FilterWheel", "function": "Discover, connect, set/read filter position", "capability": "set_filter", "symbols": [], "physical": false }
       ],
       "commands": [
-        { "name": "zwo_fake_sdk_contract", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_native", "--test", "native_driver_tests", "test_fake_sdk_shims_exercise_camera_focuser_filterwheel", "--", "--ignored", "--nocapture"] }
+        { "name": "zwo_fake_sdk_contract", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_native", "--test", "native_driver_tests", "test_fake_sdk_shims_exercise_camera_focuser_filterwheel", "--", "--ignored", "--nocapture"] }
       ]
     },
     {
@@ -46,7 +46,7 @@
       "manufacturer": "QHYCCD",
       "device_type": "Camera,FilterWheel",
       "driver_type": "Native SDK",
-      "confidence_tier": "SDK runtime + Nightshade tests",
+      "confidence_tier": "SDK runtime + Skotiq tests",
       "platforms": ["all"],
       "patterns": ["SDKs/QHY/**/qhyccd*.dll", "SDKs/QHY/**/libqhyccd*"],
       "runtime_probe": true,
@@ -60,7 +60,7 @@
         { "id": "qhy-cfw-command", "device": "FilterWheel", "function": "Send CFW command", "capability": "set_filter", "symbols": ["SendOrder2QHYCCDCFW"], "physical": true }
       ],
       "commands": [
-        { "name": "qhy_native_tests", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_native", "--test", "native_driver_tests", "qhy_cfw_discovery"] }
+        { "name": "qhy_native_tests", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_native", "--test", "native_driver_tests", "qhy_cfw_discovery"] }
       ]
     },
     {
@@ -78,7 +78,7 @@
         { "id": "qhy-shim-edge-errors", "device": "Camera", "function": "Reject uncooled-camera cooler control and propagate SDK exposure errors", "capability": "error_handling", "symbols": [], "physical": false }
       ],
       "commands": [
-        { "name": "qhy_fake_sdk_contract", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_native", "--test", "native_driver_tests", "test_qhy_fake_sdk_shim_exercises_camera_filterwheel_and_model_flows", "--", "--ignored", "--nocapture"] }
+        { "name": "qhy_fake_sdk_contract", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_native", "--test", "native_driver_tests", "test_qhy_fake_sdk_shim_exercises_camera_filterwheel_and_model_flows", "--", "--ignored", "--nocapture"] }
       ]
     },
     {
@@ -113,7 +113,7 @@
         { "id": "poa-shim-edge-errors", "device": "Camera", "function": "Handle exposure-not-ready, image transfer failure, unknown SDK error, and uncooled-camera cooler rejection", "capability": "error_handling", "symbols": [], "physical": false }
       ],
       "commands": [
-        { "name": "playerone_fake_sdk_contract", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_native", "--test", "native_driver_tests", "test_player_one_fake_sdk_shim_exercises_model_and_edge_flows", "--", "--ignored", "--nocapture"] }
+        { "name": "playerone_fake_sdk_contract", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_native", "--test", "native_driver_tests", "test_player_one_fake_sdk_shim_exercises_model_and_edge_flows", "--", "--ignored", "--nocapture"] }
       ]
     },
     {
@@ -121,7 +121,7 @@
       "manufacturer": "SVBONY",
       "device_type": "Camera",
       "driver_type": "Native SDK",
-      "confidence_tier": "SDK runtime + Nightshade tests",
+      "confidence_tier": "SDK runtime + Skotiq tests",
       "platforms": ["all"],
       "patterns": ["SDKs/SVBony/**/SVBCameraSDK.dll", "SDKs/SVBony/**/libSVBCameraSDK*"],
       "runtime_probe": true,
@@ -133,7 +133,7 @@
         { "id": "svb-controls", "device": "Camera", "function": "Read/write controls", "capability": "controls", "symbols": ["SVBGetControlValue", "SVBSetControlValue"], "physical": true }
       ],
       "commands": [
-        { "name": "svbony_native_tests", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_native", "--test", "native_driver_tests", "svbony", "--", "--skip", "connect_disconnect", "--skip", "exposure"] }
+        { "name": "svbony_native_tests", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_native", "--test", "native_driver_tests", "svbony", "--", "--skip", "connect_disconnect", "--skip", "exposure"] }
       ]
     },
     {
@@ -149,7 +149,7 @@
         { "id": "svbony-shim-camera-expose-download", "device": "Camera", "function": "Start capture and download image through production driver", "capability": "download_image", "symbols": [], "physical": false }
       ],
       "commands": [
-        { "name": "svbony_fake_sdk_contract", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_native", "--test", "native_driver_tests", "test_svbony_fake_sdk_shim_exercises_camera_flow", "--", "--ignored", "--nocapture"] }
+        { "name": "svbony_fake_sdk_contract", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_native", "--test", "native_driver_tests", "test_svbony_fake_sdk_shim_exercises_camera_flow", "--", "--ignored", "--nocapture"] }
       ]
     },
     {
@@ -184,7 +184,7 @@
         { "id": "atik-shim-camera-expose-download", "device": "Camera", "function": "Expose, poll readiness, and download image through production driver", "capability": "download_image", "symbols": [], "physical": false }
       ],
       "commands": [
-        { "name": "atik_fake_sdk_contract", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_native", "--test", "native_driver_tests", "test_atik_fake_sdk_shim_exercises_camera_flow", "--", "--ignored", "--nocapture"] }
+        { "name": "atik_fake_sdk_contract", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_native", "--test", "native_driver_tests", "test_atik_fake_sdk_shim_exercises_camera_flow", "--", "--ignored", "--nocapture"] }
       ]
     },
     {
@@ -273,7 +273,7 @@
         { "id": "fli-shim-edge-errors", "device": "Camera", "function": "Propagate row-grab image transfer failure", "capability": "error_handling", "symbols": [], "physical": false }
       ],
       "commands": [
-        { "name": "fli_fake_sdk_contract", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_native", "--test", "native_driver_tests", "test_fli_fake_sdk_shim_exercises_camera_focuser_and_filterwheel_flows", "--", "--ignored", "--nocapture"] }
+        { "name": "fli_fake_sdk_contract", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_native", "--test", "native_driver_tests", "test_fli_fake_sdk_shim_exercises_camera_focuser_and_filterwheel_flows", "--", "--ignored", "--nocapture"] }
       ]
     },
     {
@@ -291,7 +291,7 @@
         { "id": "touptek-shim-edge-errors", "device": "Camera", "function": "Propagate image pull failure and reject unsupported cooler", "capability": "error_handling", "symbols": [], "physical": false }
       ],
       "commands": [
-        { "name": "touptek_fake_sdk_contract", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_native", "--test", "native_driver_tests", "test_touptek_fake_sdk_shim_exercises_white_label_model_flows", "--", "--ignored", "--nocapture"] }
+        { "name": "touptek_fake_sdk_contract", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_native", "--test", "native_driver_tests", "test_touptek_fake_sdk_shim_exercises_white_label_model_flows", "--", "--ignored", "--nocapture"] }
       ]
     },
     {
@@ -309,7 +309,7 @@
         { "id": "moravian-shim-edge-errors", "device": "Camera", "function": "Propagate BeginExposure failure and reject unsupported cooler", "capability": "error_handling", "symbols": [], "physical": false }
       ],
       "commands": [
-        { "name": "moravian_fake_sdk_contract", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_native", "--test", "native_driver_tests", "test_moravian_fake_sdk_shim_exercises_camera_model_and_edge_flows", "--", "--ignored", "--nocapture"] }
+        { "name": "moravian_fake_sdk_contract", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_native", "--test", "native_driver_tests", "test_moravian_fake_sdk_shim_exercises_camera_model_and_edge_flows", "--", "--ignored", "--nocapture"] }
       ]
     },
     {
@@ -327,7 +327,7 @@
         { "id": "fujifilm-shim-edge-errors", "device": "Camera", "function": "Propagate release busy/SDK error through XSDK_GetErrorNumber", "capability": "error_handling", "symbols": [], "physical": false }
       ],
       "commands": [
-        { "name": "fujifilm_fake_sdk_contract", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_native", "--test", "native_driver_tests", "test_fujifilm_fake_sdk_shim_exercises_session_release_and_model_flows", "--", "--ignored", "--nocapture"] }
+        { "name": "fujifilm_fake_sdk_contract", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_native", "--test", "native_driver_tests", "test_fujifilm_fake_sdk_shim_exercises_session_release_and_model_flows", "--", "--ignored", "--nocapture"] }
       ]
     },
     {
@@ -414,7 +414,7 @@
         ,{ "id": "alpaca-malformed-image-rejection", "device": "Camera", "function": "Reject malformed imagearrayvariant payload", "capability": "payload_validation", "symbols": [], "physical": false }
       ],
       "commands": [
-        { "name": "alpaca_simulator_contract", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_alpaca", "--test", "alpaca_simulator_contract", "--", "--nocapture"] }
+        { "name": "alpaca_simulator_contract", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_alpaca", "--test", "alpaca_simulator_contract", "--", "--nocapture"] }
       ]
     },
     {
@@ -430,25 +430,25 @@
         { "id": "mount-protocol-tracking", "device": "Mount", "function": "Tracking command/parser contract", "capability": "tracking", "symbols": [], "physical": false }
       ],
       "commands": [
-        { "name": "skywatcher_discovery", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_native", "--test", "native_driver_tests", "skywatcher_mount_discovery_no_crash"] },
-        { "name": "ioptron_discovery", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_native", "--test", "native_driver_tests", "ioptron_mount_discovery_no_crash"] },
-        { "name": "lx200_discovery", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_native", "--test", "native_driver_tests", "lx200_mount_discovery_no_crash"] },
-        { "name": "native_unit_protocol_tests", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_native", "vendor::"] }
+        { "name": "skywatcher_discovery", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_native", "--test", "native_driver_tests", "skywatcher_mount_discovery_no_crash"] },
+        { "name": "ioptron_discovery", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_native", "--test", "native_driver_tests", "ioptron_mount_discovery_no_crash"] },
+        { "name": "lx200_discovery", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_native", "--test", "native_driver_tests", "lx200_mount_discovery_no_crash"] },
+        { "name": "native_unit_protocol_tests", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_native", "vendor::"] }
       ]
     },
     {
       "id": "bridge-full-workspace",
-      "manufacturer": "Nightshade",
+      "manufacturer": "Skotiq",
       "device_type": "All",
       "driver_type": "Bridge",
       "confidence_tier": "Workspace tests",
       "platforms": ["all"],
-      "commands": [{ "name": "workspace_all_features", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "--workspace", "--all-features", "--exclude", "nightshade_updater"] }]
+      "commands": [{ "name": "workspace_all_features", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "--workspace", "--all-features", "--exclude", "skotiq_updater"] }]
     },
     { "id": "canon-edsdk-native-camera", "manufacturer": "Canon", "device_type": "Camera", "driver_type": "Native SDK", "confidence_tier": "API blocked", "platforms": ["windows", "macos"], "blocked": "Canon EDSDK requires developer access and native driver implementation." },
     { "id": "nikon-native-camera", "manufacturer": "Nikon", "device_type": "Camera", "driver_type": "Native SDK", "confidence_tier": "API blocked", "platforms": ["windows", "macos"], "blocked": "Nikon SDK requires developer approval and native driver implementation." },
     { "id": "ascom-conformu-certification", "manufacturer": "ASCOM Initiative", "device_type": "All", "driver_type": "ASCOM COM/Alpaca", "confidence_tier": "Official conformance", "platforms": ["all"], "required_tools": ["ConformU"], "blocked": "ConformU must be installed and run against ASCOM/Alpaca simulators." },
-    { "id": "indi-simulator-drivers", "manufacturer": "INDI", "device_type": "All", "driver_type": "INDI", "confidence_tier": "Official simulator drivers", "platforms": ["linux"], "required_tools": ["indiserver"], "commands": [{ "name": "indi_crate_tests", "cwd": "native/nightshade_native", "program": "cargo", "args": ["test", "-p", "nightshade_indi"] }] },
+    { "id": "indi-simulator-drivers", "manufacturer": "INDI", "device_type": "All", "driver_type": "INDI", "confidence_tier": "Official simulator drivers", "platforms": ["linux"], "required_tools": ["indiserver"], "commands": [{ "name": "indi_crate_tests", "cwd": "native/skotiq_native", "program": "cargo", "args": ["test", "-p", "skotiq_indi"] }] },
     { "id": "celestron-aux-native-mount", "manufacturer": "Celestron", "device_type": "Mount", "driver_type": "Native AUX/CPWI", "confidence_tier": "Roadmap", "platforms": ["all"], "blocked": "Native Celestron AUX/CPWI support is not implemented." },
     { "id": "pegasus-native-powerbox", "manufacturer": "Pegasus Astro", "device_type": "Switch,Focuser,Weather,DewControl", "driver_type": "Native Serial", "confidence_tier": "Roadmap", "platforms": ["all"], "blocked": "Native Pegasus Powerbox support is not implemented." }
   ]

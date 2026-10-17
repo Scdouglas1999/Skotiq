@@ -12,7 +12,7 @@
 // This module fixes that by making long-running ops register as `Job`s
 // owned by a `JobManager`. The action POST returns `{jobId, status: queued}`
 // immediately; progress and completion flow through the existing
-// WebSocket event stream as `NightshadeEvent` with `category: job`. The
+// WebSocket event stream as `SkotiqEvent` with `category: job`. The
 // REST surface gains `GET /api/jobs/{jobId}`, `GET /api/jobs`,
 // `POST /api/jobs/{jobId}/cancel`, and `DELETE /api/jobs/{jobId}`.
 //
@@ -24,7 +24,7 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
 /// Lifecycle states for a [Job]. Transitions:
 ///   queued  -> running -> succeeded | failed | cancelled
@@ -244,7 +244,7 @@ class JobManager {
   /// server to [HeadlessApiServer.broadcastEvent] so JobStarted /
   /// JobProgress / JobCompleted / JobFailed / JobCancelled events fan out
   /// to every WebSocket subscriber.
-  final void Function(NightshadeEvent event) _emitEvent;
+  final void Function(SkotiqEvent event) _emitEvent;
 
   /// Random source for UUID v4 generation. We avoid `package:uuid` so
   /// this module has no new dependency — RFC 4122 §4.4 is small enough
@@ -259,7 +259,7 @@ class JobManager {
   final Map<String, _JobCancellation> _cancellations = {};
 
   JobManager({
-    required void Function(NightshadeEvent event) emitEvent,
+    required void Function(SkotiqEvent event) emitEvent,
     this.retention = const Duration(hours: 24),
     DateTime Function()? now,
     String Function()? generateJobId,
@@ -554,7 +554,7 @@ class JobManager {
   }
 
   void _emit(String eventType, Job job, {required EventSeverity severity}) {
-    final event = NightshadeEvent(
+    final event = SkotiqEvent(
       timestamp: job.updatedAt.toUtc().millisecondsSinceEpoch,
       severity: severity,
       category: EventCategory.job,

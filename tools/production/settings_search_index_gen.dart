@@ -24,12 +24,12 @@
 import 'dart:io';
 
 const _generatedPath =
-    'packages/nightshade_app/lib/screens/settings/settings_search_index.g.dart';
+    'packages/skotiq_app/lib/screens/settings/settings_search_index.g.dart';
 const _catalogPath =
-    'packages/nightshade_app/lib/screens/settings/settings_catalog.dart';
+    'packages/skotiq_app/lib/screens/settings/settings_catalog.dart';
 const _translationsPath =
-    'packages/nightshade_app/lib/localization/nightshade_localizations/translations.dart';
-const _libRoot = 'packages/nightshade_app/lib';
+    'packages/skotiq_app/lib/localization/skotiq_localizations/translations.dart';
+const _libRoot = 'packages/skotiq_app/lib';
 
 void main(List<String> args) {
   final checkOnly = args.contains('--check');
@@ -159,7 +159,7 @@ _Libraries _libraryIndex(String repoRoot, {required Set<String> exclude}) {
   // `$`-string: the solver card has five mutually exclusive headlines and at
   // most one is ever on screen. Indexing them let a search for "catalog" offer
   // "ASTAP detected — catalog missing" as a Plate Solving row on a machine
-  // whose Plate Solving page said "ASTAP not installed — Nightshade cannot
+  // whose Plate Solving page said "ASTAP not installed — Skotiq cannot
   // plate-solve": two Settings surfaces disagreeing about one fact.
   final stateReporters = _markedIgnored(sources.values);
   exclude = {...exclude, ...stateReporters};
@@ -330,7 +330,7 @@ List<String> _titles(String source, Map<String, String> english) {
   );
   // Headings a page renders as styled text rather than as a row title. The
   // Catalogs page heads each card with `Text('GLADE+ Galaxy Catalog', style:
-  // NightshadeTypography.sectionTitle)`, which no `title:` rule can see — so
+  // SkotiqTypography.sectionTitle)`, which no `title:` rule can see — so
   // the visible name of an installable catalogue was unsearchable.
   //
   // The Observatory scale renamed these: h1..h6 became pageTitle /
@@ -341,7 +341,7 @@ List<String> _titles(String source, Map<String, String> english) {
   addRowTitle(
     RegExp(
       r"Text\(\s*'((?:[^'\\]|\\.)*)'\s*,\s*(?:\w+:\s*[^,]*,\s*)*"
-      r"style:\s*NightshadeTypography\."
+      r"style:\s*SkotiqTypography\."
       r"(?:h[1-6]|pageTitle|sectionTitle|bodyStrong|display|eyebrow)",
     ),
     headingsOnly: true,

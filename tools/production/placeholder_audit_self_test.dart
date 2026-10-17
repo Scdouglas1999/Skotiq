@@ -10,7 +10,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_placeholder_audit_self_test_',
+    'skotiq_placeholder_audit_self_test_',
   );
   try {
     await _writePassingFixture(temp);

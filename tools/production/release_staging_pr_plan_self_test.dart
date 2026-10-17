@@ -19,7 +19,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_release_staging_pr_plan_self_test_',
+    'skotiq_release_staging_pr_plan_self_test_',
   );
   try {
     await _prepareGitWorkspace(temp);
@@ -114,7 +114,7 @@ Future<void> main() async {
       'PR plan should assign every staged audit path exactly once',
     );
     _expectBucket(plan, 'generated-files', [
-      'packages/nightshade_core/lib/src/database/database.g.dart',
+      'packages/skotiq_core/lib/src/database/database.g.dart',
     ]);
     _expectBucket(plan, 'binary-and-evidence-artifacts', [
       'docs/production-readiness/smoke.png',
@@ -126,7 +126,7 @@ Future<void> main() async {
       'apps/desktop/web_dashboard/js/api.js',
     ]);
     _expectBucket(plan, 'native-driver-bridge', [
-      'packages/nightshade_bridge/lib/src/api.dart',
+      'packages/skotiq_bridge/lib/src/api.dart',
     ]);
     _expectBucket(plan, 'tests-and-support-tooling', [
       'scripts/deleted_tool.ps1',
@@ -195,12 +195,12 @@ Future<void> _writeDirtyFixture(Directory root) async {
       .create(recursive: true)
       .then((file) => file.writeAsString('console.log("fixture");\n'));
   await File(
-    '${root.path}/packages/nightshade_core/lib/src/database/database.g.dart',
+    '${root.path}/packages/skotiq_core/lib/src/database/database.g.dart',
   ).create(recursive: true).then((file) => file.writeAsString('// generated\n'));
   await File(
     '${root.path}/docs/production-readiness/smoke.png',
   ).writeAsBytes([1, 2, 3]);
-  await File('${root.path}/packages/nightshade_bridge/lib/src/api.dart')
+  await File('${root.path}/packages/skotiq_bridge/lib/src/api.dart')
       .create(recursive: true)
       .then((file) => file.writeAsString('class Fixture {}\n'));
   await File('${root.path}/scratch/research.txt')
@@ -367,7 +367,7 @@ void _expectReleaseListsMatchPlan(Directory root, Map<String, dynamic> plan) {
   _expectReleaseListContains(
     plan,
     'generated-only',
-    'packages/nightshade_core/lib/src/database/database.g.dart',
+    'packages/skotiq_core/lib/src/database/database.g.dart',
   );
   _expectReleaseListContains(
     plan,

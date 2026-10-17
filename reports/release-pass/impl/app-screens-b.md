@@ -44,9 +44,9 @@ chip → shortLabel), `transients_screen.dart` (filter chip → shortLabel),
 `transient_alert_badge.dart` (icon/colour/label). Removed `_TypeBadge.priority`,
 which no branch of the deleted switch ever read.
 
-Note for the verifier: the work order listed `NightshadeIcons.sparkle` vs
+Note for the verifier: the work order listed `SkotiqIcons.sparkle` vs
 `LucideIcons.sparkles` as a supernova-icon disagreement. They are the same
-glyph — `nightshade_icons.dart:462` aliases one to the other. Not a defect.
+glyph — `skotiq_icons.dart:462` aliases one to the other. Not a defect.
 
 Result: `flutter test test/screens/transients/ test/widgets/transient_alert_badge_test.dart`
 → **35 passed, 0 failed** (9 of them new).
@@ -143,7 +143,7 @@ Done:
   rather than the "Image not available" empty state.
 
 **Blocked half:** "make the `autoStretchImage` seam async". Both STF seams are
-synchronous and live in `nightshade_core`
+synchronous and live in `skotiq_core`
 (`backend/roles/imaging_backend.dart:131` plus the three backend
 implementations, and `services/stacking_engine_seam.dart:119,182`). Making them
 async ripples through `stack_and_share_service.dart:515,575`,

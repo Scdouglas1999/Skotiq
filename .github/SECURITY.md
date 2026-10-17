@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes are applied to the current **beta** and **stable** release channels published on [GitHub Releases](https://github.com/Scdouglas1999/Nightshade/releases). Older versions may not receive patches.
+Security fixes are applied to the current **beta** and **stable** release channels published on [GitHub Releases](https://github.com/Scdouglas1999/Skotiq/releases). Older versions may not receive patches.
 
 | Channel | Typical support |
 |--------|------------------|
@@ -25,6 +25,6 @@ You should receive an acknowledgment within a reasonable timeframe. We will coor
 
 ## Scope notes
 
-Nightshade is designed for **local observatory LANs**. Remote control and the web dashboard assume a trusted network; exposing the headless API or dashboard directly to the public internet without additional hardening is out of scope for default configurations.
+Skotiq is designed for **local observatory LANs**. Remote control and the web dashboard assume a trusted network; exposing the headless API or dashboard directly to the public internet without additional hardening is out of scope for default configurations.
 
 When reporting remote-control issues, specify whether the deployment used token authentication, TLS termination, and firewall rules from [Headless secure setup](../docs/headless-secure-setup.md).

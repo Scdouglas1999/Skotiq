@@ -3,24 +3,24 @@
   "outcome": "fixed",
   "summary": "sequence_validation.dart now reads raHours/decDegrees. TargetCoordinatesUnsetRule is registered in defaultSequenceValidators, so SequenceExecutor.start() throws SequenceValidationException (code target_coordinates_unset) before backend.sequencerStart() when a live target still carries the RA 0h / Dec +0 placeholder and anything enabled under it (or a detached Slew/Center that resolves to it) would consume that pointing. A placeholder target with nothing enabled under it degrades to a warning instead of blocking an unrelated run.",
   "files_changed": [
-    "packages/nightshade_core/lib/src/providers/sequence/sequence_validation.dart",
-    "packages/nightshade_core/test/providers/sequence/target_coordinates_unset_validation_test.dart"
+    "packages/skotiq_core/lib/src/providers/sequence/sequence_validation.dart",
+    "packages/skotiq_core/test/providers/sequence/target_coordinates_unset_validation_test.dart"
   ],
   "test": [
-    "cd packages/nightshade_core && flutter test test/providers/sequence/target_coordinates_unset_validation_test.dart  (4/4 pass)",
-    "cd packages/nightshade_core && flutter test test/providers/sequence/  (428/428 pass, no regressions)",
+    "cd packages/skotiq_core && flutter test test/providers/sequence/target_coordinates_unset_validation_test.dart  (4/4 pass)",
+    "cd packages/skotiq_core && flutter test test/providers/sequence/  (428/428 pass, no regressions)",
     "dart analyze on both files: no issues; dart format --set-exit-if-changed: clean"
   ],
   "revert_check": "Deleted the single wiring line `      TargetCoordinatesUnsetRule(),` from defaultSequenceValidators in sequence_validation.dart (rule class left fully intact). 3 of 4 tests failed: 'start() refuses a named target still on the 0h/+0 placeholder' (start() returned null instead of throwing SequenceValidationException), 'a detached Slew inheriting the placeholder also blocks start()' (same), and 'the placeholder warns, but does not block' (Expected length 1, Actual []). Line restored, 4/4 pass again.",
   "wiring_evidence": "Tests never construct TargetCoordinatesUnsetRule. They drive SequenceExecutor.start() -> validateSequenceForStart() -> sequenceValidatorProvider -> the production `defaultSequenceValidators` list object, and assert verifyNever(backend.sequencerStart()). Cutting the registry entry alone breaks them.",
   "runtime_analysis": {
     "single_start_funnel": "Only sequence_executor.dart:1897 calls backend.sequencerStart() in production; every UI/headless/mosaic/Smart-Night start goes through sequenceExecutorProvider.start(), which throws on result.hasErrors before acquiring any run resource.",
-    "damage_path_confirmed": "native/nightshade_native/sequencer/src/node/logic/target_header.rs:44 is the ONLY writer of ExecutionContext.target_ra/target_dec (plus checkpoint restore). It stamps the target's coords onto the whole subtree and restores the prior scope on exit, so the blast radius of an unset TargetHeader is exactly its subtree - which is what _hasEnabledInstruction walks.",
+    "damage_path_confirmed": "native/skotiq_native/sequencer/src/node/logic/target_header.rs:44 is the ONLY writer of ExecutionContext.target_ra/target_dec (plus checkpoint restore). It stamps the target's coords onto the whole subtree and restores the prior scope on exit, so the blast radius of an unset TargetHeader is exactly its subtree - which is what _hasEnabledInstruction walks.",
     "child_walk_matches_execution": "serialization_operations.dart builds the native tree from node.childIds; SequenceTreeIndex._childrenByParent is also seeded only from childIds. _hasEnabledInstruction walking childIds therefore sees exactly what executes."
   },
   "residual_findings_outside_ownership": [
     "_motion_rich.dart _TargetResolutionPreview falls back to sequence.targetHeaders.first for a Slew/Center with no TargetHeader parent, but instructions.rs:685 reads ctx.target_ra which is None outside a TargetHeader scope, so that slew fails at runtime with 'No target coordinates available'. The editor's 'Will use target: X' for a DETACHED slew is a second false claim (separate from the unset-coords one, which is already fixed). The rule mirrors the editor's claim and blocks, which is safe under either semantics.",
     "TargetCoordinatesRule (rules/target_rules.dart) uses range comparisons only, so a NaN raHours/decDegrees passes every check (NaN < 0 and NaN >= 24 are both false). Not known to be reachable from the UI, but the range guard is not NaN-safe.",
-    "targetCoordinatesUnset() is duplicated between nightshade_app/.../target_coordinates.dart and TargetCoordinatesUnsetRule.isUnset in nightshade_core. Same predicate, two packages - they can drift."
+    "targetCoordinatesUnset() is duplicated between skotiq_app/.../target_coordinates.dart and TargetCoordinatesUnsetRule.isUnset in skotiq_core. Same predicate, two packages - they can drift."
   ]
 }

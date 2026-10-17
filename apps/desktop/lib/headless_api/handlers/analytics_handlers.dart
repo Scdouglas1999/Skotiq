@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
@@ -648,7 +648,7 @@ class AnalyticsHandlers {
   /// are never graded, so counting them would inflate `accepted` with darks
   /// and flats nobody culled.
   Future<Map<int, SessionGrading>> _gradingBySession(
-    NightshadeDatabase database,
+    SkotiqDatabase database,
     List<int> sessionIds,
   ) async {
     if (sessionIds.isEmpty) return const <int, SessionGrading>{};
@@ -698,7 +698,7 @@ class AnalyticsHandlers {
 
   /// The grading verdict for a single session.
   Future<SessionGrading> _gradingFor(
-    NightshadeDatabase database,
+    SkotiqDatabase database,
     int sessionId,
   ) async {
     final bySession = await _gradingBySession(database, [sessionId]);
@@ -708,7 +708,7 @@ class AnalyticsHandlers {
   /// Serialize a list of sessions, reading every session's grading verdict in
   /// one query rather than one per row.
   Future<List<Map<String, dynamic>>> _sessionsToJson(
-    NightshadeDatabase database,
+    SkotiqDatabase database,
     List<ImagingSession> sessions,
   ) async {
     final grading = await _gradingBySession(database, [

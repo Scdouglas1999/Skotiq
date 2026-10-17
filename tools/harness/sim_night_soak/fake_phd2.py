@@ -13,7 +13,7 @@ guider's real state.
 
 Protocol per the PHD2 EventMonitoring wiki: newline-delimited JSON, events carry
 "Event", RPC requests carry "method"/"id", responses carry "result" or "error"
-and the request's "id". Only what Nightshade calls is implemented; anything
+and the request's "id". Only what Skotiq calls is implemented; anything
 else answers a JSON-RPC error, which is what a real PHD2 does for a method it
 does not know.
 
@@ -206,7 +206,7 @@ class Guider:
             if method == "get_guide_output_enabled":
                 return True
             if method == "get_profile":
-                return {"id": 1, "name": "Nightshade simulator"}
+                return {"id": 1, "name": "Skotiq simulator"}
             if method == "get_current_equipment":
                 return {"camera": {"name": "Simulator", "connected": True},
                         "mount": {"name": "On-camera", "connected": True}}

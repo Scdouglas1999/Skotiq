@@ -364,7 +364,7 @@ Constellation / Collaborate sub-tabs; any running-sequence or connected-device s
 reviews chrome, and the device clusters own that path); the Light theme (wave 1 verified it).
 
 Blocked: nothing, once the bundle was consistent. The first two `start` attempts failed with
-"Native bridge failed to initialize: libnightshade_bridge.so … is stale relative to this build"
-because a concurrent agent was mid-rebuild — `libnightshade_bridge.so` was absent from
+"Native bridge failed to initialize: libskotiq_bridge.so … is stale relative to this build"
+because a concurrent agent was mid-rebuild — `libskotiq_bridge.so` was absent from
 `build/linux/x64/release/bundle/lib/` at 08:36 and was replaced at 08:41. Starting after that
 succeeded with no further trouble.

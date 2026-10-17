@@ -9,11 +9,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DART = (
     ROOT
-    / "packages/nightshade_planetarium/lib/src/catalogs/constellation_data.dart"
+    / "packages/skotiq_planetarium/lib/src/catalogs/constellation_data.dart"
 )
 OUT = (
     ROOT
-    / "native/nightshade_native/planetarium/src/catalog/constellation_lines.rs"
+    / "native/skotiq_native/planetarium/src/catalog/constellation_lines.rs"
 )
 
 CONST_PAT = re.compile(
@@ -62,7 +62,7 @@ def emit_rust(consts: list[tuple]) -> str:
     lines: list[str] = [
         "//! IAU constellation stick-figure line segments (J2000 RA hours / Dec degrees).",
         "//!",
-        "//! Ported from `packages/nightshade_planetarium/lib/src/catalogs/constellation_data.dart`.",
+        "//! Ported from `packages/skotiq_planetarium/lib/src/catalogs/constellation_data.dart`.",
         "//! Boundaries are a separate table (future task).",
         "",
         "/// One line segment between two J2000 equatorial endpoints.",

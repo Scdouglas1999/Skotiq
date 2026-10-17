@@ -1,0 +1,13 @@
+# Test configuration for the skotiq_planetarium package.
+
+tags:
+  # The benchmark golden gate (test/benchmark/golden_compare_test.dart) is a
+  # perceptual pixel-diff against committed baselines. Those baselines are
+  # host-specific (GPU rasteriser differs across OSes), so on a non-baseline
+  # host the gate reports ~0.3% changed pixels against a 0.2% limit and fails.
+  # The gate is therefore EXCLUDED from `melos run test` (Linux CI + default
+  # local runs) via `--exclude-tags golden` and run opt-in via
+  # `melos run test:golden`. Registered here so `dart test` recognises the tag;
+  # not hard-skipped in config so the opt-in command can still select it.
+  # See docs/testing/golden-tests.md.
+  golden:

@@ -9,19 +9,19 @@
 # wiring exists, set D1_EXPECT_DRAIN=1 to require completion.
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
-D1="${D1_SCRATCH:-/tmp/nightshade-d1-crash}"
-BUNDLE="${D1_BUNDLE:-$HERE/../../../apps/desktop/build/linux/x64/release/bundle/nightshade_desktop}"
+D1="${D1_SCRATCH:-/tmp/skotiq-d1-crash}"
+BUNDLE="${D1_BUNDLE:-$HERE/../../../apps/desktop/build/linux/x64/release/bundle/skotiq_desktop}"
 T=d1-secret-token
 P="${D1_PORT:-8094}"
 
 # One observing site for the whole leg: the sequence builder picks it (solar
 # 01:00 at the site, so no dawn logic can arm mid-run) and the settings POSTs
 # below use the same pair.
-read D1_SITE_LAT D1_SITE_LON NIGHTSHADE_HARNESS_SITE <<< "$(python3 "$HERE/make_sequence.py" --print-site)"
+read D1_SITE_LAT D1_SITE_LON SKOTIQ_HARNESS_SITE <<< "$(python3 "$HERE/make_sequence.py" --print-site)"
 # Pin the site for the WHOLE leg: make_sequence.py runs again to build the
 # sequence, and without the pin a leg straddling a crossover would target a
 # different observatory than the one it wrote to the profile.
-export NIGHTSHADE_HARNESS_SITE
+export SKOTIQ_HARNESS_SITE
 B="http://127.0.0.1:$P"
 AH="Authorization: Bearer $T"
 DBDIR=$D1/db; OUT=$D1/captures; DROP=$D1/drop; DATA=$D1/data
@@ -35,11 +35,11 @@ api()  { curl -sf -m 10 -H "$AH" "$@"; }
 # the lock for whole seconds during open-time migration and crash recovery, and
 # on a loaded machine the first query after a relaunch landed inside that window
 # ("database is locked (5)") and read an empty row as a FAIL.
-Q()    { sqlite3 -cmd ".timeout 10000" "$DBDIR/nightshade.db" "$1"; }
+Q()    { sqlite3 -cmd ".timeout 10000" "$DBDIR/skotiq.db" "$1"; }
 
 PIDFILE=$D1/app.pid
 # Reap only what a previous run of THIS script left behind. `pkill -f
-# nightshade_desktop` kills every instance on the machine — a parallel
+# skotiq_desktop` kills every instance on the machine — a parallel
 # harness on another port, another agent's sweep, the operator's own rig —
 # so the pid is recorded and re-identified by its command line (the port is
 # unique per leg) before any signal goes out. Same discipline as run.sh.
@@ -59,7 +59,7 @@ reap_previous
 rm -rf "$D1"; mkdir -p "$DBDIR" "$OUT" "$DROP" "$DATA"
 
 launch() {
-  NIGHTSHADE_DATABASE_DIR=$DBDIR NIGHTSHADE_DATA_DIR=$DATA LIBGL_ALWAYS_SOFTWARE=1 \
+  SKOTIQ_DATABASE_DIR=$DBDIR SKOTIQ_DATA_DIR=$DATA LIBGL_ALWAYS_SOFTWARE=1 \
     "$BUNDLE" --headless --auth-token=$T --port=$P >> "$LOG" 2>&1 &
   APP=$!
   echo "$APP" > "$PIDFILE"
@@ -75,7 +75,7 @@ say "=== setup (schema boot, seed, configure, run sequence) ==="
 launch || exit 1
 kill -TERM $APP; sleep 3
 NOW=$(date +%s)
-sqlite3 "$DBDIR/nightshade.db" "INSERT INTO delivery_targets(name,kind,config_json,enabled,content_json,secret_ref,created_at,updated_at) VALUES('d1-drop','watched_folder','{\"path\":\"$DROP\"}',1,'[\"linear_masters\",\"draft_render\",\"night_report\"]',NULL,$NOW,$NOW);"
+sqlite3 "$DBDIR/skotiq.db" "INSERT INTO delivery_targets(name,kind,config_json,enabled,content_json,secret_ref,created_at,updated_at) VALUES('d1-drop','watched_folder','{\"path\":\"$DROP\"}',1,'[\"linear_masters\",\"draft_render\",\"night_report\"]',NULL,$NOW,$NOW);"
 launch || exit 1
 api -X POST "$B/api/settings" -H 'Content-Type: application/json' \
   -d "{\"settings\":{\"imageOutputPath\":\"$OUT\",\"notificationsEnabled\":true,\"notifyOnSequenceComplete\":true}}" >/dev/null

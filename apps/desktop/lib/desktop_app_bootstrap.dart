@@ -3,13 +3,13 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_planetarium/nightshade_planetarium.dart';
-import 'package:nightshade_updater/nightshade_updater.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_updater/skotiq_updater.dart';
 // Why still imported: UpdatePushDiscovery (LAN update-push responder) lives in
-// nightshade_remote_protocol/discovery.dart. The package carries no server of
+// skotiq_remote_protocol/discovery.dart. The package carries no server of
 // its own; only the discovery primitives are used here.
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:path/path.dart' as path;
 
 import 'headless_api/update_wiring.dart';
@@ -383,10 +383,10 @@ class _ApiServerLifecycle {
 
       try {
         final appVersion = container.read(appVersionProvider).version;
-        _discoveryBroadcaster = await NightshadeDiscovery.startBroadcasting(
+        _discoveryBroadcaster = await SkotiqDiscovery.startBroadcasting(
           webPort: nextServer.actualPort,
           signalingPort: nextServer.actualPort,
-          name: 'Nightshade',
+          name: 'Skotiq',
           version: appVersion,
           scheme: nextServer.isTlsActive ? 'https' : 'http',
           fingerprint: nextServer.serverFingerprint,
@@ -409,7 +409,7 @@ class _ApiServerLifecycle {
       // mDNS / Bonjour advertisement. Additive to UDP broadcast above —
       // most modern Wi-Fi APs block client-to-client broadcast, and Tailscale
       // / VPN segments have no broadcast domain at all. Register
-      // `_nightshade._tcp` so phones discover the GUI server in those
+      // `_skotiq._tcp` so phones discover the GUI server in those
       // topologies without needing the QR or manual entry.
       try {
         final appVersion = container.read(appVersionProvider).version;
@@ -418,10 +418,10 @@ class _ApiServerLifecycle {
           'scheme': nextServer.isTlsActive ? 'https' : 'http',
           'fingerprint': nextServer.serverFingerprint,
           'pairingSupported': 'true',
-          'name': 'Nightshade',
+          'name': 'Skotiq',
         };
         final registration = MdnsServiceRegistration(
-          name: 'Nightshade',
+          name: 'Skotiq',
           port: nextServer.actualPort,
           txt: txt,
           onWarning: (msg) => logger.warning(msg, source: _logSource),
@@ -433,7 +433,7 @@ class _ApiServerLifecycle {
             'mDNS advertisement active',
             source: _logSource,
             fields: {
-              'service': '_nightshade._tcp',
+              'service': '_skotiq._tcp',
               'port': nextServer.actualPort,
               'scheme': txt['scheme']!,
               'fingerprint': nextServer.serverFingerprint,
@@ -564,13 +564,13 @@ class _ApiServerLifecycle {
       }
 
       // Phase D — wire cellular (FCM/APNs) remote push delivery. Reads
-      // push_config.json from the app-support dir (or NIGHTSHADE_PUSH_CONFIG):
+      // push_config.json from the app-support dir (or SKOTIQ_PUSH_CONFIG):
       // the real FCM/APNs senders activate when the operator has supplied a
       // service-account JSON / .p8 key. Missing cloud credentials leave
       // cellular delivery disabled; mock would-send delivery is available only
       // through an explicit `mock:true` development configuration.
       try {
-        final appSupportDir = await resolveNightshadeDataDirectory();
+        final appSupportDir = await resolveSkotiqDataDirectory();
         final delivery = await nextServer.wireRemotePushDelivery(
           appSupportDir: appSupportDir.path,
           log: (message) => logger.info(message, source: _logSource),
@@ -651,7 +651,7 @@ Future<void> _startLanPushReceiver({
     logger.info('LAN push receiver started on port 45680', source: _logSource);
 
     await UpdatePushDiscovery.startResponding(
-      name: 'Nightshade',
+      name: 'Skotiq',
       version: appVersion,
       buildNumber: appBuildNumber,
       isReceivingCallback: () => isReceivingLanPush,
@@ -681,7 +681,7 @@ Future<void> _startLanPushReceiver({
 /// logged as errors so the operator knows why catalog-backed UI is empty.
 Future<void> initialiseCatalogManager(LoggingService logger) async {
   try {
-    final appDataDir = await resolveNightshadeDataDirectory();
+    final appDataDir = await resolveSkotiqDataDirectory();
     final catalogDir = path.join(appDataDir.path, 'catalogs');
     await CatalogManager.instance.initialize(catalogDir);
     logger.info('Catalog manager initialised', source: _logSource);
@@ -723,7 +723,7 @@ Future<bool> shouldStartMinimized(ProviderContainer container) async {
 /// Linux, so the file mode, not the directory, is what keeps another local
 /// account out.
 Future<String> _getOrCreateRemoteAccessToken(LoggingService logger) async {
-  final appData = await resolveNightshadeDataDirectory();
+  final appData = await resolveSkotiqDataDirectory();
   final tokenFile = File(path.join(appData.path, 'remote_access_token.txt'));
 
   if (await tokenFile.exists()) {

@@ -1,6 +1,6 @@
 # C3 batch: rust-bridge-imaging
 
-Scope: `native/nightshade_native/bridge/src/api/imaging.rs` (map baseline 7406; measured at
+Scope: `native/skotiq_native/bridge/src/api/imaging.rs` (map baseline 7406; measured at
 HEAD **7673**). Threshold for Rust is 1500 lines, so the file is in scope.
 
 Map plan followed: `reports/release-pass/map/rust-bridge.md` §1.1.
@@ -19,7 +19,7 @@ That assertion is wrong, and the repo proves it in two places:
   `crate::api::devices::cover_calibrator::api_cover_calibrator_get_status`. Today it
   addresses every imaging entry point as `crate::api::imaging::api_*`.
 - FRB mirrors the Rust module tree into the **Dart output tree**. `api/devices/*.rs` produced
-  `packages/nightshade_bridge/lib/src/api/devices/*.dart`, and even the *inline* `pub mod
+  `packages/skotiq_bridge/lib/src/api/devices/*.dart`, and even the *inline* `pub mod
   alpaca_connections` / `pub mod ascom_connections` blocks inside `api/connection.rs`
   produced `lib/src/api/connection/alpaca_connections.dart` and `.../ascom_connections.dart`.
 
@@ -94,8 +94,8 @@ None. No logic edits.
 - Top-level item-signature set across `imaging.rs` + `imaging/*.rs` is identical to HEAD's
   single file (diff empty).
 - `rustfmt --edition 2021 --check` clean on all 13 touched files. No repo-wide format run.
-- `cargo check -p nightshade_bridge --tests` clean.
-- `cargo test -p nightshade_bridge` — see the batch result. Note: the workspace was being
+- `cargo check -p skotiq_bridge --tests` clean.
+- `cargo test -p skotiq_bridge` — see the batch result. Note: the workspace was being
   edited concurrently by other C3 batches (`builtin_guider/`, `device_capabilities/`,
   `sequencer/triggers/`, `native/vendor/`) which were transiently non-compiling during this
   batch; none of the transient errors were ever in `api/imaging`.
@@ -104,6 +104,6 @@ None. No logic edits.
 
 `api/imaging.rs` is still 5304 lines, over the 1500 threshold. Closing the rest requires
 running FRB codegen and accepting the Dart-side import move
-(`package:nightshade_bridge/src/api/imaging.dart` -> `.../api/imaging/*.dart`), which is a
+(`package:skotiq_bridge/src/api/imaging.dart` -> `.../api/imaging/*.dart`), which is a
 generated-surface change and out of scope for a mechanical split batch. Recommend scheduling
 it as its own codegen-owning task using the map's 12-file table verbatim.

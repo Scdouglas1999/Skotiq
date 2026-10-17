@@ -11,11 +11,11 @@ fresh scratch profile, release bundle at `apps/desktop/build/linux/x64/release/b
 > 1. `--profile` must come **after** the subcommand. `drive_linux.py --profile X start`
 >    silently runs the `main` profile, because the subparser re-declares `--profile`
 >    with `default="main"` and clobbers the top-level value.
-> 2. The bundle's `lib/libnightshade_bridge.so` was **missing** at 08:16 today, so every
+> 2. The bundle's `lib/libskotiq_bridge.so` was **missing** at 08:16 today, so every
 >    `start` died with `Bad state: Native bridge failed to initialize`. Fixed by
->    `cargo build --release -p nightshade_bridge` (1m 19s — the sibling rlibs were warm)
+>    `cargo build --release -p skotiq_bridge` (1m 19s — the sibling rlibs were warm)
 >    and copying the result into the bundle's `lib/`. Two of my early launches were also
->    killed from outside (all five sibling `nightshade_desktop` processes died at the same
+>    killed from outside (all five sibling `skotiq_desktop` processes died at the same
 >    instant); the app itself is stable once left alone.
 > 3. Xvfb runs with **no window manager**, so keyboard focus is PointerRoot. A GTK
 >    "Choose Directory" dialog will not receive `ctrl+l` until you `click-xy` inside it
@@ -124,7 +124,7 @@ Evidence: tree output; `/tmp/ns-audit/gui-science-review/w2-07-mosaic.png`,
 ### SCI-37 — P3 — The per-frame "score" on a captured-image tile is not the quality score the app stored for that frame
 Repro: capture the 32-frame session above ▸ **Analytics ▸ Session** ▸ scroll to
 **Captured Images** ▸ read the green `NN score` line on the tiles ▸ compare with
-`sqlite3 /tmp/ns-audit/gui-science-review/data/nightshade.db "select id, round(hfr,3), quality_score from captured_images order by id;"`
+`sqlite3 /tmp/ns-audit/gui-science-review/data/skotiq.db "select id, round(hfr,3), quality_score from captured_images order by id;"`
 Expected: one score per frame, or two clearly different labels.
 Actual: every tile reads **`75 score`** (two of the 32 read `74 score`), while the stored
 `quality_score` for the same frames ranges **83.94 – 85.38** and is distinct for every

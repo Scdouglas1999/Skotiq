@@ -1,6 +1,6 @@
-# Nightshade Web Dashboard
+# Skotiq Web Dashboard
 
-A single-page browser dashboard for the Nightshade headless API.
+A single-page browser dashboard for the Skotiq headless API.
 
 This SPA lives next to the Run-Watch PWA (`apps/desktop/web_run_watch/`)
 and is served by the desktop's `HeadlessApiServer` at `/dashboard/`.
@@ -26,19 +26,19 @@ The dashboard is built to sit open for an 8-hour imaging session, so a
 couple of operator preferences are persisted to `localStorage`:
 
 - **Theme toggle (light / dark).** The dashboard is dark-first to match
-  `nightshade_ui` `NightshadeColors.dark`. A toggle in the top bar (sun /
+  `skotiq_ui` `SkotiqColors.dark`. A toggle in the top bar (sun /
   moon glyph, left of the Connect button) flips to a light palette. The
   whole UI is a CSS-variable swap: light mode only redefines the *core*
   palette tokens under `:root[data-theme="light"]` in `dashboard.css`, and
   every downstream alias (`--bg-*`, `--text-*`, `--tint-*`, …) cascades from
-  there. The choice is saved to `localStorage.nightshade_theme`; on first
+  there. The choice is saved to `localStorage.skotiq_theme`; on first
   visit with no stored choice the dashboard honours
   `prefers-color-scheme`. The `<meta name="theme-color">` updates so the
   browser chrome matches.
 - **Persisted panel collapse.** Every panel header carries a caret
   (injected by `setupPanelPrefs()` in `app.js`) that collapses the panel to
   just its header. The set of collapsed panels is saved to
-  `localStorage.nightshade_panel_collapsed` (a JSON array of panel ids) and
+  `localStorage.skotiq_panel_collapsed` (a JSON array of panel ids) and
   restored on `init()`, so the operator's chosen layout survives a reload
   during a long session. Panel *order* is fixed in the markup; "which panels
   are open vs. collapsed" is the load-bearing layout pref here.
@@ -73,7 +73,7 @@ hint that the deeper replay UI is desktop-only.
 
 On first visit the SPA shows a login overlay. The flow is:
 
-1. The SPA reads `sessionStorage.nightshade_token` — if present, it
+1. The SPA reads `sessionStorage.skotiq_token` — if present, it
    skips the overlay and connects.
 2. Otherwise, it calls `GET /api/auth/csrf`: a `200` indicates an
    HttpOnly cookie session is alive and the SPA reuses it.
@@ -87,7 +87,7 @@ On first visit the SPA shows a login overlay. The flow is:
      the desktop's "Remote Access" screen).
 
 The "Remember on this device for 30 days" toggle controls whether the
-SPA upgrades the bearer to an `HttpOnly nightshade_session` cookie via
+SPA upgrades the bearer to an `HttpOnly skotiq_session` cookie via
 `POST /api/auth/cookie`. Unticking it keeps the bearer in
 `sessionStorage` only, so it dies when the tab closes.
 
@@ -135,8 +135,8 @@ node apps/desktop/web_dashboard/tools/smoke.mjs
 It (1) compiles `js/app.js` and `js/api.js` (catches syntax errors), and
 (2) asserts the Phase F polish hooks are wired and consistent across
 `index.html` / `dashboard.css` / `app.js`: the theme toggle + light
-palette + `nightshade_theme` persistence + `prefers-color-scheme`, the
-persisted panel-collapse (`nightshade_panel_collapsed`), and the
+palette + `skotiq_theme` persistence + `prefers-color-scheme`, the
+persisted panel-collapse (`skotiq_panel_collapsed`), and the
 WS-firehose update model (≤ 3 resilience `setInterval` timers; REST
 fallback gated on WS silence). Exit 0 = pass, 1 = a check failed.
 
@@ -183,7 +183,7 @@ To re-capture after a UI change, serve the static files so `/dashboard/`
 resolves (any static server that maps `/dashboard` → `web_dashboard/`),
 then run Chromium headless with `--screenshot=…` against
 `http://127.0.0.1:<port>/dashboard/`. Pre-seed `localStorage`
-(`nightshade_theme`, `nightshade_panel_collapsed`) from a tiny bootstrap
+(`skotiq_theme`, `skotiq_panel_collapsed`) from a tiny bootstrap
 page that `location.replace('/dashboard/')` to exercise the persisted
 paths.
 
@@ -237,20 +237,20 @@ server. The recipe is:
    `Max-Age` is 30 days per `headless_api/handlers/auth_handlers.dart`.
 
 9. **Verify the no-auth path**. Stop the server, set
-   `NIGHTSHADE_REQUIRE_AUTH=false`, restart, and re-open the
+   `SKOTIQ_REQUIRE_AUTH=false`, restart, and re-open the
    dashboard. Expected: no overlay appears at all; the dashboard
    auto-connects.
 
 11. **Verify the theme toggle**. Click the sun/moon button in the top
     bar (left of Connect). The whole dashboard flips between dark and
     light, the glyph + browser chrome colour flip too, and the choice
-    survives a reload (it's in `localStorage.nightshade_theme`). With
+    survives a reload (it's in `localStorage.skotiq_theme`). With
     no stored choice, the first load matches the OS light/dark setting.
 
 12. **Verify persisted panel collapse**. Click the caret at the right
     of any panel header — the panel collapses to just its header. Reload
     the page: the same panels stay collapsed (restored from
-    `localStorage.nightshade_panel_collapsed`). Re-open them and reload
+    `localStorage.skotiq_panel_collapsed`). Re-open them and reload
     to confirm the cleared state persists too.
 
 10. **Manually exercise edge cases**:
@@ -269,7 +269,7 @@ rendering remains desktop/mobile-only.
 
 ## Adding a new endpoint or panel
 
-1. Add the wire method to `NightshadeApi` in `js/api.js` next to the
+1. Add the wire method to `SkotiqApi` in `js/api.js` next to the
    existing endpoints. Keep the method name aligned with the server
    route's purpose (e.g. `imagesGetAll`, not `getImageList`).
 2. Add markup to `index.html`. Re-use the existing `.panel /

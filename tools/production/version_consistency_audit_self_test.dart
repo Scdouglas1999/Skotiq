@@ -18,7 +18,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_version_consistency_audit_self_test_',
+    'skotiq_version_consistency_audit_self_test_',
   );
   try {
     // --- Aligned: all three sources + OTA builder agree on 5.0.0 / build 23.
@@ -147,7 +147,7 @@ channel: "stable"
 min_update_version: "2.0.0"
 ''');
   await _writeFile(root, 'apps/desktop/pubspec.yaml', '''
-name: nightshade_desktop
+name: skotiq_desktop
 publish_to: 'none'
 version: $desktopVersion
 
@@ -155,7 +155,7 @@ environment:
   sdk: ">=3.8.0 <4.0.0"
 ''');
   await _writeFile(root, 'apps/mobile/pubspec.yaml', '''
-name: nightshade_mobile
+name: skotiq_mobile
 publish_to: 'none'
 version: $mobileVersion
 

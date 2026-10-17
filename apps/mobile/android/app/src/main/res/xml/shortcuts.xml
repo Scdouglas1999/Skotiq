@@ -9,7 +9,7 @@
   state (current sequence, frames complete, ETA) is pushed at runtime
   through `ShortcutManagerCompat.pushDynamicShortcut(...)` in
   MainActivity, which is what the Assistant launcher's "What's
-  Nightshade doing?" suggestion reads.
+  Skotiq doing?" suggestion reads.
 
   Custom capability names use the `custom.actions.intent.*` namespace as
   recommended by https://developers.google.com/assistant/app/action-schema
@@ -17,48 +17,48 @@
   built-in BII for "report status of a long-running task", which is
   what this app needs.)
 
-  URL targets use the `nightshade://voice-action/<wireId>` scheme. The
+  URL targets use the `skotiq://voice-action/<wireId>` scheme. The
   MainActivity's onNewIntent handler decodes the wireId from
-  `intent.data` and forwards it to Dart over the `nightshade/voice_control`
+  `intent.data` and forwards it to Dart over the `skotiq/voice_control`
   channel. Wire ids MUST match `VoiceControlAction.wireId` in
   apps/mobile/lib/services/voice_control_service.dart.
 -->
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Read-only: "What's Nightshade doing?" -->
+    <!-- Read-only: "What's Skotiq doing?" -->
     <capability android:name="custom.actions.intent.SEQUENCE_STATUS">
         <intent
-            android:targetPackage="com.nightshade.mobile"
-            android:targetClass="com.example.nightshade_mobile.MainActivity"
+            android:targetPackage="com.skotiq.mobile"
+            android:targetClass="com.skotiq.mobile.MainActivity"
             android:action="android.intent.action.VIEW"
-            android:data="nightshade://voice-action/refresh_status" />
+            android:data="skotiq://voice-action/refresh_status" />
     </capability>
 
-    <!-- Control: "Pause Nightshade" -->
+    <!-- Control: "Pause Skotiq" -->
     <capability android:name="custom.actions.intent.PAUSE_SEQUENCE">
         <intent
-            android:targetPackage="com.nightshade.mobile"
-            android:targetClass="com.example.nightshade_mobile.MainActivity"
+            android:targetPackage="com.skotiq.mobile"
+            android:targetClass="com.skotiq.mobile.MainActivity"
             android:action="android.intent.action.VIEW"
-            android:data="nightshade://voice-action/pause_sequence" />
+            android:data="skotiq://voice-action/pause_sequence" />
     </capability>
 
-    <!-- Control: "Resume Nightshade" -->
+    <!-- Control: "Resume Skotiq" -->
     <capability android:name="custom.actions.intent.RESUME_SEQUENCE">
         <intent
-            android:targetPackage="com.nightshade.mobile"
-            android:targetClass="com.example.nightshade_mobile.MainActivity"
+            android:targetPackage="com.skotiq.mobile"
+            android:targetClass="com.skotiq.mobile.MainActivity"
             android:action="android.intent.action.VIEW"
-            android:data="nightshade://voice-action/resume_sequence" />
+            android:data="skotiq://voice-action/resume_sequence" />
     </capability>
 
-    <!-- Deep link: "Show the last Nightshade image" -->
+    <!-- Deep link: "Show the last Skotiq image" -->
     <capability android:name="custom.actions.intent.OPEN_LAST_IMAGE">
         <intent
-            android:targetPackage="com.nightshade.mobile"
-            android:targetClass="com.example.nightshade_mobile.MainActivity"
+            android:targetPackage="com.skotiq.mobile"
+            android:targetClass="com.skotiq.mobile.MainActivity"
             android:action="android.intent.action.VIEW"
-            android:data="nightshade://voice-action/open_last_image" />
+            android:data="skotiq://voice-action/open_last_image" />
     </capability>
 
     <!--
@@ -78,9 +78,9 @@
         android:shortcutLongLabel="@string/voice_shortcut_pause_long">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.nightshade.mobile"
-            android:targetClass="com.example.nightshade_mobile.MainActivity"
-            android:data="nightshade://voice-action/pause_sequence" />
+            android:targetPackage="com.skotiq.mobile"
+            android:targetClass="com.skotiq.mobile.MainActivity"
+            android:data="skotiq://voice-action/pause_sequence" />
     </shortcut>
 
     <shortcut
@@ -91,9 +91,9 @@
         android:shortcutLongLabel="@string/voice_shortcut_resume_long">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.nightshade.mobile"
-            android:targetClass="com.example.nightshade_mobile.MainActivity"
-            android:data="nightshade://voice-action/resume_sequence" />
+            android:targetPackage="com.skotiq.mobile"
+            android:targetClass="com.skotiq.mobile.MainActivity"
+            android:data="skotiq://voice-action/resume_sequence" />
     </shortcut>
 
     <shortcut
@@ -104,9 +104,9 @@
         android:shortcutLongLabel="@string/voice_shortcut_last_image_long">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.nightshade.mobile"
-            android:targetClass="com.example.nightshade_mobile.MainActivity"
-            android:data="nightshade://voice-action/open_last_image" />
+            android:targetPackage="com.skotiq.mobile"
+            android:targetClass="com.skotiq.mobile.MainActivity"
+            android:data="skotiq://voice-action/open_last_image" />
     </shortcut>
 
 </shortcuts>

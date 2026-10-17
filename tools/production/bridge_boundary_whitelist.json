@@ -1,5 +1,5 @@
 {
-  "_comment": "Reviewed, pragmatic exceptions to the architecture rule that nightshade_core is the only Dart package allowed to import package:nightshade_bridge (docs/architecture.md \u00a71). Only two kinds of file qualify: (1) the desktop headless appliance layer, which IS the local hardware owner on the appliance (the FfiBackend-equivalent at the network seam, architecture \u00a74-5) and legitimately drives Rust directly rather than going back through a network backend; (2) thin UI files that only need a bridge *data type* (an enum/struct) for display, where re-modeling the type in core would be churn for no behavioral benefit. UI files that call bridge *functions* (image processing, stretch, PHD2 control) are NOT whitelisted - those are real boundary leaks and must move behind a nightshade_core role. The audit loader reads only the 'file' and 'reason' keys. See docs/production-readiness/bridge-boundary-plan.md.",
+  "_comment": "Reviewed, pragmatic exceptions to the architecture rule that skotiq_core is the only Dart package allowed to import package:skotiq_bridge (docs/architecture.md \u00a71). Only two kinds of file qualify: (1) the desktop headless appliance layer, which IS the local hardware owner on the appliance (the FfiBackend-equivalent at the network seam, architecture \u00a74-5) and legitimately drives Rust directly rather than going back through a network backend; (2) thin UI files that only need a bridge *data type* (an enum/struct) for display, where re-modeling the type in core would be churn for no behavioral benefit. UI files that call bridge *functions* (image processing, stretch, PHD2 control) are NOT whitelisted - those are real boundary leaks and must move behind a skotiq_core role. The audit loader reads only the 'file' and 'reason' keys. See docs/production-readiness/bridge-boundary-plan.md.",
   "allow": [
     {
       "file": "apps/desktop/lib/desktop_logging_init.dart",
@@ -11,11 +11,11 @@
     },
     {
       "file": "apps/desktop/lib/headless_api/handlers/depthlock_handlers.dart",
-      "reason": "Headless appliance layer: catches bridge_error.NightshadeError to shape HTTP error responses for the DepthLock goal endpoints on the local hardware owner. The import is used for that typed catch alone — no bridge function is called, the goal work itself goes through the nightshade_core DepthLock backend role. Same reviewed exception already granted to device_handlers.dart, guiding_handlers.dart, run_watch_handlers.dart and validation.dart; the typed match is what keeps these handlers off string-sniffing the error text, which the fail-closed handlers_e_tostring rule forbids."
+      "reason": "Headless appliance layer: catches bridge_error.SkotiqError to shape HTTP error responses for the DepthLock goal endpoints on the local hardware owner. The import is used for that typed catch alone — no bridge function is called, the goal work itself goes through the skotiq_core DepthLock backend role. Same reviewed exception already granted to device_handlers.dart, guiding_handlers.dart, run_watch_handlers.dart and validation.dart; the typed match is what keeps these handlers off string-sniffing the error text, which the fail-closed handlers_e_tostring rule forbids."
     },
     {
       "file": "apps/desktop/lib/headless_api/handlers/device_handlers.dart",
-      "reason": "Headless appliance layer: its camera_handlers part catches bridge_error.NightshadeError to shape HTTP error responses on the local hardware owner; error type is the bridge's contract."
+      "reason": "Headless appliance layer: its camera_handlers part catches bridge_error.SkotiqError to shape HTTP error responses on the local hardware owner; error type is the bridge's contract."
     },
     {
       "file": "apps/desktop/lib/headless_api/handlers/dome_handlers.dart",
@@ -23,7 +23,7 @@
     },
     {
       "file": "apps/desktop/lib/headless_api/handlers/guiding_handlers.dart",
-      "reason": "Headless appliance layer: catches bridge.NightshadeError to shape HTTP error responses on the local hardware owner. Matches the exception already granted to device_handlers.dart and validation.dart for the same purpose. The typed match replaced string-sniffing the error text, which the fail-closed handlers_e_tostring rule forbids."
+      "reason": "Headless appliance layer: catches bridge.SkotiqError to shape HTTP error responses on the local hardware owner. Matches the exception already granted to device_handlers.dart and validation.dart for the same purpose. The typed match replaced string-sniffing the error text, which the fail-closed handlers_e_tostring rule forbids."
     },
     {
       "file": "apps/desktop/lib/headless_api/handlers/imaging_handlers.dart",
@@ -35,7 +35,7 @@
     },
     {
       "file": "apps/desktop/lib/headless_api/handlers/run_watch_handlers.dart",
-      "reason": "Headless appliance layer: catches bridge_error.NightshadeError to distinguish an empty capture buffer from a real camera fault when shaping the live-preview HTTP response. Same reviewed exception already granted to device_handlers.dart, guiding_handlers.dart and validation.dart; the typed match replaced string-sniffing the error text, which the fail-closed handlers_e_tostring rule forbids."
+      "reason": "Headless appliance layer: catches bridge_error.SkotiqError to distinguish an empty capture buffer from a real camera fault when shaping the live-preview HTTP response. Same reviewed exception already granted to device_handlers.dart, guiding_handlers.dart and validation.dart; the typed match replaced string-sniffing the error text, which the fail-closed handlers_e_tostring rule forbids."
     },
     {
       "file": "apps/desktop/lib/headless_api/handlers/science_handlers.dart",
@@ -47,22 +47,22 @@
     },
     {
       "file": "apps/desktop/lib/headless_api/validation.dart",
-      "reason": "Headless appliance layer: catches bridge_error.NightshadeError to shape HTTP error responses; error type is the bridge's contract."
+      "reason": "Headless appliance layer: catches bridge_error.SkotiqError to shape HTTP error responses; error type is the bridge's contract."
     },
     {
-      "file": "packages/nightshade_app/lib/screens/guiding/guiding_screen.dart",
+      "file": "packages/skotiq_app/lib/screens/guiding/guiding_screen.dart",
       "reason": "Thin UI: its desktop/mobile section parts display the Phd2State enum (data type only, no bridge function calls)."
     },
     {
-      "file": "packages/nightshade_app/lib/screens/imaging/widgets/guiding_active_chip.dart",
+      "file": "packages/skotiq_app/lib/screens/imaging/widgets/guiding_active_chip.dart",
       "reason": "Thin UI: displays Phd2State enum (data type only, no bridge function calls)."
     },
     {
-      "file": "packages/nightshade_app/lib/screens/sequencer/widgets/secondary_rig_card.dart",
+      "file": "packages/skotiq_app/lib/screens/sequencer/widgets/secondary_rig_card.dart",
       "reason": "Thin UI: displays SecondaryRigStatusApi struct (data type only, no bridge function calls)."
     },
     {
-      "file": "packages/nightshade_app/lib/widgets/guide_health_card.dart",
+      "file": "packages/skotiq_app/lib/widgets/guide_health_card.dart",
       "reason": "Thin UI: displays Phd2State enum (data type only, no bridge function calls)."
     }
   ]

@@ -4,10 +4,10 @@ project(runner LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "nightshade_desktop")
+set(BINARY_NAME "skotiq_desktop")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
-set(APPLICATION_ID "com.example.nightshade_desktop")
+set(APPLICATION_ID "com.skotiq.desktop")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
@@ -151,15 +151,15 @@ install(CODE "
 # levels up (linux -> desktop -> apps -> root). The previous "../../native"
 # resolved to apps/native and silently never bundled the bridge .so, so the
 # Linux release shipped without its native library and couldn't start.
-set(RUST_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../native/nightshade_native/target/release")
-set(RUST_LIB_NAME "libnightshade_bridge.so")
+set(RUST_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../native/skotiq_native/target/release")
+set(RUST_LIB_NAME "libskotiq_bridge.so")
 if(EXISTS "${RUST_LIB_DIR}/${RUST_LIB_NAME}")
   install(FILES "${RUST_LIB_DIR}/${RUST_LIB_NAME}"
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
   message(STATUS "Installing Rust library: ${RUST_LIB_NAME}")
 else()
-  message(WARNING "Rust library not found at ${RUST_LIB_DIR}/${RUST_LIB_NAME}. Build it first with: cd native/nightshade_native && cargo build --release")
+  message(WARNING "Rust library not found at ${RUST_LIB_DIR}/${RUST_LIB_NAME}. Build it first with: cd native/skotiq_native && cargo build --release")
 endif()
 
 # Install application icons

@@ -1,11 +1,11 @@
 // Multi-server roaming on the mobile companion.
 //
-// Persists a list of previously-paired Nightshade hosts so an operator
+// Persists a list of previously-paired Skotiq hosts so an operator
 // who manages multiple rigs (e.g. observatory + travel scope + backyard
 // pier) can roam between them without re-pairing each time.
 //
 // Why a dedicated service (rather than just extending
-// EnhancedNightshadeDiscovery): the existing discovery layer was built
+// EnhancedSkotiqDiscovery): the existing discovery layer was built
 // around a single "last server" slot — host/port/auth-token/fingerprint
 // pairs all share one SharedPreferences key set. Adding multi-server
 // support there would force every consumer to either accept a list
@@ -14,7 +14,7 @@
 //
 //   1. The new `SavedServersService` is a pure data store; it does not
 //      drive backend connections directly.
-//   2. The screen calls `EnhancedNightshadeDiscovery.saveLastServer`
+//   2. The screen calls `EnhancedSkotiqDiscovery.saveLastServer`
 //      after connect succeeds, then `SavedServersService.upsert` to
 //      mirror the same record into the roaming list. Existing callers
 //      that read `loadLastServer()` (auto-reconnect on startup, LAN push
@@ -41,14 +41,14 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// One row in the persisted saved-server list.
 ///
 /// All fields except [authToken] are non-secret and round-trip through a
 /// single JSON blob in SharedPreferences. The [authToken] is held in
-/// secure storage under `nightshade_saved_server_token::<id>` and is
+/// secure storage under `skotiq_saved_server_token::<id>` and is
 /// loaded on-demand via [SavedServersService.tokenFor].
 ///
 /// Equality compares every field (including [authToken]) so the screen
@@ -85,7 +85,7 @@ class SavedServer {
   /// host. `null` when neither was available at pairing time. When
   /// non-null, the LAN push receiver and TLS-pinned dialer use this
   /// to refuse a man-in-the-middle attempt — see
-  /// `nightshade_remote_protocol`'s `RemotePairingClient` / the LAN
+  /// `skotiq_remote_protocol`'s `RemotePairingClient` / the LAN
   /// push HMAC derivation. The brief calls this "pinnedFingerprint";
   /// we honour the name.
   final String? pinnedFingerprint;
@@ -439,16 +439,16 @@ class SavedServersStorageKeys {
   /// SharedPreferences key for the JSON-encoded list of non-secret fields.
   /// Still v1: every field added since is optional and omitted at its default,
   /// so an older blob deserialises cleanly under the same key.
-  static const list = 'nightshade.saved_servers.v1';
+  static const list = 'skotiq.saved_servers.v1';
 
   /// One-shot migration latch. Set after we've folded the legacy
   /// "last server" record into the list so we don't re-import on every
   /// startup.
-  static const migrated = 'nightshade.saved_servers.migrated.v1';
+  static const migrated = 'skotiq.saved_servers.migrated.v1';
 
   /// Secure-storage key prefix for per-row bearer tokens. The full key
   /// is `<tokenKeyPrefix><id>`.
-  static const tokenKeyPrefix = 'nightshade_saved_server_token::';
+  static const tokenKeyPrefix = 'skotiq_saved_server_token::';
 }
 
 /// Persists and mutates the multi-server roaming list.
@@ -456,7 +456,7 @@ class SavedServersStorageKeys {
 /// The service is *not* a Notifier; the screen treats the on-disk state
 /// as the source of truth and re-loads after every mutation. This keeps
 /// the contract simple and matches how
-/// `EnhancedNightshadeDiscovery.saveLastServer` is used elsewhere.
+/// `EnhancedSkotiqDiscovery.saveLastServer` is used elsewhere.
 ///
 /// All methods are `Future`-returning; the few that have to hit secure
 /// storage are documented per-method.
@@ -927,7 +927,7 @@ class SavedServersService {
 
   /// Convenience for the screen's "open server" flow: returns a
   /// [DiscoveredServer] suitable for `BackendNotifier.connect` /
-  /// `EnhancedNightshadeDiscovery.saveLastServer`. The auth token is
+  /// `EnhancedSkotiqDiscovery.saveLastServer`. The auth token is
   /// loaded from secure storage on demand.
   Future<DiscoveredServer?> toDiscoveredServer(String id) async {
     final row = await findById(id);
@@ -1078,7 +1078,7 @@ class SavedServersService {
     if (prefs.getBool(SavedServersStorageKeys.migrated) == true) return;
     DiscoveredServer? legacy;
     try {
-      legacy = await EnhancedNightshadeDiscovery.loadLastServer();
+      legacy = await EnhancedSkotiqDiscovery.loadLastServer();
     } catch (e, st) {
       // Don't block the rest of the app over a one-shot migration: log
       // and mark migrated so we don't keep retrying. The user can still

@@ -1,7 +1,7 @@
 # Wave F dryness check — cluster `stop-pipeline`
 
 Verifier: live re-drive of the FRESH release bundle
-`apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`, via
+`apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`, via
 `tools/ui_audit/drive_linux.py`, display `:82`, profile `waveE-stop-pipeline`.
 Nothing was fixed in this pass.
 

@@ -16,13 +16,13 @@ and what evidence exists for each claim.
 
 | Layer | Where | Owns |
 | --- | --- | --- |
-| Estimator | `native/nightshade_native/imaging/src/depthlock/mod.rs` | Pure, deterministic measurement and stopping policy over admitted evidence. |
+| Estimator | `native/skotiq_native/imaging/src/depthlock/mod.rs` | Pure, deterministic measurement and stopping policy over admitted evidence. |
 | Ingestion | `imaging/src/depthlock/input.rs` | Reference geometry, registration→WCS composition, signed calibration, source mask, frame identity, acquisition-provenance checks. |
 | Store | `bridge/src/depthlock_service/store.rs` | One JSON record per goal, pending-file rename commits, lock file, revision and evidence-revision checks, poisoning on a failed commit. |
 | Engine | `bridge/src/depthlock_service/engine.rs` | Bounded analysis queue (8 jobs, blocking-pool workers), per-frame pipeline, file-derived provenance digest, crash repair on open, the executor's verdict source. |
 | API/events | `bridge/src/api/depthlock.rs`, `bridge/src/event/depthlock_events.rs` | Goal CRUD, reference inspection, selection geometry, replay, ingest; `DepthLockEvent` on the app bus. |
 | Sequencer | `sequencer/src/depth_goal.rs`, `node/instructions/smart_exposure.rs` | `FilterPlan.depth_goal` binding, `DepthGoalOps` verdict trait, batch-boundary completion, `ExecutorEvent::DepthGoalCompleted`, checkpointed completions. |
-| Dart | `packages/nightshade_core/lib/src/backend/roles/depthlock_backend.dart`, `models/depthlock/`, `providers/depthlock_provider.dart`; headless handlers under `apps/desktop/lib/headless_api/`; UI under `packages/nightshade_app/lib/screens/imaging/widgets/depthlock/` and `live_stack_canvas.dart`, plus the Smart Exposure editor | Role interface implemented by the FFI, network and disconnected backends; region tool with editable rectangles on the live view and the live-stack canvas, preset-first editor with a master-derived floor, list→detail panel, plan binding. Saved goals are drawn through a Dart TAN projection over `ReferenceGeometry` (`depthlock_geometry.dart`) that mirrors the native `world_to_pixel`, so a header-only solution draws as well as a plate solve. |
+| Dart | `packages/skotiq_core/lib/src/backend/roles/depthlock_backend.dart`, `models/depthlock/`, `providers/depthlock_provider.dart`; headless handlers under `apps/desktop/lib/headless_api/`; UI under `packages/skotiq_app/lib/screens/imaging/widgets/depthlock/` and `live_stack_canvas.dart`, plus the Smart Exposure editor | Role interface implemented by the FFI, network and disconnected backends; region tool with editable rectangles on the live view and the live-stack canvas, preset-first editor with a master-derived floor, list→detail panel, plan binding. Saved goals are drawn through a Dart TAN projection over `ReferenceGeometry` (`depthlock_geometry.dart`) that mirrors the native `world_to_pixel`, so a header-only solution draws as well as a plate solve. |
 
 The executor remains the only acquisition authority. DepthLock never
 captures, never extends a plan, and never aborts an exposure: the verdict is
@@ -64,7 +64,7 @@ accumulates across nights as long as the provenance digest matches.
 ## Measurement definition (estimator version 1)
 
 Supported regime: monochrome, linear, matched-acquisition lights calibrated
-with Nightshade master frames, registered to a reference with an undistorted
+with Skotiq master frames, registered to a reference with an undistorted
 TAN solution, over a local, approximately constant sky background.
 
 **Regions.** The signal and background rectangles are tangent-plane
@@ -83,7 +83,7 @@ include a masked or non-finite pixel makes the whole aperture `None`.
 
 **Calibration.** `(light − dark) × median(flat) / flat` in signed f64 ADU.
 The dark is an unscaled, matched-exposure master that still contains its
-bias pedestal; the flat is a Nightshade master flat (unit-mean, F32 or U16),
+bias pedestal; the flat is a Skotiq master flat (unit-mean, F32 or U16),
 normalized by its own median at use. Pixels where the flat is outside
 0.5–1.5× its median, and light pixels ≥ 60 000 ADU, become NaN. Negative
 results are kept: the display calibrator's clipping at zero would bias every
@@ -214,7 +214,7 @@ knows them), and a sensor temperature within the tolerance when both sides
 carry one. Masters must declare `FRAMETYP = MASTER`, the right `IMAGETYP`
 (`DARK`/`FLAT`, case-insensitive, as `api_combine_master_frames` writes
 them), ≥ 8 input frames, and the reference's geometry; acquisition cards on a
-master, when present, must agree. Nightshade's own masters carry no
+master, when present, must agree. Skotiq's own masters carry no
 acquisition cards, which is why the goal freezes the tuple the calibration
 library matched them for. Frames are registered to the reference with the
 existing star-based similarity fit; the fit must have matched scale within
@@ -222,7 +222,7 @@ existing star-based similarity fit; the fit must have matched scale within
 `CD_frame = CD_ref · A` with the reference pixel pulled back through the
 inverse map.
 
-Stable frame identity is `ns:<NS-SESID>:<NS-FIDX>` for Nightshade-saved
+Stable frame identity is `ns:<NS-SESID>:<NS-FIDX>` for Skotiq-saved
 frames and a digest of the pixel bytes plus `DATE-OBS` otherwise, so
 reprocessing or a duplicate event is not new evidence.
 
@@ -240,8 +240,8 @@ documents deserialize unchanged.
 
 ## Validation evidence
 
-Native suites (`cargo test -p nightshade_imaging -p nightshade_sequencer
--p nightshade_bridge`, all green on Linux at the time of writing):
+Native suites (`cargo test -p skotiq_imaging -p skotiq_sequencer
+-p skotiq_bridge`, all green on Linux at the time of writing):
 
 - `imaging/tests/depthlock_measurement.rs` (16): 100 seeded blank and
   minority-contaminant trials × 160 repeated looks with no achieved verdict;
@@ -257,8 +257,8 @@ Native suites (`cargo test -p nightshade_imaging -p nightshade_sequencer
   against the reference for dither, flip, mirror, reframe and 0.4 % scale
   drift (< 1e-9°); loose or wrong fits refused; CD and CDELT/CROTA headers,
   SIP and unstated frames refused; both master encodings agreeing; saturated
-  and dead pixels NaN; mask disks; Nightshade session identity and stable
-  pixel digests; acquisition parsing and compatibility reasons; Nightshade
+  and dead pixels NaN; mask disks; Skotiq session identity and stable
+  pixel digests; acquisition parsing and compatibility reasons; Skotiq
   master headers accepted and each mismatch named.
 - `sequencer` `executor::tests::depth_goal_tests` (9): a two-filter Smart
   Exposure run through the real executor with a recording device double —
@@ -271,7 +271,7 @@ Native suites (`cargo test -p nightshade_imaging -p nightshade_sequencer
 - `bridge` `depthlock_service` (20 + 1 ignored benchmark): the store's
   revision, tombstone, corruption, pending-file and fault-injection cases;
   a rendered synthetic night on disk (512×384, dithered star field,
-  sensor-fixed vignetting, 12 ADU flat-topped patch, 20 ADU noise, Nightshade
+  sensor-fixed vignetting, 12 ADU flat-topped patch, 20 ADU noise, Skotiq
   masters) reaching a provisional crossing after 39 exposures and `achieved`
   after exactly 16 more (score 14.8, conservative 9.2 against a threshold of
   5, median per-cell uncertainty 0.77 ADU, one frame set aside), advisory
@@ -313,7 +313,7 @@ Smart Exposure binding).
   are not in it, and only on-sky data can say how far above it the true
   floor sits.
 - Whether a master flat was pedestal-corrected is not recorded in
-  Nightshade's master headers; an uncorrected flat is a smooth multiplicative
+  Skotiq's master headers; an uncorrected flat is a smooth multiplicative
   error the systematic floor must cover.
 - OSC data, dark scaling, SIP/distorted solutions and multi-rig pooling are
   out of scope for this release. Regions are selected on a plate-solved sub,

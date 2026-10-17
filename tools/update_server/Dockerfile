@@ -1,13 +1,13 @@
-# Nightshade Update Server Docker Image
+# Skotiq Update Server Docker Image
 #
 # Build:
-#   docker build -t nightshade-update-server .
+#   docker build -t skotiq-update-server .
 #
 # Run:
 #   docker run -d -p 8090:8090 \
 #     -v $(pwd)/releases:/app/releases \
 #     -v $(pwd)/manifests:/app/manifests \
-#     nightshade-update-server
+#     skotiq-update-server
 
 FROM dart:stable AS build
 

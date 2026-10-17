@@ -1,6 +1,6 @@
 # Wave C3 — mechanical file splits — batch `app-screens`
 
-Scope: `packages/nightshade_app/lib/screens/**`, threshold 1000 lines (Dart).
+Scope: `packages/skotiq_app/lib/screens/**`, threshold 1000 lines (Dart).
 
 ## Result
 
@@ -9,12 +9,12 @@ At HEAD, 44 non-generated files under `screens/` were ≥ 1000 lines.
 `mosaic/mosaic_project_screen.dart` at 991 lines (already under threshold at HEAD,
 not touched).
 
-`dart analyze` on `packages/nightshade_app`: **0 errors, 0 warnings** (74 `info`
+`dart analyze` on `packages/skotiq_app`: **0 errors, 0 warnings** (74 `info`
 diagnostics, all pre-existing `deprecated_member_use` / one doc-comment info,
 none introduced by this batch — they are the same diagnostics on the same code,
 relocated).
 
-Tests: `flutter test --exclude-tags golden` in `packages/nightshade_app` —
+Tests: `flutter test --exclude-tags golden` in `packages/skotiq_app` —
 **3301 passed, 0 failed**. That is the exact command `melos run test` issues
 (`melos.yaml:318`). No test file was edited; not even an import line needed
 changing, because parts inherit the parent library's imports.
@@ -23,7 +23,7 @@ A bare `flutter test` (no tag filter) is *not* the gate and does not pass at HEA
 either: `test/screens/analytics/captures_landscape_test.dart` is `@Tags(['golden'])`,
 hangs for its full 10-minute timeout, and then poisons every subsequent test in the
 shard with `'!inTest': is not true` — 2 real failures plus a 40-test cascade. That
-file is excluded by `--exclude-tags golden` by design (`packages/nightshade_app/dart_test.yaml`,
+file is excluded by `--exclude-tags golden` by design (`packages/skotiq_app/dart_test.yaml`,
 `docs/testing/golden-tests.md`). Confirmed unrelated to this batch: the cascade
 victims (`test/widgets/**`, 289 tests) all pass when run as their own directory.
 
@@ -151,7 +151,7 @@ the root library file.
 or two of blank-line normalisation.)
 
 ## Out of scope / untouched
-- `localization/nightshade_localizations/translations.dart` (1486) — map report
+- `localization/skotiq_localizations/translations.dart` (1486) — map report
   `app-screens-b` §1.2 lists it, but it is under `lib/localization/`, not
   `lib/screens/`, so it belongs to another batch.
 - Headless API handlers — belong to the `apps-shells` batch.

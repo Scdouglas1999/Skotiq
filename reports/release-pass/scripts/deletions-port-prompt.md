@@ -1,13 +1,13 @@
 # Deletions-port agent prompt (prepared 2026-08-14; launch after batch 4 returns)
 
-You are the PORT agent for the deletions batch of the Nightshade owner-decisions wave,
-working DIRECTLY ON THE MAIN TREE at /home/scdouglas/Documents/Nightshade2 (branch
+You are the PORT agent for the deletions batch of the Skotiq owner-decisions wave,
+working DIRECTLY ON THE MAIN TREE at /home/scdouglas/Documents/Skotiq2 (branch
 audit/end-to-end-campaign; the tree carries many unrelated uncommitted changes from six
 already-merged batches — leave them alone; do NOT commit, stash, or checkout).
 MANDATORY: one graphify query before grepping/reading source.
 
 The batch implemented owner decisions 5+6 (delete the Dart fallback device stack; delete
-the unreachable device backend, the NIGHTSHADE_COMPANION_UI dashboard, the unreachable
+the unreachable device backend, the SKOTIQ_COMPANION_UI dashboard, the unreachable
 device-service methods and the sequential profile-connect path) against a STALE base
 (59dec49c7). The campaign since restructured many of its target files (C3 splits, the
 FRB regeneration). Re-land its work semantically:
@@ -26,12 +26,12 @@ FRB regeneration). Re-land its work semantically:
 - CAUTION: phd2_models.dart / .freezed.dart / .g.dart were ALREADY modified on the
   main tree by the merged ui-small batch. Reconcile the deletions batch's edits INTO
   the current file state; never overwrite. If freezed regeneration is needed, run
-  build_runner in nightshade_core.
+  build_runner in skotiq_core.
 - The bridge_stub fail-closed policy comment must state the truth: Rust is the only
   device path.
 - After landing: `dart analyze` clean in every touched package; the touched packages'
-  test suites pass (nightshade_bridge, nightshade_core, nightshade_app, apps/mobile);
-  `cargo build -p nightshade_bridge` clean if any Rust was touched. List every deleted
+  test suites pass (skotiq_bridge, skotiq_core, skotiq_app, apps/mobile);
+  `cargo build -p skotiq_bridge` clean if any Rust was touched. List every deleted
   file + line count in a PORTED section of the impl log. Report honestly.
 
 ## Hunk triage (pre-computed from the 77-change snapshot)

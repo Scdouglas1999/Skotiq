@@ -4,23 +4,23 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/stacking_handlers.dart';
-import 'package:nightshade_desktop/headless_api/validation.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/stacking_handlers.dart';
+import 'package:skotiq_desktop/headless_api/validation.dart';
 import 'package:shelf/shelf.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late Directory tempDir;
-  late NightshadeDatabase database;
+  late SkotiqDatabase database;
   late ProviderContainer container;
   late StackedResultsDao dao;
   late StackingHandlers handlers;
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('ns_saved_stack_test_');
-    database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+    database = SkotiqDatabase.forTesting(NativeDatabase.memory());
     container = ProviderContainer(
       overrides: [databaseProvider.overrideWithValue(database)],
     );

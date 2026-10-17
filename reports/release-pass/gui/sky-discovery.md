@@ -9,10 +9,10 @@ Camera / Mount / Focuser / Filter Wheel / Guider; 530 mm f/5.0, 3.76 µm →
 `/tmp/ns-audit/gui-sky-discovery/captures`).
 
 **Binary under test:** `apps/desktop/build/linux/x64/release/bundle` — `libapp.so`
-built 2026-08-11 09:55 (the Wave-B bundle). Its `libnightshade_bridge.so` had been
+built 2026-08-11 09:55 (the Wave-B bundle). Its `libskotiq_bridge.so` had been
 deleted from the bundle before this pass started, so every GUI agent's `start`
 failed with "Native bridge failed to initialize"; I rebuilt
-`cargo build --release -p nightshade_bridge` and copied the fresh `.so` into
+`cargo build --release -p skotiq_bridge` and copied the fresh `.so` into
 `bundle/lib/`. FRB generated glue (`frb_generated.rs`, `frb_generated.dart`,
 both 2026-08-10 13:27) is unmodified in the tree, so the Dart/Rust ABI matches.
 Dart-side fixes made after 2026-08-11 09:55 are **not** in this binary.
@@ -380,7 +380,7 @@ tab to open for which job.
 
 | Prior ID | Claim | This pass |
 | --- | --- | --- |
-| SKY-10 (2026-08-11) | Constellation "Connect to a hub" rejects every address including its own example and never attempts a connection | **Does not reproduce.** The dialog performs a real connection and reports precise transport errors: `http://127.0.0.1:8090` → "Cannot reach 127.0.0.1: Connection refused"; the placeholder's own `http://nightshade.local:8090` → "Cannot reach nightshade.local: Failed host lookup: 'nightshade.local'". Both are correct for this machine (no hub running, no mDNS name). |
+| SKY-10 (2026-08-11) | Constellation "Connect to a hub" rejects every address including its own example and never attempts a connection | **Does not reproduce.** The dialog performs a real connection and reports precise transport errors: `http://127.0.0.1:8090` → "Cannot reach 127.0.0.1: Connection refused"; the placeholder's own `http://skotiq.local:8090` → "Cannot reach skotiq.local: Failed host lookup: 'skotiq.local'". Both are correct for this machine (no hub running, no mDNS name). |
 | SKY-13 (2026-08-11) | First Light cannot be reached at all on a fresh profile | **Does not reproduce.** `Analytics → Science → First Light` reaches it in two clicks from the nav rail on a fresh profile, and its empty state is good. (`/science` is a redirect to `/analytics?tab=science`.) |
 | SKY-8 (2026-08-11) | Framing is dead because the wizard never asks for sensor size | Partly. Re-scoped as SKY-9 above: connecting the camera unlocks everything, so the gate is a live device, not the wizard alone. |
 

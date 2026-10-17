@@ -143,7 +143,7 @@ Screen: Onboarding step 10 of 13 "Where should we save captures?".
 
 Repro:
 1. Step 10 opens with an empty field (`Type or paste a folder, or use Browse`) — no suggested default
-   such as `~/Pictures/Nightshade`, and ~450 px of empty card below it.
+   such as `~/Pictures/Skotiq`, and ~450 px of empty card below it.
 2. Type a path that does not exist (`/tmp/ns-audit/gui-settings-onboarding/captures` before it is
    created) and click **Next**.
 
@@ -183,7 +183,7 @@ Repro:
 Expected: the informational banner becomes something like "Site set from IP estimate — accurate to
 about 10 km", and the coordinates are rounded to the precision the estimate actually has.
 Actual (both visible in `/tmp/ns-audit/shots-set3/11c-after-detect.png`):
-- the banner immediately above the filled-in fields still reads **"No site on record yet.** Nightshade
+- the banner immediately above the filled-in fields still reads **"No site on record yet.** Skotiq
   can ask a third-party service to estimate your position…", still offering **Estimate from IP** — the
   screen denies the thing it just did;
 - the fields read `39.9527237` / `-75.1635262` — **7 decimal places, ~1 cm resolution**, on a value the
@@ -293,7 +293,7 @@ Repro:
 
 Actual (`/tmp/ns-audit/shots-set3/15c-spanish.png`):
 - the tour card's title and body translate ("Tour de ajustes / Aprende a configurar tus preferencias
-  de Nightshade") but its two buttons stay **"Maybe Later"** and **"Start Tour"** — a card in two
+  de Skotiq") but its two buttons stay **"Maybe Later"** and **"Start Tour"** — a card in two
   languages, inside the Settings surface the app explicitly promises is translated;
 - the status bar reads `Cámara Desconectado`, `Montura Desconectado`, `Guía Desconectado` — all three
   need the feminine `Desconectada`;
@@ -335,11 +335,11 @@ Actual (`/tmp/ns-audit/shots-set3/26-pairdialog.png`): the Paired Devices list i
 
 Dates two months before this profile existed. The store the app reads, `<data dir>/pairing.db`, was
 recreated during this run and holds **13** rows — the same count and contents as an out-of-profile
-file (`~/Documents/Nightshade/pairing.db`, last written Aug 1) — including android tokens with
+file (`~/Documents/Skotiq/pairing.db`, last written Aug 1) — including android tokens with
 `control` scope and one with `admin`.
 
 Why it is P1: the pairing list is the app's only view of "who may drive my telescope from the
-network". A user who wipes or reinstalls Nightshade to revoke access does not revoke anything, and a
+network". A user who wipes or reinstalls Skotiq to revoke access does not revoke anything, and a
 fresh install on a shared machine inherits someone else's authorised phones. The screen states these
 devices as paired facts, which is the "app says something untrue" class at its most dangerous.
 (Revocation itself works: the per-row ⋮ menu offers Rename Device / Revoke Access / Delete Device.)
@@ -544,7 +544,7 @@ narrow-value-editor pattern rather than two separate mistakes.
 ## Coverage
 
 Driven live on this build (Xvfb :84, profile `gui-settings-onboarding`, bundle `libapp.so` dated
-2026-08-11 09:55; the bundle's `libnightshade_bridge.so` was missing when this pass started and had to
+2026-08-11 09:55; the bundle's `libskotiq_bridge.so` was missing when this pass started and had to
 be restored before the app would boot — see "Blocked" below).
 
 **Onboarding — all 13 steps walked, forwards and backwards:**

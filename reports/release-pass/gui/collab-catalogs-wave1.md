@@ -8,7 +8,7 @@ onboarding. All findings below were observed in the running app.
 Findings are numbered COL-n. Screenshots cited live in `/tmp/ns-audit/shots-collab/`.
 
 A real Constellation hub was stood up locally to review the connected state of Collaborative Sky
-(`server/nightshade_hub`, `dart run bin/server.dart --db /tmp/ns-audit/hub/hub.db --atlas-root
+(`server/skotiq_hub`, `dart run bin/server.dart --db /tmp/ns-audit/hub/hub.db --atlas-root
 /tmp/ns-audit/hub/atlas --port 8088`), so the connected paths below are not speculation.
 
 ---
@@ -209,6 +209,6 @@ Screen: Settings -> Imaging -> Catalogs -> "Deep-Star Tier (Tycho-2 / Gaia)".
 Actual copy: "Streams faint stars below the bundled HYG floor (mag 9.0) as view-culled tiles when
 zoomed in. **No tileset is published yet: host one built with tools/catalog_prep and point the URL
 below at it.**", with a "Tileset base URL" field repeating "point this at a tileset you host yourself
-(see tools/catalog_prep in the Nightshade repository)". A paying user is told to build and host their
+(see tools/catalog_prep in the Skotiq repository)". A paying user is told to build and host their
 own tileset from a repo directory; the section is a shipped feature with no data behind it.
 Evidence: accessibility tree of the Catalogs page; `/tmp/ns-audit/shots-collab/45-actions.png`.

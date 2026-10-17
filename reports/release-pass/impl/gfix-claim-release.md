@@ -1,7 +1,7 @@
 # gfix-claim-release — the camera-claim release hole
 
 Batch: `claim-release`
-Scope: `native/nightshade_native/sequencer/src/executor/**`
+Scope: `native/skotiq_native/sequencer/src/executor/**`
 Source: `reports/release-pass/waveG-result.json`, refuter entry
 *"camera-claim-serialization incl. the must-NOT-wait list (ffix-exposure-integrity, WF-STOP-N1)"*
 
@@ -100,11 +100,11 @@ each arm. `executor/trigger_context.rs`:
 
 ## Verification
 
-- `cargo test -p nightshade_sequencer` — **793 passed, 0 failed** (786 at HEAD +
+- `cargo test -p skotiq_sequencer` — **793 passed, 0 failed** (786 at HEAD +
   the 7 above; the pre-existing ignored integration test stays ignored).
-- `cargo clippy -p nightshade_sequencer --all-targets` — no new warnings (the 3
-  `doc list item overindented` are pre-existing in `nightshade_imaging`).
-- `cargo fmt -p nightshade_sequencer -- --check` — clean. Only
+- `cargo clippy -p skotiq_sequencer --all-targets` — no new warnings (the 3
+  `doc list item overindented` are pre-existing in `skotiq_imaging`).
+- `cargo fmt -p skotiq_sequencer -- --check` — clean. Only
   `runtime_tests.rs` needed formatting and only that file was run through
   `rustfmt`; no repo-wide formatter.
 - `cargo check --workspace` — clean.

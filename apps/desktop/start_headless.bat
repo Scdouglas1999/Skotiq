@@ -1,8 +1,8 @@
 @echo off
-title Nightshade Headless Server
+title Skotiq Headless Server
 color 0A
 echo ========================================
-echo Nightshade 2.0 - Headless Mode
+echo Skotiq 2.0 - Headless Mode
 echo ========================================
 echo.
 echo Starting headless server...
@@ -24,14 +24,14 @@ echo ========================================
 echo.
 
 cd /d "%~dp0"
-if not exist "build\windows\x64\runner\Release\nightshade_desktop.exe" (
+if not exist "build\windows\x64\runner\Release\skotiq_desktop.exe" (
     echo ERROR: Executable not found!
     echo Please build the app first with: flutter build windows --release
     pause
     exit /b 1
 )
 
-echo Running: build\windows\x64\runner\Release\nightshade_desktop.exe --headless
+echo Running: build\windows\x64\runner\Release\skotiq_desktop.exe --headless
 echo.
 echo NOTE: If you don't see output below, the app may be running but
 echo       Flutter Windows apps don't show console output by default.
@@ -40,7 +40,7 @@ echo.
 echo ========================================
 echo.
 
-build\windows\x64\runner\Release\nightshade_desktop.exe --headless
+build\windows\x64\runner\Release\skotiq_desktop.exe --headless
 
 echo.
 echo ========================================

@@ -10,10 +10,10 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_bridge/nightshade_bridge.dart' as bridge;
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/run_watch_handlers.dart';
-import 'package:nightshade_desktop/headless_api/validation.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/run_watch_handlers.dart';
+import 'package:skotiq_desktop/headless_api/validation.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -21,12 +21,12 @@ import 'handler_test_helpers.dart';
 void main() {
   group('RunWatchHandlers', () {
     late ProviderContainer container;
-    late StreamController<NightshadeEvent> ctrl;
+    late StreamController<SkotiqEvent> ctrl;
     late RunWatchHandlers handlers;
 
     setUp(() {
       container = ProviderContainer();
-      ctrl = StreamController<NightshadeEvent>.broadcast();
+      ctrl = StreamController<SkotiqEvent>.broadcast();
       handlers = RunWatchHandlers(
         container: container,
         eventBroadcast: ctrl.stream,
@@ -338,7 +338,7 @@ void main() {
       // Allow the onListen-time retry write to flush before injecting.
       await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      final event = NightshadeEvent(
+      final event = SkotiqEvent(
         timestamp: DateTime.now().millisecondsSinceEpoch,
         severity: EventSeverity.info,
         category: EventCategory.imaging,
@@ -422,7 +422,7 @@ void main() {
       test("the driver's own noImageAvailable answers the same", () async {
         await expectScopedRefusal(
           await thumbnail(
-            raise: const bridge.NightshadeError.noImageAvailable(),
+            raise: const bridge.SkotiqError.noImageAvailable(),
           ),
         );
       });
@@ -431,7 +431,7 @@ void main() {
         'any other backend failure keeps its own status and words',
         () async {
           final response = await thumbnail(
-            raise: const bridge.NightshadeError.notConnected('cam-1'),
+            raise: const bridge.SkotiqError.notConnected('cam-1'),
           );
           expect(
             response.statusCode,

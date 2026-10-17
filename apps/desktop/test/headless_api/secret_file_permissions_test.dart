@@ -1,4 +1,4 @@
-// The two credential files Nightshade keeps in the application-support
+// The two credential files Skotiq keeps in the application-support
 // directory must be owner-only.
 //
 // Live defect (fresh-install audit): a headless start created
@@ -10,9 +10,9 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/update_wiring.dart';
-import 'package:nightshade_desktop/secret_file.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/update_wiring.dart';
+import 'package:skotiq_desktop/secret_file.dart';
 
 /// The mode bits as `stat` reports them, e.g. `600`.
 Future<String> octalMode(File file) async {

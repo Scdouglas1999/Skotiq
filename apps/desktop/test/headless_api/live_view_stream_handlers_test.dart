@@ -13,7 +13,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:nightshade_desktop/headless_api/handlers/live_view_stream_handlers.dart';
+import 'package:skotiq_desktop/headless_api/handlers/live_view_stream_handlers.dart';
 
 /// In-memory channel pair. The test sends client→server JSON messages via
 /// [clientToServer] and observes server→client frames on [serverToClient].

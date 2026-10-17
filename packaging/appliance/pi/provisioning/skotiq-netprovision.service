@@ -1,0 +1,28 @@
+# Wi-Fi hotspot fallback provisioning for the Skotiq Pi appliance.
+# Installed + enabled by build_pi_image.sh.
+#
+# Runs at every boot; exits immediately when a known network connects
+# within the grace period. Otherwise it holds a "Skotiq-XXXX" hotspot
+# + captive credentials portal until the operator provisions Wi-Fi.
+# It does NOT block the boot (Type=simple, no other unit After=us except
+# skotiq-firstboot, which genuinely needs the network).
+
+[Unit]
+Description=Skotiq Wi-Fi fallback provisioning (hotspot + portal)
+Wants=NetworkManager.service
+After=NetworkManager.service
+
+[Service]
+Type=simple
+# Root needed: nmcli hotspot control + binding port 80 for the portal.
+ExecStart=/usr/local/lib/skotiq/skotiq-netprovision.sh
+RuntimeDirectory=skotiq-provision
+RuntimeDirectoryMode=0700
+Restart=on-failure
+RestartSec=10
+# Environment knobs (also see headless.env for the app itself):
+#Environment=SKOTIQ_PROVISION_WAIT=90
+#Environment=SKOTIQ_HOTSPOT_PASS=skotiq
+
+[Install]
+WantedBy=multi-user.target

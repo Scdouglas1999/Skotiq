@@ -1,20 +1,20 @@
-# melos_managed_dependency_overrides: nightshade_app,nightshade_bridge,nightshade_core,nightshade_planetarium,nightshade_plugins,nightshade_remote_protocol,nightshade_ui,nightshade_updater,lucide_icons
+# melos_managed_dependency_overrides: skotiq_app,skotiq_bridge,skotiq_core,skotiq_planetarium,skotiq_plugins,skotiq_remote_protocol,skotiq_ui,skotiq_updater,lucide_icons
 dependency_overrides:
   lucide_icons:
     path: ../../third_party/lucide_icons
-  nightshade_app:
-    path: ../../packages/nightshade_app
-  nightshade_bridge:
-    path: ../../packages/nightshade_bridge
-  nightshade_core:
-    path: ../../packages/nightshade_core
-  nightshade_planetarium:
-    path: ../../packages/nightshade_planetarium
-  nightshade_plugins:
-    path: ../../packages/nightshade_plugins
-  nightshade_remote_protocol:
-    path: ../../packages/nightshade_remote_protocol
-  nightshade_ui:
-    path: ../../packages/nightshade_ui
-  nightshade_updater:
-    path: ../../packages/nightshade_updater
+  skotiq_app:
+    path: ../../packages/skotiq_app
+  skotiq_bridge:
+    path: ../../packages/skotiq_bridge
+  skotiq_core:
+    path: ../../packages/skotiq_core
+  skotiq_planetarium:
+    path: ../../packages/skotiq_planetarium
+  skotiq_plugins:
+    path: ../../packages/skotiq_plugins
+  skotiq_remote_protocol:
+    path: ../../packages/skotiq_remote_protocol
+  skotiq_ui:
+    path: ../../packages/skotiq_ui
+  skotiq_updater:
+    path: ../../packages/skotiq_updater

@@ -1,7 +1,7 @@
 # Wave D verification — Sequencing cluster
 
 Verifier: adversarial re-drive of the FRESH release bundle
-(`apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`, `libapp.so` mtime Aug 13 18:31)
+(`apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`, `libapp.so` mtime Aug 13 18:31)
 via `tools/ui_audit/drive_linux.py`, display `:82`, profile `waveD-sequencing`, `--fresh`.
 Devices: Simulated Camera / Mount / Focuser / Filter Wheel connected via Equipment → Discovery.
 Capture folder `/tmp/ns-audit/waveD-sequencing/captures`.
@@ -113,7 +113,7 @@ clicking it opens no dialog and moves nothing.
 
 One caveat on the "logs" half of the finding: the fix adds `logger.info('Slewing to …')` via
 `loggingServiceProvider`, but that sink is in-memory/UI only — `grep -ic slew` over
-`data/logs/nightshade.log.*` and over the app's stdout still returns **0**. The user-visible part of the
+`data/logs/skotiq.log.*` and over the app's stdout still returns **0**. The user-visible part of the
 complaint (silent, unconfirmed, unlocked) is fixed; a post-mortem log grep still will not find the slew.
 
 ### SEQ-16 — P1 — pre-flight flags a mount that is not on target

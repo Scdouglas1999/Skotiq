@@ -46,7 +46,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
         // FAIL CLOSED when unconfigured. Short-circuiting every request
         // because no tokens are configured would serve a fresh appliance wide
         // open, so that path is reachable only behind the explicit
-        // `--allow-unauthenticated` / NIGHTSHADE_ALLOW_UNAUTHENTICATED opt-in
+        // `--allow-unauthenticated` / SKOTIQ_ALLOW_UNAUTHENTICATED opt-in
         // (a prominent warning is logged at startup, see server_lifecycle).
         //
         // Without the opt-in the request falls through to the public-path
@@ -182,7 +182,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
         // Resolve credentials. Acceptable forms:
         //  1. `Authorization: Bearer <token>` header (mobile clients, API
         //     consumers, the dashboard's pre-cookie path).
-        //  2. The `nightshade_session` HttpOnly cookie set by
+        //  2. The `skotiq_session` HttpOnly cookie set by
         //     `POST /api/auth/cookie` after a successful pairing. Cookie
         //     requests additionally require a matching CSRF token on every
         //     state-changing method.

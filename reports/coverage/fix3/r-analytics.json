@@ -8,7 +8,7 @@
   "expected": "Axis labels never overlap - which is exactly what NiceAxis was written to guarantee.",
   "repro": "Seed frames with identical guiding_rms_total (0.70); Analytics > Session; look at the bottom-left of the Guiding performance chart.",
   "evidence": "/tmp/ns-audit/shots/r-analytics-06-guideaxis.png",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/chart_axis.dart:33-43 (zero-variance branch)",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/chart_axis.dart:33-43 (zero-variance branch)",
   "location_wrong": null,
   "proposed_fix": "The zero-variance branch returns min = centre - 2*interval without snapping to a tick multiple (0.70 - 0.50 = 0.20 with interval 0.25), so the boundary label lands 0.05 from the 0.25 tick. Snap: min = (centre/interval).floor()*interval - 2*interval, same for max - the same snapping the varying branch already does.",
   "verdict_reasoning": "Reproduced exactly. Three frames all at guiding_rms_total = 0.70; the Guiding performance axis renders '0.25' and '0.20' printed on top of each other at the bottom (native-res crop /tmp/ns-audit/shots/v2a-08-guideaxis-070.png). Root cause is at the cited location, chart_axis.dart:31-43: the zero-variance branch returns min = centre - interval*2 (0.70-0.50 = 0.20), which is not a multiple of the interval (0.25), so fl_chart's boundary label lands a fraction of a tick from the outermost tick - the exact failure the class doc-comment says NiceAxis exists to prevent (the non-degenerate branch snaps min/max to interval multiples; the degenerate branch does not). Not unique to guiding: a 0.60 series prints '1.10' touching '1.00', and Focus drift prints '15240' touching '15200'."
@@ -22,7 +22,7 @@
   "expected": "Two counts of the same thing on one card should agree or be labelled differently. The stats row comes from the denormalised imaging_sessions counters (light frames), the image list from captured_images (lights + calibration frames). Nothing tells the user which is which.",
   "repro": "Analytics > History > Night A - M31.",
   "evidence": "/tmp/ns-audit/shots/r-analytics-20-detail.png",
-  "where": "packages/nightshade_app/lib/screens/analytics/analytics_screen/session_detail_dialog.dart (Statistics block vs ImageThumbnailStrip at :266)",
+  "where": "packages/skotiq_app/lib/screens/analytics/analytics_screen/session_detail_dialog.dart (Statistics block vs ImageThumbnailStrip at :266)",
   "location_wrong": null,
   "proposed_fix": "Label the list \"Frames (16, incl. 4 calibration)\" or scope both to light frames.",
   "verdict_reasoning": "Reproduced: Analytics > History > Night A - M31 renders Statistics 'Total Exposures 12 / Successful 10 / Failed 2' and immediately below 'Images (16)' with chips 'Good: 14 / Needs Review: 0 / Poor: 2 / Total: 16' (seed: 12 lights + 4 darks). Nothing distinguishes the light-frame counters from the all-frames list. Location correct: session_detail_dialog.dart:148-149 (_buildStatisticsSection) vs ImageThumbnailStrip at :266."
@@ -36,7 +36,7 @@
   "expected": "Either a session count over a rolling 30 nights (astronomers do not care about calendar-month boundaries; an observing run straddles them), or a label that says what it counts (\"Targets active this month\").",
   "repro": "Analytics > Projects with sessions dated Jul 25/28/30 and system date Aug 1.",
   "evidence": "/tmp/ns-audit/shots/r-analytics-26-projects.png and -30-projects3.png (0 Active This Month beside 1.5h Total Integration)",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/project_tracking_panel.dart:363-370, 414-418",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/project_tracking_panel.dart:363-370, 414-418",
   "location_wrong": null,
   "proposed_fix": "Count sessions in the last 30 days: sessions.where((s)=>s.startTime.isAfter(now.subtract(Duration(days:30)))).length, and relabel \"Nights (30d)\".",
   "verdict_reasoning": "Code confirmed at the cited lines: project_tracking_panel.dart:362-370 folds over PROJECTS (sessionsThisMonth increments once per project whose lastSessionAt is after DateTime(now.year, now.month, 1)) and :414-418 renders it as 'Active This Month'. The value is bounded by the target count and does reset at the calendar-month boundary. Live: 5 sessions / 3 targets renders '2'. Downgraded to P4 because the tile sits in a row of target-scoped stats (Targets / Tracked / Completed / Total Integration), so 'Active This Month' reads naturally as targets active this month - a naming/period-choice quibble, not a false number a user acts on."
@@ -50,7 +50,7 @@
   "expected": "The banner reports the in-memory pipeline state for the current app process, which is empty after a restart. When the tab is reviewing a historical session it should say so ('Reviewing stored results') rather than claim no frame has been captured.",
   "repro": "Restart the app, Analytics > Science, select a past session with frames.",
   "evidence": "/tmp/ns-audit/shots/r-analytics-38-scivt.png",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/science_status_banner.dart:120-124 (the no-history else branch)",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/science_status_banner.dart:120-124 (the no-history else branch)",
   "location_wrong": null,
   "proposed_fix": "When the selected session is not the live one, render a review-mode subtitle keyed off the stored product counts instead of the live pipeline history.",
   "verdict_reasoning": "Reproduced: Analytics > Science with 'Analysing Night E - M13 - Aug 1, 2026 05:00 - 2 frames' in the selector bar renders the banner directly beneath it as 'Science idle / Waiting for the first captured frame', above a Differential Photometry chart drawn from 80 stored measurements, a 'Plate solve health 0% - 0 of 2 solved' card and a populated Field Quality section. Location correct: science_status_banner.dart:121-124 is the no-history else branch hard-coding those strings; hasHistory (:70) is the in-memory pipeline snapshot, empty after any restart."
@@ -64,7 +64,7 @@
   "expected": "A control called Contours draws iso-value lines across the surface. If drop-lines are what is wanted, call the control 'Drop lines'.",
   "repro": "Seed science_tile_metrics rows (layer_type='uniformity', 5x5 grid) for the selected session's frames. Restart. Analytics > Science, scroll to 3D Surface Explorer, click Contours.",
   "evidence": "/tmp/ns-audit/shots/ra3-13-contours.png (25 vertical stems to a common baseline, zero contour lines)",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/science_surface_explorer.dart:325-331 `if (showContour) { canvas.drawLine(point, Offset(point.dx, size.height - 10), linePaint); }`",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/science_surface_explorer.dart:325-331 `if (showContour) { canvas.drawLine(point, Offset(point.dx, size.height - 10), linePaint); }`",
   "location_wrong": null,
   "proposed_fix": "Either rename the chip to 'Drop lines', or implement marching-squares iso-lines over the interpolated tile grid at 4-6 levels.",
   "verdict_reasoning": "Reproduced: with 25 seeded uniformity tiles, clicking the chip labelled 'Contours' (science_surface_explorer.dart:174-177) makes every marker sprout a straight vertical line to a common horizontal baseline - a stem/lollipop plot with zero iso-value lines (/tmp/ns-audit/shots/v2a-14-contours.png). Location correct: science_surface_explorer.dart:325-330, 'if (showContour) canvas.drawLine(Offset(point.dx, point.dy), Offset(point.dx, size.height - 10), linePaint)'."
@@ -78,7 +78,7 @@
   "expected": "A transit search should either restrict the box search to fainter-than-baseline solutions, or clearly flag a negative-depth solution as an anti-transit / brightening event rather than presenting it as the session's transit result.",
   "repro": "Seed 80 noisy photometry points with no transit; Analytics > Science > Period Analysis > Run Period Search; read the BLS block.",
   "evidence": "/tmp/ns-audit/shots/ra3-01.png ('Depth: -53.6 mmag | SDE: 2.7'), /tmp/ns-audit/shots/ra3-19-period-signal.png ('Depth: -115.9 mmag | SDE: 2.5'), /tmp/ns-audit/shots/ra3-24-blsbox.png (positive 151.2 mmag for a real transit)",
-  "where": "packages/nightshade_core/lib/src/services/science/period_analysis_service.dart:536-545 maximises SR = s^2/(r(1-r)), which is sign-blind, and :597 sets globalBestDepth = inTransitMean - outTransitMean without constraining the sign",
+  "where": "packages/skotiq_core/lib/src/services/science/period_analysis_service.dart:536-545 maximises SR = s^2/(r(1-r)), which is sign-blind, and :597 sets globalBestDepth = inTransitMean - outTransitMean without constraining the sign",
   "location_wrong": null,
   "proposed_fix": "Reject box solutions where s < 0 (in-box brighter) when the mode is transit search, or render negative depths as 'Brightening candidate (anti-transit): 115.9 mmag' so the user is not told a transit was found.",
   "verdict_reasoning": "Live: on 80 pure-noise points the BLS block reads 'Period 31.4 min | Duration 1.9 min | Depth -54.1 mmag | SDE 3.11 | Mid-phase 0.325' under the heading 'Box Least Squares (Transit Search)', with no sign explanation and no warning. My independent port confirms the sign is data-driven and unconstrained: noise -54.05 mmag, injected sinusoid -106.6 mmag, injected +0.150 mag box +153.9 mmag. Cited code right within a couple of lines: SR = s^2/(r(1-r)) is maximised at period_analysis_service.dart:537-545 and is sign-blind, and globalBestDepth = inTransitMean - outTransitMean is set at :599 (claim said :597) with no sign constraint."
@@ -92,8 +92,8 @@
   "expected": "The confirmation list is the whole point of a destructive-looking action - the user must be able to read which frames will be rejected and why. Either scroll the list inside a bounded region with a visible scrollbar, or size the dialog to the content.",
   "repro": "Analytics > Science on a session with frames > 'Grade N frames' > drag Max guiding RMS below the frames' RMS so at least one frame fails > look at the list above the footer.",
   "evidence": "/tmp/ns-audit/shots/ra3-30-grader2.png (single half-height 'm13_0.fits' row jammed under the footer); the accessibility tree at the same moment lists both m13_0.fits and m13_1.fits with their reasons.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/image_grader_dialog.dart (the failing-frame list is laid out in the dialog body with no Expanded/scroll container above the actions row)",
-  "location_wrong": "The claim says the list is 'laid out in the dialog body with no Expanded/scroll container above the actions row'. False: NightshadeDialog (packages/nightshade_ui/lib/src/dialogs/nightshade_dialog.dart:148-150) already wraps the body in Flexible + SingleChildScrollView. The relevant knob is the fixed 'height: 640' at image_grader_dialog.dart:325.",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/image_grader_dialog.dart (the failing-frame list is laid out in the dialog body with no Expanded/scroll container above the actions row)",
+  "location_wrong": "The claim says the list is 'laid out in the dialog body with no Expanded/scroll container above the actions row'. False: SkotiqDialog (packages/skotiq_ui/lib/src/dialogs/skotiq_dialog.dart:148-150) already wraps the body in Flexible + SingleChildScrollView. The relevant knob is the fixed 'height: 640' at image_grader_dialog.dart:325.",
   "proposed_fix": "Wrap the failing-frame list in an Expanded + Scrollbar(thumbVisibility: true) inside the dialog's constrained body so it scrolls independently of the footer.",
   "verdict_reasoning": "The visible symptom reproduces exactly: with Max guiding RMS dragged to 0.07\" the panel reports 'Will reject 2 / Will keep 0' and only the first row ('m13_0.fits') is visible, cut in half by the Cancel / 'Reject 2 frames' bar, with no scrollbar. But the claim's stated consequence is wrong - I scrolled the dialog body with the wheel and both m13_0.fits and m13_1.fits appeared with their full reasons ('Auto-grade: Guiding 0.60\" > 0.07\"') comfortably above the footer (/tmp/ns-audit/shots/v2a-37-graderfoot2.png). The content is NOT unreachable, so this drops from 'the user cannot read what is about to be rejected' (P2) to 'the confirmation list opens below the fold with no scroll affordance' (P4)."
  },
@@ -106,7 +106,7 @@
   "expected": "The caption should be scoped to the advisory Good/Poor badges ('These badges are advisory - they do not reject frames on their own'), because the app ships an auto-grader two tabs away that does reject frames and stamps them 'Auto-grade:'.",
   "repro": "Analytics > Science > Grade N frames > lower a threshold > Reject; then Analytics > Session and read the Captured Images caption.",
   "evidence": "sqlite after the action: select id,is_accepted,rejection_reason from captured_images where session_id=5 -> 148|0|Auto-grade: Guiding 0.60\" > 0.24\" and 149|0|same; the Session tab tree at the same moment contains 'Quality labels are advisory only. No frames are deleted or auto-rejected.' and 'EXPOSURES 0/2'.",
-  "where": "packages/nightshade_app/lib/screens/analytics/analytics_screen/session_tab.dart (Captured Images caption)",
+  "where": "packages/skotiq_app/lib/screens/analytics/analytics_screen/session_tab.dart (Captured Images caption)",
   "location_wrong": null,
   "proposed_fix": "Reword to 'These quality badges are advisory - they do not change acceptance. Use Science > Grade frames to reject.'",
   "verdict_reasoning": "Reproduced in sequence: Analytics > Science > 'Grade 2 frames' > lower Max guiding RMS > 'Reject 2 frames'; sqlite then shows captured_images 146 and 147 with is_accepted=0 and rejection_reason 'Auto-grade: Guiding 0.60\" > 0.07\"'. On Analytics > Session the header correctly flips to 'EXPOSURES 0/2' and 'All four charts plot the same 0 accepted light frames - 2 excluded (rejected or calibration)', yet the Captured Images caption immediately below still reads 'Quality labels are advisory only. No frames are deleted or auto-rejected.' Location correct: rendered at session_tab.dart:321 via l10n key 'analyticsQualityAdvisory' (string at translations.dart:249-250, duplicated at :832)."

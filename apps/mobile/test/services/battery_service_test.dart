@@ -8,8 +8,8 @@
 // indirectly by the dashboard widget test.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_mobile/services/battery_service.dart';
-import 'package:nightshade_mobile/services/poll_rate_service.dart';
+import 'package:skotiq_mobile/services/battery_service.dart';
+import 'package:skotiq_mobile/services/poll_rate_service.dart';
 
 void main() {
   group('PhoneBatteryState', () {

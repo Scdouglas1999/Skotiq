@@ -8,7 +8,7 @@
   "expected": "The page that owns the master switch should show live source state and the fail-mode consequence. Concretely: a status row at the top ('Weather sources: none connected -- with Fail Closed, runs will park and abort'), the fail-mode selector moved next to the master switch, and turning the master switch on with zero sources should either default that rig to Warn Only or ask.",
   "repro": "Fresh profile, nothing connected. Settings > AUTOMATION & SAFETY > Weather Safety. Read the whole page (3 toggles, 3 thresholds, 2 alert-timing numbers) -- nothing mentions sources or fail mode. Toggle 'Enable weather safety' on. Then go to Sequencer to find 'Safety fail mode: Fail Closed (Park)'.",
   "evidence": "/tmp/ns-audit/shots/settings-obs-06-weather-safety.png and settings-obs-09-ws-scrolled.png (full page, no source/fail-mode info), /tmp/ns-audit/shots/settings-obs-11-sequencer.png (fail mode lives here), /tmp/ns-audit/shots/settings-obs-87-failclosed-toast.png; DB safety_fail_mode|failClosed",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/weather_safety_settings.dart:120-175; default at packages/nightshade_core/lib/src/models/settings/app_settings.dart:82; consequence documented at packages/nightshade_core/lib/src/providers/sequence/rules/weather_safety_rules.dart:9-70"
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/weather_safety_settings.dart:120-175; default at packages/skotiq_core/lib/src/models/settings/app_settings.dart:82; consequence documented at packages/skotiq_core/lib/src/providers/sequence/rules/weather_safety_rules.dart:9-70"
  },
  {
   "title": "PHD2 Guiding settings has no way to test the connection -- the one integration you cannot verify",
@@ -19,6 +19,6 @@
   "expected": "A 'Test connection' button that opens the PHD2 event socket and reports version + current profile + connected state, and an inline auto-detect status for the executable path matching the Plate Solving page's 'Auto-detect -- not found' pattern. NINA shows PHD2's state and version inline on its guider page.",
   "repro": "Settings > search 'PHD2' > PHD2 Guiding. Read the whole page.",
   "evidence": "/tmp/ns-audit/shots/settings-obs-73-phd2.png (whole page fits on one screen with room to spare); contrast /tmp/ns-audit/shots/settings-obs-66-ps-1.png (Plate Solving's Verify + auto-detect status) and settings-obs-79-sync-1.png (cloud sync's Test Connection)",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/phd2_guiding_settings.dart"
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/phd2_guiding_settings.dart"
  }
 ]

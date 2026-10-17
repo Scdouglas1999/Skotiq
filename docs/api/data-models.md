@@ -1,12 +1,12 @@
 # Data Models Reference
 
-Complete reference for all data types, enums, and models used in the Nightshade API.
+Complete reference for all data types, enums, and models used in the Skotiq API.
 
 ## Enums
 
 ### DeviceType
 
-Device types supported by Nightshade.
+Device types supported by Skotiq.
 
 ```dart
 enum DeviceType {
@@ -176,12 +176,12 @@ class DeviceInfo {
 }
 ```
 
-### NightshadeEvent
+### SkotiqEvent
 
 Event emitted by the backend.
 
 ```dart
-class NightshadeEvent {
+class SkotiqEvent {
   final int timestamp;
   final EventSeverity severity;
   final EventCategory category;
@@ -499,30 +499,30 @@ class ObserverLocation {
 
 ## Error Types
 
-### NightshadeError
+### SkotiqError
 
-Main error type for the Nightshade API.
+Main error type for the Skotiq API.
 
 ```dart
-sealed class NightshadeError {
-  const factory NightshadeError.deviceNotFound(String message);
-  const factory NightshadeError.connectionFailed(String message);
-  const factory NightshadeError.alreadyConnected(String message);
-  const factory NightshadeError.notConnected(String message);
-  const factory NightshadeError.timeout(String message);
-  const factory NightshadeError.invalidParameter(String message);
-  const factory NightshadeError.invalidInput(String message);
-  const factory NightshadeError.invalidDeviceId(String message);
-  const factory NightshadeError.operationFailed(String message);
-  const factory NightshadeError.imageError(String message);
-  const factory NightshadeError.ioError(String message);
-  const factory NightshadeError.plateSolveError(String message);
-  const factory NightshadeError.sequenceError(String message);
-  const factory NightshadeError.noImageAvailable();
-  const factory NightshadeError.exposureCancelled();
-  const factory NightshadeError.cancelled();
-  const factory NightshadeError.cameraError(String message);
-  const factory NightshadeError.internal(String message);
+sealed class SkotiqError {
+  const factory SkotiqError.deviceNotFound(String message);
+  const factory SkotiqError.connectionFailed(String message);
+  const factory SkotiqError.alreadyConnected(String message);
+  const factory SkotiqError.notConnected(String message);
+  const factory SkotiqError.timeout(String message);
+  const factory SkotiqError.invalidParameter(String message);
+  const factory SkotiqError.invalidInput(String message);
+  const factory SkotiqError.invalidDeviceId(String message);
+  const factory SkotiqError.operationFailed(String message);
+  const factory SkotiqError.imageError(String message);
+  const factory SkotiqError.ioError(String message);
+  const factory SkotiqError.plateSolveError(String message);
+  const factory SkotiqError.sequenceError(String message);
+  const factory SkotiqError.noImageAvailable();
+  const factory SkotiqError.exposureCancelled();
+  const factory SkotiqError.cancelled();
+  const factory SkotiqError.cameraError(String message);
+  const factory SkotiqError.internal(String message);
 }
 ```
 

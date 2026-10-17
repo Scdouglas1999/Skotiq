@@ -38,7 +38,7 @@ out of the framework source rather than guessed:
 
 ## Fix
 
-New `packages/nightshade_app/lib/screens/accessible_dropdown.dart`:
+New `packages/skotiq_app/lib/screens/accessible_dropdown.dart`:
 `AccessibleDropdown<T>` and `AccessibleDropdownFormField<T>` — drop-in wrappers
 that build the Material widget with the same parameters, and add only:
 
@@ -58,7 +58,7 @@ itself the proof that every parameter in use is forwarded.
 
 ## Verification
 
-Failing test first, `packages/nightshade_app/test/screens/accessible_dropdown_test.dart`:
+Failing test first, `packages/skotiq_app/test/screens/accessible_dropdown_test.dart`:
 
 - at HEAD the contract test listed all 42 raw call sites, and both real-screen
   pins failed (`the element-refresh schedule menu is operable`, `the
@@ -67,7 +67,7 @@ Failing test first, `packages/nightshade_app/test/screens/accessible_dropdown_te
 
 The file holds four kinds of pin:
 
-- the whole-tree walker from `nightshade_ui`'s `interactive_semantics_test.dart`
+- the whole-tree walker from `skotiq_ui`'s `interactive_semantics_test.dart`
   (nothing tappable without a role or an enabled state) over the closed, hinted,
   hinted-with-selection and disabled control;
 - menu entries: every entry enabled, exactly the chosen one selected;
@@ -88,10 +88,10 @@ Regression run over every existing test that touches a migrated screen —
 tests reach into `.value`, `.items`, `.onChanged` and `find.byType(DropdownButton<T>)`;
 all still resolve because the wrapper builds the real Material widget.
 
-`dart analyze packages/nightshade_app/lib/screens`: 0 errors, 0 warnings, 13
+`dart analyze packages/skotiq_app/lib/screens`: 0 errors, 0 warnings, 13
 pre-existing infos (`clampPanelWidth` deprecations, one doc-comment lint) — the
 same 13 as before the sweep. The new test file adds 22 more infos, all the
-`SemanticsData.hasFlag` deprecation that `nightshade_ui`'s equivalent semantics
+`SemanticsData.hasFlag` deprecation that `skotiq_ui`'s equivalent semantics
 test already carries at baseline. `dart format` clean over every file touched (the
 48 migrated files needed no reformatting; only the two new files did).
 
@@ -109,7 +109,7 @@ measures the control itself.
 ## Files changed
 
 `lib/screens/accessible_dropdown.dart` (new) plus, under
-`packages/nightshade_app/lib/screens/`:
+`packages/skotiq_app/lib/screens/`:
 
 analytics/analytics_screen.dart · analytics/analytics_screen/session_tab.dart ·
 analytics/widgets/science_analytics_tab.dart ·
@@ -163,8 +163,8 @@ dropdown of their own).
 
 - The wrapper lives under `lib/screens/` to stay inside this batch's SCOPE. Its
   natural long-term home is `lib/widgets/` beside the other cross-screen
-  widgets, or `nightshade_ui` beside `NightshadeDropdown`, whose
-  `selectedItemBuilder` this now duplicates. `NightshadeDropdown` could be
+  widgets, or `skotiq_ui` beside `SkotiqDropdown`, whose
+  `selectedItemBuilder` this now duplicates. `SkotiqDropdown` could be
   reimplemented on top of `AccessibleDropdown` once the two land in one package;
   that is a cross-package move and belongs to a consolidation batch.
 - `AccessibleDropdownFormField` computes `selected:` against the `initialValue`

@@ -29,7 +29,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
@@ -286,12 +286,12 @@ class BroadcastHandlers {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Nightshade Broadcast</title>
+<title>Skotiq Broadcast</title>
 <style>
   :root {
     color-scheme: dark;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    /* Matches packages/nightshade_ui NightshadeColors.dark */
+    /* Matches packages/skotiq_ui SkotiqColors.dark */
     --color-background: #0A0C0F;
     --color-surface: #111418;
     --color-surface-alt: #181C22;
@@ -411,7 +411,7 @@ class BroadcastHandlers {
 </head>
 <body>
   <header>
-    <h1>Nightshade Live Broadcast</h1>
+    <h1>Skotiq Live Broadcast</h1>
     <div class="status">$statusBlock</div>
   </header>
   <main>
@@ -441,7 +441,7 @@ class BroadcastHandlers {
     </div>
     ${initialWatermark.isNotEmpty ? '<div class="tile" style="max-width:1280px;width:100%"><div class="label">Watermark</div><div class="value" id="t-watermark">$initialWatermark</div></div>' : ''}
   </main>
-  <footer>Powered by Nightshade · Live stacking refreshes automatically</footer>
+  <footer>Powered by Skotiq · Live stacking refreshes automatically</footer>
   <script>
     // Auto-refresh the image at 2 s — slow enough to keep up with even
     // 60 s subs without flooding the network on burst captures, and the

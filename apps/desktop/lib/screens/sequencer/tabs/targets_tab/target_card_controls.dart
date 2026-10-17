@@ -1,7 +1,7 @@
 part of '../targets_tab.dart';
 
 class _InfoChip extends StatelessWidget {
-  final NightshadeColors colors;
+  final SkotiqColors colors;
   final String label;
   final String value;
 
@@ -35,7 +35,7 @@ class _InfoChip extends StatelessWidget {
 }
 
 class _IconButton extends StatefulWidget {
-  final NightshadeColors colors;
+  final SkotiqColors colors;
   final IconData icon;
   final String tooltip;
   final Color? color;

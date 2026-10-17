@@ -4,7 +4,7 @@
   "status": "done",
   "date": "2026-08-02",
   "outcome": "fixed",
-  "owner_files": ["native/nightshade_native/imaging/src/fits.rs"],
+  "owner_files": ["native/skotiq_native/imaging/src/fits.rs"],
   "cause": "Both image validators compared pixels against a fixed 16-bit constant (65024). The constant is correct only for a sensor whose driver LEFT-justifies sub-16-bit samples into the u16 container. A driver that right-justifies (INDI CCDs and several ASCOM drivers deliver a 12-bit sensor as 0..4095) clips at 4095, which never reaches 65024, so a fully clipped frame fell through to the uniform-frame check and was reported as 'possible sensor failure or dead frame'. CameraStatus.max_adu / SensorInfo.max_adu, which already carry the container full scale, were never consulted by the imaging crate.",
   "findings": [
     {
@@ -54,12 +54,12 @@
   "revert_check": {
     "method": "Backed up the file, severed only the production wiring (ceiling resolution in validate_image_comprehensive, the lower saturation tier, and the resolved threshold in validate_image), left all tests intact, ran the suite, restored.",
     "severed_result": "test result: FAILED. 60 passed; 5 failed — test_right_justified_12bit_clip..., test_right_justified_14bit_clip..., test_right_justified_clip_flagged_by_the_basic_validator_too, test_declared_ceiling_decides_saturation_not_the_pixel_values, test_half_clipped_frame_is_reported",
-    "restored_result": "cargo test --package nightshade_imaging: 484 passed; 0 failed (+12 integration, +1 doc)",
+    "restored_result": "cargo test --package skotiq_imaging: 484 passed; 0 failed (+12 integration, +1 doc)",
     "note": "3 of the 8 new tests pass in both states by design: the pure-helper proportion test and the two anti-false-positive guards."
   },
-  "verification": "cd native/nightshade_native && cargo test --package nightshade_imaging -> 484 passed / 0 failed; cargo fmt -p nightshade_imaging --check clean; cargo clippy -p nightshade_imaging --all-targets clean",
+  "verification": "cd native/skotiq_native && cargo test --package skotiq_imaging -> 484 passed / 0 failed; cargo fmt -p skotiq_imaging --check clean; cargo clippy -p skotiq_imaging --all-targets clean",
   "caveats": [
-    "Production callers still pass no max_adu, so today the ceiling comes from the frame-evidence fallback. Threading the real value needs one line in a file owned by another agent: bridge/src/unified_device_ops.rs:732 should call nightshade_imaging::validate_image_comprehensive(&img_for_validation, ImageValidationOptions { expected_width: Some(w), expected_height: Some(h), is_bias_frame, ..ImageValidationOptions::for_sensor(<camera max_adu>) }) instead of validate_image_with_options. The camera's max_adu is available from CameraStatus (bridge/src/device.rs:128).",
+    "Production callers still pass no max_adu, so today the ceiling comes from the frame-evidence fallback. Threading the real value needs one line in a file owned by another agent: bridge/src/unified_device_ops.rs:732 should call skotiq_imaging::validate_image_comprehensive(&img_for_validation, ImageValidationOptions { expected_width: Some(w), expected_height: Some(h), is_bias_frame, ..ImageValidationOptions::for_sensor(<camera max_adu>) }) instead of validate_image_with_options. The camera's max_adu is available from CameraStatus (bridge/src/device.rs:128).",
     "The frame-evidence fallback deliberately will not fire on a lightly clipped right-justified frame (fewer than ~0.05% of pixels at the ceiling). That is a miss by design — at that level nothing would be reported on a 16-bit sensor either — but it means a right-justified sensor's saturation percentage is under-counted until max_adu is threaded through.",
     "No real right-justified camera was available to confirm on hardware; the delivery convention is taken from the INDI/ASCOM contract and from the SensorInfo doc comment in native/src/camera.rs."
   ]

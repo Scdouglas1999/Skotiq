@@ -18,7 +18,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
-$NativeDir = Join-Path $ProjectRoot 'native\nightshade_native'
+$NativeDir = Join-Path $ProjectRoot 'native\skotiq_native'
 $DesktopDir = Join-Path $ProjectRoot 'apps\desktop'
 $OutputDir = Join-Path $DesktopDir "build\windows\x64\runner\$Profile"
 
@@ -53,36 +53,36 @@ function Assert-Dll64Bit($path) {
 Write-Host "Staging native DLLs for Windows $Profile -> $OutputDir" -ForegroundColor Cyan
 
 # ---------------------------------------------------------------------------
-# nightshade_bridge.dll (Rust)
+# skotiq_bridge.dll (Rust)
 # ---------------------------------------------------------------------------
-$bridgeSource = Join-Path $NativeDir "target\$($Profile.ToLower())\nightshade_bridge.dll"
+$bridgeSource = Join-Path $NativeDir "target\$($Profile.ToLower())\skotiq_bridge.dll"
 if (-not (Test-Path $bridgeSource)) {
     Write-Host "Bridge DLL missing; building cargo release..." -ForegroundColor Yellow
     Push-Location $NativeDir
     if ($Profile -eq 'Release') {
-        cargo build --release --package nightshade_bridge
+        cargo build --release --package skotiq_bridge
     } else {
-        cargo build --package nightshade_bridge
+        cargo build --package skotiq_bridge
     }
     Pop-Location
 }
 
-$bridgeDest = Join-Path $OutputDir 'nightshade_bridge.dll'
-Write-Host "Copying nightshade_bridge.dll"
+$bridgeDest = Join-Path $OutputDir 'skotiq_bridge.dll'
+Write-Host "Copying skotiq_bridge.dll"
 Copy-RequiredFile $bridgeSource $bridgeDest
 Assert-Dll64Bit $bridgeDest
 $srcHash = (Get-FileHash $bridgeSource -Algorithm SHA256).Hash
 $dstHash = (Get-FileHash $bridgeDest -Algorithm SHA256).Hash
 if ($srcHash -ne $dstHash) {
-    throw "nightshade_bridge.dll copy verification failed (hash mismatch)"
+    throw "skotiq_bridge.dll copy verification failed (hash mismatch)"
 }
 
 # Also keep apps/desktop copies in sync (dev.ps1 / FRB expectations)
 $bridgeMirrorDirs = @(
-    (Join-Path $DesktopDir 'nightshade_bridge.dll'),
-    (Join-Path $DesktopDir 'windows\nightshade_bridge.dll'),
-    (Join-Path $DesktopDir "build\windows\x64\runner\Debug\nightshade_bridge.dll"),
-    (Join-Path $DesktopDir "build\windows\x64\runner\Release\nightshade_bridge.dll")
+    (Join-Path $DesktopDir 'skotiq_bridge.dll'),
+    (Join-Path $DesktopDir 'windows\skotiq_bridge.dll'),
+    (Join-Path $DesktopDir "build\windows\x64\runner\Debug\skotiq_bridge.dll"),
+    (Join-Path $DesktopDir "build\windows\x64\runner\Release\skotiq_bridge.dll")
 )
 foreach ($mirror in $bridgeMirrorDirs) {
     $mirrorDir = Split-Path -Parent $mirror
@@ -92,7 +92,7 @@ foreach ($mirror in $bridgeMirrorDirs) {
 }
 
 # ---------------------------------------------------------------------------
-# libraw.dll (required to load nightshade_bridge.dll on Windows)
+# libraw.dll (required to load skotiq_bridge.dll on Windows)
 # ---------------------------------------------------------------------------
 $librawSource = Join-Path $DesktopDir 'windows\runner\Release\libraw.dll'
 if (-not (Test-Path $librawSource)) {
@@ -110,7 +110,7 @@ if (-not (Test-Path $librawSource)) {
 
 if (-not (Test-Path $librawSource)) {
     throw @"
-libraw.dll not found. nightshade_bridge.dll depends on it and will not load.
+libraw.dll not found. skotiq_bridge.dll depends on it and will not load.
 
 Place a 64-bit RELEASE libraw.dll at:
   apps\desktop\windows\runner\Release\libraw.dll
@@ -193,7 +193,7 @@ else {
 # ---------------------------------------------------------------------------
 # Verify load chain
 # ---------------------------------------------------------------------------
-foreach ($required in @('nightshade_bridge.dll', 'libraw.dll', 'sqlite3.dll')) {
+foreach ($required in @('skotiq_bridge.dll', 'libraw.dll', 'sqlite3.dll')) {
     $path = Join-Path $OutputDir $required
     if (-not (Test-Path $path)) {
         throw "Staging incomplete: missing $required"
@@ -202,4 +202,4 @@ foreach ($required in @('nightshade_bridge.dll', 'libraw.dll', 'sqlite3.dll')) {
 
 Write-Host ""
 Write-Host "Staging complete. Launch:" -ForegroundColor Yellow
-Write-Host "  $(Join-Path $OutputDir 'nightshade_desktop.exe')"
+Write-Host "  $(Join-Path $OutputDir 'skotiq_desktop.exe')"

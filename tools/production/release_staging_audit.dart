@@ -41,10 +41,10 @@ const _releaseCriticalPrefixes = {
   'apps/desktop/lib/main_headless.dart',
   'apps/desktop/web_dashboard/',
   'apps/mobile/lib/',
-  'native/nightshade_native/',
-  'packages/nightshade_core/lib/',
-  'packages/nightshade_bridge/lib/',
-  'packages/nightshade_app/lib/',
+  'native/skotiq_native/',
+  'packages/skotiq_core/lib/',
+  'packages/skotiq_bridge/lib/',
+  'packages/skotiq_app/lib/',
   'tools/production/',
   'docs/production-readiness/',
   'docs/headless-secure-setup.md',
@@ -316,7 +316,7 @@ class _StatusEntry {
       return 'binary-native-artifact';
     }
     if (isGenerated) return 'generated';
-    if (path.startsWith('native/nightshade_native/')) return 'native-rust';
+    if (path.startsWith('native/skotiq_native/')) return 'native-rust';
     if (path.startsWith('apps/desktop/lib/headless_api') ||
         path == 'apps/desktop/lib/headless_api_server.dart' ||
         path == 'apps/desktop/lib/main_headless.dart' ||
@@ -324,16 +324,16 @@ class _StatusEntry {
       return 'headless-remote';
     }
     if (path.startsWith('apps/mobile/')) return 'mobile';
-    if (path.startsWith('packages/nightshade_app/lib/')) return 'app-ui';
-    if (path.startsWith('packages/nightshade_core/lib/')) return 'core';
-    if (path.startsWith('packages/nightshade_bridge/')) return 'bridge';
-    if (path.startsWith('packages/nightshade_planetarium/'))
+    if (path.startsWith('packages/skotiq_app/lib/')) return 'app-ui';
+    if (path.startsWith('packages/skotiq_core/lib/')) return 'core';
+    if (path.startsWith('packages/skotiq_bridge/')) return 'bridge';
+    if (path.startsWith('packages/skotiq_planetarium/'))
       return 'planetarium';
-    if (path.startsWith('packages/nightshade_plugins/')) return 'plugins';
-    if (path.startsWith('packages/nightshade_updater/')) return 'updater';
-    if (path.startsWith('packages/nightshade_remote_protocol/'))
+    if (path.startsWith('packages/skotiq_plugins/')) return 'plugins';
+    if (path.startsWith('packages/skotiq_updater/')) return 'updater';
+    if (path.startsWith('packages/skotiq_remote_protocol/'))
       return 'remote-protocol';
-    if (path.startsWith('packages/nightshade_ui/')) return 'ui-system';
+    if (path.startsWith('packages/skotiq_ui/')) return 'ui-system';
     if (path.startsWith('tools/production/')) return 'release-tooling';
     if (path.startsWith('tools/') || path.startsWith('scripts/')) {
       return 'tooling';

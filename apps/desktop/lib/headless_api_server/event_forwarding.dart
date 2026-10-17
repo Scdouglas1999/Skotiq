@@ -3,14 +3,14 @@ part of '../headless_api_server.dart';
 extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
   /// Broadcast an event to all connected WebSocket clients.
   ///
-  /// every NightshadeEvent is stamped with a monotonic `seq` and the
+  /// every SkotiqEvent is stamped with a monotonic `seq` and the
   /// server-instance UUID, then appended to the replay ring buffer BEFORE
   /// fan-out to sockets. Map-typed events (legacy callers passing raw
-  /// JSON) are coerced through NightshadeEvent.fromWireJson so SSE,
+  /// JSON) are coerced through SkotiqEvent.fromWireJson so SSE,
   /// snapshot consumers, and future replay subscribers see a consistent
   /// shape.
   ///
-  /// NightshadeEvents whose `eventType` is in the command-completion
+  /// SkotiqEvents whose `eventType` is in the command-completion
   /// table get their originating `correlatingCommandId` stamped from the
   /// correlator on a best-effort basis.
   ///
@@ -24,7 +24,7 @@ extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
   /// or forwarding the raw, seq-less original. Null when the payload was not an
   /// event we could sequence; that sink then keeps the raw payload, which has
   /// no seq to key on regardless.
-  NightshadeEvent? _broadcastEventImpl(dynamic event) {
+  SkotiqEvent? _broadcastEventImpl(dynamic event) {
     final stamped = _stampEventForBroadcast(event);
     if (stamped == null) {
       // Non-event payload (e.g. raw map without the canonical fields).
@@ -38,19 +38,19 @@ extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
     return stamped;
   }
 
-  /// Stamp a NightshadeEvent (or coerce a Map into one) with the next
+  /// Stamp a SkotiqEvent (or coerce a Map into one) with the next
   /// sequence number, the server-instance id, and any matching commandId.
   ///
-  /// Returns null when [raw] is neither a NightshadeEvent nor an
+  /// Returns null when [raw] is neither a SkotiqEvent nor an
   /// event-shaped Map that we can reconstruct. The caller falls back to a
   /// non-sequenced raw emit in that case.
-  NightshadeEvent? _stampEventForBroadcast(dynamic raw) {
-    NightshadeEvent? base;
-    if (raw is NightshadeEvent) {
+  SkotiqEvent? _stampEventForBroadcast(dynamic raw) {
+    SkotiqEvent? base;
+    if (raw is SkotiqEvent) {
       base = raw;
     } else if (raw is Map<String, dynamic>) {
       try {
-        base = NightshadeEvent.fromWireJson(raw);
+        base = SkotiqEvent.fromWireJson(raw);
       } on FormatException {
         return null;
       }
@@ -78,7 +78,7 @@ extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
   }
 
   /// Serialise a stamped event and push to every connected socket.
-  void _emitStampedEvent(NightshadeEvent stamped) {
+  void _emitStampedEvent(SkotiqEvent stamped) {
     if (_sockets.isEmpty) return;
     final jsonEvent = _encodeStampedEventForWire(stamped);
     if (jsonEvent == null) return;
@@ -94,7 +94,7 @@ extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
   /// Encode a stamped event into the WebSocket wire envelope. Returns
   /// null if encoding failed (logged inside).
   String? _encodeStampedEventForWire(
-    NightshadeEvent stamped, {
+    SkotiqEvent stamped, {
     bool replay = false,
   }) {
     try {
@@ -341,7 +341,7 @@ extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
 
   /// bind an [UpdateController] to the server. The controller's
   /// `events` stream is subscribed and every variant translated into a
-  /// `NightshadeEvent` with `category: EventCategory.system`. Routes
+  /// `SkotiqEvent` with `category: EventCategory.system`. Routes
   /// under `/api/system/version` + `/api/system/update/*` are installed
   /// on the next [start()] call.
   ///
@@ -366,7 +366,7 @@ extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
             ? EventSeverity.error
             : EventSeverity.info;
         broadcastEvent(
-          NightshadeEvent(
+          SkotiqEvent(
             timestamp: DateTime.now().millisecondsSinceEpoch,
             severity: severity,
             category: EventCategory.system,

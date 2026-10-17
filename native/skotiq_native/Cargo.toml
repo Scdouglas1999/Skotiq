@@ -1,0 +1,74 @@
+[workspace]
+members = [
+    "bridge",
+    "sequencer",
+    "ascom",
+    "indi",
+    "alpaca",
+    "imaging",
+    "native",
+    "updater",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license-file = "../../LICENSE"
+authors = ["Skotiq Team"]
+publish = false
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+# Why: bumped to 2.0 to match `tracing-appender` 0.2.5 transitive choice and
+# eliminate the thiserror 1.x/2.x semver duplication in the workspace.
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Streaming
+async-stream = "0.3"
+
+# HTTP client (for Alpaca)
+reqwest = { version = "0.11", features = ["json"] }
+
+# XML parsing
+quick-xml = "0.31"
+
+# Image processing
+image = "0.24"
+
+# Base64 encoding (unified across bridge/indi/sequencer to dedupe semver)
+base64 = "0.22"
+
+# FFI
+flutter_rust_bridge = "2.0"
+
+# Windows COM (used by ASCOM crate on Windows)
+windows = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_Com",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Ole",
+    "Win32_System_Registry",
+    "Win32_System_Threading",
+    "Win32_System_Variant",
+    "Win32_UI_WindowsAndMessaging",
+]}

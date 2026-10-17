@@ -1,4 +1,4 @@
-# Codecov configuration for Nightshade 2.0.
+# Codecov configuration for Skotiq 2.0.
 #
 # Coverage may not drop silently. This file enforces:
 #   - at most a 1% coverage drop per PR (threshold)
@@ -52,8 +52,8 @@ ignore:
   - "**/frb_generated*.dart"
   - "**/frb_generated*.rs"
   - "**/bridge_generated.h"
-  - "packages/nightshade_bridge/lib/src/api/**"
-  - "native/nightshade_native/bridge/src/frb_generated*.rs"
+  - "packages/skotiq_bridge/lib/src/api/**"
+  - "native/skotiq_native/bridge/src/frb_generated*.rs"
 
 comment:
   layout: "reach,diff,flags,tree"

@@ -16,7 +16,7 @@ at focusing.
 `backlash = (focus optimum approached from below) - (optimum approached from above)`.
 
 It falls out of the dead-band model now written down at the top of
-`native/nightshade_native/sequencer/src/focuser_calibration.rs`: optical position `a = c + d`
+`native/skotiq_native/sequencer/src/focuser_calibration.rs`: optical position `a = c + d`
 with `d` in `[0, b]`, driven to 0 by upward motion and to `b` by downward motion. With the slack
 taken up downward the optics sit `b` steps high, so the same focus is commanded `b` steps lower.
 
@@ -71,17 +71,17 @@ cases trip the fit-quality or bracketing gates. None of them returns a number.
 
 ### Native
 
-- `native/nightshade_native/sequencer/src/focuser_calibration.rs` — the model, the arithmetic, the
+- `native/skotiq_native/sequencer/src/focuser_calibration.rs` — the model, the arithmetic, the
   refusals, the resolution limit and the confidence grading. Pure and fully unit-tested.
-- `native/nightshade_native/sequencer/src/instructions/focuser_calibration.rs` — the two scans.
+- `native/skotiq_native/sequencer/src/instructions/focuser_calibration.rs` — the two scans.
   Reuses `calculate_hfr_with_crops`, the one-sided outlier rejection and the curve fitters
   autofocus uses, and takes the autofocus admission gate so the two can never drive the same
   camera at once. Returns the focuser to where the operator left it, whatever the outcome.
   A direction that cannot support a vertex is refused at the fit, before the second scan spends
   three more minutes of sky on an answer it cannot change.
-- `native/nightshade_native/sequencer/src/instructions/autofocus.rs` — `final_run_up_position` now
+- `native/skotiq_native/sequencer/src/instructions/autofocus.rs` — `final_run_up_position` now
   resolves a run-up with explicit precedence and reports which figure sized it (`RunUpSource`).
-- `native/nightshade_native/sequencer/src/lib.rs` — `AutofocusConfig.measured_backlash_in`, and a
+- `native/skotiq_native/sequencer/src/lib.rs` — `AutofocusConfig.measured_backlash_in`, and a
   single `From<AutofocusMethod>` crossing replacing a hand-inlined match.
 
 ### Bridge
@@ -162,7 +162,7 @@ All it does is make that unavoidable move shorter and aimed at a known clearance
 - **Headless routes** for start, cancel and plan, relaying the native JSON verbatim so a remote
   client reads the same message and remedy.
 
-The V-curve painter was promoted out of `autofocus_progress_overlay.dart` into `nightshade_ui`
+The V-curve painter was promoted out of `autofocus_progress_overlay.dart` into `skotiq_ui`
 rather than forked, per that file's own instruction, and now takes any number of series.
 
 ## Two honesty defects found reviewing the finished feature
@@ -189,33 +189,33 @@ removing it is a separate change with its own remote-sync and settings-round-tri
 
 ## Verification
 
-Run from `native/nightshade_native` with `TMPDIR=$HOME/.cache/ns-tmp/w20-focuser-calibration`.
+Run from `native/skotiq_native` with `TMPDIR=$HOME/.cache/ns-tmp/w20-focuser-calibration`.
 
 | command | exit |
 |---|---|
-| `cargo test -p nightshade_sequencer` | 0 — 914 + 4 + 1 + 6 + 4 + 12 passed, 0 failed |
-| `cargo test -p nightshade_sequencer --lib focuser_` | 0 — 39 passed, 0 failed |
-| `cargo clippy -p nightshade_sequencer --all-targets` | 0 — 0 warnings, 0 errors |
-| `cargo clippy -p nightshade_bridge` | 0 — 0 warnings, 0 errors |
-| `cargo build -p nightshade_bridge` | 0 |
+| `cargo test -p skotiq_sequencer` | 0 — 914 + 4 + 1 + 6 + 4 + 12 passed, 0 failed |
+| `cargo test -p skotiq_sequencer --lib focuser_` | 0 — 39 passed, 0 failed |
+| `cargo clippy -p skotiq_sequencer --all-targets` | 0 — 0 warnings, 0 errors |
+| `cargo clippy -p skotiq_bridge` | 0 — 0 warnings, 0 errors |
+| `cargo build -p skotiq_bridge` | 0 |
 | `flutter_rust_bridge_codegen generate` | 0 |
-| `cargo fmt --all -- --check` | 1 — six pre-existing diffs in `imaging/src/depthlock/mod.rs`, untouched by this branch (`git diff --stat HEAD -- native/nightshade_native/imaging/` is empty). Every crate this branch touches is clean. |
-| `cargo build --release -p nightshade_bridge` | 0 — all three new FFI symbols present in the `.so` |
+| `cargo fmt --all -- --check` | 1 — six pre-existing diffs in `imaging/src/depthlock/mod.rs`, untouched by this branch (`git diff --stat HEAD -- native/skotiq_native/imaging/` is empty). Every crate this branch touches is clean. |
+| `cargo build --release -p skotiq_bridge` | 0 — all three new FFI symbols present in the `.so` |
 
 Dart, run per package:
 
 | command | exit |
 |---|---|
-| `dart format --output=none --set-exit-if-changed` over nightshade_core, nightshade_app, nightshade_ui, apps/desktop | 0 — 4236 files, 0 changed |
-| `dart analyze packages/nightshade_core` | 0 — 19 infos, all pre-existing, none in a touched file |
-| `dart analyze packages/nightshade_app` | 0 — 873 infos, all pre-existing, none in a touched file |
-| `dart analyze packages/nightshade_ui` | 0 — 59 infos, all pre-existing, none in a touched file |
+| `dart format --output=none --set-exit-if-changed` over skotiq_core, skotiq_app, skotiq_ui, apps/desktop | 0 — 4236 files, 0 changed |
+| `dart analyze packages/skotiq_core` | 0 — 19 infos, all pre-existing, none in a touched file |
+| `dart analyze packages/skotiq_app` | 0 — 873 infos, all pre-existing, none in a touched file |
+| `dart analyze packages/skotiq_ui` | 0 — 59 infos, all pre-existing, none in a touched file |
 | `dart analyze apps/desktop` | 0 — 9 infos, all pre-existing, none in a touched file |
-| `flutter test` (nightshade_core, full) | 0 — 6693 passed |
-| `flutter test test/widgets test/screens/{equipment,imaging,dashboard}` (nightshade_app) | 0 — 1096 passed |
-| `flutter test` (nightshade_ui, full) | 0 — 547 passed |
+| `flutter test` (skotiq_core, full) | 0 — 6693 passed |
+| `flutter test test/widgets test/screens/{equipment,imaging,dashboard}` (skotiq_app) | 0 — 1096 passed |
+| `flutter test` (skotiq_ui, full) | 0 — 547 passed |
 | `flutter test test/headless_api` (apps/desktop) | 0 — 1144 passed |
-| `flutter test test/focuser_backlash` (nightshade_core) | 0 — 104 passed |
+| `flutter test test/focuser_backlash` (skotiq_core) | 0 — 104 passed |
 
 Pre-existing flake, not from this branch: `test/database/integrity_check_test.dart` "a hot rollback
 journal is replayed" fails roughly one run in three under parallel load and passes in isolation. It

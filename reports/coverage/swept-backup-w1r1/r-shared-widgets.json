@@ -42,7 +42,7 @@
    "expected": "With zero devices assigned the row should read 'No devices assigned to this profile' in a neutral/warn state, not a green all-connected pass. A vacuous truth over an empty set is the single most misleading thing a readiness panel can say.",
    "repro": "Fresh profile -> Equipment -> 'I'll do it manually' -> right STATUS rail -> 'View all (3 more)' -> read the 'Profile devices' row while the status bar shows every device disconnected.",
    "evidence": "/tmp/ns-audit/shots/rsw-09.png (dialog row 'Profile devices' green + 'Every device assigned in the active profile is connected.'; status bar bottom: Camera Disconnected / Mount Disconnected / Guider Disconnected; profile card reads '0 devices')",
-   "where": "packages/nightshade_app/lib/widgets/readiness/readiness_panel.dart",
+   "where": "packages/skotiq_app/lib/widgets/readiness/readiness_panel.dart",
    "proposed_fix": "Special-case the empty-assignment case in the profile-devices readiness check: emit a distinct 'no devices assigned' item (warn) instead of the all-connected pass."
   },
   {
@@ -54,7 +54,7 @@
    "expected": "Either blocking items should not be dismissable at all (NINA/SGP do not let you hide a hard blocker), or the summary must say '3 blocking (1 hidden)' so the count and the list agree.",
    "repro": "Equipment -> right STATUS rail -> click the X on 'Critical devices' -> read the summary line vs the rows shown.",
    "evidence": "/tmp/ns-audit/shots/rsw-10.png \u2014 summary '3 items are blocking first light.' above only 'Observing location' and 'Capture output folder' blockers plus an amber 'Plate solver'; 'Show 1 dismissed' at the bottom restores it correctly.",
-   "where": "packages/nightshade_app/lib/widgets/readiness/readiness_panel.dart",
+   "where": "packages/skotiq_app/lib/widgets/readiness/readiness_panel.dart",
    "proposed_fix": "Exclude dismissed items from the blocking count, or annotate the count with the hidden total."
   },
   {
@@ -66,7 +66,7 @@
    "expected": "The chip should count live connections, e.g. '4 connected' or '4/0 assigned', and its menu should list the connected devices with a Disconnect for each. Saying 'No devices configured' while four devices are streaming is the shell telling the operator the rig is empty.",
    "repro": "Equipment -> 'I'll do it manually' -> Discovery Expand -> Connect on Simulated Camera, Mount, Focuser, Filter Wheel -> click the '\ud83d\udd2d My Equipment 0/0' chip at the far left of the status bar.",
    "evidence": "/tmp/ns-audit/shots/rsw-17-status-0of0-with-4-connected.png \u2014 popup 'My Equipment \u25cf 0/0' + 'No devices configured' next to header '4 connected \u00b7 4 unsaved' and four green Connected rows.",
-   "where": "packages/nightshade_app/lib/widgets/equipment_status_indicator.dart (_countConnectedDevices / _countDevicesInProfile)",
+   "where": "packages/skotiq_app/lib/widgets/equipment_status_indicator.dart (_countConnectedDevices / _countDevicesInProfile)",
    "proposed_fix": "Count connected devices from the device state providers regardless of profile membership; show 'connected/assigned' only when an assignment exists, otherwise 'N connected (session only)'."
   },
   {
@@ -78,7 +78,7 @@
    "expected": "Disable (grey) 'Disconnect All' when connectedCount == 0, like every other dead action in this build is greyed.",
    "repro": "Fresh profile, nothing connected -> click the equipment chip in the status bar -> 'Disconnect All'. Watch the tree and drive_linux.py log: no change, no message.",
    "evidence": "/tmp/ns-audit/shots/rsw-12.png shows 'No devices configured' above a normal-weight (enabled) 'Disconnect All'; the accessibility tree reports 'button: Disconnect All' with no [DISABLED] state; app log shows no entry after the click.",
-   "where": "packages/nightshade_app/lib/widgets/equipment_status_indicator.dart (_buildDropdownItems)",
+   "where": "packages/skotiq_app/lib/widgets/equipment_status_indicator.dart (_buildDropdownItems)",
    "proposed_fix": "Gate the Disconnect All PopupMenuItem's enabled flag on connectedCount > 0."
   },
   {
@@ -90,7 +90,7 @@
    "expected": "These are the controls that start and stop guiding. They should expose a button role and their enabled/disabled state, so a screen-reader user is told 'Start, button, dimmed' rather than a nameless panel.",
    "repro": "Guiding screen with PHD2 disconnected -> drive_linux.py tree -> read the Guiding Controls subtree.",
    "evidence": "tree output at 14:41 shows 'panel: Start / panel: Pause / panel: Loop Exposures / panel: Star Selection / panel: Auto Select / panel: Deselect / panel: Dither' with no roles or states; the same dump has 'button: Connect' and 'panel: Settle Settings [DISABLED]' so the harness does read roles and states when they are published.",
-   "where": "packages/nightshade_app/lib/widgets/phd2/guide_controls_panel.dart (_actionButton builds a bare Material+InkWell with no Semantics(button: true, enabled: ...))",
+   "where": "packages/skotiq_app/lib/widgets/phd2/guide_controls_panel.dart (_actionButton builds a bare Material+InkWell with no Semantics(button: true, enabled: ...))",
    "proposed_fix": "Wrap the InkWell in Semantics(button: true, enabled: !isDisabled, label: label) or use the design-system button widget that already publishes those flags."
   }
  ]

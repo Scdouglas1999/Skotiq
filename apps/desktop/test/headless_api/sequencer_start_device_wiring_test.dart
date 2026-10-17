@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:nightshade_bridge/nightshade_bridge.dart' as bridge_error;
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/sequencer_handlers.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/sequencer_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -29,14 +29,14 @@ class _MockDeviceBackend extends Mock implements DeviceBackend {}
 /// the run's runtime config, so the fake host has to exist there too.
 /// Unstubbed members answer with a completed `Future<void>`, the shape every
 /// push on that path has.
-class _MockHostBackend extends Mock implements NightshadeBackend {
+class _MockHostBackend extends Mock implements SkotiqBackend {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       super.noSuchMethod(invocation) ?? Future<void>.value();
 }
 
 class _TestBackendNotifier extends BackendNotifier {
-  _TestBackendNotifier(super.ref, NightshadeBackend backend) {
+  _TestBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
   }
 }
@@ -359,7 +359,7 @@ void main() {
         'the camera pre-flight comes back 400, not 500 internal_error',
         () async {
           when(() => sequencer.sequencerStart()).thenThrow(
-            const bridge_error.NightshadeError.operationFailed(
+            const bridge_error.SkotiqError.operationFailed(
               'Failed to start sequence: This sequence captures frames but no '
               'camera is assigned to the run. Connect a camera and assign it '
               'before starting — every exposure would otherwise fail and the run '
@@ -385,7 +385,7 @@ void main() {
 
       test('the same envelope carries the save-path refusal', () async {
         when(() => sequencer.sequencerStart()).thenThrow(
-          const bridge_error.NightshadeError.operationFailed(
+          const bridge_error.SkotiqError.operationFailed(
             'Failed to start sequence: This sequence captures frames but no '
             'save path is configured; every frame would otherwise be captured '
             'and discarded.',
@@ -403,7 +403,7 @@ void main() {
 
       test('a busy executor is 409, not 400 — the payload was fine', () async {
         when(() => sequencer.sequencerStart()).thenThrow(
-          const bridge_error.NightshadeError.operationFailed(
+          const bridge_error.SkotiqError.operationFailed(
             'Failed to start sequence: Cannot start: executor is Running',
           ),
         );

@@ -5,19 +5,19 @@ instead of ASCOM COM.
 
 ## Quick Checks
 
-1. Confirm Windows is the host running Nightshade.
+1. Confirm Windows is the host running Skotiq.
 2. Install the ASCOM Platform before installing device drivers.
 3. Install the device manufacturer's ASCOM driver for each device.
-4. Restart Nightshade after installing or updating ASCOM drivers.
-5. Test the device outside Nightshade with ASCOM Diagnostics, ASCOM Device Hub,
+4. Restart Skotiq after installing or updating ASCOM drivers.
+5. Test the device outside Skotiq with ASCOM Diagnostics, ASCOM Device Hub,
    or the manufacturer's utility.
 
 ## Driver Not Listed
 
 - Reinstall the device-specific ASCOM driver.
 - Check whether the driver is installed for the same Windows user account that
-  launches Nightshade.
-- Start Nightshade after the ASCOM Platform and driver installers finish.
+  launches Skotiq.
+- Start Skotiq after the ASCOM Platform and driver installers finish.
 - If a device only ships an Alpaca server, connect through Alpaca rather than
   expecting it to appear in ASCOM COM discovery.
 
@@ -37,7 +37,7 @@ instead of ASCOM COM.
 - Disable USB selective suspend in Windows power settings.
 - Avoid unpowered USB hubs for cameras and mounts.
 - Use shorter, higher-quality USB cables.
-- Check Windows Event Viewer and Nightshade logs for USB reset or COM-port
+- Check Windows Event Viewer and Skotiq logs for USB reset or COM-port
   errors.
 
 ## Release-Gate Evidence

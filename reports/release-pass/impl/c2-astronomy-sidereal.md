@@ -18,8 +18,8 @@ The map called out three JD algorithms. Measured, on this tree:
 
 | form | where | vs Meeus |
 |---|---|---|
-| Meeus Gregorian (`365.25(y+4716) + 30.6001(m+1) + d + b − 1524.5`) | all of `nightshade_core`, `nightshade_hub`, Rust `meridian.rs` | — |
-| Fliegel–Van Flandern (`(153m₂+2)/5 + 365y₂ + …  − 32045 − 0.5`) | all of `nightshade_planetarium`, Rust `scheduling/astronomy.rs` | disagree on 3 of 50 000 random ms-bearing instants, worst 4.66e-10 d |
+| Meeus Gregorian (`365.25(y+4716) + 30.6001(m+1) + d + b − 1524.5`) | all of `skotiq_core`, `skotiq_hub`, Rust `meridian.rs` | — |
+| Fliegel–Van Flandern (`(153m₂+2)/5 + 365y₂ + …  − 32045 − 0.5`) | all of `skotiq_planetarium`, Rust `scheduling/astronomy.rs` | disagree on 3 of 50 000 random ms-bearing instants, worst 4.66e-10 d |
 | Unix epoch (`ms/86 400 000 + 2 440 587.5`) | `science_export_hub.dart` | ~1e-10 d |
 
 Two further axes turned out to matter more than the algorithm:
@@ -41,7 +41,7 @@ gap ever closes (at which point the wraps really could be unified).
 
 ## Consolidated
 
-### `nightshade_core` — survivor `SkyCalculations` (`services/scheduler/sky_calculations.dart`)
+### `skotiq_core` — survivor `SkyCalculations` (`services/scheduler/sky_calculations.dart`)
 
 Added to the survivor:
 * `julianDate(dt, {bool includeMilliseconds = true})` — the flag reproduces the
@@ -69,7 +69,7 @@ Re-pointed (7 call sites, 11 retired definitions):
 `dart:math` became unused in `targets_dao.dart` and
 `forecast_planning_service.dart` and was removed.
 
-### `nightshade_planetarium` — survivor `AstronomyCalculations`
+### `skotiq_planetarium` — survivor `AstronomyCalculations`
 
 `julianDate` gained the same `includeMilliseconds` flag. Re-pointed:
 
@@ -83,7 +83,7 @@ Re-pointed (7 call sites, 11 retired definitions):
 `bridge/src/unified_device_ops.rs` carried private `julian_day` /
 `local_sidereal_time` (lines 2133 / 2159) that were byte-for-byte copies of
 `meridian.rs`'s. Deleted; the file now imports them. Note line 3047 of the same
-file *already* called `nightshade_sequencer::meridian::julian_day` directly, so
+file *already* called `skotiq_sequencer::meridian::julian_day` directly, so
 the file was importing and re-typing the same function.
 
 Every other Rust caller (executor, instructions, solar, polar-align, node,
@@ -103,15 +103,15 @@ on `meridian::julian_day` before this pass.
   diverging as soon as sub-second time is present — i.e. they cannot be merged
   by inspection. Non-adoption note added to the function's rustdoc.
 
-* **`nightshade_planetarium` vs `nightshade_core`.** Not merged into one
+* **`skotiq_planetarium` vs `skotiq_core`.** Not merged into one
   module. They use different JD algorithms whose outputs are not bit-identical,
   each side's goldens are pinned to its own, and the dependency runs
-  `nightshade_core → nightshade_planetarium` (planetarium is the leaf), so the
+  `skotiq_core → skotiq_planetarium` (planetarium is the leaf), so the
   shared module could only live in the leaf. Cost without benefit.
 
-* **`server/nightshade_hub/.../follow_the_night.dart`.** Blocked, structurally:
-  `nightshade_hub` is a pure-Dart server package and `nightshade_core` /
-  `nightshade_planetarium` are Flutter packages. There is no import path. It
+* **`server/skotiq_hub/.../follow_the_night.dart`.** Blocked, structurally:
+  `skotiq_hub` is a pure-Dart server package and `skotiq_core` /
+  `skotiq_planetarium` are Flutter packages. There is no import path. It
   also builds its day fraction by nested division
   (`(h + (m + (s + ms/1000)/60)/60)/24`) rather than as independent terms, a
   third rounding. **Applied the map's item (3):** `_julianDay` now calls
@@ -131,7 +131,7 @@ on `meridian::julian_day` before this pass.
   no calendar arithmetic in between; the Meeus form is a different double.
   Single call site, self-contained. Note added in-file.
 
-* **`nightshade_planetarium/lib/src/coordinate_system.dart:_julianDate`** —
+* **`skotiq_planetarium/lib/src/coordinate_system.dart:_julianDate`** —
   left alone, and it is a **suspected P1 bug, not a duplicate**. It omits both
   the `.toUtc()` and the trailing `- 0.5`, so it returns JD **+ 0.5**. Half a
   day is 180.49° of GMST ≈ 12 sidereal hours. `coordinate_system_test.dart:33`
@@ -155,7 +155,7 @@ on `meridian::julian_day` before this pass.
 
 ## Parity tests added
 
-* `packages/nightshade_core/test/services/scheduler/sky_calculations_parity_test.dart`
+* `packages/skotiq_core/test/services/scheduler/sky_calculations_parity_test.dart`
   — 17 tests. Every retired body transcribed verbatim, compared with `==`.
   Samples walk the Jan/Feb month rollback, leap day, the century and 400-year
   Gregorian corrections, midnight, the last millisecond of a year, J2000
@@ -164,7 +164,7 @@ on `meridian::julian_day` before this pass.
   declination/latitude down to ±89.9°, hour angles from −720° to +400°, and
   guards that the `includeMilliseconds` flag is really wired (both branches
   would otherwise pass their own parity test while collapsing to one).
-* `packages/nightshade_planetarium/test/astronomy_julian_date_parity_test.dart`
+* `packages/skotiq_planetarium/test/astronomy_julian_date_parity_test.dart`
   — 11 tests, same construction.
 * `sequencer/src/meridian.rs` — 4 new tests: bit-identity against the deleted
   bridge `julian_day` / `local_sidereal_time`, LST range, and the
@@ -174,24 +174,24 @@ on `meridian::julian_day` before this pass.
 
 | gate | result |
 |---|---|
-| `flutter test` — full `nightshade_core` | 5707 passed, 4 skipped |
-| `flutter test` — full `nightshade_planetarium` | 549 passed, 1 failed |
-| `dart test` — full `nightshade_hub` | 205 passed |
-| `cargo test -p nightshade_sequencer -p nightshade_bridge` | 1341 passed, 0 failed |
-| `flutter test` — `nightshade_app` analytics + LST widget tests | 1 pre-existing failure, rest pass |
+| `flutter test` — full `skotiq_core` | 5707 passed, 4 skipped |
+| `flutter test` — full `skotiq_planetarium` | 549 passed, 1 failed |
+| `dart test` — full `skotiq_hub` | 205 passed |
+| `cargo test -p skotiq_sequencer -p skotiq_bridge` | 1341 passed, 0 failed |
+| `flutter test` — `skotiq_app` analytics + LST widget tests | 1 pre-existing failure, rest pass |
 | `dart analyze` on every touched Dart file | clean |
 | `dart format` / `cargo fmt --check` on touched files | clean |
 
 Two failures, both proved **pre-existing** by restoring the touched files from
 `HEAD` and re-running:
 
-* `nightshade_planetarium/test/benchmark/golden_compare_test.dart` — pixel-diff
+* `skotiq_planetarium/test/benchmark/golden_compare_test.dart` — pixel-diff
   of the sky renderer. At `HEAD` it reproduces the identical numbers
   (`00-wide-start: maxDelta=218 changed=4.4271%`, `01-mid-pan: 245 / 4.3601%`,
   …). The known Windows-captured-goldens-on-Linux failure.
-* `nightshade_app/test/screens/analytics/captures_landscape_test.dart` — hangs
+* `skotiq_app/test/screens/analytics/captures_landscape_test.dart` — hangs
   ~9m45s then SIGTERMs the shell. Identical behaviour at `HEAD` with all eight
-  touched `nightshade_core` / `nightshade_app` files restored.
+  touched `skotiq_core` / `skotiq_app` files restored.
 
 Neither can be caused by this work: every planetarium and core re-point is
 bit-identical, and `science_export_hub.dart` took a doc comment only.

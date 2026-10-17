@@ -1,7 +1,7 @@
 # Wave E dryness check — cluster `sequencing-autopilot`
 
 Verifier: live re-drive of the FRESH release bundle
-`apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`
+`apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`
 (`lib/libapp.so` mtime **Aug 13 20:33**, i.e. after the D-fix commit `baddf35fd`), via
 `tools/ui_audit/drive_linux.py`, display `:81`, profile `waveE-sequencing-autopilot`.
 
@@ -175,9 +175,9 @@ altitude 9.8° below site minimum 30.0°
 ```
 
 Verbatim the Wave-D symptom. The D-fix landed in the **engine** —
-`packages/nightshade_core/lib/src/services/scheduler/scheduler_engine/evaluation.dart:503-517`
+`packages/skotiq_core/lib/src/services/scheduler/scheduler_engine/evaluation.dart:503-517`
 now produces `too low (9.8° < site minimum 30.0°)` — but the chip the operator reads is rendered
-by `packages/nightshade_app/lib/screens/scheduler/widgets/target_score_row.dart:175-198`, whose
+by `packages/skotiq_app/lib/screens/scheduler/widgets/target_score_row.dart:175-198`, whose
 `_statusLabel()` still maps *any* reason containing `altitude` + `below` to the literal
 `'Below horizon'`, and that file is untouched. Two implementations of the same label; the fixed
 one is not the one on screen.
@@ -207,7 +207,7 @@ It recovers only if the winning target changes or the engine is restarted: after
 moved to S35 (nothing eligible) and back to N45, the very next evaluation dispatched again.
 
 This matches the mechanism the Wave-D refuter documented and the D-fix did not close:
-`packages/nightshade_core/lib/src/providers/scheduler_provider.dart:120-131` maps **only**
+`packages/skotiq_core/lib/src/providers/scheduler_provider.dart:120-131` maps **only**
 `SequencerEvent_Completed` to `sequenceCompleted` and returns null for Stopped/Failed/Aborted, so
 `currentTargetId` stays pinned to the target of a run that is over. The D-fix hardened `stop()`
 and `_handleNoEligibleTarget` against that stale state; the *dispatch* path still trusts it.

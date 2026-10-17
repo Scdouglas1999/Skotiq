@@ -1,8 +1,8 @@
 # Release-pass map — app shells
 
 Subsystem: `apps/desktop/` (incl. `headless_api/`, `headless_api_server/`), `apps/mobile/`,
-`packages/nightshade_updater/`, `packages/nightshade_plugins/`,
-`packages/nightshade_remote_protocol/`.
+`packages/skotiq_updater/`, `packages/skotiq_plugins/`,
+`packages/skotiq_remote_protocol/`.
 
 Read-only mapping pass. No source file was edited. All line counts verified with `wc -l`.
 Generated files (`*.g.dart`, `*.freezed.dart`, `*frb_generated*`) are excluded throughout;
@@ -25,11 +25,11 @@ are noted at the end but are not a priority.
 | 1339 | `apps/desktop/lib/headless_api/route_metadata.dart` |
 | 1221 | `apps/mobile/lib/screens/dashboard/tabs/camera_tab.dart` |
 | 1213 | `apps/mobile/lib/services/saved_servers_service.dart` |
-| 1126 | `packages/nightshade_updater/lib/src/services/update_service.dart` |
+| 1126 | `packages/skotiq_updater/lib/src/services/update_service.dart` |
 | 1125 | `apps/mobile/lib/screens/dashboard/tabs/mount_tab.dart` |
 | 1110 | `apps/desktop/lib/headless_api_server/http_middleware.dart` |
-| 1107 | `packages/nightshade_updater/lib/src/services/update_controller.dart` |
-| 1094 | `packages/nightshade_remote_protocol/lib/src/enhanced_discovery.dart` |
+| 1107 | `packages/skotiq_updater/lib/src/services/update_controller.dart` |
+| 1094 | `packages/skotiq_remote_protocol/lib/src/enhanced_discovery.dart` |
 | 1061 | `apps/mobile/lib/services/notification_service.dart` |
 | 1005 | `apps/mobile/lib/screens/servers/saved_servers_screen.dart` |
 
@@ -85,7 +85,7 @@ Move lines 2080-2309 verbatim. Rename `_WireSequenceSummary` → `WireSequenceSu
 (it now crosses a library boundary so it must be public); its static members
 (`_collectUnassignableRoles`, `_typeOf`, `_configOf`, `_isEnabled`, `_asDouble`, `_asInt`,
 `_framesIn`, `_countExposures`) stay private *class* members and need no rename.
-Needs `import 'dart:convert';` and `package:nightshade_core/nightshade_core.dart` (for `DeviceType`).
+Needs `import 'dart:convert';` and `package:skotiq_core/skotiq_core.dart` (for `DeviceType`).
 `sequencer_handlers.dart` adds `import 'sequencer/wire_sequence_summary.dart';`.
 The type is referenced only inside `sequencer_handlers.dart` (grep for `_WireSequenceSummary`
 across `apps/desktop/lib` + `apps/desktop/test`: definition file only), so nothing else changes.
@@ -287,7 +287,7 @@ mutations ordered.
 
 ---
 
-### 1.7 `packages/nightshade_updater/lib/src/services/update_service.dart` — 1126 lines
+### 1.7 `packages/skotiq_updater/lib/src/services/update_service.dart` — 1126 lines
 
 **Why it is big.** The staging/apply/rollback state machine, the manifest HTTP client, the
 directory-layout resolvers, the anti-freeze/skip-version persistence, and six result/exception
@@ -297,11 +297,11 @@ types all live in one class + file.
 `_currentVersion` etc. so the pieces that touch those must stay; the pieces that do not can leave
 outright:
 
-1. `packages/nightshade_updater/lib/src/models/update_results.dart` — move the pure value types:
+1. `packages/skotiq_updater/lib/src/models/update_results.dart` — move the pure value types:
    `UpdateNotice` (38), `UpdateCheckResult` (1067), `StagedUpdate` (1084),
    `PendingInstallState` (1098), `PendingInstallStatus` (1100), `UpdateException` (1119).
    ≈120 lines. `update_service.dart` re-exports them so
-   `packages/nightshade_updater/lib/nightshade_updater.dart` consumers are unaffected.
+   `packages/skotiq_updater/lib/skotiq_updater.dart` consumers are unaffected.
 2. `src/services/update_paths.dart` — new top-level functions taking the
    `applicationSupportDirectoryProvider` the service already injects:
    `_getStagingDirectory` (446), `_getInstallDirectory` (851), `_getBackupDirectory` (858),
@@ -324,17 +324,17 @@ outright:
 
 ---
 
-### 1.8 `packages/nightshade_updater/lib/src/services/update_controller.dart` — 1107 lines
+### 1.8 `packages/skotiq_updater/lib/src/services/update_controller.dart` — 1107 lines
 
 **Why it is big.** Eight event classes and four DTOs (lines 32-386, 355 lines) sit ahead of the
 controller (387-1107).
 
 **Split plan** (trivially safe — these are leaf types):
 
-- `packages/nightshade_updater/lib/src/models/update_lifecycle.dart` —
+- `packages/skotiq_updater/lib/src/models/update_lifecycle.dart` —
   `UpdateLifecycleState` (32), `UpdateLifecycleStateX` (66), `UpdateControllerStatus` (72),
   `StagedUpdateInfo` (115), `UpdateCheckOutcome` (150). ≈170 lines.
-- `packages/nightshade_updater/lib/src/models/update_events.dart` — `UpdateAvailableEvent` (199)
+- `packages/skotiq_updater/lib/src/models/update_events.dart` — `UpdateAvailableEvent` (199)
   through `UpdateFailedEvent` (358) and their `UpdateEvent` base. ≈190 lines.
 
 `update_controller.dart` keeps `UpdateController` (387-1107) and re-exports both new files →
@@ -344,23 +344,23 @@ controller (387-1107).
 
 ---
 
-### 1.9 `packages/nightshade_remote_protocol/lib/src/enhanced_discovery.dart` — 1094 lines
+### 1.9 `packages/skotiq_remote_protocol/lib/src/enhanced_discovery.dart` — 1094 lines
 
 **Why it is big.** The QR pairing payload type with its 226-line strict parser
 (`QrConnectionData.parseStrict`, 197-423) is bolted onto the discovery service.
 
 **Split plan**:
 
-- `packages/nightshade_remote_protocol/lib/src/qr_connection_data.dart` —
+- `packages/skotiq_remote_protocol/lib/src/qr_connection_data.dart` —
   `QrRejectionReason` (91), `QrValidationException` (107), `QrConnectionData` (122-423)
   including `toJson` (174), `toQrString` (192), `parseStrict` (197). ≈335 lines.
-- `packages/nightshade_remote_protocol/lib/src/discovery/discovery_prefs.dart` —
+- `packages/skotiq_remote_protocol/lib/src/discovery/discovery_prefs.dart` —
   `_DiscoveryPrefs` (22-90), made public as `DiscoveryPrefs`. ≈70 lines.
 
 `enhanced_discovery.dart` keeps `ServerProbeOutcome` (424) and
-`EnhancedNightshadeDiscovery` (438-1094) and adds
+`EnhancedSkotiqDiscovery` (438-1094) and adds
 `export 'qr_connection_data.dart';` so the package barrel
-(`nightshade_remote_protocol.dart:17`, which exports this file) keeps the same public surface →
+(`skotiq_remote_protocol.dart:17`, which exports this file) keeps the same public surface →
 **≈690 lines**. `discoverViaMdns` (836-975) is the remaining hot spot; it is a single closure
 with an inline TXT-record parser — extract `DiscoveredServer? _serverFromResolvedService(...)`
 (the block at 862-925) as a follow-up.
@@ -372,8 +372,8 @@ with an inline TXT-record parser — extract `DiscoveredServer? _serverFromResol
 **Why it is big.** 18 `notify*` methods, each repeating a full inline `NotificationDetails(
 android: AndroidNotificationDetails(...), iOS: DarwinNotificationDetails(...))` literal.
 `grep -c 'NotificationDetails('` → **54 occurrences** across five distinct channels
-(`nightshade_sequence`, `nightshade_warnings`, `nightshade_info`, `nightshade_push`,
-`nightshade_critical`, declared once each at lines 262/271/280/289/300 and then re-declared at 18
+(`skotiq_sequence`, `skotiq_warnings`, `skotiq_info`, `skotiq_push`,
+`skotiq_critical`, declared once each at lines 262/271/280/289/300 and then re-declared at 18
 call sites: 456, 489, 522, 550, 591, 636, 666, 695, 724, 752, 783, 812, 873, 910, 938, 966, 1007,
 1035).
 
@@ -475,7 +475,7 @@ see §5.1.
 ### 2.3 Three copies of the "operation generation" guard in `camera_tab.dart`
 
 `_ExposureControlsState` (523-601), `_CoolingCardState` (748-848) and `_FilterCardState` (960-…)
-each declare `int _operationGeneration = 0;`, `ProviderSubscription<NightshadeBackend>?
+each declare `int _operationGeneration = 0;`, `ProviderSubscription<SkotiqBackend>?
 _backendSubscription`, the identical `initState` `ref.listenManual(backendProvider, …)` block,
 the identical `didUpdateWidget` device-id check, the identical `dispose`, an identical
 `_retireOperation()`, and a near-identical `_isCurrent(backend, deviceId, generation)`
@@ -486,7 +486,7 @@ the identical `didUpdateWidget` device-id check, the identical `dispose`, an ide
 `apps/mobile/lib/screens/dashboard/tabs/camera/device_operation_guard.dart` exposing
 `mixin DeviceOperationGuard<T extends StatefulWidget> on ConsumerState<T>` with
 `int operationGeneration`, `beginOperation()`, `retireOperation()`,
-`bool isCurrent(NightshadeBackend, String?, int)`, `attachBackendListener()`, and an abstract
+`bool isCurrent(SkotiqBackend, String?, int)`, `attachBackendListener()`, and an abstract
 `String? get guardedDeviceId` / `void onRetire()` hook for the per-widget busy flag.
 `_CoolingCardState` additionally nulls `_resumeCoolingTarget` on retire (759, 770) — that is what
 `onRetire()` is for. **Effort: small.** Land with §1.4.
@@ -515,13 +515,13 @@ encoded, {bool includeImageDimensionHeaders = true})` in
 
 ### Explicitly checked and NOT duplication (do not re-file these)
 
-- `EnhancedNightshadeDiscovery.discoverViaUdp` (`enhanced_discovery.dart:985-991`) **delegates**
-  to `NightshadeDiscovery.discoverServers` — it is a thin wrapper, not a reimplementation.
+- `EnhancedSkotiqDiscovery.discoverViaUdp` (`enhanced_discovery.dart:985-991`) **delegates**
+  to `SkotiqDiscovery.discoverServers` — it is a thin wrapper, not a reimplementation.
 - The LAN push wire format has exactly one codec: `encodePushFrame` / `decodePushFrame` in
-  `packages/nightshade_remote_protocol/lib/src/push/lan_push_broadcaster.dart:257,332`; the
+  `packages/skotiq_remote_protocol/lib/src/push/lan_push_broadcaster.dart:257,332`; the
   mobile receiver calls `decodePushFrame` at
   `apps/mobile/lib/services/lan_push_notification_receiver.dart:229`. Shared, correct.
-- `packages/nightshade_updater/.../lan_push_receiver.dart` (OTA, TCP:45680) and
+- `packages/skotiq_updater/.../lan_push_receiver.dart` (OTA, TCP:45680) and
   `apps/mobile/.../lan_push_notification_receiver.dart` (alerts, UDP:45681) are deliberately
   different protocols; the mobile file's header (lines 10-14) says so.
 - `event_forwarding.dart:108-132` encodes each event **once** and reuses the string across
@@ -530,19 +530,19 @@ encoded, {bool includeImageDimensionHeaders = true})` in
 ### Suspected CROSS-PACKAGE duplication (for the cross-cutting agent)
 
 - `tools/update_pusher/push_update.dart:153` defines its own `discoverTargets()` and a local
-  `UpdateTarget`; `packages/nightshade_remote_protocol/lib/src/discovery.dart:512-632` already
+  `UpdateTarget`; `packages/skotiq_remote_protocol/lib/src/discovery.dart:512-632` already
   ships `DiscoveredUpdateTarget` + `UpdatePushDiscovery.discoverTargets` for the same UDP
   responder protocol.
 - The mDNS TXT-record key names (`version`, `name`, `signaling_port`, `scheme`, `fingerprint`,
   `pairingSupported`) are written as bare string literals on the advertise side
-  (`packages/nightshade_remote_protocol/lib/src/discovery/mdns_registration.dart:103`) and again
+  (`packages/skotiq_remote_protocol/lib/src/discovery/mdns_registration.dart:103`) and again
   on the parse side (`enhanced_discovery.dart:886-912`). One shared const key set is owed.
 - `apps/desktop/lib/headless_api/validation.dart` carries a full JSON-payload validation kit
-  (`requireString`/`optionalInt`/`requireQueryDouble`/…, 382-690). `nightshade_core` and the
+  (`requireString`/`optionalInt`/`requireQueryDouble`/…, 382-690). `skotiq_core` and the
   Rust bridge boundary very likely have their own coercion layer for the same wire values.
 - `describeBackendError` + `_httpStatusForBackendError` + `_backendErrorCode`
-  (`validation.dart:48-210`) map `bridge_error.NightshadeError` to user text and HTTP status.
-  The desktop GUI (`packages/nightshade_app`) almost certainly renders the same error union to
+  (`validation.dart:48-210`) map `bridge_error.SkotiqError` to user text and HTTP status.
+  The desktop GUI (`packages/skotiq_app`) almost certainly renders the same error union to
   user text somewhere else.
 - `apps/mobile/lib/services/notification_service.dart` defines the alert taxonomy
   (severity → channel → title/body) client-side; the desktop narrator/push broadcaster
@@ -550,7 +550,7 @@ encoded, {bool includeImageDimensionHeaders = true})` in
   server-side.
 - `apps/mobile/lib/services/saved_servers_service.dart` `SavedServer` (57-445) vs the desktop's
   paired-device / profile row types in
-  `packages/nightshade_remote_protocol/lib/src/database/paired_devices_table.dart`.
+  `packages/skotiq_remote_protocol/lib/src/database/paired_devices_table.dart`.
 
 ---
 
@@ -558,74 +558,74 @@ encoded, {bool includeImageDimensionHeaders = true})` in
 
 ### 3.1 `SecureDiscovery` — 620 lines, zero callers, and the docs point users at it
 
-`packages/nightshade_remote_protocol/lib/src/discovery/secure_discovery.dart` — the whole file:
+`packages/skotiq_remote_protocol/lib/src/discovery/secure_discovery.dart` — the whole file:
 `DiscoveryMode` (10), `SecureDiscoveredServer` (22), `SecureDiscovery` (74).
 
 Evidence: `grep -rn 'SecureDiscovery|DiscoveryMode\b' --include='*.dart'` across the entire repo
 (excluding `build/` and `.dart_tool/`, excluding the defining file) returns **nothing** —
 no app, no package, no test, no tool. The only reference is the barrel export at
-`packages/nightshade_remote_protocol/lib/nightshade_remote_protocol.dart:30`.
+`packages/skotiq_remote_protocol/lib/skotiq_remote_protocol.dart:30`.
 
 The package's own `SECURITY.md:66` already records it: *"`SecureDiscovery` … **Not wired** into
 desktop startup. The class exists for pairing-mode broadcasts but is not started by
 `HeadlessApiServer` or the GUI bootstrap. Do not document it as an active control plane."*
-Meanwhile `packages/nightshade_remote_protocol/QUICK_START.md:25,56,234,292` presents it as the
+Meanwhile `packages/skotiq_remote_protocol/QUICK_START.md:25,56,234,292` presents it as the
 recommended discovery API. Deleting the file must also strip those QUICK_START sections.
 
 ### 3.2 `ChannelEncryption` — 205 lines, only its own test uses it
 
-`packages/nightshade_remote_protocol/lib/src/crypto/channel_encryption.dart` (`ChannelEncryption`,
+`packages/skotiq_remote_protocol/lib/src/crypto/channel_encryption.dart` (`ChannelEncryption`,
 `encrypt`, `encryptJson`, `decryptJson`, `fromToken`).
 Evidence: `grep -rn 'ChannelEncryption|encryptJson' --include='*.dart'` repo-wide, excluding the
-defining file, hits only `packages/nightshade_remote_protocol/test/channel_encryption_test.dart`.
-Exported at `nightshade_remote_protocol.dart:27`. Live transport is TLS + bearer tokens
+defining file, hits only `packages/skotiq_remote_protocol/test/channel_encryption_test.dart`.
+Exported at `skotiq_remote_protocol.dart:27`. Live transport is TLS + bearer tokens
 (`headless_api/tls_provisioner.dart`, `auth/token_resolver.dart`), so this second, unused
 encryption layer is a maintenance and audit liability. Delete the file, its test, and the export.
 
 ### 3.3 `SequenceDelayPlugin` (440) + `CustomNotificationPlugin` (294) — never constructed
 
-`packages/nightshade_plugins/lib/examples/sequence_delay_plugin.dart` (`SequenceDelayPlugin` :24,
+`packages/skotiq_plugins/lib/examples/sequence_delay_plugin.dart` (`SequenceDelayPlugin` :24,
 `ConditionalDelayNode` :122, `CooldownWaitNode` :201, `TwilightWaitNode` :309) and
-`packages/nightshade_plugins/lib/examples/custom_notification_plugin.dart` (`NotificationRule` :8,
+`packages/skotiq_plugins/lib/examples/custom_notification_plugin.dart` (`NotificationRule` :8,
 `CustomNotificationPlugin` :123).
 
 Evidence: `kUserFacingExamplePlugins`
-(`packages/nightshade_plugins/lib/src/plugin_registration.dart:81-103`) registers exactly four —
+(`packages/skotiq_plugins/lib/src/plugin_registration.dart:81-103`) registers exactly four —
 Discord, Pushover, Home Assistant, WeatherLogger — and `plugin_registration.dart:28-31` imports
 only those four example files. `grep -rn 'SequenceDelayPlugin|CustomNotificationPlugin'` across
 `apps` + `packages` hits only the defining files' own doc comments; `grep -rn
 'ConditionalDelayNode|CooldownWaitNode|TwilightWaitNode|NotificationRule'` outside
-`lib/examples/` returns nothing, including `packages/nightshade_plugins/test/
+`lib/examples/` returns nothing, including `packages/skotiq_plugins/test/
 plugin_sequence_nodes_test.dart` (797 lines), whose header (lines 9-10) names only Pushover,
 Discord and Home Assistant.
 
-Both are still exported (`nightshade_plugins.dart:72-73`). Either register them in
+Both are still exported (`skotiq_plugins.dart:72-73`). Either register them in
 `kUserFacingExamplePlugins` (they look like intended product features — a conditional delay and a
 rules-based notifier) or delete them. **This is a product decision, not a mechanical one.**
 
 ### 3.4 `UiPlugin` / `DevicePlugin` are declared extension points with no host consumer
 
-`packages/nightshade_plugins/lib/src/plugin_api.dart:190` (`UiPlugin`), `:214`
+`packages/skotiq_plugins/lib/src/plugin_api.dart:190` (`UiPlugin`), `:214`
 (`UiExtensionPoint`), `:227` (`DevicePlugin`).
 
 Evidence: the only way a host reaches typed plugins is
 `PluginHost.getPlugins<T>()` (`plugin_host.dart:171`). `grep -rn 'getPlugins<|getPlugins('`
-across `apps` + `packages`, excluding `nightshade_plugins/test` and `plugin_host.dart`, returns
+across `apps` + `packages`, excluding `skotiq_plugins/test` and `plugin_host.dart`, returns
 **nothing** — no production caller anywhere. `UiPlugin` / `DevicePlugin` are referenced only by
 `src/example_plugin.dart:123,177` and `test/plugin_system_test.dart`.
 
-By contrast `SequencePlugin` **is** wired: `nightshade_app` reaches it through
-`registerSequencePlugin` (see `packages/nightshade_app/test/services/
+By contrast `SequencePlugin` **is** wired: `skotiq_app` reaches it through
+`registerSequencePlugin` (see `packages/skotiq_app/test/services/
 plugin_node_palette_wiring_test.dart:141`).
 
 So a third-party `UiPlugin`'s panels would never render and a `DevicePlugin`'s devices would
-never appear — the README (`packages/nightshade_plugins/README.md`, "Plugin Types") advertises
+never appear — the README (`packages/skotiq_plugins/README.md`, "Plugin Types") advertises
 both. Either wire them or mark them experimental in the README and the doc comments. Do **not**
 silently delete: they are the published API surface of a plugin package.
 
 ### 3.5 `UpdatePushDiscovery.discoverTargets` + `DiscoveredUpdateTarget` — client half is dead
 
-`packages/nightshade_remote_protocol/lib/src/discovery.dart:512-532`
+`packages/skotiq_remote_protocol/lib/src/discovery.dart:512-532`
 (`DiscoveredUpdateTarget`) and `:541-632` (`UpdatePushDiscovery.discoverTargets`).
 Evidence: `grep -rn 'discoverTargets'` repo-wide finds only the definition and
 `tools/update_pusher/push_update.dart`, which defines and calls its **own** local
@@ -638,7 +638,7 @@ or point `tools/update_pusher` at the package version (see §2 cross-package sus
 
 - `apps/desktop/lib/frame_timing_probe.dart` — `main.dart:331`.
 - `apps/desktop/lib/desktop_logging_init.dart` — `main.dart:11`, `main_headless.dart:12`.
-- `ExamplePlugin` (`packages/nightshade_plugins/lib/src/example_plugin.dart:13`) — test-only, but it is the
+- `ExamplePlugin` (`packages/skotiq_plugins/lib/src/example_plugin.dart:13`) — test-only, but it is the
   documented reference implementation for the README; keep.
 - Every `handlers/*_handlers.dart` file has a matching `routes/*_routes.dart` registration.
 
@@ -652,7 +652,7 @@ or point `tools/update_pusher` at the package version (see §2 cross-package sus
 (`encodeCapturedImageDisplayBufferToJpeg`) does, on the calling isolate:
 
 - `final rgba = Uint8List.fromList(image.displayData);` (line 44) — `displayData` is **already**
-  a `Uint8List` (`packages/nightshade_core/lib/src/models/imaging/imaging_models/
+  a `Uint8List` (`packages/skotiq_core/lib/src/models/imaging/imaging_models/
   file_format_and_capture_state.dart:84`), so this is a gratuitous full copy of
   `width × height × 4` bytes. On a 26 MP sensor that is ~104 MB per request.
 - `img.copyResize` (line 61) and `img.encodeJpg` (line 64) — pure-Dart, no isolate.
@@ -689,7 +689,7 @@ decode/resize/encode pipeline to a worker isolate; drop the redundant copy at 60
 `apps/mobile/lib/screens/dashboard/tabs/camera_tab.dart:24-59`: `CameraTab.build` watches five
 providers, including `exposureProgressProvider` (line 27) and `cameraStateProvider` (line 25).
 Both are written from the same handler on every `ExposureProgress` backend event
-(`packages/nightshade_core/lib/src/services/imaging_service.dart:292-297` calls
+(`packages/skotiq_core/lib/src/services/imaging_service.dart:292-297` calls
 `cameraNotifier.setExposing(...)` and `progressNotifier.updateProgress(...)` back-to-back), so
 every progress event rebuilds the whole `ListView` subtree at line 60 — `_ThumbnailCard`,
 `_LiveViewStreamCard`, `_ExposureControls`, `_CoolingCard`, `_FilterCard`.
@@ -724,7 +724,7 @@ on-demand and rate-limited.
 
 `sequencer_handlers.dart:1982` (`_readNullableDouble`) and `:1999` (`_readNullableBool`) throw
 `FormatException`. `errorTranslationMiddleware` (`validation.dart:711-799`) has clauses for
-`BadRequestError` (724), `HandlerFailure` (726), `bridge_error.NightshadeError` (747) — and
+`BadRequestError` (724), `HandlerFailure` (726), `bridge_error.SkotiqError` (747) — and
 nothing for `FormatException`, so it lands in the terminal `catch (e)` at line 772 and returns
 **500 `internal_error`**.
 
@@ -737,7 +737,7 @@ Reachable from at least: `POST /api/sequencer/sky-brightness` with `{"mag":"brig
 
 ### 5.2 The entire updater HTTP path has no timeout, and a hang wedges the subsystem permanently
 
-`grep -n 'timeout|Timeout'` across `packages/nightshade_updater/lib/src/services/
+`grep -n 'timeout|Timeout'` across `packages/skotiq_updater/lib/src/services/
 update_service.dart`, `update_controller.dart`, `providers/update_provider.dart` and
 `apps/desktop/lib/headless_api/update_wiring.dart` returns **zero hits**.
 
@@ -788,7 +788,7 @@ appliance whose token may be shared across a household.
 
 ### 5.5 `Uint8List.fromList(_buffer.sublist(0, length))` double-copies on the OTA receive path
 
-`packages/nightshade_updater/lib/src/services/lan_push_receiver.dart:561` and `:572` —
+`packages/skotiq_updater/lib/src/services/lan_push_receiver.dart:561` and `:572` —
 `sublist` already allocates a copy, `Uint8List.fromList` copies it again. On the OTA package
 receive path the buffers are megabyte-scale. Low impact (once per transfer), trivial fix
 (`Uint8List.sublistView(_buffer, 0, length)`), listed for completeness.

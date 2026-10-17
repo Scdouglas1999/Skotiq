@@ -1,5 +1,5 @@
 export const meta = {
-  name: 'nightshade-mobile-sweep',
+  name: 'skotiq-mobile-sweep',
   description: 'Sweep the 14 mobile units on a real Android emulator: defects + product critique',
   phases: [{ title: 'Sweep', detail: 'two agents on one emulator, serialised' }],
 }
@@ -38,7 +38,7 @@ questions. Budget ~30 image reads. Capture liberally, Read selectively.
 WRITE AS YOU GO: append each finding to reports/coverage/swept/<YOUR KEY>.json the moment you
 confirm it. Agents here have died mid-report; that file is what survives.
 
-WHAT THIS APP IS: a REMOTE COMPANION. It talks to a Nightshade host appliance over the network. No
+WHAT THIS APP IS: a REMOTE COMPANION. It talks to a Skotiq host appliance over the network. No
 host is running, so the honest first-run and disconnected states ARE the subject, not an obstacle:
 what does this app tell a user who has just installed it and has no appliance yet?
 `
@@ -124,7 +124,7 @@ phase('Sweep')
 const out = []
 for (const s of SLICES) {
   const r = await agent(
-    `You are auditing the Nightshade MOBILE app by driving it on a real Android emulator.
+    `You are auditing the Skotiq MOBILE app by driving it on a real Android emulator.
 
 Your findings file: reports/coverage/swept/${s.key}.json
 Your units: the mobile:* entries in reports/coverage/units_by_area.json.

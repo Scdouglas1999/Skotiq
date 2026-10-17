@@ -1,0 +1,41 @@
+[package]
+name = "skotiq_imaging"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+authors.workspace = true
+publish.workspace = true
+build = "build.rs"
+
+[dependencies]
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+image.workspace = true
+chrono.workspace = true
+async-trait.workspace = true
+quick-xml.workspace = true
+wait-timeout = "0.2"
+
+# Rayon for data parallelism
+rayon = "1.10"
+
+# Bytemuck for safe byte casting
+bytemuck = { version = "1.14", features = ["derive"] }
+
+# Memory-mapped file access for large files
+memmap2 = "0.9"
+
+# Note: LibRaw support via custom FFI bindings (see raw.rs)
+# Using pre-compiled libraw.dll to avoid Windows compilation issues
+
+# Note: fitsio requires cfitsio C library to be installed
+# We'll use a pure Rust implementation for now
+# Uncomment when cfitsio is available:
+# fitsio = "0.21"
+
+[build-dependencies]
+cc = "1.1"

@@ -9,7 +9,7 @@
 // or eviction policy regresses (no tautologies).
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless_api/route_metadata.dart';
+import 'package:skotiq_desktop/headless_api/route_metadata.dart';
 
 void main() {
   group('TokenBucketRateLimiter — refill + eviction contracts', () {

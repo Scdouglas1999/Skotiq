@@ -6,7 +6,7 @@ import 'dart:io';
 /// There are four radii in the design language and no others — 4 for chips, 6
 /// for controls, 8 for panels, 12 for the floating layer
 /// (`docs/design/overhaul/03-tokens.md` §3.2). Nine hundred and seventy-nine
-/// call sites already reach the scale through `NightshadeTokens.radius*` and
+/// call sites already reach the scale through `SkotiqTokens.radius*` and
 /// took the new values without an edit; what is left is 110
 /// `BorderRadius.circular(<n>)` and 29 bare `Radius.circular(<n>)` literals
 /// that were never migrated, and each of those is a number a reviewer cannot
@@ -20,8 +20,8 @@ import 'dart:io';
 ///   11 and above   -> radiusXl (12)
 ///   999            -> radiusFull (left alone; it means "a pill", not a radius)
 ///
-/// The substitution is `BorderRadius.circular(NightshadeTokens.radiusLg)`
-/// rather than the `NightshadeTokens.borderRadiusLg` object the spec names,
+/// The substitution is `BorderRadius.circular(SkotiqTokens.radiusLg)`
+/// rather than the `SkotiqTokens.borderRadiusLg` object the spec names,
 /// because the convenience objects are `static final` and would break every
 /// `const` call site. The `radius*` doubles are `const`, carry the identical
 /// value, and match how the existing 979 sites are already written.
@@ -33,14 +33,14 @@ import 'dart:io';
 ///
 /// Exit codes: 0 on success, 2 on a bad argument or a missing root.
 void main(List<String> args) {
-  var root = 'packages/nightshade_app/lib';
+  var root = 'packages/skotiq_app/lib';
   var dryRun = false;
   final skipped = <String>[
     // Wave 1 owns the shell and wave 2 owns the shared components; both are in
     // flight on their own branches and will fold their own literals. Editing
     // them here would only hand those agents a conflict.
-    'packages/nightshade_app/lib/screens/shell/',
-    'packages/nightshade_ui/lib/src/components/',
+    'packages/skotiq_app/lib/screens/shell/',
+    'packages/skotiq_ui/lib/src/components/',
   ];
 
   for (final arg in args) {
@@ -108,20 +108,20 @@ void main(List<String> args) {
       if (value >= 100) return m[0]!;
       replaced++;
       byValue['${m[2]}'] = (byValue['${m[2]}'] ?? 0) + 1;
-      return '${m[1]}.circular(NightshadeTokens.${tokenFor(value)})';
+      return '${m[1]}.circular(SkotiqTokens.${tokenFor(value)})';
     });
 
     if (replaced == 0) continue;
 
     var withImport = updated;
-    if (!_importsNightshadeUi(updated)) {
+    if (!_importsSkotiqUi(updated)) {
       if (_isPart(updated)) {
         // A part cannot carry its own imports — it sees the library's. Adding
         // one here does not just fail to help, it makes the file unparseable.
         // The parent gets the import instead, resolved below.
         partsNeedingParentImport.add(file.path);
       } else {
-        withImport = _addNightshadeUiImport(updated);
+        withImport = _addSkotiqUiImport(updated);
         importsAdded++;
         needsImport.add(file.path);
       }
@@ -141,16 +141,16 @@ void main(List<String> args) {
     if (library == null) {
       stderr.writeln(
         'migrate-radius-literals: could not resolve the library of $partPath; '
-        'add the nightshade_ui import by hand',
+        'add the skotiq_ui import by hand',
       );
       continue;
     }
     final source = library.readAsStringSync();
-    if (_importsNightshadeUi(source)) continue;
+    if (_importsSkotiqUi(source)) continue;
     if (!parentsFixed.add(library.path)) continue;
     importsAdded++;
     needsImport.add('${library.path}  (for its part)');
-    if (!dryRun) library.writeAsStringSync(_addNightshadeUiImport(source));
+    if (!dryRun) library.writeAsStringSync(_addSkotiqUiImport(source));
   }
 
   stdout.writeln('migrate-radius-literals${dryRun ? " (dry run)" : ""}');
@@ -169,12 +169,12 @@ void main(List<String> args) {
     );
   }
   for (final path in needsImport) {
-    stdout.writeln('  + import nightshade_ui: $path');
+    stdout.writeln('  + import skotiq_ui: $path');
   }
 }
 
-bool _importsNightshadeUi(String source) =>
-    source.contains("package:nightshade_ui/nightshade_ui.dart");
+bool _importsSkotiqUi(String source) =>
+    source.contains("package:skotiq_ui/skotiq_ui.dart");
 
 final _partOf = RegExp(r"^part of '([^']+)';", multiLine: true);
 
@@ -198,10 +198,10 @@ File? _resolveLibraryOf(File file) {
   return null;
 }
 
-/// Adds the `nightshade_ui` import after the last `package:` import, which is
+/// Adds the `skotiq_ui` import after the last `package:` import, which is
 /// where `dart format` and the repo's import ordering already put it.
-String _addNightshadeUiImport(String source) {
-  const line = "import 'package:nightshade_ui/nightshade_ui.dart';";
+String _addSkotiqUiImport(String source) {
+  const line = "import 'package:skotiq_ui/skotiq_ui.dart';";
   final imports = RegExp(
     r"^import '[^']+';$",
     multiLine: true,

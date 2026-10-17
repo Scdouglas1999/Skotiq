@@ -1,0 +1,30 @@
+[package]
+name = "skotiq_indi"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+tokio.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+
+# XML parsing for INDI protocol
+quick-xml = { version = "0.31", features = ["async-tokio"] }
+base64.workspace = true
+
+# mDNS discovery
+mdns-sd = "0.11"
+if-addrs = "0.13"
+
+# Per-instance PRNG for reconnect/restart jitter. fastrand 2.x is small,
+# dependency-free, and lets us seed each IndiClient with a unique value so two
+# clients started in the same wall-clock instant cannot produce correlated
+# backoff schedules (would otherwise cause a thundering herd against the INDI
+# server on simultaneous reconnect).
+fastrand = "2"

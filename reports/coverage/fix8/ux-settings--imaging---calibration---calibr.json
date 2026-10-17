@@ -8,7 +8,7 @@
   "what_happened": "focus_model_settings.dart (310 lines: pulls the appliance's temperature-compensation model - slope, R2, reliability - over REST and offers a Clear action) has no SettingsSectionDef. buildSettingsGroups' Advanced group builds logs/backup/updates/rig-catalogs/captured-images/replay-debug only. The alias map sends 'focus-model' deep links to 'autofocus', whose page (driven end-to-end) contains only AUTOFOCUS + PREDICTIVE AUTOFOCUS. Separately, _structuralGroups still lists 'focus-model' as an Advanced section key, so the derived kSettingsSectionIndex assigns 'replay-debug' an index one higher than its real catalog position.",
   "expected": "Either surface the page (Advanced > Focus Model, gated on a remote backend the way Captured Images is) or delete it and drop the alias and the phantom _structuralGroups entry. Also: searching 'focus model' in Settings matches the Autofocus section (its keywords include 'focus model' and 'temperature compensation'), landing the user on a page that has neither - and app_settings still stores temp_compensation and temp_coefficient (-12.0) with no UI anywhere in the Autofocus page to edit them.",
   "repro": "Settings > Equipment > Autofocus; scroll the entire page (two sections: AUTOFOCUS, PREDICTIVE AUTOFOCUS, ending at 'Learned models'). No focus-model / temperature-compensation controls. Settings search 'gain' likewise returns Imaging, which has no gain control.",
-  "where": "packages/nightshade_app/lib/screens/settings/settings_catalog.dart:591-678 (Advanced group), :686-695 (aliases), :786-817 (_structuralGroups lists 'focus-model'); packages/nightshade_app/lib/screens/settings/widgets/focus_model_settings.dart:19",
+  "where": "packages/skotiq_app/lib/screens/settings/settings_catalog.dart:591-678 (Advanced group), :686-695 (aliases), :786-817 (_structuralGroups lists 'focus-model'); packages/skotiq_app/lib/screens/settings/widgets/focus_model_settings.dart:19",
   "location_wrong": null,
   "proposed_fix": "Add the section to the Advanced group next to captured-images, remove 'focus-model' from kMergedSectionAliases, and delete the phantom key from _structuralGroups so kSettingsSectionIndex matches the built catalog.",
   "verdict_reasoning": null
@@ -22,7 +22,7 @@
   "what_happened": "Clearing 'Max consecutive rejects' (allowClear:false) restores 3 and renders errorText 'A value is required.' inside a 140 px-wide field, where it clips to 'A value is requir...'. The user is told there is an error but not what it is.",
   "expected": "Error text should render below the row at full width, not inside the fixed-width input.",
   "repro": "Settings > Imaging > Image Grading (master toggle ON) > 'Max consecutive rejects': click, Ctrl+A, Delete, Enter.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/image_grading_settings.dart:553 (effectiveWidth 140) and :575 (errorText inside the SizedBox-constrained TextField)",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/image_grading_settings.dart:553 (effectiveWidth 140) and :575 (errorText inside the SizedBox-constrained TextField)",
   "location_wrong": null,
   "proposed_fix": "Move the error string out of InputDecoration.errorText into a full-width Text under the SettingRow, as the adaptive-exposure page already does.",
   "verdict_reasoning": null
@@ -36,7 +36,7 @@
   "what_happened": "In Settings > Imaging > Calibration Library > Matching Preview, the empty 'Sensor W' input renders its resting label as 'Sensor...' at width 90. The neighbouring 'Sensor H' fits, so the two fields cannot be told apart until one is filled (the floating label then shows in full).",
   "expected": "Either widen the field or shorten the label to 'Sensor W (px)'/'W px' so it is legible when empty.",
   "repro": "Settings > Imaging > Calibration Library, look at the Matching Preview field row.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/calibration_library_settings.dart:973 (_field(_sensorWidth, 'Sensor W', 90))",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/calibration_library_settings.dart:973 (_field(_sensorWidth, 'Sensor W', 90))",
   "location_wrong": null,
   "proposed_fix": "Bump the width to 110 (as used for Exposure/Filter) or relabel.",
   "verdict_reasoning": null
@@ -50,7 +50,7 @@
   "what_happened": "The Imaging section renders exactly two rows: a read-only 'Archive format: FITS - 16-bit' and 'File naming pattern'. Its catalog keywords are ['exposure','gain','offset','binning','file format','fits','frame naming'], so searching 'gain' in Settings returns Imaging (plus Help & Tutorials, Image Grading, Science) - and none of those pages has a gain control. Default gain/offset/binning/cooling actually live in the onboarding 'Camera defaults' step / equipment profile, which the search never points at.",
   "expected": "Either surface the profile's camera defaults on this page (or a deep link to Equipment Profiles), or strip the false keywords so search does not promise a control that isn't there.",
   "repro": "Settings > search 'gain' -> Imaging is offered; open Imaging -> two rows, no gain.",
-  "where": "packages/nightshade_app/lib/screens/settings/settings_catalog.dart:335-349 (keywords); packages/nightshade_app/lib/screens/settings/widgets/imaging_settings.dart:42-87 (two rows only)",
+  "where": "packages/skotiq_app/lib/screens/settings/settings_catalog.dart:335-349 (keywords); packages/skotiq_app/lib/screens/settings/widgets/imaging_settings.dart:42-87 (two rows only)",
   "location_wrong": null,
   "proposed_fix": "Add a 'Capture defaults' section that surfaces the active profile's gain/offset/binning/cooling read-only with an 'Edit in Equipment Profiles' action, and keep the keywords.",
   "verdict_reasoning": null
@@ -63,8 +63,8 @@
   "unit": "settings:autofocus",
   "what_happened": "A freshly seeded profile has af_backlash_comp_method='Overshoot', af_backlash_in='350', af_backlash_out='0'. Backlash is a per-focuser mechanical property the app cannot know; 350 steps is comparable to the entire default AF sweep (step size 50 x 2 x initial offset 4 = 400 steps) and can exceed the usable travel of small stepper/Crayford focusers, so every AF move is perturbed - or clamped/errored - out of the box. The asymmetry (IN 350, OUT 0) has no physical justification either.",
   "expected": "Ship 0/0 (no compensation) and provide a backlash-measurement helper, the way NINA does. A non-zero default silently changes where the focuser lands on the first night on unknown hardware.",
-  "repro": "Fresh profile (drive_linux.py start --fresh), Skip onboarding, Settings > Equipment > Autofocus. Also sqlite3 .../nightshade.db \"select key,value from app_settings where key like 'af_backlash%'\".",
-  "where": "packages/nightshade_core/lib/src/database/database/default_settings.dart:90-92",
+  "repro": "Fresh profile (drive_linux.py start --fresh), Skip onboarding, Settings > Equipment > Autofocus. Also sqlite3 .../skotiq.db \"select key,value from app_settings where key like 'af_backlash%'\".",
+  "where": "packages/skotiq_core/lib/src/database/database/default_settings.dart:90-92",
   "location_wrong": null,
   "proposed_fix": "Default af_backlash_in and af_backlash_out to 0, and add a 'Measure backlash' action next to the Backlash compensation dropdown.",
   "verdict_reasoning": null
@@ -78,7 +78,7 @@
   "what_happened": "Step size (50), Backlash IN (350) and Predictive AF 'Drift threshold (steps)' (200) are all raw focuser-step counts with no relation to the critical focus zone, steps-per-micron, or the focuser's travel range - none of which the page shows. On a focuser whose CFZ is ~30 steps the 200-step drift gate never warns; on one with 500 steps of total travel it always warns. Range maxima are equally uninformed (step size up to 10000, backlash up to 10000).",
   "expected": "Show the connected focuser's max position/step size next to these fields and express drift as a fraction of the measured V-curve half-width (or in microns via a steps-per-micron input), so the numbers mean something. NINA and SGP both derive step size from a measured curve rather than a blind default.",
   "repro": "Settings > Equipment > Autofocus (right column) and scroll to PREDICTIVE AUTOFOCUS > 'Drift threshold (steps)'.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/autofocus_settings.dart:306-312 (step size 1..10000), :395-413 (backlash 0..10000); packages/nightshade_core/lib/src/database/database/default_settings.dart:78, and predictive_af.drift_threshold_steps default 200",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/autofocus_settings.dart:306-312 (step size 1..10000), :395-413 (backlash 0..10000); packages/skotiq_core/lib/src/database/database/default_settings.dart:78, and predictive_af.drift_threshold_steps default 200",
   "location_wrong": null,
   "proposed_fix": "Add the connected focuser's position range and a steps-per-micron field to the page, and label the drift threshold in both steps and the equivalent fraction of the fitted curve.",
   "verdict_reasoning": null
@@ -92,7 +92,7 @@
   "what_happened": "The page states 'Lengthens or shortens each frame automatically when the sky is brighter or darker than your reference, so signal-to-noise stays roughly constant'. The implementation is ratio = 10^((mag_ref - mag_live)/2.5), so a brighter sky (lower mag) multiplies the exposure up. The module's own worked example admits the outcome: 60 s nominal at ref 21.5 becomes 499 s under a Bortle-6 19.2 sky, 'far too long for backyard tracking', and is then clamped. With shipped defaults (ref 21.5, max 600 s) any sky more than ~1 mag brighter than reference pins every sub at the 600 s ceiling all night. SharpCap/NINA/Dr. Glover's rule is the inverse: t proportional to 1/sky-rate, i.e. shorter subs under a brighter sky, to keep the sky from filling the well.",
   "expected": "Either invert the scaling to the standard 'swamp read noise / fixed sky ADU' rule, or rename the feature and say plainly that it maximises per-frame SNR at the cost of longer, more loss-prone subs, and default it to a target sky-ADU rather than a magnitude reference.",
   "repro": "Settings > Imaging > Adaptive Exposure, read the description and 'How it works' card; compare with the formula at the named line.",
-  "where": "native/nightshade_native/sequencer/src/scheduling/adaptive_exposure.rs:332-336 and the module doc at :39-59",
+  "where": "native/skotiq_native/sequencer/src/scheduling/adaptive_exposure.rs:332-336 and the module doc at :39-59",
   "location_wrong": null,
   "proposed_fix": "Add a 'target sky background (ADU or e-)' mode that scales t inversely with sky rate, make it the default, and keep the constant-SNR mode as an explicit opt-in.",
   "verdict_reasoning": null
@@ -106,7 +106,7 @@
   "what_happened": "The 'Reference sky brightness' input clamps to [14, 24]. The darkest natural sky is ~22.0 mag/arcsec2. I typed 99 and it silently became 24.00 with no message. At ref = 24 against a typical 21.5 sky the ratio is 10^(2.5/2.5) = 10x, so every exposure is driven to the 'Longest exposure' clamp for the whole session; at ref = 14 every exposure sits on the 'Shortest exposure' clamp.",
   "expected": "Restrict to a physically meaningful band (roughly 16-22.2) and tell the user when a typed value was clamped instead of silently rewriting it.",
   "repro": "Settings > Imaging > Adaptive Exposure (enabled) > 'Reference sky brightness': click, Ctrl+A, type 99, Enter -> shows 24, no message.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/adaptive_exposure_settings.dart:152-153 (min 14, max 24)",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/adaptive_exposure_settings.dart:152-153 (min 14, max 24)",
   "location_wrong": null,
   "proposed_fix": "Narrow the range and surface a 'clamped to N' hint on commit.",
   "verdict_reasoning": null
@@ -120,7 +120,7 @@
   "what_happened": "With the shipped default (grading OFF) all five threshold fields render at 0.5 opacity inside an IgnorePointer, so they cannot be edited. The only way to tune them is to switch grading ON first - which immediately arms HFR absolute 3.50 px, eccentricity 0.70, star-count min 10 and 'pause after 3 consecutive rejects'. HFR in pixels is pixel-scale dependent: at ~0.4\"/px (2000 mm, 3.76 um) 2.5\" seeing gives HFR ~6 px, so every frame is rejected and the sequence pauses after three - a lost night from one switch flip.",
   "expected": "Allow the thresholds to be edited while the master toggle is off (grey the section header, not the inputs), and express the HFR gate in arcseconds (or as a multiple of the measured baseline) so it is scale-independent. Keeping only the relative 'HFR baseline percent' check armed by default would be safer.",
   "repro": "Fresh profile, Settings > Imaging > Image Grading: try to click 'HFR absolute (pixels)' with the master toggle off - the field does not take focus.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/image_grading_settings.dart:553-558 (Opacity + IgnorePointer keyed on `enabled`), defaults at packages/nightshade_core/lib/src/providers/settings_sections/app_settings_state.dart:611-616",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/image_grading_settings.dart:553-558 (Opacity + IgnorePointer keyed on `enabled`), defaults at packages/skotiq_core/lib/src/providers/settings_sections/app_settings_state.dart:611-616",
   "location_wrong": null,
   "proposed_fix": "Drop the IgnorePointer, keep only the visual dimming, and switch the absolute HFR gate to arcseconds computed from the optical train.",
   "verdict_reasoning": null
@@ -134,7 +134,7 @@
   "what_happened": "The shipped default is '$TARGET_$FILTER_$DATE_$SEQ' with no '/' - so lights, and every target and every session, land side by side in the capture root. The row's subtitle advertises only '$TARGET, $FILTER, $DATE, $SEQ, $EXPOSURE'; the pipeline supports 18 tokens including $FRAMETYPE, $FRAMENUM, $EXPTIME, $TIME, $DATETIME, $GAIN, $OFFSET, $TEMP, $BINNING, $CAMERA, $TELESCOPE, $SEQUENCE, $SESSION. Nothing tells the user that '/' creates subdirectories - the single most-used feature of a naming pattern - even though the code's own default constant is '$TARGET/$FRAMETYPE/$TARGET_$FILTER_$EXPTIME_$FRAMENUM'.",
   "expected": "Ship '$TARGET/$FRAMETYPE/$TARGET_$FILTER_$EXPTIME_$FRAMENUM' (the constant already in NamingPattern), list all supported variables in a popover, and state that '/' creates folders. NINA and SGP both default to target/date/filter folders.",
   "repro": "Fresh profile, Settings > Imaging: pattern reads '$TARGET_$FILTER_$DATE_$SEQ', subtitle lists 5 variables.",
-  "where": "packages/nightshade_core/lib/src/database/database/default_settings.dart:21 and packages/nightshade_core/lib/src/providers/settings_sections/app_settings_state.dart:485 (default); packages/nightshade_app/lib/screens/settings/widgets/imaging_settings.dart:66-67 (subtitle); packages/nightshade_core/lib/src/models/imaging/imaging_models/naming_and_autofocus.dart:10,34-51 (the richer default and full variable list)",
+  "where": "packages/skotiq_core/lib/src/database/database/default_settings.dart:21 and packages/skotiq_core/lib/src/providers/settings_sections/app_settings_state.dart:485 (default); packages/skotiq_app/lib/screens/settings/widgets/imaging_settings.dart:66-67 (subtitle); packages/skotiq_core/lib/src/models/imaging/imaging_models/naming_and_autofocus.dart:10,34-51 (the richer default and full variable list)",
   "location_wrong": null,
   "proposed_fix": "Change the seeded default to the subdirectory pattern and replace the 5-variable subtitle with a full variable reference plus a live filename preview.",
   "verdict_reasoning": null
@@ -148,7 +148,7 @@
   "what_happened": "The page offers Auto dark subtraction, temperature tolerance, statistics, Clean Orphans, Clear Library, Frame Groups and All Entries. The empty state says 'Capture dark or bias frames to populate the library' but there is no button anywhere on the page to start a dark-capture run, and no way to import an existing library of masters from disk. Everything on the page is destructive or read-only.",
   "expected": "An 'Import darks...' file/folder picker and a 'Build dark library' action that seeds a dark-capture sequence, next to Clean Orphans / Clear Library. Every imager arriving from NINA/SGP already has a dark library on disk.",
   "repro": "Settings > Equipment > Dark Library, scroll the whole page.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/dark_library_settings.dart (Library Management section: only Clean Orphans + Clear Library)",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/dark_library_settings.dart (Library Management section: only Clean Orphans + Clear Library)",
   "location_wrong": null,
   "proposed_fix": "Add Import and Build actions to the Library Management row.",
   "verdict_reasoning": null
@@ -162,7 +162,7 @@
   "what_happened": "With 0 dark frames, 0 bias frames and 0 masters, the red 'Clear Library' button is still enabled. Its dialog reads 'Remove all entries from the dark library?' with an 'Also delete files from disk' checkbox - it does not say how many entries, or which directory would be deleted from. Confirming produced the (correct and honest) result banner 'Library cleared (0 entries removed).'",
   "expected": "Disable the button at 0 entries, and put the count and the on-disk root in the dialog ('Remove 47 entries? 47 files under /path will also be deleted').",
   "repro": "Settings > Equipment > Dark Library (empty) > Clear Library.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/dark_library_settings.dart:342-372 (confirm dialog)",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/dark_library_settings.dart:342-372 (confirm dialog)",
   "location_wrong": null,
   "proposed_fix": "Gate the button on _stats.total > 0 and interpolate the count + resolved path into the dialog body.",
   "verdict_reasoning": null
@@ -176,7 +176,7 @@
   "what_happened": "On a local desktop backend the section renders one line: 'Connect to a remote appliance to browse its captured frames.' It is honest, but a thumbnail gallery is not a setting, and the row occupies a permanent slot in the Advanced nav for every desktop user who will never see content in it.",
   "expected": "Hide the section when the backend is not a NetworkBackend (the app already knows), or move the browser into the Imaging/Session Review surface where a gallery belongs and leave a deep link in Settings.",
   "repro": "Settings > Advanced > Captured Images on a local desktop instance.",
-  "where": "packages/nightshade_app/lib/screens/settings/settings_catalog.dart:650-664; packages/nightshade_app/lib/screens/settings/widgets/captured_images_settings.dart:15-21 (doc comment already says 'Remote-only; the local desktop has its own image browser')",
+  "where": "packages/skotiq_app/lib/screens/settings/settings_catalog.dart:650-664; packages/skotiq_app/lib/screens/settings/widgets/captured_images_settings.dart:15-21 (doc comment already says 'Remote-only; the local desktop has its own image browser')",
   "location_wrong": null,
   "proposed_fix": "Filter the section out of the catalog when backendProvider is not a NetworkBackend, the same way the page already gates its body.",
   "verdict_reasoning": null

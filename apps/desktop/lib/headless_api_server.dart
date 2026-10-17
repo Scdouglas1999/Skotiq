@@ -11,10 +11,10 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_planetarium/nightshade_planetarium.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
-import 'package:nightshade_updater/nightshade_updater.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
+import 'package:skotiq_updater/skotiq_updater.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
@@ -91,7 +91,7 @@ class HeadlessApiServer {
   /// Explicit opt-in to the legacy fully-open behaviour: when true AND no
   /// tokens are configured AND no session has paired yet, EVERY endpoint is
   /// served without a bearer token. This is the deliberate trusted-LAN/dev
-  /// escape hatch (`--allow-unauthenticated` / `NIGHTSHADE_ALLOW_UNAUTHENTICATED`)
+  /// escape hatch (`--allow-unauthenticated` / `SKOTIQ_ALLOW_UNAUTHENTICATED`)
   /// and triggers a prominent startup warning.
   ///
   /// Default (false) is FAIL CLOSED: an unconfigured server still serves the
@@ -425,7 +425,7 @@ class HeadlessApiServer {
   // SSE handler can have any number of concurrent phone clients without
   // touching the tokio broadcast channel on the Rust side.
   late final RunWatchHandlers _runWatchHandlers;
-  StreamController<NightshadeEvent>? _runWatchEventBroadcast;
+  StreamController<SkotiqEvent>? _runWatchEventBroadcast;
 
   // live-stacking broadcast endpoints.
   late final BroadcastHandlers _broadcastHandlers;
@@ -583,7 +583,7 @@ class HeadlessApiServer {
     // [computeServerFingerprint]) is retained as the plain-HTTP fallback so
     // existing QR-flow clients keep working unchanged. Format:
     //  - TLS mode:  raw hex digest of SubjectPublicKeyInfo DER (64 chars).
-    //  - HTTP mode: sha256("nightshade-remote-v1:" + adminToken).
+    //  - HTTP mode: sha256("skotiq-remote-v1:" + adminToken).
     final tlsPin = tlsPublicKeyFingerprint?.trim();
     if (tlsPin != null && tlsPin.isNotEmpty) {
       _serverFingerprint = tlsPin;
@@ -754,7 +754,7 @@ class HeadlessApiServer {
   /// returning the stamped event so a caller can also hand the SAME stamped
   /// copy to the run-watch SSE fan-out (see [_broadcastEventImpl]). Callers
   /// that only broadcast may ignore the result.
-  NightshadeEvent? broadcastEvent(dynamic event) => _broadcastEventImpl(event);
+  SkotiqEvent? broadcastEvent(dynamic event) => _broadcastEventImpl(event);
 
   void setPushNotificationStream(
     Stream<Map<String, dynamic>> notificationStream,
@@ -790,7 +790,7 @@ class HeadlessApiServer {
   }
 
   /// Phase D — load [PushConfig] from [appSupportDir] (or the
-  /// `NIGHTSHADE_PUSH_CONFIG` env override) and wire the resulting delivery:
+  /// `SKOTIQ_PUSH_CONFIG` env override) and wire the resulting delivery:
   ///
   ///  * a real FCM and/or APNs delivery when the operator has dropped a valid
   ///    `push_config.json` pointing at the service-account JSON / `.p8` key

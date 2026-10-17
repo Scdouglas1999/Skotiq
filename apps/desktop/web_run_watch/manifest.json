@@ -1,7 +1,7 @@
 {
-  "name": "Nightshade Run-Watch",
-  "short_name": "Nightshade",
-  "description": "Monitor a running Nightshade imaging sequence from your phone or tablet over LAN.",
+  "name": "Skotiq Run-Watch",
+  "short_name": "Skotiq",
+  "description": "Monitor a running Skotiq imaging sequence from your phone or tablet over LAN.",
   "start_url": "/run-watch/",
   "scope": "/run-watch/",
   "display": "standalone",

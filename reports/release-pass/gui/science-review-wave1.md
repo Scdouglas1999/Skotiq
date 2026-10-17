@@ -81,7 +81,7 @@ run ~10 minutes (248 frames) ▸ **Stop** ▸ nav **Analytics ▸ Session**.
 Expected: EXPOSURES = every light frame of the session; INTEGRATION = their total exposure.
 Actual: the Quick Capture header reads **EXPOSURES 100**, **INTEGRATION 3m 20s**
 (= 100 × 2 s) and the frame list footer reads **Total: 100**, while
-`sqlite3 …/data/nightshade.db "select count(*) from captured_images"` returns **248** and
+`sqlite3 …/data/skotiq.db "select count(*) from captured_images"` returns **248** and
 `ls captures/*.fits | wc -l` returns **248**. True integration is 8m 16s; the first and last
 `captured_at` are 621 s apart. The screen silently truncates to the newest 100 frames and
 presents the truncated numbers as the session totals — the charts even say "All four charts
@@ -135,7 +135,7 @@ Expected: stacking starts (Status → Stacking), or a prompt that says what it n
 Actual: a GTK **"Open File"** window opens over the app — no title text, no instruction,
 filter reads "Image files" while the app writes `.fits`. Nothing in the panel says a
 reference frame is required. Verified with `xdotool search --onlyvisible --name "."
-getwindowname %@`: before the click only `Nightshade`, after the click `Nightshade` +
+getwindowname %@`: before the click only `Skotiq`, after the click `Skotiq` +
 `Open File` — reproduced 3×.
 Pressing **Escape** (or Cancel) closes it and the panel goes back to `Status: Idle`,
 `Stacked Frames 0`, with **no message at all** — the user gets no hint that Start did

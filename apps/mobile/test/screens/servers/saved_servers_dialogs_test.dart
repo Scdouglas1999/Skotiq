@@ -17,9 +17,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_mobile/screens/servers/saved_servers_screen.dart';
-import 'package:nightshade_mobile/services/saved_servers_service.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_mobile/screens/servers/saved_servers_screen.dart';
+import 'package:skotiq_mobile/services/saved_servers_service.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> _pump(
@@ -30,7 +30,7 @@ Future<void> _pump(
     ProviderScope(
       overrides: [savedServersServiceProvider.overrideWithValue(service)],
       child: MaterialApp(
-        theme: ThemeData(extensions: const [NightshadeColors.dark]),
+        theme: ThemeData(extensions: const [SkotiqColors.dark]),
         home: const SavedServersScreen(),
       ),
     ),

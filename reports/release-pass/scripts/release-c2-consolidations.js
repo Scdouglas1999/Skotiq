@@ -20,7 +20,7 @@ const C2_SCHEMA = {
   },
 }
 
-const CHARTER = `You are a consolidation engineer in the Nightshade release pass (Flutter/Dart melos monorepo + Rust via FRB). Repo root is the cwd. The tree is GREEN at HEAD — full melos + cargo + custom gates passed before this wave. You run ALONE on the tree (topics are serialized), so you may edit across packages freely within your topic.
+const CHARTER = `You are a consolidation engineer in the Skotiq release pass (Flutter/Dart melos monorepo + Rust via FRB). Repo root is the cwd. The tree is GREEN at HEAD — full melos + cargo + custom gates passed before this wave. You run ALONE on the tree (topics are serialized), so you may edit across packages freely within your topic.
 
 FIRST ACTIONS: (1) one \`graphify query\` (a PreToolUse hook requires it — comply once); (2) read the Wave A map reports under reports/release-pass/map/ that name your topic (start with the cross-cutting duplication report and sequencing.md); (3) read the "Wave A findings (adjudicated)" section of reports/release-pass/RELEASE-PASS-2026-08-11.md — its overrides win over the raw reports.
 
@@ -34,8 +34,8 @@ RULES (behavior-preserving is the whole point):
 - Your final message is machine-read: return ONLY the structured result.`
 
 const TOPICS = [
-  { key: 'astronomy-sidereal', brief: 'The ~14 sidereal-time / astronomy-math duplicates across Dart packages (and any Rust twin the map names): one canonical module in nightshade_core, parity-tested against every retired copy. LST, JD, GMST, obliquity, alt/az conversions.' },
-  { key: 'coordinate-formatters', brief: 'The ~39 RA/Dec coordinate formatter copies: one canonical formatter set (sexagesimal RA h/m/s, Dec ±d/m/s, degree variants) in nightshade_core, parameterized for the real presentation differences. The CoordinateFormat seconds-carry fix from C1 is the canonical base — do not fork it.' },
+  { key: 'astronomy-sidereal', brief: 'The ~14 sidereal-time / astronomy-math duplicates across Dart packages (and any Rust twin the map names): one canonical module in skotiq_core, parity-tested against every retired copy. LST, JD, GMST, obliquity, alt/az conversions.' },
+  { key: 'coordinate-formatters', brief: 'The ~39 RA/Dec coordinate formatter copies: one canonical formatter set (sexagesimal RA h/m/s, Dec ±d/m/s, degree variants) in skotiq_core, parameterized for the real presentation differences. The CoordinateFormat seconds-carry fix from C1 is the canonical base — do not fork it.' },
   { key: 'format-duration', brief: 'The ~30 _formatDuration copies across screens: one shared duration formatter honoring the sub-minute-renders-seconds rule the sequencing B-fix introduced (SEQ-20). Kill the "0m" class everywhere the copies lived.' },
   { key: 'device-registry', brief: 'The device-registry collapse the map proposes: one registry, the six unpopulatable bridge registries removed only if the Wave A owner-decision items do not protect them — check the doc section "Owner decisions" first; anything listed there is OFF LIMITS.' },
   { key: 'phd2-registry-split', brief: 'The PHD2 registry split named in the map (separate the client registry from the guider-state registry). Behavior-preserving; the phd2 framing/reassembly tests from C1/B-fix must pass unchanged.' },

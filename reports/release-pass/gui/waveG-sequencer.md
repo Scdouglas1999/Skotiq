@@ -13,15 +13,15 @@ and nothing load-bearing; the neighbourhood was located from the two F-fix logs)
 
 ## Harness and bundle freshness
 
-* Binary: `apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`, driven by
+* Binary: `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`, driven by
   `tools/ui_audit/drive_linux.py` (profile passed **after** the subcommand), display `:86`,
   profile `waveG-sequencer`.
-* `lib/libapp.so` and `lib/libnightshade_bridge.so` both mtime **Aug 14 01:44**, i.e. after
+* `lib/libapp.so` and `lib/libskotiq_bridge.so` both mtime **Aug 14 01:44**, i.e. after
   the three F-fix commits (`df728a6ce` / `16bbe47c0` / `482f3e247`, all 01:42). String-grep
   of the shipped binaries finds the strings each fix introduced:
   * `Sequence stopped by request at ${time.clock}.` — the WF-STOP-N5 operator-clock body;
   * `no progress for ` — the WF-STOP-N4 stall replacement for the ETA;
-  * `trigger:meridian_flip` in `libnightshade_bridge.so` — the WF-STOP-N4 retry-surfacing
+  * `trigger:meridian_flip` in `libskotiq_bridge.so` — the WF-STOP-N4 retry-surfacing
     synthetic node id.
   This is the binary the F-fix landed in.
 * Profile seeded from `/tmp/ns-audit/waveE-stop-pipeline/data` with `sequence_runs`,

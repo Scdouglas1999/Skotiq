@@ -1,17 +1,17 @@
 # rust-imaging — implementation log
 
 Batch `rust-imaging`. Baseline commit `b07d91c9d`. Scope
-`native/nightshade_native/imaging/**`.
+`native/skotiq_native/imaging/**`.
 
 ## Resume state (start of this session)
 
 A previous attempt left partial work on the tree. `git diff b07d91c9d --
-native/nightshade_native/imaging/` showed items 1, 2, 3, 5 and 7 already
+native/skotiq_native/imaging/` showed items 1, 2, 3, 5 and 7 already
 applied and items 4 and 6 untouched. This session verified every applied item
 against the baseline code (including proving each BUG test fails pre-fix) and
 then implemented 4 and 6.
 
-Baseline before any of my edits: `cargo test -p nightshade_imaging` →
+Baseline before any of my edits: `cargo test -p skotiq_imaging` →
 **503 + 12 + 6 + 1 pass, 0 fail**.
 
 ## Item 1 — DELETE the `#[cfg(test)]`-only internal plate solver
@@ -31,11 +31,11 @@ grep -rn "FORCE_CPU|GPU_ATTEMPT_TIMEOUT|GPU_PLATE_SOLVE_UNRESPONSIVE|
 filter, not a caller, and it is outside my scope, so it stays.
 
 `wgpu` and `pollster` are out of `imaging/Cargo.toml` **and** out of
-`native/nightshade_native/Cargo.lock` (`grep '^name = "wgpu' Cargo.lock` →
+`native/skotiq_native/Cargo.lock` (`grep '^name = "wgpu' Cargo.lock` →
 empty). `bytemuck` correctly stays — `lib.rs:568/595/670/696` use it.
 
 The three G20 guards the deleted module existed for
-(`NIGHTSHADE_PLATESOLVE_FORCE_CPU`, `GPU_ATTEMPT_TIMEOUT`,
+(`SKOTIQ_PLATESOLVE_FORCE_CPU`, `GPU_ATTEMPT_TIMEOUT`,
 `GPU_PLATE_SOLVE_UNRESPONSIVE`) are gone with it, and no doc, script or Dart
 file mentions them.
 
@@ -241,8 +241,8 @@ shared function, so that path is unchanged.
 
 | Command | Result |
 |---|---|
-| `cargo test -p nightshade_imaging` | **514 + 12 + 6 + 1 pass, 0 fail** (baseline was 503 + 12 + 6 + 1) |
-| `cargo clippy -p nightshade_imaging --all-targets` | clean, 0 warnings |
+| `cargo test -p skotiq_imaging` | **514 + 12 + 6 + 1 pass, 0 fail** (baseline was 503 + 12 + 6 + 1) |
+| `cargo clippy -p skotiq_imaging --all-targets` | clean, 0 warnings |
 | `cargo build --workspace` | clean — `bridge` and `sequencer` still compile against the changed crate |
 | `rustfmt` | run on every file touched (no repo-wide formatting) |
 

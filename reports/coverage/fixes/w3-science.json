@@ -6,64 +6,64 @@
       "outcome": "fixed",
       "summary": "Confirmed: SubGalleryPanel had exactly one construction in the repo and it was in a test, and sub_cull_rail.dart:24 claimed 'the narrative screen uses [SubGalleryPanel]'. But deleting it outright would have destroyed a real feature: the dead panel held the ONLY production call site of downloadImageToDevice (the 'Download to this device' per-sub button that pulls the full-res FITS off a paired host via GET /api/images/<id>/download). grep across packages/ and apps/ for downloadImageToDevice returned the service, that dead button, and tests -- nothing else. So the whole client+server download data path was unreachable in the shipped build. Ported _SubDownloadButton into SubCullRail's _SubTile footer (the grid the workbench actually mounts), then deleted sub_gallery_panel.dart and rewrote the three doc comments in sub_cull_rail.dart that described a two-renderings composition the app does not have (narrative is the read-first story; the workbench rail is the only sub grid, reached by the screen's one-tap toggle).",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/session_review/widgets/sub_cull_rail.dart",
-        "packages/nightshade_app/lib/screens/session_review/widgets/sub_gallery_panel.dart (deleted)",
-        "packages/nightshade_app/test/screens/session_review/sub_cull_rail_download_test.dart (new)",
-        "packages/nightshade_app/test/screens/session_review/sub_cull_rail_dynamic_subs_test.dart"
+        "packages/skotiq_app/lib/screens/session_review/widgets/sub_cull_rail.dart",
+        "packages/skotiq_app/lib/screens/session_review/widgets/sub_gallery_panel.dart (deleted)",
+        "packages/skotiq_app/test/screens/session_review/sub_cull_rail_download_test.dart (new)",
+        "packages/skotiq_app/test/screens/session_review/sub_cull_rail_dynamic_subs_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/session_review/sub_cull_rail_download_test.dart -- pumps SubCullRail over a mock ImagingBackend, finds the 'Download to this device' tooltip, taps it and asserts backend.downloadImage was called with the tapped sub's image id (7). It severs the production wiring, not helper logic.",
+      "test": "packages/skotiq_app/test/screens/session_review/sub_cull_rail_download_test.dart -- pumps SubCullRail over a mock ImagingBackend, finds the 'Download to this device' tooltip, taps it and asserts backend.downloadImage was called with the tapped sub's image id (7). It severs the production wiring, not helper logic.",
       "revert_check": "Deleted the single line `_SubDownloadButton(sub: sub, colors: colors),` from _SubTile's footer Row in sub_cull_rail.dart -> test fails with 'Expected: exactly one matching candidate / Actual: Found 0 widgets'. Restored -> 77/77 tests in test/screens/session_review/ pass.",
       "caveats": "The finding offered 'mount the panel in narrative OR delete it'. Neither alone was right: the narrative view is documented (design §1) as a read-first story with no per-sub culling, and plain deletion would have silently removed the download feature a prior campaign built. The fix keeps one sub grid and restores the download path's reachability."
     },
     {
-      "title": "Stack & Share surfaces the raw Rust error enum to the user: 'NightshadeError.imageError(field0: ...)'",
+      "title": "Stack & Share surfaces the raw Rust error enum to the user: 'SkotiqError.imageError(field0: ...)'",
       "outcome": "fixed",
       "summary": "The dialog rendered the orchestrator's e.toString() verbatim, so the operator read the freezed/flutter_rust_bridge union wrapper and its positional-field label instead of the sentence inside it. Added describeStackShareFailure() in stack_and_share_dialog.dart: it peels the wrapper layer by layer (an app exception can carry a bridge union, which can carry another), strips a Dart exception type prefix, keeps the untouched raw string for a collapsible 'Technical details' section (the same disclosure ErrorDialog offers), and attaches a concrete next step for the four causes we can honestly name one for (no/too-few stars, alignment residual over ceiling, every follower rejected, no lights). Deliberately NO generic fallback message: a sentence we cannot map is shown as-is rather than replaced by 'An unexpected error occurred', and no next step is invented. The unwrapper is anchored so a real sentence that merely ends in a parenthetical ('... 10.34px (max 10.00px)') survives intact.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/stack_result/stack_and_share_dialog.dart",
-        "packages/nightshade_app/test/screens/stack_result/stack_share_failure_text_test.dart (new)",
-        "packages/nightshade_app/test/screens/stack_result_screen_test.dart"
+        "packages/skotiq_app/lib/screens/stack_result/stack_and_share_dialog.dart",
+        "packages/skotiq_app/test/screens/stack_result/stack_share_failure_text_test.dart (new)",
+        "packages/skotiq_app/test/screens/stack_result_screen_test.dart"
       ],
-      "test": "stack_result_screen_test.dart 'a bridge failure is shown as its sentence, with the raw union behind technical details' pumps the real dialog with the exact string from the audit and asserts no 'NightshadeError.imageError' / no 'field0' is rendered, that the payload sentence and the next step ARE, and that tapping 'Technical details' reveals the raw text. stack_share_failure_text_test.dart pins the four unwrap/mapping cases.",
+      "test": "stack_result_screen_test.dart 'a bridge failure is shown as its sentence, with the raw union behind technical details' pumps the real dialog with the exact string from the audit and asserts no 'SkotiqError.imageError' / no 'field0' is rendered, that the payload sentence and the next step ARE, and that tapping 'Technical details' reveals the raw text. stack_share_failure_text_test.dart pins the four unwrap/mapping cases.",
       "revert_check": "Replaced the formatted body with `final body = raw;` (the old behaviour) in _buildError -> the widget test fails with 'Expected: no matching candidates / Actual: Found 1 widget with text containing' for the raw union. Restored -> 10/10 in stack_result_screen_test.dart and 4/4 in stack_share_failure_text_test.dart pass.",
-      "caveats": "The verifier's location correction is right that the raw stringification originates at nightshade_core stack_and_share_provider.dart:234 (`errorMessage: e.toString()`). I fixed it at the render layer on purpose: it is inside my ownership, it covers every producer that feeds this dialog, and keeping the raw string in state is what makes the technical-details disclosure possible."
+      "caveats": "The verifier's location correction is right that the raw stringification originates at skotiq_core stack_and_share_provider.dart:234 (`errorMessage: e.toString()`). I fixed it at the render layer on purpose: it is inside my ownership, it covers every producer that feeds this dialog, and keeping the raw string in state is what makes the technical-details disclosure possible."
     },
     {
-      "title": "Science CSV exports never ask where to save and write to a hard-coded ~/Documents/Nightshade/exports, ignoring the app's configured data directory",
+      "title": "Science CSV exports never ask where to save and write to a hard-coded ~/Documents/Skotiq/exports, ignoring the app's configured data directory",
       "outcome": "fixed",
-      "summary": "scienceExportDirectoryProvider resolved getApplicationDocumentsDirectory()/Nightshade/exports and _exportData wrote there with no picker in the path. Two changes: (1) the provider now anchors on the database the install is actually using (resolveDefaultDatabaseFile().parent + '/exports'), so an install pinned with NIGHTSHADE_DATABASE_DIR suggests a folder next to its own data instead of an unrelated ~/Documents tree shared with every other instance on the machine; (2) added scienceExportSavePickerProvider (default: chooseExportTarget, exactly what the stack-result exports use -- native save dialog on desktop, sandbox path + share sheet on a phone) and routed the CSV write through it, with the resolved directory as initialDirectory. Cancelling now reports 'Export cancelled.' and writes nothing.",
+      "summary": "scienceExportDirectoryProvider resolved getApplicationDocumentsDirectory()/Skotiq/exports and _exportData wrote there with no picker in the path. Two changes: (1) the provider now anchors on the database the install is actually using (resolveDefaultDatabaseFile().parent + '/exports'), so an install pinned with SKOTIQ_DATABASE_DIR suggests a folder next to its own data instead of an unrelated ~/Documents tree shared with every other instance on the machine; (2) added scienceExportSavePickerProvider (default: chooseExportTarget, exactly what the stack-result exports use -- native save dialog on desktop, sandbox path + share sheet on a phone) and routed the CSV write through it, with the resolved directory as initialDirectory. Cancelling now reports 'Export cancelled.' and writes nothing.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/analytics/widgets/science_export_hub.dart",
-        "packages/nightshade_app/test/screens/analytics/widgets/science_export_hub_save_location_test.dart (new)",
-        "packages/nightshade_app/test/screens/analytics/widgets/science_export_hub_truth_test.dart",
-        "packages/nightshade_app/test/screens/analytics/widgets/science_export_hub_session_state_test.dart"
+        "packages/skotiq_app/lib/screens/analytics/widgets/science_export_hub.dart",
+        "packages/skotiq_app/test/screens/analytics/widgets/science_export_hub_save_location_test.dart (new)",
+        "packages/skotiq_app/test/screens/analytics/widgets/science_export_hub_truth_test.dart",
+        "packages/skotiq_app/test/screens/analytics/widgets/science_export_hub_session_state_test.dart"
       ],
       "test": "science_export_hub_save_location_test.dart -- taps the real photometry CSV button in the real hub and asserts the picker was ASKED (suggested name, initialDirectory == the resolved export dir, csv extension) and that the bytes went to the path it answered; a second case asserts a cancelled dialog writes nothing and says 'Export cancelled.'",
       "revert_check": "Replaced the picker call with the old `final filePath = path.join(directory.path, fileName);` -> both cases fail ('Expected: a string starting with photometry_ / Actual: <null>' and 'Expected: <0> / Actual: <1>' writes). Restored -> all 105 tests in test/screens/analytics/widgets/ pass.",
-      "caveats": "The file lives under screens/analytics/widgets/ rather than screens/science/, but it is the science hub and no other agent's finding list touches it. The observation-report PDF path in the same hub inherits the new directory anchor; its LOCAL branch still writes through ObservationReportService._getExportDirectory (lib/services/), which has the same hard-coded ~/Documents/Nightshade/exports shape and is outside this ownership -- flagged for whoever owns lib/services."
+      "caveats": "The file lives under screens/analytics/widgets/ rather than screens/science/, but it is the science hub and no other agent's finding list touches it. The observation-report PDF path in the same hub inherits the new directory anchor; its LOCAL branch still writes through ObservationReportService._getExportDirectory (lib/services/), which has the same hard-coded ~/Documents/Skotiq/exports shape and is outside this ownership -- flagged for whoever owns lib/services."
     },
     {
       "title": "The stack result's 'Avg HFR' statistic never renders because the service hard-codes avgHfr: null, even though every selected sub carries an HFR",
       "outcome": "fixed",
       "summary": "The run now tracks WHICH frames the engine integrated (reference plus every follower whose add advanced the stacked count) and averages those frames' measured captured_images.hfr into the persisted result. Frames the stacker refused are excluded, so a trailed sub cannot drag a number it never contributed to; frames with no measured HFR are skipped rather than counted as zero, and when none has one the column stays NULL and the viewer's row correctly stays hidden. Replaced the standing justification comment ('the live-stacking engine does not measure HFR ... a later analysis pass may populate it') -- the engine does not have to: the capture pipeline already measured every sub.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/services/stack_and_share_service.dart",
-        "packages/nightshade_core/test/services/stack_and_share_service_test.dart"
+        "packages/skotiq_core/lib/src/services/stack_and_share_service.dart",
+        "packages/skotiq_core/test/services/stack_and_share_service_test.dart"
       ],
       "test": "stack_and_share_service_test.dart 'avgHfr is the mean HFR of the frames the engine integrated, not of every selected frame' -- seeds four captured_images rows (2.0 / 2.4 / 8.75 / 2.2), scripts the engine to refuse the 8.75 sub, and asserts both the returned and the PERSISTED avgHfr equal (2.0+2.4+2.2)/3. The 8.75 outlier is chosen so an 'average everything selected' implementation reads 3.05 and fails.",
       "revert_check": "Restored `avgHfr: null` at the StackAndShareResult construction -> test fails 'Expected: not null / Actual: <null>'. Restored the fix -> 22/22 in stack_and_share_service_test.dart pass.",
-      "caveats": "stack_and_share_service.dart is in nightshade_core, outside the stated ownership list, but it is the sole producer of the column the owned screen renders and no concurrent finding list claims it. The UI at stack_result_screen.dart:522 was already correct and is unchanged."
+      "caveats": "stack_and_share_service.dart is in skotiq_core, outside the stated ownership list, but it is the sole producer of the column the owned screen renders and no concurrent finding list claims it. The UI at stack_result_screen.dart:522 was already correct and is unchanged."
     },
     {
       "title": "The standalone /science route can never build ScienceScreen -- its redirect always fires, so the screen class and its Scaffold are unreachable code",
       "outcome": "fixed",
       "summary": "Removed the unreachable pageBuilder from the '/science' GoRoute (its redirect returns non-null unconditionally, so go_router short-circuits before any builder), deleted ScienceScreen and the now-unused router import, and corrected the two doc comments in science_screen.dart that described a standalone screen the app cannot show. ScienceWorkspaceView -- mounted by Analytics -> Science -- is now the single implementation, as the verifier proposed.",
       "files_changed": [
-        "packages/nightshade_app/lib/router/app_router.dart",
-        "packages/nightshade_app/lib/screens/science/science_screen.dart",
-        "packages/nightshade_app/test/router/science_route_redirect_only_test.dart (new)"
+        "packages/skotiq_app/lib/router/app_router.dart",
+        "packages/skotiq_app/lib/screens/science/science_screen.dart",
+        "packages/skotiq_app/test/router/science_route_redirect_only_test.dart (new)"
       ],
-      "test": "packages/nightshade_app/test/router/science_route_redirect_only_test.dart -- reads the REAL appRouterProvider, walks the route tree to '/science' and asserts redirect != null while builder and pageBuilder are both null.",
+      "test": "packages/skotiq_app/test/router/science_route_redirect_only_test.dart -- reads the REAL appRouterProvider, walks the route tree to '/science' and asserts redirect != null while builder and pageBuilder are both null.",
       "revert_check": "Re-added a pageBuilder to the /science route -> test fails 'Expected: null / Actual: <Closure: (BuildContext, GoRouterState) => CustomTransitionPage<dynamic>>' with the reason '/science always redirects; a pageBuilder could never run'. Removed again -> passes.",
       "caveats": "SAME TRAP ON FIVE MORE ROUTES, all outside this ownership and left for their owners: /planetarium (redirect via planetariumRedirectLocation, which returns a non-null String on every input), /framing, /transients, /your-sky and /constellation each pair an unconditional redirect with a pageBuilder constructing PlanetariumScreen / FramingScreen / TransientsScreen / YourSkyScreen / ConstellationScreen. Those five screen classes ship and can never appear. app_router.dart:459 (/collaborative-sky) already has the correct redirect-only shape and a comment saying exactly why. Also: ScienceWorkspaceView.showHeader now has no caller passing true (Analytics passes false); removing it means editing analytics_screen.dart, which a concurrent agent owns this wave, so the parameter stays and its doc no longer claims a /science-route caller."
     }

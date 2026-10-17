@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/sequencer_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/sequencer_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -22,7 +22,7 @@ import 'handler_test_helpers.dart';
 /// `POST /api/sequencer/update-default-quality-check` on the SAME live process
 /// rejected every frame on the next run. The thresholds worked; nothing sent
 /// them.
-class _MockHostBackend extends Mock implements NightshadeBackend {
+class _MockHostBackend extends Mock implements SkotiqBackend {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       super.noSuchMethod(invocation) ?? Future<void>.value();
@@ -31,7 +31,7 @@ class _MockHostBackend extends Mock implements NightshadeBackend {
 class _MockDeviceBackend extends Mock implements DeviceBackend {}
 
 class _TestBackendNotifier extends BackendNotifier {
-  _TestBackendNotifier(super.ref, NightshadeBackend backend) {
+  _TestBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
   }
 }

@@ -5,10 +5,10 @@
   "corrected_severity": null,
   "kind": "ux",
   "unit": "screen:tutorial/first_night_wizard.dart",
-  "what_happened": "Finishing the 13-step onboarding wizard and choosing 'Take the first-night walkthrough' opens a 7-step modal wizard. Its 'Show me on the Sequencer screen' deep-link navigates correctly, but on arrival two more tutorials appear simultaneously: a coach-mark tour 'Step 1 of 7 - Welcome to Nightshade / Nightshade is your imaging assistant. Three things to set up first: equipment, a profile, and a sequence.' plus a bottom-right toast 'Sequencer Tour - Learn how to create and run automated imaging sequences. [Maybe Later] [Start Tour]'. The coach-mark tour's copy tells the user to set up equipment and a profile, which the 13-step wizard they just completed already did. Every screen then has its own persistent tour toast (Dashboard Tour, Equipment Tour, Imaging Tour, Settings Tour, Analytics Tour) that stays until individually dismissed and occludes the bottom-right of the content area.",
+  "what_happened": "Finishing the 13-step onboarding wizard and choosing 'Take the first-night walkthrough' opens a 7-step modal wizard. Its 'Show me on the Sequencer screen' deep-link navigates correctly, but on arrival two more tutorials appear simultaneously: a coach-mark tour 'Step 1 of 7 - Welcome to Skotiq / Skotiq is your imaging assistant. Three things to set up first: equipment, a profile, and a sequence.' plus a bottom-right toast 'Sequencer Tour - Learn how to create and run automated imaging sequences. [Maybe Later] [Start Tour]'. The coach-mark tour's copy tells the user to set up equipment and a profile, which the 13-step wizard they just completed already did. Every screen then has its own persistent tour toast (Dashboard Tour, Equipment Tour, Imaging Tour, Settings Tour, Analytics Tour) that stays until individually dismissed and occludes the bottom-right of the content area.",
   "expected": "One onboarding path at a time. The coach-mark tour should either not fire when a profile already exists, or be reworded to reflect completed state. Per-screen tour toasts should be suppressed while any other guided flow is active, and should be dismissible once globally.",
   "repro": "1. Fresh profile, complete onboarding, click 'Take the first-night walkthrough'. 2. Advance to step 7, click 'Show me on the Sequencer screen'. 3. Observe the Welcome coach-mark tour and the Sequencer Tour toast both appear.",
-  "where": "packages/nightshade_app/lib/screens/tutorial/first_night_wizard.dart + the per-screen tour toast host",
+  "where": "packages/skotiq_app/lib/screens/tutorial/first_night_wizard.dart + the per-screen tour toast host",
   "location_wrong": null,
   "proposed_fix": "Introduce a single 'guided flow active' flag; suppress the coach-mark tour and all per-screen toasts while a wizard is open, and skip the 'set up equipment and a profile' steps when a profile already exists.",
   "verdict_reasoning": null
@@ -22,7 +22,7 @@
   "what_happened": "On the guider step I ran 'Test' against PHD2 with nothing listening; it correctly reported 'No response on localhost:4400...' and I selected no native guider. Pressing Next still put a filled blue tick next to 'Guider' in the left step list, identical to the ticks on Camera and Mount which really were configured. The Review screen is honest ('Guider - not set -'), so only the step list is misleading. Step 1's 'Back' button is also rendered enabled and is a silent no-op.",
   "expected": "Tick a step only when it produced a value; show visited-but-skipped steps in a distinct state. Disable Back on step 1.",
   "repro": "1. Onboarding step 7, click 'Test' (fails), select nothing, click Next. 2. Sidebar shows 'Guider' with a filled tick. 3. Continue to step 12 -- Review says 'Guider - not set -'.",
-  "where": "packages/nightshade_app/lib/screens/onboarding/onboarding_screen.dart (step completion model)",
+  "where": "packages/skotiq_app/lib/screens/onboarding/onboarding_screen.dart (step completion model)",
   "location_wrong": null,
   "proposed_fix": "Track per-step 'has value' separately from 'visited' and render skipped optional steps with a dash rather than a tick.",
   "verdict_reasoning": null
@@ -36,7 +36,7 @@
   "what_happened": "Clicking a non-active profile in the sidebar only highlights it -- the header, the connected devices and the status bar all stay on the previous profile, and the sidebar's footer collapses to just 'Edit Profile'. There is no 'Activate' / 'Use this profile' control anywhere. The only way I found to switch was right-click > 'Set as Default', which does switch is_active but also permanently changes what loads at startup. Profile management (Set as Default, Edit Profile, Duplicate, Delete) is entirely behind right-click; the profile card carries no overflow button or any other affordance advertising that a menu exists.",
   "expected": "A visible primary action to switch the active profile for this session, kept separate from 'set as startup default', plus a visible '...' overflow on each profile card exposing the same menu that right-click does.",
   "repro": "1. Create two profiles. 2. Click the non-active one in the sidebar -- header and devices do not change; footer shows only 'Edit Profile'. 3. Right-click it -> the only way to make it active is 'Set as Default'.",
-  "where": "packages/nightshade_app/lib/screens/equipment/profile_sidebar.dart",
+  "where": "packages/skotiq_app/lib/screens/equipment/profile_sidebar.dart",
   "location_wrong": null,
   "proposed_fix": "Add an 'Activate' button to the selected profile card and a '...' overflow menu; keep the star strictly for 'launch with this profile'.",
   "verdict_reasoning": null
@@ -50,7 +50,7 @@
   "what_happened": "Onboarding step 8 has a 'Camera pixel size' field whose placeholder is literally 'Look this up in your camera spec sheet', even though a camera was already chosen in step 3 and the driver reports pixel size. Step 9 then makes the user pick their camera a second time from a separate 'Camera library' to seed gain/offset. The rest of this step is excellent -- the telescope library is well stocked, and the computed values are exactly right (550 mm x 0.80 = 440.0 mm, f/4.40, 206.265 x 3.76 / 440 = 1.76 arcsec/px, all verified against the displayed numbers).",
   "expected": "Prefill pixel size from the selected camera (with an override), and reuse the step-3 camera identity to seed the step-9 defaults instead of asking the user to identify their camera twice.",
   "repro": "1. Onboarding step 3: pick the camera. 2. Step 8: 'Camera pixel size' is empty with the spec-sheet placeholder. 3. Step 9: 'Choose from camera library' asks for the camera again.",
-  "where": "packages/nightshade_app/lib/screens/onboarding/optical_train_step.dart",
+  "where": "packages/skotiq_app/lib/screens/onboarding/optical_train_step.dart",
   "location_wrong": null,
   "proposed_fix": "Query the chosen camera driver (or the camera-library preset) for pixel size and prefill it, keeping the field editable.",
   "verdict_reasoning": null
@@ -61,12 +61,12 @@
   "corrected_severity": null,
   "kind": "ux",
   "unit": "screen:onboarding/onboarding_screen.dart",
-  "what_happened": "Step 10 shows 'No folder selected yet' with a single 'Browse' button that opens the native GTK chooser. There is no suggested default (~/Pictures/Nightshade or similar) and no text field to type or paste a path -- which matters on a headless/appliance install driven over VNC or a small screen. Once chosen it does verify writability ('Folder is writable.'), which is genuinely good, and Next is correctly blocked with 'Pick a capture folder.' until one is set.",
+  "what_happened": "Step 10 shows 'No folder selected yet' with a single 'Browse' button that opens the native GTK chooser. There is no suggested default (~/Pictures/Skotiq or similar) and no text field to type or paste a path -- which matters on a headless/appliance install driven over VNC or a small screen. Once chosen it does verify writability ('Folder is writable.'), which is genuinely good, and Next is correctly blocked with 'Pick a capture folder.' until one is set.",
   "expected": "Prefill a sensible per-platform default that the user can accept with one click, and accept a typed/pasted path alongside Browse.",
   "repro": "1. Onboarding step 10. 2. Only 'Browse' is offered; Next is blocked until a folder is chosen.",
-  "where": "packages/nightshade_app/lib/screens/onboarding/onboarding_screen.dart (capture folder step)",
+  "where": "packages/skotiq_app/lib/screens/onboarding/onboarding_screen.dart (capture folder step)",
   "location_wrong": null,
-  "proposed_fix": "Default to a platform pictures/Nightshade path, create it on accept, and add an editable path field.",
+  "proposed_fix": "Default to a platform pictures/Skotiq path, create it on accept, and add an editable path field.",
   "verdict_reasoning": null
  },
  {
@@ -78,7 +78,7 @@
   "what_happened": "The gear at the top-right of the Equipment screen opens 'Equipment Settings', whose dialog title bar and first content heading both read 'Equipment Settings'. Camera Settings (gain/offset), Mount Settings (meridian flip, flip offset) and Focuser Settings (temp comp, coefficient, backlash) have no Apply and appear to save on edit, while the Built-in Guider block at the bottom has its own Reset/Apply pair plus a 'Last applied: exp 1.0s, gain 100, bin 1, cal 250ms' line. There is nothing telling the user which sections need Apply. The dialog is also short relative to the window, so the two-column masonry content scrolls in a cramped viewport with the right column running far past the left.",
   "expected": "One save model per dialog. If the guider genuinely needs an explicit apply (it pushes to a running guider), say so on the section; otherwise make everything consistent.",
   "repro": "1. Equipment > gear (top right). 2. Note the duplicated 'Equipment Settings' heading. 3. Scroll: only Built-in Guider has Reset/Apply.",
-  "where": "packages/nightshade_app/lib/screens/equipment/settings_tab.dart / dialogs_and_settings.dart",
+  "where": "packages/skotiq_app/lib/screens/equipment/settings_tab.dart / dialogs_and_settings.dart",
   "location_wrong": null,
   "proposed_fix": "Drop the duplicated in-content heading, and either give every section an explicit Apply or annotate the guider section with why it alone needs one.",
   "verdict_reasoning": null
@@ -92,7 +92,7 @@
   "what_happened": "Onboarding step 2 presents Native, Alpaca and INDI as pre-checked scan backends (only Sim is off). Settings > Equipment > Connection then shows 'Query INDI on startup' and 'Query Alpaca on startup' both defaulting to OFF, with an INDI server address of localhost:7624. So a Linux user who accepts the wizard's defaults gets INDI listed as a backend but never actually queried at startup, and the two surfaces disagree about whether INDI is in play.",
   "expected": "The wizard's backend selection should drive these toggles, or the toggles should default on when a server address is configured. At minimum the two screens should not contradict each other.",
   "repro": "1. Onboarding step 2: INDI and Alpaca are checked by default. 2. Finish onboarding. 3. Settings > Equipment > Connection: 'Query INDI on startup' and 'Query Alpaca on startup' are both off.",
-  "where": "packages/nightshade_app/lib/screens/settings/connection_settings.dart + onboarding drivers step",
+  "where": "packages/skotiq_app/lib/screens/settings/connection_settings.dart + onboarding drivers step",
   "location_wrong": null,
   "proposed_fix": "Persist the wizard's backend choices into the startup-query toggles.",
   "verdict_reasoning": null
@@ -106,7 +106,7 @@
   "what_happened": "For the two device classes with no simulator, the expanded Discovery panel ends with two bare italic lines, 'No cover / calibrators found' and 'No switches found', each with a refresh icon -- while every other class gets a titled section with a '1 found' count. There is no indication of which backends were searched, whether an error occurred, or how to add one manually (e.g. an Alpaca or INDI address). The app log does record 'Discovery complete for Switch: 0 devices, 0 backend errors', so the information exists.",
   "expected": "Match the other sections: 'SWITCHES - 0 found', with a subtitle naming the backends scanned and a hint such as 'Switches are usually reached over Alpaca or INDI - configure a server in Settings > Connection.'",
   "repro": "1. Equipment > Discovery > Expand. 2. Scroll to the bottom of the device list.",
-  "where": "packages/nightshade_app/lib/screens/equipment/discovery_panel.dart (empty-class rows)",
+  "where": "packages/skotiq_app/lib/screens/equipment/discovery_panel.dart (empty-class rows)",
   "location_wrong": null,
   "proposed_fix": "Render zero-result classes with the same section chrome and a one-line reason plus a route to configure a remote server.",
   "verdict_reasoning": null

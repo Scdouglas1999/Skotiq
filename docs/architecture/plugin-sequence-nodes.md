@@ -4,7 +4,7 @@ Status: v2 — Rust executor dispatch live. Plugin nodes
 now run inside the same execution graph as native instructions
 (checkpointing, recovery, parallel branches all apply).
 
-This document explains how the Nightshade plugin system exposes
+This document explains how the Skotiq plugin system exposes
 **sequence nodes** — user-authored automation steps that show up in the
 sequence editor's palette and run as part of an imaging sequence.
 
@@ -15,13 +15,13 @@ It covers:
 3. The execution path — what calls into a plugin node, and what guarantees
    the host provides.
 4. The three reference plugins shipped under
-   `packages/nightshade_plugins/lib/examples/`.
+   `packages/skotiq_plugins/lib/examples/`.
 5. Known limitations and the planned v2 (native executor dispatch).
 
 ## 1. Author contract
 
 A plugin that adds sequence nodes extends `SequencePlugin`
-(`packages/nightshade_plugins/lib/src/plugin_api.dart`):
+(`packages/skotiq_plugins/lib/src/plugin_api.dart`):
 
 ```dart
 class MyPlugin extends SequencePlugin {
@@ -96,7 +96,7 @@ Key contract points:
 
 ## 2. Host wiring
 
-`PluginHost` (`packages/nightshade_plugins/lib/src/plugin_host.dart`)
+`PluginHost` (`packages/skotiq_plugins/lib/src/plugin_host.dart`)
 maintains a `PluginNodeRegistry`. Lifecycle wiring:
 
 | Host call                         | Registry effect                              |
@@ -161,14 +161,14 @@ PluginNodeInstruction::execute (sequencer/src/node/instructions/plugin_node.rs)
    │
    ▼  Rust→Dart event stream (broadcast channel → bridge → FRB)
    │
-SequenceExecutor._handleSequencerEvent (nightshade_core)
+SequenceExecutor._handleSequencerEvent (skotiq_core)
    │   sees 'PluginNodeRequested'
    ▼
 SequenceExecutor._dispatchPluginNode
-   ├── Read pluginNodeDispatcherProvider (nightshade_core)
+   ├── Read pluginNodeDispatcherProvider (skotiq_core)
    │   (overridden in app entry to back-to PluginNodeExecutor)
    ▼
-PluginNodeExecutor.run (nightshade_plugins)
+PluginNodeExecutor.run (skotiq_plugins)
    ├── registry.findDefinition()        → SequenceNodeDefinition
    ├── host.contextFor(pluginId)        → PluginContext
    ├── definition.createNode(params)    → PluginSequenceNode
@@ -210,10 +210,10 @@ structured_detail) emitted; executor advances to the next node
 | Bridge | `bridge/src/event.rs::SequencerEvent::PluginNodeRequested` | Typed FRB event |
 | Bridge | `bridge/src/event.rs::SequencerEvent::PluginNodeProgress` | Typed FRB event |
 | Bridge | `bridge/src/api/sequencer.rs::api_sequencer_plugin_node_finished` | Reply FRB API |
-| Dart | `nightshade_core/lib/src/providers/plugin_node_dispatcher.dart` | Dispatcher abstraction + provider |
-| Dart | `nightshade_core/lib/src/providers/sequence/sequence_executor.dart::_dispatchPluginNode` | Event → dispatcher → reply |
-| Dart | `nightshade_plugins/lib/src/plugin_node_executor.dart` | Concrete dispatcher implementation |
-| Dart | `nightshade_app/lib/services/plugin_node_dispatcher_wiring.dart` | Riverpod override that plugs `PluginNodeExecutor` into the dispatcher provider |
+| Dart | `skotiq_core/lib/src/providers/plugin_node_dispatcher.dart` | Dispatcher abstraction + provider |
+| Dart | `skotiq_core/lib/src/providers/sequence/sequence_executor.dart::_dispatchPluginNode` | Event → dispatcher → reply |
+| Dart | `skotiq_plugins/lib/src/plugin_node_executor.dart` | Concrete dispatcher implementation |
+| Dart | `skotiq_app/lib/services/plugin_node_dispatcher_wiring.dart` | Riverpod override that plugs `PluginNodeExecutor` into the dispatcher provider |
 
 ### Timeouts
 
@@ -256,7 +256,7 @@ passed to `onLoad`:
 * `context.logger` — writes to the application log (and, in debug
   builds, the console via `dart:developer`).
 * `context.storage` — file-backed key/value storage at
-  `<appDataDir>/nightshade_plugins/storage/<pluginId>.json`. Survives
+  `<appDataDir>/skotiq_plugins/storage/<pluginId>.json`. Survives
   restarts.
 * `context.eventBus` — sandboxed pub/sub. Plugins MAY emit events with
   any name. `onAny()` is blocked by default to prevent cross-plugin
@@ -274,8 +274,8 @@ passed to `onLoad`:
 ## 4. Reference plugins
 
 Three example plugins ship under
-`packages/nightshade_plugins/lib/examples/` and are exported from the
-package's barrel file (`nightshade_plugins.dart`). Each is < 300 lines
+`packages/skotiq_plugins/lib/examples/` and are exported from the
+package's barrel file (`skotiq_plugins.dart`). Each is < 300 lines
 and demonstrates a different authoring pattern.
 
 ### 4.1 `pushover_notification_plugin.dart`
@@ -322,7 +322,7 @@ scene to dim room lights to red.
   loaded at runtime on desktop without an isolate-based interpreter,
   which is out of scope. The "drop a `.dart` file into ~/Plugins/"
   UX described in the strategic report is **not** achievable today;
-  bundling plugins as compile-time exports of `nightshade_plugins`
+  bundling plugins as compile-time exports of `skotiq_plugins`
   is.
 * Plugin node execution happens **between** Rust sequencer steps,
   driven by the Dart-side `SequenceExecutor`. Latency is dominated by
@@ -345,16 +345,16 @@ scene to dim room lights to red.
   `<appDataDir>/Plugins/` for `.dart` files and load them.
 * **Runtime installation**: uploaded Dart source cannot be loaded by the AOT
   desktop/headless process. `/api/plugins/upload` therefore reports 501; a
-  plugin must be included in a Nightshade build to become executable.
+  plugin must be included in a Skotiq build to become executable.
 
 ## 6. Self-audit
 
 The v1 plugin-nodes wiring was verified by:
 
-* `flutter test packages/nightshade_plugins` — 45/45 pass, including
+* `flutter test packages/skotiq_plugins` — 45/45 pass, including
   17 pre-existing tests and 28 new tests covering registry behavior,
   executor failure paths, and each reference plugin's HTTP shape.
-* `flutter analyze packages/nightshade_plugins` — no errors or warnings
+* `flutter analyze packages/skotiq_plugins` — no errors or warnings
   introduced; 3 pre-existing info-level issues remain (`unnecessary_library_name`,
   `dangling_library_doc_comments` in `plugin_api.dart`,
   `unawaited_futures` in `plugin_host.dart`'s lifecycle runner).
@@ -376,7 +376,7 @@ The v2 (Rust dispatch) layer was verified by:
   → `plugin_node_finished` reply → Success node status flow).
 * `cargo clippy --workspace --tests --all-features -- -D warnings`
   clean.
-* `flutter test packages/nightshade_core/test/providers/sequence/` —
+* `flutter test packages/skotiq_core/test/providers/sequence/` —
   254 pass including:
   * `sequence_executor_frame_accepted_save_path_test.dart` — proves
     the accepted-frame save_path lands as `file_path` on the
@@ -384,16 +384,16 @@ The v2 (Rust dispatch) layer was verified by:
   * `sequence_executor_plugin_dispatch_test.dart` — proves the typed
     `PluginNodeRequested` event routes through the dispatcher provider
     and posts the verdict via `backend.sequencerPluginNodeFinished`.
-* `flutter test packages/nightshade_app/test/services/plugin_node_dispatcher_wiring_test.dart`
+* `flutter test packages/skotiq_app/test/services/plugin_node_dispatcher_wiring_test.dart`
   — proves `pluginNodeDispatcherOverride()` plugs `PluginNodeExecutor`
   into the dispatcher provider end-to-end: a registered test plugin
   receives the parsed `config_json` params, runs `execute()`, and the
   verdict flows back as a `PluginNodeDispatchResult`.
-* `flutter test packages/nightshade_plugins` — still 45/45 pass.
+* `flutter test packages/skotiq_plugins` — still 45/45 pass.
 * FRB regen produced typed bindings:
   * `apiSequencerPluginNodeFinished` (in
-    `packages/nightshade_bridge/lib/src/api/sequencer.dart`)
+    `packages/skotiq_bridge/lib/src/api/sequencer.dart`)
   * `SequencerEvent.pluginNodeRequested` and
     `SequencerEvent.pluginNodeProgress` (in
-    `packages/nightshade_bridge/lib/src/event.dart`)
+    `packages/skotiq_bridge/lib/src/event.dart`)
   * `SequencerEvent.frameAccepted` now carries `savePath`.

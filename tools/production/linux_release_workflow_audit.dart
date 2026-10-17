@@ -28,7 +28,7 @@ const _requiredWorkflowText = [
   '--output-dir=build/release-linux',
   '--metadata-output=docs/production-readiness/linux-release-package-metadata.json',
   'actions/upload-artifact@v7',
-  'NIGHTSHADE-LICENSE.txt',
+  'SKOTIQ-LICENSE.txt',
   'THIRD_PARTY_NOTICES.md',
   'LGPL-2.1.txt',
   'SOURCE-COMMIT.txt',

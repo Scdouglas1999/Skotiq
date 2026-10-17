@@ -1,14 +1,14 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
-project(nightshade_desktop LANGUAGES CXX)
+project(skotiq_desktop LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "nightshade_desktop")
+set(BINARY_NAME "skotiq_desktop")
 
 # Rust library discovery (shared with runner and install)
-set(RUST_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../native/nightshade_native/target/release")
-set(RUST_LIB_NAME "nightshade_bridge.dll")
+set(RUST_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../native/skotiq_native/target/release")
+set(RUST_LIB_NAME "skotiq_bridge.dll")
 set(RUST_LIB_PATH "${RUST_LIB_DIR}/${RUST_LIB_NAME}")
 set(RUST_FALLBACK_PATH_1 "${CMAKE_CURRENT_SOURCE_DIR}/../${RUST_LIB_NAME}")
 set(RUST_FALLBACK_PATH_2 "${CMAKE_CURRENT_SOURCE_DIR}/${RUST_LIB_NAME}")
@@ -118,7 +118,7 @@ if(DEFINED RUST_LIB_TO_USE)
     COMPONENT Runtime)
   message(STATUS "Installing Rust library: ${RUST_LIB_NAME}")
 else()
-  message(WARNING "Rust library not found at ${RUST_LIB_PATH} or fallback paths. Build it first with: cd native/nightshade_native && cargo build --release")
+  message(WARNING "Rust library not found at ${RUST_LIB_PATH} or fallback paths. Build it first with: cd native/skotiq_native && cargo build --release")
 endif()
 
 # Fully re-copy the assets directory on each build to avoid having stale files

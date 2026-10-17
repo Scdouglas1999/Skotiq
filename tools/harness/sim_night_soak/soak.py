@@ -32,8 +32,8 @@ import invariants  # noqa: E402
 from scenarios import SCENARIOS  # noqa: E402
 
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
-DEFAULT_BUNDLE = os.path.join(REPO, "apps/desktop/build/linux/x64/release/bundle/nightshade_desktop")
-DEFAULT_ASTAP = os.path.expanduser("~/.local/share/nightshade-audit/astap/bin")
+DEFAULT_BUNDLE = os.path.join(REPO, "apps/desktop/build/linux/x64/release/bundle/skotiq_desktop")
+DEFAULT_ASTAP = os.path.expanduser("~/.local/share/skotiq-audit/astap/bin")
 TOKEN = "soak-secret-token"
 TERMINAL = {"completed", "failed", "cancelled", "stopped", "error"}
 
@@ -88,12 +88,12 @@ class Soak:
     def launch(self, extra_env=None):
         env = dict(os.environ)
         env.update({
-            "NIGHTSHADE_DATABASE_DIR": self.db_dir,
-            "NIGHTSHADE_DATA_DIR": self.data_dir,
+            "SKOTIQ_DATABASE_DIR": self.db_dir,
+            "SKOTIQ_DATA_DIR": self.data_dir,
             "TMPDIR": self.tmp_dir,
             "LIBGL_ALWAYS_SOFTWARE": "1",
         })
-        env.pop("NIGHTSHADE_SIM_FAULTS", None)
+        env.pop("SKOTIQ_SIM_FAULTS", None)
         env.update(extra_env or {})
         log = open(os.path.join(self.root, "app.log"), "ab")
         self.app = subprocess.Popen(
@@ -141,7 +141,7 @@ class Soak:
         self.note("phd2_up", pid=self.phd2.pid, faults=faults)
 
     def db(self):
-        conn = sqlite3.connect(os.path.join(self.db_dir, "nightshade.db"), timeout=15)
+        conn = sqlite3.connect(os.path.join(self.db_dir, "skotiq.db"), timeout=15)
         conn.row_factory = sqlite3.Row
         return conn
 
@@ -264,9 +264,9 @@ class Soak:
         self.stop_app()
         self.seed_settings()
         self.start_phd2()
-        env = {"NIGHTSHADE_SIM_NIGHT_COOLING_C_PER_HOUR": str(self.sc.get("cooling", 4.0))}
+        env = {"SKOTIQ_SIM_NIGHT_COOLING_C_PER_HOUR": str(self.sc.get("cooling", 4.0))}
         if self.sc.get("sim_faults"):
-            env["NIGHTSHADE_SIM_FAULTS"] = self.sc["sim_faults"]
+            env["SKOTIQ_SIM_FAULTS"] = self.sc["sim_faults"]
         env.update(self.sc.get("env", {}))
         self.launch(env)
         sampler = threading.Thread(target=self.sampler, daemon=True)
@@ -445,7 +445,7 @@ def sample_process(pid, db_dir, data_dir, tmp_dir, out_dir, root):
         fds = float(len(os.listdir(f"/proc/{pid}/fd")))
     except OSError:
         fds = -1.0
-    db = os.path.join(db_dir, "nightshade.db")
+    db = os.path.join(db_dir, "skotiq.db")
     size = lambda p: os.path.getsize(p) / (1 << 20) if os.path.exists(p) else 0.0  # noqa: E731
     logs = dir_mb(os.path.join(data_dir, "logs")) + size(os.path.join(root, "app.log"))
     return {"rss_mb": rss_kb / 1024.0, "swap_mb": swap_kb / 1024.0,

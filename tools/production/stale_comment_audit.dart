@@ -94,7 +94,7 @@ final List<StaleRule> _rules = [
 /// Each entry suppresses a known-good comment so the audit stays signal-only.
 const Set<String> _whitelistKeys = {
   // S3SyncTarget really is unimplemented on purpose (SigV4 not hand-rolled).
-  'packages/nightshade_core/lib/src/services/sync/sync_target.dart::S3',
+  'packages/skotiq_core/lib/src/services/sync/sync_target.dart::S3',
   // OTA routes really are conditionally registered only when a controller
   // is wired; the "NOT registered here" comment is accurate.
   'apps/desktop/lib/headless_api/routes/update_routes.dart::update',

@@ -11,7 +11,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_release_docs_audit_self_test_',
+    'skotiq_release_docs_audit_self_test_',
   );
   try {
     await _writeCompleteFixture(temp);
@@ -73,7 +73,7 @@ Future<ProcessResult> _run(
 
 Future<void> _writeCompleteFixture(Directory root) async {
   await _writeDoc(root, 'docs/release-notes-template.md', '''
-# Nightshade Release Notes Template
+# Skotiq Release Notes Template
 ## Release
 ## Supported Platforms
 docs/supported-hardware-by-platform.md

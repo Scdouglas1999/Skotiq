@@ -21,7 +21,7 @@ void _check(String what, bool ok, [String? detail]) {
 void main() {
   final root = _repoRoot();
   final generated = File(
-    '$root/packages/nightshade_app/lib/screens/settings/settings_search_index.g.dart',
+    '$root/packages/skotiq_app/lib/screens/settings/settings_search_index.g.dart',
   );
 
   stdout.writeln('settings_search_index_gen self-test');

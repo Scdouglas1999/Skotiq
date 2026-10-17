@@ -39,13 +39,13 @@ const String requestIdContextKey = 'requestId';
 /// We never propagate the raw token through the request context — only
 /// the digest — so a misbehaving handler that dumps `request.context`
 /// for diagnostics cannot accidentally leak the secret to a log file.
-const String authIdentityContextKey = 'nightshade.authIdentity';
+const String authIdentityContextKey = 'skotiq.authIdentity';
 
 /// Shelf request-context key holding the bound
 /// [route_metadata.TokenRouteClass] for the current request. Memoised by
 /// the auth middleware so the rate-limit middleware doesn't have to
 /// re-classify the path.
-const String authRouteClassContextKey = 'nightshade.authRouteClass';
+const String authRouteClassContextKey = 'skotiq.authRouteClass';
 
 /// Extract the per-request id off [request]. Returns the literal string
 /// `unknown` when the request-tracking middleware did not run (e.g. unit

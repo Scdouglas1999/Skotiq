@@ -1,0 +1,40 @@
+name: skotiq_updater
+description: Skotiq OTA Update System - Self-hosted updates with LAN push support
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1
+  freezed_annotation: ^3.0.0
+  json_annotation: ^4.9.0
+  http: ^1.2.0
+  path_provider: ^2.1.2
+  path: ^1.8.3
+  archive: ^3.4.10
+  crypto: ^3.0.3
+  cryptography: ^2.7.0
+  skotiq_core:
+    path: ../skotiq_core
+  skotiq_ui:
+    path: ../skotiq_ui
+
+dev_dependencies:
+  # Pinned exact version across all 10 workspace packages to prevent
+  # mixed-version drift.
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.15
+  freezed: ^3.2.0
+  json_serializable: ^6.9.0
+  flutter_test:
+    sdk: flutter
+  test: ^1.24.0
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: true

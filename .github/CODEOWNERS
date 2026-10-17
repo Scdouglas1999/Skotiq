@@ -1,7 +1,7 @@
 # Code ownership for review routing.
 # https://docs.github.com/articles/about-code-owners
 #
-# Nightshade is currently maintained by a single owner; everything routes there.
+# Skotiq is currently maintained by a single owner; everything routes there.
 # As the project grows, add path-scoped lines above the catch-all (later, more
 # specific rules win).
 

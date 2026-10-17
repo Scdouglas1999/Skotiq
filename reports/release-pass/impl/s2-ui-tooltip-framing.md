@@ -8,14 +8,14 @@ causes were re-verified against HEAD before any edit; both were still present.
 
 | File | Item |
 | --- | --- |
-| `packages/nightshade_ui/lib/src/components/nightshade_tooltip.dart` | SKY-8 |
-| `packages/nightshade_ui/test/nightshade_tooltip_anchor_test.dart` (new) | SKY-8 |
-| `packages/nightshade_core/lib/src/database/daos/settings_dao.dart` | SKY-9 (persistence) |
-| `packages/nightshade_core/lib/src/providers/framing_provider/support.dart` | SKY-9 (read-back + write-through) |
-| `packages/nightshade_core/lib/src/providers/framing_provider.dart` | SKY-9 (one import line) |
-| `packages/nightshade_core/lib/src/providers/capability_provider.dart` | SKY-9 (connect-time write-through) |
-| `packages/nightshade_core/test/providers/framing_fov_remembered_sensor_test.dart` (new) | SKY-9 |
-| `packages/nightshade_core/test/providers/framing_fov_camera_churn_test.dart` | SKY-9 (amended expectation, see below) |
+| `packages/skotiq_ui/lib/src/components/skotiq_tooltip.dart` | SKY-8 |
+| `packages/skotiq_ui/test/skotiq_tooltip_anchor_test.dart` (new) | SKY-8 |
+| `packages/skotiq_core/lib/src/database/daos/settings_dao.dart` | SKY-9 (persistence) |
+| `packages/skotiq_core/lib/src/providers/framing_provider/support.dart` | SKY-9 (read-back + write-through) |
+| `packages/skotiq_core/lib/src/providers/framing_provider.dart` | SKY-9 (one import line) |
+| `packages/skotiq_core/lib/src/providers/capability_provider.dart` | SKY-9 (connect-time write-through) |
+| `packages/skotiq_core/test/providers/framing_fov_remembered_sensor_test.dart` (new) | SKY-9 |
+| `packages/skotiq_core/test/providers/framing_fov_camera_churn_test.dart` | SKY-9 (amended expectation, see below) |
 
 No generated file was edited and no codegen was run.
 
@@ -53,7 +53,7 @@ geometry (`image_thumbnail_strip.dart:863`,
 
 ### Half 2: no arbitration between tooltips
 
-Every `NightshadeTooltip` owned an independent `OverlayPortalController`
+Every `SkotiqTooltip` owned an independent `OverlayPortalController`
 retired only by its own `MouseRegion.onExit` or its own 3 s touch timer, so a
 second tooltip opening left the first alive. Added a single library-private
 visible-tooltip slot (`_visibleTooltip`); showing claims it and retires the
@@ -61,7 +61,7 @@ previous holder, hiding and `dispose` release it.
 
 ### Proof
 
-`packages/nightshade_ui/test/nightshade_tooltip_anchor_test.dart`.
+`packages/skotiq_ui/test/skotiq_tooltip_anchor_test.dart`.
 
 At HEAD (component reverted, tests kept):
 
@@ -74,9 +74,9 @@ At HEAD (component reverted, tests kept):
 * `opening a second tooltip retires the first` — FAILS:
   `Expected: no matching candidates; Actual: Found 1 widget with text "Reset view"`.
 
-With the fix: all three pass, and the whole `nightshade_ui` suite is green
-(306 tests), including the pre-existing `nightshade_tooltip_edge_test` and
-`nightshade_tooltip_lifecycle_test`.
+With the fix: all three pass, and the whole `skotiq_ui` suite is green
+(306 tests), including the pre-existing `skotiq_tooltip_edge_test` and
+`skotiq_tooltip_lifecycle_test`.
 
 ---
 
@@ -135,13 +135,13 @@ Dart providers.
 
 ### Proof
 
-`packages/nightshade_core/test/providers/framing_fov_remembered_sensor_test.dart`
+`packages/skotiq_core/test/providers/framing_fov_remembered_sensor_test.dart`
 (new, 3 tests). Proven failing at HEAD with only the `SettingsDao` addition
 present (so the failures are behavioural, not compile errors):
 
 * `a camera seen once keeps Framing working after it is disconnected` —
   `Expected: EquipmentStatus.ready; Actual: EquipmentStatus.noCameraSpecs`.
-  Two containers share ONE `NightshadeDatabase` instance (the shared
+  Two containers share ONE `SkotiqDatabase` instance (the shared
   `inMemoryDatabaseOverride()` builds a fresh database per container, which
   would have made this test prove nothing); the second container's backend
   throws on any `getCameraStatus`, and `verifyNever` pins that it is never
@@ -174,19 +174,19 @@ every consumer — out of scope for this batch, and not part of the SKY-9 repro
 
 ## Verification run
 
-* `nightshade_ui`: full `flutter test test/` — 306 passed, 0 failed.
-* `nightshade_core`: `flutter test test/providers/` — 1528 passed, 1 failed.
+* `skotiq_ui`: full `flutter test test/` — 306 passed, 0 failed.
+* `skotiq_core`: `flutter test test/providers/` — 1528 passed, 1 failed.
   The failure is `sequence_executor_live_stacking_autofeed_test.dart`, which
   fails to COMPILE (`_FakeLiveStackingService is missing implementations`)
   because of a concurrent in-flight edit to
   `services/live_stacking_service.dart` by another agent. Not this batch — no
   file in this batch touches live stacking.
-* `nightshade_app`: `flutter test test/screens/framing/` — 143 passed, 4 failed.
+* `skotiq_app`: `flutter test test/screens/framing/` — 143 passed, 4 failed.
   All four are golden pixel diffs, and all four reproduce **identically at
-  HEAD** with this batch's four `nightshade_core` library files reverted
+  HEAD** with this batch's four `skotiq_core` library files reverted
   (6.54% / 81.48% / 11.30% / 0.17% — byte-identical diff percentages), i.e. the
   known Windows-captured-goldens-on-Linux class, not a regression.
-* `nightshade_app`: `flutter test test/screens/equipment/ test/screens/imaging/`
+* `skotiq_app`: `flutter test test/screens/equipment/ test/screens/imaging/`
   — 395 passed, 6 failed. These two directories are the ones that read
   `cameraCapabilitiesProvider`, so they are the exposure surface for the new
   connect-time store touch. All six failures are golden pixel diffs

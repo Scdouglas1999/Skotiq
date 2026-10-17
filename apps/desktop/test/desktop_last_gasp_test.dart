@@ -16,7 +16,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/desktop_last_gasp.dart';
+import 'package:skotiq_desktop/desktop_last_gasp.dart';
 
 void main() {
   late Directory dataRoot;

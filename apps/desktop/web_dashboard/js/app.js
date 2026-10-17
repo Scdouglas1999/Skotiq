@@ -1,5 +1,5 @@
 /**
- * Nightshade Web Dashboard - Main Application
+ * Skotiq Web Dashboard - Main Application
  *
  * Manages all dashboard panels: devices, camera, mount, sequencer, guiding, event log.
  * Connects to the headless API via REST polling and WebSocket events.
@@ -249,7 +249,7 @@
     }
 
     // Tokens never live in localStorage. The "remember" path goes through an
-    // HttpOnly `nightshade_session` cookie that JS cannot read; the unchecked
+    // HttpOnly `skotiq_session` cookie that JS cannot read; the unchecked
     // path keeps the bearer in sessionStorage so it dies when the tab closes. The remember-checkbox
     // flag itself is benign metadata and stays in localStorage so the UI
     // state persists across reloads.
@@ -259,18 +259,18 @@
     // Debug mode allows overriding via localStorage; production cannot.
     let savedUrl = defaultServerUrl();
     if (state.debugMode) {
-      const stored = normalizeServerUrl(localStorage.getItem('nightshade_url'));
+      const stored = normalizeServerUrl(localStorage.getItem('skotiq_url'));
       if (stored) savedUrl = stored;
     }
     const shouldAutoConnect = servedFromServer || (state.debugMode && !!savedUrl);
-    const rememberToken = localStorage.getItem('nightshade_remember_token') === 'true';
+    const rememberToken = localStorage.getItem('skotiq_remember_token') === 'true';
     const savedToken = readStoredToken();
-    const savedDeviceName = localStorage.getItem('nightshade_device_name') || defaultDeviceName();
-    const savedDeviceId = localStorage.getItem('nightshade_device_id') || generateDeviceId();
+    const savedDeviceName = localStorage.getItem('skotiq_device_name') || defaultDeviceName();
+    const savedDeviceId = localStorage.getItem('skotiq_device_id') || generateDeviceId();
     // One-shot scrub of token bytes an older install may have left in
     // localStorage. Nothing writes there; stale bytes left behind would hand
     // a JS-readable bearer to any script that runs on the page.
-    localStorage.removeItem('nightshade_token');
+    localStorage.removeItem('skotiq_token');
 
     document.getElementById('server-url').value = savedUrl;
     document.getElementById('auth-token').value = savedToken;
@@ -278,7 +278,7 @@
     // Default OFF for remember-token. The bearer is sessionStorage-only
     // unless the user opts in.
     document.getElementById('remember-token').checked = rememberToken;
-    localStorage.setItem('nightshade_device_id', savedDeviceId);
+    localStorage.setItem('skotiq_device_id', savedDeviceId);
 
     // Connect / pair buttons
     document.getElementById('btn-connect').addEventListener('click', () => handleConnect());
@@ -537,7 +537,7 @@
     if (e && (e.kind === 'unreachable' || e.kind === 'timeout')) {
       return {
         kind: 'unreachable',
-        message: 'No answer from the Nightshade server. Check that it is ' +
+        message: 'No answer from the Skotiq server. Check that it is ' +
           'running and that this address is right.',
       };
     }
@@ -577,7 +577,7 @@
     const url = normalizeServerUrl(document.getElementById('server-url').value);
     const token = document.getElementById('auth-token').value.trim();
     const rememberToken = document.getElementById('remember-token').checked;
-    const deviceId = localStorage.getItem('nightshade_device_id') || generateDeviceId();
+    const deviceId = localStorage.getItem('skotiq_device_id') || generateDeviceId();
 
     if (!url) {
       const message = 'Enter a valid http:// or https:// server URL';
@@ -601,11 +601,11 @@
     // Production mode (no debug flag) refuses to remember anything that
     // would override the same-origin URL.
     if (state.debugMode) {
-      localStorage.setItem('nightshade_url', url);
+      localStorage.setItem('skotiq_url', url);
     } else {
-      localStorage.removeItem('nightshade_url');
+      localStorage.removeItem('skotiq_url');
     }
-    localStorage.setItem('nightshade_device_id', deviceId);
+    localStorage.setItem('skotiq_device_id', deviceId);
     writeStoredToken(token, rememberToken);
 
     api.configure(url, token, deviceId);
@@ -697,7 +697,7 @@
             // Scrub the visible token input so a casual screen-share or
             // browser-back doesn't expose it after upgrade.
             document.getElementById('auth-token').value = '';
-            sessionStorage.removeItem('nightshade_token');
+            sessionStorage.removeItem('skotiq_token');
             addLogEntry('system', 'Upgraded session to HttpOnly cookie (remember-me).');
           } catch (e) {
             // Surface the failure: falling back to the bearer path silently
@@ -769,7 +769,7 @@
     setPairModalStatus('Requesting a pairing code...', '');
 
     // Configure API for unauthenticated calls during the pairing handshake.
-    const deviceId = localStorage.getItem('nightshade_device_id') || generateDeviceId();
+    const deviceId = localStorage.getItem('skotiq_device_id') || generateDeviceId();
     api.configure(url, '', deviceId);
 
     // Kick off pairing/start on open so the operator immediately sees a code
@@ -778,7 +778,7 @@
       .then((result) => {
         const exp = wireNumber(result && result.expiresInSeconds);
         setPairModalStatus(
-          'Code printed to the Nightshade desktop console.' + (exp != null
+          'Code printed to the Skotiq desktop console.' + (exp != null
             ? ' Expires in ~' + Math.max(1, Math.round(exp / 60)) + ' min.'
             : ' Expiry not reported.'),
           'success',
@@ -811,7 +811,7 @@
     const url = normalizeServerUrl(document.getElementById('server-url').value);
     const code = document.getElementById('pair-modal-code').value.trim();
     const deviceName = document.getElementById('device-name').value.trim() || defaultDeviceName();
-    const deviceId = localStorage.getItem('nightshade_device_id') || generateDeviceId();
+    const deviceId = localStorage.getItem('skotiq_device_id') || generateDeviceId();
 
     if (!url) {
       setPairModalStatus('Server URL is empty.', 'error');
@@ -822,8 +822,8 @@
       return;
     }
 
-    localStorage.setItem('nightshade_device_id', deviceId);
-    localStorage.setItem('nightshade_device_name', deviceName);
+    localStorage.setItem('skotiq_device_id', deviceId);
+    localStorage.setItem('skotiq_device_name', deviceName);
     api.configure(url, '', deviceId);
 
     setPairModalStatus('Verifying...', '');
@@ -876,22 +876,22 @@
     // sessionStorage only. The "remember" path never stashes the bearer in
     // JS-readable storage; it lives in an HttpOnly cookie on the server side
     // and is never legible to JS.
-    return sessionStorage.getItem('nightshade_token') || '';
+    return sessionStorage.getItem('skotiq_token') || '';
   }
 
   function writeStoredToken(token, rememberToken) {
     // Remember the user's UI choice only. The actual "stay logged in
     // across tabs/restart" semantics now come from the HttpOnly cookie
     // set by POST /api/auth/cookie — see beginCookieSession() in api.js.
-    localStorage.setItem('nightshade_remember_token', rememberToken ? 'true' : 'false');
+    localStorage.setItem('skotiq_remember_token', rememberToken ? 'true' : 'false');
     if (token) {
-      sessionStorage.setItem('nightshade_token', token);
+      sessionStorage.setItem('skotiq_token', token);
     } else {
-      sessionStorage.removeItem('nightshade_token');
+      sessionStorage.removeItem('skotiq_token');
     }
     // Guard against any older code path that may have left a bearer in
     // localStorage. Clearing on every write makes the migration idempotent.
-    localStorage.removeItem('nightshade_token');
+    localStorage.removeItem('skotiq_token');
   }
 
   function handleRememberTokenChanged() {
@@ -1060,7 +1060,7 @@
 
   // Persist key + the two header <meta theme-color> values so the browser
   // chrome (notch / address bar) matches the active theme.
-  const THEME_STORAGE_KEY = 'nightshade_theme';
+  const THEME_STORAGE_KEY = 'skotiq_theme';
   const THEME_META_COLOR = { dark: '#0A0C0F', light: '#F4F6F8' };
 
   function resolveInitialTheme() {
@@ -1129,7 +1129,7 @@
   // *collapsed* set (typically small) rather than the full layout because the
   // panel order is fixed in markup; "which panels are open/closed" is the
   // load-bearing pref for an 8-hour tool.
-  const PANEL_PREFS_KEY = 'nightshade_panel_collapsed';
+  const PANEL_PREFS_KEY = 'skotiq_panel_collapsed';
 
   function loadCollapsedPanels() {
     try {
@@ -1431,8 +1431,8 @@
       banner.classList.remove('hidden');
       banner.textContent =
         (state.serverUnreachable
-          ? 'Cannot reach the Nightshade server.'
-          : 'No answer from the Nightshade server.') +
+          ? 'Cannot reach the Skotiq server.'
+          : 'No answer from the Skotiq server.') +
         (age == null
           ? ' Nothing has been received yet.'
           : ' Last contact ' + formatAgeSeconds(age) +
@@ -1644,7 +1644,7 @@
   /// and their log line and do not come through here.
   function reportRefreshFailure(panelKey, e, what) {
     if (isCadenceRefusal(e)) {
-      console.debug('[nightshade] ' + describeApiError(e, what));
+      console.debug('[skotiq] ' + describeApiError(e, what));
       return;
     }
     if (panelKey) markPanelUnconfirmed(panelKey);
@@ -1702,7 +1702,7 @@
     const list = payload && typeof payload === 'object'
       ? payload[field] : undefined;
     if (Array.isArray(list)) return list;
-    throw new NightshadeApiError(
+    throw new SkotiqApiError(
       'unusable_answer',
       what + ': the answer carries no "' + field + '" list',
       { field },
@@ -4013,7 +4013,7 @@
   /// when it names none.
   ///
   /// `state` is documented non-null (`SequencerStatus.state` in
-  /// packages/nightshade_core/lib/src/models/backend/sequencer_status.dart),
+  /// packages/skotiq_core/lib/src/models/backend/sequencer_status.dart),
   /// so a null, empty or non-string value is a reply that declined to say.
   /// The panel read `s.state || 'idle'`, which turned exactly that into the
   /// word "idle" — a parked telescope — beside "0%" and aria-valuenow="0",
@@ -4029,7 +4029,7 @@
 
   // `/api/sequencer/status` reports `progress` as a 0..1 FRACTION — see
   // `SequencerStatus.progress` ("Overall progress (0.0 to 1.0)") in
-  // packages/nightshade_core/lib/src/models/backend/sequencer_status.dart,
+  // packages/skotiq_core/lib/src/models/backend/sequencer_status.dart,
   // which `sequencer_handlers.dart` passes through verbatim. Every dashboard
   // readout (text, bar width, aria-valuenow on a 0..100 progressbar, ETA
   // extrapolation) wants percent, so convert at the single point where the
@@ -6935,7 +6935,7 @@
     // Run-Watch is a sibling page on this same origin, and an operator who has
     // just signed in here is signed in there too. That handoff rides the two
     // credentials this file already leaves behind, so it must stay a SAME-TAB
-    // navigation: `nightshade_token` in sessionStorage (the bearer path, which
+    // navigation: `skotiq_token` in sessionStorage (the bearer path, which
     // /run-watch/ adopts in memory for the tab's lifetime and never persists),
     // and the HttpOnly session cookie (the remember-me path, which
     // /run-watch/ confirms with GET /api/auth/csrf). Before that contract
@@ -7552,7 +7552,7 @@
       anchor.href = url;
       anchor.download = downloadFilename(
         result.contentDisposition,
-        'nightshade-image-' + imageId + '.fits',
+        'skotiq-image-' + imageId + '.fits',
       );
       document.body.appendChild(anchor);
       anchor.click();
@@ -7815,7 +7815,7 @@
       api.configure(
         normalizeServerUrl(document.getElementById('server-url').value),
         '',
-        localStorage.getItem('nightshade_device_id') || generateDeviceId(),
+        localStorage.getItem('skotiq_device_id') || generateDeviceId(),
       );
       const info = await api.testConnection();
       if (info && info.authRequired === false) {

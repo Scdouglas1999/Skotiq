@@ -7,20 +7,20 @@ Alpaca discovery, INDI connections, and PHD2 connections.
 
 | Port | Protocol | Used by |
 |------|----------|---------|
-| `8080` or `NIGHTSHADE_PORT` | TCP | Nightshade headless REST API, dashboard, and WebSocket |
-| `45679` | UDP | Nightshade LAN discovery advertisements |
+| `8080` or `SKOTIQ_PORT` | TCP | Skotiq headless REST API, dashboard, and WebSocket |
+| `45679` | UDP | Skotiq LAN discovery advertisements |
 | `7624` | TCP | INDI server default |
 | `11111` or server-configured port | TCP/UDP | Alpaca device or bridge |
 | `4400` or PHD2-configured port | TCP | PHD2 server default |
 
 Only open ports needed by the deployment, and only on trusted networks.
 
-## Nightshade Headless Or Dashboard Cannot Connect
+## Skotiq Headless Or Dashboard Cannot Connect
 
 - Confirm the server is bound to LAN, not only loopback.
 - Confirm authentication is enabled before exposing the API beyond localhost.
 - Confirm the client is using the right host, port, and token.
-- Check OS firewall rules on the host running Nightshade.
+- Check OS firewall rules on the host running Skotiq.
 - Check router, VLAN, VPN, or guest Wi-Fi isolation rules.
 
 ## Alpaca Discovery Fails
@@ -33,7 +33,7 @@ Only open ports needed by the deployment, and only on trusted networks.
 ## INDI Or PHD2 Cannot Connect
 
 - Confirm the server process is listening.
-- Confirm the configured port matches Nightshade settings.
+- Confirm the configured port matches Skotiq settings.
 - Prefer `localhost` or `127.0.0.1` when the server is on the same machine.
 - Open the port only if the server is intentionally remote.
 

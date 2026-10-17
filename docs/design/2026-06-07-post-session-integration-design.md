@@ -9,7 +9,7 @@
 
 ## 0. Scope & Philosophy
 
-Today Nightshade has a strong *live* path (`LiveStacker`, Stack-and-Share) but the *finishing* path is thin: rigid-only registration, incremental sigma-clip only, no per-sub weighting, no normalization, no 16-bit linear master output, no master accumulation, no cohesive "review the night" surface. This document designs the **batch, offline, post-session integration** pipeline that runs *after* a sub-collection exists (one session, one target, possibly across nights) and produces an archival-quality linear master plus a review UI.
+Today Skotiq has a strong *live* path (`LiveStacker`, Stack-and-Share) but the *finishing* path is thin: rigid-only registration, incremental sigma-clip only, no per-sub weighting, no normalization, no 16-bit linear master output, no master accumulation, no cohesive "review the night" surface. This document designs the **batch, offline, post-session integration** pipeline that runs *after* a sub-collection exists (one session, one target, possibly across nights) and produces an archival-quality linear master plus a review UI.
 
 Two pipelines coexist on purpose and must **not** be merged:
 
@@ -26,7 +26,7 @@ Reuse, do not rewrite: `ImageData` / `PixelType` (`imaging/src/lib.rs`), `detect
 
 ## 1. Native algorithm modules
 
-New subtree: `native/nightshade_native/imaging/src/integration/` with a `mod.rs` re-exporting the public surface. Each file is single-responsibility, `rayon`-parallel like `calibration.rs`, and unit-tested with synthetic frames (the project idiom — see synthetic-PSF tests in `stats.rs` and the calibration tests).
+New subtree: `native/skotiq_native/imaging/src/integration/` with a `mod.rs` re-exporting the public surface. Each file is single-responsibility, `rayon`-parallel like `calibration.rs`, and unit-tested with synthetic frames (the project idiom — see synthetic-PSF tests in `stats.rs` and the calibration tests).
 
 ### 1.1 `integration/align.rs` — advanced star alignment
 
@@ -235,11 +235,11 @@ pub fn api_save_fits_master(args_json: String) -> Result<String, String>;
 
 Progress is reported through the **existing event stream** (`bridge/src/api/event_stream.rs`) as integration-progress events (phase + 0..1), so the long-running calls don't need a streaming FFI return. These run on a background thread in the bridge (the bridge already does this for other long ops) so the Dart isolate is not blocked.
 
-**Regen impact:** 3 new functions, no new structs across the boundary → one regen, then all future knobs ride in the JSON. Regen command (from `native/nightshade_native`, env per `docs/FRB_TROUBLESHOOTING.md`): `flutter_rust_bridge_codegen generate`.
+**Regen impact:** 3 new functions, no new structs across the boundary → one regen, then all future knobs ride in the JSON. Regen command (from `native/skotiq_native`, env per `docs/FRB_TROUBLESHOOTING.md`): `flutter_rust_bridge_codegen generate`.
 
 ---
 
-## 3. Dart layer (`packages/nightshade_core/`)
+## 3. Dart layer (`packages/skotiq_core/`)
 
 ### 3.1 `IntegrationSettings` model — `lib/src/models/imaging/integration_settings.dart`
 
@@ -311,11 +311,11 @@ Parallels `dark_library_service.dart` (`createMasterDark` median-combine in an i
 
 ---
 
-## 4. UI (`packages/nightshade_app/`) — design-system (`nightshade_ui`) idiom throughout
+## 4. UI (`packages/skotiq_app/`) — design-system (`skotiq_ui`) idiom throughout
 
 ### 4.1 Session Review / Morning Report — `lib/screens/session_review/session_review_screen.dart`
 
-The cohesive "review the night" surface (the current biggest gap). One screen, panelled with `NightshadeCard`:
+The cohesive "review the night" surface (the current biggest gap). One screen, panelled with `SkotiqCard`:
 
 - **Sub gallery + cull rail** — promote and reuse the existing `screens/analytics/widgets/image_thumbnail_strip.dart` (quality badges, HFR chip, accept/reject context menu via `ImagesDao`) from its dialog into a first-class panel; add **blink mode** (cycle subs at N fps to spot clouds/satellites/bad subs by eye — a long-requested missing feature) and multi-select cull.
 - **Per-sub detail** — reuse `screens/sequencer/widgets/run_dashboard/frame_detail_dialog.dart` (`showForFrame(imageId)`), but **lift the reject-only restriction** so it opens for any sub (accepted or rejected) with preview + metrics + forensics.
@@ -339,7 +339,7 @@ In the sequencer run-completion path (where the run dashboard / `session_report_
 
 ## 5. Build order, gates, and PI-grade honesty
 
-Each phase is independently committable and **must pass its gate before commit** (revert-on-red discipline). Native gate = `cargo test -p nightshade_imaging` + `cargo clippy -p nightshade_imaging --all-features -- -D warnings`. Dart gate = `flutter analyze` (0 err/warn in changed files) + targeted `flutter test`. FRB phase additionally needs a successful regen + full-workspace build.
+Each phase is independently committable and **must pass its gate before commit** (revert-on-red discipline). Native gate = `cargo test -p skotiq_imaging` + `cargo clippy -p skotiq_imaging --all-features -- -D warnings`. Dart gate = `flutter analyze` (0 err/warn in changed files) + targeted `flutter test`. FRB phase additionally needs a successful regen + full-workspace build.
 
 | Phase | Deliverable | Gate |
 |---|---|---|
@@ -370,7 +370,7 @@ Each phase is independently committable and **must pass its gate before commit**
 
 ## 6. Files touched / created (summary)
 
-**New native** (`native/nightshade_native/imaging/src/integration/`): `mod.rs`, `align.rs`, `resample.rs`, `weighting.rs`, `normalize.rs`, `integrate.rs`, `drizzle.rs`, `master.rs`, `calibration_ext.rs`.
+**New native** (`native/skotiq_native/imaging/src/integration/`): `mod.rs`, `align.rs`, `resample.rs`, `weighting.rs`, `normalize.rs`, `integrate.rs`, `drizzle.rs`, `master.rs`, `calibration_ext.rs`.
 **Edited native:** `imaging/src/fits.rs` (F32 write/read), `imaging/src/lib.rs` (module wiring), `bridge/src/api/imaging.rs` (3 FFI fns), bridge event-stream progress events.
 **New Dart core:** `models/imaging/integration_settings.dart`, `services/post_session_integration_service.dart`, `services/master_accumulation_service.dart`, `services/flat_library_service.dart`, `database/tables/{integrated_masters,integrated_master_frames,flat_library}.dart` + DAOs; `database/database.dart` registration + migration (schemaVersion 40 → 41).
 **Reused Dart core (no rewrite):** `services/stack_light_selector.dart`, `services/calibration_service.dart`, `services/dark_library_service.dart`, auto-stretch path, `daos/images_dao.dart`, `daos/stacked_results_dao.dart`.
@@ -384,7 +384,7 @@ This section records the **as-built** feature against the design above, verified
 
 ### 7.1 What shipped end-to-end
 
-**Native algorithm layer** (`native/nightshade_native/imaging/src/`, committed `1850a67a` -> `0ee6d0e9`). Landed as **flat top-level modules**, not the proposed `integration/` subtree (functionally identical; the flat layout matches the crate's existing convention â€” `stacking.rs`, `calibration.rs`, etc.):
+**Native algorithm layer** (`native/skotiq_native/imaging/src/`, committed `1850a67a` -> `0ee6d0e9`). Landed as **flat top-level modules**, not the proposed `integration/` subtree (functionally identical; the flat layout matches the crate's existing convention â€” `stacking.rs`, `calibration.rs`, etc.):
 
 - `registration.rs` (1809 lines) â€” robust star detection + flux-weighted centroid refinement, **triangle/quad asterism matching** (rotation/scale/flip-invariant), **RANSAC over a model hierarchy** (`TransformModel` Similarity / Affine / Homography stored as a single 3x3 homogeneous matrix), least-squares inlier refinement, **Lanczos3 / Catmull-Rom resampling** with bounds clamping. Reports inlier count + RMS/peak residual.
 - `frame_weighting.rs` (826 lines) â€” `FrameQuality` (noise via **MAD of the 3x3-median residual**, SNR, FWHM/HFR, eccentricity, star count, background) -> scalar weight via `WeightFormula` (SNR / SNR^2 / FWHM-inverse / custom exponents) normalized to best-sub = 1.0, plus a `CullPolicy` recommendation.
@@ -403,7 +403,7 @@ This section records the **as-built** feature against the design above, verified
 
 > **Known latent bug (out of scope, flagged):** the pre-existing `api_combine_master_frames` writes 9-char FITS keywords `INPUTMEAN` / `OUTPTMEAN` (FITS keywords max 8 chars). The new path writes the correct `INMEAN` / `OUTMEAN`. The old function should be fixed in a follow-up.
 
-**Dart pipeline** (`packages/nightshade_core/`, committed `7b8268e4`):
+**Dart pipeline** (`packages/skotiq_core/`, committed `7b8268e4`):
 
 - `IntegrationSettings` (816 lines) â€” every advanced knob + smart defaults + named presets (Fast / Balanced / Maximum-Quality / Few-Subs / Long-Night-Gradient); `smartDefaults()` resolves the auto-rejection rule by sub count; JSON round-trip + bridge-args.
 - `PostSessionSeam` / `BridgePostSessionSeam` â€” injectable interface over the four FFI calls (mirrors `StackingEngineSeam`, so the services are unit-testable without the native layer).
@@ -412,20 +412,20 @@ This section records the **as-built** feature against the design above, verified
 - `FlatLibraryService` + `flat_library` table â€” the missing master-flat artifact library; `findBestMatch` mirrors `DarkLibrary`.
 - New tables `integrated_masters` / `integrated_master_frames` / `flat_library` + DAOs (`integrated_masters_dao.dart`, `flat_library_dao.dart`) + **schemaVersion 40 -> 41** migration (`migration_v41.dart`, idempotent, runs from onCreate and onUpgrade).
 
-**UI** (`packages/nightshade_app/lib/screens/session_review/`, committed `97e50767`): Session Review / Morning Report screen + controller + auto-integration service, with `sub_gallery_panel` (quality badges, accept/reject cull, **blink mode**, bulk reject-above-HFR), `integration_settings_panel` (smart-default preset chips + collapsible Advanced section + live "will use N subs" readout), `master_library_panel`, `master_preview_view`. Reuses the existing `FrameDetailDialog`.
+**UI** (`packages/skotiq_app/lib/screens/session_review/`, committed `97e50767`): Session Review / Morning Report screen + controller + auto-integration service, with `sub_gallery_panel` (quality badges, accept/reject cull, **blink mode**, bulk reject-above-HFR), `integration_settings_panel` (smart-default preset chips + collapsible Advanced section + live "will use N subs" readout), `master_library_panel`, `master_preview_view`. Reuses the existing `FrameDetailDialog`.
 
 ### 7.2 Verification (gates re-run 2026-06-07, real output)
 
 | Gate | Command | Result |
 |---|---|---|
-| Native tests | `cargo test -p nightshade_imaging` | **308 + 12 + 1 = 321 pass / 0 fail** |
-| Native lint | `cargo clippy -p nightshade_imaging --all-features -- -D warnings` | **clean (exit 0)** |
-| Bridge build | `cargo build -p nightshade_bridge` | **clean (exit 0)** |
-| Core analyze | `flutter analyze` (nightshade_core) | **0 errors** (205 pre-existing infos/warnings in unrelated test files; 0 in any post-session file) |
-| App analyze | `flutter analyze` (nightshade_app) | **0 errors** (97 pre-existing infos in unrelated test files; 0 in any session_review file) |
+| Native tests | `cargo test -p skotiq_imaging` | **308 + 12 + 1 = 321 pass / 0 fail** |
+| Native lint | `cargo clippy -p skotiq_imaging --all-features -- -D warnings` | **clean (exit 0)** |
+| Bridge build | `cargo build -p skotiq_bridge` | **clean (exit 0)** |
+| Core analyze | `flutter analyze` (skotiq_core) | **0 errors** (205 pre-existing infos/warnings in unrelated test files; 0 in any post-session file) |
+| App analyze | `flutter analyze` (skotiq_app) | **0 errors** (97 pre-existing infos in unrelated test files; 0 in any session_review file) |
 | Core tests (new) | settings / integration-service / accumulation / flat-library / migration | **35 pass** |
 | UI tests (new) | `test/screens/session_review/` | **8 pass** |
-| Desktop build | `flutter build windows --release` (apps/desktop) | **success** â€” `nightshade_desktop.exe` built fresh (88.9 s); **FRB bindings are fully regenerated and committed, no regen needed** |
+| Desktop build | `flutter build windows --release` (apps/desktop) | **success** â€” `skotiq_desktop.exe` built fresh (88.9 s); **FRB bindings are fully regenerated and committed, no regen needed** |
 
 ### 7.3 Honest quality assessment vs PixInsight
 

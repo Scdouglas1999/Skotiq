@@ -17,7 +17,7 @@ dumps either side of the click diffed to nothing, and the role dump did *not* ma
 `[DISABLED]`.
 
 **Why the previous fix did not land.** The button was disabled (`onPressed: null`) and
-`NightshadeButton` does publish `hasEnabledState`/`!isEnabled` — but its inner `GestureDetector`
+`SkotiqButton` does publish `hasEnabledState`/`!isEnabled` — but its inner `GestureDetector`
 always supplies `onTapDown`/`onTapUp`, so a `TapGestureRecognizer` exists and Flutter publishes a
 **tap action on the disabled node**. Reproduced in a probe: the node came out as
 `flags: [isButton, hasEnabledState]`, `actions: [tap]`. Assistive tech is offered a press that
@@ -54,7 +54,7 @@ a value") and `pairing_credential_truth_test.dart` (WD-N4). Both fail at HEAD.
 ## WD-N1 — raw Rust error debug text in the onboarding chips
 
 `_BackendStatusRow` printed `state.error` verbatim: four wrapped red lines of
-`NightshadeError.connectionFailed(deviceId: localhost:11111, reason: … tcp connect error:
+`SkotiqError.connectionFailed(deviceId: localhost:11111, reason: … tcp connect error:
 Connection refused (os error 111))`, twice, on the third screen of the product.
 
 **Fix**: `describeBackendFailure` (pure, `@visibleForTesting`) in `device_picker_step.dart`.
@@ -67,7 +67,7 @@ carrying developer debris (`Type.method(`, `…Error`, `os error`, `://`, `packa
 chars) is replaced with "the scan did not complete".
 
 **Test**: `onboarding_backend_failure_copy_test.dart` — unit cases plus a widget assertion that no
-rendered `Text` contains `NightshadeError` / `os error 111` / `tcp connect` / `http://`. Fails at
+rendered `Text` contains `SkotiqError` / `os error 111` / `tcp connect` / `http://`. Fails at
 HEAD.
 
 *Not fixed (out of scope, native)*: the log for the same scan still says "Discovery complete for
@@ -168,7 +168,7 @@ The dashboard tour still narrates Session Progress / Weather Status / Focuser Co
 Overview on a dashboard that has none of them. The pass-over rule added by the earlier fix is
 correct and unit-tested (`tutorialStepIndexPastMissingTarget`, `test/widgets/
 tutorial_missing_target_test.dart`); what fails is the driver around it, in
-`packages/nightshade_app/lib/widgets/tutorial_overlay.dart` (NOT in this batch's SCOPE, which is
+`packages/skotiq_app/lib/widgets/tutorial_overlay.dart` (NOT in this batch's SCOPE, which is
 `screens/{onboarding,settings,tutorial}`):
 
 1. `_passOverMissingTarget` defers 450 ms before moving, so the absent step is drawn and announced
@@ -180,7 +180,7 @@ tutorial_missing_target_test.dart`); what fails is the driver around it, in
    the tour parked on one of them.
 
 The deeper problem is content, not mechanism: the twelve dashboard-tour steps in
-`packages/nightshade_core/lib/src/models/tutorial/tutorial_models_parts/workflow_tours.dart`
+`packages/skotiq_core/lib/src/models/tutorial/tutorial_models_parts/workflow_tours.dart`
 describe the legacy widget dashboard. Both files need an owner with that scope.
 
 ---
@@ -197,6 +197,6 @@ describe the legacy widget dashboard. Both files need an owner with that scope.
 * `dart analyze` over the touched lib + test dirs: 0 errors, 0 warnings.
 * `dart format` clean on every touched file.
 
-Transient blocker seen repeatedly: `nightshade_core` / `nightshade_planetarium` failed to compile
+Transient blocker seen repeatedly: `skotiq_core` / `skotiq_planetarium` failed to compile
 mid-run while other D-fix agents were editing them (`ownsRun`, `Target`, `time_control_panel.dart`,
 `plate_solve_service.dart`). Every run above was re-taken once those compiled.

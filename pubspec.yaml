@@ -1,5 +1,5 @@
-name: nightshade_workspace
-description: Nightshade - Cross-platform astrophotography suite
+name: skotiq_workspace
+description: Skotiq - Cross-platform astrophotography suite
 
 environment:
   sdk: ">=3.8.0 <4.0.0"

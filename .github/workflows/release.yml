@@ -163,7 +163,7 @@ jobs:
         # The update public key is compiled in so the app can authenticate the
         # OTA manifests below. Without it every update download is refused,
         # whether or not the manifests are signed.
-        run: flutter build apk --release --split-per-abi "--dart-define=NIGHTSHADE_UPDATE_PUBLIC_KEY=${{ secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}"
+        run: flutter build apk --release --split-per-abi "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY }}"
 
       - name: Stage + checksum APKs
         run: |
@@ -174,7 +174,7 @@ jobs:
           for abi in armeabi-v7a arm64-v8a x86_64; do
             src="$apkdir/app-$abi-release.apk"
             [ -f "$src" ] || continue
-            dest="nightshade-${APP_VERSION}-android-$abi.apk"
+            dest="skotiq-${APP_VERSION}-android-$abi.apk"
             cp "$src" "dist/$dest"
             (cd dist && sha256sum "$dest" > "$dest.sha256")
             found=$((found + 1))
@@ -189,11 +189,11 @@ jobs:
       # One signed manifest per ABI, so an arm64 phone is never offered the
       # x86_64 build. The APK is its own package here — Android installs it
       # whole — so the manifest's downloadUrl is the APK's own release asset
-      # URL. Empty NIGHTSHADE_UPDATE_PRIVATE_KEY -> unsigned manifests (OTA
+      # URL. Empty SKOTIQ_UPDATE_PRIVATE_KEY -> unsigned manifests (OTA
       # stays fail-closed-disabled); the build still succeeds.
       - name: Sign OTA manifests (per ABI)
         env:
-          NIGHTSHADE_UPDATE_PRIVATE_KEY: ${{ secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY }}
+          SKOTIQ_UPDATE_PRIVATE_KEY: ${{ secrets.SKOTIQ_UPDATE_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           BUILD_NUMBER="$(grep -oP 'build_number:\s*\K\d+' version.yaml)"
@@ -205,10 +205,10 @@ jobs:
             [x86_64]=x64
           )
           for abi in armeabi-v7a arm64-v8a x86_64; do
-            asset="nightshade-${APP_VERSION}-android-$abi.apk"
+            asset="skotiq-${APP_VERSION}-android-$abi.apk"
             [ -f "$GITHUB_WORKSPACE/dist/$asset" ] || continue
             url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${APP_VERSION}/${asset}"
-            (cd packages/nightshade_updater && dart run tool/build_update_manifest.dart \
+            (cd packages/skotiq_updater && dart run tool/build_update_manifest.dart \
               --payload "$GITHUB_WORKSPACE/dist/$asset" \
               --out-dir "$GITHUB_WORKSPACE/dist" \
               --version "$APP_VERSION" \
@@ -258,7 +258,7 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: native/nightshade_native
+          workspaces: native/skotiq_native
 
       - name: Install Linux build dependencies
         run: |
@@ -280,17 +280,17 @@ jobs:
       - name: Build Linux release bundle
         run: |
           set -euo pipefail
-          cargo build --locked --release --manifest-path native/nightshade_native/bridge/Cargo.toml
+          cargo build --locked --release --manifest-path native/skotiq_native/bridge/Cargo.toml
           cd apps/desktop
-          flutter build linux --release "--dart-define=NIGHTSHADE_UPDATE_PUBLIC_KEY=${{ secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}"
+          flutter build linux --release "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY }}"
 
       - name: Bundle native libs + verify the bridge is present
         run: |
           set -euo pipefail
           BUNDLE="apps/desktop/build/linux/x64/release/bundle"
           BUNDLE_LIB="$BUNDLE/lib"
-          if [ ! -e "$BUNDLE_LIB/libnightshade_bridge.so" ]; then
-            echo "libnightshade_bridge.so is MISSING — the Rust build likely failed." >&2
+          if [ ! -e "$BUNDLE_LIB/libskotiq_bridge.so" ]; then
+            echo "libskotiq_bridge.so is MISSING — the Rust build likely failed." >&2
             ls -l "$BUNDLE_LIB" >&2 || true
             exit 1
           fi
@@ -325,10 +325,10 @@ jobs:
             printf '%s\n' '# (no surface ever shows); XWayland is the path every tested launch'
             printf '%s\n' '# used. Force it until the Wayland surface path is fixed and proven.'
             printf '%s\n' 'export GDK_BACKEND=x11'
-            printf '%s\n' 'exec "$HERE/nightshade_desktop" "$@"'
-          } > "$BUNDLE/nightshade"
-          chmod +x "$BUNDLE/nightshade"
-          ls -l "$BUNDLE_LIB" "$BUNDLE/nightshade"
+            printf '%s\n' 'exec "$HERE/skotiq_desktop" "$@"'
+          } > "$BUNDLE/skotiq"
+          chmod +x "$BUNDLE/skotiq"
+          ls -l "$BUNDLE_LIB" "$BUNDLE/skotiq"
 
       # The apply step runs a separate `updater` binary, because the running
       # app holds its own files open and cannot swap them. Windows has
@@ -338,11 +338,11 @@ jobs:
       - name: Build the updater binary
         run: |
           set -euo pipefail
-          cargo build --locked --release --package nightshade_updater \
-            --manifest-path native/nightshade_native/Cargo.toml
+          cargo build --locked --release --package skotiq_updater \
+            --manifest-path native/skotiq_native/Cargo.toml
           BUNDLE="apps/desktop/build/linux/x64/release/bundle"
           install -m 0755 \
-            native/nightshade_native/target/release/updater "$BUNDLE/updater"
+            native/skotiq_native/target/release/updater "$BUNDLE/updater"
           echo "Bundled updater: $(ls -l "$BUNDLE/updater")"
 
       - name: Verify glibc floor (Bookworm / Raspberry Pi OS compatibility)
@@ -357,11 +357,11 @@ jobs:
           # backstop in case the runner image is ever bumped. (The heavier
           # alternative is scripts/docker_build_linux.sh on debian:bookworm-slim,
           # which runs this same gate internally.)
-          FLOOR="${NIGHTSHADE_GLIBC_FLOOR:-2.36}"
+          FLOOR="${SKOTIQ_GLIBC_FLOOR:-2.36}"
           BUNDLE="apps/desktop/build/linux/x64/release/bundle"
           floor_major=${FLOOR%%.*}; floor_minor=${FLOOR#*.}
           violations=0
-          for bin in "$BUNDLE"/nightshade_desktop "$BUNDLE"/updater "$BUNDLE"/lib/*.so; do
+          for bin in "$BUNDLE"/skotiq_desktop "$BUNDLE"/updater "$BUNDLE"/lib/*.so; do
             [ -f "$bin" ] || continue
             maxv=$(objdump -T "$bin" 2>/dev/null \
               | grep -oE 'GLIBC_2\.[0-9]+' | sort -V | tail -1 || true)
@@ -383,17 +383,17 @@ jobs:
         run: |
           set -euo pipefail
           BUNDLE="apps/desktop/build/linux/x64/release/bundle"
-          cp LICENSE "$BUNDLE/NIGHTSHADE-LICENSE.txt"
+          cp LICENSE "$BUNDLE/SKOTIQ-LICENSE.txt"
           cp docs/THIRD_PARTY_NOTICES.md "$BUNDLE/THIRD_PARTY_NOTICES.md"
           printf '%s\n' "$GITHUB_SHA" > "$BUNDLE/SOURCE-COMMIT.txt"
           mkdir -p "$BUNDLE/LICENSES"
           cp third_party/licenses/LGPL-2.1.txt "$BUNDLE/LICENSES/LGPL-2.1.txt"
           mkdir -p dist
-          tar -czf "dist/nightshade-${APP_VERSION}-linux-x64.tar.gz" \
+          tar -czf "dist/skotiq-${APP_VERSION}-linux-x64.tar.gz" \
             -C apps/desktop/build/linux/x64/release \
-            --transform "s,^bundle,nightshade-${APP_VERSION}-linux-x64," bundle
-          (cd dist && sha256sum "nightshade-${APP_VERSION}-linux-x64.tar.gz" \
-             > "nightshade-${APP_VERSION}-linux-x64.tar.gz.sha256")
+            --transform "s,^bundle,skotiq-${APP_VERSION}-linux-x64," bundle
+          (cd dist && sha256sum "skotiq-${APP_VERSION}-linux-x64.tar.gz" \
+             > "skotiq-${APP_VERSION}-linux-x64.tar.gz.sha256")
           ls -l dist
 
       # The OTA package is a zip rather than the tar.gz above: the updater
@@ -402,17 +402,17 @@ jobs:
       # downloadUrl is baked into the signed manifest, so it must equal the
       # real published asset URL — the immutable per-tag GitHub Releases link
       # (the tag is always v<APP_VERSION>, validated by the version job).
-      # Empty NIGHTSHADE_UPDATE_PRIVATE_KEY -> unsigned manifest (OTA stays
+      # Empty SKOTIQ_UPDATE_PRIVATE_KEY -> unsigned manifest (OTA stays
       # fail-closed-disabled); the build still succeeds.
       - name: Package + sign OTA manifest
         env:
-          NIGHTSHADE_UPDATE_PRIVATE_KEY: ${{ secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY }}
+          SKOTIQ_UPDATE_PRIVATE_KEY: ${{ secrets.SKOTIQ_UPDATE_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           BUILD_NUMBER="$(grep -oP 'build_number:\s*\K\d+' version.yaml)"
-          ASSET="nightshade-${APP_VERSION}-linux-x64.zip"
+          ASSET="skotiq-${APP_VERSION}-linux-x64.zip"
           URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${APP_VERSION}/${ASSET}"
-          (cd packages/nightshade_updater && dart run tool/build_update_manifest.dart \
+          (cd packages/skotiq_updater && dart run tool/build_update_manifest.dart \
             --payload "$GITHUB_WORKSPACE/apps/desktop/build/linux/x64/release/bundle" \
             --out-dir "$GITHUB_WORKSPACE/dist" \
             --version "$APP_VERSION" \
@@ -467,7 +467,7 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: native/nightshade_native
+          workspaces: native/skotiq_native
 
       - name: Install Melos
         run: dart pub global activate melos
@@ -478,14 +478,14 @@ jobs:
       # Build phases run as explicit steps (the melos multi-line `run:` only
       # executes its first line on the Windows shell).
       - name: Build Rust native bridge (release)
-        run: cargo build --locked --release --manifest-path native/nightshade_native/bridge/Cargo.toml
+        run: cargo build --locked --release --manifest-path native/skotiq_native/bridge/Cargo.toml
 
       # Bake the trusted OTA public key into the binary. Empty secret
       # -> empty define -> runtime OTA stays fail-closed-disabled; the build
       # still succeeds (unsigned beta).
       - name: Build Flutter Windows app (release)
         working-directory: apps/desktop
-        run: flutter build windows --release "--dart-define=NIGHTSHADE_UPDATE_PUBLIC_KEY=${{ secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}"
+        run: flutter build windows --release "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY }}"
 
       - name: Stage native DLLs (bridge, libraw, MSVC runtime) into Release
         shell: pwsh
@@ -497,9 +497,9 @@ jobs:
       - name: Build + stage updater.exe
         shell: pwsh
         run: |
-          cargo build --locked --release --package nightshade_updater --manifest-path native/nightshade_native/Cargo.toml
+          cargo build --locked --release --package skotiq_updater --manifest-path native/skotiq_native/Cargo.toml
           $rel = "apps/desktop/build/windows/x64/runner/Release"
-          Copy-Item native/nightshade_native/target/release/updater.exe (Join-Path $rel "updater.exe") -Force
+          Copy-Item native/skotiq_native/target/release/updater.exe (Join-Path $rel "updater.exe") -Force
           Write-Host "Staged updater.exe into $rel"
 
       # Authenticode-sign every binary in the Release tree. No cert secret ->
@@ -520,7 +520,7 @@ jobs:
           if (-not $signtool) { throw "WINDOWS_SIGNING_CERT_BASE64 is set but signtool.exe was not found under the Windows 10 SDK." }
           $targets = @(Get-ChildItem $rel -Recurse -Include *.exe, *.dll | Select-Object -ExpandProperty FullName)
           if ($targets.Count -eq 0) { throw "No *.exe/*.dll to sign under $rel" }
-          $pfx = Join-Path $env:RUNNER_TEMP "nightshade_codesign.pfx"
+          $pfx = Join-Path $env:RUNNER_TEMP "skotiq_codesign.pfx"
           try {
             [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_SIGNING_CERT_BASE64))
             & $signtool.FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $pfx /p $env:WINDOWS_SIGNING_CERT_PASSWORD @targets
@@ -540,7 +540,7 @@ jobs:
           $missing = @()
           # 6.0 ships OTA auto-update, so updater.exe is now REQUIRED (it was
           # forbidden under 5.0's manual-update-only policy).
-          foreach ($f in @("nightshade_desktop.exe", "nightshade_bridge.dll", "libraw.dll", "updater.exe")) {
+          foreach ($f in @("skotiq_desktop.exe", "skotiq_bridge.dll", "libraw.dll", "updater.exe")) {
             if (-not (Test-Path (Join-Path $rel $f))) { $missing += $f }
           }
           if ($missing.Count -gt 0) {
@@ -569,21 +569,21 @@ jobs:
       # all agree). downloadUrl is baked + signed into the manifest, so it must
       # equal the real published asset URL: the immutable per-tag GitHub Releases
       # download URL (the tag is always v<APP_VERSION>, validated by the version
-      # job). Empty NIGHTSHADE_UPDATE_PRIVATE_KEY -> unsigned manifest (OTA stays
+      # job). Empty SKOTIQ_UPDATE_PRIVATE_KEY -> unsigned manifest (OTA stays
       # fail-closed-disabled); the build still succeeds.
       - name: Package + sign OTA manifest
         shell: pwsh
         env:
-          NIGHTSHADE_UPDATE_PRIVATE_KEY: ${{ secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY }}
+          SKOTIQ_UPDATE_PRIVATE_KEY: ${{ secrets.SKOTIQ_UPDATE_PRIVATE_KEY }}
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           $rel = "apps/desktop/build/windows/x64/runner/Release"
-          Copy-Item LICENSE (Join-Path $rel "NIGHTSHADE-LICENSE.txt") -Force
+          Copy-Item LICENSE (Join-Path $rel "SKOTIQ-LICENSE.txt") -Force
           Copy-Item docs/THIRD_PARTY_NOTICES.md (Join-Path $rel "THIRD_PARTY_NOTICES.md") -Force
           $env:GITHUB_SHA | Out-File -Encoding ascii (Join-Path $rel "SOURCE-COMMIT.txt")
           New-Item -ItemType Directory -Force -Path (Join-Path $rel "LICENSES") | Out-Null
           Copy-Item third_party/licenses/LGPL-2.1.txt (Join-Path $rel "LICENSES/LGPL-2.1.txt") -Force
-          $name = "nightshade-$($env:APP_VERSION)-windows-x64.zip"
+          $name = "skotiq-$($env:APP_VERSION)-windows-x64.zip"
           $url = "https://github.com/$($env:GITHUB_REPOSITORY)/releases/download/v$($env:APP_VERSION)/$name"
           ./scripts/build_update_package.ps1 -SkipBuild -SkipUpdaterBuild -NoPusherCopy `
             -OutputDir dist -DownloadUrl $url
@@ -643,7 +643,7 @@ jobs:
             echo "::error::Two build jobs produced the same manifest filename; one overwrote the other: $dupes"
             exit 1
           fi
-          cp LICENSE release-assets/NIGHTSHADE-LICENSE.txt
+          cp LICENSE release-assets/SKOTIQ-LICENSE.txt
           cp docs/THIRD_PARTY_NOTICES.md release-assets/THIRD_PARTY_NOTICES.md
           cp third_party/licenses/LGPL-2.1.txt release-assets/LGPL-2.1.txt
           printf '%s\n' "$GITHUB_SHA" > release-assets/SOURCE-COMMIT.txt
@@ -667,13 +667,13 @@ jobs:
       # manifest fails the release too.
       - name: Verify OTA manifests against the app update key
         env:
-          NIGHTSHADE_UPDATE_PUBLIC_KEY: ${{ secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}
-          SIGNING_KEY_CONFIGURED: ${{ secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY != '' }}
+          SKOTIQ_UPDATE_PUBLIC_KEY: ${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY }}
+          SIGNING_KEY_CONFIGURED: ${{ secrets.SKOTIQ_UPDATE_PRIVATE_KEY != '' }}
         run: |
           set -euo pipefail
           require=()
           if [ "$SIGNING_KEY_CONFIGURED" = "true" ]; then require=(--require-signed); fi
-          cd packages/nightshade_updater
+          cd packages/skotiq_updater
           flutter pub get
           dart run tool/verify_release_manifests.dart \
             --assets "$GITHUB_WORKSPACE/release-assets" \
@@ -700,7 +700,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
-          name: Nightshade ${{ env.RELEASE_TAG }}
+          name: Skotiq ${{ env.RELEASE_TAG }}
           body_path: docs/release/${{ env.RELEASE_TAG }}.md
           files: release-assets/*
           draft: false

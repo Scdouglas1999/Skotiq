@@ -1,11 +1,11 @@
 <#
 .SYNOPSIS
-    Build a Nightshade update package for OTA distribution.
+    Build a Skotiq update package for OTA distribution.
 
 .DESCRIPTION
     Creates the ZIP update package and its (signed, when
-    NIGHTSHADE_UPDATE_PRIVATE_KEY is set) manifest from the built Flutter
-    desktop release, through packages/nightshade_updater/tool/
+    SKOTIQ_UPDATE_PRIVATE_KEY is set) manifest from the built Flutter
+    desktop release, through packages/skotiq_updater/tool/
     build_update_manifest.dart: the same packager and signer the Linux and
     Android release jobs use. Run after 'melos run dev:norun' or a release
     build.
@@ -24,10 +24,10 @@
 .PARAMETER DownloadUrl
     URL baked into (and signed into) the manifest's downloadUrl. Must equal the
     real published asset URL, since it is part of the signed payload. Defaults to
-    the legacy updates.nightshade.app path for local pushes.
+    the legacy updates.skotiq.app path for local pushes.
 
 .PARAMETER NoPusherCopy
-    Skip writing the generic nightshade-update.zip copy used by the LAN pusher.
+    Skip writing the generic skotiq-update.zip copy used by the LAN pusher.
     Used by CI so the publish job's asset sweep does not pick up a stray zip.
 
 .EXAMPLE
@@ -49,7 +49,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "Nightshade Update Package Builder" -ForegroundColor Cyan
+Write-Host "Skotiq Update Package Builder" -ForegroundColor Cyan
 Write-Host "==================================" -ForegroundColor Cyan
 
 # Navigate to repo root
@@ -69,12 +69,12 @@ try {
 
     # OTA is fail-closed: manifests must be signed by the key trusted by the
     # installed app. New builds embed the production public key by default;
-    # NIGHTSHADE_UPDATE_PUBLIC_KEY can override it for testing or rotation.
-    # NIGHTSHADE_UPDATE_PRIVATE_KEY supplies the matching signing seed below.
+    # SKOTIQ_UPDATE_PUBLIC_KEY can override it for testing or rotation.
+    # SKOTIQ_UPDATE_PRIVATE_KEY supplies the matching signing seed below.
 
     # Build if not skipping
     if (-not $SkipBuild) {
-        Write-Host "`nBuilding Nightshade..." -ForegroundColor Yellow
+        Write-Host "`nBuilding Skotiq..." -ForegroundColor Yellow
         melos run dev:norun
         if ($LASTEXITCODE -ne 0) {
             throw "Build failed"
@@ -90,7 +90,7 @@ try {
     # Build the updater executable (required for OTA updates to work). CI builds
     # and Authenticode-signs it in an earlier step, then passes -SkipUpdaterBuild
     # so the signed binary stays in the archive; here we only assert its presence.
-    $rustDir = "native/nightshade_native"
+    $rustDir = "native/skotiq_native"
     $updaterDest = Join-Path $releaseDir "updater.exe"
     if ($SkipUpdaterBuild) {
         if (-not (Test-Path $updaterDest)) {
@@ -100,7 +100,7 @@ try {
     } else {
         Write-Host "`nBuilding updater.exe..." -ForegroundColor Yellow
         Push-Location $rustDir
-        cargo build --release --package nightshade_updater
+        cargo build --release --package skotiq_updater
         if ($LASTEXITCODE -ne 0) {
             Pop-Location
             throw "Updater build failed"
@@ -128,9 +128,9 @@ try {
     # saved with a trailing newline) would produce a manifest every Windows
     # install refuses. The tool builds the payload with
     # UpdateVerifier.canonicalManifestPayload itself and trims the key.
-    $packageName = "nightshade-$version-windows-x64.zip"
+    $packageName = "skotiq-$version-windows-x64.zip"
     $resolvedUrl = if ([string]::IsNullOrWhiteSpace($DownloadUrl)) {
-        "https://updates.nightshade.app/releases/$version/$packageName"
+        "https://updates.skotiq.app/releases/$version/$packageName"
     } else {
         $DownloadUrl
     }
@@ -142,10 +142,10 @@ try {
     $absOutput = (Resolve-Path $OutputDir).Path
 
     Write-Host "`nPackaging and signing with tool/build_update_manifest.dart..." -ForegroundColor Yellow
-    if ([string]::IsNullOrWhiteSpace($env:NIGHTSHADE_UPDATE_PRIVATE_KEY)) {
-        Write-Host "  OTA manifest unsigned (no NIGHTSHADE_UPDATE_PRIVATE_KEY); update is fail-closed-disabled" -ForegroundColor DarkYellow
+    if ([string]::IsNullOrWhiteSpace($env:SKOTIQ_UPDATE_PRIVATE_KEY)) {
+        Write-Host "  OTA manifest unsigned (no SKOTIQ_UPDATE_PRIVATE_KEY); update is fail-closed-disabled" -ForegroundColor DarkYellow
     }
-    Push-Location "packages/nightshade_updater"
+    Push-Location "packages/skotiq_updater"
     try {
         dart run tool/build_update_manifest.dart `
             --payload $absRelease `
@@ -171,7 +171,7 @@ try {
     # Also create a generic name for the pusher tool (skipped in CI so the
     # publish job's asset sweep does not pick up a stray zip).
     if (-not $NoPusherCopy) {
-        Copy-Item $packagePath (Join-Path $OutputDir "nightshade-update.zip") -Force
+        Copy-Item $packagePath (Join-Path $OutputDir "skotiq-update.zip") -Force
     }
 
     Write-Host "`n========================================" -ForegroundColor Green

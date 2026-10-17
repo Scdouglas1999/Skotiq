@@ -1,5 +1,5 @@
 export const meta = {
-  name: 'nightshade-verify-p2p3',
+  name: 'skotiq-verify-p2p3',
   description: 'Reproduce the 120 unverified P2/P3 defects against a REBUILT bundle',
   phases: [{ title: 'Verify', detail: 'one agent per area, told to refute' }],
 }
@@ -56,7 +56,7 @@ questions. Budget ~30 image reads for the whole batch. \`click-img\` takes coord
 THAT IMAGE; \`click-xy\` takes root coordinates and would land elsewhere.
 
 For any finding about a NUMBER, recompute it yourself from the scratch DB
-(/tmp/ns-audit/<PROFILE>/data/nightshade.db) or by hand. Comparing two of the app's own readouts
+(/tmp/ns-audit/<PROFILE>/data/skotiq.db) or by hand. Comparing two of the app's own readouts
 proves nothing about which is right.
 
 WRITE AS YOU GO: append each verdict to reports/coverage/verdicts/<YOUR KEY>.json the moment you
@@ -90,7 +90,7 @@ phase('Verify')
 const results = await parallel(
   BATCHES.map((b) => () =>
     agent(
-      `Verify ${b.n} unverified P2/P3 defect claims about the Nightshade astrophotography app.
+      `Verify ${b.n} unverified P2/P3 defect claims about the Skotiq astrophotography app.
 
 Display: ${b.display}
 Profile: ${b.key}

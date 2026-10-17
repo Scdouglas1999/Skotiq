@@ -4,7 +4,7 @@ Workstream `w7-imaging-fields`, branch `agent/w7-imaging-fields`, base
 `d6a1caeb3` (verified with `git rev-parse --short HEAD` before any edit — no
 detach needed).
 
-Goal: the digits in numeric `NightshadeTextField`s painted ~2.5 px below the
+Goal: the digits in numeric `SkotiqTextField`s painted ~2.5 px below the
 well centre on the release build, while text/dropdown values painted slightly
 high and the unit suffix rode visibly above the digits. Centre numeric and
 lowercase ink, put the suffix on the value's baseline, keep the 28/32 px well
@@ -52,9 +52,9 @@ app).
    on the *caption* line box, not the digits' baseline, so it rode ~5 px
    above the digits' baseline.
 
-## Fix (all scoped to `nightshade_ui`)
+## Fix (all scoped to `skotiq_ui`)
 
-`packages/nightshade_ui/lib/src/components/nightshade_text_field.dart`:
+`packages/skotiq_ui/lib/src/components/skotiq_text_field.dart`:
 
 - `visualDensity: VisualDensity.standard` on the collapsed decoration. The
   editable now fills its slot identically on every platform (offset 0).
@@ -73,7 +73,7 @@ app).
 - `suffixWidget` (e.g. capture-bar icon buttons) still renders in the well's
   Row, unchanged.
 
-`packages/nightshade_ui/lib/src/components/nightshade_dropdown.dart`:
+`packages/skotiq_ui/lib/src/components/skotiq_dropdown.dart`:
 removed the `Transform.translate` on the label — the trigger now centres the
 label the same way as the fields.
 
@@ -126,7 +126,7 @@ now sit on the value baseline instead of ~5 px above it. `Light` at +1.00 is
 font geometry (the 'g' descender pulls the ink centroid down inside a
 correctly centred line box) — same mechanism as lowercase ink generally.
 
-### Widget tests (`packages/nightshade_ui/test/nightshade_text_field_test.dart`)
+### Widget tests (`packages/skotiq_ui/test/skotiq_text_field_test.dart`)
 
 `tight` selection boxes from `RenderEditable.getBoxesForSelection` plus a
 `RepaintBoundary` raster at 4×, bright-row scan — the same measure as the
@@ -146,17 +146,17 @@ git rev-parse --short HEAD                              → d6a1caeb3 ✓
 dart format --output=none --set-exit-if-changed <3 pkgs>  → EXIT=1
   (41 files of pre-existing drift outside my file list — depthlock,
    imaging_screen, title_bar, etc. — not touched. My three files: EXIT=0)
-dart analyze  (nightshade_ui, my files only)             → "No issues found!" EXIT=0
-dart analyze  (nightshade_app)                           → 895 issues, all
+dart analyze  (skotiq_ui, my files only)             → "No issues found!" EXIT=0
+dart analyze  (skotiq_app)                           → 895 issues, all
   info-level + 8 warnings, all pre-existing; zero in touched files. EXIT=2
-cd packages/nightshade_ui && flutter test --concurrency=4
+cd packages/skotiq_ui && flutter test --concurrency=4
   → +523, All tests passed!  EXIT=0
-cd packages/nightshade_app && flutter test test/screens/imaging --concurrency=3
+cd packages/skotiq_app && flutter test test/screens/imaging --concurrency=3
   → +360, All tests passed!  EXIT=0
 flutter test test/widgets --concurrency=3
   → +293 −10  EXIT=1  (see below)
-cd apps/desktop && flutter build linux --release && cp libnightshade_bridge.so …
-  → ✓ Built build/linux/x64/release/bundle/nightshade_desktop  EXIT=0
+cd apps/desktop && flutter build linux --release && cp libskotiq_bridge.so …
+  → ✓ Built build/linux/x64/release/bundle/skotiq_desktop  EXIT=0
 tools/ui_audit/drive_linux.py --profile w7fix (NS_AUDIT_DISPLAY=:97, seeded
   /tmp/ns-audit/w7fix/data from the preview data dir) — navigated Continue
   Session → Imaging; captures before: w7_now.png / w7_imaging_raw.png,
@@ -172,7 +172,7 @@ queries intrinsics, and `_singleLineWell`'s `LayoutBuilder` throws
 "LayoutBuilder does not support returning intrinsic dimensions". The
 `LayoutBuilder` predates this workstream (present at `d6a1caeb3` and
 `HEAD~1`); I reverted my source files and reran — **identical 10 failures on
-base**. A real latent defect (any `NightshadeTextField` inside an
+base**. A real latent defect (any `SkotiqTextField` inside an
 `AlertDialog`/`IntrinsicWidth` crashes on intrinsic query) but out of this
 workstream's file list — flagged for follow-up, not fixed here.
 

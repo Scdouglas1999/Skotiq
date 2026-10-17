@@ -19,9 +19,9 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/session_handlers.dart';
-import 'package:nightshade_desktop/headless_api/job_manager.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/session_handlers.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -77,7 +77,7 @@ void main() {
   group('thumbnail sidecar caching', () {
     late ProviderContainer container;
     late SessionHandlers handlers;
-    late NightshadeDatabase db;
+    late SkotiqDatabase db;
     late Directory tempDir;
     late File fitsFile;
     late int imageId;
@@ -85,7 +85,7 @@ void main() {
     late JobManager jobManager;
 
     setUp(() async {
-      db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       stubGenerator = _StubGenerator();
       jobManager = JobManager(emitEvent: (_) {});
 
@@ -104,7 +104,7 @@ void main() {
       handlers = SessionHandlers(container, jobManager: jobManager);
 
       tempDir = await Directory.systemTemp.createTemp(
-        'nightshade_thumb_sidecar_',
+        'skotiq_thumb_sidecar_',
       );
       fitsFile = File('${tempDir.path}${Platform.pathSeparator}test.fits');
       // Real FITS content not needed — the FFI stub doesn't read it. The
@@ -421,7 +421,7 @@ void main() {
 
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp(
-        'nightshade_thumb_sidecar_unit_',
+        'skotiq_thumb_sidecar_unit_',
       );
       fitsFile = File('${tempDir.path}${Platform.pathSeparator}u.fits');
       await fitsFile.writeAsBytes(List<int>.filled(2880, 0));

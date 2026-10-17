@@ -30,8 +30,8 @@ Branch naming: `feature/observatory-w0-tokens`, `…-w1-shell`, `…-w2-componen
 7. **Verify in the running app** with the harness (below) before claiming done. A green
    `flutter analyze` is not verification. Screenshots go in `reports/observatory/<wave>/`.
 8. **Run the gates**: `melos run test` for the packages you touched, `flutter analyze`, the two
-   audit tools, `packages/nightshade_ui/test/design_system_gallery_test.dart` (regenerate the
-   gallery goldens on Linux for `nightshade_ui` only), and the contrast tests.
+   audit tools, `packages/skotiq_ui/test/design_system_gallery_test.dart` (regenerate the
+   gallery goldens on Linux for `skotiq_ui` only), and the contrast tests.
 9. **Commit per screen, not per wave.** Small diffs; no Co-Authored-By trailers (repo rule).
 10. **When the spec and the code disagree about a FACT** (a provider name, a file that moved),
     trust the code and note the correction in `reports/observatory/<wave>/notes.md`. When they
@@ -63,24 +63,24 @@ python3 tools/ui_audit/drive_linux.py stop
 
 ## Wave 0 — Tokens (1 agent, ~1 day)
 
-Scope: 03-tokens.md §1, §2, §3.1–3.2, §4, §5 in `packages/nightshade_ui`, plus the mechanical
-literal migration in `packages/nightshade_app`. NOT §3.3 (component sizes → wave 2) and NOT §3.4
+Scope: 03-tokens.md §1, §2, §3.1–3.2, §4, §5 in `packages/skotiq_ui`, plus the mechanical
+literal migration in `packages/skotiq_app`. NOT §3.3 (component sizes → wave 2) and NOT §3.4
 (shell metrics → wave 1): those change layout and this wave must not.
 
 Steps:
-1. `nightshade_colors.dart`: add the seven new fields (03 §1.5); new palette values; deprecate
+1. `skotiq_colors.dart`: add the seven new fields (03 §1.5); new palette values; deprecate
    `surfaceAlt`; add `AppearanceAccents` per-theme swatch lists (03 §1.4).
-2. `nightshade_typography.dart`: add the twelve new styles (03 §2); deprecate `h1..h6`,
+2. `skotiq_typography.dart`: add the twelve new styles (03 §2); deprecate `h1..h6`,
    `statValue`, `statLabel`; leave `textTheme()` mappings alone.
-3. `nightshade_tokens.dart`: radius values (03 §3.2), durations and curves (03 §4), opacity tokens
+3. `skotiq_tokens.dart`: radius values (03 §3.2), durations and curves (03 §4), opacity tokens
    (03 §5.1), `iconButtonSize*` constants. NOT button/input heights, NOT sidebar widths.
 4. (moved to wave 1) — do not touch `shell_chrome_metrics.dart` in this wave.
-5. `nightshade_decorations.dart`: the factory set in 03 §5.2; the existing factories become thin
+5. `skotiq_decorations.dart`: the factory set in 03 §5.2; the existing factories become thin
    deprecated wrappers per the table at the end of 03 §5.2.
 6. Contrast tests: `light_contrast_test.dart` and `red_night_contrast_test.dart` exist in
-   `packages/nightshade_ui/test/`; extend both to cover `well`, and add `dark_contrast_test.dart`
+   `packages/skotiq_ui/test/`; extend both to cover `well`, and add `dark_contrast_test.dart`
    with the same floors as `check_tokens.py`.
-7. Mechanical migration in `packages/nightshade_app/lib`: the 110 `BorderRadius.circular(<n>)`
+7. Mechanical migration in `packages/skotiq_app/lib`: the 110 `BorderRadius.circular(<n>)`
    and 29 `Radius.circular(<n>)` literals → tokens per 03 §3.2 (a sed-style script is fine; commit
    it under `tools/production/`), every `Color(0x…)` that equals an OLD palette value → the
    semantic token it was standing in for. Do NOT touch the 979 `radiusInline*` sites (wave 4).
@@ -91,7 +91,7 @@ Steps:
 
 Done when:
 - [ ] `check_tokens.py` passes and its numbers match the comments in the Dart palettes.
-- [ ] `grep -rcE "(BorderRadius|Radius)\.circular\([0-9]" packages/nightshade_app/lib | awk -F: '{s+=$2} END {print s}'` prints 0 (from 110 + 29).
+- [ ] `grep -rcE "(BorderRadius|Radius)\.circular\([0-9]" packages/skotiq_app/lib | awk -F: '{s+=$2} END {print s}'` prints 0 (from 110 + 29).
 - [ ] `design_tokens_sync_test.dart` passes.
 - [ ] No `Color(0x…)` in chrome; the data colours are listed below.
       The original box asked for "≤ 40 (from 120)". Wave 0 surveyed every one: the real count is
@@ -114,14 +114,14 @@ Done when:
       the new palette (darker canvas, brighter accent) and radii with NO layout change (chrome
       heights, button heights and rail width are identical to the audit screenshots; this is
       why §3.3 and §3.4 are excluded from this wave).
-- [ ] `melos run test` green for `nightshade_ui` and `nightshade_app`.
+- [ ] `melos run test` green for `skotiq_ui` and `skotiq_app`.
 
 ## Wave 1 — Shell (1 agent, ~2 days)
 
 Scope: 04-shell.md. Files listed in its table.
 
 Steps (in this order, verifying after each):
-0. `shell_chrome_metrics.dart` + `nightshade_tokens.dart` sidebar widths: the values in 03 §3.4
+0. `shell_chrome_metrics.dart` + `skotiq_tokens.dart` sidebar widths: the values in 03 §3.4
    (title bar 44, status bar 32, rail 64, bottom nav 64, delete `statusBarHeightCompact`, fix
    `contentStackBottomChromeHeight`).
 1. `shell_navigation.dart`: grouped destinations, Darkroom added, labels renamed, descriptions
@@ -129,7 +129,7 @@ Steps (in this order, verifying after each):
    `translations.dart` for every language present (copy the English string where a translation
    is missing and mark it `// TODO(l10n)`).
 2. `side_navigation.dart` + `nav_item.dart`: rail geometry (04 §3.1); the tooltip fix goes in
-   `nightshade_ui/.../nightshade_tooltip.dart` (04 §3.1 says exactly where and adds a test).
+   `skotiq_ui/.../skotiq_tooltip.dart` (04 §3.1 says exactly where and adds a test).
 3. `title_bar.dart`: top bar (04 §2) with the command field placeholder (the palette itself is
    step 6; the field can open a stub dialog until then). Remove the profile button. Add the help
    popover (05 §11) and DELETE `widgets/contextual_tour_prompt.dart` and its 13 call sites in the
@@ -140,9 +140,9 @@ Steps (in this order, verifying after each):
    `dashboard_screen.dart` (the dashboard will temporarily show its old content minus the bar;
    that is expected until wave 3).
 6. Command palette (04 §7) with Screens + Settings + Actions groups (Targets group is wave 3 Plan).
-7. `nightshade_bottom_navigation.dart` + `shell_navigation.dart` bottom lists: five slots + More
+7. `skotiq_bottom_navigation.dart` + `shell_navigation.dart` bottom lists: five slots + More
    sheet (04 §3.3 lists every member that changes).
-8. `PageHeader` widget in `nightshade_ui` (04 §4) — created here, adopted per screen in wave 3.
+8. `PageHeader` widget in `skotiq_ui` (04 §4) — created here, adopted per screen in wave 3.
    `ScreenHeader` keeps working (deprecated).
 
 Done when: every box in 04 §8 is ticked with screenshot evidence in `reports/observatory/w1/`.
@@ -150,12 +150,12 @@ Done when: every box in 04 §8 is ticked with screenshot evidence in `reports/ob
 ## Wave 2 — Components (1–2 agents, ~3 days)
 
 Scope: 05-components.md plus 03 §3.3 (button and input heights, applied here because
-`NightshadeButton`/fields are rebuilt here). Only `packages/nightshade_ui` plus the gallery and
-goldens, plus compile fixes in `nightshade_app` for renamed parameters.
+`SkotiqButton`/fields are rebuilt here). Only `packages/skotiq_ui` plus the gallery and
+goldens, plus compile fixes in `skotiq_app` for renamed parameters.
 
 Build in this order (each is used by the next): Panel + PanelHead → Readout family → Chip /
-InstrumentPill / StatusDot changes → Buttons + NightshadeIconButton → Fields + FormRow → Tabs
-(underline) + SegmentedControl → NightshadeToolbar → NightshadeBanner + EmptyState + Dialog →
+InstrumentPill / StatusDot changes → Buttons + SkotiqIconButton → Fields + FormRow → Tabs
+(underline) + SegmentedControl → SkotiqToolbar → SkotiqBanner + EmptyState + Dialog →
 Glass → SidePanel + SectionTitle → ListRow / DeviceRow / Candidate → Checklist → NightBand.
 
 Two agents may split at "Glass →": agent A does everything before it, agent B does Glass,
@@ -168,12 +168,12 @@ Done when:
       sizes; colour identical; fonts identical). This comparison is made by a DIFFERENT agent (or
       the owner) than the one who regenerated the golden, with both images side by side, and the
       verdict is written in `reports/observatory/w2/golden-review.md`.
-- [ ] `flutter test packages/nightshade_ui` green, including new widget tests: `Readout(value:
+- [ ] `flutter test packages/skotiq_ui` green, including new widget tests: `Readout(value:
       null)` renders "—"; `NightBand` positions the now marker at the right fraction; `Checklist`
       strikes done titles; `SidePanel` strip selection; underline indicator width equals label
-      width + 4; `NightshadeTooltip` hides on rebuild while hovered; every animation honours
+      width + 4; `SkotiqTooltip` hides on rebuild while hovered; every animation honours
       `MediaQuery.disableAnimations`.
-- [ ] Nothing in `nightshade_app` changed except compile fixes for renamed parameters.
+- [ ] Nothing in `skotiq_app` changed except compile fixes for renamed parameters.
 
 ## Wave 3 — Screens (one agent PER screen, parallel, ~1–2 days each)
 
@@ -184,10 +184,10 @@ four are the ones the owner will judge; do them first and do them exactly.
 Per-screen checklist (copy into the PR description and tick):
 - [ ] Uses `PageHeader`; no `ScreenHeader`, no subtitle sentence, no second header row.
 - [ ] Tabs are `AdaptiveTabBar` underline style; no `SubTabButton`, no pill tabs.
-- [ ] Zero `NightshadeCard` without `onTap`; containers are `NightshadePanel`; insets are `well`;
+- [ ] Zero `SkotiqCard` without `onTap`; containers are `SkotiqPanel`; insets are `well`;
       nesting depth ≤ panel → well.
 - [ ] Every number that is a measurement is a `Readout`; every `---`/`--:--` is gone.
-- [ ] Every `IconButton` in this screen's files is a `NightshadeIconButton` with a tooltip (this
+- [ ] Every `IconButton` in this screen's files is a `SkotiqIconButton` with a tooltip (this
       is where the 178-site migration happens, screen by screen).
 - [ ] Every raw `TextStyle(` in the screen's files replaced by a named style (count before/after
       in the PR).
@@ -209,11 +209,11 @@ element must be one of the sheet's components, laid out per 06.
 
 ## Wave 4 — Cleanup (1 agent, ~1 day)
 
-- Sed-replace the 979 `NightshadeTokens.radiusInline*` sites per 03 §3.2 (one commit), then
+- Sed-replace the 979 `SkotiqTokens.radiusInline*` sites per 03 §3.2 (one commit), then
   delete the constants.
 - Delete deprecated members: `surfaceAlt`, `h1..h6`, `statValue`, `statLabel`, `ScreenHeader`,
   `SubTabButton`, `CardVariant`, `ButtonVariant.outline`, `StatusPill`, the old
-  `NightshadeDecorations` wrappers, `elevationLevel*`/`shadow*`, the deprecated opacity tokens,
+  `SkotiqDecorations` wrappers, `elevationLevel*`/`shadow*`, the deprecated opacity tokens,
   the extra named curves, `nav*Desc` strings (the tour prompts and `DashboardCommandBar` were
   already deleted in waves 1 and 3).
 - Run both audit tools with the scoped-out allowlist emptied of anything the overhaul fixed.
@@ -236,7 +236,7 @@ element must be one of the sheet's components, laid out per 06.
 - Do not add a toast, banner or dialog for a setup problem. Route it to the checklist.
 - Do not scale fonts down to make something fit. Reduce content or let it scroll.
 - Do not regenerate Windows goldens on Linux and commit them.
-- Do not touch `packages/nightshade_core`, `nightshade_bridge`, `native/`, or `server/`.
+- Do not touch `packages/skotiq_core`, `skotiq_bridge`, `native/`, or `server/`.
 - Do not start a second screen in the same branch as the first.
 
 ## Status 2026-09-09
@@ -251,7 +251,7 @@ agent, a route-only-screens agent and this docs pass. Every merge is recorded in
 
 | Wave | Merged at | What landed |
 |---|---|---|
-| 0 — tokens | `3a0e1cde0` | New palette (`primary` #6EB3EC, `well`, `startFill`/`onStart`, band colours, `AppearanceAccents`), the type scale, radius values, motion, opacity, the decoration factories, `check_tokens.py` + `design_tokens_sync_test.dart`, and the 139 raw radius literals in `nightshade_app` migrated to tokens |
+| 0 — tokens | `3a0e1cde0` | New palette (`primary` #6EB3EC, `well`, `startFill`/`onStart`, band colours, `AppearanceAccents`), the type scale, radius values, motion, opacity, the decoration factories, `check_tokens.py` + `design_tokens_sync_test.dart`, and the 139 raw radius literals in `skotiq_app` migrated to tokens |
 | 1 — shell | `685f07b5d` | 44 px top bar with the global command field, the command palette, the 64 px rail grouped Observe / Prepare / Review with Darkroom promoted, single-line rail items, 32 px instrument bar, `PageHeader`, the five-slot bottom nav + More sheet, and `contextual_tour_prompt.dart` deleted with its 13 call sites |
 | 2 — components | `4a6ab9920` | The whole kit in 05: Panel/PanelHead, the Readout family, underline tabs, SegmentedControl, buttons and icon buttons at the new heights, fields + FormRow, Toolbar, Banner, EmptyState, Dialog, Glass, SidePanel, list rows, Candidate, Checklist, NightBand — each with a gallery section and a Linux golden |
 | 3 — screens | `07b0f32e3` weather, `1aff434fa` plan, `827de2f27` settings, `5c14c7667` darkroom, `6b6ff4cce` guiding, `40b0aa67b` analytics, `ec7eb29c8` onboarding, `1d0dbf43a` imaging, `0c7ea6ec1` tonight, `544c0a704` equipment, `b87b839ce` + `1b8fd84ae` sequencer | Eleven screens onto the kit: PageHeader everywhere, underline tabs, panels and wells, readouts with `—`, tooltipped icon buttons, one banner per problem, the Tonight hero + night band + checklist, the Imaging edge-to-edge canvas with the glass HUD |
@@ -273,8 +273,8 @@ in `reports/observatory/merge-log.md` / `integration-3/`.
   seven that match a pre-overhaul palette value are all data (filter maps, a diverging-ramp
   endpoint, profile identity swatches, a fixed-palette annotation dialog). The box became "no
   `Color(0x…)` in chrome", which was already true. The table in wave 0 above lists them.
-- **Wave 2.** `NightshadeCard` was not deleted (325 call sites; wave 3 migrated screens to
-  `NightshadePanel` instead); `SubTabButton` and `NightshadeAlert` were deprecated rather than
+- **Wave 2.** `SkotiqCard` was not deleted (325 call sites; wave 3 migrated screens to
+  `SkotiqPanel` instead); `SubTabButton` and `SkotiqAlert` were deprecated rather than
   removed, and the removal moved to wave 4; the dropdown's open list kept 48 px rows until wave 4
   replaced Material's menu with a bespoke 32 px popover.
 - **Wave 3, Darkroom.** `AdaptivePanelLayout` kept: A/B compare genuinely needs both panels.
@@ -282,7 +282,7 @@ in `reports/observatory/merge-log.md` / `integration-3/`.
   and the red-night accent picker is hidden entirely — `AppearanceAccents.forTheme(redNight)`
   returns an empty list, because any accent off the red axis breaks dark adaptation. The mockup
   was corrected to match rather than the code.
-- **Wave 3, Guiding.** `NightshadeTouchTarget` (the wave-3 implementation) won over the main
+- **Wave 3, Guiding.** `SkotiqTouchTarget` (the wave-3 implementation) won over the main
   loop's width-based one for the 48 dp floor.
 - **Copy.** Two rules were broadcast mid-campaign and are now in 03 §2 and 06: the bundled fonts
   carry no `′`, `″` or thin space, so arcminutes and arcseconds are ASCII `'` and `"` and numbers
@@ -294,7 +294,7 @@ in `reports/observatory/merge-log.md` / `integration-3/`.
 1. **Windows goldens.** Every golden in the repo except
    `docs/design/goldens/gallery-observatory-{dark,light,rednight}.png` is Windows-captured. The
    overhaul changed the layout under most of them, so they must be regenerated on the rig, not on
-   Linux. Two `nightshade_app` framing goldens were regenerated on Linux at the final gate because
+   Linux. Two `skotiq_app` framing goldens were regenerated on Linux at the final gate because
    CI runs ubuntu-latest — see `docs/testing/golden-tests.md`. Nothing else was.
 2. **Tree-wide `dart format`.** Red at the campaign's base: 1,670 files predate Dart 3.12's tall
    style. That is its own owner-approved commit, not something a feature branch should carry, so
@@ -302,7 +302,7 @@ in `reports/observatory/merge-log.md` / `integration-3/`.
 3. **On-sky.** Nothing here was verified against real hardware. The whole campaign ran on the
    Linux harness with simulated camera, mount and focuser.
 4. **Parked, with a reason.**
-   - The planetarium, the charts (`NightshadeChartColors`) and image rendering are outside the
+   - The planetarium, the charts (`SkotiqChartColors`) and image rendering are outside the
      overhaul's scope (README). The two planetarium overlays still print `--:--`.
    - `widgets/equipment_status_indicator.dart` still returns `'---'` in seven places (01-audit E4).
    - The session-notes sentiment picker is three colour emoji, which no theme can retint

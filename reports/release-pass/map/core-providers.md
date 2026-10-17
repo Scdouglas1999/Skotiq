@@ -1,6 +1,6 @@
-# Release-pass map — `nightshade_core` providers (excluding `sequence/`)
+# Release-pass map — `skotiq_core` providers (excluding `sequence/`)
 
-Scope: `packages/nightshade_core/lib/src/providers/**` minus the `sequence/` subtree.
+Scope: `packages/skotiq_core/lib/src/providers/**` minus the `sequence/` subtree.
 Read-only mapping pass. No source file was modified.
 
 Totals in scope: 121 Dart files, 55,302 lines (`find … -name '*.dart' | grep -v /sequence/ | xargs wc -l`).
@@ -53,7 +53,7 @@ adaptive conditions), (e) park-before-dawn twilight math, (f) snooze/UI plumbing
 **7 timers** and 9 boolean/int latches as instance state.
 
 **Split plan** (make it a `part` library; file keeps its name and its `export` from
-`nightshade_core.dart`):
+`skotiq_core.dart`):
 
 New `weather_safety_provider.dart` (target ~330 lines) keeps:
 - `part` directives, all imports
@@ -197,7 +197,7 @@ file, ahead of the actual providers.
 the three `part` directives (~25 lines).
 
 **Do NOT move `EquipmentProfileModel` to `lib/src/models/`.** 107 files reference the symbol
-(`grep -rl EquipmentProfileModel packages apps | wc -l` → 107) and `nightshade_core.dart:221`
+(`grep -rl EquipmentProfileModel packages apps | wc -l` → 107) and `skotiq_core.dart:221`
 exports `src/providers/profiles_provider.dart`. A `part` file keeps every one of those imports
 byte-identical; a physical move to `models/` needs a barrel edit plus re-export gymnastics for
 files that import `profiles_provider.dart` directly.
@@ -401,7 +401,7 @@ One line each; a dedicated cross-cutting agent should chase these.
   state strings to app state.
 - **Weather threshold evaluation across the language boundary.**
   `services/weather/weather_threshold_evaluator.dart` (Dart) vs the Rust
-  `safety_fail_mode_no_data_resolution` in `native/nightshade_native/sequencer/src/lib.rs`; kept in
+  `safety_fail_mode_no_data_resolution` in `native/skotiq_native/sequencer/src/lib.rs`; kept in
   sync only by a hand-written parity test pair (documented at
   `weather_safety_provider.dart:31-56`).
 - **`AppSettings` shape, fifth and sixth copies.** The four in §2.4 plus the wire model in
@@ -601,7 +601,7 @@ that instead of `dynamic`.
 then calls `db.flatHistoryDao.recordCalibration(...)` (`:1491`) unchecked. The whole body is wrapped
 in `catch (e, st)` (`:1501`) which downgrades a *typo* to a user-facing "the flat library did not
 record this calibration" warning rather than a build failure. Type the parameters
-(`NightshadeBackend` / `AppDatabase`).
+(`SkotiqBackend` / `AppDatabase`).
 
 ### 6.5 `_hasAnythingToSafe` swallows every error into "enforce anyway"
 

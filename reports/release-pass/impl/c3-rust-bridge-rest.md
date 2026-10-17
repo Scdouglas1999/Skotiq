@@ -1,6 +1,6 @@
 # C3 — batch `rust-bridge-rest`
 
-Scope: `native/nightshade_native/bridge/src/**`, every non-generated file over the
+Scope: `native/skotiq_native/bridge/src/**`, every non-generated file over the
 1500-line Rust threshold **except** `api/imaging.rs` (another batch) and
 `frb_generated.rs` (generated, untouchable).
 
@@ -10,7 +10,7 @@ stale after C1/C2.
 
 ## Result
 
-14 files split, 0 behaviour changes, `cargo test -p nightshade_bridge` green
+14 files split, 0 behaviour changes, `cargo test -p skotiq_bridge` green
 (**550 passed / 0 failed / 4 ignored** — identical to the HEAD baseline of
 548 passed + 2 failed, where the 2 failures were the source-path guards this batch
 had to re-point; see "Test edits" below).
@@ -106,7 +106,7 @@ These are the 2 tests that failed mid-batch; both pass now.
 
 * **`api/imaging.rs`** — explicitly out of scope for this batch.
 * **`ascom_wrapper/camera.rs` (1629)** — `#[cfg(windows)]`. It cannot be compile-verified
-  from this machine: `cargo check --target x86_64-pc-windows-msvc -p nightshade_bridge`
+  from this machine: `cargo check --target x86_64-pc-windows-msvc -p skotiq_bridge`
   dies in a C build script (`failed to find tool "lib.exe"`). Splitting Windows-only code
   with no compiler to check it is exactly the kind of unverifiable change this pass must
   not make.
@@ -121,10 +121,10 @@ These are the 2 tests that failed mid-batch; both pass now.
 
 ## Verification
 
-* `cargo check -p nightshade_bridge --all-targets` — clean (no errors, no warnings from
+* `cargo check -p skotiq_bridge --all-targets` — clean (no errors, no warnings from
   bridge).
-* `cargo test -p nightshade_bridge` — 550 passed, 0 failed, 4 ignored.
-* `cargo clippy -p nightshade_bridge --all-targets -- -D warnings -D clippy::result_unit_err
+* `cargo test -p skotiq_bridge` — 550 passed, 0 failed, 4 ignored.
+* `cargo clippy -p skotiq_bridge --all-targets -- -D warnings -D clippy::result_unit_err
   -D clippy::await_holding_lock -D clippy::undocumented_unsafe_blocks` — two errors, both
   **pre-existing** with this workstation's newer clippy (1.96) and neither in a file this
   batch created:

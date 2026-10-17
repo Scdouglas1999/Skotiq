@@ -46,11 +46,11 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "nightshade_desktop");
+    gtk_header_bar_set_title(header_bar, "skotiq_desktop");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   } else {
-    gtk_window_set_title(window, "nightshade_desktop");
+    gtk_window_set_title(window, "skotiq_desktop");
   }
 
   // Must match WindowOptions.size in lib/main.dart. When they disagree, Dart's
@@ -69,7 +69,7 @@ static void my_application_activate(GApplication* application) {
   if (exe_path != nullptr) {
     g_autofree gchar* exe_dir = g_path_get_dirname(exe_path);
     g_autofree gchar* icon_path = g_build_filename(
-        exe_dir, "icons", "nightshade_256.png", nullptr);
+        exe_dir, "icons", "skotiq_256.png", nullptr);
     GdkPixbuf* icon_pixbuf = gdk_pixbuf_new_from_file(icon_path, &icon_error);
     if (icon_pixbuf != nullptr) {
       gtk_window_set_icon(window, icon_pixbuf);

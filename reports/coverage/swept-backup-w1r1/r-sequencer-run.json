@@ -88,7 +88,7 @@
    "unit": "screen:sequencer/sequencer_screen.dart",
    "what_happened": "Run 1 captured 4 lights. The FITS header on disk is complete: GAIN=100, OFFSET=10, CCD-TEMP=15.0, SET-TEMP=15.0, RA=0.0/DEC=0.0, OBJCTRA/OBJCTDEC, FOCUSPOS=25074, FOCTEMP=20.0, SITELAT=30.0, SITELONG=82.0, OBJECT='New Target'. The matching captured_images rows have gain=NULL, offset=NULL, sensor_temp=NULL, cooler_power=NULL, mount_ra=NULL, mount_dec=NULL, mount_altitude=NULL, mount_azimuth=NULL, pier_side=NULL, focuser_position=NULL, focuser_temp=NULL, rotator_angle=NULL and target_id=NULL. Only hfr, star_count, eccentricity, filter, exposure_duration and binning were persisted.",
    "expected": "Every value the capture pipeline already knows (it wrote them into the FITS header microseconds earlier) should land in captured_images. Everything downstream reads the DB, not the file: the dark library matches on gain/offset/temp/duration/binning, analytics plots temperature and HFR, project tracking counts frames per target.",
-   "repro": "Run any sequence with Cool Camera + Take Exposures against the simulators, then: sqlite3 <profile>/data/nightshade.db 'select gain,offset,sensor_temp,mount_ra,focuser_position,target_id from captured_images;' and compare with the FITS header of the same file.",
+   "repro": "Run any sequence with Cool Camera + Take Exposures against the simulators, then: sqlite3 <profile>/data/skotiq.db 'select gain,offset,sensor_temp,mount_ra,focuser_position,target_id from captured_images;' and compare with the FITS header of the same file.",
    "evidence": "DB row 1: /tmp/ns-audit/r-sequencer-run/captures/New Target_nofilter_0001.fits -> gain,offset,sensor_temp,mount_ra,mount_dec,focuser_position,target_id all empty. FITS header of that same file: GAIN=100 OFFSET=10 CCD-TEMP=15.0 FOCUSPOS=25074 RA=0.0 DEC=0.0.",
    "where": "Sequencer run -> captured_images persistence",
    "proposed_fix": "Populate captured_images from the same metadata struct used to build the FITS header, in one place, so the two cannot diverge. Add a regression test asserting the DB row and the header agree field for field."
@@ -160,7 +160,7 @@
    "unit": "screen:sequencer/sequencer_screen.dart",
    "what_happened": "During a 52-second pause of run 2 the DB row kept status='running'. The GUI knew it was paused, but the persisted state (which the headless API, the web dashboard and the mobile client read) did not distinguish paused from running.",
    "expected": "A 'paused' status (or a paused_at column) so remote surfaces can show the true state.",
-   "repro": "Pause a run, then: sqlite3 <profile>/data/nightshade.db \"select status from sequence_runs where id=2;\"",
+   "repro": "Pause a run, then: sqlite3 <profile>/data/skotiq.db \"select status from sequence_runs where id=2;\"",
    "evidence": "status='running' at 18:55:36 (paused) and still 'running' at 18:56:28, while the GUI showed PAUSED throughout",
    "where": "sequence_runs table / run state persistence",
    "proposed_fix": "Persist the paused state on pause and clear it on resume."

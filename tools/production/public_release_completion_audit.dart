@@ -50,7 +50,7 @@ void main() async {
     'generatedAt': DateTime.now().toUtc().toIso8601String(),
     'objectiveSource': _goalPath,
     'objectiveSummary':
-        'Prepare Nightshade for public release with direct evidence for the P0 release gates in goal.txt.',
+        'Prepare Skotiq for public release with direct evidence for the P0 release gates in goal.txt.',
     'sourceArtifacts': _sourceArtifacts(
       gate: gate,
       blockerInputs: blockerInputs,
@@ -264,12 +264,12 @@ List<_CompletionCheck> _buildChecks({
     _check(
       id: 'older_profile_migration',
       requirement:
-          'Verify upgrade/migration from an older Nightshade profile/database.',
+          'Verify upgrade/migration from an older Skotiq profile/database.',
       status: _gateStatus(gateChecks['manual_migration']),
       evidence: [
         _gateEvidence(gateChecks['manual_migration']),
-        'packages/nightshade_core/test/fixtures/synthetic_old_profile_fixtures.dart',
-        'packages/nightshade_core/test/services/database_migration_test.dart',
+        'packages/skotiq_core/test/fixtures/synthetic_old_profile_fixtures.dart',
+        'packages/skotiq_core/test/services/database_migration_test.dart',
         _pathIfExists('docs/production-readiness/manual-migration-probe.json'),
       ],
       verification:

@@ -4,10 +4,10 @@
     "outcome": "already-correct",
     "summary": "The fix is present in the working tree from an earlier wave; the verifier reproduced against a bundle built before it. TargetWindow now carries the sky geometry it was solved from (raDeg/decDeg/lat/lon/minAltitudeDeg) and isVisibleAt asks the sky directly via altitudeAt(time) instead of testing membership of a rise/set interval - the window solver scans one local-noon-to-noon pass, so a target already up at the anchor comes back with the NEXT night's rise and every interval test says 'not up yet'. The end-time conflict was additionally gated on !isVisibleAt(end), and boundaries on a different calendar day now print their date (_formatTimeRelativeTo) so a bare 03:41 no longer reads as a time that already passed. I confirmed the location myself: the literal lives in SequenceTimeEstimator.findTimingConflicts, not in preflight_validation_dialog.dart, as the verifier corrected.",
     "files_changed": [
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/services/sequence_time_estimator.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/test/services/sequence_time_estimator_visibility_test.dart"
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/services/sequence_time_estimator.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/test/services/sequence_time_estimator_visibility_test.dart"
     ],
-    "test": "packages/nightshade_core/test/services/sequence_time_estimator_visibility_test.dart - searches a year of dates for one where the target really is above 60 degrees at local 12:47 while the solved window's rise time is still in the future (the exact reported shape, host-timezone independent), then asserts no 'before target rises' conflict; plus a negative case 12 h away that must still warn, and a boundary-on-another-day formatting case.",
+    "test": "packages/skotiq_core/test/services/sequence_time_estimator_visibility_test.dart - searches a year of dates for one where the target really is above 60 degrees at local 12:47 while the solved window's rise time is still in the future (the exact reported shape, host-timezone independent), then asserts no 'before target rises' conflict; plus a negative case 12 h away that must still warn, and a boundary-on-another-day formatting case.",
     "revert_check": "Deleted the `final altitude = altitudeAt(time); if (altitude != null) return altitude >= (minAltitudeDeg ?? 0);` branch from TargetWindow.isVisibleAt; 2 of 4 tests failed ('a target at the zenith is not reported as before target rises' and 'isVisibleAt answers from the sky'). Restored -> 4/4 pass.",
     "caveats": "Windows built before this session still show the old behaviour; nothing has been rebuilt or shipped."
   },
@@ -16,10 +16,10 @@
     "outcome": "already-correct",
     "summary": "Fix present in the working tree from an earlier wave. DarkLibraryCoverageRule now walks the sequence in execution order threading the sensor setpoint (plannedSensorTemps): a Cool Camera node changes it for everything that follows, and the camera's live setpoint is only used until the first one. Each DarkFrameRequirement is stamped with the setpoint that node will actually be at, so the 'Capture missing darks' action no longer offers to capture at a temperature the run never uses. Location confirmed: preflight_rules.dart, not the dialog.",
     "files_changed": [
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/providers/sequence/rules/preflight_rules.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/test/providers/sequence/preflight_rules_test.dart"
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/providers/sequence/rules/preflight_rules.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/test/providers/sequence/preflight_rules_test.dart"
     ],
-    "test": "packages/nightshade_core/test/providers/sequence/preflight_rules_test.dart - 'uses the setpoint the sequence cools to, not the live one' and 'clean when the library holds darks at the cooled setpoint'.",
+    "test": "packages/skotiq_core/test/providers/sequence/preflight_rules_test.dart - 'uses the setpoint the sequence cools to, not the live one' and 'clean when the library holds darks at the cooled setpoint'.",
     "revert_check": "Changed `targetTemp: plannedTemp` back to `targetTemp: camTargetTemp` in the DarkFrameRequirement construction; both tests failed. Restored -> 32/32 in the file pass.",
     "caveats": "The rule also appends a one-line note saying the temperatures are the sequence's setpoints; that is disclosure ON TOP OF the fix, not instead of it - the matched temperature itself changed."
   },
@@ -28,12 +28,12 @@
     "outcome": "fixed",
     "summary": "Two halves. The equipment-state half was already fixed in the working tree by an earlier wave: the Rust FrameContext the FITS writer stamps the header from now travels on the frame event (FrameCapture), insertSequenceFrame gained the sensor_temp / cooler_power / mount_* / pier_side / focuser_* / rotator_angle columns, and gain/offset/binning/frame type/exposure now come from what the camera reported rather than from the node config. The target_id half was still open and I fixed it here: TargetHeaderNode.catalogTargetId is only populated for sequences generated from a library target, so a builder-authored Target produced frames with target_id NULL forever. SequenceExecutor now binds each Target node to a `targets` row at run start and stamps that id on every frame (see the 'Untargeted' entry).",
     "files_changed": [
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/database/daos/images_dao.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/providers/sequence/sequence_executor/event_operations.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/providers/sequence/sequence_executor.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/database/daos/targets_dao.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/test/providers/sequence/sequence_frame_capture_metadata_test.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/test/providers/sequence/sequence_executor_run_lifecycle_test.dart"
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/database/daos/images_dao.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/providers/sequence/sequence_executor/event_operations.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/providers/sequence/sequence_executor.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/database/daos/targets_dao.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/test/providers/sequence/sequence_frame_capture_metadata_test.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/test/providers/sequence/sequence_executor_run_lifecycle_test.dart"
     ],
     "test": "sequence_frame_capture_metadata_test.dart (5 tests) asserts the captured_images row equals the event's capture payload field for field, for accepted AND rejected frames, and that a host too old to send the payload falls back to the tree; sequence_executor_run_lifecycle_test.dart group 'M.' covers target_id end to end from executor.start().",
     "revert_check": "Replaced `final capture = FrameCapture.fromEventData(event.data);` with `const capture = FrameCapture();` at the single production call site: 3 of 5 metadata tests failed. Separately deleted `await _bindCatalogTargets(sequence);` from _acquireAndStartRun: 2 of 3 'M.' tests failed. Both restored -> all pass.",
@@ -44,9 +44,9 @@
     "outcome": "already-correct",
     "summary": "Fix present in the working tree from an earlier wave, on both sides of the bridge. Rust: resolve_burst_filter now resolves the burst's filter identity as ONE (name, slot) pair with the wheel's own parked position as the final fallback, and resolve_frame_filter flattens it for the two frame-recording consumers - the filename template and build_frame_context_for_save, which writes the FITS FILTER card. That is three of the five surfaces made to agree at the source. Dart: _resolveActiveFilter is now shared between the captured_images row and the run-stats bucket, which previously read SequencerEvent.ExposureCompleted.filter - a field the native event does not carry, which is why stats_json said 'Unknown' beside a DB row saying 'R'.",
     "files_changed": [
-      "/home/scdouglas/Documents/Nightshade2/native/nightshade_native/sequencer/src/instructions.rs",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/providers/sequence/sequence_executor/event_operations.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/test/providers/sequence/sequence_executor_run_record_truth_test.dart"
+      "/home/scdouglas/Documents/Skotiq2/native/skotiq_native/sequencer/src/instructions.rs",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/providers/sequence/sequence_executor/event_operations.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/test/providers/sequence/sequence_executor_run_record_truth_test.dart"
     ],
     "test": "Rust: instructions::tests::burst_records_the_filter_the_wheel_is_parked_on, flat_wizard_burst_records_the_filter_the_wheel_is_parked_on, burst_without_a_wheel_leaves_the_filter_unknown, direct_burst_never_pairs_its_filter_name_with_a_stale_slot. Dart: sequence_executor_run_record_truth_test.dart group 'run-stats filter attribution'.",
     "revert_check": "Rust: replaced the `observed_wheel_filter(ctx)` fallback in resolve_burst_filter's (None, None) arm with a bare BurstFilter::Inherit; both 'parked on' tests failed with `left: None, right: Some(\"R\")`. Dart: replaced `(filter != null && filter.isNotEmpty) ? filter : _resolveActiveFilter()` with plain `filter` in _recordRunFrame; 2 tests failed. Both restored -> Rust 48/48 filter tests and Dart 9/9 pass.",
@@ -57,28 +57,28 @@
     "outcome": "fixed",
     "summary": "Two independent causes. (a) The run-stats bucket key was `progress.currentTarget ?? sequence.name ?? 'Sequence'`, and currentTarget is only ever written by a native TargetStarted/TargetChanged event that a plain builder sequence never emits. Added _resolveActiveTargetName(), which falls back to the enclosing TargetHeaderNode of the executing node (new shared helper enclosingTargetHeader in frame_attribution.dart, extracted from the walk resolveFrameAttribution already did) before falling back to the sequence name. (b) captured_images.target_id was NULL because TargetHeaderNode.catalogTargetId is only populated for sequences generated from a library target. SequenceExecutor now binds each Target node to a `targets` row at run start (_bindCatalogTargets -> TargetsDao.findOrCreateByName, matched case-insensitively on the trimmed name so re-runs accumulate against one row) and _registerSequenceFrame stamps that id. With a non-null target_id the Session Report resolves the real name instead of its 'Untargeted' bucket.",
     "files_changed": [
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/providers/sequence/sequence_executor/frame_attribution.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/providers/sequence/sequence_executor/event_operations.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/providers/sequence/sequence_executor.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/database/daos/targets_dao.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/test/providers/sequence/run_record_error_and_target_test.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/test/providers/sequence/sequence_executor_run_lifecycle_test.dart"
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/providers/sequence/sequence_executor/frame_attribution.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/providers/sequence/sequence_executor/event_operations.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/providers/sequence/sequence_executor.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/database/daos/targets_dao.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/test/providers/sequence/run_record_error_and_target_test.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/test/providers/sequence/sequence_executor_run_lifecycle_test.dart"
     ],
     "test": "run_record_error_and_target_test.dart group 'run stats are bucketed by the target, not the sequence' (3 tests, incl. a native TargetStarted still winning and a target-less sequence still falling back to the sequence name); sequence_executor_run_lifecycle_test.dart group 'M. frames are attributed to the target that produced them' (3 tests: the targets row is created and captured_images.target_id points at it, a second run reuses the one row, an unnamed target creates nothing).",
     "revert_check": "(a) Restored the old `progress.currentTarget ?? currentSequenceProvider.name ?? 'Sequence'` expression at the recordFrame call site -> 'a frame under a Target node is filed under that target' failed. (b) Deleted `await _bindCatalogTargets(sequence);` from _acquireAndStartRun -> 2 of the 3 'M.' tests failed. Both restored -> all pass.",
-    "caveats": "The catalog row is created lazily at run start, not when a Target node is added to a draft, so editing the builder does not litter the target library. A blank-named target is deliberately left unbound (target_id stays NULL) rather than creating a nameless library entry. TargetsDao's existing 'Remove untracked targets' predicate never deletes targets with captured data, so these rows are safe from that affordance. SUITE STATUS: one complete nightshade_core run finished with 5391 passed / 4 skipped / 9 failed, and all 9 are accounted for outside this work \u2014 2 in weather_safety_nothing_to_safe_test.dart (a concurrent agent was editing weather_safety_provider.dart during the run; the analyzer showed its half-written unused elements), 6 in services/import/nina_sequence_fidelity_test.dart (present in a baseline another agent captured BEFORE any of these changes), and 1 in services/device_service_focuser_command_test.dart which passes 6/6 in isolation (load flake). A second core run and the nightshade_app full run were still starved after ~50 min with 10 concurrent flutter test processes from other agents on the box; every app-side test file in this work's blast radius was run individually and passes, and dart analyze is clean on nightshade_core lib+test, nightshade_app lib and apps/desktop lib."
+    "caveats": "The catalog row is created lazily at run start, not when a Target node is added to a draft, so editing the builder does not litter the target library. A blank-named target is deliberately left unbound (target_id stays NULL) rather than creating a nameless library entry. TargetsDao's existing 'Remove untracked targets' predicate never deletes targets with captured data, so these rows are safe from that affordance. SUITE STATUS: one complete skotiq_core run finished with 5391 passed / 4 skipped / 9 failed, and all 9 are accounted for outside this work \u2014 2 in weather_safety_nothing_to_safe_test.dart (a concurrent agent was editing weather_safety_provider.dart during the run; the analyzer showed its half-written unused elements), 6 in services/import/nina_sequence_fidelity_test.dart (present in a baseline another agent captured BEFORE any of these changes), and 1 in services/device_service_focuser_command_test.dart which passes 6/6 in isolation (load flake). A second core run and the skotiq_app full run were still starved after ~50 min with 10 concurrent flutter test processes from other agents on the box; every app-side test file in this work's blast radius was run individually and passes, and dart analyze is clean on skotiq_core lib+test, skotiq_app lib and apps/desktop lib."
   },
   {
     "title": "A single failing Dither node is reported as two identical errors, in the report and in two stacked critical banners",
     "outcome": "fixed",
     "summary": "The bridge maps ExecutorEvent::InstructionFailed to a mid-run SequencerEvent::Error formatted '<node>: <message>' (bridge/src/api/sequencer.rs:675). At run end the executor derives the SequenceFailed reason with last_instruction_failure(), which re-formats the SAME InstructionFailed identically (executor/mod.rs:865). Dart recorded both. Added SequenceRunStats.recordTerminalError, which skips a message identical to the immediately-preceding one, and routed the three terminal call sites in _onTerminalEvent through it. Mid-run recordError is untouched, so a node that genuinely fails twice still records twice.",
     "files_changed": [
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/providers/sequence_stats_provider.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/providers/sequence/sequence_executor/event_operations.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/providers/sequence/sequence_executor.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/test/providers/sequence/run_record_error_and_target_test.dart"
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/providers/sequence/sequence_executor/event_operations.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/providers/sequence/sequence_executor.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/test/providers/sequence/run_record_error_and_target_test.dart"
     ],
-    "test": "packages/nightshade_core/test/providers/sequence/run_record_error_and_target_test.dart group 'one failure, one recorded error' - drives Error then SequenceFailed with the same string through the production event handler and asserts errorMessages has one entry, plus the stats_json round trip, plus two negative cases (a terminal reason nobody else reported IS recorded; two distinct failures are both recorded).",
+    "test": "packages/skotiq_core/test/providers/sequence/run_record_error_and_target_test.dart group 'one failure, one recorded error' - drives Error then SequenceFailed with the same string through the production event handler and asserts errorMessages has one entry, plus the stats_json round trip, plus two negative cases (a terminal reason nobody else reported IS recorded; two distinct failures are both recorded).",
     "revert_check": "Replaced `_recordTerminalRunError(error)` with `_recordRunError(error)` at all three terminal sites in sequence_executor.dart; 3 of 4 tests in the group failed. Restored -> 7/7 pass.",
     "caveats": "The verifier could not confirm the on-screen banner half (the banners had already cleared). The banners render the run's error list, so removing the duplicate at the source removes the duplicate banner, but that half has no widget test."
   },
@@ -87,11 +87,11 @@
     "outcome": "fixed",
     "summary": "The chip was fed an `isRunning` bool that sequencer_screen.dart computed as `running || paused`, so the paused case could not be distinguished. Replaced the bool with the SequenceExecutionState enum and gave paused its own amber 'Sequence Paused' label; idle still draws no chip.",
     "files_changed": [
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_app/lib/screens/sequencer/sequencer_screen_parts/tab_bar.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_app/lib/screens/sequencer/sequencer_screen.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_app/test/screens/sequencer/tab_bar_run_chip_test.dart"
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_app/lib/screens/sequencer/sequencer_screen_parts/tab_bar.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_app/lib/screens/sequencer/sequencer_screen.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_app/test/screens/sequencer/tab_bar_run_chip_test.dart"
     ],
-    "test": "packages/nightshade_app/test/screens/sequencer/tab_bar_run_chip_test.dart - pumps the real SequencerScreen at 1920x1080 with sequenceExecutionStateProvider forced to running/paused/idle and asserts the rendered chip text.",
+    "test": "packages/skotiq_app/test/screens/sequencer/tab_bar_run_chip_test.dart - pumps the real SequencerScreen at 1920x1080 with sequenceExecutionStateProvider forced to running/paused/idle and asserts the rendered chip text.",
     "revert_check": "Changed tab_bar.dart line `SequenceExecutionState.paused => 'Sequence Paused',` back to `=> 'Sequence Running',`; the test 'a PAUSED sequence does not claim it is running' failed. Restored -> 3/3 pass.",
     "caveats": "Unrelated pre-existing overflow found while writing the test: at 1440 px the sequence-TREE header (sequence_header.dart:83) overflows by exactly the width of the running-only 'Follow' auto-scroll toggle, which is a Row whose only flexible child is the title. Not in this finding list and not touched; the test uses 1920 px so the two are not entangled."
   },
@@ -100,12 +100,12 @@
     "outcome": "fixed",
     "summary": "No code ever wrote a live status other than the row's 'running' default. Added SequenceRunsDao.setLiveStatus and called it from SequenceExecutor.pause()/resume() after the state is confirmed, so remote surfaces reading the DB see 'paused'. Also widened the startup crash-recovery sweep in migration_strategy.dart from `status = 'running'` to `status IN ('running','paused')` - 'paused' is a live status, so a process that died mid-pause would otherwise leave a permanently stale row, which is the exact defect that sweep exists to prevent.",
     "files_changed": [
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/database/daos/sequence_runs_dao.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/providers/sequence/sequence_executor.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/database/database/migration_strategy.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/test/providers/sequence/sequence_executor_run_lifecycle_test.dart"
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/database/daos/sequence_runs_dao.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/providers/sequence/sequence_executor.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/database/database/migration_strategy.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/test/providers/sequence/sequence_executor_run_lifecycle_test.dart"
     ],
-    "test": "packages/nightshade_core/test/providers/sequence/sequence_executor_run_lifecycle_test.dart group 'L. the run row publishes pause' - starts a real run through executor.start(), calls pause()/resume() and reads sequence_runs.status back from the DB each time; the second test proves a row left 'paused' is closed out to 'interrupted' by the startup sweep statement.",
+    "test": "packages/skotiq_core/test/providers/sequence/sequence_executor_run_lifecycle_test.dart group 'L. the run row publishes pause' - starts a real run through executor.start(), calls pause()/resume() and reads sequence_runs.status back from the DB each time; the second test proves a row left 'paused' is closed out to 'interrupted' by the startup sweep statement.",
     "revert_check": "Deleted the `await _persistLiveRunStatus('paused');` line from pause(); 'pausing writes paused, resuming writes running back' failed. Restored -> 2/2 pass and the whole 43-test lifecycle suite passes.",
     "caveats": "No consumer had to change: nothing outside the startup sweep queries sequence_runs for status == 'running' (the headless API's 'status' fields are response literals, not this column). A paused_at column was not added - the status value alone answers the question the finding asks."
   },
@@ -114,10 +114,10 @@
     "outcome": "already-correct",
     "summary": "Fix present in the working tree from an earlier wave, and it fixes the upstream cause the finding's own body only half-identified: the nulls were real because SessionStateNotifier.startSession was called by the executor without a profile or sequence id, so every imaging_sessions row had profile_id NULL and sequence_id NULL, and QuickStartService builds its context out of that row. _startSessionRow now passes activeEquipmentProfileProvider's id and sequence.databaseId. Changing the 'Unknown Profile' fallback string alone would have been the disclosure-only non-fix.",
     "files_changed": [
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/providers/sequence/sequence_executor.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/test/services/session_profile_sequence_binding_test.dart"
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/providers/sequence/sequence_executor.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/test/services/session_profile_sequence_binding_test.dart"
     ],
-    "test": "packages/nightshade_core/test/services/session_profile_sequence_binding_test.dart - 'the executor binds the run to its profile and sequence' drives the executor's own session-row path and reads imaging_sessions back; 'the handoff context names the profile and the sequence' asserts QuickStartService returns 'Backyard Rig' / 'M31 LRGB' instead of the nulls the dialog rendered as Unknown Profile / No Sequence.",
+    "test": "packages/skotiq_core/test/services/session_profile_sequence_binding_test.dart - 'the executor binds the run to its profile and sequence' drives the executor's own session-row path and reads imaging_sessions back; 'the handoff context names the profile and the sequence' asserts QuickStartService returns 'Backyard Rig' / 'M31 LRGB' instead of the nulls the dialog rendered as Unknown Profile / No Sequence.",
     "revert_check": "Removed the `profileId:` and `sequenceId:` arguments from the startSession call in _startSessionRow; 'the executor binds the run to its profile and sequence' failed. Restored -> 3/3 pass.",
     "caveats": null
   },
@@ -126,10 +126,10 @@
     "outcome": "already-correct",
     "summary": "Fix present in the working tree from an earlier wave. _formatDate compared ELAPSED time (`now.difference(dt).inDays`), so any session under 24 h old was 'Today' regardless of calendar day and 'Yesterday' could only ever appear for sessions 24-48 h old. It now compares calendar days via DateUtils.dateOnly, and anything a week old or stamped in the future gets an explicit date rather than a relative phrase that would be guessing. Location confirmed: quick_start_dialog.dart, not session_handoff_dialog.dart.",
     "files_changed": [
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_app/lib/widgets/quick_start_dialog.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_app/test/widgets/quick_start_dialog_honesty_test.dart"
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_app/lib/widgets/quick_start_dialog.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_app/test/widgets/quick_start_dialog_honesty_test.dart"
     ],
-    "test": "packages/nightshade_app/test/widgets/quick_start_dialog_honesty_test.dart - 'a session from the previous calendar day is not dated Today' (a session 19 h old across a midnight, the reported case) and 'an older session is dated explicitly, not relatively'.",
+    "test": "packages/skotiq_app/test/widgets/quick_start_dialog_honesty_test.dart - 'a session from the previous calendar day is not dated Today' (a session 19 h old across a midnight, the reported case) and 'an older session is dated explicitly, not relatively'.",
     "revert_check": "Replaced the DateUtils.dateOnly difference with `now.difference(dt).inDays`; 'a session from the previous calendar day is not dated Today' failed. Restored -> 5/5 pass.",
     "caveats": null
   },
@@ -138,10 +138,10 @@
     "outcome": "already-correct",
     "summary": "Fix present in the working tree from an earlier wave, addressing the cry-wolf shape the verifier corrected the finding to (a false-success snackbar, not a silent no-op). Two changes: QuickStartDialog now disables the primary button and states why when the session recorded no profile id, no sequence id and no usable equipment snapshot - the same nulls it is already printing as 'Unknown Profile' / 'No Sequence' two rows above; and _handleStartFresh now tracks what was actually re-applied and words the snackbar from that, instead of unconditionally claiming 'Loaded previous setup ... from frame 1'. The upstream half - why those ids were null at all - is fixed by the session-binding entry above, so a real session now has something to restore.",
     "files_changed": [
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_app/lib/widgets/quick_start_dialog.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_app/lib/widgets/quick_start_checker.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_app/test/widgets/quick_start_dialog_honesty_test.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_app/test/widgets/quick_start_checker_authority_test.dart"
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_app/lib/widgets/quick_start_dialog.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_app/lib/widgets/quick_start_checker.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_app/test/widgets/quick_start_dialog_honesty_test.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_app/test/widgets/quick_start_checker_authority_test.dart"
     ],
     "test": "quick_start_dialog_honesty_test.dart - 'a session with nothing recorded cannot be loaded' plus the two positive cases (a recorded profile, or an equipment snapshot alone, still enables the button); quick_start_checker_authority_test.dart - 'start fresh does not claim a restore it could not perform'.",
     "revert_check": "Replaced the `else if (_hasRestorableSetup)` guard with `else if (true)` so the primary button is always offered; 'a session with nothing recorded cannot be loaded' failed. Restored -> 5/5 and 9/9 pass.",
@@ -152,15 +152,15 @@
     "outcome": "fixed",
     "summary": "Three engines were billing one sequence. The Builder tree chip read nodeRollupDurationProvider, which carried its OWN per-node cost table on top of the SequenceOverheadConfig field defaults - it billed Cool Camera at a flat cooling constant instead of the node's configured duration, and billed Delay / Wait / Park / Script / Rotator at ZERO because they were absent from that table. The toolbar chip used a third model, Sequence.estimateWithOverhead. Exposed SequenceTimeEstimator.nodeDuration (the model the timeline and pre-flight already use) and rewrote the rollup to bill every node through it with the shared sequencerOverheadConfigProvider; pointed the toolbar chip at estimator.estimateTotalDuration; and gave PreSessionSimulator the same shared overhead config at both of its call sites (pre-flight dialog and the timeline provider), which previously ran on the estimator's own defaults.",
     "files_changed": [
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/services/sequence_time_estimator.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/lib/src/providers/sequence/node_duration_provider.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_app/lib/screens/sequencer/widgets/sequence_toolbar/actions_and_estimate.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_app/lib/screens/sequencer/widgets/preflight_validation_dialog.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_app/lib/screens/sequencer/widgets/visual_timeline.dart",
-      "/home/scdouglas/Documents/Nightshade2/packages/nightshade_core/test/providers/sequence/node_duration_provider_test.dart"
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/services/sequence_time_estimator.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/lib/src/providers/sequence/node_duration_provider.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_app/lib/screens/sequencer/widgets/sequence_toolbar/actions_and_estimate.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_app/lib/screens/sequencer/widgets/preflight_validation_dialog.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_app/lib/screens/sequencer/widgets/visual_timeline.dart",
+      "/home/scdouglas/Documents/Skotiq2/packages/skotiq_core/test/providers/sequence/node_duration_provider_test.dart"
     ],
-    "test": "packages/nightshade_core/test/providers/sequence/node_duration_provider_test.dart group 'one estimate, not three' - a Target containing Cool Camera (2 min configured), a 45 s Delay and 4x3 s lights; asserts the rollup total EQUALS PreSessionSimulator().simulate(...).duration, plus that the Delay costs 45 s (was 0) and Cool Camera costs its configured 2 min (was the flat constant).",
+    "test": "packages/skotiq_core/test/providers/sequence/node_duration_provider_test.dart group 'one estimate, not three' - a Target containing Cool Camera (2 min configured), a 45 s Delay and 4x3 s lights; asserts the rollup total EQUALS PreSessionSimulator().simulate(...).duration, plus that the Delay costs 45 s (was 0) and Cool Camera costs its configured 2 min (was the flat constant).",
     "revert_check": "Replaced the shared `SequenceTimeEstimator(overhead: ref.watch(sequencerOverheadConfigProvider))` in _nodeRollupMapProvider with `const SequenceTimeEstimator(overhead: SequenceOverheadConfig())`; 'the Builder rollup and the Pre-Flight simulation agree' failed along with the four pinned rollup numbers. Restored -> 12/12 pass.",
-    "caveats": "The four pre-existing pinned numbers in node_duration_provider_test.dart moved (per-frame download overhead 3 s -> 2 s) because the rollup now uses the user-configurable value every other estimate surface uses; the expectations and their comments were updated to say so. The finding's secondary claim - that the header estimate did not move when the Cool Camera setpoint changed - remains true and is CORRECT: the estimator bills a cooling node by its configured max duration, not by a thermal model of the setpoint delta. Making it setpoint-aware would be a new feature, not a fix, and the verifier did not isolate that sub-claim either. SUITE STATUS: one complete nightshade_core run finished with 5391 passed / 4 skipped / 9 failed, and all 9 are accounted for outside this work \u2014 2 in weather_safety_nothing_to_safe_test.dart (a concurrent agent was editing weather_safety_provider.dart during the run; the analyzer showed its half-written unused elements), 6 in services/import/nina_sequence_fidelity_test.dart (present in a baseline another agent captured BEFORE any of these changes), and 1 in services/device_service_focuser_command_test.dart which passes 6/6 in isolation (load flake). A second core run and the nightshade_app full run were still starved after ~50 min with 10 concurrent flutter test processes from other agents on the box; every app-side test file in this work's blast radius was run individually and passes, and dart analyze is clean on nightshade_core lib+test, nightshade_app lib and apps/desktop lib."
+    "caveats": "The four pre-existing pinned numbers in node_duration_provider_test.dart moved (per-frame download overhead 3 s -> 2 s) because the rollup now uses the user-configurable value every other estimate surface uses; the expectations and their comments were updated to say so. The finding's secondary claim - that the header estimate did not move when the Cool Camera setpoint changed - remains true and is CORRECT: the estimator bills a cooling node by its configured max duration, not by a thermal model of the setpoint delta. Making it setpoint-aware would be a new feature, not a fix, and the verifier did not isolate that sub-claim either. SUITE STATUS: one complete skotiq_core run finished with 5391 passed / 4 skipped / 9 failed, and all 9 are accounted for outside this work \u2014 2 in weather_safety_nothing_to_safe_test.dart (a concurrent agent was editing weather_safety_provider.dart during the run; the analyzer showed its half-written unused elements), 6 in services/import/nina_sequence_fidelity_test.dart (present in a baseline another agent captured BEFORE any of these changes), and 1 in services/device_service_focuser_command_test.dart which passes 6/6 in isolation (load flake). A second core run and the skotiq_app full run were still starved after ~50 min with 10 concurrent flutter test processes from other agents on the box; every app-side test file in this work's blast radius was run individually and passes, and dart analyze is clean on skotiq_core lib+test, skotiq_app lib and apps/desktop lib."
   }
 ]

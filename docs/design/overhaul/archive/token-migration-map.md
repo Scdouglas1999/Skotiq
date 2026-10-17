@@ -7,7 +7,7 @@
 > [`../03-tokens.md`](../03-tokens.md) — radii are 4 / 6 / 8 / 12 and nothing else.
 
 This is the canonical "literal value → named token" mapping for the per-directory
-migration of `packages/nightshade_app/lib/screens` onto the `nightshade_ui` design
+migration of `packages/skotiq_app/lib/screens` onto the `skotiq_ui` design
 system. Every mapping below is **exact-valued**: replacing the literal with the
 named token produces **zero visual change**. The goal of the first migration pass
 is to kill the magic numbers without altering pixels; a later design pass can fold
@@ -18,7 +18,7 @@ sites — radii **1154**, inline `TextStyle(fontSize:)` **583**, raw `Colors.*` 
 
 ## Border radius — `BorderRadius.circular(n)` → token
 
-Tokens live on `NightshadeTokens` (`packages/nightshade_ui/lib/src/theme/nightshade_tokens.dart`).
+Tokens live on `SkotiqTokens` (`packages/skotiq_ui/lib/src/theme/skotiq_tokens.dart`).
 Use the `double` token inside `BorderRadius.circular(...)`, or the convenience
 `borderRadius*` object where a `BorderRadius` is wanted directly.
 
@@ -46,8 +46,8 @@ semantic scale (`radiusXs`..`radiusXl`).
 
 ## Font size — `fontSize: n` → token
 
-Tokens live on `NightshadeTypography`
-(`packages/nightshade_ui/lib/src/theme/nightshade_typography.dart`).
+Tokens live on `SkotiqTypography`
+(`packages/skotiq_ui/lib/src/theme/skotiq_typography.dart`).
 
 **Prefer adopting a full named style** when the inline `TextStyle` matches one
 (same family/weight/height). The named styles and their sizes:
@@ -121,7 +121,7 @@ roles, not these.
 
 ## Colors — `Colors.*` → semantic
 
-The semantic palette (`NightshadeColors.of(context)`) is **complete** for the
+The semantic palette (`SkotiqColors.of(context)`) is **complete** for the
 standard roles. Map raw Material colors as follows:
 
 | raw                    | sites | maps to                                    |
@@ -129,14 +129,14 @@ standard roles. Map raw Material colors as follows:
 | `Colors.red`           | 5     | `colors.error`                             |
 | `Colors.redAccent`     | 6     | `colors.error`                             |
 | `Colors.amber`         | 4     | `colors.warning`                           |
-| `Colors.blue`          | 3     | `colors.info` (or `NightshadeChartColors.seriesBlue` in charts) |
+| `Colors.blue`          | 3     | `colors.info` (or `SkotiqChartColors.seriesBlue` in charts) |
 | `Colors.blueAccent`    | 4     | `colors.info`                              |
-| `Colors.lightBlue`     | 3     | `colors.info` / `NightshadeChartColors.seriesBlue` |
+| `Colors.lightBlue`     | 3     | `colors.info` / `SkotiqChartColors.seriesBlue` |
 | `Colors.grey`          | 2     | `colors.textMuted` / `colors.border`       |
 
 Data-series / domain hues already have homes — do **not** map them to generic
 semantics:
-- chart lines/areas → `NightshadeChartColors.series*` (blue/violet/green/amber/indigo/deepBlue/red/orange)
+- chart lines/areas → `SkotiqChartColors.series*` (blue/violet/green/amber/indigo/deepBlue/red/orange)
 - catalog object types → `AnnotationTypeColors`
 - pipeline status → `AnnotationStatusColors`
 - driver backends → `BackendProtocolColors`

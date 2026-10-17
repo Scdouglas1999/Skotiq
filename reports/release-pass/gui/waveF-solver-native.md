@@ -1,7 +1,7 @@
 # Wave F dryness check — cluster `solver-native`
 
 Bundle: `apps/desktop/build/linux/x64/release/bundle/` — `lib/libapp.so` and
-`lib/libnightshade_bridge.so` both mtime **Aug 13 23:56** (rebuilt after the E-fix batch).
+`lib/libskotiq_bridge.so` both mtime **Aug 13 23:56** (rebuilt after the E-fix batch).
 Driven on display `:83`, profile `waveF-solver-native` (fresh runtime dir, seeded with the
 Wave-E `waveE-imaging-stacking-polar` SQLite DB so the same 5-device sim profile —
 Simulated Camera / Mount / Focuser / Filter Wheel / Built-in Multi-Star Guider — was connected).
@@ -141,9 +141,9 @@ a11y tree reads `panel: SNR: 70.6`. A guide star that is plainly visible and was
 of 107 detections is being labelled with a signal-to-noise ratio of zero rather than the value from
 the frame it was selected from, or a blank.
 
-### WF-SN-N4 — P3 — a disabled NightshadeButton reaches the Linux a11y bridge as an enabled button, so `[DISABLED]` can never be evidence
+### WF-SN-N4 — P3 — a disabled SkotiqButton reaches the Linux a11y bridge as an enabled button, so `[DISABLED]` can never be evidence
 
-`NightshadeButton` sets `Semantics(button: true, enabled: !isDisabled)` (nightshade_button.dart:194-196,
+`SkotiqButton` sets `Semantics(button: true, enabled: !isDisabled)` (skotiq_button.dart:194-196,
 `isDisabled = widget.onPressed == null || widget.isLoading`), and the polar screen passes
 `onPressed: canStart ? _startAlignment : null` — so the parked-mount Start Alignment button *is*
 disabled (the click is provably inert, and it renders in the muted style). The AT-SPI tree still

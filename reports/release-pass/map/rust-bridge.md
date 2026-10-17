@@ -1,17 +1,17 @@
-# Release-pass map — Rust bridge crate (`native/nightshade_native/bridge/src/`)
+# Release-pass map — Rust bridge crate (`native/skotiq_native/bridge/src/`)
 
-Scope: everything under `native/nightshade_native/bridge/src/` **except** `frb_generated.rs`
+Scope: everything under `native/skotiq_native/bridge/src/` **except** `frb_generated.rs`
 (36,318 lines, generated). Read-only mapping pass; no source was edited.
 
 ## Ground rules established before anything else (these underpin every dead-code claim)
 
 1. **The crate has no Rust dependents.** `bridge/Cargo.toml` declares
    `crate-type = ["cdylib", "staticlib"]` only — no `rlib`/`lib`. A repo-wide search for
-   `nightshade_bridge` in every `Cargo.toml` under `native/nightshade_native/` returns
+   `skotiq_bridge` in every `Cargo.toml` under `native/skotiq_native/` returns
    only the crate's own manifest. Nothing links this crate as a Rust library.
 2. **There are no hand-written C exports.** `grep -rn "no_mangle\|extern \"C\"" bridge/src/`
    excluding `frb_generated.rs` returns **zero** hits.
-3. **Only `crate::api` is FRB-scanned.** `native/nightshade_native/flutter_rust_bridge.yaml`
+3. **Only `crate::api` is FRB-scanned.** `native/skotiq_native/flutter_rust_bridge.yaml`
    says `rust_input: crate::api`. Confirmed empirically: `lib.rs` carries
    `#[flutter_rust_bridge::frb(sync)]` on `init_native` (lib.rs:399-401) and
    `get_native_version` (lib.rs:533-536), and **neither name appears anywhere in
@@ -331,7 +331,7 @@ helpers. `SequencerEvent` alone is lines 423-955 (532 lines of variants).
 - `event/kinds/sequencer.rs` ← 423-1032 (`SequencerEvent`, `SchedulerScoreEntry`,
   `FrameCaptureMetadata` + its `From`).
 - `event/kinds/system.rs` ← 1033-1077 (`SafetyEvent`, `SystemEvent`).
-- `event/bus.rs` ← 1078-1378 (`NightshadeEvent`, `EventPayload`, `EventBusStats`,
+- `event/bus.rs` ← 1078-1378 (`SkotiqEvent`, `EventPayload`, `EventBusStats`,
   `EventBus` + impl + `Default`, and the existing test module at 1324).
 - `event/correlation.rs` ← 1379-1514 (`GLOBAL_EVENT_SEQUENCE`, `create_event`,
   `create_event_auto_id`, `create_event_with_cause`, `EventContext`,
@@ -367,7 +367,7 @@ reducing the cognitive load that actually hurts: the six files above 2500 lines.
 
 ### 2.1 ★ THE BIG ONE — three complete `DeviceOps` implementations, only one runs
 
-`nightshade_sequencer::DeviceOps` has **67 methods** (measured on
+`skotiq_sequencer::DeviceOps` has **67 methods** (measured on
 `sequencer/src/device_ops.rs`). The bridge implements the trait **three times**:
 
 | impl | file:line | methods | reachable? |
@@ -450,13 +450,13 @@ Byte-identical bodies (diffed):
 - canonical: `sequencer/src/meridian.rs:259` `julian_day`, `:293` `local_sidereal_time`,
   `:172` `calculate_altitude`
 
-`api/sequencer.rs:3315` **already** calls `nightshade_sequencer::meridian::calculate_altitude`,
+`api/sequencer.rs:3315` **already** calls `skotiq_sequencer::meridian::calculate_altitude`,
 proving the dependency direction is fine. `UnifiedDeviceOps::calculate_altitude`
 (`unified_device_ops.rs:1656-1671`) is `meridian::calculate_altitude(ra, dec, lat, lon,
 Utc::now())` written out longhand (the only difference is `lst - ra_hours` vs
 `hour_angle(ra_hours, lst)`, which is `cos`-equivalent).
 
-**Canonical survivor:** `nightshade_sequencer::meridian`. Delete the two bridge copies of
+**Canonical survivor:** `skotiq_sequencer::meridian`. Delete the two bridge copies of
 `julian_day`/`local_sidereal_time` (that's automatic once §2.1 lands for `sequencer_ops.rs`;
 `unified_device_ops.rs` needs an explicit edit) and make
 `UnifiedDeviceOps::calculate_altitude` a one-line delegation. Also delete
@@ -539,7 +539,7 @@ already does. Resolved for free by deleting the file (§2.1). Same for
 `sequencer_api.rs` (`sequencer_load_plan`/`_start`/`_stop`/`_pause`/`_resume`/
 `_get_status`/`_set_devices`/…) and `api/sequencer.rs` (`api_sequencer_load_json`/
 `_start`/…) both operate on the *same* global — `api/sequencer.rs:41-44
-get_sequence_executor()` is literally `nightshade_sequencer::get_executor()`, which is what
+get_sequence_executor()` is literally `skotiq_sequencer::get_executor()`, which is what
 `sequencer_api.rs:4` imports directly. Only the `api/` surface is FRB-exported.
 `sequencer_api.rs` is therefore dead **and** a latent footgun: if anyone ever wired it up,
 `sequencer_load_plan` (line 25) would silently swap the live executor's `DeviceOps` from
@@ -561,22 +561,22 @@ Delete `sequencer_api.rs`.**
   `bridge/src/api/phd2.rs` (1024 lines) — same guiding contract, two backends; check whether
   the status/calibration DTO translation is duplicated rather than shared.
 - `bridge/src/api/imaging.rs` `api_auto_stretch_image` / `api_apply_stretch` /
-  `api_calculate_auto_stretch` vs `nightshade_imaging::{auto_stretch_stf, apply_stretch,
+  `api_calculate_auto_stretch` vs `skotiq_imaging::{auto_stretch_stf, apply_stretch,
   auto_stretch_rgb_with_mode}` — the bridge may be re-deriving stretch params Dart-side too;
-  check `packages/nightshade_core` for a Dart auto-stretch.
+  check `packages/skotiq_core` for a Dart auto-stretch.
 - `bridge/src/imaging_ops.rs:998 downsample_image` / `:1035 encode_jpeg` (both dead here) vs
   whatever produces thumbnails on the live path (`api/imaging.rs:4248
   api_generate_fits_thumbnail`) — likely the same algorithm twice.
 - `bridge/src/api/finishing_combine.rs` vs `bridge/src/api/post_session.rs` master-frame
   combination vs `api/imaging.rs:6527 api_combine_master_frames` — three master-frame paths;
   worth one pass.
-- `nightshade_imaging::ImageData::from_u16` (`imaging/src/lib.rs:384`) allocates a fresh
+- `skotiq_imaging::ImageData::from_u16` (`imaging/src/lib.rs:384`) allocates a fresh
   `Vec<u8>` via `flat_map(to_le_bytes).collect()` — called on every FITS save from
   `api/imaging.rs:3746`; check whether a borrowing constructor exists elsewhere.
 - `bridge/src/device_capabilities.rs` capability DTOs vs
-  `packages/nightshade_bridge/lib/src/device_capabilities.dart` — verify the Dart side is
+  `packages/skotiq_bridge/lib/src/device_capabilities.dart` — verify the Dart side is
   the FRB-generated mirror and not a hand-maintained second copy.
-- `bridge/src/event.rs` event enums vs `packages/nightshade_bridge/lib/src/event.dart` +
+- `bridge/src/event.rs` event enums vs `packages/skotiq_bridge/lib/src/event.dart` +
   `event.freezed.dart` — same question.
 
 ---
@@ -625,13 +625,13 @@ Also dead in the same file, zero references: `set_image_directory` (:826) — so
 returns `None`; `get_session_images` (:860); `get_image_thumbnail_by_path` (:964);
 `get_image_data_by_path` (:985); and therefore `downsample_image` (:998) and `encode_jpeg`
 (:1035), whose only callers are those two. **Careful:** the Dart method `getSessionImages`
-exists (`packages/nightshade_core/lib/src/backend/roles/imaging_backend.dart:214` and 3
+exists (`packages/skotiq_core/lib/src/backend/roles/imaging_backend.dart:214` and 3
 implementations) — it is served by the Dart backends, **not** by this Rust function.
 
 `auto_stretch_color_image` (:775) has no non-test caller: `grep` shows only its definition,
 its doc-comment, and four uses inside the file's own test module (1055-1122). Note
 `api/imaging.rs:4210 api_auto_stretch_color_image` exists and is FRB-exported but calls
-`nightshade_imaging` directly, not this.
+`skotiq_imaging` directly, not this.
 
 **Survives and must stay:** `auto_stretch_image` (:741) → called by
 `api/imaging.rs:4198`; `debayer_image` (:802) → called by `api/imaging.rs:4240`;
@@ -671,7 +671,7 @@ Both carry `#[flutter_rust_bridge::frb(sync)]`, which is a **no-op** here becaus
 misleading — it reads as "this is exported" and it is not.
 
 **Related live-behaviour note (belongs to the Dart side but originates here):**
-`packages/nightshade_bridge/lib/src/bridge_stub/runtime_operations.dart:412-435`
+`packages/skotiq_bridge/lib/src/bridge_stub/runtime_operations.dart:412-435`
 does a raw `_nativeLib.lookupFunction<Pointer<Utf8> Function(), …>('get_native_version')`.
 Since `lib.rs:534` is a plain Rust `fn` with no `#[no_mangle]` and no `extern "C"`, that
 symbol does not exist in the `.so`/`.dll`, the lookup throws, the `catch` at line 427 logs
@@ -778,7 +778,7 @@ iterator gives a poor `size_hint`, so this reallocates repeatedly). Combined wit
 capture+save path allocates roughly 4× the frame size per light frame. **Fix (bridge side):**
 change `save_fits_file_rich` to take `&[u16]` and drop the `.clone()` at the two call sites
 (`unified_device_ops.rs:1454` and `:1517`). The `from_u16` reallocation is a
-`nightshade_imaging` fix — flagged for the cross-cutting agent.
+`skotiq_imaging` fix — flagged for the cross-cutting agent.
 
 ### P5 — `UNIFIED_IMAGE_STORAGE`'s documented memory bound undercounts by ~3× — **impact: low-medium**
 
@@ -831,7 +831,7 @@ stating that only `crate::api` is FRB input.
 
 ### R2 — A raw `dlsym` on a Rust symbol that cannot exist
 
-`packages/nightshade_bridge/lib/src/bridge_stub/runtime_operations.dart:414-419` looks up
+`packages/skotiq_bridge/lib/src/bridge_stub/runtime_operations.dart:414-419` looks up
 `'get_native_version'` by name. `lib.rs:534` has no `#[no_mangle]` and no `extern "C"`, and
 `grep -rn "no_mangle\|extern \"C\"" bridge/src/` (excluding generated) returns nothing — so
 the symbol is name-mangled and the lookup always throws, is caught at
@@ -857,7 +857,7 @@ tokio `Mutex`es elsewhere cannot poison at all. **Fix:** use `unwrap_or_else(|e|
 e.into_inner())` at both sites, matching the existing crate idiom. Low, but a one-line fix.
 (`device_manager/ops/sim_faults.rs` has nine similar `.expect("sim fault registry
 poisoned")` calls at `:197,:220,:231,:241,:260,:273,:284,:299,:351`; that registry is only
-armed by the `NIGHTSHADE_SIM_FAULTS` test harness, so lower priority — but same fix.)
+armed by the `SKOTIQ_SIM_FAULTS` test harness, so lower priority — but same fix.)
 
 ### R5 — Things I checked and found CLEAN (recorded so a verifier does not re-derive them)
 

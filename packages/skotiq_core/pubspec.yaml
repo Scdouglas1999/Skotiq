@@ -1,0 +1,124 @@
+name: skotiq_core
+description: Skotiq Core - Shared business logic and data models
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1
+  freezed_annotation: ^3.0.0
+  json_annotation: ^4.9.0
+  equatable: ^2.0.5
+  meta: ^1.15.0
+  uuid: ^4.3.3
+  http: ^1.2.0
+  file_selector: ^1.0.3
+  web_socket_channel: ^2.4.0
+  csv: ^6.0.0
+  # Wave 7 Agent 2 — broadcast JPEG rendering for the live-stacking
+  # outreach endpoint. `image` is already used by apps/desktop's
+  # run_watch_handlers; promoting the dependency here makes the
+  # broadcast service work from any consumer of skotiq_core.
+  image: ^4.1.7
+
+  # Database
+  drift: ^2.30.0
+  # Why direct dep: corruption-recovery pre-check (integrity_check.dart) opens
+  # the on-disk file synchronously before drift's LazyDatabase resolves so that
+  # a corrupt DB file can be rotated to a forensic backup and recreated before
+  # the migrator ever sees it. Drift already pulls sqlite3 transitively; we
+  # promote it to direct so the import is explicit and pub-bound.
+  # sqlite3 ^3 uses Dart build hooks to bundle a hermetic libsqlite3 (with
+  # -Bsymbolic on Linux so it can coexist with GTK→tinysparql's system copy).
+  # Do not re-add sqlite3_flutter_libs — that plugin embeds a second copy
+  # without symbol isolation and crashes Linux desktop at startup.
+  # Pinned to 3.3.x, not ^3: melos resolves each package independently (this
+  # repo is not a pub workspace), and sqlite3 3.5.0 shipped upstream mid-release.
+  # Under 3.5.0 the Dart build hook stopped producing
+  # build/native_assets/linux/libsqlite3.so, which the Linux packaging step
+  # copies into bundle/lib — the release build failed on the missing asset while
+  # every local build, holding 3.3.2 in pub-cache, kept working. Evaluate 3.5.0
+  # deliberately rather than by floating into it.
+  sqlite3: ">=3.3.2 <3.4.0"
+  path_provider: ^2.1.2
+  path: ^1.8.3
+  # Direct dep: DiagnosticDumpService bundles logs/profile/sequence/system
+  # info into a single zip via package:archive. The minor series matches
+  # skotiq_updater so transitive resolution is a no-op.
+  archive: ^3.4.10
+  # Snippet share/import/export uses SHA-256 over the canonical-encoded
+  # snippet body as a tamper-evidence checksum so re-imports of a
+  # corrupted / hand-edited file surface a loud, listable error instead
+  # of silently loading a malformed snippet. Already a transitive dep of
+  # the workspace (via http/drift) — promoting to direct so the import
+  # site is explicit and pub-bound.
+  crypto: ^3.0.3
+
+  # Wave 5 Agent 5 — secure storage for notification credentials.
+  # SMTP passwords, Pushover api_token/user_key, Telegram bot_token,
+  # Discord webhook URLs, and MQTT passwords live in the OS keyring
+  # (Keychain on macOS, Credential Manager on Windows, libsecret on
+  # Linux, EncryptedSharedPreferences/Keychain on Android/iOS). The
+  # non-secret config (host, port, from-address, etc.) stays in the
+  # app_settings DAO. Plaintext secrets in legacy `app_settings` blobs
+  # are migrated on first launch via SecretsStore.migrateFromPlaintext().
+  flutter_secure_storage: ^9.2.2
+
+  # Wave 7A — WebRTC client used by NetworkBackend.subscribeLiveViewWebRtc.
+  # Required here (not only in apps/mobile) because the network backend
+  # lives in skotiq_core and is shared between desktop GUI clients,
+  # the mobile companion, and the in-process test harness that exercises
+  # the SDP/ICE plumbing without a real camera.
+  flutter_webrtc: ^1.4.1
+
+  # Native bridge
+  skotiq_bridge:
+    path: ../skotiq_bridge
+  
+  # Planetarium (for catalog access)
+  skotiq_planetarium:
+    path: ../skotiq_planetarium
+
+  # Plugin host + the C3 plugin-status registry. skotiq_core implements the
+  # [PluginEnablementStore] contract (defined in skotiq_plugins) against the
+  # settings database — see providers/plugin_enablement_provider.dart. This is a
+  # one-way edge: skotiq_plugins does NOT depend on skotiq_core, so
+  # there is no cycle.
+  skotiq_plugins:
+    path: ../skotiq_plugins
+
+  # Remote-protocol primitives. NetworkBackend relies on TailnetDetector as the
+  # single source of truth for host reachability classification (LAN vs
+  # Tailscale tailnet vs public) so the scheme/timeout tuning and the
+  # QR/pairing validator never drift apart. No cycle: skotiq_remote_protocol
+  # does not depend on skotiq_core.
+  skotiq_remote_protocol:
+    path: ../skotiq_remote_protocol
+  logging: ^1.3.0
+
+dev_dependencies:
+  # Pinned across all 10 workspace packages to prevent mixed-version drift.
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.15
+  freezed: ^3.2.0
+  json_serializable: ^6.9.0
+  drift_dev: ^2.33.0
+  flutter_test:
+    sdk: flutter
+  mocktail: ^1.0.4
+  mockito: ^5.4.4
+  fake_async: ^1.3.1
+  file_selector_platform_interface: ^2.6.2
+
+flutter:
+  uses-material-design: true
+
+  # Bundled sample sequences shown in the Sequencer > Library tab.
+  # Loaded at runtime via [SampleSequenceService] from rootBundle.
+  assets:
+    - assets/sample_sequences/

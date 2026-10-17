@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless_api/route_metadata.dart';
+import 'package:skotiq_desktop/headless_api/route_metadata.dart';
 
 void main() {
   group('headless API route contracts', () {
@@ -288,7 +288,7 @@ Set<String> _networkBackendRoutes(String source) {
 }
 
 String _networkBackendSource() {
-  const backendRoot = '../../packages/nightshade_core/lib/src/backend';
+  const backendRoot = '../../packages/skotiq_core/lib/src/backend';
   final sources = <String>[
     File('$backendRoot/network_backend.dart').readAsStringSync(),
   ];

@@ -9,11 +9,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DART = (
     ROOT
-    / "packages/nightshade_planetarium/lib/src/catalogs/constellation_data.dart"
+    / "packages/skotiq_planetarium/lib/src/catalogs/constellation_data.dart"
 )
 RUST = (
     ROOT
-    / "native/nightshade_native/planetarium/src/catalog/constellation_lines.rs"
+    / "native/skotiq_native/planetarium/src/catalog/constellation_lines.rs"
 )
 
 CONST_PAT = re.compile(
@@ -91,7 +91,7 @@ def emit_test_expected() -> None:
     lines = [
         "//! Constellation line catalog: count and per-constellation vertex totals vs v1.",
         "",
-        "use nightshade_planetarium::catalog::{",
+        "use skotiq_planetarium::catalog::{",
         "    find_by_abbreviation, line_vertex_count, ConstellationLines, CONSTELLATION_COUNT,",
         "    CONSTELLATIONS, LINE_SEGMENT_COUNT, LINE_VERTEX_COUNT,",
         "};",
@@ -158,7 +158,7 @@ def emit_test_expected() -> None:
             "",
         ]
     )
-    out = ROOT / "native/nightshade_native/planetarium/tests/catalog_constellation_lines.rs"
+    out = ROOT / "native/skotiq_native/planetarium/tests/catalog_constellation_lines.rs"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     print(f"wrote {out}")
 

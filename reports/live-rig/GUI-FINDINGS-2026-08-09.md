@@ -41,7 +41,7 @@ opposite of both facts: no checked state at all, and `DISABLED`, which the harne
 node that is interactive *and* lacks `enabled`/`sensitive`. (Plain labels elsewhere in the same tree
 carry no such flag, and `button: Back` carries none either, so this is specific to these rows.)
 
-**Cause.** `_DriverTile` is a bare `InkWell(onTap:)` wrapping a `NightshadeCheckbox`. `InkWell`
+**Cause.** `_DriverTile` is a bare `InkWell(onTap:)` wrapping a `SkotiqCheckbox`. `InkWell`
 publishes a tappable, focusable semantics node that never sets `isEnabled`, and that node shadows the
 checkbox's own — correct — `checked`/`enabled` semantics. The checkbox component is not at fault; it
 is simply not the node assistive tech reaches. This is the same class as the design-system switch and
@@ -226,7 +226,7 @@ live tree — was invisible to it.
 **Pass 3** — a line-window scan instead: for each line containing `Semantics(`, look at the next 14
 lines for a state/role flag and for `enabled:`. Found **18** more across 13 files, including
 `nav_item.dart` (the app's primary navigation), `sub_tab_button.dart`, `pill_tab.dart`,
-`status_pill.dart`, `nightshade_card.dart` and the mobile dashboard.
+`status_pill.dart`, `skotiq_card.dart` and the mobile dashboard.
 
 The bulk insertion then landed `enabled: true` inside three `MergeSemantics(...)` constructors, which
 do not take it. The analyzer caught all three immediately — which is the argument for running it
@@ -425,7 +425,7 @@ After the sweep, these still read `[DISABLED]` in the live tree. Each was checke
 | nodes | widget | why it is left |
 |---|---|---|
 | `Tab 1/2/3 of 3` (Sequencer toolbox) | Flutter `TabBar` → `Tab` | the framework generates the node inside `TabBar`; an ancestor `Semantics` does not merge into it. Proven: my wrapper survived a rebuild with the flag intact, so it was reverted. `TabBar` exposes no `excludeFromSemantics`. |
-| `Overlays`, `G100`, `Light`, `1x1` (Imaging) | `NightshadeDropdown` → Flutter `DropdownButton` | same shape — the button node comes from the framework. Fixable in principle by wrapping and excluding, but that is the pattern that needed three attempts to get right on `InkWell`, and I have no budget left to build, relaunch and verify it. An unverified accessibility fix is worth less than an accurate note. |
+| `Overlays`, `G100`, `Light`, `1x1` (Imaging) | `SkotiqDropdown` → Flutter `DropdownButton` | same shape — the button node comes from the framework. Fixable in principle by wrapping and excluding, but that is the pattern that needed three attempts to get right on `InkWell`, and I have no budget left to build, relaunch and verify it. An unverified accessibility fix is worth less than an accurate note. |
 | node-palette category headers (`Target`, `Imaging`, `Science`, `Guiding`, `Mount`) | expansion headers | not yet traced to a widget. |
 | `Sort: Score`, `0 connected`, `0 nodes`, `1` | status chips / sort control | not yet traced. |
 
@@ -436,7 +436,7 @@ rebuild — not a different one.
 
 ## Final test position for this drive
 
-`nightshade_app` re-run after the one real regression was fixed: **41 distinct failing tests, 40
+`skotiq_app` re-run after the one real regression was fixed: **41 distinct failing tests, 40
 distinct goldens named, zero non-golden failures** — classified by name rather than by eyeballing the
 tail. Every remaining failure is a Windows-captured golden diffing on Linux.
 ## Open question, not a finding — Guiding "Connect" with no PHD2 running
@@ -492,7 +492,7 @@ Auto-connect on, Confirm before closing on — so a screen-reader user is told t
 and never which way any of them points. "Auto-connect equipment" in particular decides whether a rig
 grabs its hardware on launch.
 
-`NightshadeSwitch` itself is correct — `Semantics(toggled: value, enabled: isEnabled, onTap:)`, with
+`SkotiqSwitch` itself is correct — `Semantics(toggled: value, enabled: isEnabled, onTap:)`, with
 a comment saying "the enclosing row supplies the accessible label; this node supplies the switch
 state". And the identical component on the Imaging screen *does* publish `[off]`. So the state is
 being lost between the switch and the tree on this surface only, and the settings rows are wrapped in
@@ -514,7 +514,7 @@ this drive — and the tabs' content clearly rotated relative to the names I ass
 established is that all seven switch, all seven render distinct content, and none is empty or broken.
 ## Web dashboard — served and accessible-clean at the markup level
 
-`GET /dashboard` on the appliance returns 80 KB of HTML, `<title>Nightshade Dashboard</title>`, with
+`GET /dashboard` on the appliance returns 80 KB of HTML, `<title>Skotiq Dashboard</title>`, with
 **113 buttons and 263 `aria-*` attributes**. Parsing every `<button>` for an accessible name — an
 `aria-label`, a `title`, or visible text content — gives **zero with no name at all**. The 14 that
 carry no `aria-label` all have text content, which is the correct way to name a button.
@@ -557,7 +557,7 @@ semantics change without that loop is indistinguishable from a no-op.
 ### G11 WITHDRAWN — the widget layer is correct; this was my instrument again
 
 I wrote a root cause above blaming `MergeSemantics` for trading the state away. That was wrong, and a
-widget test settles it. Pumping a real `SettingRow` with a `NightshadeSwitch(value: true)` and reading
+widget test settles it. Pumping a real `SettingRow` with a `SkotiqSwitch(value: true)` and reading
 the merged node:
 
 ```
@@ -575,7 +575,7 @@ already written a cause, an explanation of why it could not be fixed in `Setting
 suggested designs. All of it was reasoning on top of a bad reading.
 
 The test is kept as a regression guard
-(`setting_row_toggle_semantics_test.dart`) — if a future change to `SettingRow` or `NightshadeSwitch`
+(`setting_row_toggle_semantics_test.dart`) — if a future change to `SettingRow` or `SkotiqSwitch`
 drops either the label or the state, it fails at the widget layer where it is cheap to see, instead
 of in an accessibility tree nobody reads.
 
@@ -601,13 +601,13 @@ harness readings alone and should get a widget test before anyone acts on them.
 With no observing location configured, the Tonight screen's primary action "Image this target
 tonight" rendered dimmed, did nothing when clicked, and appeared in the accessibility tree with no
 disabled marker — while the same tree printed `Sort: Score [DISABLED]` for another control. That
-looked like a design-system defect affecting every disabled `NightshadeButton` in the app.
+looked like a design-system defect affecting every disabled `SkotiqButton` in the app.
 
 The click technique was verified first, per the standing rule: clicking the sibling "Advanced: full
 planner & sequencer" at the same coordinates navigated to Plan Tonight, so the press genuinely
 landed on an inert control.
 
-It is not a defect. `NightshadeButton` already wraps itself in `Semantics(button: true,
+It is not a defect. `SkotiqButton` already wraps itself in `Semantics(button: true,
 enabled: !isDisabled, label: …)`, and a widget test proves the published node carries
 `hasEnabledState` and *not* `isEnabled` when `onPressed` is null — with the enabled case asserted
 alongside so the test cannot pass by the flag never being set either way. The AT-SPI tree simply
@@ -619,7 +619,7 @@ The behaviour is also right as UX: the button sits directly beneath a "Location 
 card that explains the reason and offers "Open Settings", so the disabled state is neither silent
 nor unexplained.
 
-Kept `nightshade_button_disabled_semantics_test.dart` as regression cover, since the design system
+Kept `skotiq_button_disabled_semantics_test.dart` as regression cover, since the design system
 had no test pinning a property the whole app depends on.
 
 ## V1 — full unattended spine driven through the GUI, end to end (validation, not a defect)
@@ -939,7 +939,7 @@ a sharp frame against ~32 for a soft one, from the same formula. The score discr
 
 ## G14 — a failed autofocus leaves its progress panel showing "Measuring point 1/9" forever *(P2)*
 
-Reproduced with fault injection (`NIGHTSHADE_SIM_FAULTS='focuser.move=after(3):error'`), which lets
+Reproduced with fault injection (`SKOTIQ_SIM_FAULTS='focuser.move=after(3):error'`), which lets
 the focuser move three times and then refuse — the shape of a focuser that dies partway through a
 sweep.
 
@@ -1380,7 +1380,7 @@ geometry, and logs which of the two it actually had.
 `sequencer_ops.rs`; the one that actually runs is `unified_device_ops.rs`, which builds a
 `FitsWriteHeader` with `focal_length: None, pixel_size_x: None, pixel_size_y: None` hard-coded.
 The log settled it: `Saved temp FITS for plate solving` (sequencer_ops) appears **0** times,
-`Saving FITS file to: /tmp/nightshade_platesolve_temp` (the unified path, via
+`Saving FITS file to: /tmp/skotiq_platesolve_temp` (the unified path, via
 `api_save_fits_file`) appears **25** times. Both implementations are now fixed, since either can
 be the live one.
 
@@ -1574,7 +1574,7 @@ successful dither resets the streak, so "3 in a row" means three in a row and no
 
 ## G20 — a test hung the whole suite in the NVIDIA driver *(fixed; my first write-up of this was wrong)*
 
-`cargo test -p nightshade_imaging` never finished: the process sat in `futex_wait` with
+`cargo test -p skotiq_imaging` never finished: the process sat in `futex_wait` with
 `/dev/nvidiactl` open, observed at 21 minutes before it was killed, inside
 `platesolve::tests::internal_solver_test_helper_estimates_with_hint_and_blind_metadata`. The cause
 is `gpu_downsample_max_u16`, which `extract_plate_stars` calls with a CPU fallback on `Err` — and a
@@ -1598,7 +1598,7 @@ tid 1084607 (worker): nvkms_open_common      <- 2 open fds on /dev/nvidia*
 ```
 
 There is no interruption point that fixes that from the outside. So the escape is to not make the
-call: `NIGHTSHADE_PLATESOLVE_FORCE_CPU` skips the GPU path entirely, and the test sets it, because
+call: `SKOTIQ_PLATESOLVE_FORCE_CPU` skips the GPU path entirely, and the test sets it, because
 the test is about the solver's metadata estimation and never cared about the GPU. The deadline and
 the once-per-process latch are kept as a second line of defence for anyone who does exercise that
 path.

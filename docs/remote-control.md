@@ -1,6 +1,6 @@
-# Nightshade remote control (REST + WebSocket)
+# Skotiq remote control (REST + WebSocket)
 
-Nightshade 2.x remote control runs over the **headless API** (`HeadlessApiServer`):
+Skotiq 2.x remote control runs over the **headless API** (`HeadlessApiServer`):
 HTTP/JSON for commands and status, WebSocket (`/events` or `/api/ws`) for live updates.
 There is **no in-process TLS terminator** in the Dart server for P1; production deployments
 should place a reverse proxy in front of the API port.
@@ -9,9 +9,9 @@ should place a reverse proxy in front of the API port.
 
 | Port / service | Protocol | Purpose |
 |----------------|----------|---------|
-| `8080` (or `NIGHTSHADE_PORT` / Settings → Remote access) | TCP HTTP + WS | REST API, web dashboard, WebSocket events |
+| `8080` (or `SKOTIQ_PORT` / Settings → Remote access) | TCP HTTP + WS | REST API, web dashboard, WebSocket events |
 | `45679` | UDP | Legacy/broadcast discovery (optional) |
-| mDNS | — | Bonjour-style `_nightshade._tcp` discovery when enabled |
+| mDNS | — | Bonjour-style `_skotiq._tcp` discovery when enabled |
 
 Mobile and desktop companions discover hosts via mDNS, UDP fallback, manual host entry,
 or a **pairing QR** generated under **Settings → Remote access**.
@@ -21,7 +21,7 @@ or a **pairing QR** generated under **Settings → Remote access**.
 1. Enable **Remote access** on the imaging machine.
 2. Start pairing (Remote access screen or **Manage pairing**). Desktop shows a
    `WORD-WORD-NNNN` code and, when pairing is active, a QR payload from
-   `EnhancedNightshadeDiscovery.generateQrData()`.
+   `EnhancedSkotiqDiscovery.generateQrData()`.
 3. On the phone/tablet:
    - **Scan QR** — validates JSON schema, local-network host, and fingerprint; may
      include `pairingCode` for one-scan enrollment; or
@@ -39,8 +39,8 @@ the desktop UI / embedded in QR only) so passive observers cannot harvest codes 
 
 Tailscale gives a paired phone a route to the imaging machine **from anywhere**
 — including cellular — without port-forwarding, dynamic-DNS, or exposing the
-API to the public internet. Nightshade does **not** run, proxy, or depend on any
-Nightshade-operated relay server: the phone talks **directly** to your rig over
+API to the public internet. Skotiq does **not** run, proxy, or depend on any
+Skotiq-operated relay server: the phone talks **directly** to your rig over
 the tailnet. The only third party in the path is your own Tailscale tailnet
 (WireGuard mesh / DERP). If you are not signed into Tailscale, nothing about the
 remote-access feature changes — it stays LAN/loopback only.
@@ -50,7 +50,7 @@ remote-access feature changes — it stays LAN/loopback only.
 When **Remote access** is enabled and bound beyond loopback, the desktop
 enumerates its network interfaces and classifies each address with the
 fail-closed `TailnetDetector`
-(`packages/nightshade_remote_protocol/lib/src/tailnet_detector.dart`):
+(`packages/skotiq_remote_protocol/lib/src/tailnet_detector.dart`):
 
 | Tier | Ranges | Used as |
 |------|--------|---------|
@@ -81,7 +81,7 @@ the two never get confused. `Settings → Remote access` then shows a dedicated
 2. `tailscale up` and sign in to your tailnet.
 3. Confirm an address exists: `tailscale ip -4` prints the `100.x.y.z` MagicDNS
    address. (`tailscale status` shows the full peer list.)
-4. In Nightshade, enable **Remote access**, then open the Tailscale panel and
+4. In Skotiq, enable **Remote access**, then open the Tailscale panel and
    press **Re-check** if the address is not already shown.
 5. On the phone: install Tailscale, sign in to the **same** tailnet, then scan
    the Tailscale QR (or enter the `100.x` host + pairing code manually).
@@ -98,12 +98,12 @@ brackets an IPv6 literal itself.
 
 ### No relay — what this means operationally
 
-- **No Nightshade cloud.** There is no Nightshade-hosted account, broker, or
+- **No Skotiq cloud.** There is no Skotiq-hosted account, broker, or
   TURN/relay. Pairing, tokens, and the WebSocket all terminate on your rig.
 - **Direct WireGuard.** Tailscale negotiates a direct encrypted tunnel between
   phone and rig; it only falls back to Tailscale's DERP relays for NAT
   traversal of the *encrypted* WireGuard packets — it can never read your
-  traffic, and that path is between your two devices, not a Nightshade service.
+  traffic, and that path is between your two devices, not a Skotiq service.
 - **Pairing is transport-agnostic.** The fingerprint/scope/token model
   (see *Pairing model* above and `SECURITY.md`) is identical over LAN and
   Tailscale. A tailnet does not weaken or bypass pairing — a device still needs
@@ -128,18 +128,18 @@ Terminating TLS at nginx keeps certificate rotation out of the Flutter/Shelf sta
 ### 1. Issue certificates
 
 Use your CA of choice (Let’s Encrypt, internal PKI, etc.) for a DNS name that resolves
-to the imaging PC, e.g. `nightshade.observatory.local`.
+to the imaging PC, e.g. `skotiq.observatory.local`.
 
 ### 2. Example nginx site
 
 ```nginx
-# /etc/nginx/sites-available/nightshade.conf
+# /etc/nginx/sites-available/skotiq.conf
 map $http_upgrade $connection_upgrade {
     default upgrade;
     ''      close;
 }
 
-upstream nightshade_api {
+upstream skotiq_api {
     # Shelf binds 0.0.0.0:8080 in LAN mode; keep proxy on loopback.
     server 127.0.0.1:8080;
     keepalive 32;
@@ -147,17 +147,17 @@ upstream nightshade_api {
 
 server {
     listen 443 ssl http2;
-    server_name nightshade.observatory.local;
+    server_name skotiq.observatory.local;
 
-    ssl_certificate     /etc/ssl/nightshade/fullchain.pem;
-    ssl_certificate_key /etc/ssl/nightshade/privkey.pem;
+    ssl_certificate     /etc/ssl/skotiq/fullchain.pem;
+    ssl_certificate_key /etc/ssl/skotiq/privkey.pem;
     ssl_protocols       TLSv1.2 TLSv1.3;
     ssl_ciphers         HIGH:!aNULL:!MD5;
 
     # Optional: require client certs or IP allowlists here.
 
     location / {
-        proxy_pass http://nightshade_api;
+        proxy_pass http://skotiq_api;
         proxy_http_version 1.1;
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
@@ -174,7 +174,7 @@ server {
 # Redirect cleartext → TLS
 server {
     listen 80;
-    server_name nightshade.observatory.local;
+    server_name skotiq.observatory.local;
     return 301 https://$host$request_uri;
 }
 ```
@@ -182,11 +182,11 @@ server {
 Enable and reload:
 
 ```bash
-sudo ln -sf /etc/nginx/sites-available/nightshade.conf /etc/nginx/sites-enabled/
+sudo ln -sf /etc/nginx/sites-available/skotiq.conf /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-### 3. Trust the proxy for per-client rate limiting (`NIGHTSHADE_TRUST_PROXY`)
+### 3. Trust the proxy for per-client rate limiting (`SKOTIQ_TRUST_PROXY`)
 
 By default the API derives its rate-limit and pairing brute-force-lockout key
 from the **real TCP socket peer**, because in the direct-bind deployment the
@@ -201,7 +201,7 @@ sits behind this documented loopback proxy, set:
 
 ```bash
 # systemd unit / environment file for the headless service
-NIGHTSHADE_TRUST_PROXY=true
+SKOTIQ_TRUST_PROXY=true
 ```
 
 With the flag set, the limiter keys off the client IP nginx forwards in
@@ -211,13 +211,13 @@ LAN/WAN client can never forge the key. Leave it **unset** for any direct-bind
 injects `X-Real-IP` and `X-Forwarded-For`; this flag is what tells the API to
 believe them.
 
-> Related testing-only escape hatch: `NIGHTSHADE_ALLOW_INSECURE_UPDATE_SOURCE=true`
+> Related testing-only escape hatch: `SKOTIQ_ALLOW_INSECURE_UPDATE_SOURCE=true`
 > lets the OTA updater fetch from a non-HTTPS / unpinned source. Never set it on
 > a production appliance.
 
 ### 4. Client configuration
 
-- Mobile manual host: `nightshade.observatory.local:443` is **not** valid in the strict
+- Mobile manual host: `skotiq.observatory.local:443` is **not** valid in the strict
   LAN QR schema; for WAN, use manual host entry with `https` via a client build that
   supports TLS URLs, or stay on LAN with QR.
 - Set desktop **Remote access** port to `8080` internally; only nginx exposes `443`.
@@ -227,7 +227,7 @@ believe them.
 ### 5. Operational checks
 
 ```bash
-curl -fsS https://nightshade.observatory.local/api/info | jq .version,.fingerprint,.pairingSupported
+curl -fsS https://skotiq.observatory.local/api/info | jq .version,.fingerprint,.pairingSupported
 ```
 
 Confirm `fingerprint` matches the value on **Settings → Remote access** before pairing
@@ -235,7 +235,7 @@ phones.
 
 ## Critical push notifications (LAN UDP + FCM/APNs)
 
-Nightshade fires critical alerts (weather unsafe, sequence failed, guiding lost,
+Skotiq fires critical alerts (weather unsafe, sequence failed, guiding lost,
 mount runaway) through three independent channels. Each one covers a failure
 mode the others can't.
 
@@ -264,7 +264,7 @@ project-level Firebase / Apple Developer configuration; see below.
 
 - Sent on `255.255.255.255:45681` (broadcast) AND `239.255.42.99:45681`
   (multicast) so it works on simple LANs and on networks that block broadcast.
-- HMAC key: `SHA-256("nightshade-push-v1:" + serverFingerprint)`. Same value on
+- HMAC key: `SHA-256("skotiq-push-v1:" + serverFingerprint)`. Same value on
   both sides — paired phones already have the fingerprint from the QR code /
   `GET /api/info`.
 - Default broadcaster severity floor: `critical`. Configurable.
@@ -290,7 +290,7 @@ What this does **not** defend against:
 
 Out of scope for this code drop: FCM requires a Firebase project + service
 account + per-app device registration. The scaffolding in
-`packages/nightshade_remote_protocol/lib/src/push/remote_push_delivery.dart`
+`packages/skotiq_remote_protocol/lib/src/push/remote_push_delivery.dart`
 defines `FcmRemotePushDelivery` and throws `UnimplementedError` with this
 doc reference. To wire it:
 
@@ -398,7 +398,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
 
 ### Event broadcast
 
-Update lifecycle is emitted as `NightshadeEvent` with `category: 'system'`
+Update lifecycle is emitted as `SkotiqEvent` with `category: 'system'`
 on the existing WebSocket transport (`/api/ws`, `/events`). Event types:
 
 - `UpdateAvailable` — payload `{currentVersion, latestVersion, downloadUrl, releaseNotes, downloadSize}`
@@ -412,16 +412,16 @@ on the existing WebSocket transport (`/api/ws`, `/events`). Event types:
 
 `UpdateAvailable` is also routed through `PushNotificationService`, so a
 paired phone gets a `type: 'push_notification'` envelope on the WS
-("Nightshade 2.7.0 available — open Settings > Updates to install"). The
+("Skotiq 2.7.0 available — open Settings > Updates to install"). The
 other variants are operator-driven and don't escalate to push.
 
 ### LAN push (port 45680)
 
 The headless daemon also starts a `LanPushReceiver` on TCP `45680` when
-the build embeds a trusted public key (`--dart-define=NIGHTSHADE_UPDATE_PUBLIC_KEY=...`).
+the build embeds a trusted public key (`--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=...`).
 This lets a dev machine push a signed update package directly to the rig
 without going through an update server. See
-`packages/nightshade_updater/lib/src/services/lan_push_receiver.dart` for
+`packages/skotiq_updater/lib/src/services/lan_push_receiver.dart` for
 the wire protocol (4-byte length prefix + JSON auth frame, then manifest +
 package bytes).
 
@@ -570,5 +570,5 @@ CONTRIBUTING.md "errors are a feature" house rule).
 
 - [docs/api/web-server-api.md](api/web-server-api.md) — route catalog
 - [docs/headless-secure-setup.md](headless-secure-setup.md) — tokens and bind modes
-- [packages/nightshade_remote_protocol/SECURITY.md](../packages/nightshade_remote_protocol/SECURITY.md) — pairing and scope policy
+- [packages/skotiq_remote_protocol/SECURITY.md](../packages/skotiq_remote_protocol/SECURITY.md) — pairing and scope policy
 - [RUNBOOK.md](RUNBOOK.md) — field diagnostics

@@ -20,8 +20,8 @@ class ImagingForegroundService {
   Future<void> initialize() async {
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
-        channelId: 'nightshade_imaging',
-        channelName: 'Nightshade Imaging',
+        channelId: 'skotiq_imaging',
+        channelName: 'Skotiq Imaging',
         channelDescription: 'Displays imaging sequence progress',
         channelImportance: NotificationChannelImportance.LOW,
         priority: NotificationPriority.LOW,
@@ -55,7 +55,7 @@ class ImagingForegroundService {
   /// Ask the OS to whitelist this app from battery optimization so the
   /// foreground service is not killed during long sequences. The user
   /// sees a system dialog asking whether to ignore battery optimizations
-  /// for Nightshade. Returns true if the user has whitelisted (or had
+  /// for Skotiq. Returns true if the user has whitelisted (or had
   /// already whitelisted) the app.
   ///
   /// Safe to call multiple times; the OS only prompts when the current

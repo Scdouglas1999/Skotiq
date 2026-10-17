@@ -6,8 +6,8 @@ const _jsonOutputPath = 'docs/production-readiness/windows-bundle-audit.json';
 const _markdownOutputPath = 'docs/production-readiness/windows-bundle-audit.md';
 
 const _requiredFiles = <String>[
-  'nightshade_desktop.exe',
-  'nightshade_bridge.dll',
+  'skotiq_desktop.exe',
+  'skotiq_bridge.dll',
   'flutter_windows.dll',
   'sqlite3.dll',
   'libraw.dll',

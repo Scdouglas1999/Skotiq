@@ -6,17 +6,17 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:nightshade_bridge/nightshade_bridge.dart' as bridge;
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/guiding_handlers.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/guiding_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
 
-class _MockBackend extends Mock implements NightshadeBackend {}
+class _MockBackend extends Mock implements SkotiqBackend {}
 
 class _FixedBackendNotifier extends BackendNotifier {
-  _FixedBackendNotifier(super.ref, NightshadeBackend backend) {
+  _FixedBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
   }
 }
@@ -121,7 +121,7 @@ void main() {
       final backend = _MockBackend();
       when(
         () => backend.eventStream,
-      ).thenAnswer((_) => const Stream<NightshadeEvent>.empty());
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
       when(
         () => backend.phd2Connect(
           host: any(named: 'host'),
@@ -186,7 +186,7 @@ void main() {
       final backend = _MockBackend();
       when(
         () => backend.eventStream,
-      ).thenAnswer((_) => const Stream<NightshadeEvent>.empty());
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
       final startGate = Completer<void>();
       when(
         () => backend.guiderStartGuiding(
@@ -514,14 +514,14 @@ class _CapturingGuidingBackend extends DisconnectedBackend {
 class _NoPHD2SelectionBackend extends DisconnectedBackend {
   @override
   Future<(double, double)> phd2GetLockPosition() {
-    throw const bridge.NightshadeError.operationFailed(
+    throw const bridge.SkotiqError.operationFailed(
       'Failed to get lock position: get_lock_position: expected array, got null',
     );
   }
 
   @override
   Future<Phd2StarImage> phd2GetStarImage({int size = 50}) {
-    throw const bridge.NightshadeError.operationFailed(
+    throw const bridge.SkotiqError.operationFailed(
       'Failed to get star image: PHD2 error: no star selected',
     );
   }

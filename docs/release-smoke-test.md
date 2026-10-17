@@ -28,7 +28,7 @@ the raw `build/` output — the bundling step is exactly what this test exercise
 
 On a Windows 10/11 machine **without** Visual Studio, Flutter, or the dev tools:
 
-- [ ] Extract `nightshade-<version>-windows-x64.zip` and run `nightshade_desktop.exe`.
+- [ ] Extract `skotiq-<version>-windows-x64.zip` and run `skotiq_desktop.exe`.
 - [ ] App window opens — no "missing `*.dll`" / "VCRUNTIME140.dll not found" dialog.
 - [ ] The native bridge loads (no FFI/codegen-hash error on startup; equipment
       discovery screen is reachable).
@@ -40,10 +40,10 @@ On a Windows 10/11 machine **without** Visual Studio, Flutter, or the dev tools:
 On a clean Linux box or fresh VM/container (Debian/Ubuntu Bookworm is the floor;
 also try a current rolling-release desktop) **without** the dev toolchain:
 
-- [ ] Extract `nightshade-<version>-linux-x64.tar.gz`, run `./nightshade`.
+- [ ] Extract `skotiq-<version>-linux-x64.tar.gz`, run `./skotiq`.
 - [ ] App launches — GTK3/libsecret present (document any runtime packages the
       user must install).
-- [ ] Bundled `libnightshade_bridge.so`, `libraw`, and hermetic `libsqlite3.so`
+- [ ] Bundled `libskotiq_bridge.so`, `libraw`, and hermetic `libsqlite3.so`
       (package:sqlite3 native asset) load from the bundle.
 - [ ] Built against the glibc floor — it does **not** fail with
       `GLIBC_2.3x not found` on the Bookworm/Raspberry Pi appliance target.
@@ -52,7 +52,7 @@ also try a current rolling-release desktop) **without** the dev toolchain:
 
 On a real Android phone/tablet:
 
-- [ ] Sideload `nightshade-<version>-android-universal.apk` ("Install unknown
+- [ ] Sideload `skotiq-<version>-android-universal.apk` ("Install unknown
       apps"). Expect the OS to flag it as **debug-signed** — that is the
       documented beta posture, not a failure.
 - [ ] App opens.
@@ -69,7 +69,7 @@ On a real Android phone/tablet:
 
 ## 5. Missing hardware fails loud (not weird)
 
-With **no** drivers or devices connected, confirm Nightshade degrades honestly:
+With **no** drivers or devices connected, confirm Skotiq degrades honestly:
 
 - [ ] Discovery returns an empty list (or a clear "none found"), not fabricated
       devices.

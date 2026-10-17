@@ -6,12 +6,12 @@
       "outcome": "fixed",
       "summary": "centering_service.dart:707 (centerOnTarget loop) and :1066 (verifyCenter) captured their plate-solve frames via ImagingService.captureImage with frameType light and targetName 'Centering'/'Verification'. captureImage is the KEEPER path: every iteration wrote a full-size FITS into the operator's light-frame folder, inserted a captured_images row, queued science processing and added the frame to sessionImagesProvider, inflating the night's frame count and integration total with images nobody will ever stack (up to CenteringConfig.maxIterations=5 per target, plus one per verify). ImagingService already had the correct private behaviour (_capture(persistFrame:false) -> one reused scratch path per camera, no DB row, no science processing, no session totals) but exposed it only through startLoopCapture, which cannot take a single frame. Added the missing public single-frame entry point ImagingService.captureUtilityFrame({settings, targetName}) and pointed both centering call sites at it.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/services/imaging_service.dart",
-        "packages/nightshade_core/lib/src/services/centering_service.dart",
-        "packages/nightshade_core/test/services/centering_service_test.dart",
-        "packages/nightshade_core/test/services/centering_service_test.mocks.dart"
+        "packages/skotiq_core/lib/src/services/imaging_service.dart",
+        "packages/skotiq_core/lib/src/services/centering_service.dart",
+        "packages/skotiq_core/test/services/centering_service_test.dart",
+        "packages/skotiq_core/test/services/centering_service_test.mocks.dart"
       ],
-      "test": "packages/nightshade_core/test/services/centering_service_test.dart group 'plate-solve frames are not keepers' - two tests drive a full centerOnTarget and a full verifyCenter and verifyNever(captureImage) / verify(captureUtilityFrame).",
+      "test": "packages/skotiq_core/test/services/centering_service_test.dart group 'plate-solve frames are not keepers' - two tests drive a full centerOnTarget and a full verifyCenter and verifyNever(captureImage) / verify(captureUtilityFrame).",
       "revert_check": "Reverted by running perl -pi -e 's/imagingService.captureUtilityFrame\\(/imagingService.captureImage(/g' on centering_service.dart (i.e. restoring the literal `capturedImage = await imagingService.captureImage(` at :707 and :1066). flutter test test/services/centering_service_test.dart --plain-name 'plate-solve frames are not keepers' -> 0 passed, 2 failed. Restored -> 33/33 pass.",
       "caveats": "captureUtilityFrame lives in imaging_service.dart, which is outside this agent's ownership list; the addition is purely additive (a 6-line delegate to the existing private _capture) because there was no other way to fix the cause rather than relocate it. The 27 existing centering tests were mechanically repointed from captureImage to captureUtilityFrame and the hand-maintained mockito .mocks.dart gained the matching override."
     },
@@ -20,23 +20,23 @@
       "outcome": "fixed",
       "summary": "The blocked item pointed at three containment checks in scheduler_engine.dart. Two of them (the admission gate at :787-801 and the dispatch filter at :1119-1130) had ALREADY been fixed by an earlier wave with a `p.goal.filter.isEmpty ||` guard - confirmed by reading the file. The remaining half was not fixed and was the part that made the feature useless rather than merely unschedulable: (a) SchedulerCandidateLoader._availableFilters (scheduler_provider.dart:552) handed the engine a bare empty list for a profile with no named filters; (b) _filterCoverageFactor (scheduler_engine.dart:1087) skipped any goal whose filter is not in that list, so an unfiltered goal on a wheel-less rig contributed 0 remaining frames and the target scored 0.0 on coverage - ranked as if fully imaged; (c) buildSequenceForCandidate emitted ExposureNode(filter: '') and name 'Expose ' for the unfiltered sentinel, when the wire contract (sequence_emitter.dart:690) is filter: null - '' asks a wheel-less rig to select a filter named \"\". Fixed all three: _availableFilters now returns smartNightPlanningFilters(profile.filterNames) ([''] for a wheel-less rig, verbatim otherwise), _filterCoverageFactor treats an empty goal filter as always satisfiable, and the emitted node normalises the sentinel to null via a new _nodeFilter helper (also applied to the defensive no-goal branch).",
       "files_changed": [
-        "packages/nightshade_core/lib/src/providers/scheduler_provider.dart",
-        "packages/nightshade_core/lib/src/services/scheduler/scheduler_engine.dart",
-        "packages/nightshade_core/test/providers/scheduler_project_filter_test.dart"
+        "packages/skotiq_core/lib/src/providers/scheduler_provider.dart",
+        "packages/skotiq_core/lib/src/services/scheduler/scheduler_engine.dart",
+        "packages/skotiq_core/test/providers/scheduler_project_filter_test.dart"
       ],
-      "test": "packages/nightshade_core/test/providers/scheduler_project_filter_test.dart group 'wheel-less profiles': a DB-backed loader test with activeEquipmentProfileProvider overridden to a filterless profile asserts availableFilters == [''] AND that buildSequenceForCandidate emits the operator's 20 x 180 s goal with filter == null (not the defensive 1 x 30 s frame); a sibling test asserts a named-filter profile is passed through verbatim.",
+      "test": "packages/skotiq_core/test/providers/scheduler_project_filter_test.dart group 'wheel-less profiles': a DB-backed loader test with activeEquipmentProfileProvider overridden to a filterless profile asserts availableFilters == [''] AND that buildSequenceForCandidate emits the operator's 20 x 180 s goal with filter == null (not the defensive 1 x 30 s frame); a sibling test asserts a named-filter profile is passed through verbatim.",
       "revert_check": "Reverted `return smartNightPlanningFilters(profile.filterNames);` back to `return List<String>.from(profile.filterNames);` at scheduler_provider.dart:567. flutter test test/providers/scheduler_project_filter_test.dart -> 'a profile with no filters is loaded as one unfiltered slot, not none' FAILED (6 passed, 1 failed). Restored -> 7/7 pass; scheduler_engine_test.dart 49/49 pass.",
       "caveats": "The pre-existing engine-level tests in scheduler_engine_test.dart group 'wheel-less rigs' cover the admission gate that a previous wave already fixed; my new tests cover the loader + scoring + node-emission halves it left behind."
     },
     {
       "title": "MPC 80-column export put the CCD observation-type code in column 14 (Note 1) instead of column 15 (Note 2)",
       "outcome": "fixed",
-      "summary": "mpc_export_service.dart:181-185 assigned note1='C' / note2=' '. The MPC optical-observation format puts the observation TYPE in Note 2 (column 15); Note 1 (column 14) is a program/publication note. Every record Nightshade generated therefore reached the MPC with no observation type at all and a non-standard Note 1, and the existing 80-character length check could not catch it because the swap preserves the width. Swapped the two constants and corrected the column table in the method's doc comment (:157-158), which stated the same wrong layout.",
+      "summary": "mpc_export_service.dart:181-185 assigned note1='C' / note2=' '. The MPC optical-observation format puts the observation TYPE in Note 2 (column 15); Note 1 (column 14) is a program/publication note. Every record Skotiq generated therefore reached the MPC with no observation type at all and a non-standard Note 1, and the existing 80-character length check could not catch it because the swap preserves the width. Swapped the two constants and corrected the column table in the method's doc comment (:157-158), which stated the same wrong layout.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/services/science/mpc_export_service.dart",
-        "packages/nightshade_core/test/services/science/mpc_export_column_layout_test.dart"
+        "packages/skotiq_core/lib/src/services/science/mpc_export_service.dart",
+        "packages/skotiq_core/test/services/science/mpc_export_column_layout_test.dart"
       ],
-      "test": "NEW packages/nightshade_core/test/services/science/mpc_export_column_layout_test.dart - drives the public generateReport() and asserts line[13]==' ' / line[14]=='C' for a photometric row and for an astrometry-only row, plus that the date/designation/observatory-code fields are undisturbed. There was NO test for this service before.",
+      "test": "NEW packages/skotiq_core/test/services/science/mpc_export_column_layout_test.dart - drives the public generateReport() and asserts line[13]==' ' / line[14]=='C' for a photometric row and for an astrometry-only row, plus that the date/designation/observatory-code fields are undisturbed. There was NO test for this service before.",
       "revert_check": "Swapped the constants back (note1='C', note2=' ') at mpc_export_service.dart:183/188 -> 2 of 3 tests failed. Restored -> 3/3 pass.",
       "caveats": ""
     },
@@ -45,10 +45,10 @@
       "outcome": "fixed",
       "summary": "period_analysis_service.dart computed SDE = (peakSR - mean(SR)) / std(SR) over the ENTIRE SR spectrum, peak included. A coherent signal raises SR across its own neighbourhood, which lifts the mean and inflates the standard deviation the peak is then divided by - so the stronger the transit, the lower its own SDE. Measured on the finding's own 80-point curves: noise 4.05, sinusoid 3.58 - noise outscored the signal. Fixed by masking the peak's own neighbourhood out of the baseline (standard BLS-SDE practice): trials whose period is within +/-20% of the best period are excluded, with a fallback to the full spectrum when fewer than 20 trials survive (a period range too narrow to have any off-peak trials). Harmonics and aliases outside the window stay in the baseline, which is correct - a real alias should lower the SDE. After: noise 4.42 < sinusoid 4.94 < transit 5.62 on the thin 80-point set, and on a 300-point set noise 3.48 vs transit 10.26, so the documented 6.0 threshold is reachable for the first time.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/services/science/period_analysis_service.dart",
-        "packages/nightshade_core/test/services/science/bls_sde_baseline_test.dart"
+        "packages/skotiq_core/lib/src/services/science/period_analysis_service.dart",
+        "packages/skotiq_core/test/services/science/bls_sde_baseline_test.dart"
       ],
-      "test": "NEW packages/nightshade_core/test/services/science/bls_sde_baseline_test.dart - deterministic (seeded) noise/sinusoid/box-transit curves. 80-point test asserts the ordering noise < sinusoid < transit; 300-point test asserts the transit clears 6.0 while noise stays below, and that the recovered period (20 min) and depth (0.150 mag) are the injected ones so the SDE describes the real signal and not an alias.",
+      "test": "NEW packages/skotiq_core/test/services/science/bls_sde_baseline_test.dart - deterministic (seeded) noise/sinusoid/box-transit curves. 80-point test asserts the ordering noise < sinusoid < transit; 300-point test asserts the transit clears 6.0 while noise stays below, and that the recovered period (20 min) and depth (0.150 mag) are the injected ones so the SDE describes the real signal and not an alias.",
       "revert_check": "Replaced `final baselineValues = baseline.length >= minBaselineTrials ? baseline : srSpectrum;` with `final baselineValues = srSpectrum;` (the old whole-spectrum baseline). '80 points: transit > sinusoid > noise' FAILED with SDE(sinusoid)=3.58 not greater than SDE(noise)=4.05 - the exact inversion reported. Restored -> both tests pass, and the pre-existing period_analysis_significance_test.dart still passes (6/6 across both files).",
       "caveats": "The 300-point threshold test passes both before and after the fix; the revert-sensitive assertion is the 80-point ordering one. The BLS card's 'compare SDE only within one light curve' caveat added by the analytics agent can now be dropped, but that string lives in period_analysis_panel.dart which is not mine."
     },
@@ -58,12 +58,12 @@
       "source": "_blocked_from_wave2.json items 6 and 17 (one defect, reported twice)",
       "summary": "AstronomyCalculations.calculateObjectVisibility scans exactly one local-noon-to-noon window, and (lines 1256-1294) repairs the up-at-noon case by advancing setTime past the NEXT rise. A target already up at the anchor therefore comes back describing tomorrow's interval, and TargetWindow.isVisibleAt tested membership of that interval, so a target within a degree of the zenith answered 'not up yet' and findTimingConflicts printed a rise time that had, on its face, already passed (bare HH:mm, no date). Fixed at the cause: calculateTargetWindows now carries the geometry it solved from (raDeg/decDeg/latitudeDeg/longitudeDeg/minAltitudeDeg) onto TargetWindow, and isVisibleAt answers by computing the apparent altitude AT the instant asked about (equatorialToHorizontal + refraction, the same pair calculateObjectVisibility bisects on) instead of comparing against one rise instant. Windows built without geometry keep the old interval logic. The end-of-node 'after target sets' check gained the same altitude guard so it cannot fire on a set instant belonging to a different night, and both conflict messages now print the calendar date whenever the boundary is not on the scheduled node's day. Production wiring: PreSessionSimulator.simulate -> analyzeSequence -> findTimingConflicts, rendered by the pre-flight validation dialog.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/services/sequence_time_estimator.dart",
-        "packages/nightshade_core/test/services/sequence_time_estimator_visibility_test.dart"
+        "packages/skotiq_core/lib/src/services/sequence_time_estimator.dart",
+        "packages/skotiq_core/test/services/sequence_time_estimator_visibility_test.dart"
       ],
       "test": "flutter test test/services/sequence_time_estimator_visibility_test.dart (4 tests) + the 36 pre-existing sequence_time_estimator_test.dart tests still pass",
       "revert_check": "Deleting the four-line altitude branch in TargetWindow.isVisibleAt ('final altitude = altitudeAt(time); if (altitude != null) return altitude >= (minAltitudeDeg ?? 0);') fails 2 of 4: 'a target at the zenith is not reported as before target rises' reports the conflict again with the reason line 'target is at 60.67 degrees at 2024-02-22 12:47', and 'isVisibleAt answers from the sky' gets false. Replacing _formatTimeRelativeTo(window.riseTime!, start) with _formatTime(window.riseTime!) fails 'a boundary on another calendar day is printed with its date' with actual 'before target rises at 03:41'.",
-      "caveats": "The underlying noon-anchored rise/set pair in nightshade_planetarium is unchanged (that package is outside this ownership list), so the rise/set instants DISPLAYED for such a target still describe the next night. Only the visibility question and the conflict text are now correct."
+      "caveats": "The underlying noon-anchored rise/set pair in skotiq_planetarium is unchanged (that package is outside this ownership list), so the rise/set instants DISPLAYED for such a target still describe the next night. Only the visibility question and the conflict text are now correct."
     },
     {
       "title": "A safing pass that commanded nothing announced itself as a red CRITICAL claiming the rig had been safed",
@@ -71,8 +71,8 @@
       "source": "_blocked_from_wave2.json item 0 (p2-notify)",
       "summary": "SafeRigService._emitNotification built `detail = steps.isEmpty ? 'no action was possible' : ...` and interpolated it into 'CRITICAL: $reason. Rig safed: $detail.' \u2014 a single sentence asserting both that the rig had been secured and that nothing had been possible. Weather safety resolves fail-closed to unsafe when no weather source is configured, so an idle, fully disconnected app ran the safing routine and this was the only thing the operator saw. Now a pass with zero executed steps emits showWarning 'Nothing to safe: <reason>. No run was active and no mount, dome or cover is connected.' keeping the mountAbsent gap sentence, and showError/CRITICAL is reserved for passes that actually commanded something (and, unchanged, for result.hasFailures).",
       "files_changed": [
-        "packages/nightshade_core/lib/src/services/safe_rig_service.dart",
-        "packages/nightshade_core/test/services/safe_rig_service_test.dart"
+        "packages/skotiq_core/lib/src/services/safe_rig_service.dart",
+        "packages/skotiq_core/test/services/safe_rig_service_test.dart"
       ],
       "test": "flutter test test/services/safe_rig_service_test.dart (24 tests, 2 new: 'a pass that commanded nothing is a warning, not a CRITICAL' and 'a pass that did command something stays CRITICAL')",
       "revert_check": "Changing `if (steps.isEmpty) {` to `if (false) {` in _emitNotification fails 'a pass that commanded nothing is a warning, not a CRITICAL' with Expected UiNotificationLevel.warning / Actual UiNotificationLevel.error.",
@@ -84,9 +84,9 @@
       "source": "_blocked_from_wave2.json item 15 (p2-seqnodes)",
       "summary": "Three planning surfaces did not know SciencePhotometryNode exists, while the Rust executor captured its `count` frames correctly. Sequence._countExposures (both the tree walk and the rootless fallback) only summed ExposureNode/SmartExposureNode, so the header read '0 frames'; Sequence._estimateNodeIntegration likewise, so it read '0m'; and NoExposuresRule's hasEnabledExposure predicate omitted it, so pre-flight raised 'No exposure nodes found. The sequence will run but capture no images' for a sequence that captures 60. All three now include an enabled SciencePhotometryNode (count frames, count * exposureSecs of integration), and the burst is multiplied by an enclosing count loop exactly like an ExposureNode.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/models/sequence/sequence_models/sequence_state.dart",
-        "packages/nightshade_core/lib/src/providers/sequence/rules/exposure_rules.dart",
-        "packages/nightshade_core/test/providers/sequence/science_photometry_counts_as_exposure_test.dart"
+        "packages/skotiq_core/lib/src/models/sequence/sequence_models/sequence_state.dart",
+        "packages/skotiq_core/lib/src/providers/sequence/rules/exposure_rules.dart",
+        "packages/skotiq_core/test/providers/sequence/science_photometry_counts_as_exposure_test.dart"
       ],
       "test": "flutter test test/providers/sequence/science_photometry_counts_as_exposure_test.dart (6 tests); test/providers/sequence/sequence_validation_rules_test.dart + test/models (912 tests) still green",
       "revert_check": "Deleting the `else if (node is SciencePhotometryNode)` arm in _countExposures, the `if (node is SciencePhotometryNode)` block in _estimateNodeIntegration and the `|| (n is SciencePhotometryNode && n.isEnabled && n.count > 0)` clause in NoExposuresRule fails 4 of 6: totalExposures 60->0, totalIntegrationSecs 3600->0, looped count 30->0, and NoExposuresRule goes from empty to one issue. The two negative tests (disabled burst not counted, genuine no-imaging sequence still warns) stay green either way, which is the point.",
@@ -98,8 +98,8 @@
       "source": "_blocked_from_wave2.json item 7 (p2-sequencer-run)",
       "summary": "DarkLibraryCoverageRule read cameraStateProvider.targetTemp once and stamped it onto every DarkFrameRequirement. A sequence that cools to +15 C was therefore matched against darks at the camera default of -10 C, and the dialog's 'Capture missing darks' action would have captured darks at a temperature the run never reaches. Added _plannedSensorTemps: a walk of the tree in execution order that threads the setpoint, so each enabled exposure node is checked at the setpoint of the most recent PRECEDING Cool Camera node (cooling is camera-wide state, so it outlives the branch it sits in) and only falls back to the live setpoint before the first one, or for nodes unreachable from the root. Both dark-library issues now append 'Temperatures are the setpoints this sequence cools to.' when the sequence overrode the live value, so the number in each line is attributable.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/providers/sequence/rules/preflight_rules.dart",
-        "packages/nightshade_core/test/providers/sequence/preflight_rules_test.dart"
+        "packages/skotiq_core/lib/src/providers/sequence/rules/preflight_rules.dart",
+        "packages/skotiq_core/test/providers/sequence/preflight_rules_test.dart"
       ],
       "test": "flutter test test/providers/sequence/preflight_rules_test.dart (32 tests, 2 new: 'uses the setpoint the sequence cools to, not the live one' and 'clean when the library holds darks at the cooled setpoint')",
       "revert_check": "Replacing the per-node lookup with `final plannedTemp = camTargetTemp;` fails both new tests: the first goes Expected non-empty / Actual [] (a -10 C master dark wrongly satisfies a +15 C run) and the second Expected empty / Actual [Missing Dark Frames] (a +15 C master dark wrongly fails it).",
@@ -111,12 +111,12 @@
       "source": "_blocked_from_wave2.json item 34 (p2-analytics)",
       "summary": "ScienceReportExporter.buildMarkdown never read photometry_measurements \u2014 it fed _photometrySnapshot from getCalibrationsForSession only, so the report's '## Photometry' section printed 'No photometric calibration produced this session' for a run whose whole product is a differential light curve. Renamed that section to '## Photometric calibration' in both branches (it was always about zero points, never about the light curve), added '## Light curve' built from ScienceDao.getPhotometryForSession \u2014 point count, outlier count, target object id, comparison ids, first/last timestamp in UTC, and mean/RMS differential magnitude \u2014 and added '## Period analysis' fed by a new optional PeriodAnalysisResult parameter on buildMarkdown/exportToDisk, printing the Lomb-Scargle period + peak power + FAP + searched range + whether the baseline actually constrains the period, and the BLS period/depth/duration/SDE. With no result passed it prints 'Not run for this session.', which is true; before, the report was silent.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/services/science/science_report_exporter.dart",
-        "packages/nightshade_core/test/services/science/science_report_exporter_test.dart"
+        "packages/skotiq_core/lib/src/services/science/science_report_exporter.dart",
+        "packages/skotiq_core/test/services/science/science_report_exporter_test.dart"
       ],
       "test": "flutter test test/services/science/science_report_exporter_test.dart (4 tests, 2 new: 'markdown reports the light curve when measurements exist', 'markdown reports the period search when one was run'; the pre-existing empty-report test now also asserts the two new headings and their no-data sentences)",
       "revert_check": "Removing `b.writeln(_lightCurveSnapshot(photometry)); b.writeln(); b.writeln(_periodAnalysis(period));` from buildMarkdown fails 3 of 4: 'every expected section' (no '## Light curve'), 'reports the light curve' (no '**Points:** 8'), 'reports the period search' (no '## Period analysis'). Removing only the `final photometry = await _scienceDao.getPhotometryForSession(sessionId);` fetch does not compile, which is the point \u2014 the section cannot be present without the query.",
-      "caveats": "The '## Period analysis' section is populated only when the caller passes a result. The Export button lives at packages/nightshade_app/lib/screens/analytics/widgets/science_analytics_tab/navigation_and_snapshots.dart:15/161, outside this ownership list, and still calls exportToDisk(sessionId) with no period argument \u2014 so today the section prints the truthful 'Not run for this session.' rather than the operator's on-screen search. One line at that call site (`period: ref.read(periodAnalysisProvider).result`) completes it. The light-curve half, which is the reported symptom, is fully wired."
+      "caveats": "The '## Period analysis' section is populated only when the caller passes a result. The Export button lives at packages/skotiq_app/lib/screens/analytics/widgets/science_analytics_tab/navigation_and_snapshots.dart:15/161, outside this ownership list, and still calls exportToDisk(sessionId) with no period argument \u2014 so today the section prints the truthful 'Not run for this session.' rather than the operator's on-screen search. One line at that call site (`period: ref.read(periodAnalysisProvider).result`) completes it. The light-curve half, which is the reported symptom, is fully wired."
     },
     {
       "title": "The autofocus result overlay never auto-dismissed, so a finished V-curve followed the operator onto every other screen and covered its controls",
@@ -124,26 +124,26 @@
       "source": "_blocked_from_wave2.json item 27 (p2-imaging)",
       "summary": "AutofocusOverlayNotifier.onAutofocusCompleted set isMinimized but left isVisible true with no timer, and the overlay is deliberately shell-mounted (it is the single live V-curve surface, so it has to survive a screen change DURING a run). The consequence is that a finished result stayed pinned bottom-right over the Guiding tour card and the Framing rotation controls until the app restarted. Added AutofocusOverlayNotifier.resultAutoDismissDelay (10 s) and a _resultDismissTimer: armed by onAutofocusCompleted and onAutofocusCancelled, cancelled by onAutofocusStarted, by onAutofocusFailed, by an explicit dismiss(), and in dispose(). The timer re-checks state before firing so it can never close a run that started in the meantime, and a FAILED run is never armed because it carries an error the operator has to read.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/providers/autofocus_progress_provider.dart",
-        "packages/nightshade_core/test/providers/autofocus_overlay_run_end_test.dart"
+        "packages/skotiq_core/lib/src/providers/autofocus_progress_provider.dart",
+        "packages/skotiq_core/test/providers/autofocus_overlay_run_end_test.dart"
       ],
       "test": "flutter test test/providers/autofocus_overlay_run_end_test.dart (7 tests, 3 new: 'a completed result dismisses itself', 'a failed run stays up: it carries an error to read', 'a new run cancels the previous result countdown'; all three drive fakeAsync so the 10 s window is asserted on both sides)",
       "revert_check": "Removing the `_armResultDismiss();` call from onAutofocusCompleted fails 'a completed result dismisses itself' with Expected false / Actual true (isVisible still set after 11 simulated seconds). The other two stay green either way, which is what makes them the guard rails.",
-      "caveats": "The reporter also wanted the completed-result pill gated to the imaging route in packages/nightshade_app/lib/widgets/autofocus_progress_overlay.dart + screens/shell/app_shell.dart:769. Those are outside this ownership list. With the timer in place the pill's lifetime is 10 s rather than the rest of the night, so the route gate is now polish rather than the fix."
+      "caveats": "The reporter also wanted the completed-result pill gated to the imaging route in packages/skotiq_app/lib/widgets/autofocus_progress_overlay.dart + screens/shell/app_shell.dart:769. Those are outside this ownership list. With the timer in place the pill's lifetime is 10 s rather than the rest of the night, so the route gate is now polish rather than the fix."
     },
     {
       "title": "The diagnostic dump advertised 'recent log files' but bundled every log the install had ever written",
       "outcome": "fixed",
       "source": "_blocked_from_wave2.json item 40 (p2-equipment)",
-      "summary": "LoggingService.exportLogs concatenated every file matching nightshade.log in the log directory with no time bound, and getLogFiles had no filter to give it one. The native appender is tracing_appender::rolling::daily with no max_log_files, so the directory grows forever and a bug report carried every capture path, target name and host name the install had ever logged. exportLogs and getLogFiles now take an optional maxAge (filtering on lastModified), the export header states the span it actually covers, and DiagnosticDumpService passes DiagnosticDumpService.logRetentionWindow (48 h - last night plus the night before) and records span_hours/span_start on the logs entry in manifest.json so the recipient can see how much history they were handed. Unbounded remains the default for any other caller, so nothing silently loses logs.",
+      "summary": "LoggingService.exportLogs concatenated every file matching skotiq.log in the log directory with no time bound, and getLogFiles had no filter to give it one. The native appender is tracing_appender::rolling::daily with no max_log_files, so the directory grows forever and a bug report carried every capture path, target name and host name the install had ever logged. exportLogs and getLogFiles now take an optional maxAge (filtering on lastModified), the export header states the span it actually covers, and DiagnosticDumpService passes DiagnosticDumpService.logRetentionWindow (48 h - last night plus the night before) and records span_hours/span_start on the logs entry in manifest.json so the recipient can see how much history they were handed. Unbounded remains the default for any other caller, so nothing silently loses logs.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/services/logging_service.dart",
-        "packages/nightshade_core/lib/src/services/diagnostic_dump_service.dart",
-        "packages/nightshade_core/test/services/logging_export_retention_test.dart"
+        "packages/skotiq_core/lib/src/services/logging_service.dart",
+        "packages/skotiq_core/lib/src/services/diagnostic_dump_service.dart",
+        "packages/skotiq_core/test/services/logging_export_retention_test.dart"
       ],
       "test": "flutter test test/services/logging_export_retention_test.dart (3 tests) plus logging_service_test.dart, logging_service_stream_test.dart and diagnostic_dump_service_test.dart still green",
       "revert_check": "Changing `await _logging.exportLogs(scratch.path, maxAge: logRetentionWindow);` back to `await _logging.exportLogs(scratch.path);` fails 'the dump ships only its retention window of logs' with Expected: not contains 'ANCIENT' \u2014 a 400-day-old rotated log is back in the zip. Dropping the cutoff filter inside getLogFiles additionally fails 'an aged-out rotated log is excluded from a bounded export' and the hasLength(1) assertion.",
-      "caveats": "Two halves of this defect are outside this ownership list and remain open: native/nightshade_native/bridge/src/lib.rs:337 still uses the daily roller with no .max_log_files(n), so the directory itself keeps growing (the dump no longer ships it, but disk use is unbounded); and apps/desktop/lib/desktop_logging_init.dart:61-68 still resolves the log dir as getApplicationSupportDirectory()/logs while ignoring the NIGHTSHADE_DATA_DIR it sets four lines earlier, so two instances with different data dirs still share one log file."
+      "caveats": "Two halves of this defect are outside this ownership list and remain open: native/skotiq_native/bridge/src/lib.rs:337 still uses the daily roller with no .max_log_files(n), so the directory itself keeps growing (the dump no longer ships it, but disk use is unbounded); and apps/desktop/lib/desktop_logging_init.dart:61-68 still resolves the log dir as getApplicationSupportDirectory()/logs while ignoring the SKOTIQ_DATA_DIR it sets four lines earlier, so two instances with different data dirs still share one log file."
     },
     {
       "title": "The Continue Session dialog said 'Unknown Profile' and 'No Sequence' because every sequencer run wrote its imaging_sessions row with both ids NULL",
@@ -151,10 +151,10 @@
       "source": "_blocked_from_wave2.json item 10 (p2-sequencer-run)",
       "summary": "sessions_dao.startSession and ImagingRecordsRepository.startSession already accepted sequenceId; SessionService and SessionStateNotifier dropped it, and SequenceExecutor passed neither it nor profileId. QuickStartService builds the handoff context out of that row, so both columns were NULL and the dialog printed its fallback strings while its own header named the sequence. Threaded sequenceId through SessionService.startSession/_startSessionOnce and SessionStateNotifier.startSession, and extracted the executor's session-open into _startSessionRow(sequence) which now passes profileId: activeEquipmentProfileProvider?.id and sequenceId: sequence.databaseId. Fixing only the dialog's fallback strings would have replaced one false claim with another.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/services/session_service.dart",
-        "packages/nightshade_core/lib/src/providers/session_provider.dart",
-        "packages/nightshade_core/lib/src/providers/sequence/sequence_executor.dart",
-        "packages/nightshade_core/test/services/session_profile_sequence_binding_test.dart"
+        "packages/skotiq_core/lib/src/services/session_service.dart",
+        "packages/skotiq_core/lib/src/providers/session_provider.dart",
+        "packages/skotiq_core/lib/src/providers/sequence/sequence_executor.dart",
+        "packages/skotiq_core/test/services/session_profile_sequence_binding_test.dart"
       ],
       "test": "flutter test test/services/session_profile_sequence_binding_test.dart (3 tests: the DAO round-trip, the QuickStartContext the dialog actually renders, and the executor call site via the new startSessionRowForTest seam); session_service_test.dart still green",
       "revert_check": "Deleting the two lines `profileId: _ref.read(activeEquipmentProfileProvider)?.id,` and `sequenceId: sequence.databaseId,` from SequenceExecutor._startSessionRow fails 'the executor binds the run to its profile and sequence' with Expected <1> / Actual <null>. Dropping `sequenceId: sequenceId` from SessionService._startSessionOnce fails 'a session started under a sequence records that sequence' and 'the handoff context names the profile and the sequence'.",
@@ -166,12 +166,12 @@
       "source": "_blocked_from_wave2.json item 30 (p2-settings-general) \u2014 the core half",
       "summary": "clockProvider's own doc comment said 'Failure to parse is explicit and logged... we do not silently return the system clock for unknown TZ strings', and the branch that returns SystemClock for an unparseable label carried a 'log the issue so the operator sees the misconfiguration' comment above a bare return. Nothing was logged anywhere. A Timezone value the parser rejects (any IANA label left behind by the old picker) therefore produced a clock indistinguishable from 'use system time' with no trace. The branch now emits a LoggingService warning naming the rejected label and the accepted format, once per provider rebuild rather than once per now(), and the doc comment was corrected to describe what the code does.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/providers/clock_provider.dart",
-        "packages/nightshade_core/test/providers/clock_provider_test.dart"
+        "packages/skotiq_core/lib/src/providers/clock_provider.dart",
+        "packages/skotiq_core/test/providers/clock_provider_test.dart"
       ],
       "test": "flutter test test/providers/clock_provider_test.dart (7 tests, 1 new: 'an unparseable timezone is reported, not swallowed')",
       "revert_check": "Deleting the ref.read(loggingServiceProvider).warning(...) call fails 'an unparseable timezone is reported, not swallowed' \u2014 getRecentLogs(minLevel: warning) has no entry mentioning 'America/Denver'.",
-      "caveats": "The reporter's other half \u2014 status_bar.dart:188/200/209 and the Dashboard header/twilight widgets reading DateTime.now() instead of clockProvider \u2014 is in packages/nightshade_app and outside this ownership list, so a chosen offset still does not reach those readouts."
+      "caveats": "The reporter's other half \u2014 status_bar.dart:188/200/209 and the Dashboard header/twilight widgets reading DateTime.now() instead of clockProvider \u2014 is in packages/skotiq_app and outside this ownership list, so a chosen offset still does not reach those readouts."
     },
     {
       "title": "Observing Alerts: the AAVSO source is already honest; there is no VSX 'recent alerts' query to point it at",
@@ -179,7 +179,7 @@
       "source": "_blocked_from_wave2.json item 20 (p2-planning), change (1)",
       "summary": "The reporter asked for 'the vsx.aavso.org host and a query that actually selects recent alerts'. Reading transient_alert_service.dart as it stands now: _aavsoQueryHasSearchConstraint (:88-96) and the empty-result branch in fetchAavsoAlerts (:179-201) already refuse to report an empty VSX response as a quiet sky \u2014 they throw TransientAlertFetchException('AAVSO', 'the configured VSX query has no search constraint, so it can only ever return an empty list - this source is not being checked'), which the app-side status strip renders as a failed source with that reason. The lie the finding was about is gone. What remains is not a defect to fix but a source to build: VSX api.list is a cone search over a variable-star CATALOGUE, not an alert feed (AAVSO's alert stream is Alert Notices, a different service), so there is no URL edit that makes this source deliver alerts. Substituting an arbitrary cone would manufacture a feed rather than fix one, which is the failure mode this campaign is trying to stop.",
       "files_changed": [],
-      "test": "n/a - no change made. Evidence: packages/nightshade_core/lib/src/services/transient_alert_service.dart:88-96 and :179-201.",
+      "test": "n/a - no change made. Evidence: packages/skotiq_core/lib/src/services/transient_alert_service.dart:88-96 and :179-201.",
       "revert_check": "n/a",
       "caveats": "Change (2) of that item - returning the per-source _TransientFetchOutcome list so a PARTIAL failure can print 'AAVSO: failed - <reason>' instead of only being logged at :915-921 - is a real gap and is still open. I did not add the accessor because its only consumer (transients_screen.dart) is outside this ownership list, and shipping an API with no caller would be exactly the disclosure-only patch this wave is meant to avoid."
     },
@@ -189,19 +189,19 @@
       "source": "_blocked_from_wave2.json item 13 (p2-sequencer-run)",
       "summary": "The verifier's diagnosis ('two independent estimators') is WRONG and I confirmed it by reading both. PreSessionSimulator does not implement a second timing model - pre_session_simulator.dart:92 calls SequenceTimeEstimator.analyzeSequence, and its class doc says so explicitly. The actual divergence is the OVERHEAD MODEL. The builder surfaces construct SequenceTimeEstimator(overhead: ref.watch(sequencerOverheadConfigProvider)) (node_timing_section.dart:119, sequence_timeline.dart:55, smart_exposure_properties.dart:818), which is derived from the user's SequencerDefaults on top of SequenceOverheadConfig's field defaults. The pre-flight dialog calls `const PreSessionSimulator()`, whose default estimator is `const SequenceTimeEstimator()` - i.e. defaultEstimatorOverhead, a DIFFERENT constant set that sequence_time_estimator.dart:208-213 documents as kept only so the old unit tests and timeline goldens keep passing (2 s download, 5 s dither, 30 s slew+center, 120 s flip). Two default overhead sets in one app is the whole disagreement, and it persists even with untouched settings.",
       "files_changed": [],
-      "test": "n/a - no change made. Evidence: packages/nightshade_core/lib/src/services/pre_session_simulator.dart:70-98 vs packages/nightshade_core/lib/src/providers/sequence/sequencer_defaults.dart:27-35.",
+      "test": "n/a - no change made. Evidence: packages/skotiq_core/lib/src/services/pre_session_simulator.dart:70-98 vs packages/skotiq_core/lib/src/providers/sequence/sequencer_defaults.dart:27-35.",
       "revert_check": "n/a",
-      "caveats": "The fix is one line in a file I do not own: preflight_validation_dialog.dart:134 must build PreSessionSimulator(estimator: SequenceTimeEstimator(overhead: ref.watch(sequencerOverheadConfigProvider))) instead of `const PreSessionSimulator()`. I deliberately did NOT add a preSessionSimulatorProvider to core: with no caller it would change nothing while adding surface. Whoever owns packages/nightshade_app should make that change; nothing in nightshade_core needs to move."
+      "caveats": "The fix is one line in a file I do not own: preflight_validation_dialog.dart:134 must build PreSessionSimulator(estimator: SequenceTimeEstimator(overhead: ref.watch(sequencerOverheadConfigProvider))) instead of `const PreSessionSimulator()`. I deliberately did NOT add a preSessionSimulatorProvider to core: with no caller it would change nothing while adding surface. Whoever owns packages/skotiq_app should make that change; nothing in skotiq_core needs to move."
     },
     {
-      "title": "Triage of the remaining blocked items whose required change is not in nightshade_core providers/services",
+      "title": "Triage of the remaining blocked items whose required change is not in skotiq_core providers/services",
       "outcome": "not-real",
       "source": "_blocked_from_wave2.json items 19, 23, 26, 36",
-      "summary": "Item 36 (Diagnostics tab loads forever) was ALREADY FIXED before this session and is verified: optical_train_diagnostics_provider.dart now forwards the source AsyncValue instead of re-wrapping `.stream`, and test/providers/optical_train_diagnostics_provider_test.dart (3 tests, including the Science-tab-subscribes-first ordering that is the whole defect) passes. Item 19 ('Rises late' on a target up all night) needs packages/nightshade_planetarium target_scoring.dart plus an app chart widget - neither is in this ownership list, and the core file it touches (target_suggestion_service.dart:145) is a pass-through that cannot change the verdict. Item 23 (Active Viewers) needs the headless API server's WS/SSE registry to publish a connected-client count before web_server_provider.dart can carry a new field; adding the field alone would be an always-zero number, which is the defect again. Item 26 (1:1 zoom) needs imaging_viewer_state_provider.zoomToDisplayScale AND the imaging screen calling it with the fit scale; the provider half alone changes nothing on screen, so I left it for whoever owns the screen rather than shipping an uncalled method.",
+      "summary": "Item 36 (Diagnostics tab loads forever) was ALREADY FIXED before this session and is verified: optical_train_diagnostics_provider.dart now forwards the source AsyncValue instead of re-wrapping `.stream`, and test/providers/optical_train_diagnostics_provider_test.dart (3 tests, including the Science-tab-subscribes-first ordering that is the whole defect) passes. Item 19 ('Rises late' on a target up all night) needs packages/skotiq_planetarium target_scoring.dart plus an app chart widget - neither is in this ownership list, and the core file it touches (target_suggestion_service.dart:145) is a pass-through that cannot change the verdict. Item 23 (Active Viewers) needs the headless API server's WS/SSE registry to publish a connected-client count before web_server_provider.dart can carry a new field; adding the field alone would be an always-zero number, which is the defect again. Item 26 (1:1 zoom) needs imaging_viewer_state_provider.zoomToDisplayScale AND the imaging screen calling it with the fit scale; the provider half alone changes nothing on screen, so I left it for whoever owns the screen rather than shipping an uncalled method.",
       "files_changed": [],
       "test": "flutter test test/providers/optical_train_diagnostics_provider_test.dart - 3 tests, green (verification of item 36 only).",
       "revert_check": "For item 36: restoring the `ref.watch(provider.stream)` re-wrapping in _watchScienceRows fails 'diagnostics resolve when the Science tab subscribed to the rows first'.",
-      "caveats": "These four are recorded so the next wave does not re-diagnose them. 19, 23 and 26 remain open and each needs one file outside packages/nightshade_core/lib/src/{providers,services}."
+      "caveats": "These four are recorded so the next wave does not re-diagnose them. 19, 23 and 26 remain open and each needs one file outside packages/skotiq_core/lib/src/{providers,services}."
     }
   ]
 }

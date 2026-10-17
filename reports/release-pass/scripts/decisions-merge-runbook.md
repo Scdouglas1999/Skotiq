@@ -2,14 +2,14 @@
 
 The exact integration order for everything in flight, so the adjudication is mechanical.
 Patches referenced live in the session scratchpad
-(/tmp/claude-1000/-home-scdouglas-Documents-Nightshade2/224b7868-cbfc-40e1-8fb0-99c71d23f174/scratchpad/).
+(/tmp/claude-1000/-home-scdouglas-Documents-Skotiq2/224b7868-cbfc-40e1-8fb0-99c71d23f174/scratchpad/).
 
 ## Already ON the main tree (uncommitted, verified)
 
 - ui-small (IMG-9): applied from worktree 7 (HEAD-based) + its two test files copied;
   suites 5/5 + 3/3 green; guiding dir 31/31 non-golden green.
 - rust-seq + mosaic PORTS: landing directly on the tree via wf_1850e651-026 (serialized).
-  Verify after: `cargo test -p nightshade_sequencer` + clippy + the mosaic/checkpoint
+  Verify after: `cargo test -p skotiq_sequencer` + clippy + the mosaic/checkpoint
   filters; read the PORTED sections of impl logs.
 - The parallel main-loop fixes: gitignore P0 (+3 staged profiles files), framing +
   imaging_handlers flake fixes, D19/completion dedupe, M-2/M-3/M-4, changelog, checklist.

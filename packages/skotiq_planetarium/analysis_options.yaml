@@ -1,0 +1,19 @@
+# Inherits from the workspace-root analysis_options.yaml which configures
+# flutter_lints 5.x rule overrides.
+include: ../../analysis_options.yaml
+
+analyzer:
+  # Generated code (freezed *.freezed.dart, json_serializable *.g.dart) is
+  # also excluded at workspace-root; pinning it again here makes the intent
+  # explicit on this package's heavy widget surface.
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+
+# The workspace-root config disables these two rules globally;
+# skotiq_planetarium enables them here, with generated paths excluded
+# above.
+linter:
+  rules:
+    prefer_const_constructors: true
+    prefer_const_literals_to_create_immutables: true

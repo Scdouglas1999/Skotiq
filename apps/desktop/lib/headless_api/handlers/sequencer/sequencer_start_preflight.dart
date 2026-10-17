@@ -192,7 +192,7 @@ extension _SequencerStartPreflight on SequencerHandlers {
   /// its status, its stats JSON, its pause/resume transitions, and the id every
   /// replay decision row points at. Nothing on this path opened one, so a
   /// completed headless night left `GET /api/sequence-runs` answering
-  /// `{"items":[],"total":0}` — the record `docs/plans/nightshade_7_0_d1_runbook.md`
+  /// `{"items":[],"total":0}` — the record `docs/plans/skotiq_7_0_d1_runbook.md`
   /// tells an operator to read — and the executor's finalization had no run id
   /// to write an outcome onto.
   ///
@@ -387,7 +387,7 @@ extension _SequencerStartPreflight on SequencerHandlers {
   /// operator-fixable setup mistake into a phantom appliance fault. The
   /// refusal text is already the right words; only the envelope changes.
   Response _nativeStartRefusal(Object error) {
-    final native = error is bridge_api.NightshadeError
+    final native = error is bridge_api.SkotiqError
         ? error.maybeMap(
             operationFailed: (failure) => failure.field0,
             orElse: () => null,

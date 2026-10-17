@@ -178,11 +178,11 @@ extension _HeadlessApiServerHandlerInitialization on HeadlessApiServer {
     // queue, so the handler is a thin translation layer over the backend role.
     _depthLockHandlers = DepthLockHandlers(container);
 
-    // broadcast controller that fans out NightshadeEvents from
+    // broadcast controller that fans out SkotiqEvents from
     // the backend stream to every connected SSE subscriber. Created here
     // (rather than in `start()`) so it can be passed to the handler ctor
     // and survive a stop()/start() pair without rebuilding the handler.
-    _runWatchEventBroadcast = StreamController<NightshadeEvent>.broadcast();
+    _runWatchEventBroadcast = StreamController<SkotiqEvent>.broadcast();
     _runWatchHandlers = RunWatchHandlers(
       container: container,
       eventBroadcast: _runWatchEventBroadcast!.stream,

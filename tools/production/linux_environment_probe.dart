@@ -57,7 +57,7 @@ void main(List<String> args) async {
     'wslUsable': wslUsable,
     'dockerUsable': dockerUsable,
     'note':
-        'This probes whether this host can run Linux build verification. It does not build Nightshade for Linux.',
+        'This probes whether this host can run Linux build verification. It does not build Skotiq for Linux.',
     'checks': checks.map((check) => check.toJson()).toList(),
   };
 
@@ -142,7 +142,7 @@ String _renderMarkdown({
     ..writeln('- WSL usable: `$wslUsable`')
     ..writeln('- Docker usable: `$dockerUsable`')
     ..writeln(
-      '- Scope: host environment only; this does not build Nightshade for Linux.',
+      '- Scope: host environment only; this does not build Skotiq for Linux.',
     )
     ..writeln()
     ..writeln('## Command Results')

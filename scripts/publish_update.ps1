@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-    Publish a Nightshade update to the update server.
+    Publish a Skotiq update to the update server.
 
 .DESCRIPTION
     This script uploads an update package and manifest to the self-hosted
     update server. Run after build_update_package.ps1 to publish the update.
 
 .PARAMETER ServerUrl
-    The URL of the update server. Can also be set via NIGHTSHADE_UPDATE_SERVER env var.
+    The URL of the update server. Can also be set via SKOTIQ_UPDATE_SERVER env var.
 
 .PARAMETER Version
     Override the version from the manifest. Defaults to reading from manifest.
@@ -16,7 +16,7 @@
     Directory containing the update package and manifest. Defaults to apps/desktop/build/update.
 
 .EXAMPLE
-    .\publish_update.ps1 -ServerUrl https://updates.nightshade.app
+    .\publish_update.ps1 -ServerUrl https://updates.skotiq.app
     Publish the current update package to the server.
 
 .EXAMPLE
@@ -25,14 +25,14 @@
 #>
 
 param(
-    [string]$ServerUrl = $env:NIGHTSHADE_UPDATE_SERVER,
+    [string]$ServerUrl = $env:SKOTIQ_UPDATE_SERVER,
     [string]$Version,
     [string]$InputDir = "apps/desktop/build/update"
 )
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "Nightshade Update Publisher" -ForegroundColor Cyan
+Write-Host "Skotiq Update Publisher" -ForegroundColor Cyan
 Write-Host "===========================" -ForegroundColor Cyan
 
 # Navigate to repo root
@@ -56,11 +56,11 @@ try {
     Write-Host "`nVersion: $version" -ForegroundColor Yellow
 
     # Find package file
-    $packageName = "nightshade-$version-windows-x64.zip"
+    $packageName = "skotiq-$version-windows-x64.zip"
     $packagePath = Join-Path $InputDir $packageName
     if (-not (Test-Path $packagePath)) {
         # Try generic name
-        $packagePath = Join-Path $InputDir "nightshade-update.zip"
+        $packagePath = Join-Path $InputDir "skotiq-update.zip"
         if (-not (Test-Path $packagePath)) {
             throw "Package not found: $packageName"
         }

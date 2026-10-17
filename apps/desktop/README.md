@@ -1,4 +1,4 @@
-# nightshade_desktop
+# skotiq_desktop
 
 A new Flutter project.
 

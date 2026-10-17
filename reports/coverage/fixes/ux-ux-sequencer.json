@@ -2,12 +2,12 @@
   {
     "title": "PolarAlignmentNode cannot be added to a sequence - it is absent from the palette",
     "outcome": "fixed",
-    "summary": "Confirmed real and objectively wrong: PolarAlignmentNode has a model (alignment_and_dome.dart:319), a properties editor (_motion_rich.dart:978), serialisation on both the file and repository paths, a time estimate, validation coverage, a registered Rust executor (native/nightshade_native/sequencer/src/node/registry.rs:114) and is emitted by SmartNightService - but no palette entry existed in any category, so the only way to get one into a sequence was to have Smart Night generate it or to hand-edit a file. Added a 'Polar Alignment' item to the Mount category next to Meridian Flip. Its isNorth follows the observer latitude the same way SmartNightService derives it (sequence_emitter.dart:310), so a southern-hemisphere operator does not silently get a node that rotates about the north celestial pole.",
+    "summary": "Confirmed real and objectively wrong: PolarAlignmentNode has a model (alignment_and_dome.dart:319), a properties editor (_motion_rich.dart:978), serialisation on both the file and repository paths, a time estimate, validation coverage, a registered Rust executor (native/skotiq_native/sequencer/src/node/registry.rs:114) and is emitted by SmartNightService - but no palette entry existed in any category, so the only way to get one into a sequence was to have Smart Night generate it or to hand-edit a file. Added a 'Polar Alignment' item to the Mount category next to Meridian Flip. Its isNorth follows the observer latitude the same way SmartNightService derives it (sequence_emitter.dart:310), so a southern-hemisphere operator does not silently get a node that rotates about the north celestial pole.",
     "files_changed": [
-      "packages/nightshade_core/lib/src/providers/sequence/node_palette.dart",
-      "packages/nightshade_core/test/providers/sequence/node_palette_polar_alignment_test.dart"
+      "packages/skotiq_core/lib/src/providers/sequence/node_palette.dart",
+      "packages/skotiq_core/test/providers/sequence/node_palette_polar_alignment_test.dart"
     ],
-    "test": "packages/nightshade_core/test/providers/sequence/node_palette_polar_alignment_test.dart - 4 cases: the item exists under Mount and creates a PolarAlignmentNode; a search for 'polar' over name+description is non-empty (the exact repro from the finding); latitude -33.9 yields isNorth false; latitude +41.5 yields isNorth true. 4/4 pass.",
+    "test": "packages/skotiq_core/test/providers/sequence/node_palette_polar_alignment_test.dart - 4 cases: the item exists under Mount and creates a PolarAlignmentNode; a search for 'polar' over name+description is non-empty (the exact repro from the finding); latitude -33.9 yields isNorth false; latitude +41.5 yields isNorth true. 4/4 pass.",
     "revert_check": "Deleted the whole NodePaletteItem block added at node_palette.dart:320-333 (the 'Polar Alignment' entry). All 4 tests failed. Restored from a byte copy; 4/4 pass again."
   },
   {
@@ -15,13 +15,13 @@
     "outcome": "fixed",
     "summary": "Confirmed. Every palette surface fed rankNodePaletteMatches straight into a ListView.builder, so an empty result rendered zero children and the body went blank between the search field and the help tip - indistinguishable from a failed load. There are THREE such surfaces, not one: the toolbox Nodes tab (sequencer_screen_parts/node_palette.dart), and both branches of the standalone NodePalette (desktop sidebar + mobile add-node sheet). Added a shared NodePaletteEmptyState that names the query back ('No nodes match \"polar\"'), says what to try, and carries a working Clear search button; wired into all three.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/sequencer/widgets/node_palette_empty_state.dart",
-      "packages/nightshade_app/lib/screens/sequencer/widgets/node_palette.dart",
-      "packages/nightshade_app/lib/screens/sequencer/sequencer_screen_parts/node_palette.dart",
-      "packages/nightshade_app/lib/screens/sequencer/sequencer_screen.dart",
-      "packages/nightshade_app/test/screens/sequencer/node_palette_empty_state_test.dart"
+      "packages/skotiq_app/lib/screens/sequencer/widgets/node_palette_empty_state.dart",
+      "packages/skotiq_app/lib/screens/sequencer/widgets/node_palette.dart",
+      "packages/skotiq_app/lib/screens/sequencer/sequencer_screen_parts/node_palette.dart",
+      "packages/skotiq_app/lib/screens/sequencer/sequencer_screen.dart",
+      "packages/skotiq_app/test/screens/sequencer/node_palette_empty_state_test.dart"
     ],
-    "test": "packages/nightshade_app/test/screens/sequencer/node_palette_empty_state_test.dart - 3 cases, one per surface. The toolbox case drives the real SequencerScreen, types a no-match term into 'Search nodes...', asserts the empty state and its exact message render, then taps 'Clear search' and asserts the catalogue comes back (the Imaging header reappears) - so the affordance is proven live, not just present. 3/3 pass.",
+    "test": "packages/skotiq_app/test/screens/sequencer/node_palette_empty_state_test.dart - 3 cases, one per surface. The toolbox case drives the real SequencerScreen, types a no-match term into 'Search nodes...', asserts the empty state and its exact message render, then taps 'Clear search' and asserts the catalogue comes back (the Imaging header reappears) - so the affordance is proven live, not just present. 3/3 pass.",
     "revert_check": "Forced the ListView branch at all three call sites (`filteredCategories.isEmpty` -> `false && filteredCategories.isEmpty` in widgets/node_palette.dart:185 and :350 and sequencer_screen_parts/node_palette.dart:111). All 3 tests failed. Restored from byte copies; 3/3 pass."
   },
   {
@@ -29,24 +29,24 @@
     "outcome": "fixed",
     "summary": "Confirmed: _ValidationBadges rendered plain Containers with no gesture handler, the Builder has no issues panel, and the only route to the issue text was the pre-flight dialog - i.e. pressing the button that arms the rig. Badges are now an InkWell ('Show sequence issues') opening a read-only SequenceIssuesDialog that lists the live validation issues errors-first with title, description and resolution hint, and selects the offending node when an issue names one. DELIBERATELY NOT DONE: the finding's second half, reclassifying 'Empty Sequence'/'No Exposures' from error to info. Those two genuinely block Start, so error is the honest severity; softening it would make the badge lie in the other direction. The real complaint - that you could not read what the badge meant - is what is fixed.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/sequencer/widgets/sequence_issues_dialog.dart",
-      "packages/nightshade_app/lib/screens/sequencer/widgets/sequence_tree/support_widgets.dart",
-      "packages/nightshade_app/lib/screens/sequencer/widgets/sequence_tree.dart",
-      "packages/nightshade_app/test/screens/sequencer/validation_badge_opens_issues_test.dart"
+      "packages/skotiq_app/lib/screens/sequencer/widgets/sequence_issues_dialog.dart",
+      "packages/skotiq_app/lib/screens/sequencer/widgets/sequence_tree/support_widgets.dart",
+      "packages/skotiq_app/lib/screens/sequencer/widgets/sequence_tree.dart",
+      "packages/skotiq_app/test/screens/sequencer/validation_badge_opens_issues_test.dart"
     ],
-    "test": "packages/nightshade_app/test/screens/sequencer/validation_badge_opens_issues_test.dart - drives the real SequenceTree with a target still carrying the (0h,+0deg) placeholder, waits out the 500 ms live-validation debounce, then reads liveValidationProvider and requires the dialog to render EVERY issue the badge counted (not hard-coded rule text), and that tapping an issue with an affectedNodeId closes the dialog and sets selectedNodeIdProvider to that node. 1 case, passes.",
+    "test": "packages/skotiq_app/test/screens/sequencer/validation_badge_opens_issues_test.dart - drives the real SequenceTree with a target still carrying the (0h,+0deg) placeholder, waits out the 500 ms live-validation debounce, then reads liveValidationProvider and requires the dialog to render EVERY issue the badge counted (not hard-coded rule text), and that tapping an issue with an affectedNodeId closes the dialog and sets selectedNodeIdProvider to that node. 1 case, passes.",
     "revert_check": "Replaced the Tooltip+InkWell wrapper in support_widgets.dart:611 with Builder+IgnorePointer (the pre-fix inert badge). The test failed. Restored from a byte copy; passes."
   },
   {
     "title": "Live Stacking's explanatory helper text is truncated to one ellipsised line",
     "outcome": "fixed",
-    "summary": "Confirmed, and the cause is not in that file. Flutter's InputDecoration.helperMaxLines defaults to null, which its own docs define as 'soft line breaks are truncated with an ellipse' - the helper Text is built with overflow: TextOverflow.ellipsis and maxLines: helperMaxLines (input_decorator.dart:397-402). Nothing in the app ever set it, so EVERY helperText in the app ellipsised, not just these two. Set helperMaxLines: 4 once in NightshadeTheme's inputDecorationTheme, which is the single factory behind dark/light/redNight/accent themes. All 15 helperText call sites in the repo live in scrolling property panels or dialogs, so wrapping costs nothing and no layout is forced taller than its container.",
+    "summary": "Confirmed, and the cause is not in that file. Flutter's InputDecoration.helperMaxLines defaults to null, which its own docs define as 'soft line breaks are truncated with an ellipse' - the helper Text is built with overflow: TextOverflow.ellipsis and maxLines: helperMaxLines (input_decorator.dart:397-402). Nothing in the app ever set it, so EVERY helperText in the app ellipsised, not just these two. Set helperMaxLines: 4 once in SkotiqTheme's inputDecorationTheme, which is the single factory behind dark/light/redNight/accent themes. All 15 helperText call sites in the repo live in scrolling property panels or dialogs, so wrapping costs nothing and no layout is forced taller than its container.",
     "files_changed": [
-      "packages/nightshade_ui/lib/src/theme/nightshade_theme.dart",
-      "packages/nightshade_app/test/screens/sequencer/live_stacking_helper_wrap_test.dart"
+      "packages/skotiq_ui/lib/src/theme/skotiq_theme.dart",
+      "packages/skotiq_app/test/screens/sequencer/live_stacking_helper_wrap_test.dart"
     ],
-    "test": "packages/nightshade_app/test/screens/sequencer/live_stacking_helper_wrap_test.dart - 2 cases against the real LiveStackingProperties in a 360 px panel. First asserts the rendered helper Text for BOTH sentences from the finding has maxLines > 1. Second reaches the RenderParagraph and asserts didExceedMaxLines is false and the laid-out height exceeds one line height - i.e. it actually wrapped rather than merely being allowed to. 2/2 pass.",
-    "revert_check": "Deleted the `helperMaxLines: 4,` line from nightshade_theme.dart:230. Both tests failed. Restored from a byte copy; 2/2 pass.",
+    "test": "packages/skotiq_app/test/screens/sequencer/live_stacking_helper_wrap_test.dart - 2 cases against the real LiveStackingProperties in a 360 px panel. First asserts the rendered helper Text for BOTH sentences from the finding has maxLines > 1. Second reaches the RenderParagraph and asserts didExceedMaxLines is false and the laid-out height exceeds one line height - i.e. it actually wrapped rather than merely being allowed to. 2/2 pass.",
+    "revert_check": "Deleted the `helperMaxLines: 4,` line from skotiq_theme.dart:230. Both tests failed. Restored from a byte copy; 2/2 pass.",
     "caveats": "Incidental, out of scope, NOT fixed: DropdownButtonFormField in live_stacking_properties.dart:179 overflows its row by 8 px when the panel is 300 px wide. The properties panel's own minimum width is 270 px, so this is reachable on a 1024-wide window. Not one of the findings; flagged for a later pass."
   },
   {
@@ -54,11 +54,11 @@
     "outcome": "fixed",
     "summary": "Both halves confirmed. (1) The toolbar floppy was labelled 'Save Sequence' and calls SequenceFileService.exportSequence - an OS file chooser writing a .nsq - while the Sequences tab's 'Save Current' is what persists into the app. Relabelled to 'Export Sequence File...' (and the force-save dialog's operationName with it). (2) The Builder's left panel is the 'Snippets' tab, its import tooltip already said 'Import snippet from file...', it stores TemplateSnippets - and it titled itself 'Templates', the name of a top-level tab holding whole saved sequences. The panel now says 'Snippets' in both its wide and compact headers, searches 'Search snippets...', and its help/tooltip copy says snippet. This is a self-contradiction inside one panel, not a taste call.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/sequencer/widgets/sequence_toolbar.dart",
-      "packages/nightshade_app/lib/screens/sequencer/widgets/snippet_palette/rendering.dart",
-      "packages/nightshade_app/test/screens/sequencer/naming_collisions_test.dart"
+      "packages/skotiq_app/lib/screens/sequencer/widgets/sequence_toolbar.dart",
+      "packages/skotiq_app/lib/screens/sequencer/widgets/snippet_palette/rendering.dart",
+      "packages/skotiq_app/test/screens/sequencer/naming_collisions_test.dart"
     ],
-    "test": "packages/nightshade_app/test/screens/sequencer/naming_collisions_test.dart - 2 cases: the real SequenceToolbar exposes tooltip 'Export Sequence File...' and no longer 'Save Sequence'; the real SnippetPalette renders 'Snippets' and renders no 'Templates' text or 'Search templates...' field. 2/2 pass.",
+    "test": "packages/skotiq_app/test/screens/sequencer/naming_collisions_test.dart - 2 cases: the real SequenceToolbar exposes tooltip 'Export Sequence File...' and no longer 'Save Sequence'; the real SnippetPalette renders 'Snippets' and renders no 'Templates' text or 'Search templates...' field. 2/2 pass.",
     "revert_check": "Restored 'Save Sequence' in sequence_toolbar.dart:518-519 and 'Templates'/'Search templates...' in snippet_palette/rendering.dart:45,160,325. Both tests failed. Restored from byte copies; 2/2 pass."
   },
   {
@@ -66,11 +66,11 @@
     "outcome": "fixed",
     "summary": "Half of this was already true in the tree and half was a real gap. NOT real: 'Change Filter's Properties offers a plain text box' - _FilterChangeProperties (_capture_rich.dart:103-160) renders a DropdownButton over the ACTIVE PROFILE's filterNames, falls back to free text only when the profile declares none, and already surfaces a stored-but-missing name as an explicit '(not in profile)' row plus a warning. REAL: 'validate the name against the profile at build time rather than at run time'. FilterInWheelRule only runs when a filter wheel is CONNECTED (filter_rules.dart:43-46), which is never true while a sequence is built in daylight - so 'Ha' vs 'H-alpha' survived the builder. Added FilterInProfileRule: when no wheel is connected and the active profile declares filters, every enabled ExposureNode.filter and FilterChangeNode.filterName must match one (case-insensitively) or it warns, naming the node. Silent when the profile lists nothing (nothing to check against) and silent when a wheel is connected (the live wheel is the better authority). Refactored the shared node walk into one _filterUses helper so the two rules cannot drift.",
     "files_changed": [
-      "packages/nightshade_core/lib/src/providers/sequence/rules/filter_rules.dart",
-      "packages/nightshade_core/lib/src/providers/sequence/sequence_validation.dart",
-      "packages/nightshade_core/test/providers/sequence/rules/filter_in_profile_rule_test.dart"
+      "packages/skotiq_core/lib/src/providers/sequence/rules/filter_rules.dart",
+      "packages/skotiq_core/lib/src/providers/sequence/sequence_validation.dart",
+      "packages/skotiq_core/test/providers/sequence/rules/filter_in_profile_rule_test.dart"
     ],
-    "test": "packages/nightshade_core/test/providers/sequence/rules/filter_in_profile_rule_test.dart - 7 cases: a mismatched FilterChangeNode warns and names the node; a mismatched ExposureNode warns; a case-insensitive match is silent; an empty profile filter list is silent (cry-wolf guard); no active profile is silent; a CONNECTED wheel that really carries the name is silent even though the profile is stale (the other cry-wolf direction); a disabled node is ignored. 7/7 pass. Full nightshade_core test/providers/sequence suite re-run: 513/513 pass, so the new rule does not disturb existing issue counts.",
+    "test": "packages/skotiq_core/test/providers/sequence/rules/filter_in_profile_rule_test.dart - 7 cases: a mismatched FilterChangeNode warns and names the node; a mismatched ExposureNode warns; a case-insensitive match is silent; an empty profile filter list is silent (cry-wolf guard); no active profile is silent; a CONNECTED wheel that really carries the name is silent even though the profile is stale (the other cry-wolf direction); a disabled node is ignored. 7/7 pass. Full skotiq_core test/providers/sequence suite re-run: 513/513 pass, so the new rule does not disturb existing issue counts.",
     "revert_check": "Replaced FilterInProfileRule's issue-building return with `return const [];` in filter_rules.dart:120. The two warn cases failed, the five silence cases still passed - i.e. the test discriminates the behaviour, not the file. Restored from a byte copy; 7/7 pass."
   },
   {
@@ -78,11 +78,11 @@
     "outcome": "fixed",
     "summary": "Confirmed: the palette builds LoopNode() (conditionType count, repeatCount 1) and ConditionalNode() (conditionType always), so both nodes arrive doing exactly nothing and the tree shows no sign of it. Added NoOpLogicNodeRule, which flags a count-type Loop at <= 1 iteration and a Conditional set to Always, at INFO severity, with affectedNodeId set so the tree paints the node and the header badge counts it - and, thanks to the badge fix in this same batch, the operator can now read it in one click. I deliberately did NOT invent a better default count: 2? 10? is unknowable from here, and picking one would silently impose taste on every sequence built from the palette while ALSO not fixing Conditional (which has no 'unset' value in its enum at all). Surfacing the no-op at build time is the fix that is available without deciding what the operator meant. If the owner wants a non-1 default, that is a one-line follow-up in node_palette.dart.",
     "files_changed": [
-      "packages/nightshade_core/lib/src/providers/sequence/rules/logic_node_rules.dart",
-      "packages/nightshade_core/lib/src/providers/sequence/sequence_validation.dart",
-      "packages/nightshade_core/test/providers/sequence/rules/no_op_logic_node_rule_test.dart"
+      "packages/skotiq_core/lib/src/providers/sequence/rules/logic_node_rules.dart",
+      "packages/skotiq_core/lib/src/providers/sequence/sequence_validation.dart",
+      "packages/skotiq_core/test/providers/sequence/rules/no_op_logic_node_rule_test.dart"
     ],
-    "test": "packages/nightshade_core/test/providers/sequence/rules/no_op_logic_node_rule_test.dart - 7 cases. Two of them assert the palette's exact construction (LoopNode() really is count/1, ConditionalNode() really is always) BEFORE asserting the flag, so the test also pins the defaults the finding is about. Plus: a configured Loop is silent, a whileDark loop is left to the existing termination rules, a configured Conditional is silent, a disabled node is ignored, and validateSequence() (the default rule set) surfaces the issue - proving it is registered, not just written. 7/7 pass.",
+    "test": "packages/skotiq_core/test/providers/sequence/rules/no_op_logic_node_rule_test.dart - 7 cases. Two of them assert the palette's exact construction (LoopNode() really is count/1, ConditionalNode() really is always) BEFORE asserting the flag, so the test also pins the defaults the finding is about. Plus: a configured Loop is silent, a whileDark loop is left to the existing termination rules, a configured Conditional is silent, a disabled node is ignored, and validateSequence() (the default rule set) surfaces the issue - proving it is registered, not just written. 7/7 pass.",
     "revert_check": "Two separate reverts. (a) Removed NoOpLogicNodeRule() from defaultSequenceValidators in sequence_validation.dart:321 -> the 'wired into the default validator set' case failed. (b) Restored that and instead short-circuited the rule body with `if (sequence.nodes.isNotEmpty) return const [];` at logic_node_rules.dart:395 -> the two flag cases and the wiring case failed (3 of 7). Restored from byte copies after each; 7/7 pass, and the whole rules/ directory passes 76/76."
   },
   {
@@ -90,7 +90,7 @@
     "outcome": "already-correct",
     "summary": "Not real against the current tree, and the second half was never real. Move Up / Move Down entries exist in sequence_tree_context_menu.dart:244-255, sitting between Insert Above/Below and Duplicate, each gated by a computed sibling index with an explanatory disabled tooltip ('Already the first node in its container.'). They are NOT in HEAD (`git show HEAD:...| grep -c moveUp` returns 0) - an earlier uncommitted wave of this campaign added them, which is why the finding, taken against the shipped build, saw drag-only reordering. They are covered by three existing cases in sequence_tree_context_menu_test.dart:358-427, all passing (13/13 in that file). The Group-action asymmetry the finding calls unexplained IS explained, and was already in HEAD: parallelGroupDisabledReason (line 190) carries the tooltip 'Select 2+ adjacent nodes to group in parallel.', because wrapping one node in a Parallel container is semantically a no-op while a Sequential container of one is still a labelled group.",
     "files_changed": [],
-    "test": "No new test. packages/nightshade_app/test/screens/sequencer/sequence_tree_context_menu_test.dart already covers it: 'Move Up shifts the node one slot earlier among its siblings', 'Move Down shifts the node one slot later among its siblings', 'Move Up is disabled on the first sibling and changes nothing'. Re-run: 13/13 pass.",
+    "test": "No new test. packages/skotiq_app/test/screens/sequencer/sequence_tree_context_menu_test.dart already covers it: 'Move Up shifts the node one slot earlier among its siblings', 'Move Down shifts the node one slot later among its siblings', 'Move Up is disabled on the first sibling and changes nothing'. Re-run: 13/13 pass.",
     "revert_check": "n/a - nothing changed. The finding's remaining ask, an Alt+Up/Alt+Down accelerator, is genuinely absent: kSequenceTreeShortcuts binds bare Up/Down to MOVING THE SELECTION, not the node, so adding reorder accelerators is additive work rather than a defect fix. Left open."
   },
   {
@@ -98,10 +98,10 @@
     "outcome": "fixed",
     "summary": "Half confirmed, half not reproducible. NOT REPRODUCIBLE: 'only 5 of 9 numbers render'. A widget test over the real MosaicWizardDialog at the default 3x3 grid finds all nine numbers, 1-9, inside the planner - so the missing ones in the screenshot were low-contrast reading, not absent widgets. CONFIRMED and structural: the drag-centre handle is drawn at exactly centerPx (visual_planner.dart:291-305) and every panel number was Center()-ed in its cell, so the middle panel of ANY odd grid had its number under an opaque 12 px accent dot - it can never have been legible. Moved the number to the panel's top-left corner as a small badge with its own scrim: it clears the handle for every grid parity, and the scrim keeps it readable over the neighbouring panels' translucent overlap fills. Added a ValueKey to the handle so the geometry is assertable.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog/visual_planner.dart",
-      "packages/nightshade_app/test/screens/sequencer/widgets/mosaic_panel_labels_test.dart"
+      "packages/skotiq_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog/visual_planner.dart",
+      "packages/skotiq_app/test/screens/sequencer/widgets/mosaic_panel_labels_test.dart"
     ],
-    "test": "packages/nightshade_app/test/screens/sequencer/widgets/mosaic_panel_labels_test.dart - 3 cases on the real dialog with a real optical config. (1) each of the numbers 1..9 is present exactly once inside the keyed planner - this is the case that DISPROVES the 5-of-9 claim, and it passes both before and after, reported honestly. (2) the rendered rect of every number and of the keyed centre handle do not overlap. (3) after clamping the zoom control to its 25% minimum (the smallest panels the planner can draw) there is no layout exception and all nine badges still render - the guard against the new badge overflowing a tiny cell. 3/3 pass; the pre-existing mosaic_wizard_visual_test.dart still passes 7/7.",
+    "test": "packages/skotiq_app/test/screens/sequencer/widgets/mosaic_panel_labels_test.dart - 3 cases on the real dialog with a real optical config. (1) each of the numbers 1..9 is present exactly once inside the keyed planner - this is the case that DISPROVES the 5-of-9 claim, and it passes both before and after, reported honestly. (2) the rendered rect of every number and of the keyed centre handle do not overlap. (3) after clamping the zoom control to its 25% minimum (the smallest panels the planner can draw) there is no layout exception and all nine badges still render - the guard against the new badge overflowing a tiny cell. 3/3 pass; the pre-existing mosaic_wizard_visual_test.dart still passes 7/7.",
     "revert_check": "Restored the centred Text (Center + Text('${p.index + 1}')) in visual_planner.dart:352. The overlap case failed ('panel 5's number is under the drag-centre handle'); the all-nine-present case still passed, which is exactly the discrimination described above. Restored from a byte copy; 2/2 pass."
   },
   {
@@ -125,11 +125,11 @@
     "outcome": "fixed",
     "summary": "Confirmed - the app stating something untrue. _useStarter calls CurrentSequenceNotifier.loadSequence, which replaces the loaded sequence outright (it only pauses to confirm when the current one is dirty). 'Copy into' is the one reading that would make an operator tap it with work already loaded. The caption now reads 'Bundled, ready-to-run sample sequences. Loading one replaces your current sequence.' and the button reads 'Replace with this starter'.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/sequencer/tabs/templates_tab_parts/_starters_section.dart",
-      "packages/nightshade_app/test/screens/sequencer/templates_catalog_test.dart",
-      "packages/nightshade_app/test/screens/sequencer/starters_caption_truth_test.dart"
+      "packages/skotiq_app/lib/screens/sequencer/tabs/templates_tab_parts/_starters_section.dart",
+      "packages/skotiq_app/test/screens/sequencer/templates_catalog_test.dart",
+      "packages/skotiq_app/test/screens/sequencer/starters_caption_truth_test.dart"
     ],
-    "test": "packages/nightshade_app/test/screens/sequencer/starters_caption_truth_test.dart - 2 cases. One asserts the old promise is gone, the new one is present, and the button carries the new label. The other taps the button on a saved sequence and asserts the editor's sequence is REPLACED (new id, name 'Safe Starter'), so the wording is pinned to behaviour rather than to itself. The existing templates_catalog_test.dart was updated for the new label; both files pass, 6/6.",
+    "test": "packages/skotiq_app/test/screens/sequencer/starters_caption_truth_test.dart - 2 cases. One asserts the old promise is gone, the new one is present, and the button carries the new label. The other taps the button on a saved sequence and asserts the editor's sequence is REPLACED (new id, name 'Safe Starter'), so the wording is pinned to behaviour rather than to itself. The existing templates_catalog_test.dart was updated for the new label; both files pass, 6/6.",
     "revert_check": "Restored the original subtitle and the 'Use this starter' label in _starters_section.dart:53-59 and :215. Both new tests failed. Restored from a byte copy; 6/6 pass across both files."
   }
 ]

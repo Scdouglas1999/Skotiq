@@ -3,13 +3,13 @@ import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_app/nightshade_app.dart'
+import 'package:skotiq_app/skotiq_app.dart'
     show
         androidNotificationsAuthorizedProvider,
         iosBackgroundBannerProvider,
         iosCriticalAlertsAuthorizedProvider;
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'foreground_service.dart';
 import 'lan_push_notification_receiver.dart';
@@ -30,7 +30,7 @@ class MobileSequenceHooks {
   final PowerService _powerService = PowerService();
   StreamSubscription<Map<String, dynamic>>? _pushNotificationSubscription;
   MobileEventNotifier? _eventNotifier;
-  ProviderSubscription<NightshadeBackend>? _backendSubscription;
+  ProviderSubscription<SkotiqBackend>? _backendSubscription;
 
   // LAN UDP push notification receiver. Lifecycle is tied to the
   // backend — created when the mobile pairs (NetworkBackend with a saved
@@ -115,7 +115,7 @@ class MobileSequenceHooks {
     // are different controllers, so a reconnect (or a `disconnect` followed
     // by `connect`) needs a fresh subscription.
     await _setupEventNotifier();
-    _backendSubscription = _ref.listen<NightshadeBackend>(backendProvider, (
+    _backendSubscription = _ref.listen<SkotiqBackend>(backendProvider, (
       previous,
       next,
     ) {
@@ -213,7 +213,7 @@ class MobileSequenceHooks {
   }
 
   /// (Re)build the LAN UDP push receiver. Reads the saved server
-  /// fingerprint from EnhancedNightshadeDiscovery — that's the same
+  /// fingerprint from EnhancedSkotiqDiscovery — that's the same
   /// fingerprint the desktop's broadcaster stamps into every frame and
   /// derives its HMAC key from. Without a fingerprint we can't verify
   /// anything, so we skip the start entirely instead of running a
@@ -234,7 +234,7 @@ class MobileSequenceHooks {
       return;
     }
 
-    final saved = await EnhancedNightshadeDiscovery.loadLastServer();
+    final saved = await EnhancedSkotiqDiscovery.loadLastServer();
     final fingerprint = saved?.fingerprint;
     if (fingerprint == null || fingerprint.isEmpty) {
       developer.log(

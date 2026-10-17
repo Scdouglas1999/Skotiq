@@ -2,10 +2,10 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_app/services/observation_report_service.dart';
-import 'package:nightshade_bridge/nightshade_bridge.dart' show apiReadFitsFile;
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_planetarium/nightshade_planetarium.dart'
+import 'package:skotiq_app/services/observation_report_service.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' show apiReadFitsFile;
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
     show CatalogManager, HygStarData;
 import 'package:shelf/shelf.dart';
 
@@ -493,7 +493,7 @@ class ScienceHandlers {
     if (calibration == null || !calibration.isCalibrated) {
       return jsonBadRequest({
         'error':
-            'Frame photometric calibration failed. Nightshade could not match this field to the catalog.',
+            'Frame photometric calibration failed. Skotiq could not match this field to the catalog.',
       });
     }
 
@@ -657,7 +657,7 @@ class ScienceHandlers {
       // rather than reformatting the payload.
       return jsonResponse({
         'error':
-            'Nightshade could not compute a stable transform from these matched stars.',
+            'Skotiq could not compute a stable transform from these matched stars.',
       }, statusCode: 422);
     }
 

@@ -4,10 +4,10 @@
   "outcome": "fixed",
   "summary": "_buildCriticalDevices reported only the highest-priority fault, so whenever the camera was also down the mount branch was unreachable - and readiness_provider.dart deliberately filters the mount OUT of offlineProfileDevices as 'already covered by critical devices'. The mount therefore appeared nowhere in the readiness report. Added a both-down branch that names camera AND mount (still blocked, fixLabel 'Connect devices'). No other rule changed: camera-only-down and mount-only-down keep their existing wording and levels.",
   "files_changed": [
-   "packages/nightshade_core/lib/src/models/readiness/readiness_models.dart",
-   "packages/nightshade_core/test/models/readiness_models_test.dart"
+   "packages/skotiq_core/lib/src/models/readiness/readiness_models.dart",
+   "packages/skotiq_core/test/models/readiness_models_test.dart"
   ],
-  "test": "packages/nightshade_core/test/models/readiness_models_test.dart :: 'criticalDevices - fail-closed a disconnected mount is named even when the camera is also down'",
+  "test": "packages/skotiq_core/test/models/readiness_models_test.dart :: 'criticalDevices - fail-closed a disconnected mount is named even when the camera is also down'",
   "revert_check": "Deleted the `if (!mountConnected) { return const ReadinessItem(... 'Camera and mount are not connected. ...') }` block inside the `if (!cameraConnected)` branch (readiness_models.dart:347-360). Test failed at readiness_models_test.dart:168 (expect detail contains 'mount'). Restored -> 22/22 pass.",
   "caveats": "_buildCriticalDevices has no notion of which devices the profile assigns, so a rig with no mount at all now reads 'Camera and mount are not connected' when both are down. That is not new: the pre-existing camera-connected branch already reported an unassigned mount as caution. I did not widen the rule to assignment-awareness because that would change what the item means for every existing rig; the finding's own 'promote mount to the critical tier' was already a no-op."
  },
@@ -16,43 +16,43 @@
   "outcome": "already-correct",
   "summary": "Already closed in the working tree before I started. appearance_settings.dart:79-89 now branches on settings.theme == 'redNight' and replaces the SettingsColorPicker with a scope statement ('Red night is monochrome red, so the accent has no effect while it is selected'); the swatch row is not built at all, so no full-saturation circle is ever painted over a red-night page. Verified by running the existing regression test.",
   "files_changed": [],
-  "test": "packages/nightshade_app/test/screens/settings/appearance_red_night_accent_test.dart (3/3 pass: 'red night renders no accent swatch at all', 'red night says the accent does not apply', 'dark still offers the swatches')",
+  "test": "packages/skotiq_app/test/screens/settings/appearance_red_night_accent_test.dart (3/3 pass: 'red night renders no accent swatch at all', 'red night says the accent does not apply', 'dark still offers the swatches')",
   "revert_check": "Not re-run - no change of mine to revert. The existing test asserts findsNothing for all seven ValueKey('settings-color-<hex>') swatches under theme 'redNight' and findsOneWidget for each under 'dark', so it fails if the picker is restored unconditionally.",
-  "caveats": "The fix hides the picker rather than red-tinting the swatches; the finding accepted either. resolveNightshadeThemeData ignores the accent in redNight, so the picker was also inert there."
+  "caveats": "The fix hides the picker rather than red-tinting the swatches; the finding accepted either. resolveSkotiqThemeData ignores the accent in redNight, so the picker was also inert there."
  },
  {
-  "title": "Diagnostic dump is described as 'recent log files' but bundles 7 days of logs from every Nightshade instance on the machine",
+  "title": "Diagnostic dump is described as 'recent log files' but bundles 7 days of logs from every Skotiq instance on the machine",
   "outcome": "fixed",
-  "summary": "Two of the four elements were already closed before I started (the 48h bound via DiagnosticDumpService.logRetentionWindow + LoggingService.exportLogs(maxAge:), and the save-dialog default via resolveDumpSaveDirectory). The two that were still open are now fixed. (1) CROSS-INSTANCE LEAKAGE - the real cause: apps/desktop/lib/desktop_logging_init.dart hard-coded the log directory to getApplicationSupportDirectory()/logs while only the Rust side honoured NIGHTSHADE_DATA_DIR, so every instance on the machine appended to one shared nightshade.log and a dump carried other profiles' capture paths, target names and FITS filenames. Extracted prepareDesktopLogDirectory(), which resolves the root through resolveDesktopDataRoot(envDataDir:appSupportPath:) - NIGHTSHADE_DATA_DIR wins when set, application-support otherwise - and initialiseDesktopLogging now takes its logDir and its reported dataDirectory from that root. (2) The contents card had been left claiming 'every daily native log kept on this machine (they are not pruned)', which became false the moment the 48h bound landed; it now reads the span from DiagnosticDumpService.logRetentionWindow so the copy and the zip cannot drift.",
+  "summary": "Two of the four elements were already closed before I started (the 48h bound via DiagnosticDumpService.logRetentionWindow + LoggingService.exportLogs(maxAge:), and the save-dialog default via resolveDumpSaveDirectory). The two that were still open are now fixed. (1) CROSS-INSTANCE LEAKAGE - the real cause: apps/desktop/lib/desktop_logging_init.dart hard-coded the log directory to getApplicationSupportDirectory()/logs while only the Rust side honoured SKOTIQ_DATA_DIR, so every instance on the machine appended to one shared skotiq.log and a dump carried other profiles' capture paths, target names and FITS filenames. Extracted prepareDesktopLogDirectory(), which resolves the root through resolveDesktopDataRoot(envDataDir:appSupportPath:) - SKOTIQ_DATA_DIR wins when set, application-support otherwise - and initialiseDesktopLogging now takes its logDir and its reported dataDirectory from that root. (2) The contents card had been left claiming 'every daily native log kept on this machine (they are not pruned)', which became false the moment the 48h bound landed; it now reads the span from DiagnosticDumpService.logRetentionWindow so the copy and the zip cannot drift.",
   "files_changed": [
    "apps/desktop/lib/desktop_logging_init.dart",
    "apps/desktop/test/headless/desktop_log_directory_test.dart",
-   "packages/nightshade_app/lib/screens/diagnostics/diagnostic_dump_screen.dart",
-   "packages/nightshade_app/test/screens/diagnostics/diagnostics_screen_test.dart"
+   "packages/skotiq_app/lib/screens/diagnostics/diagnostic_dump_screen.dart",
+   "packages/skotiq_app/test/screens/diagnostics/diagnostics_screen_test.dart"
   ],
-  "test": "apps/desktop/test/headless/desktop_log_directory_test.dart (3 tests) + packages/nightshade_app/test/screens/diagnostics/diagnostics_screen_test.dart :: 'dump_contents_card_states_the_real_log_span'",
-  "revert_check": "(1) In prepareDesktopLogDirectory replaced `final dataRoot = resolveDesktopDataRoot(envDataDir: env['NIGHTSHADE_DATA_DIR'], appSupportPath: appSupportDir.path);` with `final dataRoot = appSupportDir.path;` -> 2 of 3 tests failed ('log directory follows NIGHTSHADE_DATA_DIR', 'two instances ... different log directories'). Restored -> 3/3 pass. (2) Restored the old 'every daily native log kept on this machine' string in _ContentsCard -> 'dump_contents_card_states_the_real_log_span' failed. Restored -> 5/5 pass.",
-  "caveats": "The one line I could not put under test is the handoff of the resolved logDir into bridge.NativeBridge.init inside initialiseDesktopLogging - everything past that point needs a loadable libnightshade_bridge, so the function itself is not unit-drivable. The tested seam covers resolution + directory creation; the handoff is a single local variable."
+  "test": "apps/desktop/test/headless/desktop_log_directory_test.dart (3 tests) + packages/skotiq_app/test/screens/diagnostics/diagnostics_screen_test.dart :: 'dump_contents_card_states_the_real_log_span'",
+  "revert_check": "(1) In prepareDesktopLogDirectory replaced `final dataRoot = resolveDesktopDataRoot(envDataDir: env['SKOTIQ_DATA_DIR'], appSupportPath: appSupportDir.path);` with `final dataRoot = appSupportDir.path;` -> 2 of 3 tests failed ('log directory follows SKOTIQ_DATA_DIR', 'two instances ... different log directories'). Restored -> 3/3 pass. (2) Restored the old 'every daily native log kept on this machine' string in _ContentsCard -> 'dump_contents_card_states_the_real_log_span' failed. Restored -> 5/5 pass.",
+  "caveats": "The one line I could not put under test is the handoff of the resolved logDir into bridge.NativeBridge.init inside initialiseDesktopLogging - everything past that point needs a loadable libskotiq_bridge, so the function itself is not unit-drivable. The tested seam covers resolution + directory creation; the handoff is a single local variable."
  },
  {
   "title": "Onboarding's 'Regulated cooling' toggle never enables cooling; the camera runs at ambient every session",
   "outcome": "fixed",
   "summary": "The wizard half was already closed before I started: camera_defaults_step.dart now shows an explicit 'Start cooling when the camera connects' switch that writes draft.coolOnConnect, and onboarding_provider.dart:432 passes it straight into the created profile (coolOnConnect: draft.coolOnConnect), so cool_on_connect=1 reaches the DB. What was still open is the part the verifier called the real defect: the orphan app setting cooling_behavior. A previous wave had only flipped its seed value from 'On Connect' to 'Manual' - the key itself still had no UI, no setter caller and no reader that acted on it, while BackupService dumps the whole app_settings table into every .nsbackup and the settings snapshot/API serve it. I retired it end to end: removed the DB seed and added 'cooling_behavior' to _retiredSettingKeys (so rows already on disk are deleted on open, same mechanism as auto_save_sequences), removed the coolingBehavior field from AppSettingsState and from the models.AppSettings wire model (freezed/json regenerated with build_runner --build-filter, only app_settings.freezed.dart and app_settings.g.dart changed), removed it from all three mappers (partial-persistence key list + read, stored-snapshot read + write, remote to/from + the settings.changed case) and deleted the unused setCoolingBehavior setter. The single authority for automatic cooling is now equipment_profiles.cool_on_connect, consumed at device_service/connections.dart:76.",
   "files_changed": [
-   "packages/nightshade_core/lib/src/database/database/default_settings.dart",
-   "packages/nightshade_core/lib/src/models/settings/app_settings.dart",
-   "packages/nightshade_core/lib/src/models/settings/app_settings.freezed.dart",
-   "packages/nightshade_core/lib/src/models/settings/app_settings.g.dart",
-   "packages/nightshade_core/lib/src/providers/settings_sections/app_settings_state.dart",
-   "packages/nightshade_core/lib/src/providers/settings_sections/equipment.dart",
-   "packages/nightshade_core/lib/src/providers/settings_sections/app_settings_partial_persistence_mapping.dart",
-   "packages/nightshade_core/lib/src/providers/settings_sections/app_settings_remote_mapping.dart",
-   "packages/nightshade_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart",
-   "packages/nightshade_core/test/database/retired_settings_prune_test.dart",
-   "packages/nightshade_core/test/providers/settings_remote_coverage_test.dart",
-   "packages/nightshade_core/test/providers/app_settings_stored_roundtrip_test.dart"
+   "packages/skotiq_core/lib/src/database/database/default_settings.dart",
+   "packages/skotiq_core/lib/src/models/settings/app_settings.dart",
+   "packages/skotiq_core/lib/src/models/settings/app_settings.freezed.dart",
+   "packages/skotiq_core/lib/src/models/settings/app_settings.g.dart",
+   "packages/skotiq_core/lib/src/providers/settings_sections/app_settings_state.dart",
+   "packages/skotiq_core/lib/src/providers/settings_sections/equipment.dart",
+   "packages/skotiq_core/lib/src/providers/settings_sections/app_settings_partial_persistence_mapping.dart",
+   "packages/skotiq_core/lib/src/providers/settings_sections/app_settings_remote_mapping.dart",
+   "packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart",
+   "packages/skotiq_core/test/database/retired_settings_prune_test.dart",
+   "packages/skotiq_core/test/providers/settings_remote_coverage_test.dart",
+   "packages/skotiq_core/test/providers/app_settings_stored_roundtrip_test.dart"
   ],
-  "test": "packages/nightshade_core/test/database/retired_settings_prune_test.dart :: 'cooling_behavior is not seeded into a fresh profile' + 'cooling_behavior left by an older build is removed on open'",
+  "test": "packages/skotiq_core/test/database/retired_settings_prune_test.dart :: 'cooling_behavior is not seeded into a fresh profile' + 'cooling_behavior left by an older build is removed on open'",
   "revert_check": "Deleted the 'cooling_behavior' entry from _retiredSettingKeys in default_settings.dart -> 'cooling_behavior left by an older build is removed on open' failed (3 passed, 1 failed). Restored -> 4/4 pass. settings_remote_coverage_test.dart (29 tests) and app_settings_stored_roundtrip_test.dart also pass after the field removal.",
   "caveats": "The headline symptom ('the toggle never enables cooling') was already fixed by an earlier wave; the verifier had reached the same conclusion and re-scoped the finding to the orphan setting, which is what I fixed. Removing coolingBehavior from models.AppSettings changes the remote settings wire model: a mixed-version pair (old client, new host) simply drops a field that never did anything on either side."
  },
@@ -61,7 +61,7 @@
   "outcome": "already-correct",
   "summary": "Already closed in the working tree before I started. filter_wheel_step.dart now derives slotCap from _reportedSlotCount(draft, filterWheelState) - the connected wheel's own filterNames.length, trusted only when the connected device IS the one the draft picked - and falls back to the generic _hardSlotCap=12 only when no reading exists. 'Add slot' is onPressed: (_loadingSlots || atSlotCap) ? null : _addSlot, with a tooltip naming the reported count, and a caption under the row states it. The renumbering sub-claim is closed too: _removeSlot shows a confirm dialog naming the consequence for any row that is not the last.",
   "files_changed": [],
-  "test": "packages/nightshade_app/test/screens/onboarding/filter_wheel_slot_cap_test.dart (4/4 pass: 'Add slot is dead once every wheel position is listed', 'Add slot still works below the wheel position count', 'with no wheel reading the generic cap still applies', 'removing a middle slot asks first, removing the last does not')",
+  "test": "packages/skotiq_app/test/screens/onboarding/filter_wheel_slot_cap_test.dart (4/4 pass: 'Add slot is dead once every wheel position is listed', 'Add slot still works below the wheel position count', 'with no wheel reading the generic cap still applies', 'removing a middle slot asks first, removing the last does not')",
   "revert_check": "Not re-run - no change of mine to revert. The existing test drives the widget with a 7-position wheel and asserts the Add slot button's onPressed is null at 7 rows and non-null at 6, so restoring the hardcoded `>= 12` cap fails it."
  },
  {
@@ -69,7 +69,7 @@
   "outcome": "already-correct",
   "summary": "Already closed in the working tree before I started, and closed at the cause rather than by reformatting. transient_alert_mapper.dart now sets magnitude: null (TransientAlert.magnitude is an APPARENT magnitude that the card buckets NAKED EYE/BINOCULAR and that shouldNotify auto-queues on, and a difference-image detection has no photometric zero point at all), and carries the change in the classification line instead: 'Delta 2.35 mag brighter than template', with the notes spelling out that it is a brightness change and not an apparent magnitude. transient_alert_badge.dart:616 already guards `if (alert.magnitude != null)`, so the 'mag 2.4' chip is simply not built. The designation half is fixed too: _provisionalName now emits IAU sexagesimal 'NS JHHMMSS.ss+DDMMSS.s' via _raHms/_decDms with round-then-carry, instead of decimal hours.",
   "files_changed": [],
-  "test": "packages/nightshade_core/test/services/transients/transient_alert_mapper_test.dart (6 tests) + transient_designation_test.dart (5 tests) - 11/11 pass, including 'never reports a delta magnitude as an apparent magnitude', 'a delta this large would be announced as naked-eye if kept' and 'two objects half a degree apart get different designations'.",
+  "test": "packages/skotiq_core/test/services/transients/transient_alert_mapper_test.dart (6 tests) + transient_designation_test.dart (5 tests) - 11/11 pass, including 'never reports a delta magnitude as an apparent magnitude', 'a delta this large would be announced as naked-eye if kept' and 'two objects half a degree apart get different designations'.",
   "revert_check": "Not re-run - no change of mine to revert. Restoring `magnitude: detection.deltaMag?.abs()` fails 'never reports a delta magnitude as an apparent magnitude' (asserts alert.magnitude isNull); restoring the decimal-hours name fails the designation suite."
  },
  {
@@ -77,7 +77,7 @@
   "outcome": "already-correct",
   "summary": "Already closed in the working tree before I started, and closed the way the finding's 'expected' asked. progress_dashboard.dart:_stripHeadline now dates and scores the finished sweep - 'Connect All at 11:16: 4 of 4 succeeded' - and only reads 'Connecting...' while state.isSweeping, so a stale green chip row can no longer be mistaken for live state.",
   "files_changed": [],
-  "test": "packages/nightshade_app/test/screens/equipment/connect_all_result_strip_test.dart (2/2 pass: 'a finished sweep is dated, scored and phrased in the past tense', 'an in-flight sweep still reads as happening now')",
+  "test": "packages/skotiq_app/test/screens/equipment/connect_all_result_strip_test.dart (2/2 pass: 'a finished sweep is dated, scored and phrased in the past tense', 'an in-flight sweep still reads as happening now')",
   "revert_check": "Not re-run - no change of mine to revert. The test asserts the headline contains the finish time and 'of ... succeeded'; restoring the bare '<source> result' headline fails it."
  },
  {
@@ -85,7 +85,7 @@
   "outcome": "already-correct",
   "summary": "Already closed in the working tree before I started, including the harder half the verifier found. profile_sidebar.dart:_showDeleteConfirmation now reads 'Delete \"<name>\" (<subtitle>)? You can undo this from the message that appears, for a few seconds.' - and the Undo it promises was made reliable: the snackbar action no longer calls a State method, it calls the top-level restoreDeletedProfile() in equipment_screen/profile_undo.dart with the ScaffoldMessenger, ProviderScope container, colors and l10n captured while the screen is alive, all of which outlive the route. So leaving Equipment before pressing Undo no longer aborts it silently.",
   "files_changed": [],
-  "test": "packages/nightshade_app/test/screens/equipment/profile_delete_undo_test.dart (2/2 pass: 'the confirmation describes the undo instead of denying it', 'Undo still restores after leaving the Equipment screen') + profile_delete_snackbar_test.dart (2/2)",
+  "test": "packages/skotiq_app/test/screens/equipment/profile_delete_undo_test.dart (2/2 pass: 'the confirmation describes the undo instead of denying it', 'Undo still restores after leaving the Equipment screen') + profile_delete_snackbar_test.dart (2/2)",
   "revert_check": "Not re-run - no change of mine to revert. The second test navigates away from Equipment before tapping Undo and asserts the profile is restored, so moving the restore back into the State class fails it."
  },
  {
@@ -93,7 +93,7 @@
   "outcome": "already-correct",
   "summary": "Already closed in the working tree before I started, on both halves. profile_data_operations.dart:_duplicateNameError rejects a name another profile already carries (case- and whitespace-insensitive, excluding the profile being edited) through the same _validateForm gate that catches the empty name, so the second 'My First Rig' cannot be saved. And the delete confirmation now quotes the subtitle alongside the name, so even a pre-existing duplicate pair is distinguishable.",
   "files_changed": [],
-  "test": "packages/nightshade_app/test/screens/equipment/profile_editor_duplicate_name_test.dart (4/4 pass: 'a name another profile already carries is refused', 'the check ignores case and surrounding whitespace', 'a genuinely new name still saves', 're-saving a profile under its own name is not a collision')",
+  "test": "packages/skotiq_app/test/screens/equipment/profile_editor_duplicate_name_test.dart (4/4 pass: 'a name another profile already carries is refused', 'the check ignores case and surrounding whitespace', 'a genuinely new name still saves', 're-saving a profile under its own name is not a collision')",
   "revert_check": "Not re-run - no change of mine to revert. The first test types an existing profile's name and asserts the save is refused with the inline error, so dropping the _duplicateNameError call from _validateForm fails it."
  },
  {
@@ -101,7 +101,7 @@
   "outcome": "already-correct",
   "summary": "Already closed in the working tree before I started, at the cause the verifier identified (equipment_screen.dart, not the non-existent screens/equipment/command_handlers.dart). The best-effort connect to unifiedSafetyMonitorsProvider.first that ran after the profile sweep is gone; the block is now a comment stating that nothing else is connected there and why, and the sweep is purely profile-scoped (the profile's own safety monitor and switch are included in it). That removes the discovery-cache dependence that made two identical presses produce different rigs.",
   "files_changed": [],
-  "test": "packages/nightshade_app/test/screens/equipment/connect_all_profile_scope_test.dart (1/1 pass: 'Connect All touches no device outside the profile')",
+  "test": "packages/skotiq_app/test/screens/equipment/connect_all_profile_scope_test.dart (1/1 pass: 'Connect All touches no device outside the profile')",
   "revert_check": "Not re-run - no change of mine to revert. The test seeds a profile with a camera and NO safety monitor plus a discovered safety monitor, presses Connect All and asserts connectDevice is never called for it, so restoring the best-effort connect fails it."
  },
  {
@@ -109,7 +109,7 @@
   "outcome": "already-correct",
   "summary": "Already closed in the working tree before I started, at the cause the verifier identified rather than at the button. Two changes: (1) transient_detections_provider.dart:_localFirstLightStream now yields a one-shot `dao.recentDetections(...)` read BEFORE subscribing to the watch stream - drift caches a query stream by its SQL and a cached stream that has thrown replays the failure to every new subscriber, which is why ref.invalidate (already present at first_light_view.dart:409) could not clear it; a real re-execution can. (2) transient_detections_dao.dart:watchRecentDetections maps through _mapSkippingUndecodable, so a single row with a TEXT tile_id costs that row instead of the whole feed. The raw-exception sub-claim is closed too: _ErrorState renders firstLightErrorBody(error), which leads with a plain explanation and demotes the exception to a 'Details:' line.",
   "files_changed": [],
-  "test": "packages/nightshade_core/test/providers/first_light_candidates_resilience_test.dart (4/4 pass, incl. 'a fixed row is picked up by a re-subscription, not only by a restart') + packages/nightshade_app/test/screens/first_light/first_light_error_state_test.dart (6/6 pass: 'a load failure explains itself before it quotes the exception')",
+  "test": "packages/skotiq_core/test/providers/first_light_candidates_resilience_test.dart (4/4 pass, incl. 'a fixed row is picked up by a re-subscription, not only by a restart') + packages/skotiq_app/test/screens/first_light/first_light_error_state_test.dart (6/6 pass: 'a load failure explains itself before it quotes the exception')",
   "revert_check": "Not re-run - no change of mine to revert. 'a fixed row is picked up by a re-subscription, not only by a restart' seeds an undecodable row, fixes it and re-subscribes, so removing the one-shot read and going straight to .watch() fails it."
  }
 ]

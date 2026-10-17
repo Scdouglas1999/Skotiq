@@ -9,17 +9,17 @@
   "format": "dart format --set-exit-if-changed clean on every changed file",
   "known_pre_existing": "test/benchmark/golden_compare_test.dart fails on this host (Windows-captured baselines); it is tagged 'golden' and excluded from melos run test by design"
  },
- "incident": "At 22:45 a concurrent agent ran `git stash`, which reverted EVERY agent's uncommitted work repo-wide (stash@{0}, 460 files). It was restored ~1 min later, but at 22:49 astronomy_calculations.dart was clobbered again by a stale full-file write, losing my nightDateOf/objectAltAz change AND two other agents' work (airmassForTrueAltitude, precessFromDateToJ2000). I restored that file from stash@{0}, which carried all three. stash@{0} still exists and should be dropped only once someone confirms nothing else is stranded in it. My work is also backed up at /tmp/claude-1000/-home-scdouglas-Documents-Nightshade2/224b7868-cbfc-40e1-8fb0-99c71d23f174/scratchpad/backup/.",
+ "incident": "At 22:45 a concurrent agent ran `git stash`, which reverted EVERY agent's uncommitted work repo-wide (stash@{0}, 460 files). It was restored ~1 min later, but at 22:49 astronomy_calculations.dart was clobbered again by a stale full-file write, losing my nightDateOf/objectAltAz change AND two other agents' work (airmassForTrueAltitude, precessFromDateToJ2000). I restored that file from stash@{0}, which carried all three. stash@{0} still exists and should be dropped only once someone confirms nothing else is stranded in it. My work is also backed up at /tmp/claude-1000/-home-scdouglas-Documents-Skotiq2/224b7868-cbfc-40e1-8fb0-99c71d23f174/scratchpad/backup/.",
  "fixes": [
   {
    "title": "Home button tooltip says 'Reset view (center 0,0, FOV 60)' but the action centres on the zenith",
    "outcome": "fixed",
    "summary": "command_bar.dart:78 now reads 'Reset view (zenith, FOV 60)'. The action has centred on skyViewHomeCenterProvider (the observer's zenith) since RA 0h/Dec 0 was found 14 deg BELOW the horizon at the audited site; only the label lagged. The two other home buttons (view_controls.dart, mobile view_and_slew_controls.dart) carry no tooltip, so this was the only wrong string.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/planetarium/widgets/redesign/command_bar.dart",
-    "packages/nightshade_app/test/screens/planetarium/command_bar_home_tooltip_test.dart"
+    "packages/skotiq_app/lib/screens/planetarium/widgets/redesign/command_bar.dart",
+    "packages/skotiq_app/test/screens/planetarium/command_bar_home_tooltip_test.dart"
    ],
-   "test": "packages/nightshade_app/test/screens/planetarium/command_bar_home_tooltip_test.dart",
+   "test": "packages/skotiq_app/test/screens/planetarium/command_bar_home_tooltip_test.dart",
    "revert_check": "Put back `tooltip: 'Reset view (center 0,0, FOV 60)',` at command_bar.dart:81 -> 'Expected: contains \"Reset view (zenith, FOV 60)\"' fails. Restored -> 2 pass. The test also pins that skyViewHomeCenterProvider really returns Dec = latitude."
   },
   {
@@ -27,10 +27,10 @@
    "outcome": "fixed",
    "summary": "AstronomyCalculations.objectAltAz now precesses (and nutates) the J2000 catalog RA/Dec to the equinox of the requested instant before forming the hour angle - the hour angle is measured from the equinox of DATE. precessFromJ2000ToDate existed with ZERO callers. Verified against an independent IAU-1976 + GMST computation: Vega on 2026-08-03 20:49:14Z from 40N/105W is 6.145/42.90, not the 6.244/43.05 the app stated (which is exactly the unprecessed J2000 answer); a near-zenith Pollux moves 1.33 deg in azimuth because the error is amplified by 1/cos(alt). Every catalog/target caller in the tree goes through objectAltAz, so this is the one seam. Refraction deliberately NOT added: objectAltAz feeds pointing and altitude limits, which are geometric - trueToApparentAltitude is there for callers that want the observed value.",
    "files_changed": [
-    "packages/nightshade_planetarium/lib/src/astronomy/astronomy_calculations.dart",
-    "packages/nightshade_planetarium/test/object_alt_az_precession_test.dart"
+    "packages/skotiq_planetarium/lib/src/astronomy/astronomy_calculations.dart",
+    "packages/skotiq_planetarium/test/object_alt_az_precession_test.dart"
    ],
-   "test": "packages/nightshade_planetarium/test/object_alt_az_precession_test.dart",
+   "test": "packages/skotiq_planetarium/test/object_alt_az_precession_test.dart",
    "revert_check": "Deleted the `final (raOfDate, decOfDate) = precessFromJ2000ToDate(...)` block in objectAltAz and fed raDeg/decDeg straight to equatorialToHorizontal -> 3 failures ('Expected 6.145, Actual 6.244'). Restored -> 3 pass.",
    "caveats": "The sky RENDERER still projects catalog J2000 positions unprecessed (projection_and_glow.dart, horizon_layers.dart, stellar_objects.dart), so the drawn stars and the drawn grid stay consistent with each other. setViewMode therefore uses the raw transform on purpose - precessing the camera would slide the view ~22 arcmin off the stars it draws. Making the whole renderer epoch-of-date is a much larger change and was not in this finding."
   },
@@ -39,12 +39,12 @@
    "outcome": "fixed",
    "summary": "Two causes, both fixed. (1) The hit test took the strictly nearest catalogue row. HYG carries Capella as two rows 9 arcsec apart - Aa (mag 0.08, 'Capella') and Ab (mag 0.96, no HIP, no name) - which is about ONE PIXEL at a 2-degree field, so the pick was a coin flip between a star and its own companion and the reported magnitude was a magnitude too faint. _resolveCoincidentStar now returns the brightest row within 2 px (below the pointer's own resolution) of the nearest - the row the renderer drew and labelled - and stops merging once the pair is genuinely resolved on screen. (2) HygStarCatalog._nameComponentStars names unnamed secondary components after their primary using HYG's own comp / comp_primary columns ('Capella B'), so no star enters the catalogue, the search list or the popup chip called 'HYG118360'. Nothing is invented: 436 rows are marked as components, and rows whose primary is itself unnamed are left alone.",
    "files_changed": [
-    "packages/nightshade_planetarium/lib/src/widgets/interactive_sky_view.dart",
-    "packages/nightshade_planetarium/lib/src/catalogs/star_catalog.dart",
-    "packages/nightshade_planetarium/test/coincident_star_pick_test.dart",
-    "packages/nightshade_planetarium/test/hyg_component_naming_test.dart"
+    "packages/skotiq_planetarium/lib/src/widgets/interactive_sky_view.dart",
+    "packages/skotiq_planetarium/lib/src/catalogs/star_catalog.dart",
+    "packages/skotiq_planetarium/test/coincident_star_pick_test.dart",
+    "packages/skotiq_planetarium/test/hyg_component_naming_test.dart"
    ],
-   "test": "packages/nightshade_planetarium/test/coincident_star_pick_test.dart, packages/nightshade_planetarium/test/hyg_component_naming_test.dart",
+   "test": "packages/skotiq_planetarium/test/coincident_star_pick_test.dart, packages/skotiq_planetarium/test/hyg_component_naming_test.dart",
    "revert_check": "(1) Replaced `nearestObject = _resolveCoincidentStar(nearestStar, stars, scale);` with `nearestObject = nearestStar;` -> 2 failures, Actual 'Capella B'. (2) Removed the `_nameComponentStars(rows);` call in _loadStarsInIsolate -> failure, the loaded catalogue contains 'HYG118360'. Both restored -> 6 pass.",
    "caveats": "object_info_popup.dart (the cited location) needed no change - it faithfully renders the object it is handed. The verifier's location correction was right."
   },
@@ -53,27 +53,27 @@
    "outcome": "fixed",
    "summary": "bestTargetsProvider passed astronomical DUSK (a timestamp) as calculateObjectVisibility's `date`, and that scans local noon to the following noon, so wherever dusk falls after local midnight the whole list described the NEXT night - one sidereal day, ~4 min, off every transit. Added AstronomyCalculations.nightDateOf (the date of the night CONTAINING an instant; before local noon that is the previous day) plus a _currentNightDateProvider, and routed the Best Targets list, the sidebar Info tab (selectedObjectVisibilityProvider), the sky planning overlay and both TargetScoringService visibility calls through it. Bigger than the item implied: the same date-vs-instant conflation was live at 4 more call sites inside these two packages, which is exactly why the sidebar contradicted itself about the same object. calculateObjectVisibility's contract is now documented on the method.",
    "files_changed": [
-    "packages/nightshade_planetarium/lib/src/astronomy/astronomy_calculations.dart",
-    "packages/nightshade_planetarium/lib/src/providers/planetarium_providers/mosaic_targets.dart",
-    "packages/nightshade_planetarium/lib/src/providers/planetarium_providers/catalog_astronomy.dart",
-    "packages/nightshade_planetarium/lib/src/providers/planetarium_providers/equipment_view.dart",
-    "packages/nightshade_planetarium/lib/src/planning/target_scoring.dart",
-    "packages/nightshade_planetarium/lib/src/rendering/sky_renderer/planning_overlays.dart",
-    "packages/nightshade_planetarium/test/tonight_night_window_test.dart"
+    "packages/skotiq_planetarium/lib/src/astronomy/astronomy_calculations.dart",
+    "packages/skotiq_planetarium/lib/src/providers/planetarium_providers/mosaic_targets.dart",
+    "packages/skotiq_planetarium/lib/src/providers/planetarium_providers/catalog_astronomy.dart",
+    "packages/skotiq_planetarium/lib/src/providers/planetarium_providers/equipment_view.dart",
+    "packages/skotiq_planetarium/lib/src/planning/target_scoring.dart",
+    "packages/skotiq_planetarium/lib/src/rendering/sky_renderer/planning_overlays.dart",
+    "packages/skotiq_planetarium/test/tonight_night_window_test.dart"
    ],
-   "test": "packages/nightshade_planetarium/test/tonight_night_window_test.dart",
+   "test": "packages/skotiq_planetarium/test/tonight_night_window_test.dart",
    "revert_check": "Changed ONLY mosaic_targets.dart back to `ref.watch(_currentDateProvider)` -> 'Best Targets and the Info tab agree on which night they describe' fails with Actual 2026-08-04 00:48:52 against Expected 2026-08-03 00:52:48 - the exact 00:48-vs-00:52 slip the finding reported. Restored -> 5 pass.",
-   "caveats": "Call sites OUTSIDE my ownership still hand calculateObjectVisibility an instant and have the same latent slip: altitude_chart.dart, target_preview_tooltip.dart, target_queue_panel.dart, sequence_timeline/full_timeline.dart and plan_tonight_sequencer_helper.dart in nightshade_app, and sequence_time_estimator.dart in nightshade_core. nightDateOf makes each a one-line fix."
+   "caveats": "Call sites OUTSIDE my ownership still hand calculateObjectVisibility an instant and have the same latent slip: altitude_chart.dart, target_preview_tooltip.dart, target_queue_panel.dart, sequence_timeline/full_timeline.dart and plan_tonight_sequencer_helper.dart in skotiq_app, and sequence_time_estimator.dart in skotiq_core. nightDateOf makes each a one-line fix."
   },
   {
    "title": "After picking a search result the list silently re-runs on the object's name while the box still shows the typed query",
    "outcome": "fixed",
    "summary": "search_header.dart's three result-tile onTap handlers called widget.onSearch(<object name>) alongside selectObject/flyTo, which re-ran the query on the picked object while the text field kept the typed text - so 'M57' results appeared under a box reading '6720' and the result count and section headers vanished. Removed from all three (DSO, solar-system body, star). Submitting the field still queries, which is the one path that should.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/planetarium/widgets/search_header.dart",
-    "packages/nightshade_app/test/screens/planetarium/search_result_keeps_query_test.dart"
+    "packages/skotiq_app/lib/screens/planetarium/widgets/search_header.dart",
+    "packages/skotiq_app/test/screens/planetarium/search_result_keeps_query_test.dart"
    ],
-   "test": "packages/nightshade_app/test/screens/planetarium/search_result_keeps_query_test.dart",
+   "test": "packages/skotiq_app/test/screens/planetarium/search_result_keeps_query_test.dart",
    "revert_check": "Put `widget.onSearch(dso.name);` back in the DSO tile -> 'Expected: empty, Actual: [M57]'. Separately put `widget.onSearch(star.name);` back in the star tile -> 'Expected: empty, Actual: [Vega]'. Both restored -> 3 pass. The third test proves the enter-to-search path still fires.",
    "caveats": "The finding cited mobile_widgets/search_sheet.dart; the verifier's correction to search_header.dart was right - the phone sheet is not mounted on this layout and does not contain the call."
   },
@@ -82,30 +82,30 @@
    "outcome": "fixed",
    "summary": "SkyViewNotifier.setViewMode converted nothing - it only flipped viewMode, and since the two frames keep independent centres the horizontal one still held whatever the last reset parked it at, (az 0, alt 90) = the zenith. It now converts the current view centre between frames with the same transform the renderer uses. `observer` and `instant` are REQUIRED named parameters so no call site can flip the frame without them and silently reintroduce the jump; all 4 production call sites were updated (command_bar x2, view_controls, show_in_sky). A centre below the horizon converts to a negative altitude rather than being clamped up.",
    "files_changed": [
-    "packages/nightshade_planetarium/lib/src/providers/planetarium_providers/sky_view.dart",
-    "packages/nightshade_app/lib/screens/planetarium/widgets/redesign/command_bar.dart",
-    "packages/nightshade_app/lib/screens/planetarium/widgets/view_controls.dart",
-    "packages/nightshade_app/lib/screens/planetarium/show_in_sky.dart",
-    "packages/nightshade_planetarium/test/sky_view_frame_toggle_test.dart"
+    "packages/skotiq_planetarium/lib/src/providers/planetarium_providers/sky_view.dart",
+    "packages/skotiq_app/lib/screens/planetarium/widgets/redesign/command_bar.dart",
+    "packages/skotiq_app/lib/screens/planetarium/widgets/view_controls.dart",
+    "packages/skotiq_app/lib/screens/planetarium/show_in_sky.dart",
+    "packages/skotiq_planetarium/test/sky_view_frame_toggle_test.dart"
    ],
-   "test": "packages/nightshade_planetarium/test/sky_view_frame_toggle_test.dart",
+   "test": "packages/skotiq_planetarium/test/sky_view_frame_toggle_test.dart",
    "revert_check": "Replaced the setViewMode body with the old `if (state.viewMode == mode) return; state = state.copyWith(viewMode: mode);` -> 2 failures, centerAltitude Actual 90.0 (the zenith) against Expected 81.59. Restored -> 3 pass. Making the parameters required also broke 4 existing tests at compile time, which were updated."
   },
   {
    "title": "The app states three different, all-wrong depths for the bundled star catalog",
    "outcome": "fixed",
-   "summary": "One constant now, in a leaf library: packages/nightshade_planetarium/lib/src/catalogs/hyg_depth.dart holds kHygFaintFloorMag = 9.0 (HYG is Hipparcos-derived; counting the shipped 119,626 rows the per-magnitude gain turns over after 9). deep_star_providers re-exports it so the existing HYG/deep-tier merge seam is unchanged; CatalogPackage.complete's starMagnitudeLimit - which feeds the settings 'Depth' chip - was 15.0, the LOADER'S inclusion filter mislabelled as depth, and now quotes the constant; the Deep-Star Tier settings card's hard-coded '~mag 11.5' now quotes it too. The Layers panel already did.",
+   "summary": "One constant now, in a leaf library: packages/skotiq_planetarium/lib/src/catalogs/hyg_depth.dart holds kHygFaintFloorMag = 9.0 (HYG is Hipparcos-derived; counting the shipped 119,626 rows the per-magnitude gain turns over after 9). deep_star_providers re-exports it so the existing HYG/deep-tier merge seam is unchanged; CatalogPackage.complete's starMagnitudeLimit - which feeds the settings 'Depth' chip - was 15.0, the LOADER'S inclusion filter mislabelled as depth, and now quotes the constant; the Deep-Star Tier settings card's hard-coded '~mag 11.5' now quotes it too. The Layers panel already did.",
    "files_changed": [
-    "packages/nightshade_planetarium/lib/src/catalogs/hyg_depth.dart",
-    "packages/nightshade_planetarium/lib/src/catalogs/catalog_manager.dart",
-    "packages/nightshade_planetarium/lib/src/catalogs/catalog_manager/source_models.dart",
-    "packages/nightshade_planetarium/lib/src/providers/deep_star_providers.dart",
-    "packages/nightshade_planetarium/lib/nightshade_planetarium.dart",
-    "packages/nightshade_app/lib/screens/settings/widgets/deep_star_catalog_card.dart",
-    "packages/nightshade_planetarium/test/hyg_depth_is_stated_once_test.dart",
-    "packages/nightshade_app/test/screens/settings/deep_star_card_depth_copy_test.dart"
+    "packages/skotiq_planetarium/lib/src/catalogs/hyg_depth.dart",
+    "packages/skotiq_planetarium/lib/src/catalogs/catalog_manager.dart",
+    "packages/skotiq_planetarium/lib/src/catalogs/catalog_manager/source_models.dart",
+    "packages/skotiq_planetarium/lib/src/providers/deep_star_providers.dart",
+    "packages/skotiq_planetarium/lib/skotiq_planetarium.dart",
+    "packages/skotiq_app/lib/screens/settings/widgets/deep_star_catalog_card.dart",
+    "packages/skotiq_planetarium/test/hyg_depth_is_stated_once_test.dart",
+    "packages/skotiq_app/test/screens/settings/deep_star_card_depth_copy_test.dart"
    ],
-   "test": "packages/nightshade_planetarium/test/hyg_depth_is_stated_once_test.dart, packages/nightshade_app/test/screens/settings/deep_star_card_depth_copy_test.dart",
+   "test": "packages/skotiq_planetarium/test/hyg_depth_is_stated_once_test.dart, packages/skotiq_app/test/screens/settings/deep_star_card_depth_copy_test.dart",
    "revert_check": "Set CatalogPackage.complete's starMagnitudeLimit back to 15.0 -> 'Expected 9.0, Actual 15.0' (2 failures). Separately restored the card's '~mag 11.5' string -> 'Found 1 widget with text containing ~mag 11.5'. Both restored -> 3 pass.",
    "caveats": "The finding pointed at star_catalog.dart:29 for the '15.0'; that is the loader's default magnitudeLimit and is genuinely a filter, correctly left alone. The 'Depth' chip's real source was CatalogPackage.complete in source_models.dart."
   },
@@ -114,11 +114,11 @@
    "outcome": "fixed",
    "summary": "The Layers row button is now 'Configure source...' and the subtitle reads 'No tileset available yet - stars below mag 9.0 need a self-hosted tileset'; the settings card it opens now says up front 'No tileset is published yet: host one built with tools/catalog_prep and point the URL below at it.' A control named Install could not install anything - it only opened a URL form.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/planetarium/widgets/redesign/layers_panel.dart",
-    "packages/nightshade_app/lib/screens/settings/widgets/deep_star_catalog_card.dart",
-    "packages/nightshade_app/test/screens/planetarium/layers_panel_honest_switches_test.dart"
+    "packages/skotiq_app/lib/screens/planetarium/widgets/redesign/layers_panel.dart",
+    "packages/skotiq_app/lib/screens/settings/widgets/deep_star_catalog_card.dart",
+    "packages/skotiq_app/test/screens/planetarium/layers_panel_honest_switches_test.dart"
    ],
-   "test": "packages/nightshade_app/test/screens/planetarium/layers_panel_honest_switches_test.dart",
+   "test": "packages/skotiq_app/test/screens/planetarium/layers_panel_honest_switches_test.dart",
    "revert_check": "Put back `label: 'Install'` and the 'No tileset installed' subtitle in layers_panel.dart -> 2 failures ('Found 0 widgets with text containing No tileset available'). Restored -> 7 pass. The test now also asserts find.text('Install') findsNothing.",
    "caveats": "The other half the finding asked for - actually publishing and hosting a Tycho-2/Gaia tileset - is a product/infrastructure decision, not a code defect, and the verifier explicitly scoped it out when downgrading to P3. Nothing in the app now claims a tileset exists."
   },
@@ -127,10 +127,10 @@
    "outcome": "fixed",
    "summary": "The Regions header now counts regions and only claims any are imaged when tiles have actually landed: '1 region - none imaged yet', '2 regions imaged', or '2 regions - 1 imaged'. It reads the same tileCount rollup the region cards render, so the header can no longer contradict the card beneath it or the Atlas coverage strip above it.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/your_sky/your_sky_screen.dart",
-    "packages/nightshade_app/test/screens/your_sky/regions_header_truthfulness_test.dart"
+    "packages/skotiq_app/lib/screens/your_sky/your_sky_screen.dart",
+    "packages/skotiq_app/test/screens/your_sky/regions_header_truthfulness_test.dart"
    ],
-   "test": "packages/nightshade_app/test/screens/your_sky/regions_header_truthfulness_test.dart",
+   "test": "packages/skotiq_app/test/screens/your_sky/regions_header_truthfulness_test.dart",
    "revert_check": "Put back `'${regions.length} region${regions.length == 1 ? '' : 's'} imaged'` at your_sky_screen.dart:133 -> 2 failures, 'Found 1 widget with text \"1 region imaged\"'. Restored -> 3 pass."
   },
   {
@@ -138,10 +138,10 @@
    "outcome": "fixed",
    "summary": "Both halves the finding asked for. The error is cleared on the mode switch, on picking a target, and on any field edit (listeners on all four controllers, removed in dispose). And Create region is disabled while the form cannot succeed - target mode with no target selected - so the sheet stops enabling a button only to explain afterwards. The custom-coordinate range error stays reachable on purpose: it tells the user what a valid entry looks like.",
    "files_changed": [
-    "packages/nightshade_app/lib/screens/your_sky/widgets/name_region_sheet.dart",
-    "packages/nightshade_app/test/screens/your_sky/name_region_sheet_validation_test.dart"
+    "packages/skotiq_app/lib/screens/your_sky/widgets/name_region_sheet.dart",
+    "packages/skotiq_app/test/screens/your_sky/name_region_sheet_validation_test.dart"
    ],
-   "test": "packages/nightshade_app/test/screens/your_sky/name_region_sheet_validation_test.dart",
+   "test": "packages/skotiq_app/test/screens/your_sky/name_region_sheet_validation_test.dart",
    "revert_check": "Removed the initState listener wiring, the `_error = null` in the mode-switch setState, and the `!_canSubmit` guard on Create region -> all 3 tests fail (Create region onPressed non-null; the range error still rendered after a mode switch and after editing a field). Restored -> 3 pass.",
    "caveats": "The finding cited your_sky_screen.dart; the verifier's correction to widgets/name_region_sheet.dart was right."
   }

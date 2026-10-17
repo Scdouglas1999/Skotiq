@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Nightshade pre-commit hook.
+# Skotiq pre-commit hook.
 #
 # Runs the fast format and lint gates locally so contributors catch trivial
 # issues before pushing instead of round-tripping through CI. Reference:
@@ -59,9 +59,9 @@ if [[ -n "${STAGED_RUST// }" ]]; then
     echo "[pre-commit] cargo not on PATH — install Rust toolchain or set SKIP_PRECOMMIT=1." >&2
     exit 1
   fi
-  echo "[pre-commit] cargo fmt --all --check (native/nightshade_native)..."
-  if ! (cd native/nightshade_native && cargo fmt --all -- --check); then
-    echo "[pre-commit] Rust formatting issues above. Run 'cargo fmt --all' in native/nightshade_native and re-stage." >&2
+  echo "[pre-commit] cargo fmt --all --check (native/skotiq_native)..."
+  if ! (cd native/skotiq_native && cargo fmt --all -- --check); then
+    echo "[pre-commit] Rust formatting issues above. Run 'cargo fmt --all' in native/skotiq_native and re-stage." >&2
     EXIT=1
   fi
 fi

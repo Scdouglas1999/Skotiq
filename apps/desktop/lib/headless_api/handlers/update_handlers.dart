@@ -14,7 +14,7 @@
 //   GET    /api/system/update/staged      — info about the staged update (view)
 //   DELETE /api/system/update/staged      — discard a staged update (admin)
 //
-// Underlying state changes flow back to clients as `NightshadeEvent`s
+// Underlying state changes flow back to clients as `SkotiqEvent`s
 // with `category: EventCategory.system`. The bootstrap subscribes
 // [UpdateController.events] and forwards each variant to the server's
 // broadcast.
@@ -23,9 +23,9 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io';
 
-import 'package:nightshade_core/nightshade_core.dart'
+import 'package:skotiq_core/skotiq_core.dart'
     show sanitizeEndpointForDisplay;
-import 'package:nightshade_updater/nightshade_updater.dart';
+import 'package:skotiq_updater/skotiq_updater.dart';
 import 'package:shelf/shelf.dart';
 
 import '../job_manager.dart';
@@ -316,7 +316,7 @@ class UpdateHandlers {
       developer.log(
         'Update handler: could not resolve executable dir, '
         'falling back to OS name: $e',
-        name: 'nightshade.headless',
+        name: 'skotiq.headless',
       );
       return Platform.operatingSystem;
     }

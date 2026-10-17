@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/device_handlers.dart';
-import 'package:nightshade_desktop/headless_api/validation.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
+import 'package:skotiq_desktop/headless_api/validation.dart';
 import 'package:shelf/shelf.dart';
 
 /// Out-of-range device requests must be refused as bad requests, naming the
@@ -363,7 +363,7 @@ class _RangeBackend extends DisconnectedBackend {
 }
 
 class _TestBackendNotifier extends BackendNotifier {
-  _TestBackendNotifier(super.ref, NightshadeBackend backend) {
+  _TestBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
   }
 }

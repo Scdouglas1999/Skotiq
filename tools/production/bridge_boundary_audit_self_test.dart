@@ -4,7 +4,7 @@ import 'dart:io';
 /// Self-test for tools/production/bridge_boundary_audit.dart.
 ///
 /// Builds synthetic workspaces in a temp dir and asserts the audit:
-///  - exempts nightshade_core / nightshade_bridge,
+///  - exempts skotiq_core / skotiq_bridge,
 ///  - flags an un-whitelisted importer as a violation,
 ///  - honours the whitelist,
 ///  - extracts `show` and prefixed (`as`) symbols.
@@ -18,25 +18,25 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_bridge_boundary_audit_self_test_',
+    'skotiq_bridge_boundary_audit_self_test_',
   );
   try {
     // --- Passing fixture: only allowed packages import the bridge. ---
     await _writeFile(
       temp,
-      'packages/nightshade_core/lib/src/backend/ffi_backend.dart',
-      "import 'package:nightshade_bridge/nightshade_bridge.dart';\n",
+      'packages/skotiq_core/lib/src/backend/ffi_backend.dart',
+      "import 'package:skotiq_bridge/skotiq_bridge.dart';\n",
     );
     await _writeFile(
       temp,
-      'packages/nightshade_bridge/lib/nightshade_bridge.dart',
+      'packages/skotiq_bridge/lib/skotiq_bridge.dart',
       'class NativeBridge {}\n',
     );
     // A bridge-importing app/test file that must be ignored (under test/).
     await _writeFile(
       temp,
       'apps/desktop/test/some_test.dart',
-      "import 'package:nightshade_bridge/nightshade_bridge.dart';\n",
+      "import 'package:skotiq_bridge/skotiq_bridge.dart';\n",
     );
 
     await _runAudit(script, temp);
@@ -54,15 +54,15 @@ Future<void> main() async {
     // --- Failing fixture: a UI file imports the bridge, not whitelisted. ---
     await _writeFile(
       temp,
-      'packages/nightshade_app/lib/screens/stack_result/stack_result_screen.dart',
-      "import 'package:nightshade_bridge/nightshade_bridge.dart' as bridge;\n"
+      'packages/skotiq_app/lib/screens/stack_result/stack_result_screen.dart',
+      "import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;\n"
           'void build() { bridge.apiAutoStretchImage(); }\n',
     );
     // A UI file using `show` for a single data type.
     await _writeFile(
       temp,
-      'packages/nightshade_app/lib/widgets/guide_health_card.dart',
-      "import 'package:nightshade_bridge/nightshade_bridge.dart' show Phd2State;\n"
+      'packages/skotiq_app/lib/widgets/guide_health_card.dart',
+      "import 'package:skotiq_bridge/skotiq_bridge.dart' show Phd2State;\n"
           'Phd2State? state;\n',
     );
 
@@ -75,12 +75,12 @@ Future<void> main() async {
     final byFile = {for (final v in violations) v['file'] as String: v};
     _expect(
       byFile.containsKey(
-        'packages/nightshade_app/lib/screens/stack_result/stack_result_screen.dart',
+        'packages/skotiq_app/lib/screens/stack_result/stack_result_screen.dart',
       ),
       'stack_result_screen should be a violation',
     );
     final stackSymbols =
-        (byFile['packages/nightshade_app/lib/screens/stack_result/stack_result_screen.dart']!['symbols']
+        (byFile['packages/skotiq_app/lib/screens/stack_result/stack_result_screen.dart']!['symbols']
                 as List)
             .cast<String>();
     _expect(
@@ -88,7 +88,7 @@ Future<void> main() async {
       'prefixed function symbol should be extracted, got $stackSymbols',
     );
     final guideSymbols =
-        (byFile['packages/nightshade_app/lib/widgets/guide_health_card.dart']!['symbols']
+        (byFile['packages/skotiq_app/lib/widgets/guide_health_card.dart']!['symbols']
                 as List)
             .cast<String>();
     _expect(
@@ -101,7 +101,7 @@ Future<void> main() async {
 {
   "allow": [
     {
-      "file": "packages/nightshade_app/lib/widgets/guide_health_card.dart",
+      "file": "packages/skotiq_app/lib/widgets/guide_health_card.dart",
       "reason": "thin UI data type"
     }
   ]

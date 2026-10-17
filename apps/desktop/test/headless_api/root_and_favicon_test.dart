@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless_api/auth_policy.dart';
-import 'package:nightshade_desktop/headless_api_server.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_desktop/headless_api/auth_policy.dart';
+import 'package:skotiq_desktop/headless_api_server.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
 import 'handler_test_helpers.dart';
 
@@ -84,7 +84,7 @@ void main() {
               as Map<String, dynamic>;
 
       expect(response.statusCode, HttpStatus.ok);
-      expect(body['service'], 'nightshade');
+      expect(body['service'], 'skotiq');
       expect(body['api'], '/api/info');
       // `dashboard` is null when the SPA directory is not present next to the
       // test binary; the key must exist either way so a client can discover it.

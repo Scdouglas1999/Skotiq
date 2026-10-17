@@ -13,7 +13,7 @@
 // busy-polls), and it must never terminate (so an overnight outage still
 // re-attaches).
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_mobile/main.dart';
+import 'package:skotiq_mobile/main.dart';
 
 void main() {
   group('lostSessionRetryDelay', () {

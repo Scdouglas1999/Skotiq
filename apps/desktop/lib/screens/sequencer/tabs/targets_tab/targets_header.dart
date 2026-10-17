@@ -1,7 +1,7 @@
 part of '../targets_tab.dart';
 
 class _TargetsHeader extends ConsumerStatefulWidget {
-  final NightshadeColors colors;
+  final SkotiqColors colors;
 
   const _TargetsHeader({required this.colors});
 

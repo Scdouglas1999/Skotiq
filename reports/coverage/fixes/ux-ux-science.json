@@ -4,10 +4,10 @@
   "outcome": "fixed",
   "summary": "Two causes, both fixed at source. (1) The panel DID adopt a preset in initState, but the masters load asynchronously so initState ran against an EMPTY channel list; when the real Ha/OIII/SII arrived, didUpdateWidget saw a length change and reset the matrix to zeros + 'Custom mix' and never re-adopted. It now re-seeds on the channel SET (masterId:filter keys, so a same-length swap also re-seeds) rather than on the length. (2) _presetApplies used `.any`, so SHO counted as applicable with only Ha present — a Ha+OIII bicolor set auto-adopted a red-less 'SHO'. It now requires the preset's filters to be FULLY covered, which is what makes Ha+OIII resolve to HOO. Added a final floor so no input set can leave a black matrix: when no named palette is satisfied (a lone Ha master, or an NII/Hb-only set) every channel seeds to a 1/1/1 luminance mapping, honestly labelled 'custom'.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/session_review/widgets/narrowband_mixer_panel.dart",
-   "packages/nightshade_app/test/screens/session_review/narrowband_mixer_seed_test.dart"
+   "packages/skotiq_app/lib/screens/session_review/widgets/narrowband_mixer_panel.dart",
+   "packages/skotiq_app/test/screens/session_review/narrowband_mixer_seed_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/session_review/narrowband_mixer_seed_test.dart -- 4 widget tests that pump the real panel with an empty channel list first and THEN the masters (the async-arrival sequence the operator hits), and read the weights back out of the rendered combine matrix.",
+  "test": "packages/skotiq_app/test/screens/session_review/narrowband_mixer_seed_test.dart -- 4 widget tests that pump the real panel with an empty channel list first and THEN the masters (the async-arrival sequence the operator hits), and read the weights back out of the rendered combine matrix.",
   "revert_check": "Restoring the old didUpdateWidget body (`if (old.channels.length != widget.channels.length) { _weights = zeros; _palette = 'custom'; }`) fails all 4: 'Found 0 widgets with text \"SHO preset\"', 'Found 0 widgets with text \"HOO preset\"' (x2) and 'Expected: [1, 1, 1] / Actual: [0.0, 0.0, 0.0]'. Restored; 4/4 new + 8/8 narrowband_apply_feedback green."
  },
  {
@@ -15,14 +15,14 @@
   "outcome": "fixed",
   "summary": "TransientKind.fromWire fell back to `dipole` for any token it did not recognise, so the card asserted a specific measured morphology the differencing code never reported, and Submit refused on the strength of that invented claim. Added a real `unknown` member (label 'Unclassified'), made fromWire return it, and replaced the dipole-denylist gate with a positive allow-list: new TransientKind.isSubmittable (newSource | pointBrightening | movingStreak) plus TransientKind.submissionBlockedReason, so the class itself owns its refusal wording in ONE place. Both submission surfaces (the First Light candidate card and the shared TransientReportPanel, which the Submit-discovery dialog wraps) now read that getter instead of comparing to dipole, so a future kind cannot silently inherit the dipole message. Conservative gating is unchanged: an unclassified detection is still held back, it is just told the truth about why.",
   "files_changed": [
-   "packages/nightshade_core/lib/src/services/transients/transient_candidate.dart",
-   "packages/nightshade_core/lib/src/services/transients/first_light_service.dart",
-   "packages/nightshade_core/lib/src/services/transients/transient_alert_mapper.dart",
-   "packages/nightshade_app/lib/screens/first_light/widgets/transient_candidate_card.dart",
-   "packages/nightshade_app/lib/screens/analytics/widgets/transient_report_panel.dart",
-   "packages/nightshade_app/test/screens/first_light/transient_unknown_kind_test.dart"
+   "packages/skotiq_core/lib/src/services/transients/transient_candidate.dart",
+   "packages/skotiq_core/lib/src/services/transients/first_light_service.dart",
+   "packages/skotiq_core/lib/src/services/transients/transient_alert_mapper.dart",
+   "packages/skotiq_app/lib/screens/first_light/widgets/transient_candidate_card.dart",
+   "packages/skotiq_app/lib/screens/analytics/widgets/transient_report_panel.dart",
+   "packages/skotiq_app/test/screens/first_light/transient_unknown_kind_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/first_light/transient_unknown_kind_test.dart -- one unit test over the enum contract and two widget tests that pump the real FirstLightView over a detection whose kind is 'new_source' (the exact token from the repro) and assert the rendered chip and the refusal snackbar.",
+  "test": "packages/skotiq_app/test/screens/first_light/transient_unknown_kind_test.dart -- one unit test over the enum contract and two widget tests that pump the real FirstLightView over a detection whose kind is 'new_source' (the exact token from the repro) and assert the rendered chip and the refusal snackbar.",
   "revert_check": "Reverting `return TransientKind.unknown;` -> `return TransientKind.dipole;` in fromWire fails all 3: 'Expected: TransientKind.unknown / Actual: TransientKind.dipole', 'Found 0 widgets with text \"Unclassified\"', and 'Found 0 widgets with text containing unrecognised'. Restored; 3/3 new + 20/20 first_light + 57/57 core transients green.",
   "caveats": "The native side never emits 'unknown', so this only changes what happens for a token this build does not know (a forward/backward-version skew or a hand-written row). Confidence scoring for unknown keeps the artefact-leaning 0.2 shape term."
  },
@@ -31,12 +31,12 @@
   "outcome": "fixed",
   "summary": "The headline claim is NOT REAL against the current tree, and I found a different, worse defect underneath it. ScienceRungSheet._actions already returns the rung's own CTA when the rung is `ready` (spec.ctaLabel) and 'Jump to it' when it is `done`; only a genuinely LOCKED rung shows 'Got it', which is correct -- that rung cannot be started yet. The finding's evidence is from the shipped 6.1.0 build: the two gate strings it quotes ('Calibrate your sky first so brightness reads true.', 'Find a period - or build out the curve - before exporting.') no longer exist, and the cascade that locked rung 2 was removed in the working tree, so rung 2 is now never locked. What IS broken is rung 1: its CTA 'Run calibration' called onJumpToFieldQuality, which in the populated Science tab merely scrolled to the FIELD QUALITY section -- whose only control grades frames. showDialog(PhotometricCalibrationWizard) was wired ONLY into the all-empty branch of the tab, so the moment the user had any science product at all the calibration wizard became unreachable from anywhere in the app while a button promising it stayed on screen. Renamed the callback to onRunCalibration (named for the action, so a host cannot quietly answer it with a scroll) and wired the populated branch to the wizard.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/analytics/widgets/science_onboarding/science_ladder_card.dart",
-   "packages/nightshade_app/lib/screens/analytics/widgets/science_analytics_tab.dart",
-   "packages/nightshade_app/test/screens/analytics/widgets/science_ladder_run_calibration_test.dart",
-   "packages/nightshade_app/test/screens/analytics/widgets/science_ladder_evidence_test.dart"
+   "packages/skotiq_app/lib/screens/analytics/widgets/science_onboarding/science_ladder_card.dart",
+   "packages/skotiq_app/lib/screens/analytics/widgets/science_analytics_tab.dart",
+   "packages/skotiq_app/test/screens/analytics/widgets/science_ladder_run_calibration_test.dart",
+   "packages/skotiq_app/test/screens/analytics/widgets/science_ladder_evidence_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/analytics/widgets/science_ladder_run_calibration_test.dart -- pumps the REAL ScienceAnalyticsTab in its populated branch (one frame-quality metrics row so allEmpty is false, no calibrations so rung 1 is the next actionable step), taps 'Run calibration' and asserts a PhotometricCalibrationWizard is on screen.",
+  "test": "packages/skotiq_app/test/screens/analytics/widgets/science_ladder_run_calibration_test.dart -- pumps the REAL ScienceAnalyticsTab in its populated branch (one frame-quality metrics row so allEmpty is false, no calibrations so rung 1 is the next actionable step), taps 'Run calibration' and asserts a PhotometricCalibrationWizard is on screen.",
   "revert_check": "Reverting the host wiring (`onRunCalibration: () => _openCalibrationWizard(context)` -> `() => _jumpTo(_sectionKeys.fieldQuality)`) fails with 'Found 0 widgets with type \"PhotometricCalibrationWizard\"'. First attempt at this test passed under the revert because my overrides left every science product empty and the tab rendered its all-empty branch, whose ladder already opened the wizard -- adding the metrics row is what put the test on the broken path. Restored; 4/4 ladder tests green.",
   "caveats": "The all-empty branch still answers rung 2's 'Pick a target' with the calibration wizard too (there is no photometry section to scroll to in that branch). That is a pre-existing stopgap with no obviously-correct destination -- a route to the imaging/planner surface would be a product call -- so I left it. Locked rungs still offer no action; that is the correct gate, not a defect."
  },
@@ -45,10 +45,10 @@
   "outcome": "fixed",
   "summary": "Half of the TNS-default finding is objectively wrong regardless of taste: _format was a hard-coded TransientReportFormat.tns that nothing ever re-evaluated, so an observer with an MPC observatory code (or an AAVSO observer code) but no TNS bot credentials opened the dialog on a DISABLED 'Submit to TNS' with a blocker notice, while the network that would have worked sat behind a chip the notice never pointed at. Added _resolveFormat(), called from build: keep the current selection while it is usable, otherwise move to the first usable one, and when nothing is usable leave the selection alone so the blocker shown belongs to the network being named. The preference order is the shipped one (tns, aavso, mpc), so this only changes which network is shown when the preferred one is blocked -- it does not re-rank the networks. The other half of the finding (should TNS be pre-selected AT ALL, given it is the live, public, irreversible one) is a product call; filed separately below.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/analytics/widgets/transient_report_panel.dart",
-   "packages/nightshade_app/test/screens/analytics/widgets/transient_report_default_network_test.dart"
+   "packages/skotiq_app/lib/screens/analytics/widgets/transient_report_panel.dart",
+   "packages/skotiq_app/test/screens/analytics/widgets/transient_report_default_network_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/analytics/widgets/transient_report_default_network_test.dart -- pumps the real TransientReportPanel (what TransientSubmitDialog wraps) over a confirmed movingStreak with an MPC-only profile, and a second case with nothing configured at all.",
+  "test": "packages/skotiq_app/test/screens/analytics/widgets/transient_report_default_network_test.dart -- pumps the real TransientReportPanel (what TransientSubmitDialog wraps) over a confirmed movingStreak with an MPC-only profile, and a second case with nothing configured at all.",
   "revert_check": "Removing the `_format = _resolveFormat(selected, scienceSettings);` line from build fails the first test with 'Expected: no matching candidates / Actual: Found 1 widget with text \"Submit to TNS\"'; the nothing-configured test still passes, which is the point -- the fix does not move the selection when there is nothing better. Restored; 7/7 transient-report panel tests green."
  },
  {
@@ -62,16 +62,16 @@
  {
   "title": "The 'AstroBin' export produces JSON + Markdown, not the acquisition CSV AstroBin imports, and omits the observation date entirely",
   "outcome": "fixed",
-  "summary": "Three separable defects, all real. (1) The save dialog asked for a filename and then ignored the extension: exportAstroBinSidecar took the chosen path, stripped its extension and wrote <base>.md + <base>.json, so typing rsr-astrobin.csv produced neither. It is now exportAstroBinAcquisition and the format follows the extension the user chose -- .csv writes AstroBin's acquisition CSV, .json the payload, anything else (including an image path, so the sidecar-beside-the-PNG use still works) the Markdown block. The Markdown block is always written alongside, so choosing the importable format never loses the forum-post text. (2) The metadata had no date at all, and AstroBin requires one on every acquisition row: added AstroBinExportMetadata.date + dateIso, rendered in the Markdown and the JSON, sourced from the imaging session's start time when the result is attached to one (falling back to the run timestamp) so restacking old data does not stamp it with today. (3) The picker now suggests .csv. The CSV emits date,number,duration -- the three fields the importer needs and exactly what a user would otherwise retype. It deliberately does NOT emit a filter column: AstroBin keys filters by equipment-database id, which Nightshade does not hold, and a filter NAME there would break the import rather than fill it in, so the filter stays in the Markdown block.",
+  "summary": "Three separable defects, all real. (1) The save dialog asked for a filename and then ignored the extension: exportAstroBinSidecar took the chosen path, stripped its extension and wrote <base>.md + <base>.json, so typing rsr-astrobin.csv produced neither. It is now exportAstroBinAcquisition and the format follows the extension the user chose -- .csv writes AstroBin's acquisition CSV, .json the payload, anything else (including an image path, so the sidecar-beside-the-PNG use still works) the Markdown block. The Markdown block is always written alongside, so choosing the importable format never loses the forum-post text. (2) The metadata had no date at all, and AstroBin requires one on every acquisition row: added AstroBinExportMetadata.date + dateIso, rendered in the Markdown and the JSON, sourced from the imaging session's start time when the result is attached to one (falling back to the run timestamp) so restacking old data does not stamp it with today. (3) The picker now suggests .csv. The CSV emits date,number,duration -- the three fields the importer needs and exactly what a user would otherwise retype. It deliberately does NOT emit a filter column: AstroBin keys filters by equipment-database id, which Skotiq does not hold, and a filter NAME there would break the import rather than fill it in, so the filter stays in the Markdown block.",
   "files_changed": [
-   "packages/nightshade_core/lib/src/models/imaging/stack_and_share_models.dart",
-   "packages/nightshade_core/lib/src/services/stack_share_export_service.dart",
-   "packages/nightshade_app/lib/screens/stack_result/stack_result_screen.dart",
-   "packages/nightshade_core/test/services/stack_share_export_service_test.dart"
+   "packages/skotiq_core/lib/src/models/imaging/stack_and_share_models.dart",
+   "packages/skotiq_core/lib/src/services/stack_share_export_service.dart",
+   "packages/skotiq_app/lib/screens/stack_result/stack_result_screen.dart",
+   "packages/skotiq_core/test/services/stack_share_export_service_test.dart"
   ],
-  "test": "packages/nightshade_core/test/services/stack_share_export_service_test.dart -- rewrote the exportAstroBinSidecar group as exportAstroBinAcquisition: a .csv request writes the CSV at the path asked for (and no stray .json), the Markdown block lands beside it carrying the date, a .json request round-trips through fromJson, and an image path still drops the Markdown beside the image without writing over it.",
+  "test": "packages/skotiq_core/test/services/stack_share_export_service_test.dart -- rewrote the exportAstroBinSidecar group as exportAstroBinAcquisition: a .csv request writes the CSV at the path asked for (and no stray .json), the Markdown block lands beside it carrying the date, a .json request round-trips through fromJson, and an image path still drops the Markdown beside the image without writing over it.",
   "revert_check": "Disabling the CSV branch (`if (ext == '.csv' && csv != null)` -> `if (false && ...)`) fails with \"Expected: '.../rsr-astrobin.csv' / Actual: '.../rsr-astrobin.md'\" -- the exact defect. Restored; 57/57 core stack-share service + model tests green.",
-  "caveats": "I could not verify AstroBin's importer against the live site from here, so the CSV is deliberately minimal (the three columns I am confident about) rather than a wide header with blanks. The two golden pixel tests under packages/nightshade_app/test/screens/stack_result/captures/ fail, but that whole test directory is UNTRACKED (another agent's in-flight work) and my change touches only handler bodies, not the widget tree."
+  "caveats": "I could not verify AstroBin's importer against the live site from here, so the CSV is deliberately minimal (the three columns I am confident about) rather than a wide header with blanks. The two golden pixel tests under packages/skotiq_app/test/screens/stack_result/captures/ fail, but that whole test directory is UNTRACKED (another agent's in-flight work) and my change touches only handler bodies, not the widget tree."
  },
  {
   "title": "The stack result can only leave the app as 8-bit PNG/JPEG -- there is no linear FITS or 16-bit TIFF export",

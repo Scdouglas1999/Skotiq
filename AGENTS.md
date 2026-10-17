@@ -1,4 +1,4 @@
-# AGENTS.md — Nightshade
+# AGENTS.md — Skotiq
 
 Persistent working instructions for agents in this repo.
 

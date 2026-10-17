@@ -1,6 +1,6 @@
 # 05 · Components
 
-Every component lives in `packages/nightshade_ui` and is exported from `nightshade_ui.dart`. Each
+Every component lives in `packages/skotiq_ui` and is exported from `skotiq_ui.dart`. Each
 one added or changed here MUST also get a section in `design_system_gallery.dart` (the
 `design_system_gallery_missing` audit rule fires otherwise) and a golden in
 `docs/design/goldens/`. Visual reference for all of them: `mockups/png/components.png`
@@ -9,42 +9,42 @@ one added or changed here MUST also get a section in `design_system_gallery.dart
 Notation: **New** = create the file. **Change** = edit the existing widget in place, keep its
 name and constructor parameters unless a parameter is listed under "Remove".
 
-Naming rule: every public widget is prefixed `Nightshade` when a Flutter/Material class of the
-same name exists (`NightshadeBanner`, `NightshadeFilterChip`, `NightshadeToolbar`); otherwise the
+Naming rule: every public widget is prefixed `Skotiq` when a Flutter/Material class of the
+same name exists (`SkotiqBanner`, `SkotiqFilterChip`, `SkotiqToolbar`); otherwise the
 bare name is fine. Never ship a name that forces `hide` clauses in screens.
 
-Files (all new files go under `packages/nightshade_ui/lib/src/components/` unless stated):
-`nightshade_panel.dart` (NightshadePanel, PanelHead), `readout.dart` (Readout, ReadoutRow,
-KeyValueList), `segmented_control.dart`, `nightshade_toolbar.dart`, `form_row.dart`,
-`list_rows.dart` (ListRow, DeviceRow), `candidate_row.dart`, `nightshade_banner.dart`,
+Files (all new files go under `packages/skotiq_ui/lib/src/components/` unless stated):
+`skotiq_panel.dart` (SkotiqPanel, PanelHead), `readout.dart` (Readout, ReadoutRow,
+KeyValueList), `segmented_control.dart`, `skotiq_toolbar.dart`, `form_row.dart`,
+`list_rows.dart` (ListRow, DeviceRow), `candidate_row.dart`, `skotiq_banner.dart`,
 `glass.dart`, `checklist.dart`, `night_band.dart`, `section_title.dart`, `instrument_pill.dart`,
-`nightshade_icon_button.dart`; `layout/side_panel.dart`.
+`skotiq_icon_button.dart`; `layout/side_panel.dart`.
 
-## 1. `NightshadePanel` — New (`components/nightshade_panel.dart`)
+## 1. `SkotiqPanel` — New (`components/skotiq_panel.dart`)
 
-Replaces `NightshadeCard` for every container that is not tappable.
+Replaces `SkotiqCard` for every container that is not tappable.
 
 ```dart
-NightshadePanel({
+SkotiqPanel({
   required Widget child,
   Widget? head,            // a PanelHead, see §2; rendered with 12 px gap below
-  EdgeInsets padding = NightshadeTokens.paddingLg,   // 16
+  EdgeInsets padding = SkotiqTokens.paddingLg,   // 16
   bool flush = false,      // true → zero padding, clipped to radius (image panels)
   bool selected = false,   // 1 px primary@50% ring
 })
 ```
 
-Decoration: `NightshadeDecorations.panel(colors)` (03 §5). No hover. No onTap: a tappable container
+Decoration: `SkotiqDecorations.panel(colors)` (03 §5). No hover. No onTap: a tappable container
 is a **row** or a **candidate** (§9), not a panel.
 
-`NightshadeCard` **Change**: keep for tappable cards (`onTap != null`) only; `CardVariant.elevated`
+`SkotiqCard` **Change**: keep for tappable cards (`onTap != null`) only; `CardVariant.elevated`
 and `.subtle` become no-ops mapped to standard (delete their branches); `enableHover` remains but
 hover = `surfaceHover` fill, not a border change. Add `@Deprecated` on `variant`.
 
 ## 2. `PanelHead` — New
 
 One row: `[icon 15 muted] [eyebrow] … [trailing widgets gap 8]`. Height 20. Eyebrow is
-`NightshadeTypography.eyebrow` in `textMuted`. Use for every panel label ("EQUIPMENT", "GUIDING").
+`SkotiqTypography.eyebrow` in `textMuted`. Use for every panel label ("EQUIPMENT", "GUIDING").
 
 ## 3. `Readout` — New (`components/readout.dart`)
 
@@ -68,7 +68,7 @@ with 2 px gap. `value == null` renders "—" muted. Always tabular figures.
   the header hairline by 1 px).
 - Gap between tabs `space2xl` (24). No fills, no borders, no pills.
 - Keep the existing overflow/scroll behaviour and `collapseLabelsWhenTight`.
-- Delete `SubTabButton` (pill style; it has zero call sites in `nightshade_app` today). Where a screen needs a second-level switch INSIDE a panel
+- Delete `SubTabButton` (pill style; it has zero call sites in `skotiq_app` today). Where a screen needs a second-level switch INSIDE a panel
   (Sequencer palette: Nodes / Snippets / Targets), use `SegmentedControl` (§5).
 
 ## 5. `SegmentedControl` — New
@@ -77,7 +77,7 @@ Row of 13 / 500 labels, each 30 px high, padding 0 10, radius 6. Selected = `sur
 + `textPrimary`; others `textMuted`. No outer container, no border. Only inside a panel or a
 side panel, never in a page header.
 
-## 6. Buttons — Change `NightshadeButton`
+## 6. Buttons — Change `SkotiqButton`
 
 | Variant | Fill | Ink | Border | Hover |
 |---|---|---|---|---|
@@ -91,7 +91,7 @@ Sizes: `small` 28, `medium` 32, `large` 40. Padding 10 / 12 / 18. Icon 15 (16 in
 Radius `radiusSm`. Text `button` / `buttonSm`. Disabled = 40% opacity, no colour change. Loading =
 spinner replaces icon, label stays.
 
-Add `NightshadeIconButton({icon, tooltip, size = IconButtonSize.md, selected})` with sizes
+Add `SkotiqIconButton({icon, tooltip, size = IconButtonSize.md, selected})` with sizes
 `md` 32 (top bar, page header, capture bar), `sm` 28 (toolbars), `strip` 36 (side-panel strip):
 square, ghost styling, `selected` = `primary` at `opacityAccentTint` + `primary` icon. Every
 `IconButton(` in screens (178 today) migrates to this in WAVE 3, screen by screen, so tooltips
@@ -99,15 +99,15 @@ become mandatory (the constructor requires `tooltip`).
 
 Keep `ButtonVariant.outline` as a deprecated alias of `secondary` for one wave.
 
-## 7. `NightshadeToolbar` — New
+## 7. `SkotiqToolbar` — New
 
-`NightshadeToolbar(groups: [[w, w], [w], …])`. Groups are separated by a 1 × 14 hairline with 6 px padding
-either side. Children are `NightshadeIconButton(size: 28)` or small ghost buttons with labels. A
+`SkotiqToolbar(groups: [[w, w], [w], …])`. Groups are separated by a 1 × 14 hairline with 6 px padding
+either side. Children are `SkotiqIconButton(size: 28)` or small ghost buttons with labels. A
 toolbar shows labels on the two or three most-used actions and icons-only for the rest; an
 `overflow` parameter takes actions that go behind a `more-horizontal` menu when the width is
 tight (measured with `LayoutBuilder`, not by count).
 
-## 8. Fields — Change `NightshadeTextField`, `NightshadeDropdown`
+## 8. Fields — Change `SkotiqTextField`, `SkotiqDropdown`
 
 Height 32 (28 with the NEW `dense: true` parameter). `field` decoration: `well` fill, radius 6,
 1 px ring at `opacityPanelOutline` at rest, 1 px `primary` on focus, 1 px `error` on error. Leading icon 14 muted. Trailing unit 12 muted
@@ -120,20 +120,20 @@ Dropdown trailing chevron 14 muted; the open list uses `popover` decoration with
 - `ListRow`: 13 px, 8 px vertical padding, hairline between rows, leading icon 15 muted, trailing
   mono timestamp muted. Hover `surfaceHover` when tappable.
 - `DeviceRow` (Tonight → Equipment panel): `[icon 15] [name 14/500] … [ReadoutRow(size: sm, gap 18)]`.
-- `Candidate` (Plan): a `NightshadePanel` with a 6-column grid: score badge 44 × 44 radius 8
+- `Candidate` (Plan): a `SkotiqPanel` with a 6-column grid: score badge 44 × 44 radius 8
   (`success` 14% / `warning` 14% fill, 16 px mono 600), name + one muted line, two `Readout(sm)`,
   a window bar (8 px `well` track, `primary` span, 2 px `textPrimary` "now" tick), one button.
   Selected = `panelSelected` ring.
 
 ## 10. Chips and status
 
-`NightshadeChip` **Change**: add `tone: ChipTone.neutral|success|warning|error|primary`
+`SkotiqChip` **Change**: add `tone: ChipTone.neutral|success|warning|error|primary`
 (default neutral), `dot: bool`, `icon`; keep `selected/onTap/enabled`. 22 px high, padding 0 8,
 `radiusXs`, `buttonSm`-weight 12 px text. Fill: neutral = solid `surfaceHover`; other tones = the
 tone colour at `opacityStatusFill`, text and dot in the tone colour. `StatusDot` **Change**: 7 px;
 `live: true` adds the static 3 px halo in `success` at `opacityLiveHalo`.
 
-`NightshadeFilterChip` **New**: 28 px, `filterChip` decoration, label + trailing chevron, opens a
+`SkotiqFilterChip` **New**: 28 px, `filterChip` decoration, label + trailing chevron, opens a
 menu.
 
 ### 10b. `InstrumentPill` — New
@@ -142,11 +142,11 @@ menu.
 bool live = false})`: 22 px high, padding 0 8, `radiusXs`, icon 13 `textMuted`, dot 7, value in
 `bodySm` 500 `textPrimary`; hover `surfaceHover`. The instrument bar is built ONLY from these plus
 `InstrumentSeparator` (1 × 14 hairline). `StatusPill` (icon + label + value + status enum) is
-deprecated; `StatusPill` call sites outside the status bar migrate to `NightshadeChip`.
+deprecated; `StatusPill` call sites outside the status bar migrate to `SkotiqChip`.
 
 ## 11. Banners, help and the end of tour toasts
 
-`NightshadeAlert` **Change** → rename to `NightshadeBanner({required String title, String?
+`SkotiqAlert` **Change** → rename to `SkotiqBanner({required String title, String?
 message, BannerTone tone = info, Widget? action, VoidCallback? onDismiss})`: inline block, 8 / 12
 padding, `radiusSm`, fill = tone colour at `opacityHairline` (8%; `primary` for info), icon 16 in
 tone, `title` in `bodySm` 600 `textPrimary` followed on the same line by `message` in `bodySm`
@@ -172,7 +172,7 @@ action). Centred in its container, `max-width 360`. No panel around it unless th
 layout is a grid of panels. Keep `EmptyState.compact`; REMOVE the `padding` parameter (padding is
 internal: 24 all round, 16 in compact) and fix its callers.
 
-## 13. Dialogs — Change `NightshadeDialog`
+## 13. Dialogs — Change `SkotiqDialog`
 
 `dialog` decoration, widths 480 (confirm) / 640 (form) / 960 (wizard), padding 24, title
 `sectionTitle`, body `bodySm` `textSecondary`, footer right-aligned with 8 px gap: `[ghost Cancel] [secondary alt]
@@ -184,7 +184,7 @@ Scrim `rgba(0,0,0,0.5)`. Enter confirms, Esc cancels. Below 768 px: full-width b
 `Glass({child, padding})`: `glass` decoration (03 §5). Used ONLY inside an image `Stack`.
 **Glass is anchored to the image, not the theme.** Astro frames are dark in every theme, so the
 glass fill, border and the text/control colours INSIDE glass always come from the DARK palette
-(wrap the child in a `Theme`/`NightshadeColors` override that supplies `NightshadeColors.dark`,
+(wrap the child in a `Theme`/`SkotiqColors` override that supplies `SkotiqColors.dark`,
 or the red-night palette when `isRedNight`). In the light theme a white glass over a black frame
 was tested and rejected: fields went grey-on-grey (`mockups/png/imaging-light.png` before the fix). Contains
 `ReadoutRow`, a histogram, a live-status line, or the capture bar. Max 4 glass elements on one
@@ -195,7 +195,7 @@ canvas. Corners of the canvas: top-left = frame stats, top-right = last-frame st
 
 `SidePanel({double width = 320, List<SidePanelSection>? sections, required Widget child})`. When
 `sections` is given, a 44 px vertical `strip` sits on the outer edge: one
-`NightshadeIconButton(size: strip)` per section (selected = `opacityAccentTint` fill), tooltips
+`SkotiqIconButton(size: strip)` per section (selected = `opacityAccentTint` fill), tooltips
 on hover; content area = width − 44. Without `sections` (Sequencer properties 300, Guiding 300,
 Plan detail 380, Equipment 320) there is no strip and the content area = width. Content padding
 16, sections separated by 16, each starting with a `SectionTitle`.
@@ -208,7 +208,7 @@ Collapsible via the page-header `panel-right` button; width animates 220 ms.
 
 The signature timeline. `NightBand({sunset, astroDark, astroDawn, sunrise, now, moonSet?,
 targetAltitudeCurve?, imageableWindow?, events: [(time, label)]})`. 52 px canvas + 30 px legend
-inside a `NightshadePanel(padding: 12/16/12)`. Canvas: horizontal gradient from
+inside a `SkotiqPanel(padding: 12/16/12)`. Canvas: horizontal gradient from
 `colors.bandDusk` (0%) → `bandTwilight` (14%) → `bandDark` (50%) → `bandTwilight` (86%) →
 `bandDawn` (100%), `radiusSm`; dashed 1 px verticals in `textPrimary` at `opacityHairlineStrong`
 at astro dark/dawn; target altitude as a 1.5 px `primary` path with a `primary` 16% fill;

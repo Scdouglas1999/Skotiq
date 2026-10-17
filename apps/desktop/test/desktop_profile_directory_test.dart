@@ -1,6 +1,6 @@
 // The native profile/settings store holds the observer site the sequencer and
 // the planetarium gate on. It has to follow the same operator-configured data
-// directory as `nightshade.db` and `pairing.db`, or an instance pinned to its
+// directory as `skotiq.db` and `pairing.db`, or an instance pinned to its
 // own database reads — and rewrites — the machine-wide file: one process then
 // answers `GET /api/settings` with the pinned database's 0,0 and
 // `GET /api/settings/location` with a different install's real site, and every
@@ -12,8 +12,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/desktop_logging_init.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/desktop_logging_init.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
@@ -34,14 +34,14 @@ void main() {
       ..createSync(recursive: true);
 
     final resolved = await resolveDesktopProfileDirectory(
-      environment: {nightshadeDatabaseDirEnv: dataDir.path},
+      environment: {skotiqDatabaseDirEnv: dataDir.path},
       documentsDirectoryProvider: () async => docs,
     );
 
     expect(resolved, p.join(dataDir.path, 'profiles'));
   });
 
-  test('without an override the store stays in Documents/Nightshade', () async {
+  test('without an override the store stays in Documents/Skotiq', () async {
     final docs = Directory(p.join(root.path, 'Documents'))
       ..createSync(recursive: true);
 
@@ -50,7 +50,7 @@ void main() {
       documentsDirectoryProvider: () async => docs,
     );
 
-    expect(resolved, p.join(docs.path, 'Nightshade', 'profiles'));
+    expect(resolved, p.join(docs.path, 'Skotiq', 'profiles'));
   });
 
   test('an empty override is ignored rather than resolving to a bare '
@@ -59,11 +59,11 @@ void main() {
       ..createSync(recursive: true);
 
     final resolved = await resolveDesktopProfileDirectory(
-      environment: const {nightshadeDatabaseDirEnv: '   '},
+      environment: const {skotiqDatabaseDirEnv: '   '},
       documentsDirectoryProvider: () async => docs,
     );
 
-    expect(resolved, p.join(docs.path, 'Nightshade', 'profiles'));
+    expect(resolved, p.join(docs.path, 'Skotiq', 'profiles'));
   });
 
   test('two pinned instances never share a settings file', () async {
@@ -75,11 +75,11 @@ void main() {
       ..createSync(recursive: true);
 
     final rigStore = await resolveDesktopProfileDirectory(
-      environment: {nightshadeDatabaseDirEnv: rig.path},
+      environment: {skotiqDatabaseDirEnv: rig.path},
       documentsDirectoryProvider: () async => docs,
     );
     final scratchStore = await resolveDesktopProfileDirectory(
-      environment: {nightshadeDatabaseDirEnv: scratch.path},
+      environment: {skotiqDatabaseDirEnv: scratch.path},
       documentsDirectoryProvider: () async => docs,
     );
     final defaultStore = await resolveDesktopProfileDirectory(
@@ -106,11 +106,11 @@ void main() {
       ..createSync(recursive: true);
 
     final store = await resolveDesktopProfileDirectory(
-      environment: {nightshadeDatabaseDirEnv: dataDir.path},
+      environment: {skotiqDatabaseDirEnv: dataDir.path},
       documentsDirectoryProvider: () async => docs,
     );
     final database = await resolveDefaultDatabaseFile(
-      environment: {nightshadeDatabaseDirEnv: dataDir.path},
+      environment: {skotiqDatabaseDirEnv: dataDir.path},
       documentsDirectoryProvider: () async => docs,
     );
 

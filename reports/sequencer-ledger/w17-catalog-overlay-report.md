@@ -9,14 +9,14 @@ be fixed."
 
 ## Confirmed cause
 
-`packages/nightshade_app/lib/screens/imaging/widgets/imaging_preview_toolbar.dart`,
+`packages/skotiq_app/lib/screens/imaging/widgets/imaging_preview_toolbar.dart`,
 `_CatalogOverlaySettingsButton` — a `PopupMenuButton<String>` whose single item
 hosts `CatalogOverlayPopover` — ended with:
 
 ```dart
 constraints: const BoxConstraints.tightFor(
-  width: NightshadeTokens.iconButtonSizeSm,   // 28.0
-  height: NightshadeTokens.iconButtonSizeSm,
+  width: SkotiqTokens.iconButtonSizeSm,   // 28.0
+  height: SkotiqTokens.iconButtonSizeSm,
 ),
 ```
 
@@ -65,7 +65,7 @@ reached the switches (which is why the bug read as "clipped" rather than
   under that tighten, so the card renders at exactly the `clampPanelWidth`
   answer. The menu shell behind it keeps the standard stepped width.
 - `position: PopupMenuPosition.under` and `offset: Offset(0,
-  NightshadeTokens.spaceXs)` unchanged; the route's `_fitInsideScreen` still
+  SkotiqTokens.spaceXs)` unchanged; the route's `_fitInsideScreen` still
   slides the menu inside the screen with the standard 8 px inset, which is
   what covers the right-edge case for free.
 - The dead `onSelected: (_) {}` no-op was dropped — a custom entry can never
@@ -78,7 +78,7 @@ reached the switches (which is why the bug read as "clipped" rather than
   *menu* sizing used correctly, bounding the overlays panel's width, not the
   trigger. Left untouched.
 - `_AnnotateButton`, `_DepthLockRegionButton` and the zoom/fit icons: plain
-  `NightshadeIconButton`s — no `PopupMenuButton`, nothing to fix.
+  `SkotiqIconButton`s — no `PopupMenuButton`, nothing to fix.
 - One unrelated `BoxConstraints(minHeight: 40)` on `_OverlayMenuRow` and a
   layout-time `BoxConstraints(minWidth: constraints.maxWidth)` — ordinary
   layout constraints, not popup sizing.
@@ -88,7 +88,7 @@ reached the switches (which is why the bug read as "clipped" rather than
 ## Regression test
 
 Three cases added beside the existing toolbar tests in
-`packages/nightshade_app/test/screens/imaging/imaging_preview_toolbar_test.dart`:
+`packages/skotiq_app/test/screens/imaging/imaging_preview_toolbar_test.dart`:
 
 - `catalog_settings_popover_opens_at_natural_size` — opens the popover at a
   1600 px window; asserts width ≈ 240 (would read exactly 28.0 under the
@@ -97,7 +97,7 @@ Three cases added beside the existing toolbar tests in
 - `catalog_settings_popover_controls_are_live` — taps the DSO switch
   (`catalogOverlayIncludeDsosProvider` true→false), the bright-star switch
   (`catalogOverlayIncludeStarsProvider` false→true), then opens the
-  `NightshadeDropdown` and picks `Mag <= 14`
+  `SkotiqDropdown` and picks `Mag <= 14`
   (`catalogOverlayMagnitudeLimitProvider` → 14.0); asserts the popover stays
   open through its own controls.
 - `catalog_settings_popover_stays_on_screen` — a bare toolbar in a 420 px
@@ -114,7 +114,7 @@ tap missed the clipped switch (`catalogOverlayIncludeDsosProvider` stayed
 
 Sandboxed instance via `tools/ui_audit/drive_linux.py`, `NS_AUDIT_DISPLAY=:97`
 (private Xvfb — never `:0`), `LIBGL_ALWAYS_SOFTWARE=1`, scratch
-`NIGHTSHADE_DATABASE_DIR` under `/tmp/ns-audit/w17/data`. AT-SPI registry was
+`SKOTIQ_DATABASE_DIR` under `/tmp/ns-audit/w17/data`. AT-SPI registry was
 unavailable in this session (`tree` could not bind), so navigation used
 `shot` + `click-img` per the README fallback.
 
@@ -157,15 +157,15 @@ crash from this change); all evidence above was captured beforehand.
 git rev-parse HEAD                                    → 5b2235cc7…  (base ✓)
 export TMPDIR=$HOME/.cache/ns-tmp/w17-catalog-overlay (created)
 dart format --output=none --set-exit-if-changed
-    packages/nightshade_app                           → EXIT=0 (0 changed)
-cd packages/nightshade_app && dart analyze            → EXIT=0
+    packages/skotiq_app                           → EXIT=0 (0 changed)
+cd packages/skotiq_app && dart analyze            → EXIT=0
     873 issues, ALL info-level `deprecated_member_use`, all pre-existing,
     zero in the two touched files, zero errors and zero warnings.
-cd packages/nightshade_app &&
+cd packages/skotiq_app &&
   flutter test test/screens/imaging --concurrency=4   → EXIT=0, +378,
     "All tests passed!"
 cd apps/desktop && flutter build linux --debug        → EXIT=0
-    "✓ Built build/linux/x64/debug/bundle/nightshade_desktop"
+    "✓ Built build/linux/x64/debug/bundle/skotiq_desktop"
 ```
 
 Pre-fix red run of the new tests (same command, single file): EXIT=1 with the

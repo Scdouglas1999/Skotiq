@@ -1,6 +1,6 @@
 # Guiding (PHD2 Integration)
 
-Nightshade integrates fully with PHD2 for autoguiding, providing real-time monitoring, control, and advanced guiding statistics directly within the application.
+Skotiq integrates fully with PHD2 for autoguiding, providing real-time monitoring, control, and advanced guiding statistics directly within the application.
 
 ## Overview
 
@@ -42,7 +42,7 @@ visible from every screen. The state is not repeated anywhere else.
 ### Connecting to PHD2
 
 1. Ensure PHD2 is running
-2. Open Guiding screen in Nightshade
+2. Open Guiding screen in Skotiq
 3. Click **Connect** button
 4. Enter PHD2 host and port (default: localhost:4400)
 5. Click **Connect**
@@ -271,7 +271,7 @@ Each parameter shows:
 
 1. Launch PHD2 separately
 2. Connect guide camera in PHD2
-3. Open Nightshade Guiding screen
+3. Open Skotiq Guiding screen
 4. Click Connect to PHD2
 5. Verify connection status
 
@@ -310,7 +310,7 @@ Each parameter shows:
 
 1. Enable dithering in Capture tab
 2. Set dither every N frames
-3. Nightshade coordinates with PHD2
+3. Skotiq coordinates with PHD2
 4. Waits for settle between exposures
 
 ### Guiding Status in Capture

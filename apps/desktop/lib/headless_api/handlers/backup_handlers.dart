@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 import 'package:uuid/uuid.dart';
@@ -13,11 +13,11 @@ import '../validation.dart';
 class BackupHandlers {
   static const int _maxBackupUploadBytes = 256 * 1024 * 1024;
 
-  /// Filename pattern: nightshade-backup-{timestamp}-{uuid}.nsbackup.
+  /// Filename pattern: skotiq-backup-{timestamp}-{uuid}.nsbackup.
   ///
   /// Backup ids must survive a process restart, so the UUID lives in the
   /// filename and is the public REST identifier for delete / download /
-  /// metadata. Legacy `nightshade_backup_*` / `nightshade_autosave_*` names
+  /// metadata. Legacy `skotiq_backup_*` / `skotiq_autosave_*` names
   /// carry no UUID and fall back to a deterministic fingerprint — see
   /// [_idForBackupFile].
   static final RegExp _uuidInFilenamePattern = RegExp(
@@ -103,7 +103,7 @@ class BackupHandlers {
       // Route auto-save through createBackup with a UUID-bearing path (rather
       // than service.autoSaveBackup) so the new backup carries a stable
       // identifier recoverable from its filename. autoSaveBackup produces a
-      // `nightshade_autosave_<ts>.nsbackup` name that the _idForBackupFile
+      // `skotiq_autosave_<ts>.nsbackup` name that the _idForBackupFile
       // fallback can only address as "legacy-...", so the id in the create
       // response would not survive a later list/delete round-trip.
       final autoSavePath = await _defaultUuidBackupPath(service, tag: 'auto');
@@ -441,7 +441,7 @@ class BackupHandlers {
           ? 'Restored ${result.itemsRestored} items. This host is now running '
                 'on the restored data.'
           : 'Restored ${result.itemsRestored} items, but this host could not '
-                'reload its cached state. Restart Nightshade before the next '
+                'reload its cached state. Restart Skotiq before the next '
                 'run or the restore may be overwritten.',
     };
   }
@@ -695,6 +695,6 @@ class BackupHandlers {
         .replaceAll(':', '-')
         .replaceAll('.', '-');
     final id = _uuid.v4();
-    return p.join(dir.path, 'nightshade-backup-$tag-$timestamp-$id.nsbackup');
+    return p.join(dir.path, 'skotiq-backup-$tag-$timestamp-$id.nsbackup');
   }
 }

@@ -1,6 +1,6 @@
 // LAN UDP push notification receiver (mobile side).
 //
-// Pairs with `packages/nightshade_remote_protocol/lib/src/push/
+// Pairs with `packages/skotiq_remote_protocol/lib/src/push/
 // lan_push_broadcaster.dart` on the desktop. The broadcaster fans out
 // every critical alert (weather unsafe, sequence failed, guiding lost,
 // mount runaway) over UDP — both broadcast (255.255.255.255) and
@@ -8,7 +8,7 @@
 // still wakes the OS notification system.
 //
 // Why a different file name from the OTA `LanPushReceiver`: the OTA
-// receiver in `nightshade_updater` is a TCP server on port 45680 that
+// receiver in `skotiq_updater` is a TCP server on port 45680 that
 // accepts authenticated update packages. We're a UDP listener on a
 // different port (45681) with a different wire format. Keeping the
 // names distinct prevents anyone from confusing the two during a
@@ -37,7 +37,7 @@ import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 /// UDP push notification receiver. Verifies HMAC + fingerprint match,
 /// surfaces decoded frames on [incoming], and deduplicates against any

@@ -19,7 +19,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_release_pr_owner_matrix_self_test_',
+    'skotiq_release_pr_owner_matrix_self_test_',
   );
   try {
     await _prepareGitWorkspace(temp);
@@ -68,8 +68,8 @@ Future<void> main() async {
     await _stageFixturePaths(temp, [
       'tools/production/release_gate.dart',
       'apps/desktop/lib/headless_api_server.dart',
-      'packages/nightshade_core/lib/src/database/database.g.dart',
-      'packages/nightshade_bridge/lib/src/frb_generated.dart',
+      'packages/skotiq_core/lib/src/database/database.g.dart',
+      'packages/skotiq_bridge/lib/src/frb_generated.dart',
       'docs/production-readiness/smoke.png',
     ]);
     final valid = await _runDartScript(validator, temp);
@@ -103,7 +103,7 @@ Future<void> main() async {
     await _stageFixturePaths(temp, [
       'tools/production/release_gate.dart',
       'apps/desktop/lib/headless_api_server.dart',
-      'packages/nightshade_core/lib/src/database/database.g.dart',
+      'packages/skotiq_core/lib/src/database/database.g.dart',
       'docs/production-readiness/smoke.png',
     ]);
     final partialGenerated = await _runDartScript(
@@ -147,13 +147,13 @@ Future<void> main() async {
     await File(
       '${temp.path}/docs/production-readiness/release-pr-pathspecs/01.txt',
     ).writeAsString(
-      'packages/nightshade_core/lib/src/database/database.g.dart\n',
+      'packages/skotiq_core/lib/src/database/database.g.dart\n',
     );
     await _stageFixturePaths(temp, [
       'tools/production/release_gate.dart',
       'apps/desktop/lib/headless_api_server.dart',
-      'packages/nightshade_core/lib/src/database/database.g.dart',
-      'packages/nightshade_bridge/lib/src/frb_generated.dart',
+      'packages/skotiq_core/lib/src/database/database.g.dart',
+      'packages/skotiq_bridge/lib/src/frb_generated.dart',
       'docs/production-readiness/smoke.png',
     ]);
     final stalePathspec = await _runDartScript(
@@ -241,8 +241,8 @@ Future<void> _runBucketPolicyFixture({
   await _stageFixturePaths(policyRoot, [
     'tools/production/release_gate.dart',
     'apps/desktop/lib/headless_api_server.dart',
-    'packages/nightshade_core/lib/src/database/database.g.dart',
-    'packages/nightshade_bridge/lib/src/frb_generated.dart',
+    'packages/skotiq_core/lib/src/database/database.g.dart',
+    'packages/skotiq_bridge/lib/src/frb_generated.dart',
     'docs/production-readiness/smoke.png',
   ]);
   final validationResult = await _runDartScript(
@@ -280,16 +280,16 @@ Future<void> _runBranchModeFixture({
   await _writePaths(branchRoot, [
     'tools/production/release_gate.dart',
     'apps/desktop/lib/headless_api_server.dart',
-    'packages/nightshade_core/lib/src/database/database.g.dart',
-    'packages/nightshade_bridge/lib/src/frb_generated.dart',
+    'packages/skotiq_core/lib/src/database/database.g.dart',
+    'packages/skotiq_bridge/lib/src/frb_generated.dart',
     'docs/production-readiness/smoke.png',
   ]);
   await _runGit(branchRoot, [
     'add',
     'tools/production/release_gate.dart',
     'apps/desktop/lib/headless_api_server.dart',
-    'packages/nightshade_core/lib/src/database/database.g.dart',
-    'packages/nightshade_bridge/lib/src/frb_generated.dart',
+    'packages/skotiq_core/lib/src/database/database.g.dart',
+    'packages/skotiq_bridge/lib/src/frb_generated.dart',
     'docs/production-readiness/smoke.png',
   ]);
   await _runGit(branchRoot, ['commit', '-m', 'fixture release branch']);
@@ -402,8 +402,8 @@ Future<void> _writeFixturePlan(Directory root) async {
         title: 'Generated Files',
         pathspec: 'docs/production-readiness/release-pr-pathspecs/01.txt',
         paths: [
-          'packages/nightshade_core/lib/src/database/database.g.dart',
-          'packages/nightshade_bridge/lib/src/frb_generated.dart',
+          'packages/skotiq_core/lib/src/database/database.g.dart',
+          'packages/skotiq_bridge/lib/src/frb_generated.dart',
         ],
         generated: 2,
       ),
@@ -444,8 +444,8 @@ Future<void> _writeFixturePlan(Directory root) async {
     root,
     'docs/production-readiness/release-pr-pathspecs/01.txt',
     [
-      'packages/nightshade_core/lib/src/database/database.g.dart',
-      'packages/nightshade_bridge/lib/src/frb_generated.dart',
+      'packages/skotiq_core/lib/src/database/database.g.dart',
+      'packages/skotiq_bridge/lib/src/frb_generated.dart',
     ],
   );
   await _writePathspec(
@@ -480,8 +480,8 @@ Future<void> _writeFixturePlan(Directory root) async {
     root,
     'docs/production-readiness/release-pr-lists/02-generated-only.txt',
     [
-      'packages/nightshade_core/lib/src/database/database.g.dart',
-      'packages/nightshade_bridge/lib/src/frb_generated.dart',
+      'packages/skotiq_core/lib/src/database/database.g.dart',
+      'packages/skotiq_bridge/lib/src/frb_generated.dart',
     ],
   );
   await _writePathspec(

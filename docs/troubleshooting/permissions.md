@@ -6,11 +6,11 @@ headless services failing to read/write their data paths.
 ## Windows
 
 - Check folder permissions on the image save directory.
-- If Windows Defender Controlled Folder Access is enabled, allow Nightshade to
+- If Windows Defender Controlled Folder Access is enabled, allow Skotiq to
   write to the imaging folder.
 - Install device drivers with an administrator account when required by the
   vendor.
-- Avoid installing Nightshade into a protected directory that blocks runtime
+- Avoid installing Skotiq into a protected directory that blocks runtime
   updates or logs.
 
 ## Linux
@@ -45,7 +45,7 @@ sudo udevadm trigger
 ## Save Path Checks
 
 - Confirm the folder exists.
-- Confirm the user running Nightshade can create and delete a test file there.
+- Confirm the user running Skotiq can create and delete a test file there.
 - Avoid network shares for high-rate capture unless that exact workflow has been
   tested.
 - Keep enough free disk space for the entire imaging run.
@@ -53,5 +53,5 @@ sudo udevadm trigger
 ## Release-Gate Evidence
 
 For public-release sign-off, record the OS, user account type, save path, device
-path or port, required groups or security prompts, and whether Nightshade reports
+path or port, required groups or security prompts, and whether Skotiq reports
 permission failures clearly.

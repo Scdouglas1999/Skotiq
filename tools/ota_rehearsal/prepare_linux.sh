@@ -17,7 +17,7 @@ DIST="$ROOT/dist/$SET"
 PKG="$HERE/package_release.sh"
 rm -rf "$DIST"; mkdir -p "$DIST"
 
-zip_of() { echo "nightshade-$1-$2-$3.zip"; }
+zip_of() { echo "skotiq-$1-$2-$3.zip"; }
 
 # 1. the real thing: N+1, signed with the rehearsal key
 "$PKG" "$BN1" "$N1V" "$N1B" linux x64 "$DIST/good" "$KEYS/update_private.b64"
@@ -37,7 +37,7 @@ PY
 # 3. signed, but with a key this build does not trust
 "$PKG" "$BN1" "$N1V" "$N1B" linux x64 "$DIST/wrongkey" "$KEYS/other_private.b64"
 
-# 4. unsigned: what CI produces while NIGHTSHADE_UPDATE_PRIVATE_KEY is unset
+# 4. unsigned: what CI produces while SKOTIQ_UPDATE_PRIVATE_KEY is unset
 "$PKG" "$BN1" "$N1V" "$N1B" linux x64 "$DIST/unsigned" none
 
 # 5. a Windows manifest published under the Linux name
@@ -56,8 +56,8 @@ DB=$((NB - 1))
 # 8. N+1 that installs cleanly but cannot start: the executable exits 1
 BROKEN="$ROOT/builds/$SET-N1-broken"
 rm -rf "$BROKEN"; cp -a "$BN1" "$BROKEN"
-printf '#!/bin/sh\necho "rehearsal: this build refuses to start" >&2\nexit 1\n' > "$BROKEN/nightshade_desktop"
-chmod 0755 "$BROKEN/nightshade_desktop"
+printf '#!/bin/sh\necho "rehearsal: this build refuses to start" >&2\nexit 1\n' > "$BROKEN/skotiq_desktop"
+chmod 0755 "$BROKEN/skotiq_desktop"
 printf '%s\n' "N1-broken-$N1V" > "$BROKEN/REHEARSAL-MARKER.txt"
 "$PKG" "$BROKEN" "$N1V" "$N1B" linux x64 "$DIST/broken" "$KEYS/update_private.b64"
 

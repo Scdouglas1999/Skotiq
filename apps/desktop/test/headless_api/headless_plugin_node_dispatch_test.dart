@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api_server.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api_server.dart';
 
 import 'handler_test_helpers.dart';
 
 class _TestBackendNotifier extends BackendNotifier {
-  _TestBackendNotifier(super.ref, NightshadeBackend backend) {
+  _TestBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
   }
 }
@@ -30,12 +30,12 @@ class _PluginVerdict {
 class _PluginDispatchBackend extends DisconnectedBackend {
   _PluginDispatchBackend({required this.events});
 
-  final Stream<NightshadeEvent> events;
+  final Stream<SkotiqEvent> events;
   bool dispatchLocally = true;
   final List<_PluginVerdict> verdicts = [];
 
   @override
-  Stream<NightshadeEvent> get eventStream => events;
+  Stream<SkotiqEvent> get eventStream => events;
 
   @override
   bool get dispatchPluginNodesLocally => dispatchLocally;
@@ -59,13 +59,13 @@ class _PluginDispatchBackend extends DisconnectedBackend {
 }
 
 void main() {
-  late StreamController<NightshadeEvent> events;
+  late StreamController<SkotiqEvent> events;
   late _PluginDispatchBackend backend;
   ProviderContainer? container;
   HeadlessApiServer? server;
 
   setUp(() async {
-    events = StreamController<NightshadeEvent>.broadcast();
+    events = StreamController<SkotiqEvent>.broadcast();
     backend = _PluginDispatchBackend(events: events.stream);
   });
 
@@ -90,8 +90,8 @@ void main() {
     await testServer.start();
   }
 
-  NightshadeEvent pluginRequest(String nodeId) {
-    return NightshadeEvent(
+  SkotiqEvent pluginRequest(String nodeId) {
+    return SkotiqEvent(
       timestamp: DateTime.now().millisecondsSinceEpoch,
       severity: EventSeverity.info,
       category: EventCategory.sequencer,

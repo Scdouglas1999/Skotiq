@@ -26,7 +26,7 @@ Refutation closed: `waveG-result.json` → refuter entry
 
 ## Failing test first (adopted from the refuter's throwaway)
 
-`packages/nightshade_core/test/providers/sequence/node_exposure_tally_wire_shape_test.dart`
+`packages/skotiq_core/test/providers/sequence/node_exposure_tally_wire_shape_test.dart`
 — the refuter's `/tmp/.../scratchpad/refute_tally_test.dart` adopted into the
 repo, with `detail_json` `jsonEncode`d exactly as the bridge sends it. Before
 the fix:
@@ -40,7 +40,7 @@ the node boundary cannot credit node 2 with node 1 frames [E]
 
 ## The fix
 
-- New `packages/nightshade_core/lib/src/providers/sequence/structured_progress_json.dart`
+- New `packages/skotiq_core/lib/src/providers/sequence/structured_progress_json.dart`
   holding one `decodeStructuredProgressJson`. The tally uses it; the duplicate
   private `_decodeStructuredProgressJson` in
   `sequence_executor/event_operations.dart` was deleted and its call site now
@@ -68,7 +68,7 @@ different panel that never consumed the tally.
 
 ## Item 3 — the widget test can no longer pass on a fake shape
 
-`packages/nightshade_app/test/screens/sequencer/widgets/exposure_card_wave_f_events_test.dart`
+`packages/skotiq_app/test/screens/sequencer/widgets/exposure_card_wave_f_events_test.dart`
 now `jsonEncode`s `detail_json` in `_structured(...)` and drops `currentNodeId`
 from `_pump`. Counterfactual run (decode reverted in the tally, everything else
 final) — all three fail:
@@ -82,10 +82,10 @@ node 2's opening progress cannot claim node 1's frames [E]  Expected: <4>  Actua
 
 ## Verification
 
-- `nightshade_core`: `flutter test test/providers/sequence` → **617 passed**.
-- `nightshade_app`: `flutter test test/screens/sequencer/widgets/exposure_card_wave_f_events_test.dart`
+- `skotiq_core`: `flutter test test/providers/sequence` → **617 passed**.
+- `skotiq_app`: `flutter test test/screens/sequencer/widgets/exposure_card_wave_f_events_test.dart`
   → 3 passed.
-- `nightshade_app`: `flutter test test/screens/sequencer` → 465 passed, 2 failed —
+- `skotiq_app`: `flutter test test/screens/sequencer` → 465 passed, 2 failed —
   both `captures_landscape_test.dart` golden pixel diffs (9.44% / 7.17%), the
   known Windows-captured-goldens-on-Linux failures. That file contains no
   sequencer events and no tally reference (`grep -c "tally\|InstructionProgress"`

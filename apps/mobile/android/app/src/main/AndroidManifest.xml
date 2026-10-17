@@ -30,7 +30,7 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
         tools:ignore="BatteryLife" />
 
-    <!-- OTA updates. Nightshade is installed from its GitHub releases rather
+    <!-- OTA updates. Skotiq is installed from its GitHub releases rather
          than a store, so updating means handing a downloaded APK to Android's
          package installer. Without this the installer opens and immediately
          closes. The user still confirms every install, and Android still
@@ -41,7 +41,7 @@
     <application
         android:usesCleartextTraffic="true"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:label="Nightshade"
+        android:label="Skotiq"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -69,19 +69,19 @@
             <!--
               Google Assistant App Actions deep link.
 
-              The Assistant resolves "Pause Nightshade" against
+              The Assistant resolves "Pause Skotiq" against
               `custom.actions.intent.PAUSE_SEQUENCE` (declared in
               res/xml/shortcuts.xml) and dispatches an Intent with
-              data=nightshade://voice-action/pause_sequence. The handler
+              data=skotiq://voice-action/pause_sequence. The handler
               in MainActivity.kt decodes the wire id from the URI and
-              forwards it to Dart over the `nightshade/voice_control`
+              forwards it to Dart over the `skotiq/voice_control`
               MethodChannel.
             -->
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="nightshade"
+                <data android:scheme="skotiq"
                       android:host="voice-action"/>
             </intent-filter>
 
@@ -125,7 +125,7 @@
              provisioned — see PushBridge.kt). Handles token rotation; the
              host's notification payloads render without client code. -->
         <service
-            android:name=".NightshadePushService"
+            android:name=".SkotiqPushService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

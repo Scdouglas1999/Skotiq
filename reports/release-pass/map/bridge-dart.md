@@ -1,6 +1,6 @@
-# Release-pass map — `nightshade_bridge` (Dart)
+# Release-pass map — `skotiq_bridge` (Dart)
 
-Subsystem: `packages/nightshade_bridge/`
+Subsystem: `packages/skotiq_bridge/`
 Mapper: read-only. No source file was edited.
 Date: 2026-08-11
 
@@ -12,7 +12,7 @@ This matters more than usual here, because the two files named in the task brief
 (`lib/src/api/imaging.dart` 2495, `lib/src/api/sequencer.dart` 1322) are **both
 flutter_rust_bridge output**, not hand-written.
 
-`packages/nightshade_bridge/lib` totals 92,618 lines of Dart. Of that,
+`packages/skotiq_bridge/lib` totals 92,618 lines of Dart. Of that,
 **87,131 lines are generated** and 5,487 are hand-written.
 
 Generated (exempt from the oversize rule, but see §1 for the Rust-side split):
@@ -26,9 +26,9 @@ Generated (exempt from the oversize rule, but see §1 for the Rust-side split):
   (1,107), `error.dart`, `state.dart`, `storage.dart`, `lib.dart` — all FRB mirror files.
 * All `*.freezed.dart` (`event.freezed.dart` 9,024, `error.freezed.dart` 2,709, …).
 
-Generation contract (`native/nightshade_native/flutter_rust_bridge.yaml`):
+Generation contract (`native/skotiq_native/flutter_rust_bridge.yaml`):
 `rust_input: crate::api`, `rust_root: bridge/`,
-`dart_output: ../../packages/nightshade_bridge/lib/src/`. The mapping is 1:1 —
+`dart_output: ../../packages/skotiq_bridge/lib/src/`. The mapping is 1:1 —
 one Rust module under `bridge/src/api/` produces one Dart file under
 `lib/src/api/`. **You cannot split a generated Dart file directly; you split the
 Rust module and re-run codegen via `scripts/dev.sh`.**
@@ -60,7 +60,7 @@ problem is not the split, it is the volume (§2.1).
 ### The three-layer call topology (needed to read the rest of this report)
 
 ```
-nightshade_core / apps
+skotiq_core / apps
         │
         ├─(A)─► bridge_api.apiX(...)          top-level, generated  ──► Rust
         │
@@ -74,7 +74,7 @@ nightshade_core / apps
 ```
 
 Both paths are live and **mixed inside the same files**. Counts of
-`bridge_api.` vs `NativeBridge.` per file in `nightshade_core/lib/src/backend/ffi_backend/`:
+`bridge_api.` vs `NativeBridge.` per file in `skotiq_core/lib/src/backend/ffi_backend/`:
 
 | File | `bridge_api.` | `NativeBridge.` |
 |---|---:|---:|
@@ -92,7 +92,7 @@ Both paths are live and **mixed inside the same files**. Counts of
 ### 1.1 `lib/src/api/imaging.dart` — 2495 lines — GENERATED — risk: low, but split upstream
 
 **Why it is big.** It is the Dart mirror of
-`native/nightshade_native/bridge/src/api/imaging.rs` (**7406 lines**), the
+`native/skotiq_native/bridge/src/api/imaging.rs` (**7406 lines**), the
 largest Rust API module. 56 top-level `pub fn` + 28 generated classes land in
 one file.
 
@@ -121,7 +121,7 @@ submodule uses them; put shared ones in `imaging/mod.rs` as `pub(crate)`.
 aggregate re-export (`export 'api/imaging.dart';`). Replace that single line
 with six `export 'api/imaging/*.dart';` lines and **no downstream import
 changes at all** — every consumer already goes through
-`package:nightshade_bridge/nightshade_bridge.dart`. Verify with
+`package:skotiq_bridge/skotiq_bridge.dart`. Verify with
 `grep -rn "src/api/imaging.dart" packages apps server` → currently only
 `api_barrel.dart` references it.
 
@@ -259,7 +259,7 @@ nothing.
 
 **What merges into it:** for every facade method whose implementation is a pure
 pass-through, delete the facade entry *and* the impl method, and change the
-`nightshade_core` call site from `NativeBridge.x(...)` to `bridge_api.apiX(...)`.
+`skotiq_core` call site from `NativeBridge.x(...)` to `bridge_api.apiX(...)`.
 That is ~110 of 153 members, ≈700 lines across `native_bridge_facade.dart`,
 `storage_and_image_operations.dart`, `equipment_operations.dart`, and
 `sequencer_operations.dart`.
@@ -288,9 +288,9 @@ Three hand-written Dart client implementations exist solely for the
 
 | Dart | Lines | Rust counterpart | Lines |
 |---|---:|---|---:|
-| `lib/src/phd2_client.dart` | 970 | `native/nightshade_native/imaging/src/phd2.rs` | 2201 |
-| `lib/src/alpaca_client.dart` | 619 | `native/nightshade_native/alpaca/src/{client,discovery}.rs` | 2443 |
-| `lib/src/ascom_client.dart` | 508 | `native/nightshade_native/ascom/src/` | 6179 |
+| `lib/src/phd2_client.dart` | 970 | `native/skotiq_native/imaging/src/phd2.rs` | 2201 |
+| `lib/src/alpaca_client.dart` | 619 | `native/skotiq_native/alpaca/src/{client,discovery}.rs` | 2443 |
+| `lib/src/ascom_client.dart` | 508 | `native/skotiq_native/ascom/src/` | 6179 |
 | supporting: `utils/retry.dart` (193), `utils/circuit_breaker.dart` (294), `rolling_rms_calculator.dart` (72) | 559 | (Rust has its own retry/backoff) | — |
 
 Gating evidence:
@@ -326,19 +326,19 @@ fallback (`alpaca_client_test.dart`, `phd2_event_parsing_test.dart`,
   `_parseIndiDevices` at `discovery_operations.dart:93–193`. ~185 lines.
 * Rust: generated top-level `apiDiscoverIndiAtAddress` at
   `lib/src/api/discovery.dart:31`, backed by
-  `native/nightshade_native/indi/src/discovery.rs:313 infer_device_type`.
+  `native/skotiq_native/indi/src/discovery.rs:313 infer_device_type`.
 
-`lib/nightshade_bridge.dart` exports **both** (`export 'src/bridge_stub.dart' …;`
+`lib/skotiq_bridge.dart` exports **both** (`export 'src/bridge_stub.dart' …;`
 line 8 and `export 'src/api_barrel.dart';` line 38). They differ only by the
 `NativeBridge.` receiver prefix.
 
 Production resolves to the **Rust** one:
-`packages/nightshade_core/lib/src/backend/ffi_backend/discovery_camera_operations.dart:44`
+`packages/skotiq_core/lib/src/backend/ffi_backend/discovery_camera_operations.dart:44`
 calls `bridge_api.apiDiscoverIndiAtAddress(host: host, port: port)` — a
 top-level call, so it binds to the generated function.
 
 The Dart one's only callers are
-`packages/nightshade_bridge/test/indi_discovery_parsing_test.dart:56` and `:171`.
+`packages/skotiq_bridge/test/indi_discovery_parsing_test.dart:56` and `:171`.
 
 The two classifiers have **drifted**: the Dart table
 (`discovery_operations.dart:139–163`) recognises 7 types (camera, mount,
@@ -402,7 +402,7 @@ to bridge the two naming schemes.
 helpers of the `guider*` ones (or vanish entirely if §2.2(a) is chosen). Facade
 entries `phd2StartGuiding`, `phd2StopGuiding`, `phd2Dither`, `phd2Loop`,
 `phd2FindStar`, `phd2SetLockPosition`, `phd2GetLockPosition`,
-`phd2DeselectStar`, `phd2GetStarImage` should go once `nightshade_core`'s
+`phd2DeselectStar`, `phd2GetStarImage` should go once `skotiq_core`'s
 `mount_guiding_operations.dart` is switched to the `guider*` forms.
 **Effort: medium** (requires touching the core call sites).
 
@@ -427,24 +427,24 @@ plus a per-platform const path table; hoist the Windows path list to a single
 **Evidence.**
 * `grep -rln "FakeNativeBridge\|fake_native_bridge" packages apps server` returns
   exactly four files: the fake, its barrel, its own smoke test, and
-  `packages/nightshade_app/test/harness/mock_backend.dart` — where the only
+  `packages/skotiq_app/test/harness/mock_backend.dart` — where the only
   mention is a comment (lines 13–21) explaining **why it is not used**:
   *"Why NOT delegate to `FakeNativeBridge` … a test that wants to exercise the
-  `NightshadeBackend` contract directly needs a fake at the backend layer, not
+  `SkotiqBackend` contract directly needs a fake at the backend layer, not
   the bridge layer."*
 * The escape hatch that comment offers — *"An `FfiBackend(bridge: FakeNativeBridge(...))`
   construction is also available"* — **does not exist**:
-  `packages/nightshade_core/lib/src/backend/ffi_backend.dart:137` is
+  `packages/skotiq_core/lib/src/backend/ffi_backend.dart:137` is
   `FfiBackend({super.database});`. There is no `bridge` parameter, and the real
   bridge is a `static`-only class over a private singleton
   (`native_bridge_state.dart:5`, `final _nativeBridge = _NativeBridgeImplementation();`),
   so it is structurally un-injectable. The fake's own header (lines 7–12) admits
   this.
 * `test/fakes/fakes.dart` documents its import path as
-  `package:nightshade_bridge/test/fakes/fakes.dart` — not a resolvable URI
+  `package:skotiq_bridge/test/fakes/fakes.dart` — not a resolvable URI
   (`test/` is not under `lib/`). `grep -rn "fakes.dart" packages` shows the only
-  `../fakes/fakes.dart` importers are in **`nightshade_core/test/`**, importing
-  `nightshade_core`'s own, different barrel.
+  `../fakes/fakes.dart` importers are in **`skotiq_core/test/`**, importing
+  `skotiq_core`'s own, different barrel.
 
 **Recommendation:** delete all three files (1713 lines). If a bridge-layer fake
 is genuinely wanted later, the prerequisite is an injectable seam on
@@ -473,9 +473,9 @@ startSession
 
 Caveat honoured: for the ones that *look* like they must be live, I traced the
 real path. `mountMoveAxis` is called as `backend.mountMoveAxis(...)`
-(`nightshade_app/lib/screens/dashboard/widgets/mount_control_card.dart:628`),
+(`skotiq_app/lib/screens/dashboard/widgets/mount_control_card.dart:628`),
 which lands on
-`nightshade_core/lib/src/backend/ffi_backend/mount_guiding_operations.dart:43–44`
+`skotiq_core/lib/src/backend/ffi_backend/mount_guiding_operations.dart:43–44`
 → `bridge_api.mountMoveAxis(...)` — the **generated** function, never the facade.
 Same for `mountAbort` (`mount_guiding_operations.dart:75–76`). So these facade
 entries are shadowed duplicates, not load-bearing.
@@ -543,8 +543,8 @@ the three getters.**
 
 ### 3.5 `utils/safe_cast.dart` doc claim is false
 
-`lib/nightshade_bridge.dart:56–57`: *"Re-exported from nightshade_core for
-discoverability."* There is no `safe_cast` in `nightshade_core`
+`lib/skotiq_bridge.dart:56–57`: *"Re-exported from skotiq_core for
+discoverability."* There is no `safe_cast` in `skotiq_core`
 (`find packages -name "safe_cast*.dart"` → only the bridge's own file and its
 test). The file is the original, not a re-export. Not dead — `safelyCast*` has 8
 live uses in `guiding_operations.dart:587–612, 736–739` — but the comment is
@@ -570,13 +570,13 @@ A sync FRB call runs the Rust body on the Dart thread. For a full-frame stretch
 or debayer of a 24 MP sensor that is hundreds of milliseconds of jank per call.
 
 Live call sites (cross-package, listed so the implementer can measure):
-`nightshade_core/lib/src/providers/auto_stretch_provider.dart:232`,
-`nightshade_core/lib/src/services/stacking_engine_seam.dart:190`,
-`nightshade_core/lib/src/services/calibration_service.dart:373`,
-`nightshade_core/lib/src/services/thumbnail_sidecar_service.dart:48`,
-`nightshade_core/lib/src/backend/ffi_backend/session_heartbeat_operations.dart:84`,
-`nightshade_core/lib/src/backend/ffi_backend/image_polar_operations.dart:58`,
-`nightshade_core/lib/src/backend/ffi_backend/mount_guiding_operations.dart:669`.
+`skotiq_core/lib/src/providers/auto_stretch_provider.dart:232`,
+`skotiq_core/lib/src/services/stacking_engine_seam.dart:190`,
+`skotiq_core/lib/src/services/calibration_service.dart:373`,
+`skotiq_core/lib/src/services/thumbnail_sidecar_service.dart:48`,
+`skotiq_core/lib/src/backend/ffi_backend/session_heartbeat_operations.dart:84`,
+`skotiq_core/lib/src/backend/ffi_backend/image_polar_operations.dart:58`,
+`skotiq_core/lib/src/backend/ffi_backend/mount_guiding_operations.dart:669`.
 
 `auto_stretch_provider.dart` is the sharpest case: the doc comment at line 221
 says *"This is compute-intensive, so it runs in an isolate"*, and the Dart
@@ -590,7 +590,7 @@ with a full-res frame before committing to it.
 
 ### 4.2 `rawData.toList()` before the sync stretch — impact: HIGH (cross-package, at our boundary)
 
-`nightshade_core/lib/src/providers/auto_stretch_provider.dart:234` passes
+`skotiq_core/lib/src/providers/auto_stretch_provider.dart:234` passes
 `data: rawData.toList()` where `rawData` is a `Uint16List`. `.toList()` allocates
 a fresh `List<int>` and copies element-by-element — for a 24 MP frame that is
 24 M boxed-int slots and a full O(n) copy, immediately before the *synchronous*
@@ -624,7 +624,7 @@ Recorded as understood behaviour, not a defect.
 
 ### 4.5 No provider/widget perf risks in this package
 
-`nightshade_bridge` contains no `Widget`, no `ConsumerWidget`, and no Riverpod
+`skotiq_bridge` contains no `Widget`, no `ConsumerWidget`, and no Riverpod
 provider. `grep -rn "ref.watch\|StatelessWidget\|ConsumerWidget" lib/` → no hits.
 Rebuild-storm / missing-`const` / non-builder-list findings do not apply here;
 they belong to the app-package mappers.
@@ -777,16 +777,16 @@ No `unwrap`/`expect`/`panic` applies — this subsystem is Dart-only.
 
 ## 6. Suspected cross-package duplication (for the cross-cutting agent)
 
-1. `lib/src/phd2_client.dart` (970) duplicates `native/nightshade_native/imaging/src/phd2.rs` (2201) — full PHD2 JSON-RPC client twice.
-2. `lib/src/alpaca_client.dart` (619) duplicates `native/nightshade_native/alpaca/src/client.rs` (1767) + `discovery.rs` (676).
-3. `lib/src/ascom_client.dart` (508) duplicates `native/nightshade_native/ascom/src/` (6179) — registry discovery + COM property access.
-4. `discovery_operations.dart:93–193 _parseIndiDevices` duplicates `native/nightshade_native/indi/src/discovery.rs:313 infer_device_type`, and has drifted (7 device types vs 10).
-5. `bridge_stub/native_bridge_facade.dart` (153 statics) is a near-1:1 shadow of the generated `lib/src/api/*.dart` surface, and `nightshade_core/lib/src/backend/ffi_backend/*` is a *third* 1:1 layer on top of both.
-6. `nightshade_core/lib/src/backend/ffi_backend.dart:8–12` imports `package:nightshade_bridge/nightshade_bridge.dart` **five times** under five aliases (`bridge`, `bridge_api`, `bridge_caps`, `bridge_device`, `bridge_error`) — the same library. Cosmetic, but it hides which layer a call targets and directly enabled the §2.3 shadowing.
+1. `lib/src/phd2_client.dart` (970) duplicates `native/skotiq_native/imaging/src/phd2.rs` (2201) — full PHD2 JSON-RPC client twice.
+2. `lib/src/alpaca_client.dart` (619) duplicates `native/skotiq_native/alpaca/src/client.rs` (1767) + `discovery.rs` (676).
+3. `lib/src/ascom_client.dart` (508) duplicates `native/skotiq_native/ascom/src/` (6179) — registry discovery + COM property access.
+4. `discovery_operations.dart:93–193 _parseIndiDevices` duplicates `native/skotiq_native/indi/src/discovery.rs:313 infer_device_type`, and has drifted (7 device types vs 10).
+5. `bridge_stub/native_bridge_facade.dart` (153 statics) is a near-1:1 shadow of the generated `lib/src/api/*.dart` surface, and `skotiq_core/lib/src/backend/ffi_backend/*` is a *third* 1:1 layer on top of both.
+6. `skotiq_core/lib/src/backend/ffi_backend.dart:8–12` imports `package:skotiq_bridge/skotiq_bridge.dart` **five times** under five aliases (`bridge`, `bridge_api`, `bridge_caps`, `bridge_device`, `bridge_error`) — the same library. Cosmetic, but it hides which layer a call targets and directly enabled the §2.3 shadowing.
 7. `utils/circuit_breaker.dart` + `utils/retry.dart` (487) vs whatever retry/backoff the Rust device layer uses — two resilience policies with independent thresholds.
-8. `bridge_stub/sequencer_operations.dart:3 calculateSequencerProgressFraction` vs `nightshade_core/lib/src/models/sequence/sequence_models/sequence_state.dart:600` (`completedExposures / totalExposures`) vs `apps/mobile/lib/services/foreground_service.dart:141` — three progress formulas; the bridge one special-cases `state == 'completed'` → 1.0 and clamps, the other two do not.
-9. `lib/src/device_capabilities.dart` (generated, 1107) vs `nightshade_core/lib/src/models/backend/device_capabilities.dart` — mapped field-by-field in `ffi_backend/bridge_model_mappers.dart` (329 lines of pure conversion).
-10. `lib/src/event_display.dart` (723) is bridge-owned but is a pure presentation concern re-exported through `nightshade_core/lib/nightshade_core_events.dart` — worth checking whether the app also formats these events anywhere.
+8. `bridge_stub/sequencer_operations.dart:3 calculateSequencerProgressFraction` vs `skotiq_core/lib/src/models/sequence/sequence_models/sequence_state.dart:600` (`completedExposures / totalExposures`) vs `apps/mobile/lib/services/foreground_service.dart:141` — three progress formulas; the bridge one special-cases `state == 'completed'` → 1.0 and clamps, the other two do not.
+9. `lib/src/device_capabilities.dart` (generated, 1107) vs `skotiq_core/lib/src/models/backend/device_capabilities.dart` — mapped field-by-field in `ffi_backend/bridge_model_mappers.dart` (329 lines of pure conversion).
+10. `lib/src/event_display.dart` (723) is bridge-owned but is a pure presentation concern re-exported through `skotiq_core/lib/skotiq_core_events.dart` — worth checking whether the app also formats these events anywhere.
 
 ---
 

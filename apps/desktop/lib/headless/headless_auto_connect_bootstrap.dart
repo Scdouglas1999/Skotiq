@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
 const _headlessLogSource = 'HeadlessAutoConnect';
 
@@ -47,7 +47,7 @@ Future<void> headlessAutoConnectBootstrap({
         fields: {'error': error.toString(), 'stack': stack.toString()},
       );
       stderr.writeln(
-        'Nightshade: local backend readiness failed; auto-connect skipped, '
+        'Skotiq: local backend readiness failed; auto-connect skipped, '
         'server still running: $error',
       );
       return;
@@ -79,6 +79,6 @@ Future<void> headlessAutoConnectBootstrap({
       source: _headlessLogSource,
       fields: {'error': error.toString(), 'stack': stack.toString()},
     );
-    stderr.writeln('Nightshade: startup auto-connect failed: $error');
+    stderr.writeln('Skotiq: startup auto-connect failed: $error');
   }
 }

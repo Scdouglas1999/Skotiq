@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless_api/handlers/filesystem_handlers.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/filesystem_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -19,7 +19,7 @@ void main() {
 
     setUp(() async {
       envBrowseRoot = await Directory.systemTemp.createTemp(
-        'nightshade_browse_root_',
+        'skotiq_browse_root_',
       );
       container = ProviderContainer(
         overrides: [appSettingsProvider.overrideWith(_TestSettings.new)],
@@ -27,7 +27,7 @@ void main() {
       handlers = FileSystemHandlers(
         container,
         environment: {
-          'NIGHTSHADE_BROWSE_ROOTS': 'Capture Disk=${envBrowseRoot.path}',
+          'SKOTIQ_BROWSE_ROOTS': 'Capture Disk=${envBrowseRoot.path}',
         },
       );
     });
@@ -100,7 +100,7 @@ void main() {
       'browse rejects existing directories outside configured roots',
       () async {
         final outside = await Directory.systemTemp.createTemp(
-          'nightshade_outside_root_',
+          'skotiq_outside_root_',
         );
         addTearDown(() async {
           if (await outside.exists()) {
@@ -127,7 +127,7 @@ void main() {
 
     test('browse reports missing directory as JSON not found', () async {
       final missingPath = Directory.systemTemp
-          .createTempSync('nightshade_missing_parent_')
+          .createTempSync('skotiq_missing_parent_')
           .path;
       await Directory(missingPath).delete(recursive: true);
 

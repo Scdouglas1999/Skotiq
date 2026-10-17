@@ -11,8 +11,8 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/db_read_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/db_read_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -22,11 +22,11 @@ void main() {
 
   group('DbReadHandlers', () {
     late ProviderContainer container;
-    late NightshadeDatabase db;
+    late SkotiqDatabase db;
     late DbReadHandlers handlers;
 
     setUp(() {
-      db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       container = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(db)],
       );

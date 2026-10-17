@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 
 const _defaultExePath =
-    'apps/desktop/build/linux/x64/release/bundle/nightshade_desktop';
-const _adminToken = 'nightshade-smoke-admin-token';
-const _viewToken = 'nightshade-smoke-view-token';
-const _controlToken = 'nightshade-smoke-control-token';
+    'apps/desktop/build/linux/x64/release/bundle/skotiq_desktop';
+const _adminToken = 'skotiq-smoke-admin-token';
+const _viewToken = 'skotiq-smoke-view-token';
+const _controlToken = 'skotiq-smoke-control-token';
 
 void main(List<String> args) async {
   if (!Platform.isLinux) {
@@ -177,7 +177,7 @@ Future<void> _writeSmokeLog(
   final file = File(path);
   await file.parent.create(recursive: true);
   final timestamp = DateTime.now().toUtc().toIso8601String();
-  await file.writeAsString('''$timestamp Nightshade packaged Linux runtime smoke
+  await file.writeAsString('''$timestamp Skotiq packaged Linux runtime smoke
 Executable: ${exe.absolute.path}
 Port: $port
 Version: ${info['version']}

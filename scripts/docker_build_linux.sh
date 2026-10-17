@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Linux release build for Nightshade, run inside the cirruslabs/flutter image.
+# Linux release build for Skotiq, run inside the cirruslabs/flutter image.
 # Builds a clean source snapshot of the committed HEAD (mounted read-only at
 # /host) so the host's Windows .dart_tool/build dirs are never touched, then
 # emits a packaged bundle tarball to /out.
@@ -20,12 +20,12 @@ for arg in "$@"; do
   esac
 done
 
-SOURCE_ROOT="${NIGHTSHADE_SOURCE_ROOT:-/host}"
+SOURCE_ROOT="${SKOTIQ_SOURCE_ROOT:-/host}"
 if [ ! -d "$SOURCE_ROOT" ]; then
   SOURCE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fi
 
-HOST_ARCH="${NIGHTSHADE_LINUX_ARCH:-$(uname -m)}"
+HOST_ARCH="${SKOTIQ_LINUX_ARCH:-$(uname -m)}"
 case "$HOST_ARCH" in
   x86_64|amd64) FLUTTER_ARCH=x64 ;;
   aarch64|arm64) FLUTTER_ARCH=arm64 ;;
@@ -36,7 +36,7 @@ case "$HOST_ARCH" in
     ;;
 esac
 
-VERSION="${NIGHTSHADE_VERSION:-}"
+VERSION="${SKOTIQ_VERSION:-}"
 if [ -z "$VERSION" ] && [ -f "$SOURCE_ROOT/version.yaml" ]; then
   VERSION=$(sed -n 's/^version:[[:space:]]*"\{0,1\}\([^"# ]*\).*/\1/p' "$SOURCE_ROOT/version.yaml" | head -1)
 fi
@@ -44,7 +44,7 @@ if [ -z "$VERSION" ] && [ -f "$SOURCE_ROOT/apps/desktop/pubspec.yaml" ]; then
   VERSION=$(sed -n 's/^version:[[:space:]]*\([^+ ]*\).*/\1/p' "$SOURCE_ROOT/apps/desktop/pubspec.yaml" | head -1)
 fi
 VERSION="${VERSION:-0.0.0}"
-ARTIFACT_NAME="${NIGHTSHADE_ARTIFACT_NAME:-nightshade-linux-${FLUTTER_ARCH}-${VERSION}.tar.gz}"
+ARTIFACT_NAME="${SKOTIQ_ARTIFACT_NAME:-skotiq-linux-${FLUTTER_ARCH}-${VERSION}.tar.gz}"
 BUNDLE="build/linux/${FLUTTER_ARCH}/release/bundle"
 
 echo "== build target: linux/${FLUTTER_ARCH} (${HOST_ARCH}), version ${VERSION} =="
@@ -80,14 +80,14 @@ echo "== [3/7] source snapshot from the working tree (includes local edits) =="
 rm -rf /work && mkdir -p /work
 # NOTE: rsync include/exclude patterns without a leading slash match a dir of
 # that name at ANY depth. A bare `--exclude=target/` therefore wrongly drops
-# source dirs like `packages/nightshade_core/lib/src/models/target/`. We anchor
+# source dirs like `packages/skotiq_core/lib/src/models/target/`. We anchor
 # the Rust `target/` cache to its real location and only exclude `build/` /
 # `.dart_tool/` directories that are direct children of a package/app dir (the
 # generated Flutter/Dart caches), never deeper source folders.
 rsync -a \
   --exclude='.git/' \
   --exclude='/dist-linux/' --exclude='/dist-release/' \
-  --exclude='/native/nightshade_native/target/' \
+  --exclude='/native/skotiq_native/target/' \
   --exclude='/packages/*/build/' --exclude='/packages/*/.dart_tool/' \
   --exclude='/apps/*/build/' --exclude='/apps/*/.dart_tool/' \
   --exclude='/build/' --exclude='/.dart_tool/' \
@@ -101,9 +101,9 @@ cd /work
 # depends on it).
 #
 # `apps/mobile_e2e` is a test-only seam package that path-depends on
-# `nightshade_mobile`; once the mobile app is removed its dependency can't
+# `skotiq_mobile`; once the mobile app is removed its dependency can't
 # resolve and `melos bootstrap` fails with "could not find package
-# nightshade_mobile at ../mobile". It's never built for the Linux desktop
+# skotiq_mobile at ../mobile". It's never built for the Linux desktop
 # target either, so drop it too.
 rm -rf /work/apps/mobile /work/apps/mobile_e2e
 
@@ -117,10 +117,10 @@ echo "== [4/7] flutter linux desktop =="
 # When the base image doesn't already ship Flutter (e.g. a plain
 # debian:bookworm-slim chosen so the bundle's glibc floor matches Raspberry Pi
 # OS Bookworm), bootstrap a pinned SDK here. cirruslabs/flutter images already
-# have `flutter` on PATH, so this is a no-op there. Pin with NIGHTSHADE_FLUTTER_REF
+# have `flutter` on PATH, so this is a no-op there. Pin with SKOTIQ_FLUTTER_REF
 # (defaults to the version CI builds with).
 if ! command -v flutter >/dev/null 2>&1; then
-  FLUTTER_REF="${NIGHTSHADE_FLUTTER_REF:-3.44.1}"
+  FLUTTER_REF="${SKOTIQ_FLUTTER_REF:-3.44.1}"
   echo "flutter not found; cloning SDK ($FLUTTER_REF) into /opt/flutter"
   git config --global --add safe.directory /opt/flutter || true
   git clone --depth 1 --branch "$FLUTTER_REF" \
@@ -137,7 +137,7 @@ export PATH="$PATH:$HOME/.pub-cache/bin"
 dart run melos bootstrap
 
 echo "== [6/7] rust bridge (release) =="
-cargo build --release --manifest-path native/nightshade_native/bridge/Cargo.toml
+cargo build --release --manifest-path native/skotiq_native/bridge/Cargo.toml
 
 echo "== [7/7] flutter build linux (release) =="
 cd apps/desktop
@@ -147,7 +147,7 @@ echo "== bundle contents =="
 ls -lah "$BUNDLE"
 # Ensure the Rust shared library is present in the bundle's lib/ (mirror the
 # Windows packaging step, which copies the bridge DLL next to the exe).
-SO=$(find /work/native/nightshade_native/target/release -maxdepth 1 -name 'libnightshade_bridge.so' -o -name 'nightshade_bridge.so' 2>/dev/null | head -1 || true)
+SO=$(find /work/native/skotiq_native/target/release -maxdepth 1 -name 'libskotiq_bridge.so' -o -name 'skotiq_bridge.so' 2>/dev/null | head -1 || true)
 if [ -n "${SO:-}" ] && [ ! -f "$BUNDLE/lib/$(basename "$SO")" ]; then
   echo "Copying $(basename "$SO") into bundle/lib/"
   mkdir -p "$BUNDLE/lib"
@@ -159,14 +159,14 @@ fi
 # arm64/x64 vendor .so files here makes appliance builds self-contained where
 # the vendor license allows redistribution. Keep this opt-in: some SDKs must be
 # installed from vendor packages instead.
-if [ -n "${NIGHTSHADE_VENDOR_LIB_DIR:-}" ]; then
-  if [ ! -d "$NIGHTSHADE_VENDOR_LIB_DIR" ]; then
-    echo "ERROR: NIGHTSHADE_VENDOR_LIB_DIR is not a directory: $NIGHTSHADE_VENDOR_LIB_DIR" >&2
+if [ -n "${SKOTIQ_VENDOR_LIB_DIR:-}" ]; then
+  if [ ! -d "$SKOTIQ_VENDOR_LIB_DIR" ]; then
+    echo "ERROR: SKOTIQ_VENDOR_LIB_DIR is not a directory: $SKOTIQ_VENDOR_LIB_DIR" >&2
     exit 1
   fi
-  echo "== vendor SDK libraries from $NIGHTSHADE_VENDOR_LIB_DIR =="
+  echo "== vendor SDK libraries from $SKOTIQ_VENDOR_LIB_DIR =="
   mkdir -p "$BUNDLE/lib"
-  find "$NIGHTSHADE_VENDOR_LIB_DIR" -maxdepth 1 -type f \
+  find "$SKOTIQ_VENDOR_LIB_DIR" -maxdepth 1 -type f \
     \( -name '*.so' -o -name '*.so.*' \) \
     -exec cp -av {} "$BUNDLE/lib/" \;
 fi
@@ -177,7 +177,7 @@ echo "== headless smoke test =="
 # via the Flutter bundle's lib/ rpath, so a clean headless boot proves the
 # Dart<->Rust FFI library resolves on Linux. We run under xvfb because the GTK
 # embedder still initialises a display even in headless app mode.
-EXE="$BUNDLE/nightshade_desktop"
+EXE="$BUNDLE/skotiq_desktop"
 if [ ! -x "$EXE" ]; then
   # Fall back to whatever single executable the bundle produced.
   EXE=$(find "$BUNDLE" -maxdepth 1 -type f -executable | head -1)
@@ -186,7 +186,7 @@ echo "Smoke-testing: $EXE"
 # ldd should resolve every dependency (the bridge .so lives in lib/).
 LD_LIBRARY_PATH="$PWD/$BUNDLE/lib" ldd "$EXE" || true
 set +e
-LD_LIBRARY_PATH="$PWD/$BUNDLE/lib" NIGHTSHADE_HEADLESS=1 \
+LD_LIBRARY_PATH="$PWD/$BUNDLE/lib" SKOTIQ_HEADLESS=1 \
   timeout 45s xvfb-run -a "$EXE" --headless
 SMOKE_RC=$?
 set -e
@@ -207,9 +207,9 @@ echo "Headless smoke OK (exit $SMOKE_RC)"
 # (flutter_secure_storage, flutter_webrtc). Such a bundle
 # aborts on boot on Bookworm with "GLIBC_2.38 not found" — invisible here.
 # Fail the build loudly if any bundle binary requires glibc newer than the
-# target floor. Override the floor with NIGHTSHADE_GLIBC_FLOOR (default 2.36 =
+# target floor. Override the floor with SKOTIQ_GLIBC_FLOOR (default 2.36 =
 # Bookworm); set it empty to skip the check.
-GLIBC_FLOOR="${NIGHTSHADE_GLIBC_FLOOR-2.36}"
+GLIBC_FLOOR="${SKOTIQ_GLIBC_FLOOR-2.36}"
 if [ -n "$GLIBC_FLOOR" ] && command -v objdump >/dev/null 2>&1; then
   echo "== glibc floor guard (target <= $GLIBC_FLOOR) =="
   floor_major=${GLIBC_FLOOR%%.*}

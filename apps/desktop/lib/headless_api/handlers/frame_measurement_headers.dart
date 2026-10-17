@@ -19,7 +19,7 @@
 //
 // They answer the same question with two estimators, so they are not two
 // statistics an operator should be reconciling — but until they are one number
-// (the estimators live in `native/nightshade_native`, not here), a surface must
+// (the estimators live in `native/skotiq_native`, not here), a surface must
 // not present either as "the frame's HFR" unqualified: an operator who sets an
 // HFR reject threshold from what Run-Watch shows is calibrating against the
 // wrong scale. Every preview response therefore names its own measurement on

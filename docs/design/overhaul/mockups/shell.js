@@ -23,7 +23,7 @@ function icon(name, extra = "") { return `<span class="i i-${name} ${extra}"></s
 function topbar() {
   return `
   <header class="topbar">
-    <div class="brand">${'<span class="mark">' + icon("sparkles") + '</span>'}<span class="word">NIGHTSHADE</span></div>
+    <div class="brand">${'<span class="mark">' + icon("sparkles") + '</span>'}<span class="word">SKOTIQ</span></div>
     <div class="cmd">${icon("search")}<span>Search targets, settings, or jump to a screen</span><span class="kbd">Ctrl K</span></div>
     <div class="right">
       <span class="iconbtn" title="Remote: local">${icon("monitor")}</span>

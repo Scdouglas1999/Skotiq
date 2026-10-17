@@ -9,7 +9,7 @@ import 'timing.dart';
 /// JS-readable, so an XSS could exfiltrate it from there. The cookie path
 /// stashes the token in an `HttpOnly; Secure; SameSite=Strict` cookie that JS
 /// cannot read at all, and pairs it with a CSRF token (random, server-issued)
-/// that the dashboard must echo via `X-Nightshade-CSRF` on every state-changing
+/// that the dashboard must echo via `X-Skotiq-CSRF` on every state-changing
 /// request. The CSRF token is JS-readable but cookies are not — that asymmetry
 /// is what defeats both XSS-driven exfiltration and cross-origin form posts.
 ///
@@ -28,8 +28,8 @@ class AuthCookieManager {
   /// validation so an active session never times out.
   static const Duration csrfLifetime = Duration(days: 7);
 
-  static const String cookieName = 'nightshade_session';
-  static const String csrfHeader = 'X-Nightshade-CSRF';
+  static const String cookieName = 'skotiq_session';
+  static const String csrfHeader = 'X-Skotiq-CSRF';
 
   static const int _cookieTokenBytes = 32;
   static const int _csrfTokenBytes = 32;

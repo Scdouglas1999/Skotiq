@@ -79,7 +79,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
@@ -486,7 +486,7 @@ class WebRtcLiveViewHandlers {
         ..ordered = true
         // Reliable channel (default); explicit so the intent is clear.
         ..maxRetransmits = -1
-        ..protocol = 'nightshade-live-view-1',
+        ..protocol = 'skotiq-live-view-1',
     );
     session.bindDataChannel(dc);
 

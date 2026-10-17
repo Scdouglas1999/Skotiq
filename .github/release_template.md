@@ -1,4 +1,4 @@
-## Nightshade vX.Y.Z
+## Skotiq vX.Y.Z
 
 **Channel:** stable | beta | alpha  
 **Release date:** YYYY-MM-DD
@@ -12,10 +12,10 @@
 
 | Platform | File |
 |----------|------|
-| Windows installer | `NightshadeSetup-X.Y.Z.exe` |
-| Windows OTA | `nightshade-X.Y.Z-windows-x64.zip` |
-| Linux | `nightshade-X.Y.Z-linux-x64.tar.gz` |
-| Android | `nightshade-X.Y.Z-android.apk` |
+| Windows installer | `SkotiqSetup-X.Y.Z.exe` |
+| Windows OTA | `skotiq-X.Y.Z-windows-x64.zip` |
+| Linux | `skotiq-X.Y.Z-linux-x64.tar.gz` |
+| Android | `skotiq-X.Y.Z-android.apk` |
 
 ### Upgrade notes
 
@@ -24,4 +24,4 @@
 
 ### Full changelog
 
-See [CHANGELOG.md](https://github.com/Scdouglas1999/Nightshade/blob/main/docs/CHANGELOG.md) and `docs/releases/` for detailed release notes.
+See [CHANGELOG.md](https://github.com/Scdouglas1999/Skotiq/blob/main/docs/CHANGELOG.md) and `docs/releases/` for detailed release notes.

@@ -34,7 +34,7 @@ Three tiers, mirroring the Timeline/Map group's existing tiering:
 
 - **Labelled** (wide): the repo's `SegmentedControl` with the three mode
   labels inside the view-toggles group.
-- **Glyph** (medium): three `NightshadeIconButton`s, one per mode, `selected`
+- **Glyph** (medium): three `SkotiqIconButton`s, one per mode, `selected`
   on the active mode, tooltips `"Comfortable density"` etc.
 - **Overflow** (narrow): three `'Density: <label>'` menu entries appended after
   the toggle entries; the active entry is disabled (the menu has no checkmark
@@ -220,7 +220,7 @@ Each override carries a comment saying why.
 
 ```
 dart format --output=none --set-exit-if-changed \
-  packages/nightshade_app packages/nightshade_core packages/nightshade_ui
+  packages/skotiq_app packages/skotiq_core packages/skotiq_ui
 ```
 EXIT=1 — 19 files not format-clean repo-wide; 11 are pre-existing drift on
 the base commit in files this workstream does not own (`status_bar.dart`,
@@ -229,7 +229,7 @@ were mine were formatted; a re-check of exactly my 19 touched files:
 `Formatted 19 files (0 changed)`, EXIT=0.
 
 ```
-cd packages/nightshade_app && dart analyze
+cd packages/skotiq_app && dart analyze
 ```
 EXIT=2 — the base commit is not analyze-clean repo-wide: 891 issues (7
 pre-existing warnings in guiding/planner/shell/widgets tests, 884 info
@@ -237,7 +237,7 @@ lints). Re-run on the base commit: also 891 issues — **zero net new
 diagnostics** from this change; my four new files report "No issues found!".
 
 ```
-cd packages/nightshade_app && flutter test test/screens/sequencer \
+cd packages/skotiq_app && flutter test test/screens/sequencer \
   --concurrency=4        # TMPDIR=$HOME/.cache/ns-tmp/ws1-ledger-core
 ```
 EXIT=0 — **+545, all passed.** (Base: 507; +38 new tests: 32 pure + 6 widget.)
@@ -284,7 +284,7 @@ unimplemented.
   is settled, so no timer runs during a run. Riverpod cancels the
   subscription on rebuild/dispose, which kills the timer with it.
 - `ledgerActualStartsProvider` — a `StateNotifier` folding the typed
-  `nightshadeEventsProvider` stream (the same `ref.listen` fold
+  `skotiqEventsProvider` stream (the same `ref.listen` fold
   `eventHistoryProvider` uses): `SequencerEvent_Started` clears the map,
   `SequencerEvent_NodeStarted` records the event envelope's millisecond
   timestamp per node id.
@@ -358,7 +358,7 @@ test file.
 ### 7. LOW — Ledger kebab was 24×28 on touch
 
 **Fix:** the actions slot's width is `_ledgerActionsSlotWidth(context)` —
-`_ledgerActionsWidth` on pointer platforms, `NightshadeTouchTarget.minExtent`
+`_ledgerActionsWidth` on pointer platforms, `SkotiqTouchTarget.minExtent`
 on touch — and the touch branch wraps the kebab in an `OverflowBox` at that
 extent so its hit area clears the platform floor symmetrically over the
 28 px row instead of clipping to it. The header's reservation uses the same
@@ -395,14 +395,14 @@ dart format <the 21 touched files>
 EXIT=0 — "Formatted 21 files (13 changed)".
 
 ```
-cd packages/nightshade_app && dart analyze
+cd packages/skotiq_app && dart analyze
 ```
 EXIT=2 — 891 issues, identical to the base commit's count: zero net new
 diagnostics; the lints in touched files are pre-existing `deprecated_member_use`
 infos that moved with the extracted code.
 
 ```
-cd packages/nightshade_app && flutter test test/screens/sequencer \
+cd packages/skotiq_app && flutter test test/screens/sequencer \
   --concurrency=4        # TMPDIR=$HOME/.cache/ns-tmp/ws1-ledger-core
 ```
 EXIT=0 — **+562, all passed** (545 prior + 17 new: 6 `ledgerEtasFor` + 8

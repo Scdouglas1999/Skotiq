@@ -1,6 +1,6 @@
 {
   "area": "science",
-  "testsRun": "packages/nightshade_app: test/screens/session_review/ (all), test/golden/narrowband_and_overlay_golden_test.dart -- 84 passed",
+  "testsRun": "packages/skotiq_app: test/screens/session_review/ (all), test/golden/narrowband_and_overlay_golden_test.dart -- 84 passed",
   "items": [
     {
       "title": "Narrowband mixer opens with every channel weight at 0.00, i.e. a palette that renders black",

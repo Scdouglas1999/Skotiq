@@ -4,7 +4,7 @@ Adversarial re-drive of the fixes made after the 2026-08-11/13 `sky-discovery.md
 pass. **No code was changed in this pass.**
 
 **Binary under test:** `apps/desktop/build/linux/x64/release/bundle` —
-`libapp.so` and `libnightshade_bridge.so` both built **2026-08-13 18:31**
+`libapp.so` and `libskotiq_bridge.so` both built **2026-08-13 18:31**
 (the fresh Wave-D bundle). This is a genuinely new binary, not the Wave-B one
 the previous report tested.
 
@@ -176,7 +176,7 @@ It is **not reachable from the running app**:
 - `SkyView` is **never instantiated anywhere** in `packages/` or `apps/` — the
   live renderer is `InteractiveSkyView` / `FullScreenSkyView`, which are
   different classes. `SkyView` is dead code that is nonetheless exported from
-  the package barrel (`nightshade_planetarium.dart:5`).
+  the package barrel (`skotiq_planetarium.dart:5`).
 
 Cross-checked three live alt/az surfaces against hand computation for
 40.7128 N / -74.0060 W, and they all agree with truth (so there is no ~12 h
@@ -324,7 +324,7 @@ compact pill and the drawer becomes full-width) there is no overlap.
 ## Artifacts
 
 Captures for this pass are in
-`/tmp/claude-1000/-home-scdouglas-Documents-Nightshade2/224b7868-cbfc-40e1-8fb0-99c71d23f174/scratchpad/`:
+`/tmp/claude-1000/-home-scdouglas-Documents-Skotiq2/224b7868-cbfc-40e1-8fb0-99c71d23f174/scratchpad/`:
 `m31-2deg.png`, `m31-6deg.png`, `search1.png`, `tt-layers.png`, `tt-stale.png`,
 `region-dlg2.png`, `yoursky1.png`, `narrow-plan.png`, `phone-plan.png`,
 `phone-dlg2.png`, `statusbar-lst.png`. App log:

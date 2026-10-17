@@ -3,49 +3,49 @@
         "vendor":  "ZWO",
         "status":  "blocked",
         "detail":  "header present; C compiler absent",
-        "header":  "C:\\Users\\scdou\\Documents\\Nightshade2\\SDKs\\ZWO\\ASI_Camera_SDK\\ASISDK_ANDROID\\ASISDK_ANDROID\\CameraSDK\\include\\ASICamera2.h",
+        "header":  "C:\\Users\\scdou\\Documents\\Skotiq2\\SDKs\\ZWO\\ASI_Camera_SDK\\ASISDK_ANDROID\\ASISDK_ANDROID\\CameraSDK\\include\\ASICamera2.h",
         "artifact":  null
     },
     {
         "vendor":  "QHYCCD",
         "status":  "blocked",
         "detail":  "header present; C compiler absent",
-        "header":  "C:\\Users\\scdou\\Documents\\Nightshade2\\SDKs\\QHY\\sdk_Arm64_25.09.29\\sdk_Arm64_25.09.29\\usr\\local\\include\\qhyccd.h",
+        "header":  "C:\\Users\\scdou\\Documents\\Skotiq2\\SDKs\\QHY\\sdk_Arm64_25.09.29\\sdk_Arm64_25.09.29\\usr\\local\\include\\qhyccd.h",
         "artifact":  null
     },
     {
         "vendor":  "Player One",
         "status":  "blocked",
         "detail":  "header present; C compiler absent",
-        "header":  "C:\\Users\\scdou\\Documents\\Nightshade2\\SDKs\\PlayerOne\\PlayerOne_Camera_SDK_Linux_V3.7.1\\PlayerOne_Camera_SDK_Linux_V3.7.1\\include\\PlayerOneCamera.h",
+        "header":  "C:\\Users\\scdou\\Documents\\Skotiq2\\SDKs\\PlayerOne\\PlayerOne_Camera_SDK_Linux_V3.7.1\\PlayerOne_Camera_SDK_Linux_V3.7.1\\include\\PlayerOneCamera.h",
         "artifact":  null
     },
     {
         "vendor":  "ToupTek",
         "status":  "blocked",
         "detail":  "header present; C compiler absent",
-        "header":  "C:\\Users\\scdou\\Documents\\Nightshade2\\SDKs\\ToupTekOfficial\\extracted\\android\\samples\\demoandroid\\app\\src\\main\\jni\\libusbcam\\toupcam.h",
+        "header":  "C:\\Users\\scdou\\Documents\\Skotiq2\\SDKs\\ToupTekOfficial\\extracted\\android\\samples\\demoandroid\\app\\src\\main\\jni\\libusbcam\\toupcam.h",
         "artifact":  null
     },
     {
         "vendor":  "Moravian",
         "status":  "blocked",
         "detail":  "header present; C compiler absent",
-        "header":  "C:\\Users\\scdou\\Documents\\Nightshade2\\SDKs\\Moravian\\extracted\\gxusb.h",
+        "header":  "C:\\Users\\scdou\\Documents\\Skotiq2\\SDKs\\Moravian\\extracted\\gxusb.h",
         "artifact":  null
     },
     {
         "vendor":  "FLI",
         "status":  "blocked",
         "detail":  "header present; C compiler absent",
-        "header":  "C:\\Users\\scdou\\Documents\\Nightshade2\\SDKs\\FLI\\libfli-1.104\\libfli.h",
+        "header":  "C:\\Users\\scdou\\Documents\\Skotiq2\\SDKs\\FLI\\libfli-1.104\\libfli.h",
         "artifact":  null
     },
     {
         "vendor":  "Fujifilm",
         "status":  "blocked",
         "detail":  "header present; C compiler absent",
-        "header":  "C:\\Users\\scdou\\Documents\\Nightshade2\\SDKs\\Fujifilm\\extracted\\SDK13410\\HEADERS\\XAPI.H",
+        "header":  "C:\\Users\\scdou\\Documents\\Skotiq2\\SDKs\\Fujifilm\\extracted\\SDK13410\\HEADERS\\XAPI.H",
         "artifact":  null
     }
 ]

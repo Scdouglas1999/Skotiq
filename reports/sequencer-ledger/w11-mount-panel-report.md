@@ -12,7 +12,7 @@ The Imaging side panel is 320px wide **including** its 44px icon strip
 each side — 244px of content. Every other section in that rail knows this and
 says so ("The SidePanel already pads its content by 16"). The Mount section did
 not: it added `padding: EdgeInsets.all(24)` of its own and then wrapped each
-group in a `NightshadeCard` at `EdgeInsets.all(16)`. 80 of the 244px went to
+group in a `SkotiqCard` at `EdgeInsets.all(16)`. 80 of the 244px went to
 air, leaving 164 for content — and the actions were laid out as
 `Row(children: [Expanded, SizedBox(12), Expanded])`, i.e. 76px per button.
 
@@ -27,19 +27,19 @@ Measurement, not breakpoints. What fits depends on the words the mount reports
 ("Start tracking" vs "Park"), on the locale and on the reader's text scale, so
 no dp threshold can be right.
 
-### `nightshade_ui` (shared: the cause is in the components)
+### `skotiq_ui` (shared: the cause is in the components)
 
 - `measureTextWidth(context, text:, style:)` —
-  `packages/nightshade_ui/lib/src/utils/text_measure.dart`. One `TextPainter`
+  `packages/skotiq_ui/lib/src/utils/text_measure.dart`. One `TextPainter`
   measurement that reads the text scale off the context.
-- `NightshadeButton.measureWidth(context, label:, hasIcon:, size:)` — the width
+- `SkotiqButton.measureWidth(context, label:, hasIcon:, size:)` — the width
   a button needs, from the button's **own** metrics: the same text style,
   horizontal padding, icon slot and 1px border `build` paints with, so the
   measurement cannot drift from what is drawn. The three per-size metrics moved
   from `State` getters to top-level functions so there is exactly one
   implementation of each.
 - `AdaptiveColumns` / `AdaptiveCell` —
-  `packages/nightshade_ui/lib/src/layout/adaptive_columns.dart`. Lays cells out
+  `packages/skotiq_ui/lib/src/layout/adaptive_columns.dart`. Lays cells out
   in as many **equal** columns as their measured widths allow (the widest cell
   sets the column width, so no single cell is the one that truncates) and stacks
   them full width when not even two fit. A short final run keeps the grid's
@@ -49,13 +49,13 @@ no dp threshold can be right.
 
 | Before | After |
 | --- | --- |
-| `EdgeInsets.all(24)` + `NightshadeCard(padding: 16)` per group | `padding: EdgeInsets.zero` + `PanelSection`, exactly as every sibling section in the rail (14px card padding → 216px of content) |
+| `EdgeInsets.all(24)` + `SkotiqCard(padding: 16)` per group | `padding: EdgeInsets.zero` + `PanelSection`, exactly as every sibling section in the rail (14px card padding → 216px of content) |
 | Actions: fixed two-column `Row` | `AdaptiveColumns`: two-up when both measured labels fit, a full-width stack otherwise |
 | `ABORT SLEW`, `ButtonVariant.primary` | `Abort slew`, `ButtonVariant.destructive`, always full width |
 | `Three-Point Polar Alignment` | `Polar alignment` — what the Sequencer toolbar and the command palette already call that screen; three-point is the method chosen inside it |
 | `Start Track` / `Stop Track` | `Start tracking` / `Stop tracking` |
-| Caps `_StatusBadge` (bespoke box) | `NightshadeChip(tone:, dot: true)` — the chip the Equipment screen's device cards use |
-| `RA (Hours)` / `Dec (Deg)` hints side by side | stacked `NightshadeTextField`s labelled `RA` / `Dec` with `h` / `°` suffixes, mono values |
+| Caps `_StatusBadge` (bespoke box) | `SkotiqChip(tone:, dot: true)` — the chip the Equipment screen's device cards use |
+| `RA (Hours)` / `Dec (Deg)` hints side by side | stacked `SkotiqTextField`s labelled `RA` / `Dec` with `h` / `°` suffixes, mono values |
 | `_InfoRow` (caption label over `monoSm`) | `Readout(size: ReadoutSize.sm)` — the design system's readout, em dash for an unknown value instead of `--` |
 | Pulse cross with a rigid 48px centre | the centre gap is `Flexible`; the pads themselves never shrink |
 | `Responsive.isMobile(context)` decided the readout grid | the grid decides from the width it is actually given — the window size never said anything about a 244px column |
@@ -90,7 +90,7 @@ left for the copy pass rather than mixed into a layout fix: "Tracked Stars",
 
 Release bundle built in this worktree; the app driven headless on `:98` with
 `tools/ui_audit/drive_linux.py --profile w11mount`, seeded from
-`~/.cache/nightshade-ledger-preview/data` minus `nightshade.db.lock`. Route:
+`~/.cache/skotiq-ledger-preview/data` minus `skotiq.db.lock`. Route:
 Skip the Continue Session dialog → Imaging in the left rail (`tree` shows
 "Live view") → the mount glyph on the right rail.
 
@@ -128,10 +128,10 @@ Unpiped, exit codes recorded:
 
 | Command | Exit |
 | --- | --- |
-| `flutter test test/screens/imaging --concurrency=3` (nightshade_app) | 0 — **373 passed** (360 on base: +10 mount fit, +1 SmallButton measure, +2 slider label) |
-| `flutter test --concurrency=3` (nightshade_ui, whole package) | 0 — 530 passed |
-| `dart analyze lib` (nightshade_app) | 682 infos vs **692 on base** — ten FEWER (the rewrite dropped deprecated `ButtonVariant.outline` / `h5` / `surfaceAlt` uses). Zero warnings, zero errors, zero new. |
-| `dart analyze lib` (nightshade_ui) | 0 — "No issues found!" |
+| `flutter test test/screens/imaging --concurrency=3` (skotiq_app) | 0 — **373 passed** (360 on base: +10 mount fit, +1 SmallButton measure, +2 slider label) |
+| `flutter test --concurrency=3` (skotiq_ui, whole package) | 0 — 530 passed |
+| `dart analyze lib` (skotiq_app) | 682 infos vs **692 on base** — ten FEWER (the rewrite dropped deprecated `ButtonVariant.outline` / `h5` / `surfaceAlt` uses). Zero warnings, zero errors, zero new. |
+| `dart analyze lib` (skotiq_ui) | 0 — "No issues found!" |
 | `dart format --set-exit-if-changed` on every file I touched | 0 |
 | `flutter build linux --release` | 0 |
 
@@ -142,7 +142,7 @@ Pre-existing and NOT mine, confirmed by re-running against `9c233bdd0`:
   inside the focuser's `AlertDialog`).
 - `dart format` would rewrite 41 files that predate this branch (the DepthLock
   set, `imaging_screen.dart`, `live_preview_area.dart`, `preview_viewport.dart`,
-  `nightshade_tooltip.dart`, several `nightshade_core` files). Left alone.
+  `skotiq_tooltip.dart`, several `skotiq_core` files). Left alone.
 - `test/golden/guiding_panel_builtin_golden_test.dart` rewrites
   `docs/design/goldens/surface-guiding-panel-builtin-multistar.png` when it
   runs. The regenerated PNG was reverted, per "do not modify golden PNGs" — the
@@ -151,7 +151,7 @@ Pre-existing and NOT mine, confirmed by re-running against `9c233bdd0`:
 
 ## One thing the owner should know
 
-`~/.cache/ns-worktrees/libnightshade_bridge.ownertree-1467366630.so` — the
+`~/.cache/ns-worktrees/libskotiq_bridge.ownertree-1467366630.so` — the
 prebuilt bridge this brief names — **cannot be read past 41MB**: `dd` stops with
 an I/O error at 40,976,384 of 48,789,784 bytes and `md5sum` refuses it. Every
 copy of it is a hardlink to the same damaged inode, so
@@ -160,12 +160,12 @@ unreadable file. This looks like the btrfs corruption from 2026-08-14 rather
 than anything this branch did.
 
 The bundle here was linked against
-`~/Documents/Nightshade2/native/nightshade_native/target/release/libnightshade_bridge.so`
+`~/Documents/Skotiq2/native/skotiq_native/target/release/libskotiq_bridge.so`
 instead — same `rustContentHash` (-1467366630), built 2026-09-13 00:20, reads
 clean (md5 `c226e4aecdd9b071ecb03dd81b823c98`). The app ran, talked to the
 simulators and reported live mount state, so the pairing is good.
 
-Also: this worktree's `native/nightshade_native/target` was checked out as a
+Also: this worktree's `native/skotiq_native/target` was checked out as a
 regular FILE containing the path it should point at, not as the symlink git
 records (mode 120000). That is why `flutter build linux` warned "Rust library
 not found". Restored to a real symlink; `git status` is clean either way.

@@ -2,15 +2,15 @@
  {
   "title": "Framing screen reports the wrong sensor size (1920x1080) for a camera that delivers 4144x2822 - the FOV rectangle is less than half the true width",
   "outcome": "already-correct",
-  "summary": "Closed by an earlier wave (uncommitted in the working tree). native/nightshade_native/bridge/src/api/imaging.rs:866-882 now derives the manual-capture frame geometry from `get_sim_camera().status.sensor_width/height` (the geometry the camera ADVERTISES) instead of the old hardcoded 4144x2822; the verifier's own diagnosis was that the manual-capture generator was the liar and framing_provider/support.dart was faithful. Regression test at native/nightshade_native/bridge/src/api/imaging.rs:6988 `simulated_frame_matches_the_advertised_sensor` asserts the delivered frame equals the advertised sensor.",
+  "summary": "Closed by an earlier wave (uncommitted in the working tree). native/skotiq_native/bridge/src/api/imaging.rs:866-882 now derives the manual-capture frame geometry from `get_sim_camera().status.sensor_width/height` (the geometry the camera ADVERTISES) instead of the old hardcoded 4144x2822; the verifier's own diagnosis was that the manual-capture generator was the liar and framing_provider/support.dart was faithful. Regression test at native/skotiq_native/bridge/src/api/imaging.rs:6988 `simulated_frame_matches_the_advertised_sensor` asserts the delivered frame equals the advertised sensor.",
   "files_changed": [],
-  "test": "cargo test -p nightshade_bridge simulated_frame_matches_the_advertised_sensor -- 1 passed",
+  "test": "cargo test -p skotiq_bridge simulated_frame_matches_the_advertised_sensor -- 1 passed",
   "revert_check": "n/a - no new change; the closing test already exists and passes."
  },
  {
   "title": "FITS omits XPIXSZ/YPIXSZ (and OBJECT) although onboarding collects pixel size and uses it to compute image scale",
   "outcome": "already-correct",
-  "summary": "Closed by an earlier wave (uncommitted in the working tree). packages/nightshade_core/lib/src/services/imaging_service/persistence.dart:59-62 now calls `_sensorPixelPitchMicrons` (defined at :110) and passes the result into FitsWriteHeader at :90-91; the stale 'Pixel size not stored in profile yet' comment is gone. Test packages/nightshade_core/test/services/imaging_service_fits_pixel_size_test.dart covers it (4 cases incl. the 0.0-means-unknown and capability-query-failure paths). OBJECT was correctly judged not-a-bug by the verifier: persistence.dart:66 passes objectName: targetName, which is null only for a manual capture with no session target.",
+  "summary": "Closed by an earlier wave (uncommitted in the working tree). packages/skotiq_core/lib/src/services/imaging_service/persistence.dart:59-62 now calls `_sensorPixelPitchMicrons` (defined at :110) and passes the result into FitsWriteHeader at :90-91; the stale 'Pixel size not stored in profile yet' comment is gone. Test packages/skotiq_core/test/services/imaging_service_fits_pixel_size_test.dart covers it (4 cases incl. the 0.0-means-unknown and capability-query-failure paths). OBJECT was correctly judged not-a-bug by the verifier: persistence.dart:66 passes objectName: targetName, which is null only for a manual capture with no session target.",
   "files_changed": [],
   "test": "flutter test test/services/imaging_service_fits_pixel_size_test.dart -- 4 passed",
   "revert_check": "n/a - no new change; the closing test already exists and passes."
@@ -20,10 +20,10 @@
   "outcome": "fixed",
   "summary": "advance_sim_slew dropped `slewing` to false the instant the interpolation reached fraction 1.0, so 'arrived' and 'stopped moving' were ONE event and no caller could observe them out of order. Added SIM_SLEW_SETTLE_SECS = 0.6 (simulation.rs:625-646, same family as the existing SIM_CALIBRATOR_SETTLE_SECS / SIM_SWITCH_SETTLE_SECS) and reshaped advance_sim_slew (simulation.rs:~800-825): at fraction 1.0 the axes are pinned to the target and the pier side is committed, but `slewing` stays true and the interpolation cell stays alive until duration + settle has elapsed. This is what finally gives the sequencer's wait_for_mount_idle_with_progress, centering's wait_for_centering_correction_slew (and CenteringSlewTimeoutException behind it), the polar-alignment poll and the post-flip guiding settle something to actually wait on.",
   "files_changed": [
-   "native/nightshade_native/bridge/src/api/devices/simulation.rs",
-   "native/nightshade_native/bridge/src/device_manager/ops/sim_gate.rs"
+   "native/skotiq_native/bridge/src/api/devices/simulation.rs",
+   "native/skotiq_native/bridge/src/device_manager/ops/sim_gate.rs"
   ],
-  "test": "native/nightshade_native/bridge/src/device_manager/ops/sim_gate.rs `mount_motion_tests::the_mount_holds_slewing_through_a_settle_after_it_arrives` - asserts RA/Dec are already exactly on target while status.slewing is still true, then that it clears. cargo test -p nightshade_bridge: 471 -> 474 passed, 0 failed.",
+  "test": "native/skotiq_native/bridge/src/device_manager/ops/sim_gate.rs `mount_motion_tests::the_mount_holds_slewing_through_a_settle_after_it_arrives` - asserts RA/Dec are already exactly on target while status.slewing is still true, then that it clears. cargo test -p skotiq_bridge: 471 -> 474 passed, 0 failed.",
   "revert_check": "Reverted simulation.rs:646 `const SIM_SLEW_SETTLE_SECS: f64 = 0.6;` to `= 0.0;` (restores the old semantics exactly). the_mount_holds_slewing_through_a_settle_after_it_arrives FAILED; restored, passes."
  },
  {
@@ -31,10 +31,10 @@
   "outcome": "fixed",
   "summary": "Two halves. (a) Added sim_gate::refuse_while_mount_slewing (sim_gate.rs:~284-310) and wired it into the Simulator arms of mount_slew (ops/mount.rs:231), mount_sync (:355), mount_park (:451) and mount_slew_alt_az (:684). It checks BOTH the interpolation cell (simulation.rs `sim_slew_in_flight`, which also covers the new settle tail and a fault-stalled slew) and status.slewing (which covers a manual axis move that has no cell), and it runs AFTER require_mount_connected so the motion has been advanced under the fault gate first. mount_move_axis is deliberately NOT refused - `rate == 0.0` is how the hand-controller buttons STOP an axis and a stop must never be rejected. (b) The refusal exposed a real defect in the app: sequencer/src/device_ops.rs try_park_with_retry, which is the safety/weather/recovery park path, called mount_park with no preceding abort, so on any driver that refuses a park while slewing it burned all its attempts and left the mount unparked. meridian_flip_executor.rs:1524 already aborts first and says why ('Some mounts will refuse a park while slewing'); try_park_with_retry now does the same, best-effort, before each attempt (device_ops.rs:1072-1088).",
   "files_changed": [
-   "native/nightshade_native/bridge/src/device_manager/ops/sim_gate.rs",
-   "native/nightshade_native/bridge/src/device_manager/ops/mount.rs",
-   "native/nightshade_native/bridge/src/api/devices/simulation.rs",
-   "native/nightshade_native/sequencer/src/device_ops.rs"
+   "native/skotiq_native/bridge/src/device_manager/ops/sim_gate.rs",
+   "native/skotiq_native/bridge/src/device_manager/ops/mount.rs",
+   "native/skotiq_native/bridge/src/api/devices/simulation.rs",
+   "native/skotiq_native/sequencer/src/device_ops.rs"
   ],
   "test": "sim_gate.rs `mount_motion_tests::a_slew_sync_or_park_is_refused_while_the_mount_is_moving` (all three refused mid-slew, refusal does not silently stop the slew, all accepted again after abort) + device_ops.rs `tests::try_park_with_retry_stops_the_slew_before_parking` (FlakyParkOps::slewing() rejects park until mount_abort_slew; max_retries=0 so only the abort can make it pass). Also rewrote the pre-existing `re_targeting_mid_slew_resumes_from_where_the_mount_actually_is` -> `re_targeting_after_an_abort_...`, which asserted the old accept-mid-slew behaviour; its real invariant (begin_sim_slew resumes from where the mount ACTUALLY is, not a stale sample) is preserved via abort-then-slew. Added cancel_sim_slew() to both attach_sim_mount test helpers - the interpolation cell lives outside SimulatedMount, so resetting the struct leaked a live slew into the next test.",
   "revert_check": "Three separate wiring severs, each one at a time: ops/mount.rs:231 refuse_while_mount_slewing(\"slew\") removed -> test FAILED; ops/mount.rs:451 refuse_while_mount_slewing(\"park\") removed -> test FAILED ('park was accepted while the mount was still slewing'); ops/mount.rs:355 refuse_while_mount_slewing(\"sync\") removed -> test FAILED ('sync was accepted while the mount was still slewing'). For (b): device_ops.rs:1072-1088 abort block removed -> try_park_with_retry_stops_the_slew_before_parking FAILED. All restored, all pass.",
@@ -45,8 +45,8 @@
   "outcome": "fixed",
   "summary": "All four did their own inline `status.connected` read instead of calling the shared gate. Same connection answer, but they skipped the two things the gate ALSO does: run the sim_faults injector on the `mount.command` key, and advance the in-flight slew so the command acts on where the mount is NOW rather than as of the last status poll. A no-hardware audit therefore could not make any of these four fail. Replaced each inline check with require_mount_connected() (ops/mount.rs:556 unpark, :1157 set_tracking, :2190 set_tracking_rate - moved ahead of the rate parse so a disconnected mount reports being disconnected rather than grading the caller's argument -, :2455 move_axis) and deleted the now-unused sim_gate::not_connected_mount helper.",
   "files_changed": [
-   "native/nightshade_native/bridge/src/device_manager/ops/mount.rs",
-   "native/nightshade_native/bridge/src/device_manager/ops/sim_gate.rs"
+   "native/skotiq_native/bridge/src/device_manager/ops/mount.rs",
+   "native/skotiq_native/bridge/src/device_manager/ops/sim_gate.rs"
   ],
   "test": "sim_gate.rs `mount_motion_tests::every_mutating_mount_op_goes_through_the_command_gate` - arms sim_faults `mount.command` with Trigger::Always + Effect::Error and asserts all four ops return Err. Nothing but routing through require_mount_connected can make that pass.",
   "revert_check": "Reverted ops/mount.rs:556 (removed `crate::device_manager::ops::sim_gate::require_mount_connected().await?;` from the mount_unpark Simulator arm) -> every_mutating_mount_op_goes_through_the_command_gate FAILED ('unpark succeeded against a driver that rejects every command'); restored, passes."
@@ -56,11 +56,11 @@
   "outcome": "fixed",
   "summary": "Three parts. (a) Added FrameContext::exposure_midpoint() (sequencer/src/scheduling/frame_context.rs:405-427) = exposure_started_at + duration/2, None when the shutter-open instant was never recorded. (b) Both derivation sites now use it. sequencer/src/instructions.rs:3910-3927 (build_frame_context_for_save) derives mount_altitude_deg/mount_azimuth_deg at the midpoint - this is the ONE derivation feeding both the FITS OBJCTALT/AIRMASS cards and the captured_images.mount_altitude column. bridge/src/sequencer_ops.rs:1066-1080 (save_fits) computes a `sky_epoch` from the same helper and passes it to both context_altitude_pointing and read_mount_pointing (whose signature now takes the instant, and which uses the free-standing altitude_degrees instead of the Utc::now()-bound DeviceOps::calculate_altitude). RA/Dec are deliberately still sampled at readout: a tracking mount holds them and only the horizon frame turns with the clock. DeviceOps::calculate_altitude keeps Utc::now() because its only consumer, meridian_flip_executor.rs:219, is a live 'is the target still up' check. (c) Root-caused the input-side gap the AAVSO exporter's comment had been DISCLOSING since an earlier wave: api_sequencer_start now seeds the executor's site from app settings before a run can begin (bridge/src/api/sequencer.rs:247-273). Without it a run started before Dart's sequencerUpdateLocation push produced files WITH an AIRMASS card (the FITS writer has its own fallback) and captured_images rows WITHOUT an altitude, so the AAVSO exporter - which reads the row - submitted 'na' in the AMASS column for frames whose own header knew the answer. The exporter comment was rewritten to describe the closed state.",
   "files_changed": [
-   "native/nightshade_native/sequencer/src/scheduling/frame_context.rs",
-   "native/nightshade_native/sequencer/src/instructions.rs",
-   "native/nightshade_native/bridge/src/sequencer_ops.rs",
-   "native/nightshade_native/bridge/src/api/sequencer.rs",
-   "packages/nightshade_core/lib/src/services/science/aavso_export_service.dart"
+   "native/skotiq_native/sequencer/src/scheduling/frame_context.rs",
+   "native/skotiq_native/sequencer/src/instructions.rs",
+   "native/skotiq_native/bridge/src/sequencer_ops.rs",
+   "native/skotiq_native/bridge/src/api/sequencer.rs",
+   "packages/skotiq_core/lib/src/services/science/aavso_export_service.dart"
   ],
   "test": "Three, each at a production call site. (1) sequencer instructions.rs `tests::frame_altitude_is_derived_at_the_exposure_midpoint` - runs execute_exposure for real, points the scripted mount at whatever is CULMINATING at test start so the save-time answer is the maximum altitude and the midpoint an hour later is measurably lower whatever the wall clock says, then asserts the FrameContext the FITS writer received carries the midpoint altitude. tokio start_paused makes the 2 h exposure free while chrono timestamps stay real. (2) bridge sequencer_ops.rs `pointing_tests::save_fits_derives_the_altitude_at_the_exposure_midpoint` - drives DeviceOps::save_fits, reads OBJCTALT back off the written FITS, same culmination trick with a 6 h offset and Dec +85 so both instants are above the horizon. (3) bridge api/sequencer.rs `executor_site_tests::starting_a_run_seeds_the_site_from_app_settings`. Both rig tests carry an explicit discriminating-power guard that fails loudly if the two epochs ever coincide.",
   "revert_check": "(1)+(2) Replaced `let when = frame_ctx.exposure_midpoint().unwrap_or_else(chrono::Utc::now);` (instructions.rs) and `let sky_epoch = frame_ctx.exposure_midpoint().unwrap_or_else(chrono::Utc::now);` (sequencer_ops.rs) with `chrono::Utc::now()` -> frame_altitude_is_derived_at_the_exposure_midpoint FAILED and save_fits_derives_the_altitude_at_the_exposure_midpoint FAILED. (3) Removed `seed_executor_site_from_settings(&mut executor);` from api_sequencer_start (api/sequencer.rs:273) -> starting_a_run_seeds_the_site_from_app_settings FAILED ('the run started with no observing site even though app settings had one'). All restored, all pass.",

@@ -7,9 +7,9 @@
       "outcome": "fixed",
       "summary": "filter_wheel_step.dart capped 'Add slot' at a hardcoded 12 (`_controllers.length >= 12`) even though _seedSlotsFromDevice had just read the wheel's real position count from the driver, so a 7-position wheel accepted rows 8..12 and onboarding could persist filters the hardware can never select. The cap is now the count the CONNECTED wheel reports (trusted only when the connected device is the one the draft picked), with the hardcoded 12 kept only as the no-reading fallback; the disabled button carries a tooltip naming the count and the list carries a caption. Deleting a middle slot now confirms first, because slot labels are wheel POSITIONS and removing row 2 silently renumbers every row below it (which is what re-maps per-filter focus offsets).",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/onboarding/steps/filter_wheel_step.dart",
-        "packages/nightshade_app/test/screens/onboarding/filter_wheel_slot_cap_test.dart",
-        "packages/nightshade_app/test/screens/onboarding/onboarding_filter_slots_commit_test.dart"
+        "packages/skotiq_app/lib/screens/onboarding/steps/filter_wheel_step.dart",
+        "packages/skotiq_app/test/screens/onboarding/filter_wheel_slot_cap_test.dart",
+        "packages/skotiq_app/test/screens/onboarding/onboarding_filter_slots_commit_test.dart"
       ],
       "test": "flutter test test/screens/onboarding/filter_wheel_slot_cap_test.dart (4 tests)",
       "revert_check": "Changed `final slotCap = reportedSlots ?? _hardSlotCap;` to `final slotCap = _hardSlotCap;` and `final isLast = index == _controllers.length - 1;` to `final isLast = true;` -> 'Add slot is dead once every wheel position is listed' and 'removing a middle slot asks first' both FAIL; restored -> 4/4 pass.",
@@ -20,8 +20,8 @@
       "outcome": "fixed",
       "summary": "The finding's path was wrong (there is no screens/equipment/command_handlers.dart); the code is equipment_screen.dart:669-713. After every profile sweep it best-efforted a connect to unifiedSafetyMonitorsProvider.first whenever no safety monitor was connected. That provider is fed by the discovery cache, so two identical presses of the same button produced different rigs: the press after the Discovery panel re-scanned also connected sim_safety_monitor_1, and the header read '5 connected - 1 unsaved' while the profile card and status bar read 4/4. Removed \u2014 DeviceService.connectAllFromProfile already connects profile.safetyMonitorId when the profile has one, so Connect All is now exactly the profile, every time. Also fixed the guard list that decides 'no devices configured': it omitted safetyMonitorId and switchId, so a profile holding only those two was turned away without connecting anything.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/equipment/equipment_screen.dart",
-        "packages/nightshade_app/test/screens/equipment/connect_all_profile_scope_test.dart"
+        "packages/skotiq_app/lib/screens/equipment/equipment_screen.dart",
+        "packages/skotiq_app/test/screens/equipment/connect_all_profile_scope_test.dart"
       ],
       "test": "flutter test test/screens/equipment/connect_all_profile_scope_test.dart",
       "revert_check": "Re-added the deleted opportunistic-connect block -> 'Connect All touches no device outside the profile' FAILS (a 'safety monitor' chip appears in deviceConnectionProgressProvider); removed again -> passes."
@@ -31,10 +31,10 @@
       "outcome": "fixed",
       "summary": "Two defects in one flow. (1) profile_sidebar.dart:432 now describes the real undo window and names the rig (name + subtitle: telescope + camera, or device count), because the name alone is not unique. (2) The Undo itself was _restoreDeletedProfile, a State method whose every path was guarded by `mounted` \u2014 the snackbar lives in the app-level ScaffoldMessenger and follows the operator to the next screen, which DISPOSES EquipmentScreen, so pressing Undo from anywhere else aborted silently: no restore, no message, row stayed deleted (the verifier hit exactly this). Moved the restore to a free function over the ProviderContainer plus the ScaffoldMessengerState captured at delete time (equipment_screen/profile_undo.dart), and moved the anti-race mutation epoch out of the State into profileMutationEpochProvider so the guard survives the route too.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/equipment/widgets/profile_sidebar.dart",
-        "packages/nightshade_app/lib/screens/equipment/equipment_screen.dart",
-        "packages/nightshade_app/lib/screens/equipment/equipment_screen/profile_undo.dart",
-        "packages/nightshade_app/test/screens/equipment/profile_delete_undo_test.dart"
+        "packages/skotiq_app/lib/screens/equipment/widgets/profile_sidebar.dart",
+        "packages/skotiq_app/lib/screens/equipment/equipment_screen.dart",
+        "packages/skotiq_app/lib/screens/equipment/equipment_screen/profile_undo.dart",
+        "packages/skotiq_app/test/screens/equipment/profile_delete_undo_test.dart"
       ],
       "test": "flutter test test/screens/equipment/profile_delete_undo_test.dart (2 tests) + the existing profile_delete_snackbar_test.dart still green",
       "revert_check": "Copy reverted to 'Delete \"$name\"? This cannot be undone.' -> 'the confirmation describes the undo instead of denying it' FAILS. Undo wiring reverted by re-adding the State lifetime guard (`if (!mounted) return;` in the SnackBarAction) -> 'Undo still restores after leaving the Equipment screen' FAILS. Both restored -> pass."
@@ -42,12 +42,12 @@
     {
       "title": "Two profiles could share the same name, making every destructive prompt ambiguous",
       "outcome": "fixed",
-      "summary": "profile_data_operations.dart::_validateForm ran ProfileValidator.parseName, which rejects only blank/over-long names, so 'My First Rig' could be created twice \u2014 and then the sidebar, the header, the status bar and the delete confirmation all quote nothing but that shared name. Added _duplicateNameError to the same gate that already catches the empty name, checked against the same remote-aware sortedProfilesProvider the sidebar renders, case- and whitespace-insensitive, excluding the profile being edited. Deliberately implemented in the editor rather than in nightshade_core's shared ProfileValidator: the settings agent owns the parallel 'Duplicate creates byte-identical names' finding in that same shared file this wave.",
+      "summary": "profile_data_operations.dart::_validateForm ran ProfileValidator.parseName, which rejects only blank/over-long names, so 'My First Rig' could be created twice \u2014 and then the sidebar, the header, the status bar and the delete confirmation all quote nothing but that shared name. Added _duplicateNameError to the same gate that already catches the empty name, checked against the same remote-aware sortedProfilesProvider the sidebar renders, case- and whitespace-insensitive, excluding the profile being edited. Deliberately implemented in the editor rather than in skotiq_core's shared ProfileValidator: the settings agent owns the parallel 'Duplicate creates byte-identical names' finding in that same shared file this wave.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/equipment/dialogs/profile_editor_dialog/profile_data_operations.dart",
-        "packages/nightshade_app/test/screens/equipment/profile_editor_duplicate_name_test.dart",
-        "packages/nightshade_app/test/screens/equipment/profile_editor_dialog_validation_test.dart",
-        "packages/nightshade_app/test/screens/equipment/profile_editor_reducer_round_trip_test.dart"
+        "packages/skotiq_app/lib/screens/equipment/dialogs/profile_editor_dialog/profile_data_operations.dart",
+        "packages/skotiq_app/test/screens/equipment/profile_editor_duplicate_name_test.dart",
+        "packages/skotiq_app/test/screens/equipment/profile_editor_dialog_validation_test.dart",
+        "packages/skotiq_app/test/screens/equipment/profile_editor_reducer_round_trip_test.dart"
       ],
       "test": "flutter test test/screens/equipment/profile_editor_duplicate_name_test.dart (4 tests)",
       "revert_check": "Changed `final nameError = nameResult.isValid ? _duplicateNameError(...) : nameResult.error;` back to `final nameError = nameResult.error;` -> 'a name another profile already carries is refused' and 'the check ignores case and surrounding whitespace' both FAIL (a second row is written); restored -> pass.",
@@ -58,9 +58,9 @@
       "outcome": "fixed",
       "summary": "The strip outlives its sweep by design (that is how a failed device is reviewed) but was undated and borrowed the live surfaces' vocabulary: after Disconnect All it read 'Connect All result' with four green 'Connected' chips beside a 'No devices connected' empty state and a 0/4 profile card. It now dates and scores itself ('Connect All at 11:16: 1 of 2 succeeded') from a new finishedAt stamp on DeviceConnectionProgressState, the chips read 'Succeeded'/'Failed' (outcomes, which cannot be read as current state), and the strip carries a tooltip pointing at the device cards and status bar for what is connected NOW.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/providers/device_connection_progress_provider.dart",
-        "packages/nightshade_app/lib/screens/equipment/equipment_screen/progress_dashboard.dart",
-        "packages/nightshade_app/test/screens/equipment/connect_all_result_strip_test.dart"
+        "packages/skotiq_core/lib/src/providers/device_connection_progress_provider.dart",
+        "packages/skotiq_app/lib/screens/equipment/equipment_screen/progress_dashboard.dart",
+        "packages/skotiq_app/test/screens/equipment/connect_all_result_strip_test.dart"
       ],
       "test": "flutter test test/screens/equipment/connect_all_result_strip_test.dart (2 tests)",
       "revert_check": "Headline reverted to `state.isSweeping ? 'Connecting\u2026' : '${state.source} result'` and the chip label back to 'Connected' -> 'a finished sweep is dated, scored and phrased in the past tense' FAILS; restored -> passes."
@@ -70,14 +70,14 @@
       "outcome": "fixed",
       "summary": "onboarding_provider.dart:429 hardcoded coolOnConnect: false, so a wizard user who switched on 'Regulated cooling' and set -10 C got cool_on_connect = 0 and a sensor at ambient every session; the only control that changed it was a checkbox in Equipment > Edit Profile > Camera Defaults that a first-run user has no reason to open. The wizard now ASKS \u2014 'Start cooling when the camera connects', revealed under the set-point, default OFF \u2014 and the answer rides the draft (new OnboardingDraft.coolOnConnect, persisted in the draft JSON) into the created profile. Auto-cooling stays opt-in by design: a rig set up at noon must not pin the TEC at full power for the afternoon, and turning regulated cooling back off disarms it. Also neutralised the orphan setting the verifier confirmed as the real defect: cooling_behavior defaulted to 'On Connect' with zero consumers and no UI, so the DB and the /api/settings payload announced automatic cooling that never happens; the default is now 'Manual' (which is what the app actually does) and the field is documented as unimplemented with the per-profile flag named as the authority.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/models/onboarding/onboarding_state.dart",
-        "packages/nightshade_core/lib/src/providers/onboarding_provider.dart",
-        "packages/nightshade_app/lib/screens/onboarding/steps/camera_defaults_step.dart",
-        "packages/nightshade_core/lib/src/database/database/default_settings.dart",
-        "packages/nightshade_core/lib/src/providers/settings_sections/app_settings_state.dart",
-        "packages/nightshade_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart",
-        "packages/nightshade_app/test/screens/onboarding/camera_defaults_cool_on_connect_test.dart",
-        "packages/nightshade_core/test/providers/onboarding_cool_on_connect_test.dart"
+        "packages/skotiq_core/lib/src/models/onboarding/onboarding_state.dart",
+        "packages/skotiq_core/lib/src/providers/onboarding_provider.dart",
+        "packages/skotiq_app/lib/screens/onboarding/steps/camera_defaults_step.dart",
+        "packages/skotiq_core/lib/src/database/database/default_settings.dart",
+        "packages/skotiq_core/lib/src/providers/settings_sections/app_settings_state.dart",
+        "packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart",
+        "packages/skotiq_app/test/screens/onboarding/camera_defaults_cool_on_connect_test.dart",
+        "packages/skotiq_core/test/providers/onboarding_cool_on_connect_test.dart"
       ],
       "test": "flutter test test/screens/onboarding/camera_defaults_cool_on_connect_test.dart (2 tests, app) + test/providers/onboarding_cool_on_connect_test.dart (3 tests, core)",
       "revert_check": "Changed `coolOnConnect: draft.coolOnConnect` back to `coolOnConnect: false` in onboarding_provider.dart -> core test 'the wizard answer \"cool on connect\" reaches the created profile' FAILS; restored -> 3/3 pass. The existing onboarding_provider_test assertion that a set-point alone leaves cool-on-connect OFF still passes.",
@@ -88,8 +88,8 @@
       "outcome": "partial",
       "summary": "The magnitude half was ALREADY FIXED in the working tree before I started (transient_alert_mapper.dart, 08-02 12:48): magnitude is now null and the change is carried as a signed, labelled delta in the classification line, with a note that it is a brightness change and not an apparent magnitude \u2014 the verifier drove an older bundle. The designation half was still live and is fixed here: _provisionalName built 'NS J' + RA in DECIMAL HOURS to 2 dp + declination in decimal degrees ('NS J0.71+41.3'), which is not the IAU form the TNS/AAVSO/MPC expect for the very reports this feature exists to file, and is coarse enough that two objects 40 arcminutes apart in RA share a name. Now IAU sexagesimal, rounded at the printed precision with carry: NS J004244.33+411607.3.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/services/transients/transient_alert_mapper.dart",
-        "packages/nightshade_core/test/services/transients/transient_designation_test.dart"
+        "packages/skotiq_core/lib/src/services/transients/transient_alert_mapper.dart",
+        "packages/skotiq_core/test/services/transients/transient_designation_test.dart"
       ],
       "test": "flutter test test/services/transients/transient_designation_test.dart (5 tests) + the existing transient_alert_mapper_test.dart still green",
       "revert_check": "Restored the decimal-hours designation -> 4 of the 5 designation tests FAIL (including the reported object); restored -> 5/5 pass."
@@ -99,10 +99,10 @@
       "outcome": "partial",
       "summary": "The Retry half was ALREADY FIXED in the working tree today (08-03 19:10) by the core-providers work, and I confirmed it rather than re-fixing it: transient_detections_dao.watchRecentDetections now maps rows through _mapSkippingUndecodable (one corrupt row costs that row, not the feature) and transient_detections_provider._localFirstLightStream does a fresh one-shot read before subscribing to the cached drift stream, which is what makes Retry mean anything \u2014 covered by first_light_candidates_resilience_test.dart, green. The raw-exception half was still live: the error state rendered `describeFirstLightError(error)` verbatim, i.e. 'FormatException: Invalid radix-10 number (at character 1) / tile-1 / ^' with the caret diagram, which tells an operator nothing about whether their night survived. The body now leads with a sentence about the data and keeps the technical text behind a 'Details:' line.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/first_light/first_light_format.dart",
-        "packages/nightshade_app/lib/screens/first_light/first_light_view.dart",
-        "packages/nightshade_app/test/screens/first_light/first_light_error_state_test.dart",
-        "packages/nightshade_app/test/screens/first_light/first_light_format_test.dart"
+        "packages/skotiq_app/lib/screens/first_light/first_light_format.dart",
+        "packages/skotiq_app/lib/screens/first_light/first_light_view.dart",
+        "packages/skotiq_app/test/screens/first_light/first_light_error_state_test.dart",
+        "packages/skotiq_app/test/screens/first_light/first_light_format_test.dart"
       ],
       "test": "flutter test test/screens/first_light/ (all green, includes the new error-state widget test)",
       "revert_check": "Changed the view back to `body: describeFirstLightError(error)` -> the new widget test 'a load failure explains itself before it quotes the exception' FAILS on the missing 'untouched'/'Details:' text; restored -> passes."

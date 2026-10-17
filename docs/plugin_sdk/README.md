@@ -1,17 +1,17 @@
-# Nightshade Plugin SDK
+# Skotiq Plugin SDK
 
-Build plugins that extend Nightshade's astrophotography suite with custom UI panels, device drivers, and automation sequence nodes.
+Build plugins that extend Skotiq's astrophotography suite with custom UI panels, device drivers, and automation sequence nodes.
 
 ## Quick Start
 
 ### 1. Create a Plugin Class
 
-Every plugin extends `NightshadePlugin` and implements its lifecycle methods:
+Every plugin extends `SkotiqPlugin` and implements its lifecycle methods:
 
 ```dart
-import 'package:nightshade_plugins/nightshade_plugins.dart';
+import 'package:skotiq_plugins/skotiq_plugins.dart';
 
-class MyPlugin extends NightshadePlugin {
+class MyPlugin extends SkotiqPlugin {
   PluginContext? _context;
 
   @override
@@ -92,7 +92,7 @@ Future<void> onLoad(PluginContext context) async {
 
 ## Plugin Types
 
-Nightshade supports three specialized plugin types beyond the base `NightshadePlugin`:
+Skotiq supports three specialized plugin types beyond the base `SkotiqPlugin`:
 
 | Type | Base Class | Purpose |
 |------|-----------|---------|
@@ -147,7 +147,7 @@ Every plugin requires these identity properties:
 | `version` | `String` | Yes | Semantic version (e.g., `1.0.0`) |
 | `description` | `String` | Yes | Brief description of what the plugin does |
 | `author` | `String` | Yes | Author name or organization |
-| `minAppVersion` | `String?` | No | Minimum Nightshade version required (defaults to `null`) |
+| `minAppVersion` | `String?` | No | Minimum Skotiq version required (defaults to `null`) |
 
 ## Further Reading
 

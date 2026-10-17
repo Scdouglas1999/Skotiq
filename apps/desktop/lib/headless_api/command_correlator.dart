@@ -3,7 +3,7 @@
 // Every action POST (camera/expose, mount/slew, sequencer/start, etc.)
 // generates a UUID v4 commandId, registers (operation, deviceId,
 // commandId) with the correlator, and includes the id in its response.
-// When the backend later emits a NightshadeEvent that "completes" the
+// When the backend later emits a SkotiqEvent that "completes" the
 // command, broadcastEvent calls [stampEvent] which best-effort matches
 // the event back to the most recent un-correlated command for that
 // (operation, deviceId) pair and copies the commandId onto the event
@@ -23,7 +23,7 @@
 import 'dart:math';
 
 /// Map of "operation kind" (e.g. `camera.expose`, `mount.slew`,
-/// `sequencer.start`) to the canonical NightshadeEvent eventType(s) that
+/// `sequencer.start`) to the canonical SkotiqEvent eventType(s) that
 /// signal the command's completion. Maintained explicitly because the
 /// event types are a small fixed set and a wildcard match would create
 /// spurious correlations.
@@ -63,7 +63,7 @@ const Map<String, Set<String>> commandCompletionEventTypes = {
   'rotator.move-to': {'RotatorMoveComplete', 'RotatorMoved'},
   // The sequencer's lifecycle events reach the wire under their BARE names —
   // `Started`, `Completed`, `Stopped` (see
-  // `nightshade_core/.../ffi_backend/event_mapping.dart`); only the terminal
+  // `skotiq_core/.../ffi_backend/event_mapping.dart`); only the terminal
   // failure is prefixed (`SequenceFailed`). This table listed only prefixed
   // spellings, so no sequencer command's completion event was ever stamped
   // with its `correlatingCommandId` even though `/api/docs` advertises the
@@ -259,7 +259,7 @@ class CommandCorrelator {
   }
 }
 
-/// Resolve the canonical operation kind for a NightshadeEvent's
+/// Resolve the canonical operation kind for a SkotiqEvent's
 /// `eventType`. Returns the matching operation key from
 /// [commandCompletionEventTypes], or null if no operation has registered
 /// this event type as a completion signal.

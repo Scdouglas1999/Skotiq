@@ -20,9 +20,9 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_mobile/services/watch_complication_lifecycle_provider.dart'
+import 'package:skotiq_mobile/services/watch_complication_lifecycle_provider.dart'
     show WatchComplicationLifecycleController;
-import 'package:nightshade_mobile/services/watch_complication_service.dart';
+import 'package:skotiq_mobile/services/watch_complication_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

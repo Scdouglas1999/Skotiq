@@ -6,11 +6,11 @@
       "outcome": "fixed",
       "summary": "The pad was gated off correctly but SILENTLY: identical pixels (only the 16px icon colour moved textPrimary->textMuted on a dark theme), a tooltip still promising 'Hold to slew E', and a press that produced no toast, no log line and no command. MountJogControls now takes a `disabledReason` (mount_control_card.dart passes 'Mount is parked - unpark first.' whenever mountState.isParked) and derives one itself for the other inert cases (no device, capabilities unknown/unavailable). When inert: the WHOLE pad is wrapped in an Opacity(0.45) keyed mountJogDisabledVeilKey, every arrow's Tooltip message becomes the reason, the line under the pad states the reason, and a press (pointer OR semantics tap) surfaces the reason as a warning snackbar instead of being swallowed. The capability-unavailable text moved into the same _inertReason getter so there is one source of truth for 'why can't I jog', and the now-redundant padEnabled parameter of _modeRow was dropped.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/dashboard/widgets/mount_control_card.dart",
-        "packages/nightshade_app/lib/screens/dashboard/widgets/mount_jog.dart",
-        "packages/nightshade_app/test/screens/dashboard/mount_jog_pad_test.dart"
+        "packages/skotiq_app/lib/screens/dashboard/widgets/mount_control_card.dart",
+        "packages/skotiq_app/lib/screens/dashboard/widgets/mount_jog.dart",
+        "packages/skotiq_app/test/screens/dashboard/mount_jog_pad_test.dart"
       ],
-      "test": "cd packages/nightshade_app && flutter test test/screens/dashboard/mount_jog_pad_test.dart test/screens/dashboard/mount_control_card_test.dart -> 16/16 pass (3 new: 'parked mount says why the arrows are inert instead of looking live', 'parked mount answers a press instead of swallowing it', 'parked mount unparking restores the live pad').",
+      "test": "cd packages/skotiq_app && flutter test test/screens/dashboard/mount_jog_pad_test.dart test/screens/dashboard/mount_control_card_test.dart -> 16/16 pass (3 new: 'parked mount says why the arrows are inert instead of looking live', 'parked mount answers a press instead of swallowing it', 'parked mount unparking restores the live pad').",
       "revert_check": "Cut the production call site - the 5-line `disabledReason: mountState.isParked ? 'Mount is parked - unpark first.' : null,` argument in mount_control_card.dart's MountJogControls(...) - leaving all the widget-side logic intact. 2 of the 3 new tests failed (the tooltip/veil/reason-text assertions and the press-surfaces-the-reason assertion). Restored -> 16/16 pass."
     },
     {
@@ -18,23 +18,23 @@
       "outcome": "fixed",
       "summary": "The registry holds two generations of tiles that overlap in subject matter and the picker rendered them as ONE FLAT LIST of definition.title verbatim, so the dialog offered 'Guiding'/'Guiding', plus 'Weather & Safety'/'Weather' and 'Equipment Telemetry'/'Equipment', with nothing to tell them apart. Added DashboardWidgetGroup {liveRun, classic} to DashboardWidgetDefinition (with label + description), marked the 13 pre-cockpit cards classic, and rewrote the picker body to iterate group-by-group with a section header ('LIVE RUN PANELS' / 'CLASSIC CARDS' + a one-line description of each family). De-duplicated the three colliding names outright so a row is identifiable out of context too: 'Guiding' -> 'Guiding (classic)', 'Equipment' -> 'Equipment (classic)', 'Weather' -> 'Weather (classic)', each with a subtitle that names the panel it is NOT. definition.title has no other consumer in the app (dashboard_screen only reads id/zone/builder/selfChromed), so no dashboard tile chrome changed.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/dashboard/widgets/dashboard_widget_registry.dart",
-        "packages/nightshade_app/lib/screens/dashboard/widgets/widget_picker_dialog.dart",
-        "packages/nightshade_app/test/screens/dashboard/dashboard_widget_picker_names_test.dart"
+        "packages/skotiq_app/lib/screens/dashboard/widgets/dashboard_widget_registry.dart",
+        "packages/skotiq_app/lib/screens/dashboard/widgets/widget_picker_dialog.dart",
+        "packages/skotiq_app/test/screens/dashboard/dashboard_widget_picker_names_test.dart"
       ],
-      "test": "cd packages/nightshade_app && flutter test test/screens/dashboard/dashboard_widget_picker_names_test.dart test/screens/dashboard/dashboard_widget_picker_dialog_test.dart test/screens/dashboard/dashboard_cockpit_layout_test.dart -> 26/26 pass (3 new).",
+      "test": "cd packages/skotiq_app && flutter test test/screens/dashboard/dashboard_widget_picker_names_test.dart test/screens/dashboard/dashboard_widget_picker_dialog_test.dart test/screens/dashboard/dashboard_cockpit_layout_test.dart -> 26/26 pass (3 new).",
       "revert_check": "Reverted BOTH wirings at once: the classic Guiding title back to 'Guiding' in the registry, and the picker's `for (final group in DashboardWidgetGroup.values) { ... _SectionHeader ... }` back to a flat `for (final definition in dashboardWidgetRegistry)`. All 3 new tests failed (duplicate registry title; duplicate rendered row title; missing section headings / interleaved families). Restored -> 26/26 pass."
     },
     {
       "title": "Glance mode toggle on the Dashboard changes nothing on the Dashboard",
       "outcome": "fixed",
-      "summary": "NightshadeTypography.glanceStyle had exactly two callers repo-wide (session_warnings_panel, filter_integration_panel). The verifier's correction is right that BOTH are registered as dashboard tiles - but both render nothing outside an active run (SizedBox.shrink with no warnings; per-configured-filter rows), so on an idle dashboard the eye toggle moved 0.005% of pixels and no text at all. Opted the ALWAYS-VISIBLE dashboard readouts in: CockpitNowImaging (the Now Imaging strip - empty-state line, target RA/Dec, the Altitude / To-meridian / To-set chip labels, the This-frame countdown label, the Sequence label, percent and ETA) and QuickStatsCard (the Sensor / Focus / HFR / RMS labels the toggle's own description names). Both now watch glanceModeProvider and pass the flag down. The frame chip's fixed 88px box widens to 120px in glance mode so 'This frame' does not clip at the 14px floor. glanceStyle only raises sizes below the 14px floor, so the 15-16px values are untouched and glance-off rendering is byte-identical to before.",
+      "summary": "SkotiqTypography.glanceStyle had exactly two callers repo-wide (session_warnings_panel, filter_integration_panel). The verifier's correction is right that BOTH are registered as dashboard tiles - but both render nothing outside an active run (SizedBox.shrink with no warnings; per-configured-filter rows), so on an idle dashboard the eye toggle moved 0.005% of pixels and no text at all. Opted the ALWAYS-VISIBLE dashboard readouts in: CockpitNowImaging (the Now Imaging strip - empty-state line, target RA/Dec, the Altitude / To-meridian / To-set chip labels, the This-frame countdown label, the Sequence label, percent and ETA) and QuickStatsCard (the Sensor / Focus / HFR / RMS labels the toggle's own description names). Both now watch glanceModeProvider and pass the flag down. The frame chip's fixed 88px box widens to 120px in glance mode so 'This frame' does not clip at the 14px floor. glanceStyle only raises sizes below the 14px floor, so the 15-16px values are untouched and glance-off rendering is byte-identical to before.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/dashboard/widgets/cockpit_now_imaging.dart",
-        "packages/nightshade_app/lib/screens/dashboard/widgets/quick_stats_card.dart",
-        "packages/nightshade_app/test/screens/dashboard/widgets/glance_mode_dashboard_type_test.dart"
+        "packages/skotiq_app/lib/screens/dashboard/widgets/cockpit_now_imaging.dart",
+        "packages/skotiq_app/lib/screens/dashboard/widgets/quick_stats_card.dart",
+        "packages/skotiq_app/test/screens/dashboard/widgets/glance_mode_dashboard_type_test.dart"
       ],
-      "test": "cd packages/nightshade_app && flutter test test/screens/dashboard/widgets/glance_mode_dashboard_type_test.dart test/screens/dashboard/widgets/cockpit_now_imaging_altitude_test.dart test/screens/dashboard/widgets/glance_mode_toggle_test.dart -> 7/7 pass (2 new). The new tests drive the REAL glanceModeProvider through the harness (setEnabled true/false) and assert the rendered Text style fontSize crosses NightshadeTypography.glanceMinFontSize.",
+      "test": "cd packages/skotiq_app && flutter test test/screens/dashboard/widgets/glance_mode_dashboard_type_test.dart test/screens/dashboard/widgets/cockpit_now_imaging_altitude_test.dart test/screens/dashboard/widgets/glance_mode_toggle_test.dart -> 7/7 pass (2 new). The new tests drive the REAL glanceModeProvider through the harness (setEnabled true/false) and assert the rendered Text style fontSize crosses SkotiqTypography.glanceMinFontSize.",
       "revert_check": "Severed the production wiring in both files: `final glance = ref.watch(glanceModeProvider);` -> `const glance = false;` (leaving every glanceStyle call in place). Both new tests failed. Restored -> 7/7 pass."
     },
     {
@@ -42,43 +42,43 @@
       "outcome": "fixed",
       "summary": "Three elements shared one ~30px band by construction. (1) The caption Column was Positioned(bottom: 8) INSIDE the reticle Stack; it is now a sibling BELOW the painted square, so it can never overlap anything painted. The widget became SizedBox(width) > Column[Flexible(AspectRatio 1, Stack), caption] so a squeezed panel (the right rail drops to 160px on a short viewport) shrinks the reticle instead of pushing the numbers out. (2) The painter's edge inset went 16 -> 24 and the cardinal-label gap 4 -> 8, named as constants with the invariant in their doc comments: 'Dn' used to be drawn from y = size-12 with a ~14px line height, i.e. a pixel past the bottom edge. (3) The marker dot is clamped to the outer ring so it overhangs by its own radius (6); the label gap now exceeds that, so an altitude-dominated error pinned to the bottom of the rim no longer lands on 'Dn'. The offset arithmetic was extracted into _cardinalOffset and exposed as allSkyCardinalLabelRect / allSkyMarkerReach so those two invariants are assertable with real text metrics rather than eyeballed.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/polar_alignment/widgets/all_sky_target_reticle.dart",
-        "packages/nightshade_app/test/screens/polar_alignment/all_sky_reticle_layout_test.dart"
+        "packages/skotiq_app/lib/screens/polar_alignment/widgets/all_sky_target_reticle.dart",
+        "packages/skotiq_app/test/screens/polar_alignment/all_sky_reticle_layout_test.dart"
       ],
-      "test": "cd packages/nightshade_app && flutter test test/screens/polar_alignment/all_sky_reticle_layout_test.dart (+ the 4 other non-golden polar files) -> 24/24 pass (3 new).",
+      "test": "cd packages/skotiq_app && flutter test test/screens/polar_alignment/all_sky_reticle_layout_test.dart (+ the 4 other non-golden polar files) -> 24/24 pass (3 new).",
       "revert_check": "Two separate reverts, both confirmed. (a) `_cardinalGap = 8.0` -> 4.0 and `_reticleInset = 24.0` -> 16.0: 'painted compass labels stay inside the reticle box and clear the clamped marker' failed. (b) Caption moved back into the Stack as `Positioned(bottom: 8, left: 0, right: 0, child: caption)`: 'the numeric caption sits outside the reticle box' AND 'a squeezed panel shrinks the reticle instead of the numbers' both failed. Restored -> all pass.",
       "caveats": "test/screens/polar_alignment/captures_landscape_test.dart (2 golden captures) fails on this machine BEFORE my change as well (10.38% / 5.66% pixel diff with all_sky_target_reticle.dart reverted to HEAD) — pre-existing Linux-vs-CI golden drift. My layout change naturally widens that diff (25% / 40%); the goldens are Windows/CI-captured and I did not regenerate them on Linux."
     },
     {
       "title": "Collaborative Sky dialogs render inside an empty full-height slab",
       "outcome": "fixed",
-      "summary": "Root cause exactly as the verifier corrected it: showAdaptiveModal's desktop branch already wraps its builder in a Material Dialog painted colors.surface inside SizedBox(width, height: null), and the sheet bodies returned a SECOND NightshadeDialog. The inner Dialog's Align has no height factor, so it expands to the full viewport, dragging the outer SizedBox (and the surface the outer Dialog paints) to full height. Fixed in the design system rather than three times over: extracted NightshadeDialog's chrome into a new public NightshadeDialogSurface (header + scrollable body + footer + PopScope, `framed: false` by default so it paints no card of its own and sizes to content). NightshadeDialog is now Dialog(child: NightshadeDialogSurface(framed: true, ...)) — byte-identical rendering for its 50-odd existing call sites. The offending showAdaptiveModal bodies return the surface instead. NOTE: there were FIVE, not three — the verifier's 'exactly the three' is wrong. constellation/share_target_sheet.dart:42 and constellation/constellation_contribute_sheet.dart:123 are the same defect ('Share one of my targets', 'Contribute to the swarm') and are fixed too; leaving them would have been a relocated fix.",
+      "summary": "Root cause exactly as the verifier corrected it: showAdaptiveModal's desktop branch already wraps its builder in a Material Dialog painted colors.surface inside SizedBox(width, height: null), and the sheet bodies returned a SECOND SkotiqDialog. The inner Dialog's Align has no height factor, so it expands to the full viewport, dragging the outer SizedBox (and the surface the outer Dialog paints) to full height. Fixed in the design system rather than three times over: extracted SkotiqDialog's chrome into a new public SkotiqDialogSurface (header + scrollable body + footer + PopScope, `framed: false` by default so it paints no card of its own and sizes to content). SkotiqDialog is now Dialog(child: SkotiqDialogSurface(framed: true, ...)) — byte-identical rendering for its 50-odd existing call sites. The offending showAdaptiveModal bodies return the surface instead. NOTE: there were FIVE, not three — the verifier's 'exactly the three' is wrong. constellation/share_target_sheet.dart:42 and constellation/constellation_contribute_sheet.dart:123 are the same defect ('Share one of my targets', 'Contribute to the swarm') and are fixed too; leaving them would have been a relocated fix.",
       "files_changed": [
-        "packages/nightshade_ui/lib/src/dialogs/nightshade_dialog.dart",
-        "packages/nightshade_app/lib/screens/collaborative_sky/coimaging_create_sheet.dart",
-        "packages/nightshade_app/lib/screens/mosaic/mosaic_contribute_sheet.dart",
-        "packages/nightshade_app/lib/screens/constellation/constellation_sign_in_sheet.dart",
-        "packages/nightshade_app/lib/screens/constellation/share_target_sheet.dart",
-        "packages/nightshade_app/lib/screens/constellation/constellation_contribute_sheet.dart",
-        "packages/nightshade_app/test/screens/collaborative_sky/adaptive_modal_no_slab_test.dart"
+        "packages/skotiq_ui/lib/src/dialogs/skotiq_dialog.dart",
+        "packages/skotiq_app/lib/screens/collaborative_sky/coimaging_create_sheet.dart",
+        "packages/skotiq_app/lib/screens/mosaic/mosaic_contribute_sheet.dart",
+        "packages/skotiq_app/lib/screens/constellation/constellation_sign_in_sheet.dart",
+        "packages/skotiq_app/lib/screens/constellation/share_target_sheet.dart",
+        "packages/skotiq_app/lib/screens/constellation/constellation_contribute_sheet.dart",
+        "packages/skotiq_app/test/screens/collaborative_sky/adaptive_modal_no_slab_test.dart"
       ],
-      "test": "cd packages/nightshade_app && flutter test test/screens/collaborative_sky/ test/screens/mosaic/ test/screens/constellation/ -> 134/134 pass (3 new). The new tests open each sheet through its real show*Sheet() helper at 1280x720 and assert exactly ONE Dialog in the tree, the painted card shorter than 90% of the window, and <32px of surface above the title / below the footer.",
-      "revert_check": "Reverted all three named bodies to `return NightshadeDialog(... width: 520/560 ...)`. All 3 new tests failed. Restored -> 134/134 pass. (nightshade_ui's own suite: flutter test test/nightshade_dialog_test.dart test/adaptive_modal_test.dart -> pass.)",
-      "caveats": "share_target_sheet.dart and constellation_contribute_sheet.dart are in packages/nightshade_app/lib/screens/constellation/, outside my stated ownership, as is packages/nightshade_ui. No other agent's finding list touches either path, and the finding's own location_wrong correction names constellation_sign_in_sheet.dart and 'or in showAdaptiveModal' as the fix site."
+      "test": "cd packages/skotiq_app && flutter test test/screens/collaborative_sky/ test/screens/mosaic/ test/screens/constellation/ -> 134/134 pass (3 new). The new tests open each sheet through its real show*Sheet() helper at 1280x720 and assert exactly ONE Dialog in the tree, the painted card shorter than 90% of the window, and <32px of surface above the title / below the footer.",
+      "revert_check": "Reverted all three named bodies to `return SkotiqDialog(... width: 520/560 ...)`. All 3 new tests failed. Restored -> 134/134 pass. (skotiq_ui's own suite: flutter test test/skotiq_dialog_test.dart test/adaptive_modal_test.dart -> pass.)",
+      "caveats": "share_target_sheet.dart and constellation_contribute_sheet.dart are in packages/skotiq_app/lib/screens/constellation/, outside my stated ownership, as is packages/skotiq_ui. No other agent's finding list touches either path, and the finding's own location_wrong correction names constellation_sign_in_sheet.dart and 'or in showAdaptiveModal' as the fix site."
     },
     {
       "title": "The same mosaic is described as \"3x2 grid\" on one screen and \"2x3 grid\" on the other",
       "outcome": "fixed",
-      "summary": "Added packages/nightshade_app/lib/screens/mosaic/mosaic_format.dart with a single formatMosaicGrid({required int cols, required int rows}) -> '3 wide × 2 high', and routed all three renderings through it: mosaic_project_screen.dart's header subtitle, mosaic_projects_list_screen.dart's row, and collaborative_sky/widgets/collab_mosaic_card.dart (the transposed one). NAMED parameters on purpose — a positional (rows, cols) pair is exactly the call that transposed the two screens. The output states the axes instead of leaving the reader to guess a convention, which was the second half of the finding ('nothing on either screen says whether the first number is columns or rows').",
+      "summary": "Added packages/skotiq_app/lib/screens/mosaic/mosaic_format.dart with a single formatMosaicGrid({required int cols, required int rows}) -> '3 wide × 2 high', and routed all three renderings through it: mosaic_project_screen.dart's header subtitle, mosaic_projects_list_screen.dart's row, and collaborative_sky/widgets/collab_mosaic_card.dart (the transposed one). NAMED parameters on purpose — a positional (rows, cols) pair is exactly the call that transposed the two screens. The output states the axes instead of leaving the reader to guess a convention, which was the second half of the finding ('nothing on either screen says whether the first number is columns or rows').",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/mosaic/mosaic_format.dart",
-        "packages/nightshade_app/lib/screens/mosaic/mosaic_project_screen.dart",
-        "packages/nightshade_app/lib/screens/mosaic/mosaic_projects_list_screen.dart",
-        "packages/nightshade_app/lib/screens/collaborative_sky/widgets/collab_mosaic_card.dart",
-        "packages/nightshade_app/test/screens/mosaic/mosaic_grid_convention_test.dart",
-        "packages/nightshade_app/test/screens/mosaic/mosaic_project_header_center_test.dart"
+        "packages/skotiq_app/lib/screens/mosaic/mosaic_format.dart",
+        "packages/skotiq_app/lib/screens/mosaic/mosaic_project_screen.dart",
+        "packages/skotiq_app/lib/screens/mosaic/mosaic_projects_list_screen.dart",
+        "packages/skotiq_app/lib/screens/collaborative_sky/widgets/collab_mosaic_card.dart",
+        "packages/skotiq_app/test/screens/mosaic/mosaic_grid_convention_test.dart",
+        "packages/skotiq_app/test/screens/mosaic/mosaic_project_header_center_test.dart"
       ],
-      "test": "cd packages/nightshade_app && flutter test test/screens/mosaic/ test/screens/collaborative_sky/ -> 105/105 pass (2 new). The widget test pumps MosaicProjectHeader and CollabMosaicCard for the SAME mosaic (rows=2, cols=3) and asserts both render '3 wide × 2 high' and that neither renders 3x2/2x3/3×2/2×3.",
+      "test": "cd packages/skotiq_app && flutter test test/screens/mosaic/ test/screens/collaborative_sky/ -> 105/105 pass (2 new). The widget test pumps MosaicProjectHeader and CollabMosaicCard for the SAME mosaic (rows=2, cols=3) and asserts both render '3 wide × 2 high' and that neither renders 3x2/2x3/3×2/2×3.",
       "revert_check": "Reverted the collab card to `'${mosaic.rows}×${mosaic.cols} grid'`. 'the mosaic project header and the Collaborate card agree' failed. Restored -> pass.",
       "caveats": "mosaic_project_header_center_test.dart located the header subtitle by `contains('grid')` and asserted '2x1 grid' / '3x3 grid'; those three lines were updated to the new convention (its centre/panel-count assertions are untouched). Its 'no invented 00h00m00s' check was `isNot(contains('h'))`, which the word 'high' now trips, so it matches on the sexagesimal colons instead — a tighter assertion of the same claim."
     },
@@ -87,17 +87,17 @@
       "outcome": "fixed",
       "summary": "_BackBar's label was a bare string literal beside a control that POPS. The screen is pushed from four places — the projects list, Framing (framing_controls.dart:1113), the sequencer mosaic wizard (mosaic_wizard_dialog.dart:601) and the Collaborative Sky mosaic detail's 'Join mosaic' — so on three of the four the label named a destination the button does not go to. The label is now derived from the same condition _leave branches on: `Navigator.of(context).canPop() ? 'Back' : 'Mosaic projects'` — it promises the projects list only in the one case where the context.go('/mosaic') fallback really goes there. The IconButton tooltip follows the label instead of being hard-coded.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/mosaic/mosaic_project_screen.dart",
-        "packages/nightshade_app/test/screens/mosaic/mosaic_back_breadcrumb_test.dart"
+        "packages/skotiq_app/lib/screens/mosaic/mosaic_project_screen.dart",
+        "packages/skotiq_app/test/screens/mosaic/mosaic_back_breadcrumb_test.dart"
       ],
-      "test": "cd packages/nightshade_app && flutter test test/screens/mosaic/ -> pass (2 new: an empty stack renders 'Mosaic projects'; pushed on top of another route it renders 'Back', and pressing it really returns to that route).",
+      "test": "cd packages/skotiq_app && flutter test test/screens/mosaic/ -> pass (2 new: an empty stack renders 'Mosaic projects'; pushed on top of another route it renders 'Back', and pressing it really returns to that route).",
       "revert_check": "Reverted the derivation to `const label = 'Mosaic projects';`. 'pushed on top of another screen it says Back' failed. Restored -> pass."
     }
   ],
   "verification": {
-    "suites": "packages/nightshade_app: test/screens/dashboard (148 pass), test/screens/mosaic + collaborative_sky + constellation (134 pass), test/screens/polar_alignment non-golden (24 pass), test/widgets + the 3 NightshadeDialog-consumer suites (267 pass). packages/nightshade_ui: full suite 262/262 pass.",
+    "suites": "packages/skotiq_app: test/screens/dashboard (148 pass), test/screens/mosaic + collaborative_sky + constellation (134 pass), test/screens/polar_alignment non-golden (24 pass), test/widgets + the 3 SkotiqDialog-consumer suites (267 pass). packages/skotiq_ui: full suite 262/262 pass.",
     "pre_existing_failures": "6 golden-capture tests fail on this Linux workstation BEFORE any of my changes: test/screens/dashboard/captures_landscape_test.dart (4, ~40% pixel diff with all 5 of my dashboard files reverted to HEAD) and test/screens/polar_alignment/captures_landscape_test.dart (2, 10.4%/5.7% with all_sky_target_reticle.dart reverted to HEAD). The goldens are Windows/CI-captured; I did not regenerate them on Linux.",
-    "static": "dart analyze packages/nightshade_app/{lib,test} and packages/nightshade_ui/{lib,test}: 0 errors, 0 warnings in any file I touched. dart format --set-exit-if-changed over every changed .dart file: exit 0. No Rust changed, so cargo fmt is not in scope.",
-    "concurrency_note": "nightshade_planetarium and nightshade_core were repeatedly left non-compiling by concurrent agents during this session; every test result above was taken from a run that compiled."
+    "static": "dart analyze packages/skotiq_app/{lib,test} and packages/skotiq_ui/{lib,test}: 0 errors, 0 warnings in any file I touched. dart format --set-exit-if-changed over every changed .dart file: exit 0. No Rust changed, so cargo fmt is not in scope.",
+    "concurrency_note": "skotiq_planetarium and skotiq_core were repeatedly left non-compiling by concurrent agents during this session; every test result above was taken from a run that compiled."
   }
 }

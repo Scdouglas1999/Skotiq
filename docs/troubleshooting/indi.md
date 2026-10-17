@@ -1,12 +1,12 @@
 # INDI Troubleshooting
 
-INDI support requires a reachable INDI server. Nightshade connects to the server
+INDI support requires a reachable INDI server. Skotiq connects to the server
 and uses the properties exposed by the loaded device drivers.
 
 ## Quick Checks
 
 1. Confirm the INDI server is running on the expected host.
-2. Confirm Nightshade is using the same host and port. The common default is
+2. Confirm Skotiq is using the same host and port. The common default is
    `localhost:7624`.
 3. Start the INDI server with the exact drivers needed for the device.
 4. Confirm no other process has exclusive access to the USB or serial device.
@@ -21,20 +21,20 @@ lsusb
 dmesg | tail -100
 ```
 
-If `indi_getprop` cannot see the device properties, Nightshade will not be able
+If `indi_getprop` cannot see the device properties, Skotiq will not be able
 to control that device either.
 
 ## Server Not Reachable
 
 - Check that the INDI server is bound to the expected interface.
 - Open TCP port `7624` only on trusted networks.
-- Use `localhost` when Nightshade and INDI run on the same machine.
+- Use `localhost` when Skotiq and INDI run on the same machine.
 - Use the server IP address when INDI runs on another computer.
 - Check firewall rules on both machines.
 
 ## Device Appears But Commands Fail
 
-- Verify the INDI driver exposes the required capability for the Nightshade
+- Verify the INDI driver exposes the required capability for the Skotiq
   control being used.
 - Check INDI logs for permission, timeout, or device-busy errors.
 - Confirm the device is not parked, disconnected, or in a driver-specific safe
@@ -45,9 +45,9 @@ to control that device either.
 
 - Add the user to `dialout` for serial devices.
 - Add the user to `video` or `plugdev` when required by camera drivers.
-- On Nightshade systemd/Pi appliances, confirm
-  `/etc/udev/rules.d/99-nightshade-astro.rules` is installed. It grants the
-  `nightshade` service group access to common astronomy cameras and USB-serial
+- On Skotiq systemd/Pi appliances, confirm
+  `/etc/udev/rules.d/99-skotiq-astro.rules` is installed. It grants the
+  `skotiq` service group access to common astronomy cameras and USB-serial
   adapters without making devices world-writable.
 - Install vendor udev/firmware packages when the device needs firmware upload
   or a vendor-specific driver stack beyond basic permissions.

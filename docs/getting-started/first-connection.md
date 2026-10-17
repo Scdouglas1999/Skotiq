@@ -1,6 +1,6 @@
 # Connecting Your First Device
 
-This guide walks through connecting your camera and mount to Nightshade for
+This guide walks through connecting your camera and mount to Skotiq for
 the first time. Start with one device, verify each connection, and keep
 unsupported or unsafe equipment disconnected until its release support status is
 clear.
@@ -22,7 +22,7 @@ missing controls as evidence instead of bypassing them.
 
 ## Understanding Device Protocols
 
-Nightshade supports multiple ways to connect to equipment. Choose the method
+Skotiq supports multiple ways to connect to equipment. Choose the method
 that matches the release notes, support matrix, and drivers available for your
 setup:
 
@@ -54,7 +54,7 @@ setup:
 
 ### Step 1: Navigate to Equipment
 
-1. Launch Nightshade
+1. Launch Skotiq
 2. Click **Equipment** in the rail (plug icon, under Prepare)
 3. The Equipment screen will open
 
@@ -86,7 +86,7 @@ At the top of the Equipment screen, you'll see protocol buttons. Select the one 
 1. Connect your camera via USB
 2. Select the **Native** protocol
 3. Click on the **Connections** tab
-4. In the **Camera** section, Nightshade will scan for connected devices if the
+4. In the **Camera** section, Skotiq will scan for connected devices if the
    vendor SDK path is available for this release
 5. Your camera should appear in the device list
 6. Click **Connect** next to your camera
@@ -217,11 +217,11 @@ path is listed as supported or explicitly being validated.
 
 ### Guide Camera (PHD2)
 
-Nightshade integrates with PHD2 for autoguiding:
+Skotiq integrates with PHD2 for autoguiding:
 
 1. Start PHD2 separately
 2. Connect your guide camera in PHD2
-3. In Nightshade, go to **Imaging** > **Guiding** tab
+3. In Skotiq, go to **Imaging** > **Guiding** tab
 4. Click **Connect to PHD2**
 5. PHD2 status should show "Connected"
 
@@ -263,7 +263,7 @@ Next time you use this equipment:
 ### "Device already in use" error
 - Another application (like ASCOM driver test tool) may have the device open
 - Close all other astronomy software
-- Restart Nightshade
+- Restart Skotiq
 
 ### INDI server not connecting
 - Verify INDI server is running: `ps aux | grep indiserver`
@@ -302,4 +302,4 @@ If you're having trouble connecting devices:
 - Check [Firewall Troubleshooting](../troubleshooting/firewall.md) for network
   devices or remote access
 - Review your device's ASCOM/INDI driver documentation
-- Report issues on [GitHub](https://github.com/Scdouglas1999/Nightshade/issues) with specific error messages
+- Report issues on [GitHub](https://github.com/Scdouglas1999/Skotiq/issues) with specific error messages

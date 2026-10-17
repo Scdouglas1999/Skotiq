@@ -8,7 +8,7 @@
   "expected": "All four charts on the session card should plot the same, stated population. HfrChart filters isAccepted; the other three do not, and none filters frameType==light. A p90 of 3.9\" for a session whose accepted-frame p90 is 0.905\" is a wrong number a user would act on (they would go hunting for a guiding fault that does not exist).",
   "repro": "Seed session 1 with 10 accepted lights (rms .50-.95), 2 rejected lights (rms 4.2, hfr 9.9, focuser 15100) and 4 darks (sensor_temp only). Restart. Analytics > Session > Reviewing > Night A - M31. Compare the n= counts in the four chart headers.",
   "evidence": "/tmp/ns-audit/shots/r-analytics-08-s1.png - EXPOSURES 10/12 in the strip; chart headers n 10 / 12 / 12 / 16",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/session_chart.dart:375 (HfrChart filters isAccepted), :400 TemperatureChart, :425 GuidingRmsChart, :453 FocuserPositionChart (no filter at all)"
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/session_chart.dart:375 (HfrChart filters isAccepted), :400 TemperatureChart, :425 GuidingRmsChart, :453 FocuserPositionChart (no filter at all)"
  },
  {
   "title": "Captured Images grades dark/calibration frames as \"Good\", inflating the session quality summary",
@@ -19,18 +19,18 @@
   "expected": "The Captured Images summary on the Session tab should count light frames only, or at minimum not assert a quality grade for a frame that has no quality measurement. \"Good: 12\" is a false count - only 8 frames were assessed good.",
   "repro": "Seed session 1 with 12 lights + 4 darks (darks: sensor_temp only, hfr/star_count/guiding NULL). Restart. Analytics > Session > Night A - M31, scroll to Captured Images; shift+wheel the rail to its right end.",
   "evidence": "/tmp/ns-audit/shots/r-analytics-11.png (chips Good: 12 / Total: 16) and /tmp/ns-audit/shots/r-analytics-15.png (the 4 trailing darks badged GOOD / 75 score)",
-  "where": "packages/nightshade_core/lib/src/services/frame_quality_assessment_service.dart:112 `var advisoryScore = image.qualityScore ?? 75.0;` - a frame with every metric null scores 75 and falls through to FrameQualityLevel.good; packages/nightshade_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart:90 assesses widget.images unfiltered"
+  "where": "packages/skotiq_core/lib/src/services/frame_quality_assessment_service.dart:112 `var advisoryScore = image.qualityScore ?? 75.0;` - a frame with every metric null scores 75 and falls through to FrameQualityLevel.good; packages/skotiq_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart:90 assesses widget.images unfiltered"
  },
  {
   "title": "Exported FWHM is fabricated from HFR with the wrong factor (2.35x instead of 2x), overstating FWHM by 18%",
   "severity": "P1",
   "kind": "defect",
   "unit": "screen:analytics/session_detail_dialog.dart",
-  "what_happened": "History > Night A - M31 > Export CSV wrote /home/scdouglas/Documents/Nightshade/exports/Night A - M31_2026-08-01T14-40-26.csv with a populated \"FWHM (px)\" column - 4.70, 5.17, 5.64 - even though captured_images.fwhm is NULL for every one of those rows. The values are HFR * 2.35.",
+  "what_happened": "History > Night A - M31 > Export CSV wrote /home/scdouglas/Documents/Skotiq/exports/Night A - M31_2026-08-01T14-40-26.csv with a populated \"FWHM (px)\" column - 4.70, 5.17, 5.64 - even though captured_images.fwhm is NULL for every one of those rows. The values are HFR * 2.35.",
   "expected": "For a Gaussian PSF the half-flux radius is 1.1774*sigma and FWHM = 2.3548*sigma, so FWHM = 2.00 * HFR. Multiplying HFR by 2.3548 treats HFR as sigma and inflates every reported FWHM by 17.7% (HFR 2.00 px -> 4.70\" reported vs 4.00\" true). Worse, the real `fwhm` column measured by the pipeline is ignored and overwritten by the derived number, and nothing in the CSV says the value is derived.",
   "repro": "Analytics > History > click Night A - M31 > click the spreadsheet icon; open the CSV. HFR column x 2.35 == FWHM column exactly.",
-  "evidence": "/home/scdouglas/Documents/Nightshade/exports/Night A - M31_2026-08-01T14-40-26.csv rows s1_000..s1_009; DB: select hfr,fwhm from captured_images where session_id=1 -> fwhm all NULL",
-  "where": "packages/nightshade_core/lib/src/services/session_export_service.dart:69-70 and :171; same factor in session_report_service.dart:301 (meanFwhm), capture_preview_loader.dart:180 (live capture FWHM readout), session_report.dart:36"
+  "evidence": "/home/scdouglas/Documents/Skotiq/exports/Night A - M31_2026-08-01T14-40-26.csv rows s1_000..s1_009; DB: select hfr,fwhm from captured_images where session_id=1 -> fwhm all NULL",
+  "where": "packages/skotiq_core/lib/src/services/session_export_service.dart:69-70 and :171; same factor in session_report_service.dart:301 (meanFwhm), capture_preview_loader.dart:180 (live capture FWHM readout), session_report.dart:36"
  },
  {
   "title": "Insights invents a guiding baseline of 0.1 arcsec when there is no history, so every user with <=5 sessions is told their guiding degraded 7x",
@@ -41,18 +41,18 @@
   "expected": "With no baseline sessions, no baseline claim. The panel should stay silent (or say 'not enough history') instead of asserting a 7.2x regression and deducting 32 points from the equipment health score.",
   "repro": "Seed exactly 5 imaging_sessions with avg_guiding_rms 0.65/1.10/0.70/0.55/0.60 and avg_hfr 2.90/4.20/3.00/2.50/2.20. Restart. Analytics > Science > scroll to Insights.",
   "evidence": "/tmp/ns-audit/shots/r-analytics-41.png. Arithmetic proof: baseline = recentSessions.skip(5).take(10) is EMPTY with 5 sessions, _mean([]) = 0.0, .clamp(0.1,100.0) = 0.1; mean recent guiding 3.60/5 = 0.72; 0.72/0.1 = 7.20 - exactly the number on screen.",
-  "where": "packages/nightshade_core/lib/src/services/equipment_health_service.dart:200 (baseline = skip(5).take(10)), :205-213 (.clamp(0.1,100.0) turns 'no data' into 0.1), :222 and :234 (the two triggers), _mean at :324"
+  "where": "packages/skotiq_core/lib/src/services/equipment_health_service.dart:200 (baseline = skip(5).take(10)), :205-213 (.clamp(0.1,100.0) turns 'no data' into 0.1), :222 and :234 (the two triggers), _mean at :324"
  },
  {
   "title": "Sequencer crash-recovery checkpoint is stored outside the profile data dir, so one instance offers to resume another instance's sequence",
   "severity": "P1",
   "kind": "defect",
   "unit": "screen:analytics/session_tab.dart",
-  "what_happened": "On startup this audit instance (NIGHTSHADE_DATABASE_DIR/NIGHTSHADE_DATA_DIR = /tmp/ns-audit/r-analytics/data, with ZERO rows in sequences and sequence_checkpoints) showed 'Recover Sequence? A previous sequence was interrupted and can be resumed - Sequence: New Sequence, Saved 0m ago, Completed 4 frames (0m integration)'. The checkpoint it read is /home/scdouglas/.local/share/com.example.nightshade_desktop/nightshade_session.checkpoint, written by a DIFFERENT concurrently-running instance.",
+  "what_happened": "On startup this audit instance (SKOTIQ_DATABASE_DIR/SKOTIQ_DATA_DIR = /tmp/ns-audit/r-analytics/data, with ZERO rows in sequences and sequence_checkpoints) showed 'Recover Sequence? A previous sequence was interrupted and can be resumed - Sequence: New Sequence, Saved 0m ago, Completed 4 frames (0m integration)'. The checkpoint it read is /home/scdouglas/.local/share/com.skotiq.desktop/skotiq_session.checkpoint, written by a DIFFERENT concurrently-running instance.",
   "expected": "Crash recovery must be scoped to the instance/profile that wrote it. Offering to resume a sequence whose id does not exist in this database is a data-integrity hazard: on a machine that runs both the desktop app and the headless host (a shipped configuration) the two silently clobber each other's recovery state, and Resume would restart the wrong run. Note also the self-contradictory summary line 'Completed 4 frames (0m integration)'.",
-  "repro": "Run two Nightshade desktop instances with different NIGHTSHADE_DATA_DIR values. Build a sequence in one. Restart the other: it offers to recover the first one's sequence.",
-  "evidence": "/tmp/ns-audit/shots/r-analytics-33-sci2.png; sqlite3 <profile db> 'select * from sequence_checkpoints' -> 0 rows, 'select * from sequences' -> 0 rows; the checkpoint file in ~/.local/share/com.example.nightshade_desktop was last written at 14:50 by another pid",
-  "where": "packages/nightshade_app/lib/screens/shell/app_shell.dart:347 getApplicationSupportDirectory() is passed to sequencerSetCheckpointDir, ignoring NIGHTSHADE_DATA_DIR; native/nightshade_native/sequencer/src/checkpoint.rs:516"
+  "repro": "Run two Skotiq desktop instances with different SKOTIQ_DATA_DIR values. Build a sequence in one. Restart the other: it offers to recover the first one's sequence.",
+  "evidence": "/tmp/ns-audit/shots/r-analytics-33-sci2.png; sqlite3 <profile db> 'select * from sequence_checkpoints' -> 0 rows, 'select * from sequences' -> 0 rows; the checkpoint file in ~/.local/share/com.skotiq.desktop was last written at 14:50 by another pid",
+  "where": "packages/skotiq_app/lib/screens/shell/app_shell.dart:347 getApplicationSupportDirectory() is passed to sequencerSetCheckpointDir, ignoring SKOTIQ_DATA_DIR; native/skotiq_native/sequencer/src/checkpoint.rs:516"
  },
  {
   "title": "Stored photometry for a past session is invisible: the light curve is filtered by the CURRENT global target selection, so reviewing any other night shows \"has no data yet\"",
@@ -63,7 +63,7 @@
   "expected": "Reviewing a stored session should plot the photometry that session actually recorded. The DB holds a complete 120-point light curve for it.",
   "repro": "Proved by A/B in the running app. sessionLightCurveProvider filters photometry rows to objectId == activePhotometryTargetObjectIdProvider, which is `selection?.target?.objectId ?? 'target_primary'` - a single GLOBAL live selection, not a per-session lookup. I inserted 20 rows into session 5 identical in every way except object_id='target_primary'; after restart the Differential Photometry chart for Night E drew them (dMag axis -0.40..0.40, x 0s..1h35m) and the AAVSO export button appeared, while Night D's 120 real points stayed invisible.",
   "evidence": "/tmp/ns-audit/shots/ra2-05.png (Night D: ladder stalled at 'Track a star', 'Pick a target'); tree for Night D shows 'Differential Photometry has no data yet' + 'Need at least 10 photometry points (0 available)'; tree for Night E after the target_primary insert shows a drawn 'Differential Photometry' chart with dMag ticks and 'Export to AAVSO'. sqlite: select object_id,role,count(*) from photometry_measurements group by 1,2 -> V-TEST|target|120 for session 4.",
-  "where": "packages/nightshade_core/lib/src/providers/science_provider/session_products.dart:299-325 (sessionLightCurveProvider) and photometry_selection.dart:203-206 (activePhotometryTargetObjectIdProvider); write side uses selection.target!.objectId at services/science/science_processing_service/private_helpers.dart:169+"
+  "where": "packages/skotiq_core/lib/src/providers/science_provider/session_products.dart:299-325 (sessionLightCurveProvider) and photometry_selection.dart:203-206 (activePhotometryTargetObjectIdProvider); write side uses selection.target!.objectId at services/science/science_processing_service/private_helpers.dart:169+"
  },
  {
   "title": "Optical Train Diagnostics grades a session with ZERO data as \"A - Excellent\" and states \"tilt looks controlled\" and \"center and edge behavior look balanced\"",
@@ -74,7 +74,7 @@
   "expected": "With no PSF tiles and no residual vectors the health grade, the tilt score and the collimation verdict are all undefined. They must render as '-' / 'Not measured' with the Findings card's own explanation, not as a green A. As shipped, a user who suspects tilt opens this tab, sees 'A / Excellent / tilt looks controlled' and stops investigating - the app has told them their optical train is healthy on the strength of no measurement at all.",
   "repro": "Analytics > Diagnostics > pick any session with no psf_field_tiles rows (a fresh install: every session). Compare the Optical Health grade with the '0 tiles' / '0 vectors' panels beside it.",
   "evidence": "/tmp/ns-audit/shots/ra3-35-diagD.png; sqlite: select count(*) from psf_field_tiles where session_id=4 -> 0, and the same page reports 'A / Excellent'.",
-  "where": "packages/nightshade_core/lib/src/services/optical_train_diagnostics_service.dart (tilt/collimation scores default to 0.0 when the input lists are empty, and 0.0 is the BEST score, so 'no data' grades as perfect); rendered by packages/nightshade_app/lib/screens/diagnostics/diagnostic_dump_screen.dart via the Analytics Diagnostics tab"
+  "where": "packages/skotiq_core/lib/src/services/optical_train_diagnostics_service.dart (tilt/collimation scores default to 0.0 when the input lists are empty, and 0.0 is the BEST score, so 'no data' grades as perfect); rendered by packages/skotiq_app/lib/screens/diagnostics/diagnostic_dump_screen.dart via the Analytics Diagnostics tab"
  },
  {
   "title": "Campaign Rollup contradicts itself three ways on one card: \"Total integration 0.0h\" beside \"0.17h integration\", and \"No frames captured for this target yet\" beside a session with 2 frames",
@@ -85,7 +85,7 @@
   "expected": "One population per card. The header tiles and the per-filter breakdown count only accepted frames (both of this session's frames had just been rejected by the Image grader) while the per-session row counts all frames, so the dialog simultaneously asserts that the target has 0.0h and 0.17h of integration and that it has no frames and 2 frames. A user reading 'Total integration 0.0h / No frames captured for this target yet' for a target they imaged last night would conclude their data was lost.",
   "repro": "Give a target one session with N light frames. Analytics > Science > Grade N frames > reject them all. Open the target's campaign card.",
   "evidence": "/tmp/ns-audit/shots/ra3-55-rollup.png; sqlite: session 5 has 2 light frames at exposure_duration 300.0 (0.167h) with is_accepted=0.",
-  "where": "packages/nightshade_core/lib/src/services/campaign_rollup_service.dart (totalIntegration / per-filter aggregation filter on acceptance) vs the per-session row built from the session's own total_integration_secs in campaign_rollup_dialog.dart"
+  "where": "packages/skotiq_core/lib/src/services/campaign_rollup_service.dart (totalIntegration / per-filter aggregation filter on acceptance) vs the per-session row built from the session's own total_integration_secs in campaign_rollup_dialog.dart"
  },
  {
   "title": "Session tab reports Duration \"0s\" for any session that has no end_time",
@@ -96,7 +96,7 @@
   "expected": "A session with no end time should say \"in progress\" / \"--\", or compute now-minus-start. 0s is a false statement contradicted by the charts on the same card.",
   "repro": "sqlite3 seed an imaging_sessions row with end_time NULL and captured_images spanning 20 min; restart app; Analytics > Session; the review bar auto-selects that session.",
   "evidence": "/tmp/ns-audit/shots/r-analytics-05.png (DURATION 0s, chart x-axis 0s..20m, EXPOSURES 3)",
-  "where": "packages/nightshade_app/lib/screens/analytics/analytics_screen/session_tab.dart:113 formatDuration((reviewSession.endTime ?? reviewSession.startTime).difference(reviewSession.startTime))"
+  "where": "packages/skotiq_app/lib/screens/analytics/analytics_screen/session_tab.dart:113 formatDuration((reviewSession.endTime ?? reviewSession.startTime).difference(reviewSession.startTime))"
  },
  {
   "title": "Guiding chart Y axis draws two labels on top of each other when the series is flat",
@@ -107,7 +107,7 @@
   "expected": "Axis labels never overlap - which is exactly what NiceAxis was written to guarantee.",
   "repro": "Seed frames with identical guiding_rms_total (0.70); Analytics > Session; look at the bottom-left of the Guiding performance chart.",
   "evidence": "/tmp/ns-audit/shots/r-analytics-06-guideaxis.png",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/chart_axis.dart:33-43 (zero-variance branch)"
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/chart_axis.dart:33-43 (zero-variance branch)"
  },
  {
   "title": "History and Session disagree about the same session: 46h 2m elapsed vs 0s duration",
@@ -118,7 +118,7 @@
   "expected": "One answer, and neither of these. History uses DateTime.now()-startTime for any session without an end time, so a session the app failed to close (crash, power loss - the exact case this matters) accrues fictional elapsed time forever; the Session tab uses 0.",
   "repro": "Seed an imaging_sessions row with end_time NULL. Analytics > History (46h 2m) then Analytics > Session with that session selected (0s).",
   "evidence": "/tmp/ns-audit/shots/r-analytics-19-history.png vs /tmp/ns-audit/shots/r-analytics-05.png",
-  "where": "packages/nightshade_app/lib/screens/analytics/analytics_screen/history_cards.dart:65-67 vs analytics_screen/session_tab.dart:113"
+  "where": "packages/skotiq_app/lib/screens/analytics/analytics_screen/history_cards.dart:65-67 vs analytics_screen/session_tab.dart:113"
  },
  {
   "title": "Session detail dialog says \"Total Exposures 12\" and \"Images (16)\" in the same panel",
@@ -129,7 +129,7 @@
   "expected": "Two counts of the same thing on one card should agree or be labelled differently. The stats row comes from the denormalised imaging_sessions counters (light frames), the image list from captured_images (lights + calibration frames). Nothing tells the user which is which.",
   "repro": "Analytics > History > Night A - M31.",
   "evidence": "/tmp/ns-audit/shots/r-analytics-20-detail.png",
-  "where": "packages/nightshade_app/lib/screens/analytics/analytics_screen/session_detail_dialog.dart (Statistics block vs ImageThumbnailStrip at :266)"
+  "where": "packages/skotiq_app/lib/screens/analytics/analytics_screen/session_detail_dialog.dart (Statistics block vs ImageThumbnailStrip at :266)"
  },
  {
   "title": "Projects header \"Active This Month\" counts targets, not sessions, and resets on the 1st",
@@ -140,7 +140,7 @@
   "expected": "Either a session count over a rolling 30 nights (astronomers do not care about calendar-month boundaries; an observing run straddles them), or a label that says what it counts (\"Targets active this month\").",
   "repro": "Analytics > Projects with sessions dated Jul 25/28/30 and system date Aug 1.",
   "evidence": "/tmp/ns-audit/shots/r-analytics-26-projects.png and -30-projects3.png (0 Active This Month beside 1.5h Total Integration)",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/project_tracking_panel.dart:363-370, 414-418"
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/project_tracking_panel.dart:363-370, 414-418"
  },
  {
   "title": "Campaign Rollup shows \"Effective imaging 0.0%\" when no session in the campaign has closed",
@@ -151,7 +151,7 @@
   "expected": "\"-\", as the tile beside it already does for absent data.",
   "repro": "Give a target exactly one session and leave it status='active' with end_time NULL. Analytics > Science > click the target's campaign card.",
   "evidence": "/tmp/ns-audit/shots/ra3-55-rollup.png (M13: 'Effective imaging 0.0%' next to 'Mean seeing -', with the campaign's only session still open); earlier: /tmp/ns-audit/shots/r-analytics-31-campaign.png confirms the exclusion rule (12.8% == session 1 alone)",
-  "where": "packages/nightshade_core/lib/src/services/campaign_rollup_service.dart:166 and campaign_rollup_dialog.dart:198-201"
+  "where": "packages/skotiq_core/lib/src/services/campaign_rollup_service.dart:166 and campaign_rollup_dialog.dart:198-201"
  },
  {
   "title": "Recovering a stale session stamps end_time = now, inflating its duration by days",
@@ -162,7 +162,7 @@
   "expected": "Closing an abandoned session should set end_time to the last captured frame's timestamp, not to the clock at recovery time. Otherwise one crash permanently corrupts the night's duration and drags the target's campaign efficiency toward zero.",
   "repro": "Seed a session with status='active', end_time NULL and frames ending 2 days ago. Restart the app, work through the Incomplete Sessions dialog. sqlite3: select status,end_time from imaging_sessions where id=3 -> aborted, <now>.",
   "evidence": "DB before: 3|Night C - M31|active|(null); after: 3|Night C - M31|aborted|1785610346 (2026-08-01 18:52:26Z) while the session's last frame is at 1785440100 (2026-07-30 20:55Z)",
-  "where": "session recovery path in packages/nightshade_core/lib/src/services/session_service.dart (stale 'active' session handling around :431)"
+  "where": "session recovery path in packages/skotiq_core/lib/src/services/session_service.dart (stale 'active' session handling around :431)"
  },
  {
   "title": "Science tab says 'Science idle - Waiting for the first captured frame' while the session under analysis has 120 frames",
@@ -173,7 +173,7 @@
   "expected": "The banner reports the in-memory pipeline state for the current app process, which is empty after a restart. When the tab is reviewing a historical session it should say so ('Reviewing stored results') rather than claim no frame has been captured.",
   "repro": "Restart the app, Analytics > Science, select a past session with frames.",
   "evidence": "/tmp/ns-audit/shots/r-analytics-38-scivt.png",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/science_status_banner.dart:120-124 (the no-history else branch)"
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/science_status_banner.dart:120-124 (the no-history else branch)"
  },
  {
   "title": "Both periodogram Y axes print five ticks with only two distinct values (0.1, 0.1, 0.0, 0.0, 0.0)",
@@ -184,18 +184,18 @@
   "expected": "LS power is a normalised 0..1 quantity and for an insignificant detection it lives entirely below 0.1, which is the normal case. The axis must adapt its precision (or use a fixed 0.00 / 0.02 / 0.04 ... scale) so every tick is distinct.",
   "repro": "Seed >=10 photometry_measurements rows for the selected session, open Analytics > Science, scroll to Period Analysis, press Run Period Search. Read the Power axis of the Lomb-Scargle Periodogram.",
   "evidence": "/tmp/ns-audit/shots/ra3-03-pgram-yaxis.png (cropped axis: 0.1, 0.1, 0.0, 0.0, 0.0 against a curve whose maximum is 0.07); headline on the same card reads 'Peak power: 0.07'.; /tmp/ns-audit/shots/ra3-28-customfold2.png (BLS SR axis: 0.1, 0.0, 0.0, 0.0, 0.0); /tmp/ns-audit/shots/ra3-27-customfold.png (LS axis at peak power 0.25 reads 0.3, 0.2, 0.1, 0.1, 0.0 - still a duplicated 0.1)",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/period_analysis_panel/periodogram_painter.dart:188 `final value = maxPower * 1.1 * i / 4.0;` then :191 `value.toStringAsFixed(1)`; the same pattern in period_analysis_panel/bls_spectrum_painter.dart"
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/period_analysis_panel/periodogram_painter.dart:188 `final value = maxPower * 1.1 * i / 4.0;` then :191 `value.toStringAsFixed(1)`; the same pattern in period_analysis_panel/bls_spectrum_painter.dart"
  },
  {
   "title": "\"Export report\" produces a Science Report with no light curve and no period analysis, and says \"No photometric calibration produced this session\" for a session that has 80 photometry measurements",
   "severity": "P2",
   "kind": "defect",
   "unit": "screen:analytics/science_export_hub.dart",
-  "what_happened": "Analytics > Science > Export report wrote /home/scdouglas/Documents/Nightshade/science-reports/session-5-2026-08-02T14-42-11-546260Z.md. Session 5 has 80 rows in photometry_measurements and the Science tab on screen at that moment was drawing a Differential Photometry chart and a Period Analysis card (LS best period, BLS depth/SDE, phase fold) from them. The report contains sections Session / Frames / Photometry / Transparency / Field quality / Filter breakdown / Moving objects, and NOTHING about the light curve or the period search. Its \"## Photometry\" section reads \"No photometric calibration produced this session.\"",
+  "what_happened": "Analytics > Science > Export report wrote /home/scdouglas/Documents/Skotiq/science-reports/session-5-2026-08-02T14-42-11-546260Z.md. Session 5 has 80 rows in photometry_measurements and the Science tab on screen at that moment was drawing a Differential Photometry chart and a Period Analysis card (LS best period, BLS depth/SDE, phase fold) from them. The report contains sections Session / Frames / Photometry / Transparency / Field quality / Filter breakdown / Moving objects, and NOTHING about the light curve or the period search. Its \"## Photometry\" section reads \"No photometric calibration produced this session.\"",
   "expected": "A document called a Science Report, exported from the tab that just computed a differential light curve and a period, must contain them. At minimum it must not head a section \"Photometry\" and declare nothing was produced when the same session's photometry is plotted two inches above the button.",
   "repro": "Seed >=10 photometry_measurements for the selected session (object_id matching the active target selection so the chart draws). Analytics > Science > Run Period Search, then Export report. Open the .md.",
-  "evidence": "/home/scdouglas/Documents/Nightshade/science-reports/session-5-2026-08-02T14-42-11-546260Z.md (full text: no light-curve or period section); /tmp/ns-audit/shots/ra3-01.png shows the LS/BLS card populated for the same session; sqlite: select count(*) from photometry_measurements where session_id=5 -> 80",
-  "where": "packages/nightshade_core/lib/src/services/science/science_report_exporter.dart:168-206 (_photometrySnapshot reads only FramePhotometricCalibrationRow); the section list at :131-292 has no light-curve or period entry"
+  "evidence": "/home/scdouglas/Documents/Skotiq/science-reports/session-5-2026-08-02T14-42-11-546260Z.md (full text: no light-curve or period section); /tmp/ns-audit/shots/ra3-01.png shows the LS/BLS card populated for the same session; sqlite: select count(*) from photometry_measurements where session_id=5 -> 80",
+  "where": "packages/skotiq_core/lib/src/services/science/science_report_exporter.dart:168-206 (_photometrySnapshot reads only FramePhotometricCalibrationRow); the section list at :131-292 has no light-curve or period entry"
  },
  {
   "title": "Science guide ladder is stuck on rung 1 and tells the user to \"turn on live photometry\" while the same page plots an 80-point light curve, a period and an Export to AAVSO button",
@@ -206,7 +206,7 @@
   "expected": "The ladder is the app's own statement of how far the user has got. It must be derived from the same data the cards below it are rendering. Telling a user to start collecting points when 80 points are on screen, and to find a period when one is displayed, makes the guide untrustworthy and hides the export the user is being told to work toward.",
   "repro": "Seed 80 photometry_measurements rows whose object_id matches the active photometry target for the selected session; open Analytics > Science; press Run Period Search; then click ladder rungs 3 and 5.",
   "evidence": "/tmp/ns-audit/shots/ra3-07-rung3.png (rung 3 sheet: padlock + 'Turn on live photometry and track a star to start collecting points'); tree for rung 5: 'Find a period - or build out the curve - before exporting.'; /tmp/ns-audit/shots/ra3-01.png (same page: LS 21.2 min / BLS 21.8 min); tree of the same page lists 'button: Export to AAVSO'.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/science_onboarding/science_ladder_model.dart (rung unlock predicates) and science_rung_sheet.dart"
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/science_onboarding/science_ladder_model.dart (rung unlock predicates) and science_rung_sheet.dart"
  },
  {
   "title": "3D Surface Explorer's \"Contours\" toggle draws vertical drop-lines, not contours",
@@ -217,7 +217,7 @@
   "expected": "A control called Contours draws iso-value lines across the surface. If drop-lines are what is wanted, call the control 'Drop lines'.",
   "repro": "Seed science_tile_metrics rows (layer_type='uniformity', 5x5 grid) for the selected session's frames. Restart. Analytics > Science, scroll to 3D Surface Explorer, click Contours.",
   "evidence": "/tmp/ns-audit/shots/ra3-13-contours.png (25 vertical stems to a common baseline, zero contour lines)",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/science_surface_explorer.dart:325-331 `if (showContour) { canvas.drawLine(point, Offset(point.dx, size.height - 10), linePaint); }`"
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/science_surface_explorer.dart:325-331 `if (showContour) { canvas.drawLine(point, Offset(point.dx, size.height - 10), linePaint); }`"
  },
  {
   "title": "BLS card gives no significance verdict, and its only significance number (SDE) scores pure noise higher than a textbook-strong periodic signal",
@@ -228,7 +228,7 @@
   "expected": "Either show the BLS SDE with the threshold the code itself documents ('SDE > ~6 is typically considered a significant detection', period_analysis_service.dart:81) and a verdict badge like the LS side has, or do not present SDE as a headline. As shipped a user comparing 2.7 and 2.5 would conclude the noise run is the better candidate.",
   "repro": "Seed 80 photometry_measurements at 90s cadence for the selected session with (A) gaussian noise, then (B) 0.10*sin(2*pi*t/1200s), then (C) a +0.15 mag box of width 0.12 phase at P=1200s. Restart between each. Analytics > Science > Period Analysis > Run Period Search and read the BLS block.",
   "evidence": "/tmp/ns-audit/shots/ra3-01.png (noise: Depth -53.6 mmag, SDE 2.7); /tmp/ns-audit/shots/ra3-19-period-signal.png (sinusoid: LS 'Strong' FAP < 1e-10, BLS SDE 2.5); /tmp/ns-audit/shots/ra3-24-blsbox.png (box transit: Period 20.0 min, Duration 2.5 min, Depth 151.2 mmag, SDE 4.82, Mid-phase 0.487)",
-  "where": "packages/nightshade_core/lib/src/services/science/period_analysis_service.dart:604-621 (SDE = (peakSR - meanSR)/stdSR over the SR spectrum) and packages/nightshade_app/lib/screens/analytics/widgets/period_analysis_panel/result_widgets.dart (BLS block renders SDE with no threshold or badge)"
+  "where": "packages/skotiq_core/lib/src/services/science/period_analysis_service.dart:604-621 (SDE = (peakSR - meanSR)/stdSR over the SR spectrum) and packages/skotiq_app/lib/screens/analytics/widgets/period_analysis_panel/result_widgets.dart (BLS block renders SDE with no threshold or badge)"
  },
  {
   "title": "\"Box Least Squares (Transit Search)\" reports negative transit depths, i.e. it presents a brightening as a transit",
@@ -239,7 +239,7 @@
   "expected": "A transit search should either restrict the box search to fainter-than-baseline solutions, or clearly flag a negative-depth solution as an anti-transit / brightening event rather than presenting it as the session's transit result.",
   "repro": "Seed 80 noisy photometry points with no transit; Analytics > Science > Period Analysis > Run Period Search; read the BLS block.",
   "evidence": "/tmp/ns-audit/shots/ra3-01.png ('Depth: -53.6 mmag | SDE: 2.7'), /tmp/ns-audit/shots/ra3-19-period-signal.png ('Depth: -115.9 mmag | SDE: 2.5'), /tmp/ns-audit/shots/ra3-24-blsbox.png (positive 151.2 mmag for a real transit)",
-  "where": "packages/nightshade_core/lib/src/services/science/period_analysis_service.dart:536-545 maximises SR = s^2/(r(1-r)), which is sign-blind, and :597 sets globalBestDepth = inTransitMean - outTransitMean without constraining the sign"
+  "where": "packages/skotiq_core/lib/src/services/science/period_analysis_service.dart:536-545 maximises SR = s^2/(r(1-r)), which is sign-blind, and :597 sets globalBestDepth = inTransitMean - outTransitMean without constraining the sign"
  },
  {
   "title": "Image grader's list of frames it is about to reject is clipped behind the dialog footer",
@@ -250,7 +250,7 @@
   "expected": "The confirmation list is the whole point of a destructive-looking action - the user must be able to read which frames will be rejected and why. Either scroll the list inside a bounded region with a visible scrollbar, or size the dialog to the content.",
   "repro": "Analytics > Science on a session with frames > 'Grade N frames' > drag Max guiding RMS below the frames' RMS so at least one frame fails > look at the list above the footer.",
   "evidence": "/tmp/ns-audit/shots/ra3-30-grader2.png (single half-height 'm13_0.fits' row jammed under the footer); the accessibility tree at the same moment lists both m13_0.fits and m13_1.fits with their reasons.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/image_grader_dialog.dart (the failing-frame list is laid out in the dialog body with no Expanded/scroll container above the actions row)"
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/image_grader_dialog.dart (the failing-frame list is laid out in the dialog body with no Expanded/scroll container above the actions row)"
  },
  {
   "title": "Session tab claims \"No frames are deleted or auto-rejected\" directly above frames the app auto-rejected",
@@ -261,7 +261,7 @@
   "expected": "The caption should be scoped to the advisory Good/Poor badges ('These badges are advisory - they do not reject frames on their own'), because the app ships an auto-grader two tabs away that does reject frames and stamps them 'Auto-grade:'.",
   "repro": "Analytics > Science > Grade N frames > lower a threshold > Reject; then Analytics > Session and read the Captured Images caption.",
   "evidence": "sqlite after the action: select id,is_accepted,rejection_reason from captured_images where session_id=5 -> 148|0|Auto-grade: Guiding 0.60\" > 0.24\" and 149|0|same; the Session tab tree at the same moment contains 'Quality labels are advisory only. No frames are deleted or auto-rejected.' and 'EXPOSURES 0/2'.",
-  "where": "packages/nightshade_app/lib/screens/analytics/analytics_screen/session_tab.dart (Captured Images caption)"
+  "where": "packages/skotiq_app/lib/screens/analytics/analytics_screen/session_tab.dart (Captured Images caption)"
  },
  {
   "title": "Diagnostics tab shows loading skeletons forever for a session it cannot analyse",
@@ -283,18 +283,18 @@
   "expected": "Two charts in the same section must use the same frame population, and an empty state must say the real reason. The frames DO have star metrics; they are excluded because they are rejected. 'HFR appears once star metrics are recorded' sends the user to look for a plate-solve/star-detection problem that does not exist.",
   "repro": "Analytics > Science on a session with HFR-bearing frames; note HFR over time draws. Grade N frames > lower a threshold > Reject all. Return to FIELD QUALITY: HFR over time is empty with the star-metrics message, Field uniformity (CV) is unchanged.",
   "evidence": "/tmp/ns-audit/shots/ra3-36-mpc.png (HFR over time empty state beside a populated Field uniformity chart); earlier tree with the same frames accepted: 'HFR over time / 2.20 / 2.24 / 2.22 / 2.18 / 2.16'; sqlite: select hfr,star_count,is_accepted from captured_images where session_id=5 -> 2.2|3000|0 twice.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/science_analytics_tab/science_info_and_series_chart.dart (HFR series filters accepted frames) vs the uniformity series which reads science_frame_quality_metrics unfiltered"
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/science_analytics_tab/science_info_and_series_chart.dart (HFR series filters accepted frames) vs the uniformity series which reads science_frame_quality_metrics unfiltered"
  },
  {
   "title": "Exported MPC 80-column report puts the CCD observation-type code in column 14 instead of column 15, so every record is malformed",
   "severity": "P2",
   "kind": "defect",
   "unit": "screen:analytics/mpc_export_panel.dart",
-  "what_happened": "Analytics > Science > ANOMALIES > MPC Report Export > Select All > Export to File produced /home/scdouglas/Documents/Nightshade/exports/mpc_report_2026-08-02T15-14-07-815531Z.txt with two 80-character records:\n     NS0001  C 2026 08 01.12847 16 41 41.64 +36 27 40.7           17.4V      W88\nColumn-by-column that is: 1-5 blank, 6-12 'NS0001 ', 13 ' ', 14 'C', 15 ' ', 16-32 date, 33-44 RA, 45-56 Dec, 57-65 blank, 66-70 ' 17.4', 71 'V', 72-77 blank, 78-80 'W88'. The MPC's 80-column format defines column 14 as Note 1 and column 15 as Note 2, and it is Note 2 that carries the observation type ('C' = CCD). Nightshade writes 'C' into Note 1 and leaves Note 2 blank.",
+  "what_happened": "Analytics > Science > ANOMALIES > MPC Report Export > Select All > Export to File produced /home/scdouglas/Documents/Skotiq/exports/mpc_report_2026-08-02T15-14-07-815531Z.txt with two 80-character records:\n     NS0001  C 2026 08 01.12847 16 41 41.64 +36 27 40.7           17.4V      W88\nColumn-by-column that is: 1-5 blank, 6-12 'NS0001 ', 13 ' ', 14 'C', 15 ' ', 16-32 date, 33-44 RA, 45-56 Dec, 57-65 blank, 66-70 ' 17.4', 71 'V', 72-77 blank, 78-80 'W88'. The MPC's 80-column format defines column 14 as Note 1 and column 15 as Note 2, and it is Note 2 that carries the observation type ('C' = CCD). Skotiq writes 'C' into Note 1 and leaves Note 2 blank.",
   "expected": "Column 15 = 'C', column 14 blank. As exported, every observation the user submits reaches the MPC with no observation type and a non-standard Note 1 - the exact thing the MPC's submission checker rejects.",
   "repro": "Set Settings > Science > MPC observatory code (I set app_settings 'science.mpc.observatory_code' = 'W88'). Analytics > Science > MPC Report Export > Select All > Export to File. Read columns 14 and 15 of the output.",
-  "evidence": "/home/scdouglas/Documents/Nightshade/exports/mpc_report_2026-08-02T15-14-07-815531Z.txt; column extraction printed above; source confirms it is deliberate: mpc_export_service.dart:180-185 `// Column 14: Note 1 - C = CCD observation` `const note1 = 'C';` `// Column 15: Note 2 - blank` `const note2 = ' ';`",
-  "where": "packages/nightshade_core/lib/src/services/science/mpc_export_service.dart:180-185"
+  "evidence": "/home/scdouglas/Documents/Skotiq/exports/mpc_report_2026-08-02T15-14-07-815531Z.txt; column extraction printed above; source confirms it is deliberate: mpc_export_service.dart:180-185 `// Column 14: Note 1 - C = CCD observation` `const note1 = 'C';` `// Column 15: Note 2 - blank` `const note2 = ' ';`",
+  "where": "packages/skotiq_core/lib/src/services/science/mpc_export_service.dart:180-185"
  },
  {
   "title": "Science Data Export says \"No moving object candidates available to report yet\" and its MPC Open button is dead, while the page behind it lists two candidates",
@@ -312,7 +312,7 @@
   "severity": "P2",
   "kind": "defect",
   "unit": "screen:analytics/science_export_hub.dart",
-  "what_happened": "Science Data Export > Photometry Measurements > CSV wrote /home/scdouglas/Documents/Nightshade/exports/photometry_2026-08-02T11-18-30.csv. The first data row's Timestamp column reads '2026-08-01T05:00:00.000'. The DB row it came from has timestamp = 1785574800, which is 2026-08-01T09:00:00Z. The CSV is emitting local time (UTC-4 here) in ISO-8601 shape with no offset and no 'Z'.",
+  "what_happened": "Science Data Export > Photometry Measurements > CSV wrote /home/scdouglas/Documents/Skotiq/exports/photometry_2026-08-02T11-18-30.csv. The first data row's Timestamp column reads '2026-08-01T05:00:00.000'. The DB row it came from has timestamp = 1785574800, which is 2026-08-01T09:00:00Z. The CSV is emitting local time (UTC-4 here) in ISO-8601 shape with no offset and no 'Z'.",
   "expected": "Photometry timestamps are the input to period analysis, AAVSO/AID submissions and any cross-observer comparison; they must be UTC (ideally JD or HJD as well) and must carry the offset. Any script that parses this file as ISO-8601 will place every point 4 hours off, and the error changes with the observer's timezone and with DST inside a single observing season.",
   "repro": "Analytics > Science > export/database icon > Photometry Measurements > CSV. Compare the Timestamp column with `select timestamp from photometry_measurements order by timestamp limit 1` (unix seconds).",
   "evidence": "CSV row: '5,148,target_primary,target,512.0,512.0,100000.0,-0.00612,120.0,0.008,false,2026-08-01T05:00:00.000'; sqlite: id 581 timestamp 1785574800 = 2026-08-01 09:00:00 UTC. The same file's own name is stamped '2026-08-02T11-18-30' (local) while the science report's footer uses Z - three conventions across the export surface.",
@@ -327,6 +327,6 @@
   "expected": "A user who cannot use TNS should be told, in the panel, why the other two networks are also unavailable. The app already computes exactly that text - _disabledReason() returns 'MPC astrometry is for moving objects - this detection is not a plausible mover' and an AAVSO-specific reason - but it is only rendered for _format, which the user cannot change to a disabled network. The explanation is written and permanently unreachable.",
   "repro": "Seed a transient_detections row with reviewed=1 and kind='newSource'; leave the TNS bot credentials and AAVSO observer code unset. Open the panel and click the AAVSO and MPC chips.",
   "evidence": "/tmp/ns-audit/shots/ra3-49-tr2.png (TNS selected with its reason; AAVSO and MPC dim); accessibility tree after clicking AAVSO and after clicking MPC is byte-identical to before, still showing the TNS reason.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/transient_report_panel.dart:129-141 (chip onTap is null when !enabled) and :142-148 (the reason Text is guarded by `if (!_formatEnabled(_format, ...))`, i.e. only for the selected format); the per-format reasons live at :369-402"
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/transient_report_panel.dart:129-141 (chip onTap is null when !enabled) and :142-148 (the reason Text is guarded by `if (!_formatEnabled(_format, ...))`, i.e. only for the selected format); the per-format reasons live at :369-402"
  }
 ]

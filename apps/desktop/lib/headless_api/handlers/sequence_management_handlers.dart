@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/database_entities.dart'
+import 'package:skotiq_core/database_entities.dart'
     show Sequence, SequenceNode, SequencesCompanion, SequenceNodesCompanion;
-import 'package:nightshade_core/nightshade_core.dart'
+import 'package:skotiq_core/skotiq_core.dart'
     hide Sequence, SequenceNode; // Hide domain models
 import 'package:shelf/shelf.dart';
 

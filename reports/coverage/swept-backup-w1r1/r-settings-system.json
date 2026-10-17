@@ -32,7 +32,7 @@
    "expected": "Starting a tutorial should route to the screen the tutorial is about (Equipment) and spotlight the real control, or at minimum let the underlying UI stay clickable so the instruction can be followed. NINA/SGP tours anchor to the widget being described.",
    "repro": "Fresh profile > skip onboarding > gear icon > Help & Tutorials > scroll to Tutorial Tours > Equipment Setup 'Start'. Observe the modal appears over Settings. Click left-nav Imaging: nothing happens.",
    "evidence": "/tmp/ns-audit/shots/rss-05.png (modal 'Equipment Profiles / Click the Profiles tab' rendered over the Settings > Help page), /tmp/ns-audit/shots/rss-06.png (step 3 'Click the Connections tab'). Tree after clicking left-nav Imaging still reports the Settings panel plus 'Tutorial step 1 of 4: Equipment Profiles'.",
-   "where": "packages/nightshade_app/lib/screens/settings/widgets/help_tutorials_settings.dart:179 (onStart -> notifier.restartTutorial) and packages/nightshade_core/lib/src/providers/tutorial_provider.dart:640 _restartTutorial -- it only sets state.activeCategory/currentStepIndex, it never navigates.",
+   "where": "packages/skotiq_app/lib/screens/settings/widgets/help_tutorials_settings.dart:179 (onStart -> notifier.restartTutorial) and packages/skotiq_core/lib/src/providers/tutorial_provider.dart:640 _restartTutorial -- it only sets state.activeCategory/currentStepIndex, it never navigates.",
    "proposed_fix": "Give TutorialStep a target route and have _restartTutorial/resumeTutorial push it before showing step 0; make the overlay a non-blocking anchored coach-mark rather than a modal barrier."
   },
   {
@@ -40,11 +40,11 @@
    "kind": "defect",
    "severity": "P1",
    "unit": "settings:about / screen:settings/about_settings.dart",
-   "what_happened": "Settings > About offers three link buttons: GitHub, Documentation, Discord. GitHub opens https://github.com/nightshade-astro, which returns HTTP 404 -- the real project repo is https://github.com/Scdouglas1999/Nightshade (HTTP 200, per the repo README badge). Documentation opens https://nightshade.astro/docs; 'nightshade.astro' does not resolve in DNS at all (.astro is not a delegated TLD). Discord opens https://discord.gg/nightshade, which is not a Nightshade invite. Clicking GitHub in the app produced no error banner -- the launch is reported as successful and the user is dropped on a 404.",
-   "expected": "The three community links a shipped app puts on its About page must point at the real destinations: github.com/Scdouglas1999/Nightshade, the docs (docs/index.md is what the README points at), and a real Discord invite -- or the button should not exist.",
-   "repro": "gear icon > Settings > About > click GitHub. Then: curl -o /dev/null -w '%{http_code}' https://github.com/nightshade-astro -> 404; getent hosts nightshade.astro -> no answer.",
-   "evidence": "/tmp/ns-audit/shots/rss-15.png (the three buttons rendered). curl: github.com/nightshade-astro -> 404, github.com/Scdouglas1999/Nightshade -> 200, nightshade.astro -> DNS FAILS.",
-   "where": "packages/nightshade_app/lib/screens/settings/widgets/about_settings.dart:102,109,116 (and the mobile duplicates at :102/:109/:116 vs desktop :128/:135/:142)",
+   "what_happened": "Settings > About offers three link buttons: GitHub, Documentation, Discord. GitHub opens https://github.com/skotiq-astro, which returns HTTP 404 -- the real project repo is https://github.com/Scdouglas1999/Skotiq (HTTP 200, per the repo README badge). Documentation opens https://skotiq.astro/docs; 'skotiq.astro' does not resolve in DNS at all (.astro is not a delegated TLD). Discord opens https://discord.gg/skotiq, which is not a Skotiq invite. Clicking GitHub in the app produced no error banner -- the launch is reported as successful and the user is dropped on a 404.",
+   "expected": "The three community links a shipped app puts on its About page must point at the real destinations: github.com/Scdouglas1999/Skotiq, the docs (docs/index.md is what the README points at), and a real Discord invite -- or the button should not exist.",
+   "repro": "gear icon > Settings > About > click GitHub. Then: curl -o /dev/null -w '%{http_code}' https://github.com/skotiq-astro -> 404; getent hosts skotiq.astro -> no answer.",
+   "evidence": "/tmp/ns-audit/shots/rss-15.png (the three buttons rendered). curl: github.com/skotiq-astro -> 404, github.com/Scdouglas1999/Skotiq -> 200, skotiq.astro -> DNS FAILS.",
+   "where": "packages/skotiq_app/lib/screens/settings/widgets/about_settings.dart:102,109,116 (and the mobile duplicates at :102/:109/:116 vs desktop :128/:135/:142)",
    "proposed_fix": "Hoist the three URLs into one const block and set them to the real repo/docs/invite; add a launch-failure path that surfaces the URL (the existing showErrorSnackBar only fires when canLaunchUrl is false, which is not the failure mode here)."
   },
   {
@@ -55,8 +55,8 @@
    "what_happened": "The About section declares keywords ['version','license','credits','updates','build'] (settings_catalog.dart:205-214). Typing 'license' into the Settings search box filters the section list down to exactly one entry, About -- and the About page has no licence text, no third-party/credits list, and no build number. The search promises information the destination does not have.",
    "expected": "Either About carries a licence + open-source-credits block (Flutter's showLicensePage is one line) and the build number, or those keywords come out of the catalog so the search does not lie.",
    "repro": "Settings > search box > type 'license'. Only 'About' is listed. Open it: version 6.1.0, tagline, 3 links, Platform/OS/Dart rows. Nothing else.",
-   "evidence": "tree after typing 'license': the section list collapses to a single 'About' entry; the About page tree is Nightshade / Version 6.1.0 / Advanced astrophotography suite / GitHub / Documentation / Discord / System Information / Platform / OS Version / Dart Version.",
-   "where": "packages/nightshade_app/lib/screens/settings/settings_catalog.dart:205-214 vs packages/nightshade_app/lib/screens/settings/widgets/about_settings.dart",
+   "evidence": "tree after typing 'license': the section list collapses to a single 'About' entry; the About page tree is Skotiq / Version 6.1.0 / Advanced astrophotography suite / GitHub / Documentation / Discord / System Information / Platform / OS Version / Dart Version.",
+   "where": "packages/skotiq_app/lib/screens/settings/settings_catalog.dart:205-214 vs packages/skotiq_app/lib/screens/settings/widgets/about_settings.dart",
    "proposed_fix": "Add a licence/credits row (showLicensePage) and show the full build string; keep the keywords."
   },
   {
@@ -68,7 +68,7 @@
    "expected": "NINA's About shows version+build+commit and a one-click 'copy system info'. Show '6.1.0 (build 25)', add schema version / data dir / bridge version, and give the card a Copy button.",
    "repro": "Settings > About.",
    "evidence": "/tmp/ns-audit/shots/rss-15.png; apps/desktop/pubspec.yaml:4 'version: 6.1.0+25'.",
-   "where": "packages/nightshade_app/lib/screens/settings/widgets/about_settings.dart:73,159-166",
+   "where": "packages/skotiq_app/lib/screens/settings/widgets/about_settings.dart:73,159-166",
    "proposed_fix": "Render '${appVersion.version} (build ${appVersion.buildNumber})' and extend the System Information card; add a copy-to-clipboard action."
   },
   {
@@ -80,20 +80,20 @@
    "expected": "Either implement the documented loopback exemption (peer address is loopback -> full-scope identity), or change the copy so it does not promise a local escape hatch that does not exist. As written, an operator clicking 'Open Local Dashboard' to 'confirm the dashboard is working' sees a dead page and concludes the server is broken.",
    "repro": "Settings > Remote Access > Enable Remote Access. Then: curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:<port>/api/status -> 401. curl http://localhost:<port>/api/status -> 401. curl http://192.168.1.20:<port>/api/status -> 401.",
    "evidence": "Live 401 bodies captured from 127.0.0.1:8080 and 127.0.0.1:8099 (both ports I ran on). /tmp/ns-audit/shots/rss-20.png shows the 'Open on this computer' copy, /tmp/ns-audit/shots/rss-19.png shows Connection details.",
-   "where": "copy: packages/nightshade_app/lib/localization/nightshade_localizations/translations.dart:389 and :399; enforcement: apps/desktop/lib/headless_api_server/http_middleware.dart:758-770 (token==null -> 401, no peer-address check anywhere in the chain).",
+   "where": "copy: packages/skotiq_app/lib/localization/skotiq_localizations/translations.dart:389 and :399; enforcement: apps/desktop/lib/headless_api_server/http_middleware.dart:758-770 (token==null -> 401, no peer-address check anywhere in the chain).",
    "proposed_fix": "Add an explicit loopback grant in the auth middleware keyed on the shelf connectionInfo remote address (and NOT on any forwarded header), or drop the 'frictionless' sentence and relabel the card 'Open the dashboard (you will need to pair this browser)'."
   },
   {
-   "title": "Paired devices live in ~/Documents/Nightshade/pairing.db -- outside the app database, outside the configured data dir, and split across two stores",
+   "title": "Paired devices live in ~/Documents/Skotiq/pairing.db -- outside the app database, outside the configured data dir, and split across two stores",
    "kind": "defect",
    "severity": "P1",
    "unit": "settings:remote-access / screen:settings/pairing_screen.dart",
-   "what_happened": "I launched a completely fresh scratch profile (NIGHTSHADE_DATABASE_DIR=NIGHTSHADE_DATA_DIR=/tmp/ns-audit/r-settings-system/data, --fresh, empty nightshade.db). Settings > Remote Access > Manage Pairing immediately listed 12 devices paired 6/15/2026 and 7/20/2026 -- the developer's real, months-old pairings. They are not in nightshade.db; PairingDatabase opens getApplicationDocumentsDirectory()/Nightshade/pairing.db, i.e. ~/Documents/Nightshade/pairing.db, which ignores NIGHTSHADE_DATA_DIR entirely. Two such stores exist on this machine: ~/Documents/Nightshade/pairing.db (12 active rows, mtime Aug 1) and ~/Nightshade/pairing.db (0 rows, mtime Jul 29) -- the same install has written to two different locations depending on how getApplicationDocumentsDirectory resolved.",
+   "what_happened": "I launched a completely fresh scratch profile (SKOTIQ_DATABASE_DIR=SKOTIQ_DATA_DIR=/tmp/ns-audit/r-settings-system/data, --fresh, empty skotiq.db). Settings > Remote Access > Manage Pairing immediately listed 12 devices paired 6/15/2026 and 7/20/2026 -- the developer's real, months-old pairings. They are not in skotiq.db; PairingDatabase opens getApplicationDocumentsDirectory()/Skotiq/pairing.db, i.e. ~/Documents/Skotiq/pairing.db, which ignores SKOTIQ_DATA_DIR entirely. Two such stores exist on this machine: ~/Documents/Skotiq/pairing.db (12 active rows, mtime Aug 1) and ~/Skotiq/pairing.db (0 rows, mtime Jul 29) -- the same install has written to two different locations depending on how getApplicationDocumentsDirectory resolved.",
    "expected": "Long-lived remote credentials belong in the app database (or at minimum under the configured data dir) so that (a) Backup & Restore captures them, (b) moving the data directory moves them, (c) they cannot silently fork into two stores. As shipped, restoring a backup on a new machine silently loses every pairing, and a launch context where XDG_DOCUMENTS_DIR differs presents an empty device list with no error.",
-   "repro": "drive_linux.py start --profile <new> --fresh (scratch data dir) > Settings > Remote Access > Manage Pairing. Observe 12 devices. sqlite3 /tmp/ns-audit/<profile>/data/nightshade.db '.tables' -> no pairing tables. sqlite3 ~/Documents/Nightshade/pairing.db 'select count(*) from paired_devices where is_active=1' -> 12, matching the UI exactly. ls ~/Nightshade/pairing.db -> a second, empty store.",
+   "repro": "drive_linux.py start --profile <new> --fresh (scratch data dir) > Settings > Remote Access > Manage Pairing. Observe 12 devices. sqlite3 /tmp/ns-audit/<profile>/data/skotiq.db '.tables' -> no pairing tables. sqlite3 ~/Documents/Skotiq/pairing.db 'select count(*) from paired_devices where is_active=1' -> 12, matching the UI exactly. ls ~/Skotiq/pairing.db -> a second, empty store.",
    "evidence": "/tmp/ns-audit/shots/rss-22.png (12 devices in a fresh profile). UI count 12 == DB is_active count 12. Device names/dates match row-for-row (Dashboard 2026-06-15, Android companion 2026-07-20 x3...).",
-   "where": "packages/nightshade_remote_protocol/lib/src/database/pairing_database.dart:401-410 (_openConnection -> getApplicationDocumentsDirectory()/Nightshade/pairing.db)",
-   "proposed_fix": "Resolve the pairing DB through the same directory resolver the main database uses (NIGHTSHADE_DATA_DIR-aware application-support dir), and migrate any existing Documents/Nightshade/pairing.db on first run. Include it in the backup manifest."
+   "where": "packages/skotiq_remote_protocol/lib/src/database/pairing_database.dart:401-410 (_openConnection -> getApplicationDocumentsDirectory()/Skotiq/pairing.db)",
+   "proposed_fix": "Resolve the pairing DB through the same directory resolver the main database uses (SKOTIQ_DATA_DIR-aware application-support dir), and migrate any existing Documents/Skotiq/pairing.db on first run. Include it in the backup manifest."
   },
   {
    "title": "After a device pairs successfully the desktop keeps showing the pairing code counting down, and the device list does not update",
@@ -102,9 +102,9 @@
    "unit": "settings:remote-access / screen:settings/pairing_screen.dart",
    "what_happened": "I pressed Start Pairing Mode, read the code ASTRO-NEBULA-1815 off the screen, and completed pairing over HTTP (POST /api/pairing/verify -> 200 with a bearer token). The server immediately invalidated the code (a second verify with the same code returned invalid_pairing_code) and wrote the 13th row into paired_devices. The desktop screen did not react at all: 30s later it still displayed 'Enter this code on your device: ASTRO-NEBULA-1815 / Expires in 04:18 / Cancel Pairing', and Paired Devices still listed 12 entries. Only after manually pressing the small refresh icon did the 13th device appear.",
    "expected": "The instant a code is consumed the panel should close and announce which device paired -- that confirmation is the operator's only way to know the phone in their hand is the device that just connected. Showing a live countdown for a code the server has already destroyed is a false statement, and it invites the operator to read the dead code to a second device.",
-   "repro": "Settings > Remote Access > Manage Pairing > Start Pairing Mode. From a shell: curl -X POST -d '{\"code\":\"<code>\",\"deviceName\":\"x\",\"deviceId\":\"x\",\"deviceType\":\"browser\"}' http://127.0.0.1:<port>/api/pairing/verify. Watch the desktop: unchanged. sqlite3 ~/Documents/Nightshade/pairing.db 'select count(*) from paired_devices where is_active=1' -> 13 while the UI shows 12.",
+   "repro": "Settings > Remote Access > Manage Pairing > Start Pairing Mode. From a shell: curl -X POST -d '{\"code\":\"<code>\",\"deviceName\":\"x\",\"deviceId\":\"x\",\"deviceType\":\"browser\"}' http://127.0.0.1:<port>/api/pairing/verify. Watch the desktop: unchanged. sqlite3 ~/Documents/Skotiq/pairing.db 'select count(*) from paired_devices where is_active=1' -> 13 while the UI shows 12.",
    "evidence": "/tmp/ns-audit/shots/rss-23.png (code panel), /tmp/ns-audit/shots/rss-24.png (still counting down at 04:03 after the pair completed). Tree: 12 'Paired:' rows vs DB 13. After pressing refresh: 13 rows, 'audit-probe ... Paired: 1m ago'.",
-   "where": "packages/nightshade_app/lib/screens/settings/pairing_screen.dart:96/215 (loadPairedDevices is only called on init and on the manual refresh button; nothing subscribes to pairing completion).",
+   "where": "packages/skotiq_app/lib/screens/settings/pairing_screen.dart:96/215 (loadPairedDevices is only called on init and on the manual refresh button; nothing subscribes to pairing completion).",
    "proposed_fix": "Have the pairing session emit a completion event (the server already knows) and drive the panel from it: close the code card, toast '<deviceName> paired', and reload the list."
   },
   {
@@ -114,9 +114,9 @@
    "unit": "settings:remote-access / screen:settings/pairing_screen.dart",
    "what_happened": "Every one of the 13 paired devices shows the badge 'Not seen yet' and the line 'No connection recorded yet'. I proved this is untrue for at least one of them: after pairing 'audit-probe' I made three authenticated GET /api/status calls with its bearer (200, 200, 200) and then opened an authenticated WebSocket to /events (HTTP/1.1 101 Switching Protocols, held open 60s). paired_devices.last_connected_at for that device stayed NULL and the UI still says 'Not seen yet'. All 12 pre-existing devices -- including ones that demonstrably drove this app in earlier sessions ('ui-audit-avd', 'Lead Harness') -- are likewise NULL.",
    "expected": "last_connected_at should be stamped whenever a device authenticates. Without it the operator cannot tell a phone that is still in use from a stale credential, which makes the revoke list unusable: 7 of the 13 rows are named 'Android companion' with identical subtitles and no last-seen, IP or model to tell them apart.",
-   "repro": "Pair a device via POST /api/pairing/verify, call GET /api/status with the returned bearer (200), then sqlite3 ~/Documents/Nightshade/pairing.db \"select device_name,last_connected_at from paired_devices where device_id='audit-probe-rss'\" -> last_connected_at empty. Settings > Remote Access > Manage Pairing > refresh: row still reads 'No connection recorded yet'.",
+   "repro": "Pair a device via POST /api/pairing/verify, call GET /api/status with the returned bearer (200), then sqlite3 ~/Documents/Skotiq/pairing.db \"select device_name,last_connected_at from paired_devices where device_id='audit-probe-rss'\" -> last_connected_at empty. Settings > Remote Access > Manage Pairing > refresh: row still reads 'No connection recorded yet'.",
    "evidence": "/tmp/ns-audit/shots/rss-24.png (every row 'Not seen yet'); SQL output showing NULL last_connected_at for all 13 rows; curl 200s and the 101 upgrade transcript.",
-   "where": "packages/nightshade_remote_protocol/lib/src/database/pairing_database.dart (no update of last_connected_at on the auth path) / apps/desktop/lib/headless_api_server/http_middleware.dart token resolution.",
+   "where": "packages/skotiq_remote_protocol/lib/src/database/pairing_database.dart (no update of last_connected_at on the auth path) / apps/desktop/lib/headless_api_server/http_middleware.dart token resolution.",
    "proposed_fix": "Stamp last_connected_at (throttled, e.g. at most once a minute per device) when a bearer resolves, and surface it plus the peer IP in the device row."
   },
   {
@@ -128,7 +128,7 @@
    "expected": "On the Remote Access page 'Active Viewers' must mean 'remote clients currently connected to this server'. Count the live event-stream/WS sessions; if the co-imaging number is wanted too, label it separately.",
    "repro": "Enable remote access, pair a client, POST /api/ws/ticket, connect ws to /events?ticket=..., hold. Settings > Remote Access > Connection details: Active Viewers 0.",
    "evidence": "/tmp/ns-audit/shots/rss-28.png ('Active Viewers 0') captured while ss showed the ESTAB pair on :8099 and the probe had logged '101 Switching Protocols'.",
-   "where": "packages/nightshade_app/lib/screens/settings/widgets/remote_access_settings.dart:520-524; fed only by apps/desktop/lib/desktop_app_bootstrap.dart:346-349; packages/nightshade_core/lib/src/providers/web_server_provider.dart:193 setActiveViewers.",
+   "where": "packages/skotiq_app/lib/screens/settings/widgets/remote_access_settings.dart:520-524; fed only by apps/desktop/lib/desktop_app_bootstrap.dart:346-349; packages/skotiq_core/lib/src/providers/web_server_provider.dart:193 setActiveViewers.",
    "proposed_fix": "Publish a connected-client count from the headless API server's WS/SSE registry into webServerStateProvider and bind the row to that."
   },
   {
@@ -139,8 +139,8 @@
    "what_happened": "The Paired Devices list shows 7 identical rows: title 'Android companion', subtitle 'Android phone or tablet', 'Not seen yet', 'No connection recorded yet', differing only by a paired-on date. There is no IP, no last-seen, no device model, no scope, and no rename. Revoking the phone you sold is guesswork.",
    "expected": "Show last-seen, last IP, granted scope (the DB already stores auth_grant_spec -- one of these devices holds 'admin' and the UI never says so) and allow renaming. NINA/ASIAIR-class tools name the client and show when it last talked.",
    "repro": "Settings > Remote Access > Manage Pairing.",
-   "evidence": "/tmp/ns-audit/shots/rss-22.png; sqlite3 ~/Documents/Nightshade/pairing.db 'select device_name,auth_grant_spec from paired_devices' shows one row with auth_grant_spec='admin' that renders identically to the 'control' rows.",
-   "where": "packages/nightshade_app/lib/screens/settings/pairing_screen.dart:543-620 (_buildDeviceRow)",
+   "evidence": "/tmp/ns-audit/shots/rss-22.png; sqlite3 ~/Documents/Skotiq/pairing.db 'select device_name,auth_grant_spec from paired_devices' shows one row with auth_grant_spec='admin' that renders identically to the 'control' rows.",
+   "where": "packages/skotiq_app/lib/screens/settings/pairing_screen.dart:543-620 (_buildDeviceRow)",
    "proposed_fix": "Render auth_grant_spec as a badge, add last-seen/IP, and add a rename action."
   }
  ]

@@ -1,6 +1,6 @@
 # Troubleshooting Common Issues
 
-This guide covers common Nightshade problems and first-pass fixes.
+This guide covers common Skotiq problems and first-pass fixes.
 
 For public-release validation, confirm the feature is in scope before treating a
 failure as a defect. Platform support, native SDK support, remote access, and
@@ -45,7 +45,7 @@ and [known limitations](../known-limitations.md).
 5. For Native mode:
    - Reinstall camera vendor's SDK/drivers
    - Check vendor website for latest drivers
-   - Confirm the installed Nightshade release includes the required native SDK
+   - Confirm the installed Skotiq release includes the required native SDK
      library for your OS
 
 **Linux-Specific**
@@ -90,7 +90,7 @@ the release scope and the INDI driver.
 
 **Still Not Working?**
 - Close all other astronomy software (they may have the camera locked)
-- Restart Nightshade
+- Restart Skotiq
 - Restart computer
 - Try camera with vendor's test software to rule out hardware issues
 - Review [Driver Troubleshooting](drivers.md) for backend-specific checks
@@ -113,7 +113,7 @@ the release scope and the INDI driver.
 4. Ensure mount is tracking (many won't respond to commands while parked)
 
 **Unpark the Mount**
-1. In Nightshade, go to Imaging > Mount tab
+1. In Skotiq, go to Imaging > Mount tab
 2. Look for **Park Status** indicator
 3. If parked, click **Unpark**
 4. Wait for mount to complete unpark routine
@@ -135,7 +135,7 @@ the release scope and the INDI driver.
    - Stellarium with telescope control
    - Cartes du Ciel
    - ASCOM driver test utilities
-3. Restart Nightshade
+3. Restart Skotiq
 
 **Cable Issues**
 1. Check serial/USB cable is firmly connected
@@ -156,7 +156,7 @@ the release scope and the INDI driver.
    - Specific model driver for older mounts
 3. Check vendor website for recommended ASCOM driver
 4. If using Alpaca or INDI, confirm the server exposes mount movement, tracking,
-   park, and unpark capabilities before expecting Nightshade controls to enable
+   park, and unpark capabilities before expecting Skotiq controls to enable
 
 ---
 
@@ -198,7 +198,7 @@ the release scope and the INDI driver.
 **Anti-virus / Ransomware Protection**
 1. Some security software blocks new executables from writing files
 2. Windows Defender > Ransomware Protection > Allow app through
-3. Add Nightshade to allowed apps list
+3. Add Skotiq to allowed apps list
 4. Or temporarily disable to test
 
 **Corrupted Images**
@@ -268,13 +268,13 @@ the release scope and the INDI driver.
 **Symptoms**
 - "Cannot connect to PHD2" error
 - Guiding tab shows disconnected
-- PHD2 is running but Nightshade can't see it
+- PHD2 is running but Skotiq can't see it
 
 **Solutions**
 
 **Verify PHD2 is Running**
-1. Launch PHD2 before connecting from Nightshade
-2. PHD2 must be running for Nightshade to connect
+1. Launch PHD2 before connecting from Skotiq
+2. PHD2 must be running for Skotiq to connect
 
 **Check PHD2 Server Settings**
 1. In PHD2: Tools > Enable Server
@@ -285,7 +285,7 @@ the release scope and the INDI driver.
 1. Windows Firewall may block local connection
 2. Windows: Settings > Update & Security > Windows Security > Firewall
 3. Click "Allow an app through firewall"
-4. Ensure PHD2 and Nightshade are allowed
+4. Ensure PHD2 and Skotiq are allowed
 5. Or disable firewall temporarily to test
 
 **Port Conflict**
@@ -293,16 +293,16 @@ the release scope and the INDI driver.
 2. Change PHD2 server port:
    - PHD2: Tools > Advanced Settings > Server Port
    - Change to different port (e.g., 4401)
-3. Update Nightshade to match (Equipment > Settings)
+3. Update Skotiq to match (Equipment > Settings)
 
 **Localhost Resolution**
-1. Verify connection address in Nightshade
+1. Verify connection address in Skotiq
 2. Should be `localhost` or `127.0.0.1`
 3. Try the other if one doesn't work
 
 **PHD2 Version**
 1. Ensure PHD2 is up to date
-2. Use a PHD2 version compatible with the Nightshade release notes
+2. Use a PHD2 version compatible with the Skotiq release notes
 3. Download latest from the PHD2 website when compatibility is unclear
 
 ---
@@ -389,7 +389,7 @@ the release scope and the INDI driver.
 **Catalog Data**
 1. Ensure astrometry index files are installed
 2. Download from Astrometry.net
-3. Place in correct directory (see Nightshade settings)
+3. Place in correct directory (see Skotiq settings)
 
 **Solve Timeout**
 1. Increase timeout value in settings
@@ -437,7 +437,7 @@ the release scope and the INDI driver.
 
 **Polar Alignment**
 1. Poor polar alignment causes large Dec drift
-2. Use Nightshade drift alignment tool or PHD2 drift align
+2. Use Skotiq drift alignment tool or PHD2 drift align
 3. Improve alignment iteratively
 4. Goal: <5 arcminutes error for good guiding
 
@@ -546,7 +546,7 @@ the release scope and the INDI driver.
 
 ## Application Issues
 
-### Nightshade Won't Start
+### Skotiq Won't Start
 
 **Symptoms**
 - Double-click icon, nothing happens
@@ -556,10 +556,10 @@ the release scope and the INDI driver.
 **Solutions**
 
 **Check Logs**
-1. Windows: `%APPDATA%\Nightshade\logs\`
-2. macOS: `~/Library/Application Support/Nightshade/logs/` when macOS is
+1. Windows: `%APPDATA%\Skotiq\logs\`
+2. macOS: `~/Library/Application Support/Skotiq/logs/` when macOS is
    shipped or being validated
-3. Linux: `~/.local/share/nightshade/logs/` when Linux is shipped or being
+3. Linux: `~/.local/share/skotiq/logs/` when Linux is shipped or being
    validated
 4. Open latest log file for error messages
 
@@ -571,16 +571,16 @@ the release scope and the INDI driver.
 **Missing Dependencies**
 1. Windows: Install Visual C++ Redistributable
 2. Windows: Install .NET Framework 4.8 if ASCOM COM support is in scope
-3. Linux: `ldd nightshade` to check missing libraries when validating a Linux
+3. Linux: `ldd skotiq` to check missing libraries when validating a Linux
    package
 
 **Corrupted Settings**
 1. Rename or delete settings folder:
-   - Windows: `%APPDATA%\Nightshade\settings.db`
-   - macOS: `~/Library/Application Support/Nightshade/settings.db` when macOS
+   - Windows: `%APPDATA%\Skotiq\settings.db`
+   - macOS: `~/Library/Application Support/Skotiq/settings.db` when macOS
      is in scope
-   - Linux: `~/.local/share/nightshade/settings.db` when Linux is in scope
-2. Nightshade will recreate with defaults
+   - Linux: `~/.local/share/skotiq/settings.db` when Linux is in scope
+2. Skotiq will recreate with defaults
 
 **Permission Issues**
 1. Run as administrator (Windows) to test
@@ -589,7 +589,7 @@ the release scope and the INDI driver.
 
 **Antivirus Blocking**
 1. Some antivirus software blocks unknown executables
-2. Add Nightshade to whitelist
+2. Add Skotiq to whitelist
 3. Or temporarily disable to test
 
 ---
@@ -597,31 +597,31 @@ the release scope and the INDI driver.
 ### Application Crashes During Use
 
 **Symptoms**
-- Nightshade closes unexpectedly
+- Skotiq closes unexpectedly
 - "Application has stopped working" error
 - Freeze requiring force quit
 
 **Solutions**
 
-**Update Nightshade**
+**Update Skotiq**
 1. Check for latest version
 2. Update may fix known bugs
 
 **Check System Resources**
 1. Open Task Manager (Windows) or Activity Monitor (macOS/Linux)
-2. Check RAM usage - Nightshade needs 4-8GB available
+2. Check RAM usage - Skotiq needs 4-8GB available
 3. Close other applications
 4. Avoid very large images if RAM limited
 
 **Graphics Driver**
 1. Update to latest stable driver
-2. Disable graphics acceleration in Nightshade settings if issues persist
+2. Disable graphics acceleration in Skotiq settings if issues persist
 
 **Database Corruption**
-1. Nightshade uses SQLite database
+1. Skotiq uses SQLite database
 2. If corrupt, can cause crashes
-3. Backup and delete: `%APPDATA%\Nightshade\nightshade.db`
-4. Nightshade will recreate
+3. Backup and delete: `%APPDATA%\Skotiq\skotiq.db`
+4. Skotiq will recreate
 
 **Plugin Issues**
 1. Disable plugins one by one to identify culprit
@@ -666,7 +666,7 @@ the release scope and the INDI driver.
 3. Check for malware/crypto miners
 
 **Old Hardware**
-1. Nightshade benefits from modern CPU and GPU
+1. Skotiq benefits from modern CPU and GPU
 2. 8GB+ RAM recommended
 3. SSD for operating system improves responsiveness
 
@@ -685,7 +685,7 @@ the release scope and the INDI driver.
 1. Install ASCOM Platform 6.6 or later
 2. Download from https://ascom-standards.org/
 3. After installing platform, install device-specific drivers
-4. Restart Nightshade after driver installation
+4. Restart Skotiq after driver installation
 
 ### macOS: "App is damaged" Message
 
@@ -696,7 +696,7 @@ shipped or limited for the build you installed.
 1. This is Gatekeeper security feature
 2. Open Terminal and run:
    ```bash
-   xattr -cr /Applications/Nightshade.app
+   xattr -cr /Applications/Skotiq.app
    ```
 3. Try launching again
 
@@ -725,7 +725,7 @@ shipped or you are validating a Linux build from source.
 
 When asking for help, provide:
 
-1. **Nightshade Version**: Help > About
+1. **Skotiq Version**: Help > About
 2. **Operating System**: Windows/macOS/Linux version
 3. **Log Files**: From logs folder
 4. **Error Messages**: Exact text of errors
@@ -739,7 +739,7 @@ When asking for help, provide:
 
 **Official Support**
 - Documentation: This documentation
-- GitHub Issues: https://github.com/Scdouglas1999/Nightshade/issues
+- GitHub Issues: https://github.com/Scdouglas1999/Skotiq/issues
 
 **Community Help**
 - Cloudy Nights forum
@@ -758,7 +758,7 @@ When asking for help, provide:
 **Camera Stuck During Exposure**
 1. Wait for exposure timeout (don't interrupt)
 2. Don't unplug USB during exposure
-3. After timeout, disconnect in Nightshade
+3. After timeout, disconnect in Skotiq
 4. Power cycle camera if needed
 
 **Mount Behaving Erratically**
@@ -779,8 +779,8 @@ When asking for help, provide:
 
 If you've tried these solutions and still experiencing problems:
 
-1. Post detailed issue on [GitHub Issues](https://github.com/Scdouglas1999/Nightshade/issues) with logs
-2. Include Nightshade version, OS, equipment, and steps to reproduce
+1. Post detailed issue on [GitHub Issues](https://github.com/Scdouglas1999/Skotiq/issues) with logs
+2. Include Skotiq version, OS, equipment, and steps to reproduce
 
 Use the exact error text and evidence above so support can distinguish a bug
 from an unsupported platform, driver, or release artifact.

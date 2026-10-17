@@ -10,8 +10,8 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/atlas_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/atlas_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 /// Minimal [SkyAtlasSeam] — never invoked on the region-not-found path (which
@@ -42,12 +42,12 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('AtlasHandlers _resolveRegion 404 branch', () {
-    late NightshadeDatabase db;
+    late SkotiqDatabase db;
     late ProviderContainer container;
     late AtlasHandlers handlers;
 
     setUp(() {
-      db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       final service = SkyAtlasService(
         dao: SkyAtlasDao(db),
         seam: _NoopSkyAtlasSeam(),

@@ -10,7 +10,7 @@ extension _SequencerConfig on SequencerHandlers {
     final backend = container.read(sequencerBackendProvider);
     try {
       await backend.sequencerSetSimulationMode(enabled);
-    } on bridge_api.NightshadeError catch (e) {
+    } on bridge_api.SkotiqError catch (e) {
       // Release/appliance builds refuse simulation mode with a typed
       // NotSupported so a shipped rig never drives mock hardware. That one
       // refusal is a policy answer the caller can act on. Every other backend
@@ -190,7 +190,7 @@ extension _SequencerConfig on SequencerHandlers {
       await directory.create(recursive: true);
       final probe = File(
         '${directory.path}${Platform.pathSeparator}'
-        '.nightshade-write-probe-${DateTime.now().microsecondsSinceEpoch}',
+        '.skotiq-write-probe-${DateTime.now().microsecondsSinceEpoch}',
       );
       await probe.writeAsString('');
       await probe.delete();

@@ -99,7 +99,7 @@ Copy that went away, and why:
 
 ### 3. Chrome
 
-- Section headers are the repo's eyebrow (`NightshadeTypography.eyebrow` in
+- Section headers are the repo's eyebrow (`SkotiqTypography.eyebrow` in
   `textMuted`, uppercased at render, the `node_palette` group-label pattern)
   with the row count at the right.
 - The panel's own "Target Queue" title bar is gone: the segmented control above
@@ -154,11 +154,11 @@ role test, was the one asserting the literal label — three `'Queue'` assertion
 - **Chips are a local `_TargetChip`, not the ledger's `_LedgerChip`.**
   `sequence_tree/ledger_row.dart` is `part of sequence_tree.dart`, so its
   private chip cannot be imported. The local one takes the same
-  `NightshadeDecorations.chip` + `NightshadeTypography.overline` + tone
+  `SkotiqDecorations.chip` + `SkotiqTypography.overline` + tone
   contract, so the visual is the ledger's.
 - **Touched four files the brief did not name.** `sequencer_screen.dart` (the
   enum value and two stale/wrong comments), `builder_narrow_desktop_test.dart`
-  (the `'Queue'` label assertions), `nightshade_ui/segmented_control.dart` (a
+  (the `'Queue'` label assertions), `skotiq_ui/segmented_control.dart` (a
   doc comment that cites this control by its old segment names), and
   `docs/design/overhaul/{05-components,06-screens}.md` (the same citation in
   the spec). All are one-line label changes; leaving them would have left the
@@ -166,7 +166,7 @@ role test, was the one asserting the literal label — three `'Queue'` assertion
 - **Did not touch** `design_system_gallery.dart`, whose sample segmented control
   is also spelled `['Nodes', 'Snippets', 'Queue']`: it is covered by
   `test/golden/design_gallery_golden_test.dart`, and the brief forbids touching
-  goldens. `nightshade_ui/test/components/touch_target_floor_test.dart` uses
+  goldens. `skotiq_ui/test/components/touch_target_floor_test.dart` uses
   `['Nodes', 'Queue']` as arbitrary sample strings, not as a claim about the
   sequencer.
 - `sequence.targetHeaders` is ordered by `orderIndex` and skips disabled
@@ -178,9 +178,9 @@ role test, was the one asserting the literal label — three `'Queue'` assertion
 
 | command | exit |
 | --- | --- |
-| `dart format --output=none --set-exit-if-changed packages/nightshade_app packages/nightshade_core packages/nightshade_ui` | 0 (3808 files, 0 changed) |
-| `cd packages/nightshade_app && dart analyze` | 2 — 886 issues, all pre-existing info-level; base is 890, and none of the 886 are in a file this branch touched |
-| `cd packages/nightshade_app && flutter test test/screens/sequencer --concurrency=3` | 0 — `+733: All tests passed!` |
+| `dart format --output=none --set-exit-if-changed packages/skotiq_app packages/skotiq_core packages/skotiq_ui` | 0 (3808 files, 0 changed) |
+| `cd packages/skotiq_app && dart analyze` | 2 — 886 issues, all pre-existing info-level; base is 890, and none of the 886 are in a file this branch touched |
+| `cd packages/skotiq_app && flutter test test/screens/sequencer --concurrency=3` | 0 — `+733: All tests passed!` |
 
 Analyzer note: `dart analyze` exits 2 on info-level lints in this package, on
 base as well as on this branch. The number went DOWN by four (890 → 886)
@@ -199,13 +199,13 @@ throughout.
 
 Built the bundle in this worktree (`cd apps/desktop && flutter build linux
 --release`, exit 0) and copied
-`/home/scdouglas/.cache/ns-worktrees/cargo-target/release/libnightshade_bridge.so`
+`/home/scdouglas/.cache/ns-worktrees/cargo-target/release/libskotiq_bridge.so`
 into `build/linux/x64/release/bundle/lib/`, with the audit profile seeded from
-`/home/scdouglas/.cache/nightshade-ledger-preview/data` minus
-`nightshade.db.lock`. The app refused to start:
+`/home/scdouglas/.cache/skotiq-ledger-preview/data` minus
+`skotiq.db.lock`. The app refused to start:
 
 ```
-Bad state: Native bridge failed to initialize: libnightshade_bridge.so could
+Bad state: Native bridge failed to initialize: libskotiq_bridge.so could
 not be loaded, or it is stale relative to this build.
 ```
 

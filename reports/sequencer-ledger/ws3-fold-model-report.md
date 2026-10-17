@@ -6,9 +6,9 @@ no edits to existing files.
 
 ## What shipped
 
-### `packages/nightshade_app/lib/screens/sequencer/sequence_fold_model.dart` (new)
+### `packages/skotiq_app/lib/screens/sequencer/sequence_fold_model.dart` (new)
 
-Flutter-free model library (imports only `equatable` + `nightshade_core`):
+Flutter-free model library (imports only `equatable` + `skotiq_core`):
 
 - `sealed class TreeEntry` → `SingleEntry(SequenceNode node)` /
   `FoldedEntry(FoldGroup group)`, both `Equatable`.
@@ -28,7 +28,7 @@ Flutter-free model library (imports only `equatable` + `nightshade_core`):
 - `foldedMemberIds(entries)` — membership set (includes the representative
   member; callers distinguish hide-vs-stand-in via `FoldedEntry`).
 
-### `packages/nightshade_app/lib/screens/sequencer/sequence_fold_state.dart` (new)
+### `packages/skotiq_app/lib/screens/sequencer/sequence_fold_state.dart` (new)
 
 - `unfoldedGroupIdsProvider` —
   `StateNotifierProvider.autoDispose<UnfoldedGroupIdsNotifier, Set<String>>`
@@ -39,7 +39,7 @@ Flutter-free model library (imports only `equatable` + `nightshade_core`):
   folded members except each group's first (which stands in for the run), for
   wave 2 to wire into `visibleNodeOrderProvider`. Depths untouched. O(nodes).
 
-### `packages/nightshade_app/test/screens/sequencer/sequence_fold_model_test.dart` (new)
+### `packages/skotiq_app/test/screens/sequencer/sequence_fold_model_test.dart` (new)
 
 28 tests, all green. Covers every case the brief names plus: ≥2 boundary,
 mid-run spec differences leaving non-contiguous matches unfolded,
@@ -107,9 +107,9 @@ empties, unfolded-group order preservation.
 | `dart format` (3 new files) | 0 | 2 files formatted |
 | `dart analyze` (3 new files) | 0 | No issues found |
 | `flutter test test/screens/sequencer/sequence_fold_model_test.dart --concurrency=4` (TMPDIR set) | 0 | 28 tests passed |
-| `dart format --output=none --set-exit-if-changed packages/nightshade_app packages/nightshade_core packages/nightshade_ui` | **1** | 11 files flagged — see below |
-| `cd packages/nightshade_app && dart analyze` | **2** | 891 issues — all pre-existing, see below |
-| `cd packages/nightshade_app && flutter test test/screens/sequencer --concurrency=4` (TMPDIR set) | 0 | **535 tests passed** (507 base + 28 new) |
+| `dart format --output=none --set-exit-if-changed packages/skotiq_app packages/skotiq_core packages/skotiq_ui` | **1** | 11 files flagged — see below |
+| `cd packages/skotiq_app && dart analyze` | **2** | 891 issues — all pre-existing, see below |
+| `cd packages/skotiq_app && flutter test test/screens/sequencer --concurrency=4` (TMPDIR set) | 0 | **535 tests passed** (507 base + 28 new) |
 
 ## Pre-existing gate failures (NOT introduced by this change)
 
@@ -117,12 +117,12 @@ Both failures exist on the base commit and touch only files outside my
 allowed file list, so per the workstream rules I did not fix them.
 
 - **`dart format --set-exit-if-changed`**: 11 files —
-  `nightshade_app`: `screens/shell/widgets/status_bar.dart`,
+  `skotiq_app`: `screens/shell/widgets/status_bar.dart`,
   `screens/shell/widgets/status_bar/sequence_indicator.dart`,
   `test/screens/shell/status_bar_overflow_test.dart`,
   `status_bar_timezone_test.dart`,
   `test/widgets/weather/weather_alert_banner_monitoring_test.dart`;
-  `nightshade_core`: `backend/network_backend/device_operations.dart`,
+  `skotiq_core`: `backend/network_backend/device_operations.dart`,
   `models/mount_site_reconciliation.dart`,
   `providers/mount_site_provider.dart`,
   `services/device_service/connections/imaging_chain.dart`,
@@ -130,7 +130,7 @@ allowed file list, so per the workstream rules I did not fix them.
   `test/services/mount_site_reconciler_test.dart`. Likely a formatter-version
   drift vs. the pinned Flutter 3.44.1 SDK. `--output=none` left them
   unmodified; my three files are format-clean.
-- **`dart analyze` on `nightshade_app`**: 891 issues = 0 errors, 7 warnings,
+- **`dart analyze` on `skotiq_app`**: 891 issues = 0 errors, 7 warnings,
   884 infos — all in test files I did not touch (`test/widgets/`,
   `test/screens/guiding/`, `test/screens/planner/`, `test/screens/shell/`),
   dominated by `deprecated_member_use` for `hasFlag`/`pipelineOwner`.
@@ -143,7 +143,7 @@ allowed file list, so per the workstream rules I did not fix them.
   agent's file). Wiring = wrap the provider body's output with this function.
 - The tally-vs-`SequenceProgress` gap above is the only known model gap;
   if wave 2 wants tally-accurate counts it can pass a richer progress object
-  or read `nodeExposureTallyProvider` directly — no `nightshade_core` change
+  or read `nodeExposureTallyProvider` directly — no `skotiq_core` change
   is strictly required.
 - `unfoldedGroupIdsProvider` is autoDispose per spec ("fold is view state");
   it does not persist across sessions.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive a live Nightshade rig over the headless REST API and record what it does.
+"""Drive a live Skotiq rig over the headless REST API and record what it does.
 
 Why this exists
 ---------------
@@ -89,7 +89,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--host', required=True)
     ap.add_argument('--port', type=int, default=8080)
-    ap.add_argument('--token', default=os.environ.get('NIGHTSHADE_TOKEN', ''))
+    ap.add_argument('--token', default=os.environ.get('SKOTIQ_TOKEN', ''))
     ap.add_argument('--expose', type=float, default=0.0,
                     help='take a light frame of this many seconds (0 = skip)')
     ap.add_argument('--move-focuser', type=int, default=0,

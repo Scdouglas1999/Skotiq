@@ -80,7 +80,7 @@ function Invoke-AuthenticodeSign([string[]]$paths) {
     if (-not $signtool) {
         throw "WINDOWS_SIGNING_CERT_BASE64 is set but signtool.exe was not found under the Windows 10 SDK."
     }
-    $pfx = Join-Path ([IO.Path]::GetTempPath()) "nightshade_codesign.pfx"
+    $pfx = Join-Path ([IO.Path]::GetTempPath()) "skotiq_codesign.pfx"
     try {
         [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($certB64))
         & $signtool.FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
@@ -102,11 +102,11 @@ Assert-Tool cargo
 Assert-Tool flutter
 Assert-Tool iscc
 
-$rustDir = Join-Path $repoRoot "native/nightshade_native"
+$rustDir = Join-Path $repoRoot "native/skotiq_native"
 $desktopDir = Join-Path $repoRoot "apps/desktop"
-$dllSource = Join-Path $rustDir "target/release/nightshade_bridge.dll"
+$dllSource = Join-Path $rustDir "target/release/skotiq_bridge.dll"
 $releaseDir = Join-Path $desktopDir "build/windows/x64/runner/Release"
-$dllDest = Join-Path $releaseDir "nightshade_bridge.dll"
+$dllDest = Join-Path $releaseDir "skotiq_bridge.dll"
 $installerScript = Join-Path $desktopDir "installer/installer.iss"
 $installerOutDir = Join-Path $desktopDir "build/installer"
 
@@ -258,7 +258,7 @@ Invoke-Step "Build Rust bridge (release)" {
 
 Invoke-Step "Build Rust updater (release)" {
     Push-Location $rustDir
-    cargo build --release --package nightshade_updater
+    cargo build --release --package skotiq_updater
     Pop-Location
 }
 
@@ -266,10 +266,10 @@ Invoke-Step "Build Flutter Windows app (release)" {
     Push-Location $desktopDir
     # The app includes the production verification key. Supply an override
     # only when explicitly configured; an empty define would disable trust.
-    $updatePublicKey = $env:NIGHTSHADE_UPDATE_PUBLIC_KEY
+    $updatePublicKey = $env:SKOTIQ_UPDATE_PUBLIC_KEY
     $updateDefines = @()
     if (-not [string]::IsNullOrWhiteSpace($updatePublicKey)) {
-        $updateDefines += "--dart-define=NIGHTSHADE_UPDATE_PUBLIC_KEY=$updatePublicKey"
+        $updateDefines += "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=$updatePublicKey"
     }
     flutter build windows --release @updateDefines
     Pop-Location

@@ -438,7 +438,7 @@ test('an unreachable server flips the header and raises a banner', () => {
   assert.ok(doc.getElementById('status-dot').className.includes('error'));
   const banner = doc.getElementById('link-banner');
   assert.ok(!banner.classList.contains('hidden'));
-  assert.match(banner.textContent, /Cannot reach the Nightshade server/);
+  assert.match(banner.textContent, /Cannot reach the Skotiq server/);
   assert.match(banner.textContent, /may be wrong/);
   assert.equal(doc.getElementById('seq-status').textContent, 'unknown',
     'the sequencer badge must stop claiming a state');
@@ -517,7 +517,7 @@ test('silence past the contact window is stale even without a failed probe', () 
   });
   assert.equal(doc.getElementById('status-text').textContent, 'No contact');
   assert.match(doc.getElementById('link-banner').textContent,
-    /No answer from the Nightshade server/);
+    /No answer from the Skotiq server/);
 });
 
 // D4W-1. An idle server pushes no events, so the 30 s ping/pong is the only
@@ -616,7 +616,7 @@ function loadApi(fetchStub) {
     JSON: globalThis.JSON,
     console,
   });
-  vm.runInContext(API + '\n;globalThis.__api = new NightshadeApi();', context);
+  vm.runInContext(API + '\n;globalThis.__api = new SkotiqApi();', context);
   return context.__api;
 }
 
@@ -806,7 +806,7 @@ function apiWithEventSource() {
     encodeURIComponent: globalThis.encodeURIComponent,
     console,
   });
-  vm.runInContext(API + '\n;globalThis.__api = new NightshadeApi();', context);
+  vm.runInContext(API + '\n;globalThis.__api = new SkotiqApi();', context);
   const api = context.__api;
   // The bearer rides in the query string: EventSource has no header API.
   api._authToken = 'tok-1';
@@ -1279,7 +1279,7 @@ class TestApiError extends Error {
 
 function wireList() {
   return build(
-    ['NightshadeApiError'], [fn('requireWireList')], 'requireWireList',
+    ['SkotiqApiError'], [fn('requireWireList')], 'requireWireList',
   )(TestApiError);
 }
 
@@ -1318,7 +1318,7 @@ function devicesFetch(answer) {
   const debug = [];
   const reporter = refreshFailureReporter({ marks, log, debug });
   const run = build(
-    ['api', 'state', 'requireWireList', 'NightshadeApiError',
+    ['api', 'state', 'requireWireList', 'SkotiqApiError',
       'reportRefreshFailure', 'renderDevicesPanel', 'markPanelFresh',
       'refreshPanelEnablement',
       'maybeLoadCameraReadoutModes', 'maybeLoadFilterWheelPositions'],
@@ -1379,7 +1379,7 @@ function galleryFetch(answer) {
   const log = [];
   let rendered = 0;
   const run = build(
-    ['document', 'api', 'gallery', 'requireWireList', 'NightshadeApiError',
+    ['document', 'api', 'gallery', 'requireWireList', 'SkotiqApiError',
       'renderGallery', 'addLogEntry', 'describeApiError', 'galleryCountLine'],
     [fn('refreshGalleryFromServer')],
     'refreshGalleryFromServer',
@@ -1541,7 +1541,7 @@ test('a rejected bearer brings the sign-in form back and says why', async () => 
 test('a server that never answered says so, and keeps the token typed', async () => {
   const h = loginSubmit({
     ok: false, kind: 'unreachable',
-    message: 'No answer from the Nightshade server. Check that it is running ' +
+    message: 'No answer from the Skotiq server. Check that it is running ' +
       'and that this address is right.',
   });
   await h.run();
@@ -2858,7 +2858,7 @@ function scopeDeniedBody(resource, requiredLevel, tokenLevel) {
 
 test('the client tells a scope refusal from a credential the rig will not take', () => {
   const context = vm.createContext({ JSON: globalThis.JSON, console });
-  vm.runInContext(API + '\n;globalThis.__cls = NightshadeApi._scopeRefusalFrom;', context);
+  vm.runInContext(API + '\n;globalThis.__cls = SkotiqApi._scopeRefusalFrom;', context);
   const classify = context.__cls;
 
   // Field by field: the classifier's object comes out of the vm realm, so a

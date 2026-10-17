@@ -1,6 +1,6 @@
 # 02 · Design language: "Observatory"
 
-Nightshade is an instrument. Not a dashboard, not a website, not a consumer app. The design
+Skotiq is an instrument. Not a dashboard, not a website, not a consumer app. The design
 language is named after the thing the software replaces: a dark room with quiet, precise readouts,
 where the sky is the brightest thing in it.
 

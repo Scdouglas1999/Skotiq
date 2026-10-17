@@ -3,16 +3,16 @@
 Items: SCI-46, SCI-44, SCI-36, SCI-37, SCI-38, SCI-41, SCI-27, SCI-28, SCI-22, SCI-48,
 SCI-34, SCI-42, SCI-43, SCI-47.
 
-Scope: packages/nightshade_app/lib/screens/{analytics,science,session_review,stack_result}/**
+Scope: packages/skotiq_app/lib/screens/{analytics,science,session_review,stack_result}/**
 plus named core services.
 
 ## Log
 
 ### Claimed files
-- packages/nightshade_core/lib/src/services/frame_quality_assessment_service.dart
-- packages/nightshade_app/lib/screens/analytics/widgets/{image_thumbnail_strip,frame_detail_dialog,science_solve_rate_card}.dart
-- packages/nightshade_app/lib/screens/analytics/analytics_screen/{session_tab,history_tab,history_cards}.dart
-- packages/nightshade_app/lib/screens/session_review/session_review_screen.dart
+- packages/skotiq_core/lib/src/services/frame_quality_assessment_service.dart
+- packages/skotiq_app/lib/screens/analytics/widgets/{image_thumbnail_strip,frame_detail_dialog,science_solve_rate_card}.dart
+- packages/skotiq_app/lib/screens/analytics/analytics_screen/{session_tab,history_tab,history_cards}.dart
+- packages/skotiq_app/lib/screens/session_review/session_review_screen.dart
 
 ### SCI-37 + SCI-38 — DONE
 Root: `FrameQualityAssessment.reasons` holds every observation, including ones
@@ -34,9 +34,9 @@ test/screens/session_review/narrative_integrate_blocked_test.dart is green at HE
 The audit even quotes the FIXED copy ("This session captured no light frames, so
 there is nothing to integrate"). The a11y half is a HARNESS artifact:
 drive_linux.py only prints [DISABLED] for nodes that are focusable/selectable/
-checkable, and a disabled NightshadeButton drops `focusable`
+checkable, and a disabled SkotiqButton drops `focusable`
 (FocusableActionDetector(enabled:false)) — so a correctly-disabled button can
-never show [DISABLED] in that dump. NightshadeButton does emit
+never show [DISABLED] in that dump. SkotiqButton does emit
 Semantics(button: true, enabled: false).
 
 ### SCI-22 — DONE
@@ -58,8 +58,8 @@ surfaceHover, text = (10,12,15) = onPrimary; unselected = #181C22 surfaceAlt wit
 #9AA3AD text. Fixed in scope by giving the chip's InkWell a translucent
 `hoverColor` (its own foreground at 8%), plus Semantics(button/selected/enabled)
 so the tree stops reporting `panel: Workbench` with no state.
-NOTE for the nightshade_ui / A11Y-STATE batch: `hoverColor: colors.surfaceHover`
-in nightshade_theme.dart:205 is opaque and will erase the fill of EVERY
+NOTE for the skotiq_ui / A11Y-STATE batch: `hoverColor: colors.surfaceHover`
+in skotiq_theme.dart:205 is opaque and will erase the fill of EVERY
 selection-coloured InkWell in the app. Out of my scope; recorded here.
 Test: app/test/screens/session_review/view_toggle_selection_test.dart (3).
 Whole session_review suite green (86).
@@ -104,7 +104,7 @@ Library"), both under screens/sequencer/**.
 - FIXED in scope: the Session Review Narrative/Workbench chips (`panel: … ` with
   no state) now carry Semantics(button/enabled/selected). See SCI-44.
 - COVERED BY COMPONENT (A11Y-STATE batch): the History "All Time" / "All Targets"
-  chips and their menu items are `NightshadeDropdown`
+  chips and their menu items are `SkotiqDropdown`
   (analytics_screen/history_tab.dart:93-104) — one component, both instances.
 - OUT OF SCOPE PATH, same defect shape (a bare InkWell with no Semantics), exact
   locations for whoever owns them:
@@ -151,14 +151,14 @@ Library"), both under screens/sequencer/**.
   de-dup against the warnings the dialog already shows.
 - **SCI-48 (astap .ini debris in the capture folder)** — the scratch files are
   written by the native solver invocation
-  (native/nightshade_native/imaging/src/platesolve.rs); ASTAP writes its .ini
+  (native/skotiq_native/imaging/src/platesolve.rs); ASTAP writes its .ini
   beside the input FITS. Fix = solve from a temp copy / -o into a scratch dir and
   clean up. Rust, outside my scope.
 
 ### Test status
-- nightshade_core: frame_quality_score / frame_quality_assessment_service /
+- skotiq_core: frame_quality_score / frame_quality_assessment_service /
   frame_quality_summary_line — 26 green.
-- nightshade_app: `flutter test test/screens/analytics/ test/screens/session_review/`
+- skotiq_app: `flutter test test/screens/analytics/ test/screens/session_review/`
   — 320 pass, 1 fail: `captures_landscape_test.dart` golden, 74.98% pixel diff.
   PRE-EXISTING and ENVIRONMENTAL, not mine: sibling golden suites for screens I
   never touched fail the same way on this machine (weather 46.77/47.72/45.63%,

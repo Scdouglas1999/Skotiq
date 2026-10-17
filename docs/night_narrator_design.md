@@ -31,7 +31,7 @@ in the database, schema bump 47 → 48 with an additive migration):
 | pinned | bool default false | discoveries pin to the top of feeds |
 
 Dart-side enum types + a `NarratorEvent` plain class (no freezed needed) live in
-`nightshade_core/lib/src/services/science/narrator/narrator_event.dart`.
+`skotiq_core/lib/src/services/science/narrator/narrator_event.dart`.
 
 ### Evidence payloads
 `evidenceJson` is one of a small set of typed shapes so the UI renders micro-viz
@@ -43,7 +43,7 @@ generically (`kind` discriminator):
 
 ## Engine architecture
 
-`nightshade_core/lib/src/services/science/narrator/`:
+`skotiq_core/lib/src/services/science/narrator/`:
 
 - `narrator_event.dart` — event model + enums + evidence codecs.
 - `narrator_context.dart` — `NarratorContext`: immutable snapshot handed to
@@ -63,13 +63,13 @@ generically (`kind` discriminator):
   product streams (`session_products.dart` providers / DAOs), guiding stats,
   weather, and the science status stream; builds contexts; persists accepted
   events through a `NarratorEventsDao`.
-- Providers in `nightshade_core/lib/src/providers/narrator_provider.dart`:
+- Providers in `skotiq_core/lib/src/providers/narrator_provider.dart`:
   `narratorFeedProvider(sessionId)` (DB-watched stream, newest first, pinned
   bubbled), `recentNarratorFeedProvider` (sessionless, last N), and a
   `narratorServiceProvider` that keeps the service alive while a session runs
   (same lifecycle pattern as the science processing service).
 
-All new public symbols exported from the nightshade_core barrel.
+All new public symbols exported from the skotiq_core barrel.
 
 ## Detector catalog (v1 — full send)
 
@@ -136,14 +136,14 @@ Thresholds are starting points; centralize them as consts on each detector.
 
 ## UI
 
-Shared design language: `NightshadeCard` chrome, `NightshadeColors` palette,
+Shared design language: `SkotiqCard` chrome, `SkotiqColors` palette,
 lucide icons, severity as a subtle left edge accent (never a filled red box).
 Category icons: discovery `sparkles`, milestone `trophy`, conditions `cloudMoon`,
 equipment `wrench`, quality `gauge`. `celebrate` severity gets a distinct treatment
 (accent gradient + the evidence viz emphasized). Tone: a knowledgeable friend at
 the eyepiece — specific, calm, genuinely excited for discoveries.
 
-### Card library — `nightshade_app/lib/widgets/narrator/`
+### Card library — `skotiq_app/lib/widgets/narrator/`
 - `narrator_card.dart` — compact card: category icon, headline, relative
   timestamp, micro-viz (right-aligned sparkline/delta/vector/scalar renderer from
   evidenceJson), severity edge accent. Tap → detail sheet.
@@ -168,6 +168,6 @@ the eyepiece — specific, calm, genuinely excited for discoveries.
 
 ## Testing
 - Pure detector unit tests (synthetic context sequences: trend fires once, cooldown
-  respected, hysteresis closes events) in nightshade_core.
+  respected, hysteresis closes events) in skotiq_core.
 - Widget tests: card renders all evidence kinds; feed empty state; cockpit tile
   registers and round-trips its DashboardWidgetId.

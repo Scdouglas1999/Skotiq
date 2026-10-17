@@ -6,9 +6,9 @@
       "outcome": "fixed",
       "summary": "The Filter Focus Offsets card is built from the same _filterControllers as the Filter Configuration chips, but the chip's name TextField had no onChanged, so nothing rebuilt the editor when a filter was named. Naming the first filter produced no offsets card at all, and a filter added with '+' had no offset input until the operator saved and re-opened the editor. Added an onNameChanged callback to _EditableFilterChip, fired on every keystroke, and wired it at the single production call site to _update(() {}).",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/profile_controls.dart",
-        "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/profile_details_rendering.dart",
-        "packages/nightshade_app/test/screens/settings/equipment_profile_filter_offset_sync_test.dart"
+        "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/profile_controls.dart",
+        "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/profile_details_rendering.dart",
+        "packages/skotiq_app/test/screens/settings/equipment_profile_filter_offset_sync_test.dart"
       ],
       "test": "flutter test test/screens/settings/equipment_profile_filter_offset_sync_test.dart (2 tests)",
       "revert_check": "Deleted the line 'onChanged: (_) => onNameChanged(),' in profile_controls.dart _EditableFilterChip's TextField -> both tests fail ('Filter Focus Offsets' findsNothing after typing; 'Ha' findsNWidgets(1) not 2). Restored -> 2/2 pass.",
@@ -19,20 +19,20 @@
       "outcome": "fixed",
       "summary": "Duplicate offered a fixed '<name> (Copy)' with no collision check and accepted whatever was typed, so duplicating twice wrote indistinguishable rows. Added uniqueProfileName(base, taken) implementing the importer's '(n)' rule, used it for the offered name, and passed the taken names into the dialog so a hand-typed collision is refused inline instead of written. Comparison is trimmed + case-insensitive and the refusal wording is identical to the equipment editor's _duplicateNameError, so the two surfaces that create profiles now agree.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/screen_shell.dart",
-        "packages/nightshade_app/test/screens/settings/equipment_profile_duplicate_name_test.dart"
+        "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/screen_shell.dart",
+        "packages/skotiq_app/test/screens/settings/equipment_profile_duplicate_name_test.dart"
       ],
       "test": "flutter test test/screens/settings/equipment_profile_duplicate_name_test.dart (4 tests)",
       "revert_check": "Replaced the call site 'initialName: uniqueProfileName('${profile.name} (Copy)', takenNames), takenNames: takenNames,' with the old 'initialName: '${profile.name} (Copy)',' -> both widget tests fail. Restored -> 3/3 pass.",
-      "caveats": "The finding cited screen_shell.dart:368; the real site is _duplicateProfile at screen_shell.dart:511+. The same defect exists in packages/nightshade_app/lib/screens/equipment/equipment_screen.dart:368 (duplicates with no dialog at all) and would be closed for every caller by moving the rule into EquipmentProfilesNotifier.duplicateProfile / ProfileService; both are outside this agent's ownership and are left as a named residual."
+      "caveats": "The finding cited screen_shell.dart:368; the real site is _duplicateProfile at screen_shell.dart:511+. The same defect exists in packages/skotiq_app/lib/screens/equipment/equipment_screen.dart:368 (duplicates with no dialog at all) and would be closed for every caller by moving the rule into EquipmentProfilesNotifier.duplicateProfile / ProfileService; both are outside this agent's ownership and are left as a named residual."
     },
     {
       "title": "Settings search sends 'license' and 'credits' to About, which contains neither",
       "outcome": "fixed",
       "summary": "Added a License card to About: the license name and copyright taken verbatim from the repository LICENSE, a 'Read the license' button that opens that file on GitHub, and 'Open-source licenses' which opens Flutter's showLicensePage (fed by LicenseRegistry, so the credits list is the packages actually linked into the build). The 'build' half of the finding was already fixed before this pass: about_settings.dart already renders 'Version <v> (build <n>)'.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/widgets/about_settings.dart",
-        "packages/nightshade_app/test/screens/settings/about_license_test.dart"
+        "packages/skotiq_app/lib/screens/settings/widgets/about_settings.dart",
+        "packages/skotiq_app/test/screens/settings/about_license_test.dart"
       ],
       "test": "flutter test test/screens/settings/about_license_test.dart (4 tests); about_links_test.dart + about_update_check_test.dart still green (15 total)",
       "revert_check": "Deleted the '_LicenseCard(isMobile: ..., onOpenUrl: ...)' call site from AboutSettings.build -> 3 of 4 tests fail (license name absent, LICENSE URL never launched, no LicensePage). The 4th ('build number is on the page') still passed, which is correct: that half was already fixed. Restored -> 4/4 pass.",
@@ -43,8 +43,8 @@
       "outcome": "fixed",
       "summary": "Replaced the inert not-connected _Info panel with a _NotConnected card: platform-neutral wording ('this device's own planetarium catalogs'), a primary 'Connect an appliance' button routing to /settings?section=remote-access, and a 'This device's catalogs' button routing to /settings?section=catalogs. The leaf is no longer a dead end and no longer names a platform it is not running on.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/widgets/rig_catalog_settings.dart",
-        "packages/nightshade_app/test/screens/settings/rig_catalog_not_connected_test.dart"
+        "packages/skotiq_app/lib/screens/settings/widgets/rig_catalog_settings.dart",
+        "packages/skotiq_app/test/screens/settings/rig_catalog_not_connected_test.dart"
       ],
       "test": "flutter test test/screens/settings/rig_catalog_not_connected_test.dart (2 tests); rig_catalog_actions_test.dart still green (8 total)",
       "revert_check": "Restored the original '_Info(... the phone\\'s own planetarium catalogs)' at the same call site -> both tests fail (rendered text contains 'phone'; no 'Connect an appliance' button). Restored the fix -> 2/2 pass.",
@@ -53,14 +53,14 @@
     {
       "title": "Log Export dumps 18.8 MB into the home Documents folder without warning",
       "outcome": "fixed",
-      "summary": "Export now (a) asks what to export — 'Entries on screen (N entries, exactly as filtered)' vs 'Full history — every retained log file, about <size>' with the size measured from the real on-disk files before anything is written; (b) resolves the destination through chooseExportTarget (native save dialog on desktop, sandbox+share on mobile) defaulting to <documents>/Nightshade/exports, the directory the app's other exports use; (c) reports the written size alongside the path. Previously it built '<documents>/nightshade_logs_<ts>.txt' directly and called LoggingService.exportLogs, which concatenates every rotated file.",
+      "summary": "Export now (a) asks what to export — 'Entries on screen (N entries, exactly as filtered)' vs 'Full history — every retained log file, about <size>' with the size measured from the real on-disk files before anything is written; (b) resolves the destination through chooseExportTarget (native save dialog on desktop, sandbox+share on mobile) defaulting to <documents>/Skotiq/exports, the directory the app's other exports use; (c) reports the written size alongside the path. Previously it built '<documents>/skotiq_logs_<ts>.txt' directly and called LoggingService.exportLogs, which concatenates every rotated file.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/widgets/log_viewer.dart",
-        "packages/nightshade_app/test/screens/settings/log_export_target_test.dart"
+        "packages/skotiq_app/lib/screens/settings/widgets/log_viewer.dart",
+        "packages/skotiq_app/test/screens/settings/log_export_target_test.dart"
       ],
       "test": "flutter test test/screens/settings/log_export_target_test.dart (4 tests)",
       "revert_check": "Replaced the whole _exportLogs body with the pre-fix version (docsDir path built inline, no scope dialog, no picker) -> all 4 tests fail (no 'Export logs' dialog; nothing written to the chosen path; exportLogs called with a Documents-root path instead of the picked one; cancel no longer prevents the write). Restored -> 4/4 pass.",
-      "caveats": "The 'ignores the configured data directory' half of the finding is only partly addressed: the export default follows getApplicationDocumentsDirectory (as every other export does), not NIGHTSHADE_DATA_DIR, and LoggingService still reads the process's real log directory. Both are LoggingService/data-dir concerns outside this file. Also note the export is now user-directed, so a sandboxed instance writing the real machine's logs is a deliberate choice the operator makes at the save dialog."
+      "caveats": "The 'ignores the configured data directory' half of the finding is only partly addressed: the export default follows getApplicationDocumentsDirectory (as every other export does), not SKOTIQ_DATA_DIR, and LoggingService still reads the process's real log directory. Both are LoggingService/data-dir concerns outside this file. Also note the export is now user-directed, so a sandboxed instance writing the real machine's logs is a deliberate choice the operator makes at the save dialog."
     }
   ]
 }

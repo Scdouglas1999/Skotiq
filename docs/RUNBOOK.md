@@ -1,4 +1,4 @@
-# Nightshade Operational Runbook
+# Skotiq Operational Runbook
 
 First-responder checklist for the five failures that ops/support hit most often.
 Each scenario lists user-reported symptoms, the diagnostics that confirm root
@@ -9,31 +9,31 @@ cause, the fix, and how to verify recovery.
 > [troubleshooting/common-issues.md](troubleshooting/common-issues.md) when a
 > finding needs to be communicated back to the user.
 >
-> **Scope.** Nightshade desktop v2.5.x. Mobile-companion failures are
+> **Scope.** Skotiq desktop v2.5.x. Mobile-companion failures are
 > out-of-scope.
 
 ## Log paths (canonical)
 
 These paths are what the installer and `LoggingService.initialize()` use for
 released builds. Development / unsigned builds may resolve to
-`com.example/nightshade_desktop` instead — Flutter `path_provider` reads
+`com.example/skotiq_desktop` instead — Flutter `path_provider` reads
 `CompanyName\ProductName` (Windows) and `PRODUCT_BUNDLE_IDENTIFIER` (macOS) at
 runtime, so a sideloaded developer build will not write to the same directory
 as an MSIX/installer build. Confirm the actual log directory by reading the
 `Log directory: …` line that `LoggingService` writes on startup (see
-`packages/nightshade_core/lib/src/services/logging_service.dart:119`).
+`packages/skotiq_core/lib/src/services/logging_service.dart:119`).
 
 | OS | Logs | Drift DB | Sequence checkpoint |
 |---|---|---|---|
-| Windows | `%APPDATA%\Nightshade\logs\` | `%USERPROFILE%\Documents\Nightshade\nightshade.db` | `%USERPROFILE%\Documents\Nightshade\profiles\nightshade_session.checkpoint` |
-| macOS | `~/Library/Application Support/Nightshade/logs/` | `~/Documents/Nightshade/nightshade.db` | `~/Documents/Nightshade/profiles/nightshade_session.checkpoint` |
-| Linux | `~/.local/share/nightshade_desktop/logs/` | `~/Documents/Nightshade/nightshade.db` | `~/Documents/Nightshade/profiles/nightshade_session.checkpoint` |
+| Windows | `%APPDATA%\Skotiq\logs\` | `%USERPROFILE%\Documents\Skotiq\skotiq.db` | `%USERPROFILE%\Documents\Skotiq\profiles\skotiq_session.checkpoint` |
+| macOS | `~/Library/Application Support/Skotiq/logs/` | `~/Documents/Skotiq/skotiq.db` | `~/Documents/Skotiq/profiles/skotiq_session.checkpoint` |
+| Linux | `~/.local/share/skotiq_desktop/logs/` | `~/Documents/Skotiq/skotiq.db` | `~/Documents/Skotiq/profiles/skotiq_session.checkpoint` |
 
 > **Why two different roots?** Logs use `getApplicationSupportDirectory()`
 > (`logging_service.dart:104`); the database and checkpoints use
 > `getApplicationDocumentsDirectory()` (`database.dart:1619`,
-> `desktop_logging_init.dart:35`). Both produce `~/Documents/Nightshade/` on
-> macOS/Windows because the desktop bootstrap forces the `Nightshade/`
+> `desktop_logging_init.dart:35`). Both produce `~/Documents/Skotiq/` on
+> macOS/Windows because the desktop bootstrap forces the `Skotiq/`
 > subfolder explicitly.
 
 ---
@@ -53,15 +53,15 @@ as an MSIX/installer build. Confirm the actual log directory by reading the
 
    ```powershell
    # Windows
-   Get-Content "$env:APPDATA\Nightshade\logs\nightshade.log" -Tail 200
+   Get-Content "$env:APPDATA\Skotiq\logs\skotiq.log" -Tail 200
    ```
 
    ```bash
    # macOS
-   tail -200 ~/Library/Application\ Support/Nightshade/logs/nightshade.log
+   tail -200 ~/Library/Application\ Support/Skotiq/logs/skotiq.log
 
    # Linux
-   tail -200 ~/.local/share/nightshade_desktop/logs/nightshade.log
+   tail -200 ~/.local/share/skotiq_desktop/logs/skotiq.log
    ```
 
 2. Grep for the bootstrap anchors. Each is logged by
@@ -73,7 +73,7 @@ as an MSIX/installer build. Confirm the actual log directory by reading the
    | `Logging service initialized` | `LoggingService` came up |
    | `Log directory:` | App data dir resolved + writable |
    | `Profile and settings storage initialized` | Native profile/settings DB opened |
-   | `Database initialized` | Drift opened `nightshade.db` |
+   | `Database initialized` | Drift opened `skotiq.db` |
    | `Catalog manager initialized` | Catalog dir created and loaded |
    | `Headless mode running` / `runApp` | Main isolate handed off to UI |
 
@@ -85,19 +85,19 @@ as an MSIX/installer build. Confirm the actual log directory by reading the
 
    ```powershell
    # Windows — set the env var, then launch
-   $env:NIGHTSHADE_HEADLESS = "1"
-   & "C:\Program Files\Nightshade\nightshade_desktop.exe"
+   $env:SKOTIQ_HEADLESS = "1"
+   & "C:\Program Files\Skotiq\skotiq_desktop.exe"
    ```
 
    ```bash
    # macOS / Linux
-   NIGHTSHADE_HEADLESS=1 ./nightshade_desktop
+   SKOTIQ_HEADLESS=1 ./skotiq_desktop
    ```
 
    Or use the explicit flag the binary accepts (`main.dart:20`):
 
    ```powershell
-   & "C:\Program Files\Nightshade\nightshade_desktop.exe" --headless
+   & "C:\Program Files\Skotiq\skotiq_desktop.exe" --headless
    ```
 
 **Root cause matrix**
@@ -108,7 +108,7 @@ as an MSIX/installer build. Confirm the actual log directory by reading the
 | `Native bridge initialized` then silence | FRB hash mismatch or DLL load failure | Log will usually carry `Failed to lookup symbol` or `BAD_IMAGE` — see [FRB_TROUBLESHOOTING.md](FRB_TROUBLESHOOTING.md) |
 | `Logging service initialized` then silence | Profile/settings storage path inaccessible (network drive, OneDrive sync conflict) | Move profile dir to a local path; relaunch |
 | `Database initialized` missing after profile init | Drift migration loop or corrupt SQLite file | See scenario 4 + scenario "OTA rollback" below; integrity-check the DB |
-| `Database initialized` succeeds but no `runApp` | UI-thread block: GPU shader compile, custom font load, window-manager init | Try `NIGHTSHADE_HEADLESS=1` — if that boots, capture a graphics-driver diagnostic next launch |
+| `Database initialized` succeeds but no `runApp` | UI-thread block: GPU shader compile, custom font load, window-manager init | Try `SKOTIQ_HEADLESS=1` — if that boots, capture a graphics-driver diagnostic next launch |
 | Repeated `Failed to initialize driver` for one device | A vendor SDK is hanging during early discovery | Disconnect the offending USB device, relaunch, then reconnect after the UI is up |
 
 **Fix**
@@ -117,14 +117,14 @@ A. **Settings-only corruption** — back up and remove the Drift DB:
 
 ```powershell
 # Windows
-$db = "$env:USERPROFILE\Documents\Nightshade\nightshade.db"
+$db = "$env:USERPROFILE\Documents\Skotiq\skotiq.db"
 Move-Item $db "$db.bak.$(Get-Date -Format yyyyMMddHHmmss)"
 ```
 
 ```bash
 # macOS / Linux
-mv ~/Documents/Nightshade/nightshade.db \
-   ~/Documents/Nightshade/nightshade.db.bak.$(date +%Y%m%d%H%M%S)
+mv ~/Documents/Skotiq/skotiq.db \
+   ~/Documents/Skotiq/skotiq.db.bak.$(date +%Y%m%d%H%M%S)
 ```
 
 The next launch creates a fresh DB with default settings (see
@@ -134,8 +134,8 @@ settings; targets/profiles/sessions are gone unless restored from backup.
 B. **Driver hang on startup** — launch headless to skip the auto-discover that
 the GUI runs, then connect devices one-by-one from the UI once it boots.
 
-C. **Native bridge load failure** — confirm `nightshade_bridge.dll` (Windows) /
-`libnightshade_bridge.dylib` (macOS) / `libnightshade_bridge.so` (Linux) is
+C. **Native bridge load failure** — confirm `skotiq_bridge.dll` (Windows) /
+`libskotiq_bridge.dylib` (macOS) / `libskotiq_bridge.so` (Linux) is
 present beside the executable; reinstall if missing.
 
 **Verification**
@@ -147,12 +147,12 @@ present beside the executable; reinstall if missing.
 
 **Escalation**
 
-File an issue at https://github.com/Scdouglas1999/Nightshade/issues with:
+File an issue at https://github.com/Scdouglas1999/Skotiq/issues with:
 
-1. Full log file (`$env:APPDATA\Nightshade\logs\nightshade.log`).
+1. Full log file (`$env:APPDATA\Skotiq\logs\skotiq.log`).
 2. Last successful launch date.
-3. Whether `NIGHTSHADE_HEADLESS=1` boots.
-4. Output of `Get-ChildItem "$env:APPDATA\Nightshade" -Recurse | Measure-Object`
+3. Whether `SKOTIQ_HEADLESS=1` boots.
+4. Output of `Get-ChildItem "$env:APPDATA\Skotiq" -Recurse | Measure-Object`
    so we can see whether the data dir is even being written to.
 
 ---
@@ -167,9 +167,9 @@ File an issue at https://github.com/Scdouglas1999/Nightshade/issues with:
 
 **Diagnostic**
 
-1. Confirm the configured ASTAP path exists. The default path Nightshade
+1. Confirm the configured ASTAP path exists. The default path Skotiq
    suggests when picking the executable is
-   (`packages/nightshade_app/lib/screens/settings/widgets/plate_solving_settings.dart:50`):
+   (`packages/skotiq_app/lib/screens/settings/widgets/plate_solving_settings.dart:50`):
 
    | OS | Default ASTAP install dir |
    |---|---|
@@ -190,8 +190,8 @@ File an issue at https://github.com/Scdouglas1999/Nightshade/issues with:
    which astap && astap -h | head -3
    ```
 
-2. Reproduce the solver invocation outside Nightshade. Take a FITS the app
-   failed on and run ASTAP with the same arguments Nightshade builds
+2. Reproduce the solver invocation outside Skotiq. Take a FITS the app
+   failed on and run ASTAP with the same arguments Skotiq builds
    (`plate_solve_service.dart:114-126`):
 
    ```powershell
@@ -208,15 +208,15 @@ File an issue at https://github.com/Scdouglas1999/Nightshade/issues with:
    astap -f <fits> -r 30 -ra $(echo "15 * <ra-hours>" | bc) -spd $(echo "90 + <dec>" | bc)
    ```
 
-   ASTAP writes a `.wcs` next to the input on success. Nightshade reads that
+   ASTAP writes a `.wcs` next to the input on success. Skotiq reads that
    file (`plate_solve_service.dart:149-152`).
 
-3. Grep the Nightshade log for the solver output that the service logs:
+3. Grep the Skotiq log for the solver output that the service logs:
 
    ```powershell
-   Select-String "ASTAP failed" "$env:APPDATA\Nightshade\logs\nightshade.log"
-   Select-String "Plate solve timed out" "$env:APPDATA\Nightshade\logs\nightshade.log"
-   Select-String "No WCS file created" "$env:APPDATA\Nightshade\logs\nightshade.log"
+   Select-String "ASTAP failed" "$env:APPDATA\Skotiq\logs\skotiq.log"
+   Select-String "Plate solve timed out" "$env:APPDATA\Skotiq\logs\skotiq.log"
+   Select-String "No WCS file created" "$env:APPDATA\Skotiq\logs\skotiq.log"
    ```
 
 > **Planned for v2.6.** A dedicated `--diagnostic plate-solve <fits>` CLI flag
@@ -242,7 +242,7 @@ pick the actual install dir. Setting persists via
 
 B. **Missing star catalog** — install ASTAP's V17 (or H18 for narrow fields)
 catalog package from <https://www.hnsky.org/astap.htm> into ASTAP's program
-directory and restart Nightshade.
+directory and restart Skotiq.
 
 C. **Wrong hint** — clear the mount sync, slew to a bright reference target,
 sync, and retry. If centering is firing the solve, increase the centering
@@ -268,7 +268,7 @@ image. The Dart-side timeout is enforced at
 Attach to the issue:
 
 1. The failing FITS file (or a link to it; FITS can be large).
-2. The Nightshade log slice that brackets the failed solve.
+2. The Skotiq log slice that brackets the failed solve.
 3. The exact ASTAP version (`astap --version`).
 4. Whether the same FITS solves standalone with the manual command above.
 
@@ -288,17 +288,17 @@ Cross-link: [troubleshooting/common-issues.md#plate-solving-fails](troubleshooti
 
 1. Determine what the installer thinks is installed. The updater writes a
    manifest at the install root after success
-   (`native/nightshade_native/updater/src/main.rs:43`):
+   (`native/skotiq_native/updater/src/main.rs:43`):
 
    ```powershell
    # Windows
-   Get-Content "C:\Program Files\Nightshade\post_install_hashes.json" |
+   Get-Content "C:\Program Files\Skotiq\post_install_hashes.json" |
      ConvertFrom-Json | Select-Object -ExpandProperty written_at
    ```
 
    ```bash
    # Linux / macOS — adjust install root
-   cat /opt/nightshade/post_install_hashes.json | jq .written_at
+   cat /opt/skotiq/post_install_hashes.json | jq .written_at
    ```
 
    If `post_install_hashes.json` is **missing**, the updater either never
@@ -307,17 +307,17 @@ Cross-link: [troubleshooting/common-issues.md#plate-solving-fails](troubleshooti
 
 2. Check for in-flight backup artifacts. The updater performs a
    **move-then-copy** apply: each replaced file is renamed to
-   `<file>.nightshade-bak` before being overwritten (`main.rs:36-38`). On
+   `<file>.skotiq-bak` before being overwritten (`main.rs:36-38`). On
    failure, it walks the rollback log and renames the `.bak` back. If the
    process was killed mid-apply, those `.bak` files survive.
 
    ```powershell
    # Windows
-   Get-ChildItem 'C:\Program Files\Nightshade' -Recurse -Filter '*.nightshade-bak'
+   Get-ChildItem 'C:\Program Files\Skotiq' -Recurse -Filter '*.skotiq-bak'
    ```
 
    ```bash
-   find /opt/nightshade -name '*.nightshade-bak' -type f
+   find /opt/skotiq -name '*.skotiq-bak' -type f
    ```
 
 3. Check for the rollback log. If it exists, the updater either crashed mid-
@@ -326,36 +326,36 @@ Cross-link: [troubleshooting/common-issues.md#plate-solving-fails](troubleshooti
 
    ```powershell
    # The backup directory is whatever was passed via --backup-dir at update time.
-   # By convention this is %LOCALAPPDATA%\Nightshade\updates\backup\ for installer
+   # By convention this is %LOCALAPPDATA%\Skotiq\updates\backup\ for installer
    # builds; check the update-manager log entries for the exact path used.
-   Get-Content "$env:LOCALAPPDATA\Nightshade\updates\backup\rollback_log.json"
+   Get-Content "$env:LOCALAPPDATA\Skotiq\updates\backup\rollback_log.json"
    ```
 
 4. Pull the updater's last error log. The updater writes a stable file path
    even when the parent app is gone (`main.rs:134`):
 
    ```powershell
-   Get-Content "$env:TEMP\nightshade_update_error.log"
+   Get-Content "$env:TEMP\skotiq_update_error.log"
    ```
 
    ```bash
-   cat /tmp/nightshade_update_error.log
+   cat /tmp/skotiq_update_error.log
    ```
 
 **Root cause matrix**
 
 | Evidence | Cause | Action |
 |---|---|---|
-| `.nightshade-bak` files remain in install dir | Updater was killed before commit / rollback step | Manual rollback (below) |
-| `nightshade_update_error.log` shows "hash mismatch" | Network corruption during download; the updater already auto-rolled back | Re-download installer; verify SHA-256 against release page |
-| `rollback_log.json` exists; `nightshade_update_error.log` shows "Rollback also failed" | Disk-full or permission failure during rollback | Manual rollback + escalate |
+| `.skotiq-bak` files remain in install dir | Updater was killed before commit / rollback step | Manual rollback (below) |
+| `skotiq_update_error.log` shows "hash mismatch" | Network corruption during download; the updater already auto-rolled back | Re-download installer; verify SHA-256 against release page |
+| `rollback_log.json` exists; `skotiq_update_error.log` shows "Rollback also failed" | Disk-full or permission failure during rollback | Manual rollback + escalate |
 | Update finished, app crashes on launch | New version has a bug, not an updater issue | In-app rollback via `POST /api/system/update/rollback` while the restore point survives (fix B); else reinstall previous installer |
 | `post_install_hashes.json` newer than expected, version banner unchanged | Stale Flutter bundle copy (rare; usually FRB hash mismatch) | Reinstall current installer |
 
 **Fix**
 
 > **In-app rollback.** The updater now supports a dedicated `--rollback`
-> flag (`native/nightshade_native/updater/src/main.rs`, `run_rollback`). The
+> flag (`native/skotiq_native/updater/src/main.rs`, `run_rollback`). The
 > preferred path is to drive it from the app: `POST /api/system/update/rollback`
 > (admin scope) or the desktop UpdateService, which relaunches the updater in
 > `--rollback` mode to restore the previous version from the retained restore
@@ -365,14 +365,14 @@ Cross-link: [troubleshooting/common-issues.md#plate-solving-fails](troubleshooti
 > backup dir). When no restore point remains, the endpoint returns **501**;
 > use the manual recovery below.
 
-A. **Manual rollback when `.nightshade-bak` files exist** — close Nightshade
+A. **Manual rollback when `.skotiq-bak` files exist** — close Skotiq
 completely, then for each file:
 
 ```powershell
 # Windows — replace the new file with its backup, then drop the .bak suffix.
-$root = 'C:\Program Files\Nightshade'
-Get-ChildItem $root -Recurse -Filter '*.nightshade-bak' | ForEach-Object {
-    $orig = $_.FullName -replace '\.nightshade-bak$', ''
+$root = 'C:\Program Files\Skotiq'
+Get-ChildItem $root -Recurse -Filter '*.skotiq-bak' | ForEach-Object {
+    $orig = $_.FullName -replace '\.skotiq-bak$', ''
     if (Test-Path $orig) { Remove-Item $orig }
     Rename-Item $_.FullName $orig
 }
@@ -383,9 +383,9 @@ Remove-Item "$root\rollback_log.json"        -ErrorAction SilentlyContinue
 
 ```bash
 # Linux / macOS
-root=/opt/nightshade
-find "$root" -name '*.nightshade-bak' -type f | while read bak; do
-    orig="${bak%.nightshade-bak}"
+root=/opt/skotiq
+find "$root" -name '*.skotiq-bak' -type f | while read bak; do
+    orig="${bak%.skotiq-bak}"
     rm -f "$orig"
     mv "$bak" "$orig"
 done
@@ -399,7 +399,7 @@ restore point survives (until the next launch confirms the new build
 healthy), trigger a rollback via `POST /api/system/update/rollback` or the
 desktop UpdateService. If the restore point was already reclaimed (the new
 build booted cleanly), reinstall the previous version using its installer —
-Nightshade does not retain a copy of the prior binary tree past that point.
+Skotiq does not retain a copy of the prior binary tree past that point.
 
 C. **Verify before relaunch** — recompute the entry-point hashes against the
 manifest if you still have it; the boot-time `verifyPendingInstall` re-hashes
@@ -407,16 +407,16 @@ on first launch and refuses to start on mismatch (`main.rs:40-43`).
 
 **Verification**
 
-- Launch Nightshade. The version banner in the title bar / `/api/info` should
+- Launch Skotiq. The version banner in the title bar / `/api/info` should
   match the version you rolled back to.
-- `Get-ChildItem` (or `find`) should report zero `.nightshade-bak` files
+- `Get-ChildItem` (or `find`) should report zero `.skotiq-bak` files
   remaining.
 
 **Escalation**
 
 Attach to the issue:
 
-1. The `nightshade_update_error.log` from `$env:TEMP` / `/tmp`.
+1. The `skotiq_update_error.log` from `$env:TEMP` / `/tmp`.
 2. `rollback_log.json` (if present) — it lists exactly which files the updater
    touched.
 3. Output of `Get-ChildItem -Recurse | Where-Object Length` so we can compare
@@ -437,18 +437,18 @@ Attach to the issue:
 1. Confirm the checkpoint file exists and is readable. The path resolves from
    `getApplicationDocumentsDirectory()` via `initializeCheckpoints()`
    (`sequence_executor.dart:1339-1342`); the filename is fixed
-   (`native/nightshade_native/sequencer/src/checkpoint.rs:339-340`):
+   (`native/skotiq_native/sequencer/src/checkpoint.rs:339-340`):
 
    ```powershell
    # Windows
-   $cp = "$env:USERPROFILE\Documents\Nightshade\profiles\nightshade_session.checkpoint"
+   $cp = "$env:USERPROFILE\Documents\Skotiq\profiles\skotiq_session.checkpoint"
    Test-Path $cp
    Get-Item $cp | Select-Object FullName, Length, LastWriteTime
    ```
 
    ```bash
    # macOS / Linux
-   cp=~/Documents/Nightshade/profiles/nightshade_session.checkpoint
+   cp=~/Documents/Skotiq/profiles/skotiq_session.checkpoint
    ls -la "$cp"
    ```
 
@@ -471,8 +471,8 @@ Attach to the issue:
 
    | Constant | Value (v2.5.x) | File:line |
    |---|---|---|
-   | `CHECKPOINT_VERSION` | `2` | `native/nightshade_native/sequencer/src/checkpoint.rs:19` |
-   | Drift `schemaVersion` | `28` | `packages/nightshade_core/lib/src/database/database.dart:103` |
+   | `CHECKPOINT_VERSION` | `2` | `native/skotiq_native/sequencer/src/checkpoint.rs:19` |
+   | Drift `schemaVersion` | `28` | `packages/skotiq_core/lib/src/database/database.dart:103` |
 
    > **Why both matter.** The checkpoint file is owned by Rust and uses its
    > own version. The Dart side stores sequence definitions, target lists, and
@@ -484,7 +484,7 @@ Attach to the issue:
 
    ```powershell
    Select-String "Checkpoint|CHECKPOINT|trigger_state|resume" `
-                 "$env:APPDATA\Nightshade\logs\nightshade.log" -Context 0,3
+                 "$env:APPDATA\Skotiq\logs\skotiq.log" -Context 0,3
    ```
 
 5. Check the backup. `CheckpointManager` keeps `.bak` next to the primary; on
@@ -514,14 +514,14 @@ healthy:
 
 ```powershell
 # Windows
-$cp = "$env:USERPROFILE\Documents\Nightshade\profiles\nightshade_session.checkpoint"
+$cp = "$env:USERPROFILE\Documents\Skotiq\profiles\skotiq_session.checkpoint"
 Move-Item $cp "$cp.disabled.$(Get-Date -Format yyyyMMddHHmmss)"
 Move-Item "$cp.bak" "$cp.bak.disabled.$(Get-Date -Format yyyyMMddHHmmss)" -ErrorAction SilentlyContinue
 ```
 
 ```bash
 # macOS / Linux
-cp=~/Documents/Nightshade/profiles/nightshade_session.checkpoint
+cp=~/Documents/Skotiq/profiles/skotiq_session.checkpoint
 mv "$cp" "$cp.disabled.$(date +%Y%m%d%H%M%S)"
 mv "$cp.bak" "$cp.bak.disabled.$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
 ```
@@ -590,7 +590,7 @@ Attach to the issue:
 
    ```powershell
    Invoke-RestMethod `
-     -Headers @{ Authorization = "Bearer $env:NIGHTSHADE_AUTH_TOKEN" } `
+     -Headers @{ Authorization = "Bearer $env:SKOTIQ_AUTH_TOKEN" } `
      http://127.0.0.1:8080/api/self-test |
      Select-Object -ExpandProperty server
    ```
@@ -628,14 +628,14 @@ Attach to the issue:
    curl -v http://<imaging-machine-lan-ip>:8080/api/info
    ```
 
-5. Check the auth path. The Nightshade log records the auth banner at boot
+5. Check the auth path. The Skotiq log records the auth banner at boot
    (`headless_api_server.dart:1485-1488`). The server enforces auth on
    every protected route; `/api/info` and `/api/pairing/*` are the only
    public exceptions (`headless_api_server.dart:1067-1072`). Pull recent
    `[AUTH]` lines:
 
    ```powershell
-   Select-String "\[AUTH\]" "$env:APPDATA\Nightshade\logs\nightshade.log" |
+   Select-String "\[AUTH\]" "$env:APPDATA\Skotiq\logs\skotiq.log" |
        Select-Object -Last 20
    ```
 
@@ -650,11 +650,11 @@ Attach to the issue:
 | Goal | Required configuration |
 |---|---|
 | Same-machine automation only | No flags. Server binds `127.0.0.1` automatically. |
-| Authenticated LAN (recommended) | `--require-auth` (random token printed at boot) **or** `NIGHTSHADE_AUTH_TOKEN=…` / `--auth-token=…` |
-| Scoped-token LAN | `NIGHTSHADE_VIEW_TOKEN` + `NIGHTSHADE_CONTROL_TOKEN`. Admin token covers everything; view-only is read-only. |
-| Unauthenticated LAN (dev only) | `--allow-unauthenticated-lan` or `NIGHTSHADE_ALLOW_UNAUTHENTICATED_LAN=true`. **Do not use on a real LAN.** |
-| Custom port | `--port=<n>` or `NIGHTSHADE_PORT=<n>` (default `8080`) |
-| CORS allow-list for a browser dashboard | `--cors-origin=https://app.example.com` (repeat for multiple) or comma-separated `NIGHTSHADE_CORS_ORIGINS=` |
+| Authenticated LAN (recommended) | `--require-auth` (random token printed at boot) **or** `SKOTIQ_AUTH_TOKEN=…` / `--auth-token=…` |
+| Scoped-token LAN | `SKOTIQ_VIEW_TOKEN` + `SKOTIQ_CONTROL_TOKEN`. Admin token covers everything; view-only is read-only. |
+| Unauthenticated LAN (dev only) | `--allow-unauthenticated-lan` or `SKOTIQ_ALLOW_UNAUTHENTICATED_LAN=true`. **Do not use on a real LAN.** |
+| Custom port | `--port=<n>` or `SKOTIQ_PORT=<n>` (default `8080`) |
+| CORS allow-list for a browser dashboard | `--cors-origin=https://app.example.com` (repeat for multiple) or comma-separated `SKOTIQ_CORS_ORIGINS=` |
 
 Source: `apps/desktop/lib/main_headless.dart:49-58, 226-280, 286-294`.
 
@@ -662,7 +662,7 @@ Source: `apps/desktop/lib/main_headless.dart:49-58, 226-280, 286-294`.
 
 | Evidence | Cause | Fix |
 |---|---|---|
-| `/api/info` returns OK on `127.0.0.1` but `Connection refused` from LAN | Server is in loopback mode (no token configured) | Set `NIGHTSHADE_AUTH_TOKEN` or pass `--require-auth`, restart |
+| `/api/info` returns OK on `127.0.0.1` but `Connection refused` from LAN | Server is in loopback mode (no token configured) | Set `SKOTIQ_AUTH_TOKEN` or pass `--require-auth`, restart |
 | `bindMode: lan` reported, but LAN client times out | Windows Firewall / `ufw` blocking the port | See [troubleshooting/firewall.md](troubleshooting/firewall.md); add inbound rule on TCP 8080 |
 | Every authenticated request returns 401 | Wrong scope or expired pairing-issued token | Verify scope with `/api/info → authScopes`; rotate token; reissue from pairing dialog |
 | Browser dashboard works, fetch from a third-party origin fails with CORS | Origin not in allow-list | Add `--cors-origin=<origin>`; restart |
@@ -675,20 +675,20 @@ Source: `apps/desktop/lib/main_headless.dart:49-58, 226-280, 286-294`.
 A. **Loopback when LAN was wanted** — restart with auth:
 
 ```powershell
-$env:NIGHTSHADE_AUTH_TOKEN = (New-Guid).Guid
-& "C:\Program Files\Nightshade\nightshade_desktop.exe" --headless
+$env:SKOTIQ_AUTH_TOKEN = (New-Guid).Guid
+& "C:\Program Files\Skotiq\skotiq_desktop.exe" --headless
 ```
 
 ```bash
-export NIGHTSHADE_AUTH_TOKEN=$(uuidgen)
-./nightshade_desktop --headless
+export SKOTIQ_AUTH_TOKEN=$(uuidgen)
+./skotiq_desktop --headless
 ```
 
 The boot banner prints the LAN URL and the redacted token
 (`main_headless.dart:401-410`).
 
 B. **Firewall blocked** — see [troubleshooting/firewall.md](troubleshooting/firewall.md).
-Add an inbound rule for TCP `$NIGHTSHADE_PORT` and (optional) UDP `45679` for
+Add an inbound rule for TCP `$SKOTIQ_PORT` and (optional) UDP `45679` for
 LAN discovery.
 
 C. **CORS blocked** — pass `--cors-origin=` for each browser origin that
@@ -743,29 +743,29 @@ When in doubt, run this to collect everything we ask for above:
 
 ```powershell
 # Windows
-$out = "$env:USERPROFILE\Desktop\nightshade-bundle-$(Get-Date -Format yyyyMMddHHmmss)"
+$out = "$env:USERPROFILE\Desktop\skotiq-bundle-$(Get-Date -Format yyyyMMddHHmmss)"
 New-Item -ItemType Directory -Path $out | Out-Null
-Copy-Item "$env:APPDATA\Nightshade\logs\*"                $out -Recurse
-Copy-Item "$env:USERPROFILE\Documents\Nightshade\profiles\nightshade_session.checkpoint" $out -ErrorAction SilentlyContinue
-Copy-Item "$env:USERPROFILE\Documents\Nightshade\profiles\nightshade_session.checkpoint.bak" $out -ErrorAction SilentlyContinue
-Copy-Item "$env:TEMP\nightshade_update_error.log"         $out -ErrorAction SilentlyContinue
+Copy-Item "$env:APPDATA\Skotiq\logs\*"                $out -Recurse
+Copy-Item "$env:USERPROFILE\Documents\Skotiq\profiles\skotiq_session.checkpoint" $out -ErrorAction SilentlyContinue
+Copy-Item "$env:USERPROFILE\Documents\Skotiq\profiles\skotiq_session.checkpoint.bak" $out -ErrorAction SilentlyContinue
+Copy-Item "$env:TEMP\skotiq_update_error.log"         $out -ErrorAction SilentlyContinue
 Invoke-RestMethod http://127.0.0.1:8080/api/info | ConvertTo-Json -Depth 10 | Out-File "$out\api-info.json"
 Compress-Archive "$out\*" "$out.zip"
 ```
 
 ```bash
 # macOS / Linux
-out=$HOME/nightshade-bundle-$(date +%Y%m%d%H%M%S)
+out=$HOME/skotiq-bundle-$(date +%Y%m%d%H%M%S)
 mkdir -p "$out"
-cp -r ~/Library/Application\ Support/Nightshade/logs/* "$out/" 2>/dev/null || \
-    cp -r ~/.local/share/nightshade_desktop/logs/* "$out/" 2>/dev/null
-cp ~/Documents/Nightshade/profiles/nightshade_session.checkpoint*     "$out/" 2>/dev/null
-cp /tmp/nightshade_update_error.log                                   "$out/" 2>/dev/null
+cp -r ~/Library/Application\ Support/Skotiq/logs/* "$out/" 2>/dev/null || \
+    cp -r ~/.local/share/skotiq_desktop/logs/* "$out/" 2>/dev/null
+cp ~/Documents/Skotiq/profiles/skotiq_session.checkpoint*     "$out/" 2>/dev/null
+cp /tmp/skotiq_update_error.log                                   "$out/" 2>/dev/null
 curl -s http://127.0.0.1:8080/api/info > "$out/api-info.json"
 tar czf "$out.tar.gz" -C "$out" .
 ```
 
-Open https://github.com/Scdouglas1999/Nightshade/issues and attach the
+Open https://github.com/Scdouglas1999/Skotiq/issues and attach the
 archive.
 
 ## Appendix B — See also

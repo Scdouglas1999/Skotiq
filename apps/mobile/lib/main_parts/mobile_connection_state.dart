@@ -13,7 +13,7 @@
 //     (re)connect/disconnect ops
 part of '../main.dart';
 
-mixin _MobileConnectionState on ConsumerState<NightshadeMobileApp> {
+mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
   /// Navigator for the connection-screen [MaterialApp]. Dialogs and the QR
   /// scanner must use this context — [State.context] sits *above* that
   /// [MaterialApp], so [Navigator.of] on it returns null in release builds.

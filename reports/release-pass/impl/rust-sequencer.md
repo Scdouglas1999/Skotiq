@@ -1,7 +1,7 @@
 # Impl log — batch `rust-sequencer`
 
 Work order: `reports/release-pass/map/rust-sequencer.md`
-Scope: `native/nightshade_native/sequencer/**` (+ minimal bridge call-site fixes for
+Scope: `native/skotiq_native/sequencer/**` (+ minimal bridge call-site fixes for
 symbols item 2 removes).
 
 ## Items
@@ -30,7 +30,7 @@ implementations are kept verbatim inside the test module as references.
 - Found while writing the tests: the legacy polar-case COMMENTS in both callers
   labelled the two `cos_h` branches backwards. The branches were right; only the
   comments lied. Corrected in `solar.rs`, behaviour unchanged.
-Proof: `cargo test -p nightshade_sequencer --lib solar::` → 7 passed, 0 failed.
+Proof: `cargo test -p skotiq_sequencer --lib solar::` → 7 passed, 0 failed.
 Full lib suite after the change: 766 passed, 0 failed.
 
 ### Item 2 — R2 + DC1 (DONE)
@@ -115,18 +115,18 @@ wires `with_executor_event_tx`). Re-proved the node path end to end:
 ### Item 2 — re-verified
 `ExecutorCommand::Start` has zero senders across `native/ packages/ apps/
 tools/` (fresh grep). Bridge builds clean against the `async update_*`
-signatures (`cargo build -p nightshade_bridge` -> Finished).
+signatures (`cargo build -p skotiq_bridge` -> Finished).
 
 ### Item 3 — re-verified
-`cargo test -p nightshade_sequencer --lib solar::` -> 7 passed, 0 failed
+`cargo test -p skotiq_sequencer --lib solar::` -> 7 passed, 0 failed
 (parity against all three legacy implementations, kept verbatim in the tests).
 
 ## Gate results
 
-- `cargo test -p nightshade_sequencer --lib` -> **775 passed, 0 failed** (30.47 s)
-- `cargo build -p nightshade_bridge` -> Finished (no signature drift)
-- `cargo fmt -p nightshade_sequencer -- --check` -> clean
-- `cargo clippy -p nightshade_sequencer --all-targets` -> 0 warnings
+- `cargo test -p skotiq_sequencer --lib` -> **775 passed, 0 failed** (30.47 s)
+- `cargo build -p skotiq_bridge` -> Finished (no signature drift)
+- `cargo fmt -p skotiq_sequencer -- --check` -> clean
+- `cargo clippy -p skotiq_sequencer --all-targets` -> 0 warnings
 
 ## Not touched (per the work order)
 

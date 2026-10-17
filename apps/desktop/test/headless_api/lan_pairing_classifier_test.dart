@@ -7,7 +7,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless_api/handlers/pairing_handlers.dart';
+import 'package:skotiq_desktop/headless_api/handlers/pairing_handlers.dart';
 
 void main() {
   group('isPrivateLanAddress — ALLOWED (one-tap LAN)', () {

@@ -8,7 +8,7 @@
   "expected": "Losing focus (Tab, clicking another control, pressing Capture) must commit the edit, or the field must visibly reject/revert the uncommitted text. What the card shows and what it captures must never disagree.",
   "repro": "Dashboard -> Edit Dashboard -> Widgets -> Capture Settings -> Done. Click the Exp box, Ctrl+A, type 2, press Tab, press Capture. Watch the progress % and `grep 'Starting.*exposure' /tmp/ns-audit/r-wizards/app.log`.",
   "evidence": "/tmp/ns-audit/shots/r-wizards-38.png: field reads 'Exp: 2' while the ring reads 13% of a run the log calls 120 s. /tmp/ns-audit/r-wizards/app.log 18:42:16 'Starting 120s exposure'. Repeated with Tab at a different value (/tmp/ns-audit/shots/r-wizards-41.png: field '2', progress 90% of the previously committed 9 s).",
-  "where": "packages/nightshade_app/lib/screens/dashboard/widgets/capture_settings_card.dart:536 - _CompactSettingField wires only `onSubmitted: widget.onChanged`; there is no onEditingComplete/onChanged and no FocusNode listener. didUpdateWidget (:478) only rewrites the controller when the provider value changes, so stale text survives forever. Both Exp and Gain use this field."
+  "where": "packages/skotiq_app/lib/screens/dashboard/widgets/capture_settings_card.dart:536 - _CompactSettingField wires only `onSubmitted: widget.onChanged`; there is no onEditingComplete/onChanged and no FocusNode listener. didUpdateWidget (:478) only rewrites the controller when the provider value changes, so stale text survives forever. Both Exp and Gain use this field."
  },
  {
   "title": "Dashboard SAFETY card shows a green \"Safe\" badge while it is measuring nothing",
@@ -19,7 +19,7 @@
   "expected": "With no data source the badge must read \"Not monitored\" / \"Unknown\" in a neutral or amber colour. Green \"Safe\" must only ever mean a sensor reported safe conditions within the staleness window.",
   "repro": "Fresh profile -> skip onboarding -> Equipment -> connect Simulated Camera/Mount/Focuser/Filter Wheel (no weather, no safety monitor) -> Dashboard. Right column, SAFETY tile.",
   "evidence": "/tmp/ns-audit/shots/r-wizards-14.png - header badge 'Safe' (green) directly above 'Data Unavailable' and the amber 'No weather data sources available' banner.",
-  "where": "packages/nightshade_app/lib/screens/dashboard/ - weather/safety dashboard tile"
+  "where": "packages/skotiq_app/lib/screens/dashboard/ - weather/safety dashboard tile"
  },
  {
   "title": "Tonight card reports a concrete twilight time and 9h28m imaging window while saying 'Location needed'",
@@ -29,8 +29,8 @@
   "what_happened": "With no observing location set (app_settings.observer_latitude = 0.0, and the command-bar LST reads '--:--:--'), the Tonight dashboard card shows Twilight 15:22, Moon 90%, Window 9h 28m - and in the same card Target: 'Location needed' plus 'Set an observing location to generate target plans.' The twilight/window numbers are computed at latitude 0 / longitude 0 in the machine's local timezone (15:22 local = 19:22 UTC, which is astronomical twilight on the equator on Aug 1), so they are wrong for every real observer, and there is no marking that they are placeholders.",
   "expected": "Twilight and Window must render as '--' (like LST and Exposure already do) until a site is set. A user reading 'Window 9h 28m' will plan a session around a number that is not theirs.",
   "repro": "Fresh profile, skip onboarding, do not set an observing location. Dashboard -> Edit Dashboard -> Widgets -> Tonight -> Done. Read the Tonight tile.",
-  "evidence": "/tmp/ns-audit/shots/r-wizards-34.png (Twilight 15:22, Window 9h 28m, Target 'Location needed'); sqlite3 /tmp/ns-audit/r-wizards/data/nightshade.db \"select key,value from app_settings where key like '%latitude%'\" -> observer_latitude|0.0; command bar shows LST '--:--:--' in the same frame.",
-  "where": "packages/nightshade_app/lib/screens/dashboard/widgets/tonight_card.dart"
+  "evidence": "/tmp/ns-audit/shots/r-wizards-34.png (Twilight 15:22, Window 9h 28m, Target 'Location needed'); sqlite3 /tmp/ns-audit/r-wizards/data/skotiq.db \"select key,value from app_settings where key like '%latitude%'\" -> observer_latitude|0.0; command bar shows LST '--:--:--' in the same frame.",
+  "where": "packages/skotiq_app/lib/screens/dashboard/widgets/tonight_card.dart"
  },
  {
   "title": "Polar alignment ends with a green \"Alignment Complete\" tick and a green \"+0%\" chip after a 30-arcminute residual error",
@@ -40,8 +40,8 @@
   "what_happened": "I ran Three-Point Polar Alignment to completion against the simulators (camera+mount connected, ASTAP stub solving). Three points measured, adjust phase entered, then I pressed Done. The result screen shows a large green success check, the headline 'Alignment Complete', 'Final error: 1800.0 arcseconds', and an Alignment Summary reading Before 1800\" -> After 1800\" with Improvement rendered as a GREEN '+0%' chip. The Alignment History row for the run is likewise stamped with a green checkmark ('Today 10:30 / Final: 1800\" / +0%'). 1800 arcsec is 30 arcminutes - half a degree of polar error, 60x the wizard's own Auto-Complete threshold of 30\" - and the session improved the alignment by exactly nothing.",
   "expected": "The terminal state must be honest about the residual. Success styling (green tick, green chip) belongs only to a run that reached the configured threshold. A run that ends 60x above threshold with 0% improvement should read 'Alignment stopped - still 30' 00\" off' in amber/red, and the improvement chip should be neutral or red at <=0%.",
   "repro": "Equipment -> connect Simulated Camera + Simulated Mount. Imaging -> Mount tab -> Three-Point Polar Alignment -> Start Alignment. Let the 3 points measure, wait for the adjust phase, press Done.",
-  "evidence": "/tmp/ns-audit/shots/rw-116.png (green check, 'Alignment Complete', Final error 1800.0 arcseconds, Before 1800\" -> After 1800\", green +0%). /tmp/ns-audit/shots/rw-118.png (history row, green tick, +0%). DB agrees: sqlite3 /tmp/ns-audit/r-wizards/data/nightshade.db 'select initial_total_error,final_total_error,auto_completed from polar_alignment_history' -> 1800.00067|1800.00062|0. auto_completed=0 is recorded, so the app KNOWS the threshold was never met, and still renders success.",
-  "where": "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/ (completion panel + _history_panel.dart row styling)"
+  "evidence": "/tmp/ns-audit/shots/rw-116.png (green check, 'Alignment Complete', Final error 1800.0 arcseconds, Before 1800\" -> After 1800\", green +0%). /tmp/ns-audit/shots/rw-118.png (history row, green tick, +0%). DB agrees: sqlite3 /tmp/ns-audit/r-wizards/data/skotiq.db 'select initial_total_error,final_total_error,auto_completed from polar_alignment_history' -> 1800.00067|1800.00062|0. auto_completed=0 is recorded, so the app KNOWS the threshold was never met, and still renders success.",
+  "where": "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/ (completion panel + _history_panel.dart row styling)"
  },
  {
   "title": "Polar alignment computes and reports azimuth/altitude error at latitude 0, longitude 0 when no observing location is set",
@@ -50,9 +50,9 @@
   "unit": "screen:polar_alignment/polar_alignment_body_layout.dart",
   "what_happened": "With no observing location configured (app_settings observer_latitude=0.0, observer_longitude=0.0; Equipment's readiness panel is actively flagging 'No observing location set'), I started TPPA and it ran all three points and produced concrete corrections - 'Azimuth Left 427.6\"', 'Altitude Up 2287.9\"', final 1800.0\". The az/alt decomposition of a polar-axis error is a function of site latitude; at lat 0 the pole sits on the horizon, so every number the wizard printed is the correction for an observer on the equator, not for the user. The native layer has an explicit guard for this (polar_align/mod.rs:390-399 returns 'Polar alignment requires observer latitude/longitude...') but it only fires when the location is None, and the app installs a (0,0) location at startup - app.log: 'Setting observer location: lat=0, lon=0, elev=0' - so the guard can never fire.",
   "expected": "Starting polar alignment with no site set must be refused with 'Set your observing location first' (the wizard already refuses on a disconnected camera, a disconnected mount and an unavailable solver), or the site must be part of the pre-flight checklist shown on the idle screen. It must never silently substitute 0,0.",
-  "repro": "Fresh profile, do not set an observing location. Equipment -> connect Simulated Camera + Mount. Imaging -> Mount tab -> Three-Point Polar Alignment -> Start Alignment. Verify with: sqlite3 /tmp/ns-audit/r-wizards/data/nightshade.db \"select key,value from app_settings where key like 'observer_%'\" -> observer_latitude|0.0, observer_longitude|0.0.",
-  "evidence": "/tmp/ns-audit/shots/rw-115.png (corrections printed), /tmp/ns-audit/shots/rw-116.png (Final error 1800.0 arcseconds), /tmp/ns-audit/r-wizards/app.log line 80092 'Setting observer location: lat=0, lon=0, elev=0'. Native guard that is bypassed: native/nightshade_native/sequencer/src/polar_align/mod.rs:390.",
-  "where": "packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen.dart:59-121 (_startAlignment pre-flight has camera/mount/solver checks but no site check); native/nightshade_native/bridge/src/state.rs get_observer_location + the startup path that sets 0,0"
+  "repro": "Fresh profile, do not set an observing location. Equipment -> connect Simulated Camera + Mount. Imaging -> Mount tab -> Three-Point Polar Alignment -> Start Alignment. Verify with: sqlite3 /tmp/ns-audit/r-wizards/data/skotiq.db \"select key,value from app_settings where key like 'observer_%'\" -> observer_latitude|0.0, observer_longitude|0.0.",
+  "evidence": "/tmp/ns-audit/shots/rw-115.png (corrections printed), /tmp/ns-audit/shots/rw-116.png (Final error 1800.0 arcseconds), /tmp/ns-audit/r-wizards/app.log line 80092 'Setting observer location: lat=0, lon=0, elev=0'. Native guard that is bypassed: native/skotiq_native/sequencer/src/polar_align/mod.rs:390.",
+  "where": "packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen.dart:59-121 (_startAlignment pre-flight has camera/mount/solver checks but no site check); native/skotiq_native/bridge/src/state.rs get_observer_location + the startup path that sets 0,0"
  },
  {
   "title": "All-Sky polar alignment reticle says \"Within acceptance - hold steady\" and 0.0\" before a single frame has been taken",
@@ -63,7 +63,7 @@
   "expected": "With no measurement the reticle must show no marker and read '--' / 'Not measured', exactly like the Azimuth/Altitude/Total tiles 12 px below it already do. 'Within acceptance' is the single most consequential sentence on this screen and it must only ever follow a solve.",
   "repro": "Imaging -> Mount -> Three-Point Polar Alignment -> select the All-Sky segment -> (if a previous result is showing, press Restart). Read the right rail: green 0.0\\\" 'Within acceptance - hold steady' above 'Azimuth -- / Altitude -- / Total --'.",
   "evidence": "/tmp/ns-audit/shots/rw-126.png (full screen: idle intro, 'Ready to start polar alignment', totals '--', reticle green '0.0\\\"' 'Within acceptance - hold steady'); /tmp/ns-audit/shots/rw-127.png (reticle close-up).",
-  "where": "packages/nightshade_app/lib/screens/polar_alignment/widgets/all_sky_target_reticle.dart (renders from a non-nullable error defaulting to 0) fed by _right_panel.dart"
+  "where": "packages/skotiq_app/lib/screens/polar_alignment/widgets/all_sky_target_reticle.dart (renders from a non-nullable error defaulting to 0) fed by _right_panel.dart"
  },
  {
   "title": "An aborted polar alignment is written to Alignment History as a success with a green \"+97%\" improvement badge",
@@ -72,9 +72,9 @@
   "unit": "screen:polar_alignment/_configuration_panel.dart",
   "what_happened": "I started All-Sky polar alignment, let it iterate for ~2 minutes without touching the mount (impossible to touch - it is a simulator), then pressed Stop. The status line correctly read 'Polar alignment stopped'. But a row was still committed to polar_alignment_history and the Alignment History panel now shows 'Today 10:41 / Final: 1376\\\"' with a green checkmark and a green '+97%' badge. Nothing was adjusted, the user cancelled, and the residual is still 1376\\\" (23 arcmin). The '97% improvement' is an artefact of the first iteration's noisy 40104\\\" measurement being taken as 'initial'.",
   "expected": "A cancelled run must either not be persisted, or be persisted and displayed as 'Stopped' with a neutral icon and no improvement badge. Improvement must be computed against a stable initial measurement, not the first noisy sample, and must not be reported at all for a run in which the user made no adjustment.",
-  "repro": "Polar Alignment -> All-Sky -> Start Alignment -> wait ~2 min -> Stop. Scroll the left column to Alignment History. Cross-check: sqlite3 /tmp/ns-audit/r-wizards/data/nightshade.db 'select id,initial_total_error,final_total_error,auto_completed,completed_at from polar_alignment_history' -> row 2: 40104.58|1376.13|0 (auto_completed=0, i.e. threshold never met) yet completed_at is populated.",
+  "repro": "Polar Alignment -> All-Sky -> Start Alignment -> wait ~2 min -> Stop. Scroll the left column to Alignment History. Cross-check: sqlite3 /tmp/ns-audit/r-wizards/data/skotiq.db 'select id,initial_total_error,final_total_error,auto_completed,completed_at from polar_alignment_history' -> row 2: 40104.58|1376.13|0 (auto_completed=0, i.e. threshold never met) yet completed_at is populated.",
   "evidence": "/tmp/ns-audit/shots/rw-132.png (history: 'Today 10:41 Final: 1376\\\"' green tick, green +97%); /tmp/ns-audit/shots/rw-131.png ('Polar alignment stopped', Total 1376.1\\\" in red); DB row 2 above.",
-  "where": "the polar alignment history writer (run finalisation) + packages/nightshade_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_history_panel.dart row styling"
+  "where": "the polar alignment history writer (run finalisation) + packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_history_panel.dart row styling"
  },
  {
   "title": "Flat Frame Wizard captures at a different camera offset than the Imaging screen (10 vs 50) and never shows which gain/offset it will use",
@@ -85,7 +85,7 @@
   "expected": "The flat wizard must capture with the same gain/offset the light frames will use, and it must display them (NINA shows gain/offset/binning on the flat wizard panel and lets you override them). If the two surfaces genuinely have different sources of truth, that is the bug; at minimum the wizard has to show the values it is about to command.",
   "repro": "Equipment -> connect Simulated Camera. Imaging -> Camera tab -> read Gain/Offset. Imaging -> Camera tab -> Flat Wizard -> Quick Capture -> Start Capture -> choose a folder -> Continue. Then: grep 'gain=Some' /tmp/ns-audit/r-wizards/app.log",
   "evidence": "/tmp/ns-audit/shots/rw-136.png (Camera tab: Gain 100, Offset 50). /tmp/ns-audit/r-wizards/app.log 14:50:34-14:51:03: seven lines 'Starting <t>s exposure with gain=Some(100), offset=Some(10), bin=1x1'. Earlier light path in the same profile: 'Starting 120s exposure with gain=Some(100), offset=Some(50), bin=1x1'.",
-  "where": "packages/nightshade_core/lib/src/services/flat_wizard_service.dart:314-323 (offset = profileDefaultOffset ?? currentOffset ?? status.offset) vs the imaging capture path; UI: packages/nightshade_app/lib/screens/flat_wizard/ (no gain/offset surface)"
+  "where": "packages/skotiq_core/lib/src/services/flat_wizard_service.dart:314-323 (offset = profileDefaultOffset ?? currentOffset ?? status.offset) vs the imaging capture path; UI: packages/skotiq_app/lib/screens/flat_wizard/ (no gain/offset surface)"
  },
  {
   "title": "Flat wizard Quick Capture ignores the selected filter and always drives the wheel to position 0",
@@ -96,7 +96,7 @@
   "expected": "Start Capture must move to and expose through the filter the user selected. Flats for the wrong filter are worse than no flats - they will be applied to the wrong channel and corrupt every calibrated frame.",
   "repro": "Imaging -> click the Ha chip in the bottom filter row (wheel moves to position 4). Imaging -> Camera tab -> Flat Wizard -> Quick Capture -> Filter dropdown -> B (header shows 'FILTER B') -> Start Capture. Then: grep filterwheel_set_position /tmp/ns-audit/r-wizards/app.log",
   "evidence": "/tmp/ns-audit/shots/rw-161.png (header 'FILTER B' immediately before Start); app.log 15:01:46 '[API] api_filterwheel_set_position called: device_id=sim_filterwheel_1, position=0'; /tmp/ns-audit/shots/rw-163.png (banner 'L: filter wheel did not confirm position 0 within 15s - run stopped.'). Earlier repetition with R selected: /tmp/ns-audit/shots/rw-154.png (Filter R) -> app.log 14:57:32 position=0 -> /tmp/ns-audit/shots/rw-157.png (banner names L).",
-  "where": "packages/nightshade_app/lib/screens/flat_wizard/filter_controls.dart (selection) into packages/nightshade_core/lib/src/providers/flat_wizard_provider.dart (the quick-capture run builder, which appears to take the first entry of the filter list rather than the selected one)"
+  "where": "packages/skotiq_app/lib/screens/flat_wizard/filter_controls.dart (selection) into packages/skotiq_core/lib/src/providers/flat_wizard_provider.dart (the quick-capture run builder, which appears to take the first entry of the filter list rather than the selected one)"
  },
  {
   "title": "Flat wizard cannot capture a flat when a filter move is needed - its wheel move neither takes effect nor is confirmed, while the same move works from Equipment",
@@ -107,18 +107,18 @@
   "expected": "After a successful filterWheelSetPosition the wheel state must be refreshed (event or poll) so the confirmation loop sees the new position. Failing that, the wizard must say the wheel reported success but never confirmed, and offer to proceed - not just stop.",
   "repro": "Connect Simulated Camera + Simulated Filter Wheel. Imaging -> Camera tab -> Flat Wizard -> Quick Capture -> Start Capture -> choose a folder -> Continue. Wait 15 s.",
   "evidence": "/tmp/ns-audit/shots/rw-157.png and /tmp/ns-audit/shots/rw-163.png (the banner); app.log 14:57:32 and 15:01:46 (wizard commands position=0, native reports success, wheel stays on Ha); /tmp/ns-audit/shots/rw-178.png (Equipment card still reading 'Ha / #5' twelve minutes after the wizard's second attempt) vs /tmp/ns-audit/shots/rw-181.png (same card reading 'L / #1' five seconds after the Equipment dropdown issued the identical position=0 at 15:14:03); sqlite3 ... 'select count(*) from flat_history' = 0 and 'find /tmp/ns-audit/r-wizards/flats -type f' returns nothing.",
-  "where": "packages/nightshade_core/lib/src/providers/flat_wizard_provider.dart:1370-1394 (the confirmation loop) and whatever should refresh filterWheelStateProvider after filterWheelSetPosition"
+  "where": "packages/skotiq_core/lib/src/providers/flat_wizard_provider.dart:1370-1394 (the confirmation loop) and whatever should refresh filterWheelStateProvider after filterWheelSetPosition"
  },
  {
   "title": "Co-imaging card says \"You are pooling light here\" after you explicitly decline to share your subs",
   "severity": "P1",
   "kind": "defect",
   "unit": "screen:collaborative_sky/collaborative_sky_screen.dart",
-  "what_happened": "I connected to a real hub (a locally run nightshade_hub on 127.0.0.1:8091), pressed Start session and created a session on NGC 7000. The app then opened 'Share your co-imaging subs', whose own text says 'Let this rig contribute my completed subs unattended ... Leave unchecked and your subs will NOT be added to the combined stack.' I pressed Cancel, granting nothing. The session card then rendered a green check with 'You are pooling light here'. Nothing is being pooled: no license was accepted, no contribute consent was given, and FRAMES/COMBINED still read 0.",
+  "what_happened": "I connected to a real hub (a locally run skotiq_hub on 127.0.0.1:8091), pressed Start session and created a session on NGC 7000. The app then opened 'Share your co-imaging subs', whose own text says 'Let this rig contribute my completed subs unattended ... Leave unchecked and your subs will NOT be added to the combined stack.' I pressed Cancel, granting nothing. The session card then rendered a green check with 'You are pooling light here'. Nothing is being pooled: no license was accepted, no contribute consent was given, and FRAMES/COMBINED still read 0.",
   "expected": "The caption must reflect contribution consent, not mere membership: 'Joined - not contributing (sharing off)' in a neutral colour, with a 'Turn on sharing' action. Telling a user their photons are being pooled when they declined is the most consequential thing this screen can get wrong.",
-  "repro": "Run a hub: cd server/nightshade_hub && dart run bin/server.dart --port 8091 --bind 127.0.0.1 --db /tmp/ns-audit/hub/hub.db --atlas-root /tmp/ns-audit/hub/atlas --secret 0123456789abcdef0123456789abcdef. App -> Plan Tonight -> Discover -> Collaborate -> Connect to a hub -> http://127.0.0.1:8091 -> Start session (NGC 7000, RA 314.75, Dec 44.31) -> Cancel the sharing dialog.",
+  "repro": "Run a hub: cd server/skotiq_hub && dart run bin/server.dart --port 8091 --bind 127.0.0.1 --db /tmp/ns-audit/hub/hub.db --atlas-root /tmp/ns-audit/hub/atlas --secret 0123456789abcdef0123456789abcdef. App -> Plan Tonight -> Discover -> Collaborate -> Connect to a hub -> http://127.0.0.1:8091 -> Start session (NGC 7000, RA 314.75, Dec 44.31) -> Cancel the sharing dialog.",
   "evidence": "/tmp/ns-audit/shots/rw-175.png (the consent dialog, all three checkboxes unchecked, about to be cancelled) and /tmp/ns-audit/shots/rw-176.png (after Cancel: green check 'You are pooling light here', FRAMES 0, COMBINED 0s).",
-  "where": "packages/nightshade_app/lib/screens/collaborative_sky/widgets/coimaging_session_card.dart:372-388 - the caption is gated on `joined == true` only, with no reference to the sharing/consent state."
+  "where": "packages/skotiq_app/lib/screens/collaborative_sky/widgets/coimaging_session_card.dart:372-388 - the caption is gated on `joined == true` only, with no reference to the sharing/consent state."
  },
  {
   "title": "The collaborative mosaic detail screen is a nav trap: no back control, and the whole nav rail stops working",
@@ -129,7 +129,7 @@
   "expected": "A pushed detail page must have a back control, and clicking a nav destination must pop the pushed route and switch branch.",
   "repro": "Connect to a hub, publish a mosaic, Plan Tonight -> Discover -> Collaborate -> Refresh -> tap the mosaic row. Then try every nav item and Escape/Alt+Left.",
   "evidence": "/tmp/ns-audit/shots/rw-202.png (the detail page, header has only a refresh icon); /tmp/ns-audit/shots/rw-208.png (Dashboard highlighted in the rail while the mosaic detail is still rendered); /tmp/ns-audit/shots/rw-209.png (after clicking Imaging - unchanged); /tmp/ns-audit/shots/rw-210.png (after Escape, Alt+Left, Backspace and mouse-back - unchanged).",
-  "where": "packages/nightshade_app/lib/screens/collaborative_sky/collab_mosaic_detail_screen.dart (pushed as a bare MaterialPageRoute over the shell, so the StatefulShellRoute branch switch cannot pop it)"
+  "where": "packages/skotiq_app/lib/screens/collaborative_sky/collab_mosaic_detail_screen.dart (pushed as a bare MaterialPageRoute over the shell, so the StatefulShellRoute branch switch cannot pop it)"
  },
  {
   "title": "Dashboard Mount jog pad fires a 500 ms pulse guide instead of a slew - the arrows do nothing a user can see",
@@ -140,7 +140,7 @@
   "expected": "An arrow pad on a mount control card should slew (moveAxis / directional slew) at a user-selectable rate while held, as it does in NINA, SGP and the ASIAIR, and stop on release. If it really is a guide pulse it must be labelled as one and show the resulting offset.",
   "repro": "Dashboard -> Edit Dashboard -> Widgets -> enable Mount Control -> Done -> Unpark -> click the E arrow, then press-and-hold it for 2 s. Watch RA on the card and `tail /tmp/ns-audit/r-wizards/app.log`.",
   "evidence": "/tmp/ns-audit/r-wizards/app.log: '18:37:41 Pulse guiding sim_mount_1 for 500ms in direction east', '18:37:57 ... 500ms ...' (that one was a 2 s hold), '18:38:35 ... 500ms ...'. Card RA unchanged in /tmp/ns-audit/shots/r-wizards-30.png and -31.png.",
-  "where": "packages/nightshade_app/lib/screens/dashboard/widgets/mount_control_card.dart:173-182 (onDirection -> pulseGuide)"
+  "where": "packages/skotiq_app/lib/screens/dashboard/widgets/mount_control_card.dart:173-182 (onDirection -> pulseGuide)"
  },
  {
   "title": "Mount jog arrows are silently dead while the mount is parked",
@@ -151,7 +151,7 @@
   "expected": "Either disable the pad visibly (dim the whole pad / show a 'Mount is parked' tooltip or inline hint), or accept the press and surface 'Mount is parked - unpark first'.",
   "repro": "Dashboard with Mount Control widget, mount Parked -> click any arrow. Compare /tmp/ns-audit/shots/r-wizards-28.png (parked) with r-wizards-29.png (unparked): the arrow pad renders identically.",
   "evidence": "/tmp/ns-audit/shots/r-wizards-28.png vs -29.png; app.log has no 'Pulse guiding' line for the parked click at 14:36.",
-  "where": "packages/nightshade_app/lib/screens/dashboard/widgets/mount_control_card.dart:175 (isEnabled: isConnected && !mountState.isParked), :413 (InkWell onTap null when disabled)"
+  "where": "packages/skotiq_app/lib/screens/dashboard/widgets/mount_control_card.dart:175 (isEnabled: isConnected && !mountState.isParked), :413 (InkWell onTap null when disabled)"
  },
  {
   "title": "Dashboard Widgets picker lists two different widgets both called \"Guiding\"",
@@ -162,7 +162,7 @@
   "expected": "Every row in the picker has a unique, distinguishable name, or the legacy/duplicate entries are removed.",
   "repro": "Dashboard -> Edit Dashboard -> Widgets -> scroll the list.",
   "evidence": "/tmp/ns-audit/shots/r-wizards-17.png (Guiding - 'RMS error and guiding graph', checked) and /tmp/ns-audit/shots/r-wizards-20.png (Guiding - 'RMS and guiding graph', unchecked) in the same dialog.",
-  "where": "packages/nightshade_app/lib/screens/dashboard/widgets/widget_picker_dialog.dart and the widget registry that feeds it"
+  "where": "packages/skotiq_app/lib/screens/dashboard/widgets/widget_picker_dialog.dart and the widget registry that feeds it"
  },
  {
   "title": "Glance mode toggle on the Dashboard changes nothing on the Dashboard",
@@ -172,8 +172,8 @@
   "what_happened": "The eye icon in the dashboard command bar is the Glance mode toggle ('bumps the dashboard's secondary-status type up so the run can be read from across the room'). Toggling it on tints the button and the tooltip flips to 'Glance mode: on', but a pixel diff of the whole dashboard content area (1000x700 px) between on and off differs in only a 4x12 px sliver at the panel edge - 0.005% of pixels. No text on the dashboard gets larger.",
   "expected": "Either the dashboard's status readouts (target, exposure countdown, HFR, RMS, frame counts) scale up when glance mode is on, or the toggle does not live on the dashboard.",
   "repro": "Dashboard -> click the eye icon in the command bar (right of the Local chip) -> click it again. Compare /tmp/ns-audit/shots/glance-on.png and /tmp/ns-audit/shots/glance-off.png.",
-  "evidence": "PIL diff of glance-on.png vs glance-off.png: bbox (996,39,1000,51), 0.0047% of pixels differ by >10. Source: NightshadeTypography.glanceStyle has exactly two callers repo-wide, both in packages/nightshade_app/lib/screens/sequencer/widgets/run_dashboard/ (session_warnings_panel.dart:142, filter_integration_panel.dart:178) - neither is on the Dashboard screen.",
-  "where": "packages/nightshade_app/lib/screens/dashboard/widgets/glance_mode_toggle.dart (control) vs the two glanceStyle consumers in the sequencer run dashboard"
+  "evidence": "PIL diff of glance-on.png vs glance-off.png: bbox (996,39,1000,51), 0.0047% of pixels differ by >10. Source: SkotiqTypography.glanceStyle has exactly two callers repo-wide, both in packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/ (session_warnings_panel.dart:142, filter_integration_panel.dart:178) - neither is on the Dashboard screen.",
+  "where": "packages/skotiq_app/lib/screens/dashboard/widgets/glance_mode_toggle.dart (control) vs the two glanceStyle consumers in the sequencer run dashboard"
  },
  {
   "title": "All-Sky reticle labels collide: the error marker, the az/alt caption and the \"Dn\" compass label are drawn on top of each other",
@@ -184,7 +184,7 @@
   "expected": "The marker must draw above/around the labels, and the numeric caption must be placed outside the reticle (or the reticle padded) so the compass labels stay legible.",
   "repro": "Run TPPA to completion, then switch the segmented control to All-Sky. Right rail.",
   "evidence": "/tmp/ns-audit/shots/rw-125.png (close-up of the reticle: '1800.0\\\"' then 'Az -35[dot]4\\\"  Alt -1765.4\\\"' overlapping 'Dn').",
-  "where": "packages/nightshade_app/lib/screens/polar_alignment/widgets/all_sky_target_reticle.dart"
+  "where": "packages/skotiq_app/lib/screens/polar_alignment/widgets/all_sky_target_reticle.dart"
  },
  {
   "title": "Flat wizard's \"Flat capture failed - no frames were saved\" gives no reason and no next step",
@@ -195,7 +195,7 @@
   "expected": "Name the failure: 'Could not reach 32768 ADU - at the 30 s maximum the frame only reached 1361 ADU. Increase panel brightness or gain.' And when ADU does not scale with exposure, say so ('brightness did not change when exposure increased 170x - is the flat panel switched on?').",
   "repro": "Flat Wizard -> Quick Capture -> Frames 5 -> Start Capture -> pick a folder -> Continue. Wait ~60 s.",
   "evidence": "/tmp/ns-audit/shots/rw-146.png (red banner 'Flat capture failed - no frames were saved.', header 'EXPOSURE 30.00s ADU 1361 FRAME 0/5', chip 'Failed'); /tmp/ns-audit/r-wizards/app.log 14:50:34-14:51:34 exposure ramp.",
-  "where": "packages/nightshade_app/lib/screens/flat_wizard/ (action_buttons / status banner) and the flat capture service that raises the failure"
+  "where": "packages/skotiq_app/lib/screens/flat_wizard/ (action_buttons / status banner) and the flat capture service that raises the failure"
  },
  {
   "title": "\"Save Location Required\" dialog's Continue button silently does nothing when no folder is chosen",
@@ -206,7 +206,7 @@
   "expected": "Disable Continue until a path is present (and say why), or validate on press with an inline 'Choose a folder to save flats'.",
   "repro": "Flat Wizard -> Quick Capture -> Start Capture -> leave 'Select a folder...' empty -> Continue.",
   "evidence": "/tmp/ns-audit/shots/rw-142.png (dialog before) and /tmp/ns-audit/shots/rw-143.png (after clicking Continue - pixel-identical).",
-  "where": "packages/nightshade_app/lib/screens/flat_wizard/save_path_dialog.dart"
+  "where": "packages/skotiq_app/lib/screens/flat_wizard/save_path_dialog.dart"
  },
  {
   "title": "Collaborative Sky dialogs render inside an empty full-height slab",
@@ -217,7 +217,7 @@
   "expected": "The dialog surface should wrap its content.",
   "repro": "Plan Tonight -> Discover -> Collaborate -> Connect to a hub.",
   "evidence": "/tmp/ns-audit/shots/rw-169.png, /tmp/ns-audit/shots/rw-174.png, /tmp/ns-audit/shots/rw-175.png - in each, the light slab spans x 433-847 for the full window height while the dialog card occupies only the middle third.",
-  "where": "packages/nightshade_app/lib/screens/collaborative_sky/ dialog scaffolding"
+  "where": "packages/skotiq_app/lib/screens/collaborative_sky/ dialog scaffolding"
  },
  {
   "title": "Collaborative Sky still says \"No collaborative mosaics on this hub yet\" right after you publish one",
@@ -228,7 +228,7 @@
   "expected": "Publishing must invalidate the collaborative-mosaic list provider so the surface that exists to show shared mosaics does not tell the user there are none.",
   "repro": "Connect to a hub -> Analytics -> Projects -> Mosaic projects -> open a project -> Publish to hub -> Plan Tonight -> Discover -> Collaborate.",
   "evidence": "/tmp/ns-audit/shots/rw-197.png (project screen: 'Status: Published', hub mosaic id) then /tmp/ns-audit/shots/rw-199.png (Collaborate: 'No collaborative mosaics on this hub yet'); hub DB row above; /tmp/ns-audit/shots/rw-201.png (the same list after pressing Refresh, now showing 'M31 Wide Field').",
-  "where": "packages/nightshade_app/lib/screens/collaborative_sky/collaborative_sky_screen.dart (mosaic list provider) and the publish action on packages/nightshade_app/lib/screens/mosaic/mosaic_project_screen.dart"
+  "where": "packages/skotiq_app/lib/screens/collaborative_sky/collaborative_sky_screen.dart (mosaic list provider) and the publish action on packages/skotiq_app/lib/screens/mosaic/mosaic_project_screen.dart"
  },
  {
   "title": "The same mosaic is described as \"3x2 grid\" on one screen and \"2x3 grid\" on the other",
@@ -239,7 +239,7 @@
   "expected": "One convention, stated once (e.g. '3 wide x 2 high').",
   "repro": "Publish a mosaic, then compare the project header with the Collaborate list entry.",
   "evidence": "/tmp/ns-audit/shots/rw-193.png and /tmp/ns-audit/shots/rw-194.png ('3x2 grid') vs /tmp/ns-audit/shots/rw-201.png ('2x3 grid'). DB: rows=2, cols=3.",
-  "where": "packages/nightshade_app/lib/screens/mosaic/mosaic_project_screen.dart + mosaic_projects_list_screen.dart vs packages/nightshade_app/lib/screens/collaborative_sky/"
+  "where": "packages/skotiq_app/lib/screens/mosaic/mosaic_project_screen.dart + mosaic_projects_list_screen.dart vs packages/skotiq_app/lib/screens/collaborative_sky/"
  },
  {
   "title": "The mosaic project screen's back breadcrumb always says \"Mosaic projects\" even when it returns somewhere else",
@@ -250,7 +250,7 @@
   "expected": "Either label the control generically ('Back') or label it with the actual previous route.",
   "repro": "Collaborate -> tap a mosaic -> Join mosaic -> press the '< Mosaic projects' breadcrumb.",
   "evidence": "/tmp/ns-audit/shots/rw-203.png ('< Mosaic projects' visible on the project screen reached from Collaborate) and /tmp/ns-audit/shots/rw-207.png (what it actually returns to: the Collaborative mosaic detail).",
-  "where": "packages/nightshade_app/lib/screens/mosaic/mosaic_project_screen.dart (hard-coded breadcrumb label)"
+  "where": "packages/skotiq_app/lib/screens/mosaic/mosaic_project_screen.dart (hard-coded breadcrumb label)"
  },
  {
   "title": "The Smart Night dashboard prompt never appears even with its toggle on and every documented precondition met",
@@ -261,6 +261,6 @@
   "expected": "With the toggle on and equipment ready the prompt should slide in from the bottom centre. Either it shows, or the setting should not promise it.",
   "repro": "Fresh profile -> Settings -> Location: 40 / -105 -> Equipment -> Edit Profile -> focal length 550, aperture 100 -> connect the four simulators -> Dashboard -> wait 4 minutes.",
   "evidence": "/tmp/ns-audit/shots/rw-212.png (dashboard right after connecting), /tmp/ns-audit/shots/rw-213.png (bottom strip 60 s later), /tmp/ns-audit/shots/rw-214.png (four minutes in - no prompt anywhere); /tmp/ns-audit/shots/rw-217.png and rw-218.png (the 'Dashboard auto-prompt' row and its toggle, on).",
-  "where": "packages/nightshade_app/lib/screens/dashboard/widgets/smart_night_prompt_card.dart:118-144 - the two remaining suppressors are the 60 s grace rebuild (_equipmentReadyGraceElapsed / _graceTimer) and 'if (draftAsync.isLoading || draftAsync.valueOrNull != null) return SizedBox.shrink()' on pendingSmartNightDraftProvider; a provider that never leaves loading would hide the card forever with no trace."
+  "where": "packages/skotiq_app/lib/screens/dashboard/widgets/smart_night_prompt_card.dart:118-144 - the two remaining suppressors are the 60 s grace rebuild (_equipmentReadyGraceElapsed / _graceTimer) and 'if (draftAsync.isLoading || draftAsync.valueOrNull != null) return SizedBox.shrink()' on pendingSmartNightDraftProvider; a provider that never leaves loading would hide the card forever with no trace."
  }
 ]

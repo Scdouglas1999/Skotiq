@@ -1,0 +1,30 @@
+name: skotiq_plugins
+description: Skotiq Plugins - Plugin host and API
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1
+  path: ^1.8.3
+  # Wave 6 plugin examples (Pushover, Discord, Home Assistant) POST to
+  # external HTTP services. Production-grade error handling lives in each
+  # plugin; the http package is the lowest-common-denominator HTTP client
+  # already used elsewhere in the workspace.
+  http: ^1.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # Pinned exact version across all 10 workspace packages to prevent
+  # mixed-version drift.
+  flutter_lints: ^5.0.0
+
+
+
+
+

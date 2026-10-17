@@ -41,7 +41,7 @@
 // ------------
 // The per-order npix lists below are NOT hand-picked: they are the exact output
 // of the production tile-selection brain (`HipsTileSelection.computeVisibleTiles`
-// in `packages/nightshade_core/lib/src/services/hips/hips_tile_selection.dart`)
+// in `packages/skotiq_core/lib/src/services/hips/hips_tile_selection.dart`)
 // for the field/plate-scale recorded in [fixturePlate], at the golden zoom for
 // each order. They were captured by running that code against this field; the
 // committed `fixture_field.dart` carries the same lists as the canonical
@@ -54,7 +54,7 @@
 //
 // Optional flags:
 //   --out=<dir>     Override the fixture output root (default: the in-repo
-//                   packages/nightshade_app/test/fixtures/hips directory).
+//                   packages/skotiq_app/test/fixtures/hips directory).
 //   --dry-run       Print the URLs that would be fetched, write nothing.
 //   --force         Re-download and overwrite files that already exist.
 //
@@ -131,7 +131,7 @@ Future<int> main(List<String> args) async {
   stdout.writeln('');
 
   final client = HttpClient()
-    ..userAgent = 'nightshade-hips-fixture-fetcher/1.0'
+    ..userAgent = 'skotiq-hips-fixture-fetcher/1.0'
     ..connectionTimeout = const Duration(seconds: 30);
 
   var fetched = 0;
@@ -225,7 +225,7 @@ Directory _defaultOutDir() {
   final toolDir = scriptFile.parent; // tools/hips_fixtures
   final repoRoot = toolDir.parent.parent; // <repo>
   return Directory(
-    '${repoRoot.path}/packages/nightshade_app/test/fixtures/hips',
+    '${repoRoot.path}/packages/skotiq_app/test/fixtures/hips',
   );
 }
 

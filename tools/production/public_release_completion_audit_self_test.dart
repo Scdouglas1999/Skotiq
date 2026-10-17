@@ -11,7 +11,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_completion_audit_self_test_',
+    'skotiq_completion_audit_self_test_',
   );
   try {
     await _prepareWorkspace(temp);
@@ -109,7 +109,7 @@ Future<void> _prepareWorkspace(Directory root) async {
 - Split generated/binary/native changes from Dart/UI changes where possible.
 - Do a Linux release build on an actual Linux environment, not inferred from Windows.
 - Run a full hardware smoke pass with real or simulator-backed camera, mount, focuser, filter wheel, rotator, guider, dome, weather, and safety devices.
-- Verify upgrade/migration from an older Nightshade profile/database.
+- Verify upgrade/migration from an older Skotiq profile/database.
 - Verify headless auth, LAN opt-in, dashboard, mobile remote client, and WebSocket reconnect behavior together.
 - Produce a release checklist with known unsupported-by-platform items clearly documented.
 ''');

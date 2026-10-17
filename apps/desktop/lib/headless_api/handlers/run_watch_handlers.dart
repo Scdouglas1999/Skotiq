@@ -2,7 +2,7 @@
 //
 // This file backs the focused "watch a running sequence from a phone over
 // LAN" web app shipped under /run-watch. The goal is the same monitoring
-// surface as NINA's Touch'N'Stars, but driven by Nightshade's existing
+// surface as NINA's Touch'N'Stars, but driven by Skotiq's existing
 // backend + executor data sources rather than a parallel service layer.
 //
 // Endpoints (all under /api/run-watch/*):
@@ -18,7 +18,7 @@
 //                                          already produced for the GUI
 //                                          run dashboard).
 //   GET  /api/run-watch/events           — Server-Sent Events stream.
-//                                          The same NightshadeEvent JSON
+//                                          The same SkotiqEvent JSON
 //                                          fan-out the WebSocket
 //                                          broadcaster sees, but framed
 //                                          as text/event-stream so
@@ -36,8 +36,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_bridge/nightshade_bridge.dart' as bridge_error;
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import '../display_buffer_jpeg.dart';
@@ -62,7 +62,7 @@ class RunWatchHandlers {
   /// SSE clients come and go independently; subscribing each one to the
   /// backend stream directly would race on the underlying tokio broadcast
   /// channel, so every /events subscriber fans out from this one instead.
-  final Stream<NightshadeEvent> eventBroadcast;
+  final Stream<SkotiqEvent> eventBroadcast;
 
   /// Maximum events to retain for the snapshot's `recentEvents` block.
   /// The phone client doesn't show more than 5; a few extra are kept
@@ -74,11 +74,11 @@ class RunWatchHandlers {
   /// subscription on [eventBroadcast]; trimmed to [_maxRetainedEvents].
   ///
   /// Why a local buffer rather than reading `eventHistoryProvider`:
-  /// that provider stores the FRB bridge's NightshadeEvent variant
+  /// that provider stores the FRB bridge's SkotiqEvent variant
   /// (sealed payload union) which has a different toJson shape from
-  /// the core NightshadeEvent we get out of `backend.eventStream`.
-  final List<NightshadeEvent> _recentBuffer = <NightshadeEvent>[];
-  StreamSubscription<NightshadeEvent>? _bufferSubscription;
+  /// the core SkotiqEvent we get out of `backend.eventStream`.
+  final List<SkotiqEvent> _recentBuffer = <SkotiqEvent>[];
+  StreamSubscription<SkotiqEvent>? _bufferSubscription;
 
   RunWatchHandlers({required this.container, required this.eventBroadcast}) {
     // Track recent events for the snapshot endpoint. We tolerate
@@ -555,7 +555,7 @@ class RunWatchHandlers {
   /// trigger feed can render history immediately on page load.
   ///
   /// Why a local ring buffer rather than `eventHistoryProvider`: that
-  /// provider stores the FRB bridge's NightshadeEvent variant whereas
+  /// provider stores the FRB bridge's SkotiqEvent variant whereas
   /// we deal in the core variant on the broadcast stream. Routing
   /// through the same upstream the SSE handler uses guarantees the
   /// page-load snapshot agrees with the live SSE feed.
@@ -670,7 +670,7 @@ class RunWatchHandlers {
     CapturedImageResult? image;
     try {
       image = await backend.cameraGetLastImage(deviceId);
-    } on bridge_error.NightshadeError catch (error) {
+    } on bridge_error.SkotiqError catch (error) {
       final isEmptyBuffer = error.maybeMap(
         noImageAvailable: (_) => true,
         orElse: () => false,
@@ -730,7 +730,7 @@ class RunWatchHandlers {
   /// every CSP we ship; that makes SSE a better fit than WebSocket for
   /// one-way event push to a phone.
   ///
-  /// Each NightshadeEvent is emitted as a typed event so the client can
+  /// Each SkotiqEvent is emitted as a typed event so the client can
   /// filter without parsing the entire payload — e.g. `addEventListener
   /// ('FrameAccepted', ...)`. The default `message` event also fires so
   /// clients that just want the firehose can listen there.
@@ -742,7 +742,7 @@ class RunWatchHandlers {
       controller.add(utf8.encode(s));
     }
 
-    StreamSubscription<NightshadeEvent>? sub;
+    StreamSubscription<SkotiqEvent>? sub;
     Timer? keepAlive;
     int counter = 0;
 
@@ -766,7 +766,7 @@ class RunWatchHandlers {
             // `message` listeners can route without inspecting headers.
             final payload = jsonEncode({...json, 'eventName': eventName});
             // Use monotonic counter for the id; the core
-            // NightshadeEvent has no stable id field. EventSource
+            // SkotiqEvent has no stable id field. EventSource
             // resends `Last-Event-ID` on reconnect but we don't replay,
             // so the id is informational only.
             write('event: $eventName\nid: $counter\ndata: $payload\n\n');
@@ -815,18 +815,18 @@ class RunWatchHandlers {
 
   // Internal helpers
 
-  /// Encode a NightshadeEvent the way the SSE/snapshot path expects.
-  Map<String, Object?> _eventToJson(NightshadeEvent event) {
+  /// Encode a SkotiqEvent the way the SSE/snapshot path expects.
+  Map<String, Object?> _eventToJson(SkotiqEvent event) {
     final json = event.toJson();
     return {...json, 'eventName': _eventTypeName(event)};
   }
 
   /// Extract a coarse event-type name for SSE `event:` framing.
   ///
-  /// The core NightshadeEvent already carries a `eventType` String
+  /// The core SkotiqEvent already carries a `eventType` String
   /// (e.g. "FrameAccepted", "ExposureStarted") so the browser can do
   /// `evt.addEventListener('FrameAccepted', ...)` cleanly.
-  String _eventTypeName(NightshadeEvent event) {
+  String _eventTypeName(SkotiqEvent event) {
     final raw = event.eventType;
     // SSE event names tolerate most characters but the browser-side
     // `addEventListener` is far simpler when the name is a plain

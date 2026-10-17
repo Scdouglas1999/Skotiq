@@ -3,7 +3,7 @@
     Run all OTA update system tests.
 
 .DESCRIPTION
-    This script runs the complete test suite for the Nightshade OTA update system:
+    This script runs the complete test suite for the Skotiq OTA update system:
     1. Dart unit tests for LAN push protocol
     2. End-to-end LAN push test with mock receiver
     3. Optional: Real network test to imaging laptop
@@ -15,7 +15,7 @@
     Only run E2E tests, skip unit tests.
 
 .PARAMETER RealNetwork
-    Include real network discovery test (requires Nightshade running on imaging laptop).
+    Include real network discovery test (requires Skotiq running on imaging laptop).
 
 .PARAMETER Target
     Specific IP to test against for real network tests.
@@ -50,7 +50,7 @@ $totalFailed = 0
 
 try {
     Write-Host "======================================" -ForegroundColor Magenta
-    Write-Host " Nightshade OTA Update System Tests" -ForegroundColor Magenta
+    Write-Host " Skotiq OTA Update System Tests" -ForegroundColor Magenta
     Write-Host "======================================" -ForegroundColor Magenta
     Write-Host ""
 
@@ -61,7 +61,7 @@ try {
         Write-Host "==> Running Dart Unit Tests" -ForegroundColor Cyan
         Write-Host ""
 
-        Push-Location "packages/nightshade_updater"
+        Push-Location "packages/skotiq_updater"
 
         try {
             # Get dependencies
@@ -144,7 +144,7 @@ try {
             }
         } catch {
             Write-Host "[WARN] Real network test error: $_" -ForegroundColor Yellow
-            Write-Host "       (This may be expected if no Nightshade instances are running)" -ForegroundColor Gray
+            Write-Host "       (This may be expected if no Skotiq instances are running)" -ForegroundColor Gray
         }
 
         Write-Host ""

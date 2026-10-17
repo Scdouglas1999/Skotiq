@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless_api/command_correlator.dart';
+import 'package:skotiq_desktop/headless_api/command_correlator.dart';
 
 /// UUID v4 canonical form. The 13th hex char (after two dashes) must be
 /// `4`, and the 17th must be one of `8`, `9`, `a`, `b` (variant 10xx).
@@ -317,7 +317,7 @@ void main() {
 
     test('the sequencer lifecycle names a host really emits resolve', () {
       // The FFI event mapper emits BARE lifecycle names — see
-      // `nightshade_core/lib/src/backend/ffi_backend/event_mapping.dart`
+      // `skotiq_core/lib/src/backend/ffi_backend/event_mapping.dart`
       // (`return ('Started', ...)`, `('Stopped', {})`, `('Completed', {})`) —
       // and only the terminal failure is prefixed. A table carrying just the
       // prefixed spellings stamps no sequencer command with its

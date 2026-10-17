@@ -26,7 +26,7 @@ tooltip read "Hide the map" while no map had appeared or disappeared anywhere.
 Bundle built in this worktree at `f1f739da1` (`flutter build linux --release`
 then the bridge `.so` copied in — the flutter build wipes it every time).
 Harness: `tools/ui_audit/drive_linux.py --profile w6map`, `NS_AUDIT_DISPLAY=:94`,
-profile seeded from `/home/scdouglas/.cache/nightshade-ledger-preview/data`
+profile seeded from `/home/scdouglas/.cache/skotiq-ledger-preview/data`
 (lock file removed). Navigated Sequencer → Saved → "NGC 7000 + M31 · full night"
 → Load, then switched to Ledger density and clicked the Map glyph in the canvas
 bar.
@@ -51,7 +51,7 @@ and a gutter that never left.
 ## Verified in the running app (this build, after the fix)
 
 Same profile, same night, same canvas width, same measurements. (The shared
-cargo-target `libnightshade_bridge.so` was rebuilt from another commit mid-run
+cargo-target `libskotiq_bridge.so` was rebuilt from another commit mid-run
 and the app refused to start on the frb hash; the campaign-hash copy from
 `ns-worktrees/seq-ledger` was used, per the coordinator's correction. The base
 run above had the matching bridge already.)
@@ -113,7 +113,7 @@ never disagreed with it.
 
 ## What changed
 
-- **New** `packages/nightshade_app/lib/screens/sequencer/widgets/sequence_overview_prefs.dart`
+- **New** `packages/skotiq_app/lib/screens/sequencer/widgets/sequence_overview_prefs.dart`
   - `SequenceOverviewPrefs` (per-density map, JSON round-trip, tolerant of keys
     that name no density),
   - `sequenceOverviewPrefsProvider` — `AsyncNotifier` over `settingsDaoProvider`,
@@ -127,8 +127,8 @@ never disagreed with it.
   gone; the widget's doc now points at the provider that governs both shapes.
 - `sequence_tree/gutter_map.dart` — new `_GutterMapSlot` wraps the gutter in a
   `TweenAnimationBuilder` width factor on
-  `animationDuration(context, NightshadeTokens.durationSmooth)` with
-  `NightshadeTokens.curveStandard` (no bounce; zero-length under
+  `animationDuration(context, SkotiqTokens.durationSmooth)` with
+  `SkotiqTokens.curveStandard` (no bounce; zero-length under
   `MediaQuery.disableAnimations` via the shared helper). `ClipRect` + a
   left-anchored `Align(widthFactor:)` rather than an animated `SizedBox`, so the
   painter is not re-laid-out and repainted on every frame of the close. At rest
@@ -171,8 +171,8 @@ never disagreed with it.
 
 | command | exit |
 | --- | --- |
-| `flutter test test/screens/sequencer --concurrency=3` (nightshade_app) | 0 — **729 passed** (721 on base + 8 new) |
-| `cd packages/nightshade_app && dart analyze` | 2 — **890 issues, identical to the base count**; zero new |
+| `flutter test test/screens/sequencer --concurrency=3` (skotiq_app) | 0 — **729 passed** (721 on base + 8 new) |
+| `cd packages/skotiq_app && dart analyze` | 2 — **890 issues, identical to the base count**; zero new |
 | `dart format` on the seven touched files | clean (3 reformatted, then committed formatted) |
 
 `dart analyze` exits 2 on the pre-existing 890 infos (deprecations across the
@@ -181,7 +181,7 @@ brief sets.
 
 ## Tests added
 
-`packages/nightshade_app/test/screens/sequencer/sequence_toolbar_map_toggle_test.dart`
+`packages/skotiq_app/test/screens/sequencer/sequence_toolbar_map_toggle_test.dart`
 (8 cases), pumping the canvas bar over the tree it governs so the toggle is
 tested as the contract it is:
 

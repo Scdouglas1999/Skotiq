@@ -3,12 +3,12 @@
   "key": "ux-analytics",
   "title": "The Captured Images thumbnail rail cannot be scrolled with an ordinary mouse wheel and has no scrollbar",
   "outcome": "fixed",
-  "summary": "Confirmed at the cited location. The rail was a bare horizontal ListView.builder with the default desktop ScrollBehavior, so a vertical wheel notch went to the page and the trailing frames of a long night were reachable only by shift+wheel, which nothing advertised. Fixed the cause using the pattern nightshade_ui's AdaptiveTabBar already uses: a Listener maps PointerScrollEvent.dy onto an owned ScrollController (horizontal deltas are left to the Scrollable so nothing double-scrolls), and the list is wrapped in Scrollbar(thumbVisibility: true). The rail keeps its exact height — the scrollbar's 10px comes out of the list's own bottom padding — so the loading and error placeholders in session_tab, which use the same kAnalyticsThumbnailRailHeight constant, do not jump when the data arrives.",
+  "summary": "Confirmed at the cited location. The rail was a bare horizontal ListView.builder with the default desktop ScrollBehavior, so a vertical wheel notch went to the page and the trailing frames of a long night were reachable only by shift+wheel, which nothing advertised. Fixed the cause using the pattern skotiq_ui's AdaptiveTabBar already uses: a Listener maps PointerScrollEvent.dy onto an owned ScrollController (horizontal deltas are left to the Scrollable so nothing double-scrolls), and the list is wrapped in Scrollbar(thumbVisibility: true). The rail keeps its exact height — the scrollbar's 10px comes out of the list's own bottom padding — so the loading and error placeholders in session_tab, which use the same kAnalyticsThumbnailRailHeight constant, do not jump when the data arrives.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart",
-   "packages/nightshade_app/test/screens/analytics/widgets/thumbnail_rail_reachable_test.dart"
+   "packages/skotiq_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart",
+   "packages/skotiq_app/test/screens/analytics/widgets/thumbnail_rail_reachable_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/analytics/widgets/thumbnail_rail_reachable_test.dart — 'a plain vertical wheel over the rail scrolls the rail' sends a real mouse PointerScrollEvent(0, 220) over a 16-frame rail in a 400px box and asserts the offset moved; 'the rail carries a permanently visible scrollbar' asserts thumbVisibility.",
+  "test": "packages/skotiq_app/test/screens/analytics/widgets/thumbnail_rail_reachable_test.dart — 'a plain vertical wheel over the rail scrolls the rail' sends a real mouse PointerScrollEvent(0, 220) over a 16-frame rail in a 400px box and asserts the offset moved; 'the rail carries a permanently visible scrollbar' asserts thumbVisibility.",
   "revert_check": "Reverted `onPointerSignal: _handleRailScroll` -> `(_) {}` and `thumbVisibility: true` -> `false`: both tests failed (the wheel test at the offset assertion, the scrollbar test on the flag). Restored, both pass."
  },
  {
@@ -17,10 +17,10 @@
   "outcome": "fixed",
   "summary": "Confirmed: ImageThumbnailStrip declared onImageTap and neither of its two call sites (session_tab.dart, session_detail_dialog.dart) passed one, so a left click — the gesture everyone tries first — did nothing, and the only per-frame affordance was an unadvertised long-press/right-click menu. Rather than wiring a handler at each call site (which leaves the next caller inert again), the strip now opens its own frame inspector when no handler is supplied, and a supplied handler still wins. Built FrameDetailDialog: enlarged preview from the same backend thumbnail the rail already fetches, a metadata table from the row (exposure, filter, gain/offset, binning, sensor temp, HFR, stars, guiding RMS, focuser position, mount altitude, solved position, pixel scale, zero point, path), the rejection reason when the frame is rejected, and an accept/reject action that goes through imagingRecordsRepositoryProvider so it reaches the host in remote mode. Solved RA is printed as h:m:s via CoordinateParser because the column is HOURS. The thumbnail loader was extracted to frame_thumbnail_loader.dart so the rail and the inspector cannot disagree about whether a frame is viewable. NOT done: the finding suggested opening ImageGraderDialog — that is a bulk rule-based grader over a whole session and is the wrong thing to open from a single frame.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/analytics/widgets/frame_detail_dialog.dart (new)",
-   "packages/nightshade_app/lib/screens/analytics/widgets/frame_thumbnail_loader.dart (new)",
-   "packages/nightshade_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart",
-   "packages/nightshade_app/test/screens/analytics/widgets/thumbnail_rail_reachable_test.dart"
+   "packages/skotiq_app/lib/screens/analytics/widgets/frame_detail_dialog.dart (new)",
+   "packages/skotiq_app/lib/screens/analytics/widgets/frame_thumbnail_loader.dart (new)",
+   "packages/skotiq_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart",
+   "packages/skotiq_app/test/screens/analytics/widgets/thumbnail_rail_reachable_test.dart"
   ],
   "test": "thumbnail_rail_reachable_test.dart — 'tapping a thumbnail opens the frame inspector' and 'a caller-supplied handler still wins over the inspector'.",
   "revert_check": "Reverted `onTap: _handleTap` to the old `widget.onImageTap == null ? null : ...`: the inspector test failed (FrameDetailDialog not found) and the override test still passed, which is the correct split. Restored, both pass."
@@ -31,10 +31,10 @@
   "outcome": "fixed",
   "summary": "Partly real, and only partly fixable without new instrumentation — so I fixed the part that was a lie and left the rest. Meridian Flips IS recorded: every sequence run persists a stats blob carrying `meridianFlips` (sequence_runs.statsJson, parsed by ParsedRunStats, already printed by the Morning Report and the run history), and the tab hardcoded 'Not tracked' beside it. That row now totals the recorded count across all runs, via sequenceRunsProvider so it works on a slave over the network too, with a malformed or legacy blob contributing zero instead of taking the tab down. The other five are NOT derivable: I checked and there is no slew count, no tracking-time accumulator, and no focuser-step counter anywhere in the schema; guide_rms_history keys on a TEXT session id and stores per-sample RMS with a nullable exposure, so 'Total Guide Time' could only be inferred, and 'Star Lost Events' is not recorded at all. Wiring those means new columns and new write paths through the mount ops, the focuser ops and the PHD2 bridge — see the separate needs-decision entry.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/analytics/analytics_screen/equipment_stats.dart",
-   "packages/nightshade_app/test/screens/analytics/equipment_stats_meridian_flips_test.dart"
+   "packages/skotiq_app/lib/screens/analytics/analytics_screen/equipment_stats.dart",
+   "packages/skotiq_app/test/screens/analytics/equipment_stats_meridian_flips_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/analytics/equipment_stats_meridian_flips_test.dart — totals 2+1 across four runs (one legacy '{}', one corrupt 'not json') and asserts exactly five 'Not tracked' rows remain.",
+  "test": "packages/skotiq_app/test/screens/analytics/equipment_stats_meridian_flips_test.dart — totals 2+1 across four runs (one legacy '{}', one corrupt 'not json') and asserts exactly five 'Not tracked' rows remain.",
   "revert_check": "Reverted the row to `const _Stat(label: 'Meridian Flips', value: _kNotTracked)`: 'Meridian Flips totals the count the runs recorded' failed. Restored, passes."
  },
  {
@@ -65,11 +65,11 @@
   "outcome": "fixed",
   "summary": "Confirmed by reading the chain: the tab fell back to latestScienceSessionProvider, which answers 'newest session holding LIGHT frames' — a different question, so two test frames shot after a photometry night win, and the tab opens on '0 of N solved' with the never-started empty state while the calibrated night sits one row down in a dropdown. The rule chosen dominates rather than trades off: when the newest session HAS science both rules agree, and when it does not the old one shows nothing usable. Added ImagesDao.getSessionIdsWithSolvedFrames and ScienceDao.getSessionIdsWithPhotometry, plus latestScienceProductSessionProvider, which orders candidates by allSessionsProvider (newest first) so 'most recent' means the same thing here as in the session picker beside it. It slots in as: manual pick -> live -> newest with a science product -> newest with light frames -> newest at all, so nothing that used to resolve now resolves to less. The tab's own 'Analysing <name>' bar still names the session, so the choice is visible.",
   "files_changed": [
-   "packages/nightshade_core/lib/src/database/daos/images_dao.dart",
-   "packages/nightshade_core/lib/src/database/daos/science_dao.dart",
-   "packages/nightshade_app/lib/screens/analytics/widgets/science_analytics_tab.dart",
-   "packages/nightshade_core/test/database/session_science_products_test.dart",
-   "packages/nightshade_app/test/screens/analytics/widgets/science_default_session_test.dart"
+   "packages/skotiq_core/lib/src/database/daos/images_dao.dart",
+   "packages/skotiq_core/lib/src/database/daos/science_dao.dart",
+   "packages/skotiq_app/lib/screens/analytics/widgets/science_analytics_tab.dart",
+   "packages/skotiq_core/test/database/session_science_products_test.dart",
+   "packages/skotiq_app/test/screens/analytics/widgets/science_default_session_test.dart"
   ],
   "test": "session_science_products_test.dart pins the two DAO queries against an in-memory DB (including that a session of unsolved lights carries no product while getLatestSessionIdWithLightFrames still returns it); science_default_session_test.dart drives the provider with stub DAOs — 'two test frames do not bury the photometry night they follow' expects session 4 with session 5 newer.",
   "revert_check": "Reverted the provider's `if (sessions.isEmpty) return null;` to `if (sessions.isNotEmpty) return null;` (i.e. always null, the old behaviour): three of the four provider tests failed. Restored, all pass."
@@ -80,10 +80,10 @@
   "outcome": "fixed",
   "summary": "Confirmed at science_report_exporter.dart. Drift hands session start/end back as LOCAL DateTimes, so '**Started:** ...' printed local wall time in ISO-8601 shape with no offset and no Z, a few lines above a footer that carries a Z and a light-curve block explicitly labelled '(UTC)'. One convention now: a _utcStamp helper converts to UTC and the fields are labelled '**Started (UTC):**' / '**Ended (UTC):**'. Only the Session block was wrong — the light-curve block already called .toUtc() before formatting.",
   "files_changed": [
-   "packages/nightshade_core/lib/src/services/science/science_report_exporter.dart",
-   "packages/nightshade_core/test/services/science/science_report_timestamp_test.dart"
+   "packages/skotiq_core/lib/src/services/science/science_report_exporter.dart",
+   "packages/skotiq_core/test/services/science/science_report_timestamp_test.dart"
   ],
-  "test": "packages/nightshade_core/test/services/science/science_report_timestamp_test.dart — asserts the field is labelled, parses as UTC, ends with Z, that the old unlabelled '**Started:**' form is gone, and that the printed instant equals the stored epoch (so the fix moved the field values rather than appending a Z to local ones).",
+  "test": "packages/skotiq_core/test/services/science/science_report_timestamp_test.dart — asserts the field is labelled, parses as UTC, ends with Z, that the old unlabelled '**Started:**' form is gone, and that the printed instant equals the stored epoch (so the fix moved the field values rather than appending a Z to local ones).",
   "revert_check": "Reverted to `'- **Started:** ${session.startTime.toIso8601String()}'`: both tests failed. Restored, both pass."
  },
  {
@@ -92,11 +92,11 @@
   "outcome": "fixed",
   "summary": "Confirmed: the sheet's locked branch rendered only 'Got it', even though the ladder card already hands it an onCta and the app already knows where each prerequisite is satisfied. The sheet now takes an optional unlockLabel/onUnlock and renders it beside 'Got it' for a locked rung. Deliberately NOT the rung's own CTA: rung 5's CTA opens the export hub and that rung is locked precisely because there is nothing to export, so routing there would replace one dead end with another. All three lockable prerequisites (track a star, gather ten points, record something exportable) are satisfied in the photometry section, so the unlock action is a single honest 'Go to photometry' that fires the card's existing onJumpToPhotometry. Never-locked rungs (measure, track) get no unlock action, keyed off the same _prerequisiteFor map that decides whether a prerequisite is shown at all.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/analytics/widgets/science_onboarding/science_rung_sheet.dart",
-   "packages/nightshade_app/lib/screens/analytics/widgets/science_onboarding/science_ladder_card.dart",
-   "packages/nightshade_app/test/screens/analytics/widgets/science_rung_unlock_test.dart"
+   "packages/skotiq_app/lib/screens/analytics/widgets/science_onboarding/science_rung_sheet.dart",
+   "packages/skotiq_app/lib/screens/analytics/widgets/science_onboarding/science_ladder_card.dart",
+   "packages/skotiq_app/test/screens/analytics/widgets/science_rung_unlock_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/analytics/widgets/science_rung_unlock_test.dart — the locked 'Build a light curve' sheet offers 'Go to photometry', tapping it navigates once and closes the sheet; the locked 'Contribute it' sheet does NOT offer 'Export data'; a ready rung still shows its own CTA and no unlock button.",
+  "test": "packages/skotiq_app/test/screens/analytics/widgets/science_rung_unlock_test.dart — the locked 'Build a light curve' sheet offers 'Go to photometry', tapping it navigates once and closes the sheet; the locked 'Contribute it' sheet does NOT offer 'Export data'; a ready rung still shows its own CTA and no unlock button.",
   "revert_check": "Reverted the sheet's `if (onUnlock != null && unlockLabel != null)` to `... == null` (button never rendered): two of the three tests failed. Restored, all pass."
  },
  {
@@ -105,10 +105,10 @@
   "outcome": "fixed",
   "summary": "Confirmed: the painter drew 25 coloured circles and nothing else, so a 2% uniformity spread and a 40% one rendered identically and a red corner could not be mapped onto a physical adjustment. Three additions, all from data already on screen. (1) Corner labels drawn ON the surface: the four grid corners are projected and tagged r0·c0 / r0·c4 / r4·c0 / r4·c4 — indices, not TL/TR, because the surface can be orbited so a fixed legend would be wrong half the time, and because tile_row/tile_col are provably the image row/column order (native/.../api/imaging.rs builds them from the y/x loops). (2) A colour bar under the plot with the ramp's own 5th/95th-percentile ends, the median, the true min-max range and the layer's unit where the producer provably writes one (% for clip_low/clip_high, ADU for background, mag for residual_mag, px for fwhm/hfr; the ratios are left unitless rather than guessed). (3) Tap-to-read: the projection was extracted into projectSurfaceTiles so the hit test resolves against the same points the painter drew, the nearest marker within 18px is ringed and its tile and value printed; a tap that lands nowhere clears the readout instead of reporting a tile nobody aimed at, and changing layer clears it so one layer's value is never printed under another's name. Also shrank the plot as the finding asked: it was a full-width 16:9 box that ran to ~450px of mostly empty space on a desktop column and, once the scale bar was added, pushed the controls out of the card — it now follows the width up to a 300px cap.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/analytics/widgets/science_surface_explorer.dart",
-   "packages/nightshade_app/test/screens/analytics/widgets/science_surface_explorer_readable_test.dart"
+   "packages/skotiq_app/lib/screens/analytics/widgets/science_surface_explorer.dart",
+   "packages/skotiq_app/test/screens/analytics/widgets/science_surface_explorer_readable_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/analytics/widgets/science_surface_explorer_readable_test.dart — unit tests for surfaceValueScale (ramp ends vs real extent; empty layer) and projectSurfaceTiles (25 finite points, corner norms 0 and 1), plus widget tests that the card prints 'range 0.100–0.320' and the tap prompt, and that tapping the projected (4,4) marker prints 'Tile r4·c4' and its value.",
+  "test": "packages/skotiq_app/test/screens/analytics/widgets/science_surface_explorer_readable_test.dart — unit tests for surfaceValueScale (ramp ends vs real extent; empty layer) and projectSurfaceTiles (25 finite points, corner norms 0 and 1), plus widget tests that the card prints 'range 0.100–0.320' and the tap prompt, and that tapping the projected (4,4) marker prints 'Tile r4·c4' and its value.",
   "revert_check": "Reverted `if (selectedTiles.isNotEmpty) ...[` (the scale bar + readout block) to `isEmpty`: both widget tests failed. Restored, both pass. The pre-existing science_surface_contours_test also caught the card overflowing by 72px before the plot was capped — that is why the height change is part of this fix, and it passes now."
  },
  {
@@ -117,12 +117,12 @@
   "outcome": "fixed",
   "summary": "Confirmed at all three cited locations. _formatPeriod was a private method on the panel state while each painter carried its own inline formatting, so the headline said '20.0 min', the Lomb-Scargle marker 'P=0.014d' and the BLS marker 'P=0.33h' for one peak. Promoted the formatter to a library-level formatPeriodLabel (the painters are `part of` the panel), and both markers now go through named periodogramPeakLabel / blsPeakLabel helpers built on it, so the markers read exactly like the headline. Axes keep their natural units as the finding asked, but the BLS x-axis title now says 'Period (h / d, log)' instead of a bare 'Period' over ticks that switch unit mid-axis; the LS axis was already labelled 'Frequency (1/day)'.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/analytics/widgets/period_analysis_panel.dart",
-   "packages/nightshade_app/lib/screens/analytics/widgets/period_analysis_panel/periodogram_painter.dart",
-   "packages/nightshade_app/lib/screens/analytics/widgets/period_analysis_panel/bls_spectrum_painter.dart",
-   "packages/nightshade_app/test/screens/analytics/widgets/period_marker_units_test.dart"
+   "packages/skotiq_app/lib/screens/analytics/widgets/period_analysis_panel.dart",
+   "packages/skotiq_app/lib/screens/analytics/widgets/period_analysis_panel/periodogram_painter.dart",
+   "packages/skotiq_app/lib/screens/analytics/widgets/period_analysis_panel/bls_spectrum_painter.dart",
+   "packages/skotiq_app/test/screens/analytics/widgets/period_marker_units_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/analytics/widgets/period_marker_units_test.dart — for a 20-minute period, blsPeakLabel and periodogramPeakLabel must both equal 'P=' + the headline's formatPeriodLabel, and neither may print bare hours or bare days.",
+  "test": "packages/skotiq_app/test/screens/analytics/widgets/period_marker_units_test.dart — for a 20-minute period, blsPeakLabel and periodogramPeakLabel must both equal 'P=' + the headline's formatPeriodLabel, and neither may print bare hours or bare days.",
   "revert_check": "Reverted blsPeakLabel to the old inline `<1 ? h : d` expression: 'both chart markers read like the headline' and 'a sub-day BLS peak is no longer printed in bare hours' failed. Restored, all pass."
  },
  {
@@ -131,17 +131,17 @@
   "outcome": "fixed",
   "summary": "The defect class is real but the reported repro is not the path that produces it, so read this before believing the screenshot. With NULL fwhm and NULL eccentricity both rows fall to their synthetic ranges ([0,12] and [0,1]) and BOTH park at the top — I could not reproduce a left-pinned FWHM that way. The real cause is a degenerate range: when every frame carries the same value, rangeMin == rangeMax, the track is widened to rangeMin+1 so Material will render it, but the off value was clamped against rangeMax — i.e. to the BOTTOM of a track that runs one unit higher. Two rules with different data shapes then show the same word 'off' at opposite ends. Fixed by making the clamp follow the widened track (thresholdSliderMax / maxRuleThumbValue, now named and testable), so an off 'Max x' rule always sits at the permissive top and an off 'Min stars' rule always at the permissive bottom. Also dimmed an off rule's track to 0.45 opacity so it stops reading as a threshold in force, while staying draggable — dragging an off rule is how you switch it on, and disabling it would have taken that away.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/analytics/widgets/image_grader_dialog.dart",
-   "packages/nightshade_app/test/screens/analytics/widgets/image_grader_off_rule_test.dart"
+   "packages/skotiq_app/lib/screens/analytics/widgets/image_grader_dialog.dart",
+   "packages/skotiq_app/test/screens/analytics/widgets/image_grader_off_rule_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/analytics/widgets/image_grader_off_rule_test.dart — maxRuleThumbValue(null, 2.4, 2.4) must be 3.4 (top of the widened track) not 2.4; plus widget tests that the two off rows sit at slider.max and that exactly the two off rows are dimmed.",
+  "test": "packages/skotiq_app/test/screens/analytics/widgets/image_grader_off_rule_test.dart — maxRuleThumbValue(null, 2.4, 2.4) must be 3.4 (top of the widened track) not 2.4; plus widget tests that the two off rows sit at slider.max and that exactly the two off rows are dimmed.",
   "revert_check": "Reverted `(value ?? top).clamp(rangeMin, top)` to `(value ?? rangeMax).clamp(rangeMin, rangeMax)` and the opacity to a constant 1.0: 'an off Max rule sits at the top even on a degenerate range' and 'an off rule is dimmed' failed. Restored, all pass."
  },
  {
   "key": "ux-analytics",
   "title": "MPC export only offers the legacy 80-column format while the app's own transient panel documents ADES PSV",
   "outcome": "needs-decision",
-  "summary": "Real, and cheaper than the finding assumes: a complete ADES PSV writer already exists in nightshade_core/lib/src/services/transients/transient_report_service.dart, with the observatory code, astCat and observer/measurer fields ADES needs, already wired to the TransientReportPanel and gated on a 3-character obs code being configured. So the two panels really do target the same recipient in two formats, and the moving-object path is the legacy one. What is left is a product call about the submission format Nightshade tells users to send, not a missing capability.",
+  "summary": "Real, and cheaper than the finding assumes: a complete ADES PSV writer already exists in skotiq_core/lib/src/services/transients/transient_report_service.dart, with the observatory code, astCat and observer/measurer fields ADES needs, already wired to the TransientReportPanel and gated on a 3-character obs code being configured. So the two panels really do target the same recipient in two formats, and the moving-object path is the legacy one. What is left is a product call about the submission format Skotiq tells users to send, not a missing capability.",
   "options": "(a) Add a format selector to the MPC Report Export card that reuses the existing ADES writer, defaulting to ADES when an observatory code is set and falling back to 80-column when it is not. (b) Replace the 80-column writer outright. (c) Leave it: the 80-column format is still accepted for many programmes and needs no observatory code, so it is the format that works for a user who has not registered one.",
   "recommendation": "(a). It removes the contradiction between the two panels, reuses code that already exists rather than writing a second one, and does not lock out a user with no obs code. I would not do (b) — that makes an unregistered observer unable to export at all.",
   "files_changed": [],
@@ -154,22 +154,22 @@
   "outcome": "fixed",
   "summary": "Confirmed, and worse than reported: the wizard's own star-matching step REFUSES a frame whose mount altitude was never recorded (star_matching.dart throws rather than inventing X = 1.0), so a user could select 120 rows and only learn at 'Match Stars' that some of them can never contribute. The picker now shows what the fit needs and what it will refuse. Each row carries 'Alt 52.3° · X 1.26', computed through the product's one airmass model (airmassForTrueAltitude) so the list and the fit agree, and a frame with no usable altitude reads 'no recorded altitude — cannot fit' in the warning colour. Above the list: a live 'N of M selected · K unusable' count, 'Select all usable' (which takes the frames that match the filter being calibrated AND have an altitude, so it cannot hand the fit a frame it will reject) and 'Clear'. NOT done: sort-by-airmass and a 'select spread (lowest/median/highest)' picker — those are feature design rather than a defect, and the airmass column plus Select all already makes the spread visible and reachable.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/analytics/widgets/photometric_calibration_wizard/frame_selection.dart",
-   "packages/nightshade_app/test/screens/analytics/widgets/photometric_wizard_frame_picker_test.dart",
-   "packages/nightshade_app/test/screens/analytics/widgets/photometric_calibration_airmass_test.dart"
+   "packages/skotiq_app/lib/screens/analytics/widgets/photometric_calibration_wizard/frame_selection.dart",
+   "packages/skotiq_app/test/screens/analytics/widgets/photometric_wizard_frame_picker_test.dart",
+   "packages/skotiq_app/test/screens/analytics/widgets/photometric_calibration_airmass_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/analytics/widgets/photometric_wizard_frame_picker_test.dart — rows state 'Alt 75.0° · X 1.0' and 'Alt 25.0° · X 2.3'; a frame with no altitude says it cannot be fitted; 'Select all usable' takes 3 of 4 (skipping the altitude-less one) and 'Clear' undoes it; Select all respects the filter being calibrated.",
+  "test": "packages/skotiq_app/test/screens/analytics/widgets/photometric_wizard_frame_picker_test.dart — rows state 'Alt 75.0° · X 1.0' and 'Alt 25.0° · X 2.3'; a frame with no altitude says it cannot be fitted; 'Select all usable' takes 3 of 4 (skipping the altitude-less one) and 'Clear' undoes it; Select all respects the filter being calibrated.",
   "revert_check": "Reverted the altitude field out of the row subtitle and renamed the Select-all button: four of the five tests failed. Restored, all pass. The pre-existing photometric_calibration_airmass_test needed two ensureVisible calls added (the new header row can push the second row past the fold on a short viewport) — its assertions are unchanged."
  },
  {
   "key": "ux-analytics",
   "title": "Calibration wizard prints solved RA/Dec as bare decimals with no unit",
   "outcome": "fixed",
-  "summary": "Real, and the finding's expectation was wrong in a way worth recording: it proposed 'RA 120.0000 deg', but captured_images.solved_ra is HOURS (0-24), not degrees — the plate-solve writer stores solved.raHours, the headless handler validates min:0/max:24, and star_matching reads it back as WcsSolution.raHours. The reporter's '120.0000' was seeded test data in an hours column. Rows now read 'RA 05:30:00.00  Dec +25:00:00.00' through CoordinateParser.formatRaHms / formatDecDms — the formatters nightshade_core already owns and that the MPC exporter's sexagesimal output agrees with — so the value is unambiguous and a degrees-valued seed would now be visibly out of range. The same formatting is used in the new frame inspector.",
+  "summary": "Real, and the finding's expectation was wrong in a way worth recording: it proposed 'RA 120.0000 deg', but captured_images.solved_ra is HOURS (0-24), not degrees — the plate-solve writer stores solved.raHours, the headless handler validates min:0/max:24, and star_matching reads it back as WcsSolution.raHours. The reporter's '120.0000' was seeded test data in an hours column. Rows now read 'RA 05:30:00.00  Dec +25:00:00.00' through CoordinateParser.formatRaHms / formatDecDms — the formatters skotiq_core already owns and that the MPC exporter's sexagesimal output agrees with — so the value is unambiguous and a degrees-valued seed would now be visibly out of range. The same formatting is used in the new frame inspector.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/analytics/widgets/photometric_calibration_wizard/frame_selection.dart",
-   "packages/nightshade_app/lib/screens/analytics/widgets/frame_detail_dialog.dart",
-   "packages/nightshade_app/test/screens/analytics/widgets/photometric_wizard_frame_picker_test.dart"
+   "packages/skotiq_app/lib/screens/analytics/widgets/photometric_calibration_wizard/frame_selection.dart",
+   "packages/skotiq_app/lib/screens/analytics/widgets/frame_detail_dialog.dart",
+   "packages/skotiq_app/test/screens/analytics/widgets/photometric_wizard_frame_picker_test.dart"
   ],
   "test": "photometric_wizard_frame_picker_test.dart — 'RA is printed in hours, sexagesimally, not as a bare decimal': solvedRa 5.5 renders 'RA 05:30:00.00' and 'Dec +25:00:00.00', and the old 'RA: 5.5000' form must be gone.",
   "revert_check": "Reverted the subtitle to `'RA: ${img.solvedRa?.toStringAsFixed(4)} Dec: ...'`: that test failed. Restored, passes."
@@ -180,11 +180,11 @@
   "outcome": "fixed",
   "summary": "Confirmed: the standalone bucket is a real thing (frames shot outside a sequence) but it was also the fallback whenever no session was under review, so a brand-new profile opened Analytics on a named card with a duration, an exposure count and four blank charts for a night that had never happened. The bucket now renders only when it actually holds frames. Two empty states rather than one, because the two situations are different and a single message would be false in one of them: with no sessions at all it uses History's own 'No session history / Complete an imaging session to see history here' (existing l10n keys, so no new untranslated strings); with sessions on record but none selected it keeps the session picker and says 'No quick captures — choose a session above to review it', which is true and actionable where 'you have not imaged yet' would be a lie.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/analytics/analytics_screen/session_tab.dart",
-   "packages/nightshade_app/test/screens/analytics/session_tab_empty_state_test.dart",
-   "packages/nightshade_app/test/screens/analytics/session_tab_advisory_caption_test.dart"
+   "packages/skotiq_app/lib/screens/analytics/analytics_screen/session_tab.dart",
+   "packages/skotiq_app/test/screens/analytics/session_tab_empty_state_test.dart",
+   "packages/skotiq_app/test/screens/analytics/session_tab_advisory_caption_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/analytics/session_tab_empty_state_test.dart — a profile with nothing captured shows no 'Quick Capture' and no stat strip; the bucket still appears when it holds a frame; with sessions on record the picker stays and the message says so.",
+  "test": "packages/skotiq_app/test/screens/analytics/session_tab_empty_state_test.dart — a profile with nothing captured shows no 'Quick Capture' and no stat strip; the bucket still appears when it holds a frame; with sessions on record the picker stays and the message says so.",
   "revert_check": "Reverted `noStandaloneFrames` to a constant false: two of the three tests failed. Restored, all pass. The pre-existing session_tab_advisory_caption_test rendered the tab with zero sessions and zero standalone frames — i.e. exactly the new empty state — so its fixture now seeds one standalone frame; its assertions about the caption's wording are unchanged."
  },
  {
@@ -193,11 +193,11 @@
   "outcome": "fixed",
   "summary": "Confirmed at session_chart.dart. The empty state was composed from yAxisLabel, which carries units, so the four Session-tab charts read 'No HFR (px) recorded...', 'No RMS (arcsec) recorded...', 'No Focuser position (steps) recorded...' and 'No °C recorded for these frames'. SessionChart now takes an optional measurementName — a noun phrase for prose, separate from the axis caption — and the four wrappers pass 'half-flux radius', 'sensor temperature', 'guiding RMS' and 'focuser position'. It falls back to the card title rather than the axis label, so any future chart that forgets it still gets a sentence rather than a unit.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/analytics/widgets/session_chart.dart",
-   "packages/nightshade_app/test/screens/analytics/widgets/session_chart_empty_label_test.dart",
-   "packages/nightshade_app/test/screens/analytics/widgets/session_chart_axis_test.dart"
+   "packages/skotiq_app/lib/screens/analytics/widgets/session_chart.dart",
+   "packages/skotiq_app/test/screens/analytics/widgets/session_chart_empty_label_test.dart",
+   "packages/skotiq_app/test/screens/analytics/widgets/session_chart_axis_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/analytics/widgets/session_chart_empty_label_test.dart — the temperature chart says 'No sensor temperature recorded for these frames' and nothing says 'No °C'; the other three read as sentences while the unit-bearing axis captions stay on the cards.",
+  "test": "packages/skotiq_app/test/screens/analytics/widgets/session_chart_empty_label_test.dart — the temperature chart says 'No sensor temperature recorded for these frames' and nothing says 'No °C'; the other three read as sentences while the unit-bearing axis captions stay on the cards.",
   "revert_check": "Reverted the message to `'No $yAxisLabel recorded for these frames'`: both tests failed. Restored, both pass. The pre-existing session_chart_axis_test asserted the old 'No HFR (px) recorded' string — it now pins the new contract instead (and that the old form is gone)."
  }
 ]

@@ -1,7 +1,7 @@
 /// Blocking pre-flight validation for the NATIVE sequence wire JSON.
 ///
 /// Why this exists at all, given `SequenceValidatorService` in
-/// `nightshade_core`: the headless appliance's canonical run flow is
+/// `skotiq_core`: the headless appliance's canonical run flow is
 /// `POST /api/sequencer/load` -> `POST /api/sequencer/start`, and neither call
 /// ever builds a Dart [Sequence]. `load` hands the caller's raw JSON straight
 /// to `sequencerLoadJson` and the bare `start` branch calls

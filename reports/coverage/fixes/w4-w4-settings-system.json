@@ -4,15 +4,15 @@
   "outcome": "fixed",
   "summary": "Three causes, all closed. (1) Navigation: _navigateForStep keyed off the step's targetKey against an eight-entry map of 'nav_*' ids that almost no tour step uses, so starting a tour never moved anywhere. It now resolves a route from the step itself (new tutorial_routes.dart: a home route per tour plus per-step overrides for the workflow tours that walk across screens) and routes once per requested route, compared against the last route asked for rather than the current location so the /planetarium and /framing redirects onto Planner tabs do not re-navigate on every step. (2) Blocking: _SpotlightHitTestRenderBox absorbed every hit when it had no target, and the painter drew a full-screen 0.85 dim, so an un-anchored step was a modal barrier over a screen it was not even about. An un-anchored step now paints no scrim and passes hits through; the tooltip card is still its own hit target. (3) The copy: every Equipment Setup step named a control that does not exist ('the Profiles tab', 'the Connections tab') and pointed at a targetKey no widget registers, so nothing was ever spotlighted. The four steps now describe the Profiles panel, its + button, Connect All and the device cards, and the three previously unattached EquipmentTutorialKeys are attached to those widgets.",
   "files_changed": [
-   "packages/nightshade_app/lib/widgets/tutorial_overlay.dart",
-   "packages/nightshade_app/lib/widgets/tutorial_overlay/tutorial_routes.dart",
-   "packages/nightshade_app/lib/widgets/tutorial_overlay/spotlight.dart",
-   "packages/nightshade_app/lib/screens/equipment/equipment_screen.dart",
-   "packages/nightshade_app/lib/screens/equipment/widgets/profile_sidebar.dart",
-   "packages/nightshade_core/lib/src/models/tutorial/tutorial_models_parts/onboarding_definitions.dart",
-   "packages/nightshade_app/test/widgets/tutorial_tour_navigation_test.dart"
+   "packages/skotiq_app/lib/widgets/tutorial_overlay.dart",
+   "packages/skotiq_app/lib/widgets/tutorial_overlay/tutorial_routes.dart",
+   "packages/skotiq_app/lib/widgets/tutorial_overlay/spotlight.dart",
+   "packages/skotiq_app/lib/screens/equipment/equipment_screen.dart",
+   "packages/skotiq_app/lib/screens/equipment/widgets/profile_sidebar.dart",
+   "packages/skotiq_core/lib/src/models/tutorial/tutorial_models_parts/onboarding_definitions.dart",
+   "packages/skotiq_app/test/widgets/tutorial_tour_navigation_test.dart"
   ],
-  "test": "packages/nightshade_app/test/widgets/tutorial_tour_navigation_test.dart - pumps a shell-shaped GoRouter (TutorialOverlay wrapping the routed child, as app_shell mounts it), starts the Equipment Setup tour from Settings and asserts the router moved to /equipment; a second case taps a top-left control (the left-nav position from the live repro) with an un-anchored step up and asserts the tap reached the app; plus a route-table case that every tour except the first-night wizard resolves a route.",
+  "test": "packages/skotiq_app/test/widgets/tutorial_tour_navigation_test.dart - pumps a shell-shaped GoRouter (TutorialOverlay wrapping the routed child, as app_shell mounts it), starts the Equipment Setup tour from Settings and asserts the router moved to /equipment; a second case taps a top-left control (the left-nav position from the live repro) with an un-anchored step up and asserts the tap reached the app; plus a route-table case that every tour except the first-night wizard resolves a route.",
   "revert_check": "Severed the production call site `_navigateForStep(context, steps[current.currentStepIndex]);` in the tutorialProvider listener AND restored `if (_targetRect == null || !_isInteractive) { absorb }` in _SpotlightHitTestRenderBox.hitTest => both widget tests FAILED ('/settings' instead of '/equipment'; taps == []). Restored, 4/4 green.",
   "caveats": "Only the Equipment Setup tour's copy/targets were rewritten - it is the one reproduced. The other tours now open on the right screen and no longer block the app, but their step text has not been re-audited against current controls."
  },
@@ -36,13 +36,13 @@
    "apps/desktop/lib/headless_api_server/websocket_sessions.dart",
    "apps/desktop/lib/headless_api_server/server_lifecycle.dart",
    "apps/desktop/lib/desktop_app_bootstrap.dart",
-   "packages/nightshade_core/lib/src/providers/web_server_provider.dart",
-   "packages/nightshade_app/lib/screens/settings/widgets/remote_access_settings.dart",
-   "packages/nightshade_app/lib/screens/shell/widgets/status_bar/session_sharing.dart",
+   "packages/skotiq_core/lib/src/providers/web_server_provider.dart",
+   "packages/skotiq_app/lib/screens/settings/widgets/remote_access_settings.dart",
+   "packages/skotiq_app/lib/screens/shell/widgets/status_bar/session_sharing.dart",
    "apps/desktop/test/headless_api_server/connected_client_count_test.dart",
-   "packages/nightshade_app/test/screens/settings/remote_access_auth_truth_test.dart"
+   "packages/skotiq_app/test/screens/settings/remote_access_auth_truth_test.dart"
   ],
-  "test": "apps/desktop/test/headless_api_server/connected_client_count_test.dart - a real WebSocket on /events against a started server; asserts connectedClientCount and the stream go 0 -> 1 on attach and back to 0 on close. packages/nightshade_app/test/screens/settings/remote_access_auth_truth_test.dart 'the collaboration count is not presented as remote clients' - renders the page with connectedClients:2, activeViewers:0 and asserts the Active Viewers row shows 2 and the Co-imaging row 0.",
+  "test": "apps/desktop/test/headless_api_server/connected_client_count_test.dart - a real WebSocket on /events against a started server; asserts connectedClientCount and the stream go 0 -> 1 on attach and back to 0 on close. packages/skotiq_app/test/screens/settings/remote_access_auth_truth_test.dart 'the collaboration count is not presented as remote clients' - renders the page with connectedClients:2, activeViewers:0 and asserts the Active Viewers row shows 2 and the Co-imaging row 0.",
   "revert_check": "Server: removed both `_publishConnectedClientCount();` calls in websocket_sessions.dart (attach and remove) => both connected_client_count_test cases FAILED. UI: pointed the Active Viewers row's value back at `webState.activeViewers` => 'the collaboration count is not presented as remote clients' FAILED. Both restored; 21/21 desktop + 16/16 app-settings green."
  },
  {
@@ -50,11 +50,11 @@
   "outcome": "fixed",
   "summary": "The Filter Focus Offsets card is built from the same TextEditingControllers as the Filter Configuration chips, but the chip's name field had no onChanged, so nothing rebuilt when a filter was named: the offsets list lagged a whole interaction behind and a newly added filter had no offset input until the profile was saved and the editor re-opened. _EditableFilterChip now takes an onNameChanged callback fired on every keystroke and the editor rebuilds on it.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/profile_controls.dart",
-   "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/profile_details_rendering.dart",
-   "packages/nightshade_app/test/screens/settings/equipment_profile_filter_offset_sync_test.dart"
+   "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/profile_controls.dart",
+   "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/profile_details_rendering.dart",
+   "packages/skotiq_app/test/screens/settings/equipment_profile_filter_offset_sync_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/settings/equipment_profile_filter_offset_sync_test.dart - opens the real editor, types a name into the chip and asserts the offsets card and its labelled row appear in the same session; second case adds a filter with '+' and asserts its offset row exists without saving.",
+  "test": "packages/skotiq_app/test/screens/settings/equipment_profile_filter_offset_sync_test.dart - opens the real editor, types a name into the chip and asserts the offsets card and its labelled row appear in the same session; second case adds a filter with '+' and asserts its offset row exists without saving.",
   "revert_check": "Severed the production call site in profile_details_rendering.dart: `onNameChanged: () => _update(() {})` -> `onNameChanged: () {}` => both cases in equipment_profile_filter_offset_sync_test.dart FAILED. Restored, green."
  },
  {
@@ -62,38 +62,38 @@
   "outcome": "fixed",
   "summary": "The not-connected branch rendered one info panel whose only sentence was about a phone - wrong on the desktop build this page also ships in - and the leaf had no button, picker or link to the connection flow it named. Replaced with a _NotConnected card: platform-neutral wording ('this device's own planetarium catalogs') plus two actions, 'Connect an appliance' routing to Settings > Remote Access and 'This device's catalogs' routing to the local Catalogs leaf.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/settings/widgets/rig_catalog_settings.dart",
-   "packages/nightshade_app/test/screens/settings/rig_catalog_not_connected_test.dart"
+   "packages/skotiq_app/lib/screens/settings/widgets/rig_catalog_settings.dart",
+   "packages/skotiq_app/test/screens/settings/rig_catalog_not_connected_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/settings/rig_catalog_not_connected_test.dart - asserts no rendered Text on the page contains 'phone', that the device-neutral sentence is present, and that tapping 'Connect an appliance' actually lands the router on /settings?section=remote-access.",
+  "test": "packages/skotiq_app/test/screens/settings/rig_catalog_not_connected_test.dart - asserts no rendered Text on the page contains 'phone', that the device-neutral sentence is present, and that tapping 'Connect an appliance' actually lands the router on /settings?section=remote-access.",
   "revert_check": "Replaced the `_NotConnected(...)` call site with the original `_Info(... \"the phone's own planetarium catalogs\")` => both cases in rig_catalog_not_connected_test.dart FAILED. Restored, green."
  },
  {
   "title": "Log Export dumps 18.8 MB into the home Documents folder without warning, ignoring both the configured data directory and the app's own exports/ folder",
   "outcome": "fixed",
-  "summary": "Export built its path as '<Documents>/nightshade_logs_<ts>.txt' and immediately wrote every retained rotated log there - no picker, no scope choice, no size statement. It now asks two questions first: a scope dialog naming what each choice costs ('Entries on screen - N entries, exactly as filtered' vs 'Full history - every retained log file, about <size>'), then a save target through the same chooseExportTarget flow profile export uses, defaulted to the Nightshade/exports directory the app's other exports go to. Cancelling either writes nothing, and the completion message states the size actually written.",
+  "summary": "Export built its path as '<Documents>/skotiq_logs_<ts>.txt' and immediately wrote every retained rotated log there - no picker, no scope choice, no size statement. It now asks two questions first: a scope dialog naming what each choice costs ('Entries on screen - N entries, exactly as filtered' vs 'Full history - every retained log file, about <size>'), then a save target through the same chooseExportTarget flow profile export uses, defaulted to the Skotiq/exports directory the app's other exports go to. Cancelling either writes nothing, and the completion message states the size actually written.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/settings/widgets/log_viewer.dart",
-   "packages/nightshade_app/test/screens/settings/log_export_target_test.dart"
+   "packages/skotiq_app/lib/screens/settings/widgets/log_viewer.dart",
+   "packages/skotiq_app/test/screens/settings/log_export_target_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/settings/log_export_target_test.dart - drives the real Export button with an injected picker; asserts the scope prompt and its size estimate, that 'Entries on screen' writes only the visible entries and never calls exportLogs, that 'Full history' does call it with the chosen path, and that cancelling the destination writes nothing.",
-  "revert_check": "Severed both new steps in _exportLogs: replaced the `_askExportScope(...)` result with a hard-coded LogExportScope.fullHistory and the `logExportTargetPickerProvider` call with the old '<Documents>/nightshade_logs_<ts>.txt' path => all 4 cases in log_export_target_test.dart FAILED. Restored, green."
+  "test": "packages/skotiq_app/test/screens/settings/log_export_target_test.dart - drives the real Export button with an injected picker; asserts the scope prompt and its size estimate, that 'Entries on screen' writes only the visible entries and never calls exportLogs, that 'Full history' does call it with the chosen path, and that cancelling the destination writes nothing.",
+  "revert_check": "Severed both new steps in _exportLogs: replaced the `_askExportScope(...)` result with a hard-coded LogExportScope.fullHistory and the `logExportTargetPickerProvider` call with the old '<Documents>/skotiq_logs_<ts>.txt' path => all 4 cases in log_export_target_test.dart FAILED. Restored, green."
  },
  {
   "title": "Duplicate happily creates two profiles with byte-identical names, while Import de-duplicates -- so the profile list can show rows nothing can tell apart",
   "outcome": "fixed",
   "summary": "Duplicate offered a fixed '<name> (Copy)' and accepted it unchecked, so duplicating twice wrote two rows with byte-identical names that nothing in the app can tell apart - the list rows, the status-bar profile chip and every profile picker show only the name. The offered name now goes through uniqueProfileName(base, taken), the importer's own rule ('base', then 'base (1)', 'base (2)', ...), compared trimmed and case-insensitively to match the editor's duplicate-name check.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/settings/equipment_profiles_screen_parts/screen_shell.dart",
-   "packages/nightshade_app/test/screens/settings/equipment_profile_duplicate_name_test.dart"
+   "packages/skotiq_app/lib/screens/settings/equipment_profiles_screen_parts/screen_shell.dart",
+   "packages/skotiq_app/test/screens/settings/equipment_profile_duplicate_name_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/settings/equipment_profile_duplicate_name_test.dart - unit cases for uniqueProfileName plus a widget case that the second Duplicate is pre-filled with a name no existing profile has.",
+  "test": "packages/skotiq_app/test/screens/settings/equipment_profile_duplicate_name_test.dart - unit cases for uniqueProfileName plus a widget case that the second Duplicate is pre-filled with a name no existing profile has.",
   "revert_check": "screen_shell.dart: `initialName: uniqueProfileName('${profile.name} (Copy)', takenNames)` -> `initialName: '${profile.name} (Copy)'` => 'the second copy is offered a name no other profile has' FAILED. Restored, green."
  },
  {
   "title": "SUITE NOTE (not a finding)",
   "outcome": "already-correct",
-  "summary": "Shared-file suite runs. apps/desktop: 998 pass / 1 fail (headless_api/thumbnail_sidecar_test 'POST creates a new image, sidecar file is written') - passes 11/11 in isolation, so it is parallel-run interference, not this work. packages/nightshade_core: failures are all in weather_safety_provider (source edited by a concurrent agent at 00:05 while the suite ran) and nina_sequence_fidelity ('Wait Has No Time Set' from a concurrent sequence-validation change); the tutorial and web-server-state tests I touch are green (22/22). packages/nightshade_app: 48 failures, dominated by Linux golden/pixel tests. Blast-radius dirs (test/screens/equipment, test/screens/shell, test/widgets) show exactly 3, all in equipment/captures_landscape_test.dart golden pixel comparisons - reproduced identically with my two equipment edits temporarily removed, so pre-existing.",
+  "summary": "Shared-file suite runs. apps/desktop: 998 pass / 1 fail (headless_api/thumbnail_sidecar_test 'POST creates a new image, sidecar file is written') - passes 11/11 in isolation, so it is parallel-run interference, not this work. packages/skotiq_core: failures are all in weather_safety_provider (source edited by a concurrent agent at 00:05 while the suite ran) and nina_sequence_fidelity ('Wait Has No Time Set' from a concurrent sequence-validation change); the tutorial and web-server-state tests I touch are green (22/22). packages/skotiq_app: 48 failures, dominated by Linux golden/pixel tests. Blast-radius dirs (test/screens/equipment, test/screens/shell, test/widgets) show exactly 3, all in equipment/captures_landscape_test.dart golden pixel comparisons - reproduced identically with my two equipment edits temporarily removed, so pre-existing.",
   "files_changed": [],
   "test": "n/a",
   "revert_check": "n/a"

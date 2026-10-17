@@ -5,8 +5,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/profile_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/profile_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -26,7 +26,7 @@ void main() {
 
   group('ProfileHandlers', () {
     late ProviderContainer container;
-    late NightshadeDatabase db;
+    late SkotiqDatabase db;
     late ProfileHandlers handlers;
     late SecretsStore secrets;
     late _MockProfileSettingsBackend profileBackend;
@@ -53,7 +53,7 @@ void main() {
       // path_provider, which a unit-test isolate cannot service. Overriding it
       // here keeps these error-translation tests deterministic (the real DB
       // would otherwise leak a MissingPluginException from its lazy open).
-      db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       secrets = SecretsStore(InMemorySecureKeyValueStore());
       profileBackend = _MockProfileSettingsBackend();
       when(() => profileBackend.saveProfile(any())).thenAnswer((_) async {});
@@ -292,12 +292,12 @@ void main() {
         const originalBroker = MqttTransportConfig(
           host: 'mqtt.internal',
           port: 1883,
-          username: 'nightshade',
+          username: 'skotiq',
           password: 'old-secret',
-          topic: 'nightshade/state',
+          topic: 'skotiq/state',
           qos: 1,
           retain: true,
-          clientId: 'nightshade-host',
+          clientId: 'skotiq-host',
         );
         await container.read(mqttTransportConfigProvider.future);
         await container

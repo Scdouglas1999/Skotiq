@@ -276,7 +276,7 @@
             "name": "Built-in Multi-Star Guider",
             "deviceType": "guider",
             "driverType": "native",
-            "description": "Software guider using Nightshade star tracking and mount pulse guide"
+            "description": "Software guider using Skotiq star tracking and mount pulse guide"
           },
           {
             "id": "phd2_guider",
@@ -756,7 +756,7 @@
             "name": "Built-in Multi-Star Guider",
             "deviceType": "guider",
             "driverType": "native",
-            "description": "Software guider using Nightshade star tracking and mount pulse guide"
+            "description": "Software guider using Skotiq star tracking and mount pulse guide"
           },
           {
             "id": "phd2_guider",
@@ -1236,7 +1236,7 @@
             "name": "Built-in Multi-Star Guider",
             "deviceType": "guider",
             "driverType": "native",
-            "description": "Software guider using Nightshade star tracking and mount pulse guide"
+            "description": "Software guider using Skotiq star tracking and mount pulse guide"
           },
           {
             "id": "phd2_guider",
@@ -1716,7 +1716,7 @@
             "name": "Built-in Multi-Star Guider",
             "deviceType": "guider",
             "driverType": "native",
-            "description": "Software guider using Nightshade star tracking and mount pulse guide"
+            "description": "Software guider using Skotiq star tracking and mount pulse guide"
           },
           {
             "id": "phd2_guider",
@@ -2196,7 +2196,7 @@
             "name": "Built-in Multi-Star Guider",
             "deviceType": "guider",
             "driverType": "native",
-            "description": "Software guider using Nightshade star tracking and mount pulse guide"
+            "description": "Software guider using Skotiq star tracking and mount pulse guide"
           },
           {
             "id": "phd2_guider",
@@ -2676,7 +2676,7 @@
             "name": "Built-in Multi-Star Guider",
             "deviceType": "guider",
             "driverType": "native",
-            "description": "Software guider using Nightshade star tracking and mount pulse guide"
+            "description": "Software guider using Skotiq star tracking and mount pulse guide"
           },
           {
             "id": "phd2_guider",
@@ -3156,7 +3156,7 @@
             "name": "Built-in Multi-Star Guider",
             "deviceType": "guider",
             "driverType": "native",
-            "description": "Software guider using Nightshade star tracking and mount pulse guide"
+            "description": "Software guider using Skotiq star tracking and mount pulse guide"
           },
           {
             "id": "phd2_guider",
@@ -3636,7 +3636,7 @@
             "name": "Built-in Multi-Star Guider",
             "deviceType": "guider",
             "driverType": "native",
-            "description": "Software guider using Nightshade star tracking and mount pulse guide"
+            "description": "Software guider using Skotiq star tracking and mount pulse guide"
           },
           {
             "id": "phd2_guider",
@@ -4116,7 +4116,7 @@
             "name": "Built-in Multi-Star Guider",
             "deviceType": "guider",
             "driverType": "native",
-            "description": "Software guider using Nightshade star tracking and mount pulse guide"
+            "description": "Software guider using Skotiq star tracking and mount pulse guide"
           },
           {
             "id": "phd2_guider",
@@ -4596,7 +4596,7 @@
             "name": "Built-in Multi-Star Guider",
             "deviceType": "guider",
             "driverType": "native",
-            "description": "Software guider using Nightshade star tracking and mount pulse guide"
+            "description": "Software guider using Skotiq star tracking and mount pulse guide"
           },
           {
             "id": "phd2_guider",

@@ -37,20 +37,20 @@ const _excludedFileHeaderFragments = [
 ];
 
 const _prioritySplitReasons = {
-  'packages/nightshade_remote_protocol/lib/src/web_server.dart':
+  'packages/skotiq_remote_protocol/lib/src/web_server.dart':
       'WebRTC server routing, API helpers, and dashboard docs are concentrated in one backend file.',
 };
 
 const _modularizedSourceFamilyReasons = {
   'apps/desktop/lib/headless_api_server.dart':
       'Facade delegates route setup, lifecycle, event forwarding, middleware, and websocket behavior to focused modules.',
-  'packages/nightshade_core/lib/src/backend/network_backend.dart':
+  'packages/skotiq_core/lib/src/backend/network_backend.dart':
       'Facade delegates transport, event tracking, endpoint domains, and wire models to focused modules.',
-  'packages/nightshade_core/lib/src/backend/ffi_backend.dart':
+  'packages/skotiq_core/lib/src/backend/ffi_backend.dart':
       'Facade delegates native hardware workflows and bridge model mapping to focused modules.',
-  'packages/nightshade_core/lib/src/providers/sequence_provider.dart':
+  'packages/skotiq_core/lib/src/providers/sequence_provider.dart':
       'Facade delegates progress reduction and selection clipboard state to focused modules.',
-  'packages/nightshade_core/lib/src/services/device_service.dart':
+  'packages/skotiq_core/lib/src/services/device_service.dart':
       'Facade delegates cross-device orchestration to focused device-domain modules.',
 };
 

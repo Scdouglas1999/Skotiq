@@ -1,8 +1,8 @@
 # Wave F — dryness check: `settings-sky`
 
 Cluster: `settings-sky` · display `:85` · profile `waveE-settings-sky` (`start --fresh`)
-Bundle driven: `apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`
-(`lib/libapp.so` + `libnightshade_bridge.so` both **Aug 13 23:56**, i.e. the post-E-fix build).
+Bundle driven: `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`
+(`lib/libapp.so` + `libskotiq_bridge.so` both **Aug 13 23:56**, i.e. the post-E-fix build).
 Harness: `tools/ui_audit/drive_linux.py` (profile AFTER the subcommand), 1600×900 unless noted.
 Shots: `/tmp/ns-audit/waveF-ss/shots/`.
 
@@ -48,7 +48,7 @@ touched.
 
 ### WE-SP-2 — the click after "Reset All Progress" is now visibly absorbed
 Settings → Help & Tutorials → Reset All Progress → Reset. The first-launch tour
-(`Step 1 of 7 — Welcome to Nightshade`) mounts over the app, as the batch diagnosed. One click on
+(`Step 1 of 7 — Welcome to Skotiq`) mounts over the app, as the batch diagnosed. One click on
 the **Dashboard** rail item: the card **stays on screen** (`47-afterrailclick.png` is pixel-
 identical to `46-afterreset.png`) and — the cry-wolf half — the rail does **not** repaint
 Dashboard as selected; Help & Tutorials stays highlighted. `Escape` then dismisses the tour and
@@ -158,7 +158,7 @@ button:
 which is the tell — the other four icons carry their message on the trigger as
 `Semantics(tooltip:)` (`button: Reset view (zenith, FOV 60)`, `button: Equatorial view — switch to
 Alt/Az`, `button: Layers`) and leak nothing, so this control is not the widget the
-`ExcludeSemantics` + timer fix in `nightshade_tooltip.dart` was applied to. Tooltips still *show*
+`ExcludeSemantics` + timer fix in `skotiq_tooltip.dart` was applied to. Tooltips still *show*
 normally everywhere (`49-icon5.png`, `50-icon2.png`), so the fix did not break the component.
 
 ---
@@ -166,7 +166,7 @@ normally everywhere (`49-icon5.png`, `50-icon2.png`), so the fix did not break t
 ## New findings from the adversarial sweep (4)
 
 ### WF-SS-N1 (P3) — the new "Copy code" button is drawn at 1.15:1, worse than the 1.31:1 the same batch just fixed
-`WE-SP-4` replaced the nameless `IconButton` with a named `NightshadeButton`, but the button
+`WE-SP-4` replaced the nameless `IconButton` with a named `SkotiqButton`, but the button
 paints its label in `textSecondary` `rgb(154,163,173)` on the pairing card's **accent fill**
 `rgb(91,158,196)` → **1.15:1** (measured over the label's bounding box in `19-code-raw.png`; the
 label is 26 px of near-background grey on 2902 px of blue). On screen the control reads as a

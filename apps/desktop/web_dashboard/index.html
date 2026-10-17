@@ -16,7 +16,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0A0C0F">
-  <title>Nightshade Dashboard</title>
+  <title>Skotiq Dashboard</title>
   <!-- Declare an icon so the browser stops probing /favicon.ico, which is not
        a registered route and therefore answers 401 to an unauthenticated
        browser — one console error on every single dashboard load. Inlined as a
@@ -33,17 +33,17 @@
 
     <!-- The visible brand is a styled span; the document still needs exactly
          one level-1 heading so assistive tech can announce/outline the page. -->
-    <h1 class="sr-only">Nightshade Web Dashboard</h1>
+    <h1 class="sr-only">Skotiq Web Dashboard</h1>
 
     <!-- ===== Top Bar ===== -->
     <div class="top-bar">
       <div class="top-bar-left">
-        <span class="top-bar-logo">NIGHTSHADE</span>
+        <span class="top-bar-logo">SKOTIQ</span>
         <span class="top-bar-version">Web Dashboard</span>
       </div>
       <div class="top-bar-right">
         <!-- Theme toggle. Light/dark is persisted to
-             localStorage (nightshade_theme); first load honours
+             localStorage (skotiq_theme); first load honours
              prefers-color-scheme. Themes are pure CSS-variable swaps applied via
              the data-theme attribute on <html>; the glyph + label flip in JS. -->
         <button id="btn-theme-toggle" class="btn btn-sm btn-icon" type="button"
@@ -74,7 +74,7 @@
     <div class="auth-bar hidden" id="auth-bar">
       <label for="device-name">Device:</label>
       <input id="device-name" type="text" placeholder="Browser name">
-      <button id="btn-pair" class="btn btn-sm btn-primary" aria-label="Pair this browser with Nightshade">Pair</button>
+      <button id="btn-pair" class="btn btn-sm btn-primary" aria-label="Pair this browser with Skotiq">Pair</button>
       <label for="auth-token">Token:</label>
       <input id="auth-token" type="password" placeholder="Bearer token" autocomplete="off" spellcheck="false">
       <label for="remember-token" class="checkbox-label">
@@ -116,7 +116,7 @@
   <div id="link-banner" class="link-banner hidden" role="alert" aria-live="assertive"></div>
 
   <div id="parity-banner" class="parity-banner hidden" role="note">
-    For full GPU planetarium rendering, install the Nightshade desktop or mobile client.
+    For full GPU planetarium rendering, install the Skotiq desktop or mobile client.
     This web dashboard covers remote control via the headless API.
   </div>
 
@@ -1082,10 +1082,10 @@
          ===================================================================== -->
     <div class="login-overlay hidden" id="login-overlay" role="dialog" aria-modal="true" aria-labelledby="login-overlay-title">
       <div class="login-card">
-        <h2 class="login-title" id="login-overlay-title">Sign in to Nightshade</h2>
+        <h2 class="login-title" id="login-overlay-title">Sign in to Skotiq</h2>
         <p class="login-help">
           The dashboard needs a paired bearer token before it can talk to
-          your Nightshade server. Click "Pair this browser" to mint a new
+          your Skotiq server. Click "Pair this browser" to mint a new
           one from the desktop's console code, or paste an existing
           token below.
         </p>
@@ -1124,7 +1124,7 @@
     <div class="modal">
       <h2 class="modal-title" id="pair-modal-title">Pair this browser</h2>
       <div class="modal-body" id="pair-modal-desc">
-        Open the Nightshade desktop application and watch its console output. A
+        Open the Skotiq desktop application and watch its console output. A
         new pairing code will be printed there. Type it in below and press Pair
         to complete first-run setup. The code expires after a few minutes; if it
         does, click Pair again to request a fresh one.

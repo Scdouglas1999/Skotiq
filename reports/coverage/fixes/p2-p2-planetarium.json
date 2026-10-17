@@ -4,10 +4,10 @@
     "outcome": "fixed",
     "summary": "Confirmed at the cited line. _animateZoom restarted the 300 ms easeOutCubic glide from the LIVE provider FOV on every wheel event, so notches arriving inside the glide each re-based on a value that had barely moved. Added _pendingFOV (the in-flight _targetFOV while the zoom controller is animating, else the live FOV) and routed the wheel handler through a new _zoomByStep that compounds one notch onto that pending target; the tween still BEGINS at the live FOV so a mid-glide step stays visually continuous. The coarse/fine step size (1.2 above 30 deg, 1.15 at or below) is now also picked from the pending FOV, so a burst that crosses the boundary steps exactly as it would one notch at a time.",
     "files_changed": [
-      "packages/nightshade_planetarium/lib/src/widgets/interactive_sky_view.dart",
-      "packages/nightshade_planetarium/test/wheel_zoom_accumulation_test.dart"
+      "packages/skotiq_planetarium/lib/src/widgets/interactive_sky_view.dart",
+      "packages/skotiq_planetarium/test/wheel_zoom_accumulation_test.dart"
     ],
-    "test": "packages/nightshade_planetarium/test/wheel_zoom_accumulation_test.dart - drives real PointerScrollEvents through the widget's own Listener via sendEventToBinding (cutting the production call site fails it). 10 notches 20 ms apart must land on the fully compounded 12.509 deg; a second test asserts fast (16 ms) and slow (500 ms) spacing land on the same FOV.",
+    "test": "packages/skotiq_planetarium/test/wheel_zoom_accumulation_test.dart - drives real PointerScrollEvents through the widget's own Listener via sendEventToBinding (cutting the production call site fails it). 10 notches 20 ms apart must land on the fully compounded 12.509 deg; a second test asserts fast (16 ms) and slow (500 ms) spacing land on the same FOV.",
     "revert_check": "Reverted `double get _pendingFOV => _zoomController.isAnimating ? _targetFOV : ref.read(skyViewStateProvider).fieldOfView;` to `double get _pendingFOV => ref.read(skyViewStateProvider).fieldOfView;` -> test 1 failed with Actual: 50.0 (one notch out of ten) vs Expected 12.509, test 2 failed with fast 43.97 vs slow 21.88. Restored, both pass.",
     "caveats": "The finding's sub-claim that the '=' / '-' hotkeys are dead is false (the verifier said so too); those go through SkyViewNotifier.zoomIn/zoomOut, which are instant and were never affected."
   },
@@ -16,10 +16,10 @@
     "outcome": "fixed",
     "summary": "Location was wrong as the verifier said: the default lives in SkyViewNotifier's constructor, not planetarium_screen.dart. Added SkyViewNotifier.adoptHomeCenter() plus a _userAimed flag (set by setCenter, pan, lookAt, setHorizontalCenter and the cursor-anchored zoom), and made skyViewStateProvider adopt skyViewHomeCenterProvider (the zenith) at construction. Also handles the real startup order: PlanetariumObserver starts on its Los Angeles default and the app's settings sync pushes the user's site in later, so the provider re-homes on the first site change as long as nothing has aimed the view. Extracted skyViewHomeCenterAt(observer, time) out of skyViewHomeCenterProvider because reading the provider from inside a listener on observerLocationProvider returns the value cached for the PREVIOUS site (dependents are not refreshed yet) - that first attempt homed to the zenith of the old longitude, 13.24 deg off.",
     "files_changed": [
-      "packages/nightshade_planetarium/lib/src/providers/planetarium_providers/sky_view.dart",
-      "packages/nightshade_planetarium/test/sky_view_home_center_test.dart"
+      "packages/skotiq_planetarium/lib/src/providers/planetarium_providers/sky_view.dart",
+      "packages/skotiq_planetarium/test/sky_view_home_center_test.dart"
     ],
-    "test": "packages/nightshade_planetarium/test/sky_view_home_center_test.dart - three tests: first paint centres on the zenith (altitude of the view centre > 85 deg at 40N/105W, computed with AstronomyCalculations.objectAltAz); a site arriving after the view is built re-homes it; a view the user aimed is never yanked by a late site.",
+    "test": "packages/skotiq_planetarium/test/sky_view_home_center_test.dart - three tests: first paint centres on the zenith (altitude of the view centre > 85 deg at 40N/105W, computed with AstronomyCalculations.objectAltAz); a site arriving after the view is built re-homes it; a view the user aimed is never yanked by a late site.",
     "revert_check": "Removed the `notifier.adoptHomeCenter(ref.read(skyViewHomeCenterProvider));` line from the skyViewStateProvider factory -> test 1 failed with Actual: 0.0 vs Expected 12.033 h. Restored, all three pass.",
     "caveats": "An untouched view deliberately does NOT track the zenith minute by minute - it homes once, and again only if the site changes. Tracking would have meant listening to skyViewHomeCenterProvider, which re-derives every minute."
   },
@@ -28,27 +28,27 @@
     "outcome": "fixed",
     "summary": "Fixed the unit contract rather than patching call sites. AstronomyCalculations.moonIllumination returns a PERCENT and so does every producer (moonInfoProvider -> interactive_sky_view.dart:1026, planetarium_screen/actions.dart:212, view_controls.dart:396, and finder_chart_service's pass-through), while SkyCanvasPainter.moonPosition documented its third slot as a 0-1 fraction and _drawMoon clamped it - pinning anything above 1% to full. Renamed the slot to illuminationPercent, documented the unit on the field, and made _drawMoon do the single percent->fraction conversion where the two units actually meet. All four producers become correct with no edit and cannot drift apart again; the label falls out right for free.",
     "files_changed": [
-      "packages/nightshade_planetarium/lib/src/rendering/sky_renderer.dart",
-      "packages/nightshade_planetarium/lib/src/rendering/sky_renderer/solar_system_and_markers.dart",
-      "packages/nightshade_planetarium/test/moon_illumination_units_test.dart",
-      "packages/nightshade_planetarium/test/moon_phase_and_cardinals_test.dart",
-      "packages/nightshade_planetarium/test/sky_renderer_raster_smoke_test.dart"
+      "packages/skotiq_planetarium/lib/src/rendering/sky_renderer.dart",
+      "packages/skotiq_planetarium/lib/src/rendering/sky_renderer/solar_system_and_markers.dart",
+      "packages/skotiq_planetarium/test/moon_illumination_units_test.dart",
+      "packages/skotiq_planetarium/test/moon_phase_and_cardinals_test.dart",
+      "packages/skotiq_planetarium/test/sky_renderer_raster_smoke_test.dart"
     ],
-    "test": "packages/nightshade_planetarium/test/moon_illumination_units_test.dart - pumps the real InteractiveSkyView with moonInfoProvider overridden to a percent (the shipped provider's unit), pulls the SkyCanvasPainter back out of the widget tree and replays its paint into a Canvas spy, then recovers the drawn phase from the terminator ellipse's aspect ratio (width/height = |2k-1|). 74% must draw as 0.74, 100% as full, 8% as a crescent. Existing moon_phase_and_cardinals_test's whole-cycle pixel-count test was updated to feed percents and still pins the rendered lit area to k.",
+    "test": "packages/skotiq_planetarium/test/moon_illumination_units_test.dart - pumps the real InteractiveSkyView with moonInfoProvider overridden to a percent (the shipped provider's unit), pulls the SkyCanvasPainter back out of the widget tree and replays its paint into a Canvas spy, then recovers the drawn phase from the terminator ellipse's aspect ratio (width/height = |2k-1|). 74% must draw as 0.74, 100% as full, 8% as a crescent. Existing moon_phase_and_cardinals_test's whole-cycle pixel-count test was updated to feed percents and still pins the rendered lit area to k.",
     "revert_check": "Changed `(rawIlluminationPercent / 100).clamp(0.0, 1.0)` back to `rawIlluminationPercent.clamp(0.0, 1.0)` -> the 74% test failed with Actual: 1.0 vs Expected 0.74 and the crescent test failed with 1.0 vs 0.84. Restored, all pass.",
-    "needs_shared_change": "packages/nightshade_app/lib/services/finder_chart_service.dart declares `(double, double, double)? moonPosition` as an undocumented pass-through to the painter. No behaviour change is needed (its two callers already pass the percent), but its parameter would read better documented as the percent it now formally is."
+    "needs_shared_change": "packages/skotiq_app/lib/services/finder_chart_service.dart declares `(double, double, double)? moonPosition` as an undocumented pass-through to the painter. No behaviour change is needed (its two callers already pass the percent), but its parameter would read better documented as the percent it now formally is."
   },
   {
     "title": "The command bar's 'Search' button (and its Ctrl/Cmd+K shortcut) never focuses the search field, and does not even switch the panel to the Search tab",
     "outcome": "fixed",
     "summary": "Confirmed at planetarium_shell.dart's _openPlanPanelOnSearch (method starts at :445, the empty desktop branch at :451-454; the finding's :443 was two lines off). Three pieces were missing and all three are now wired: (1) SearchHeader gained an optional host-supplied focusNode - it previously owned a private node no one outside could reach - and disposes only its own fallback; (2) _PlanetariumScreenState now owns _searchFocusNode plus a monotonic _searchFocusToken that _openPlanPanelOnSearch bumps (a counter, not a bool, so pressing Search again while the panel is already open still fires); (3) a new _SearchCommandTarget sits inside the panel's DefaultTabController and, on every token change, selects the Search tab and requests focus in a post-frame callback (deferred because on the frame the panel first mounts neither the TabController nor the field's render object exists). Ctrl/Cmd+K routes through the same method, so it is fixed by the same change. The phone path was already correct - MobileSearchSheet's field autofocuses.",
     "files_changed": [
-      "packages/nightshade_app/lib/screens/planetarium/planetarium_screen.dart",
-      "packages/nightshade_app/lib/screens/planetarium/widgets/redesign/planetarium_shell.dart",
-      "packages/nightshade_app/lib/screens/planetarium/widgets/search_header.dart",
-      "packages/nightshade_app/test/screens/planetarium/search_command_focus_test.dart"
+      "packages/skotiq_app/lib/screens/planetarium/planetarium_screen.dart",
+      "packages/skotiq_app/lib/screens/planetarium/widgets/redesign/planetarium_shell.dart",
+      "packages/skotiq_app/lib/screens/planetarium/widgets/search_header.dart",
+      "packages/skotiq_app/test/screens/planetarium/search_command_focus_test.dart"
     ],
-    "test": "packages/nightshade_app/test/screens/planetarium/search_command_focus_test.dart - pumps the whole PlanetariumScreen at 1600x900 and taps the REAL command-bar Search entry, then asserts rendered state: the panel's TabController is on index 3, the search field holds primary focus, and text typed with testTextInput.enterText (which goes to whatever holds the input connection, unlike tester.enterText which would focus the field itself) lands in the field. A third case presses Search again after the user moves to another tab.",
+    "test": "packages/skotiq_app/test/screens/planetarium/search_command_focus_test.dart - pumps the whole PlanetariumScreen at 1600x900 and taps the REAL command-bar Search entry, then asserts rendered state: the panel's TabController is on index 3, the search field holds primary focus, and text typed with testTextInput.enterText (which goes to whatever holds the input connection, unlike tester.enterText which would focus the field itself) lands in the field. A third case presses Search again after the user moves to another tab.",
     "revert_check": "Removed `_searchFocusToken++;` from _openPlanPanelOnSearch -> all three tests failed (tab Expected <3> Actual <0>; typed text Expected 'Albireo' Actual ''). Restored, all three pass.",
     "caveats": "While building the test I found the capture harness's habit of calling tester.takeException() after runAsync would have turned a failed assertion into a PASSING test - runAsync parks the failure in the binding. This test rethrows anything that is not known harness noise; the same trap exists in captures_landscape_test.dart, which is golden-tagged and out of scope here."
   },
@@ -57,34 +57,34 @@
     "outcome": "fixed",
     "summary": "Location was wrong as the verifier said - the frame is set in planetary_positions.dart, not astronomy_calculations.dart. Took the second of the two fixes the finding sanctions ('express the planetary ephemeris in J2000'), because the first (precess the catalogue at draw time) means touching ~30 projection call sites across eight renderer part files, each with its own native frame, at real per-frame cost. Added AstronomyCalculations.precessFromDateToJ2000 as the exact inverse of the existing precessFromJ2000ToDate (nutation undone with one fixed-point refinement - the naive single subtraction left a 3 mas residual amplified by tan(dec)), and applied it to the three of-date families that reach the chart: PlanetaryPositions.getPlanetPosition (at the source, so drawing, tap identification, search, the popup readout and the slew target all agree), and sunPositionProvider / moonPositionProvider (at the provider, because AstronomyCalculations.sunPosition/moonPosition are also called directly by twilight, sunAltitude and rise/set, which must stay apparent-of-date). The Moon change also puts planning_providers' moon-separation scoring on the same frame as the J2000 target it measures against.",
     "files_changed": [
-      "packages/nightshade_planetarium/lib/src/astronomy/astronomy_calculations.dart",
-      "packages/nightshade_planetarium/lib/src/astronomy/planetary_positions.dart",
-      "packages/nightshade_planetarium/lib/src/providers/planetarium_providers/catalog_astronomy.dart",
-      "packages/nightshade_planetarium/test/chart_frame_consistency_test.dart"
+      "packages/skotiq_planetarium/lib/src/astronomy/astronomy_calculations.dart",
+      "packages/skotiq_planetarium/lib/src/astronomy/planetary_positions.dart",
+      "packages/skotiq_planetarium/lib/src/providers/planetarium_providers/catalog_astronomy.dart",
+      "packages/skotiq_planetarium/test/chart_frame_consistency_test.dart"
     ],
-    "test": "packages/nightshade_planetarium/test/chart_frame_consistency_test.dart - ground truth is the audit's own independent Keplerian ephemeris for Jupiter at 2026-08-02 15:12 UTC (J2000 8h37m58.3s/+18d59'31\", of-date 8h39m29.5s/+18d53'50\", 22 arcmin apart). getAllPlanetPositions must land within 3 arcmin of the J2000 place and more than 15 arcmin from the of-date one; a guard test pins that the two references really are ~22 arcmin apart. Sun/Moon are asserted through their real providers: precessing the provider's output FORWARD must reproduce AstronomyCalculations.sunPosition/moonPosition exactly, and the provider must differ from it by >15 arcmin (so the conversion cannot be a no-op). A fourth test pins the deliberate split: sunAltitudeProvider still equals the apparent of-date altitude. Plus an exact round-trip test of the new inverse.",
+    "test": "packages/skotiq_planetarium/test/chart_frame_consistency_test.dart - ground truth is the audit's own independent Keplerian ephemeris for Jupiter at 2026-08-02 15:12 UTC (J2000 8h37m58.3s/+18d59'31\", of-date 8h39m29.5s/+18d53'50\", 22 arcmin apart). getAllPlanetPositions must land within 3 arcmin of the J2000 place and more than 15 arcmin from the of-date one; a guard test pins that the two references really are ~22 arcmin apart. Sun/Moon are asserted through their real providers: precessing the provider's output FORWARD must reproduce AstronomyCalculations.sunPosition/moonPosition exactly, and the provider must differ from it by >15 arcmin (so the conversion cannot be a no-op). A fourth test pins the deliberate split: sunAltitudeProvider still equals the apparent of-date altitude. Plus an exact round-trip test of the new inverse.",
     "revert_check": "Removed the precessFromDateToJ2000 call from getPlanetPosition and from both providers -> Jupiter failed at 22.61 arcmin from J2000 (Expected <3.0), sun failed at 22.44 arcmin and moon at 22.42 arcmin (Expected <1e-6). Restored, all six pass.",
     "caveats": "The chart frame is now J2000 throughout for the object families. The horizon, alt/az grid and cardinal points are still derived of-date, so they sit ~22 arcmin from the whole sky - unchanged from before for stars/DSOs, and that residual is the separately-filed alt/az-epoch defect, not this one. Satellites (SGP4) and minor bodies were left alone: satellites move degrees per minute so 22 arcmin is inside their own error, and their providers also feed pass prediction.",
-    "needs_shared_change": "None. packages/nightshade_app/lib/services/finder_chart_service.dart consumes the same providers and is fixed transitively."
+    "needs_shared_change": "None. packages/skotiq_app/lib/services/finder_chart_service.dart consumes the same providers and is fixed transitively."
   },
   {
     "title": "Planets are typed as 'Star' in the object popup and written to the observation log that way, and the popup shows the internal id 'PLANET_Jupiter'",
     "outcome": "fixed",
     "summary": "The verifier's diagnosis was right and the fix is larger than the finding implies. The app had no type for solar-system bodies at all: planets, minor bodies and satellites were all carried as `Star(id: 'PLANET_Jupiter')`, and ~19 call sites branch on `obj is Star` for point sources. Added SolarSystemBody (a Star SUBCLASS, so every one of those paths keeps working) with a SolarSystemBodyKind carrying both a displayName and a stable snake_case storageKey for durable records, and construct it at all four sites that used to mint bare Stars (interactive_sky_view's planet and satellite hit tests, object_search's planet and minor-body search entries). Then fixed the surfaces that state a fact: the popup's Type row and identifier chip (chip now shows the kind, not the PLANET_ join key), the add-to-list dialog's type label, the mobile object-info and bottom-bar tags, and - the one that persists - observation_log_dialog, which now writes object_type 'planet'/'minor_body'/'satellite' and leaves catalog_id NULL rather than storing the internal token as if it were a designation. Also replaced search_header's `id.startsWith('PLANET_')` prefix sniffing with the type check, since duplicating knowledge of that prefix is what let the rest of the app forget.",
     "files_changed": [
-      "packages/nightshade_planetarium/lib/src/celestial_object.dart",
-      "packages/nightshade_planetarium/lib/src/widgets/interactive_sky_view.dart",
-      "packages/nightshade_planetarium/lib/src/providers/planetarium_providers/object_search.dart",
-      "packages/nightshade_app/lib/screens/planetarium/widgets/object_info_popup.dart",
-      "packages/nightshade_app/lib/screens/planetarium/widgets/object_info_popup/supporting_widgets.dart",
-      "packages/nightshade_app/lib/screens/planetarium/widgets/observation_log_dialog.dart",
-      "packages/nightshade_app/lib/screens/planetarium/widgets/search_header.dart",
-      "packages/nightshade_app/lib/screens/planetarium/widgets/mobile_widgets/object_info_content.dart",
-      "packages/nightshade_app/lib/screens/planetarium/widgets/mobile_widgets/bottom_info_and_hud.dart",
-      "packages/nightshade_planetarium/test/solar_system_body_typing_test.dart",
-      "packages/nightshade_app/test/screens/planetarium/solar_system_object_identity_test.dart"
+      "packages/skotiq_planetarium/lib/src/celestial_object.dart",
+      "packages/skotiq_planetarium/lib/src/widgets/interactive_sky_view.dart",
+      "packages/skotiq_planetarium/lib/src/providers/planetarium_providers/object_search.dart",
+      "packages/skotiq_app/lib/screens/planetarium/widgets/object_info_popup.dart",
+      "packages/skotiq_app/lib/screens/planetarium/widgets/object_info_popup/supporting_widgets.dart",
+      "packages/skotiq_app/lib/screens/planetarium/widgets/observation_log_dialog.dart",
+      "packages/skotiq_app/lib/screens/planetarium/widgets/search_header.dart",
+      "packages/skotiq_app/lib/screens/planetarium/widgets/mobile_widgets/object_info_content.dart",
+      "packages/skotiq_app/lib/screens/planetarium/widgets/mobile_widgets/bottom_info_and_hud.dart",
+      "packages/skotiq_planetarium/test/solar_system_body_typing_test.dart",
+      "packages/skotiq_app/test/screens/planetarium/solar_system_object_identity_test.dart"
     ],
-    "test": "Two files, split across the two halves. packages/nightshade_planetarium/test/solar_system_body_typing_test.dart taps a planet on a real InteractiveSkyView and asserts the object handed to onObjectTapped is a SolarSystemBody of kind planet, asserts every entry solarSystemSearchObjectsProvider publishes is typed, and pins that the subtype still satisfies `is Star`. packages/nightshade_app/test/screens/planetarium/solar_system_object_identity_test.dart pumps the real ObjectInfoPopup (Type row reads 'Planet', 'Star' and 'PLANET_Jupiter' appear nowhere; a real star still reads 'Star (G8III)') and pumps the real ObservationLogDialog, taps Log Observation, and reads the row back out of the in-memory database: object_type 'planet', catalog_id null.",
+    "test": "Two files, split across the two halves. packages/skotiq_planetarium/test/solar_system_body_typing_test.dart taps a planet on a real InteractiveSkyView and asserts the object handed to onObjectTapped is a SolarSystemBody of kind planet, asserts every entry solarSystemSearchObjectsProvider publishes is typed, and pins that the subtype still satisfies `is Star`. packages/skotiq_app/test/screens/planetarium/solar_system_object_identity_test.dart pumps the real ObjectInfoPopup (Type row reads 'Planet', 'Star' and 'PLANET_Jupiter' appear nowhere; a real star still reads 'Star (G8III)') and pumps the real ObservationLogDialog, taps Log Observation, and reads the row back out of the in-memory database: object_type 'planet', catalog_id null.",
     "revert_check": "Two separate reverts. (1) Constructed the planet back as a bare Star at interactive_sky_view.dart's hit test and object_search.dart -> both typing tests failed (Expected <Instance of 'SolarSystemBody'> Actual <Instance of 'Star'>). (2) Removed the SolarSystemBody branches from object_info_popup's Type row and chip and from observation_log_dialog's _getObjectType/_getCatalogId -> popup test failed (Found 0 widgets with text 'Planet') and the log test failed (Expected 'planet' Actual 'star'). Restored both, all six pass.",
     "caveats": "SolarSystemBody deliberately EXTENDS Star rather than being a sibling of it: ~19 sites branch on `obj is Star` for point-source behaviour (icons, popup layout, framing hand-off, slew) and a sibling type would have dropped all of them into generic fallbacks. Any future surface that wants the precise type must check SolarSystemBody FIRST - the popup, the log dialog and supporting_widgets all now do, and each carries a comment saying why."
   }

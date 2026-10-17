@@ -121,12 +121,12 @@ The node inspector gets tabs: **Settings** (today's properties),
 **Activity** (progress panel, frame grid, thumbnail strip, per-frame stats
 that today render inline in the tree), **Notes** (today's notes panel).
 Containers get Settings / Activity (subtree progress) / Notes. The tab bar is
-the `nightshade_ui` adaptive tab bar; the active tab persists per node type.
+the `skotiq_ui` adaptive tab bar; the active tab persists per node type.
 
 ### 9. Animations
 
 Subtle, short, and every one gated by `MediaQuery.disableAnimations` (zero
-duration when set). Use `NightshadeTokens` durations and curves; no bespoke
+duration when set). Use `SkotiqTokens` durations and curves; no bespoke
 timings.
 
 - Expand / collapse: `AnimatedSize` on the children block plus a fade-and-
@@ -153,7 +153,7 @@ of every row (a row's label includes its columns).
 ## Verification bar
 
 Every workstream: `dart analyze` clean, `dart format` clean, its own tests plus
-`packages/nightshade_app/test/screens/sequencer` green, no committed Linux
+`packages/skotiq_app/test/screens/sequencer` green, no committed Linux
 goldens. The campaign closes on the full `melos run test`, the production
 gates listed in `.github/workflows`, and a live GUI check of a seeded
 full-night sequence in the release bundle through `tools/ui_audit/drive_linux.py`.

@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless_api/handlers/planetarium_handlers.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/planetarium_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -178,7 +178,7 @@ void main() {
     });
 
     test('observing-list update can explicitly clear a description', () async {
-      final database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(database.close);
       container.dispose();
       container = ProviderContainer(

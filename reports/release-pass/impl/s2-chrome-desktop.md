@@ -65,7 +65,7 @@ stored rows — not the painted list — are what changes:
 
 Tests: 3 widget tests (revokes the stored rows / cancel revokes nothing / no
 control when the list is empty) and 4 protocol tests
-(`packages/nightshade_remote_protocol/test/auth/revoke_all_devices_test.dart`:
+(`packages/skotiq_remote_protocol/test/auth/revoke_all_devices_test.dart`:
 count, per-token eviction announcements, push-row cleanup, and an
 already-revoked device neither counted nor re-announced).
 
@@ -81,7 +81,7 @@ log's last line an unrelated warning.
 New `apps/desktop/lib/desktop_last_gasp.dart`:
 
 * `DesktopSessionRecord` + `resolveDesktopSessionRecordFile(dataRoot)` —
-  `<data root>/last_session.json`, so it follows `NIGHTSHADE_DATA_DIR` like the
+  `<data root>/last_session.json`, so it follows `SKOTIQ_DATA_DIR` like the
   logs do.
 * `DesktopLastGasp.markRunning()` stamps the record at boot;
   `recordCleanExit()` marks an operator-initiated quit;
@@ -103,7 +103,7 @@ a CRITICAL when the previous session's record still says `running` (naming its
 last recorded error), `markRunning()`, `install()`, and register
 `recordCleanExit` with the shell.
 
-Clean-exit seam: `packages/nightshade_app/lib/screens/shell/shell_exit_recorder.dart`
+Clean-exit seam: `packages/skotiq_app/lib/screens/shell/shell_exit_recorder.dart`
 (`ShellExit`, single-slot, synchronous by contract) is called from
 `_WindowCloseListener.onWindowClose` immediately before `windowManager.destroy()`.
 Without it every normal quit would leave a `running` record and the startup
@@ -124,9 +124,9 @@ Live-drive confirmation of the signal path belongs to Wave D.
 ## Verification
 
 * `apps/desktop`: `flutter test` — 1090 passing.
-* `packages/nightshade_remote_protocol`: `flutter test` — 195 passing.
-* `packages/nightshade_app`: `flutter test --exclude-tags golden test/screens/settings
+* `packages/skotiq_remote_protocol`: `flutter test` — 195 passing.
+* `packages/skotiq_app`: `flutter test --exclude-tags golden test/screens/settings
   test/screens/shell test/localization` — 593 passing.
 * `flutter analyze` clean (no errors/warnings) on every file touched, and on all
-  of `packages/nightshade_app/lib`.
+  of `packages/skotiq_app/lib`.
 * `dart format` applied to the touched files only.

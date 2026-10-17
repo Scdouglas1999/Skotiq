@@ -1,11 +1,11 @@
-[2m2026-08-14T03:57:54.569526Z[0m [32m INFO[0m Nightshade Native Bridge initialized with file logging
+[2m2026-08-14T03:57:54.569526Z[0m [32m INFO[0m Skotiq Native Bridge initialized with file logging
 [2m2026-08-14T03:57:54.569548Z[0m [32m INFO[0m Log directory: /tmp/ns-audit/waveF-solver-native/data/logs
-[2m2026-08-14T03:57:54.570228Z[0m [32m INFO[0m Nightshade Native API initialized
+[2m2026-08-14T03:57:54.570228Z[0m [32m INFO[0m Skotiq Native API initialized
 [2m2026-08-14T03:57:54.570897Z[0m [32m INFO[0m Hot-plug poll watcher started (interval=300s, types=[Camera, Mount, Focuser, FilterWheel, Rotator])
-[2m2026-08-14T03:57:54.591456Z[0m [32m INFO[0m Plate-solver preference loaded at startup: astap="/home/scdouglas/.local/share/nightshade-audit/astap/bin/astap_cli" catalog="/home/scdouglas/.local/share/nightshade-audit/astap/bin"
+[2m2026-08-14T03:57:54.591456Z[0m [32m INFO[0m Plate-solver preference loaded at startup: astap="/home/scdouglas/.local/share/skotiq-audit/astap/bin/astap_cli" catalog="/home/scdouglas/.local/share/skotiq-audit/astap/bin"
 [2m2026-08-14T03:57:54.591485Z[0m [32m INFO[0m Loading observer location from settings: lat=40, lon=40, elev=0
 [2m2026-08-14T03:57:54.591649Z[0m [32m INFO[0m USB hotplug listener started
-[2m2026-08-14T03:57:54.632501Z[0m [32m INFO[0m Nightshade Native API initialized
+[2m2026-08-14T03:57:54.632501Z[0m [32m INFO[0m Skotiq Native API initialized
 [2m2026-08-14T03:57:55.231287Z[0m [32m INFO[0m [API_EVENT_STREAM] Starting event stream function (buffer size: 4096)
 [2m2026-08-14T03:57:55.231309Z[0m [32m INFO[0m [API_EVENT_STREAM] Subscribed to event bus
 [2m2026-08-14T03:57:55.231345Z[0m [32m INFO[0m [API_EVENT_STREAM] Sent ready signal to Dart
@@ -61,8 +61,8 @@
 [2m2026-08-14T03:58:02.493733Z[0m [32m INFO[0m QHY Camera: loaded SDK from libqhyccd.so
 [2m2026-08-14T03:58:02.493750Z[0m [32m INFO[0m QHY Camera: all required symbols resolved
 QHYCCD|QHYCOMMON.CPP|UpdateMainProgramName|start
-QHYCCD|QHYCOMMON.CPP|UpdateMainProgramName|main program=nightshade_desktop
-QHYCCD|QHYCCD.CPP|InitQHYCCDResource|main program name=nightshade_desktop
+QHYCCD|QHYCOMMON.CPP|UpdateMainProgramName|main program=skotiq_desktop
+QHYCCD|QHYCCD.CPP|InitQHYCCDResource|main program name=skotiq_desktop
 -- qhyccd.cpp param
 QHYCCD|QHYCCD.CPP|InitQHYCCDResource()|START
 QHYCCD|QHYCCD.CPP|InitQHYCCDResource|auto_detect_camera:false,call InitQHYCCDResourceInside
@@ -72,7 +72,7 @@ QHYCCD|QHYCCD.CPP|libusb_init(libqhyccd_context) called...
 QHYCCD|QHYCCD.CPP|InitQHYCCDResourceInside|numdev set to 0
 QHYCCD|QHYCCD.CPP|InitQHYCCDResourceInside|END
 ************************** config file path  26.7.21.5 svn: 1  ************************************
-QHYCCD|QHYCCD.CPP|InitQHYCCDResource|Load ini filePath = /home/scdouglas/Documents/Nightshade2/apps/desktop/build/linux/x64/release/bundle  fileName = qhyccd.ini
+QHYCCD|QHYCCD.CPP|InitQHYCCDResource|Load ini filePath = /home/scdouglas/Documents/Skotiq2/apps/desktop/build/linux/x64/release/bundle  fileName = qhyccd.ini
 [QHYDEMO DEBUG] Entering demo camera registration block
 [QHYDEMO DEBUG] demo_enabled=0 demo_count=1 image_dir=
 [2m2026-08-14T03:58:03.506436Z[0m [32m INFO[0m QHY SDK initialized successfully
@@ -116,7 +116,7 @@ QHYCCD|QHYCCD.CPP|InitQHYCCDResource|Load ini filePath = /home/scdouglas/Documen
 [2m2026-08-14T03:59:01.895987Z[0m [32m INFO[0m camera_start_exposure: Simulator exposure started
 [2m2026-08-14T03:59:01.897361Z[0m [32m INFO[0m DeviceManager: camera_start_exposure for sim_camera_1 duration=1
 [2m2026-08-14T03:59:01.897370Z[0m [32m INFO[0m camera_start_exposure: Simulator exposure started
-[2m2026-08-14T03:59:02.986412Z[0m [32m INFO[0m sim sky: indexed 1476 'd05' area files from "/home/scdouglas/.local/share/nightshade-audit/astap/bin" in 0.08s
+[2m2026-08-14T03:59:02.986412Z[0m [32m INFO[0m sim sky: indexed 1476 'd05' area files from "/home/scdouglas/.local/share/skotiq-audit/astap/bin" in 0.08s
 [2m2026-08-14T03:59:03.013452Z[0m [32m INFO[0m [STAR_DETECT] Image 1920x1080, pixel range: 502-64741, avg: 516.2
 [2m2026-08-14T03:59:03.013474Z[0m [32m INFO[0m [STAR_DETECT] Background: 515.0, Noise: 3.2, Threshold: 531.1 (sigma=5)
 [2m2026-08-14T03:59:03.029395Z[0m [32m INFO[0m [STAR_DETECT] Measured 117 sources (eccentricity <= 0.95), 117 at the requested ceiling (<= 0.95), 109 usable (<= 0.70)
@@ -648,7 +648,7 @@ QHYCCD|QHYCCD.CPP|InitQHYCCDResource|Load ini filePath = /home/scdouglas/Documen
 [2m2026-08-14T04:04:30.611544Z[0m [32m INFO[0m Polar alignment: Plate solving point 1/3... (phase=measuring, point=1)
 [2m2026-08-14T04:04:30.626745Z[0m [32m INFO[0m Blind plate solving: /tmp/polar_align_point_1_1935620_1786680270621656260_0.fits
 [2m2026-08-14T04:04:30.627377Z[0m [32m INFO[0m ASTAP field-scale hint: 2.59"/px over 540 px = -fov 0.3878 deg
-[2m2026-08-14T04:04:30.627389Z[0m [32m INFO[0m Running ASTAP: "/home/scdouglas/.local/share/nightshade-audit/astap/bin/astap_cli" "-f" "/tmp/nightshade-solve-1935620-0/polar_align_point_1_1935620_1786680270621656260_0.fits" "-fov" "0.3878" "-z" "2" "-d" "/home/scdouglas/.local/share/nightshade-audit/astap/bin" "-wcs"
+[2m2026-08-14T04:04:30.627389Z[0m [32m INFO[0m Running ASTAP: "/home/scdouglas/.local/share/skotiq-audit/astap/bin/astap_cli" "-f" "/tmp/skotiq-solve-1935620-0/polar_align_point_1_1935620_1786680270621656260_0.fits" "-fov" "0.3878" "-z" "2" "-d" "/home/scdouglas/.local/share/skotiq-audit/astap/bin" "-wcs"
 [2m2026-08-14T04:04:30.656325Z[0m [32m INFO[0m Point 1 solved: RA=0.0022°, Dec=0.0010°
 [2m2026-08-14T04:04:30.666344Z[0m [32m INFO[0m Polar alignment: Slewing to point 2... (phase=measuring, point=1)
 [2m2026-08-14T04:04:35.667196Z[0m [32m INFO[0m Polar alignment: Capturing point 2/3... (phase=measuring, point=2)
@@ -658,7 +658,7 @@ QHYCCD|QHYCCD.CPP|InitQHYCCDResource|Load ini filePath = /home/scdouglas/Documen
 [2m2026-08-14T04:04:40.717714Z[0m [32m INFO[0m Polar alignment: Plate solving point 2/3... (phase=measuring, point=2)
 [2m2026-08-14T04:04:40.732894Z[0m [32m INFO[0m Blind plate solving: /tmp/polar_align_point_2_1935620_1786680280727540723_1.fits
 [2m2026-08-14T04:04:40.733396Z[0m [32m INFO[0m ASTAP field-scale hint: 2.59"/px over 540 px = -fov 0.3878 deg
-[2m2026-08-14T04:04:40.733410Z[0m [32m INFO[0m Running ASTAP: "/home/scdouglas/.local/share/nightshade-audit/astap/bin/astap_cli" "-f" "/tmp/nightshade-solve-1935620-1/polar_align_point_2_1935620_1786680280727540723_1.fits" "-fov" "0.3878" "-z" "2" "-d" "/home/scdouglas/.local/share/nightshade-audit/astap/bin" "-wcs"
+[2m2026-08-14T04:04:40.733410Z[0m [32m INFO[0m Running ASTAP: "/home/scdouglas/.local/share/skotiq-audit/astap/bin/astap_cli" "-f" "/tmp/skotiq-solve-1935620-1/polar_align_point_2_1935620_1786680280727540723_1.fits" "-fov" "0.3878" "-z" "2" "-d" "/home/scdouglas/.local/share/skotiq-audit/astap/bin" "-wcs"
 [2m2026-08-14T04:04:41.934199Z[0m [32m INFO[0m Point 2 solved: RA=15.0023°, Dec=0.0011°
 [2m2026-08-14T04:04:41.944207Z[0m [32m INFO[0m Polar alignment: Slewing to point 3... (phase=measuring, point=2)
 [2m2026-08-14T04:04:46.945210Z[0m [32m INFO[0m Polar alignment: Capturing point 3/3... (phase=measuring, point=3)
@@ -668,7 +668,7 @@ QHYCCD|QHYCCD.CPP|InitQHYCCDResource|Load ini filePath = /home/scdouglas/Documen
 [2m2026-08-14T04:04:52.002043Z[0m [32m INFO[0m Polar alignment: Plate solving point 3/3... (phase=measuring, point=3)
 [2m2026-08-14T04:04:52.021426Z[0m [32m INFO[0m Blind plate solving: /tmp/polar_align_point_3_1935620_1786680292016522184_2.fits
 [2m2026-08-14T04:04:52.022062Z[0m [32m INFO[0m ASTAP field-scale hint: 2.59"/px over 540 px = -fov 0.3878 deg
-[2m2026-08-14T04:04:52.022081Z[0m [32m INFO[0m Running ASTAP: "/home/scdouglas/.local/share/nightshade-audit/astap/bin/astap_cli" "-f" "/tmp/nightshade-solve-1935620-2/polar_align_point_3_1935620_1786680292016522184_2.fits" "-fov" "0.3878" "-z" "2" "-d" "/home/scdouglas/.local/share/nightshade-audit/astap/bin" "-wcs"
+[2m2026-08-14T04:04:52.022081Z[0m [32m INFO[0m Running ASTAP: "/home/scdouglas/.local/share/skotiq-audit/astap/bin/astap_cli" "-f" "/tmp/skotiq-solve-1935620-2/polar_align_point_3_1935620_1786680292016522184_2.fits" "-fov" "0.3878" "-z" "2" "-d" "/home/scdouglas/.local/share/skotiq-audit/astap/bin" "-wcs"
 [2m2026-08-14T04:04:56.645863Z[0m [32m INFO[0m Point 3 solved: RA=30.0025°, Dec=0.0013°
 [2m2026-08-14T04:04:56.655921Z[0m [32m INFO[0m Polar alignment: Calculating polar alignment error... (phase=adjusting, point=3)
 [2m2026-08-14T04:04:56.655936Z[0m [32m INFO[0m Rotation center: RA=305.7045°, Dec=89.9993°
@@ -680,7 +680,7 @@ QHYCCD|QHYCCD.CPP|InitQHYCCDResource|Load ini filePath = /home/scdouglas/Documen
 [2m2026-08-14T04:05:01.733130Z[0m [32m INFO[0m Polar alignment: Solving... (phase=adjusting, point=0)
 [2m2026-08-14T04:05:01.733156Z[0m [32m INFO[0m Blind plate solving: /tmp/polar_align_adjust_1935620_1786680301728347672_3.fits
 [2m2026-08-14T04:05:01.733769Z[0m [32m INFO[0m ASTAP field-scale hint: 2.59"/px over 540 px = -fov 0.3878 deg
-[2m2026-08-14T04:05:01.733786Z[0m [32m INFO[0m Running ASTAP: "/home/scdouglas/.local/share/nightshade-audit/astap/bin/astap_cli" "-f" "/tmp/nightshade-solve-1935620-3/polar_align_adjust_1935620_1786680301728347672_3.fits" "-fov" "0.3878" "-z" "2" "-d" "/home/scdouglas/.local/share/nightshade-audit/astap/bin" "-wcs"
+[2m2026-08-14T04:05:01.733786Z[0m [32m INFO[0m Running ASTAP: "/home/scdouglas/.local/share/skotiq-audit/astap/bin/astap_cli" "-f" "/tmp/skotiq-solve-1935620-3/polar_align_adjust_1935620_1786680301728347672_3.fits" "-fov" "0.3878" "-z" "2" "-d" "/home/scdouglas/.local/share/skotiq-audit/astap/bin" "-wcs"
 [2m2026-08-14T04:05:06.473384Z[0m [32m INFO[0m Error 2.7 arcsec dropped below threshold 30.0, starting auto-complete timer
 [2m2026-08-14T04:05:06.473408Z[0m [32m INFO[0m Polar alignment: Below threshold - completing in 3s... (phase=adjusting, point=0)
 [2m2026-08-14T04:05:07.474493Z[0m [32m INFO[0m Polar alignment: Capturing... (phase=adjusting, point=0)
@@ -690,7 +690,7 @@ QHYCCD|QHYCCD.CPP|InitQHYCCDResource|Load ini filePath = /home/scdouglas/Documen
 [2m2026-08-14T04:05:12.594211Z[0m [32m INFO[0m Polar alignment: Solving... (phase=adjusting, point=0)
 [2m2026-08-14T04:05:12.594272Z[0m [32m INFO[0m Blind plate solving: /tmp/polar_align_adjust_1935620_1786680312583440720_4.fits
 [2m2026-08-14T04:05:12.595528Z[0m [32m INFO[0m ASTAP field-scale hint: 2.59"/px over 540 px = -fov 0.3878 deg
-[2m2026-08-14T04:05:12.595548Z[0m [32m INFO[0m Running ASTAP: "/home/scdouglas/.local/share/nightshade-audit/astap/bin/astap_cli" "-f" "/tmp/nightshade-solve-1935620-4/polar_align_adjust_1935620_1786680312583440720_4.fits" "-fov" "0.3878" "-z" "2" "-d" "/home/scdouglas/.local/share/nightshade-audit/astap/bin" "-wcs"
+[2m2026-08-14T04:05:12.595548Z[0m [32m INFO[0m Running ASTAP: "/home/scdouglas/.local/share/skotiq-audit/astap/bin/astap_cli" "-f" "/tmp/skotiq-solve-1935620-4/polar_align_adjust_1935620_1786680312583440720_4.fits" "-fov" "0.3878" "-z" "2" "-d" "/home/scdouglas/.local/share/skotiq-audit/astap/bin" "-wcs"
 [2m2026-08-14T04:05:17.962658Z[0m [32m INFO[0m Polar alignment complete! Total error 2.7 arcsec below threshold 30.0 for 3 seconds
 [2m2026-08-14T04:05:17.962680Z[0m [32m INFO[0m Polar alignment: Complete! Error 2.7" below threshold for 3s (phase=complete, point=0)
 [2m2026-08-14T04:06:34.907206Z[0m [32m INFO[0m Starting 2s exposure with gain=Some(100), offset=Some(50), bin=1x1
@@ -701,7 +701,7 @@ QHYCCD|QHYCCD.CPP|InitQHYCCDResource|Load ini filePath = /home/scdouglas/Documen
 [2m2026-08-14T04:06:37.169201Z[0m [32m INFO[0m FITS file saved successfully from last capture
 [2m2026-08-14T04:06:37.250394Z[0m [32m INFO[0m Blind plate solving: /tmp/ns-audit/waveE-imaging-stacking-polar/caps/Unknown_R_2026-08-14_0009.fits
 [2m2026-08-14T04:06:37.250895Z[0m [32m INFO[0m ASTAP field-scale hint: 1.29"/px over 1080 px = -fov 0.3878 deg
-[2m2026-08-14T04:06:37.250910Z[0m [32m INFO[0m Running ASTAP: "/home/scdouglas/.local/share/nightshade-audit/astap/bin/astap_cli" "-f" "/tmp/nightshade-solve-1935620-5/Unknown_R_2026-08-14_0009.fits" "-fov" "0.3878" "-z" "2" "-d" "/home/scdouglas/.local/share/nightshade-audit/astap/bin" "-wcs"
+[2m2026-08-14T04:06:37.250910Z[0m [32m INFO[0m Running ASTAP: "/home/scdouglas/.local/share/skotiq-audit/astap/bin/astap_cli" "-f" "/tmp/skotiq-solve-1935620-5/Unknown_R_2026-08-14_0009.fits" "-fov" "0.3878" "-z" "2" "-d" "/home/scdouglas/.local/share/skotiq-audit/astap/bin" "-wcs"
 [2m2026-08-14T04:06:37.261222Z[0m [32m INFO[0m Plate solve (near): /tmp/ns-audit/waveE-imaging-stacking-polar/caps/Unknown_R_2026-08-14_0009.fits is already being solved; waiting for that result instead of starting a second solver process
 [2m2026-08-14T04:06:37.296666Z[0m [32m INFO[0m Reading FITS file: /tmp/ns-audit/waveE-imaging-stacking-polar/caps/Unknown_R_2026-08-14_0009.fits
 [2m2026-08-14T04:06:37.297866Z[0m [32m INFO[0m Reading FITS file: /tmp/ns-audit/waveE-imaging-stacking-polar/caps/Unknown_R_2026-08-14_0009.fits
@@ -752,7 +752,7 @@ QHYCCD|QHYCCD.CPP|InitQHYCCDResource|Load ini filePath = /home/scdouglas/Documen
 [2m2026-08-14T04:08:20.330009Z[0m [32m INFO[0m FITS file saved successfully from last capture
 [2m2026-08-14T04:08:20.366671Z[0m [32m INFO[0m Plate solving near RA:30.00°, Dec:0.00°: /tmp/ns-audit/waveE-imaging-stacking-polar/caps/Unknown_R_2026-08-14_0010.fits
 [2m2026-08-14T04:08:20.367313Z[0m [32m INFO[0m ASTAP field-scale hint: 1.29"/px over 1080 px = -fov 0.3878 deg
-[2m2026-08-14T04:08:20.367324Z[0m [32m INFO[0m Running ASTAP: "/home/scdouglas/.local/share/nightshade-audit/astap/bin/astap_cli" "-f" "/tmp/nightshade-solve-1935620-6/Unknown_R_2026-08-14_0010.fits" "-ra" "2.000156" "-spd" "90.001131" "-r" "30.00" "-fov" "0.3878" "-z" "2" "-d" "/home/scdouglas/.local/share/nightshade-audit/astap/bin" "-wcs"
+[2m2026-08-14T04:08:20.367324Z[0m [32m INFO[0m Running ASTAP: "/home/scdouglas/.local/share/skotiq-audit/astap/bin/astap_cli" "-f" "/tmp/skotiq-solve-1935620-6/Unknown_R_2026-08-14_0010.fits" "-ra" "2.000156" "-spd" "90.001131" "-r" "30.00" "-fov" "0.3878" "-z" "2" "-d" "/home/scdouglas/.local/share/skotiq-audit/astap/bin" "-wcs"
 [2m2026-08-14T04:08:20.371659Z[0m [32m INFO[0m Plate solve (blind): /tmp/ns-audit/waveE-imaging-stacking-polar/caps/Unknown_R_2026-08-14_0010.fits is already being solved; waiting for that result instead of starting a second solver process
 [2m2026-08-14T04:08:20.411581Z[0m [32m INFO[0m Reading FITS file: /tmp/ns-audit/waveE-imaging-stacking-polar/caps/Unknown_R_2026-08-14_0010.fits
 [2m2026-08-14T04:08:20.412746Z[0m [32m INFO[0m Reading FITS file: /tmp/ns-audit/waveE-imaging-stacking-polar/caps/Unknown_R_2026-08-14_0010.fits

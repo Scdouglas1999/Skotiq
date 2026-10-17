@@ -2,7 +2,7 @@
 
 Instance: `NS_AUDIT_DISPLAY=:84 python3 tools/ui_audit/drive_linux.py <cmd> --profile waveD-settings-onboarding`
 (profile **after** the subcommand; `start --fresh --profile waveD-settings-onboarding`)
-Build: `apps/desktop/build/linux/x64/release/bundle/nightshade_desktop` (binary dated 2026-08-13 18:31), Xvfb :84, softpipe.
+Build: `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop` (binary dated 2026-08-13 18:31), Xvfb :84, softpipe.
 Window: 1600x900 for all repros unless stated; one pass at 1000x800.
 Date: 2026-08-13. Nothing was fixed in this pass — verification only.
 
@@ -34,7 +34,7 @@ Remote Connection Pairing, Equipment Profiles, Help & Tutorials, Autofocus).
 Manage Pairing. The Paired Devices card reads **"No paired devices / Start pairing mode to connect a
 device"**. On disk the store is now inside the scratch profile:
 `/tmp/ns-audit/waveD-settings-onboarding/data/pairing.db` exists with `paired_devices` = **0 rows**,
-while the developer's own `~/Documents/Nightshade/pairing.db` still holds its 13 rows — i.e. the two
+while the developer's own `~/Documents/Skotiq/pairing.db` still holds its 13 rows — i.e. the two
 stores are no longer the same file. **Revoke All exists**: I paired a real device to prove it
 (`Start Pairing Mode` → code `METEOR-MOON-8511` read from `pairing_sessions` →
 `POST /api/pairing/verify` with `deviceId=waveD-test-phone`, scope `control`). The list then showed
@@ -89,7 +89,7 @@ could not reach, and the tour card exposes `Skip tour` / `Next step` as named bu
 Settings → Remote Access → Pair phones and tablets → **Start Pairing Mode** now produces:
 a centred QR, a visible **Pairing phrase `ZENITH-NOVA-5610`**, **`Expires in 4:49`** counting down,
 and a **`Stop pairing mode`** button. The QR itself is now labelled for a11y
-(`panel: Nightshade pairing QR for 192.168.1.20:8080`). Evidence: `s30-crop.png`.
+(`panel: Skotiq pairing QR for 192.168.1.20:8080`). Evidence: `s30-crop.png`.
 What is still broken is the part the finding called out last: **the phrase value is not exposed to
 accessibility**. The tree gives `panel: Pairing phrase` and then `panel: Expires in 4:49` — grep for
 `ZENITH|NOVA|5610` returns nothing. A screen-reader user is told a phrase exists and is not told what
@@ -143,7 +143,7 @@ Onboarding steps 3-7, any backend that is not answering (default state on a mach
 INDI server — i.e. the common case):
 
 > `Alpaca: nothing answered — Alpaca server connection failed:
-> NightshadeError.connectionFailed(deviceId: localhost:11111, reason: Failed to connect to Alpaca
+> SkotiqError.connectionFailed(deviceId: localhost:11111, reason: Failed to connect to Alpaca
 > server: error sending request for url (http://localhost:11111/management/v1/configureddevices):
 > error trying to connect: tcp connect error: Connection refused (os error 111))`
 

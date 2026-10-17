@@ -1,15 +1,15 @@
 # Plugin API Reference
 
-The Plugin API allows extending Nightshade with custom functionality through plugins.
+The Plugin API allows extending Skotiq with custom functionality through plugins.
 
 ## Base Plugin Interface
 
-### NightshadePlugin
+### SkotiqPlugin
 
 Base interface for all plugins.
 
 ```dart
-abstract class NightshadePlugin {
+abstract class SkotiqPlugin {
   /// Unique plugin identifier
   String get id;
   
@@ -41,7 +41,7 @@ abstract class NightshadePlugin {
 
 **Example:**
 ```dart
-class MyPlugin extends NightshadePlugin {
+class MyPlugin extends SkotiqPlugin {
   @override
   String get id => 'com.example.myplugin';
   
@@ -76,7 +76,7 @@ class MyPlugin extends NightshadePlugin {
 Plugin that adds UI panels.
 
 ```dart
-abstract class UiPlugin extends NightshadePlugin {
+abstract class UiPlugin extends SkotiqPlugin {
   /// Get the UI extension points this plugin provides
   List<UiExtensionPoint> get extensionPoints;
 }
@@ -131,7 +131,7 @@ class MyUiPlugin extends UiPlugin {
 Plugin that adds device support.
 
 ```dart
-abstract class DevicePlugin extends NightshadePlugin {
+abstract class DevicePlugin extends SkotiqPlugin {
   /// Get the device types this plugin supports
   List<DevicePluginType> get supportedDevices;
 }
@@ -173,7 +173,7 @@ class MyDevicePlugin extends DevicePlugin {
 Plugin that adds sequence instructions.
 
 ```dart
-abstract class SequencePlugin extends NightshadePlugin {
+abstract class SequencePlugin extends SkotiqPlugin {
   /// Get the sequence nodes this plugin provides
   List<SequenceNodeDefinition> get nodeDefinitions;
 }
@@ -217,10 +217,10 @@ Plugins are managed by the `PluginHost` class.
 
 ```dart
 class PluginHost {
-  Future<void> registerPlugin(NightshadePlugin plugin, {bool enabled = true});
+  Future<void> registerPlugin(SkotiqPlugin plugin, {bool enabled = true});
   Future<void> unregisterPlugin(String pluginId);
-  List<NightshadePlugin> getLoadedPlugins();
-  NightshadePlugin? getPlugin(String pluginId);
+  List<SkotiqPlugin> getLoadedPlugins();
+  SkotiqPlugin? getPlugin(String pluginId);
 }
 ```
 

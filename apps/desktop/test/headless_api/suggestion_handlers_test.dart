@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/suggestion_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/suggestion_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -134,12 +134,12 @@ void main() {
   // Valid params must flow through to the service (200) — the defaults on
   // absence and the accepted boundary values.
   group('SuggestionHandlers tonight valid forwarding', () {
-    late NightshadeDatabase db;
+    late SkotiqDatabase db;
     late ProviderContainer container;
     late SuggestionHandlers handlers;
 
     setUp(() async {
-      db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       // A configured location is a precondition; without it the handler returns
       // a *different* 400 that would mask the validation behaviour under test.
       await db.settingsDao.setObserverLatitude(40.0);

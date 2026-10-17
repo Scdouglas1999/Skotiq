@@ -25,7 +25,7 @@
 //     has no host-side implementation in unit tests (the existing
 //     `mobile_event_notifier_test.dart` uses the same pattern).
 //
-// `nightshade_desktop` is a test-only path dependency declared in
+// `skotiq_desktop` is a test-only path dependency declared in
 // `apps/mobile/pubspec.yaml`. Production mobile builds do NOT link it.
 
 import 'dart:async';
@@ -34,11 +34,11 @@ import 'dart:io' show Platform, WebSocketException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api_server.dart';
-import 'package:nightshade_mobile/services/mobile_event_notifier.dart';
-import 'package:nightshade_mobile/services/mobile_preferences.dart';
-import 'package:nightshade_mobile/services/notification_service.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api_server.dart';
+import 'package:skotiq_mobile/services/mobile_event_notifier.dart';
+import 'package:skotiq_mobile/services/mobile_preferences.dart';
+import 'package:skotiq_mobile/services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Recording double for `MobileNotificationSink`. Same shape as the one in
@@ -189,14 +189,14 @@ class _NotifyCall {
 
 /// Server-side test backend: a controllable `eventStream` plus mocktail's
 /// defaults for everything else `HeadlessApiServer` reads off the backend.
-class _ServerSideBackend extends Mock implements NightshadeBackend {
-  final StreamController<NightshadeEvent> _events =
-      StreamController<NightshadeEvent>.broadcast();
+class _ServerSideBackend extends Mock implements SkotiqBackend {
+  final StreamController<SkotiqEvent> _events =
+      StreamController<SkotiqEvent>.broadcast();
   final StreamController<Map<String, dynamic>> _polar =
       StreamController<Map<String, dynamic>>.broadcast();
 
   @override
-  Stream<NightshadeEvent> get eventStream => _events.stream;
+  Stream<SkotiqEvent> get eventStream => _events.stream;
 
   @override
   Stream<Map<String, dynamic>> get polarAlignmentEvents => _polar.stream;
@@ -204,7 +204,7 @@ class _ServerSideBackend extends Mock implements NightshadeBackend {
   /// Inject an event from the server side. Production code paths that fire
   /// `SequenceFailed` would write to this same stream; the HeadlessApiServer
   /// is subscribed and fans events out to every connected WebSocket client.
-  void emit(NightshadeEvent event) {
+  void emit(SkotiqEvent event) {
     if (!_events.isClosed) _events.add(event);
   }
 
@@ -216,7 +216,7 @@ class _ServerSideBackend extends Mock implements NightshadeBackend {
 }
 
 class _ServerSideBackendNotifier extends BackendNotifier {
-  _ServerSideBackendNotifier(super.ref, NightshadeBackend backend) {
+  _ServerSideBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
   }
 }
@@ -245,13 +245,13 @@ void main() {
   // and drives a real WebSocket round-trip with multi-second propagation
   // windows. That makes it inherently timing/port-binding-flaky under the
   // default `melos run test` gate (different cases fail on different runs), so
-  // it is excluded by default and run explicitly with NIGHTSHADE_E2E=1. The
+  // it is excluded by default and run explicitly with SKOTIQ_E2E=1. The
   // production transports it exercises are also covered deterministically by
   // network_backend_tailnet_test (core) and the mobile pairing/service tests.
-  final Object? e2eSkip = Platform.environment['NIGHTSHADE_E2E'] == '1'
+  final Object? e2eSkip = Platform.environment['SKOTIQ_E2E'] == '1'
       ? null
       : 'Flaky real-socket E2E (live HeadlessApiServer + WebSocket, multi-second '
-            'waits). Run explicitly with NIGHTSHADE_E2E=1 flutter test '
+            'waits). Run explicitly with SKOTIQ_E2E=1 flutter test '
             'test/services/mobile_remote_e2e_test.dart';
 
   group('Mobile remote E2E (HeadlessApiServer ↔ NetworkBackend)', () {
@@ -341,7 +341,7 @@ void main() {
 
       // Inject the event server-side. HeadlessApiServer's
       // `_subscribeToBackendEvents` is listening; it serializes via
-      // NightshadeEvent.toJson() and pushes to every connected socket.
+      // SkotiqEvent.toJson() and pushes to every connected socket.
       //
       // Why we emit in a polling loop rather than once-and-wait:
       // `NetworkBackend.connectionState == connected` is set as soon as the
@@ -351,7 +351,7 @@ void main() {
       // has no recipients and the emit is silently lost. Re-emitting on a
       // short interval until the round-trip succeeds is robust against
       // that race without requiring access to server internals.
-      NightshadeEvent makeEvent() => NightshadeEvent(
+      SkotiqEvent makeEvent() => SkotiqEvent(
         timestamp: DateTime.now().millisecondsSinceEpoch,
         severity: EventSeverity.critical,
         category: EventCategory.imaging,
@@ -443,7 +443,7 @@ void main() {
           // not deliver to the rejected client.
           for (var i = 0; i < 20; i++) {
             serverBackend.emit(
-              NightshadeEvent(
+              SkotiqEvent(
                 timestamp: DateTime.now().millisecondsSinceEpoch,
                 severity: EventSeverity.critical,
                 category: EventCategory.imaging,

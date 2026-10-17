@@ -13,7 +13,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_headless_response_helper_audit_self_test_',
+    'skotiq_headless_response_helper_audit_self_test_',
   );
   try {
     await _writePassingFixture(temp);

@@ -20,10 +20,10 @@ class LiveActivityUnsupportedPlatformException implements Exception {
 }
 
 /// Host-side bridge to the iOS ActivityKit-backed Live Activity declared in
-/// `apps/mobile/ios/NightshadeLiveActivity/`.
+/// `apps/mobile/ios/SkotiqLiveActivity/`.
 ///
 /// JSON keys passed across the [MethodChannel] mirror
-/// `NightshadeLiveActivityAttributes.ContentState` field names 1:1. Touch
+/// `SkotiqLiveActivityAttributes.ContentState` field names 1:1. Touch
 /// them only in lockstep with the Swift side; the [MethodChannel] is a
 /// black-box JSON pipe, the field names ARE the schema.
 ///
@@ -42,7 +42,7 @@ class LiveActivityService {
 
   /// Public for tests that need to spy on the channel directly.
   static const String channelName = _channelName;
-  static const String _channelName = 'nightshade/live_activity';
+  static const String _channelName = 'skotiq/live_activity';
 
   final MethodChannel _channel;
 

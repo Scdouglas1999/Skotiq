@@ -8,7 +8,7 @@
   "what_happened": "Under the heading 'Critical events (unattended imaging)', 'Audible alert on critical events -- Play the system bell when a critical error fires' ships OFF. The sibling 'Push critical alerts to mobile' ships ON but honestly discloses that it delivers nothing until remote access is configured. So on a fresh install the section whose entire purpose is reaching an absent operator has zero working channels, and the one that needs no setup at all is the one turned off.",
   "expected": "Default the system bell ON. It costs nothing, needs no configuration, and is the only channel that works out of the box on a laptop sitting next to the rig. If the concern is nuisance during attended imaging, gate it on 'a sequence is running' rather than defaulting it off.",
   "repro": "Fresh profile. Settings > NOTIFICATIONS & REMOTE > Notifications > 'Critical events (unattended imaging)'.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/notification_settings.dart (critical-events section defaults)",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/notification_settings.dart (critical-events section defaults)",
   "location_wrong": null,
   "proposed_fix": "Flip the shipped default for the audible critical alert to true.",
   "verdict_reasoning": null
@@ -22,7 +22,7 @@
   "what_happened": "Settings > Science > Transient Name Server (TNS) provides Bot id, Bot name, Reporting group id, Data source id, Reporter name, Bot API key, and 'Use TNS sandbox -- Submit to the TNS sandbox instead of production (no public record)', which is OFF on a fresh profile. A user who fills in their bot credentials and submits a discovery therefore posts a public, permanent AT record to the real TNS on their very first attempt, with no confirmation step and no dry-run.",
   "expected": "Sandbox ON by default. Require an explicit opt-out (ideally after one successful sandbox submission) before the app can write to production TNS. Submitting a bogus transient to the public registry is not something you can quietly undo, and the cost of the safe default is one toggle.",
   "repro": "Fresh profile. Settings > SCIENCE > Science > scroll to 'Transient Name Server (TNS)'.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/science_settings.dart:866-895 (_TnsSandboxRow) and ScienceSettings.tnsUseSandbox default",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/science_settings.dart:866-895 (_TnsSandboxRow) and ScienceSettings.tnsUseSandbox default",
   "location_wrong": null,
   "proposed_fix": "Default tnsUseSandbox to true and add a confirmation dialog on the first switch to production.",
   "verdict_reasoning": null
@@ -36,7 +36,7 @@
   "what_happened": "Top-to-bottom the page is: General, Notification Events, Critical events, Push to Mobile (+Test), Discord (legacy), Pushover (legacy), Routing master switch, ~25 per-event routing rows, Email (SMTP), Generic webhook, Pushover (routing matrix), Telegram, Discord (routing matrix), MQTT broker, Home Assistant. Selecting 'Email (SMTP)' as a routing transport near the top gives no link to the SMTP fields far below. Meanwhile 'Sequence complete' and 'Errors' under Notification Events duplicate 'Sequence completed' and 'Sequence failed' under Push to Mobile, which duplicate the 'Sequence Completed'/'Sequence Failed' rows in Per-event routing -- three separate controls for one intent, with no explanation of precedence. Reaching MQTT from the top took nine wheel-scroll batches.",
   "expected": "Split transports onto their own settings leaf (or tabs: Events | Routing | Transports), and make the transport chips in the routing dialog link to their config. Collapse the three duplicate event lists into the routing matrix, which is the general case.",
   "repro": "Settings > NOTIFICATIONS & REMOTE > Notifications and scroll from top to bottom.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/notification_settings.dart:684 (embeds NotificationRoutingSettings, which itself appends _TransportsSection)",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/notification_settings.dart:684 (embeds NotificationRoutingSettings, which itself appends _TransportsSection)",
   "location_wrong": null,
   "proposed_fix": "Register 'Notification transports' as its own settings leaf in settings_catalog.dart and have _CategoryEditorDialog's chips deep-link into it.",
   "verdict_reasoning": null
@@ -50,7 +50,7 @@
   "what_happened": "Two adjacent switches in the Mode section: 'Show advanced overlay controls -- Adds PSF, residual, and tile-map layers to the Imaging overlays menu' (ships OFF) and 'Science overlays -- Enable overlays such as PSF map, residual vectors, and tracks' (ships ON). They are independent booleans (advancedModeEnabled / overlayEnabled) whose subtitles name the same three artefacts. The shipped state therefore reads 'Science overlays: ON' while the control that exposes them is hidden, and neither row mentions the other.",
   "expected": "This app already solved this exact problem one page away: the Weather Safety rows append '-- inactive until \"Enable weather safety\" is on' when the master switch is off. Do the same here, or collapse the pair into one switch plus a sub-option.",
   "repro": "Fresh profile. Settings > SCIENCE > Science > Mode.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/science_settings.dart:50-73",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/science_settings.dart:50-73",
   "location_wrong": null,
   "proposed_fix": "Reuse the _withPrerequisite() helper pattern from weather_safety_settings.dart:73-77 for the dependent row.",
   "verdict_reasoning": null
@@ -64,7 +64,7 @@
   "what_happened": "The Hardware Thresholds section offers Max humidity 90%, Max wind speed 30 km/h and Max cloud cover 80% with subtitles like 'Pause when sensor humidity exceeds this value'. On a rig with no weather device -- the exact rig the fail-closed default punishes -- all three are inert, and the page never says so. Separately, the page has no debounce, no 'N consecutive unsafe readings', and no 'wait N minutes after conditions clear before resuming'; the only timing controls are radar-alert distance (30 km) and lead time (15 min), which are about the cloud-radar API rather than the hardware gate. A single spurious humidity spike therefore trips the whole gate.",
   "expected": "Grey out or annotate the threshold rows when no weather device is connected, and add an unsafe-debounce (consecutive readings or seconds) plus a resume-delay. NINA and SGP both expose these; without them the thresholds are all-or-nothing.",
   "repro": "Settings > AUTOMATION & SAFETY > Weather Safety, full page.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/weather_safety_settings.dart:170-268",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/weather_safety_settings.dart:170-268",
   "location_wrong": null,
   "proposed_fix": "Add a connected-source guard on the Hardware Thresholds section and add unsafeDebounceSeconds / resumeDelayMinutes to WeatherSettings with rows on this page.",
   "verdict_reasoning": null
@@ -78,7 +78,7 @@
   "what_happened": "With weather safety enabled and fail mode Warn Only, the amber 'Weather Safety / No weather data sources available' toast reappeared at 10:00:59, 10:09:20, 10:24:19 and 10:30:22 local while the app sat idle on Settings pages with no run, no equipment and no state change. It is correct information, but as a recurring nag with nothing the user can act on from that toast it trains people to swipe away weather toasts -- which is precisely the class of alert you need them to read.",
   "expected": "Emit the warning once per condition transition (or once per run start), and surface the standing condition as a persistent inline row on the Weather Safety page instead of a repeating toast.",
   "repro": "Settings > Weather Safety > enable weather safety. Settings > Sequencer > Safety fail mode > Warn Only. Leave the app idle and watch for ~30 min.",
-  "where": "packages/nightshade_core/lib/src/providers/weather_safety_provider.dart:762-776 (shouldShowFailModeWarning -> uiNotificationProvider.showWarning on every evaluation that resolves to preserve)",
+  "where": "packages/skotiq_core/lib/src/providers/weather_safety_provider.dart:762-776 (shouldShowFailModeWarning -> uiNotificationProvider.showWarning on every evaluation that resolves to preserve)",
   "location_wrong": null,
   "proposed_fix": "Track the last-warned condition in the notifier state and only re-emit when the condition string changes or a run starts.",
   "verdict_reasoning": null

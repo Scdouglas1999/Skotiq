@@ -18,7 +18,7 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import '../request_context.dart';
@@ -27,7 +27,7 @@ import '../utils/device_type_parser.dart';
 import '../validation.dart';
 
 /// Handlers for read-only device-discovery endpoints. Stateless beyond the
-/// [NightshadeBackend] it reads off the [ProviderContainer].
+/// [SkotiqBackend] it reads off the [ProviderContainer].
 class DeviceDiscoveryHandlers {
   final ProviderContainer container;
 

@@ -115,7 +115,7 @@ now-`Connected` registry entry to `Error`.
 
 ## Tests
 
-New, in `native/nightshade_native/bridge/src/api/phd2.rs`
+New, in `native/skotiq_native/bridge/src/api/phd2.rs`
 (`mod connected_devices_crywolf_tests`), both driving the real
 `api_phd2_connect` against a mock PHD2 TCP server that answers `get_app_state`
 (all `wait_until_ready` needs):
@@ -137,11 +137,11 @@ in the same binary stores a live client.
 
 ## Verification
 
-- `cargo test -p nightshade_bridge --lib phd2` — 9 passed (7 pre-existing + 2 new).
-- `cargo test -p nightshade_bridge` — **546 passed, 0 failed, 4 ignored**
+- `cargo test -p skotiq_bridge --lib phd2` — 9 passed (7 pre-existing + 2 new).
+- `cargo test -p skotiq_bridge` — **546 passed, 0 failed, 4 ignored**
   (C2 recorded 544 + the 2 new).
 - `cargo build --workspace` — clean.
-- `cargo clippy -p nightshade_bridge --all-targets` — 2 warnings, both
+- `cargo clippy -p skotiq_bridge --all-targets` — 2 warnings, both
   pre-existing and in untouched files (`device_manager/ops/weather.rs:254`,
   `sim_capture.rs:434`) — the same two C2 recorded.
 - `rustfmt --check` on the two touched files — clean.
@@ -149,5 +149,5 @@ in the same binary stores a live client.
 
 ## Files touched
 
-- `native/nightshade_native/bridge/src/api/phd2.rs`
-- `native/nightshade_native/bridge/src/device_manager/connection.rs`
+- `native/skotiq_native/bridge/src/api/phd2.rs`
+- `native/skotiq_native/bridge/src/device_manager/connection.rs`

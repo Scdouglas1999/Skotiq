@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping improve Nightshade during the beta. The fields below map to what maintainers need most often.
+        Thanks for helping improve Skotiq during the beta. The fields below map to what maintainers need most often.
 
   - type: dropdown
     id: platform
@@ -26,7 +26,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Nightshade version
+      label: Skotiq version
       description: Help → About, asset filename, or release tag (e.g. 4.1.0)
       placeholder: "4.1.0"
     validations:

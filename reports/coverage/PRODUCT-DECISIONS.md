@@ -190,7 +190,7 @@ surface, which was built on purpose.
 
 ## 13. Should the capture-folder step prefill a default folder?
 
-**Options** — A) Prefill <Documents>/Nightshade/Captures (the path shape the app already uses for exports,
+**Options** — A) Prefill <Documents>/Skotiq/Captures (the path shape the app already uses for exports,
 plugins and science reports) and create it on accept, so onboarding finishes in one click. B)
 Offer it as a labelled one-tap suggestion chip beside Browse — the path is visible and nothing
 is created until tapped. C) Leave as-is: the operator always states where frames go, which on a

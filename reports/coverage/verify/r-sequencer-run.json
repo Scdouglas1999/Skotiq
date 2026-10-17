@@ -17,7 +17,7 @@
   "unit": "screen:sequencer/sequencer_screen.dart",
   "what_happened": "Run 1 captured 4 lights. The FITS header on disk is complete: GAIN=100, OFFSET=10, CCD-TEMP=15.0, SET-TEMP=15.0, RA=0.0/DEC=0.0, OBJCTRA/OBJCTDEC, FOCUSPOS=25074, FOCTEMP=20.0, SITELAT=30.0, SITELONG=82.0, OBJECT='New Target'. The matching captured_images rows have gain=NULL, offset=NULL, sensor_temp=NULL, cooler_power=NULL, mount_ra=NULL, mount_dec=NULL, mount_altitude=NULL, mount_azimuth=NULL, pier_side=NULL, focuser_position=NULL, focuser_temp=NULL, rotator_angle=NULL and target_id=NULL. Only hfr, star_count, eccentricity, filter, exposure_duration and binning were persisted.",
   "expected": "Every value the capture pipeline already knows (it wrote them into the FITS header microseconds earlier) should land in captured_images. Everything downstream reads the DB, not the file: the dark library matches on gain/offset/temp/duration/binning, analytics plots temperature and HFR, project tracking counts frames per target.",
-  "repro": "Run any sequence with Cool Camera + Take Exposures against the simulators, then: sqlite3 <profile>/data/nightshade.db 'select gain,offset,sensor_temp,mount_ra,focuser_position,target_id from captured_images;' and compare with the FITS header of the same file.",
+  "repro": "Run any sequence with Cool Camera + Take Exposures against the simulators, then: sqlite3 <profile>/data/skotiq.db 'select gain,offset,sensor_temp,mount_ra,focuser_position,target_id from captured_images;' and compare with the FITS header of the same file.",
   "evidence": "DB row 1: /tmp/ns-audit/r-sequencer-run/captures/New Target_nofilter_0001.fits -> gain,offset,sensor_temp,mount_ra,mount_dec,focuser_position,target_id all empty. FITS header of that same file: GAIN=100 OFFSET=10 CCD-TEMP=15.0 FOCUSPOS=25074 RA=0.0 DEC=0.0.",
   "where": "Sequencer run -> captured_images persistence"
  },
@@ -160,7 +160,7 @@
   "unit": "screen:sequencer/sequencer_screen.dart",
   "what_happened": "During a 52-second pause of run 2 the DB row kept status='running'. The GUI knew it was paused, but the persisted state (which the headless API, the web dashboard and the mobile client read) did not distinguish paused from running.",
   "expected": "A 'paused' status (or a paused_at column) so remote surfaces can show the true state.",
-  "repro": "Pause a run, then: sqlite3 <profile>/data/nightshade.db \"select status from sequence_runs where id=2;\"",
+  "repro": "Pause a run, then: sqlite3 <profile>/data/skotiq.db \"select status from sequence_runs where id=2;\"",
   "evidence": "status='running' at 18:55:36 (paused) and still 'running' at 18:56:28, while the GUI showed PAUSED throughout",
   "where": "sequence_runs table / run state persistence"
  },
@@ -172,7 +172,7 @@
   "what_happened": "Relaunching the app after a night's session shows the Continue Session dialog titled 'New Sequence', with the rows 'Equipment Profile: Unknown Profile' and 'Sequence: No Sequence', above a primary button 'Load Previous Setup'. The scratch DB has exactly one equipment profile named 'My Equipment' (which the status bar shows as active) and one sequence named 'New Sequence' (which the dialog's own header prints, and which the dashboard card behind it names too). Both fields the dialog needs to restore are unresolved nulls: quick_start_dialog.dart:184-185 falls back to 'Unknown Profile'/'No Sequence' when quickStartContext.profileName/sequenceName are null.",
   "expected": "'Equipment Profile: My Equipment', 'Sequence: New Sequence'. This is the dialog whose whole purpose is telling you what it is about to restore; if it cannot name it, the user cannot trust the button.",
   "repro": "Run a sequence, quit the app, relaunch on the same profile. Read the Continue Session dialog.",
-  "evidence": "/tmp/ns-audit/shots/rseq-60.png; sqlite3 nightshade.db 'select id,name from equipment_profiles' -> 1|My Equipment; sequence_runs row 2 named 'New Sequence'",
+  "evidence": "/tmp/ns-audit/shots/rseq-60.png; sqlite3 skotiq.db 'select id,name from equipment_profiles' -> 1|My Equipment; sequence_runs row 2 named 'New Sequence'",
   "where": "App launch > Continue Session (quick start / session handoff) dialog"
  },
  {
@@ -183,7 +183,7 @@
   "what_happened": "Relaunched the app on 2026-08-02 at 10:40 local. The Continue Session dialog header reads 'Today at 14:57'. The session it refers to is sequence_runs id=2, ended_at=1785610650 = Sat Aug 1 14:57:30 EDT - i.e. YESTERDAY. The dashboard card behind the same dialog gets it right ('Completed - 19 hours ago') and the app's own date header says 'Sun Aug 2'. So two surfaces one dialog apart disagree about which day the run happened, and the modal one is wrong.",
   "expected": "'Yesterday at 14:57' (or the date). A handoff dialog exists to tell you whether the state it is about to restore is from the night you are still in; getting the day wrong defeats its only job.",
   "repro": "Run a sequence, quit, relaunch the app the next calendar day, read the Continue Session dialog header.",
-  "evidence": "/tmp/ns-audit/shots/rseq-71.png ('Continue Session / Today at 14:57' over a card reading 'Completed - 19 hours ago'); sqlite3 nightshade.db 'select ended_at from sequence_runs where id=2' -> 1785610650 -> Sat Aug 1 14:57:30 EDT 2026; system date Sun Aug 2 10:40",
+  "evidence": "/tmp/ns-audit/shots/rseq-71.png ('Continue Session / Today at 14:57' over a card reading 'Completed - 19 hours ago'); sqlite3 skotiq.db 'select ended_at from sequence_runs where id=2' -> 1785610650 -> Sat Aug 1 14:57:30 EDT 2026; system date Sun Aug 2 10:40",
   "where": "App launch > Continue Session dialog header"
  },
  {

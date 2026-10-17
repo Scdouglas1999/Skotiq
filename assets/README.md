@@ -35,15 +35,15 @@ Published README screenshots live in `assets/screenshots/`. Each file maps to on
 
 The images come from three places.
 
-**Generated (eight files).** `packages/nightshade_app/test/golden/public_screenshots_test.dart` pumps each surface with seeded data and writes `desktop-dashboard`, `imaging`, `guiding`, `analytics`, `sequencer`, `equipment`, `framing` and `flat-wizard`. It only writes into this folder when you ask it to:
+**Generated (eight files).** `packages/skotiq_app/test/golden/public_screenshots_test.dart` pumps each surface with seeded data and writes `desktop-dashboard`, `imaging`, `guiding`, `analytics`, `sequencer`, `equipment`, `framing` and `flat-wizard`. It only writes into this folder when you ask it to:
 
 ```bash
-cd packages/nightshade_app && \
-  NIGHTSHADE_CAPTURE_ASSETS=1 flutter test --tags golden \
+cd packages/skotiq_app && \
+  SKOTIQ_CAPTURE_ASSETS=1 flutter test --tags golden \
   test/golden/public_screenshots_test.dart
 ```
 
-Without `NIGHTSHADE_CAPTURE_ASSETS=1` the test still runs and still proves it produced a real image, but writes to a temp directory and leaves the tracked files alone. CI runs ubuntu-latest, so these are Linux renders and a Linux re-render is the correct baseline. Commit the regenerated PNGs; do not hand-edit one, because the next capture run overwrites it.
+Without `SKOTIQ_CAPTURE_ASSETS=1` the test still runs and still proves it produced a real image, but writes to a temp directory and leaves the tracked files alone. CI runs ubuntu-latest, so these are Linux renders and a Linux re-render is the correct baseline. Commit the regenerated PNGs; do not hand-edit one, because the next capture run overwrites it.
 
 **Captured from the running app (three files).** `planetarium`, `plan-tonight` and `weather` cannot be generated: the planetarium needs the HYG star catalogue installed, Plan needs OpenNGC, and the Weather radar needs map tiles off the network. Pumped in a widget test they render "No observing site set", "Install the object catalog" and a blank map. They are driven instead:
 

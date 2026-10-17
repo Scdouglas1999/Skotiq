@@ -2,15 +2,15 @@ import 'dart:io';
 
 /// Design-system token-adoption tracker for the app's screen layer.
 ///
-/// Scans `packages/nightshade_app/lib/screens` for the three highest-volume
-/// hand-rolled style smells that bypass the `nightshade_ui` design system:
+/// Scans `packages/skotiq_app/lib/screens` for the three highest-volume
+/// hand-rolled style smells that bypass the `skotiq_ui` design system:
 ///
-///   * `BorderRadius.circular(<n>)`  — should use `NightshadeTokens.radius*` /
-///     `NightshadeTokens.borderRadius*`.
+///   * `BorderRadius.circular(<n>)`  — should use `SkotiqTokens.radius*` /
+///     `SkotiqTokens.borderRadius*`.
 ///   * inline `TextStyle(fontSize: ...)` literals AND `.copyWith(fontSize:)`
-///     on a named style — should use the `NightshadeTypography` scale
+///     on a named style — should use the `SkotiqTypography` scale
 ///     (display, pageTitle, sectionTitle, eyebrow, body*, readout*, button*).
-///   * raw `Colors.<name>` usages — should use `NightshadeColors.of(context)`.
+///   * raw `Colors.<name>` usages — should use `SkotiqColors.of(context)`.
 ///     Raw Material colors are the worst offenders because they DO NOT invert
 ///     under red-night mode and break dark-adaptation in the field.
 ///
@@ -38,7 +38,7 @@ import 'dart:io';
 ///   * `--strict`: shorthand that treats any nonzero count as a failure
 ///     (exit 1). Useful once a category reaches zero to prevent reintroduction.
 ///   * `--root=<path>`: override the scan root (default
-///     `packages/nightshade_app/lib/screens`).
+///     `packages/skotiq_app/lib/screens`).
 ///
 /// Usage:
 ///   dart run tools/production/design_tokens_audit.dart
@@ -55,7 +55,7 @@ void main(List<String> args) {
 
   // BorderRadius.circular(<numeric literal>) — flags hardcoded corner radii.
   // Matches an int or double literal argument; ignores token/variable args
-  // like `BorderRadius.circular(NightshadeTokens.radiusMd)`.
+  // like `BorderRadius.circular(SkotiqTokens.radiusMd)`.
   final radiiPattern = RegExp(r'BorderRadius\.circular\(\s*\d+(?:\.\d+)?\s*\)');
 
   // Inline TextStyle(...) that carries a fontSize, and `.copyWith(fontSize:)`
@@ -79,8 +79,8 @@ void main(List<String> args) {
   );
 
   // Raw Material `Colors.<name>` (e.g. Colors.white, Colors.red). Excludes
-  // `NightshadeColors` (different identifier) via the leading word boundary
-  // that won't match the `Colors` inside `NightshadeColors`.
+  // `SkotiqColors` (different identifier) via the leading word boundary
+  // that won't match the `Colors` inside `SkotiqColors`.
   final colorsPattern = RegExp(r'(?<![A-Za-z0-9_])Colors\.[a-zA-Z]');
 
   final radiiHits = <_Hit>[];
@@ -216,17 +216,17 @@ void _printReport({
   _printCategory(
     'Hardcoded BorderRadius.circular(<n>)',
     radii,
-    'use NightshadeTokens.radius* / NightshadeTokens.borderRadius*',
+    'use SkotiqTokens.radius* / SkotiqTokens.borderRadius*',
   );
   _printCategory(
     'Inline TextStyle(fontSize:) and .copyWith(fontSize:)',
     textStyles,
-    'use the NightshadeTypography scale (h1..h6, body*, label*, mono*)',
+    'use the SkotiqTypography scale (h1..h6, body*, label*, mono*)',
   );
   _printCategory(
     'Raw Colors.<name> usages (break red-night mode)',
     colors,
-    'use NightshadeColors.of(context).<semantic>',
+    'use SkotiqColors.of(context).<semantic>',
   );
   stdout.writeln('------------------------------------------------');
   stdout.writeln(
@@ -283,7 +283,7 @@ class _Options {
   });
 
   static _Options parse(List<String> args) {
-    var root = 'packages/nightshade_app/lib/screens';
+    var root = 'packages/skotiq_app/lib/screens';
     int? maxRadii;
     int? maxTextStyles;
     int? maxColors;

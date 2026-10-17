@@ -1,9 +1,9 @@
-name: nightshade_mobile_e2e
+name: skotiq_mobile_e2e
 description: >-
   Test-only package for cross-app e2e seam tests. mobile_remote_e2e_test
-  boots a real HeadlessApiServer (nightshade_desktop) in-process and drives
+  boots a real HeadlessApiServer (skotiq_desktop) in-process and drives
   the mobile client services against it. It lives here — not in apps/mobile —
-  because a dev-dependency on nightshade_desktop leaks the desktop-only
+  because a dev-dependency on skotiq_desktop leaks the desktop-only
   irondash_engine_context plugin into the mobile Android plugin registrant,
   which breaks `flutter build apk --release` (registrant references a class
   Gradle correctly excludes from the release classpath).
@@ -24,11 +24,11 @@ dev_dependencies:
   flutter_riverpod: ^2.5.1
   mocktail: ^1.0.4
   shared_preferences: ^2.2.2
-  nightshade_core:
-    path: ../../packages/nightshade_core
-  nightshade_mobile:
+  skotiq_core:
+    path: ../../packages/skotiq_core
+  skotiq_mobile:
     path: ../mobile
-  nightshade_desktop:
+  skotiq_desktop:
     path: ../desktop
 
 flutter:

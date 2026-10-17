@@ -1,12 +1,12 @@
 # Implementation log — batch `bridge-dart`
 
-Scope: `packages/nightshade_bridge/**` (+ its test dir).
+Scope: `packages/skotiq_bridge/**` (+ its test dir).
 Work order: `reports/release-pass/map/bridge-dart.md`.
 Baseline for every "before" claim: commit `b07d91c9d`.
 
 Environment note that shapes two items below: **the native library cannot be
 loaded under `flutter test` on this tree.** `DynamicLibrary.open` succeeds on
-both the release-bundle and `target/debug` `libnightshade_bridge.so`, but
+both the release-bundle and `target/debug` `libskotiq_bridge.so`, but
 `RustLib.init()` then rejects it:
 
     Bad state: Content hash on Dart side (-1463207610) is different from
@@ -29,7 +29,7 @@ Final state: `flutter analyze` clean, `flutter test` **123 passed**,
 Re-proved fresh before keeping the deletion:
 
 * Production caller is the **generated/Rust** function —
-  `nightshade_core/lib/src/backend/ffi_backend/discovery_camera_operations.dart:44`
+  `skotiq_core/lib/src/backend/ffi_backend/discovery_camera_operations.dart:44`
   calls `bridge_api.apiDiscoverIndiAtAddress(host:, port:)`, a top-level call.
 * The headless route `apps/desktop/.../device_discovery_handlers.dart:226` goes
   through `backend.discoverIndiAtAddress`, i.e. the same FFI backend path.
@@ -52,11 +52,11 @@ outside this batch's scope.
 
 * `grep -rn "FakeNativeBridge\|fake_native_bridge"` over `packages apps server tools`
   now returns only a stale comment in
-  `packages/nightshade_app/test/harness/mock_backend.dart:13-21`, which explains
+  `packages/skotiq_app/test/harness/mock_backend.dart:13-21`, which explains
   why the fake was *not* used. That file is another batch's scope; flagged, not
   touched.
-* The `../fakes/fakes.dart` imports that grep turns up in `nightshade_core/test/`
-  resolve to **nightshade_core's own** `test/fakes/fakes.dart`, a different file.
+* The `../fakes/fakes.dart` imports that grep turns up in `skotiq_core/test/`
+  resolve to **skotiq_core's own** `test/fakes/fakes.dart`, a different file.
 
 **Correction to the item as written:** `test/fakes/` cannot be deleted
 *entirely*. `test/fakes/fake_phd2_server.dart` has three live consumers
@@ -228,5 +228,5 @@ because it was named as a BUG item, but nothing was deleted there.
 * §5.3 (`ImageStats.mad` populated from `stdDev`) is now moot in the facade —
   `apiGetImageStats` was deleted under item 3 — but the same mapping may exist
   elsewhere; not checked outside this package.
-* Stale comment in `packages/nightshade_app/test/harness/mock_backend.dart:13-21`
+* Stale comment in `packages/skotiq_app/test/harness/mock_backend.dart:13-21`
   refers to the now-deleted `FakeNativeBridge`. Other batch's scope.

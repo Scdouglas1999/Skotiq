@@ -1867,7 +1867,7 @@ test('a device list the server sent renders its rows', () => {
 
 test('the bearer the dashboard left in this tab is used, not re-requested', async () => {
   const { doc, api } = loadRunWatch({
-    sessionStorage: [['nightshade_token', 'dashboard-bearer']],
+    sessionStorage: [['skotiq_token', 'dashboard-bearer']],
     fetch: async () => ({
       ok: true, status: 200, headers: new Headers(),
       json: async () => runningSnapshot(),
@@ -1883,17 +1883,17 @@ test('the bearer the dashboard left in this tab is used, not re-requested', asyn
 
 test('a borrowed dashboard bearer is never persisted to this page storage', async () => {
   const { api, sandbox } = loadRunWatch({
-    sessionStorage: [['nightshade_token', 'dashboard-bearer']],
+    sessionStorage: [['skotiq_token', 'dashboard-bearer']],
     fetch: async () => ({
       ok: true, status: 200, headers: new Headers(),
       json: async () => runningSnapshot(),
     }),
   });
   await api.resolveCredentialAndShow();
-  assert.equal(sandbox.localStorage.getItem('nightshade.runwatch.token'), null,
+  assert.equal(sandbox.localStorage.getItem('skotiq.runwatch.token'), null,
     'the dashboard chose sessionStorage; this page does not overrule that');
   assert.equal(
-    sandbox.localStorage.getItem('nightshade.runwatch.tokenAccepted'), null);
+    sandbox.localStorage.getItem('skotiq.runwatch.tokenAccepted'), null);
 });
 
 test('an HttpOnly session the server confirms opens the run, with no bearer', async () => {
@@ -1922,7 +1922,7 @@ test('an HttpOnly session the server confirms opens the run, with no bearer', as
   // A write on the cookie path must echo the CSRF token the server bound to it.
   await api.apiFetch('/api/sequencer/pause', { method: 'POST' });
   const write = seen[seen.length - 1];
-  assert.equal(write.opts.headers.get('X-Nightshade-CSRF'), 'csrf-abc');
+  assert.equal(write.opts.headers.get('X-Skotiq-CSRF'), 'csrf-abc');
   assert.equal(write.opts.headers.get('Authorization'), null);
   assert.equal(write.opts.credentials, 'same-origin');
 });
@@ -1969,7 +1969,7 @@ function api_credentialRefusal(source, token, wasAccepted) {
 // D4-WEB-04 — the wall names a step the rig it is running on can perform
 //
 // Measured on a headless bundle with no GUI anywhere on the machine: the wall
-// said "Open the Nightshade desktop app's Remote Access screen", offered no
+// said "Open the Skotiq desktop app's Remote Access screen", offered no
 // control that causes a code to exist, and the code the server does make sat in
 // an owner-only pairing-code.txt this page named nowhere.
 // ---------------------------------------------------------------------------
@@ -2047,7 +2047,7 @@ test('the token the server actually mints is the one the page keeps', async () =
   await api.startPairing('MOON-NOVA-9664');
 
   assert.equal(
-    sandbox.localStorage.getItem('nightshade.runwatch.token'),
+    sandbox.localStorage.getItem('skotiq.runwatch.token'),
     'minted-by-the-rig');
   assert.equal(api.tokenWasEverAccepted(), true,
     'the pairing endpoint minted it, so it is accepted by construction');

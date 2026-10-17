@@ -1,7 +1,7 @@
 # Wave D verification — equipment-shell / chrome
 
 Driver: `tools/ui_audit/drive_linux.py`, display `:83`, profile `waveD-equipment-shell`,
-`start --fresh`. Build: `apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`
+`start --fresh`. Build: `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`
 (bundle + `lib/libapp.so` both stamped 2026-08-13 18:31; freshness confirmed by
 `strings libapp.so | grep "Close window"` → 1 hit, a string that only exists in the CON-61 fix).
 Evidence: `/tmp/ns-audit/shots/waveD-eq/`.
@@ -143,7 +143,7 @@ chip. Whole-tree shape is one unbranched chain (`application → frame → panel
 [offscreen] → panel×6 → content`), i.e. the shell chrome contributes no semantics node at all.
 **The fix is compiled in:** `_TitleBarButton`/`_WindowButton` do wrap `Semantics(button:
 true, label: …)` in
-`packages/nightshade_app/lib/screens/shell/widgets/title_bar.dart:187,281`, and the built
+`packages/skotiq_app/lib/screens/shell/widgets/title_bar.dart:187,281`, and the built
 `libapp.so` contains the `Close window` literal — so this is not a stale binary and not a
 missing label. Something between those widgets and the AT-SPI bridge is dropping the whole
 chrome subtree; a per-button `Semantics` wrapper was the wrong layer, or was not the only

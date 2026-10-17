@@ -6,12 +6,12 @@ import 'package:drift/drift.dart' show LazyDatabase;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless_api/auth/pairing_service.dart';
-import 'package:nightshade_desktop/headless_api_server.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_desktop/headless_api/auth/pairing_service.dart';
+import 'package:skotiq_desktop/headless_api_server.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
 import 'handler_test_helpers.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 void main() {
   group('HeadlessApiServer pairing', () {
@@ -374,7 +374,7 @@ void main() {
     'admin and fine-grained grants survive restart; malformed grants do not',
     () async {
       final dir = await Directory.systemTemp.createTemp(
-        'nightshade_pairing_restart_',
+        'skotiq_pairing_restart_',
       );
       addTearDown(() async {
         if (await dir.exists()) await dir.delete(recursive: true);

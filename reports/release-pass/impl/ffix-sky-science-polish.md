@@ -5,21 +5,21 @@ Terminal batch of the release pass. Evidence: `reports/release-pass/waveF-result
 
 ## Files claimed (this batch owns them for the wave)
 
-- `packages/nightshade_app/lib/screens/planetarium/widgets/view_controls.dart` (D-2, WF-SS-N3)
-- `packages/nightshade_app/lib/screens/planetarium/widgets/redesign/command_bar.dart` (WF-SS-N3 Tools)
-- `packages/nightshade_app/lib/screens/settings/pairing_screen.dart` (WF-SS-N1)
-- `packages/nightshade_app/lib/screens/shell/shell_navigation.dart` + `app_shell.dart` (WF-SS-N2)
-- `packages/nightshade_app/lib/widgets/tutorial_overlay/content.dart` (WF-SS-N4)
-- `packages/nightshade_ui/lib/src/components/nightshade_button.dart` (WF-SN-N4 / WF-SCI-N3)
-- `packages/nightshade_ui/lib/src/widgets/phd2/guide_star_view.dart` (WF-SN-N3)
-- `packages/nightshade_app/lib/screens/sequencer/widgets/preflight_validation_dialog/{action_widgets,section_builders}.dart` (WF-SCI-N3)
-- `packages/nightshade_app/lib/screens/analytics/widgets/science_analytics_tab.dart` (WF-SCI-N1)
-- `packages/nightshade_app/lib/screens/session_review/session_review_controller.dart` + `session_review_controller_parts/_helpers.dart` (WF-SCI-N2)
-- `packages/nightshade_app/lib/screens/dashboard/widgets/standby/last_night_recap_card.dart` (WF-SCI-N4)
-- `packages/nightshade_app/lib/screens/settings/widgets/remote_access_settings.dart` +
+- `packages/skotiq_app/lib/screens/planetarium/widgets/view_controls.dart` (D-2, WF-SS-N3)
+- `packages/skotiq_app/lib/screens/planetarium/widgets/redesign/command_bar.dart` (WF-SS-N3 Tools)
+- `packages/skotiq_app/lib/screens/settings/pairing_screen.dart` (WF-SS-N1)
+- `packages/skotiq_app/lib/screens/shell/shell_navigation.dart` + `app_shell.dart` (WF-SS-N2)
+- `packages/skotiq_app/lib/widgets/tutorial_overlay/content.dart` (WF-SS-N4)
+- `packages/skotiq_ui/lib/src/components/skotiq_button.dart` (WF-SN-N4 / WF-SCI-N3)
+- `packages/skotiq_ui/lib/src/widgets/phd2/guide_star_view.dart` (WF-SN-N3)
+- `packages/skotiq_app/lib/screens/sequencer/widgets/preflight_validation_dialog/{action_widgets,section_builders}.dart` (WF-SCI-N3)
+- `packages/skotiq_app/lib/screens/analytics/widgets/science_analytics_tab.dart` (WF-SCI-N1)
+- `packages/skotiq_app/lib/screens/session_review/session_review_controller.dart` + `session_review_controller_parts/_helpers.dart` (WF-SCI-N2)
+- `packages/skotiq_app/lib/screens/dashboard/widgets/standby/last_night_recap_card.dart` (WF-SCI-N4)
+- `packages/skotiq_app/lib/screens/settings/widgets/remote_access_settings.dart` +
   `lib/router/app_router.dart` (WF-SS-N2)
-- `native/nightshade_native/bridge/src/builtin_guider/{control,state,tests}.rs` (WF-SN-N1)
-- `native/nightshade_native/bridge/src/api/plate_solve.rs` (WF-SN-N2)
+- `native/skotiq_native/bridge/src/builtin_guider/{control,state,tests}.rs` (WF-SN-N1)
+- `native/skotiq_native/bridge/src/api/plate_solve.rs` (WF-SN-N2)
 
 (The two Rust files are outside the batch's Dart scope line but are where the two
 solver/guider findings live; no other terminal batch was chartered with WF-SN-*.)
@@ -40,7 +40,7 @@ it, and the `IconButton` the popup builds carries no name, so both dumped as
 container node and leaves the button anonymous (observed in the test: label present
 AND two empty `button:` nodes). Material tooltips are now empty strings (Flutter
 returns the child untouched, so no tooltip node exists) with the hover message on
-`NightshadeTooltip`. Also covers the Render-quality popup, same widget family.
+`SkotiqTooltip`. Also covers the Render-quality popup, same widget family.
 Test: `test/screens/planetarium/command_bar_named_controls_test.dart` — every button
 in the bar has a non-empty name; no Material tooltip in the bar carries a message.
 
@@ -73,12 +73,12 @@ a live overlay. Declared `container: true, enabled: true`.
 The flags were already right in the widget tree; what reached the platform was a
 node that still ADVERTISED `SemanticsAction.tap`, because `GestureDetector` keeps a
 `TapGestureRecognizer` if ANY of onTapDown/onTapUp/onTapCancel/onTap is non-null and
-`NightshadeButton` wired onTapDown unconditionally. All four are now dropped when
+`SkotiqButton` wired onTapDown unconditionally. All four are now dropped when
 disabled. Pre-flight's own Start button additionally announces its reason via
 `GatedAction.announce`, and its visible label is `ExcludeSemantics`d — without that
 the node read "Start Anyway\nStart Anyway" (and would have read the reason then
 contradicted it).
-Tests: `nightshade_button_disabled_semantics_test.dart` (no tap action when
+Tests: `skotiq_button_disabled_semantics_test.dart` (no tap action when
 disabled) and `preflight_validation_dialog_test.dart` (blocked Start announces
 "— unavailable: fix the 1 pre-flight error above first", disabled, no tap action).
 
@@ -130,21 +130,21 @@ during BUILD; read inside the tap handler the family provider is still
 
 | Item | Test |
 | --- | --- |
-| D-2, WF-SS-N3 | `nightshade_app/test/screens/planetarium/command_bar_named_controls_test.dart` |
-| WF-SS-N1 | `nightshade_app/test/screens/settings/pairing_card_semantics_test.dart` (3rd case) |
-| WF-SS-N2 | `nightshade_app/test/router/pairing_route_rail_escape_test.dart` |
-| WF-SS-N4 | `nightshade_app/test/widgets/tutorial_card_semantics_test.dart` |
+| D-2, WF-SS-N3 | `skotiq_app/test/screens/planetarium/command_bar_named_controls_test.dart` |
+| WF-SS-N1 | `skotiq_app/test/screens/settings/pairing_card_semantics_test.dart` (3rd case) |
+| WF-SS-N2 | `skotiq_app/test/router/pairing_route_rail_escape_test.dart` |
+| WF-SS-N4 | `skotiq_app/test/widgets/tutorial_card_semantics_test.dart` |
 | WF-SN-N1 | `bridge::builtin_guider::tests::reported_lock_position_is_in_frame_coordinates` |
 | WF-SN-N2 | `bridge::api::plate_solve::solve_coalescing_tests::{a_hinted_caller_leads_…, a_lone_blind_caller_still_solves}` |
-| WF-SN-N3 | `nightshade_ui/test/guide_star_view_snr_honesty_test.dart` |
-| WF-SN-N4, WF-SCI-N3 | `nightshade_ui/test/components/nightshade_button_disabled_semantics_test.dart`, `nightshade_app/test/screens/sequencer/preflight_validation_dialog_test.dart` |
-| WF-SCI-N1 | `nightshade_app/test/screens/analytics/latest_science_session_freshness_test.dart` |
-| WF-SCI-N2 | `nightshade_app/test/screens/session_review/night_report_recompute_test.dart` |
-| WF-SCI-N4 | `nightshade_app/test/screens/dashboard/last_night_recap_open_run_test.dart` |
+| WF-SN-N3 | `skotiq_ui/test/guide_star_view_snr_honesty_test.dart` |
+| WF-SN-N4, WF-SCI-N3 | `skotiq_ui/test/components/skotiq_button_disabled_semantics_test.dart`, `skotiq_app/test/screens/sequencer/preflight_validation_dialog_test.dart` |
+| WF-SCI-N1 | `skotiq_app/test/screens/analytics/latest_science_session_freshness_test.dart` |
+| WF-SCI-N2 | `skotiq_app/test/screens/session_review/night_report_recompute_test.dart` |
+| WF-SCI-N4 | `skotiq_app/test/screens/dashboard/last_night_recap_open_run_test.dart` |
 
-Suites run green: `nightshade_ui` (316), `nightshade_app` session_review (92), planetarium,
+Suites run green: `skotiq_ui` (316), `skotiq_app` session_review (92), planetarium,
 router, settings, widgets (302), analytics (except one golden capture, below),
-sequencer pre-flight (13); `cargo test -p nightshade_bridge --lib` 558 passed / 0 failed.
+sequencer pre-flight (13); `cargo test -p skotiq_bridge --lib` 558 passed / 0 failed.
 
 ## Test-run notes
 

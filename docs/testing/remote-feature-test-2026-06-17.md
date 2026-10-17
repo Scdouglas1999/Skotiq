@@ -1,4 +1,4 @@
-# Nightshade Remote Feature Test — 2026-06-17
+# Skotiq Remote Feature Test — 2026-06-17
 
 Exhaustive remote test of the v4.1.0 headless server (Windows laptop @ 192.168.1.50:8080),
 driven over LAN from the Linux dev desktop. Covers the full API surface, web UIs,
@@ -60,7 +60,7 @@ leak into the device display name.
 ---
 
 ## VERIFIED WORKING
-- Headless boot, LAN bind (0.0.0.0:8080), token auth, mDNS `_nightshade._tcp` discovery.
+- Headless boot, LAN bind (0.0.0.0:8080), token auth, mDNS `_skotiq._tcp` discovery.
 - Pairing: 6-word code flow (`start`→`verify`) + one-tap `lan-claim` from a real LAN source.
 - Real camera (ASI1600): connect, status, 2s 16MP exposure capture + JPEG download, cooling cycle.
 - Focuser (EAF): connect, real telemetry, single absolute moves.
@@ -372,7 +372,7 @@ The ASCOM camera connect dispatch (`bridge/src/dispatch/ascom.rs`) UNCONDITIONAL
 SetupDialog on every camera connect (only the camera; mount/focuser just connect). Fine for the
 desktop GUI (lets the operator pick the camera), fatal headless (nobody to dismiss it → connect
 hangs forever). Fix: gate the call behind `interactive_dialogs_allowed()`, which is `false` in
-headless mode (detected via the `--headless` arg / `NIGHTSHADE_HEADLESS=1`, mirroring main.dart;
+headless mode (detected via the `--headless` arg / `SKOTIQ_HEADLESS=1`, mirroring main.dart;
 the native process shares argv/env with Dart, so no new FFI/FRB-regen). Desktop behaviour is
 unchanged (dialog still shown on connect); headless skips it and uses the driver's saved config.
 Helper verified in isolation; Linux bridge build intact (windows path can't be cross-checked here

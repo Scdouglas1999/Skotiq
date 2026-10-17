@@ -1,7 +1,7 @@
 /// Static-file HTTP handlers for the headless API's bundled SPAs.
 ///
 /// Owns the two top-level static-file surfaces shipped inside the
-/// Nightshade executable so a headless deployment (Pi / embedded host /
+/// Skotiq executable so a headless deployment (Pi / embedded host /
 /// remote ops) can serve them without an external web server:
 ///   * `/dashboard` — the desktop control dashboard. Sourced from
 ///     `web_dashboard/`.
@@ -28,7 +28,7 @@ library;
 
 import 'dart:io';
 
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
@@ -45,7 +45,7 @@ import '../response_helpers.dart';
 /// happened to copy into the SPA directory readable with no credential:
 /// `GET /dashboard/README.md` answered 200 with 16KB of internal developer
 /// documentation describing the bearer-to-cookie upgrade, the pairing
-/// endpoints, the SSE query-string token and the `NIGHTSHADE_REQUIRE_AUTH`
+/// endpoints, the SSE query-string token and the `SKOTIQ_REQUIRE_AUTH`
 /// escape hatch. The public prefix now serves only the kinds of file the
 /// pages themselves request. The packaging side of the same repair is in
 /// `apps/desktop/pubspec.yaml`, which no longer ships the README at all.
@@ -140,7 +140,7 @@ class StaticFileHandlers {
       return Response.found('/dashboard');
     }
     return jsonOk({
-      'service': 'nightshade',
+      'service': 'skotiq',
       'dashboard': dashboardAvailable ? '/dashboard' : null,
       'api': '/api/info',
     });

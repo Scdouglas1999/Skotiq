@@ -1,8 +1,8 @@
 # bfix batch: sky-planetarium
 
 Cluster report: `reports/release-pass/gui/sky-discovery.md`
-Scope: `packages/nightshade_planetarium/**`,
-`packages/nightshade_app/lib/screens/{planetarium,your_sky,framing,first_light}/**`
+Scope: `packages/skotiq_planetarium/**`,
+`packages/skotiq_app/lib/screens/{planetarium,your_sky,framing,first_light}/**`
 
 ## SKY-2 (P0) — region-create modal never lifts — FIXED
 
@@ -23,7 +23,7 @@ write on a `Completer` and pumps a frame first — that is what reproduces.
 
 Fix: no `PopScope`; Cancel always enabled; success path uses `pop(true)`.
 
-Test: `packages/nightshade_app/test/screens/your_sky/name_region_sheet_dismissal_test.dart`
+Test: `packages/skotiq_app/test/screens/your_sky/name_region_sheet_dismissal_test.dart`
 (3 cases: gated write closes; Escape mid-write; Cancel mid-write). Full
 `test/screens/your_sky/` green (39 tests).
 
@@ -34,7 +34,7 @@ Test: `packages/nightshade_app/test/screens/your_sky/name_region_sheet_dismissal
 `name_region_sheet_validation_test.dart::Create region is not offered when there
 is no target to pick` asserts exactly that and passes unchanged. The audited
 binary predates that fix. The a11y half (a disabled button not reported
-`[DISABLED]`) is the A11Y-STATE class, owned at the `nightshade_ui` component.
+`[DISABLED]`) is the A11Y-STATE class, owned at the `skotiq_ui` component.
 
 ## SKY-15 (P3) — Escape does not leave the region detail — FIXED
 
@@ -62,11 +62,11 @@ the new instant. Freezing it there broke
 `setTime` clock advances a second per tick; TONIGHT/date-picker drift is not a
 filed finding and relocating that behaviour is not this fix's job.
 
-Test: `packages/nightshade_planetarium/test/time_transport_pause_test.dart`.
+Test: `packages/skotiq_planetarium/test/time_transport_pause_test.dart`.
 
 ## SKY-5 (P1) — the planetarium clock rewrote the Dashboard's — FIXED
 
-New `SimulatedTimeScope` (nightshade_planetarium) wraps `PlanetariumView`: when
+New `SimulatedTimeScope` (skotiq_planetarium) wraps `PlanetariumView`: when
 the planetarium leaves the tree the observation clock returns to now, so the
 Dashboard header, astro-dark countdown and moon phase can no longer inherit a
 simulated instant. Deferred through a microtask — dispose runs inside the frame
@@ -79,7 +79,7 @@ status-bar consumers are outside this batch's paths, so the fix is at the
 boundary rather than by splitting the provider. While the planetarium is on
 screen the shell's LST chip still shows the simulated value.
 
-Test: `packages/nightshade_planetarium/test/simulated_time_scope_test.dart`;
+Test: `packages/skotiq_planetarium/test/simulated_time_scope_test.dart`;
 proved failing by disabling the reset.
 
 ## SKY-6 (P1) — DSOs render with no angular size — FIXED
@@ -96,7 +96,7 @@ major/minor axes at their position angle. Everything smaller keeps the atlas
 path and its legible-minimum floor. Only a handful of objects clear the
 threshold in any one field.
 
-Test: `packages/nightshade_planetarium/test/dso_angular_size_test.dart`.
+Test: `packages/skotiq_planetarium/test/dso_angular_size_test.dart`.
 Full planetarium suite green (538 tests, `--exclude-tags golden`; the golden
 benchmark baseline is host-specific and excluded from `melos run test` by tag).
 
@@ -129,7 +129,7 @@ proved failing by removing the guard.
 
 ## SKY-17 (P3) — layer toggles expose no state — FIXED (screen-local widget)
 
-`_LayerSwitch` is this screen's own row widget, not a `nightshade_ui`
+`_LayerSwitch` is this screen's own row widget, not a `skotiq_ui`
 component, so it is independently wrong and fixed here rather than deferred to
 the A11Y-STATE component work: `MergeSemantics` around the row, the same idiom
 `SettingRow` uses. Each of the fourteen sky layers is now one node carrying its
@@ -141,7 +141,7 @@ failing by swapping the merge for a pass-through widget.
 ## SKY-9 (P2) — BLOCKED (out of scope)
 
 Framing's gate is `framingEquipmentProvider` in
-`packages/nightshade_core/lib/src/providers/framing_provider/support.dart`: it
+`packages/skotiq_core/lib/src/providers/framing_provider/support.dart`: it
 only fills sensor dimensions from `backend.getCameraStatus` while the camera is
 `connected`, and returns `EquipmentStatus.noCameraSpecs` otherwise. Closing it
 needs (1) sensor pixel dimensions on `EquipmentProfile` — a freezed model plus
@@ -155,10 +155,10 @@ No code changed for this item.
 ## SKY-8 (P2) — BLOCKED (out of scope)
 
 Both halves live in the shared component
-`packages/nightshade_ui/lib/src/components/nightshade_tooltip.dart`: the anchor
+`packages/skotiq_ui/lib/src/components/skotiq_tooltip.dart`: the anchor
 maths in `_TooltipOverlay` / `_TooltipLayoutDelegate` (the Layers tooltip drew
 176 px right and 79 px below its button) and the lifecycle — each
-`NightshadeTooltip` owns an independent `OverlayPortalController` dismissed only
+`SkotiqTooltip` owns an independent `OverlayPortalController` dismissed only
 by its own `MouseRegion.onExit`, with no arbitration that at most one is
 showing, which is what leaves several alive over the star field. The planetarium
 call sites pass a plain message and position; nothing is wrong on this side.

@@ -1,7 +1,7 @@
 # Wave F dryness check — cluster `autopilot-night`
 
 Verifier: live drive of the FRESH release bundle
-`apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`
+`apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`
 (`lib/libapp.so` mtime **Aug 13 23:56**, i.e. after the E-fix commit `4723ca202`, 23:54:05), via
 `tools/ui_audit/drive_linux.py`, display `:81`, profile `waveE-autopilot-night`
 (seeded from the Wave-E `waveE-sequencing-autopilot` database so the same `M42-TEST` catalog
@@ -178,7 +178,7 @@ The stale-copy divergence Wave E's refuter produced with Ctrl+Z does not reprodu
 The E-fix's stated two-implementations guard is *"A live log now answers 'did the re-arm run, and
 which branch did it take?'"*. On this release build there is no such live log:
 
-* the on-disk log `…/data/logs/nightshade.log.2026-08-14` contains **0** lines matching
+* the on-disk log `…/data/logs/skotiq.log.2026-08-14` contains **0** lines matching
   `SchedulerEngine`, `Scheduler`, or `SequenceExecutor` — it carries only Rust-side output
   (886 `[EVENT_SUB]` lines);
 * Settings ▸ Advanced ▸ **Logs** does show Dart entries, but searching `Scheduler` returns

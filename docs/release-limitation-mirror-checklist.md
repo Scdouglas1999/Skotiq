@@ -18,7 +18,7 @@ in **all** of:
    is about a specific device.
 3. **In-app Platform Capabilities** — Settings → Connection → Platform
    Capabilities (the `PlatformCapabilityMatrix` in
-   `packages/nightshade_core/lib/src/models/backend/platform_capabilities.dart`).
+   `packages/skotiq_core/lib/src/models/backend/platform_capabilities.dart`).
 4. **`/api/info` → `platformCapabilities`** — the headless API surface
    (`apps/desktop/lib/headless_api/handlers/system_handlers.dart`), which must
    serve the same matrix as the in-app UI.
@@ -57,7 +57,7 @@ checkable against a running instance:
 ```bash
 # in-app vs API: the API matrix should equal what the Platform Capabilities
 # screen renders. Against a running headless instance (token required):
-curl -s -H "Authorization: Bearer $NIGHTSHADE_TOKEN" \
+curl -s -H "Authorization: Bearer $SKOTIQ_TOKEN" \
   http://<host>:8080/api/info | jq '.platformCapabilities'
 ```
 

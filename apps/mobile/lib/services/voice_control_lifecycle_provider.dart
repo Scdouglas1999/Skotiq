@@ -19,7 +19,7 @@ import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
 import 'voice_control_service.dart';
 
@@ -196,7 +196,7 @@ class VoiceControlLifecycleController {
       case VoiceControlAction.pauseSequence:
         if (execState != SequenceExecutionState.running) {
           // Loudly note the no-op. Without this an operator who said
-          // "Hey Siri, pause Nightshade" while paused would have no
+          // "Hey Siri, pause Skotiq" while paused would have no
           // feedback about why nothing happened.
           _logInfo(
             'Voice action pauseSequence ignored: execution state is '

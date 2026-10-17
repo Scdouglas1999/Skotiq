@@ -1,6 +1,6 @@
 # Wave C3 — batch `planetarium-ui`
 
-Scope: `packages/nightshade_planetarium/**` and `packages/nightshade_ui/**`, files >1000 lines.
+Scope: `packages/skotiq_planetarium/**` and `packages/skotiq_ui/**`, files >1000 lines.
 Baseline: `45bc9d5e4` ("audit: record the stage-2 sweep — 17 fixes, gates green").
 Plans followed: `reports/release-pass/map/planetarium.md` §1.1-§1.6 and
 `reports/release-pass/map/ui-package.md` §1.1.
@@ -20,11 +20,11 @@ signature changes. Line counts below are `wc -l` at HEAD vs after.
 | `planetarium/lib/src/rendering/sky_renderer/solar_system_and_markers.dart` | 1084 | 1084 | split |
 | `planetarium/lib/src/planning/target_scoring.dart` | 1107 | 1076 | split |
 | `planetarium/lib/src/widgets/object_details_panel/content_sections.dart` | 1012 | 1011 | split |
-| `nightshade_ui/lib/src/widgets/design_reference_board.dart` | 1092 | 1010 | split |
+| `skotiq_ui/lib/src/widgets/design_reference_board.dart` | 1092 | 1010 | split |
 
 Nothing in scope was under the threshold at HEAD, so nothing was skipped for size.
 `design_system_gallery.dart` (800) and `adaptive_panel_layout.dart` (724) are the next
-largest in `nightshade_ui` and are both under the bar — untouched, per the map.
+largest in `skotiq_ui` and are both under the bar — untouched, per the map.
 
 ---
 
@@ -159,7 +159,7 @@ than moving code verbatim, and the file is already under the threshold without i
 done. Consequently the `_setStateFromPart` shim the map called for was not needed — no moved code
 calls `setState` (all 4 `setState` sites are inside `build()`, which did not move).
 
-## 7. `design_reference_board.dart` — 1010 → 167 + 4 parts (`nightshade_ui`)
+## 7. `design_reference_board.dart` — 1010 → 167 + 4 parts (`skotiq_ui`)
 
 | New file | Lines | Moved |
 |---|---|---|
@@ -169,31 +169,31 @@ calls `setState` (all 4 `setState` sites are inside `build()`, which did not mov
 | `design_reference_board/board_primitives.dart` | 144 | `_noop`/`_noopBool`/`_noopNullableBool`, `_SubLabel`, `_GradientBar`, `_DotChip`, `_CardSpecimen` |
 
 `part of` was used exactly as the map preferred, so no new public names appear in the package.
-`NightshadeDesignReferenceBoard` keeps its file path, so `nightshade_ui.dart:64` and
+`SkotiqDesignReferenceBoard` keeps its file path, so `skotiq_ui.dart:64` and
 `test/golden/design_gallery_golden_test.dart` needed **zero** edits.
 
 ---
 
 ## Verification
 
-- `dart analyze packages/nightshade_planetarium` → **No issues found.**
-- `dart analyze packages/nightshade_ui/lib` → **No issues found.**
-  (`dart analyze packages/nightshade_ui` reports 24 pre-existing `deprecated_member_use` infos in
+- `dart analyze packages/skotiq_planetarium` → **No issues found.**
+- `dart analyze packages/skotiq_ui/lib` → **No issues found.**
+  (`dart analyze packages/skotiq_ui` reports 24 pre-existing `deprecated_member_use` infos in
   `test/`, unrelated and unchanged.)
-- `dart analyze packages/nightshade_app/lib` → no errors, so the downstream consumer of both
+- `dart analyze packages/skotiq_app/lib` → no errors, so the downstream consumer of both
   packages still resolves every moved/re-exported name.
-- `flutter test` in `packages/nightshade_planetarium` with `--exclude-tags golden`:
+- `flutter test` in `packages/skotiq_planetarium` with `--exclude-tags golden`:
   **549 passed, 0 failed.** No test file was edited — not even an import line.
 - The `golden`-tagged `test/benchmark/golden_compare_test.dart` fails on this Linux host both
   before and after: it is excluded from `melos run test` by design ("Baselines are host-specific",
   file header lines 1-4) and its baselines were captured on another host.
-- `flutter test` in `packages/nightshade_ui`: 296 passed, 1 failed — and the failure is a
+- `flutter test` in `packages/skotiq_ui`: 296 passed, 1 failed — and the failure is a
   **compile error in another package, from another agent's in-flight work**:
-  `nightshade_core/lib/src/services/stack_and_share_service.dart:331` `_rejectionReason` /
+  `skotiq_core/lib/src/services/stack_and_share_service.dart:331` `_rejectionReason` /
   `:377,:515` `_dominantReason` are undefined. `git status` shows that file modified with a new
   untracked `stack_and_share_service/` directory alongside four other core services in the same
-  state. Nothing in this batch touches `nightshade_core`.
-- `packages/nightshade_ui/test/golden/` passes (3/3) and, decisively for §1.1's acceptance test,
+  state. Nothing in this batch touches `skotiq_core`.
+- `packages/skotiq_ui/test/golden/` passes (3/3) and, decisively for §1.1's acceptance test,
   `git status docs/design/goldens/` is **clean** after the run — the re-rendered board PNGs are
   byte-identical to the committed baselines.
 - Per-file member-set diffs (HEAD vs the union of each split's outputs) show no lost declaration

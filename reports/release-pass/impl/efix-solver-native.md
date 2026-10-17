@@ -12,7 +12,7 @@ no generated files. One deviation is recorded at the bottom (accidental
 
 **Third strike on the two-implementations trap.** The `-fov` work had landed in
 `PlateSolveService.astapArguments` (Dart) — a *fallback* that only runs when the
-backend call throws. Every production solve goes Dart → bridge → `nightshade_imaging`,
+backend call throws. Every production solve goes Dart → bridge → `skotiq_imaging`,
 and the native `AstapSolver::solve` accepted a `hint_scale` argument that **no caller
 ever passed**. Live proof from Wave E: `grep -c -- "-fov"` over the whole session
 log = 0, while the polar wizard logged `1.29"/px` one line before solving blind.
@@ -29,7 +29,7 @@ log = 0, while the polar wizard logged `1.29"/px` one line before solving blind.
 `resolve_solve_scale(path, explicit)` order of authority:
 1. what the caller measured for this frame,
 2. **the frame's own header** (`FOCALLEN` + `XPIXSZ` via the new
-   `nightshade_imaging::fits_scale_arcsec_per_px`) — correct even for an imported
+   `skotiq_imaging::fits_scale_arcsec_per_px`) — correct even for an imported
    frame from another rig,
 3. the active profile's optics + this camera's pitch (`SolveHints::arcsec_per_px`,
    binned).
@@ -146,9 +146,9 @@ screen was read — which is why the widget test passed and the app looked dead.
 
 | Suite | Result |
 |---|---|
-| `cargo test -p nightshade_imaging --lib` | 533 passed |
-| `cargo test -p nightshade_bridge --lib` | 555 passed, 4 ignored |
-| `cargo test -p nightshade_sequencer --lib` | 782 passed |
+| `cargo test -p skotiq_imaging --lib` | 533 passed |
+| `cargo test -p skotiq_bridge --lib` | 555 passed, 4 ignored |
+| `cargo test -p skotiq_sequencer --lib` | 782 passed |
 | `cargo check --workspace` | clean |
 | `flutter test test/screens/polar_alignment/{run_feedback,honesty}` | all passed |
 | `flutter test test/screens/guiding/ test/widgets/phd2/` | all passed except golden captures |

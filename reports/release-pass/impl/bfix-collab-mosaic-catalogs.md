@@ -5,14 +5,14 @@ COL2-2, COL2-8, COL2-12, COL2-13.
 
 ## Files claimed (edited by this batch only)
 
-- `packages/nightshade_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog.dart`
-- `packages/nightshade_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog/config_controls.dart`
-- `packages/nightshade_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog/visual_planner.dart`
-- `packages/nightshade_app/lib/screens/suggestions/widgets/transient_alerts_panel.dart`
-- `packages/nightshade_app/lib/screens/settings/widgets/element_refresh_card.dart`
-- `packages/nightshade_core/lib/src/services/mosaic/collaborative_mosaic_service.dart`
-- `packages/nightshade_core/lib/src/services/target_suggestion_service.dart`
-- `packages/nightshade_core/lib/src/providers/transient_alert_provider.dart`
+- `packages/skotiq_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog.dart`
+- `packages/skotiq_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog/config_controls.dart`
+- `packages/skotiq_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog/visual_planner.dart`
+- `packages/skotiq_app/lib/screens/suggestions/widgets/transient_alerts_panel.dart`
+- `packages/skotiq_app/lib/screens/settings/widgets/element_refresh_card.dart`
+- `packages/skotiq_core/lib/src/services/mosaic/collaborative_mosaic_service.dart`
+- `packages/skotiq_core/lib/src/services/target_suggestion_service.dart`
+- `packages/skotiq_core/lib/src/providers/transient_alert_provider.dart`
 
 The mosaic wizard lives under `screens/sequencer/widgets/` and the catalog cards under
 `screens/settings/widgets/` rather than the scope's literal directories; the batch owns the
@@ -37,7 +37,7 @@ mosaic and catalog items so those files are claimed here.
   panel size is unknown — they start empty behind a hint, and typing one unblocks the action.
   Banner copy now points at Advanced as well as Settings.
   The missing `[DISABLED]` semantics on the button itself is the A11Y-STATE class, owned at
-  `NightshadeButton` by the component batch — recorded as covered-by-component.
+  `SkotiqButton` by the component batch — recorded as covered-by-component.
 - **COL2-1 / COL2-2** — card copy now names Soft00Bright ("not the full MPCORB") and the status
   line reads "N bright asteroids". Refresh now always acknowledges: success snackbar with the
   counts, error snackbar with the failure summary (previously a partial failure was silent).
@@ -62,14 +62,14 @@ mosaic and catalog items so those files are claimed here.
   planner sort, each candidate card's own semantics subtree must name the target it renders.
   The live evidence is an accessibility-tree dump only reachable by driving the app, which this
   wave may not do; the test pins the invariant so Wave D can re-check the live tree.
-- Concurrent-agent breakage in `nightshade_core` (scheduler_engine, frame_quality_assessment,
-  polar_alignment_provider) and in `nightshade_app` (your_sky/name_region_sheet.dart) broke three
+- Concurrent-agent breakage in `skotiq_core` (scheduler_engine, frame_quality_assessment,
+  polar_alignment_provider) and in `skotiq_app` (your_sky/name_region_sheet.dart) broke three
   test runs mid-flight; retried after a wait and they cleared.
 
 ## Verification
 
-- `nightshade_core`: `flutter test test/services/... test/providers` → **1569 passed**.
-- `nightshade_app`: transients + settings cards + sequencer/widgets + planner → all passed
+- `skotiq_core`: `flutter test test/services/... test/providers` → **1569 passed**.
+- `skotiq_app`: transients + settings cards + sequencer/widgets + planner → all passed
   (`planner_screen_test.dart` 25 passed; earlier combined run 87 passed).
 - `flutter analyze` clean on every lib file touched; the only analyzer output on the test files is
   the pre-existing `hasFlag` deprecation info already present elsewhere in the package.

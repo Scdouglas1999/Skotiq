@@ -365,7 +365,7 @@ class _Options {
   factory _Options.parse(List<String> args) {
     var bundleDir = _defaultBundleDir;
     var outputDir = _defaultOutputDir;
-    var artifactName = 'nightshade-linux-x64.tar.gz';
+    var artifactName = 'skotiq-linux-x64.tar.gz';
     var metadataPath = _defaultMetadataPath;
     var evidencePath = _defaultEvidencePath;
     var buildCommand = 'dart run melos run build:desktop:linux --no-select';

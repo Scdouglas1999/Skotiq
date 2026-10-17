@@ -30,7 +30,7 @@ Ladder: failing test first in the owning package, then the fix, then green.
   and the gate's abstain path now logs a WARNING naming the missing setting
   instead of a debug line. Proven by neutering the sentinel arm: all 3 Rust
   tests fail (`left: Some(0.0), right: None`), pass restored. Full
-  `cargo test -p nightshade_sequencer --lib`: 778 passed.
+  `cargo test -p skotiq_sequencer --lib`: 778 passed.
 - **SEQ-14** — root cause is a timezone bug, not an empty-projects path:
   `SkyCalculations.computeTwilight` searched 24 h from the CALLER's noon. On a
   host in UTC with a site at UTC+10 that anchor lands mid-night, so the search
@@ -63,11 +63,11 @@ Ladder: failing test first in the owning package, then the fix, then green.
 
 ### Verification
 
-- `nightshade_core`: `test/providers/sequence` + `test/services/scheduler` +
+- `skotiq_core`: `test/providers/sequence` + `test/services/scheduler` +
   `test/services/planning` — 672 passed.
-- `nightshade_sequencer` (Rust): `cargo test --lib` — 778 passed; `cargo fmt`
+- `skotiq_sequencer` (Rust): `cargo test --lib` — 778 passed; `cargo fmt`
   clean.
-- `nightshade_app`: every toolbar/history/panel suite touched by this batch —
+- `skotiq_app`: every toolbar/history/panel suite touched by this batch —
   24 passed. Analyzer clean over the edited scope in both packages
   (3 pre-existing `clampPanelWidth` deprecation infos in planner remain).
 
@@ -83,13 +83,13 @@ the relevant change and re-running:
 
 ### Orientation
 
-- `SchedulerEngine._handleNoEligibleTarget` (packages/nightshade_core/lib/src/services/scheduler/scheduler_engine.dart:627)
+- `SchedulerEngine._handleNoEligibleTarget` (packages/skotiq_core/lib/src/services/scheduler/scheduler_engine.dart:627)
   calls `_sequenceSink.stopSequence()` on EVERY transient no-eligible tick,
   with no check that the autopilot ever dispatched the run it is stopping.
   That is the SEQ-12 P0 stop call.
 - The visible surface for an autopilot reason is the decision `reasoning`
   list (`_ReasoningList` in
-  packages/nightshade_app/lib/screens/planner/widgets/scheduler_tab_content/decision_panel.dart);
+  packages/skotiq_app/lib/screens/planner/widgets/scheduler_tab_content/decision_panel.dart);
   `SchedulerStatus.lastError` is rendered nowhere.
 - The Rust daylight gate (`instructions::daylight_gate_block_reason`) already
   ABSTAINS when lat/lon are `None`. SCI-39's Null Island comes from the

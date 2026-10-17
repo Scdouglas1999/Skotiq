@@ -1,5 +1,5 @@
-name: nightshade_mobile
-description: Nightshade Mobile - Companion app for remote monitoring and control
+name: skotiq_mobile
+description: Skotiq Mobile - Companion app for remote monitoring and control
 publish_to: 'none'
 version: 7.1.0+28
 
@@ -11,20 +11,20 @@ dependencies:
     sdk: flutter
 
   # Shared packages
-  nightshade_core:
-    path: ../../packages/nightshade_core
-  nightshade_ui:
-    path: ../../packages/nightshade_ui
-  nightshade_remote_protocol:
-    path: ../../packages/nightshade_remote_protocol
-  nightshade_app:
-    path: ../../packages/nightshade_app
-  nightshade_bridge:
-    path: ../../packages/nightshade_bridge
-  nightshade_planetarium:
-    path: ../../packages/nightshade_planetarium
-  nightshade_updater:
-    path: ../../packages/nightshade_updater
+  skotiq_core:
+    path: ../../packages/skotiq_core
+  skotiq_ui:
+    path: ../../packages/skotiq_ui
+  skotiq_remote_protocol:
+    path: ../../packages/skotiq_remote_protocol
+  skotiq_app:
+    path: ../../packages/skotiq_app
+  skotiq_bridge:
+    path: ../../packages/skotiq_bridge
+  skotiq_planetarium:
+    path: ../../packages/skotiq_planetarium
+  skotiq_updater:
+    path: ../../packages/skotiq_updater
 
   # State management
   flutter_riverpod: ^2.5.1
@@ -32,7 +32,7 @@ dependencies:
   # Navigation
   go_router: ^14.0.0
 
-  # Database (for local state) — sqlite3 ^3 (via nightshade_core) bundles
+  # Database (for local state) — sqlite3 ^3 (via skotiq_core) bundles
   # SQLite through Dart build hooks; sqlite3_flutter_libs is obsolete for v3.
   drift: ^2.30.0
 
@@ -98,7 +98,7 @@ dev_dependencies:
   json_serializable: ^6.9.0
   mocktail: ^1.0.4
   # NOTE: the desktop→mobile e2e seam test lives in apps/mobile_e2e, NOT
-  # here. A dev-dependency on nightshade_desktop leaks the desktop-only
+  # here. A dev-dependency on skotiq_desktop leaks the desktop-only
   # irondash_engine_context plugin into the Android release registrant and
   # breaks `flutter build apk --release`.
 
@@ -106,7 +106,7 @@ flutter:
   uses-material-design: true
 
   # NOTE: bundled sample sequences for the Sequencer > Library tab live in
-  # the nightshade_core package's own pubspec asset declaration. Flutter
-  # automatically picks them up as `packages/nightshade_core/assets/...`
+  # the skotiq_core package's own pubspec asset declaration. Flutter
+  # automatically picks them up as `packages/skotiq_core/assets/...`
   # at runtime via rootBundle — they do NOT need to be re-declared here.
   # Mobile users can browse the Library tab in the companion app.

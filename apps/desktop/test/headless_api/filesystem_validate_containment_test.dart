@@ -10,8 +10,8 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless_api/handlers/filesystem_handlers.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/filesystem_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -26,7 +26,7 @@ void main() {
 
     setUp(() async {
       envBrowseRoot = await Directory.systemTemp.createTemp(
-        'nightshade_validate_root_',
+        'skotiq_validate_root_',
       );
       container = ProviderContainer(
         overrides: [appSettingsProvider.overrideWith(_TestSettings.new)],
@@ -34,7 +34,7 @@ void main() {
       handlers = FileSystemHandlers(
         container,
         environment: {
-          'NIGHTSHADE_BROWSE_ROOTS': 'Capture Disk=${envBrowseRoot.path}',
+          'SKOTIQ_BROWSE_ROOTS': 'Capture Disk=${envBrowseRoot.path}',
         },
       );
     });
@@ -61,7 +61,7 @@ void main() {
     test('rejects an out-of-root path with path_not_allowed and writes no '
         'probe file', () async {
       final outside = await Directory.systemTemp.createTemp(
-        'nightshade_validate_outside_',
+        'skotiq_validate_outside_',
       );
       addTearDown(() async {
         if (await outside.exists()) {
@@ -84,7 +84,7 @@ void main() {
       // The write-probe must never have run outside the allow-list.
       final probes = await outside
           .list()
-          .where((e) => e.path.contains('.nightshade_write_test_'))
+          .where((e) => e.path.contains('.skotiq_write_test_'))
           .toList();
       expect(probes, isEmpty);
     });
@@ -130,7 +130,7 @@ void main() {
     test('rejects a not-yet-created path whose ancestor is an in-root symlink '
         'pointing outside the roots (no existence oracle)', () async {
       final outside = await Directory.systemTemp.createTemp(
-        'nightshade_validate_symlink_target_',
+        'skotiq_validate_symlink_target_',
       );
       addTearDown(() async {
         if (await outside.exists()) await outside.delete(recursive: true);
@@ -166,7 +166,7 @@ void main() {
       // No write-probe may have leaked into the out-of-root target.
       final probes = await outside
           .list()
-          .where((e) => e.path.contains('.nightshade_write_test_'))
+          .where((e) => e.path.contains('.skotiq_write_test_'))
           .toList();
       expect(probes, isEmpty);
     });

@@ -23,7 +23,7 @@
       "expected": "Losing focus (Tab, clicking another control, pressing Capture) must commit the edit, or the field must visibly reject/revert the uncommitted text. What the card shows and what it captures must never disagree.",
       "repro": "Dashboard -> Edit Dashboard -> Widgets -> Capture Settings -> Done. Click the Exp box, Ctrl+A, type 2, press Tab, press Capture. Watch the progress % and `grep 'Starting.*exposure' /tmp/ns-audit/r-wizards/app.log`.",
       "evidence": "/tmp/ns-audit/shots/r-wizards-38.png: field reads 'Exp: 2' while the ring reads 13% of a run the log calls 120 s. /tmp/ns-audit/r-wizards/app.log 18:42:16 'Starting 120s exposure'. Repeated with Tab at a different value (/tmp/ns-audit/shots/r-wizards-41.png: field '2', progress 90% of the previously committed 9 s).",
-      "where": "packages/nightshade_app/lib/screens/dashboard/widgets/capture_settings_card.dart:536 - _CompactSettingField wires only `onSubmitted: widget.onChanged`; there is no onEditingComplete/onChanged and no FocusNode listener. didUpdateWidget (:478) only rewrites the controller when the provider value changes, so stale text survives forever. Both Exp and Gain use this field.",
+      "where": "packages/skotiq_app/lib/screens/dashboard/widgets/capture_settings_card.dart:536 - _CompactSettingField wires only `onSubmitted: widget.onChanged`; there is no onEditingComplete/onChanged and no FocusNode listener. didUpdateWidget (:478) only rewrites the controller when the provider value changes, so stale text survives forever. Both Exp and Gain use this field.",
       "proposed_fix": "Add a FocusNode and commit on focus loss (and on onEditingComplete), or switch to onChanged with debounce. Also re-read the controller text in the Capture handler before dispatching."
     },
     {
@@ -35,7 +35,7 @@
       "expected": "With no data source the badge must read \"Not monitored\" / \"Unknown\" in a neutral or amber colour. Green \"Safe\" must only ever mean a sensor reported safe conditions within the staleness window.",
       "repro": "Fresh profile -> skip onboarding -> Equipment -> connect Simulated Camera/Mount/Focuser/Filter Wheel (no weather, no safety monitor) -> Dashboard. Right column, SAFETY tile.",
       "evidence": "/tmp/ns-audit/shots/r-wizards-14.png - header badge 'Safe' (green) directly above 'Data Unavailable' and the amber 'No weather data sources available' banner.",
-      "where": "packages/nightshade_app/lib/screens/dashboard/ - weather/safety dashboard tile",
+      "where": "packages/skotiq_app/lib/screens/dashboard/ - weather/safety dashboard tile",
       "proposed_fix": "Make the badge a three-state derived from the data source: safe (fresh reading, safe), unsafe (fresh reading, unsafe), unmonitored (no source or stale). Never fall back to 'Safe' as the default when isSafe is null/absent."
     },
     {
@@ -47,7 +47,7 @@
       "expected": "An arrow pad on a mount control card should slew (moveAxis / directional slew) at a user-selectable rate while held, as it does in NINA, SGP and the ASIAIR, and stop on release. If it really is a guide pulse it must be labelled as one and show the resulting offset.",
       "repro": "Dashboard -> Edit Dashboard -> Widgets -> enable Mount Control -> Done -> Unpark -> click the E arrow, then press-and-hold it for 2 s. Watch RA on the card and `tail /tmp/ns-audit/r-wizards/app.log`.",
       "evidence": "/tmp/ns-audit/r-wizards/app.log: '18:37:41 Pulse guiding sim_mount_1 for 500ms in direction east', '18:37:57 ... 500ms ...' (that one was a 2 s hold), '18:38:35 ... 500ms ...'. Card RA unchanged in /tmp/ns-audit/shots/r-wizards-30.png and -31.png.",
-      "where": "packages/nightshade_app/lib/screens/dashboard/widgets/mount_control_card.dart:173-182 (onDirection -> pulseGuide)",
+      "where": "packages/skotiq_app/lib/screens/dashboard/widgets/mount_control_card.dart:173-182 (onDirection -> pulseGuide)",
       "proposed_fix": "Bind the pad to a hold-to-slew (start on pointer down, stop on pointer up/cancel) using the mount's directional slew, and add a slew-rate selector next to the existing tracking-rate selector."
     },
     {
@@ -59,7 +59,7 @@
       "expected": "Either disable the pad visibly (dim the whole pad / show a 'Mount is parked' tooltip or inline hint), or accept the press and surface 'Mount is parked - unpark first'.",
       "repro": "Dashboard with Mount Control widget, mount Parked -> click any arrow. Compare /tmp/ns-audit/shots/r-wizards-28.png (parked) with r-wizards-29.png (unparked): the arrow pad renders identically.",
       "evidence": "/tmp/ns-audit/shots/r-wizards-28.png vs -29.png; app.log has no 'Pulse guiding' line for the parked click at 14:36.",
-      "where": "packages/nightshade_app/lib/screens/dashboard/widgets/mount_control_card.dart:175 (isEnabled: isConnected && !mountState.isParked), :413 (InkWell onTap null when disabled)",
+      "where": "packages/skotiq_app/lib/screens/dashboard/widgets/mount_control_card.dart:175 (isEnabled: isConnected && !mountState.isParked), :413 (InkWell onTap null when disabled)",
       "proposed_fix": "Wrap the pad in an Opacity/overlay when disabled and set the Tooltip message to the reason ('Mount is parked')."
     },
     {
@@ -71,7 +71,7 @@
       "expected": "Every row in the picker has a unique, distinguishable name, or the legacy/duplicate entries are removed.",
       "repro": "Dashboard -> Edit Dashboard -> Widgets -> scroll the list.",
       "evidence": "/tmp/ns-audit/shots/r-wizards-17.png (Guiding - 'RMS error and guiding graph', checked) and /tmp/ns-audit/shots/r-wizards-20.png (Guiding - 'RMS and guiding graph', unchecked) in the same dialog.",
-      "where": "packages/nightshade_app/lib/screens/dashboard/widgets/widget_picker_dialog.dart and the widget registry that feeds it",
+      "where": "packages/skotiq_app/lib/screens/dashboard/widgets/widget_picker_dialog.dart and the widget registry that feeds it",
       "proposed_fix": "De-duplicate the registry (the second set looks like the pre-cockpit widget ids) or rename them so the distinction is explicit."
     },
     {
@@ -82,9 +82,9 @@
       "what_happened": "The eye icon in the dashboard command bar is the Glance mode toggle ('bumps the dashboard's secondary-status type up so the run can be read from across the room'). Toggling it on tints the button and the tooltip flips to 'Glance mode: on', but a pixel diff of the whole dashboard content area (1000x700 px) between on and off differs in only a 4x12 px sliver at the panel edge - 0.005% of pixels. No text on the dashboard gets larger.",
       "expected": "Either the dashboard's status readouts (target, exposure countdown, HFR, RMS, frame counts) scale up when glance mode is on, or the toggle does not live on the dashboard.",
       "repro": "Dashboard -> click the eye icon in the command bar (right of the Local chip) -> click it again. Compare /tmp/ns-audit/shots/glance-on.png and /tmp/ns-audit/shots/glance-off.png.",
-      "evidence": "PIL diff of glance-on.png vs glance-off.png: bbox (996,39,1000,51), 0.0047% of pixels differ by >10. Source: NightshadeTypography.glanceStyle has exactly two callers repo-wide, both in packages/nightshade_app/lib/screens/sequencer/widgets/run_dashboard/ (session_warnings_panel.dart:142, filter_integration_panel.dart:178) - neither is on the Dashboard screen.",
-      "where": "packages/nightshade_app/lib/screens/dashboard/widgets/glance_mode_toggle.dart (control) vs the two glanceStyle consumers in the sequencer run dashboard",
-      "proposed_fix": "Apply NightshadeTypography.glanceStyle to the dashboard command-bar metrics, the Now Imaging / target strip and the exposure countdown, or move the toggle to the sequencer run dashboard where its two consumers actually live."
+      "evidence": "PIL diff of glance-on.png vs glance-off.png: bbox (996,39,1000,51), 0.0047% of pixels differ by >10. Source: SkotiqTypography.glanceStyle has exactly two callers repo-wide, both in packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/ (session_warnings_panel.dart:142, filter_integration_panel.dart:178) - neither is on the Dashboard screen.",
+      "where": "packages/skotiq_app/lib/screens/dashboard/widgets/glance_mode_toggle.dart (control) vs the two glanceStyle consumers in the sequencer run dashboard",
+      "proposed_fix": "Apply SkotiqTypography.glanceStyle to the dashboard command-bar metrics, the Now Imaging / target strip and the exposure countdown, or move the toggle to the sequencer run dashboard where its two consumers actually live."
     },
     {
       "title": "Tonight card reports a concrete twilight time and 9h28m imaging window while saying 'Location needed'",
@@ -94,8 +94,8 @@
       "what_happened": "With no observing location set (app_settings.observer_latitude = 0.0, and the command-bar LST reads '--:--:--'), the Tonight dashboard card shows Twilight 15:22, Moon 90%, Window 9h 28m - and in the same card Target: 'Location needed' plus 'Set an observing location to generate target plans.' The twilight/window numbers are computed at latitude 0 / longitude 0 in the machine's local timezone (15:22 local = 19:22 UTC, which is astronomical twilight on the equator on Aug 1), so they are wrong for every real observer, and there is no marking that they are placeholders.",
       "expected": "Twilight and Window must render as '--' (like LST and Exposure already do) until a site is set. A user reading 'Window 9h 28m' will plan a session around a number that is not theirs.",
       "repro": "Fresh profile, skip onboarding, do not set an observing location. Dashboard -> Edit Dashboard -> Widgets -> Tonight -> Done. Read the Tonight tile.",
-      "evidence": "/tmp/ns-audit/shots/r-wizards-34.png (Twilight 15:22, Window 9h 28m, Target 'Location needed'); sqlite3 /tmp/ns-audit/r-wizards/data/nightshade.db \"select key,value from app_settings where key like '%latitude%'\" -> observer_latitude|0.0; command bar shows LST '--:--:--' in the same frame.",
-      "where": "packages/nightshade_app/lib/screens/dashboard/widgets/tonight_card.dart",
+      "evidence": "/tmp/ns-audit/shots/r-wizards-34.png (Twilight 15:22, Window 9h 28m, Target 'Location needed'); sqlite3 /tmp/ns-audit/r-wizards/data/skotiq.db \"select key,value from app_settings where key like '%latitude%'\" -> observer_latitude|0.0; command bar shows LST '--:--:--' in the same frame.",
+      "where": "packages/skotiq_app/lib/screens/dashboard/widgets/tonight_card.dart",
       "proposed_fix": "Gate the twilight/window rows on the same 'has site' predicate the Target row already uses, and render '--' when it is false. Never fall back to lat/lon 0,0."
     },
     {
@@ -106,8 +106,8 @@
       "what_happened": "Checking 'Morning Report' in the Dashboard Widgets dialog produced no visible tile anywhere on the dashboard (both columns scrolled to the end). The widget returns SizedBox.shrink() when there are no completed runs, so on a fresh profile the toggle reads as broken.",
       "expected": "Either render an empty state ('No completed runs yet - last night's accepted/rejected counts will appear here'), consistent with how Storage and Last Run already do it, or mark the row in the picker as unavailable with the reason.",
       "repro": "Dashboard -> Edit Dashboard -> Widgets -> check Morning Report -> Done -> scroll both columns.",
-      "evidence": "/tmp/ns-audit/shots/r-wizards-25.png shows Morning Report checked; /tmp/ns-audit/shots/r-wizards-33.png and -34.png show the full dashboard with no Morning Report tile. Source: packages/nightshade_app/lib/screens/dashboard/widgets/cockpit_morning_report.dart:30 'if (runs.isEmpty) return const SizedBox.shrink();'",
-      "where": "packages/nightshade_app/lib/screens/dashboard/widgets/cockpit_morning_report.dart:30",
+      "evidence": "/tmp/ns-audit/shots/r-wizards-25.png shows Morning Report checked; /tmp/ns-audit/shots/r-wizards-33.png and -34.png show the full dashboard with no Morning Report tile. Source: packages/skotiq_app/lib/screens/dashboard/widgets/cockpit_morning_report.dart:30 'if (runs.isEmpty) return const SizedBox.shrink();'",
+      "where": "packages/skotiq_app/lib/screens/dashboard/widgets/cockpit_morning_report.dart:30",
       "proposed_fix": "Render the tile with an empty state rather than shrinking it, so the picker toggle and the dashboard agree."
     }
   ]

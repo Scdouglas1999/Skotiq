@@ -9,7 +9,7 @@ nothing on the right".
 ## 1. Reproduced in the running app
 
 Harness: `tools/ui_audit/drive_linux.py --profile w6shift`, `NS_AUDIT_DISPLAY=:92`,
-profile seeded from `~/.cache/nightshade-ledger-preview/data`. App window
+profile seeded from `~/.cache/skotiq-ledger-preview/data`. App window
 1600x900 at root (160,150) on a 1920x1200 virtual screen. Loaded
 "NGC 7000 + M31 · full night" from Sequencer › Saved, selected the **Cool
 camera** node, then clicked **Activity**.
@@ -84,7 +84,7 @@ walk fire.
 
 ## 3. The fix
 
-`packages/nightshade_ui/lib/src/components/adaptive_tab_bar.dart` —
+`packages/skotiq_ui/lib/src/components/adaptive_tab_bar.dart` —
 `_ensureSelectedVisible` now scrolls **its own** `ScrollPosition`:
 
 ```dart
@@ -102,7 +102,7 @@ the cause.
 ## 4. Proven after the fix
 
 Rebuilt the release bundle in this worktree (`flutter build linux --release`,
-then the campaign-hash `libnightshade_bridge.so` copied back over it —
+then the campaign-hash `libskotiq_bridge.so` copied back over it —
 `rustContentHash => -1858542796`), relaunched the harness on the same profile,
 and repeated the identical sequence: load the night, select **Cool camera**,
 click **Activity**, then **Notes**.
@@ -135,7 +135,7 @@ Evidence: `/tmp/ns-audit/frames` (before), `/tmp/ns-audit/frames2`,
 
 ### Tests
 
-- `packages/nightshade_app/test/screens/sequencer/inspector_tab_switch_layout_test.dart`
+- `packages/skotiq_app/test/screens/sequencer/inspector_tab_switch_layout_test.dart`
   (new, 3 cases) lays out `SequencerScreen` at 1400x900, selects an exposure
   node and switches tabs, asserting on EVERY frame of the transition that the
   `SequenceTree` Rect, the `NodePropertiesPanel` Rect and the screen pager's
@@ -150,7 +150,7 @@ Evidence: `/tmp/ns-audit/frames` (before), `/tmp/ns-audit/frames2`,
     ~390 px in the fixed 300 px column and the last tab's centre lands outside
     the window, where a `tap` would hit nothing and assert about a switch that
     never happened. With the real font all three fit, as the live shots show.
-- `packages/nightshade_ui/test/adaptive_tab_bar_test.dart` gains
+- `packages/skotiq_ui/test/adaptive_tab_bar_test.dart` gains
   "selecting a clipped tab does not scroll the host" — the cause-level guard:
   a bar inside a horizontally scrollable host, tap a clipped tab, host offset
   must stay 0.
@@ -159,11 +159,11 @@ Evidence: `/tmp/ns-audit/frames` (before), `/tmp/ns-audit/frames2`,
 
 ```
 flutter test test/screens/sequencer --concurrency=3     EXIT=0   724 passed (721 base + 3 new)
-flutter test (packages/nightshade_ui, full)             EXIT=0   520 passed (519 base + 1 new)
-dart analyze (packages/nightshade_app)                  EXIT=2   890 issues - the documented baseline, zero from this change
-dart analyze (packages/nightshade_ui)                   EXIT=0   57 infos, zero from this change
+flutter test (packages/skotiq_ui, full)             EXIT=0   520 passed (519 base + 1 new)
+dart analyze (packages/skotiq_app)                  EXIT=2   890 issues - the documented baseline, zero from this change
+dart analyze (packages/skotiq_ui)                   EXIT=0   57 infos, zero from this change
 dart format --output=none --set-exit-if-changed
-  packages/nightshade_app nightshade_core nightshade_ui EXIT=0
+  packages/skotiq_app skotiq_core skotiq_ui EXIT=0
 flutter build linux --release                           EXIT=0
 ```
 

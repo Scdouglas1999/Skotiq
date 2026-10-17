@@ -1,7 +1,7 @@
 # Impl log — batch `rust-devices`
 
 Baseline: b07d91c9d. Scope confirmed pristine at start
-(`git status --porcelain -- native/nightshade_native/{indi,alpaca,ascom,native}` empty),
+(`git status --porcelain -- native/skotiq_native/{indi,alpaca,ascom,native}` empty),
 so no predecessor work to reconcile.
 
 Items (adjudicated):
@@ -16,7 +16,7 @@ Items (adjudicated):
 ### Item 1 — INDI BLOB path (DONE, one sub-item blocked)
 
 Tests written first; observed failing against the pre-fix code
-(`cargo test -p nightshade_indi --lib`, 111 passed / 3 failed):
+(`cargo test -p skotiq_indi --lib`, 111 passed / 3 failed):
 - `client::tests::test_parser_does_not_retain_blob_base64_in_property_values`
   → `BLOB base64 payload was retained in property_values: {("CCD","CCD1","Image"): "/9j/4AAA"}`
 - `client::tests::test_disconnect_clears_cached_blobs_and_update_timestamps`
@@ -45,7 +45,7 @@ and is consumed outside my scope by `bridge/src/device_manager/ops/camera.rs:105
 through `let build_image = |data: Vec<u8>| -> ImageData` (:932); `take_blob`'s
 `Option<Vec<u8>>` is consumed at :1071/:1074. Changing the element type to `Arc<[u8]>`
 requires editing `bridge/`, which is another agent's scope. Everything else in item 1
-landed. Result: `cargo test -p nightshade_indi` → 114 passed, 0 failed (+2 doc-tests).
+landed. Result: `cargo test -p skotiq_indi` → 114 passed, 0 failed (+2 doc-tests).
 
 ### Item 2 — ZWO per-frame DIAGNOSTIC scan (DONE)
 
@@ -53,7 +53,7 @@ landed. Result: `cargo test -p nightshade_indi` → 114 passed, 0 failed (+2 doc
 (held under `zwo_camera_mutex()`) is replaced by `FrameBufferStats::of`, one pass,
 behind `tracing::enabled!(tracing::Level::DEBUG)` — zero cost at the default level.
 The "every pixel identical" warning is kept inside the gate.
-Parity tests (`cargo test -p nightshade_native --lib`, all green):
+Parity tests (`cargo test -p skotiq_native --lib`, all green):
 - `vendor::zwo::tests::frame_buffer_stats_match_the_four_pass_definition` (asserts
   min/max/mean/non-zero equal what the four separate iterator passes produced)
 - `vendor::zwo::tests::frame_buffer_stats_of_a_flat_frame_report_equal_bounds`
@@ -94,7 +94,7 @@ or a doc comment; no headless route, FRB export, registry or string lookup reach
 - Barrel edits, one atomic Edit per line: `ascom/src/lib.rs` ×4, `ascom/src/windows/mod.rs` ×1.
 - R6.2 writer-task fix + its two tests — see item 1.
 
-`cargo check -p nightshade_ascom --target x86_64-pc-windows-msvc` passes, so the ASCOM
+`cargo check -p skotiq_ascom --target x86_64-pc-windows-msvc` passes, so the ASCOM
 deletions are verified on the platform that actually compiles that tree (Linux `cfg`s it out).
 
 ### Item 4 — vendor SDK loader migration (PARTIAL: 7 of 9 loaders)
@@ -145,7 +145,7 @@ NOT migrated, with reasons:
 - `qhy` — has a bespoke `resolve_qhy_symbol` plus a second `SDK_INITIALIZED` latch that
   sequences `InitQHYCCDResource` against symbol resolution; folding that into the macro
   changes initialization ordering on a device I cannot exercise. Left for a follow-up.
-- `fujifilm` — Windows-only. `cargo check -p nightshade_native --target
+- `fujifilm` — Windows-only. `cargo check -p skotiq_native --target
   x86_64-pc-windows-msvc` cannot run here (`cc-rs: failed to find tool "lib.exe"`), so a
   migration would be unverifiable even for compilation. Left untouched.
 
@@ -158,10 +158,10 @@ pre-EFW Atik SDK fail to load, hiding the camera too).
 
 ## Final state
 
-- `cargo test -p nightshade_indi -p nightshade_alpaca -p nightshade_native -p nightshade_ascom`
+- `cargo test -p skotiq_indi -p skotiq_alpaca -p skotiq_native -p skotiq_ascom`
   → 114 / 56 / 160 / 11 + integration + doc-tests, 0 failed.
 - `cargo check --workspace --all-targets` → Finished, no errors or warnings (bridge included).
 - `cargo clippy` on the four crates → clean.
 - `cargo fmt -- --check` on the four crates → clean.
-- `cargo check -p nightshade_ascom --target x86_64-pc-windows-msvc` → Finished.
+- `cargo check -p skotiq_ascom --target x86_64-pc-windows-msvc` → Finished.
 - No `*.tmp.*` files in scope.

@@ -1,10 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/static_file_handlers.dart';
-import 'package:nightshade_desktop/headless_api/routes/headless_route.dart';
-import 'package:nightshade_desktop/headless_api/routes/static_file_routes.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/static_file_handlers.dart';
+import 'package:skotiq_desktop/headless_api/routes/headless_route.dart';
+import 'package:skotiq_desktop/headless_api/routes/static_file_routes.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
@@ -112,7 +112,7 @@ void main() {
   // endpoints, the bearer-to-HttpOnly-cookie upgrade and its 30-day Max-Age,
   // the single-use WS ticket and its `?token=` fallback, the bearer-in-a-
   // query-string SSE log tail, the per-token rate budget, and the
-  // `NIGHTSHADE_REQUIRE_AUTH=false` escape hatch. The SPA loads index.html,
+  // `SKOTIQ_REQUIRE_AUTH=false` escape hatch. The SPA loads index.html,
   // css/dashboard.css, js/api.js and js/app.js and never asks for the README.
   // -------------------------------------------------------------------------
 

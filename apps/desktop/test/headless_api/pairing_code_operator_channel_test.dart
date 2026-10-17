@@ -3,7 +3,7 @@
 //
 // Observed live (2026-07-25): `POST /api/pairing/start` returned 200, but the
 // generated code appeared in NO host log — not
-// `~/.local/share/com.example.nightshade_desktop/logs/nightshade.log.<date>`
+// `~/.local/share/com.skotiq.desktop/logs/skotiq.log.<date>`
 // (line count unchanged across the request) and not stdout. On a headless
 // appliance with no GUI that made code pairing unusable.
 //
@@ -19,11 +19,11 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/auth/pairing_attempt_tracker.dart';
-import 'package:nightshade_desktop/headless_api/auth/pairing_service.dart';
-import 'package:nightshade_desktop/headless_api/handlers/pairing_handlers.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/auth/pairing_attempt_tracker.dart';
+import 'package:skotiq_desktop/headless_api/auth/pairing_service.dart';
+import 'package:skotiq_desktop/headless_api/handlers/pairing_handlers.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shelf/shelf.dart';
 
 void main() {
@@ -44,7 +44,7 @@ void main() {
         nativeInit: () {},
         currentLogFileProvider: () =>
             '${tempDir.path}${Platform.pathSeparator}logs'
-            '${Platform.pathSeparator}nightshade.log',
+            '${Platform.pathSeparator}skotiq.log',
       );
       await logger.ensureInitialized();
 

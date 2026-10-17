@@ -76,7 +76,7 @@ def capture(hwnd: int, path: Path) -> None:
 
 def main() -> int:
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(".ui-audit-screenshots/capture.png")
-    hwnd = find_window("Nightshade")
+    hwnd = find_window("Skotiq")
     capture(hwnd, out)
     print(f"saved {out} ({out.stat().st_size} bytes)")
     return 0

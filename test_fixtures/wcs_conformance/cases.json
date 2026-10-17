@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "purpose": "One golden set of .wcs headers with the exact parse each implementation produces, consumed by BOTH packages/nightshade_core/test/services/wcs_conformance_test.dart and the wcs_conformance tests in native/nightshade_native/imaging/src/platesolve.rs, so the two .wcs parsers cannot drift apart silently.",
+  "purpose": "One golden set of .wcs headers with the exact parse each implementation produces, consumed by BOTH packages/skotiq_core/test/services/wcs_conformance_test.dart and the wcs_conformance tests in native/skotiq_native/imaging/src/platesolve.rs, so the two .wcs parsers cannot drift apart silently.",
   "implementations": {
-    "dart": "packages/nightshade_core/lib/src/services/plate_solve_service.dart (_fitsHeaderCards, _parseWcsFile, _parseWcsValue)",
-    "rust": "native/nightshade_native/imaging/src/platesolve.rs (fits_header_cards, parse_wcs_file_inner, sip_indices, sip_layout)"
+    "dart": "packages/skotiq_core/lib/src/services/plate_solve_service.dart (_fitsHeaderCards, _parseWcsFile, _parseWcsValue)",
+    "rust": "native/skotiq_native/imaging/src/platesolve.rs (fits_header_cards, parse_wcs_file_inner, sip_indices, sip_layout)"
   },
   "tolerances": {
     "verbatim_fields": "ra, dec, cd1_1..cd2_2 and every SIP coefficient are read straight out of the card, so they are compared for EXACT equality.",

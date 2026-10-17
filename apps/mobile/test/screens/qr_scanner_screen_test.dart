@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_mobile/screens/qr_scanner_screen.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_mobile/screens/qr_scanner_screen.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 void main() {
@@ -12,7 +12,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData.dark().copyWith(
-          extensions: const [NightshadeColors.dark],
+          extensions: const [SkotiqColors.dark],
         ),
         home: QrScannerScreen(
           requestCameraPermission: () async {

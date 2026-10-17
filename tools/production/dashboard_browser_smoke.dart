@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 
 const _defaultExePath =
-    'apps/desktop/build/windows/x64/runner/Release/nightshade_desktop.exe';
-const _viewToken = 'nightshade-browser-smoke-view-token';
-const _controlToken = 'nightshade-browser-smoke-control-token';
-const _adminToken = 'nightshade-browser-smoke-admin-token';
+    'apps/desktop/build/windows/x64/runner/Release/skotiq_desktop.exe';
+const _viewToken = 'skotiq-browser-smoke-view-token';
+const _controlToken = 'skotiq-browser-smoke-control-token';
+const _adminToken = 'skotiq-browser-smoke-admin-token';
 
 void main(List<String> args) async {
   if (!Platform.isWindows) {
@@ -32,7 +32,7 @@ void main(List<String> args) async {
   final chromePort = await _reservePort();
   final serverLog = _ProcessLog('headless app');
   final chromeLog = _ProcessLog('browser');
-  final tempDir = await Directory.systemTemp.createTemp('nightshade_browser_');
+  final tempDir = await Directory.systemTemp.createTemp('skotiq_browser_');
   Process? serverProcess;
   Process? chromeProcess;
   var exitCode = 0;
@@ -181,12 +181,12 @@ String? _findChromePath() {
 
 String _startupScript(String baseUrl, String token) {
   return '''
-localStorage.setItem('nightshade_url', ${jsonEncode(baseUrl)});
-localStorage.setItem('nightshade_device_id', 'browser-dashboard-smoke');
-localStorage.setItem('nightshade_device_name', 'Browser smoke');
-localStorage.setItem('nightshade_remember_token', 'false');
-localStorage.removeItem('nightshade_token');
-sessionStorage.setItem('nightshade_token', ${jsonEncode(token)});
+localStorage.setItem('skotiq_url', ${jsonEncode(baseUrl)});
+localStorage.setItem('skotiq_device_id', 'browser-dashboard-smoke');
+localStorage.setItem('skotiq_device_name', 'Browser smoke');
+localStorage.setItem('skotiq_remember_token', 'false');
+localStorage.removeItem('skotiq_token');
+sessionStorage.setItem('skotiq_token', ${jsonEncode(token)});
 ''';
 }
 
@@ -396,7 +396,7 @@ Future<_DashboardSnapshot> _readDashboardSnapshot(_CdpClient cdp) async {
   serverUrl: document.getElementById('server-url')?.value || '',
   scriptCount: document.scripts.length,
   scriptSources: Array.from(document.scripts).map((script) => script.src || '[inline]'),
-  hasApiClass: typeof NightshadeApi !== 'undefined',
+  hasApiClass: typeof SkotiqApi !== 'undefined',
   apiConnected: typeof api !== 'undefined' ? api.isConnected : null,
   apiWsConnected: typeof api !== 'undefined' ? api.isWsConnected : null,
 }))()

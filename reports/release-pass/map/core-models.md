@@ -1,7 +1,7 @@
-# Release-pass map — `nightshade_core` models / repositories / utils
+# Release-pass map — `skotiq_core` models / repositories / utils
 
 Subsystem: **core-models**
-Paths: `packages/nightshade_core/lib/src/models/**`, `packages/nightshade_core/lib/src/utils/**`,
+Paths: `packages/skotiq_core/lib/src/models/**`, `packages/skotiq_core/lib/src/utils/**`,
 the two repository classes in `lib/src/services/` (`sequence_repository.dart`,
 `imaging_records_repository.dart`) and their `part` directories.
 
@@ -24,10 +24,10 @@ and both repository files are plain hand-authored Dart).
 
 | File | Lines | Generated? |
 |---|---|---|
-| `packages/nightshade_core/lib/src/models/imaging/integration_settings.dart` | 1346 | no — hand-written, deliberately codegen-free (see its own doc, L491-495) |
-| `packages/nightshade_core/lib/src/services/sequence_repository.dart` | 1131 | no (+ parts: `node_decoder.dart` 755, `node_encoder.dart` 294 → 2180 in the library) |
-| `packages/nightshade_core/lib/src/services/imaging_records_repository.dart` | 1089 | no |
-| `packages/nightshade_core/lib/src/models/imaging/stack_and_share_models.dart` | 1033 | no |
+| `packages/skotiq_core/lib/src/models/imaging/integration_settings.dart` | 1346 | no — hand-written, deliberately codegen-free (see its own doc, L491-495) |
+| `packages/skotiq_core/lib/src/services/sequence_repository.dart` | 1131 | no (+ parts: `node_decoder.dart` 755, `node_encoder.dart` 294 → 2180 in the library) |
+| `packages/skotiq_core/lib/src/services/imaging_records_repository.dart` | 1089 | no |
+| `packages/skotiq_core/lib/src/models/imaging/stack_and_share_models.dart` | 1033 | no |
 
 Near-threshold (report only, no split ordered): `models/troubleshooter/connection_diagnostic.dart`
 886, `models/sequence/template_snippet.dart` 874, `models/hardware_presets/hardware_preset_models.dart`
@@ -45,10 +45,10 @@ serializers — the native bridge shape, the persistence shape, and their invers
 plus hand-written `==`/`hashCode` over all 45 fields (L1226-1345).
 
 **Split plan (behaviour-preserving, zero consumer churn).**
-Consumers import it via the barrel (`packages/nightshade_core/lib/nightshade_core.dart:69`),
+Consumers import it via the barrel (`packages/skotiq_core/lib/skotiq_core.dart:69`),
 so as long as `integration_settings.dart` keeps re-exporting, nothing downstream changes.
 
-New directory `packages/nightshade_core/lib/src/models/imaging/integration_settings/`:
+New directory `packages/skotiq_core/lib/src/models/imaging/integration_settings/`:
 
 1. **`integration_enums.dart`** — a *standalone library* (not a part). Move L8-485 verbatim:
    `TransformModel`, `Resampler`, `WeightFormula`, `NormalizationMode`, `CombineMode`,
@@ -81,7 +81,7 @@ declarations with their doc comments, the `const` constructor, `static const def
 `resolvedReject`, `copyWith`, the delegating members, the `export` of the enums library and the
 three `part` directives.
 
-**Guard rail.** `packages/nightshade_core/test/models/imaging/integration_settings_test.dart`
+**Guard rail.** `packages/skotiq_core/test/models/imaging/integration_settings_test.dart`
 must pass *unmodified* after the split — that is the acceptance test for "behaviour-preserving".
 
 ---
@@ -106,7 +106,7 @@ concatenated. Verified class offsets:
 | `astrobin_export_metadata.dart` | L759-1033 (`AstroBinExportMetadata`) | 275 |
 
 `stack_and_share_models.dart` becomes a 6-line barrel that `export`s the five, so
-`nightshade_core.dart:67` (`export 'src/models/imaging/stack_and_share_models.dart';`) and every
+`skotiq_core.dart:67` (`export 'src/models/imaging/stack_and_share_models.dart';`) and every
 existing import keep resolving with zero churn.
 Only real care point: `StackAndShareResult` and `StackAndShareProgress` reference the phase enum —
 have `stack_and_share_result.dart` import `stack_and_share_progress.dart`.
@@ -122,8 +122,8 @@ history (L66-784); (b) **18 hand-written enum↔string converters** that exist o
 
 **GUARD RAIL — do not "extension-ify" the public methods.** `SequenceRepository` is
 mockito-mocked in at least 10 places
-(`packages/nightshade_app/test/screens/sequencer/sequence_library_authority_test.dart:13`,
-`packages/nightshade_core/test/services/residual_service_fixes_test.dart:61`,
+(`packages/skotiq_app/test/screens/sequencer/sequence_library_authority_test.dart:13`,
+`packages/skotiq_core/test/services/residual_service_fixes_test.dart:61`,
 `apps/desktop/test/headless_api/sequencer_handlers_test.dart:13`, …). Moving `listVersions` /
 `restoreVersion` / `loadRunDiffContext` onto an `extension` would make those mocks silently run
 the *real* body against a mock (hitting `_requireVersionsDao` → `StateError`). Keep every
@@ -276,8 +276,8 @@ migrating call sites. Effort: small.
 `utils/device_id_utils.dart` (19 lines) is nothing but
 `export 'device_id.dart' show isValidDeviceIdFormat, kKnownDeviceIdPrefixes, kKnownDeviceIdSingletons;`.
 Its only non-barrel importer in the whole repo is
-`packages/nightshade_core/test/services/device_service_connect_all_test.dart:29`.
-**Merge:** point `nightshade_core.dart:339` and `nightshade_core_services.dart:17` at
+`packages/skotiq_core/test/services/device_service_connect_all_test.dart:29`.
+**Merge:** point `skotiq_core.dart:339` and `skotiq_core_services.dart:17` at
 `src/utils/device_id.dart show isValidDeviceIdFormat`, repoint that one test import, delete the
 shim, and fix the two stale doc references (`services/device_exceptions.dart:52`,
 `utils/device_id.dart:30,231`). Effort: small.
@@ -287,15 +287,15 @@ shim, and fix the two stale doc references (`services/device_exceptions.dart:52`
 ## 3. SUSPECTED CROSS-PACKAGE DUPLICATION (for the cross-cutting agent)
 
 - **Three semantic-version types.** `models/backend/remote_api_compatibility.dart:100`
-  (`SemanticVersion`), `packages/nightshade_remote_protocol/lib/src/server_compatibility.dart`
-  (`ServerSemanticVersion`), `packages/nightshade_plugins/lib/src/plugin_host.dart:497`
+  (`SemanticVersion`), `packages/skotiq_remote_protocol/lib/src/server_compatibility.dart`
+  (`ServerSemanticVersion`), `packages/skotiq_plugins/lib/src/plugin_host.dart:497`
   (`_SemanticVersion`). Core's is already a pure adapter (`_toCore`, L38-39).
 - **`models/imaging/integration_settings.dart:934-1029` hand-mirrors the Rust
   `IntegrationSettingsArgs` / `DrizzleConfigArgs` / `PsfArgs` / `ReduceStarsConfigArgs` /
   `BackgroundConfigArgs` / `CombineChannelsArgs` serde structs** in
-  `native/nightshade_native/bridge/src/api/finishing_*.rs`. Two hand-maintained copies of one
+  `native/skotiq_native/bridge/src/api/finishing_*.rs`. Two hand-maintained copies of one
   JSON contract, kept in sync only by comments.
-- **`utils/device_id.dart` explicitly mirrors `native/nightshade_native/bridge/src/device_id.rs`**
+- **`utils/device_id.dart` explicitly mirrors `native/skotiq_native/bridge/src/device_id.rs`**
   — stated in its own doc at L14-15. Dart and Rust parsers for the same id grammar.
 - **`utils/coordinate_format.dart` / `coordinate_parser.dart` vs per-screen RA/Dec formatters.**
   `coordinate_format.dart:4-7` says ~20 screens each carried a private `_formatRa`/`_formatDec`;
@@ -307,9 +307,9 @@ shim, and fix the two stale doc references (`services/device_exceptions.dart:52`
   `apps/desktop/lib/headless_api/handlers/*` (`requireDouble`, `optionalDouble`,
   `optionalString` — see `session_handlers.dart:451-468`).
 - **`models/calibration/remote_calibration_models.dart`** wire DTOs vs the equivalent shapes in
-  `nightshade_remote_protocol` / the headless calibration handlers.
-- **`utils/nightshade_data_directory.dart`** vs the Rust-side data-directory resolution and the
-  `NIGHTSHADE_DATABASE_DIR` handling in the desktop app.
+  `skotiq_remote_protocol` / the headless calibration handlers.
+- **`utils/skotiq_data_directory.dart`** vs the Rust-side data-directory resolution and the
+  `SKOTIQ_DATABASE_DIR` handling in the desktop app.
 
 ---
 
@@ -321,12 +321,12 @@ FRB exports and registry lookups were considered — none of these are reached t
 
 | Symbol | Location | Evidence |
 |---|---|---|
-| `PlateSolverUtils` + `AstapCatalogInfo` (the whole file, 384 lines) | `utils/plate_solver_utils.dart` | `grep -rn '\bPlateSolverUtils\b'` over packages+apps+tools → **3 hits, all inside the file itself** (L26 declaration, L256/L376 log `name:` strings). Each public static is likewise definition-only: `findAstapExecutable` 1 hit (L33), `detectAstapCatalog` 1 (L98), `getAstapNotFoundMessage` 1 (L266), `findAstrometryNetExecutable` 1 (L298). `AstapCatalogInfo` 5 hits, all in-file. The file is exported from both barrels (`nightshade_core.dart:665`, `nightshade_core_services.dart:248`) — that export is the only thing keeping it "public", and it is a monorepo-internal package. |
-| `TargetVisibility` | `models/target/target_models.dart:197` | 2 hits total (declaration L197 + ctor L208). No `TargetVisibility(` construction anywhere. (`_TargetVisibility` in `nightshade_app/lib/screens/sequencer/widgets/target_queue_panel.dart:139` is an unrelated private class.) |
+| `PlateSolverUtils` + `AstapCatalogInfo` (the whole file, 384 lines) | `utils/plate_solver_utils.dart` | `grep -rn '\bPlateSolverUtils\b'` over packages+apps+tools → **3 hits, all inside the file itself** (L26 declaration, L256/L376 log `name:` strings). Each public static is likewise definition-only: `findAstapExecutable` 1 hit (L33), `detectAstapCatalog` 1 (L98), `getAstapNotFoundMessage` 1 (L266), `findAstrometryNetExecutable` 1 (L298). `AstapCatalogInfo` 5 hits, all in-file. The file is exported from both barrels (`skotiq_core.dart:665`, `skotiq_core_services.dart:248`) — that export is the only thing keeping it "public", and it is a monorepo-internal package. |
+| `TargetVisibility` | `models/target/target_models.dart:197` | 2 hits total (declaration L197 + ctor L208). No `TargetVisibility(` construction anywhere. (`_TargetVisibility` in `skotiq_app/lib/screens/sequencer/widgets/target_queue_panel.dart:139` is an unrelated private class.) |
 | `SessionPlan` | `models/target/target_models.dart:238` | 2 hits total (L238, L245). Nothing constructs or references it. |
 | `PlannedTarget` | `models/target/target_models.dart:258` | 3 hits, all in-file (L242 field of the dead `SessionPlan`, L258, L266). The live planner type is `SmartNightPlannedTarget` in `services/smart_night_models/planned_target_results.dart:29` — a different class. |
 | `ScienceDiagnostics` | `models/science/science_models/session_context.dart:93` | 2 hits total (L93, L99). Never constructed, never a field/parameter type. |
-| `SemanticVersion.tryParse` | `models/backend/remote_api_compatibility.dart:107` | The *class* is alive (`RemoteApiCompatibility.clientApiVersion` is used from `backend/network_backend/http_transport.dart:21`, `connection_lifecycle.dart:93,268`, `remote_log_operations.dart:161`). But `tryParse` has zero callers — the only `tryParse` hits are `ServerSemanticVersion.tryParse` (`nightshade_remote_protocol`) and `_SemanticVersion.tryParse` (`nightshade_plugins`). All parsing was delegated to `nightshade_remote_protocol` (see the adapter comment at L5-12); `tryParse` and the `<`/`>`/`compareTo` comparison surface were left behind. |
+| `SemanticVersion.tryParse` | `models/backend/remote_api_compatibility.dart:107` | The *class* is alive (`RemoteApiCompatibility.clientApiVersion` is used from `backend/network_backend/http_transport.dart:21`, `connection_lifecycle.dart:93,268`, `remote_log_operations.dart:161`). But `tryParse` has zero callers — the only `tryParse` hits are `ServerSemanticVersion.tryParse` (`skotiq_remote_protocol`) and `_SemanticVersion.tryParse` (`skotiq_plugins`). All parsing was delegated to `skotiq_remote_protocol` (see the adapter comment at L5-12); `tryParse` and the `<`/`>`/`compareTo` comparison surface were left behind. |
 | `ImageFileFormatSettingsX.settingsValue` | `models/imaging/imaging_models/file_format_and_capture_state.dart:42` | `grep -rn 'settingsValue'` → the declaration plus two unrelated `_settingsValueEquals` hits in `apps/desktop/lib/headless_api/handlers/profile_handlers.dart:621,630`. No caller. |
 | `utils/device_id_utils.dart` (as a file) | 19 lines | Pure re-export shim; see §2.5. Not dead *code* but dead *indirection*. |
 
@@ -334,7 +334,7 @@ FRB exports and registry lookups were considered — none of these are reached t
 next pass does not re-chase them):
 - `ProfileFilterConfig` / `ProfileFilterResult` (`models/equipment_profile_validation.dart:64,73`)
   — alive via `ProfileValidator.parseFilterRows`, called from
-  `nightshade_app/.../profile_data_operations.dart:395` and `profile_details.dart:214`.
+  `skotiq_app/.../profile_data_operations.dart:395` and `profile_details.dart:214`.
 - `DriverTypeDescription` (`models/equipment/unified_device.dart:278`) — alive; `.shortLabel`
   and `.description` are used across the equipment/onboarding screens.
 - The `*Extension on <enum>` cluster (`BinningModeExtension`, `PolarAlignPhaseExtension`,

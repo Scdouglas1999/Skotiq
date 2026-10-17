@@ -7,7 +7,7 @@
 // and `envFlag` against absent variables (the only env state we can guarantee).
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless/headless_env.dart';
+import 'package:skotiq_desktop/headless/headless_env.dart';
 
 void main() {
   group('trimToNull', () {
@@ -41,7 +41,7 @@ void main() {
   group('envFlag', () {
     test('returns false for an unset environment variable', () {
       // Generated name that cannot collide with a real process env var.
-      expect(envFlag('NIGHTSHADE_TEST_UNSET_FLAG_DO_NOT_SET_XYZ'), isFalse);
+      expect(envFlag('SKOTIQ_TEST_UNSET_FLAG_DO_NOT_SET_XYZ'), isFalse);
     });
   });
 }

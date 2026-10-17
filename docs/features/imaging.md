@@ -309,7 +309,7 @@ Manual fine adjustment of mount position:
 **Automatic Flip**
 - Enable **Auto Meridian Flip**
 - Set degrees past meridian to trigger flip
-- Nightshade will:
+- Skotiq will:
   1. Complete current exposure
   2. Flip mount to other pier side
   3. Re-center target
@@ -336,7 +336,7 @@ Manual fine adjustment of mount position:
 
 ## Focus Tab
 
-Sharp focus is critical for quality images. Nightshade offers both automatic and manual focusing.
+Sharp focus is critical for quality images. Skotiq offers both automatic and manual focusing.
 
 ### Automatic Focusing
 
@@ -345,7 +345,7 @@ Sharp focus is critical for quality images. Nightshade offers both automatic and
 The most reliable autofocus method:
 
 1. Click **Auto Focus**
-2. Nightshade will:
+2. Skotiq will:
    - Take exposures at different focus positions
    - Measure HFR (Half-Flux Radius) for each
    - Create V-curve graph
@@ -407,7 +407,7 @@ For fine-tuning or when autofocus isn't available:
 **Auto Refocus by Temperature**
 - Enable temperature-based autofocus
 - Set temperature change threshold (e.g., 2°C)
-- Nightshade auto-refocuses when threshold exceeded
+- Skotiq auto-refocuses when threshold exceeded
 
 **Focus vs. Temperature Curve**
 - Learn relationship between temperature and focus
@@ -446,16 +446,16 @@ Each filter shows:
 
 ### PHD2 Integration
 
-Nightshade integrates with PHD2 for autoguiding.
+Skotiq integrates with PHD2 for autoguiding.
 
 **Setup**
 1. Launch PHD2 separately
 2. Connect your guide camera in PHD2
-3. In Nightshade Guiding tab, click **Connect to PHD2**
+3. In Skotiq Guiding tab, click **Connect to PHD2**
 4. PHD2 status shows "Connected"
 
 **Start Guiding**
-1. Click **Start Guiding** in Nightshade
+1. Click **Start Guiding** in Skotiq
 2. If not calibrated, PHD2 will calibrate first
 3. PHD2 will select guide star and begin guiding
 4. Status changes to "Guiding"
@@ -503,7 +503,7 @@ When dithering is enabled:
 
 ### PHD2 Alerts
 
-Nightshade monitors PHD2 for issues:
+Skotiq monitors PHD2 for issues:
 - **Star Lost**: Guide star disappeared
 - **Calibration Failed**: PHD2 couldn't calibrate
 - **Poor Guiding**: RMS exceeds threshold
@@ -537,14 +537,14 @@ Each captured frame also carries a small **science chip** in the thumbnail strip
 For polar alignment:
 1. Point scope at celestial equator
 2. Take exposures without guiding
-3. Nightshade measures drift
+3. Skotiq measures drift
 4. Provides adjustment instructions
 
 ### Auto-Exposure Planning
 
 Set total integration time goal:
 - Specify total hours desired
-- Nightshade calculates number of subs needed
+- Skotiq calculates number of subs needed
 - Accounts for filter changes, meridian flip
 
 ## Tips and Best Practices

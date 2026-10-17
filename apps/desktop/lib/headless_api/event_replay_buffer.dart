@@ -1,7 +1,7 @@
 // monotonic event sequencing + ring-buffer replay for the headless
 // API server.
 //
-// Every NightshadeEvent broadcast by HeadlessApiServer is stamped with a
+// Every SkotiqEvent broadcast by HeadlessApiServer is stamped with a
 // monotonically-increasing `seq` and the server-instance UUID, then
 // appended to this ring buffer. WebSocket clients reconnecting with
 // `?since=<seq>&instance=<uuid>` can be replayed everything they missed,
@@ -10,9 +10,9 @@
 // The buffer is in-memory only — a server restart issues a new
 // `serverInstanceId` so clients know their cached `seq` is stale.
 
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
-/// Fixed-capacity FIFO ring buffer of stamped [NightshadeEvent]s.
+/// Fixed-capacity FIFO ring buffer of stamped [SkotiqEvent]s.
 ///
 /// Operations are O(1) amortised. Eviction is implicit: once [capacity]
 /// is reached, every [append] silently drops the oldest entry.
@@ -27,15 +27,15 @@ class EventReplayBuffer {
   final int capacity;
 
   /// Stamped events ordered by ascending seq.
-  final List<NightshadeEvent> _entries;
+  final List<SkotiqEvent> _entries;
 
   EventReplayBuffer({this.capacity = 5000})
-    : _entries = <NightshadeEvent>[],
+    : _entries = <SkotiqEvent>[],
       assert(capacity > 0, 'capacity must be positive');
 
   /// Append [event] to the buffer. The caller must have already stamped
   /// `seq` on the event; passing an unstamped event is a programmer error.
-  void append(NightshadeEvent event) {
+  void append(SkotiqEvent event) {
     if (event.seq == null) {
       // Why throw not silently accept: a pre-stamped event is the only
       // legitimate input here. Storing seq=null would break the since-query
@@ -59,9 +59,9 @@ class EventReplayBuffer {
   ///
   /// `since == oldestSeq - 1` is the edge case where the next event IS
   /// the oldest retained one — we treat that as a successful replay.
-  List<NightshadeEvent>? eventsSince(int since) {
+  List<SkotiqEvent>? eventsSince(int since) {
     if (_entries.isEmpty) {
-      return const <NightshadeEvent>[];
+      return const <SkotiqEvent>[];
     }
     final oldest = _entries.first.seq!;
     // The client's last-seen seq is `since`. If `since + 1` is older than
@@ -69,7 +69,7 @@ class EventReplayBuffer {
     if (since + 1 < oldest) {
       return null; // out of range — caller must resync
     }
-    final result = <NightshadeEvent>[];
+    final result = <SkotiqEvent>[];
     for (final entry in _entries) {
       if (entry.seq! > since) {
         result.add(entry);

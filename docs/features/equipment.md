@@ -1,6 +1,6 @@
 # Equipment Management
 
-The Equipment screen is your central hub for discovering, connecting, and managing all your astrophotography devices. Nightshade supports multiple connection protocols to ensure compatibility with virtually any equipment.
+The Equipment screen is your central hub for discovering, connecting, and managing all your astrophotography devices. Skotiq supports multiple connection protocols to ensure compatibility with virtually any equipment.
 
 ## Overview
 
@@ -11,7 +11,7 @@ The Equipment screen is organized into three tabs:
 
 ## Connection Protocols
 
-Nightshade supports four connection protocols, each with different strengths:
+Skotiq supports four connection protocols, each with different strengths:
 
 | Protocol | Platform | Best For | Requirements |
 |----------|----------|----------|--------------|
@@ -27,7 +27,7 @@ The industry standard for Windows astronomy software.
 **Setup**
 1. Install [ASCOM Platform](https://ascom-standards.org/)
 2. Install manufacturer's ASCOM driver for each device
-3. In Nightshade Discovery tab, select "ASCOM" protocol
+3. In Skotiq Discovery tab, select "ASCOM" protocol
 4. Available devices appear in the list
 
 **Supported Devices**
@@ -46,12 +46,12 @@ The standard protocol for astronomy on Unix-like systems.
 
 **Setup**
 1. Install INDI server: `sudo apt install indi-full` (Ubuntu/Debian)
-2. Start INDI server with your drivers, or let Nightshade auto-start
-3. In Nightshade Discovery tab, select "INDI" protocol
+2. Start INDI server with your drivers, or let Skotiq auto-start
+3. In Skotiq Discovery tab, select "INDI" protocol
 4. Enter INDI server address (default: localhost:7624)
 
 **Auto-Start Feature**
-- Nightshade can automatically start INDI drivers
+- Skotiq can automatically start INDI drivers
 - Configure drivers in Settings → Equipment → INDI Drivers
 - No need to manually run `indiserver`
 
@@ -61,7 +61,7 @@ ASCOM's network-based protocol for cross-platform device access.
 
 **Setup**
 1. Run Alpaca server on device (e.g., ASCOM Remote, INDIGO)
-2. In Nightshade Discovery tab, select "Alpaca" protocol
+2. In Skotiq Discovery tab, select "Alpaca" protocol
 3. Enter device IP address and port
 4. Scan for available devices
 
@@ -262,7 +262,7 @@ Save and restore complete equipment configurations.
 
 **Export/Import**
 - Export profiles as JSON files
-- Share with other Nightshade users
+- Share with other Skotiq users
 - Import on different computer
 - Backup your configurations
 
@@ -329,7 +329,7 @@ Define your optical setup:
 
 **Sync from Hardware**
 - Click **Sync** to read filter names from wheel
-- Updates Nightshade configuration
+- Updates Skotiq configuration
 
 ## Device-Specific Features
 
@@ -369,7 +369,7 @@ Define your optical setup:
 
 **Backlash Compensation**
 - Configure in settings
-- Nightshade compensates automatically
+- Skotiq compensates automatically
 - Test with autofocus to verify
 
 ## Troubleshooting

@@ -1,4 +1,4 @@
-# Nightshade Update Server Configuration
+# Skotiq Update Server Configuration
 #
 # This is a template - copy to config.yaml and modify as needed.
 # Run with: dart run server.dart
@@ -20,9 +20,9 @@ manifests_dir: "./manifests"
 #
 # releases/
 #   2.1.0/
-#     nightshade-2.1.0-windows-x64.zip
+#     skotiq-2.1.0-windows-x64.zip
 #   2.2.0/
-#     nightshade-2.2.0-windows-x64.zip
+#     skotiq-2.2.0-windows-x64.zip
 #
 # manifests/
 #   2.1.0.json

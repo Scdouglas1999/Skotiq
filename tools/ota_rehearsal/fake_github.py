@@ -14,12 +14,12 @@ What it serves is read from a scenario JSON file on EVERY request, so the
 driver switches scenarios by rewriting that file; the server never restarts.
 
   {
-    "owner": "Scdouglas1999", "repo": "Nightshade",
+    "owner": "Scdouglas1999", "repo": "Skotiq",
     "releases": [                      # newest first, as GitHub lists them
       {"tag_name": "v7.1.91", "name": "...", "body": "...",
        "prerelease": false, "draft": false,
        "assets": [{"name": "manifest-linux-x64.json", "path": "/abs/file"},
-                  {"name": "nightshade-7.1.91-linux-x64.zip", "path": "..."}]}
+                  {"name": "skotiq-7.1.91-linux-x64.zip", "path": "..."}]}
     ],
     "latest_status": 200,              # e.g. 404 for "no release"
     "download_mode": {"<asset name>": "truncate" | "drop" | "stall"}

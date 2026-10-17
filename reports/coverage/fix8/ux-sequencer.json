@@ -8,7 +8,7 @@
   "what_happened": "PolarAlignmentNode is a full instruction node (model at instruction_nodes/alignment_and_dome.dart:319 with copyWith/serialization) but there is no palette entry for it in any category. Searching 'polar' in the node palette returns zero results, so a user cannot put polar alignment into an automated startup sequence; the only route is the standalone /polar-alignment screen the toolbar compass icon navigates to.",
   "expected": "Either a 'Polar Alignment' entry under Mount, or - if the node is deliberately retired - remove it from the model so a sequence file containing one does not deserialize into an unreachable node.",
   "repro": "Sequencer > Builder > Nodes tab > type 'polar' in the search field. Zero results. Scroll the full uncollapsed palette: categories are Target, Imaging, Science, Guiding, Mount, Dome, Flat Panel, Focus, Camera, Logic, Timing, Utilities - none contains it.",
-  "where": "packages/nightshade_core/lib/src/providers/sequence/node_palette.dart:288-322 (Mount category)",
+  "where": "packages/skotiq_core/lib/src/providers/sequence/node_palette.dart:288-322 (Mount category)",
   "location_wrong": null,
   "proposed_fix": "Add the entry to the Mount category next to Meridian Flip.",
   "verdict_reasoning": null
@@ -22,7 +22,7 @@
   "what_happened": "Typing a term with no matches ('polar') empties the whole palette body - no 'no results' text, no suggestion, just black space under the search field. Nothing tells the user whether the search failed or the node does not exist.",
   "expected": "'No nodes match \"polar\"' with a clear-search affordance.",
   "repro": "Sequencer > Builder > Nodes tab > type 'polar'.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/sequencer_screen_parts/node_palette.dart:120-140",
+  "where": "packages/skotiq_app/lib/screens/sequencer/sequencer_screen_parts/node_palette.dart:120-140",
   "location_wrong": null,
   "proposed_fix": "Add an empty state when filteredCategories is empty.",
   "verdict_reasoning": null
@@ -36,7 +36,7 @@
   "what_happened": "A newly created empty sequence immediately displays a red '1' and an amber '1' in the header. Clicking either does nothing (they are plain containers). There is no issues panel in the Builder. The only way to learn what they are is to press Start and read the Pre-Flight dialog - which for the empty case turns out to be 'Empty Sequence' and 'No Exposures', i.e. 'you have not built anything yet', shown as a red error on a screen the user just opened.",
   "expected": "Clicking the badge opens the same issue list the Pre-Flight dialog shows. And 'you just created an empty sequence' should be an info/hint, not a red error.",
   "repro": "Sequencer > Builder > toolbar 'New Sequence'. Click the red '1' badge: nothing. Press Start to discover what it means.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/widgets/sequence_tree/support_widgets.dart:595-676 (_ValidationBadges / _MiniCountBadge have no gesture handler)",
+  "where": "packages/skotiq_app/lib/screens/sequencer/widgets/sequence_tree/support_widgets.dart:595-676 (_ValidationBadges / _MiniCountBadge have no gesture handler)",
   "location_wrong": null,
   "proposed_fix": "Wrap the badges in an InkWell that opens the validation issue list read-only.",
   "verdict_reasoning": null
@@ -50,7 +50,7 @@
   "what_happened": "Under 'Broadcast mode' the helper reads 'Broadcast only keeps memory clean; Recor...' and under 'Stack combine method' it reads 'Average is fastest; Median+Rej and Sigma r...'. These sentences exist precisely to help the user choose between the dropdown options, and the half that names the alternative is cut off with no tooltip or expansion.",
   "expected": "Wrap to as many lines as needed - the panel scrolls anyway.",
   "repro": "Sequencer > Builder > add 'Live Stacking' > read the two helper lines in Properties.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/widgets/live_stacking_properties.dart",
+  "where": "packages/skotiq_app/lib/screens/sequencer/widgets/live_stacking_properties.dart",
   "location_wrong": null,
   "proposed_fix": "Remove maxLines/TextOverflow.ellipsis from the helper Text widgets.",
   "verdict_reasoning": null
@@ -64,7 +64,7 @@
   "what_happened": "With Grid 3x3 and 'Active panels: 9' in the summary, the sky preview draws panel labels 8, 9, 6, 2, 3 and puts the drag-centre handle over the middle cell. Panels 1, 4, 5 and 7 have no visible number, so the user cannot map a panel in the picture to a panel in the plan or know which one they are toggling off.",
   "expected": "Every active panel legible and numbered; the drag handle should not sit on top of a label.",
   "repro": "Sequencer > Builder > toolbar grid icon (Plan Mosaic) > leave the 3x3 default > look at the sky preview.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog/painters.dart and visual_planner.dart",
+  "where": "packages/skotiq_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog/painters.dart and visual_planner.dart",
   "location_wrong": null,
   "proposed_fix": "Draw labels after the overlap fills so they are not overpainted, and offset the centre drag handle (or move the centre label).",
   "verdict_reasoning": null
@@ -78,7 +78,7 @@
   "what_happened": "I built cool -> unpark -> slew -> autofocus -> N lights (dither is built into Take Exposures at ditherEvery:3) -> park -> warm by hand. Each node costs three actions with the palette search (click the field, type, click the row's '+') or a scroll-and-click without it, so seven nodes is ~21 actions - and that is before entering a single temperature, exposure or coordinate. Three of my searches added the wrong node (see the ranking defect). Meanwhile the app already has two much better paths: the Quick-Start Wizard produces the same spine plus Plate Solve & Center, Start/Stop Guiding, a HFR refocus trigger, a Weather Safety recovery, a Park-on-Error recovery and a Meridian Flip in about ten actions; and the Starters tab has six curated, well-described sequences. The empty Builder shows neither - just 'Drop instructions here' and a red error badge.",
   "expected": "The empty-state canvas should be the entry point: 'Start from a wizard / Start from a starter / Build manually', the way NINA's template gallery and SGP's sequence wizard do. Also add insert-after-selected keyboard entry, since the palette + button already inserts relative to the selection.",
   "repro": "Sequencer > Builder > New Sequence, then build the canonical sequence via the palette and count the interactions; compare with Templates > Quick-Start Wizard.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/sequencer_screen_parts/builder_layout.dart",
+  "where": "packages/skotiq_app/lib/screens/sequencer/sequencer_screen_parts/builder_layout.dart",
   "location_wrong": null,
   "proposed_fix": "Replace the bare 'Drop instructions here' with three primary actions. Keep the drop zone below them.",
   "verdict_reasoning": null
@@ -92,7 +92,7 @@
   "what_happened": "The toolbar floppy icon is 'Save Sequence' and writes a file via the OS chooser; saving your work into the app lives on a different tab as 'Sequences > Save Current'. Separately, the Builder's left panel has a tab named 'Snippets' whose panel header reads 'Templates' and whose search box reads 'Search templates...', while a top-level tab is also called 'Templates' and holds something different (starters + saved sequence templates). A new user cannot tell which Save persists their work or which Templates they are in.",
   "expected": "'Export sequence file...' for the toolbar action and 'Save' for the library action; and one of the two Templates surfaces renamed (the left panel is snippets - fragments - so its header should say 'Snippets').",
   "repro": "Compare the toolbar floppy tooltip with Sequences > Save Current; then compare the Snippets tab's panel header with the Templates top-level tab.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/sequencer_screen_parts/snippet_palette.dart; widgets/sequence_toolbar.dart:487-494",
+  "where": "packages/skotiq_app/lib/screens/sequencer/sequencer_screen_parts/snippet_palette.dart; widgets/sequence_toolbar.dart:487-494",
   "location_wrong": null,
   "proposed_fix": "Rename as above. Low cost, removes a real confusion.",
   "verdict_reasoning": null
@@ -106,7 +106,7 @@
   "what_happened": "Change Filter's Properties offers a plain text box pre-filled with 'L' plus an 'Edit filters...' link. Take Exposures shows 'No filters in profile' in the same style. With no wheel connected there is no dropdown, no validation and no autocomplete, so 'Ha' vs 'H-alpha' vs 'HA' is a silent mismatch discovered mid-run.",
   "expected": "Bind to the active equipment profile's filter list (a dropdown), with free text only as an explicit override, and validate the name against the profile at build time rather than at run time. NINA and SGP both bind this to the configured wheel.",
   "repro": "Sequencer > Builder > add 'Change Filter' > read Properties > Filter Settings.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/widgets/node_properties_panel_parts (filter settings section)",
+  "where": "packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel_parts (filter settings section)",
   "location_wrong": null,
   "proposed_fix": "Render a DropdownButton over profile.filterNames when available; keep the text field only when the profile has none, and add a validation warning when the typed name is not in the profile.",
   "verdict_reasoning": null
@@ -120,7 +120,7 @@
   "what_happened": "A freshly added Loop node has Condition Type 'Fixed Count' and Repeat Count 1, i.e. it wraps its children and changes nothing. A freshly added Conditional has Condition Type 'Always Execute', i.e. it branches on nothing. Both silently do the harmless thing rather than prompting for the value that gives them a purpose.",
   "expected": "Loop should default to a meaningful count (or open with the count field focused and empty so it must be set); Conditional should default to a condition that reads as unconfigured and surface a validation warning until it is set.",
   "repro": "Sequencer > Builder > add 'Loop', read Properties. Add 'Conditional', read Properties.",
-  "where": "packages/nightshade_core/lib/src/models/sequence/sequence_models/logic nodes (LoopNode.repeatCount, ConditionalNode.conditionType defaults)",
+  "where": "packages/skotiq_core/lib/src/models/sequence/sequence_models/logic nodes (LoopNode.repeatCount, ConditionalNode.conditionType defaults)",
   "location_wrong": null,
   "proposed_fix": "Add a live-validation info rule 'Loop repeats once - it will have no effect' and 'Conditional always executes - no condition set', so the no-op state is at least visible.",
   "verdict_reasoning": null
@@ -134,7 +134,7 @@
   "what_happened": "Step 2 presents an inline table (Filter | Exposure | Count | Binning) with Count 10 and, directly under it, 'Loop Settings: Fixed Count / Iterations 10'. It is not stated whether those multiply. Step 5 (Review) lists 'Light 10x 120s (1x1)' and 'Loop: Type 10 iterations' and gives no total frame count and no total time. The built sequence turns out to be Loop x10 containing a 1x120s exposure = 10 frames, so the two 10s are the same number expressed twice.",
   "expected": "One count field, and a running total on both step 2 and the review step: '10 frames, 20 min of integration, ~24 min with overhead'. That total is the single number a user needs to decide whether tonight's plan fits the window.",
   "repro": "Sequencer > Templates > Quick-Start Wizard > step 2 and step 5.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/widgets/quick_start_wizard_dialog/_filter_step.dart and _review_step.dart",
+  "where": "packages/skotiq_app/lib/screens/sequencer/widgets/quick_start_wizard_dialog/_filter_step.dart and _review_step.dart",
   "location_wrong": null,
   "proposed_fix": "Collapse the duplicate count into one control and add a totals line derived from the same estimator the Builder header uses.",
   "verdict_reasoning": null
@@ -148,7 +148,7 @@
   "what_happened": "The right-click menu offers Skip to here, Insert Above, Insert Below, Duplicate, Group into Sequential Container, Group into Parallel Container, Disable, Delete - but no way to move the node one slot. On a 28-node tree that scrolls, moving a node past the viewport edge means a drag with autoscroll, which is the least reliable interaction in the whole builder. Separately, 'Group into Sequential Container' is enabled with a single node selected while 'Group into Parallel Container' is greyed out for the same selection, with no explanation for the asymmetry.",
   "expected": "Move Up / Move Down entries (and Alt+Up/Alt+Down), plus consistent enablement between the two Group actions.",
   "repro": "Sequencer > Builder > right-click any node row and read the menu.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/widgets/sequence_tree_context_menu.dart",
+  "where": "packages/skotiq_app/lib/screens/sequencer/widgets/sequence_tree_context_menu.dart",
   "location_wrong": null,
   "proposed_fix": "Add the two entries backed by the same reorder mutation the drag handler calls.",
   "verdict_reasoning": null
@@ -162,7 +162,7 @@
   "what_happened": "The Starters section is captioned 'Bundled, ready-to-run sample sequences. Tap a card to copy one into your current sequence.' Clicking 'Use this starter' discards the current sequence entirely and loads the starter (correctly prompting 'Discard unsaved changes?' first when the sequence is dirty - see verified_correct). 'Copy into' reads as append/merge.",
   "expected": "'Replace your current sequence with this starter.'",
   "repro": "Sequencer > Templates > read the Starters caption, then click 'Use this starter' on any card with a non-empty sequence loaded.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/tabs/template_tab/_starters_section.dart",
+  "where": "packages/skotiq_app/lib/screens/sequencer/tabs/template_tab/_starters_section.dart",
   "location_wrong": null,
   "proposed_fix": "Reword the caption and the button ('Replace with this starter').",
   "verdict_reasoning": null

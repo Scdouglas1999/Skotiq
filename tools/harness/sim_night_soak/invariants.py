@@ -121,7 +121,7 @@ def sep_arcmin(ra1, dec1, ra2, dec2):
 
 def log_lines(root):
     """Rust daily logs under data/, plus the process's own stdout log."""
-    paths = sorted(glob.glob(os.path.join(root, "data", "**", "nightshade.log*"), recursive=True))
+    paths = sorted(glob.glob(os.path.join(root, "data", "**", "skotiq.log*"), recursive=True))
     paths += sorted(glob.glob(os.path.join(root, "**", "logs", "*.log*"), recursive=True))
     paths.append(os.path.join(root, "app.log"))
     seen, lines = set(), []

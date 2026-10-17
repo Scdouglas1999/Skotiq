@@ -9,7 +9,7 @@
 //   * Each row: display name, last-connected relative time, dot
 //     indicator showing last-known reachability.
 //   * Tap a row → open that server (BackendNotifier.connect + persist
-//     into EnhancedNightshadeDiscovery so the auto-reconnect path also
+//     into EnhancedSkotiqDiscovery so the auto-reconnect path also
 //     updates).
 //   * Long-press → rename / edit notes / remove.
 //   * FAB → kicks off the existing pairing flow (passes the new host
@@ -29,10 +29,10 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:nightshade_app/localization/nightshade_localizations.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_app/localization/skotiq_localizations.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../services/saved_servers_service.dart';
 
@@ -100,7 +100,7 @@ class _SavedServersScreenState extends ConsumerState<SavedServersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     final l10n = context.l10n;
     final asyncList = ref.watch(_savedServersListProvider);
     final reachability = ref.watch(_reachabilityProvider);
@@ -202,7 +202,7 @@ class _SavedServersScreenState extends ConsumerState<SavedServersScreen> {
     }
     try {
       final token = await ref.read(savedServersServiceProvider).tokenFor(s.id);
-      final ok = await EnhancedNightshadeDiscovery.testServerConnection(
+      final ok = await EnhancedSkotiqDiscovery.testServerConnection(
         s.host,
         s.port,
         authToken: token,
@@ -248,11 +248,11 @@ class _SavedServersScreenState extends ConsumerState<SavedServersScreen> {
       //
       // `probeServer`, not `testServerConnection`: the bool form reports a
       // live host that REJECTED our token as `false`, and this screen then
-      // told the operator "Could not reach <host>". A Nightshade host drops
+      // told the operator "Could not reach <host>". A Skotiq host drops
       // every paired token when it restarts, so that is the single most
       // common failure here — and the message sent people to debug their
       // network when the actual fix is to pair again.
-      final outcome = await EnhancedNightshadeDiscovery.probeServer(
+      final outcome = await EnhancedSkotiqDiscovery.probeServer(
         host,
         server.port,
         authToken: token,
@@ -309,7 +309,7 @@ class _SavedServersScreenState extends ConsumerState<SavedServersScreen> {
         fingerprint: server.pinnedFingerprint,
       );
       try {
-        await EnhancedNightshadeDiscovery.saveLastServer(discovered);
+        await EnhancedSkotiqDiscovery.saveLastServer(discovered);
       } catch (e, stackTrace) {
         developer.log(
           'Could not cache the active server for startup reconnect: $e',
@@ -426,7 +426,7 @@ class _SavedServersScreenState extends ConsumerState<SavedServersScreen> {
   }
 
   Future<void> _showRowMenu(SavedServer server) async {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     final l10n = context.l10n;
     final action = await showModalBottomSheet<_RowMenuAction>(
       context: context,
@@ -671,7 +671,7 @@ class _SavedServersScreenState extends ConsumerState<SavedServersScreen> {
   }
 
   void _showSnack(String message, {bool isError = false}) {
-    final colors = Theme.of(context).extension<NightshadeColors>()!;
+    final colors = Theme.of(context).extension<SkotiqColors>()!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -774,7 +774,7 @@ class _EditTextDialogState extends State<_EditTextDialog> {
 }
 
 class _EmptyState extends StatelessWidget {
-  final NightshadeColors colors;
+  final SkotiqColors colors;
   const _EmptyState({required this.colors});
 
   @override
@@ -813,7 +813,7 @@ class _SavedServerRow extends StatelessWidget {
   final SavedServer server;
   final bool? reachable;
   final bool busy;
-  final NightshadeColors colors;
+  final SkotiqColors colors;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
 
@@ -947,7 +947,7 @@ class _SavedServerRow extends StatelessWidget {
 /// the off-site option exists without opening the menu.
 class _ReachBadge extends StatelessWidget {
   final SavedServer server;
-  final NightshadeColors colors;
+  final SkotiqColors colors;
 
   const _ReachBadge({required this.server, required this.colors});
 
@@ -956,9 +956,9 @@ class _ReachBadge extends StatelessWidget {
     final (label, color, icon) = _descriptor();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: NightshadeDecorations.statusChip(
+      decoration: SkotiqDecorations.statusChip(
         color,
-        borderRadius: BorderRadius.circular(NightshadeTokens.radiusSm),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -967,7 +967,7 @@ class _ReachBadge extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: NightshadeTypography.overline.copyWith(color: color),
+            style: SkotiqTypography.overline.copyWith(color: color),
           ),
         ],
       ),

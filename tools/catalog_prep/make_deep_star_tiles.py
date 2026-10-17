@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert a public deep-star source catalog into Nightshade NSDT tiles.
+"""Convert a public deep-star source catalog into Skotiq NSDT tiles.
 
 The planetarium's *deep-star tier* extends the bundled HYG atlas (~mag 11.5
 floor) downward to a Tycho-2 / Gaia subset, served as small per-region binary
@@ -206,7 +206,7 @@ def build_tileset(
         )
 
     manifest = {
-        "format": "nightshade-deep-star-tiles",
+        "format": "skotiq-deep-star-tiles",
         "formatVersion": FORMAT_VERSION,
         "name": name,
         "source": source,

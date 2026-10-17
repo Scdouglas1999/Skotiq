@@ -1,6 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_mobile/services/notification_service.dart';
+import 'package:skotiq_mobile/services/notification_service.dart';
 
 /// The notification route table is the only thing standing between a 4am push
 /// and the screen the operator expected. These pin the mapping itself, the

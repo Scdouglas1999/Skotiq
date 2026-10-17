@@ -4,7 +4,7 @@
 
 **P0-class repo defect found by the ui-small batch (2026-08-14): the committed tree did
 not compile from a fresh clone.** `.gitignore:276`'s bare `profiles/` rule also matched
-`packages/nightshade_core/lib/src/providers/profiles/` and silently excluded its THREE
+`packages/skotiq_core/lib/src/providers/profiles/` and silently excluded its THREE
 production source files (equipment_profile_model, equipment_profiles_notifier,
 profile_derived_providers) from every commit since the directory was created — local
 trees compiled because the files exist on disk; a clone did not. Fixed: the rule is
@@ -65,7 +65,7 @@ All ten parked product calls decided by the owner:
    otherwise a no-op.
 5. **Dart fallback device stack**: DELETE (2,656 lines).
 6. **Unreachable code**: DELETE all three blocks (Native* traits + registries, the
-   NIGHTSHADE_COMPANION_UI dashboard, the seven unreachable methods + sequential
+   SKOTIQ_COMPANION_UI dashboard, the seven unreachable methods + sequential
    profile-connect).
 7. **Mosaic panel resume**: WIRE THE REAL SINK (SessionWizardCheckpointSink into
    production) — owner chose to make it real in 6.x; on-rig validation explicitly owed.
@@ -235,7 +235,7 @@ result. Adjudication deltas — everything not listed here is approved as mapped
   2,656 lines): bridge_stub.dart states fail-closed policy the code contradicts. Delete or document?
 - Six unimplemented `Native*` traits + six unpopulatable bridge registries (a whole
   unreachable device backend).
-- `NIGHTSHADE_COMPANION_UI` mobile dashboard: 4,845 unreachable lines nothing enables.
+- `SKOTIQ_COMPANION_UI` mobile dashboard: 4,845 unreachable lines nothing enables.
 - Mosaic panel resume: production uses `NullCheckpointSink`; docs/tests claim
   `SessionWizardCheckpointSink` is production. Is panel resume supposed to be real in 6.x?
 - Seven production-unreachable public methods in device services + the unused sequential
@@ -309,7 +309,7 @@ edits). Re-verify each finding against current HEAD via the failing-test-first r
 2. **IMG-4 / IMG-14**: the Imaging snapshot and TPPA paths still launch `astap_cli` with no
    position/scale hints despite e87984e88 — a second solver call site exists (the
    two-implementations trap). The fix is pointing the GUI path at the hinted path, not new code.
-3. **SET-17 re-scoped**: `pairing.db` lives outside the data dir (`~/Documents/Nightshade`,
+3. **SET-17 re-scoped**: `pairing.db` lives outside the data dir (`~/Documents/Skotiq`,
    `~/.local/share/...`), so wiped/scratch profiles inherit the machine's real pairings. Fix =
    store location under the configured data dir + a revocation story on reinstall. Same class
    as COL2-6 (catalogs outside the data dir; "Delete Catalogs" is cross-profile destructive).
@@ -329,7 +329,7 @@ edits). Re-verify each finding against current HEAD via the failing-test-first r
 - **A11Y-STATE** — controls report `[DISABLED]` while live, expose no checked state, or are
   absent from the tree entirely (the whole title bar and nav rail, EQP-5/CON-61). Present in
   all 8 clusters: IMG-6/22, SEQ-10, EQP-4/5, SET-6/18/19, SKY-17, SCI-36, COL2-9/12/14/18,
-  CON-47. This is a `nightshade_ui`/Semantics defect family, not per-screen work. Absorbs
+  CON-47. This is a `skotiq_ui`/Semantics defect family, not per-screen work. Absorbs
   the open accessibility-remainders task.
 - **CRY-WOLF** — the app states something untrue: IMG-4/7/8/18, EQP-1/2, SEQ-14/18/19,
   SET-5/9, SCI-38/41, COL2-11. Fixed per item; the class tag exists for Wave D to verify none
@@ -359,7 +359,7 @@ essentially nothing fixed — the finding/fixing balance has tipped.
 - No wheel-scroll command; it blocked real coverage (Guiding dither/settle, EQP device
   cards). `xdotool click 5` works — wrap it as a `wheel` command.
 - The GUI bundle and cargo-rebuild waves share `build/.../bundle`: C1's rebuild removed
-  `libnightshade_bridge.so` mid-drive and killed every agent's boot until they restored it.
+  `libskotiq_bridge.so` mid-drive and killed every agent's boot until they restored it.
   Rebuild + freshness-check the bundle before Wave D, and never run a GUI wave concurrent
   with a rebuild wave against one bundle.
 
@@ -411,7 +411,7 @@ owed, other files may be corrupt).
 ## Wave B-fix stage 1 outcome (2026-08-13)
 
 8/8 batches, **80 findings fixed** (both P0s, the P1 set, shared-path P2s, the A11Y-STATE
-component family in nightshade_ui), 10 false positives (mostly "already fixed at HEAD — the
+component family in skotiq_ui), 10 false positives (mostly "already fixed at HEAD — the
 audited 2026-08-11 binary predates the fix", each pinned with a regression test), 20 blocked.
 Impl logs: reports/release-pass/impl/bfix-*.md.
 
@@ -423,7 +423,7 @@ by role. Wave D must re-drive the a11y findings against the fixed dump.
 
 ### Closer fixes after the wave (Fable, gate triage)
 
-The wave left 5 test casualties in nightshade_app; all closed:
+The wave left 5 test casualties in skotiq_app; all closed:
 1. general_language_scope_test — updated for the a11y Semantics wrapper on dropdown items.
 2. scheduler_tab_content_test + scheduler_screen_test — updated for the intended SEQ-17
    "Target queue"→"Scheduler queue" rename.
@@ -447,7 +447,7 @@ The wave left 5 test casualties in nightshade_app; all closed:
 - SCI-36 remainder: bare InkWells at mosaic_projects_list_screen.dart:161 +
   diagnostics_screen "Learn more"; the 29 raw DropdownButton call sites (recipe in the
   a11y impl log).
-- SKY-8 (tooltip anchor maths + retirement in nightshade_ui tooltip), SKY-9 (profile-sourced
+- SKY-8 (tooltip anchor maths + retirement in skotiq_ui tooltip), SKY-9 (profile-sourced
   sensor dimensions for Framing), EQP-23 (last-gasp shutdown record + safing at the desktop
   entry point), CON-61b (Settings section param ignored when already open), SET-17 revoke-all
   UI (needs a PairingNotifier method + confirm flow).
@@ -463,7 +463,7 @@ Order of execution from here:
 1. ~~C1~~ DONE — committed 3e1be6cdc..7aadcacce, full gates green.
 2. ~~Wave B-fix stage 1~~ DONE — committed e1f10a24b..b17655239 (8 batch commits + closer
    fixes + harness + docs), gates green (melos: every package SUCCESS except the five
-   nightshade_app casualties, all five closed and re-proven; final clean nightshade_app run
+   skotiq_app casualties, all five closed and re-proven; final clean skotiq_app run
    recorded in the session log).
 3. **C2** cross-package consolidations — COMPLETE (wf_99035b9c-9c5, 6/6 topics, ~3.6h).
    ~100 call sites consolidated onto canonical implementations with exact-== parity tests
@@ -489,7 +489,7 @@ Order of execution from here:
    batches, 17 fixed, 0 FPs). Gate triage: placeholder audit caught 2 new silent-fallback
    unwraps in the debris sweep (one could delete a pre-existing sidecar — sweep now skips
    without a snapshot); one interface break in an out-of-scope fake stubbed. Final:
-   nightshade_core 5,795 green, cargo workspace green, all quick gates green.
+   skotiq_core 5,795 green, cargo workspace green, all quick gates green.
    **C3 splits RUNNING as wf_c7ff2598-1bf** (script:
    reports/release-pass/scripts/release-c3-splits.js, 10 batches, re-measure before split).
    NOTE for Wave D: some test rewrites assets/screenshots/desktop-dashboard.png and
@@ -511,7 +511,7 @@ Order of execution from here:
 3c. **C3 splits** — COMPLETE + COMMITTED through 00ce2bf02 (wf_c7ff2598-1bf, 10/10
    batches, **118 files split**, 51 correctly skipped as already under threshold). Gates
    ALL GREEN (cargo 23 suites; melos all-SUCCESS after fixing one pre-existing
-   minute-boundary race in location_settings_truth_test; nightshade_app record run 3,301); placeholder baseline
+   minute-boundary race in location_settings_truth_test; skotiq_app record run 3,301); placeholder baseline
    regenerated for the moved paths (net improvement 211→184 markers). The three
    cross-batch breaks agents reported mid-wave all self-repaired before the wave returned.
    Design-decision residue (NOT mechanical, parked for the owner/Wave D):

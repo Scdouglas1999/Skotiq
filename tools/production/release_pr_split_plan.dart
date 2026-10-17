@@ -339,12 +339,12 @@ String _bucketIdFor(_StatusEntry entry) {
 
   if (category == 'native-rust' ||
       category == 'bridge' ||
-      path.startsWith('native/nightshade_native/') ||
-      path.startsWith('packages/nightshade_bridge/')) {
+      path.startsWith('native/skotiq_native/') ||
+      path.startsWith('packages/skotiq_bridge/')) {
     return 'native-driver-bridge';
   }
 
-  if (category == 'core' || path.startsWith('packages/nightshade_core/lib/')) {
+  if (category == 'core' || path.startsWith('packages/skotiq_core/lib/')) {
     return 'core-data-model';
   }
 
@@ -354,12 +354,12 @@ String _bucketIdFor(_StatusEntry entry) {
       category == 'plugins' ||
       category == 'updater' ||
       category == 'remote-protocol' ||
-      path.startsWith('packages/nightshade_app/lib/') ||
-      path.startsWith('packages/nightshade_ui/') ||
-      path.startsWith('packages/nightshade_planetarium/') ||
-      path.startsWith('packages/nightshade_plugins/') ||
-      path.startsWith('packages/nightshade_updater/') ||
-      path.startsWith('packages/nightshade_remote_protocol/') ||
+      path.startsWith('packages/skotiq_app/lib/') ||
+      path.startsWith('packages/skotiq_ui/') ||
+      path.startsWith('packages/skotiq_planetarium/') ||
+      path.startsWith('packages/skotiq_plugins/') ||
+      path.startsWith('packages/skotiq_updater/') ||
+      path.startsWith('packages/skotiq_remote_protocol/') ||
       path.startsWith('apps/desktop/lib/')) {
     return 'desktop-ui-workflows';
   }

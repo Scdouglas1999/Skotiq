@@ -3,15 +3,15 @@ import 'dart:convert';
 import 'dart:io';
 
 const _defaultExePath =
-    'apps/desktop/build/windows/x64/runner/Release/nightshade_desktop.exe';
+    'apps/desktop/build/windows/x64/runner/Release/skotiq_desktop.exe';
 const _defaultApkPath =
     'apps/mobile/build/app/outputs/flutter-apk/app-release.apk';
-const _defaultAvdName = 'nightshade_release_smoke_api35';
-const _packageName = 'com.nightshade.mobile';
-const _activityName = 'com.example.nightshade_mobile.MainActivity';
-const _adminToken = 'nightshade-mobile-smoke-admin-token';
-const _viewToken = 'nightshade-mobile-smoke-view-token';
-const _controlToken = 'nightshade-mobile-smoke-control-token';
+const _defaultAvdName = 'skotiq_release_smoke_api35';
+const _packageName = 'com.skotiq.mobile';
+const _activityName = 'com.skotiq.mobile.MainActivity';
+const _adminToken = 'skotiq-mobile-smoke-admin-token';
+const _viewToken = 'skotiq-mobile-smoke-view-token';
+const _controlToken = 'skotiq-mobile-smoke-control-token';
 const _evidenceDir = 'docs/production-readiness';
 const _expectedAppVersion = '2.6.0';
 const _expectedApiVersion = '2.6.0';

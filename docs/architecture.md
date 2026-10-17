@@ -1,6 +1,6 @@
-# Nightshade Architecture
+# Skotiq Architecture
 
-> Status: reference for Nightshade 4.1.0.
+> Status: reference for Skotiq 4.1.0.
 >
 > This document describes the system as it is built today: the package layering,
 > the Dart/Rust boundary, the backend abstraction, the headless API, and the
@@ -9,7 +9,7 @@
 > than aspirational. Where a precise file is not named, the role is described
 > instead.
 
-Nightshade is an astrophotography control application built from a Flutter UI
+Skotiq is an astrophotography control application built from a Flutter UI
 layer on top of a Rust core. The Rust side owns device drivers, image
 processing, and the sequence executor; the Dart side owns the UI, application
 state, and the network surfaces (headless API, mobile client, browser
@@ -20,7 +20,7 @@ dashboard). The two halves are joined by a single generated FFI bridge.
 ## 1. App / package layout
 
 The repository is a Melos-managed Dart/Flutter workspace plus a Cargo workspace
-under `native/nightshade_native/`.
+under `native/skotiq_native/`.
 
 **Apps** (`apps/`) are the deployable entry points:
 
@@ -31,29 +31,29 @@ under `native/nightshade_native/`.
 
 **Packages** (`packages/`) are the shared libraries:
 
-- `nightshade_core` — application logic, providers (Riverpod), and the backend
+- `skotiq_core` — application logic, providers (Riverpod), and the backend
   abstraction. **This is the only Dart package that talks to the Rust bridge
   directly.**
-- `nightshade_bridge` — the generated FFI surface (Dart side of the bridge).
-- `nightshade_app` — UI shared across desktop and mobile.
-- `nightshade_ui` — lower-level shared widgets / design system.
-- `nightshade_planetarium` — sky rendering and catalog management.
-- `nightshade_plugins` — the plugin host, registry, and node executor (§8).
-- `nightshade_remote_protocol` — discovery, pairing, crypto, and push primitives
+- `skotiq_bridge` — the generated FFI surface (Dart side of the bridge).
+- `skotiq_app` — UI shared across desktop and mobile.
+- `skotiq_ui` — lower-level shared widgets / design system.
+- `skotiq_planetarium` — sky rendering and catalog management.
+- `skotiq_plugins` — the plugin host, registry, and node executor (§8).
+- `skotiq_remote_protocol` — discovery, pairing, crypto, and push primitives
   shared between the headless server and the remote clients.
-- `nightshade_updater` — update checks and manifest handling.
+- `skotiq_updater` — update checks and manifest handling.
 
 **Dependency direction.** The layering is strict and enforced by convention (see
 `.github/CONTRIBUTING.md` → "Where to put new code"):
 
 - `apps` depend on `packages`, never the reverse.
-- `nightshade_app` depends on `nightshade_core`.
-- `nightshade_core` is the only Dart package that depends on `nightshade_bridge`
+- `skotiq_app` depends on `skotiq_core`.
+- `skotiq_core` is the only Dart package that depends on `skotiq_bridge`
   / talks to Rust.
 
 New UI for desktop only goes in `apps/desktop/lib/`; UI shared across platforms
-goes in `nightshade_app`; business logic and providers go in
-`nightshade_core/lib/src/`.
+goes in `skotiq_app`; business logic and providers go in
+`skotiq_core/lib/src/`.
 
 ---
 
@@ -62,14 +62,14 @@ goes in `nightshade_app`; business logic and providers go in
 The Dart and Rust halves communicate through
 [`flutter_rust_bridge`](https://cjycode.com/flutter_rust_bridge/) (FRB), pinned
 in the workspace. Configuration lives in
-`native/nightshade_native/flutter_rust_bridge.yaml`:
+`native/skotiq_native/flutter_rust_bridge.yaml`:
 
-- **Bridge crate:** `native/nightshade_native/bridge` (crate
-  `nightshade_bridge`). Its public API module (`crate::api`) is the FRB
+- **Bridge crate:** `native/skotiq_native/bridge` (crate
+  `skotiq_bridge`). Its public API module (`crate::api`) is the FRB
   `rust_input`. This crate is built as a `cdylib`/`staticlib` and is the single
   Rust entry point that Dart links against.
 - **Codegen output:** FRB generates the Dart wrapper into
-  `packages/nightshade_bridge/lib/src/` and C headers into the platform folders
+  `packages/skotiq_bridge/lib/src/` and C headers into the platform folders
   of that package. The generated Rust glue (`bridge/src/frb_generated.rs`) is
   overwritten on every codegen run.
 - **Running codegen:** codegen and the shared-library copy step are driven by
@@ -87,9 +87,9 @@ maps into application state (`backend/bridge_event_mapper.dart`,
 
 ## 3. Backend role interfaces
 
-`nightshade_core` abstracts all device and runtime operations behind a set of
+`skotiq_core` abstracts all device and runtime operations behind a set of
 **role interfaces** under
-`packages/nightshade_core/lib/src/backend/roles/`:
+`packages/skotiq_core/lib/src/backend/roles/`:
 
 - `DeviceBackend` — connect/disconnect, discovery, device control.
 - `GuidingBackend` — guiding (PHD2 and built-in) operations.
@@ -98,25 +98,25 @@ maps into application state (`backend/bridge_event_mapper.dart`,
 - `ProfileSettingsBackend` — equipment profiles and settings.
 - `DiagnosticsBackend` — diagnostics and health.
 
-`NightshadeBackend` (`backend/nightshade_backend.dart`) is a **marker
+`SkotiqBackend` (`backend/skotiq_backend.dart`) is a **marker
 interface** that composes all six roles. Concrete backends implement it, but new
 code is expected to depend on the narrowest role it needs rather than the full
 composite. Riverpod role-specific providers read through the same underlying
 backend state, so swapping the active backend is a single state mutation. New
-methods belong on a role interface, not on the `NightshadeBackend` marker.
+methods belong on a role interface, not on the `SkotiqBackend` marker.
 
 ---
 
 ## 4. Local vs network backend
 
-There are three concrete backends, all implementing `NightshadeBackend`:
+There are three concrete backends, all implementing `SkotiqBackend`:
 
 - **`FfiBackend`** (`backend/ffi_backend/`) — the local/native backend. It calls
   straight into the Rust bridge over FRB. This is what the desktop GUI and the
   headless appliance run with: they own the hardware directly.
 - **`NetworkBackend`** (`backend/network_backend/`) — the remote backend. It
   speaks the headless HTTP/WebSocket API rather than FFI, so the same UI code can
-  run against a Nightshade appliance over the network. This is the backend used
+  run against a Skotiq appliance over the network. This is the backend used
   by the mobile companion and the browser dashboard when they drive a remote rig.
   It mirrors the role surface over transport (`http_transport.dart`,
   `device_operations.dart`, `imaging_profile_operations.dart`, guiding,
@@ -137,7 +137,7 @@ The desktop binary has two entry points, selected at launch:
 
 - `apps/desktop/lib/main.dart` — GUI mode (default).
 - `apps/desktop/lib/main_headless.dart` — headless/appliance mode, selected by
-  `--headless` or `NIGHTSHADE_HEADLESS=1`. This runs without a window, suitable
+  `--headless` or `SKOTIQ_HEADLESS=1`. This runs without a window, suitable
   for a server/daemon or a dedicated appliance (e.g. a small single-board
   computer at the mount) controlled remotely.
 
@@ -167,7 +167,7 @@ closed**: any unrecognized or future scope name resolves to the highest
 privilege requirement (`admin`) rather than silently granting `view`. Tokens are
 provisioned at launch (`--auth-token`, `--view-token`, `--control-token`,
 `--require-auth`), pairing is supported for clients
-(`nightshade_remote_protocol`), and CORS origins are explicitly allow-listed.
+(`skotiq_remote_protocol`), and CORS origins are explicitly allow-listed.
 TLS provisioning and WebSocket ticketing are handled in the same layer. See
 `docs/headless-secure-setup.md` and `docs/remote-control.md` for operator
 guidance.
@@ -178,7 +178,7 @@ guidance.
 
 **The Rust sequencer owns the run. Dart is the control surface.**
 
-The sequence executor lives in `native/nightshade_native/sequencer` (executor
+The sequence executor lives in `native/skotiq_native/sequencer` (executor
 under `sequencer/src/executor/`, behavior-tree nodes under `sequencer/src/node/`,
 plus autofocus, meridian flip, mosaic, flat wizard, polar align, dual-rig, and
 checkpoint/recovery modules). Once a run starts, the executor — not Dart — drives
@@ -220,7 +220,7 @@ ignore.
 ## 8. Plugin execution path
 
 Plugins extend the sequencer with custom nodes. The host lives in
-`packages/nightshade_plugins`:
+`packages/skotiq_plugins`:
 
 - `plugin_host.dart` holds per-plugin `PluginContext`s.
 - `plugin_node_registry.dart` records the available plugin-provided node types.
@@ -234,7 +234,7 @@ a wired `PluginContext`, and returns a **structured result rather than
 throwing** — lookup failures, validation failures, thrown exceptions, and
 timeouts (default 10 minutes) all map to a structured failure the sequencer can
 act on. The plugin node executor is intentionally executor-agnostic: it does not
-depend on the Rust bridge or on `nightshade_core` types. The headless API at
+depend on the Rust bridge or on `skotiq_core` types. The headless API at
 `/api/plugins` lists the host's live bundled plugins and can enable or disable
 them. Dart AOT cannot load uploaded source archives, so the compatibility
 upload route returns 501 instead of claiming an inert file was installed;
@@ -272,13 +272,13 @@ flowchart TD
     end
 
     subgraph packages["packages/"]
-        app["nightshade_app (shared UI)"]
-        core["nightshade_core (logic + backends)"]
-        bridgeDart["nightshade_bridge (FRB Dart)"]
-        remote["nightshade_remote_protocol"]
+        app["skotiq_app (shared UI)"]
+        core["skotiq_core (logic + backends)"]
+        bridgeDart["skotiq_bridge (FRB Dart)"]
+        remote["skotiq_remote_protocol"]
     end
 
-    subgraph rust["native/nightshade_native/ (Rust)"]
+    subgraph rust["native/skotiq_native/ (Rust)"]
         bridgeCrate["bridge (FRB entry)"]
         sequencer["sequencer (executor)"]
         imaging["imaging"]

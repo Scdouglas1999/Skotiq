@@ -29,7 +29,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
@@ -197,7 +197,7 @@ class SystemHandlers {
     final dashboardAvailable = staticFileHandlers.dashboardAvailable;
 
     return jsonOk({
-      'name': 'Nightshade Headless',
+      'name': 'Skotiq Headless',
       'version': versionInfo.version,
       'apiVersion': RemoteApiCompatibility.serverApiVersion.format(),
       'minimumSupportedApiVersion': RemoteApiCompatibility
@@ -352,7 +352,7 @@ class SystemHandlers {
       RemoteApiCompatibility.apiVersionHeader: RemoteApiCompatibility
           .serverApiVersion
           .format(),
-      'x-nightshade-minimum-api-version': RemoteApiCompatibility
+      'x-skotiq-minimum-api-version': RemoteApiCompatibility
           .minimumSupportedVersion
           .format(),
     };
@@ -378,7 +378,7 @@ class SystemHandlers {
   }
 
   Future<Map<String, dynamic>> _probeConnectedDevices(
-    NightshadeBackend backend,
+    SkotiqBackend backend,
   ) async {
     try {
       final devices = await backend.getConnectedDevices().timeout(
@@ -425,11 +425,11 @@ class SystemHandlers {
 
     await addDirectoryCheck(
       'applicationDocuments',
-      resolveNightshadeDocumentsDirectory,
+      resolveSkotiqDocumentsDirectory,
     );
     await addDirectoryCheck(
       'applicationSupport',
-      resolveNightshadeDataDirectory,
+      resolveSkotiqDataDirectory,
     );
     await addDirectoryCheck('systemTemp', () async => Directory.systemTemp);
 
@@ -455,7 +455,7 @@ class SystemHandlers {
     final probeFile = File(
       p.join(
         directory.path,
-        '.nightshade-self-test-${DateTime.now().microsecondsSinceEpoch}.tmp',
+        '.skotiq-self-test-${DateTime.now().microsecondsSinceEpoch}.tmp',
       ),
     );
     try {

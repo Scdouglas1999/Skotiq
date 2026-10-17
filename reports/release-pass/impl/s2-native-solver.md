@@ -1,7 +1,7 @@
 # Stage-2 batch: native-solver (IMG-14 solver-hints half, SCI-48)
 
-Scope: `native/nightshade_native/bridge/src/**` (solver call paths),
-`native/nightshade_native/imaging/src/platesolve.rs` (+ tests).
+Scope: `native/skotiq_native/bridge/src/**` (solver call paths),
+`native/skotiq_native/imaging/src/platesolve.rs` (+ tests).
 
 ## IMG-14 — solver-hints half (FIXED)
 
@@ -51,7 +51,7 @@ failure mode. `unified_device_ops` continues to pass the caller's `hint_ra` /
 `hint_dec` when the caller has them.
 
 **Cross-scope leftover (not mine, Dart):** `PlateSolveService._solveWithAstap`
-(`packages/nightshade_core/lib/src/services/plate_solve_service.dart:398`) is a
+(`packages/skotiq_core/lib/src/services/plate_solve_service.dart:398`) is a
 *second* solver implementation that shells out to `astap` from Dart with
 `workingDirectory: File(imagePath).parent.path`. It passes no scale hint and it
 writes `.wcs` next to the operator's capture — the Dart twin of both items in
@@ -102,12 +102,12 @@ astrometry test hit it once. They now share `lock_script_fixtures()`.
 
 ## Verification
 
-- `cargo test -p nightshade_imaging --lib` — 522 passed, 0 failed.
-- `cargo test -p nightshade_bridge --lib` — 550 passed, 0 failed, 4 ignored
+- `cargo test -p skotiq_imaging --lib` — 522 passed, 0 failed.
+- `cargo test -p skotiq_bridge --lib` — 550 passed, 0 failed, 4 ignored
   (pre-existing ignores).
 - The two new imaging debris tests were run 3x in a row after the fix (stable).
 - `cargo check --workspace --all-targets` — clean.
-- `cargo clippy -p nightshade_imaging -p nightshade_bridge --lib --all-targets`
+- `cargo clippy -p skotiq_imaging -p skotiq_bridge --lib --all-targets`
   — no warning in any file this batch touched (the two warnings reported are in
   `device_manager/ops/weather.rs` and `sim_capture.rs`, untouched here).
 - `rustfmt --check` clean on the four files touched; no repo-wide format run.
@@ -119,7 +119,7 @@ Wave D — no GUI harness or bundle rebuild was run here.
 
 ## Files touched
 
-- `native/nightshade_native/imaging/src/platesolve.rs`
-- `native/nightshade_native/bridge/src/api/plate_solve.rs`
-- `native/nightshade_native/bridge/src/api/polar_alignment.rs`
-- `native/nightshade_native/bridge/src/unified_device_ops.rs`
+- `native/skotiq_native/imaging/src/platesolve.rs`
+- `native/skotiq_native/bridge/src/api/plate_solve.rs`
+- `native/skotiq_native/bridge/src/api/polar_alignment.rs`
+- `native/skotiq_native/bridge/src/unified_device_ops.rs`

@@ -31,7 +31,7 @@
 
 .EXAMPLE
     .\test_lan_push.ps1 -DiscoveryOnly
-    Only test if Nightshade instances can be discovered on the network.
+    Only test if Skotiq instances can be discovered on the network.
 
 .EXAMPLE
     .\test_lan_push.ps1 -Target 192.168.1.50
@@ -103,7 +103,7 @@ Push-Location $RepoRoot
 
 try {
     Write-Host "======================================" -ForegroundColor Magenta
-    Write-Host " Nightshade LAN Push Update Test" -ForegroundColor Magenta
+    Write-Host " Skotiq LAN Push Update Test" -ForegroundColor Magenta
     Write-Host "======================================" -ForegroundColor Magenta
     Write-Host ""
     Write-Host "Test Configuration:" -ForegroundColor White
@@ -131,7 +131,7 @@ try {
     }
 
     Test-Assertion "LAN push receiver exists" {
-        Test-Path "packages/nightshade_updater/lib/src/services/lan_push_receiver.dart"
+        Test-Path "packages/skotiq_updater/lib/src/services/lan_push_receiver.dart"
     }
 
     # ===========================================
@@ -141,7 +141,7 @@ try {
 
     $packageDir = "apps/desktop/build/update"
     $manifestPath = "$packageDir/manifest.json"
-    $packagePath = "$packageDir/nightshade-update.zip"
+    $packagePath = "$packageDir/skotiq-update.zip"
 
     if ($SkipBuild) {
         Write-Info "Skipping build, checking for existing package..."
@@ -233,8 +233,8 @@ import 'dart:typed_data';
 
 const int pushPort = 45680;
 const int discoveryPort = 45679;
-const String updatePushMessage = 'NIGHTSHADE_UPDATE_PUSH';
-const String updateResponsePrefix = 'NIGHTSHADE_UPDATE_TARGET:';
+const String updatePushMessage = 'SKOTIQ_UPDATE_PUSH';
+const String updateResponsePrefix = 'SKOTIQ_UPDATE_TARGET:';
 
 void main() async {
   print('[MockReceiver] Starting mock update receiver...');
@@ -358,7 +358,7 @@ Future<void> handleConnection(Socket socket) async {
 '@
 
         # Write mock receiver to temp file
-        $mockReceiverPath = Join-Path $env:TEMP "nightshade_mock_receiver.dart"
+        $mockReceiverPath = Join-Path $env:TEMP "skotiq_mock_receiver.dart"
         $mockReceiverScript | Set-Content $mockReceiverPath -Encoding UTF8
 
         Write-Info "Starting mock receiver on ports 45679 (discovery) and 45680 (push)..."
@@ -407,11 +407,11 @@ Future<void> handleConnection(Socket socket) async {
         }
     } else {
         if ($targetCount -gt 0) {
-            Write-Success "Discovered $targetCount Nightshade instance(s)"
+            Write-Success "Discovered $targetCount Skotiq instance(s)"
             $foundTargets | ForEach-Object { Write-Info $_ }
         } else {
-            Write-Warning "No Nightshade instances discovered on network"
-            Write-Info "Make sure Nightshade is running on your imaging laptop"
+            Write-Warning "No Skotiq instances discovered on network"
+            Write-Info "Make sure Skotiq is running on your imaging laptop"
             Write-Info "and both machines are on the same network."
             $script:testsSkipped++
         }
@@ -468,7 +468,7 @@ Future<void> handleConnection(Socket socket) async {
         } else {
             Write-Warning "No targets available for push test"
             Write-Info "Run with -MockReceiver for local testing"
-            Write-Info "Or ensure Nightshade is running on imaging laptop"
+            Write-Info "Or ensure Skotiq is running on imaging laptop"
             $script:testsSkipped++
         }
     } else {

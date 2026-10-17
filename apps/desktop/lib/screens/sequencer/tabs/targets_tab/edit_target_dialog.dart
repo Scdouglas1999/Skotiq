@@ -39,20 +39,20 @@ class _EditTargetDialogState extends ConsumerState<EditTargetDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = NightshadeColors.of(context);
+    final colors = SkotiqColors.of(context);
 
-    return NightshadeDialog(
+    return SkotiqDialog(
       title: 'Edit Target',
       icon: LucideIcons.pencil,
       width: 400,
       actions: [
-        NightshadeButton(
+        SkotiqButton(
           onPressed: () => Navigator.pop(context),
           label: 'Cancel',
           variant: ButtonVariant.ghost,
           size: ButtonSize.small,
         ),
-        NightshadeButton(
+        SkotiqButton(
           label: 'Save Changes',
           icon: LucideIcons.check,
           size: ButtonSize.small,
@@ -134,7 +134,7 @@ class _EditTargetDialogState extends ConsumerState<EditTargetDialog> {
   }
 
   Widget _buildField(
-    NightshadeColors colors,
+    SkotiqColors colors,
     String label,
     TextEditingController controller,
     String hint,

@@ -20,7 +20,7 @@ const SPLIT_SCHEMA = {
   },
 }
 
-const CHARTER = `You are a refactoring engineer in the Nightshade release pass (Flutter/Dart melos monorepo + Rust via FRB). Repo root is the cwd. The tree is GREEN at HEAD — full gates passed. Your job is ONLY mechanical file splits: the oversized files in your scope, split along the seam plans in the Wave A map reports (reports/release-pass/map/<subsystem>.md). C1/C2 already deleted and consolidated heavily — re-measure before splitting: any file now under the threshold (Dart 1000 lines, Rust 1500) is SKIPPED with its current line count recorded.
+const CHARTER = `You are a refactoring engineer in the Skotiq release pass (Flutter/Dart melos monorepo + Rust via FRB). Repo root is the cwd. The tree is GREEN at HEAD — full gates passed. Your job is ONLY mechanical file splits: the oversized files in your scope, split along the seam plans in the Wave A map reports (reports/release-pass/map/<subsystem>.md). C1/C2 already deleted and consolidated heavily — re-measure before splitting: any file now under the threshold (Dart 1000 lines, Rust 1500) is SKIPPED with its current line count recorded.
 
 FIRST ACTIONS: (1) one \`graphify query\` (hook requires it); (2) read your subsystem's map report split plan; (3) wc -l your candidate files at HEAD.
 
@@ -33,16 +33,16 @@ RULES (strictly behavior-preserving):
 - Log to reports/release-pass/impl/c3-<batch>.md. Your final message is machine-read: return ONLY the structured result.`
 
 const BATCHES = [
-  { key: 'rust-sequencer-instructions', scope: 'native/nightshade_native/sequencer/src/instructions.rs (11.7k baseline) + its module tree' },
-  { key: 'rust-sequencer-executor', scope: 'native/nightshade_native/sequencer/src/executor/mod.rs (11.2k baseline) + triggers.rs (4.5k)' },
-  { key: 'rust-bridge-imaging', scope: 'native/nightshade_native/bridge/src/api/imaging.rs (7.4k baseline)' },
-  { key: 'rust-bridge-rest', scope: 'native/nightshade_native/bridge/src/** other >1500-line files per the map (NOT api/imaging.rs)' },
-  { key: 'rust-devices', scope: 'native/nightshade_native/{indi,alpaca,ascom,native}/** files >1500 lines per the map' },
-  { key: 'core-services', scope: 'packages/nightshade_core/lib/src/services/** files >1000 lines per the map (sequence_executor.dart itself belongs to core-providers)' },
-  { key: 'core-providers-models', scope: 'packages/nightshade_core/lib/src/{providers,models,repositories,database}/** files >1000 lines per the map' },
-  { key: 'app-screens', scope: 'packages/nightshade_app/lib/screens/** files >1000 lines per the map (headless handlers belong to shells)' },
+  { key: 'rust-sequencer-instructions', scope: 'native/skotiq_native/sequencer/src/instructions.rs (11.7k baseline) + its module tree' },
+  { key: 'rust-sequencer-executor', scope: 'native/skotiq_native/sequencer/src/executor/mod.rs (11.2k baseline) + triggers.rs (4.5k)' },
+  { key: 'rust-bridge-imaging', scope: 'native/skotiq_native/bridge/src/api/imaging.rs (7.4k baseline)' },
+  { key: 'rust-bridge-rest', scope: 'native/skotiq_native/bridge/src/** other >1500-line files per the map (NOT api/imaging.rs)' },
+  { key: 'rust-devices', scope: 'native/skotiq_native/{indi,alpaca,ascom,native}/** files >1500 lines per the map' },
+  { key: 'core-services', scope: 'packages/skotiq_core/lib/src/services/** files >1000 lines per the map (sequence_executor.dart itself belongs to core-providers)' },
+  { key: 'core-providers-models', scope: 'packages/skotiq_core/lib/src/{providers,models,repositories,database}/** files >1000 lines per the map' },
+  { key: 'app-screens', scope: 'packages/skotiq_app/lib/screens/** files >1000 lines per the map (headless handlers belong to shells)' },
   { key: 'shells-headless', scope: 'apps/desktop/lib/headless_api/** files >1000 lines per the map (sequencer_handlers.dart 2.3k baseline etc.)' },
-  { key: 'planetarium-ui', scope: 'packages/nightshade_planetarium/** and packages/nightshade_ui/** files >1000 lines per the map' },
+  { key: 'planetarium-ui', scope: 'packages/skotiq_planetarium/** and packages/skotiq_ui/** files >1000 lines per the map' },
 ]
 
 phase('Split')

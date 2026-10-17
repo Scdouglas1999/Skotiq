@@ -10,18 +10,18 @@ understand what a change is fixing, then work from 03–07.
 ## What is already good (keep, do not "improve")
 
 - **Palette discipline.** Every text/status colour clears WCAG AA on every surface, in all three
-  themes, and the reasoning is documented in `nightshade_colors.dart`. Red night is a real
+  themes, and the reasoning is documented in `skotiq_colors.dart`. Red night is a real
   wavelength constraint (G == B on every colour), not a tint. The overhaul keeps this and adds a
   checker (`tools/check_tokens.py`).
 - **Type choices.** Hanken Grotesk + Spline Sans Mono, bundled offline. Right fonts, wrong scale.
 - **Icons.** Lucide everywhere (3,189 uses vs 34 stray Material icons). Keep Lucide.
 - **The planetarium** (`audit/23_planetarium.png`) is the one screen that already feels premium:
   edge-to-edge canvas, floating time control, compass, quiet labels. It is the model for Imaging.
-- **Buttons and cards are already migrated** (`NightshadeButton` 847 uses, `NightshadeCard` 291;
+- **Buttons and cards are already migrated** (`SkotiqButton` 847 uses, `SkotiqCard` 291;
   raw `ElevatedButton`/`OutlinedButton` at 0). The remaining debt is shape and type literals:
   110 raw `BorderRadius.circular(n)` + 29 `Radius.circular(n)` (979 more already go through the
   value-named `radiusInline*` tokens that a later pass must fold onto the semantic scale),
-  2,420 raw `TextStyle(`, 120 `Color(0x…)`, 178 raw `IconButton(` in `nightshade_app/lib`.
+  2,420 raw `TextStyle(`, 120 `Color(0x…)`, 178 raw `IconButton(` in `skotiq_app/lib`.
 - **Sequencer templates page** (`audit/30_seq_templates.png`) is close: clear cards, good copy.
 - **Bottom status bar** as an idea (instrument apps have one). Its content is the problem.
 
@@ -75,7 +75,7 @@ stays painted (F4) and a deleted file (E1); those cite the test or the commit in
 | # | Finding | Evidence | Resolved |
 |---|---|---|---|
 | C1 | Almost all UI text is 12–13 px regular. Section headings are 11 px uppercase muted. Only page titles are large. Instrument readouts (temperature, RA/Dec, HFR, focus position) render at 12–13 px mono, the same weight as their labels. The most important numbers on screen are the quietest thing on it. | `audit/19_dashboard_connected.png` right column | **Resolved.** Measurements are `Readout`s — `readoutMd`/`readoutLg` mono 500 tabular over an 11 px uppercase label. `integration-3/a18.png` (the glass HUD), `p_tonight_connected.png`; `final/dark-tonight-1600.png` |
-| C2 | Page subtitles are filler sentences: "Assemble the instructions tonight's run executes.", "Live cloud tracking and safety monitoring", "Customize how Nightshade looks". They cost 20–28 px of height each and say nothing the title didn't. | `audit/10_sequencer.png`, `audit/10_weather.png`, `audit/12_appearance.png` | **Partially.** Every rail destination, Settings and onboarding use `PageHeader` with no subtitle. Three route-only screens still use the deprecated `ScreenHeader` and its subtitle: `first_light/first_light_view.dart:57`, `science/science_screen.dart:182`, `transients/transients_screen.dart:102`. The other pre-Observatory route-only screens (`integration-3/x_polar.png`, `x_flat.png`, `x_pair.png`) are being rebuilt by the wave-4 routes agent. `integration-3/a06.png`; `final/dark-analytics-1600.png` |
+| C2 | Page subtitles are filler sentences: "Assemble the instructions tonight's run executes.", "Live cloud tracking and safety monitoring", "Customize how Skotiq looks". They cost 20–28 px of height each and say nothing the title didn't. | `audit/10_sequencer.png`, `audit/10_weather.png`, `audit/12_appearance.png` | **Partially.** Every rail destination, Settings and onboarding use `PageHeader` with no subtitle. Three route-only screens still use the deprecated `ScreenHeader` and its subtitle: `first_light/first_light_view.dart:57`, `science/science_screen.dart:182`, `transients/transients_screen.dart:102`. The other pre-Observatory route-only screens (`integration-3/x_polar.png`, `x_flat.png`, `x_pair.png`) are being rebuilt by the wave-4 routes agent. `integration-3/a06.png`; `final/dark-analytics-1600.png` |
 | C3 | Sidebar items are two lines (title + subtitle). The subtitles ("Automation", "Session stats", "Cloud radar") are placeholders, and the two-line rows make the rail read as a settings list rather than navigation. | `audit/03_dashboard.png` | **Resolved.** `NavItem.description` deleted; rail items are one line, grouped Observe / Prepare / Review. `integration-3/a01.png` (collapsed by default), `a06.png`; `final/dark-tonight-1600.png` |
 
 ### D. Navigation: eight peers, hidden features, five tab styles (S1)
@@ -86,7 +86,7 @@ stays painted (F4) and a deleted file (E1); those cite the test or the commit in
 | D2 | Five different tab-bar styles: Sequencer pill-in-bar, Plan Tonight outlined pill, Projects/Discover segmented control, Imaging 4×2 tile grid, Settings tree. Plan Tonight has 6 tabs, one of which (Discover) has 3 sub-tabs. Analytics has 6. | `audit/10_sequencer.png`, `audit/22_plan_reco.png`, `audit/26_projects.png`, `audit/10_imaging.png` | **Resolved.** One style: `AdaptiveTabBar` underline in the page header. No app screen uses `SubTabButton` any more (the widget itself is deprecated, deleted in wave 4). `integration-3/a17.png`, `k_plan_targets.png`; `final/dark-plan-1600.png`, `final/dark-imaging-1600.png` |
 | D3 | Imaging's side panel uses a 4×2 grid of tile-tabs; the eighth label truncates to "Annotatio…". | `audit/10_imaging.png` | **Resolved.** The side panel is a 44 px vertical icon strip; no labels to truncate. `integration-3/a17.png`; `final/dark-imaging-1600.png` |
 | D4 | The Dashboard is two completely different layouts depending on whether equipment is connected ("briefing" with Moon/Targets/Readiness cards vs "cockpit" with frame/guiding/equipment). Same nav item, different information architecture. | `audit/03_dashboard.png` vs `audit/19_dashboard_connected.png` | **Resolved.** Tonight has one information architecture — hero, night band, panels — and first run differs only by the checklist's state. `integration-3/a01.png` (first run) beside `p_tonight_connected.png` (connected) — one architecture, two states; `final/dark-tonight-1600.png` |
-| D5 | Sequencer toolbar: 20 unlabeled icon buttons in a row. | `audit/31_seq_loaded.png` | **Resolved.** `NightshadeToolbar` with a tooltip on every button, and the command palette for the rest. `integration-3/a24.png`; `final/dark-sequencer-1600.png` |
+| D5 | Sequencer toolbar: 20 unlabeled icon buttons in a row. | `audit/31_seq_loaded.png` | **Resolved.** `SkotiqToolbar` with a tooltip on every button, and the command palette for the rest. `integration-3/a24.png`; `final/dark-sequencer-1600.png` |
 | D6 | "Plan Tonight" and Dashboard "Tonight's briefing" compete for the word Tonight. | `audit/03_dashboard.png` | **Resolved.** The rail says Tonight and Plan; only one screen owns the word. `integration-3/a06.png`, `k_plan_targets.png`; `final/dark-tonight-1600.png` |
 
 ### E. Noise: nags, tours and placeholders (S1)
@@ -106,9 +106,9 @@ stays painted (F4) and a deleted file (E1); those cite the test or the commit in
 | F1 | Equipment content pane stops ~115 px short of the window bottom (black void under the discovery list). | `audit/15_equipment_manual.png` | **Resolved.** The shell grid gives the content pane the full height; no void. `integration-3/a14.png`; `final/dark-equipment-1600.png` |
 | F2 | The Discovery panel OVERLAYS the device cards (Focuser card is cut at its button row). | `audit/17b.png`, `audit/18_equipment_connected.png` | **Resolved.** Discovery is a drawer that pushes the device grid instead of covering it. `integration-3/a15.png`, `c14.png`; `final/dark-equipment-1600.png` |
 | F3 | Sequence name truncates in its own header ("Mono LRGB M51 (…") while 40% of the bar is empty. | `audit/31_seq_loaded.png` | **Resolved.** The canvas bar drops to a shorter tier before anything ellipsizes. `integration-3/a24.png`; `final/dark-sequencer-1600.png` |
-| F4 | Collapsed-rail hover tooltip ("Dashboard / Overview & status") stays painted after the pointer leaves. | `audit/40_red_dashboard.png` | **Resolved.** `NightshadeTooltip` hides on rebuild while hovered; pinned by `packages/nightshade_ui/test/nightshade_tooltip_rebuild_test.dart`. `final/redNight-tonight-1600.png` |
+| F4 | Collapsed-rail hover tooltip ("Dashboard / Overview & status") stays painted after the pointer leaves. | `audit/40_red_dashboard.png` | **Resolved.** `SkotiqTooltip` hides on rebuild while hovered; pinned by `packages/skotiq_ui/test/skotiq_tooltip_rebuild_test.dart`. `final/redNight-tonight-1600.png` |
 | F5 | Onboarding uses ~30% of a 1600×900 canvas; the rest is an empty bordered card. | `audit/01_first.png` | **Resolved.** Onboarding is a centred, content-sized column with a rail-style step list, not a card in an empty canvas. `final/dark-onboarding-1600.png` |
-| F6 | Light theme "Start" button: light green fill on a green-tinted bar, low contrast. | `audit/34_light_dashboard.png` | **Resolved.** The Start button has its own pair — light `startFill` #1E7A47 with white ink at 5.34:1 (`nightshade_colors.dart:199`). `integration-3/l03.png`; `final/light-tonight-1600.png` |
+| F6 | Light theme "Start" button: light green fill on a green-tinted bar, low contrast. | `audit/34_light_dashboard.png` | **Resolved.** The Start button has its own pair — light `startFill` #1E7A47 with white ink at 5.34:1 (`skotiq_colors.dart:199`). `integration-3/l03.png`; `final/light-tonight-1600.png` |
 
 ### G. Colour (S2)
 

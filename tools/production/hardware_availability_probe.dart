@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-const _adminToken = 'nightshade-hardware-probe-admin-token';
+const _adminToken = 'skotiq-hardware-probe-admin-token';
 const _jsonOutputPath =
     'docs/production-readiness/hardware-availability-probe.json';
 const _markdownOutputPath =
@@ -172,18 +172,18 @@ void main(List<String> args) async {
 
 String _defaultExePath() {
   if (Platform.isWindows) {
-    return 'apps/desktop/build/windows/x64/runner/Release/nightshade_desktop.exe';
+    return 'apps/desktop/build/windows/x64/runner/Release/skotiq_desktop.exe';
   }
   if (Platform.isLinux) {
-    return 'apps/desktop/build/linux/x64/release/bundle/nightshade_desktop';
+    return 'apps/desktop/build/linux/x64/release/bundle/skotiq_desktop';
   }
   if (Platform.isMacOS) {
-    return 'apps/desktop/build/macos/Build/Products/Release/nightshade_desktop.app/Contents/MacOS/nightshade_desktop';
+    return 'apps/desktop/build/macos/Build/Products/Release/skotiq_desktop.app/Contents/MacOS/skotiq_desktop';
   }
   stderr.writeln(
     'Unsupported host platform for hardware availability probe: '
     '${Platform.operatingSystem}. Pass an executable path explicitly if this '
-    'platform can launch a packaged Nightshade desktop binary.',
+    'platform can launch a packaged Skotiq desktop binary.',
   );
   exit(2);
 }

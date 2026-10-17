@@ -2,19 +2,19 @@
   {
     "title": "Raw Dart StateError text leaks into a user-facing error toast",
     "outcome": "fixed",
-    "summary": "Settings > Notifications > 'Test push notification' interpolated the caught error object straight into the snackbar, so StateError.toString()'s 'Bad state: ' prefix shipped as product copy. Added packages/nightshade_app/lib/utils/user_facing_error.dart (userFacingError), which reads the message authored on StateError/UnsupportedError/FormatException/TimeoutException/plain ArgumentError/Exception('..') instead of string-stripping after the fact, and passes anything unrecognised through verbatim. Wired it into every raw-error render in the owned settings widgets: the three notification test handlers, the push-config load-error subtitle, the notification-routing matrix load error, both PHD2 save failures, and the three science-settings save failures.",
+    "summary": "Settings > Notifications > 'Test push notification' interpolated the caught error object straight into the snackbar, so StateError.toString()'s 'Bad state: ' prefix shipped as product copy. Added packages/skotiq_app/lib/utils/user_facing_error.dart (userFacingError), which reads the message authored on StateError/UnsupportedError/FormatException/TimeoutException/plain ArgumentError/Exception('..') instead of string-stripping after the fact, and passes anything unrecognised through verbatim. Wired it into every raw-error render in the owned settings widgets: the three notification test handlers, the push-config load-error subtitle, the notification-routing matrix load error, both PHD2 save failures, and the three science-settings save failures.",
     "files_changed": [
-      "packages/nightshade_app/lib/utils/user_facing_error.dart",
-      "packages/nightshade_app/lib/screens/settings/widgets/notification_settings.dart",
-      "packages/nightshade_app/lib/screens/settings/widgets/notification_routing_settings.dart",
-      "packages/nightshade_app/lib/screens/settings/widgets/phd2_guiding_settings.dart",
-      "packages/nightshade_app/lib/screens/settings/widgets/science_settings.dart",
-      "packages/nightshade_app/test/screens/settings/notification_error_copy_test.dart",
-      "packages/nightshade_app/test/screens/settings/notification_push_authority_test.dart",
-      "packages/nightshade_app/test/screens/settings/notification_routing_settings_test.dart"
+      "packages/skotiq_app/lib/utils/user_facing_error.dart",
+      "packages/skotiq_app/lib/screens/settings/widgets/notification_settings.dart",
+      "packages/skotiq_app/lib/screens/settings/widgets/notification_routing_settings.dart",
+      "packages/skotiq_app/lib/screens/settings/widgets/phd2_guiding_settings.dart",
+      "packages/skotiq_app/lib/screens/settings/widgets/science_settings.dart",
+      "packages/skotiq_app/test/screens/settings/notification_error_copy_test.dart",
+      "packages/skotiq_app/test/screens/settings/notification_push_authority_test.dart",
+      "packages/skotiq_app/test/screens/settings/notification_routing_settings_test.dart"
     ],
-    "test": "packages/nightshade_app/test/screens/settings/notification_error_copy_test.dart",
-    "revert_check": "Reverted two call sites in notification_settings.dart \u2014 line ~197 back to context.showErrorSnackBar('Failed to send test notification: $e') and line ~428 back to subtitle: pushConfigAsync.error.toString(): notification_error_copy_test 'a refused push test reports the reason without the StateError prefix' AND the pre-existing notification_push_authority_test 'push outage isolates its controls and exposes retry' both FAILED. Restored: 5/5 pass. Whole packages/nightshade_app/test/screens/settings/ suite green except the two captures_landscape_test golden cases, which are pre-existing Linux golden drift (analytics_landscape_test, untouched by this work, fails the same way).",
+    "test": "packages/skotiq_app/test/screens/settings/notification_error_copy_test.dart",
+    "revert_check": "Reverted two call sites in notification_settings.dart \u2014 line ~197 back to context.showErrorSnackBar('Failed to send test notification: $e') and line ~428 back to subtitle: pushConfigAsync.error.toString(): notification_error_copy_test 'a refused push test reports the reason without the StateError prefix' AND the pre-existing notification_push_authority_test 'push outage isolates its controls and exposes retry' both FAILED. Restored: 5/5 pass. Whole packages/skotiq_app/test/screens/settings/ suite green except the two captures_landscape_test golden cases, which are pre-existing Linux golden drift (analytics_landscape_test, untouched by this work, fails the same way).",
     "caveats": "Two existing tests asserted the buggy copy verbatim ('Bad state: push config unavailable', 'Bad state: routing database unavailable'); both were updated to assert the reason is present AND 'Bad state' is absent, so they now pin the fix rather than the defect."
   },
   {
@@ -22,17 +22,17 @@
     "outcome": "fixed",
     "summary": "auto_save_sequences was seeded 'true' with no UI writer and no behavioural reader, alongside autosave.sequence_enabled (default false), the key the Files & Storage toggle shows and AutoSaveService obeys. BackupService dumps the whole app_settings table into every .nsbackup, so every export claimed sequence auto-save was ON while the app had it OFF. Removed the key end-to-end (seed map, stored-snapshot read+write, partial-persistence mapping, AppSettingsState field/ctor/copyWith, setAutoSaveSequences setter, remotable-key doc) and added _retiredSettingKeys + _pruneRetiredSettings(), run from beforeOpen so profiles already on disk at the current schema version lose the orphan row too (onCreate/onUpgrade would have missed exactly those).",
     "files_changed": [
-      "packages/nightshade_core/lib/src/database/database/default_settings.dart",
-      "packages/nightshade_core/lib/src/database/database/schema_helpers.dart",
-      "packages/nightshade_core/lib/src/database/database/migration_strategy.dart",
-      "packages/nightshade_core/lib/src/providers/settings_sections/app_settings_state.dart",
-      "packages/nightshade_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart",
-      "packages/nightshade_core/lib/src/providers/settings_sections/app_settings_partial_persistence_mapping.dart",
-      "packages/nightshade_core/lib/src/providers/settings_sections/general.dart",
-      "packages/nightshade_core/test/providers/app_settings_stored_roundtrip_test.dart",
-      "packages/nightshade_core/test/database/retired_settings_prune_test.dart"
+      "packages/skotiq_core/lib/src/database/database/default_settings.dart",
+      "packages/skotiq_core/lib/src/database/database/schema_helpers.dart",
+      "packages/skotiq_core/lib/src/database/database/migration_strategy.dart",
+      "packages/skotiq_core/lib/src/providers/settings_sections/app_settings_state.dart",
+      "packages/skotiq_core/lib/src/providers/settings_sections/app_settings_stored_snapshot_mapping.dart",
+      "packages/skotiq_core/lib/src/providers/settings_sections/app_settings_partial_persistence_mapping.dart",
+      "packages/skotiq_core/lib/src/providers/settings_sections/general.dart",
+      "packages/skotiq_core/test/providers/app_settings_stored_roundtrip_test.dart",
+      "packages/skotiq_core/test/database/retired_settings_prune_test.dart"
     ],
-    "test": "packages/nightshade_core/test/database/retired_settings_prune_test.dart",
+    "test": "packages/skotiq_core/test/database/retired_settings_prune_test.dart",
     "revert_check": "Reverted migration_strategy.dart:32 (await _pruneRetiredSettings();) and re-added 'auto_save_sequences': 'true' to default_settings.dart: both tests FAILED. Restored: 2/2 pass."
   },
   {
@@ -40,18 +40,18 @@
     "outcome": "fixed",
     "summary": "Two stores for 'which solver runs'. The one that dispatches solves is the native PlateSolverPreference (platesolver.json), written by the Plate Solving page's Active-solver radio. app_settings.plate_solver was a second row: no UI wrote it, its seed was 'ASTAP', and it was what the science provenance label, backup export and /api/settings all read - so a rig set to Auto with only astrometry.net installed stamped every science record 'ASTAP'. The preference is now the single source of truth and plate_solver is an explicit projection of it: (a) DefaultScienceBackend._resolveSolver() reads the preference (plus detection, for Auto) instead of the app-setting, and reports 'ASTAP or Astrometry.net' when Auto could dispatch to either rather than guessing - the bridge result carries no engine id; (b) setPlateSolver() writes the preference FIRST via PlateSolveService and only then updates the row, so a rejected write is never recorded as applied; (c) settings load refreshes the projection from the preference and persists it, so profiles already on disk converge with no write; (d) the Plate Solving page's own save mirrors the new choice into the projection; (e) applyRemoteSettings (the headless POST /api/settings path) PINS plateSolver to the host's current projection, because the wire model defaults that field to 'ASTAP' and a partial POST would otherwise announce a switch away from the operator's real selection - clients change the engine through setPlateSolverConfig, which reaches the store that matters; (f) the seed is now 'Auto', matching the Rust default, so a fresh profile's two values agree from first launch. getSolverCapabilities() no longer branches on a 'platesolve2' string the preference cannot express.",
     "files_changed": [
-      "packages/nightshade_core/lib/src/models/plate_solver.dart",
-      "packages/nightshade_core/lib/src/services/science/default_science_backend.dart",
-      "packages/nightshade_core/lib/src/services/science/default_science_backend/helpers.dart",
-      "packages/nightshade_core/lib/src/providers/settings_provider.dart",
-      "packages/nightshade_core/lib/src/providers/settings_sections/plate_solve.dart",
-      "packages/nightshade_core/lib/src/providers/settings_sections/app_settings_notifier.dart",
-      "packages/nightshade_core/lib/src/providers/plate_solver_provider.dart",
-      "packages/nightshade_core/lib/src/database/database/default_settings.dart",
-      "packages/nightshade_core/test/providers/plate_solver_single_store_test.dart"
+      "packages/skotiq_core/lib/src/models/plate_solver.dart",
+      "packages/skotiq_core/lib/src/services/science/default_science_backend.dart",
+      "packages/skotiq_core/lib/src/services/science/default_science_backend/helpers.dart",
+      "packages/skotiq_core/lib/src/providers/settings_provider.dart",
+      "packages/skotiq_core/lib/src/providers/settings_sections/plate_solve.dart",
+      "packages/skotiq_core/lib/src/providers/settings_sections/app_settings_notifier.dart",
+      "packages/skotiq_core/lib/src/providers/plate_solver_provider.dart",
+      "packages/skotiq_core/lib/src/database/database/default_settings.dart",
+      "packages/skotiq_core/test/providers/plate_solver_single_store_test.dart"
     ],
-    "test": "packages/nightshade_core/test/providers/plate_solver_single_store_test.dart",
-    "revert_check": "Five independent reverts, each failing only its own test(s), all restored afterwards (8/8 pass): (1) default_science_backend.dart solverId back to _ref.read(appSettingsProvider)...plateSolver -> 'science provenance reads the preference, not the projection' + 'Auto does not name one engine when either could have solved' FAILED; (2) plate_solve.dart setPlateSolver back to _saveSetting-only -> 'selecting a solver writes the store the dispatcher reads' + 'a rejected selection is not recorded as applied' FAILED; (3) app_settings_notifier.dart build() back to `return _settingsFromStoredMap(allSettings);` -> 'loading settings refreshes a stale projection' FAILED; (4) plate_solver_provider.dart updatePreference mirror call severed -> 'the Plate Solving page carries its choice into the projection' FAILED; (5) app_settings_notifier.dart applyRemoteSettings `next = next.copyWith(plateSolver: before.plateSolver);` removed -> 'a settings snapshot cannot move the projection' FAILED. Regression: nightshade_core test/providers + test/database = 1534 pass; apps/desktop test/headless_api = 902 pass.",
+    "test": "packages/skotiq_core/test/providers/plate_solver_single_store_test.dart",
+    "revert_check": "Five independent reverts, each failing only its own test(s), all restored afterwards (8/8 pass): (1) default_science_backend.dart solverId back to _ref.read(appSettingsProvider)...plateSolver -> 'science provenance reads the preference, not the projection' + 'Auto does not name one engine when either could have solved' FAILED; (2) plate_solve.dart setPlateSolver back to _saveSetting-only -> 'selecting a solver writes the store the dispatcher reads' + 'a rejected selection is not recorded as applied' FAILED; (3) app_settings_notifier.dart build() back to `return _settingsFromStoredMap(allSettings);` -> 'loading settings refreshes a stale projection' FAILED; (4) plate_solver_provider.dart updatePreference mirror call severed -> 'the Plate Solving page carries its choice into the projection' FAILED; (5) app_settings_notifier.dart applyRemoteSettings `next = next.copyWith(plateSolver: before.plateSolver);` removed -> 'a settings snapshot cannot move the projection' FAILED. Regression: skotiq_core test/providers + test/database = 1534 pass; apps/desktop test/headless_api = 902 pass.",
     "caveats": "Under Auto with BOTH engines installed the label is 'ASTAP or Astrometry.net' rather than a single engine: the Rust dispatcher tries ASTAP then falls back to astrometry.net per frame and PlateSolveResult carries no engine id, so naming one would be a guess. Making it exact needs a solver-id field on the bridge result (frb regeneration), out of scope here. app_settings.plate_solver is kept rather than deleted because AppSettingsState/models.AppSettings.plateSolver is part of the remote wire model and of the stored-snapshot round-trip invariant, and removing the freezed field would need build_runner. INTERMEDIATE ATTEMPT REJECTED, worth recording: I first made applyRemoteSettings apply a remote plateSolver change to the preference. That broke two existing app_settings_authority tests and, worse, would have let a partial POST built without a previous snapshot silently switch the engine to the wire model's 'ASTAP' default. Pinning the projection is the version that shipped."
   }
 ]

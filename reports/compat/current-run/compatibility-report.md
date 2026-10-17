@@ -1,4 +1,4 @@
-﻿# Nightshade Hardware Compatibility Evidence
+﻿# Skotiq Hardware Compatibility Evidence
 
 - Generated: 2026-06-01T15:55:51.7881946Z
 - Platform: `windows`
@@ -9,13 +9,13 @@
 ## Targets
 | Verdict | Target | Manufacturer | Device | Driver | Tier | Reason |
 |---|---|---|---|---|---|---|
-| pass | `zwo-native-camera-eaf-efw` | ZWO | Camera,Focuser,FilterWheel | Native SDK | SDK runtime + Nightshade tests | declared runtime/API prerequisites and compatibility commands passed |
+| pass | `zwo-native-camera-eaf-efw` | ZWO | Camera,Focuser,FilterWheel | Native SDK | SDK runtime + Skotiq tests | declared runtime/API prerequisites and compatibility commands passed |
 | pass | `zwo-fake-sdk-contract` | ZWO | Camera,Focuser,FilterWheel | Native SDK | Production driver + fake SDK shims | declared runtime/API prerequisites and compatibility commands passed |
-| pass | `qhy-native-camera-cfw` | QHYCCD | Camera,FilterWheel | Native SDK | SDK runtime + Nightshade tests | declared runtime/API prerequisites and compatibility commands passed |
+| pass | `qhy-native-camera-cfw` | QHYCCD | Camera,FilterWheel | Native SDK | SDK runtime + Skotiq tests | declared runtime/API prerequisites and compatibility commands passed |
 | pass | `qhy-fake-sdk-contract` | QHYCCD | Camera,FilterWheel | Native SDK | Production driver + fake SDK shim | declared runtime/API prerequisites and compatibility commands passed |
 | pass | `playerone-native-camera` | Player One | Camera | Native SDK | SDK runtime | declared runtime/API prerequisites and compatibility commands passed |
 | pass | `playerone-fake-sdk-contract` | Player One | Camera | Native SDK | Production driver + fake SDK shim | declared runtime/API prerequisites and compatibility commands passed |
-| pass | `svbony-native-camera` | SVBONY | Camera | Native SDK | SDK runtime + Nightshade tests | declared runtime/API prerequisites and compatibility commands passed |
+| pass | `svbony-native-camera` | SVBONY | Camera | Native SDK | SDK runtime + Skotiq tests | declared runtime/API prerequisites and compatibility commands passed |
 | pass | `svbony-fake-sdk-contract` | SVBONY | Camera | Native SDK | Production driver + fake SDK shim | declared runtime/API prerequisites and compatibility commands passed |
 | pass | `atik-native-camera` | Atik | Camera,FilterWheel | Native SDK | SDK runtime | declared runtime/API prerequisites and compatibility commands passed |
 | pass | `atik-fake-sdk-contract` | Atik | Camera | Native SDK | Production driver + fake SDK shim | declared runtime/API prerequisites and compatibility commands passed |
@@ -33,7 +33,7 @@
 | blocked | `real-device-trace-replay` | Community/Test Lab | All | Native SDK,ASCOM,Alpaca,INDI,Serial | Captured real-device record/replay | command `real_device_trace_replay` reported blocked evidence |
 | pass | `alpaca-simulator-contract` | ASCOM Initiative | Camera,FilterWheel,Mount | ASCOM Alpaca | Local protocol simulator | declared runtime/API prerequisites and compatibility commands passed |
 | pass | `mount-protocol-source-contracts` | Sky-Watcher/iOptron/LX200-compatible | Mount | Native Serial/UDP | Protocol parser/command tests | declared runtime/API prerequisites and compatibility commands passed |
-| pass | `bridge-full-workspace` | Nightshade | All | Bridge | Workspace tests | declared runtime/API prerequisites and compatibility commands passed |
+| pass | `bridge-full-workspace` | Skotiq | All | Bridge | Workspace tests | declared runtime/API prerequisites and compatibility commands passed |
 | blocked | `canon-edsdk-native-camera` | Canon | Camera | Native SDK | API blocked | Canon EDSDK requires developer access and native driver implementation. |
 | blocked | `nikon-native-camera` | Nikon | Camera | Native SDK | API blocked | Nikon SDK requires developer approval and native driver implementation. |
 | blocked | `ascom-conformu-certification` | ASCOM Initiative | All | ASCOM COM/Alpaca | Official conformance | ConformU must be installed and run against ASCOM/Alpaca simulators.; required tool `ConformU` was not found |

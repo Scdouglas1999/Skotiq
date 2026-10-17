@@ -1,6 +1,6 @@
 # Cellular push setup — FCM service account + APNs .p8
 
-How to mint the two cloud credentials that let a Nightshade server (desktop
+How to mint the two cloud credentials that let a Skotiq server (desktop
 GUI or headless appliance) reach a phone over **cellular** — i.e. when the
 phone is asleep at home, far from the rig's LAN — and exactly where they
 plug into the code that already ships.
@@ -8,16 +8,16 @@ plug into the code that already ships.
 ## How the code finds the credentials (read this first)
 
 The loader is
-`packages/nightshade_remote_protocol/lib/src/push/push_config.dart`
+`packages/skotiq_remote_protocol/lib/src/push/push_config.dart`
 (`PushConfig.load`). Resolution order:
 
-1. `NIGHTSHADE_PUSH_CONFIG` env var → absolute path to a
+1. `SKOTIQ_PUSH_CONFIG` env var → absolute path to a
    `push_config.json`;
-2. `<application-support>/Nightshade/push_config.json` — on the systemd /
-   Pi appliance `HOME` is pinned to `/var/lib/nightshade`, so this is
-   `/var/lib/nightshade/.local/share/<app-support>/Nightshade/push_config.json`
-   (easier: just set `NIGHTSHADE_PUSH_CONFIG=/etc/nightshade/push_config.json`
-   in `/etc/nightshade/headless.env` — the example file has the line
+2. `<application-support>/Skotiq/push_config.json` — on the systemd /
+   Pi appliance `HOME` is pinned to `/var/lib/skotiq`, so this is
+   `/var/lib/skotiq/.local/share/<app-support>/Skotiq/push_config.json`
+   (easier: just set `SKOTIQ_PUSH_CONFIG=/etc/skotiq/push_config.json`
+   in `/etc/skotiq/headless.env` — the example file has the line
    commented out);
 3. absent/malformed → `PushConfig.disabled`. The server runs fine; phones
    still get LAN UDP + WebSocket pushes, just nothing over cellular.
@@ -28,7 +28,7 @@ Wiring points that consume it:
   `HeadlessApiServer.wireRemotePushDelivery`
   (`apps/desktop/lib/headless_api_server.dart`, ~line 668) →
   `buildRemotePushDelivery` in
-  `packages/nightshade_remote_protocol/lib/src/push/remote_push_delivery.dart`,
+  `packages/skotiq_remote_protocol/lib/src/push/remote_push_delivery.dart`,
   which constructs `FcmRemotePushDelivery` and/or `ApnsRemotePushDelivery`
   inside a `CompositeRemotePushDelivery`;
 * GUI desktop: same wiring from `apps/desktop/lib/desktop_app_bootstrap.dart`.
@@ -57,14 +57,14 @@ Field names are exact (from `push_config.dart`):
   "mock": false,
   "fcm": {
     "enabled": true,
-    "serviceAccountPath": "/etc/nightshade/secrets/firebase-service-account.json"
+    "serviceAccountPath": "/etc/skotiq/secrets/firebase-service-account.json"
   },
   "apns": {
     "enabled": true,
-    "p8KeyPath": "/etc/nightshade/secrets/AuthKey_AB12CD34EF.p8",
+    "p8KeyPath": "/etc/skotiq/secrets/AuthKey_AB12CD34EF.p8",
     "keyId": "AB12CD34EF",
     "teamId": "TEAM123456",
-    "bundleId": "com.nightshade.nightshadeMobile",
+    "bundleId": "com.skotiq.mobile",
     "useSandbox": false
   }
 }
@@ -74,7 +74,7 @@ Field names are exact (from `push_config.dart`):
   secrets present (dev only — logs "would-send" frames instead of
   sending).
 * `bundleId` is sent as the `apns-topic` header and **must** be the iOS
-  app's bundle id: `com.nightshade.nightshadeMobile`.
+  app's bundle id: `com.skotiq.mobile`.
 * `useSandbox` selects `api.sandbox.push.apple.com` vs
   `api.push.apple.com` (see `ApnsRemotePushDelivery` in
   `remote_push_delivery.dart`). It must match the app build's
@@ -109,19 +109,19 @@ Field names are exact (from `push_config.dart`):
 4. Install on the appliance:
 
    ```sh
-   sudo install -d -m 0750 -g nightshade /etc/nightshade/secrets
-   sudo install -m 0640 -g nightshade firebase-service-account.json \
-     /etc/nightshade/secrets/firebase-service-account.json
+   sudo install -d -m 0750 -g skotiq /etc/skotiq/secrets
+   sudo install -m 0640 -g skotiq firebase-service-account.json \
+     /etc/skotiq/secrets/firebase-service-account.json
    ```
 
-   (group `nightshade`, because the daemon runs as that user; never
+   (group `skotiq`, because the daemon runs as that user; never
    world-readable — this key can send pushes to all your users.)
 
 ## Part B — APNs token key `.p8` (iOS)
 
 1. <https://developer.apple.com/account> → **Certificates, Identifiers &
    Profiles → Keys → +**.
-2. Name it (e.g. `Nightshade APNs`), tick **Apple Push Notifications
+2. Name it (e.g. `Skotiq APNs`), tick **Apple Push Notifications
    service (APNs)**, Continue, Register.
 3. **Download the `.p8` — one chance only.** Apple never re-serves it;
    losing it means revoking and re-issuing. Record:
@@ -133,22 +133,22 @@ Field names are exact (from `push_config.dart`):
 4. One key serves both sandbox and production hosts, and any number of
    apps in the team — no per-environment keys needed.
 5. Install next to the FCM key with the same ownership/modes
-   (`/etc/nightshade/secrets/AuthKey_<KeyID>.p8`).
+   (`/etc/skotiq/secrets/AuthKey_<KeyID>.p8`).
 
 ## Part C — plug in and verify
 
-1. Write `/etc/nightshade/push_config.json` (schema above), `chmod 0640`,
-   group `nightshade`.
-2. Point the env at it — in `/etc/nightshade/headless.env`:
+1. Write `/etc/skotiq/push_config.json` (schema above), `chmod 0640`,
+   group `skotiq`.
+2. Point the env at it — in `/etc/skotiq/headless.env`:
 
    ```sh
-   NIGHTSHADE_PUSH_CONFIG=/etc/nightshade/push_config.json
+   SKOTIQ_PUSH_CONFIG=/etc/skotiq/push_config.json
    ```
 
    (Docker: set the same env var and bind-mount the config + secrets, or
-   drop them inside the `nightshade-data` volume.)
-3. `sudo systemctl restart nightshade-headless`, then check
-   `journalctl -u nightshade-headless` for
+   drop them inside the `skotiq-data` volume.)
+3. `sudo systemctl restart skotiq-headless`, then check
+   `journalctl -u skotiq-headless` for
    `Cellular push delivery wired (cloud channel configured)`.
 4. Pair a phone, confirm the server logs the
    `POST /api/push/register-token` upsert, then trigger a test
@@ -163,7 +163,7 @@ Field names are exact (from `push_config.dart`):
      fixed.
    * `(mock — no cloud credentials)` at startup → `validated()` zeroed a
      channel: a path in `push_config.json` doesn't exist *from the
-     daemon's view* (remember `ProtectSystem=strict` — `/etc/nightshade`
+     daemon's view* (remember `ProtectSystem=strict` — `/etc/skotiq`
      is readable, but a path under e.g. `/root` is not), or an `apns`
      field is empty.
 
@@ -171,7 +171,7 @@ Field names are exact (from `push_config.dart`):
 
 * Both files are send-capable, long-lived secrets. Keep them out of git,
   out of backups that leave the site unencrypted, mode `0640
-  root:nightshade`.
+  root:skotiq`.
 * Rotation: FCM — generate a new service-account key, swap the file,
   restart, then delete the old key in the Google console. APNs — issue a
   second key, swap, restart, revoke the old one in the portal (revoking

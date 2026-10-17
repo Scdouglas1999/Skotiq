@@ -18,7 +18,7 @@ located by targeted grep from there.
 The native executor ends a cancelled run by emitting, BEFORE the state change,
 
 ```rust
-// native/nightshade_native/sequencer/src/executor/start.rs (NodeStatus::Cancelled arm)
+// native/skotiq_native/sequencer/src/executor/start.rs (NodeStatus::Cancelled arm)
 NodeStatus::Cancelled => {
     let _ = event_tx.send(ExecutorEvent::Error { message: "Sequence cancelled".into() });
 ```
@@ -45,7 +45,7 @@ Fixing the executor alone would have left the rollup unchanged and produced a fo
 
 ### Fix
 
-New `packages/nightshade_core/lib/src/providers/sequence/run_stop_classification.dart`
+New `packages/skotiq_core/lib/src/providers/sequence/run_stop_classification.dart`
 holds the single predicate `isSequenceCancelledNotice`, the notice constant, the
 replacement copy, and `kStopClassificationLogTag`. Each of the four producers consults it
 and logs `[stop-classification] <site>` when it reclassifies, so a live log answers "which
@@ -77,15 +77,15 @@ faults and drops only the notice.
 
 ### Tests
 
-- `nightshade_core/test/providers/sequence/run_stop_classification_test.dart` — the exact
+- `skotiq_core/test/providers/sequence/run_stop_classification_test.dart` — the exact
   match and all six counter-inputs.
-- `nightshade_core/test/providers/sequence/run_stop_classification_producers_test.dart` —
+- `skotiq_core/test/providers/sequence/run_stop_classification_producers_test.dart` —
   behaviour of producer 2b, plus a **two-implementations guard**: every file owning a
   `case 'Error':` in `providers/sequence` must call `isSequenceCancelledNotice`. Adding a
   third handler, or deleting the guard from one, fails this test.
 - `event_classifier_stop_vs_error_test.dart` — the notice-as-Error case (which the previous
   test file never fed) and the fault-containing-"cancelled" counter-case.
-- `nightshade_app/test/.../run_dashboard/operator_stop_not_escalated_test.dart` — no banner
+- `skotiq_app/test/.../run_dashboard/operator_stop_not_escalated_test.dart` — no banner
   / no toast / no alarm for a stop; an info RECENT EVENTS row; a real fault still escalates.
 - `run_status_presentation_test.dart` — the refuter's four faults survive a stop.
 
@@ -106,7 +106,7 @@ the raw token. Identical shape to WD-SEQ-N4's chip. The default arm now defers t
 `runStatusLabel` — the same function the Session Report and the History chips use — which
 also owns the readable degradation for an unknown status.
 
-Test: `nightshade_app/test/screens/dashboard/last_night_recap_status_vocabulary_test.dart`
+Test: `skotiq_app/test/screens/dashboard/last_night_recap_status_vocabulary_test.dart`
 (`paused-stopped` → "Stopped (resumable)"; `cleanup_failed` → "Cleanup failed").
 
 ---
@@ -132,7 +132,7 @@ what the card had; the string was.
 
 ### Fix
 
-New `packages/nightshade_core/lib/src/providers/sequence/exposure_progress_vocabulary.dart`
+New `packages/skotiq_core/lib/src/providers/sequence/exposure_progress_vocabulary.dart`
 owns both formatters and the parser. `event_operations.dart` now writes both lines through
 the formatters; the panel reads them back through `parseExposureProgressDetail`, which
 reports whether the named frame is IN FLIGHT or DONE. The panel treats "last planned frame
@@ -183,7 +183,7 @@ still sticks.
 
 Package-scoped `dart analyze` clean over the touched trees (the only errors seen were in
 files another concurrent batch had mid-edit: `replay_debug_screen.dart`,
-`scheduler_engine/evaluation.dart`, `time_control_panel.dart`, `nightshade_tooltip.dart`).
+`scheduler_engine/evaluation.dart`, `time_control_panel.dart`, `skotiq_tooltip.dart`).
 
 Constraint violated, and repaired: while trying to establish whether four
 `test/screens/dashboard/captures_landscape_test.dart` failures predated this batch, I ran a

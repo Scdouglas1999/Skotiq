@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-/// Screen for scanning QR codes to connect to Nightshade servers.
+/// Screen for scanning QR codes to connect to Skotiq servers.
 ///
 /// Pops with one of three results:
 ///   * [QrConnectionData] — payload was schema-valid, host was local, and the
@@ -37,9 +37,9 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   bool _permissionBlocked = false;
   String? _cameraError;
 
-  NightshadeColors _colors(BuildContext context) {
-    return Theme.of(context).extension<NightshadeColors>() ??
-        NightshadeColors.dark;
+  SkotiqColors _colors(BuildContext context) {
+    return Theme.of(context).extension<SkotiqColors>() ??
+        SkotiqColors.dark;
   }
 
   @override
@@ -71,7 +71,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                 status.isPermanentlyDenied || status.isRestricted;
             _cameraError =
                 'Camera permission is required to scan pairing QR codes. '
-                'Allow camera access for Nightshade, then retry.';
+                'Allow camera access for Skotiq, then retry.';
           });
         }
         return;
@@ -93,7 +93,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       if (mounted) {
         setState(() {
           _cameraError =
-              'Camera unavailable. Allow camera permission for Nightshade '
+              'Camera unavailable. Allow camera permission for Skotiq '
               'and try again.\n\n($e)';
         });
       }
@@ -196,7 +196,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       barrierColor: colors.background.withValues(alpha: 0.72),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(NightshadeTokens.radiusLg),
+          top: Radius.circular(SkotiqTokens.radiusLg),
         ),
       ),
       builder: (context) {
@@ -205,29 +205,29 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
             decoration: BoxDecoration(
               color: colors.surfaceElevated,
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(NightshadeTokens.radiusLg),
+                top: Radius.circular(SkotiqTokens.radiusLg),
               ),
               border: Border(top: BorderSide(color: colors.border)),
-              boxShadow: NightshadeTokens.shadowLg,
+              boxShadow: SkotiqTokens.shadowLg,
             ),
-            padding: NightshadeTokens.dialogPadding,
+            padding: SkotiqTokens.dialogPadding,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
                   'Confirm pairing',
-                  style: NightshadeTypography.h4.copyWith(
+                  style: SkotiqTypography.h4.copyWith(
                     color: colors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: NightshadeTokens.spaceLg),
-                NightshadeCard(
-                  padding: NightshadeTokens.cardPadding,
+                const SizedBox(height: SkotiqTokens.spaceLg),
+                SkotiqCard(
+                  padding: SkotiqTokens.cardPadding,
                   variant: CardVariant.elevated,
                   child: Text.rich(
                     TextSpan(
-                      style: NightshadeTypography.body.copyWith(
+                      style: SkotiqTypography.body.copyWith(
                         color: colors.textPrimary,
                       ),
                       children: [
@@ -239,7 +239,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                         const TextSpan(text: '?\n\nServer fingerprint: '),
                         TextSpan(
                           text: data.shortFingerprint,
-                          style: NightshadeTypography.mono.copyWith(
+                          style: SkotiqTypography.mono.copyWith(
                             color: colors.textPrimary,
                             fontWeight: FontWeight.w600,
                           ),
@@ -248,26 +248,26 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: NightshadeTokens.spaceMd),
+                const SizedBox(height: SkotiqTokens.spaceMd),
                 Text(
                   'Verify this fingerprint matches the desktop app before continuing.',
-                  style: NightshadeTypography.bodySm.copyWith(
+                  style: SkotiqTypography.bodySm.copyWith(
                     color: colors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: NightshadeTokens.space2xl),
+                const SizedBox(height: SkotiqTokens.space2xl),
                 Row(
                   children: [
                     Expanded(
-                      child: NightshadeButton(
+                      child: SkotiqButton(
                         onPressed: () => Navigator.of(context).pop(false),
                         label: 'Cancel',
                         variant: ButtonVariant.outline,
                       ),
                     ),
-                    const SizedBox(width: NightshadeTokens.spaceMd),
+                    const SizedBox(width: SkotiqTokens.spaceMd),
                     Expanded(
-                      child: NightshadeButton(
+                      child: SkotiqButton(
                         onPressed: () => Navigator.of(context).pop(true),
                         label: 'Connect',
                       ),
@@ -403,7 +403,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
             child: Column(
               children: [
                 Text(
-                  'Scan the QR code displayed on your Nightshade server',
+                  'Scan the QR code displayed on your Skotiq server',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: colors.textPrimary, fontSize: 16),
                 ),
@@ -437,8 +437,8 @@ class _CameraRecovery extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors =
-        Theme.of(context).extension<NightshadeColors>() ??
-        NightshadeColors.dark;
+        Theme.of(context).extension<SkotiqColors>() ??
+        SkotiqColors.dark;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -450,24 +450,24 @@ class _CameraRecovery extends StatelessWidget {
               color: colors.warning,
               size: 36,
             ),
-            const SizedBox(height: NightshadeTokens.spaceMd),
+            const SizedBox(height: SkotiqTokens.spaceMd),
             Text(
               message,
               textAlign: TextAlign.center,
               style: TextStyle(color: colors.textSecondary),
             ),
-            const SizedBox(height: NightshadeTokens.spaceLg),
+            const SizedBox(height: SkotiqTokens.spaceLg),
             Wrap(
               alignment: WrapAlignment.center,
-              spacing: NightshadeTokens.spaceSm,
-              runSpacing: NightshadeTokens.spaceSm,
+              spacing: SkotiqTokens.spaceSm,
+              runSpacing: SkotiqTokens.spaceSm,
               children: [
-                NightshadeButton(
+                SkotiqButton(
                   label: 'Retry camera',
                   onPressed: () => unawaited(onRetry()),
                 ),
                 if (showSettings)
-                  NightshadeButton(
+                  SkotiqButton(
                     label: 'Open settings',
                     variant: ButtonVariant.outline,
                     onPressed: () => unawaited(openAppSettings()),

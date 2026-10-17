@@ -1,6 +1,6 @@
 # Release-pass implementation log — batch `planetarium`
 
-Scope: `packages/nightshade_planetarium/**` (+ its test dir).
+Scope: `packages/skotiq_planetarium/**` (+ its test dir).
 
 ## Item 1 — DELETE the evidenced-dead lines
 
@@ -11,15 +11,15 @@ Fresh re-proof, run across `packages apps tools native` with `--include='*.dart'
 The work order (§3.1) claims zero consumers. It has one:
 
 ```
-packages/nightshade_app/lib/screens/sequencer/widgets/framing_assistant_inline.dart:164:
+packages/skotiq_app/lib/screens/sequencer/widgets/framing_assistant_inline.dart:164:
               child: FramingView(
                 target: CelestialCoordinate(...),
                 onRotationChanged: (value) { ... },
 ```
 
-That file imports `package:nightshade_planetarium/nightshade_planetarium.dart` (line 24) and does
+That file imports `package:skotiq_planetarium/skotiq_planetarium.dart` (line 24) and does
 *not* import `framing_screen.dart`, and the named parameters `target:` / `onRotationChanged:` exist
-only on the planetarium's `FramingView` (`framing_view.dart:22-28`) — `nightshade_app`'s own
+only on the planetarium's `FramingView` (`framing_view.dart:22-28`) — `skotiq_app`'s own
 `FramingView` (`framing_screen.dart:29`) takes `{super.key}` only. Its own header comment says
 "Wraps the planetarium's `FramingView` widget".
 
@@ -94,10 +94,10 @@ concurrent caller got `[]`.
 
 New `test/star_catalog_load_failure_test.dart` (4 tests) → **+4 All tests passed**.
 
-FOLLOW-UP FOR THE PARENT (out of my scope): `nightshade_app/lib/screens/planetarium/widgets/
+FOLLOW-UP FOR THE PARENT (out of my scope): `skotiq_app/lib/screens/planetarium/widgets/
 star_catalog_fallback_banner.dart:28` titles the warning "Star catalog not installed". That is now
 reachable for a *corrupt* catalog too. `starCatalogLoadOutcomeProvider` is exported so the banner
-can distinguish the two; the copy change belongs to whoever owns `nightshade_app`.
+can distinguish the two; the copy change belongs to whoever owns `skotiq_app`.
 
 ## Item 4 — one HYG load chain
 
@@ -131,10 +131,10 @@ items 2, 5 and 7 were partial. Everything above this line was re-checked, not ta
 the only surviving mention of the name is a doc-comment reference in `catalog_astronomy.dart:337`.
 
 `framing_view.dart` / `FramingView` — **FALSE POSITIVE confirmed independently.**
-`nightshade_app/lib/screens/sequencer/widgets/framing_assistant_inline.dart:164` constructs it with
+`skotiq_app/lib/screens/sequencer/widgets/framing_assistant_inline.dart:164` constructs it with
 `target:` / `onRotationChanged:`. That file's imports (lines 20-25) include
-`package:nightshade_planetarium/nightshade_planetarium.dart` and do **not** include
-`framing_screen.dart`, and `nightshade_app`'s own `FramingView` (`framing_screen.dart:29`) takes
+`package:skotiq_planetarium/skotiq_planetarium.dart` and do **not** include
+`framing_screen.dart`, and `skotiq_app`'s own `FramingView` (`framing_screen.dart:29`) takes
 `{super.key}` only — so the call can only resolve to the planetarium widget.
 `planner_screen.dart:7` imports the barrel with `hide FramingView`, which would be a no-op if the
 barrel's symbol were dead. Not deleted.

@@ -79,7 +79,7 @@
   "state": "visited",
   "by": "equipment, diagnostics, shell, onboarding, first_light, tutorial"
  },
- "screen:shell/nightshade_bottom_navigation.dart": {
+ "screen:shell/skotiq_bottom_navigation.dart": {
   "state": "visited",
   "by": "equipment, diagnostics, shell, onboarding, first_light, tutorial"
  },
@@ -754,7 +754,7 @@
  "seq-node:PolarAlignmentNode": {
   "state": "unreached",
   "by": "sequencer (the 37 seq-node:* instruction types)",
-  "why": "Not present in the node palette. I enumerated every palette category live (Target, Imaging, Science, Guiding, Mount, Dome, Flat Panel, Focus, Camera, Logic, Timing, Utilities = 36 items) and searched the palette for 'polar', 'align' and 'pole' with zero hits; confirmed at source: packages/nightshade_core/lib/src/providers/sequence/node_palette.dart has no PolarAlignmentNode entry, while the class exists (alignment_and_dome.dart:319) and has a full properties editor (_motion_rich.dart:966), summary, timing, validation and serialization. It is only reachable via Smart Night plan generation (smart_night_service/sequence_emitter.dart:242) or by importing a .json sequence."
+  "why": "Not present in the node palette. I enumerated every palette category live (Target, Imaging, Science, Guiding, Mount, Dome, Flat Panel, Focus, Camera, Logic, Timing, Utilities = 36 items) and searched the palette for 'polar', 'align' and 'pole' with zero hits; confirmed at source: packages/skotiq_core/lib/src/providers/sequence/node_palette.dart has no PolarAlignmentNode entry, while the class exists (alignment_and_dome.dart:319) and has a full properties editor (_motion_rich.dart:966), summary, timing, validation and serialization. It is only reachable via Smart Night plan generation (smart_night_service/sequence_emitter.dart:242) or by importing a .json sequence."
  },
  "seq-node:PluginInstructionNode": {
   "state": "unreached",
@@ -1220,7 +1220,7 @@
  },
  "screen:constellation/shared_target_detail_screen.dart": {
   "state": "visited",
-  "by": "remote-appliance (paired client + local nightshade_hub 2026-09-12; seeded targets via /v1/targets, detail screen + Join/Leave exercised)"
+  "by": "remote-appliance (paired client + local skotiq_hub 2026-09-12; seeded targets via /v1/targets, detail screen + Join/Leave exercised)"
  },
  "screen:planetarium/compass_calibration_dialog.dart": {
   "state": "unreached",
@@ -1523,7 +1523,7 @@
  "widget:catalog_setup_dialog.dart": {
   "state": "unreached",
   "by": "shared-widgets",
-  "why": "Startup-only surface with exactly one call site (screens/shell/app_shell.dart:310) and it never fires on this machine. The gate needs BOTH star and DSO catalogs to be missing, but CatalogManager stores them in the SHARED application-support directory, not in NIGHTSHADE_DATA_DIR: /home/scdouglas/.local/share/com.example.nightshade_desktop/catalogs/ already holds hyg_v42.csv, NGC.csv, glade_plus_galaxies.csv, dso_metadata.json, deep_stars/ etc. So starStatus.isInstalled && dsoStatus.isInstalled are true for every sandbox profile and the dialog is suppressed. Wiping the developer's real catalog directory is the only way to reach it, which is not acceptable in a sweep. Verified the other two gates were satisfied: an equipment profile exists (so shouldRunEquipmentOnboarding is false) and app_settings has no 'catalog_setup_skipped' row."
+  "why": "Startup-only surface with exactly one call site (screens/shell/app_shell.dart:310) and it never fires on this machine. The gate needs BOTH star and DSO catalogs to be missing, but CatalogManager stores them in the SHARED application-support directory, not in SKOTIQ_DATA_DIR: /home/scdouglas/.local/share/com.skotiq.desktop/catalogs/ already holds hyg_v42.csv, NGC.csv, glade_plus_galaxies.csv, dso_metadata.json, deep_stars/ etc. So starStatus.isInstalled && dsoStatus.isInstalled are true for every sandbox profile and the dialog is suppressed. Wiping the developer's real catalog directory is the only way to reach it, which is not acceptable in a sweep. Verified the other two gates were satisfied: an equipment profile exists (so shouldRunEquipmentOnboarding is false) and app_settings has no 'catalog_setup_skipped' row."
  },
  "widget:connection_stale_banner.dart": {
   "state": "unreached",
@@ -1533,7 +1533,7 @@
  "widget:database_recovery_launcher.dart": {
   "state": "unreached",
   "by": "shared-widgets",
-  "why": "Mounted at the app root (app.dart:198) but only surfaces when the database open fails and a recovery/backup path exists. Every launch in this sweep opened /tmp/ns-audit/r-shared-widgets/data/nightshade.db cleanly. Forcing it means deliberately corrupting the scratch DB header mid-sweep, which would have destroyed the seeded session/frame/narrator fixtures the rest of this area's units depend on."
+  "why": "Mounted at the app root (app.dart:198) but only surfaces when the database open fails and a recovery/backup path exists. Every launch in this sweep opened /tmp/ns-audit/r-shared-widgets/data/skotiq.db cleanly. Forcing it means deliberately corrupting the scratch DB header mid-sweep, which would have destroyed the seeded session/frame/narrator fixtures the rest of this area's units depend on."
  },
  "widget:details_panel.dart": {
   "state": "unreached",
@@ -1688,7 +1688,7 @@
  "mobile:first_run_setup_screen.dart": {
   "state": "unreached",
   "by": "mobile first run and connection - main.dart connection screen, mobile_discovery_ops, qr_scanner_screen, saved_servers_screen, tailscale_setup_sheet, first_run_setup_screen, checkpoint_resume_dialog",
-  "why": "FirstRunSetupScreen is only mounted by mobile_dashboard_screen.dart:96 when shouldRunFirstRunSetupProvider resolves to setupNeeds.hasAnyMissing, which requires a live NetworkBackend session against a paired host whose /api/info reports a missing image output path, missing catalogs or no equipment profile. With no appliance paired the gate never renders it. I did reach the shell via 'Skip Connection (View UI Only)', but that path lands in the SHARED 13-step wizard (packages/nightshade_app/lib/screens/onboarding/onboarding_screen.dart), not this file - confirmed by the on-screen title 'Set up your rig / Step 1 of 13', which exists only in onboarding_screen.dart:736, whereas first_run_setup_screen.dart has three steps (output path, catalogs, profiles). The one appliance reachable from this emulator is another agent's live desktop instance on the host at 10.0.2.2:8391, and pairing with it would both violate the no-appliance premise of this sweep and disturb a concurrent audit."
+  "why": "FirstRunSetupScreen is only mounted by mobile_dashboard_screen.dart:96 when shouldRunFirstRunSetupProvider resolves to setupNeeds.hasAnyMissing, which requires a live NetworkBackend session against a paired host whose /api/info reports a missing image output path, missing catalogs or no equipment profile. With no appliance paired the gate never renders it. I did reach the shell via 'Skip Connection (View UI Only)', but that path lands in the SHARED 13-step wizard (packages/skotiq_app/lib/screens/onboarding/onboarding_screen.dart), not this file - confirmed by the on-screen title 'Set up your rig / Step 1 of 13', which exists only in onboarding_screen.dart:736, whereas first_run_setup_screen.dart has three steps (output path, catalogs, profiles). The one appliance reachable from this emulator is another agent's live desktop instance on the host at 10.0.2.2:8391, and pairing with it would both violate the no-appliance premise of this sweep and disturb a concurrent audit."
  },
  "mobile:checkpoint_resume_dialog.dart": {
   "state": "unreached",
@@ -1724,7 +1724,7 @@
   "by": "mobile operation - companion dashboard shell, mount/sequencer/log/settings tabs, session picker and session replay, driven disconnected on the ns_test_api35 emulator",
   "why": "SessionReplayScreen requires a runId and is pushed from exactly one place, session_picker_screen.dart:244 `builder: (_) => SessionReplayScreen(runId: run.id)`, inside the tap handler of a run row. Run rows come from NetworkBackend.fetchSequenceRuns, so the list is only ever non-empty when the phone is paired with a host that has completed sequence runs in its database. Driven disconnected, the picker correctly renders its 'Connect to a server' empty state instead of any rows, so there is no row to tap and no runId to pass. Pairing with the one appliance reachable from this emulator (another agent's live desktop on the host) would both break the no-appliance premise of this sweep and disturb a concurrent audit. Source-only observations: the screen accepts a dataSourceOverride for tests (session_replay_screen.dart:35-41), and its own disconnected behaviour is therefore untested here."
  },
- "hub:nightshade_hub.dart": {
+ "hub:skotiq_hub.dart": {
   "state": "visited",
   "by": "hub-sweep 2026-08-14: barrel imported by bin/server.dart for the live hub process on :18099 (and by the sweep driver for payload construction); every exercised symbol resolved through it"
  },

@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Nightshade are documented in this file.
+All notable changes to Skotiq are documented in this file.
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -130,7 +130,7 @@ legs); on-sky and Windows validation are owed. See `docs/release-notes.md`.
   makes it safe.
 - **Observer location is explicitly unknown** until you set one; the backend is
   told null rather than 0/0/0. Simulation mode's dead toggle is gone.
-- `NIGHTSHADE_DATA_DIR` is the root of everything Dart writes — one resolver,
+- `SKOTIQ_DATA_DIR` is the root of everything Dart writes — one resolver,
   52 call sites.
 - Colour calibration is labelled for what it is: a Johnson B−V regression
   against the shipped catalogs. It is not SPCC and refuses mono input loudly.
@@ -224,7 +224,7 @@ back dry. Ground truth: `reports/release-pass/RELEASE-PASS-2026-08-11.md`.
 - Roughly 13,700 lines of code that could never run in a shipped
   configuration: the Dart fallback device clients (PHD2, Alpaca, ASCOM) and
   their retry/circuit-breaker utilities, the unimplemented alternative native
-  backend, the `NIGHTSHADE_COMPANION_UI` mobile dashboard, and orphaned
+  backend, the `SKOTIQ_COMPANION_UI` mobile dashboard, and orphaned
   device-service and profile-connect paths. The bridge policy comment now
   states the truth: Rust is the only device path.
 
@@ -379,7 +379,7 @@ correctness, accessibility, and release-packaging hardening.
   are not redistributed; native paths require user-installed vendor support.
 - Official 5.0.0 packages are manual-update-only. OTA code remains fail-closed
   for operator builds but no updater/key/server is shipped publicly.
-- Desktop archives and release assets now include Nightshade and third-party
+- Desktop archives and release assets now include Skotiq and third-party
   license notices.
 
 ### Verification and limitations
@@ -405,8 +405,8 @@ code-only: `docs/release-evidence/4.1.0.md`.
 
 - **Night Narrator** — a real-time, plain-language session insight feed surfaced
   across the relevant screens.
-- Narrower `nightshade_core` barrels
-  (`nightshade_core_{models,backend,database,services,providers}.dart`) alongside
+- Narrower `skotiq_core` barrels
+  (`skotiq_core_{models,backend,database,services,providers}.dart`) alongside
   the retained aggregate barrel, so new imports can pull a single layer.
 - Headless API: more desktop-parity endpoints (defect mapping, post-session,
   live-stacking, session-science, sequencer/planetarium handlers) and an
@@ -531,7 +531,7 @@ cellular-push keys, on-sky tuning) that flip the gated bits live.
   (`packaging/appliance/`). Release-enablement playbooks for iOS publish,
   FCM/APNs credentials, and a 7-night on-sky validation campaign live in
   `docs/release/`.
-- **Remote access relay.** Self-hostable relay (`tools/nightshade_relay`):
+- **Remote access relay.** Self-hostable relay (`tools/skotiq_relay`):
   the appliance dials out over WebSocket, phones connect through a
   multiplexed tunnel — no VPN or port forwarding. End-to-end auth stays the
   existing HMAC pairing token; the relay never sees credentials. Desktop
@@ -765,8 +765,8 @@ read-only architecture, test, Rust, Dart, and observability audits to
 closure. Highlights:
 
 - The structured FFI error pipeline is no longer a placebo —
-  `NightshadeException._parseJson` actually decodes the Rust-side `ErrorInfo`
-  payload, and every typed `NightshadeError` variant survives across the
+  `SkotiqException._parseJson` actually decodes the Rust-side `ErrorInfo`
+  payload, and every typed `SkotiqError` variant survives across the
   boundary with `device_id`, `error_code`, `is_recoverable`, and
   `should_reconnect` intact.
 - All six previously-detached `tokio::spawn` tasks (sequencer execution,
@@ -784,11 +784,11 @@ closure. Highlights:
 
 ### Architecture and renames
 
-- Split `native/nightshade_native/bridge/src/api.rs` (9,770 LOC) into
+- Split `native/skotiq_native/bridge/src/api.rs` (9,770 LOC) into
   `bridge/src/api/` (37 files) across three sub-PRs grouped by domain.
-- Split `native/nightshade_native/bridge/src/devices.rs` (8,854 LOC) into
+- Split `native/skotiq_native/bridge/src/devices.rs` (8,854 LOC) into
   `bridge/src/device_manager/` with per-device `ops/` modules.
-- Split `native/nightshade_native/ascom/src/windows_impl.rs` (3,756 LOC)
+- Split `native/skotiq_native/ascom/src/windows_impl.rs` (3,756 LOC)
   into per-device modules under `ascom/src/windows/`.
 - Split `providers/equipment_provider.dart` (1,540 LOC, 11 notifiers)
   into per-device-type files.
@@ -800,7 +800,7 @@ closure. Highlights:
 - Split `screens/framing/framing_screen.dart` (4,688 LOC) into canvas,
   controls, painters, and overlay modules.
 - Resolved UI → bridge layering violation in
-  `nightshade_ui/.../polar_alignment_wizard.dart`
+  `skotiq_ui/.../polar_alignment_wizard.dart`
   (the worst-finding layering bug).
 - Rename + collision resolution: framing `MosaicConfig/Panel` →
   `FramingMosaic*`, planetarium duplicates → `PlanetariumMosaic*`,
@@ -812,18 +812,18 @@ closure. Highlights:
 - `PlateSolveResult` consolidated to the FRB-canonical type; both
   hand-written copies deleted.
 - `CapturedImage` and `EquipmentProfile` now alias-exported from the
-  `nightshade_core` barrel; 4 `src/` bypass imports removed.
+  `skotiq_core` barrel; 4 `src/` bypass imports removed.
 
 ### Test Infrastructure
 
-- New `FakeNativeBridge` in `packages/nightshade_bridge/test/fakes/`
+- New `FakeNativeBridge` in `packages/skotiq_bridge/test/fakes/`
   with controllable event streams + canned response maps.
 - New `pumpAppScreen()` widget-test harness in
-  `packages/nightshade_app/test/harness/` wiring `FakeNativeBridge`,
+  `packages/skotiq_app/test/harness/` wiring `FakeNativeBridge`,
   in-memory drift DB, and `MockBackend` via `ProviderScope.overrides`.
 - New `AscomConnectionBackend` trait with `mockall` scaffolding so the
   3,756-LOC `ascom/windows_impl.rs` is testable for the first time.
-- New `FakeNightshadeNetworkClient` and `NetworkBackend` unit tests.
+- New `FakeSkotiqNetworkClient` and `NetworkBackend` unit tests.
 - Smoke and behavior widget tests landed for `imaging_screen`,
   `dashboard_screen`, `planetarium_screen`, and `settings_screen`.
 - Required CI gates promoted: `audit:placeholders --fail-on-new-highrisk`,
@@ -831,7 +831,7 @@ closure. Highlights:
   hooks for `dart format` + `cargo fmt`, `linguist-generated=true` for
   generated files.
 - `libraw.dll` is auto-copied to `target/debug/deps` so
-  `cargo test --package nightshade_bridge` works out of the box.
+  `cargo test --package skotiq_bridge` works out of the box.
 - `flutter_lints` upgraded from `^3.0.1` to `^5.0.0` across all
   packages; analyzer options tuned.
 
@@ -899,17 +899,17 @@ closure. Highlights:
 
 - Migrated 144 deprecated typedef callers
   (`DriverBackend` → `DriverType`, `AvailableDevice` → `DeviceInfo`,
-  `NightshadeDeviceType` → `DeviceType`, `TargetGroupNode` →
+  `SkotiqDeviceType` → `DeviceType`, `TargetGroupNode` →
   `TargetHeaderNode`); deleted the typedef shims.
 - Riverpod aligned to `^2.5.1` across all 9 packages.
-- Confirmed-dead code deleted: `nightshade_exception.dart`,
+- Confirmed-dead code deleted: `skotiq_exception.dart`,
   `paginated_image_loader.dart`, `catalog_service.dart`, three
   weather providers, `annotation_catalog_dialog.dart`,
   duplicate `Phd2Status` / `SequencerStatus` core copies, 2 dead
   `TutorialKeys`, `Plugin.initialize()/dispose()` deprecated methods.
 - `prefer_const_constructors` enabled and fixed across
-  `nightshade_ui`, `nightshade_bridge`, `nightshade_plugins`,
-  `nightshade_updater`, and `nightshade_app`.
+  `skotiq_ui`, `skotiq_bridge`, `skotiq_plugins`,
+  `skotiq_updater`, and `skotiq_app`.
 - `MediaQuery.of(context)` replaced with granular
   `.sizeOf` / `.orientationOf` accessors at 26 sites.
 - Fixed-height `ListView.builder` calls now carry `itemExtent`;
@@ -1027,14 +1027,14 @@ shadows in the final integration.
   unknown, or no cooler telemetry has arrived yet — so the user gets a
   real reason, not a stuck UI.
 - 12 new Rust unit tests cover the defect-detection statistics
-  (`cargo test -p nightshade_imaging --lib defect_map`).
+  (`cargo test -p skotiq_imaging --lib defect_map`).
 
 Limitations / known follow-ups:
 
 - The `PlatformInt64 lastRebuiltUnixSeconds` field returned by the
   bridge is assigned straight into a Dart `int` in
   `DefectMapService._fromBridge`
-  (`packages/nightshade_core/lib/src/services/calibration/defect_map_service.dart:85`).
+  (`packages/skotiq_core/lib/src/services/calibration/defect_map_service.dart:85`).
   This is safe on desktop and mobile (Dart `int` is 64-bit there) but
   would not compile under web (`int` is JavaScript number, `PlatformInt64`
   becomes `BigInt`). Web is not a supported target in v2.5.0; tracked
@@ -1073,7 +1073,7 @@ Limitations / known follow-ups:
 
 - The **Verify** button runs `astap --help` (or `solve-field --help`)
   as a binary-health smoke check
-  (`native/nightshade_native/imaging/src/platesolve.rs:294-313`). It is
+  (`native/skotiq_native/imaging/src/platesolve.rs:294-313`). It is
   not a real plate-solve against a synthetic field. The orchestrator
   sketched a 200×200 three-cluster fixture for an end-to-end verify
   path; that approach was skipped because ASTAP needs a real star field
@@ -1092,7 +1092,7 @@ likely to be coming from.
   (`.json`/`$type:NINA…` → NINA; `.sgf` / SGP JSON shape → SGP). Wrong
   extension still resolves to the right parser when the contents are
   unambiguous.
-- **Node mapping table** in the summary dialog (source type → Nightshade
+- **Node mapping table** in the summary dialog (source type → Skotiq
   type → count) so the user sees exactly what's about to be imported
   before they commit.
 - **Force-import on unsupported override**: the default behaviour is to
@@ -1112,7 +1112,7 @@ likely to be coming from.
 Limitations / known follow-ups:
 
 - The test fixtures
-  (`packages/nightshade_core/test/services/import/fixtures/nina_basic.json`,
+  (`packages/skotiq_core/test/services/import/fixtures/nina_basic.json`,
   `nina_unsupported.json`) were authored from the NINA public Advanced-
   Sequencer documentation, not from a verbatim recent NINA export. The
   finisher agent recommends a verification pass against a real Advanced
@@ -1167,7 +1167,7 @@ Limitations / known follow-ups:
   configured backup dir, configured calibration-library dir). Paths that
   do not canonicalize under one of those roots are rejected (§2.24).
 - Stable backup IDs: backups now carry a UUID stamped into the filename
-  (`nightshade-backup-{timestamp}-{uuid}.zip`) so REST delete/download
+  (`skotiq-backup-{timestamp}-{uuid}.zip`) so REST delete/download
   cannot collide across processes (§2.25).
 - Per-device-type discovery error aggregation in `/api/discovery`:
   failures are no longer swallowed by a bare `catch (_)`; the response
@@ -1213,15 +1213,15 @@ Limitations / known follow-ups:
   on EAF-S / EAF-2 hardware (§5.8).
 
 #### Desktop UI
-- `NightshadeDialog` scaffold in `nightshade_ui` (header, body, close
+- `SkotiqDialog` scaffold in `skotiq_ui` (header, body, close
   button, consistent corner radius and border). Replaces hand-rolled
   one-off dialogs across equipment / sequencer / imaging screens (§4.6,
   §4.20, §4.32).
-- `BreakpointTokens` in `nightshade_ui` replacing every raw `< 1100`,
+- `BreakpointTokens` in `skotiq_ui` replacing every raw `< 1100`,
   `< 1024`, etc. comparison with named tokens (§4.32).
-- `CollapsibleSidebar` in `nightshade_ui`, consolidating the duplicate
+- `CollapsibleSidebar` in `skotiq_ui`, consolidating the duplicate
   animation logic that equipment and sequencer each carried (§4.32).
-- `EmptyState` widget in `nightshade_ui` adopted by the analytics tab,
+- `EmptyState` widget in `skotiq_ui` adopted by the analytics tab,
   diagnostics tab, and other screens that previously stacked many
   "no data" cards (§4.12, §4.24).
 - Shimmer / `SkeletonBox` loading states for every Riverpod
@@ -1266,7 +1266,7 @@ Limitations / known follow-ups:
 - LAN-push package size cap (1 GiB, configurable) enforced before
   manifest signature verification can write any byte.
 - LAN-push receiver refuses to start if no
-  `NIGHTSHADE_UPDATE_PUBLIC_KEY` was compiled in, and logs an actionable
+  `SKOTIQ_UPDATE_PUBLIC_KEY` was compiled in, and logs an actionable
   message telling the user to rebuild with the dart-define.
 - ZIP archives are now stream-extracted via `archive`'s `InputFileStream`
   instead of being loaded whole into memory.
@@ -1367,7 +1367,7 @@ Limitations / known follow-ups:
   `tokio::time::interval` task owned by the executor. Checkpoints no
   longer stop being written when `triggers_enabled = false` (§1.14).
 - `apps/desktop/lib/headless_api_server.dart` is now the GUI-mode HTTP
-  server too. `packages/nightshade_webrtc/lib/src/web_server.dart` has
+  server too. `packages/skotiq_webrtc/lib/src/web_server.dart` has
   been deleted and `apps/desktop/lib/main.dart` routes both modes through
   `HeadlessApiServer` (§2.2).
 - `secure_discovery.dart` now uses a structured JSON wire format
@@ -1409,7 +1409,7 @@ Limitations / known follow-ups:
   optimization. Locked files now retry up to 3 times, then either
   schedule a delayed-until-reboot replace or fail the update non-zero
   with an actionable message ("Update could not replace foo.dll because
-  it is in use. Please close Nightshade and try again."). The previous
+  it is in use. Please close Skotiq and try again."). The previous
   same-size optimization could silently corrupt installs with
   different-content-same-size files.
 - OTA updater backup now covers every file the apply step touches via
@@ -1535,7 +1535,7 @@ Limitations / known follow-ups:
   estimator instead of a fixed 250-ADU floor that was meaningless on
   10-bit cameras and pre-stretched images (§6.15).
 - XISF `Creator` / `CreationTime` now use the real package version
-  instead of hardcoded `"Nightshade 2.0"` (§6.22).
+  instead of hardcoded `"Skotiq 2.0"` (§6.22).
 - XISF boolean parse now accepts `True` / `TRUE` per spec (§6.21).
 - PHD2 `get_app_state` unknown states now map to `Phd2State::Unknown(String)`
   with a warning log instead of silently being treated as `Connected`.
@@ -1544,7 +1544,7 @@ Limitations / known follow-ups:
   return `RawError::InvalidPath { which, source }` instead of being
   silently ignored (§6.25).
 - Stale RAW comment about "located by sRGB gamma defaults" removed; the
-  code uses `nightshade_libraw_apply_config` correctly (§6.24).
+  code uses `skotiq_libraw_apply_config` correctly (§6.24).
 - Pickering airmass at altitudes below 10° no longer silently uses an
   out-of-validity-range formula. Altitudes below 0° now return `Err`
   (object below horizon) and the wider altitude range uses Young's 1994
@@ -1556,9 +1556,9 @@ Limitations / known follow-ups:
   mount / filter wheel / rotator gears now route to real per-driver
   settings; device types without settings (covercalibrator, switch,
   dome) hide the gear icon entirely (§4.1).
-- Centering dialog now has an "Abort" `NightshadeButton` (destructive
+- Centering dialog now has an "Abort" `SkotiqButton` (destructive
   style) that calls the centering service's stop method,
-  `barrierDismissible: false`, and `NightshadeColors` styling. The
+  `barrierDismissible: false`, and `SkotiqColors` styling. The
   previous dialog had a disabled X with no Cancel/Abort path and broke
   the Red Night theme (§4.2).
 - Build-side side effects removed from `imaging_screen.dart:351`,
@@ -1579,7 +1579,7 @@ Limitations / known follow-ups:
 - Imaging-screen control sections (Display / Filter / Exposure /
   Capture) now use a wrapping `Wrap` grid instead of horizontal scroll.
   Critical controls no longer scroll off the right edge unnoticed (§4.9).
-- Planetarium filter sidebar uses `NightshadeColors.surface` /
+- Planetarium filter sidebar uses `SkotiqColors.surface` /
   `surfaceOverlay` instead of raw `Colors.grey[900]`. Red Night theme
   now inherits correctly. Collapsed sidebar shows small status dots for
   each filter category (§4.15).
@@ -1649,7 +1649,7 @@ Limitations / known follow-ups:
   *.xml` or an unencrypted plist (§3.3).
 - **LAN-push manifest signature verified before any byte is written.**
   1 GiB pre-signature size cap. LAN-push receiver refuses to start at
-  all if `NIGHTSHADE_UPDATE_PUBLIC_KEY` was not compiled in, with a
+  all if `SKOTIQ_UPDATE_PUBLIC_KEY` was not compiled in, with a
   clear error rather than a silent-disabled state.
 - **Updater file lock** at `<install_dir>/updates/.updater.lock`
   prevents concurrent updater runs racing on `pending_install.json`.
@@ -1657,7 +1657,7 @@ Limitations / known follow-ups:
   Previous `http://*:* https://*:* ws://*:* wss://*:*` is gone (§2.4).
 - **Dashboard startup warning when bound on a non-loopback address.**
   Operators who run `--bind 0.0.0.0` now see an explicit STDOUT banner:
-  "Nightshade API listening on ALL interfaces. Anyone on your network
+  "Skotiq API listening on ALL interfaces. Anyone on your network
   can attempt to authenticate. Press Ctrl+C now if this is wrong."
   (§2.6).
 - **`infile_select` / `dst_path` canonicalization** across the
@@ -1671,20 +1671,20 @@ Limitations / known follow-ups:
   emits a deprecation warning to the structured log. Will be removed in
   v2.6. Migrate clients to `POST /api/ws/ticket` then
   `?ticket=<short-lived>` (§2.28).
-- `nightshade_webrtc` package name. Functionality has been narrowed to
+- `skotiq_webrtc` package name. Functionality has been narrowed to
   the discovery / collaboration / auth / database layers; the
   WebRTC-specific signaling and peer-connection code has been removed
   in this release. The package name is preserved for v2.5.0 binary
-  compatibility and will be renamed to `nightshade_remote_api` in v2.6
+  compatibility and will be renamed to `skotiq_remote_api` in v2.6
   (§2.3).
 
 ### Removed
 
-- `packages/nightshade_webrtc/lib/src/web_server.dart` (4,746 LOC). The
+- `packages/skotiq_webrtc/lib/src/web_server.dart` (4,746 LOC). The
   GUI-mode HTTP server has been consolidated into
   `apps/desktop/lib/headless_api_server.dart`. GUI and headless modes
   now expose the same endpoint surface and the same dashboard (§2.2).
-- `packages/nightshade_webrtc/lib/src/peer_connection.dart`,
+- `packages/skotiq_webrtc/lib/src/peer_connection.dart`,
   `signaling.dart`, and `signaling/secure_signaling_server.dart`. The
   WebRTC peer-connection / signaling stack was exported but never
   imported outside the package; live image preview still uses the
@@ -1697,15 +1697,15 @@ Limitations / known follow-ups:
   matcher (4-star quad hashing or Tycho-2/Gaia-DR3 subset) is on the
   v2.6 roadmap (§6.1).
 - Hardcoded `currentVersion: '2.0.0'` fallback in
-  `nightshade_updater`'s update provider. A missing version-provider
+  `skotiq_updater`'s update provider. A missing version-provider
   now logs at `error!` and refuses to start update polling per the
   "errors are a feature" ground rule.
 - Bridge `device_id.rs` hardcoded `valid_vendors` duplicate. The
-  registry now lives in `native/nightshade_native/native/src/lib.rs`
+  registry now lives in `native/skotiq_native/native/src/lib.rs`
   (§5.1).
 - Dead `escapeHtml` helper in the web dashboard (rendering uses
   `textContent` / `appendChild` correctly) (§2.18).
 
 ---
 
-[2.5.0]: https://github.com/scdouglas1999/nightshade/releases/tag/v2.5.0
+[2.5.0]: https://github.com/scdouglas1999/skotiq/releases/tag/v2.5.0

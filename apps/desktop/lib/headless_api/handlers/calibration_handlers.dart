@@ -38,7 +38,7 @@ import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show OrderingTerm, Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
@@ -72,7 +72,7 @@ class CalibrationHandlers {
   CalibrationHandlers(this.container, {this.dataDirectoryOverride});
 
   LoggingService get _logger => container.read(loggingServiceProvider);
-  NightshadeDatabase get _database => container.read(databaseProvider);
+  SkotiqDatabase get _database => container.read(databaseProvider);
 
   void _logInfo(String message) =>
       _logger.info(message, source: 'CalibrationHandlers');
@@ -92,7 +92,7 @@ class CalibrationHandlers {
   }
 
   /// Resolve the calibration directory ($DATA_DIR/calibration/darks).
-  /// Created on first use. Honors `NIGHTSHADE_DATA_DIR` (see
+  /// Created on first use. Honors `SKOTIQ_DATA_DIR` (see
   /// `desktop_logging_init.dart`) so headless deployments under custom
   /// paths land in the right place.
   Future<Directory> _calibrationDarksDir() async {
@@ -107,7 +107,7 @@ class CalibrationHandlers {
     if (override != null) {
       return override();
     }
-    return resolveNightshadeDataDirectory();
+    return resolveSkotiqDataDirectory();
   }
 
   // Helpers — JSON shape
@@ -294,5 +294,5 @@ class CalibrationHandlers {
   }
 }
 
-// Exposure of `defectMapServiceProvider` lives in nightshade_core; we read
+// Exposure of `defectMapServiceProvider` lives in skotiq_core; we read
 // it via the container so this file does not need a direct provider import.

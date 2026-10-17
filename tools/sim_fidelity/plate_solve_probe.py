@@ -3,7 +3,7 @@
 
 Why this exists
 ---------------
-`native/nightshade_native/bridge/src/sim_frame.rs` paints 45 pseudo-random
+`native/skotiq_native/bridge/src/sim_frame.rs` paints 45 pseudo-random
 Gaussian stars and translates them as a rigid body with the mount. It does not
 render the sky the mount is pointing at. Plate solving is NOT special-cased for
 the simulator -- `api/plate_solve.rs` shells out to the real ASTAP binary -- so
@@ -49,7 +49,7 @@ Two traps this harness already fell into, both worth keeping:
 Usage
 -----
     python3 tools/sim_fidelity/plate_solve_probe.py \
-        --astap ~/.local/share/nightshade-audit/astap/bin \
+        --astap ~/.local/share/skotiq-audit/astap/bin \
         --focal 400 --ra 5.59 --dec -5.39
 
 `--astap` is a directory holding both `astap_cli` and the `*_*.1476` database

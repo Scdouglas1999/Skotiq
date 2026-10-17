@@ -2,8 +2,8 @@ import 'dart:ffi';
 import 'dart:io';
 
 import 'package:ffi/ffi.dart';
-import 'package:nightshade_bridge/nightshade_bridge.dart' as bridge;
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as path;
 
@@ -22,30 +22,30 @@ class DesktopBootPaths {
   });
 }
 
-/// Sets `NIGHTSHADE_DATA_DIR` for the current process before Rust reads it.
+/// Sets `SKOTIQ_DATA_DIR` for the current process before Rust reads it.
 ///
 /// Respects a value already supplied by the parent shell or systemd unit.
-/// The path matches [resolveNightshadeDataDirectory] — the same root used for
+/// The path matches [resolveSkotiqDataDirectory] — the same root used for
 /// logs, catalogs and tokens — so defect maps and other native persistence
 /// align with the Dart side of the same process.
-void configureNightshadeDataDirectory(
+void configureSkotiqDataDirectory(
   String dataDirectory, {
   Map<String, String>? environment,
 }) {
   final env = environment ?? Platform.environment;
   // Freeze the PROCESS environment as the operator supplied it, before this
   // function writes its own answer back into it. Without the snapshot the Dart
-  // resolvers would later read a NIGHTSHADE_DATA_DIR this function invented
+  // resolvers would later read a SKOTIQ_DATA_DIR this function invented
   // and conclude the instance had been relocated — which would move the
   // documents root off `~/Documents` on an ordinary install. The snapshot is
   // taken from `Platform.environment`, never from an injected [environment],
   // so a test's fake map cannot become the process-wide answer.
-  captureNightshadeProcessEnvironment();
-  final existing = env[nightshadeDataDirEnv]?.trim();
+  captureSkotiqProcessEnvironment();
+  final existing = env[skotiqDataDirEnv]?.trim();
   if (existing != null && existing.isNotEmpty) {
     return;
   }
-  _setProcessEnvironment(nightshadeDataDirEnv, dataDirectory);
+  _setProcessEnvironment(skotiqDataDirEnv, dataDirectory);
 }
 
 /// Resolves the directory that owns this instance's native profile, settings
@@ -53,9 +53,9 @@ void configureNightshadeDataDirectory(
 ///
 /// The native store holds the observer site the sequencer, the planetarium and
 /// `GET /api/settings/location` all read, so it follows the same
-/// operator-configured data directory as `nightshade.db` and `pairing.db` —
-/// [nightshadeDatabaseDirEnv]. It did not: it resolved straight to
-/// `<platform documents>/Nightshade/profiles`, so an instance
+/// operator-configured data directory as `skotiq.db` and `pairing.db` —
+/// [skotiqDatabaseDirEnv]. It did not: it resolved straight to
+/// `<platform documents>/Skotiq/profiles`, so an instance
 /// pinned to its own database still read and rewrote the machine-wide file.
 /// One process then answered `GET /api/settings` with the scratch database's
 /// 0,0 and `GET /api/settings/location` with another install's real site,
@@ -67,34 +67,34 @@ Future<String> resolveDesktopProfileDirectory({
   Map<String, String>? environment,
   Future<Directory> Function()? documentsDirectoryProvider,
 }) async {
-  // [nightshadeProcessEnvironment], not `Platform.environment`: by the time a
-  // caller reaches here [configureNightshadeDataDirectory] has published this
+  // [skotiqProcessEnvironment], not `Platform.environment`: by the time a
+  // caller reaches here [configureSkotiqDataDirectory] has published this
   // process's data root back into the environment for Rust, and reading that
   // back would move an ordinary install's native profile store.
-  final env = environment ?? nightshadeProcessEnvironment;
-  final overrideDir = env[nightshadeDatabaseDirEnv]?.trim();
+  final env = environment ?? skotiqProcessEnvironment;
+  final overrideDir = env[skotiqDatabaseDirEnv]?.trim();
   if (overrideDir != null && overrideDir.isNotEmpty) {
     return path.join(overrideDir, 'profiles');
   }
 
-  final appDir = await resolveNightshadeDocumentsDirectory(
+  final appDir = await resolveSkotiqDocumentsDirectory(
     environment: env,
     documentsDirectoryProvider: documentsDirectoryProvider,
   );
-  return path.join(appDir.path, 'Nightshade', 'profiles');
+  return path.join(appDir.path, 'Skotiq', 'profiles');
 }
 
 /// Resolves and creates this instance's log directory, publishing the same
-/// root to `NIGHTSHADE_DATA_DIR` for the Rust side.
+/// root to `SKOTIQ_DATA_DIR` for the Rust side.
 ///
 /// Separate from [initialiseDesktopLogging] so the path decision is reachable
 /// without the native bridge: everything after this point in the bootstrap
-/// requires a loadable `libnightshade_bridge`.
+/// requires a loadable `libskotiq_bridge`.
 ///
 /// The log directory follows the operator's data root rather than the platform
 /// support folder. It did not once: the log directory was hard-coded to the
 /// support folder while only Rust's persistence honoured the env var, so every
-/// instance on the machine appended to one shared `nightshade.log`, and a
+/// instance on the machine appended to one shared `skotiq.log`, and a
 /// diagnostic dump carried other instances' capture paths, target names and
 /// host names to whoever received the bug report.
 Future<({String dataRoot, String logDirectory})> prepareDesktopLogDirectory({
@@ -102,11 +102,11 @@ Future<({String dataRoot, String logDirectory})> prepareDesktopLogDirectory({
   Future<Directory> Function()? applicationSupportDirectory,
 }) async {
   final env = environment ?? Platform.environment;
-  final dataRoot = (await resolveNightshadeDataDirectory(
+  final dataRoot = (await resolveSkotiqDataDirectory(
     environment: env,
     applicationSupportDirectoryProvider: applicationSupportDirectory,
   )).path;
-  configureNightshadeDataDirectory(dataRoot, environment: env);
+  configureSkotiqDataDirectory(dataRoot, environment: env);
 
   final logDir = path.join(dataRoot, 'logs');
   await Directory(logDir).create(recursive: true);
@@ -129,7 +129,7 @@ Future<AppVersionInfo> loadDesktopAppVersion() async {
 /// native profile + settings storage onto [resolveDesktopProfileDirectory].
 /// Returns the resolved paths so the rest of the bootstrap can hand them to
 /// the `LoggingService` and `ProfileService` without re-querying
-/// [resolveNightshadeDataDirectory].
+/// [resolveSkotiqDataDirectory].
 ///
 /// This step must run before any provider that touches the Rust runtime
 /// (every backend method goes through `bridge.NativeBridge`), so it lives
@@ -138,7 +138,7 @@ Future<DesktopBootPaths> initialiseDesktopLogging() async {
   final (dataRoot: dataRoot, logDirectory: logDir) =
       await prepareDesktopLogDirectory();
 
-  // Ensure libraw.dll and other deps next to nightshade_bridge.dll resolve when
+  // Ensure libraw.dll and other deps next to skotiq_bridge.dll resolve when
   // the process working directory is not the Release folder (e.g. shortcuts).
   configureWindowsNativeDllSearchPath();
 
@@ -148,16 +148,16 @@ Future<DesktopBootPaths> initialiseDesktopLogging() async {
     // path that exists on the operator's machine.
     final (libName, bundleHint) = switch (Platform.operatingSystem) {
       'windows' => (
-        'nightshade_bridge.dll (plus libraw.dll)',
-        r'build\windows\x64\runner\Release\nightshade_desktop.exe with the DLLs beside it',
+        'skotiq_bridge.dll (plus libraw.dll)',
+        r'build\windows\x64\runner\Release\skotiq_desktop.exe with the DLLs beside it',
       ),
       'macos' => (
-        'libnightshade_bridge.dylib',
-        'build/macos/Build/Products/Release/nightshade_desktop.app with the dylib in Frameworks/',
+        'libskotiq_bridge.dylib',
+        'build/macos/Build/Products/Release/skotiq_desktop.app with the dylib in Frameworks/',
       ),
       _ => (
-        'libnightshade_bridge.so',
-        'build/linux/x64/release/bundle/nightshade_desktop with the .so in that bundle\'s lib/ directory',
+        'libskotiq_bridge.so',
+        'build/linux/x64/release/bundle/skotiq_desktop with the .so in that bundle\'s lib/ directory',
       ),
     };
     throw StateError(
@@ -186,7 +186,7 @@ Future<DesktopBootPaths> initialiseDesktopLogging() async {
 }
 
 /// Adds the executable directory to the Windows DLL search path so
-/// `nightshade_bridge.dll` can resolve `libraw.dll` and MSVC runtimes staged
+/// `skotiq_bridge.dll` can resolve `libraw.dll` and MSVC runtimes staged
 /// beside the desktop exe.
 void configureWindowsNativeDllSearchPath() {
   if (!Platform.isWindows) return;

@@ -2,7 +2,7 @@
 
 Topic: the ~30 private `_formatDuration` copies (Wave A cross-cutting cluster 7,
 "same shape, lower stakes"). Survivor:
-`packages/nightshade_core/lib/src/utils/duration_format.dart`, whose own doc
+`packages/skotiq_core/lib/src/utils/duration_format.dart`, whose own doc
 already records the bug that motivated it ("0 minutes" vs "12s" for the same
 run). It was extended, not forked.
 
@@ -54,7 +54,7 @@ doc and their exact output; they are now one-line delegates.
 **Naming note:** the canonical is a class, not a top-level `formatDuration`,
 because `run_dashboard/run_dashboard_format.dart` already declares a top-level
 `formatDuration` and `target_header_panel.dart` imports both it and
-`nightshade_core`. A top-level name would have been an ambiguous-import error
+`skotiq_core`. A top-level name would have been an ambiguous-import error
 there, not a shadow.
 
 **Carry note:** `roundToMinute` quantizes the **total** at the minute before
@@ -81,7 +81,7 @@ Two sites carried a hand-rolled dodge of the same symptom and lose it:
 
 ## Call sites re-pointed (27 helpers, 3 packages, 60 call sites)
 
-`nightshade_core` — 4 helpers
+`skotiq_core` — 4 helpers
 * `services/notes_service.dart` (top-level `_formatDuration`) → `of(hms)`
 * `services/notification_service.dart` → `of(hms)`
 * `services/session_report_service.dart` — **two** identical local
@@ -89,7 +89,7 @@ Two sites carried a hand-rolled dodge of the same symptom and lose it:
   → `of(hms)`
 * `services/session_optimizer_service.dart` → `of(compact)`
 
-`nightshade_app` — 21 helpers
+`skotiq_app` — 21 helpers
 * `screens/dashboard/widgets/session_progress_card.dart` (3 calls) → `hoursMinutes`
 * `screens/imaging/widgets/capture_panel.dart` (2 calls) → `formatIntegrationSeconds`
 * `screens/sequencer/tabs/history_tab.dart` → `hoursMinutes`
@@ -164,7 +164,7 @@ caller each, which is worse than the duplication:
 * `screens/imaging/widgets/capture_panel.dart:_formatSessionDuration` and
   `screens/analytics/analytics_screen/history_cards.dart:236` — a zero-padded
   `HH:MM:SS` clock and a decimal-hours badge (`1.8h`, `'0'` for nothing).
-* `packages/nightshade_ui/.../phd2/guide_graph_advanced.dart:571`
+* `packages/skotiq_ui/.../phd2/guide_graph_advanced.dart:571`
   (`_formatElapsed`) — a chart axis label that mixes `45s` / `2m` / `2:30`.
 
 One accepted rounding divergence, in the C1 `mad_sigma` spirit:
@@ -178,7 +178,7 @@ One accepted rounding divergence, in the C1 `mad_sigma` spirit:
 
 ## Parity tests
 
-`packages/nightshade_core/test/utils/duration_format_parity_test.dart` — 23
+`packages/skotiq_core/test/utils/duration_format_parity_test.dart` — 23
 tests. Every retired body is copied in **verbatim** as a `_ref*` function and the
 canonical is asserted equal to it over a sweep of every whole second from 0 to
 10 900 plus a 24 h / 25 h / 100 h tail:
@@ -202,9 +202,9 @@ canonical is asserted equal to it over a sweep of every whole second from 0 to
 
 ## Verification
 
-- `nightshade_core`: `test/utils` + `test/services` — 2901 passed, 4 skipped.
+- `skotiq_core`: `test/utils` + `test/services` — 2901 passed, 4 skipped.
   `test/providers` + `test/models` — 2372 passed.
-- `nightshade_app`, **as the gate runs it** (`--exclude-tags golden`):
+- `skotiq_app`, **as the gate runs it** (`--exclude-tags golden`):
   `test/screens/analytics` + `test/screens/dashboard` — 407 passed;
   `test/screens/sequencer` + `test/screens/imaging` + `test/widgets` — 935
   passed; `test/services` — 34 passed. Zero failures.
@@ -223,8 +223,8 @@ canonical is asserted equal to it over a sweep of every whole second from 0 to
   `flutter_tester` processes from the killed run holding the shared test
   database; killed by pattern, and the same suites then ran clean. `test/services`
   alone finishes in 2 s.
-- Analyzer: `nightshade_core` lib+test clean (2 pre-existing `dispose`
-  deprecation infos in a database test); `nightshade_app` lib 17 issues, all
+- Analyzer: `skotiq_core` lib+test clean (2 pre-existing `dispose`
+  deprecation infos in a database test); `skotiq_app` lib 17 issues, all
   pre-existing `clampPanelWidth` deprecation infos + one doc-comment info, 0
   errors; `apps/mobile` lib clean.
 - `dart format --set-exit-if-changed` over the 29 touched files only — clean.

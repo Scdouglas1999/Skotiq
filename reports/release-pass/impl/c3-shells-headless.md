@@ -167,7 +167,7 @@ lives; out of scope for a mechanical split.
 - `dart run tools/production/headless_route_policy_audit.dart` → passed, 0 issues,
   outputs byte-identical to HEAD.
 - `dart run tools/production/bridge_boundary_audit.dart` → 1 violation, pre-existing
-  and outside this batch (`packages/nightshade_app/lib/utils/user_facing_error.dart`);
+  and outside this batch (`packages/skotiq_app/lib/utils/user_facing_error.dart`);
   the sequencer parts inherit the whitelisted import from
   `sequencer_handlers.dart` and add no new importer.
 - `dart run tools/production/headless_response_helper_audit.dart` → 0 issues.

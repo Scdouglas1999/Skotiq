@@ -7,8 +7,8 @@ const _jsonOutputPath = 'docs/production-readiness/ui-consistency-audit.json';
 const _scanRoots = <String>[
   'apps/desktop/lib',
   'apps/mobile/lib',
-  'packages/nightshade_app/lib',
-  'packages/nightshade_ui/lib',
+  'packages/skotiq_app/lib',
+  'packages/skotiq_ui/lib',
 ];
 
 const _excludedSegments = <String>[
@@ -37,7 +37,7 @@ final _rules = <_Rule>[
     ),
     summary:
         'Raw Material button styling should be justified or moved to '
-        'NightshadeButton/theme defaults.',
+        'SkotiqButton/theme defaults.',
   ),
   _Rule(
     id: 'raw_material_color',
@@ -64,13 +64,13 @@ final _rules = <_Rule>[
       // The Observatory scale replaced h1..h6 with display / pageTitle /
       // sectionTitle / eyebrow, and statValue / statLabel with the readout
       // family (docs/design/overhaul/03-tokens.md §2).
-      r'NightshadeTypography\.(?:h[1-6]|statValue|statLabel)\b'
+      r'SkotiqTypography\.(?:h[1-6]|statValue|statLabel)\b'
       // `surfaceAlt` was the fourth tone in a ladder that now has five; an
       // inset is `well` and a container is `surface` (§1.1).
       r'|\.surfaceAlt\b'
       // The pre-overhaul decoration factories, replaced by panel / well /
       // panelSelected / railItemSelected / chip / popover / dialog (§5.2).
-      r'|NightshadeDecorations\.(?:iconChip|emphasisSurface|tintedBadge'
+      r'|SkotiqDecorations\.(?:iconChip|emphasisSurface|tintedBadge'
       r'|statusChip|selectedSurface|cardSelected|navSelected|cardHover'
       r'|dragFeedback|kpiBadge|filledButtonColors|filledButton)\b',
     ),
@@ -176,7 +176,7 @@ void main(List<String> args) {
         (galleryEvidence['missing'] as List<String>).length;
     for (final missing in galleryEvidence['missing'] as List<String>) {
       findings.add(
-        'packages/nightshade_ui/lib/src/widgets/design_system_gallery.dart:'
+        'packages/skotiq_ui/lib/src/widgets/design_system_gallery.dart:'
         '0:design_system_gallery_missing:$missing',
       );
     }
@@ -492,10 +492,10 @@ List<String> _headlessRouteFindings() {
 
 Map<String, Object?> _designSystemGalleryEvidence() {
   const widgetPath =
-      'packages/nightshade_ui/lib/src/widgets/design_system_gallery.dart';
-  const exportPath = 'packages/nightshade_ui/lib/nightshade_ui.dart';
+      'packages/skotiq_ui/lib/src/widgets/design_system_gallery.dart';
+  const exportPath = 'packages/skotiq_ui/lib/skotiq_ui.dart';
   const testPath =
-      'packages/nightshade_ui/test/design_system_gallery_test.dart';
+      'packages/skotiq_ui/test/design_system_gallery_test.dart';
   final missing = <String>[];
   final componentEvidence = <String, bool>{};
   final testEvidence = <String, bool>{};
@@ -521,7 +521,7 @@ Map<String, Object?> _designSystemGalleryEvidence() {
 
   // The Observatory kit, section by section (05 §18). The list used to name
   // the PRE-overhaul library — Cards, the pill Tabs, Chips and Status Pills,
-  // Alerts, `SubTabButton`, `StatusPill`, `NightshadeAlert` — and wave 4
+  // Alerts, `SubTabButton`, `StatusPill`, `SkotiqAlert` — and wave 4
   // deleted those sections from the gallery, so holding the gallery to them
   // would have demanded the retired kit back.
   const requiredComponentMarkers = <String>[
@@ -541,25 +541,25 @@ Map<String, Object?> _designSystemGalleryEvidence() {
     'Checklist',
     'Night band',
     'Buttons and icon buttons',
-    'NightshadeButton',
-    'NightshadeIconButton',
-    'NightshadePanel',
+    'SkotiqButton',
+    'SkotiqIconButton',
+    'SkotiqPanel',
     'PanelHead',
     'Readout(',
     'AdaptiveTabBar',
     'SegmentedControl',
-    'NightshadeToolbar',
-    'NightshadeTextField',
-    'NightshadeDropdown',
-    'NightshadeCheckbox',
-    'NightshadeSwitch',
+    'SkotiqToolbar',
+    'SkotiqTextField',
+    'SkotiqDropdown',
+    'SkotiqCheckbox',
+    'SkotiqSwitch',
     'FormRow',
-    'NightshadeChip',
+    'SkotiqChip',
     'StatusDot',
     'InstrumentPill',
-    'NightshadeBanner',
+    'SkotiqBanner',
     'EmptyState',
-    'NightshadeDialog',
+    'SkotiqDialog',
     'SidePanel(',
     'SectionTitle',
     'Checklist(',
@@ -579,20 +579,20 @@ Map<String, Object?> _designSystemGalleryEvidence() {
 
   // The keys the gallery test actually drives. `gallery-status-*` belonged to
   // the deleted StatusPill row, `SubTabButton` to the deleted pill tabs, and
-  // `DropdownButton<String>` to Material's menu — `NightshadeDropdown` builds
+  // `DropdownButton<String>` to Material's menu — `SkotiqDropdown` builds
   // its own popover now (05 §8), so the test names the component instead.
   const requiredTestMarkers = <String>[
-    'NightshadeTheme.dark',
-    'NightshadeTheme.light',
-    'NightshadeTheme.redNight',
+    'SkotiqTheme.dark',
+    'SkotiqTheme.light',
+    'SkotiqTheme.redNight',
     'gallery controls update representative states',
     'gallery-button-primary',
     'gallery-button-secondary',
     'gallery-dropdown',
     'gallery-switch',
-    'NightshadeDropdown',
-    'NightshadeCheckbox',
-    'NightshadeSwitch',
+    'SkotiqDropdown',
+    'SkotiqCheckbox',
+    'SkotiqSwitch',
   ];
   for (final marker in requiredTestMarkers) {
     final present = testContent.contains(marker);
@@ -637,19 +637,19 @@ bool _shouldSkip(String normalizedPath) {
 
 bool _isScopedOutFinding({required String path, required String ruleId}) {
   if (ruleId == 'raw_button_style' &&
-      path == 'packages/nightshade_ui/lib/src/theme/nightshade_theme.dart') {
+      path == 'packages/skotiq_ui/lib/src/theme/skotiq_theme.dart') {
     // ThemeData button defaults are the preferred fallback for Material buttons.
     return true;
   }
   if (ruleId == 'raw_button_style' &&
       path ==
-          'packages/nightshade_app/lib/screens/mosaic/mosaic_project_screen.dart') {
+          'packages/skotiq_app/lib/screens/mosaic/mosaic_project_screen.dart') {
     // A muted breadcrumb, not an action: the theme's TextButton default paints
     // it as a primary one. The override keeps kMinInteractiveDimension.
     return true;
   }
   if (ruleId == 'deprecated_text_style' &&
-      path == 'packages/nightshade_ui/lib/src/theme/nightshade_colors.dart') {
+      path == 'packages/skotiq_ui/lib/src/theme/skotiq_colors.dart') {
     // The rule is about CALL SITES. This file is where `surfaceAlt` is
     // declared, and a deprecated field still has to appear in its own class's
     // constructor, copyWith, lerp, == and hashCode until wave 4 removes it.

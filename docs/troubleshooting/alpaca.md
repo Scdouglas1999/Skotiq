@@ -1,6 +1,6 @@
 # Alpaca Troubleshooting
 
-Alpaca is ASCOM's network protocol. Nightshade can use Alpaca devices directly
+Alpaca is ASCOM's network protocol. Skotiq can use Alpaca devices directly
 or through bridges such as ASCOM Remote.
 
 ## Quick Checks
@@ -9,7 +9,7 @@ or through bridges such as ASCOM Remote.
 2. Confirm the client and device are on the expected network.
 3. Confirm the IP address and port. Many Alpaca servers use port `11111`, but
    the server may be configured differently.
-4. Confirm the Alpaca server reports the device type Nightshade is trying to
+4. Confirm the Alpaca server reports the device type Skotiq is trying to
    use.
 
 ## Discovery Does Not Find the Device
@@ -35,7 +35,7 @@ Alpaca servers vary by device and driver. A connected device can still lack
 optional capabilities such as parking, dome slaving, rotator movement, cooling,
 or weather/safety fields.
 
-When a feature is not exposed by the Alpaca server, Nightshade should disable the
+When a feature is not exposed by the Alpaca server, Skotiq should disable the
 control or show an actionable error rather than pretending the command is
 available.
 

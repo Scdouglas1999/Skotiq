@@ -6,9 +6,9 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_core/src/database/database.dart' as db;
-import 'package:nightshade_desktop/headless_api/handlers/focus_model_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/src/database/database.dart' as db;
+import 'package:skotiq_desktop/headless_api/handlers/focus_model_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -171,13 +171,13 @@ void main() {
     const profileId = 1;
     const filter = 'Ha';
 
-    late db.NightshadeDatabase database;
+    late db.SkotiqDatabase database;
     late ProviderContainer container;
     late FocusModelHandlers handlers;
     late PredictiveAfService runService;
 
     setUp(() async {
-      database = db.NightshadeDatabase.forTesting(NativeDatabase.memory());
+      database = db.SkotiqDatabase.forTesting(NativeDatabase.memory());
       await database
           .into(database.equipmentProfiles)
           .insert(

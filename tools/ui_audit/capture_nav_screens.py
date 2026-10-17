@@ -1,4 +1,4 @@
-"""Click side-nav items and capture Nightshade screens (UI audit)."""
+"""Click side-nav items and capture Skotiq screens (UI audit)."""
 from __future__ import annotations
 
 import subprocess
@@ -34,7 +34,7 @@ SCREENS = [
 def main() -> int:
     out_dir = Path(__file__).resolve().parents[2] / ".ui-audit-screenshots"
     out_dir.mkdir(parents=True, exist_ok=True)
-    hwnd = find_window("Nightshade")
+    hwnd = find_window("Skotiq")
     left, top, _, _ = win32gui.GetWindowRect(hwnd)
     win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
     win32gui.SetForegroundWindow(hwnd)

@@ -21,7 +21,7 @@ am not going to quietly rewrite it.
 | Equipment | 68.5%    |
 | Dashboard | 62.3%    |
 
-Thread split on the idle Settings screen: `nightshade_desk` (platform/UI) **33.0%**,
+Thread split on the idle Settings screen: `skotiq_desk` (platform/UI) **33.0%**,
 `io.flutter.rast` (raster) **30.2%**.
 
 **Why the UI-thread half is the real signal.** These numbers were taken under `softpipe`, a pure
@@ -42,7 +42,7 @@ saturated.
   class of bug has been found and fixed here before.
 * No `Timer.periodic` shorter than 1 second exists in the app or the UI package.
 
-There are **16** `AnimationController.repeat()` call sites in `nightshade_app` + `nightshade_ui`,
+There are **16** `AnimationController.repeat()` call sites in `skotiq_app` + `skotiq_ui`,
 and a purpose-built `on_screen_animation_gate.dart` utility. **Repro recipe** for whoever takes
 this: start any screen, leave it alone, then sample `utime+stime` from `/proc/<pid>/task/*/stat`
 over a few seconds — `ps pcpu` is a lifetime average and will hide the problem entirely (it read a
@@ -59,7 +59,7 @@ scales with pixel area while widget-rebuilding does not:
 | thread | 1600x900 | 640x480 | drop |
 |---|---|---|---|
 | `io.flutter.rast` | 30.2% | 6.0% | 5.0x |
-| `nightshade_desk` (UI/platform) | 33.0% | 2.4% | **13.8x** |
+| `skotiq_desk` (UI/platform) | 33.0% | 2.4% | **13.8x** |
 | *pixel area* | | | *4.7x* |
 
 Total idle CPU went 37.6% -> 8.8% against a raster-bound prediction of 8.0% and a logic-bound
@@ -86,7 +86,7 @@ the VM service, or `SchedulerBinding.addTimingsCallback`), not more `/proc` samp
 
 ### RESOLVED (2026-08-04) — measured with a frame counter, root-caused, fixed
 
-Built `apps/desktop/lib/frame_timing_probe.dart` (armed by `NIGHTSHADE_FRAME_TIMING=1`, inert
+Built `apps/desktop/lib/frame_timing_probe.dart` (armed by `SKOTIQ_FRAME_TIMING=1`, inert
 otherwise) and ran the release bundle idle on the Dashboard:
 
 ```text
@@ -141,7 +141,7 @@ from the widget tree.
 ## L-2 — P2 UX — "Skip onboarding" is not honoured: two more tour prompts appear immediately, then one per screen
 
 Clicking **Skip onboarding** on the 13-step setup wizard lands on the Dashboard with **two competing
-tour prompts on screen at once**: a modal *"Step 1 of 7 — Welcome to Nightshade"* dialog in the
+tour prompts on screen at once**: a modal *"Step 1 of 7 — Welcome to Skotiq"* dialog in the
 centre, and a separate *"Dashboard Tour"* card in the bottom-right (visible but dimmed behind the
 modal barrier, so it reads as stuck).
 
@@ -172,32 +172,32 @@ Auto-connect equipment, Confirm before closing):
 A keyboard-only user cannot change any setting on this screen, and a screen-reader user cannot
 perceive its current value.
 
-**Root cause — one shared widget.** `packages/nightshade_ui/lib/src/components/nightshade_switch.dart:70-75`
+**Root cause — one shared widget.** `packages/skotiq_ui/lib/src/components/skotiq_switch.dart:70-75`
 builds the switch as a bare `MouseRegion` wrapping a `GestureDetector` with an `onTap`. There is no
 `Semantics` wrapper, no `toggled:` state, and no `Focus`/`FocusableActionDetector`, so the framework
-has nothing to report and nothing to focus. `NightshadeSwitchRow` (the settings row) composes this
+has nothing to report and nothing to focus. `SkotiqSwitchRow` (the settings row) composes this
 widget, so **every switch in the product inherits the defect** — all 664 settings rows plus the
 imaging and session panels that use the same row.
 
-The fix pattern already exists in the same package: `nightshade_chip`, `nav_item`,
-`nightshade_stepper`, `adaptive_tab_bar`, `sub_tab_button`, `nightshade_button` and
+The fix pattern already exists in the same package: `skotiq_chip`, `nav_item`,
+`skotiq_stepper`, `adaptive_tab_bar`, `sub_tab_button`, `skotiq_button` and
 `hold_to_confirm_button` all wrap themselves in `Semantics`. The switch simply missed it. Wrapping
 in `Semantics(toggled: value, enabled: ..., onTap: ...)` inside a focusable action detector fixes
 the whole app at one site.
 
 **It is not only the switch.** Of the 30 components in
-`packages/nightshade_ui/lib/src/components/`, **9 are interactive but contain no `Semantics` at
+`packages/skotiq_ui/lib/src/components/`, **9 are interactive but contain no `Semantics` at
 all** — and they include both primary form controls:
 
 ```
-animated_icon_button.dart   histogram_display.dart    nightshade_alert.dart
-nightshade_card.dart        nightshade_checkbox.dart  nightshade_switch.dart
-nightshade_tooltip.dart     science_info_button.dart  status_pill.dart
+animated_icon_button.dart   histogram_display.dart    skotiq_alert.dart
+skotiq_card.dart        skotiq_checkbox.dart  skotiq_switch.dart
+skotiq_tooltip.dart     science_info_button.dart  status_pill.dart
 ```
 
 So checkboxes are in exactly the same state as switches. Since the design system is what the whole
 app is built from, this should be fixed at the component level and then guarded — the repo already
-runs custom audits under `tools/production/`, and "an interactive component in nightshade_ui with no
+runs custom audits under `tools/production/`, and "an interactive component in skotiq_ui with no
 Semantics" is a mechanically checkable rule that would stop it recurring.
 
 *Aside:* this is also what defeated a mechanical Tab-traversal sweep of every switch
@@ -209,11 +209,11 @@ itself the evidence above.
 
 ## L-4 — P2 — the checkpoint directory ignores the configured data directory
 
-With both `NIGHTSHADE_DATABASE_DIR` and `NIGHTSHADE_DATA_DIR` pointed at a scratch profile, the app
+With both `SKOTIQ_DATABASE_DIR` and `SKOTIQ_DATA_DIR` pointed at a scratch profile, the app
 logs:
 
 ```
-INFO Setting checkpoint directory to: /home/scdouglas/.local/share/com.example.nightshade_desktop
+INFO Setting checkpoint directory to: /home/scdouglas/.local/share/com.skotiq.desktop
 ```
 
 Sequence checkpoints — the crash-recovery state that decides whether an interrupted run can be

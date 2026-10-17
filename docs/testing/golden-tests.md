@@ -2,15 +2,15 @@
 
 > Owner: CI / build. Companion to `docs/ci-gates.md`.
 
-Nightshade has two kinds of golden test. Only one of them is host-sensitive,
+Skotiq has two kinds of golden test. Only one of them is host-sensitive,
 and the strategy below keeps CI trustworthy without throwing away the committed
 baselines.
 
 ## Two kinds of "golden"
 
 1. **Capture / review goldens** (`docs/design/goldens/`, written by
-   `nightshade_ui/test/golden/golden_harness.dart` and
-   `nightshade_app/test/golden/surface_golden_harness.dart`). These render a
+   `skotiq_ui/test/golden/golden_harness.dart` and
+   `skotiq_app/test/golden/surface_golden_harness.dart`). These render a
    real surface and write a PNG for a human to eyeball. **They are NOT
    pixel-diff guards** — the test bodies assert only that a non-empty image was
    produced, so they pass on any host.
@@ -18,7 +18,7 @@ baselines.
    Writing those tracked PNGs is **opt-in**. Both harnesses resolve their
    output directory through `goldensDir()` (and `screenshotsDir()` for the
    `assets/screenshots/` set), which points at the committed directory only
-   when `NIGHTSHADE_CAPTURE_ASSETS=1` is set and at a throwaway temp directory
+   when `SKOTIQ_CAPTURE_ASSETS=1` is set and at a throwaway temp directory
    otherwise. The render, rasterise, encode, write and assert steps run
    identically either way, so the tests keep proving a real non-empty image was
    produced while a plain `flutter test` leaves the working tree clean. Before
@@ -32,7 +32,7 @@ baselines.
    - `matchesGoldenFile(...)` tests (framing/HiPS render locks, the phone
      `captures_landscape_test.dart` reflow captures, the HiPS fixture mosaic).
    - The planetarium benchmark perceptual gate
-     (`nightshade_planetarium/test/benchmark/golden_compare_test.dart`), which
+     (`skotiq_planetarium/test/benchmark/golden_compare_test.dart`), which
      fails if more than `kGoldenMaxChangedFraction` (0.2%) of pixels differ by
      more than `kGoldenChannelTolerance` (2/255).
 
@@ -77,7 +77,7 @@ three months and were written off as host drift. They were not:
 - **The baselines encode a retired colour token.** Their page background is
   `#0A0C0F`; the Linux renders' is `#0B0D12`. `284a95fd9 feat(ui): the
   Observatory token set` (2026-09-09) retired `#0A0C0F` for `#0B0D12`, and
-  `packages/nightshade_ui/test/dark_contrast_test.dart` documents that exact
+  `packages/skotiq_ui/test/dark_contrast_test.dart` documents that exact
   move. The baselines were last captured 2026-06-01 - three months earlier.
 - **The headline percentage was misleading.** 98.3% of the
   `framing_hips_layer_wiring` diff was a sub-visual shift of <=3/255: the whole
@@ -115,7 +115,7 @@ This was chosen over the alternatives because:
   also absorb the real regressions these tests exist to catch (a dropped star,
   a de-registered FOV reticle).
 - Tag-gating mirrors the existing `live-network` opt-in convention already in
-  `packages/nightshade_core/dart_test.yaml`, so it is a known pattern in this
+  `packages/skotiq_core/dart_test.yaml`, so it is a known pattern in this
   repo.
 
 ## Re-baselining
@@ -151,10 +151,10 @@ written only when explicitly asked for:
 
 ```sh
 # the design-language boards (docs/design/goldens/)
-NIGHTSHADE_CAPTURE_ASSETS=1 flutter test test/golden/ # in nightshade_ui / nightshade_app
+SKOTIQ_CAPTURE_ASSETS=1 flutter test test/golden/ # in skotiq_ui / skotiq_app
 
 # the 12 public screenshots (assets/screenshots/)
-NIGHTSHADE_CAPTURE_ASSETS=1 flutter test test/golden/public_screenshots_test.dart
+SKOTIQ_CAPTURE_ASSETS=1 flutter test test/golden/public_screenshots_test.dart
 ```
 
 Both are rendered by the running app's real screens, so capture them on the

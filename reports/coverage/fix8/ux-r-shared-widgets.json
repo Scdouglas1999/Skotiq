@@ -8,7 +8,7 @@
   "what_happened": "Navigating to Weather leaves the scrubber at 'Frame 1 of 13' / 08:20 with the playhead pinned to the far left, while the wall clock was 10:26 and the scrubber's own green NOW marker sits at the far right over frame 13. The map you are looking at is therefore 2 hours out of date until you press play or drag.",
   "expected": "A cloud radar should open on the newest frame (frame 13 / NOW) and let you scrub BACK to see where the cloud came from. That is what RainViewer's own viewer, Clear Outside and the ASIAIR's sky view all do. Opening two hours in the past is the one state that can make you decide to keep imaging under cloud that has already arrived.",
   "repro": "Sidebar -> Weather. Read 'Frame N of 13' and the time chip next to the scrubber against the clock in the status bar. Observed on first paint with no interaction.",
-  "where": "packages/nightshade_app/lib/widgets/weather/radar_timeline_scrubber.dart (currentFrameIndex initialised by screens/weather/weather_screen.dart:339)",
+  "where": "packages/skotiq_app/lib/widgets/weather/radar_timeline_scrubber.dart (currentFrameIndex initialised by screens/weather/weather_screen.dart:339)",
   "location_wrong": null,
   "proposed_fix": "Initialise the frame index to frames.length - 1 (the NOW frame) instead of 0, and have the skip-next button jump to NOW rather than stepping one frame.",
   "verdict_reasoning": null
@@ -22,7 +22,7 @@
   "what_happened": "The control renders as a classic split button: a filled 'Slew' button with a chevron attached. But the whole visual child is wrapped in IgnorePointer, so clicking the 'Slew' half does not slew - it opens the same dropdown as the chevron. You must then click 'Slew' a second time, in the menu.",
   "expected": "A split button's primary half performs the default action; only the chevron opens the alternatives. That is how NINA's 'Slew'/'Slew and center' and SGP's target actions behave. As built, the most common action (plain slew) costs two clicks and a menu traversal, and the affordance actively lies about what the left half does.",
   "repro": "Imaging > Mount > GoTo/Sync with valid coordinates and the mount unparked. Click the middle of the 'Slew' label (not the chevron). The dropdown opens instead of the mount moving.",
-  "where": "packages/nightshade_app/lib/widgets/slew_dropdown_button.dart:154-171 (IgnorePointer + onPressed: enabled ? () {} : null)",
+  "where": "packages/skotiq_app/lib/widgets/slew_dropdown_button.dart:154-171 (IgnorePointer + onPressed: enabled ? () {} : null)",
   "location_wrong": null,
   "proposed_fix": "Split the hit area: the label runs _handleSlewMode(SlewMode.slew) directly, the chevron opens the popup.",
   "verdict_reasoning": null
@@ -36,7 +36,7 @@
   "what_happened": "Event 2 was stored with pinned=1. On the NIGHT STORY timeline its row is visually identical to the two unpinned rows - same dot, same layout, no pin glyph, no ordering change. The 'PINNED' label appears only after you open that specific event's detail sheet.",
   "expected": "Pinning exists so an operator can mark the two or three things that mattered in an eight-hour night. A pin you can only see by opening each item one at a time is not a pin. Show a pin glyph on the timeline row (and ideally offer a 'Pinned only' chip next to the existing All/Discoveries/Milestones/Conditions/Equipment/Quality filters).",
   "repro": "Set pinned=1 on one narrator_events row, open Analytics > Science > NIGHT STORY, compare the three rows, then open each one.",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/night_story_timeline.dart (row builder) - the PINNED treatment lives only in widgets/narrator/narrator_detail_sheet.dart:84-93.",
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/night_story_timeline.dart (row builder) - the PINNED treatment lives only in widgets/narrator/narrator_detail_sheet.dart:84-93.",
   "location_wrong": null,
   "proposed_fix": "Render the pin state on the timeline row and add a pinned filter chip.",
   "verdict_reasoning": null

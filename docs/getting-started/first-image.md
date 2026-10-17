@@ -1,6 +1,6 @@
 # Capturing Your First Image
 
-This guide walks through a conservative first imaging run with Nightshade.
+This guide walks through a conservative first imaging run with Skotiq.
 Start with a short, low-risk exposure and verify each device before moving to
 long sequences or unattended automation.
 
@@ -120,7 +120,7 @@ To capture a series of images:
 ### Step 3: Start the Sequence
 
 1. Click **START EXPOSURE**
-2. Nightshade will capture the specified number of images
+2. Skotiq will capture the specified number of images
 3. Progress shows: "Capturing 3 of 10..."
 4. Each image auto-saves to your chosen location
 
@@ -152,7 +152,7 @@ Critical for sharp images:
 1. Go to **Imaging** > **Focus** tab
 2. Select a bright star
 3. Click **Auto Focus** to run automatic focusing routine
-   - Nightshade will take a series of exposures at different focus positions
+   - Skotiq will take a series of exposures at different focus positions
    - Automatically finds the sharpest focus
 4. Or use **Manual Focus**:
    - Click **Start** to begin live focusing mode
@@ -166,7 +166,7 @@ For exposures longer than 30-60 seconds, use guiding when your setup supports it
 
 1. Go to **Imaging** > **Guiding** tab
 2. Ensure PHD2 is installed, running, and connected to the guide setup
-3. Click **Start Guiding** in Nightshade
+3. Click **Start Guiding** in Skotiq
 4. PHD2 will calibrate (if needed) and begin guiding
 5. Wait for "Guiding" status before starting exposures
 
@@ -221,7 +221,7 @@ To verify your framing and get precise coordinates:
 
 1. Capture a test image (30+ seconds for better star detection)
 2. Click **Plate Solve** button in the image toolbar
-3. Nightshade will analyze star patterns and determine:
+3. Skotiq will analyze star patterns and determine:
    - Exact RA/Dec of image center
    - Field of view
    - Image rotation angle
@@ -280,7 +280,7 @@ All captured images are tracked:
 
 ### Camera not responding during exposure
 - Don't disconnect USB during exposure
-- Don't close Nightshade during exposure
+- Don't close Skotiq during exposure
 - If frozen, wait for exposure timeout, then reconnect camera
 - Check USB power delivery is sufficient
 
@@ -352,6 +352,6 @@ Now that you've captured your first images:
 Questions about imaging?
 - [Imaging Features Guide](../features/imaging.md) - Detailed feature documentation
 - [Troubleshooting Guide](../troubleshooting/common-issues.md) - Common problems and solutions
-- [GitHub Issues](https://github.com/Scdouglas1999/Nightshade/issues) - Report bugs or ask for help
+- [GitHub Issues](https://github.com/Scdouglas1999/Skotiq/issues) - Report bugs or ask for help
 
 Clear skies and happy imaging!

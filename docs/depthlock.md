@@ -1,11 +1,11 @@
 # DepthLock
 
-Mark the detail you care about. Nightshade keeps track of what it still needs.
+Mark the detail you care about. Skotiq keeps track of what it still needs.
 
 DepthLock turns "is that faint tail deep enough yet?" into something the
 software answers with a number instead of a squint at a stretched preview. You
 draw a box over the structure and a second box over nearby blank sky, pick how
-deep you want to get, and Nightshade measures that patch on every matching
+deep you want to get, and Skotiq measures that patch on every matching
 exposure from then on — across nights, across sessions.
 
 A goal is one filter, on one target, with one setup. If you want L and Ha both
@@ -80,7 +80,7 @@ one fails:
   the stack would not land on the reference frame, and marking is blocked
   outright rather than silently anchored to the wrong pixels.
 
-Saved goals are drawn over the stack too, as long as Nightshade has a plate
+Saved goals are drawn over the stack too, as long as Skotiq has a plate
 solve on record for the reference sub. Without one you can still mark a region
 — the conversion uses the file's own header — but nothing is drawn over the
 stack until the sub is solved, and the toolbar says so.
@@ -121,7 +121,7 @@ matched to this sub" — with the path on hover and a **Change…** action. If t
 library has no match, the picker appears inline with the reason.
 
 **The error floor is derived, not typed.** Once both masters are chosen,
-Nightshade measures the calibration error floor from them at the chosen
+Skotiq measures the calibration error floor from them at the chosen
 aperture and shows it as one line: *Error floor 0.42 ADU — from your masters*.
 **Show working** opens the derivation — dark noise, flat noise, sky level and
 the aperture it was computed for — and the sentence describing it is stored with
@@ -224,7 +224,7 @@ same noise model that produces the score, run forward.
 a promise, and that is why it is always quoted "at the recent sky" and always in
 integration time rather than as a finishing time. How many hours a goal needs is
 a property of the data; which night those hours land on is weather, and
-Nightshade does not pretend to know it. You will never see a clock time or a
+Skotiq does not pretend to know it. You will never see a clock time or a
 completion date here.
 
 ### The floor limit
@@ -329,7 +329,7 @@ number anyway. It needs:
 
 - **Monochrome, linear, 16-bit data.** Not a colour render, not a stretched
   preview.
-- **Nightshade-format calibration masters** — `FRAMETYP=MASTER`, a flat
+- **Skotiq-format calibration masters** — `FRAMETYP=MASTER`, a flat
   normalised to unit mean, and at least 8 frames behind each master. The
   presentation-oriented clipping calibration used for previews cannot be used
   here, because it discards the signed values the measurement depends on.
@@ -372,7 +372,7 @@ with **All goals** to go back. The detail view is where the full numbers and
 every action live.
 
 The first time a markable frame is on screen and you have no goals yet,
-Nightshade offers the feature once, above the frame. Dismissing it, or taking
+Skotiq offers the feature once, above the frame. Dismissing it, or taking
 it, is remembered.
 
 ## Adding frames by hand

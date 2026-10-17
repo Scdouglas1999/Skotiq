@@ -11,7 +11,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_dependency_hygiene_self_test_',
+    'skotiq_dependency_hygiene_self_test_',
   );
   try {
     await _writePassingFixture(temp);

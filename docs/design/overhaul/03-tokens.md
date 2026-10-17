@@ -5,7 +5,7 @@ Dart edit for every token so an implementing agent never has to interpret. Run
 `python3 docs/design/overhaul/tools/check_tokens.py` after any change to the JSON; it fails the
 build if any text or status colour drops below WCAG AA 4.5:1 on any surface.
 
-All Dart paths are under `packages/nightshade_ui/lib/src/`.
+All Dart paths are under `packages/skotiq_ui/lib/src/`.
 
 ## 0. JSON → Dart name map (read this before mirroring anything)
 
@@ -14,30 +14,30 @@ key name.
 
 | JSON key | Dart name | Notes |
 |---|---|---|
-| `palettes.*.bg` | `NightshadeColors.background` | |
-| `palettes.*.well` | `NightshadeColors.well` | new field |
+| `palettes.*.bg` | `SkotiqColors.background` | |
+| `palettes.*.well` | `SkotiqColors.well` | new field |
 | `palettes.*.surfaceAlt` | not in JSON | deprecated; value in §1.1 |
-| `palettes.*.borderStrong` | `NightshadeColors.borderHighlight` | |
+| `palettes.*.borderStrong` | `SkotiqColors.borderHighlight` | |
 | `palettes.*.onPrimary` | derived by `useDarkOnPrimary` | do not add a field |
-| `palettes.*.startFill` / `onStart` | `NightshadeColors.startFill` / `onStart` | new fields (Start button) |
-| `palettes.*.accentSwatches` | `AppearanceAccents.forTheme(mode)` | new const list in `nightshade_theme.dart` |
-| `palettes.*.bands.*` | `NightshadeColors.bandDusk/bandTwilight/bandDark/bandDawn` | new fields (NightBand) |
-| `typography.styles.pageTitle` | `NightshadeTypography.pageTitle` | NOT `h1`; `h1` (32) stays and is deprecated |
-| `typography.styles.sectionTitle` | `NightshadeTypography.sectionTitle` | NOT `h2` |
+| `palettes.*.startFill` / `onStart` | `SkotiqColors.startFill` / `onStart` | new fields (Start button) |
+| `palettes.*.accentSwatches` | `AppearanceAccents.forTheme(mode)` | new const list in `skotiq_theme.dart` |
+| `palettes.*.bands.*` | `SkotiqColors.bandDusk/bandTwilight/bandDark/bandDawn` | new fields (NightBand) |
+| `typography.styles.pageTitle` | `SkotiqTypography.pageTitle` | NOT `h1`; `h1` (32) stays and is deprecated |
+| `typography.styles.sectionTitle` | `SkotiqTypography.sectionTitle` | NOT `h2` |
 | `typography.styles.*` other | same name | `readoutXs`, `readoutBadge`, `monoCaption`, `buttonLg` are new |
 | `space.1/2/3/4/5/6/8/12` | `spaceXs/Sm/Md/Lg/Xl/2xl/3xl/4xl` | values unchanged |
 | `radius.xs/sm/md/lg/xl` | `radiusXs/Sm/Md/Lg/Xl` | 4/6/6/8/12 — same keys, same meaning |
 | `shell.topBarHeight` | `ShellChromeMetrics.titleBarHeight` | |
 | `shell.instrumentBarHeight` | `ShellChromeMetrics.statusBarHeight` | |
-| `shell.railWidthCollapsed/Expanded` | `NightshadeTokens.sidebarCollapsed/Expanded` | |
+| `shell.railWidthCollapsed/Expanded` | `SkotiqTokens.sidebarCollapsed/Expanded` | |
 | `shell.railItemSize` | `ShellChromeMetrics.railItemSize` | new |
 | `shell.pageHeaderHeight`, `sidePanelWidth`, `windowControlWidth` | same names on `ShellChromeMetrics` | first two new |
-| `shell.iconButtonSize/Sm/Strip` | `NightshadeTokens.iconButtonSize/iconButtonSizeSm/iconButtonSizeStrip` | new |
+| `shell.iconButtonSize/Sm/Strip` | `SkotiqTokens.iconButtonSize/iconButtonSizeSm/iconButtonSizeStrip` | new |
 | `shell.narrowBottomNavHeight` | `BottomNavMetrics.barHeight` | |
 | `motion.hoverMs/stateMs/panelMs` | `durationFast/durationNormal/durationSmooth` | see §4 |
 | `motion.easing` | `Curves.easeOutCubic` | the bezier IS easeOutCubic |
-| `opacity.*` | `NightshadeTokens.opacity*` | see §5.1 |
-| `elevation.*` | `NightshadeDecorations.popover/dialog/glass` | shadows live in the factories, no token |
+| `opacity.*` | `SkotiqTokens.opacity*` | see §5.1 |
+| `elevation.*` | `SkotiqDecorations.popover/dialog/glass` | shadows live in the factories, no token |
 
 ## 1. Colour
 
@@ -90,7 +90,7 @@ on surfaceOverlay; onPrimary on primary 8.63:1. All pass.
 | `useDarkOnPrimary` | `false` | same |
 
 In light, panels DO get a 1 px `border` outline (white on off-white has no tone contrast). Dark
-panels do not. See `NightshadeDecorations.panel` in §5.
+panels do not. See `SkotiqDecorations.panel` in §5.
 
 ### 1.3 Red night palette
 
@@ -115,13 +115,13 @@ on white. `check_tokens.py` validates every swatch both as a fill (with the ink
 Dart: the swatch list in the Appearance settings section becomes a `switch` on the active
 `AppThemeMode`; store the chosen hex as today. If a stored accent fails the text-contrast floor
 for the current theme (user switched theme after choosing), fall back to that theme's first
-swatch for TEXT uses only (`NightshadeColors.primary` stays the chosen fill; add
-`NightshadeColors.link` = the contrast-safe variant, computed once in `resolveNightshadeThemeData`).
+swatch for TEXT uses only (`SkotiqColors.primary` stays the chosen fill; add
+`SkotiqColors.link` = the contrast-safe variant, computed once in `resolveSkotiqThemeData`).
 
-### 1.5 Dart edits — `theme/nightshade_colors.dart`
+### 1.5 Dart edits — `theme/skotiq_colors.dart`
 
 1. Add `well`, `startFill`, `onStart`, `bandDusk`, `bandTwilight`, `bandDark`, `bandDawn` as
-   `final Color` fields on `NightshadeColors`, required in the constructor, in `copyWith`, `lerp`,
+   `final Color` fields on `SkotiqColors`, required in the constructor, in `copyWith`, `lerp`,
    `==`, `hashCode`. `darkWithAccent`/`lightWithAccent` leave all seven untouched.
 2. Replace the three `static const` palettes with the values in 1.1–1.3 (keep the explanatory
    comments; update the measured numbers by running `check_tokens.py`).
@@ -172,7 +172,7 @@ Rules:
 - `h1`…`h6`, `label*`, `statValue`, `statLabel` REMAIN for compilation; they are deprecated. The
   `ui_consistency_audit.dart` rule `deprecated_text_style` (new, see 07) flags them.
 
-### 2.1 Dart edits — `theme/nightshade_typography.dart`
+### 2.1 Dart edits — `theme/skotiq_typography.dart`
 
 Add the eight new `static const TextStyle` members with exactly the numbers above (`letterSpacing`
 in logical px, `height` = line-height ratio, `fontFeatures: [FontFeature.tabularFigures()]` on all
@@ -180,7 +180,7 @@ in logical px, `height` = line-height ratio, `fontFeatures: [FontFeature.tabular
 `h1..h6, statValue, statLabel` with `@Deprecated('Use pageTitle/sectionTitle/display/readout*')`.
 Leave the `textTheme()` Material mappings UNCHANGED (Material widgets such as `AlertDialog` and
 `ListTile` read `titleLarge`; remapping it would resize every one of them). The new styles are
-used directly by Nightshade widgets.
+used directly by Skotiq widgets.
 
 ## 3. Space, radius, size
 
@@ -211,8 +211,8 @@ used directly by Nightshade widgets.
 | `radiusInline8` | 8 | 8 | = Lg |
 | `radiusInline9/11/12/…` | nearest of 4/6/8/12 | | see `docs/design/overhaul/archive/token-migration-map.md`; round 9→8, 11→12, 12→12, 14+→12 |
 
-Edit: `theme/nightshade_tokens.dart`, change the constants. Because 979 call sites in
-`packages/nightshade_app/lib` already reference `NightshadeTokens.radiusInline*` / `radius*`, the
+Edit: `theme/skotiq_tokens.dart`, change the constants. Because 979 call sites in
+`packages/skotiq_app/lib` already reference `SkotiqTokens.radiusInline*` / `radius*`, the
 value change reaches them with no edit. The remaining literals are: 110 `BorderRadius.circular(<n>)`
 and 29 `Radius.circular(<n>)`. Wave 0 replaces those by value: `(8)` → `borderRadiusLg`, `(6)` →
 `borderRadiusSm`, `(4)` and `(2)` → `borderRadiusXs`, `(12)` and larger → `borderRadiusXl`,
@@ -251,7 +251,7 @@ above → `radiusXl` (979 mechanical edits, one commit) and deletes the `radiusI
 
 ## 4. Motion
 
-`nightshade_tokens.dart` already has `durationMicro/Fast/Quick/Normal/Smooth/Slow/Cinematic/
+`skotiq_tokens.dart` already has `durationMicro/Fast/Quick/Normal/Smooth/Slow/Cinematic/
 Sluggish/Shimmer/Pulse`. Change the VALUES; keep the names so call sites compile:
 
 | Token | New ms | Was | Use |
@@ -265,16 +265,16 @@ Sluggish/Shimmer/Pulse`. Change the VALUES; keep the names so call sites compile
 | `durationCinematic` / `durationSluggish` | 300 | 400 / 500 | deprecated, alias of Slow |
 | `durationShimmer` / `durationPulse` | unchanged | | loading shimmer only |
 
-Curve: `Curves.easeOutCubic` everywhere. `nightshade_tokens.dart` has eight named curves
+Curve: `Curves.easeOutCubic` everywhere. `skotiq_tokens.dart` has eight named curves
 (`curveSnappy`, `curveAccelerate`, `curveBounce`, `curveSettle`, …): set every one of them to
 `Curves.easeOutCubic` in wave 0 and delete all but `curveStandard` (new alias) in wave 4. The JSON
 `motion.easing` bezier (0.215, 0.61, 0.355, 1) IS `easeOutCubic`. No bounce, no overshoot, no
 spring. The only continuous animation is the loading shimmer. The live
 dot's 3 px halo is static (`opacity 0.22`), not pulsing. Respect `MediaQuery.disableAnimations`.
 
-## 5. Elevation and decoration — `theme/nightshade_decorations.dart`
+## 5. Elevation and decoration — `theme/skotiq_decorations.dart`
 
-### 5.1 Opacity tokens — `theme/nightshade_tokens.dart`
+### 5.1 Opacity tokens — `theme/skotiq_tokens.dart`
 
 | Dart name | Value | Was | Use |
 |---|---|---|---|
@@ -296,7 +296,7 @@ as thin deprecated wrappers (table at the end) and are deleted in wave 4.
 
 | Factory | Dark | Light | Notes |
 |---|---|---|---|
-| `panel(colors)` | fill `surface`, radius `radiusLg`, 1 px ring white at `opacityPanelOutline` (4%, almost invisible: tone does the work), NO shadow | fill `surface`, 1 px `border`, radius `radiusLg` | replaces `NightshadeCard` standard |
+| `panel(colors)` | fill `surface`, radius `radiusLg`, 1 px ring white at `opacityPanelOutline` (4%, almost invisible: tone does the work), NO shadow | fill `surface`, 1 px `border`, radius `radiusLg` | replaces `SkotiqCard` standard |
 | `well(colors)` | fill `well`, radius `radiusSm` | fill `well`, radius `radiusSm` | inset; never nested in another well |
 | `panelSelected(colors)` | panel + 1 px ring `primary` at `opacitySelectedRing` (as `border`) | same | selected candidate, selected step |
 | `railItemSelected(colors)` | fill `primary` at 12%, radius `radiusLg` | same | icon + label in `primary` |
@@ -305,12 +305,12 @@ as thin deprecated wrappers (table at the end) and are deleted in wave 4.
 | `field(colors)` | fill `well`, 1 px ring white at `opacityPanelOutline` (focus: 1 px `primary`; error: 1 px `error`), radius `radiusSm` | fill `well`, 1 px `border` | |
 | `popover(colors)` | fill `surfaceElevated`, radius `radiusXl`, shadow `0 8 24 rgba(0,0,0,.45)` + 1 px ring white at `opacityHairline` | fill white, shadow `0 8 24 rgba(20,24,31,.14)` + 1 px `border` | menus, dropdowns, tooltips, toasts |
 | `dialog(colors)` | fill `surfaceOverlay`, radius `radiusXl`, shadow `0 24 64 rgba(0,0,0,.6)` + ring | fill white, shadow `0 24 64 rgba(20,24,31,.22)` | |
-| `glass(colors)` | fill `NightshadeColors.dark.surface` at 72% + `BackdropFilter(blur 12)`, 1 px white 10% border, radius `radiusLg` | SAME as dark (glass is anchored to the image, which is dark in every theme; contents use the dark text ladder); red night uses its own surface at 78% with a red 14% border | ONLY over imagery. Wrap in `RepaintBoundary` OUTSIDE any animation gate (see memory: animation-gate-repaint-boundary-order) |
+| `glass(colors)` | fill `SkotiqColors.dark.surface` at 72% + `BackdropFilter(blur 12)`, 1 px white 10% border, radius `radiusLg` | SAME as dark (glass is anchored to the image, which is dark in every theme; contents use the dark text ladder); red night uses its own surface at 78% with a red 14% border | ONLY over imagery. Wrap in `RepaintBoundary` OUTSIDE any animation gate (see memory: animation-gate-repaint-boundary-order) |
 | `hairline(colors)` | 1 px `border` | | dividers; use `Divider(height: 1, thickness: 1)` |
 
 Existing factories → replacement (wave 0 makes each a deprecated wrapper; wave 4 deletes):
 
-| Existing (`nightshade_decorations.dart`) | Becomes |
+| Existing (`skotiq_decorations.dart`) | Becomes |
 |---|---|
 | `iconChip` | `well` fill, radius `radiusSm` (the 26–36 px icon squares) |
 | `emphasisSurface` | `panel` |
@@ -319,10 +319,10 @@ Existing factories → replacement (wave 0 makes each a deprecated wrapper; wave
 | `navSelected` | `railItemSelected` |
 | `cardHover` | none: a panel has no hover; a tappable ROW gets `surfaceHover` fill |
 | `dragFeedback` | `popover` |
-| `filledButton` | none: `NightshadeButton` paints itself; buttons have no border |
+| `filledButton` | none: `SkotiqButton` paints itself; buttons have no border |
 
 `elevationLevel1/2/3`, `elevationLevel1to2`, `elevationInset`, `shadowSm/Md/Lg` live in
-`nightshade_tokens.dart` (not decorations): keep as deprecated in wave 0, delete in wave 4;
+`skotiq_tokens.dart` (not decorations): keep as deprecated in wave 0, delete in wave 4;
 their only legitimate successors are `popover` and `dialog`.
 
 ## 6. Icons

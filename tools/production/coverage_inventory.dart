@@ -26,10 +26,10 @@
 import 'dart:convert';
 import 'dart:io';
 
-const _appLib = 'packages/nightshade_app/lib';
+const _appLib = 'packages/skotiq_app/lib';
 const _searchIndexPath =
-    'packages/nightshade_app/lib/screens/settings/settings_search_index.g.dart';
-const _sequenceModelsDir = 'packages/nightshade_core/lib/src/models/sequence';
+    'packages/skotiq_app/lib/screens/settings/settings_search_index.g.dart';
+const _sequenceModelsDir = 'packages/skotiq_core/lib/src/models/sequence';
 const _outDir = 'reports/coverage';
 
 /// Widget constructors that a user can actually operate.
@@ -105,18 +105,18 @@ Map<String, Object?> _buildInventory(String root) {
     ..._treeUnits(root, 'apps/desktop/lib', 'desktop', 'desktop-app'),
     ..._treeUnits(
       root,
-      'packages/nightshade_planetarium/lib',
+      'packages/skotiq_planetarium/lib',
       'planetarium',
       'planetarium-pkg',
     ),
-    ..._treeUnits(root, 'packages/nightshade_ui/lib', 'ui', 'design-system'),
+    ..._treeUnits(root, 'packages/skotiq_ui/lib', 'ui', 'design-system'),
     ..._webUnits(root),
     ..._apiUnits(root),
     // Added 2026-08-14 (task #31 remainder): the hub server is a shipped
     // surface (Collaborative Sky) and was the last uncounted tree.
     ..._treeUnits(
       root,
-      'server/nightshade_hub/lib',
+      'server/skotiq_hub/lib',
       'hub',
       'hub-server',
       includeControlless: true,

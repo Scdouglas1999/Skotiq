@@ -4,16 +4,16 @@
   "outcome": "already-correct",
   "summary": "The render-time/press-time asymmetry the verifier confirmed is gone in the working tree. A prior wave introduced CullOfferStatus / CullRecommendationOffer and the SessionReviewController.cullRecommendationOffer getter, which evaluates EVERY guard cullToRecommended() used to only apply at press time (population length mismatch, duplicate accepted paths, any population path no longer accepted, keepN >= population.length, predictedSnrGainPct <= 0). cullToRecommended() now switches on that same getter, so render and press can never diverge. The rail gates its pressable, quantified action on offer.isOfferable and renders a non-actionable 'Cull analysis out of date' / 'Keep-set already optimal' chip otherwise. Verified live, not just read: 5 full-wiring widget tests over a real controller + real in-memory DB, and both halves of the fix independently revert-proven.",
   "evidence_file_line": [
-    "packages/nightshade_app/lib/screens/session_review/widgets/sub_cull_rail.dart:289 - render-time gate: onCullToRecommended: _offer.isOfferable ? () => _cullToRecommended(_offer) : null  (HEAD had the defect verbatim at :274: `curve != null && curve.recommendation.keepN > 0`)",
-    "packages/nightshade_app/lib/screens/session_review/session_review_controller.dart:1536 - cullRecommendationOffer getter; :1567 gain/coverage gate `rec.keepN >= population.length || rec.predictedSnrGainPct <= 0`",
-    "packages/nightshade_app/lib/screens/session_review/session_review_controller.dart:1589-1600 - cullToRecommended() reads the same getter, so the press handler holds no guard of its own",
-    "packages/nightshade_app/lib/screens/session_review/widgets/sub_cull_rail.dart:503 and :515 - stale / alreadyOptimal render a NightshadeChip, never a 'Keep best N (+X%)' button",
-    "packages/nightshade_app/lib/screens/session_review/widgets/sub_cull_rail.dart:113-140 - the rail listens to the controller so an accept/reject re-stales the offer with no new curve"
+    "packages/skotiq_app/lib/screens/session_review/widgets/sub_cull_rail.dart:289 - render-time gate: onCullToRecommended: _offer.isOfferable ? () => _cullToRecommended(_offer) : null  (HEAD had the defect verbatim at :274: `curve != null && curve.recommendation.keepN > 0`)",
+    "packages/skotiq_app/lib/screens/session_review/session_review_controller.dart:1536 - cullRecommendationOffer getter; :1567 gain/coverage gate `rec.keepN >= population.length || rec.predictedSnrGainPct <= 0`",
+    "packages/skotiq_app/lib/screens/session_review/session_review_controller.dart:1589-1600 - cullToRecommended() reads the same getter, so the press handler holds no guard of its own",
+    "packages/skotiq_app/lib/screens/session_review/widgets/sub_cull_rail.dart:503 and :515 - stale / alreadyOptimal render a SkotiqChip, never a 'Keep best N (+X%)' button",
+    "packages/skotiq_app/lib/screens/session_review/widgets/sub_cull_rail.dart:113-140 - the rail listens to the controller so an accept/reject re-stales the offer with no new curve"
   ],
   "files_changed": [
-    "packages/nightshade_app/test/screens/session_review/sub_cull_rail_download_test.dart"
+    "packages/skotiq_app/test/screens/session_review/sub_cull_rail_download_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/session_review/sub_cull_rail_stale_curve_test.dart - 5/5 pass; full package dir `flutter test test/screens/session_review/` 78/78 pass; `dart analyze lib/screens/session_review test/screens/session_review` -> No issues found",
+  "test": "packages/skotiq_app/test/screens/session_review/sub_cull_rail_stale_curve_test.dart - 5/5 pass; full package dir `flutter test test/screens/session_review/` 78/78 pass; `dart analyze lib/screens/session_review test/screens/session_review` -> No issues found",
   "revert_check": [
     "Severed the production wiring at sub_cull_rail.dart:289 (`_offer.isOfferable` -> `_offer.keepN > 0`, i.e. HEAD's condition): 4 of 5 tests fail with 'Found 1 widget with text containing Keep best ... none were expected'. Restored -> green.",
     "Severed the controller half at session_review_controller.dart:1567 (dropped `|| rec.predictedSnrGainPct <= 0`): the '+0%' test fails. Restored -> green."

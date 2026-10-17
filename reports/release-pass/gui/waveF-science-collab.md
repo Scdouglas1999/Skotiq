@@ -3,8 +3,8 @@
 **Date:** 2026-08-14 (00:00–00:35 local). **Harness:** `tools/ui_audit/drive_linux.py`,
 display `:86`, profile `waveE-science-collab` (`--profile` after the subcommand), reusing
 Wave E's data directory so the Aug-13 run and its 12 quick captures were already on disk.
-**Binary:** `apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`,
-`lib/libapp.so` + `lib/libnightshade_bridge.so` both stamped **Aug 13 23:56**, i.e. after
+**Binary:** `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`,
+`lib/libapp.so` + `lib/libskotiq_bridge.so` both stamped **Aug 13 23:56**, i.e. after
 the E-fix commit `7d305dbcb` / `4723ca202` (23:54). Freshness cross-checked by string-grep
 of the E-fix's own strings in `libapp.so`: `More equipment status`, `frames_graded_poor`,
 `unavailable: `, `Scroll tabs right`, `asGradableFrame`, `create-project requested`,
@@ -59,7 +59,7 @@ Choosing the Aug 14 session works, but navigating to Dashboard and back reverts 
 
 Decisive experiment: after `stop` + `start` of the same profile, the same screen opens on
 **Aug 14** — so the query is right and the value is stale.
-`latestScienceSessionProvider` (`packages/nightshade_app/lib/screens/analytics/widgets/science_analytics_tab.dart:67`)
+`latestScienceSessionProvider` (`packages/skotiq_app/lib/screens/analytics/widgets/science_analytics_tab.dart:67`)
 is a plain `FutureProvider` that reads `getLatestSessionIdWithLightFrames()` once and is
 never invalidated when a run completes; `session_tab.dart:44` uses it as the auto-pick.
 Why it matters: the whole point of the tab is the night you just shot, and on the imaging

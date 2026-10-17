@@ -1,6 +1,6 @@
 {
   "cluster": "narrow-mobile",
-  "testsRun": "dart run melos exec --scope=\"nightshade_app\" -- flutter test test/screens/imaging test/widgets/focus_model_curve_card_navigation_test.dart (227 pass, 3 fail = host-specific golden pixel-diffs in imaging_landscape_capture_test.dart, pre-existing on this Linux box); dart run melos exec --scope=\"nightshade_app\" -- flutter test test/screens/imaging/fullscreen_image_viewer_escape_test.dart (2 pass, both verified RED with the fix reverted); dart run melos exec --scope=\"nightshade_core\" -- flutter test test/providers/guider_connect_keeps_friendly_name_test.dart test/providers/guider_error_retention_test.dart test/providers/guide_stars_and_graph_test.dart (13 pass)",
+  "testsRun": "dart run melos exec --scope=\"skotiq_app\" -- flutter test test/screens/imaging test/widgets/focus_model_curve_card_navigation_test.dart (227 pass, 3 fail = host-specific golden pixel-diffs in imaging_landscape_capture_test.dart, pre-existing on this Linux box); dart run melos exec --scope=\"skotiq_app\" -- flutter test test/screens/imaging/fullscreen_image_viewer_escape_test.dart (2 pass, both verified RED with the fix reverted); dart run melos exec --scope=\"skotiq_core\" -- flutter test test/providers/guider_connect_keeps_friendly_name_test.dart test/providers/guider_error_retention_test.dart test/providers/guide_stars_and_graph_test.dart (13 pass)",
   "units": [
     {
       "unit": "screen:sequencer/narrow_layout.dart",
@@ -16,7 +16,7 @@
     {
       "unit": "screen:sequencer/mobile_sequence_editor.dart",
       "state": "visited",
-      "evidence": "Android emulator ns_test_api35, companion dashboard (NIGHTSHADE_COMPANION_UI=1 injected via `adb shell setprop wrap.com.nightshade.mobile`), paired to a headless appliance. Loading 'MF VERIFY 3 (clean flip, recenter off)' replaced the empty state with the node list — uiautomator: 'View: Unpark', 'View: MeridianTargetW', 'View: Slew to Target', 'View: Darks', 'Button: Add node'. Tapping 'Slew to Target' opened the properties sheet ('View: SlewToTarget / INSTRUCTION / Name / EditText: Slew to Target / Use Target Coordinates / Will use target: MeridianTargetW 21h 12m 06.1s +40° 00' 00\" / Est. slew time ~30s / Contributes: 27.3% of total')."
+      "evidence": "Android emulator ns_test_api35, companion dashboard (SKOTIQ_COMPANION_UI=1 injected via `adb shell setprop wrap.com.skotiq.mobile`), paired to a headless appliance. Loading 'MF VERIFY 3 (clean flip, recenter off)' replaced the empty state with the node list — uiautomator: 'View: Unpark', 'View: MeridianTargetW', 'View: Slew to Target', 'View: Darks', 'Button: Add node'. Tapping 'Slew to Target' opened the properties sheet ('View: SlewToTarget / INSTRUCTION / Name / EditText: Slew to Target / Use Target Coordinates / Will use target: MeridianTargetW 21h 12m 06.1s +40° 00' 00\" / Est. slew time ~30s / Contributes: 27.3% of total')."
     },
     {
       "unit": "screen:guiding/mobile_sections.dart",
@@ -54,7 +54,7 @@
       "kind": "defect",
       "severity": "P2",
       "title": "Escape does not close the fullscreen frame inspector, and its only exit has no accessible name",
-      "location": "packages/nightshade_app/lib/screens/imaging/widgets/fullscreen_image_viewer.dart",
+      "location": "packages/skotiq_app/lib/screens/imaging/widgets/fullscreen_image_viewer.dart",
       "detail": "FullscreenImageViewer is pushed as an opaque full-screen PageRouteBuilder with no barrier, so on anything that is not Android its only exit is a 40px circle in the top-right corner. Reproduced at 420x900: Escape was pressed and the viewer stayed up (scratchpad/shots/d2-afteresc.png still shows the close button). Every other modal in the app dismisses on Escape. The route's entire accessibility subtree is a single `button:` node with an empty name — the IconButton's tooltip did not reach AT-SPI — so the sole exit is also unnamed for assistive tech. Fixed: the viewer is now wrapped in CallbackShortcuts+Focus binding Escape to maybePop, and the close icon carries semanticLabel 'Close fullscreen image'. fullscreen_image_viewer_escape_test.dart pins both and was verified RED with the fix reverted.",
       "fixed": true,
       "fixSummary": "Escape now pops the route; close button gets an explicit semantic label. Two tests added.",
@@ -64,7 +64,7 @@
       "kind": "defect",
       "severity": "P3",
       "title": "Connecting the guider replaces its friendly name with the raw device id, permanently",
-      "location": "packages/nightshade_core/lib/src/providers/equipment/guider_state_provider.dart:29",
+      "location": "packages/skotiq_core/lib/src/providers/equipment/guider_state_provider.dart:29",
       "detail": "GuiderStateNotifier.connect() called _setConnectingState(deviceId, deviceId) — it passed the device id AS the display name. Observed live on the emulator: the Devices tab guider card read 'Built-in Multi-Star Guider' while offline and flipped to 'native:builtin_guider:multi_star' the instant Connect succeeded, and the GuideHealthCard underneath then showed the same raw id. Nothing later restores the friendly name, so it stays wrong for the rest of the session. Fixed: connect() takes an optional deviceName and threads it through the retry path; apps/mobile devices_tab passes profile.guiderName. Omitting it keeps the old id fallback, so no caller changes behaviour by accident.",
       "fixed": true,
       "fixSummary": "connect(deviceId, {deviceName}) added and wired from the mobile Devices tab; guider_connect_keeps_friendly_name_test.dart pins it.",
@@ -74,8 +74,8 @@
       "kind": "missing",
       "severity": "P2",
       "title": "The temperature-compensation focus model cannot be bootstrapped from the UI, and the card tells the user to do something that does not work",
-      "location": "packages/nightshade_app/lib/widgets/focus_model_curve_card.dart:182 and packages/nightshade_core/lib/src/services/device_service/autofocus_controls.dart:612",
-      "detail": "The empty Temperature Compensation card says 'No focus data yet — Run an autofocus to start building the temperature compensation curve' and offers a Run autofocus button. I ran one on the desktop with the simulator camera + focuser: it converged (best 25069, HFR 2.10, R² 0.944) and the card did not change. Two reasons, both confirmed. (1) _recordPredictiveAfOutcome returns early when no filter wheel is connected ('skipping training (no active filter to key the model)'), so on any filterless OSC rig autofocus trains nothing. (2) Even when it does train, it writes the `focus_models` Drift table via predictiveAfService, while this card reads FocusModelService, which persists JSON files under <documents>/Nightshade/focus_models/<profileId>.json — two different stores. Meanwhile the only controls that can seed the JSON store (Add point / Import JSON, in _ActionRow) render only when that store already has data, so there is no path from empty to non-empty. I confirmed the card reads the JSON store by seeding one file, which made the full card render (and which I deleted afterwards). Not fixed: which store is canonical is a design decision, and the fix touches shared autofocus code.",
+      "location": "packages/skotiq_app/lib/widgets/focus_model_curve_card.dart:182 and packages/skotiq_core/lib/src/services/device_service/autofocus_controls.dart:612",
+      "detail": "The empty Temperature Compensation card says 'No focus data yet — Run an autofocus to start building the temperature compensation curve' and offers a Run autofocus button. I ran one on the desktop with the simulator camera + focuser: it converged (best 25069, HFR 2.10, R² 0.944) and the card did not change. Two reasons, both confirmed. (1) _recordPredictiveAfOutcome returns early when no filter wheel is connected ('skipping training (no active filter to key the model)'), so on any filterless OSC rig autofocus trains nothing. (2) Even when it does train, it writes the `focus_models` Drift table via predictiveAfService, while this card reads FocusModelService, which persists JSON files under <documents>/Skotiq/focus_models/<profileId>.json — two different stores. Meanwhile the only controls that can seed the JSON store (Add point / Import JSON, in _ActionRow) render only when that store already has data, so there is no path from empty to non-empty. I confirmed the card reads the JSON store by seeding one file, which made the full card render (and which I deleted afterwards). Not fixed: which store is canonical is a design decision, and the fix touches shared autofocus code.",
       "fixed": false,
       "needsOwnerDecision": true
     },
@@ -84,7 +84,7 @@
       "severity": "P2",
       "title": "The mobile companion dashboard is off in every shipped build, so three of its surfaces can never be seen by a user",
       "location": "apps/mobile/lib/companion_ui_config.dart:7",
-      "detail": "isCompanionUiEnabled defaults to false and is turned on only by --dart-define=NIGHTSHADE_COMPANION_UI=1 or the same environment variable. Repo-wide that define appears in no build script, no gradle file and no CI workflow, and a default launch of the installed APK lands on the shared NightshadeApp shell (Home/Gear/Imaging/Sequence/Guiding/Plan/More), not the tabbed dashboard — verified live. Every surface that only the companion dashboard mounts is therefore dead in the shipping product: MobileSequenceEditor, GuideHealthCard, and the compact FocusModelCurveCard on the Devices tab. I could only exercise them by injecting the environment variable with `adb shell setprop wrap.com.nightshade.mobile`. Either the flag should ship on, or these three should be deleted — that is a product call.",
+      "detail": "isCompanionUiEnabled defaults to false and is turned on only by --dart-define=SKOTIQ_COMPANION_UI=1 or the same environment variable. Repo-wide that define appears in no build script, no gradle file and no CI workflow, and a default launch of the installed APK lands on the shared SkotiqApp shell (Home/Gear/Imaging/Sequence/Guiding/Plan/More), not the tabbed dashboard — verified live. Every surface that only the companion dashboard mounts is therefore dead in the shipping product: MobileSequenceEditor, GuideHealthCard, and the compact FocusModelCurveCard on the Devices tab. I could only exercise them by injecting the environment variable with `adb shell setprop wrap.com.skotiq.mobile`. Either the flag should ship on, or these three should be deleted — that is a product call.",
       "fixed": false,
       "needsOwnerDecision": true
     },
@@ -92,7 +92,7 @@
       "kind": "defect",
       "severity": "P2",
       "title": "The mobile app presents itself as connected while every request to the appliance is being rejected 401",
-      "location": "apps/mobile (connection flow) / packages/nightshade_core/src/backend/network_backend/connection_lifecycle.dart:281",
+      "location": "apps/mobile (connection flow) / packages/skotiq_core/src/backend/network_backend/connection_lifecycle.dart:281",
       "detail": "With a fail-closed headless appliance on the LAN, the app auto-discovered it, declared the connection good, ran First-run setup and dropped into the dashboard — while logcat looped 'WebSocketException: Connection to http://10.0.2.2:8099/events was not upgraded to websocket, HTTP status code: 401' and every REST read failed the same way. The user-visible result is a Devices tab reading 'No active equipment profile' with every device Offline: indistinguishable from a rig that is simply idle. Nothing anywhere in the UI said 'not authorised' or offered to pair. Not fixed — belongs to the remote-appliance cluster, and I only reproduced the symptom, not the auth state machine.",
       "fixed": false,
       "needsOwnerDecision": false
@@ -101,7 +101,7 @@
       "kind": "ux",
       "severity": "P3",
       "title": "The fullscreen frame inspector shows the frame and nothing else — no identity, no measurements",
-      "location": "packages/nightshade_app/lib/screens/imaging/widgets/fullscreen_image_viewer.dart",
+      "location": "packages/skotiq_app/lib/screens/imaging/widgets/fullscreen_image_viewer.dart",
       "detail": "The in-place preview it replaces carries HFR, star count, median and mean, plus the filename and a histogram. Tapping to inspect a frame more closely throws all of that away: the fullscreen view is the pixels plus a close button. The one moment an operator most wants 'is this frame sharp, and which frame is it' is the moment the numbers disappear. A single overlay strip (filename, exposure, HFR, stars), dismissible, would cost nothing and is what the phone user came here for. Not fixed: what belongs on that strip is a product choice.",
       "fixed": false,
       "needsOwnerDecision": true

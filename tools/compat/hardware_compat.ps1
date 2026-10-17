@@ -209,7 +209,7 @@ function HasBlockedEvidence([string]$s) {
 function AcquireConformU([string]$root) {
     $dest = Join-Path $root "tools/compat/downloads/conformu"
     New-Item -ItemType Directory -Force -Path $dest | Out-Null
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/ASCOMInitiative/ConformU/releases/latest" -Headers @{ "User-Agent" = "Nightshade-compat-suite" }
+    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/ASCOMInitiative/ConformU/releases/latest" -Headers @{ "User-Agent" = "Skotiq-compat-suite" }
     $platform = PlatformName
     $asset = $null
     if ($platform -eq "windows") {
@@ -227,7 +227,7 @@ function AcquireConformU([string]$root) {
     $target = Join-Path $dest $asset.name
     if (-not (Test-Path $target)) {
         Write-Host "Downloading ConformU $($release.tag_name) official asset: $($asset.name)"
-        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $target -Headers @{ "User-Agent" = "Nightshade-compat-suite" }
+        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $target -Headers @{ "User-Agent" = "Skotiq-compat-suite" }
     } else {
         Write-Host "ConformU $($release.tag_name) asset already present: $target"
     }
@@ -321,7 +321,7 @@ function NewModel($model, [string]$targetVerdict, $functionByCapability, $functi
 }
 
 function RenderMarkdown($report) {
-    $lines = @("# Nightshade Hardware Compatibility Evidence", "")
+    $lines = @("# Skotiq Hardware Compatibility Evidence", "")
     $lines += "- Generated: $($report.generated_at)"
     $lines += "- Platform: ``$($report.platform)``"
     $lines += "- Targets: $($report.summary.pass) pass, $($report.summary.fail) fail, $($report.summary.blocked) blocked, $($report.summary.skipped) skipped"
@@ -403,7 +403,7 @@ function RenderJUnit($report) {
     $skipped = @($allCases | Where-Object { $_.verdict -in @("blocked", "skipped") }).Count
     $sb = New-Object Text.StringBuilder
     [void]$sb.AppendLine("<?xml version=`"1.0`" encoding=`"UTF-8`"?>")
-    [void]$sb.AppendLine("<testsuite name=`"nightshade_hardware_compat`" tests=`"$tests`" failures=`"$failures`" skipped=`"$skipped`">")
+    [void]$sb.AppendLine("<testsuite name=`"skotiq_hardware_compat`" tests=`"$tests`" failures=`"$failures`" skipped=`"$skipped`">")
     foreach ($x in $allCases) {
         $name = if ($x.check_id) { "$($x.target_id)::$($x.check_id)" } elseif ($x.model -and $x.capability) { "$($x.target_id)::$($x.model)::$($x.capability)" } elseif ($x.model) { "$($x.target_id)::$($x.model)" } elseif ($x.target_id) { $x.target_id } else { "unknown" }
         [void]$sb.AppendLine("  <testcase classname=`"compat`" name=`"$([Security.SecurityElement]::Escape($name))`">")
@@ -554,5 +554,5 @@ if ($Mode -eq "run" -or $Mode -eq "doctor") {
     RenderJUnit $report | Set-Content -Encoding UTF8 (Join-Path $outPath "junit.xml")
 }
 
-Write-Host "Nightshade compatibility: $($report.summary.pass) passed, $($report.summary.fail) failed, $($report.summary.blocked) blocked, $($report.summary.skipped) skipped; functions $($report.function_summary.pass)/$($report.function_summary.fail)/$($report.function_summary.blocked); models $($report.model_summary.pass)/$($report.model_summary.fail)/$($report.model_summary.blocked) ($platform)"
+Write-Host "Skotiq compatibility: $($report.summary.pass) passed, $($report.summary.fail) failed, $($report.summary.blocked) blocked, $($report.summary.skipped) skipped; functions $($report.function_summary.pass)/$($report.function_summary.fail)/$($report.function_summary.blocked); models $($report.model_summary.pass)/$($report.model_summary.fail)/$($report.model_summary.blocked) ($platform)"
 if ($report.summary.fail -gt 0 -or $report.function_summary.fail -gt 0 -or $report.model_summary.fail -gt 0 -or ($Strict -and $report.summary.pass -eq 0)) { exit 1 }

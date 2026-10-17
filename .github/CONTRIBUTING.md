@@ -1,8 +1,8 @@
-# Contributing to Nightshade
+# Contributing to Skotiq
 
 Welcome. This document covers the local setup steps every contributor should run once, plus the conventions CI enforces.
 
-Nightshade is a Flutter front end over a Rust core, bridged with flutter_rust_bridge (FRB). The Dart bindings and the native library must stay in sync, so the toolchain and dev scripts exist to keep them aligned. See [README](../README.md#build-from-source) for the full build matrix.
+Skotiq is a Flutter front end over a Rust core, bridged with flutter_rust_bridge (FRB). The Dart bindings and the native library must stay in sync, so the toolchain and dev scripts exist to keep them aligned. See [README](../README.md#build-from-source) for the full build matrix.
 
 ## One-time setup
 
@@ -33,7 +33,7 @@ The pre-commit hook checks only staged files, so it stays fast on partially-stag
 | Rust | stable toolchain, **2021 edition** |
 | Melos | via `dart pub global activate melos` |
 
-The native crates live under `native/nightshade_native/` (device drivers under `ascom/`, `indi/`, `alpaca/`, `native/`; automation under `sequencer/`). They build as a Rust workspace.
+The native crates live under `native/skotiq_native/` (device drivers under `ascom/`, `indi/`, `alpaca/`, `native/`; automation under `sequencer/`). They build as a Rust workspace.
 
 Run the front end with the dev script, **not** plain `flutter run`:
 
@@ -67,7 +67,7 @@ Commit the regenerated output in its own commit (see [Generated code](#generated
 
 ```bash
 melos run test                                              # Dart/Flutter tests across all packages
-cd native/nightshade_native && cargo test --all-features --workspace   # Rust tests
+cd native/skotiq_native && cargo test --all-features --workspace   # Rust tests
 ```
 
 `melos run test` excludes the `golden` tag on purpose. Golden (pixel-diff / perceptual) baselines are host-specific — the GPU rasteriser and font hinting differ across OSes, so the committed baselines (rendered on the canonical Windows host) produce false-positive diffs anywhere else. CI (ubuntu-latest) excludes the golden tag for the same reason. To run them, do so on the baseline host:
@@ -88,10 +88,10 @@ Every PR runs:
 | `cargo fmt --all --check` | pre-commit hook (when staging `.rs`) |
 | `dart analyze` (analyzer-rollup with zero-error gate) | pre-commit hook (staged Dart files) + `melos run analyze` |
 | `flutter test` across all packages | `melos run test` |
-| `cargo test --all-features` + `cargo clippy -D warnings` (Linux + Windows) | `cd native/nightshade_native && cargo test --all-features && cargo clippy --all-features -- -D warnings` |
+| `cargo test --all-features` + `cargo clippy -D warnings` (Linux + Windows) | `cd native/skotiq_native && cargo test --all-features && cargo clippy --all-features -- -D warnings` |
 | `melos run audit:placeholders` (fails on **new** high-risk markers) | `melos run audit:placeholders` |
 | `melos run audit:fail-closed` | `melos run audit:fail-closed` |
-| `cargo tree --duplicates` (fails on multi-semver duplicates) | `cd native/nightshade_native && cargo tree --duplicates` |
+| `cargo tree --duplicates` (fails on multi-semver duplicates) | `cd native/skotiq_native && cargo tree --duplicates` |
 | Codecov coverage threshold (max −1% regression) | `melos run test -- --coverage` |
 
 ## House rules
@@ -110,25 +110,25 @@ Generated files are committed but tagged `linguist-generated=true` in `.gitattri
 ## Where to put new code
 
 - UI for desktop only: `apps/desktop/lib/`
-- UI shared across platforms: `packages/nightshade_app/lib/`
-- Business logic / providers: `packages/nightshade_core/lib/src/`
-- Rust device drivers: `native/nightshade_native/{ascom,indi,alpaca,native}/`
-- Rust automation / sequencer: `native/nightshade_native/sequencer/`
+- UI shared across platforms: `packages/skotiq_app/lib/`
+- Business logic / providers: `packages/skotiq_core/lib/src/`
+- Rust device drivers: `native/skotiq_native/{ascom,indi,alpaca,native}/`
+- Rust automation / sequencer: `native/skotiq_native/sequencer/`
 
 When in doubt, follow the package layering: `apps` depend on `packages`,
-`nightshade_app` depends on `nightshade_core`, and `nightshade_core` is the
+`skotiq_app` depends on `skotiq_core`, and `skotiq_core` is the
 only Dart package that talks to the Rust bridge directly.
 
 ## Adding a backend method
 
-The backend is split into role interfaces under `packages/nightshade_core/lib/src/backend/roles/` (`DeviceBackend`, `ImagingBackend`, `GuidingBackend`, `SequencerBackend`, `ProfileSettingsBackend`, `DiagnosticsBackend`). The marker interface `NightshadeBackend` composes all of them, and three concrete backends implement it: `FfiBackend` (local, talks to the Rust bridge), `NetworkBackend` (remote client over the wire), and `DisconnectedBackend` (no-op fallback).
+The backend is split into role interfaces under `packages/skotiq_core/lib/src/backend/roles/` (`DeviceBackend`, `ImagingBackend`, `GuidingBackend`, `SequencerBackend`, `ProfileSettingsBackend`, `DiagnosticsBackend`). The marker interface `SkotiqBackend` composes all of them, and three concrete backends implement it: `FfiBackend` (local, talks to the Rust bridge), `NetworkBackend` (remote client over the wire), and `DisconnectedBackend` (no-op fallback).
 
 To add a method:
 
-1. Declare it on the narrowest role interface that fits (e.g. a capture call goes on `ImagingBackend`, not the full `NightshadeBackend`).
+1. Declare it on the narrowest role interface that fits (e.g. a capture call goes on `ImagingBackend`, not the full `SkotiqBackend`).
 2. Implement it in `FfiBackend` (`backend/ffi_backend/`). If the call touches the Rust boundary, add or extend the corresponding native API, then run `melos run generate` (or `melos run dev`) to regenerate the FRB bindings.
 3. If the method crosses the wire — anything a remote client needs — implement it in `NetworkBackend` (`backend/network_backend/`) and wire the matching headless-API endpoint under `apps/desktop/lib/headless_api/`. Desktop and remote behavior must stay at parity.
-4. Provide a sensible no-op or thrown-`NightshadeException` in `DisconnectedBackend`.
+4. Provide a sensible no-op or thrown-`SkotiqException` in `DisconnectedBackend`.
 5. Run `melos run analyze` and `melos run test` before pushing.
 
 ## Updating the support matrix

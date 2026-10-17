@@ -2,7 +2,7 @@
 
 Date: 2026-06-06
 Branch: `roadmap/planetarium-atlas-and-perf`
-Package: `packages/nightshade_planetarium` (the go-forward v1 line; the scrapped v2 is dead)
+Package: `packages/skotiq_planetarium` (the go-forward v1 line; the scrapped v2 is dead)
 
 > Location note: `docs/plans/` is gitignored in this repo (no plan docs are
 > tracked there), so this design record lives under the tracked `docs/design/`
@@ -34,7 +34,7 @@ deterministic measurement spine:
 
 The design stance throughout: clean, schematic, precision-instrument. No realistic
 DSO photo imagery in the planetarium (survey/HiPS imagery lives in Framing). All new
-chrome uses the `packages/nightshade_ui` design-system tokens.
+chrome uses the `packages/skotiq_ui` design-system tokens.
 
 ---
 
@@ -128,7 +128,7 @@ layer that leaves the §3 perf spine untouched.
 
 ## 3. Benchmark methodology
 
-The perf pillar's foundation is `packages/nightshade_planetarium/benchmark` (harness
+The perf pillar's foundation is `packages/skotiq_planetarium/benchmark` (harness
 `0924d1cd`, baseline `a95639da`). It has three layers, by design:
 
 ### 3.1 Deterministic CPU-rasterization-time proxy (the optimization signal)
@@ -303,10 +303,10 @@ the perceptually-lossless result; visual quality is preserved.
   without the optimization — the authoritative result for this change
   (`benchmark/results/gpu_frametiming.json`). Full planetarium suite: **176 tests
   pass.**
-* `flutter analyze` `packages/nightshade_planetarium`: **0 errors** (129 pre-existing
+* `flutter analyze` `packages/skotiq_planetarium`: **0 errors** (129 pre-existing
   infos/test-file warnings only — e.g. `catalog_parsing_test.dart`
   unused-param/`coordinate_system_test.dart` prefer-const, all under `test/`; **no
   lib warnings introduced**).
 
-No renderer or `nightshade_app`/`nightshade_ui` source change was made in this phase
+No renderer or `skotiq_app`/`skotiq_ui` source change was made in this phase
 (benchmark fix + doc record), so those suites were not re-run for this record.

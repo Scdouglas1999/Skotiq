@@ -1,14 +1,14 @@
 import 'dart:io';
 
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 import 'headless_env.dart';
 
 const _headlessLogSource = 'HeadlessMain';
 
 /// v4 couch-grade remote: start the outbound relay uplink if a relay URL was
-/// supplied (`--relay-url=<url>` / `NIGHTSHADE_RELAY_URL`). Returns null when
+/// supplied (`--relay-url=<url>` / `SKOTIQ_RELAY_URL`). Returns null when
 /// no relay is configured. Never throws — relay is strictly additive on top
 /// of the LAN/mDNS path, so a misconfigured or unreachable relay must not stop
 /// the daemon from coming up.
@@ -24,7 +24,7 @@ Future<RelayUplink?> startRelayUplink({
   void Function(String? applianceId)? onApplianceId,
 }) async {
   String? relayUrlRaw = trimToNull(
-    Platform.environment['NIGHTSHADE_RELAY_URL'],
+    Platform.environment['SKOTIQ_RELAY_URL'],
   );
   for (final arg in args) {
     if (arg.startsWith('--relay-url=')) {
@@ -37,7 +37,7 @@ Future<RelayUplink?> startRelayUplink({
   // explicitly opts in (relays they run themselves before getting a real cert).
   final allowInsecureTls =
       args.contains('--relay-allow-insecure-tls') ||
-      envFlag('NIGHTSHADE_RELAY_ALLOW_INSECURE_TLS');
+      envFlag('SKOTIQ_RELAY_ALLOW_INSECURE_TLS');
 
   final Uri relayUrl;
   try {
@@ -51,7 +51,7 @@ Future<RelayUplink?> startRelayUplink({
     return null;
   }
 
-  final appData = await resolveNightshadeDataDirectory();
+  final appData = await resolveSkotiqDataDirectory();
   final credentialsPath =
       '${appData.path}${Platform.pathSeparator}relay_credentials.json';
 

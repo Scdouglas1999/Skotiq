@@ -1,7 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless_api/push/database_push_token_store.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_desktop/headless_api/push/database_push_token_store.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 /// Phase D — the DB-backed [PushTokenStore] adapter.
 ///

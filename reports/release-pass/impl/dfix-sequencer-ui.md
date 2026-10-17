@@ -3,8 +3,8 @@
 Wave D items: SEQ-18, SEQ-19, SEQ-20 (residual), WD-SEQ-N1, WD-SEQ-N2, WD-SEQ-N3,
 SCI-43 (pre-flight instance), NEW-C1.
 
-Scope honoured: `packages/nightshade_app/lib/screens/sequencer/**` +
-`packages/nightshade_core/lib/src/providers/sequence/rules/preflight_rules.dart`
+Scope honoured: `packages/skotiq_app/lib/screens/sequencer/**` +
+`packages/skotiq_core/lib/src/providers/sequence/rules/preflight_rules.dart`
 + the owning packages' test dirs. No git writes, no melos, no formatter runs, no
 generated files, no FRB.
 
@@ -68,7 +68,7 @@ stop plainly instead.
 
 NOT in scope, still open: the two banner instances ("Sequence failed / Sequence
 aborted at <ts>", "Critical - Sequencer / Sequence cancelled") come from
-`packages/nightshade_core/lib/src/services/notification/notification_router.dart`
+`packages/skotiq_core/lib/src/services/notification/notification_router.dart`
 (lines 527 / 590), outside this batch's SCOPE. Recorded for the next wave.
 
 Pins: three cases added to `session_report_dialog_test.dart` (stop ⇒ no Errors
@@ -112,7 +112,7 @@ section key `dark-library`). Both instances (Missing Dark Frames, Low Dark
 Library Coverage) reworded.
 
 Pin: added to
-`packages/nightshade_core/test/providers/sequence/rules/dark_library_uncooled_camera_test.dart`
+`packages/skotiq_core/test/providers/sequence/rules/dark_library_uncooled_camera_test.dart`
 — no pre-flight hint may contain `Calibration →`, and any hint naming the Dark
 Library must name Settings. Verified RED against the old wording and GREEN after.
 
@@ -139,19 +139,19 @@ painting the striped overflow bar over the pointing.
 | NEW-C1 | compact mode disabled ⇒ tab-label rect outside the strip rect at 1000px |
 | SCI-43 | old wording restored ⇒ hint contains `Calibration →` |
 
-Suites: `packages/nightshade_app` `test/screens/sequencer` — **433 passed, 2
+Suites: `packages/skotiq_app` `test/screens/sequencer` — **433 passed, 2
 failed**; both failures are `captures_landscape_test.dart` goldens, reproduced
 byte-identically (9.44% / 7.17% diff) with the HEAD copy of every file this
 batch touched, i.e. the known Windows-captured-goldens-on-Linux debt.
-`packages/nightshade_core` `test/providers/sequence/rules` +
+`packages/skotiq_core` `test/providers/sequence/rules` +
 `preflight_rules_test.dart` — 124 passed. `flutter analyze` clean on every file
 touched.
 
 ## Test-run note
 
-The nightshade_app suite could not be compiled for long stretches of this batch:
+The skotiq_app suite could not be compiled for long stretches of this batch:
 other agents were mid-edit in shared packages, producing transient compile errors
-in files this batch never touched (`nightshade_core/.../annotation_pipeline.dart`,
+in files this batch never touched (`skotiq_core/.../annotation_pipeline.dart`,
 `.../sequence_editor/tree_editing.dart`, `.../target_catalog_coordinate_sync.dart`,
-`nightshade_planetarium/.../time_control_panel.dart`). Results recorded in the
+`skotiq_planetarium/.../time_control_panel.dart`). Results recorded in the
 structured output reflect the runs that completed.

@@ -7,7 +7,7 @@
   {
     "area": "sequencer",
     "title": "Live Stacking's explanatory helper text is truncated to one ellipsised line",
-    "summary": "Confirmed, and the cause is not in that file. Flutter's InputDecoration.helperMaxLines defaults to null, which its own docs define as 'soft line breaks are truncated with an ellipse' - the helper Text is built with overflow: TextOverflow.ellipsis and maxLines: helperMaxLines (input_decorator.dart:397-402). Nothing in the app ever set it, so EVERY helperText in the app ellipsised, not just these two. Set helperMaxLines: 4 once in NightshadeTheme's inputDecorationTheme, which is the single factory behind dark/light/redNight/accent themes. All 15 helperText call sites in the repo live in scrolling property panels or dialogs, so wrapping costs nothing and no layout is forced taller than its container."
+    "summary": "Confirmed, and the cause is not in that file. Flutter's InputDecoration.helperMaxLines defaults to null, which its own docs define as 'soft line breaks are truncated with an ellipse' - the helper Text is built with overflow: TextOverflow.ellipsis and maxLines: helperMaxLines (input_decorator.dart:397-402). Nothing in the app ever set it, so EVERY helperText in the app ellipsised, not just these two. Set helperMaxLines: 4 once in SkotiqTheme's inputDecorationTheme, which is the single factory behind dark/light/redNight/accent themes. All 15 helperText call sites in the repo live in scrolling property panels or dialogs, so wrapping costs nothing and no layout is forced taller than its container."
   },
   {
     "area": "sequencer",

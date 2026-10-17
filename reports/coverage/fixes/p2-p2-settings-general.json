@@ -6,10 +6,10 @@
       "outcome": "fixed",
       "summary": "The row is now rendered only when isRemoteMode is true, so a standalone/local session cannot click a control whose read goes to its own settings store; the remote-mode success message says 'Location read from the imaging host' instead of claiming a sync.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/widgets/location_settings.dart",
-        "packages/nightshade_app/test/screens/settings/location_settings_truth_test.dart"
+        "packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart",
+        "packages/skotiq_app/test/screens/settings/location_settings_truth_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/settings/location_settings_truth_test.dart -> 'Sync from Server is not offered on a standalone (local) session' / 'is offered when a host is actually connected'",
+      "test": "packages/skotiq_app/test/screens/settings/location_settings_truth_test.dart -> 'Sync from Server is not offered on a standalone (local) session' / 'is offered when a host is actually connected'",
       "revert_check": "Replaced `if (isRemoteMode)` with `if (true)` at location_settings.dart:195 -> 'is not offered on a standalone (local) session' FAILED (findsNothing saw one widget); restored -> 11/11 pass.",
       "caveats": ""
     },
@@ -18,37 +18,37 @@
       "outcome": "fixed",
       "summary": "Row renamed 'Detect Location' with subtitle 'Device GPS if this machine has it, otherwise a city-level estimate from your IP address'. The lookup is now behind an explicit consent dialog that names the third-party services (ipapi.co / ip-api.com), states the ~10 km accuracy, and states that no elevation is returned. On apply, the elevation is kept only when the new fix is within 25 km of the stored site and is otherwise cleared to 0 m (the app's own 'not set' value) with the result message saying which happened - a Seattle 1234 m elevation can no longer be inherited by a Pennsylvania coordinate. GeolocationService is now reached through deviceLocationFetcherProvider so the flow is drivable in tests.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/widgets/location_settings.dart",
-        "packages/nightshade_app/test/screens/settings/location_settings_truth_test.dart"
+        "packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart",
+        "packages/skotiq_app/test/screens/settings/location_settings_truth_test.dart"
       ],
       "test": "location_settings_truth_test.dart -> 'Detect Location is not labelled GPS', 'asks before anything leaves the machine', 'a fix at another site clears the inherited elevation', 'a fix at the same site keeps the elevation'",
       "revert_check": "(a) Replaced `if (consented != true || !mounted) return;` with `if (false) return;` -> 'asks before anything leaves the machine' FAILED (fetcher ran with 0 consent). (b) Replaced `elevation: keepElevation ? settings.elevation : 0` with `elevation: settings.elevation` -> 'a fix at another site clears the inherited elevation' FAILED (elevation stayed 1234). Both restored -> 11/11 pass.",
-      "caveats": "GeolocationService itself (packages/nightshade_planetarium) still discards Position.altitude on the real GPS path and still exposes no source flag; see needs_shared_change.",
-      "needs_shared_change": "packages/nightshade_planetarium/lib/src/services/geolocation_service.dart: return the fix source (gps|ip) and Position.altitude, so the UI can report which service answered and can use a real GPS altitude instead of clearing elevation."
+      "caveats": "GeolocationService itself (packages/skotiq_planetarium) still discards Position.altitude on the real GPS path and still exposes no source flag; see needs_shared_change.",
+      "needs_shared_change": "packages/skotiq_planetarium/lib/src/services/geolocation_service.dart: return the fix source (gps|ip) and Position.altitude, so the UI can report which service answered and can use a real GPS altitude instead of clearing elevation."
     },
     {
       "title": "Timezone picker is inert: all 18 options are IANA names the clock parser accepts none of",
       "outcome": "partial",
       "summary": "The picker now emits only values clockProvider can parse (UTC and UTC+/-HH:MM, 38 entries covering every standard world offset), so choosing one actually installs a FixedOffsetClock; an IANA label left by the old picker is migrated once to its standard-time offset so a choice already made starts being honoured. The row gained a subtitle derived from clockProvider itself - it reports the live time the chosen offset produces, says 'Ignored while \"Use system time\" is on' when it is, and admits when a stored label cannot be applied - so the control can no longer be silently ignored without the screen contradicting itself.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/widgets/location_settings.dart",
-        "packages/nightshade_app/test/screens/settings/location_settings_truth_test.dart"
+        "packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart",
+        "packages/skotiq_app/test/screens/settings/location_settings_truth_test.dart"
       ],
       "test": "location_settings_truth_test.dart -> 'every offered value actually drives the clock' (reads the options off the rendered DropdownButton), 'choosing an offset in the UI shifts the app clock', 'a stored IANA label is migrated so the choice takes effect', 'the row reports the clock the app is really running on', 'with system time on, the row says the picker is ignored'",
       "revert_check": "Replaced the picker's `value:`/`items:` with the old IANA list ['UTC','America/Los_Angeles','Asia/Tokyo'] -> 'every offered value actually drives the clock' FAILED (2 of 3 inert) and 'choosing an offset in the UI shifts the app clock' FAILED; restored -> 11/11 pass.",
       "caveats": "PARTIAL because the status bar and the Dashboard clock/twilight strip still call DateTime.now() directly and therefore still show host-local time regardless of this setting - those files are outside this agent's ownership. A fixed offset also does not follow daylight saving; the row says so rather than implying a zone database exists.",
-      "needs_shared_change": "packages/nightshade_app/lib/screens/shell/widgets/status_bar.dart:188/200/209 and the Dashboard header/twilight widgets must read clockProvider instead of DateTime.now(); packages/nightshade_core/lib/src/providers/clock_provider.dart:98-113 should log the fallback instead of silently returning SystemClock (its own comment claims it is logged)."
+      "needs_shared_change": "packages/skotiq_app/lib/screens/shell/widgets/status_bar.dart:188/200/209 and the Dashboard header/twilight widgets must read clockProvider instead of DateTime.now(); packages/skotiq_core/lib/src/providers/clock_provider.dart:98-113 should log the fallback instead of silently returning SystemClock (its own comment claims it is logged)."
     },
     {
       "title": "The Alpaca server address can never be set: 'Query Alpaca on startup' points at a 'configured Alpaca server' that no screen configures",
       "outcome": "fixed",
       "summary": "Added an 'Alpaca Server Address' row to Settings > Connection > Discovery showing the stored host:port, with a Configure dialog (AlpacaServerDialog) that mirrors the INDI one: per-field validation, a real discoverAlpacaAtAddress probe for Test, and Save wired to setAlpacaServerHost/setAlpacaServerPort - the core setters that previously had zero callers anywhere in the app. unified_discovery_provider.dart:395 already reads both values, so an ASCOM Remote host elsewhere on the LAN is now reachable.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/widgets/connection_settings.dart",
-        "packages/nightshade_app/lib/screens/settings/widgets/connection_settings_alpaca_dialog.dart",
-        "packages/nightshade_app/test/screens/settings/connection_alpaca_address_test.dart"
+        "packages/skotiq_app/lib/screens/settings/widgets/connection_settings.dart",
+        "packages/skotiq_app/lib/screens/settings/widgets/connection_settings_alpaca_dialog.dart",
+        "packages/skotiq_app/test/screens/settings/connection_alpaca_address_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/settings/connection_alpaca_address_test.dart -> 'the Alpaca address is shown and can be changed' (drives the row -> dialog -> Save and asserts app_settings), 'a malformed port is refused rather than coerced'",
+      "test": "packages/skotiq_app/test/screens/settings/connection_alpaca_address_test.dart -> 'the Alpaca address is shown and can be changed' (drives the row -> dialog -> Save and asserts app_settings), 'a malformed port is refused rather than coerced'",
       "revert_check": "Deleted the whole Alpaca Server Address SettingRow from connection_settings.dart (the production call site, leaving the dialog class in place) -> both tests FAILED; restored -> 2/2 pass.",
       "caveats": ""
     },
@@ -57,13 +57,13 @@
       "outcome": "fixed",
       "summary": "settings_screen.dart now tokenises the query and requires every token to match (AND), and ranks results by match quality (exact section title > title substring > exact row title > row-title prefix > anything else) with a stable sort. Added kSettingsSearchSynonyms for the words the app itself uses elsewhere for the capture directory - 'capture folder', 'capture directory', 'save path', 'free space', 'disk space' - none of which appear in that page's own text.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/settings_screen.dart",
-        "packages/nightshade_app/test/screens/settings/settings_search_query_test.dart"
+        "packages/skotiq_app/lib/screens/settings/settings_screen.dart",
+        "packages/skotiq_app/test/screens/settings/settings_search_query_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/settings/settings_search_query_test.dart -> 'a two-word phrase finds the page that owns the setting', 'every token still has to match something', 'the best match is listed first' (all type into the real search field and read the rendered sidebar)",
+      "test": "packages/skotiq_app/test/screens/settings/settings_search_query_test.dart -> 'a two-word phrase finds the page that owns the setting', 'every token still has to match something', 'the best match is listed first' (all type into the real search field and read the rendered sidebar)",
       "revert_check": "(a) Replaced the per-token loop with the old `section.matches(query)` -> 'capture folder' rendered 'No settings match your search.' and the test FAILED. (b) Pointed the synonym map at a non-existent key -> same test FAILED with Actual: ['Image Grading']. (c) Deleted the mergeSort ranking -> 'the best match is listed first' FAILED (About at index 2, Appliance Updates at 3). All restored -> 7/7 pass.",
       "caveats": "The synonyms live in settings_screen.dart rather than in SettingsSectionDef.keywords (settings_catalog.dart) because that file is outside this agent's ownership; see needs_shared_change.",
-      "needs_shared_change": "packages/nightshade_app/lib/screens/settings/settings_catalog.dart: kSettingsSearchSynonyms would be better folded into the 'files-storage' section's own `keywords` list, which exists for exactly this purpose."
+      "needs_shared_change": "packages/skotiq_app/lib/screens/settings/settings_catalog.dart: kSettingsSearchSynonyms would be better folded into the 'files-storage' section's own `keywords` list, which exists for exactly this purpose."
     },
     {
       "title": "Settings search sends autofocus queries to Files & Storage - the generated index for that page contains the whole Autofocus page's strings",
@@ -71,8 +71,8 @@
       "summary": "Root cause found in the generator, not the index: `_collect` read the whole FILE a page's widget was declared in, and merged_sections.dart declares BOTH FilesAndStorageSettings and AutofocusMergedSettings, so each inherited the other's rows. The generator now indexes a page against a source in which every OTHER catalog section's root class body is blanked out. files-storage went 75 -> 23 terms (all ~40 autofocus strings gone) and autofocus 75 -> 51 (the file/backup strings gone); 'backlash', 'v-curve' and 'curve fitting strategy' now return Autofocus only.",
       "files_changed": [
         "tools/production/settings_search_index_gen.dart",
-        "packages/nightshade_app/lib/screens/settings/settings_search_index.g.dart",
-        "packages/nightshade_app/test/screens/settings/settings_search_query_test.dart"
+        "packages/skotiq_app/lib/screens/settings/settings_search_index.g.dart",
+        "packages/skotiq_app/test/screens/settings/settings_search_query_test.dart"
       ],
       "test": "settings_search_query_test.dart -> 'an autofocus term does not land on Files & Storage'",
       "revert_check": "Restored the pre-fix settings_search_index.g.dart -> the test FAILED with Actual: ['Files & Storage', 'Autofocus'] (Files & Storage listed FIRST, exactly the reported symptom); restored the regenerated index -> 7/7 pass.",
@@ -82,11 +82,11 @@
     {
       "title": "The settings search index indexes confirmation-dialog titles the user can never see, while missing headings that are on screen",
       "outcome": "fixed",
-      "summary": "Three generator changes: (1) a `title:` whose enclosing call is a dialog/alert/snackbar/empty-state (ConfirmDialog.show, EmptyState.compact, RemoteHostPathDialog.show, ...) is no longer indexed - the enclosing-call detection now keeps the dotted receiver so those are recognisable; (2) headings a page renders as styled text (Text('X', style: NightshadeTypography.h1..h6)) ARE indexed, with question-phrased headings skipped because those are modal prompts; (3) the unit of collection is the Dart LIBRARY (file + its `part`s) rather than a single file, so Equipment Profiles - which renders every row from six part files and an extension - contributes its real headings instead of only its two error strings. 'GLADE' now finds Catalogs; 'Delete Deep-Star Tiles' and 'Roll back this rig?' are gone; equipment-profiles went from ['Could not load profiles','Select a profile'] to ['Camera Defaults','Device Assignments','Filter Configuration','Filter Focus Offsets','Optical Configuration'].",
+      "summary": "Three generator changes: (1) a `title:` whose enclosing call is a dialog/alert/snackbar/empty-state (ConfirmDialog.show, EmptyState.compact, RemoteHostPathDialog.show, ...) is no longer indexed - the enclosing-call detection now keeps the dotted receiver so those are recognisable; (2) headings a page renders as styled text (Text('X', style: SkotiqTypography.h1..h6)) ARE indexed, with question-phrased headings skipped because those are modal prompts; (3) the unit of collection is the Dart LIBRARY (file + its `part`s) rather than a single file, so Equipment Profiles - which renders every row from six part files and an extension - contributes its real headings instead of only its two error strings. 'GLADE' now finds Catalogs; 'Delete Deep-Star Tiles' and 'Roll back this rig?' are gone; equipment-profiles went from ['Could not load profiles','Select a profile'] to ['Camera Defaults','Device Assignments','Filter Configuration','Filter Focus Offsets','Optical Configuration'].",
       "files_changed": [
         "tools/production/settings_search_index_gen.dart",
-        "packages/nightshade_app/lib/screens/settings/settings_search_index.g.dart",
-        "packages/nightshade_app/test/screens/settings/settings_search_query_test.dart"
+        "packages/skotiq_app/lib/screens/settings/settings_search_index.g.dart",
+        "packages/skotiq_app/test/screens/settings/settings_search_query_test.dart"
       ],
       "test": "settings_search_query_test.dart -> 'a heading rendered on the page is findable', 'the index carries no text that is only inside a dialog', 'a heading the page renders is in the index'",
       "revert_check": "Restored the pre-fix settings_search_index.g.dart -> 'glade' returned 'No settings match your search.' and both index tests FAILED (dialog titles present, GLADE+/Camera Defaults absent); restored -> 7/7 pass. The 26 pre-existing tests in settings_search_test.dart / settings_section_index_test.dart / settings_screen_test.dart all still pass against the regenerated index.",
@@ -97,10 +97,10 @@
       "outcome": "fixed",
       "summary": "_CategoryItem and _GroupHeader now wrap their content in MergeSemantics + Semantics(button: true, selected/expanded) + InkWell instead of a bare GestureDetector, so both join the traversal order, activate on Enter/Space, and report themselves to AT as buttons carrying their selected/expanded state. Each paints a full-strength primary-coloured outline while focused (selection keeps its softer tint) so the focus position is visible.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/settings_screen.dart",
-        "packages/nightshade_app/test/screens/settings/settings_sidebar_keyboard_test.dart"
+        "packages/skotiq_app/lib/screens/settings/settings_screen.dart",
+        "packages/skotiq_app/test/screens/settings/settings_sidebar_keyboard_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/settings/settings_sidebar_keyboard_test.dart -> 'Tab reaches a settings section and Enter opens it' (mirrors the audit: click the search box, press Tab up to 24 times, then Enter must open Appearance), 'sections and group headers announce themselves as buttons'",
+      "test": "packages/skotiq_app/test/screens/settings/settings_sidebar_keyboard_test.dart -> 'Tab reaches a settings section and Enter opens it' (mirrors the audit: click the search box, press Tab up to 24 times, then Enter must open Appearance), 'sections and group headers announce themselves as buttons'",
       "revert_check": "(a) Added `canRequestFocus: false` to both InkWells -> the Tab test FAILED (focus never reached a section in 24 presses) and the semantics test FAILED. (b) Flipped Semantics(button: true) to false -> the semantics test FAILED. Both restored -> 2/2 pass.",
       "caveats": "The mobile list (_MobileGroupHeader/_MobileSectionItem) was already InkWell-based and is unchanged."
     },
@@ -109,33 +109,33 @@
       "outcome": "partial",
       "summary": "The picker no longer claims more than it does. The Spanish subtitle 'Elegir el idioma de la interfaz principal' (choose the language of the MAIN interface) is replaced with one that states the real scope - menus, navigation and Settings, other screens stay English - and the Spanish option is labelled 'Español (beta)' so an unfinished translation cannot read as a finished one. The dropdown now carries language CODES with display labels, so the stored value no longer depends on comparing translated display strings.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/widgets/general_settings.dart",
-        "packages/nightshade_app/test/screens/settings/general_language_scope_test.dart"
+        "packages/skotiq_app/lib/screens/settings/widgets/general_settings.dart",
+        "packages/skotiq_app/test/screens/settings/general_language_scope_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/settings/general_language_scope_test.dart -> 'the Spanish option is marked partial', 'the Spanish subtitle scopes itself to what changes', 'the English subtitle keeps its scoped wording', 'choosing a language still stores its code'",
+      "test": "packages/skotiq_app/test/screens/settings/general_language_scope_test.dart -> 'the Spanish option is marked partial', 'the Spanish subtitle scopes itself to what changes', 'the English subtitle keeps its scoped wording', 'choosing a language still stores its code'",
       "revert_check": "Restored `subtitle: l10n.text('generalLanguageDesc')` and the unmarked 'Español' label -> 'the Spanish option is marked partial' FAILED and 'the Spanish subtitle scopes itself to what changes' FAILED (0 widgets containing 'las demás pantallas siguen en inglés'); restored -> 4/4 pass.",
       "caveats": "PARTIAL and deliberately so: actually translating the product surfaces is not a settings-screen change. Measured, 46 of the app's 837 source files call l10n at all, and the Dashboard/Imaging/Sequencer/status-bar files are outside this agent's ownership. The honest Spanish sentence is currently a literal in general_settings.dart rather than a catalogue entry.",
-      "needs_shared_change": "packages/nightshade_app/lib/localization/nightshade_localizations/translations.dart: fix 'generalLanguageDesc' in the es block (it claims the MAIN interface) and add a key for the scope sentence now hardcoded in general_settings.dart. Beyond that, es coverage for the dashboard/imaging/sequencer/status-bar widgets is a product decision - either finish it or drop the option."
+      "needs_shared_change": "packages/skotiq_app/lib/localization/skotiq_localizations/translations.dart: fix 'generalLanguageDesc' in the es block (it claims the MAIN interface) and add a key for the scope sentence now hardcoded in general_settings.dart. Beyond that, es coverage for the dashboard/imaging/sequencer/status-bar widgets is a product decision - either finish it or drop the option."
     },
     {
       "title": "Red night mode leaves the Moon phase disc near-white - a dark-adaptation flare on the default screen",
       "outcome": "blocked",
-      "summary": "Confirmed in source and located exactly, but the fix is outside this agent's ownership. packages/nightshade_app/lib/screens/dashboard/widgets/standby/moon_card.dart:51 passes `litColor: const Color(0xFFD6DCE2)` to _MoonPainter - RGB(214,220,226), the exact pixel the audit sampled - and _MoonPainter (:164-245) fills the disc with it via `Paint()..color = litColor` (:188) regardless of theme. Nothing else in the file consults NightshadeColors for the disc.",
+      "summary": "Confirmed in source and located exactly, but the fix is outside this agent's ownership. packages/skotiq_app/lib/screens/dashboard/widgets/standby/moon_card.dart:51 passes `litColor: const Color(0xFFD6DCE2)` to _MoonPainter - RGB(214,220,226), the exact pixel the audit sampled - and _MoonPainter (:164-245) fills the disc with it via `Paint()..color = litColor` (:188) regardless of theme. Nothing else in the file consults SkotiqColors for the disc.",
       "files_changed": [],
       "test": "none written - the file is not owned by this agent",
       "revert_check": "n/a",
       "caveats": "Not fixed. Verified only.",
-      "needs_shared_change": "packages/nightshade_app/lib/screens/dashboard/widgets/standby/moon_card.dart:51 (and the darkColor beside it) must come from the theme ramp - e.g. NightshadeColors.of(context).textPrimary for lit and .surfaceAlt for the shadowed limb - so Red night maps the disc to dim red instead of a bluish-white flare. `litColor` has exactly one production caller, so this is a one-line change plus a red-night widget test asserting the painted colour follows the theme."
+      "needs_shared_change": "packages/skotiq_app/lib/screens/dashboard/widgets/standby/moon_card.dart:51 (and the darkColor beside it) must come from the theme ramp - e.g. SkotiqColors.of(context).textPrimary for lit and .surfaceAlt for the shadowed limb - so Red night maps the disc to dim red instead of a bluish-white flare. `litColor` has exactly one production caller, so this is a one-line change plus a red-night widget test asserting the painted colour follows the theme."
     },
     {
       "title": "The session checkpoint lives outside the database, so the app offers to resume a sequence its own database has never heard of - and the failure dialog contradicts itself",
       "outcome": "partial",
-      "summary": "The first half is ALREADY FIXED in the working tree by an earlier wave and needs nothing from this agent: packages/nightshade_app/lib/screens/shell/app_shell.dart:82-89 resolveGuiCheckpointDirectory now anchors the checkpoint to the directory holding the OPEN DATABASE (with adoptLegacyGuiCheckpoint at :106-135 migrating a legacy application-support file only when NIGHTSHADE_DATABASE_DIR is unset), so a checkpoint can only be found beside the database whose run wrote it and the frame count can no longer describe another instance's night. The second half is still live and is outside ownership: app_shell.dart:527-535 renders NightshadeAlert(title: 'Recovery did not complete', message: '$lastError\\n\\nThe checkpoint is still available. Retry resume or discard it to start fresh.') where lastError (:148/:163) is the raw caught object, so a Dart 'Exception: No valid checkpoint to resume from' is printed verbatim directly above a sentence asserting the checkpoint is still available.",
+      "summary": "The first half is ALREADY FIXED in the working tree by an earlier wave and needs nothing from this agent: packages/skotiq_app/lib/screens/shell/app_shell.dart:82-89 resolveGuiCheckpointDirectory now anchors the checkpoint to the directory holding the OPEN DATABASE (with adoptLegacyGuiCheckpoint at :106-135 migrating a legacy application-support file only when SKOTIQ_DATABASE_DIR is unset), so a checkpoint can only be found beside the database whose run wrote it and the frame count can no longer describe another instance's night. The second half is still live and is outside ownership: app_shell.dart:527-535 renders SkotiqAlert(title: 'Recovery did not complete', message: '$lastError\\n\\nThe checkpoint is still available. Retry resume or discard it to start fresh.') where lastError (:148/:163) is the raw caught object, so a Dart 'Exception: No valid checkpoint to resume from' is printed verbatim directly above a sentence asserting the checkpoint is still available.",
       "files_changed": [],
       "test": "none written - app_shell.dart is not owned by this agent",
       "revert_check": "n/a",
       "caveats": "Verified by reading the current source; the database-anchored checkpoint directory carries its own doc comment describing exactly the defect the audit reported.",
-      "needs_shared_change": "packages/nightshade_app/lib/screens/shell/app_shell.dart:527-535: replace the raw '$lastError' interpolation with a mapped message, and make the follow-up sentence conditional on the checkpoint actually still being resumable (backend.hasCheckpoint()/getCheckpointInfo().canResume) instead of asserting it unconditionally after a failure that may have been 'No valid checkpoint to resume from'."
+      "needs_shared_change": "packages/skotiq_app/lib/screens/shell/app_shell.dart:527-535: replace the raw '$lastError' interpolation with a mapped message, and make the follow-up sentence conditional on the checkpoint actually still being resumable (backend.hasCheckpoint()/getCheckpointInfo().canResume) instead of asserting it unconditionally after a failure that may have been 'No valid checkpoint to resume from'."
     }
   ]
 }

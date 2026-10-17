@@ -1,6 +1,6 @@
 # Branch Protection & Release-Readiness
 
-> This document records the required-checks policy for `main` in the Nightshade
+> This document records the required-checks policy for `main` in the Skotiq
 > repository so it is reviewable in-repo. Branch protection is configured via the
 > GitHub API / UI (Settings → Branches), not in YAML; the rules below describe
 > what that configuration enforces.
@@ -32,7 +32,7 @@ maintainer can still push directly to `main`. Pull-request reviews are not
 required (solo maintainer). Verify the live configuration with:
 
 ```bash
-gh api repos/Scdouglas1999/Nightshade/branches/main/protection \
+gh api repos/Scdouglas1999/Skotiq/branches/main/protection \
   --jq '{checks: .required_status_checks.contexts, enforce_admins: .enforce_admins.enabled}'
 ```
 

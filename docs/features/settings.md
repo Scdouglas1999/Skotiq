@@ -1,10 +1,10 @@
 # Settings
 
-The Settings screen provides comprehensive configuration options for all aspects of Nightshade. Open it from the gear button in the top bar, or with Ctrl+K. Its sections are listed in a left column.
+The Settings screen provides comprehensive configuration options for all aspects of Skotiq. Open it from the gear button in the top bar, or with Ctrl+K. Its sections are listed in a left column.
 
 ## Settings Categories
 
-Nightshade has the following settings categories:
+Skotiq has the following settings categories:
 
 1. Connection
 2. General
@@ -347,7 +347,7 @@ Per-feature toggles for each science product. Disabling one stops that processin
 | **Frame quality maps** | Compute clipping, uniformity, background, and SNR tile maps |
 | **3D science surfaces** | Enable the surface explorer and interactive mesh rendering |
 | **Auto-reject bad frames** | After each light frame, reject captures that exceed the thresholds set in Analytics → Science → Grade frames (files are never deleted) |
-| **Write science keywords to FITS** | Stamp MAGZP / MAGZPERR / TRANSPAR back into the FITS header so PixInsight, AstroPixelProcessor, and Siril can read Nightshade's measurements directly from the frame |
+| **Write science keywords to FITS** | Stamp MAGZP / MAGZPERR / TRANSPAR back into the FITS header so PixInsight, AstroPixelProcessor, and Siril can read Skotiq's measurements directly from the frame |
 
 ### Photometric Catalog
 
@@ -412,7 +412,7 @@ Configure storage locations.
 
 ## Plugins Settings
 
-Manage Nightshade plugins.
+Manage Skotiq plugins.
 
 ### Plugin List
 
@@ -488,7 +488,7 @@ View application information.
 
 ### Application Info
 
-- Nightshade logo
+- Skotiq logo
 - Version number
 - Tagline
 

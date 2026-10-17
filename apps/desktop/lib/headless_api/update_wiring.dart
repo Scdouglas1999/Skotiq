@@ -12,8 +12,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_updater/nightshade_updater.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_updater/skotiq_updater.dart';
 import 'package:path/path.dart' as p;
 
 import '../secret_file.dart';
@@ -44,7 +44,7 @@ class UpdateStack {
 /// Construct + bootstrap the production update stack.
 ///
 /// Always returns a stack: with no [serverUrl] and no
-/// `NIGHTSHADE_UPDATE_SERVER`, the source is the project's GitHub releases.
+/// `SKOTIQ_UPDATE_SERVER`, the source is the project's GitHub releases.
 /// (The nullable return is kept because callers already handle it, and
 /// because the construction below can still fail.)
 ///
@@ -63,14 +63,14 @@ Future<UpdateStack?> provisionUpdateStack({
 }) async {
   final resolvedUrl = (serverUrl?.trim().isNotEmpty ?? false)
       ? serverUrl!.trim()
-      : (Platform.environment['NIGHTSHADE_UPDATE_SERVER']?.trim() ?? '');
+      : (Platform.environment['SKOTIQ_UPDATE_SERVER']?.trim() ?? '');
   final resolvedChannel =
-      (Platform.environment['NIGHTSHADE_UPDATE_CHANNEL']?.trim().isNotEmpty ??
+      (Platform.environment['SKOTIQ_UPDATE_CHANNEL']?.trim().isNotEmpty ??
           false)
-      ? Platform.environment['NIGHTSHADE_UPDATE_CHANNEL']!.trim()
+      ? Platform.environment['SKOTIQ_UPDATE_CHANNEL']!.trim()
       : channel;
 
-  final appData = await resolveNightshadeDataDirectory();
+  final appData = await resolveSkotiqDataDirectory();
   final pushSecret = await getOrCreatePushSecret(logger, logSource: logSource);
 
   final service = UpdateService(
@@ -85,21 +85,21 @@ Future<UpdateStack?> provisionUpdateStack({
     service.configure(serverUrl: resolvedUrl, channel: resolvedChannel);
   } else {
     service.configureGithubSource(
-      owner: kNightshadeReleaseOwner,
-      repo: kNightshadeReleaseRepo,
+      owner: kSkotiqReleaseOwner,
+      repo: kSkotiqReleaseRepo,
       channel: resolvedChannel,
     );
   }
 
   // Observability gap: a build with an update source but no compiled-in
-  // NIGHTSHADE_UPDATE_PUBLIC_KEY looks live (checks succeed) until a
+  // SKOTIQ_UPDATE_PUBLIC_KEY looks live (checks succeed) until a
   // download is attempted, where it fails closed. Warn loudly so this is
   // not mistaken for working OTA. The stack is still returned — fail-closed
   // is preserved downstream in downloadAndStage / applyUpdate.
   if (!service.canAuthenticateUpdates) {
     logger.warning(
       'An OTA update source is configured but this build has no trusted '
-      'update public key (NIGHTSHADE_UPDATE_PUBLIC_KEY) compiled in. Update '
+      'update public key (SKOTIQ_UPDATE_PUBLIC_KEY) compiled in. Update '
       'checks will run, but downloads will be refused (fail-closed). Provision '
       'the vendor public key at build time to enable signed OTA updates.',
       source: logSource,
@@ -147,7 +147,7 @@ Future<String> getOrCreatePushSecret(
   required String logSource,
   Directory? appDataDir,
 }) async {
-  final appData = appDataDir ?? await resolveNightshadeDataDirectory();
+  final appData = appDataDir ?? await resolveSkotiqDataDirectory();
   final secretFile = File(p.join(appData.path, 'push_secret.txt'));
 
   if (await secretFile.exists()) {

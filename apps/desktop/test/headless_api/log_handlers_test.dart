@@ -10,8 +10,8 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/log_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/log_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -30,7 +30,7 @@ void main() {
       tempDir = await Directory.systemTemp.createTemp('ns_log_handlers_test_');
       // Use a fake current-log file path so clearLogs preserves it.
       logsDir = '${tempDir.path}${Platform.pathSeparator}logs';
-      final currentLogPath = '$logsDir${Platform.pathSeparator}nightshade.log';
+      final currentLogPath = '$logsDir${Platform.pathSeparator}skotiq.log';
       logger = LoggingService(
         applicationSupportDirectoryProvider: () async => tempDir,
         nativeInitWithLogging: ({logDirectory}) {},
@@ -57,9 +57,9 @@ void main() {
     group('GET /api/logs', () {
       test('returns list of log files with size and modifiedAt', () async {
         await File(
-          '$logsDir/nightshade.log.2026-05-22',
+          '$logsDir/skotiq.log.2026-05-22',
         ).writeAsString('first-day');
-        await File('$logsDir/nightshade.log').writeAsString('current');
+        await File('$logsDir/skotiq.log').writeAsString('current');
 
         final response = await translateHandlerErrors(
           handlers.handleListFiles(
@@ -190,7 +190,7 @@ void main() {
       ); // ASCII A..Z repeat
 
       setUp(() async {
-        targetFile = File('$logsDir/nightshade.log.2026-05-22');
+        targetFile = File('$logsDir/skotiq.log.2026-05-22');
         await targetFile.writeAsBytes(payload);
         fileLength = await targetFile.length();
       });
@@ -201,17 +201,17 @@ void main() {
             Request(
               'GET',
               Uri.parse(
-                'http://localhost/api/logs/files/nightshade.log.2026-05-22/download',
+                'http://localhost/api/logs/files/skotiq.log.2026-05-22/download',
               ),
             ),
-            'nightshade.log.2026-05-22',
+            'skotiq.log.2026-05-22',
           ),
         );
 
         expect(response.statusCode, HttpStatus.ok);
         expect(
           response.headers['content-disposition'],
-          contains('nightshade.log.2026-05-22'),
+          contains('skotiq.log.2026-05-22'),
         );
         expect(response.headers['accept-ranges'], 'bytes');
         expect(response.headers['etag'], isNotNull);
@@ -226,11 +226,11 @@ void main() {
             Request(
               'GET',
               Uri.parse(
-                'http://localhost/api/logs/files/nightshade.log.2026-05-22/download',
+                'http://localhost/api/logs/files/skotiq.log.2026-05-22/download',
               ),
               headers: {'range': 'bytes=10-19'},
             ),
-            'nightshade.log.2026-05-22',
+            'skotiq.log.2026-05-22',
           ),
         );
 
@@ -246,11 +246,11 @@ void main() {
             Request(
               'GET',
               Uri.parse(
-                'http://localhost/api/logs/files/nightshade.log.2026-05-22/download',
+                'http://localhost/api/logs/files/skotiq.log.2026-05-22/download',
               ),
               headers: {'range': 'lines=0-10'},
             ),
-            'nightshade.log.2026-05-22',
+            'skotiq.log.2026-05-22',
           ),
         );
 
@@ -295,10 +295,10 @@ void main() {
             Request(
               'GET',
               Uri.parse(
-                'http://localhost/api/logs/files/nightshade.log.2099-12-31/download',
+                'http://localhost/api/logs/files/skotiq.log.2099-12-31/download',
               ),
             ),
-            'nightshade.log.2099-12-31',
+            'skotiq.log.2099-12-31',
           ),
         );
 
@@ -313,10 +313,10 @@ void main() {
         final currentLog = logger.currentLogFile!;
         await File(currentLog).writeAsString('current-data');
         await File(
-          '$logsDir/nightshade.log.2026-05-20',
+          '$logsDir/skotiq.log.2026-05-20',
         ).writeAsString('rotated-1');
         await File(
-          '$logsDir/nightshade.log.2026-05-21',
+          '$logsDir/skotiq.log.2026-05-21',
         ).writeAsString('rotated-2-longer');
 
         final response = await translateHandlerErrors(
@@ -335,7 +335,7 @@ void main() {
         // Current log preserved.
         expect(await File(currentLog).exists(), isTrue);
         expect(
-          await File('$logsDir/nightshade.log.2026-05-20').exists(),
+          await File('$logsDir/skotiq.log.2026-05-20').exists(),
           isFalse,
         );
       });

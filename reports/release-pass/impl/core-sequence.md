@@ -1,6 +1,6 @@
 # core-sequence — implementation log
 
-Scope: `packages/nightshade_core/lib/src/providers/sequence/**` (+ package test dirs).
+Scope: `packages/skotiq_core/lib/src/providers/sequence/**` (+ package test dirs).
 Baseline: `b07d91c9d`.
 
 ## Resume context

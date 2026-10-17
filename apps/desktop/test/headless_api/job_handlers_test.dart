@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless_api/handlers/job_handlers.dart';
-import 'package:nightshade_desktop/headless_api/job_manager.dart';
+import 'package:skotiq_desktop/headless_api/handlers/job_handlers.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive the Nightshade mobile app on an Android emulator for audit sweeps.
+"""Drive the Skotiq mobile app on an Android emulator for audit sweeps.
 
 WHY THIS EXISTS
 ---------------
@@ -42,7 +42,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 SDK = Path(os.environ.get("ANDROID_HOME", str(Path.home() / "Android/Sdk")))
 EMULATOR = SDK / "emulator/emulator"
-APP_ID = os.environ.get("NS_ANDROID_APP_ID", "com.nightshade.mobile")
+APP_ID = os.environ.get("NS_ANDROID_APP_ID", "com.skotiq.mobile")
 AVD = os.environ.get("NS_ANDROID_AVD", "ns_test_api35")
 OUT = Path(os.environ.get("NS_ANDROID_RUNTIME", "/tmp/ns-android"))
 
@@ -241,7 +241,7 @@ def cmd_shot(args: argparse.Namespace) -> int:
 def cmd_log(args: argparse.Namespace) -> int:
     r = _adb("logcat", "-d", "-v", "brief", timeout=120)
     lines = [l for l in r.stdout.splitlines()
-             if "nightshade" in l.lower() or "flutter" in l.lower()]
+             if "skotiq" in l.lower() or "flutter" in l.lower()]
     for line in lines[-args.tail:]:
         print(line)
     return 0

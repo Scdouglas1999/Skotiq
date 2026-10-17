@@ -63,9 +63,9 @@ def site(unix=None):
 # again to build the sequence — and a leg that straddles a site crossover got
 # two different observatories from the two calls: the profile said Mauna Kea
 # while the target was computed for Kitt Peak, which is a fabricated sky.
-# The leg exports NIGHTSHADE_HARNESS_SITE from the first call and every later
+# The leg exports SKOTIQ_HARNESS_SITE from the first call and every later
 # call reads it back, so one leg is always one place.
-_pinned = os.environ.get("NIGHTSHADE_HARNESS_SITE")
+_pinned = os.environ.get("SKOTIQ_HARNESS_SITE")
 if _pinned:
     _lat, _lon, _name = _pinned.split(",", 2)
     SITE_LAT, SITE_LON, SITE_NAME = float(_lat), float(_lon), _name

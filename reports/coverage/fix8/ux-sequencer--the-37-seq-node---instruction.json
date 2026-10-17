@@ -8,7 +8,7 @@
   "what_happened": "The node's own subtitle is 'One row per filter'. Row 1 was seeded from the sequencer defaults (L, 3 x 2.0 s). Clicking '+ Add Filter Plan' produced a second row also set to L, with 10 x 60.0 s \u2014 neither a copy of the row above nor a value the user chose, and a duplicate of an existing filter, which the 'one row per filter' contract says is impossible. Nothing warns about the duplicate.",
   "expected": "Pick the next unused filter from the profile, and copy count/duration/gain/offset/binning from the previous row (this is what NINA's Smart Exposure does). Block or warn on duplicate filters.",
   "repro": "Configure profile filters, add Smart Exposure, click '+ Add Filter Plan'.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/widgets/smart_exposure_properties.dart",
+  "where": "packages/skotiq_app/lib/screens/sequencer/widgets/smart_exposure_properties.dart",
   "location_wrong": null,
   "proposed_fix": null,
   "verdict_reasoning": null
@@ -22,7 +22,7 @@
   "what_happened": "The palette filters on name OR description and keeps the original category order. 'Smart Exposure' has the description 'One row per filter; handles rotation + dither', so searching 'Dither' lists Smart Exposure first and the actual Dither node second. Building a sequence by search-then-click-the-first-result silently gave me two Smart Exposure nodes and zero Dither nodes; I only noticed by reading the accessibility tree afterwards.",
   "expected": "Exact/prefix name matches must sort above description matches.",
   "repro": "Sequencer > Nodes > type 'Dither' in Search nodes. Smart Exposure is the first result.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/widgets/node_palette.dart:53-67",
+  "where": "packages/skotiq_app/lib/screens/sequencer/widgets/node_palette.dart:53-67",
   "location_wrong": null,
   "proposed_fix": null,
   "verdict_reasoning": null
@@ -36,7 +36,7 @@
   "what_happened": "A sequence [Stop Guiding, Start Guiding] with no guider connected: 'Stop Guiding failed: Failed to stop guiding: No active guider configured' and the run aborted before Start Guiding ever ran. A Stop Guiding node is normally used in an end-of-night or pre-flip block where guiding may or may not be active.",
   "expected": "Stopping something that is already stopped is a no-op success (this is what NINA and SGP do). Reserve failure for a guider that is connected and refuses to stop.",
   "repro": "New sequence > Stop Guiding > Start.",
-  "where": "native/nightshade_native/sequencer/src/instructions.rs (stop guiding instruction)",
+  "where": "native/skotiq_native/sequencer/src/instructions.rs (stop guiding instruction)",
   "location_wrong": null,
   "proposed_fix": null,
   "verdict_reasoning": null
@@ -50,7 +50,7 @@
   "what_happened": "I selected the Slew to Target node (its properties panel loaded, the row showed the selected outline) and pressed Delete. Nothing happened \u2014 the header still read '4 nodes'. Deletion only worked by hovering the row until an icon strip appears and clicking the trash icon, then confirming a dialog. There is a sequence_tree_shortcuts.dart in the codebase, so shortcuts exist for other actions.",
   "expected": "Delete/Backspace on a selected node should delete it (with the same confirm dialog).",
   "repro": "Select any node in the tree, press Delete.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/widgets/sequence_tree_shortcuts.dart",
+  "where": "packages/skotiq_app/lib/screens/sequencer/widgets/sequence_tree_shortcuts.dart",
   "location_wrong": null,
   "proposed_fix": null,
   "verdict_reasoning": null
@@ -64,7 +64,7 @@
   "what_happened": "The Calibrator On properties show a slider fixed to 0-255 with the caption '0 = off, 255 = maximum brightness'. ASCOM/Alpaca cover calibrators report their own MaxBrightness (commonly 100, 1023 or 65535); the node has no way to read it and the caption asserts a value that will be wrong for most panels. (The node itself is also unreachable at runtime \u2014 see the dome/cover finding.)",
   "expected": "Read MaxBrightness from the connected calibrator and scale the slider and caption to it; if none is connected, say the range is the device's.",
   "repro": "Add Calibrator On > read Properties.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/widgets/node_properties_panel_parts (calibrator properties)",
+  "where": "packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel_parts (calibrator properties)",
   "location_wrong": null,
   "proposed_fix": null,
   "verdict_reasoning": null
@@ -78,7 +78,7 @@
   "what_happened": "With a single filter plan (L), the Rotate Filters switch's caption reads 'Round-robin: RGRGRG...' \u2014 naming R and G filters that are not in the node and describing a rotation that cannot happen with one row. It reads as a description of this node's behaviour rather than a generic illustration.",
   "expected": "Build the preview string from the node's own plans, e.g. 'L L L' for one row or 'L G L G L' for the configured rows.",
   "repro": "Add Smart Exposure with one filter plan > scroll Properties to Rotate Filters.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/widgets/smart_exposure_properties.dart",
+  "where": "packages/skotiq_app/lib/screens/sequencer/widgets/smart_exposure_properties.dart",
   "location_wrong": null,
   "proposed_fix": null,
   "verdict_reasoning": null
@@ -92,7 +92,7 @@
   "what_happened": "A freshly added Target node shows 'Name: Target' at the top of the properties panel and 'Target Settings > Target Name: New Target' below it. The tree row and every run log use 'New Target'; the node label uses 'Target'. Nothing on screen explains which one matters.",
   "expected": "One field. If a node-label vs astronomical-target distinction is really needed, label them 'Step label' and 'Target', and default them to the same value.",
   "repro": "Sequencer > add Target > read Properties.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/widgets/node_properties_panel_parts/target_node_properties",
+  "where": "packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel_parts/target_node_properties",
   "location_wrong": null,
   "proposed_fix": null,
   "verdict_reasoning": null
@@ -106,7 +106,7 @@
   "what_happened": "A sequence of [Open Cover, Calibrator On] with zero cover calibrators discovered passed pre-flight as 'Ready with Warnings' \u2014 the only warning was 'No Exposures'. The run then aborted 1 s in on 'No cover calibrator (flat panel) connected'. The same held for the dome nodes. Pre-flight does check filters for Smart Exposure and structure for Target Scheduler, so the device-requirement check simply does not cover the dome/cover family.",
   "expected": "Pre-flight should map each node type to the device it needs and error when that device is absent \u2014 that is the whole point of running it before dark.",
   "repro": "Add Open Cover + Calibrator On with no cover calibrator connected > Start.",
-  "where": "packages/nightshade_core/lib/src/providers/sequence/rules/",
+  "where": "packages/skotiq_core/lib/src/providers/sequence/rules/",
   "location_wrong": null,
   "proposed_fix": null,
   "verdict_reasoning": null
@@ -120,7 +120,7 @@
   "what_happened": "The sequence header shows chips like '9 errors / 5 warnings / 1 info'. Clicking the red error chip does nothing \u2014 no popover, no jump to the offending node, no panel. The only way to read the issues is to press Start and open the Pre-Flight dialog, which is a strange thing to have to do while editing.",
   "expected": "Clicking a badge should open the issue list (the pre-flight content already exists) and clicking an issue should select the offending node.",
   "repro": "Build a sequence with errors, click the red '1' chip next to the sequence name.",
-  "where": "packages/nightshade_app/lib/screens/sequencer/widgets (sequence header validation chips)",
+  "where": "packages/skotiq_app/lib/screens/sequencer/widgets (sequence header validation chips)",
   "location_wrong": null,
   "proposed_fix": null,
   "verdict_reasoning": null

@@ -11,13 +11,13 @@
 // "a misconfigured version masks the entire OTA update flow (the server
 // compares against this string to decide whether to advertise a newer build)".
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_mobile/main.dart';
+import 'package:skotiq_mobile/main.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 void _mockPackage({required String version, required String buildNumber}) {
   PackageInfo.setMockInitialValues(
-    appName: 'Nightshade',
-    packageName: 'com.nightshade.mobile',
+    appName: 'Skotiq',
+    packageName: 'com.skotiq.mobile',
     version: version,
     buildNumber: buildNumber,
     buildSignature: '',

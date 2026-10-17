@@ -24,7 +24,7 @@ function Copy-File($source, $destination) {
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
-$rustDir = Join-Path $repoRoot "native/nightshade_native"
+$rustDir = Join-Path $repoRoot "native/skotiq_native"
 $desktopDir = Join-Path $repoRoot "apps/desktop"
 $releaseDir = Join-Path $desktopDir "build/windows/x64/runner/Release"
 $installerScript = Join-Path $desktopDir "installer/installer.iss"
@@ -39,7 +39,7 @@ if (Test-Path $updaterSource) {
 } else {
     Write-Host "  updater.exe not built; building now"
     Push-Location $rustDir
-    cargo build --release --package nightshade_updater
+    cargo build --release --package skotiq_updater
     $rc = $LASTEXITCODE
     Pop-Location
     if ($rc -ne 0) { throw "cargo build updater failed (exit $rc)" }

@@ -3,36 +3,36 @@
   "title": "A rig with no filter wheel cannot create any integration goal, so the autopilot can never be given a target",
   "outcome": "partial",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/scheduler/widgets/integration_goals_editor.dart",
-   "packages/nightshade_app/test/screens/scheduler/widgets/integration_goals_editor_unfiltered_test.dart"
+   "packages/skotiq_app/lib/screens/scheduler/widgets/integration_goals_editor.dart",
+   "packages/skotiq_app/test/screens/scheduler/widgets/integration_goals_editor_unfiltered_test.dart"
   ],
   "summary": "The add-goal footer no longer refuses on an empty filter list. A rig with no wheel now gets one selectable slot carrying smartNightUnfilteredName (''), the same wire contract Smart Night plans against, rendered as 'No filter'. The hard refusal is kept only for the real fault (a wheel that IS connected and still reports zero slots). UI half only - the Dart SchedulerEngine still rejects the resulting candidate, see needs_shared_change.",
-  "test": "packages/nightshade_app/test/screens/scheduler/widgets/integration_goals_editor_unfiltered_test.dart",
+  "test": "packages/skotiq_app/test/screens/scheduler/widgets/integration_goals_editor_unfiltered_test.dart",
   "revert_check": "Reverted `if (widget.wheelOnlineWithNoSlots) {` back to `if (widget.availableFilters.isEmpty) {` (integration_goals_editor.dart:609): 2 of 3 tests failed (no DropdownButton<String>; no 'already has its goal').",
-  "needs_shared_change": "packages/nightshade_core/lib/src/services/scheduler/scheduler_engine.dart:787-801 and :1071-1085 and :1119-1130 treat a goal as imageable only when c.availableFilters contains its name, so an unfiltered goal on a wheel-less rig (availableFilters == []) is still rejected with 'required filter(s) not in equipment wheel ()'. Fix: have SchedulerCandidateLoader._availableFilters (packages/nightshade_core/lib/src/providers/scheduler_provider.dart:552-563) return smartNightPlanningFilters(profile.filterNames) so a wheel-less profile yields [''], which makes the containment checks and buildSequenceForCandidate work unchanged.",
+  "needs_shared_change": "packages/skotiq_core/lib/src/services/scheduler/scheduler_engine.dart:787-801 and :1071-1085 and :1119-1130 treat a goal as imageable only when c.availableFilters contains its name, so an unfiltered goal on a wheel-less rig (availableFilters == []) is still rejected with 'required filter(s) not in equipment wheel ()'. Fix: have SchedulerCandidateLoader._availableFilters (packages/skotiq_core/lib/src/providers/scheduler_provider.dart:552-563) return smartNightPlanningFilters(profile.filterNames) so a wheel-less profile yields [''], which makes the containment checks and buildSequenceForCandidate work unchanged.",
   "caveats": "Without the core change the operator can now CREATE the goal but the scheduler still will not schedule it."
  },
  {
   "title": "False \"Rises late\" warning on a target that is up all night, and the same card gives two different rise times",
   "outcome": "blocked",
   "files_changed": [],
-  "summary": "Confirmed by source reading, NOT fixed: both producers are outside this agent's ownership. Chain: TargetSuggestionService (nightshade_core/lib/src/services/target_suggestion_service.dart:145) -> TargetScoringService.scoreTargetForNight (nightshade_planetarium/lib/src/planning/target_scoring.dart:318) -> _generateNightWarnings, whose 'Rises late' block (:1004-1024) fires off visibility.riseTime from the nightMid-anchored calculateObjectVisibility at :403-412. calculateObjectVisibility (astronomy_calculations.dart:1096-1107) anchors its 24h search at LOCAL NOON of the given date, so a nightMid of ~01:30 on Aug 2 searches Aug 2 12:00 -> Aug 3 12:00 and names a rise a day later, in daylight (11:54). The chart footer on the same card is a SECOND solve inside AltitudeChart (packages/nightshade_app/lib/screens/framing/altitude_chart.dart:155-163) anchored at `now` (Aug 1), i.e. Aug 1 12:00 -> Aug 2 12:00, giving 12:01 - the 7-minute gap is one day of sidereal drift.",
+  "summary": "Confirmed by source reading, NOT fixed: both producers are outside this agent's ownership. Chain: TargetSuggestionService (skotiq_core/lib/src/services/target_suggestion_service.dart:145) -> TargetScoringService.scoreTargetForNight (skotiq_planetarium/lib/src/planning/target_scoring.dart:318) -> _generateNightWarnings, whose 'Rises late' block (:1004-1024) fires off visibility.riseTime from the nightMid-anchored calculateObjectVisibility at :403-412. calculateObjectVisibility (astronomy_calculations.dart:1096-1107) anchors its 24h search at LOCAL NOON of the given date, so a nightMid of ~01:30 on Aug 2 searches Aug 2 12:00 -> Aug 3 12:00 and names a rise a day later, in daylight (11:54). The chart footer on the same card is a SECOND solve inside AltitudeChart (packages/skotiq_app/lib/screens/framing/altitude_chart.dart:155-163) anchored at `now` (Aug 1), i.e. Aug 1 12:00 -> Aug 2 12:00, giving 12:01 - the 7-minute gap is one day of sidereal drift.",
   "test": "none - no production change was made, so there is nothing to revert-test.",
   "revert_check": "n/a (no change).",
-  "needs_shared_change": "TWO files, both outside ownership. (1) packages/nightshade_planetarium/lib/src/planning/target_scoring.dart: scoreTargetForNight already walks every 15-minute sample from nightStart to nightEnd against the skyline-aware effective minimum (:337-387). Record the FIRST sample time that clears that minimum ('firstObservableTime', null when never) and pass it into _generateNightWarnings; gate the 'Rises late' warning on that value instead of visibility.riseTime, and drop the warning entirely when the very first sample (nightStart) already clears the minimum - which is exactly M92's case (>80 deg at astronomical dark). Expose that same value on VisibilityInfo so the card has one rise time. (2) packages/nightshade_app/lib/screens/framing/altitude_chart.dart:155-163 must stop solving rise/transit/set on its own; give AltitudeChart an optional injected ObjectVisibility (or the night window) and have the planner cards pass suggestion.visibility, so one card cannot print two rise times.",
-  "caveats": "Ownership for this task is packages/nightshade_app/lib/screens/{planner,scheduler,tonight,suggestions,weather,transients}/** and native/.../sequencer/src/scheduling/**. Both producers sit outside it (nightshade_planetarium, and screens/framing). Anything I could have done inside the planner cards would only have suppressed the rendered warning while target_scoring kept producing it for every other consumer - a relocation, not a fix."
+  "needs_shared_change": "TWO files, both outside ownership. (1) packages/skotiq_planetarium/lib/src/planning/target_scoring.dart: scoreTargetForNight already walks every 15-minute sample from nightStart to nightEnd against the skyline-aware effective minimum (:337-387). Record the FIRST sample time that clears that minimum ('firstObservableTime', null when never) and pass it into _generateNightWarnings; gate the 'Rises late' warning on that value instead of visibility.riseTime, and drop the warning entirely when the very first sample (nightStart) already clears the minimum - which is exactly M92's case (>80 deg at astronomical dark). Expose that same value on VisibilityInfo so the card has one rise time. (2) packages/skotiq_app/lib/screens/framing/altitude_chart.dart:155-163 must stop solving rise/transit/set on its own; give AltitudeChart an optional injected ObjectVisibility (or the night window) and have the planner cards pass suggestion.visibility, so one card cannot print two rise times.",
+  "caveats": "Ownership for this task is packages/skotiq_app/lib/screens/{planner,scheduler,tonight,suggestions,weather,transients}/** and native/.../sequencer/src/scheduling/**. Both producers sit outside it (skotiq_planetarium, and screens/framing). Anything I could have done inside the planner cards would only have suppressed the rendered warning while target_scoring kept producing it for every other consumer - a relocation, not a fix."
  },
  {
   "title": "Target-queue empty state misdiagnoses the cause: tells you to add catalog targets and goals when you already have them",
   "outcome": "fixed",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/planner/widgets/scheduler_tab_content/empty_state.dart",
-   "packages/nightshade_app/test/screens/planner/widgets/scheduler_empty_state_cause_test.dart",
-   "packages/nightshade_app/test/screens/planner/widgets/scheduler_tab_content_test.dart",
-   "packages/nightshade_app/test/screens/scheduler/scheduler_screen_test.dart"
+   "packages/skotiq_app/lib/screens/planner/widgets/scheduler_tab_content/empty_state.dart",
+   "packages/skotiq_app/test/screens/planner/widgets/scheduler_empty_state_cause_test.dart",
+   "packages/skotiq_app/test/screens/planner/widgets/scheduler_tab_content_test.dart",
+   "packages/skotiq_app/test/screens/scheduler/scheduler_screen_test.dart"
   ],
   "summary": "The empty state now diagnoses the cause from the same three inputs the candidate loader reads (active project id + its CampaignProgress, catalog count, integration goals) and renders one of four messages: awaiting-first-eval, active-project-empty (names the project and offers a 'Schedule whole catalog' action that clears the active project), catalog-empty, or no-integration-goals. The 'unknown' fallback no longer asserts a cause.",
-  "test": "packages/nightshade_app/test/screens/planner/widgets/scheduler_empty_state_cause_test.dart",
+  "test": "packages/skotiq_app/test/screens/planner/widgets/scheduler_empty_state_cause_test.dart",
   "revert_check": "Restored HEAD's empty_state.dart (git show HEAD:...empty_state.dart > empty_state.dart), which is the two-variant awaitingFirstEval split: all 3 tests failed ('Empty Project' not found, 'No targets in your catalog' not found, 'No integration goals set' not found). Restored, all 3 pass.",
   "caveats": "Tests drive the real SchedulerTabContent -> queue_table -> _NoTargetsEmptyState wiring through a remote backend that returns a decision with zero scored candidates, so cutting the production call site fails them. Two existing tests needed updating: scheduler_tab_content_test's _MockNetworkBackend had no scheme/host/port stubs (ActiveProjectNotifier scopes its key by remote identity and got a null String), and scheduler_screen_test asserted the old blanket copy in a scenario where the catalog/goal streams never emit - it now asserts the honest 'produced no candidate targets' fallback."
  },
@@ -40,26 +40,26 @@
   "title": "Alert Settings presents MPEC and CBAT as enabled alert sources, but no code ever queries them",
   "outcome": "fixed",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/transients/transients_screen.dart",
-   "packages/nightshade_app/test/screens/transients/transients_source_honesty_test.dart"
+   "packages/skotiq_app/lib/screens/transients/transients_screen.dart",
+   "packages/skotiq_app/test/screens/transients/transients_source_honesty_test.dart"
   ],
   "summary": "Added kFetchableTransientSources (aavso, tns - the only two TransientAlertService.getAllAlerts dispatches). The Alert Sources chips now render MPEC and CBAT as 'MPEC - not available' / 'CBAT - not available', never selected and not togglable regardless of the stored enabledSources, with a caption naming what is implemented and where the TNS credentials live. The empty-state body no longer says 'and other sources'.",
-  "test": "packages/nightshade_app/test/screens/transients/transients_source_honesty_test.dart",
+  "test": "packages/skotiq_app/test/screens/transients/transients_source_honesty_test.dart",
   "revert_check": "Replaced the per-source `final available = kFetchableTransientSources.contains(source) || source == TransientSource.manual;` with `const available = true;` (transients_screen.dart, settings dialog Wrap): the MPEC/CBAT test failed, the other three passed. Restored, all 4 pass.",
-  "needs_shared_change": "packages/nightshade_core/lib/src/models/alerts/transient_alert.dart:126-134 still DEFAULTS enabledSources to {aavso, mpec, cbat, manual}. The UI no longer renders those as monitored and the service already ignores them, but the persisted default should drop mpec/cbat, and kFetchableTransientSources should be hoisted next to TransientSource (the service's private filter at transient_alert_service.dart:941-950 is a second copy of the same fact).",
+  "needs_shared_change": "packages/skotiq_core/lib/src/models/alerts/transient_alert.dart:126-134 still DEFAULTS enabledSources to {aavso, mpec, cbat, manual}. The UI no longer renders those as monitored and the service already ignores them, but the persisted default should drop mpec/cbat, and kFetchableTransientSources should be hoisted next to TransientSource (the service's private filter at transient_alert_service.dart:941-950 is a second copy of the same fact).",
   "caveats": "Fixed in the surface that made the claim; the model default is still wrong but is no longer user-visible."
  },
  {
   "title": "Observing Alerts refresh is a silent no-op and the screen can never show anything",
   "outcome": "partial",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/transients/transients_screen.dart",
-   "packages/nightshade_app/test/screens/transients/transients_source_honesty_test.dart"
+   "packages/skotiq_app/lib/screens/transients/transients_screen.dart",
+   "packages/skotiq_app/test/screens/transients/transients_source_honesty_test.dart"
   ],
   "summary": "Added a per-source status strip under the header: a spinner + 'Checking sources...' while a fetch is in flight, then one entry per ENABLED FETCHABLE source ('AAVSO: 0 alerts', 'TNS: skipped - no API key' when the bot id/name/secret are not configured, 'AAVSO: failed' on error), 'No alert source is enabled' when none is, and a 'checked HH:MM' / 'never checked' stamp driven by a ref.listen on the feed (so the 15-minute poll stamps it too, not just the refresh button). The operator can now distinguish a quiet sky from a fetch that never ran or never could.",
-  "test": "packages/nightshade_app/test/screens/transients/transients_source_honesty_test.dart",
+  "test": "packages/skotiq_app/test/screens/transients/transients_source_honesty_test.dart",
   "revert_check": "Deleted the production call site `_SourceStatusStrip(colors: colors, alertsAsync: alertsAsync),` from TransientsView's Column: 3 of 4 tests failed (no per-source count, no TNS-unkeyed line, no 'never checked'). Restored, all 4 pass.",
-  "needs_shared_change": "TWO core changes remain. (1) packages/nightshade_core/lib/src/services/transient_alert_service.dart:80-81 _aavsoApiUrl is 'https://www.aavso.org/vsx/index.php?view=api.list&format=json&maxrec=50', which 301-redirects to vsx.aavso.org and then returns exactly {\"VSXObjects\":[]} - api.list with no selector returns an empty set by design, so the only implemented broadband source is empty by construction. It needs a vsx.aavso.org host and a query that actually selects recent alerts. (2) getAllAlerts (:843-900) swallows PARTIAL failures into a logger.warning; the per-source outcomes (_TransientFetchOutcome) should be returned alongside the alerts so the strip can print 'AAVSO: failed - <reason>' instead of inferring failure only from a total-failure exception.",
+  "needs_shared_change": "TWO core changes remain. (1) packages/skotiq_core/lib/src/services/transient_alert_service.dart:80-81 _aavsoApiUrl is 'https://www.aavso.org/vsx/index.php?view=api.list&format=json&maxrec=50', which 301-redirects to vsx.aavso.org and then returns exactly {\"VSXObjects\":[]} - api.list with no selector returns an empty set by design, so the only implemented broadband source is empty by construction. It needs a vsx.aavso.org host and a query that actually selects recent alerts. (2) getAllAlerts (:843-900) swallows PARTIAL failures into a logger.warning; the per-source outcomes (_TransientFetchOutcome) should be returned alongside the alerts so the strip can print 'AAVSO: failed - <reason>' instead of inferring failure only from a total-failure exception.",
   "caveats": "The strip can only report what the provider returns. Until the AAVSO URL is fixed the honest reading stays 'AAVSO: 0 alerts', and a partial failure (AAVSO ok, TNS 500) still shows the TNS entry as a count rather than an error."
  }
 ]

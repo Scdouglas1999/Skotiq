@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_bridge/nightshade_bridge.dart' as bridge;
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
@@ -369,7 +369,7 @@ class GuidingHandlers {
   }
 
   static bool _isPhd2NoLockPosition(Object error) {
-    if (error is bridge.NightshadeError) {
+    if (error is bridge.SkotiqError) {
       return error.maybeMap(
         operationFailed: (failure) {
           final message = failure.field0.toLowerCase();
@@ -384,7 +384,7 @@ class GuidingHandlers {
   }
 
   static bool _isPhd2NoStarSelected(Object error) {
-    if (error is bridge.NightshadeError) {
+    if (error is bridge.SkotiqError) {
       return error.maybeMap(
         operationFailed: (failure) =>
             failure.field0.toLowerCase().contains('no star selected'),
@@ -554,7 +554,7 @@ class GuidingHandlers {
       // a response body — it selects the status code and nothing more.
       const marker = 'no guide star found';
       final isNoStarFound =
-          (error is bridge.NightshadeError &&
+          (error is bridge.SkotiqError &&
               error.maybeMap(
                 operationFailed: (failure) =>
                     failure.field0.toLowerCase().contains(marker),

@@ -1,4 +1,4 @@
-# Release-pass map — Rust imaging crate (`native/nightshade_native/imaging/src/`)
+# Release-pass map — Rust imaging crate (`native/skotiq_native/imaging/src/`)
 
 Read-only mapping pass. Nothing in this report was edited. All line numbers are from
 `audit/end-to-end-campaign` at commit `b07d91c9d`. Line counts verified with `wc -l`.
@@ -508,17 +508,17 @@ worthwhile tightening is one-directional — add `impl From<&SipWcs> for WcsInfo
 ### 2.8 Cross-package duplication suspects (one line each; for the cross-cutting agent)
 
 - **Frame quality score, CONFIRMED DRIFTED.** `fits.rs:2090 calculate_quality_score` and
-  `packages/nightshade_core/lib/src/services/frame_quality_score.dart:37
+  `packages/skotiq_core/lib/src/services/frame_quality_score.dart:37
   computeFrameQualityScore` implement the same weights/bands (the Dart file's own comment
   at line 33 says it "mirrors the Rust implementation in `imaging/fits.rs`"), but the Rust
   version applies an extra severe-focus penalty for `hfr > 5.0` (`fits.rs:2150-2160`) that
   the Dart version does not, and the Dart version returns `NaN` where Rust returns `0.0`
   when no component is measurable.
 - **Airmass.** `fits.rs:1273 calculate_airmass` vs Dart `airmassForFrame`
-  (`packages/nightshade_app/lib/screens/analytics/widgets/photometric_calibration_wizard/frame_selection.dart:420`).
+  (`packages/skotiq_app/lib/screens/analytics/widgets/photometric_calibration_wizard/frame_selection.dart:420`).
 - **Auto-stretch / STF.** `stretch.rs` (`robust_stats` 342, `stf_from_stats`) vs the Dart
-  stretch controls in `packages/nightshade_app/lib/screens/imaging/widgets/stretch_controls.dart`
-  and `packages/nightshade_app/lib/screens/stack_result/`.
+  stretch controls in `packages/skotiq_app/lib/screens/imaging/widgets/stretch_controls.dart`
+  and `packages/skotiq_app/lib/screens/stack_result/`.
 - **Display histogram.** `stats.rs:1012 calculate_display_histogram` (log/linear binning
   for the UI) vs whatever the Dart histogram widget computes from raw pixels.
 - **Gnomonic projection.** `wcs_sip.rs:368 tan_project` / `:391 tan_deproject` and
@@ -547,7 +547,7 @@ can consume a Rust associated const, so the barrel is not a caller. **Delete 51 
 Evidence: `grep -rn "calculate_quality_score(" native/ --include="*.rs"` returns 7 hits,
 all inside `fits.rs`'s own `mod tests` (2996, 3006, 3018, 3028, 3175, 3182, 3189). No
 `bridge/` caller, no FRB export. The live implementation is the Dart one
-(`packages/nightshade_core/lib/src/services/frame_quality_score.dart`, §2.8) — and the
+(`packages/skotiq_core/lib/src/services/frame_quality_score.dart`, §2.8) — and the
 Dart file's comment names this Rust function as the thing it mirrors, which is exactly how
 the two drifted. **Delete 95 lines and the 7 tests**, or — if the intent is that Rust owns
 the formula — wire it up and delete the Dart copy. Do not leave both.
@@ -572,7 +572,7 @@ Every item is individually `#[cfg(test)]`-gated (attribute lines listed in §1.2
 `parse_sexagesimal`, `infer_pixel_scale_from_header`, `estimate_rotation`, `solve_internal`.
 
 Evidence of no production caller: `grep -rn "solve_internal\|extract_plate_stars\|gpu_downsample"
-native/nightshade_native --include="*.rs"` outside `platesolve.rs` returns nothing; inside
+native/skotiq_native --include="*.rs"` outside `platesolve.rs` returns nothing; inside
 `platesolve.rs` the only `solve_internal(` call sites are 2503 and 2513, both in
 `mod tests`. Whoever quarantined it behind `#[cfg(test)]` stopped one step short of
 deleting it.
@@ -585,7 +585,7 @@ deleting it.
   `PixelType` — become removable.
 - **`wgpu = "0.19"` and `pollster = "0.3"` (`imaging/Cargo.toml:31-32`) are in
   `[dependencies]` and are used by nothing else in the workspace.** Evidence:
-  `grep -rln "wgpu::\|pollster::" native/nightshade_native --include="*.rs"` (excluding
+  `grep -rln "wgpu::\|pollster::" native/skotiq_native --include="*.rs"` (excluding
   `frb_dump`) returns exactly one file, `imaging/src/platesolve.rs`, and every hit in it is
   inside the `#[cfg(test)]` block. Deleting the block lets both dependencies go, which
   removes a large transitive graph (and a GPU-driver-loading surface) from the shipped
@@ -807,7 +807,7 @@ for (key, value) in &light_result.header {
 and then `write_fits`. The resulting calibrated FITS contains
 `EXPTIME  = 'Float(120.0)'`, `GAIN = 'Integer(100)'`, `FILTER = 'String("Ha")'`,
 `DATE-OBS = 'String("2026-…")'`, `CCD-TEMP = 'Float(-10.0)'` — every value a *string*
-carrying its Rust type name. Nightshade's own reader will then return `None` from
+carrying its Rust type name. Skotiq's own reader will then return `None` from
 `get_float("EXPTIME")` on that file, and PixInsight/ASTAP/Siril see garbage.
 
 Mitigating fact worth stating: `write_fits` skips `SIMPLE/BITPIX/NAXIS*/BZERO/BSCALE`
@@ -852,7 +852,7 @@ both functions, and the `detect_stars` doc comment should state the contract.
 
 ### 5.4 A 60-second blocking solve runs on an async worker — MEDIUM
 
-`bridge/src/sequencer_ops.rs:1136` calls `nightshade_imaging::solve_near(…)` and `:1143`
+`bridge/src/sequencer_ops.rs:1136` calls `skotiq_imaging::solve_near(…)` and `:1143`
 `blind_solve(…)` directly inside `async fn plate_solve` (declared at
 `bridge/src/sequencer_ops.rs:1009`). These block on `wait_timeout` for up to
 `PlateSolverConfig::default().timeout_secs`, which is **60** (`platesolve.rs:204`). No

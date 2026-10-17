@@ -1,5 +1,5 @@
 export const meta = {
-  name: 'nightshade-rig-wave-2',
+  name: 'skotiq-rig-wave-2',
   description: 'Fix the defects found once the rig could actually capture',
   phases: [
     { title: 'Fix', detail: 'one agent per defect' },
@@ -36,9 +36,9 @@ standalone PowerShell COM probe.
 it, and a rebuild takes the rig offline. If the tunnel is down, reproduce against the Linux
 simulator build and say clearly which one you used.
 
-Linux bundle: \`apps/desktop/build/linux/x64/release/bundle/nightshade_desktop\`, runs headless with
+Linux bundle: \`apps/desktop/build/linux/x64/release/bundle/skotiq_desktop\`, runs headless with
 \`--headless --auth-token=<anything> --allow-unauthenticated-lan\` and a scratch
-\`NIGHTSHADE_DATABASE_DIR\`. Simulator ids: \`sim_camera_1\`, \`sim_mount_1\`, \`sim_focuser_1\`,
+\`SKOTIQ_DATABASE_DIR\`. Simulator ids: \`sim_camera_1\`, \`sim_mount_1\`, \`sim_focuser_1\`,
 \`sim_filterwheel_1\`.
 
 ## Sequence wire format (worked out the hard way — do not re-derive it)
@@ -52,7 +52,7 @@ directory, and passing a directory fails mid-run with "Access is denied".
 ## Rules
 * \`graphify query "<question>"\` before grepping or reading source.
 * Tests: \`dart run melos exec --scope="<pkg>" -- flutter test <path>\`; Rust via \`cargo test\` under
-  \`native/nightshade_native\`. Never \`flutter test packages/<pkg>/...\` from the root.
+  \`native/skotiq_native\`. Never \`flutter test packages/<pkg>/...\` from the root.
 * Every fix needs a test that fails when the fix is reverted. Sever the PRODUCTION CALL SITE and say
   what happened.
 * \`dart format\` / \`cargo fmt\` what you touch. NEVER \`git stash\`/\`checkout\`/\`restore\`.`
@@ -119,7 +119,7 @@ Beware the two airmass implementations that disagree — **S6** in the same back
 ASCOM drivers put a human sentence in \`EXCEPINFO\` for exactly this — something like "Cannot set
 Tracking while the mount is parked" — and it never reaches the operator.
 
-The asymmetry is one line in \`native/nightshade_native/ascom/src/windows/connection.rs\`:
+The asymmetry is one line in \`native/skotiq_native/ascom/src/windows/connection.rs\`:
 
 * property **reads** pass a real \`EXCEPINFO\` and decode it via \`excepinfo_to_string\` (lines 876,
   918, 956, 994, 1036)
@@ -144,7 +144,7 @@ cooler: Failed to set property SetCCDTemperature...\`
 
 \`camera_handlers.dart\` correctly forwards \`targetTemp: null\`. The \`-10\` is applied at
 \`device_manager/ops/camera.rs:2251\` and \`:2327\` via \`target_temp.unwrap_or(-10.0)\`, documented in
-the module header as "the historical Nightshade default target when the caller does not specify".
+the module header as "the historical Skotiq default target when the caller does not specify".
 
 Defensible when *enabling* cooling; wrong when *disabling*. No setpoint is needed to turn a cooler
 off, and writing \`SetCCDTemperature\` is what threw — the camera in question reports

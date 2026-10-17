@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Nightshade Pi appliance -- captive Wi-Fi provisioning portal.
+"""Skotiq Pi appliance -- captive Wi-Fi provisioning portal.
 
 A deliberately tiny, stdlib-only HTTP server run by
-nightshade-netprovision.sh while the fallback hotspot is up.
+skotiq-netprovision.sh while the fallback hotspot is up.
 
 Contract with the shell script:
   * serve the credentials form on 0.0.0.0:80 (every GET path gets the form
@@ -43,7 +43,7 @@ _PAGE = """<!doctype html>
 <html><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nightshade setup</title>
+<title>Skotiq setup</title>
 <style>
   body {{ font-family: -apple-system, system-ui, sans-serif; margin: 0;
          background: #0d1117; color: #e6edf3; }}
@@ -62,7 +62,7 @@ _PAGE = """<!doctype html>
   .hint {{ color: #8b949e; font-size: .8rem; }}
 </style></head><body>
 <div class="card">
-  <h1>Nightshade &mdash; connect to your Wi-Fi</h1>
+  <h1>Skotiq &mdash; connect to your Wi-Fi</h1>
   {error}
   <form method="post" action="/connect">
     <label for="ssid">Network</label>
@@ -73,19 +73,19 @@ _PAGE = """<!doctype html>
     <button type="submit">Join network</button>
   </form>
   <p class="hint">After joining, this hotspot disappears and the
-  Nightshade app will find the device on your home network.</p>
+  Skotiq app will find the device on your home network.</p>
 </div></body></html>"""
 
 _SUBMITTED = """<!doctype html>
 <html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nightshade setup</title></head>
+<title>Skotiq setup</title></head>
 <body style="font-family: system-ui; background:#0d1117; color:#e6edf3">
 <div style="max-width:26rem; margin:8vh auto; padding:1.5rem">
 <h1>Joining &ldquo;{ssid}&rdquo;&hellip;</h1>
 <p>The setup hotspot is shutting down. Reconnect your phone to your own
 Wi-Fi. If the device cannot join (wrong password / out of range), the
-<b>Nightshade-…</b> hotspot will reappear within a minute &mdash; join it
+<b>Skotiq-…</b> hotspot will reappear within a minute &mdash; join it
 again to retry.</p>
 </div></body></html>"""
 
@@ -105,7 +105,7 @@ def _scan_ssids():
         seen, ssids = set(), []
         for line in out.splitlines():
             s = line.strip()
-            if s and not s.startswith("Nightshade-") and s not in seen:
+            if s and not s.startswith("Skotiq-") and s not in seen:
                 seen.add(s)
                 ssids.append(s)
         return ssids
@@ -143,7 +143,7 @@ def _form_page():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "NightshadeSetup/1.0"
+    server_version = "SkotiqSetup/1.0"
 
     def _send_html(self, body, code=200):
         data = body.encode("utf-8")

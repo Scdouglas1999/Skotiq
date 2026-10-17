@@ -35,11 +35,11 @@ the same panels, chrome and text boxes.
 ### 3. The re-tone is a retired design token
 
 The baseline background is `(10,12,15)` = `#0A0C0F`. The Linux render is `(11,13,18)` = `#0B0D12`,
-which is *exactly* the current value of `NightshadeColors.background` in
-`packages/nightshade_ui/lib/src/theme/nightshade_colors.dart:123`.
+which is *exactly* the current value of `SkotiqColors.background` in
+`packages/skotiq_ui/lib/src/theme/skotiq_colors.dart:123`.
 
 `git log -L` on that line shows `284a95fd9 feat(ui): the Observatory token set` (2026-09-09)
-changed `#0A0C0F` -> `#0B0D12`. `packages/nightshade_ui/test/dark_contrast_test.dart:9` documents
+changed `#0A0C0F` -> `#0B0D12`. `packages/skotiq_ui/test/dark_contrast_test.dart:9` documents
 the same move in prose. The two baselines were last captured 2026-06-01 (`fa48512fa` /
 `0e18b9058`) — three months *before* the token change, and `284a95fd9` is an ancestor of HEAD.
 
@@ -90,27 +90,27 @@ The brief named 2 tests / 18 files. The actual blast radius was larger: 9 app go
 the design gallery all write through the two harnesses, so the gate went into the **harnesses**,
 not the two named tests.
 
-- `packages/nightshade_ui/test/golden/golden_harness.dart` and
-  `packages/nightshade_app/test/golden/surface_golden_harness.dart` gained
+- `packages/skotiq_ui/test/golden/golden_harness.dart` and
+  `packages/skotiq_app/test/golden/surface_golden_harness.dart` gained
   `captureEnvVar` / `capturesToRepo`, and `goldensDir()` now resolves to the committed
-  `docs/design/goldens/` **only** under `NIGHTSHADE_CAPTURE_ASSETS=1`, otherwise a per-run temp dir.
+  `docs/design/goldens/` **only** under `SKOTIQ_CAPTURE_ASSETS=1`, otherwise a per-run temp dir.
 - `SurfaceGoldenHarness.screenshotsDir()` added and used by `public_screenshots_test.dart` for the
   `assets/screenshots/` set, gated identically.
 - Every assertion is unchanged (`existsSync`, `lengthSync() > 16KB`, `takeException() == null`) and
   the full render -> rasterise -> encode -> write -> assert path still runs in both modes. The only
   difference is the destination directory, so nothing that was being checked stopped being checked.
 
-This mirrors the repo's existing `NIGHTSHADE_LIVE_NETWORK=1` opt-in convention in
-`packages/nightshade_core/dart_test.yaml`.
+This mirrors the repo's existing `SKOTIQ_LIVE_NETWORK=1` opt-in convention in
+`packages/skotiq_core/dart_test.yaml`.
 
 ### How to regenerate the assets now
 
 ```sh
 # design-language boards -> docs/design/goldens/
-NIGHTSHADE_CAPTURE_ASSETS=1 flutter test test/golden/   # in nightshade_ui and/or nightshade_app
+SKOTIQ_CAPTURE_ASSETS=1 flutter test test/golden/   # in skotiq_ui and/or skotiq_app
 
 # the 12 public screenshots -> assets/screenshots/
-NIGHTSHADE_CAPTURE_ASSETS=1 flutter test test/golden/public_screenshots_test.dart
+SKOTIQ_CAPTURE_ASSETS=1 flutter test test/golden/public_screenshots_test.dart
 
 # matchesGoldenFile pixel baselines (unchanged mechanism)
 flutter test --update-goldens --tags golden
@@ -125,11 +125,11 @@ replaced from Linux).
 | command | exit |
 |---|---|
 | `git rev-parse HEAD` -> `7bc3391318a1...` | 0 |
-| `dart format --output=none --set-exit-if-changed packages/nightshade_app packages/nightshade_ui` | 0 (after formatting the 2 edited files) |
-| `dart analyze` (nightshade_app) — 873 issues, **0 errors/warnings** = documented baseline | 0 |
-| `dart analyze` (nightshade_ui) — 59 issues, **0 errors/warnings** | 0 |
-| `flutter test --concurrency=2` (nightshade_ui) — 538 passed | 0 |
-| `flutter test --concurrency=2` (nightshade_app) — **4469 passed, "All tests passed!"** | 0 |
+| `dart format --output=none --set-exit-if-changed packages/skotiq_app packages/skotiq_ui` | 0 (after formatting the 2 edited files) |
+| `dart analyze` (skotiq_app) — 873 issues, **0 errors/warnings** = documented baseline | 0 |
+| `dart analyze` (skotiq_ui) — 59 issues, **0 errors/warnings** | 0 |
+| `flutter test --concurrency=2` (skotiq_ui) — 538 passed | 0 |
+| `flutter test --concurrency=2` (skotiq_app) — **4469 passed, "All tests passed!"** | 0 |
 | `flutter test <all 6 non-golden harness consumers>` (app, 28 tests) | 0 |
 | `flutter test test/golden/ --concurrency=2` (app, 20 tests, no env flag) | 0 |
 | `flutter test test/golden/design_gallery_golden_test.dart` (ui, 6 tests, no env flag) | 0 |
@@ -140,19 +140,19 @@ intentional edits, and **no** `assets/screenshots/` or `docs/design/goldens/` en
 
 ```
  M docs/testing/golden-tests.md
- M packages/nightshade_app/test/golden/public_screenshots_test.dart
- M packages/nightshade_app/test/golden/surface_golden_harness.dart
- M packages/nightshade_app/test/screens/framing/goldens/framing_canvas_registered.png
- M packages/nightshade_app/test/screens/framing/goldens/framing_hips_layer_wiring.png
- M packages/nightshade_ui/test/golden/golden_harness.dart
+ M packages/skotiq_app/test/golden/public_screenshots_test.dart
+ M packages/skotiq_app/test/golden/surface_golden_harness.dart
+ M packages/skotiq_app/test/screens/framing/goldens/framing_canvas_registered.png
+ M packages/skotiq_app/test/screens/framing/goldens/framing_hips_layer_wiring.png
+ M packages/skotiq_ui/test/golden/golden_harness.dart
 ```
 
-### Note on the full nightshade_app suite
+### Note on the full skotiq_app suite
 
 The package has 914 test files. The run **completed: 4469 tests, "All tests passed!", exit 0**,
 with `git status --porcelain` empty immediately afterwards. It took many hours of wall clock
 because a concurrent workstream was running its own `flutter test` against
-`/home/scdouglas/Documents/Nightshade2` on the same memory-constrained box (3 competing
+`/home/scdouglas/Documents/Skotiq2` on the same memory-constrained box (3 competing
 `flutter_tester` processes throughout), starving this run to a small fraction of wall-clock CPU.
 
 The bound below was established while that run was still in flight and is retained because it
@@ -170,11 +170,11 @@ small_button_measure_test.dart:       SurfaceGoldenHarness.ensureFonts
 planetarium_hud_labels_test.dart:     SurfaceGoldenHarness.ensureFonts
 solar_system_object_identity_test.dart: SurfaceGoldenHarness.ensureFonts
 object_info_popup_identity_test.dart: SurfaceGoldenHarness.ensureFonts
-nightshade_text_field_test.dart:      GoldenHarness.ensureFonts
+skotiq_text_field_test.dart:      GoldenHarness.ensureFonts
 ```
 
 All 20 golden tests, all 6 app-side consumers above (28 tests), the two framing golden tests, and
-the entire nightshade_ui suite (538 tests, which includes the seventh consumer) were run to green
+the entire skotiq_ui suite (538 tests, which includes the seventh consumer) were run to green
 with a clean tree — and the full 4469-test app suite has since confirmed it.
 
 ## Deliberately left undone

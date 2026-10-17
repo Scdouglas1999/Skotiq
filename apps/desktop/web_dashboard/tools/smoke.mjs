@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Nightshade Web Dashboard — static smoke test (no build step, no browser).
+ * Skotiq Web Dashboard — static smoke test (no build step, no browser).
  *
  * The dashboard is vanilla JS/CSS and is not Flutter-golden-able, so this is
  * the automated guard for it. It runs under plain `node` (no deps) and checks:
@@ -53,7 +53,7 @@ check('css: light theme palette present', /\[data-theme="light"\]/.test(css));
 check('js: setupTheme defined', /function setupTheme\(/.test(app));
 check('js: setupTheme invoked in init', /\bsetupTheme\(\);/.test(app));
 check('js: theme persisted to localStorage',
-  /nightshade_theme/.test(app) && /localStorage\.setItem\(THEME_STORAGE_KEY/.test(app));
+  /skotiq_theme/.test(app) && /localStorage\.setItem\(THEME_STORAGE_KEY/.test(app));
 check('js: respects prefers-color-scheme on first load',
   /prefers-color-scheme/.test(app));
 check('js: expanded auth controls retain a visible close toggle',
@@ -66,7 +66,7 @@ check('js: protected gallery route waits for authentication',
 check('js: setupPanelPrefs defined', /function setupPanelPrefs\(/.test(app));
 check('js: setupPanelPrefs invoked in init', /\bsetupPanelPrefs\(\);/.test(app));
 check('js: panel collapse persisted to localStorage',
-  /nightshade_panel_collapsed/.test(app));
+  /skotiq_panel_collapsed/.test(app));
 check('css: collapsed-panel style present', /\.panel\.is-collapsed/.test(css));
 
 // --- 2c. WS firehose drives panels (no residual per-panel polling). ------

@@ -40,7 +40,7 @@
  "units_unreached": [
   {
    "unit": "seq-node:PolarAlignmentNode",
-   "why": "Not present in the node palette. I enumerated every palette category live (Target, Imaging, Science, Guiding, Mount, Dome, Flat Panel, Focus, Camera, Logic, Timing, Utilities = 36 items) and searched the palette for 'polar', 'align' and 'pole' with zero hits; confirmed at source: packages/nightshade_core/lib/src/providers/sequence/node_palette.dart has no PolarAlignmentNode entry, while the class exists (alignment_and_dome.dart:319) and has a full properties editor (_motion_rich.dart:966), summary, timing, validation and serialization. It is only reachable via Smart Night plan generation (smart_night_service/sequence_emitter.dart:242) or by importing a .json sequence."
+   "why": "Not present in the node palette. I enumerated every palette category live (Target, Imaging, Science, Guiding, Mount, Dome, Flat Panel, Focus, Camera, Logic, Timing, Utilities = 36 items) and searched the palette for 'polar', 'align' and 'pole' with zero hits; confirmed at source: packages/skotiq_core/lib/src/providers/sequence/node_palette.dart has no PolarAlignmentNode entry, while the class exists (alignment_and_dome.dart:319) and has a full properties editor (_motion_rich.dart:966), summary, timing, validation and serialization. It is only reachable via Smart Night plan generation (smart_night_service/sequence_emitter.dart:242) or by importing a .json sequence."
   },
   {
    "unit": "seq-node:PluginInstructionNode",
@@ -57,10 +57,10 @@
    "expected": "With a connected (or profile-assigned) dome, Open Dome should command the dome. If no dome is available the app should say so before the run (preflight raised no equipment error for these nodes at all).",
    "repro": "Equipment > Discovery > connect Simulated Dome (and Edit Profile > Add from connected > Save). Sequencer > Builder > add Open Dome + Close Dome > Start > Start Anyway.",
    "evidence": "/tmp/ns-audit/shots/sequencer-nodes-35-dome.png (Session Report: 'Open Dome: No dome connected' x6), /tmp/ns-audit/shots/sequencer-nodes-36-domeconnected.png (Equipment: Simulated Dome Connected, '7 connected'), app.log 16:24:18 and 16:53:17 (second run, after profile save)",
-   "where": "packages/nightshade_core/lib/src/providers/sequence/sequence_executor/runtime_config_operations.dart:84; packages/nightshade_core/lib/src/backend/roles/sequencer_backend.dart:92; native/nightshade_native/sequencer/src/executor/setup.rs:149",
+   "where": "packages/skotiq_core/lib/src/providers/sequence/sequence_executor/runtime_config_operations.dart:84; packages/skotiq_core/lib/src/backend/roles/sequencer_backend.dart:92; native/skotiq_native/sequencer/src/executor/setup.rs:149",
    "proposed_fix": "Add domeId, coverCalibratorId (and weather/safety/switch) to sequencerSetDevices across the backend roles + FFI, populate them from domeStateProvider/coverCalibratorStateProvider the same way rotatorId is, and call executor.set_dome()/set_cover_calibrator(). Until then, add a preflight ERROR when a sequence contains any dome/cover node.",
    "verdict": "CONFIRMED",
-   "verdict_reasoning": "Reproduced live on my own profile. Connected Simulated Dome (app.log 17:28:55 'Simulator connected: id=sim_dome_1 type=Dome', Equipment header '4 connected'), added a single Open Dome node, Start Anyway. Log 17:30:33.680047 onward: 'Open Dome failed: No dome connected' x7 with '[RECOVERY] Open Dome promoted device disconnect to recovery' between each; run aborted ~1s in (/tmp/ns-audit/shots/verify-14-domefail.png). Source chain verified: packages/nightshade_core/lib/src/backend/roles/sequencer_backend.dart:92 declares sequencerSetDevices with only camera/mount/focuser/filterwheel/rotator; runtime_config_operations.dart:84 passes exactly those five; native/nightshade_native/bridge/src/sequencer_api.rs:154 sequencer_set_devices likewise; grep across native/**/*.rs shows set_dome/set_cover_calibrator (executor/setup.rs:149,155) are DEFINED and never called outside tests, and node/context.rs:637-638 defaults both to None. So instructions.rs:540/551 dome_id()/cover_calibrator_id() can only ever return the failure. Profile assignment cannot help because no parameter exists. Two minor corrections to the write-up: (a) pre-flight is not silent \u2014 it emits an INFO 'Dome Operations Present \u2014 This sequence includes dome operations. Cannot verify dome connection at edit time' (verify-13-preflight.png); the finding's stronger phrasing 'raised no equipment error' is still accurate. (b) flat_wizard/panel.rs:94,151,211 also reads ctx.cover_calibrator_id, so the blast radius is wider than the 7 node types. P0 retained: it is a hard, permanent feature break on every platform, though it fails loudly rather than silently.",
+   "verdict_reasoning": "Reproduced live on my own profile. Connected Simulated Dome (app.log 17:28:55 'Simulator connected: id=sim_dome_1 type=Dome', Equipment header '4 connected'), added a single Open Dome node, Start Anyway. Log 17:30:33.680047 onward: 'Open Dome failed: No dome connected' x7 with '[RECOVERY] Open Dome promoted device disconnect to recovery' between each; run aborted ~1s in (/tmp/ns-audit/shots/verify-14-domefail.png). Source chain verified: packages/skotiq_core/lib/src/backend/roles/sequencer_backend.dart:92 declares sequencerSetDevices with only camera/mount/focuser/filterwheel/rotator; runtime_config_operations.dart:84 passes exactly those five; native/skotiq_native/bridge/src/sequencer_api.rs:154 sequencer_set_devices likewise; grep across native/**/*.rs shows set_dome/set_cover_calibrator (executor/setup.rs:149,155) are DEFINED and never called outside tests, and node/context.rs:637-638 defaults both to None. So instructions.rs:540/551 dome_id()/cover_calibrator_id() can only ever return the failure. Profile assignment cannot help because no parameter exists. Two minor corrections to the write-up: (a) pre-flight is not silent \u2014 it emits an INFO 'Dome Operations Present \u2014 This sequence includes dome operations. Cannot verify dome connection at edit time' (verify-13-preflight.png); the finding's stronger phrasing 'raised no equipment error' is still accurate. (b) flat_wizard/panel.rs:94,151,211 also reads ctx.cover_calibrator_id, so the blast radius is wider than the 7 node types. P0 retained: it is a hard, permanent feature break on every platform, though it fails loudly rather than silently.",
    "corrected_severity": "P0"
   },
   {
@@ -72,7 +72,7 @@
    "expected": "Either a preflight ERROR ('Wait for Time has no time set') or a runtime failure. The single most common use of this node is 'wait until astronomical dark before imaging'; silently skipping it starts the run in daylight.",
    "repro": "New sequence > add 'Wait for Time' > do not touch Wait Until > Start > Start Anyway. Node completes instantly.",
    "evidence": "/tmp/ns-audit/sequencer-nodes/app.log 2026-08-01T17:10:43.766494 and .766505; /tmp/ns-audit/shots/props-waittime.png (empty 'Select time...')",
-   "where": "packages/nightshade_core/lib/src/providers/sequence/rules/timing_rules.dart:17",
+   "where": "packages/skotiq_core/lib/src/providers/sequence/rules/timing_rules.dart:17",
    "proposed_fix": "Emit a ValidationSeverity.error when WaitTimeNode.waitUntil == null (and when a Loop's repeatUntil is null under the RepeatUntil condition), and make the runtime fail rather than succeed.",
    "verdict": "CONFIRMED",
    "verdict_reasoning": "Reproduced. Added a Wait for Time node, left Wait Until at 'Select time...' (node row honestly reads 'until (unset)'). Pre-flight (verify-43-pf2.png) listed only 'No Exposures' + a disk-space info \u2014 no issue for the unconfigured wait. Runtime, my app.log: 17:41:14.615986 '[PROGRESS_CB] Emitting NodeStarted: name=Wait for Time' -> 17:41:14.615998 'Child Wait for Time completed with status: Success'. 12 microseconds, no wait. Source confirms the named line: timing_rules.dart:17 `if (waitUntil == null) continue;`, and grep shows WaitTimeNode appears in exactly one file under providers/sequence/rules/, so no other rule covers it. Severity P1 stands \u2014 the canonical use is 'wait for astronomical dark', and skipping it starts the run in daylight.",
@@ -87,7 +87,7 @@
    "expected": "Either the editor writes its displayed default into the node on creation, or the field shows an empty/placeholder state and preflight errors on it. All three surfaces must agree.",
    "repro": "New sequence > add Run Script > set Script Path only > Start > Start Anyway. Fails. Type any number into Timeout > re-run. Succeeds.",
    "evidence": "/tmp/ns-audit/shots/cur.png at 12:27 (panel shows Timeout 300 and Timing 'Timeout 30s'); app.log 16:28:21.089822 (failure) and 16:29:14.398317 (Success after editing); /tmp/ns-audit/sequencer-nodes/script-ran.txt only written on the second run",
-   "where": "packages/nightshade_app/lib/screens/sequencer/widgets/node_properties_panel_parts/_misc_properties.dart:52; packages/nightshade_app/lib/screens/sequencer/widgets/node_timing_section.dart:588; native/nightshade_native/sequencer/src/instructions.rs:6329",
+   "where": "packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel_parts/_misc_properties.dart:52; packages/skotiq_app/lib/screens/sequencer/widgets/node_timing_section.dart:588; native/skotiq_native/sequencer/src/instructions.rs:6329",
    "proposed_fix": "Give ScriptNode a non-null default timeoutSecs (300) in the constructor, or have the palette factory seed it. Delete the two divergent `?? 30` / `?? 60` fallbacks.",
    "verdict": "CONFIRMED",
    "verdict_reasoning": "Reproduced end to end. Added Run Script, set only Script Path to a working /tmp/ns-audit/sequencer-nodes-verify/t.sh, left Timeout showing 300 (rendered in solid white, unlike the grey placeholders in Script Path and Arguments on the same panel \u2014 verify-68-scriptprops.png). Run: app.log 17:56:00.032158 'Running script: .../t.sh []' then 17:56:00.032225 ERROR 'Run Script failed: Script timeout_secs is required in fail-closed mode'; the script's sentinel file was never created. All three divergent surfaces verified simultaneously on one screen: editor field '300' (_misc_properties.dart:52 `node.timeoutSecs ?? 300`), Timing card 'Timeout 30s' (node_timing_section.dart:588 `?? 30`), pre-flight Simulation 'Duration 1m' (sequence_time_estimator.dart:189 `_defaultScriptTimeoutSecs = 60`, used at :597). Root cause verified: ScriptNode.timeoutSecs is `final int?` with no default (equipment_timing_and_automation.dart:531,543) and node_palette.dart:504 creates a bare `ScriptNode()`; instructions.rs:6329 returns the exact failure on None.",
@@ -102,7 +102,7 @@
    "expected": "The dropdown should show an explicit unset state (e.g. 'Select trigger\u2026') or 'Any Error' should actually be persisted as a real trigger type.",
    "repro": "New sequence > add Recovery > read Properties (Trigger Type: Any Error) > Start. Pre-flight: 'Recovery Has No Trigger'.",
    "evidence": "/tmp/ns-audit/shots/props-recovery.png (Trigger Type: Any Error); /tmp/ns-audit/shots/sequencer-nodes-44-preflight3.png (Recovery Has No Trigger error)",
-   "where": "packages/nightshade_app/lib/screens/sequencer/widgets/logic_node_properties/recovery_properties.dart:32; packages/nightshade_core/lib/src/providers/sequence/rules/logic_node_rules.dart:45",
+   "where": "packages/skotiq_app/lib/screens/sequencer/widgets/logic_node_properties/recovery_properties.dart:32; packages/skotiq_core/lib/src/providers/sequence/rules/logic_node_rules.dart:45",
    "proposed_fix": "Render null as a distinct 'Not set' entry, or persist TriggerType.anyError when the node is created from the palette.",
    "verdict": "CONFIRMED",
    "verdict_reasoning": "Reproduced. Adding a Recovery node from the palette produces a panel reading Trigger Type 'Any Error' / Recovery Action 'Retry Operation' / Max Retries 3 (verify-20-recprops.png), and the sequence error badge incremented from 2 to 3 at the same instant. Source matches verbatim: recovery_properties.dart:32 builds `NodeDropdown<TriggerType?>` with `items: const [null, ...TriggerType.values]` and `labelBuilder: (t) { if (t == null) return 'Any Error'; ... }`; logic_node_rules.dart:45 RecoveryNodeConfigRule emits ValidationSeverity.error 'Recovery Has No Trigger ... It will never fire.' when triggerType == null. Severity down-called from P1 to P2: the contradiction is real and confusing, but it is fail-loud (pre-flight blocks the run and names the node) and a single dropdown selection clears it \u2014 no data or night is lost.",
@@ -117,7 +117,7 @@
    "expected": "Either ${frame} resolves to something sane outside a burst, or the hint text does not advertise a variable this node cannot use. A template typo should not abort the run and strand the mount; and the run record should carry the real error text.",
    "repro": "Add Notification, set Title to `AUDIT NOTIF ${frame}`, add Park Mount after it, Start. Run fails at the Notification; Park never runs.",
    "evidence": "app.log 2026-08-01T16:19:34.199771; /tmp/ns-audit/shots/sequencer-nodes-32-done.png (Session Report Errors = 'Sequence failed' only); sqlite3 sequence_runs id=1 stats_json errorMessages",
-   "where": "packages/nightshade_app/lib/screens/sequencer/widgets/node_properties_panel_parts/_capture_rich.dart:347; native/nightshade_native/sequencer/src/expressions/resolver.rs:261",
+   "where": "packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel_parts/_capture_rich.dart:347; native/skotiq_native/sequencer/src/expressions/resolver.rs:261",
    "proposed_fix": "Change the hint to variables valid in this scope; make interpolation failure a warning that sends the raw title rather than a run-aborting error; propagate the instruction's failure message into run stats like every other node does.",
    "verdict": "CONFIRMED",
    "verdict_reasoning": "Every link verified. The hint is on screen verbatim: 'e.g. Frame ${frame} of ${target.name} done' (verify-74-3nodes.png; _capture_rich.dart:347). resolver.rs:258-262 resolves 'frame' from frame.frame with the message 'frame number is only set inside an exposure burst'. node/instructions/notification.rs:39-49 constructs `EvaluationFrame::empty()` \u2014 its own comment says frame fields are None here \u2014 and on interpolation error does a bare `return NodeStatus::Failure`, aborting the run. That bare early return is also exactly why the cause is lost: it bypasses `log_and_get_status_with_context(\"Notification\", &ctx)` at the bottom of the same function, which is the call every other instruction uses to record its error text. Confirmed downstream in the prior run's DB: sequence_runs id=1 stats_json errorMessages == [\"Sequence failed\"] with no cause. P1 stands: a UI-suggested template guarantees an aborted run and strands whatever safing nodes follow it.",
@@ -132,7 +132,7 @@
    "expected": "A photometry burst is the longest-running thing in a science sequence; the header must count its frames and its time, and the 'No Exposures' rule must not fire when a photometry node is present.",
    "repro": "New sequence > add 'Science Photometry' > read the toolbar chip vs the node row.",
    "evidence": "/tmp/ns-audit/shots/sequencer-nodes-47-photometry-frames.png (node row: '60 frames'; toolbar: '0 frames 0m'), /tmp/ns-audit/shots/sequencer-nodes-48-photprops.png (Exposure 2.0 s, Frame count 60)",
-   "where": "packages/nightshade_core/lib/src/services/sequence_time_estimator.dart (aggregate path); the 'No Exposures' rule in packages/nightshade_core/lib/src/providers/sequence/rules/",
+   "where": "packages/skotiq_core/lib/src/services/sequence_time_estimator.dart (aggregate path); the 'No Exposures' rule in packages/skotiq_core/lib/src/providers/sequence/rules/",
    "proposed_fix": "Include SciencePhotometryNode.count in the frame aggregate and its count x (exposure + download) in the duration aggregate; exclude it from the No-Exposures rule.",
    "verdict": "CONFIRMED",
    "verdict_reasoning": "Reproduced for the frame count and the rule. A sequence containing exactly one Science Photometry node shows the node row '(no target) \u00b7 Clear \u00b7 60 frames' while the toolbar chip reads '0 frames' (verify-16-photonly.png), and pre-flight raises 'No Exposures \u2014 No exposure nodes found. The sequence will run but capture no images.' (verify-18-photpreflight.png). Source: sequence_state.dart:170-178 `_countExposures` adds only ExposureNode and SmartExposureNode; exposure_rules.dart:150-156 NoExposuresRule tests only those two types. TWO CORRECTIONS: (1) the duration half of the claim is wrong \u2014 SequenceTimeEstimator DOES account for SciencePhotometryNode (sequence_time_estimator.dart:618-627, count*exposure + download overhead + one filter change), so the proposed fix's duration clause is already implemented; the stale estimator is the separate `Sequence.estimateIntegrationSecs` walk (sequence_state.dart:315, ExposureNode only). (2) I never saw '0m' anywhere \u2014 this build's toolbar chip renders only a frame count. Severity down-called to P2: planning numbers lie, but the run itself captures correctly.",
@@ -147,7 +147,7 @@
    "expected": "An explicit Park instruction should suppress the tracking-lost trigger for the rest of the block (or until an Unpark). An end-of-night 'Park mount, warm camera, notify' tail is a completely normal sequence and it will hang on an unattended rig.",
    "repro": "Sequence: Park Mount then any other instruction. Start. The run pauses immediately after the park.",
    "evidence": "app.log 16:31:53.399218 (trigger fired) and 16:31:59.086646 (Paused); /tmp/ns-audit/shots/sequencer-nodes-38-af.png (PAUSED banner, Resume button)",
-   "where": "native/nightshade_native/sequencer/src/triggers.rs (mount_tracking_lost)",
+   "where": "native/skotiq_native/sequencer/src/triggers.rs (mount_tracking_lost)",
    "proposed_fix": "Have ParkNode/ParkDomeNode set an 'intentionally parked' flag on the execution context that mutes the tracking-lost trigger until UnparkNode runs.",
    "verdict": "REFUTED",
    "verdict_reasoning": "The headline consequence does not hold. I ran [Wait for Time, Park Mount, Change Filter, Autofocus] with the mount tracking beforehand. The trigger did fire spuriously (app.log 17:41:14.617479 'Mount tracking lost during sequence!' ... 'Trigger fired: Mount Tracking Lost - action: Pause'), but the very next lines are '[RECOVERY] Attempt 1/9 ... Loop succeeded after 1 attempt(s); resuming sequence' and 17:41:15.617019 'Mount tracking resumed, cancelling tracking limit wait'. The run continued and finished 'New Sequence - completed', wall clock 45s (verify-45-postrun.png). grep 'Paused' over my whole log returns zero pause events. I then re-read the reporter's own log: their pause at 16:31:59.086646 arrives 5.7 s AFTER the recovery loop had already resumed, immediately following the failed trigger-fired autofocus at 16:31:54.398981 \u2014 i.e. it is downstream of finding #8's mechanism, not of the park. So the causal chain in this finding is wrong and the 'hangs on an unattended rig' consequence did not reproduce. Residual real defect, worth P3: a deliberate ParkNode does raise mount_tracking_lost (triggers.rs:624 only checks mount_tracking_expected && mount_tracking_lost and has no notion of an intentional park), producing a scary run error 'Recovery after recovery but tracking was not re-enabled on sim_mount_1: the mount is parked' on a run that in fact succeeded.",
@@ -162,7 +162,7 @@
    "expected": "The trigger-fired autofocus should be suppressed when an explicit Autofocus instruction is the next/current node, or the two should be serialised instead of colliding.",
    "repro": "Sequence: Change Filter, then Autofocus. Start.",
    "evidence": "app.log 16:31:53.498895 -> 16:31:54.398966; /tmp/ns-audit/shots/cur.png at 12:34 Session Report ('Autofocus is already running on this equipment host', Autofocus runs 0)",
-   "where": "native/nightshade_native/sequencer/src/triggers.rs (filter_change / hfr_degraded -> Autofocus action)",
+   "where": "native/skotiq_native/sequencer/src/triggers.rs (filter_change / hfr_degraded -> Autofocus action)",
    "proposed_fix": "Take the autofocus lock in the trigger path with a try-acquire and skip (log) if an explicit AF node holds it, rather than failing.",
    "verdict": "REFUTED",
    "verdict_reasoning": "Ran the exact idiom (Change Filter -> Autofocus, same sim rig, same 'Autofocus invalidated: filter changed to L'). The Autofocus node ran all 9 focus points and returned 'Child Autofocus completed with status: Success' (app.log 17:41:59.882955). No 'already running' error appeared. Source shows the fix is already in: instructions.rs:3515-3530 documents this exact race and provides `execute_autofocus_for_node`, which WAITS for the shared admission gate rather than failing, precisely because 'With plain fail-fast execute_autofocus the node then failed with \"Autofocus is already running\", which aborted the ENTIRE sequence'. The string at instructions.rs:3509 is only reachable from `execute_autofocus`, the trigger/one-shot path. In the reporter's run it was the TRIGGER's autofocus that lost the race and was logged; the node's 'Cancelled' status came from them pressing Stop on the paused run 2m41s later. Their supporting datum 'Autofocus runs: 0' is also not evidence \u2014 my run reported 'Autofocus runs: 0' in the Session Report while an autofocus had just completed successfully, so that counter is broken independently. Residual P3: the trigger's losing autofocus surfaces as a run-level error entry (log noise on an otherwise successful run).",
@@ -177,7 +177,7 @@
    "expected": "Collapse should show one collapsed row per top-level node.",
    "repro": "Build any sequence with a Target node > click 'Collapse' in the sequence header > wait 3s > screenshot.",
    "evidence": "/tmp/ns-audit/shots/sequencer-nodes-41-collapse-grey.png (grey canvas, header 'Expand', '4 nodes'), /tmp/ns-audit/shots/sequencer-nodes-42-expand.png (restored)",
-   "where": "packages/nightshade_app/lib/screens/sequencer/widgets/sequence_tree.dart / rendering.dart (collapsed-state builder)",
+   "where": "packages/skotiq_app/lib/screens/sequencer/widgets/sequence_tree.dart / rendering.dart (collapsed-state builder)",
    "verdict": "CONFIRMED",
    "verdict_reasoning": "Reproduced. With [Science Photometry, Recovery, Target(New Target), Slew to Target] (header '1 target \u00b7 5 nodes'), clicking Collapse in the sequence header replaces the tree content below the first row with a solid light-grey block containing nothing \u2014 the Recovery row and the whole Target card vanish (verify-24-collapse2.png). The button flips to 'Expand', the header still reads '5 nodes / 1 target', and clicking Expand restores everything correctly (verify-45-postrun.png shows the tree intact afterwards). One correction: rows above the collapsed region (the Sequence header row and the first top-level instruction) still render, so 'the entire tree canvas' overstates it slightly \u2014 but the collapsed view is still unusable, which is the point. Note the button is inert on a sequence with no Target node (first attempt with 2 flat nodes did nothing at all), so a Target is required to repro.",
    "corrected_severity": "P2"
@@ -191,7 +191,7 @@
    "expected": "The telemetry strip must reflect the same mount state as the Equipment card within a poll period.",
    "repro": "Run a sequence whose first node is Park Mount, then look at the sequencer telemetry strip vs Equipment > Mount.",
    "evidence": "/tmp/ns-audit/shots/sequencer-nodes-38-af.png (strip: 'Mount: Tracking' at 12:34), /tmp/ns-audit/shots/sequencer-nodes-39-equip-after.png (Equipment: Parked at 12:35)",
-   "where": "packages/nightshade_app/lib/screens/sequencer/widgets/equipment_telemetry_strip.dart",
+   "where": "packages/skotiq_app/lib/screens/sequencer/widgets/equipment_telemetry_strip.dart",
    "verdict": "UNCLEAR",
    "verdict_reasoning": "I could not get the two surfaces into the claimed disagreeing state. At 13:47:08 the sequencer telemetry strip read 'Mount: Tracking' (verify-54-strip.png) \u2014 but when I checked the Equipment mount card seconds later it ALSO read 'Tracking' and offered a 'Park' button (verify-55-mountcard.png), i.e. the mount had been un-parked between my 13:43 observation ('Parked', Unpark offered) and 13:47, so the two surfaces agreed. I then parked the mount manually from Equipment (verified 'Parked' + 'Unpark'), but that immediately pushed the active run into a 'Recovering' state and the telemetry strip stops rendering when the run is not Running \u2014 so the comparison was no longer reachable. What blocked me: the strip only exists during an active run, and parking the mount during a run terminates the running state. Separately, the finding's reasoning is shaky even if the pixels are real: Equipment's 'Status' field shows PARK state while the strip shows the TRACKING flag, and the sim mount does report tracking=true while parked (the executor logs 'Setting tracking on for mount sim_mount_1' followed by 'Not re-enabling tracking ... the mount is parked'). So this may be a poor choice of what the strip displays rather than a stale poll. P3 at most.",
    "corrected_severity": "P3"
@@ -205,7 +205,7 @@
    "expected": "The daylight gate should key off frame type (light), not off whether a target group happens to exist.",
    "repro": "Sequence A: Take Exposures only (no Target) -> captures in daylight. Sequence B: Target > Smart Exposure -> refused by daylight gate.",
    "evidence": "app.log 16:19:23/26/29 ('Exposure complete') + /tmp/ns-audit/sequencer-nodes/captures/untargeted_nofilter_0001.fits (IMAGETYP='Light'); app.log 17:02:53.797955 (gate refusal)",
-   "where": "native/nightshade_native/sequencer/src/instructions.rs (daylight gate in the exposure path)",
+   "where": "native/skotiq_native/sequencer/src/instructions.rs (daylight gate in the exposure path)",
    "verdict": "CONFIRMED",
    "verdict_reasoning": "Reproduced decisively, and with the variable isolated better than the original report (same node type on both sides, not Take Exposures vs Smart Exposure). Site set to lat 40 / lon -105, Sun ~63 deg. Sequence A = a bare 'Take Exposures' (LIGHT, 60s) with no TargetHeader: app.log 17:47:01.815050 'Starting 60.0s exposure', 17:48:02 'Saving FITS image to .../untargeted_nofilter_0001.fits', three frames written to disk, no gate anywhere in the log. Sequence B = the SAME Take Exposures node nested under a TargetHeader: app.log 17:53:17.075500 'Daylight gate: refusing light-frame exposure \u2014 Sun altitude 62.8 deg is above the maximum -12.0 deg for on-sky light imaging.' and the run failed. So the gate is keyed off the presence of a target group, not off frame type. Severity up-called from P2 to P1: this is a safety gate that a user disables by forgetting an unrelated node, and there is no warning that protection is off.",
    "corrected_severity": "P1"
@@ -219,7 +219,7 @@
    "expected": "FILTER (and OBJECT/RA/DEC/INSTRUME) belong in every light frame; PixInsight/Siril/APP all key calibration off FILTER. The filename should use the same filter value the DB records.",
    "repro": "Connect the sim camera + filter wheel, run Take Exposures, then dump the FITS header and compare with `select filter from captured_images`.",
    "evidence": "FITS header dump of /tmp/ns-audit/sequencer-nodes/captures/untargeted_nofilter_0001.fits (no FILTER card); sqlite3 captured_images row 1 filter='R'",
-   "where": "native/nightshade_native/sequencer (FITS header writer used by the exposure instruction)",
+   "where": "native/skotiq_native/sequencer (FITS header writer used by the exposure instruction)",
    "verdict": "CONFIRMED",
    "verdict_reasoning": "Reproduced on a fresh capture of my own (not the reporter's file). /tmp/ns-audit/sequencer-nodes-verify/captures/untargeted_nofilter_0001.fits header contains only SIMPLE/BITPIX/NAXIS/NAXIS1/NAXIS2/BZERO/BSCALE/EXPTIME/DATE-OBS/IMAGETYP/GAIN/OFFSET/CCD-TEMP/XBINNING/YBINNING/SITELAT/SITELONG/FOCUSPOS/FOCTEMP/NS-SESID/NS-FIDX/NS-NPLN/END \u2014 no FILTER, no OBJECT, no RA/DEC, no TELESCOP/INSTRUME. At the same time sqlite3 captured_images row 1 has filter='L' and the file is named 'untargeted_nofilter_0001.fits', and the Session Report's Targets table lists the filter as 'L'. So filename, FITS header and database disagree three ways about the same frame. The log line 'Saving rich-header FITS file to: ...' makes the omission worse, since the writer believes it is emitting a rich header.",
    "corrected_severity": "P2"
@@ -233,7 +233,7 @@
    "expected": "One error entry per failed node (retries collapsed into 'failed after N attempts').",
    "repro": "Run a sequence containing exactly one Open Cover node with no cover calibrator connected; read the Session Report.",
    "evidence": "/tmp/ns-audit/shots/sequencer-nodes-34-cover-result.png (2 identical lines), /tmp/ns-audit/shots/sequencer-nodes-46-final.png (2 identical lines), /tmp/ns-audit/shots/sequencer-nodes-35-dome.png (6 identical lines)",
-   "where": "packages/nightshade_app/lib/screens/sequencer/widgets/session_report_dialog",
+   "where": "packages/skotiq_app/lib/screens/sequencer/widgets/session_report_dialog",
    "verdict": "CONFIRMED",
    "verdict_reasoning": "Reproduced three independent times on three different node types in my own session. (1) Open Dome: one failed node, Session Report Errors listed 'Open Dome: No dome connected' SEVEN times (verify-14-domefail.png) plus stacked Critical toasts. (2) Daylight gate: one failed exposure node, two identical 'Exposure: Daylight gate: refusing light-frame exposure...' lines and two identical Critical toasts (verify-66-state.png). (3) Run Script: one failed node, two identical 'Run Script: Script timeout_secs is required in fail-closed mode' lines and two identical Critical toasts (verify-70-scriptdone.png). The error count therefore never matches the number of failed nodes, and retries inflate it further.",
    "corrected_severity": "P2"
@@ -247,7 +247,7 @@
    "expected": "Changing to an unknown filter should fail (or the wheel display should keep showing the device's real slot name). The palette should not seed a fabricated 'L' when the profile has no filters.",
    "repro": "Do not configure profile filters. Add Change Filter (defaults to L). Run. Compare Equipment > Filter Wheel before/after.",
    "evidence": "app.log 16:31:53.398035 + 'Child Change Filter completed with status: Success'; /tmp/ns-audit/shots/sequencer-nodes-39-equip-after.png (Filter 'L', Position #1)",
-   "where": "packages/nightshade_core/lib/src/providers/sequence/node_palette.dart (FilterChangeNode(filterName: effectiveFilter ?? 'L'))",
+   "where": "packages/skotiq_core/lib/src/providers/sequence/node_palette.dart (FilterChangeNode(filterName: effectiveFilter ?? 'L'))",
    "verdict": "REFUTED",
    "verdict_reasoning": "The premise is false. I opened the Simulated Filter Wheel's own slot dropdown on the Equipment card: its slot names are L, R, G, B, Ha, OIII, SII (verify-47-filters.png). 'L' IS a real filter on this wheel, at position #1. The wheel was on R (#2) before the run (verify-41-equip2.png) and on L (#1) after (verify-46-equip3.png) \u2014 the node correctly commanded a real slot change and the Equipment display is reporting the device truthfully, not 'rewritten from the command'. So neither 'a filter name the wheel does not have' nor 'the UI now asserts something false' holds. The only true residue is cosmetic/P4: node_palette.dart:169 seeds `FilterChangeNode(filterName: effectiveFilter ?? 'L')` when the profile has no filter list, and the app already surfaces that honestly as a run warning ('Active profile has no filter list configured; node will use filter name \"L\" literally'), which the finding itself quotes.",
    "corrected_severity": "P4"
@@ -261,7 +261,7 @@
    "expected": "One estimator, one number, shown consistently.",
    "repro": "Build that sequence and read the three numbers on the same screen.",
    "evidence": "/tmp/ns-audit/shots/sequencer-nodes-30-preflight.png (Duration 1m / Segments 5, tree '~15s', toolbar '0m')",
-   "where": "packages/nightshade_core/lib/src/services/sequence_time_estimator.dart vs the pre-flight simulation path",
+   "where": "packages/skotiq_core/lib/src/services/sequence_time_estimator.dart vs the pre-flight simulation path",
    "verdict": "REFUTED",
    "verdict_reasoning": "The specific claim did not reproduce and two of its three supporting numbers are misread. (a) This build's sequencer toolbar chip renders only a frame count ('0 frames' / '10 frames') \u2014 there is no duration chip there in any of my ~20 builder screenshots, so 'toolbar 0m' has no surface. (b) Tree vs pre-flight: for a 10x60s targeted sequence the tree row read '~10m 30s' and pre-flight read 'Duration 10m' \u2014 a whole-minute display rounding, not a divergent estimate. (c) 'Segments 5 for a 6-step sequence' is not an off-by-one: I saw 'Segments 2' for a 3-step sequence, so Segments counts transitions between steps, consistently. Genuine estimator divergence does exist in this codebase, but every instance I could actually reproduce is already reported elsewhere: the 300/30s/60s ScriptNode split is finding #3, and the SciencePhotometry frame/integration gap between `Sequence._countExposures` / `estimateIntegrationSecs` and `SequenceTimeEstimator` is finding #6. As a standalone item this is a duplicate with unreproducible specifics.",
    "corrected_severity": "P3"
@@ -275,7 +275,7 @@
    "expected": "Either no warning (the target is up) or a warning that names the correct night and the correct rise time.",
    "repro": "Add a Target with RA 6.5 h / Dec 40 at site lat 40, add Slew to Target, press Start around local noon.",
    "evidence": "/tmp/ns-audit/shots/sequencer-nodes-40-fwerror.png (both warning lines)",
-   "where": "pre-flight simulation / validation rules in packages/nightshade_core/lib/src/providers/sequence/rules/",
+   "where": "pre-flight simulation / validation rules in packages/skotiq_core/lib/src/providers/sequence/rules/",
    "verdict": "CONFIRMED",
    "verdict_reasoning": "Reproduced verbatim with the same coordinates. Site lat 40 / lon -105, target RA 6h30m00s Dec +40 00' 00\". The target card itself computes Alt 77.8 deg, Airmass 1.02, Rise 03:41, Transit 12:48, Set 21:47 \u2014 i.e. the target is high in the sky right now. Pre-flight nonetheless warned: 'New Target: \"Take Exposures\" scheduled at 13:52 before target rises at 03:41' (verify-65-pf4.png). 13:52 is ten hours AFTER 03:41 on the same day, and the app's own altitude curve on the same screen contradicts the warning. The comparison is clock-time-only with no date, exactly as claimed.",
    "corrected_severity": "P2"
@@ -289,9 +289,9 @@
    "expected": "Title should be 'No filters configured for SmartExposure'.",
    "repro": "Connect the sim filter wheel, do not add filters to the profile, add a Smart Exposure node, press Start.",
    "evidence": "/tmp/ns-audit/shots/sequencer-nodes-40-fwerror.png",
-   "where": "packages/nightshade_core/lib/src/providers/sequence/rules/ (SmartExposure filter-wheel rule)",
+   "where": "packages/skotiq_core/lib/src/providers/sequence/rules/ (SmartExposure filter-wheel rule)",
    "verdict": "CONFIRMED",
-   "verdict_reasoning": "Verified at the named source. packages/nightshade_core/lib/src/providers/sequence/rules/smart_exposure_rules.dart:174 sets `title: 'No filter wheel for SmartExposure'` while :176 sets the description to 'Smart Exposure \"${node.name}\" requires a filter wheel, but the active equipment profile has no filters configured.' The title asserts a hardware fact the app can and does contradict on the Equipment screen (I had the Simulated Filter Wheel connected and green throughout this session), while the body states the actual, different cause (an empty profile filter list). The consequence follows directly: a user reads the heading, checks Equipment, sees a connected wheel, and concludes the validator is broken. Not driven live for this one item \u2014 the rule text is unambiguous and there is no runtime behaviour to observe. P3 is correct: pure wording.",
+   "verdict_reasoning": "Verified at the named source. packages/skotiq_core/lib/src/providers/sequence/rules/smart_exposure_rules.dart:174 sets `title: 'No filter wheel for SmartExposure'` while :176 sets the description to 'Smart Exposure \"${node.name}\" requires a filter wheel, but the active equipment profile has no filters configured.' The title asserts a hardware fact the app can and does contradict on the Equipment screen (I had the Simulated Filter Wheel connected and green throughout this session), while the body states the actual, different cause (an empty profile filter list). The consequence follows directly: a user reads the heading, checks Equipment, sees a connected wheel, and concludes the validator is broken. Not driven live for this one item \u2014 the rule text is unambiguous and there is no runtime behaviour to observe. P3 is correct: pure wording.",
    "corrected_severity": "P3"
   },
   {
@@ -303,7 +303,7 @@
    "expected": "Pick the next unused filter from the profile, and copy count/duration/gain/offset/binning from the previous row (this is what NINA's Smart Exposure does). Block or warn on duplicate filters.",
    "repro": "Configure profile filters, add Smart Exposure, click '+ Add Filter Plan'.",
    "evidence": "/tmp/ns-audit/shots/cur.png at 12:56 (row1 L 3x2.0, row2 L 10x60.0)",
-   "where": "packages/nightshade_app/lib/screens/sequencer/widgets/smart_exposure_properties.dart"
+   "where": "packages/skotiq_app/lib/screens/sequencer/widgets/smart_exposure_properties.dart"
   },
   {
    "title": "Palette search ranks description matches above exact name matches: typing 'Dither' and pressing + adds Smart Exposure",
@@ -314,7 +314,7 @@
    "expected": "Exact/prefix name matches must sort above description matches.",
    "repro": "Sequencer > Nodes > type 'Dither' in Search nodes. Smart Exposure is the first result.",
    "evidence": "tree dump after adding by search showed 'Smart Exposure' twice and no Dither node; palette code confirms the ordering",
-   "where": "packages/nightshade_app/lib/screens/sequencer/widgets/node_palette.dart:53-67"
+   "where": "packages/skotiq_app/lib/screens/sequencer/widgets/node_palette.dart:53-67"
   },
   {
    "title": "Stop Guiding fails the whole run when nothing is guiding",
@@ -325,7 +325,7 @@
    "expected": "Stopping something that is already stopped is a no-op success (this is what NINA and SGP do). Reserve failure for a guider that is connected and refuses to stop.",
    "repro": "New sequence > Stop Guiding > Start.",
    "evidence": "app.log 16:30:14.579289",
-   "where": "native/nightshade_native/sequencer/src/instructions.rs (stop guiding instruction)"
+   "where": "native/skotiq_native/sequencer/src/instructions.rs (stop guiding instruction)"
   },
   {
    "title": "Selecting a node and pressing Delete does nothing; deletion requires hovering the row and hitting a 3-state hover toolbar",
@@ -336,7 +336,7 @@
    "expected": "Delete/Backspace on a selected node should delete it (with the same confirm dialog).",
    "repro": "Select any node in the tree, press Delete.",
    "evidence": "/tmp/ns-audit/shots/cur2.png sequence at 13:0x \u2014 node count unchanged after Delete; trash icon path worked",
-   "where": "packages/nightshade_app/lib/screens/sequencer/widgets/sequence_tree_shortcuts.dart"
+   "where": "packages/skotiq_app/lib/screens/sequencer/widgets/sequence_tree_shortcuts.dart"
   },
   {
    "title": "Progress events keep advancing for a node that has already failed (Start Guiding reported 0->60% after returning Failure)",
@@ -347,7 +347,7 @@
    "expected": "No progress after a terminal result; clear the in-flight progress panels when a run ends.",
    "repro": "Run a sequence with Start Guiding and no guider; watch the node's progress bar and the log.",
    "evidence": "app.log 17:17:00.534353 vs .534424-.534521; /tmp/ns-audit/shots/sequencer-nodes-42-expand.png (stale 'Slewing to Target 0%' after a failed run)",
-   "where": "native/nightshade_native/sequencer/src/executor (progress callback ordering) and the run-dashboard progress panels",
+   "where": "native/skotiq_native/sequencer/src/executor (progress callback ordering) and the run-dashboard progress panels",
    "verdict": "REFUTED",
    "verdict_reasoning": "The evidence is misread. The cited lines are '[EVENT_SUB] NodeProgress received' \u2014 that is the Dart consumer LOGGING RECEIPT off an asynchronous event channel, not the native side emitting. Source shows the native ordering is correct: instructions.rs:4946 cb(0.0), :4954 cb(20.0), :4982 cb(40.0), :4986 cb(60.0) all execute BEFORE the `ctx.device_ops.guider_start(...)` call at :4990 whose Err arm produces the failure; nothing is emitted after the terminal result. The same receipt lag is visible everywhere in my own logs (e.g. 'Changing filter to: L' at 17:41:14.616062 with its 0% receipt at .616089, and a Filter 100% receipt at 17:41:14.717950 logged after the Autofocus node had already started). The whole cited window is 0.2 ms, so no bar can visibly 'animate forward'. The second, separate symptom in the write-up \u2014 a stale 'Slewing to Target 0%' panel left on screen after a failed run \u2014 may well be real, but it is a different defect and is not supported by the log evidence offered; it needs its own repro.",
    "corrected_severity": "P3"
@@ -361,7 +361,7 @@
    "expected": "Read MaxBrightness from the connected calibrator and scale the slider and caption to it; if none is connected, say the range is the device's.",
    "repro": "Add Calibrator On > read Properties.",
    "evidence": "/tmp/ns-audit/shots/props-calibratoron.png",
-   "where": "packages/nightshade_app/lib/screens/sequencer/widgets/node_properties_panel_parts (calibrator properties)"
+   "where": "packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel_parts (calibrator properties)"
   },
   {
    "title": "Smart Exposure claims 'Round-robin: RGRGRG\u2026' regardless of what filters the node actually contains",
@@ -372,7 +372,7 @@
    "expected": "Build the preview string from the node's own plans, e.g. 'L L L' for one row or 'L G L G L' for the configured rows.",
    "repro": "Add Smart Exposure with one filter plan > scroll Properties to Rotate Filters.",
    "evidence": "/tmp/ns-audit/shots/cur2.png at 12:5x (single L row, caption 'Round-robin: RGRGRG...')",
-   "where": "packages/nightshade_app/lib/screens/sequencer/widgets/smart_exposure_properties.dart"
+   "where": "packages/skotiq_app/lib/screens/sequencer/widgets/smart_exposure_properties.dart"
   },
   {
    "title": "Target node has two different name fields ('Name' and 'Target Name') that disagree by default",
@@ -383,7 +383,7 @@
    "expected": "One field. If a node-label vs astronomical-target distinction is really needed, label them 'Step label' and 'Target', and default them to the same value.",
    "repro": "Sequencer > add Target > read Properties.",
    "evidence": "/tmp/ns-audit/shots/cur.png at 11:48 (Name 'Target' / Target Name 'New Target')",
-   "where": "packages/nightshade_app/lib/screens/sequencer/widgets/node_properties_panel_parts/target_node_properties"
+   "where": "packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel_parts/target_node_properties"
   },
   {
    "title": "Pre-flight never checks whether the devices a sequence's nodes need are present",
@@ -394,7 +394,7 @@
    "expected": "Pre-flight should map each node type to the device it needs and error when that device is absent \u2014 that is the whole point of running it before dark.",
    "repro": "Add Open Cover + Calibrator On with no cover calibrator connected > Start.",
    "evidence": "/tmp/ns-audit/shots/sequencer-nodes-33-cover-preflight.png ('Ready with Warnings', 2 warnings, no equipment error) then /tmp/ns-audit/shots/sequencer-nodes-34-cover-result.png (immediate failure)",
-   "where": "packages/nightshade_core/lib/src/providers/sequence/rules/"
+   "where": "packages/skotiq_core/lib/src/providers/sequence/rules/"
   },
   {
    "title": "Settings > Files & Storage > Image output: after choosing a folder the field still says 'Not set' and the browse button spins forever until the app is restarted",
@@ -405,7 +405,7 @@
    "expected": "The field and the status bar update as soon as the picker returns, and the browse button becomes usable again.",
    "repro": "Settings > Files & Storage > Image output > folder icon > pick a directory > Select. Field stays 'Not set', button spins.",
    "evidence": "/tmp/ns-audit/shots/cur2.png at 12:07 and 12:08 (still 'Not set' + spinner), sqlite3 app_settings image_output_path empty at that time and populated after restart",
-   "where": "packages/nightshade_app/lib/screens/settings/widgets/settings_widgets/settings_color_and_path_inputs.dart:180 (_browse never leaves _browsing=false because the getDirectoryPath future does not complete); packages/nightshade_app/lib/screens/settings/widgets/file_path_settings.dart:35",
+   "where": "packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_color_and_path_inputs.dart:180 (_browse never leaves _browsing=false because the getDirectoryPath future does not complete); packages/skotiq_app/lib/screens/settings/widgets/file_path_settings.dart:35",
    "verdict": "REFUTED",
    "verdict_reasoning": "Did not reproduce, twice, including the exact stated repro. Attempt 1 (Image output): clicked the folder icon, navigated in the GTK chooser, committed \u2014 the row immediately re-rendered as 'Image output / /tmp/ns-audit/sequencer-nodes-verify/captures', the browse button returned to a normal folder icon (no spinner), and the status bar changed from 'No save path' to 'captures' (verify-31-nav2.png). Attempt 2 (Sequences row, mouse-only, exactly as written: folder icon -> select a directory -> click the 'Select' button): the field updated instantly to '/tmp/ns-audit/sequencer-nodes-verify' with no spinner (verify-33-seqpath.png). sqlite3 app_settings at that moment already held image_output_path, default_image_directory and sequences_path \u2014 persisted before any restart. The named source also already guards against exactly this: settings_color_and_path_inputs.dart:163-190 carries a `_browseGeneration` counter, a `didUpdateWidget` hook that clears `_browsing` when the authorityKey changes, and a `finally { setState(() => _browsing = false); }`. Note the exposure path this claim 'gates' was demonstrably fine \u2014 later in the session light frames were written to that directory. If the reporter hit something real it was transient (most likely the GTK dialog still open or dismissed abnormally) and is not reproducible as described.",
    "corrected_severity": "P2"
@@ -419,7 +419,7 @@
    "expected": "Clicking a badge should open the issue list (the pre-flight content already exists) and clicking an issue should select the offending node.",
    "repro": "Build a sequence with errors, click the red '1' chip next to the sequence name.",
    "evidence": "/tmp/ns-audit/shots/sequencer-nodes-21-validation.png (identical before/after the click)",
-   "where": "packages/nightshade_app/lib/screens/sequencer/widgets (sequence header validation chips)"
+   "where": "packages/skotiq_app/lib/screens/sequencer/widgets (sequence header validation chips)"
   }
  ],
  "verified_correct": [

@@ -12,8 +12,8 @@
     {
       "id": "A1",
       "hop": "typed FRB payload -> event data map (Dart)",
-      "line_severed": "packages/nightshade_core/lib/src/backend/ffi_backend/event_mapping.dart:558 and :576 — deleted `...frameCaptureToEventData(sequencerEvent.capture),` from BOTH the FrameAccepted and FrameRejected arms",
-      "test": "packages/nightshade_core/test/backend/ffi_frame_event_capture_wiring_test.dart (2 tests)",
+      "line_severed": "packages/skotiq_core/lib/src/backend/ffi_backend/event_mapping.dart:558 and :576 — deleted `...frameCaptureToEventData(sequencerEvent.capture),` from BOTH the FrameAccepted and FrameRejected arms",
+      "test": "packages/skotiq_core/test/backend/ffi_frame_event_capture_wiring_test.dart (2 tests)",
       "failed_when_severed": true,
       "failure": "both tests: `the frame event lost the \"gain\" key, so captured_images.gain goes back to NULL for every sequenced frame`",
       "seam": "Production code UNCHANGED. The mapper is a private extension method on a private class, so a `@visibleForTesting sequencerEventInfoForTesting` seam was added to FfiBackend that calls the real `_extractSequencerEventInfo` — same pattern as the existing `profileFromBridgeForTesting`. The test drives the actual mapper, not a copy.",
@@ -22,8 +22,8 @@
     {
       "id": "A2",
       "hop": "FITS writer's FrameContext -> the frame event (Rust sequencer)",
-      "line_severed": "native/nightshade_native/sequencer/src/instructions.rs:2536 — replaced the `&frame_ctx` argument to `emit_grade_progress` with `&crate::scheduling::FrameContext::default()`",
-      "test": "native/nightshade_native/sequencer/src/instructions.rs::tests::frame_event_is_stamped_from_the_context_save_fits_received",
+      "line_severed": "native/skotiq_native/sequencer/src/instructions.rs:2536 — replaced the `&frame_ctx` argument to `emit_grade_progress` with `&crate::scheduling::FrameContext::default()`",
+      "test": "native/skotiq_native/sequencer/src/instructions.rs::tests::frame_event_is_stamped_from_the_context_save_fits_received",
       "failed_when_severed": true,
       "failure": "`frame 1 event carries a different capture than the FITS writer got` — left all-None/0, right the real telemetry (gain 139, RA 5.5h, focuser 31705, ...)",
       "note": "CONFIRMED the verifier's complaint in passing: the pre-existing `frame_event_carries_the_fits_writers_own_capture_context` stayed GREEN under this same sever, because it calls `emit_grade_progress` directly with a hand-made context and derives both sides of its comparison from that one literal.",
@@ -32,16 +32,16 @@
     {
       "id": "A3",
       "hop": "ProgressDetail -> typed SequencerEvent (Rust bridge)",
-      "line_severed": "native/nightshade_native/bridge/src/api/sequencer.rs:976 and :1026 — replaced `capture: capture.into()` with `capture: Default::default()` in BOTH arms",
-      "test": "native/nightshade_native/bridge/src/api/sequencer.rs::frame_event_capture_tests (2 tests)",
+      "line_severed": "native/skotiq_native/bridge/src/api/sequencer.rs:976 and :1026 — replaced `capture: capture.into()` with `capture: Default::default()` in BOTH arms",
+      "test": "native/skotiq_native/bridge/src/api/sequencer.rs::frame_event_capture_tests (2 tests)",
       "failed_when_severed": true,
       "failure": "both tests: left all-None/0 FrameCaptureMetadata, right the populated payload"
     },
     {
       "id": "A3b",
       "hop": "save_fits's own frame_ctx -> the FITS header (the fourth hop, flagged as 'same shape')",
-      "line_severed": "native/nightshade_native/bridge/src/sequencer_ops.rs:988 — `build_rich_header(image_data, frame_ctx, pointing)` with the frame_ctx argument replaced by `&FrameContext::default()`",
-      "test": "native/nightshade_native/bridge/src/sequencer_ops.rs::pointing_tests::save_fits_writes_the_header_from_its_own_frame_context",
+      "line_severed": "native/skotiq_native/bridge/src/sequencer_ops.rs:988 — `build_rich_header(image_data, frame_ctx, pointing)` with the frame_ctx argument replaced by `&FrameContext::default()`",
+      "test": "native/skotiq_native/bridge/src/sequencer_ops.rs::pointing_tests::save_fits_writes_the_header_from_its_own_frame_context",
       "failed_when_severed": true,
       "failure": "GAIN card read back off disk was Some(100) (the ImageData fallback) instead of Some(139) (the context)",
       "method": "Drives `DeviceOps::save_fits` itself on a real BridgeDeviceOps (AppState::new() is in-memory, no DB needed), writes a FITS file and reads it back. Every prior test in this module called `build_rich_header` directly, which is exactly why this hop was invisible."
@@ -49,7 +49,7 @@
     {
       "id": "B",
       "hop": "AIRMASS fallback when the sequencer has no site but app settings does",
-      "line_severed": "native/nightshade_native/bridge/src/sequencer_ops.rs — (1) the `context_altitude_pointing(frame_ctx, self.get_observer_location(), Utc::now())` call in save_fits replaced with `None`; (2) separately, `header.altitude = frame_ctx.mount_altitude_deg.or_else(|| pointing.and_then(|p| p.altitude_deg))` reduced back to `frame_ctx.mount_altitude_deg`",
+      "line_severed": "native/skotiq_native/bridge/src/sequencer_ops.rs — (1) the `context_altitude_pointing(frame_ctx, self.get_observer_location(), Utc::now())` call in save_fits replaced with `None`; (2) separately, `header.altitude = frame_ctx.mount_altitude_deg.or_else(|| pointing.and_then(|p| p.altitude_deg))` reduced back to `frame_ctx.mount_altitude_deg`",
       "test": "pointing_tests::save_fits_writes_the_header_from_its_own_frame_context + context_pointing_without_altitude_resolves_it_from_app_settings + context_altitude_wins_and_no_site_stays_absent",
       "failed_when_severed": true,
       "failure": "sever (1): `a sequenced frame must keep AIRMASS when app settings knows the site, even though the sequencer's own location seed did not`. sever (2): the same, plus `left: None, right: Some(55.47)` on the altitude assertion."
@@ -57,7 +57,7 @@
     {
       "id": "C",
       "hop": "driver-reported exposure vs the commanded exposure",
-      "line_severed": "native/nightshade_native/sequencer/src/instructions.rs — both directions: (1) dropped the upper bound (`reported_secs > 0.0 && reported_secs <= longest_believable` -> `reported_secs > 0.0`); (2) never adopted the driver value at all (`if false`)",
+      "line_severed": "native/skotiq_native/sequencer/src/instructions.rs — both directions: (1) dropped the upper bound (`reported_secs > 0.0 && reported_secs <= longest_believable` -> `reported_secs > 0.0`); (2) never adopted the driver value at all (`if false`)",
       "test": "instructions.rs::tests::nonsense_driver_exposure_report_cannot_inflate_integration_totals + plausible_driver_exposure_report_wins_over_the_commanded_value",
       "failed_when_severed": true,
       "failure": "sever (1): `an impossible exposure report must not reach the FITS header` — left 3600.0, right 60.0. sever (2): left 60.0, right 60.4.",
@@ -66,8 +66,8 @@
     {
       "id": "D",
       "hop": "the residual `capture.X ?? attribution.X` second source",
-      "line_severed": "packages/nightshade_core/lib/src/providers/sequence/sequence_executor/event_operations.dart:692,759,765-768 — both directions: (1) dropped the capture side (`attribution.X` only); (2) dropped the attribution side (`capture.X` only)",
-      "test": "packages/nightshade_core/test/providers/sequence/sequence_frame_capture_metadata_test.dart — 'capture payload beats a loaded sequence that disagrees' + 'legacy host with no capture payload falls back to the tree'",
+      "line_severed": "packages/skotiq_core/lib/src/providers/sequence/sequence_executor/event_operations.dart:692,759,765-768 — both directions: (1) dropped the capture side (`attribution.X` only); (2) dropped the attribution side (`capture.X` only)",
+      "test": "packages/skotiq_core/test/providers/sequence/sequence_frame_capture_metadata_test.dart — 'capture payload beats a loaded sequence that disagrees' + 'legacy host with no capture payload falls back to the tree'",
       "failed_when_severed": true,
       "failure": "sever (1): row.gain was 0 (the node config) instead of 139 (the camera). sever (2): row.gain was null instead of the tree's 0.",
       "note": "The two tests bracket the fallback: it may never contribute when a payload is present, and it must contribute when one is absent."
@@ -98,21 +98,21 @@
   },
 
   "verification": {
-    "cargo_test": "nightshade_sequencer + nightshade_bridge: 440 + 706 + 5 + 4 + 12 passed, 0 failed (was 435 + 703; +5 new)",
+    "cargo_test": "skotiq_sequencer + skotiq_bridge: 440 + 706 + 5 + 4 + 12 passed, 0 failed (was 435 + 703; +5 new)",
     "flutter_test_core": "5208 passed, 0 failed, 4 skipped (was 5204; +4 new)",
     "cargo_fmt": "clean across the whole native workspace",
-    "dart_analyze": "nightshade_core lib+test: 0 errors (7 pre-existing infos/warnings, none in touched files). nightshade_app lib: No issues found.",
+    "dart_analyze": "skotiq_core lib+test: 0 errors (7 pre-existing infos/warnings, none in touched files). skotiq_app lib: No issues found.",
     "dart_format": "clean on all four touched Dart files"
   },
 
   "files_changed": [
-    "native/nightshade_native/sequencer/src/instructions.rs",
-    "native/nightshade_native/bridge/src/sequencer_ops.rs",
-    "native/nightshade_native/bridge/src/api/sequencer.rs",
-    "packages/nightshade_core/lib/src/backend/ffi_backend.dart",
-    "packages/nightshade_core/lib/src/providers/sequence/sequence_executor/event_operations.dart",
-    "packages/nightshade_core/test/backend/ffi_frame_event_capture_wiring_test.dart",
-    "packages/nightshade_core/test/providers/sequence/sequence_frame_capture_metadata_test.dart"
+    "native/skotiq_native/sequencer/src/instructions.rs",
+    "native/skotiq_native/bridge/src/sequencer_ops.rs",
+    "native/skotiq_native/bridge/src/api/sequencer.rs",
+    "packages/skotiq_core/lib/src/backend/ffi_backend.dart",
+    "packages/skotiq_core/lib/src/providers/sequence/sequence_executor/event_operations.dart",
+    "packages/skotiq_core/test/backend/ffi_frame_event_capture_wiring_test.dart",
+    "packages/skotiq_core/test/providers/sequence/sequence_frame_capture_metadata_test.dart"
   ],
 
   "still_open": [

@@ -14,7 +14,7 @@ part 'notification_service/contracts.dart';
 
 const _sequenceDetails = NotificationDetails(
   android: AndroidNotificationDetails(
-    'nightshade_sequence',
+    'skotiq_sequence',
     'Sequence Events',
     channelDescription: 'Notifications for sequence completion and failures',
     importance: Importance.high,
@@ -32,7 +32,7 @@ const _sequenceDetails = NotificationDetails(
 
 const _warningDetails = NotificationDetails(
   android: AndroidNotificationDetails(
-    'nightshade_warnings',
+    'skotiq_warnings',
     'Warnings',
     channelDescription: 'Important warnings about battery, disk space, etc.',
     importance: Importance.high,
@@ -50,7 +50,7 @@ const _warningDetails = NotificationDetails(
 
 const _infoDetails = NotificationDetails(
   android: AndroidNotificationDetails(
-    'nightshade_info',
+    'skotiq_info',
     'Information',
     channelDescription: 'General information like meridian flips',
     importance: Importance.defaultImportance,
@@ -67,7 +67,7 @@ const _infoDetails = NotificationDetails(
 
 const _criticalDetails = NotificationDetails(
   android: AndroidNotificationDetails(
-    'nightshade_critical',
+    'skotiq_critical',
     'Critical Alerts',
     channelDescription:
         'Safety, guiding loss, and equipment failures during a running sequence',
@@ -90,7 +90,7 @@ const _criticalDetails = NotificationDetails(
 /// difference reads as the decision it is.
 const _criticalAlarmDetails = NotificationDetails(
   android: AndroidNotificationDetails(
-    'nightshade_critical',
+    'skotiq_critical',
     'Critical Alerts',
     channelDescription:
         'Safety, guiding loss, and equipment failures during a running sequence',
@@ -114,7 +114,7 @@ const _criticalAlarmDetails = NotificationDetails(
 /// which reports something the operator did not do and need not act on.
 const _infoPassiveDetails = NotificationDetails(
   android: AndroidNotificationDetails(
-    'nightshade_info',
+    'skotiq_info',
     'Information',
     channelDescription: 'General information like meridian flips',
     importance: Importance.defaultImportance,
@@ -202,7 +202,7 @@ NotificationDetails _pushDetails({
   required bool playSound,
 }) => NotificationDetails(
   android: AndroidNotificationDetails(
-    'nightshade_push',
+    'skotiq_push',
     'Desktop Alerts',
     channelDescription: 'Push notifications from the connected desktop',
     importance: importance,
@@ -469,7 +469,7 @@ class MobileNotificationService implements MobileNotificationSink {
 
   Future<void> _createNotificationChannels() async {
     const sequenceChannel = AndroidNotificationChannel(
-      'nightshade_sequence',
+      'skotiq_sequence',
       'Sequence Events',
       description: 'Notifications for sequence completion and failures',
       importance: Importance.high,
@@ -478,7 +478,7 @@ class MobileNotificationService implements MobileNotificationSink {
     );
 
     const warningChannel = AndroidNotificationChannel(
-      'nightshade_warnings',
+      'skotiq_warnings',
       'Warnings',
       description: 'Important warnings about battery, disk space, etc.',
       importance: Importance.high,
@@ -487,7 +487,7 @@ class MobileNotificationService implements MobileNotificationSink {
     );
 
     const infoChannel = AndroidNotificationChannel(
-      'nightshade_info',
+      'skotiq_info',
       'Information',
       description: 'General information like meridian flips',
       importance: Importance.defaultImportance,
@@ -496,7 +496,7 @@ class MobileNotificationService implements MobileNotificationSink {
     );
 
     const pushChannel = AndroidNotificationChannel(
-      'nightshade_push',
+      'skotiq_push',
       'Desktop Alerts',
       description: 'Push notifications from the connected desktop',
       importance: Importance.high,
@@ -507,7 +507,7 @@ class MobileNotificationService implements MobileNotificationSink {
     // Critical/safety events get a dedicated channel so users can grant it
     // bypass-Do-Not-Disturb access while leaving info channels muted.
     const criticalChannel = AndroidNotificationChannel(
-      'nightshade_critical',
+      'skotiq_critical',
       'Critical Alerts',
       description:
           'Safety, guiding loss, and equipment failures during a running sequence',
@@ -802,7 +802,7 @@ class MobileNotificationService implements MobileNotificationSink {
   /// as sent by PushNotificationService.toJson().
   @override
   Future<void> notifyPush(Map<String, dynamic> data) async {
-    final title = data['title'] as String? ?? 'Nightshade';
+    final title = data['title'] as String? ?? 'Skotiq';
     final body = data['body'] as String? ?? '';
     final priority = data['priority'] as String? ?? 'normal';
     final eventType = data['eventType'] as String? ?? 'push';

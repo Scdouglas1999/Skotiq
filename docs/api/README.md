@@ -1,10 +1,10 @@
-# Nightshade API Documentation
+# Skotiq API Documentation
 
-Complete API documentation for the Nightshade astronomical imaging application.
+Complete API documentation for the Skotiq astronomical imaging application.
 
 ## Overview
 
-Nightshade is a comprehensive astronomical imaging application with multiple API layers:
+Skotiq is a comprehensive astronomical imaging application with multiple API layers:
 
 - **Backend API** - High-level device control interface
 - **Bridge API** - Low-level Rust FFI bindings
@@ -17,7 +17,7 @@ Nightshade is a comprehensive astronomical imaging application with multiple API
 
 ### Core APIs
 
-- [Backend API](./backend-api.md) - Main device control interface (`NightshadeBackend`)
+- [Backend API](./backend-api.md) - Main device control interface (`SkotiqBackend`)
 - [Bridge API](./bridge-api.md) - Rust FFI bindings for native device drivers
 - [Core Services](./core-services.md) - Business logic services (imaging, plate solving, etc.)
 
@@ -42,7 +42,7 @@ Nightshade is a comprehensive astronomical imaging application with multiple API
 ### Using the Backend API
 
 ```dart
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
 // Get the backend instance
 final backend = ref.read(backendProvider);
@@ -64,7 +64,7 @@ await backend.cameraStartExposure(
 ### Using the Bridge API
 
 ```dart
-import 'package:nightshade_bridge/nightshade_bridge.dart' as bridge;
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 // Initialize the bridge
 bridge.apiInit();
@@ -89,7 +89,7 @@ await bridge.apiConnectDevice(
                │
 ┌──────────────▼──────────────────────────┐
 │         Backend API Layer                │
-│  (NightshadeBackend - Abstract)          │
+│  (SkotiqBackend - Abstract)          │
 │  ├── FfiBackend (Direct FFI)            │
 │  ├── NetworkBackend (REST API)          │
 │  └── DisconnectedBackend (Stub)         │
@@ -112,7 +112,7 @@ await bridge.apiConnectDevice(
 
 ## Device Support
 
-Nightshade supports multiple device driver protocols:
+Skotiq supports multiple device driver protocols:
 
 - **ASCOM** - Windows-only, industry standard
 - **Alpaca** - Cross-platform, network-based
@@ -127,12 +127,12 @@ before treating a driver backend or native SDK as a public release guarantee.
 
 When adding new API methods:
 
-1. Add to `NightshadeBackend` abstract class
+1. Add to `SkotiqBackend` abstract class
 2. Implement in all backend implementations (FFI, Network, Disconnected)
 3. Add to Bridge API if needed
 4. Update this documentation
 
 ## Version
 
-This documentation covers Nightshade version 2.0.0
+This documentation covers Skotiq version 2.0.0
 

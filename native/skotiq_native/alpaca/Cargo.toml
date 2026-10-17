@@ -1,0 +1,23 @@
+[package]
+name = "skotiq_alpaca"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+tokio.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+reqwest.workspace = true
+chrono.workspace = true
+if-addrs = "0.13"
+socket2 = { version = "0.6", features = ["all"] }
+
+

@@ -8,7 +8,7 @@
   "what_happened": "With UI scale = Extra Large (1.4x) the dropdown that sets it renders 'Extra Lar...' \u2014 the control cannot display the value it currently holds because SettingsDropdown is given a fixed 150 px width that does not scale.",
   "expected": "The dropdown width should scale with ui_scale/font size, or the labels should be short enough ('1.4x') to survive.",
   "repro": "Settings > Appearance > UI scale > Extra Large (1.4x).",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/settings_widgets/settings_switch_and_dropdown.dart (fixed `width:` on SettingsDropdown)",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_switch_and_dropdown.dart (fixed `width:` on SettingsDropdown)",
   "location_wrong": null,
   "proposed_fix": "Make the dropdown width intrinsic (IntrinsicWidth / min-width) instead of a hardcoded 150.",
   "verdict_reasoning": null
@@ -22,7 +22,7 @@
   "what_happened": "The Timezone dropdown offers exactly: UTC, America/{New_York,Chicago,Denver,Los_Angeles,Phoenix,Anchorage}, Pacific/Honolulu, Europe/{London,Paris,Berlin,Moscow}, Asia/{Tokyo,Shanghai,Kolkata}, Australia/{Sydney,Perth}, Pacific/Auckland. There is no free-text entry and no search. All of South America, Africa, the Middle East, Scandinavia, Spain/Portugal, Canada, Mexico and most of Asia are unrepresented \u2014 including Chile and Namibia, where a large fraction of remote-hosted amateur rigs actually sit.",
   "expected": "A searchable IANA zone list (as NINA and every OS settings panel provide), or \u2014 better for an astro app \u2014 derive the site timezone from the lat/long that is already entered three rows above, with an override.",
   "repro": "Settings > Location > Time > Timezone dropdown.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/location_settings.dart (timezone items list)",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart (timezone items list)",
   "location_wrong": null,
   "proposed_fix": "Replace with a searchable IANA list, plus a 'from location' button that resolves lat/long -> tz.",
   "verdict_reasoning": null
@@ -36,7 +36,7 @@
   "what_happened": "Settings > Location offers three bare numeric fields (Latitude, Longitude, Elevation) plus 'Sync from Server' and 'Use Device Location'. There is no city/place lookup, no DMS entry, and no map picker. A new user who knows they observe from 'Bend, Oregon' has to leave the app to find 44.0582 / -121.3153 / 1100 m.",
   "expected": "ASIAIR and SkySafari let you pick a city; NINA accepts DMS and can pull from the mount. At minimum accept DMS input ('47 36 22 N') in the same field, and offer an offline city list \u2014 the app already ships large catalogs.",
   "repro": "Settings > Location, top card.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/location_settings.dart",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart",
   "location_wrong": null,
   "proposed_fix": "Add a DMS-tolerant parser to the lat/long fields and a bundled city picker; optionally 'read from connected mount'.",
   "verdict_reasoning": null
@@ -50,7 +50,7 @@
   "what_happened": "'Import .hor / CSV' and 'Reset All to 0 deg' sit side by side on the same row, ~120 px apart. Clicking Reset immediately set horizon_profile_json to all zeros. No confirm dialog, no undo, and the imported file is not remembered, so recovering means finding the .hor again.",
   "expected": "Confirm before discarding a non-zero horizon, or offer undo in the snackbar.",
   "repro": "Import a horizon, then click 'Reset All to 0 deg' on the same row.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/location_settings.dart (Reset All action)",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart (Reset All action)",
   "location_wrong": null,
   "proposed_fix": "Add a confirm when any value is non-zero, or an 'Undo' action on the snackbar.",
   "verdict_reasoning": null
@@ -64,7 +64,7 @@
   "what_happened": "Settings > Files & Storage > Storage renders 'Image output' and 'Sequences' as bordered input boxes with the placeholder 'Not set' and a small folder button beside them. Clicking into the box and typing '/tmp/ns-audit/rsg-files/lights' then pressing Enter or Tab does nothing at all: the box still reads 'Not set' and image_output_path stays empty in app_settings. The value can only be set through the folder button (which then works and persists correctly).",
   "expected": "Either make the field editable \u2014 pasting a UNC/NAS path is how people configure this on a real rig, and a directory picker cannot reach a path that is not mounted yet \u2014 or render it as a plain label instead of a text input so it does not invite typing.",
   "repro": "Settings > Files & Storage > click the 'Not set' box on Image output > type any path > Enter. Field unchanged; sqlite3 app_settings image_output_path still ''.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/settings_widgets/settings_color_and_path_inputs.dart:136-230; used from file_path_settings.dart:160-190",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_color_and_path_inputs.dart:136-230; used from file_path_settings.dart:160-190",
   "location_wrong": null,
   "proposed_fix": "Make SettingsPathInput a real TextField that commits on submit/blur with a directory-exists check, keeping the browse button as a shortcut.",
   "verdict_reasoning": null
@@ -78,7 +78,7 @@
   "what_happened": "Resizing the window to 900x800 collapses the bottom status bar so the device labels are dropped: it reads 'Disconnected  Disconnected  Disconnected', distinguished only by three small monochrome glyphs. At 1600px the same chips read 'Camera Disconnected / Mount Disconnected / Guider Disconnected'. The Focus chip and the right-hand run-state chip are dropped entirely.",
   "expected": "When width is short, drop the WORD 'Disconnected' (the colour and dot already carry it) and keep the device name, or collapse the three into one 'No devices connected' chip. Three identical words tell the operator nothing.",
   "repro": "Resize the desktop window to 900px wide and read the bottom status bar.",
-  "where": "app shell bottom status bar (packages/nightshade_app/lib/screens/shell/)",
+  "where": "app shell bottom status bar (packages/skotiq_app/lib/screens/shell/)",
   "location_wrong": null,
   "proposed_fix": "Priority-drop the status word before the device name.",
   "verdict_reasoning": null
@@ -89,12 +89,12 @@
   "corrected_severity": null,
   "kind": "ux",
   "unit": "settings:files-storage",
-  "what_happened": "The Application Data card has one row, 'Database and logs', whose entire value is the sentence 'Managed automatically in Nightshade's application data folder'. There is no path, no copy button and no folder button - the two rows above it (Image output, Sequences) each get both a path field and a folder-picker button. In this run the database was actually at /tmp/ns-audit/r-settings-general/data/nightshade.db and nothing in the UI says so.",
+  "what_happened": "The Application Data card has one row, 'Database and logs', whose entire value is the sentence 'Managed automatically in Skotiq's application data folder'. There is no path, no copy button and no folder button - the two rows above it (Image output, Sequences) each get both a path field and a folder-picker button. In this run the database was actually at /tmp/ns-audit/r-settings-general/data/skotiq.db and nothing in the UI says so.",
   "expected": "Show the resolved absolute path (read-only is fine) with a 'Reveal in file manager' / copy button, the way Image output does. Users need this to attach a log to a bug report, to back the DB up manually, or to check they are pointed at the right profile - NINA and SGP both put the working folder one click away.",
   "repro": "Settings > Files & Storage > Application Data > 'Database and logs'.",
-  "where": "packages/nightshade_app/lib/screens/settings/widgets/file_path_settings.dart (Application Data section)",
+  "where": "packages/skotiq_app/lib/screens/settings/widgets/file_path_settings.dart (Application Data section)",
   "location_wrong": null,
-  "proposed_fix": "Render the resolved data directory as a selectable path with copy + reveal actions, and state that it moves with NIGHTSHADE_DATA_DIR when that is set.",
+  "proposed_fix": "Render the resolved data directory as a selectable path with copy + reveal actions, and state that it moves with SKOTIQ_DATA_DIR when that is set.",
   "verdict_reasoning": null
  },
  {
@@ -106,7 +106,7 @@
   "what_happened": "Typing 'Alpaca' filters the sidebar down to a single entry, 'Connection', and nothing else changes: the detail pane keeps showing whatever section was already open, the result gives no hint which row matched, and clicking through drops you at the top of a long Connection page where you still have to hunt for the Alpaca row yourself. Same for 'Red night' (-> 'Appearance') and 'Elevation' (-> 'Location').",
   "expected": "A settings search should show the matching ROW ('Query Alpaca on startup - Connection'), and clicking it should open that section scrolled to and briefly highlighting that row. The index already stores the row titles that matched, so the information is there and is being thrown away.",
   "repro": "Settings > search box > type 'Alpaca'. Sidebar shows 'Connection' with no row context. Click it; the Connection page opens at the top with no indication of where the match is.",
-  "where": "packages/nightshade_app/lib/screens/settings/settings_screen.dart + settings_search_index.g.dart",
+  "where": "packages/skotiq_app/lib/screens/settings/settings_screen.dart + settings_search_index.g.dart",
   "location_wrong": null,
   "proposed_fix": "Return (section, rowTitle) pairs from the matcher, render them as result rows under their section, and pass the row key through navigation so the target section can Scrollable.ensureVisible + flash it.",
   "verdict_reasoning": null

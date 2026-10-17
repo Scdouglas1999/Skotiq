@@ -6,14 +6,14 @@
   "fix": {
     "a_detector_vs_grader": "imaging/src/stats.rs: new pub const DETECTION_MAX_ECCENTRICITY = 0.95 (a ~3:1 smear) with a load-bearing why-comment, used by StarDetectionConfig::default(). The detection filter now culls only non-stellar streaks (cosmic rays, satellite trails, e>0.95) and leaves every plausible grading threshold (0.6-0.8) measurable. Empirically bracketed: a 2.5:1 trail measures 0.916, a 10:1 streak measures 0.983.",
     "b_no_measurable_stars_rejects": "sequencer/src/quality/image_grading.rs: grade_frame now returns Reject when metrics.star_count == Some(0), placed first because every other metric is None by construction in that case and all gates would otherwise be skipped. Some(0) (detector ran, found nothing) is distinguished from None (never ran) so the honest-absence rule is preserved; run_exposure_loop only grades light frames so calibration bursts can never reach it.",
-    "c_settings_copy": "packages/nightshade_app/.../image_grading_settings.dart: subtitle rewritten to state what each threshold physically means (0.6 = 1.25:1 smear, 0.8 = 1.7:1 smear) and that the field stops at 0.95 because past that the detector reads a source as a satellite trail. The input max was lowered 1.0 -> 0.95 so the control cannot be set to an un-fireable value. Matching doc comments updated in nightshade_core settings_sections/image_grading.dart and the Rust ImageQualityCheck::eccentricity_threshold; settings_search_index.g.dart regenerated."
+    "c_settings_copy": "packages/skotiq_app/.../image_grading_settings.dart: subtitle rewritten to state what each threshold physically means (0.6 = 1.25:1 smear, 0.8 = 1.7:1 smear) and that the field stops at 0.95 because past that the detector reads a source as a satellite trail. The input max was lowered 1.0 -> 0.95 so the control cannot be set to an un-fireable value. Matching doc comments updated in skotiq_core settings_sections/image_grading.dart and the Rust ImageQualityCheck::eccentricity_threshold; settings_search_index.g.dart regenerated."
   },
   "files_changed": [
-    "native/nightshade_native/imaging/src/stats.rs",
-    "native/nightshade_native/sequencer/src/quality/image_grading.rs",
-    "packages/nightshade_app/lib/screens/settings/widgets/image_grading_settings.dart",
-    "packages/nightshade_core/lib/src/providers/settings_sections/image_grading.dart",
-    "packages/nightshade_app/lib/screens/settings/settings_search_index.g.dart"
+    "native/skotiq_native/imaging/src/stats.rs",
+    "native/skotiq_native/sequencer/src/quality/image_grading.rs",
+    "packages/skotiq_app/lib/screens/settings/widgets/image_grading_settings.dart",
+    "packages/skotiq_core/lib/src/providers/settings_sections/image_grading.dart",
+    "packages/skotiq_app/lib/screens/settings/settings_search_index.g.dart"
   ],
   "tests_added": [
     "imaging/src/stats.rs::trailed_field_stays_measurable_under_the_production_default_config",
@@ -30,8 +30,8 @@
     "restored": "both restored; all suites re-run green"
   },
   "verification": {
-    "cargo test --package nightshade_imaging": "484 + 12 + 1 passed, 0 failed",
-    "cargo test --package nightshade_sequencer": "710 + 5 + 4 + 12 passed, 0 failed (1 ignored, pre-existing)",
+    "cargo test --package skotiq_imaging": "484 + 12 + 1 passed, 0 failed",
+    "cargo test --package skotiq_sequencer": "710 + 5 + 4 + 12 passed, 0 failed (1 ignored, pre-existing)",
     "cargo fmt --check": "clean",
     "cargo clippy --all-targets (both packages)": "no warnings, no errors",
     "flutter test settings_search_test.dart": "4 passed",
@@ -41,8 +41,8 @@
     "dart format --set-exit-if-changed": "0 changed"
   },
   "caveats": [
-    "bridge/src/api/imaging.rs StarDetectionConfigApi::default() still hardcodes max_eccentricity: 0.7 (line ~2428). That struct feeds api_detect_stars_in_file / the manual FITS star-analysis UI, NOT the grading path, so the gate is fixed - but that surface still reports median_eccentricity clipped at 0.70. NOT TOUCHED (file is in the concurrently-modified set). One-line change: max_eccentricity: 0.7 -> nightshade_imaging::DETECTION_MAX_ECCENTRICITY. No frb regeneration needed (default value only).",
-    "nightshade_core setImageGradingEccentricityThreshold still validates max: 1.0 rather than 0.95. Left deliberately: 0-1 is the mathematical domain of eccentricity, while 0-0.95 is the actionable subrange the UI enforces. A remote/headless client could still store 0.99, which would be a silently-never-firing gate. Copy was worded to claim only what is true of the settings field.",
+    "bridge/src/api/imaging.rs StarDetectionConfigApi::default() still hardcodes max_eccentricity: 0.7 (line ~2428). That struct feeds api_detect_stars_in_file / the manual FITS star-analysis UI, NOT the grading path, so the gate is fixed - but that surface still reports median_eccentricity clipped at 0.70. NOT TOUCHED (file is in the concurrently-modified set). One-line change: max_eccentricity: 0.7 -> skotiq_imaging::DETECTION_MAX_ECCENTRICITY. No frb regeneration needed (default value only).",
+    "skotiq_core setImageGradingEccentricityThreshold still validates max: 1.0 rather than 0.95. Left deliberately: 0-1 is the mathematical domain of eccentricity, while 0-0.95 is the actionable subrange the UI enforces. A remote/headless client could still store 0.99, which would be a silently-never-firing gate. Copy was worded to claim only what is true of the settings field.",
     "settings_search_index.g.dart regeneration also picked up unrelated stale entries (adaptive-exposure, work-locally, plate-solve sync-mount) left by other agents' concurrent settings edits - the checked-in index was already stale before this change, and settings_search_test.dart was failing because of it. The regeneration is deterministic, so a later regen by another agent produces a superset with no conflict.",
     "DETECTION_MAX_ECCENTRICITY is inherited by RegistrationConfig::default() and FrameQualityConfig::default(). Effect is a net improvement (a trailed frame can now be registered and weighted at all instead of finding zero stars), and the min_hfr / max_sharpness filters still exclude cosmic rays. Full imaging suite green confirms no regression, but this has NOT been validated on a real trailed sub from a telescope."
   ]

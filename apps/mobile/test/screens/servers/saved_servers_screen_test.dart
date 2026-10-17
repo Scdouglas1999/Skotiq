@@ -9,7 +9,7 @@
 //   4. The FAB invokes the supplied onAddServer callback.
 //
 // We do NOT exercise the row-tap connect path: it goes through
-// EnhancedNightshadeDiscovery.testServerConnection (a static http.get)
+// EnhancedSkotiqDiscovery.testServerConnection (a static http.get)
 // and BackendNotifier.connect (which spins up a real NetworkBackend).
 // Those edges are integration territory and would require shimming the
 // remote-protocol package, which the saved-servers tests don't need to
@@ -22,9 +22,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_mobile/screens/servers/saved_servers_screen.dart';
-import 'package:nightshade_mobile/services/saved_servers_service.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_mobile/screens/servers/saved_servers_screen.dart';
+import 'package:skotiq_mobile/services/saved_servers_service.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> _pump(
@@ -36,7 +36,7 @@ Future<void> _pump(
     ProviderScope(
       overrides: [savedServersServiceProvider.overrideWithValue(service)],
       child: MaterialApp(
-        theme: ThemeData(extensions: const [NightshadeColors.dark]),
+        theme: ThemeData(extensions: const [SkotiqColors.dark]),
         home: SavedServersScreen(
           onAddServer: onAddServer,
           onServerSelected: (_, __) {},

@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/session_ownership.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/session_ownership.dart';
 
 class _EventRecorder {
-  final events = <NightshadeEvent>[];
-  void record(NightshadeEvent event) => events.add(event);
-  List<NightshadeEvent> ofType(String type) =>
+  final events = <SkotiqEvent>[];
+  void record(SkotiqEvent event) => events.add(event);
+  List<SkotiqEvent> ofType(String type) =>
       events.where((e) => e.eventType == type).toList();
 }
 
@@ -22,7 +22,7 @@ class _MutableClock {
 String _testDigest(String token) => 'digest:$token';
 
 SessionOwnershipManager _build({
-  void Function(NightshadeEvent)? onEvent,
+  void Function(SkotiqEvent)? onEvent,
   DateTime Function()? now,
   Duration heartbeatTimeout = const Duration(minutes: 5),
 }) {

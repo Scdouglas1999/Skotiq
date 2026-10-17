@@ -3,7 +3,7 @@
 - **Date:** 2026-06-07
 - **Branch:** `feature/smart-integration-morning-report`
 - **Status:** ✅ **SHIPPED end-to-end** (built 2026-06-08, on `feature/smart-integration-morning-report`, not pushed). All five pillars + the broad algorithm track + the layered narrative/workbench UI landed and are gate-green. See **§10** for the as-built record, the re-run verification table, and the honest gap list. §0–§9 are preserved as the original design contract.
-- **Builds on:** `docs/design/2026-06-07-post-session-integration-design.md` (the shipped batch-integration pipeline). That doc delivered a PixInsight-class *engine*; this doc turns the engine into a *smart, opinionated finishing room* by fusing it with everything else Nightshade already knows about the night.
+- **Builds on:** `docs/design/2026-06-07-post-session-integration-design.md` (the shipped batch-integration pipeline). That doc delivered a PixInsight-class *engine*; this doc turns the engine into a *smart, opinionated finishing room* by fusing it with everything else Skotiq already knows about the night.
 - **North star:** when the imager wakes up, the master isn't just *built* — the app has **understood the night**, **proven the master is as good as it can be**, **calibrated and annotated it using its own catalogs**, and **told the imager what to do next** — all in a UI that feels like a morning briefing, not a settings dialog.
 
 ---
@@ -12,7 +12,7 @@
 
 The shipped pipeline (`PostSessionIntegrationService` → `api_integrate_session` → `registration.rs`/`frame_weighting.rs`/`normalization.rs`/`integration.rs`/`master_accumulation.rs`) already produces an archival linear master with PixInsight-family rejection. That is table stakes. Every serious package does it.
 
-**The moat is integration with the rest of Nightshade.** PixInsight, APP, and Siril are *finishing-only* tools — they get a folder of subs and nothing else. Nightshade owns the *whole night*: the per-sub quality metrics in `captured_images`, the PSF field maps and residual vectors (`optical_train_diagnostics_service.dart`, `psf_field_map.dart`, `residual_vector.dart`), the guiding history (PHD2), the autofocus history, the weather log, the scheduler autopilot (`scheduler_engine.dart`), a built-in HYG star catalog + OpenNGC DSO catalog + plate solver (`nightshade_planetarium`, `platesolve.rs`, `wcs_overlay.dart`), and a push-notification service. **No finishing tool on earth has that context.** This design spends it.
+**The moat is integration with the rest of Skotiq.** PixInsight, APP, and Siril are *finishing-only* tools — they get a folder of subs and nothing else. Skotiq owns the *whole night*: the per-sub quality metrics in `captured_images`, the PSF field maps and residual vectors (`optical_train_diagnostics_service.dart`, `psf_field_map.dart`, `residual_vector.dart`), the guiding history (PHD2), the autofocus history, the weather log, the scheduler autopilot (`scheduler_engine.dart`), a built-in HYG star catalog + OpenNGC DSO catalog + plate solver (`skotiq_planetarium`, `platesolve.rs`, `wcs_overlay.dart`), and a push-notification service. **No finishing tool on earth has that context.** This design spends it.
 
 Five pillars, plus a broad algorithm-depth track and a cross-cutting progress foundation. Each pillar is independently shippable and gated.
 
@@ -31,8 +31,8 @@ Five pillars, plus a broad algorithm-depth track and a cross-cutting progress fo
 | FITS + WCS | `fits.rs` | `read_fits`/`write_fits` (incl. F32 BITPIX -32), `WcsInfo`, `add_wcs_headers` |
 | Plate solve | `platesolve.rs` | `AstapSolver::solve` → `PlateSolveResult { ra, dec, pixel_scale, rotation, … }` |
 | Pixel↔sky | `wcs_overlay.dart` | `WcsOverlay.pixelToCelestial(x,y)`, `celestialToPixel(ra,dec)` (TAN projection, bidirectional) |
-| Star catalog | `nightshade_planetarium` | `HygStarCatalog.getStarsNear(center, radius, {maxMagnitude})` → `Star { magnitude, colorIndex (B-V), spectralType, coordinates }` |
-| DSO catalog | `nightshade_planetarium` | `CatalogManager.searchDsoNearby({ra, dec, radiusDegrees, maxMagnitude})`; `DeepSkyObject { name, coordinates, type, magnitude, sizeArcMin, positionAngle }` |
+| Star catalog | `skotiq_planetarium` | `HygStarCatalog.getStarsNear(center, radius, {maxMagnitude})` → `Star { magnitude, colorIndex (B-V), spectralType, coordinates }` |
+| DSO catalog | `skotiq_planetarium` | `CatalogManager.searchDsoNearby({ra, dec, radiusDegrees, maxMagnitude})`; `DeepSkyObject { name, coordinates, type, magnitude, sizeArcMin, positionAngle }` |
 | Scheduler | `scheduler_engine.dart` | integration goals, `scoreCandidate`, `previewRanking` (read-only) |
 | Push | `push_notification_service.dart` | `enqueueCriticalNotification` and friends |
 | Bridge events | `event_stream.rs` | existing app-wide event channel (currently **not** used by post-session — see §3) |
@@ -55,7 +55,7 @@ The current `session_review_screen.dart` is three functional tabs (Subs / Integr
 
 A single `SessionReviewController` state feeds both; the views are two renderings of one model. The narrative view computes nothing the workbench can't show and vice-versa.
 
-**Design-system discipline:** `nightshade_ui` tokens/components throughout (`NightshadeCard`, the token/icon migration maps under `docs/design/`). No bespoke colors. Charts via the existing charting approach used in Analytics.
+**Design-system discipline:** `skotiq_ui` tokens/components throughout (`SkotiqCard`, the token/icon migration maps under `docs/design/`). No bespoke colors. Charts via the existing charting approach used in Analytics.
 
 ---
 
@@ -74,7 +74,7 @@ A single `SessionReviewController` state feeds both; the views are two rendering
 - **Cloud / transparency loss** — detect step/down excursions in star-count and background-corrected SNR vs the night's robust baseline; cluster consecutive bad subs into "events" with a time range. These become the auto-cull recommendation feeding §2.2.
 - **Satellite / plane / cosmic hits** — read the integration **rejection map** (`IntegrationOutput.rejection_map`): localized high-rejection streaks ⇒ flag the sub(s) and time. (Reuses an artifact we already produce.)
 - **Guiding correlation** — correlate guiding-RMS spikes with elongated/high-eccentricity subs; attribute trailing to mount vs wind.
-- **Moon-gradient onset** — rising background gradient through the night cross-referenced with moon altitude (Nightshade already computes moon ephemeris in `astronomy_helpers.dart`); recommends the local-normalization preset (already implemented in `normalization.rs`).
+- **Moon-gradient onset** — rising background gradient through the night cross-referenced with moon altitude (Skotiq already computes moon ephemeris in `astronomy_helpers.dart`); recommends the local-normalization preset (already implemented in `normalization.rs`).
 - **Dew / sudden HFR collapse** — sharp irreversible HFR/star-count drop ⇒ dew or clouds; distinguishes by recovery shape.
 
 **Output:** a ranked `NightReport { headline, score (0–100), findings[] }`. The headline + score drive the narrative "verdict"; the findings render as cards. Severity sets order and color.
@@ -110,7 +110,7 @@ Three features, all leaning on assets PixInsight has to download or fake.
 4. Cross-match detected↔catalog by sky proximity (arcsec), reject blends/saturated/low-SNR.
 5. Solve per-channel scale factors so the matched stars' instrumental colors match the catalog B-V relation (a robust linear fit in log-flux vs B-V per channel; for OSC, R/G/B; for mono filter sets, per-filter zero-points). Apply scale to the linear master → photometrically white-balanced master.
 
-This is **SPCC-grade color calibration using Nightshade's own catalog** — no Gaia download, no eyedropper. Orchestrated in Dart (`ColorCalibrationService`) calling native `detect_stars` + a small native or Dart robust linear solve; the catalog + WCS are Dart.
+This is **SPCC-grade color calibration using Skotiq's own catalog** — no Gaia download, no eyedropper. Orchestrated in Dart (`ColorCalibrationService`) calling native `detect_stars` + a small native or Dart robust linear solve; the catalog + WCS are Dart.
 
 **(b) Auto-annotated master.** With the WCS + catalogs: `CatalogManager.searchDsoNearby` over the master's field returns DSOs (name, position, size, PA); `HygStarCatalog.getStarsNear` returns named bright stars. Map each to pixel via `celestialToPixel`. Produce an **annotation layer** `[Annotation { label, x, y, kind, sizePx, paDeg }]` rendered as a toggleable overlay in `astro_image_viewer.dart`, and exportable as a burned-in annotated PNG. The finished image labels itself — galaxies, nebulae, Messier/NGC numbers, named stars.
 
@@ -127,7 +127,7 @@ Independent of the smart pillars; each is a native module behind an off-by-defau
 - **Drizzle + Bayer drizzle** (`drizzle.rs`, the prior design's deferred P5). Classic Fruchter–Hook variable-pixel reconstruction: map each input pixel as a shrunken drop (pixfrac default 0.9) through the inverse `TransformModel` onto a finer grid (scale 2.0), accumulating drop-area-weighted flux + weight, final = flux/weight. **Bayer drizzle** for OSC: drizzle each CFA color plane separately from the raw mosaic (no debayer interpolation), reconstructing true color at higher resolution — a genuine quality win for dithered OSC rigs. Row-band streamed like `integrate.rs`. Auto-trigger only when dither + under-sampling detected from sub metadata.
 - **Linear deconvolution preview** (`deconvolution.rs`). Estimate the PSF from the master's detected stars (median star profile → parametric Moffat/Gaussian kernel). Richardson–Lucy (or regularized RL) on the *linear* master, with a star mask to suppress ringing. Shipped as a **preview** (non-destructive layer the user can dial), not an auto-applied step — deconvolution is taste-sensitive.
 - **Star reduction preview** (`star_reduction.rs`). Detect stars, build a star mask, apply a morphological/мorphological-transform shrink or a screened residual reduction, composite back. Preview only, strength slider.
-- **SHO / HOO narrowband palette mixing.** This is a *compositing* feature over multiple per-filter masters (Ha/OIII/SII), not a stacking change. Native `channel_combine(masters, palette_matrix)` does the linear channel math; the **UI palette mixer** (sliders + named presets SHO/HOO/Foraxx-style) gives a live preview. Per-filter masters already exist (the pipeline makes one master per filter). This turns Nightshade into a one-stop narrowband finisher.
+- **SHO / HOO narrowband palette mixing.** This is a *compositing* feature over multiple per-filter masters (Ha/OIII/SII), not a stacking change. Native `channel_combine(masters, palette_matrix)` does the linear channel math; the **UI palette mixer** (sliders + named presets SHO/HOO/Foraxx-style) gives a live preview. Per-filter masters already exist (the pipeline makes one master per filter). This turns Skotiq into a one-stop narrowband finisher.
 
 **Honest limits:** drizzle pixfrac/scale sweet spots, the under-sampled+dithered auto-detector, deconvolution iteration/regularization, and palette aesthetics all need on-sky validation. All ship off-by-default or as previews, with the knobs exposed.
 
@@ -149,7 +149,7 @@ Reuse-first component plan:
 - Per-sub field quality — reuse `diagnostics/psf_field_map.dart` (the shared `PsfFieldMapView` painter extracted from the diagnostics part-file) at per-sub granularity. Astrometric residual vectors (`residual_vector.dart`) remain on the Diagnostics surface for now; the workbench renders the PSF field map per sub.
 - Sub gallery + cull + blink — extend the existing `session_review/sub_gallery_panel` (already has blink mode + bulk reject); add lasso/multi-select and the improvement-curve-linked cull.
 - Curve + growth charts — new widgets using the Analytics charting approach.
-- Night-Doctor cards — new `night_report_panel` with severity-styled `NightshadeCard`s.
+- Night-Doctor cards — new `night_report_panel` with severity-styled `SkotiqCard`s.
 - Palette mixer — new `narrowband_mixer_panel`.
 - A/B compare + re-integrate — new, driving two `IntegrationSettings` through the service.
 - Progress — bind the (now real, §3) progress stream to the existing `integrationProgress` state field.
@@ -195,7 +195,7 @@ Reuse `captured_images` for all per-sub metrics (no change). Reuse `integrated_m
 
 ## 6. Build order & gates (revert-on-red per phase)
 
-Native gate = `cargo test -p nightshade_imaging` + `cargo clippy -p nightshade_imaging --all-features -- -D warnings`. Bridge gate = `cargo build -p nightshade_bridge` (+ regen for the FFI phase). Dart gate = `flutter analyze` (0 errors in changed files) + targeted `flutter test`. UI phases add widget/golden tests.
+Native gate = `cargo test -p skotiq_imaging` + `cargo clippy -p skotiq_imaging --all-features -- -D warnings`. Bridge gate = `cargo build -p skotiq_bridge` (+ regen for the FFI phase). Dart gate = `flutter analyze` (0 errors in changed files) + targeted `flutter test`. UI phases add widget/golden tests.
 
 | Phase | Deliverable | Gate |
 |---|---|---|
@@ -233,9 +233,9 @@ Phases F0–F8 deliver the *smart* product (the differentiators + UX). F9–F11 
 
 **Edited bridge** (`bridge/src/api/`): `post_session.rs` (progress events + new ops), `event_stream.rs` (IntegrationProgress event), `imaging.rs` (keyword-bug fix), FRB regen.
 
-**New Dart core** (`nightshade_core/lib/src/`): `services/night_analysis_service.dart`, `services/color_calibration_service.dart`, `services/annotation_service.dart`, `models/night_report.dart`, `models/integration_curve.dart`; `database/tables/night_reports.dart` + DAO; v42 migration; `integration_settings.dart` extensions (decon/star-reduction/drizzle/palette knobs). **Reused:** `wcs_overlay.dart`, planetarium catalogs, `post_session_seam.dart`, `master_accumulation_service.dart`, scheduler integration goals, `push_notification_service.dart`.
+**New Dart core** (`skotiq_core/lib/src/`): `services/night_analysis_service.dart`, `services/color_calibration_service.dart`, `services/annotation_service.dart`, `models/night_report.dart`, `models/integration_curve.dart`; `database/tables/night_reports.dart` + DAO; v42 migration; `integration_settings.dart` extensions (decon/star-reduction/drizzle/palette knobs). **Reused:** `wcs_overlay.dart`, planetarium catalogs, `post_session_seam.dart`, `master_accumulation_service.dart`, scheduler integration goals, `push_notification_service.dart`.
 
-**New/edited app UI** (`nightshade_app/lib/screens/session_review/`): narrative + workbench shell, `night_report_panel`, improvement-curve + growth-curve widgets, `narrowband_mixer_panel`, A/B + re-integrate, overlay toggles in `astro_image_viewer.dart`, extend `sub_gallery_panel` (lasso/curve-linked cull), bind progress stream. **Reused:** `psf_field_map.dart` (via the extracted public `PsfFieldMapView` painter, embedded per-sub in the workbench), `frame_detail_dialog.dart`, auto-stretch path. (`residual_vector.dart` stays on Diagnostics.)
+**New/edited app UI** (`skotiq_app/lib/screens/session_review/`): narrative + workbench shell, `night_report_panel`, improvement-curve + growth-curve widgets, `narrowband_mixer_panel`, A/B + re-integrate, overlay toggles in `astro_image_viewer.dart`, extend `sub_gallery_panel` (lasso/curve-linked cull), bind progress stream. **Reused:** `psf_field_map.dart` (via the extracted public `PsfFieldMapView` painter, embedded per-sub in the workbench), `frame_detail_dialog.dart`, auto-stretch path. (`residual_vector.dart` stays on Diagnostics.)
 
 ---
 
@@ -260,23 +260,23 @@ Built overnight via orchestrated multi-agent workflows (author → integrate+gat
 - `star_reduction.rs` — mask-confined morphological / screened-residual preview.
 - `channel_combine.rs` — narrowband palette mixing (SHO/HOO/custom).
 
-**FFI** (`bridge/src/api/`): three new `finishing_*.rs` modules exposing 8 JSON functions (`api_analyze_night`, `api_detect_stars_photometry`, `api_color_calibrate`, `api_extract_background`, `api_deconvolve_preview`, `api_reduce_stars_preview`, `api_drizzle_integrate`, `api_combine_channels`), all `#[frb(ignore)]`-DTO so future knobs never re-trigger regen. `NightshadeEvent::IntegrationProgress` emitted across the integration phases. `PerFrameRecord` gained per-sub snr/fwhm/eccentricity (no regen — JSON DTO). The latent `INPUTMEAN`/`OUTPTMEAN` 9-char keyword bug is fixed.
+**FFI** (`bridge/src/api/`): three new `finishing_*.rs` modules exposing 8 JSON functions (`api_analyze_night`, `api_detect_stars_photometry`, `api_color_calibrate`, `api_extract_background`, `api_deconvolve_preview`, `api_reduce_stars_preview`, `api_drizzle_integrate`, `api_combine_channels`), all `#[frb(ignore)]`-DTO so future knobs never re-trigger regen. `SkotiqEvent::IntegrationProgress` emitted across the integration phases. `PerFrameRecord` gained per-sub snr/fwhm/eccentricity (no regen — JSON DTO). The latent `INPUTMEAN`/`OUTPTMEAN` 9-char keyword bug is fixed.
 
-**Dart core** (`nightshade_core`): result/report models; `PostSessionSeam` + 8 methods + a progress `Stream`; **DB schema v42** (raw-DDL: `night_reports` table + DAO; additive `integrated_masters` smart columns; per-sub snr/fwhm/ecc on `integrated_master_frames`); `IntegrationSettings` finishing knobs; `NightAnalysisService` (the Night Doctor: focus-drift / cloud-transparency / guiding-correlation / dew-collapse / moon-gradient detectors, each fail-soft, with score + headline); `ColorCalibrationService`; `MasterAnnotationService`; `SmartProjectService` (growth / best-night / re-reference advisory / target-SNR deficit → `IntegrationGoalService`, scheduler scoring untouched); `PostSessionIntegrationService` now persists per-sub metrics, computes the improvement curve, and runs gated fail-soft finishing passes.
+**Dart core** (`skotiq_core`): result/report models; `PostSessionSeam` + 8 methods + a progress `Stream`; **DB schema v42** (raw-DDL: `night_reports` table + DAO; additive `integrated_masters` smart columns; per-sub snr/fwhm/ecc on `integrated_master_frames`); `IntegrationSettings` finishing knobs; `NightAnalysisService` (the Night Doctor: focus-drift / cloud-transparency / guiding-correlation / dew-collapse / moon-gradient detectors, each fail-soft, with score + headline); `ColorCalibrationService`; `MasterAnnotationService`; `SmartProjectService` (growth / best-night / re-reference advisory / target-SNR deficit → `IntegrationGoalService`, scheduler scoring untouched); `PostSessionIntegrationService` now persists per-sub metrics, computes the improvement curve, and runs gated fail-soft finishing passes.
 
-**App** (`nightshade_app`): the layered Session Review — `NarrativeView` (hero annotated master + overlays, Night-Doctor verdict + finding cards, improvement curve, growth curve, calibrate/background actions) and `WorkbenchView` (sub-cull rail with blink/lasso/cull-to-recommended, per-sub PSF field map, master overlays, narrowband mixer, A/B compare) over one `SessionReviewController`; live progress bar bound to the IntegrationProgress stream; `auto_integration_service` fires the Night Doctor + a "master ready" push on run-completion.
+**App** (`skotiq_app`): the layered Session Review — `NarrativeView` (hero annotated master + overlays, Night-Doctor verdict + finding cards, improvement curve, growth curve, calibrate/background actions) and `WorkbenchView` (sub-cull rail with blink/lasso/cull-to-recommended, per-sub PSF field map, master overlays, narrowband mixer, A/B compare) over one `SessionReviewController`; live progress bar bound to the IntegrationProgress stream; `auto_integration_service` fires the Night Doctor + a "master ready" push on run-completion.
 
 ### 10.2 Verification (gates re-run 2026-06-08)
 
 | Gate | Result |
 |---|---|
-| `cargo test -p nightshade_imaging` | **409 pass / 0 fail** |
-| `cargo clippy -p nightshade_imaging --all-features -- -D warnings` | **clean** |
-| `cargo test -p nightshade_bridge --lib` | **230 pass / 0 fail** (incl. 18 finishing round-trips) |
-| `cargo build -p nightshade_bridge` (+ FRB regen) | **clean** (Linux regen now correct — see §10.3) |
-| `flutter analyze` nightshade_core / nightshade_app | **0 errors** |
-| nightshade_core full suite | **3267 pass** (all morning-report tests green; 12 pre-existing failures unrelated — see §10.4) |
-| nightshade_app session_review + golden | **39 pass**; 9 golden review PNGs in `docs/design/goldens/morning-report-*.png` (visually inspected + iterated) |
+| `cargo test -p skotiq_imaging` | **409 pass / 0 fail** |
+| `cargo clippy -p skotiq_imaging --all-features -- -D warnings` | **clean** |
+| `cargo test -p skotiq_bridge --lib` | **230 pass / 0 fail** (incl. 18 finishing round-trips) |
+| `cargo build -p skotiq_bridge` (+ FRB regen) | **clean** (Linux regen now correct — see §10.3) |
+| `flutter analyze` skotiq_core / skotiq_app | **0 errors** |
+| skotiq_core full suite | **3267 pass** (all morning-report tests green; 12 pre-existing failures unrelated — see §10.4) |
+| skotiq_app session_review + golden | **39 pass**; 9 golden review PNGs in `docs/design/goldens/morning-report-*.png` (visually inspected + iterated) |
 
 ### 10.3 Notable infrastructure catch — Linux FRB regen
 

@@ -3,15 +3,15 @@
 //
 // parseHeadlessAuthConfig reads BOTH CLI args and Platform.environment. A Dart
 // test process cannot inject env vars, so these tests assert the CLI-driven
-// behaviour and the defaults that hold when the NIGHTSHADE_* env vars are
+// behaviour and the defaults that hold when the SKOTIQ_* env vars are
 // absent (the normal CI state). Each test that depends on the absence of env
 // vars is written so it remains correct whether or not the operator has set
-// any NIGHTSHADE_* variables, by only asserting on what the CLI args drive.
+// any SKOTIQ_* variables, by only asserting on what the CLI args drive.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless/headless_auth_config.dart';
-import 'package:nightshade_desktop/headless_api/auth_policy.dart';
-import 'package:nightshade_desktop/headless_api/handlers/pairing_handlers.dart'
+import 'package:skotiq_desktop/headless/headless_auth_config.dart';
+import 'package:skotiq_desktop/headless_api/auth_policy.dart';
+import 'package:skotiq_desktop/headless_api/handlers/pairing_handlers.dart'
     show PairingMode;
 
 void main() {

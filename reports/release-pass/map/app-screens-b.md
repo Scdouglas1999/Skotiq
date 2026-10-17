@@ -1,10 +1,10 @@
 # Release-pass map — app-screens-b
 
-Subsystem: `nightshade_app` discovery/science screens + shared app infra.
+Subsystem: `skotiq_app` discovery/science screens + shared app infra.
 
 Paths in scope:
-- `packages/nightshade_app/lib/screens/{analytics, collaborative_sky, constellation, first_light, mosaic, onboarding, planetarium, planner, scheduler, science, session_review, stack_result, suggestions, tonight, transients, tutorial, your_sky}`
-- `packages/nightshade_app/lib/{router, services, widgets, mixins, models, utils, localization}`
+- `packages/skotiq_app/lib/screens/{analytics, collaborative_sky, constellation, first_light, mosaic, onboarding, planetarium, planner, scheduler, science, session_review, stack_result, suggestions, tonight, transients, tutorial, your_sky}`
+- `packages/skotiq_app/lib/{router, services, widgets, mixins, models, utils, localization}`
 
 Totals measured with `wc -l` (generated files excluded): 86,445 lines across the screen dirs, 37,318 across the shared-infra dirs.
 
@@ -20,8 +20,8 @@ This package already has an established, uniform file-splitting convention: a pa
 part of '../foo.dart';
 ```
 
-Confirmed live at `packages/nightshade_app/lib/screens/planner/planner_screen.dart:33-43`
-(11 parts) and `packages/nightshade_app/lib/screens/analytics/widgets/science_analytics_tab.dart:38-41`
+Confirmed live at `packages/skotiq_app/lib/screens/planner/planner_screen.dart:33-43`
+(11 parts) and `packages/skotiq_app/lib/screens/analytics/widgets/science_analytics_tab.dart:38-41`
 (4 parts). **Every split below uses this same mechanism.** That matters because it makes
 the splits genuinely behavior-preserving: private classes and private members stay
 visible across a `part` boundary, so no member has to be widened from `_private` to
@@ -37,7 +37,7 @@ All counts verified with `wc -l`. None of these are generated; all are hand-writ
 | # | File | Lines |
 |---|------|-------|
 | 1.1 | `screens/session_review/session_review_controller.dart` | 1940 |
-| 1.2 | `localization/nightshade_localizations/translations.dart` | 1486 |
+| 1.2 | `localization/skotiq_localizations/translations.dart` | 1486 |
 | 1.3 | `screens/analytics/widgets/science_export_hub.dart` | 1448 |
 | 1.4 | `screens/onboarding/onboarding_screen.dart` | 1255 |
 | 1.5 | `screens/analytics/widgets/science_analytics_tab.dart` | 1191 |
@@ -92,11 +92,11 @@ the lifetime/seam plumbing that every part depends on — plus
 
 ---
 
-## 1.2 `localization/nightshade_localizations/translations.dart` — 1486 lines — LOW risk
+## 1.2 `localization/skotiq_localizations/translations.dart` — 1486 lines — LOW risk
 
 **Why it is big.** Pure data: one `Map<String, Map<String, String>> _localizedValues`
 with an `'en'` block at line 7 and an `'es'` block at line 745. Hand-written despite
-looking generated — it is already a `part of '../nightshade_localizations.dart'`.
+looking generated — it is already a `part of '../skotiq_localizations.dart'`.
 
 **Split plan.** Replace the single part with two, keeping the assembly in the parent:
 - `translations_en.dart` — `const Map<String, String> _enStrings = { ... }` (current 8-744).
@@ -175,7 +175,7 @@ layout builders (461-678). The per-step bodies were already extracted to
 `_buildWizard`, `_buildWideWizard`, `_buildPhoneWizard`.
 
 `phonePrimaryActionKey` / `onboardingNoticeKey` are widget-test anchors; they must stay
-top-level and reachable from `package:nightshade_app/screens/onboarding/onboarding_screen.dart`
+top-level and reachable from `package:skotiq_app/screens/onboarding/onboarding_screen.dart`
 — a `part` split preserves that exactly.
 
 ---
@@ -488,15 +488,15 @@ Concrete disagreements:
   `transient_alerts_panel.dart:980`) vs `'GRB Afterglow'` (`transient_alerts_panel.dart:604`).
 - `cataclysmic` label: `'Cataclysmic Variable'` vs `'Cataclysmic'`.
 - `variableStar` label: `'Variable Star'` vs `'Variable'`.
-- `supernova` icon: `NightshadeIcons.sparkle` vs `LucideIcons.sparkles`.
+- `supernova` icon: `SkotiqIcons.sparkle` vs `LucideIcons.sparkles`.
 
-**Canonical survivor:** a new `packages/nightshade_app/lib/utils/transient_type_style.dart`
+**Canonical survivor:** a new `packages/skotiq_app/lib/utils/transient_type_style.dart`
 exposing
 
 ```dart
 class TransientTypeStyle {
   static IconData icon(TransientType t);
-  static Color color(TransientType t, NightshadeColors colors);
+  static Color color(TransientType t, SkotiqColors colors);
   static String label(TransientType t);       // full, e.g. 'Gamma-Ray Burst'
   static String shortLabel(TransientType t);  // chip/filter, e.g. 'GRB'
 }
@@ -521,13 +521,13 @@ the transients **panel** does not — on a paired remote client one surface offe
 submission and the other refuses it, for the same rig.
 
 **Canonical survivor:** the panel's version (it handles remote mode), promoted to
-`packages/nightshade_app/lib/utils/` or beside the science settings provider, keeping the
+`packages/skotiq_app/lib/utils/` or beside the science settings provider, keeping the
 `autoDispose` from the screen version. Delete `transients_screen.dart:44-50` and point
 `transients_screen.dart:402` at it. Effort: small.
 
 ## 2.3 `CoordinateFormatUtils` exists and is ignored by most of the package — MEDIUM value
 
-`packages/nightshade_app/lib/utils/coordinate_format_utils.dart` is the declared canonical
+`packages/skotiq_app/lib/utils/coordinate_format_utils.dart` is the declared canonical
 RA/Dec/alt/az formatter ("Provides consistent formatting … across all planetarium and
 sky-related UI components"). It is imported by exactly five files, all planetarium:
 `mobile_widgets.dart:11`, `bottom_info_bar.dart:7`, `top_overlay.dart:8`,
@@ -570,7 +570,7 @@ The same DAO row sets (`PhotometryMeasurementRow`, `ScienceFrameQualityMetricsRo
    (`_buildFrameQualityMetricsSection`, `_buildPhotometricCalibrationSection`,
    `_buildTransparencySection`, `_buildPhotometrySection`, `_buildPsfSection`,
    `_buildResidualsSection`, `_buildMovingObjectsSection`).
-3. Markdown — `nightshade_core/.../science/science_report_exporter.dart:192,238,319,347,398`
+3. Markdown — `skotiq_core/.../science/science_report_exporter.dart:192,238,319,347,398`
    (`_photometrySnapshot`, `_lightCurveSnapshot`, `_transparencySnapshot`, `_fieldQuality`,
    `_movingObjectCandidates`).
 
@@ -580,15 +580,15 @@ the **selection and summary logic**: which rows count, how they are grouped by f
 statistic silently does not reach the other two.
 
 **Canonical survivor:** extract the row-selection/summary step into a shared
-`ScienceReportModel` in `nightshade_core` (a plain data object: per-filter breakdown,
+`ScienceReportModel` in `skotiq_core` (a plain data object: per-filter breakdown,
 photometry summary, transparency summary, field-quality summary, moving-object list). All
 three renderers then format that one model. This is the largest item in this section and
-crosses into `nightshade_core`, so it is listed again in §3 for the cross-cutting agent.
+crosses into `skotiq_core`, so it is listed again in §3 for the cross-cutting agent.
 Effort: large.
 
 ## 2.6 Export-save-picker wrappers — LOW value
 
-`chooseExportTarget` (`nightshade_core/lib/src/utils/export_target.dart:54`) is already the
+`chooseExportTarget` (`skotiq_core/lib/src/utils/export_target.dart:54`) is already the
 canonical helper and is correctly used everywhere. What repeats is the four-line
 `XTypeGroup(label: allowedExtensions.map((e) => e.toUpperCase()).join(' / '), extensions: …)`
 construction — `screens/stack_result/stack_result_screen.dart:47`,
@@ -600,12 +600,12 @@ construction — `screens/stack_result/stack_result_screen.dart:47`,
 
 # 3. SUSPECTED CROSS-PACKAGE DUPLICATION (one line each, for the cross-cutting agent)
 
-- RA/Dec formatting: `nightshade_app/lib/utils/coordinate_format_utils.dart` vs `nightshade_core/lib/src/utils/coordinate_parser.dart:178,189` (`formatRaHms`/`formatDecDms`) vs `nightshade_core/lib/src/providers/framing_provider/support.dart:428` vs `nightshade_core/lib/src/services/device_service/mount_controls.dart:61` vs `nightshade_core/lib/src/services/science/narrator/detectors/first_light_detectors.dart:216,226` — five canonical-looking implementations.
-- Duration/hours formatting: `nightshade_core/.../sequence_stats_provider.dart:343` (`formatIntegrationSeconds`) and `conversational_builder_service.dart:619` (`formatHours`) are the two core candidates, against 20+ private `_formatDuration`/`_formatHours`/`_fmtDuration` in `nightshade_app` (incl. `screens/analytics/widgets/campaign_rollup_dialog.dart:95`, `screens/analytics/widgets/project_tracking_panel.dart:565`, `screens/planner/widgets/progress_tab_content.dart:445`, `screens/planner/widgets/projects_tab_content/terminal_states.dart:106`, `screens/planner/widgets/scheduler_tab_content/decision_panel.dart:270`).
+- RA/Dec formatting: `skotiq_app/lib/utils/coordinate_format_utils.dart` vs `skotiq_core/lib/src/utils/coordinate_parser.dart:178,189` (`formatRaHms`/`formatDecDms`) vs `skotiq_core/lib/src/providers/framing_provider/support.dart:428` vs `skotiq_core/lib/src/services/device_service/mount_controls.dart:61` vs `skotiq_core/lib/src/services/science/narrator/detectors/first_light_detectors.dart:216,226` — five canonical-looking implementations.
+- Duration/hours formatting: `skotiq_core/.../sequence_stats_provider.dart:343` (`formatIntegrationSeconds`) and `conversational_builder_service.dart:619` (`formatHours`) are the two core candidates, against 20+ private `_formatDuration`/`_formatHours`/`_fmtDuration` in `skotiq_app` (incl. `screens/analytics/widgets/campaign_rollup_dialog.dart:95`, `screens/analytics/widgets/project_tracking_panel.dart:565`, `screens/planner/widgets/progress_tab_content.dart:445`, `screens/planner/widgets/projects_tab_content/terminal_states.dart:106`, `screens/planner/widgets/scheduler_tab_content/decision_panel.dart:270`).
 - Science report content: `ScienceReportExporter` (core, markdown) vs `ObservationReportService` (app, PDF) vs `science_export_hub` (app, CSV) — see 2.5.
-- `TransientType` presentation: the four app sites in 2.1 plus enum switches in `nightshade_core/lib/src/providers/transient_alert_provider.dart:1103` and `nightshade_core/lib/src/services/transient_alert_service.dart:202` — check whether core already owns a priority/label notion the UI should be reading.
+- `TransientType` presentation: the four app sites in 2.1 plus enum switches in `skotiq_core/lib/src/providers/transient_alert_provider.dart:1103` and `skotiq_core/lib/src/services/transient_alert_service.dart:202` — check whether core already owns a priority/label notion the UI should be reading.
 - Thumbnail fetch + placeholder: `screens/analytics/widgets/frame_thumbnail_loader.dart` (`loadFrameThumbnail`, does existence-checking and returns a payload) vs `screens/session_review/widgets/sub_cull_rail.dart:867` (raw `imagingBackendProvider.getImageThumbnail`) vs `screens/mosaic/widgets/mosaic_panel_grid.dart:144` (`File.existsSync` + `Image.file`) — three thumbnail strategies for the same underlying artefact, none of them cached.
-- `File.existsSync()`-in-`build` idiom: six copies of an identical `bool _exists(String?)` try/catch helper (see 4.3) — a shared `nightshade_ui` "file-backed image or placeholder" widget would delete all six.
+- `File.existsSync()`-in-`build` idiom: six copies of an identical `bool _exists(String?)` try/catch helper (see 4.3) — a shared `skotiq_ui` "file-backed image or placeholder" widget would delete all six.
 - Command bars: `screens/planetarium/widgets/redesign/command_bar.dart` vs `screens/dashboard/widgets/command_bar.dart` (`DashboardCommandBar`/`CompactDashboardCommandBar`) — same name, different packages-of-concern; worth one look to see whether the chrome is shareable.
 
 ---
@@ -614,7 +614,7 @@ construction — `screens/stack_result/stack_result_screen.dart:47`,
 
 ## 4.1 The whole science analytics tab rebuilds on every device-state tick — HIGH
 
-`packages/nightshade_app/lib/screens/analytics/widgets/science_analytics_tab.dart:464-466`
+`packages/skotiq_app/lib/screens/analytics/widgets/science_analytics_tab.dart:464-466`
 
 ```dart
 final cameraState = ref.watch(cameraStateProvider);
@@ -643,7 +643,7 @@ This is the same work order as the split in 1.5.
 
 ## 4.2 Full-resolution pixel stretch runs synchronously on the UI isolate inside `build` — HIGH
 
-`packages/nightshade_app/lib/screens/stack_result/stack_result_screen.dart:613`
+`packages/skotiq_app/lib/screens/stack_result/stack_result_screen.dart:613`
 
 `_resolveDisplayRgba` is called from the build path (`_buildViewer`, line 453) and, when
 the cache is cold, calls `_renderStretch` (line 658) inline. Two of its three branches are
@@ -693,7 +693,7 @@ frames.
 
 ## 4.4 The sub-cull rail re-fetches every thumbnail on every scroll-back — MEDIUM
 
-`packages/nightshade_app/lib/screens/session_review/widgets/sub_cull_rail.dart:339` is a
+`packages/skotiq_app/lib/screens/session_review/widgets/sub_cull_rail.dart:339` is a
 `GridView.builder`; each cell mounts `_SubThumbnail`, whose state does the fetch in
 `initState`:
 
@@ -703,9 +703,9 @@ _future = ref.read(imagingBackendProvider).getImageThumbnail(widget.imageId);
 ```
 
 There is no cache anywhere on this path:
-- FFI backend (`nightshade_core/.../ffi_backend/session_heartbeat_operations.dart:53`) does
+- FFI backend (`skotiq_core/.../ffi_backend/session_heartbeat_operations.dart:53`) does
   a DAO read + a file existence check + a decode, every call.
-- Network backend (`nightshade_core/.../network_backend/imaging_profile_operations.dart:533`)
+- Network backend (`skotiq_core/.../network_backend/imaging_profile_operations.dart:533`)
   does a full HTTP GET of `images/$imageId/thumbnail`, every call.
 
 Because `GridView.builder` recycles cells, scrolling a night's worth of subs down and back
@@ -719,7 +719,7 @@ reviewing a 300-sub night this is the dominant cost of the screen.
 
 ## 4.5 Whole-table image aggregation on three analytics surfaces — MEDIUM
 
-`allDbImagesProvider` (`nightshade_core/lib/src/providers/database_provider.dart:148`) is a
+`allDbImagesProvider` (`skotiq_core/lib/src/providers/database_provider.dart:148`) is a
 `StreamProvider<List<CapturedImage>>` over the entire `captured_images` table. Three
 consumers in my paths each run an O(N) pass over it:
 
@@ -736,7 +736,7 @@ isolate, in the middle of an imaging run.
 
 **Fix shape:** push the aggregations into Drift queries (a `GROUP BY target_id, filter`
 returns tens of rows instead of tens of thousands). The provider itself lives in
-`nightshade_core`, so this is a joint work order with the core mapper.
+`skotiq_core`, so this is a joint work order with the core mapper.
 
 ## 4.6 `EquipmentHealthService().analyze(sessions: allSessions, …)` runs in `build` — LOW/MEDIUM
 
@@ -785,7 +785,7 @@ cross a network: `publishToHub` (550), `_runClaim` (612), `releasePanel` (653),
 success/`catch` paths — so a hub that accepts the connection and never answers leaves the
 screen's action buttons disabled with a spinner, with no way back except leaving the screen.
 
-Caveat on scope: the underlying `ConstellationClient` (in `nightshade_core`) may impose its
+Caveat on scope: the underlying `ConstellationClient` (in `skotiq_core`) may impose its
 own HTTP timeout — I did not verify that, and if it does, the exposure is bounded by
 whatever that is rather than infinite. The finding stands as "the screen states no bound of
 its own while it does state one for the cheaper, local operation".

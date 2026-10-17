@@ -1,7 +1,7 @@
 # Wave E dryness check — settings-pairing
 
-Binary: `apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`
-(`lib/libnightshade_bridge.so` dated 2026-08-13 20:33, newer than the launcher — this is the
+Binary: `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`
+(`lib/libskotiq_bridge.so` dated 2026-08-13 20:33, newer than the launcher — this is the
 fresh bundle). Driven with `tools/ui_audit/drive_linux.py`, `NS_AUDIT_DISPLAY=:84`,
 profile `waveE-settings-pairing`, started `--fresh`. Evidence:
 `/tmp/ns-audit/waveE-settings-pairing/` (s01…s71).
@@ -22,7 +22,7 @@ Alpaca: nothing answered — nothing is listening at localhost:11111
 INDI: nothing answered — nothing is listening at localhost:7624
 ```
 
-A11y tree grep over the whole frame for `NightshadeError|os error|tcp connect|http://` returns
+A11y tree grep over the whole frame for `SkotiqError|os error|tcp connect|http://` returns
 nothing but those two sentences. The same two lines carry through steps 4 and 6 unchanged.
 
 ### WD-N2 — step 6 painted two texts on top of each other — FIXED (residual, see WE-SP-1)
@@ -140,7 +140,7 @@ Repro: Settings → Help & Tutorials → scroll to Reset Progress → Reset → 
 ### WE-SP-3 (P3) — the pairing empty state is drawn at 1.31:1 contrast
 "Start pairing mode to connect a device" under "No paired devices" is painted with
 `colorScheme.outline` as a body-text colour
-(`packages/nightshade_app/lib/screens/settings/pairing_screen.dart:271-275`). Measured on
+(`packages/skotiq_app/lib/screens/settings/pairing_screen.dart:271-275`). Measured on
 s38-allrevoked.png: brightest glyph pixel `rgb(43,49,59)` against background `rgb(24,28,34)` →
 contrast **1.31:1** (WCAG AA needs 4.5:1 for body text). The string is in the a11y tree, so this
 is a purely visual failure — sighted users at a dark rig will not see the only instruction the

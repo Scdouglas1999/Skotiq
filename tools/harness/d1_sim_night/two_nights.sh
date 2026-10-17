@@ -8,31 +8,31 @@
 # the second night ends on the wire as `completed`, its `imaging_sessions` row
 # stays open forever, and no integration and no draft are ever made for it.
 #
-#   D1_SCRATCH  scratch root (default /tmp/nightshade-d1-two-nights; wiped each run)
+#   D1_SCRATCH  scratch root (default /tmp/skotiq-d1-two-nights; wiped each run)
 #   D1_BUNDLE   bundle binary (default: this repo's release build)
 #   D1_PORT     API port (default 8094)
 #
-# Teardown kills only the PID this script launched — never `pkill nightshade_desktop`,
+# Teardown kills only the PID this script launched — never `pkill skotiq_desktop`,
 # which would take down another harness running its own instance at the same time.
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
-D1="${D1_SCRATCH:-/tmp/nightshade-d1-two-nights}"
-BUNDLE="${D1_BUNDLE:-$HERE/../../../apps/desktop/build/linux/x64/release/bundle/nightshade_desktop}"
+D1="${D1_SCRATCH:-/tmp/skotiq-d1-two-nights}"
+BUNDLE="${D1_BUNDLE:-$HERE/../../../apps/desktop/build/linux/x64/release/bundle/skotiq_desktop}"
 T=d1-two-nights-token
 P="${D1_PORT:-8094}"
 
 # One observing site for the whole leg: the sequence builder picks it (solar
 # 01:00 at the site, so no dawn logic can arm mid-run) and the settings POSTs
 # below use the same pair.
-read D1_SITE_LAT D1_SITE_LON NIGHTSHADE_HARNESS_SITE <<< "$(python3 "$HERE/make_sequence.py" --print-site)"
+read D1_SITE_LAT D1_SITE_LON SKOTIQ_HARNESS_SITE <<< "$(python3 "$HERE/make_sequence.py" --print-site)"
 # Pin the site for the WHOLE leg: make_sequence.py runs again to build the
 # sequence, and without the pin a leg straddling a crossover would target a
 # different observatory than the one it wrote to the profile.
-export NIGHTSHADE_HARNESS_SITE
+export SKOTIQ_HARNESS_SITE
 B="http://127.0.0.1:$P"
 AH="Authorization: Bearer $T"
 DBDIR=$D1/db; OUT=$D1/captures; DROP=$D1/drop; DATA=$D1/data
-DB=$DBDIR/nightshade.db
+DB=$DBDIR/skotiq.db
 LOG=$D1/app.log
 APP=""
 PASS=0; FAIL=0
@@ -49,7 +49,7 @@ Q()    { sqlite3 -cmd ".timeout 10000" "$DB" "$1"; }
 rm -rf "$D1"; mkdir -p "$DBDIR" "$OUT" "$DROP" "$DATA"
 
 launch() {
-  NIGHTSHADE_DATABASE_DIR=$DBDIR NIGHTSHADE_DATA_DIR=$DATA LIBGL_ALWAYS_SOFTWARE=1 \
+  SKOTIQ_DATABASE_DIR=$DBDIR SKOTIQ_DATA_DIR=$DATA LIBGL_ALWAYS_SOFTWARE=1 \
     "$BUNDLE" --headless --auth-token=$T --port=$P >> "$LOG" 2>&1 &
   APP=$!
   for i in $(seq 1 60); do

@@ -27,7 +27,7 @@ different tree). All 61 were adjudicated.
 
 Each line: the change, and the defect it removes.
 
-1. `packages/nightshade_app/lib/widgets/mount/mount_site_reconciliation_card.dart`
+1. `packages/skotiq_app/lib/widgets/mount/mount_site_reconciliation_card.dart`
    — `_formatClock` did `offsetHours ?? 0`, printing a confident `UTC+00:00`
    for a mount that reported its UTC instant but **not** its offset
    (`MountSiteReconciliation.mountUtcOffsetHours` is nullable independently of
@@ -37,7 +37,7 @@ Each line: the change, and the defect it removes.
    asserting an agreement nothing had measured. Now an unreported offset renders
    the instant in UTC and says `(offset not reported)`.
 
-2. `packages/nightshade_app/lib/screens/dashboard/widgets/tonight/tonight_side_panels.dart`
+2. `packages/skotiq_app/lib/screens/dashboard/widgets/tonight/tonight_side_panels.dart`
    — `MoonPainter(illumination: night?.moonIlluminationPercent ?? 0)` painted a
    fully dark disc, which reads as a confident **new moon**, whenever the night
    data was missing — while the Illuminated / Moonset / Moonrise readouts
@@ -46,7 +46,7 @@ Each line: the change, and the defect it removes.
    `moon?.illumination`), so the gate is on the value, not on `night`. The disc
    is now omitted when illumination is unknown; the 56 px box keeps the layout.
 
-3. `packages/nightshade_app/lib/screens/dashboard/widgets/cockpit_now_imaging.dart`
+3. `packages/skotiq_app/lib/screens/dashboard/widgets/cockpit_now_imaging.dart`
    — `settingsAsync.valueOrNull?.hasObserverLocation ?? false` made the altitude
    chip tell the operator to **"set location"** while the settings read was
    still in flight, i.e. it stated the site was unset before anything had said
@@ -55,7 +55,7 @@ Each line: the change, and the defect it removes.
    codebase already applies at `equipment_stats.dart:75` and
    `tonight_checklist_panel.dart:51` ("a still-loading check is NOT evidence").
 
-4. `packages/nightshade_app/lib/screens/sequencer/widgets/sequence_tree/ledger_columns.dart`
+4. `packages/skotiq_app/lib/screens/sequencer/widgets/sequence_tree/ledger_columns.dart`
    — **comment only, no behaviour change.** The comment justifying
    `ledgerClockProvider.valueOrNull ?? DateTime.now()` claimed "an empty
    (run-active) clock stream has no value; `now` is only read when the run is
@@ -102,7 +102,7 @@ Each line: the change, and the defect it removes.
 ## Register hygiene
 
 Deleted one stale row:
-`packages/nightshade_app/lib/screens/dashboard/widgets/cockpit_now_imaging.dart:76:literal_null_coalesce`.
+`packages/skotiq_app/lib/screens/dashboard/widgets/cockpit_now_imaging.dart:76:literal_null_coalesce`.
 It was already stale on the base commit (the pattern sat on line 73, not 76,
 which is why the finding showed as unregistered), and code change 3 removed the
 pattern from the file entirely. Its own recorded reason — "settings not yet
@@ -117,29 +117,29 @@ described the cry-wolf as accepted; that behaviour is now fixed.
 | `dart run tools/production/placeholder_audit.dart --fail-on-new-highrisk --compare-highrisk-baseline docs/production-readiness/highrisk-baseline.txt --min-files 797` | **0** (3166 files, no new high-risk markers) |
 | `dart run tools/production/analyzer_rollup.dart --policy docs/production-readiness/analyzer-policy.yaml --critical-codes docs/production-readiness/critical-warning-codes.txt` | **0** (production: errors=0, warnings=0; **critical warnings: 0**) |
 | `dart format --output=none --set-exit-if-changed <4 edited dart files>` | **0** (0 changed) |
-| `flutter test test/screens/sequencer --concurrency=3` (nightshade_app) | **0** — **+711**, unchanged from base |
-| `flutter test test/screens/dashboard --concurrency=3` (nightshade_app) | **0** — +182 |
-| `flutter test test/widgets --concurrency=3` (nightshade_app) | **0** — **+303**, green after the follow-up below |
+| `flutter test test/screens/sequencer --concurrency=3` (skotiq_app) | **0** — **+711**, unchanged from base |
+| `flutter test test/screens/dashboard --concurrency=3` (skotiq_app) | **0** — +182 |
+| `flutter test test/widgets --concurrency=3` (skotiq_app) | **0** — **+303**, green after the follow-up below |
 
 `analyzer_rollup.dart` writes `docs/production-readiness/analyzer-rollup.json`.
 That file is untracked and was absent on this branch, so the artifact it
 produced was deleted after the run; it is not in the diff.
 
-Only `nightshade_app` production code changed, so no `nightshade_core` or
-`nightshade_ui` test directories were in scope.
+Only `skotiq_app` production code changed, so no `skotiq_core` or
+`skotiq_ui` test directories were in scope.
 
 ## Follow-up: the four pre-existing failures, now fixed
 
-`packages/nightshade_app/test/widgets/capture_settings_panel_filter_test.dart`
+`packages/skotiq_app/test/widgets/capture_settings_panel_filter_test.dart`
 failed 4 tests on arrival. The cause was stale-test debt, not a regression: the
 test drove a Material `DropdownButton<String>`, while
-`packages/nightshade_app/lib/widgets/capture_settings_panel.dart` had been
-migrated to the design system's `NightshadeDropdown`. On the coordinator's
+`packages/skotiq_app/lib/widgets/capture_settings_panel.dart` had been
+migrated to the design system's `SkotiqDropdown`. On the coordinator's
 instruction (owner rule: zero failing tests before a final build) the TEST was
 updated to the current product, which is the side that is right.
 
 The three `DropdownButton<String>` references were repointed at
-`NightshadeDropdown` using the interaction pattern already established in
+`SkotiqDropdown` using the interaction pattern already established in
 `test/screens/settings/settings_dropdown_test.dart` (tap the trigger,
 `pumpAndSettle`, tap `find.text(value).last`). No Material dropdown was added
 back. Every assertion's intent is unchanged — which filter is selected, that
@@ -151,7 +151,7 @@ and that a failed move retains L. Two supporting changes:
   since the same scoping (the Filter control is the only dropdown whose closed
   trigger shows a slot label) is now needed in two places;
 - the post-selection drain went from 3x20 ms to 8x50 ms, because
-  `NightshadeDropdown` returns its choice by popping a route and the pop
+  `SkotiqDropdown` returns its choice by popping a route and the pop
   animation has to run. It is still a hand-drained pump loop rather than
   `pumpAndSettle`, because the gated-move test leaves work pending on purpose.
 

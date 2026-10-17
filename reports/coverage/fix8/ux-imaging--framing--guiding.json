@@ -8,7 +8,7 @@
   "what_happened": "Imaging -> Focus tab contains only Manual Focus and Autofocus; there is no temperature-compensation model anywhere on the screen, and the 'TC' chip in the status bar has no drill-in (clicking it produced nothing). FocusModelPanel exists (per-filter tabs, scatter plot, slope/R2 prediction readout) but `grep -rn FocusModelPanel packages/` returns only its own definition plus a comment in settings/widgets/focus_model_settings.dart:16 that literally calls it 'the orphaned local FocusModelPanel'. So the only surface that shows the model is FocusModelSettings, which is documented 'Remote-only' and pulls the model over REST from a paired appliance. A desktop user running autofocus locally has no way to see the model their own runs are building.",
   "expected": "The Focus tab shows the model built from the local autofocus history, with slope/R2/reliability and the per-filter tabs the widget already implements.",
   "repro": "1. Imaging -> Focus tab; run an autofocus. 2. Scroll the Focus tab - only Manual Focus and Autofocus exist. 3. Click the 'TC' chip in the status bar - nothing opens. 4. `grep -rn 'FocusModelPanel' packages/`.",
-  "where": "packages/nightshade_app/lib/screens/imaging/widgets/focus_model_panel.dart:12 (defined, never constructed); packages/nightshade_app/lib/screens/settings/widgets/focus_model_settings.dart:16 (comment naming it orphaned)",
+  "where": "packages/skotiq_app/lib/screens/imaging/widgets/focus_model_panel.dart:12 (defined, never constructed); packages/skotiq_app/lib/screens/settings/widgets/focus_model_settings.dart:16 (comment naming it orphaned)",
   "location_wrong": null,
   "proposed_fix": "Mount FocusModelPanel under the Focus tab (below Autofocus) and make the status-bar TC chip scroll to it.",
   "verdict_reasoning": null
@@ -22,7 +22,7 @@
   "what_happened": "Imaging -> Rotator tab, Relative Move renders -15 / -5 / -1 | +1 / +5 and the +5 button runs into the card border; +15 is entirely off-panel. The row is a horizontal SingleChildScrollView so the button is technically reachable by scrolling, but there is no fade, arrow or partial-button hint - unlike the filter strip in the bottom banner, which has a ShaderMask fade for exactly this reason.",
   "expected": "Either the row fits at the default panel width, or it gets the same trailing-fade affordance the filter strip has.",
   "repro": "1. Imaging -> Rotator tab. 2. Look at Relative Move.",
-  "where": "packages/nightshade_app/lib/screens/imaging/widgets/rotator_panel.dart:472-518 (horizontal SingleChildScrollView, no fade); compare imaging_bottom_banner.dart:540-547 which does fade",
+  "where": "packages/skotiq_app/lib/screens/imaging/widgets/rotator_panel.dart:472-518 (horizontal SingleChildScrollView, no fade); compare imaging_bottom_banner.dart:540-547 which does fade",
   "location_wrong": null,
   "proposed_fix": "Wrap in the same ShaderMask fade, or drop to two rows at narrow widths.",
   "verdict_reasoning": null
@@ -36,7 +36,7 @@
   "what_happened": "The Framing sidebar is roughly three viewport-heights tall (Target, Equipment, Frame, Preview FOV, FOV Overlay, Survey Source, Coordinates, Altitude, Mosaic, Guided Framing steps 1-4, Utilities). Mouse-wheel over y=700 did nothing; over y=950/990 it scrolled. Every navigation away and back resets the scroll to the top, so reaching Utilities (Add to Sequence / Auto-build / Save Target / Cache Image) takes 40+ wheel notches from a cold arrival, and clicks land on the wrong control if the layout shifts mid-scroll (twice a click intended for 'Slew to Target' hit the split-button chevron instead).",
   "expected": "The whole sidebar is one scrollable, the wheel works anywhere over it, and the scroll offset survives an in-app navigation.",
   "repro": "1. Plan Tonight -> Framing. 2. Wheel over the middle of the sidebar (no movement) then over the bottom (moves). 3. Navigate to Imaging and back - offset resets to top.",
-  "where": "packages/nightshade_app/lib/screens/framing/widgets/framing_sidebar/ (nested scrollables inside the sidebar column)",
+  "where": "packages/skotiq_app/lib/screens/framing/widgets/framing_sidebar/ (nested scrollables inside the sidebar column)",
   "location_wrong": null,
   "proposed_fix": "Single outer scrollable with a PageStorageKey so the offset persists; collapse Guided Framing to a compact stepper so Utilities is not below three screens of content.",
   "verdict_reasoning": null
@@ -50,7 +50,7 @@
   "what_happened": "The onboarding guider step offers native guiders ('Sim (0)' - there is no simulated guider device) plus a PHD2 block with Host=localhost and Port=4400 prefilled and a Test button. Test correctly reports 'No response on localhost:4400. Is PHD2 running with \"Enable Server\" turned on?'. But there is no way to SELECT PHD2 as the guider - pressing Next with the prefilled host/port silently discards it, and the review step shows 'Guider - not set -'. So a user setting up indoors before their PHD2 install/first launch cannot record their guider choice at all, and the Guiding screen then greets them with a whole panel of dead-looking controls.",
   "expected": "Let the user commit host/port without a successful test (Test stays available as a verification), and record the guider as PHD2 in the profile.",
   "repro": "1. Do not run PHD2. 2. Onboarding -> Guider step -> press Test (honest error) -> press Next. 3. Review step shows 'Guider - not set -'.",
-  "where": "onboarding guider step + packages/nightshade_app/lib/screens/guiding/guiding_screen_parts/desktop_sections.dart:230-245",
+  "where": "onboarding guider step + packages/skotiq_app/lib/screens/guiding/guiding_screen_parts/desktop_sections.dart:230-245",
   "location_wrong": null,
   "proposed_fix": "Add an explicit 'Use PHD2' selection on the onboarding step that persists host/port regardless of Test result. Separately: discovery reports 'Guider: 1 devices' in the log but the onboarding guider list shows 'Sim (0)' - worth reconciling.",
   "verdict_reasoning": null
@@ -64,7 +64,7 @@
   "what_happened": "On first arrival at the Imaging screen with a fresh profile the Exposure field reads 55.0 sec and the bottom banner reads 'Dur 55 s'. The first thing anyone does on the Imaging screen is take a framing/focus test shot, and 55 s is a minute of waiting before you see anything.",
   "expected": "A short default (1-5 s) for the manual Imaging screen, or last-used-value persistence. NINA defaults its manual capture to a short exposure for exactly this reason; long subs belong in the sequencer where the value is set per instruction.",
   "repro": "1. Fresh profile, complete onboarding (camera defaults step asks only for gain/offset, never exposure). 2. Nav -> Imaging. Read the Exposure field.",
-  "where": "packages/nightshade_core/lib/src/providers/imaging_provider.dart:16 (exposureSettingsProvider default) / sequencer_defaults",
+  "where": "packages/skotiq_core/lib/src/providers/imaging_provider.dart:16 (exposureSettingsProvider default) / sequencer_defaults",
   "location_wrong": null,
   "proposed_fix": "Default the Imaging-screen exposure to ~2 s and persist the user's last manual value per profile.",
   "verdict_reasoning": null
@@ -78,7 +78,7 @@
   "what_happened": "NarratorTicker is mounted unconditionally at the top-right of the preview (live_preview_area.dart:629). Over a 65-minute driven session - 12 captures across two filters, a 9-point autofocus that moved best HFR from 2.46 to 2.10, a cooldown from +20 C to -10 C, a filter change, an aborted exposure - the ticker never rendered a single line in any of the ~40 Imaging screenshots. The Transient Alerts bell was likewise empty ('No active alerts'). Either the detectors need a sequencer run to fire, or the feature is invisible on the surface where it is advertised.",
   "expected": "At minimum, something like 'Cooling reached -10.0 C' or 'Autofocus improved HFR 2.46 -> 2.10' should surface, since those are exactly the events the narrator is documented to detect.",
   "repro": "1. Imaging screen. 2. Run autofocus, cool the camera, change filter, take frames. 3. Watch the top-right of the preview.",
-  "where": "packages/nightshade_app/lib/screens/imaging/widgets/narrator_ticker.dart, mounted at packages/nightshade_app/lib/screens/imaging/widgets/live_preview_area.dart:629",
+  "where": "packages/skotiq_app/lib/screens/imaging/widgets/narrator_ticker.dart, mounted at packages/skotiq_app/lib/screens/imaging/widgets/live_preview_area.dart:629",
   "location_wrong": null,
   "proposed_fix": "Confirm whether the narrator requires an active sequencer session; if so, either wire manual-capture events into it or do not mount the ticker on a surface where it can never speak.",
   "verdict_reasoning": null

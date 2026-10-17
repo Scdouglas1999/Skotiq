@@ -7,11 +7,11 @@ const _defaultMarkdownOutputPath =
     'docs/production-readiness/migration-regression-audit.md';
 
 const _fixturePath =
-    'packages/nightshade_core/test/fixtures/synthetic_old_profile_fixtures.dart';
+    'packages/skotiq_core/test/fixtures/synthetic_old_profile_fixtures.dart';
 const _testPath =
-    'packages/nightshade_core/test/services/database_migration_test.dart';
+    'packages/skotiq_core/test/services/database_migration_test.dart';
 const _manualProbePath =
-    'packages/nightshade_core/tool/production_migration_probe.dart';
+    'packages/skotiq_core/tool/production_migration_probe.dart';
 
 const _requiredFixtureText = [
   'schema17WithCapturedImageMetadata',
@@ -64,7 +64,7 @@ const _requiredTestText = [
 ];
 
 const _requiredManualProbeText = [
-  'NIGHTSHADE_OLD_DATABASE',
+  'SKOTIQ_OLD_DATABASE',
   'sourceSizeBytes',
   'sourceSha256',
   'copiedSourceSha256',
@@ -76,7 +76,7 @@ const _requiredManualProbeText = [
 ];
 
 const _defaultTestCommand = 'flutter test --reporter json';
-const _defaultTestWorkdir = 'packages/nightshade_core';
+const _defaultTestWorkdir = 'packages/skotiq_core';
 
 Future<void> main(List<String> args) async {
   final root = Directory(_argValue(args, '--root') ?? Directory.current.path);
@@ -130,7 +130,7 @@ Future<void> main(List<String> args) async {
     'behavioral': behavioral.toJson(),
     'manualRealArtifactGatePreserved': manualProbe.passed,
     'focusedTestCommand':
-        'cd packages/nightshade_core && flutter test test/services/database_migration_test.dart',
+        'cd packages/skotiq_core && flutter test test/services/database_migration_test.dart',
     'policy':
         'Synthetic migration fixtures reduce upgrade risk, while the checked-in v4.3.0 release-authentic database exercises the real tagged schema. The manual probe must migrate that artifact (or an older user profile) successfully.',
   };
@@ -419,7 +419,7 @@ String _renderMarkdown({
     ..writeln('## Focused Verification')
     ..writeln()
     ..writeln(
-      '`cd packages/nightshade_core && flutter test test/services/database_migration_test.dart`',
+      '`cd packages/skotiq_core && flutter test test/services/database_migration_test.dart`',
     );
 
   if (issues.isNotEmpty) {

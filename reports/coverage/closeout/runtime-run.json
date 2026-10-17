@@ -1,6 +1,6 @@
 {
   "cluster": "runtime-run",
-  "testsRun": "dart run melos exec --scope=\"nightshade_app\" -- flutter test test/screens/sequencer -> 396 passed, 2 failed; both failures are host-specific GOLDEN pixel diffs in captures_landscape_test.dart (sequencer_android_landscape_932x430.png 9.44%, sequencer_android_portrait_430x932.png 7.17%) and are unrelated to the edits. New/updated tests: node_summary_inline_edit_test.dart 'the count stepper keeps incrementing on repeated + taps' (6/6 pass with the fix; fails with count 6 instead of 8 when the fix is reverted) and run_dashboard/live_frame_panel_unbounded_height_test.dart (passes with the fix; without it the run throws 'RenderBox was not laid out' under BoxConstraints(w=782.0, 0.0<=h<=Infinity)). dart format --set-exit-if-changed and dart analyze are clean on all four touched files.",
+  "testsRun": "dart run melos exec --scope=\"skotiq_app\" -- flutter test test/screens/sequencer -> 396 passed, 2 failed; both failures are host-specific GOLDEN pixel diffs in captures_landscape_test.dart (sequencer_android_landscape_932x430.png 9.44%, sequencer_android_portrait_430x932.png 7.17%) and are unrelated to the edits. New/updated tests: node_summary_inline_edit_test.dart 'the count stepper keeps incrementing on repeated + taps' (6/6 pass with the fix; fails with count 6 instead of 8 when the fix is reverted) and run_dashboard/live_frame_panel_unbounded_height_test.dart (passes with the fix; without it the run throws 'RenderBox was not laid out' under BoxConstraints(w=782.0, 0.0<=h<=Infinity)). dart format --set-exit-if-changed and dart analyze are clean on all four touched files.",
   "units": [
     {
       "unit": "screen:sequencer/note_tile.dart",
@@ -116,7 +116,7 @@
       "kind": "default",
       "severity": "P2",
       "title": "Integration budget switches on with Total time 0.00 h, and the panel's own readout says the resolved budget is 0m",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/target_node_properties/integration_budget_section.dart",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/target_node_properties/integration_budget_section.dart",
       "detail": "Live on the Target node properties: flipping 'Integration budget' ON leaves 'Total time (hours)' at 0.00 and the panel immediately prints 'Resolved budget - Total: 0m (sum of caps)' with 'Stop target when budget met' defaulted ON (shot s37). Needs a run to confirm the runtime consequence.",
       "fixed": false
     },
@@ -124,16 +124,16 @@
       "kind": "defect",
       "severity": "P2",
       "title": "Inline sequencer quick-edit popovers commit from a stale node snapshot, so a stepper only ever moves by one",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/node_summary_inline_editors.dart:195",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/node_summary_inline_editors.dart:195",
       "detail": "Live repro on the desktop build: tapped the Take Exposures count chip (value 4) to open the 'Exposure count' popover, then clicked '+' EIGHT times. The node chip and the thumbnail strip went 4 -> 5 and stopped ('0 / 5 frames'), while the popover kept rendering '4' (shots s50/s51). A ninth '+' still produced 5; two '-' clicks produced 3, i.e. every click re-applies snapshot+-1. Root cause: showInlineNodeEditor passes the node captured at tap time into _InlineEditorBody, which never re-reads the live tree, so each editor commits snapshot.copyWith(...). Affects every inline editor in the file (count, duration, gain, delay, loop iterations, dither pixels, cooling temp, tolerance). Fixed by resolving the node from currentSequenceProvider.nodes[id] on each build. The pre-existing test tapped '+' exactly once, which is why it never caught this; the new test taps three times and expects 8 (fails with 6 when the fix is reverted - verified).",
       "fixed": true,
-      "fixSummary": "_InlineEditorBody now watches currentSequenceProvider and resolves the live node by id (falling back to the snapshot if it was deleted). Regression test 'the count stepper keeps incrementing on repeated + taps' added to packages/nightshade_app/test/screens/sequencer/widgets/node_summary_inline_edit_test.dart."
+      "fixSummary": "_InlineEditorBody now watches currentSequenceProvider and resolves the live node by id (falling back to the snapshot if it was deleted). Regression test 'the count stepper keeps incrementing on repeated + taps' added to packages/skotiq_app/test/screens/sequencer/widgets/node_summary_inline_edit_test.dart."
     },
     {
       "kind": "defect",
       "severity": "P3",
       "title": "Session Report renders a 'Journal' heading with no content and no empty state",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/session_report_dialog.dart",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/session_report_dialog.dart",
       "detail": "In the post-run Session Report the sibling sections all state their empty case ('No guide data recorded for this session.', 'No accepted light frames recorded.'), but 'Journal' renders as a bare heading with nothing under it. Confirmed in the live accessibility tree: 'panel: Journal' is followed immediately by 'panel: Notes' with no child node in between.",
       "fixed": false
     },
@@ -141,7 +141,7 @@
       "kind": "defect",
       "severity": "P1",
       "title": "A run can stall 30 minutes per frame waiting for a meridian flip that is hours overdue and will never fire, and the UI says only 'Running'",
-      "location": "native/nightshade_native/sequencer/src/instructions.rs:1954",
+      "location": "native/skotiq_native/sequencer/src/instructions.rs:1954",
       "detail": "Live repro, run #2 (12 x 5s LIGHT on a target at RA 12.5h Dec +70, site 40N 42E). Frame 1 captured and saved normally; the run then froze at '1/12  8%' for the rest of the session. App log at 21:24:12.219964Z: 'Waiting for the meridian flip before the next 5s exposure: the flip fires in ~0s (hour angle +8.93h, threshold 5 min past meridian) and would interrupt the frame'. No 'Capturing frame 2/12' line ever followed. fire_in_secs = (threshold_min - ha*60)*60 goes hugely NEGATIVE when the target is far past the meridian, the gate reads that as 'fires in ~0s' and holds; the only escape is MERIDIAN_GATE_MAX_WAIT = 30 minutes (instructions.rs:1904), which is re-armed before EVERY frame - a 12-frame block would spend ~6 hours idle. The guard above it only rejects the east-of-meridian case (ha <= 0.0); there is no upper bound on how overdue the flip may be. Meanwhile the sequencer header showed 'Running', '1/12  8%', an ETA that had already elapsed, and the sub-line 'Trigger Altitude Limit fired: NextTarget' - nothing anywhere says the run is waiting on a flip, and meridian_flip_progress_dialog never appeared.",
       "fixed": false,
       "needsOwnerDecision": false
@@ -150,7 +150,7 @@
       "kind": "defect",
       "severity": "P2",
       "title": "The Altitude Limit trigger fires every 60s requesting 'next target' when there is no next target, and the run neither advances nor ends",
-      "location": "native/nightshade_native/sequencer/src/instructions.rs (trigger dispatch) / sequencer run header",
+      "location": "native/skotiq_native/sequencer/src/instructions.rs (trigger dispatch) / sequencer run header",
       "detail": "Same live run. The single target sat at 24.8 deg, below the 30 deg Min Altitude default, so the log shows 'Trigger fired: Altitude Limit (altitude_limit) - action: NextTarget' / 'Trigger requested advance to next target' repeating once a minute (21:24:05, 21:25:05, 21:26:05 ...). There is only one target, so nothing advances; the run stays 'Running' forever and the header's only explanation is the sub-line 'Trigger Altitude Limit fired: NextTarget'. A NextTarget action with no next target should end the target (and the run) with a stated reason, not re-fire indefinitely. NOTE: this run was ALSO blocked by the meridian-flip gate above, so the repeat-fire is confirmed but the 'would it otherwise have ended the run' half is not isolated.",
       "fixed": false
     },
@@ -158,8 +158,8 @@
       "kind": "missing",
       "severity": "P3",
       "title": "BroadcastPanel is built but mounted nowhere - live-stacking broadcast has no UI surface",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/run_dashboard/broadcast_panel.dart:19",
-      "detail": "Repo-wide, `BroadcastPanel` appears only in its own declaration and in packages/nightshade_app/test/screens/sequencer/run_dashboard/broadcast_panel_test.dart:30. No screen, no dashboard-widget registry entry, no tab mounts it. The Live Stacking node does expose broadcastPath/broadcastPort knobs (live_stacking_properties.dart), so the feature is configurable with no way to see whether the broadcast is actually live.",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/broadcast_panel.dart:19",
+      "detail": "Repo-wide, `BroadcastPanel` appears only in its own declaration and in packages/skotiq_app/test/screens/sequencer/run_dashboard/broadcast_panel_test.dart:30. No screen, no dashboard-widget registry entry, no tab mounts it. The Live Stacking node does expose broadcastPath/broadcastPort knobs (live_stacking_properties.dart), so the feature is configurable with no way to see whether the broadcast is actually live.",
       "fixed": false,
       "needsOwnerDecision": true
     },
@@ -167,7 +167,7 @@
       "kind": "defect",
       "severity": "P2",
       "title": "The critical-event banner shows errors from earlier runs on top of a healthy run, with no run attribution",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/run_dashboard/critical_event_banner.dart",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/critical_event_banner.dart",
       "detail": "Live: run #1 (17:12:20 daylight gate) and run #2 (17:28:50 sequence cancelled) each left a critical event. Starting run #3 did not clear or scope them, so the whole time run #3 was capturing normally the dashboard carried a full-width red 'Sequencer error' banner about two runs that had already ended, and the events carry only a wall-clock time - nothing says which run they belong to. Screenshot s76 shows 'Run complete - start another pass' and status 'Completed' directly underneath two red error rows.",
       "fixed": false
     },
@@ -175,7 +175,7 @@
       "kind": "default",
       "severity": "P3",
       "title": "The auto-composed run note is titled with a raw DateTime.toString(), microseconds and all",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/notes_panel",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/notes_panel",
       "detail": "Live: 'How did this run go?' > 'Write note' pre-filled the Title field with 'Run on 2026-08-09 17:28:51.286008' (shot s64). Every other timestamp in this dialog is formatted ('Aug 9, 2026 - 17:29').",
       "fixed": false
     },
@@ -183,7 +183,7 @@
       "kind": "defect",
       "severity": "P2",
       "title": "The auto-composed run note says the sequence 'completed' even when it was cancelled",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/notes_panel",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/notes_panel",
       "detail": "Live: run #2 was stopped by hand; the Session Report for it reads 'New Sequence - paused-stopped', Errors 'Sequence cancelled'. The note the app pre-composed for that same run (shot s64) reads '**New Sequence** completed in 4m 44s.' The note is what the user keeps, so it is the copy most likely to be believed later.",
       "fixed": false
     },
@@ -191,7 +191,7 @@
       "kind": "defect",
       "severity": "P1",
       "title": "Enabling the 'Live Frame' dashboard widget blanks the entire primary column - it lays out at infinite height and the engine drops the layer",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/run_dashboard/live_frame_panel.dart:74",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/run_dashboard/live_frame_panel.dart:74",
       "detail": "Live repro: Dashboard > Edit Dashboard > Widgets > tick 'Live Frame' > Done. Now Imaging, Frames and Live Frame are all still ticked in the picker, but the primary column renders NOTHING (shot s90; in edit mode the tiles show as empty placeholders, shot s89). The app log starts emitting 'TransformLayer is constructed with an invalid matrix' at that exact moment (app.log:690 onward, 33 times, none earlier in the session). Cause: dashboard tiles are laid out in a vertical scroll view, so this widget builds with constraints.maxHeight == infinity. RenderFlex with crossAxisAlignment.stretch passes constraints.maxHeight through as a TIGHT height, and _FramePane is a Stack whose children are all Positioned.fill, so the infinity reaches InteractiveViewer's transform and the engine discards the layer subtree - taking its siblings' column with it.",
       "fixed": true,
       "fixSummary": "RunDashboardLiveFrame now bounds its own height inside the LayoutBuilder (uses maxHeight when bounded, otherwise a 4:3 box clamped to 180-420px), so no descendant can be laid out at infinite height. Regression test live_frame_panel_unbounded_height_test.dart pumps the widget inside an unbounded-height Column and fails on the infinite-size layout error when the bound is removed."
@@ -200,7 +200,7 @@
       "kind": "defect",
       "severity": "P3",
       "title": "Replay Debug reports '1 of 2 decisions' with no filter applied and the time range fully open",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/replay_debug_screen.dart",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/replay_debug_screen.dart",
       "detail": "Live: opened Replay for the completed 12-frame run with the 'All' chip selected, an empty search box and both slider handles at the extremes of the stated range 17:32:35 - 17:33:52. The header reads '1 of 2 decisions' and exactly one row renders (shots s96/s97). Either the second decision is being filtered by something the UI does not show, or the total is wrong; either way the count contradicts the list.",
       "fixed": false
     },
@@ -208,7 +208,7 @@
       "kind": "missing",
       "severity": "P3",
       "title": "A 12-frame run records two replay decisions and no per-frame ones, so most Replay filters can never match",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/replay_debug_screen.dart",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/replay_debug_screen.dart",
       "detail": "The completed run captured and accepted 12 frames, yet the decision feed holds 2 entries and the only one shown is 'Sequence started'. Its payload says 'grading_active: false', so no Frame accepted / Frame rejected decisions are ever written - and those are two of the eleven filter chips the screen offers, alongside Scheduler pick, Recovery, Budget met and Adaptive swap which were likewise empty. A user opening Replay after a normal night sees a feed with one line in it.",
       "fixed": false,
       "needsOwnerDecision": true
@@ -217,7 +217,7 @@
       "kind": "defect",
       "severity": "P3",
       "title": "After a completed run the exposure node card still reads '0 / 12 frames' with every pip empty, directly above a strip of the 12 thumbnails it captured",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/sequence_tree/node_tree_view.dart",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/sequence_tree/node_tree_view.dart",
       "detail": "Live: run #3 captured and accepted all 12 frames (Session Summary: Captured 12 / Accepted 12). Back on the Builder the 'Exposure: No Filter' card on the Take Exposures node still reads '0 / 12 frames' and draws 12 empty pips (shots s99/sA1), while the ExposureNodeThumbnailStrip immediately beneath it shows the real frames. The two statements are visible in the same screenshot and contradict each other.",
       "fixed": false
     },
@@ -225,7 +225,7 @@
       "kind": "ux",
       "severity": "P4",
       "title": "The global 'All notes' dialog has no way to create a note; the per-target one does",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/notes_panel/global_notes_dialog.dart",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/notes_panel/global_notes_dialog.dart",
       "detail": "Sequencer > History > 'Browse all notes' offers search, tag filter, edit and delete but no 'Add note' action (shot s92). The per-target dialog reached from the same note system has '+ Add note' bottom-left (shot sA6).",
       "fixed": false
     },
@@ -233,7 +233,7 @@
       "kind": "defect",
       "severity": "P2",
       "title": "Pre-Flight says the sequence 'has changed since last successful run' while diffing against a run that failed",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/sequence_diff_dialog.dart / preflight_validation_dialog.dart",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/sequence_diff_dialog.dart / preflight_validation_dialog.dart",
       "detail": "Live: run #3 completed successfully at 17:33 with 12 accepted frames using exactly 5.0s x12 at RA 22.5000 / Dec 50.0000, and nothing in the sequence was edited afterwards. Pressing Start at 17:57 still raised 'Sequence has changed since last successful run - 2 changes ... 2 modified node(s)', and 'View changes' listed duration 3.0s -> 5.0s, frame count 4 -> 12, RA 12.5 -> 22.5, Dec 70 -> 50 (shot sA8). Those are the values of run #1, which FAILED after one second with zero frames. The comparison base is the last run with a stored snapshot, not the last successful one, and the copy asserts otherwise. Corroborating: the History tab's own 'Diff vs previous run' on the completed run said 'No earlier completed run of this sequence has a saved snapshot to diff against' (shot s95), so no snapshot was taken for the successful run at all.",
       "fixed": false
     },
@@ -241,7 +241,7 @@
       "kind": "defect",
       "severity": "P2",
       "title": "Smart Night's 'Next' looks enabled on the Equipment step but does nothing when the profile has no camera, with no explanation",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/smart_night_dialog.dart",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/smart_night_dialog.dart",
       "detail": "Live: opened Smart Night with an active profile that has no devices ASSIGNED (the simulators were connected session-only, which the Equipment page itself warns about). Step 1 Window advanced fine. Step 2 Equipment renders 'Camera <no camera>', 'OTA <no telescope> (0mm @ f/0.0)', 'Mount <no mount>'. The Next button is painted in the same enabled blue as on step 1 and the accessibility tree reports it as a plain 'button: Next' with no DISABLED state, but four separate clicks left the stepper on '2. Equipment' (shot sB1) and produced no toast, banner or inline error. The wizard is a dead end that will not say why.",
       "fixed": false
     }

@@ -49,7 +49,7 @@ happening. This is why WF-STOP-N5 and this item are one fix.
 no stray-full-stop producer — the three stop bodies differ by microseconds, not
 punctuation, and the fix for that is WF-STOP-N5 below. The stray full stop in
 the *charter text* belongs to WD-EQ-3's guider refusal, whose producer is
-`native/nightshade_native/bridge/src/builtin_guider/loop_runner.rs` +
+`native/skotiq_native/bridge/src/builtin_guider/loop_runner.rs` +
 the Dart connect path — outside this batch's scope and assigned to
 equipment-chrome. What this batch owed was the **recipe**, and the normalized
 key is applied here at the router with WD-EQ-3's exact counter-input pinned as
@@ -102,9 +102,9 @@ stop body; **every** category's default body asserted free of
 
 **NOT fixed (out of scope, do not double-file):** the other half of WF-STOP-N5 —
 RECENT EVENTS' `Decision logged — system_event #14: Sequence cancelled`. That
-string is produced by `packages/nightshade_bridge/lib/src/event_display.dart:423`
+string is produced by `packages/skotiq_bridge/lib/src/event_display.dart:423`
 (`SequencerEvent_DecisionLogged() => 'Decision logged'`) plus the row id and raw
-notice appended by its caller. `nightshade_bridge` is outside this batch's
+notice appended by its caller. `skotiq_bridge` is outside this batch's
 declared scope and belongs with the stop-pipeline copy owner.
 
 ---
@@ -116,7 +116,7 @@ Two independent causes; both fixed.
 ### (a) SchedulerEngine wrote only to `dart:developer`
 
 In a release Flutter build that has no destination anyone can reach: the rolling
-`nightshade.log.<date>` is written by the **Rust** tracing appender (0 Dart
+`skotiq.log.<date>` is written by the **Rust** tracing appender (0 Dart
 lines, ever), and Settings ▸ Advanced ▸ Logs reads `LoggingService`'s in-memory
 ring, which `dart:developer` never feeds.
 
@@ -136,7 +136,7 @@ offers `SchedulerEngine`), `/api/logs/recent` + `/api/logs/tail`, and the
 **on-disk** diagnostic export — `LoggingService.exportLogs` already appends the
 in-memory Dart entries after the native files.
 
-**Honest caveat:** the *rolling* `nightshade.log.<date>` is still Rust-only.
+**Honest caveat:** the *rolling* `skotiq.log.<date>` is still Rust-only.
 Writing Dart lines into that exact file needs either a new FRB bridge fn into
 the Rust `tracing` appender (Rust + codegen, both barred for this batch) or a
 second Dart-owned sink in `logging_service.dart` (outside the declared scope).
@@ -200,7 +200,7 @@ autopilot after an operator Stop" is on the verdict's off-limits list.
 
 **Tests** — `test/providers/sequence/session_report_presentation_test.dart`
 (all four gate combinations, queue identity/bound/removal) and
-`nightshade_app/test/screens/sequencer/pending_session_reports_test.dart` (card
+`skotiq_app/test/screens/sequencer/pending_session_reports_test.dart` (card
 hidden when empty, listed + openable, Dismiss all, plus a structural guard that
 the terminal listener consults the gate first).
 
@@ -208,9 +208,9 @@ the terminal listener consults the gate first).
 
 ## Gates
 
-* `packages/nightshade_core`: full `flutter test` — **5901 passed, 4 skipped, 0
+* `packages/skotiq_core`: full `flutter test` — **5901 passed, 4 skipped, 0
   failed**.
-* `packages/nightshade_app`: full `flutter test` — 3485 passed, 56 failed, and
+* `packages/skotiq_app`: full `flutter test` — 3485 passed, 56 failed, and
   **none of the 56 belong to this batch**:
   * 39 are `captures_landscape_test.dart` golden pixel diffs across **17
     screens** (dashboard, weather, guiding, equipment, analytics, diagnostics,
@@ -227,7 +227,7 @@ the terminal listener consults the gate first).
     `framing_*`, `morning_report_views`, `narrative_integrate_blocked`,
     `public_screenshots`) sit in files other F-fix batches had dirty in the
     same tree (`help_tutorials_settings.dart`, `status_bar.dart`,
-    `nightshade_button.dart`, `preflight_validation_dialog.dart`, …) and touch
+    `skotiq_button.dart`, `preflight_validation_dialog.dart`, …) and touch
     nothing this batch changed. The first dashboard exception in the log is
     `SequenceLockedException` from `CockpitRunControls`.
 * Targeted re-run of `test/screens/sequencer` + `notification_toast_dedupe_test`

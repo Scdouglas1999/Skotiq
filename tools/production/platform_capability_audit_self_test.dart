@@ -11,7 +11,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_platform_capability_audit_self_test_',
+    'skotiq_platform_capability_audit_self_test_',
   );
   try {
     await _writePassingFixture(temp);
@@ -26,7 +26,7 @@ Future<void> main() async {
 
     await _writeDoc(
       temp,
-      'packages/nightshade_app/lib/screens/equipment/widgets/backend_selector_chips.dart',
+      'packages/skotiq_app/lib/screens/equipment/widgets/backend_selector_chips.dart',
       'class BackendSelectorChips {}',
     );
     final failing = await _runAudit(script, temp, allowFailure: true);
@@ -51,7 +51,7 @@ Future<void> main() async {
 Future<void> _writePassingFixture(Directory root) async {
   await _writeDoc(
     root,
-    'packages/nightshade_core/lib/src/models/backend/platform_capabilities.dart',
+    'packages/skotiq_core/lib/src/models/backend/platform_capabilities.dart',
     '''
 class PlatformCapabilityMatrix {
   static const windows = 'windows';
@@ -74,7 +74,7 @@ class PlatformDriverCapability {
   );
   await _writeDoc(
     root,
-    'packages/nightshade_core/test/models/platform_capabilities_test.dart',
+    'packages/skotiq_core/test/models/platform_capabilities_test.dart',
     '''
 void main() {
   // marks ASCOM COM as Windows-only
@@ -174,7 +174,7 @@ void _expectReleaseScopedDriverMatrix() {
   );
   await _writeDoc(
     root,
-    'packages/nightshade_app/lib/screens/equipment/widgets/backend_selector_chips.dart',
+    'packages/skotiq_app/lib/screens/equipment/widgets/backend_selector_chips.dart',
     '''
 String? unsupportedBackendReasonFor() {
   print(PlatformCapabilityMatrix.rows);
@@ -187,7 +187,7 @@ String? unsupportedBackendReasonFor() {
   );
   await _writeDoc(
     root,
-    'packages/nightshade_app/test/screens/equipment/backend_selector_chips_test.dart',
+    'packages/skotiq_app/test/screens/equipment/backend_selector_chips_test.dart',
     '''
 void main() {
   // unsupportedBackendReasonFor gates ASCOM COM off Linux
@@ -199,7 +199,7 @@ void main() {
   );
   await _writeDoc(
     root,
-    'packages/nightshade_app/lib/screens/settings/widgets/connection_settings.dart',
+    'packages/skotiq_app/lib/screens/settings/widgets/connection_settings.dart',
     '''
 void settings() {
   PlatformCapabilityMatrix.forPlatform(Platform.operatingSystem);
@@ -214,7 +214,7 @@ void settings() {
   );
   await _writeDoc(
     root,
-    'packages/nightshade_app/test/screens/settings/platform_capabilities_settings_test.dart',
+    'packages/skotiq_app/test/screens/settings/platform_capabilities_settings_test.dart',
     '''
 void main() {
   // Connection settings render release-scoped platform capabilities

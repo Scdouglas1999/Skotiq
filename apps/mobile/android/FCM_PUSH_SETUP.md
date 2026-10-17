@@ -11,20 +11,20 @@ Android lights up when you drop in two files — no code changes.
 | Layer | Component | Status |
 | --- | --- | --- |
 | Server sender | `FcmRemotePushDelivery` (FCM v1 API, service-account JWT) | built + unit-tested |
-| Server config | `PushConfig.load` → `<appSupport>/Nightshade/push_config.json` | built |
+| Server config | `PushConfig.load` → `<appSupport>/Skotiq/push_config.json` | built |
 | Token registry | `POST /api/push/register-token` with `platform=fcm` | built |
-| Android client | `PushBridge.kt` + `NightshadePushService.kt` over the `nightshade/push` channel | built, dormant |
+| Android client | `PushBridge.kt` + `SkotiqPushService.kt` over the `skotiq/push` channel | built, dormant |
 | Dart flow | `push_registration_service.dart` (registers on pair/connect/foreground) | built + unit-tested |
 
 Background pushes render with **no client display code**: the server sends a
-`notification` payload targeting the `nightshade_critical` channel, which
+`notification` payload targeting the `skotiq_critical` channel, which
 `PushBridge` creates at startup. Foreground FCM messages are deliberately
 dropped — the LAN receiver already covers foreground alerting (mirrors iOS).
 
 ## Provisioning steps (owner)
 
 1. Create a Firebase project (console.firebase.google.com) and add an
-   Android app with package name `com.nightshade.mobile`.
+   Android app with package name `com.skotiq.mobile`.
 2. Download `google-services.json` into `apps/mobile/android/app/`.
    The Gradle build detects it and applies the Google-services plugin
    automatically (see the conditional in `app/build.gradle.kts`); rebuild the
@@ -32,8 +32,8 @@ dropped — the LAN receiver already covers foreground alerting (mirrors iOS).
 3. In Firebase console → Project settings → Service accounts, generate a
    service-account private-key JSON and copy it to the imaging host.
 4. On the imaging host, create (or extend) the push config at
-   `<appSupport>/Nightshade/push_config.json`
-   (or point `NIGHTSHADE_PUSH_CONFIG` at it):
+   `<appSupport>/Skotiq/push_config.json`
+   (or point `SKOTIQ_PUSH_CONFIG` at it):
 
    ```json
    {

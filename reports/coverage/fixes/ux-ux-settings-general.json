@@ -4,15 +4,15 @@
     {
       "title": "UI scale dropdown truncates its own selected value to 'Extra Lar...' at large UI scale",
       "outcome": "fixed",
-      "summary": "SettingsDropdown now measures its labels with a TextPainter at the ambient text scale and grows from the design width to fit the widest one, capped by the width the row actually offers (LayoutBuilder), so it can never trade an ellipsis for an overflow stripe. The widest label is used rather than the selected one so the control does not resize under the pointer. NightshadeDropdown gained `labelStyle` and `chromeWidth` constants and now paints with `labelStyle`, so the measurement and the painting cannot drift apart. Root cause: 'UI scale' is applied as a TEXT scaler in app.dart (_calculateUiScaleFactor -> combinedTextScale), so at 1.4x every label grows 40% inside a 140 px box that does not — the defect was latent for every SettingsDropdown, not just this row.",
+      "summary": "SettingsDropdown now measures its labels with a TextPainter at the ambient text scale and grows from the design width to fit the widest one, capped by the width the row actually offers (LayoutBuilder), so it can never trade an ellipsis for an overflow stripe. The widest label is used rather than the selected one so the control does not resize under the pointer. SkotiqDropdown gained `labelStyle` and `chromeWidth` constants and now paints with `labelStyle`, so the measurement and the painting cannot drift apart. Root cause: 'UI scale' is applied as a TEXT scaler in app.dart (_calculateUiScaleFactor -> combinedTextScale), so at 1.4x every label grows 40% inside a 140 px box that does not — the defect was latent for every SettingsDropdown, not just this row.",
       "files_changed": [
-        "packages/nightshade_ui/lib/src/components/nightshade_dropdown.dart",
-        "packages/nightshade_app/lib/screens/settings/widgets/settings_widgets.dart",
-        "packages/nightshade_app/lib/screens/settings/widgets/settings_widgets/settings_switch_and_dropdown.dart",
-        "packages/nightshade_app/test/screens/settings/settings_dropdown_value_fit_test.dart"
+        "packages/skotiq_ui/lib/src/components/skotiq_dropdown.dart",
+        "packages/skotiq_app/lib/screens/settings/widgets/settings_widgets.dart",
+        "packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_switch_and_dropdown.dart",
+        "packages/skotiq_app/test/screens/settings/settings_dropdown_value_fit_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/settings/settings_dropdown_value_fit_test.dart -> 'the UI scale dropdown shows its selected value in full' (compares the rendered paragraph's width against its own max intrinsic width, so it asserts 'not ellipsized' rather than an arithmetic constant)",
-      "revert_check": "Replaced `final needed = _widestLabelWidth(context) + NightshadeDropdown.chromeWidth;` with `final needed = 0.0;` in settings_switch_and_dropdown.dart -> FAILED ('needs 216.0, has 100.0'); restored -> 1/1 pass.",
+      "test": "packages/skotiq_app/test/screens/settings/settings_dropdown_value_fit_test.dart -> 'the UI scale dropdown shows its selected value in full' (compares the rendered paragraph's width against its own max intrinsic width, so it asserts 'not ellipsized' rather than an arithmetic constant)",
+      "revert_check": "Replaced `final needed = _widestLabelWidth(context) + SkotiqDropdown.chromeWidth;` with `final needed = 0.0;` in settings_switch_and_dropdown.dart -> FAILED ('needs 216.0, has 100.0'); restored -> 1/1 pass.",
       "caveats": "The finding cited a hardcoded 150; the real default is 140 (desktop) / 120 (mobile) plus dialogMaxWidth. Same defect, different constant."
     },
     {
@@ -20,7 +20,7 @@
       "outcome": "already-correct",
       "summary": "Not present in the current code. location_settings.dart:457 feeds the picker from kUtcOffsetTimezones — 38 entries covering every standard world offset from UTC-12:00 to UTC+14:00 including the half- and quarter-hour zones (-09:30, -03:30, +05:30, +05:45, +08:45, +12:45), so Chile (-04:00), Namibia (+02:00), Scandinavia, Canada and the rest of the listed gaps are all selectable. A stored legacy IANA label is migrated once to its standard-time offset (_migrateLegacyTimezone), and the row's subtitle reports the live time the chosen offset actually produces. The city list the finding describes was replaced in an earlier round of this campaign, and deliberately: the app carries no zone database, so IANA names were inert — the clock could not honour a single one of them. The surviving limitation (a fixed offset does not follow daylight saving) is stated in the row's own subtitle rather than implied away.",
       "files_changed": [],
-      "test": "existing: packages/nightshade_app/test/screens/settings/location_settings_truth_test.dart -> 'every offered value actually drives the clock' (reads the options off the rendered DropdownButton)",
+      "test": "existing: packages/skotiq_app/test/screens/settings/location_settings_truth_test.dart -> 'every offered value actually drives the clock' (reads the options off the rendered DropdownButton)",
       "revert_check": "n/a — no change made.",
       "caveats": "If the owner wants true IANA zones with DST, that needs a bundled tz database (package:timezone) and is a product decision, not a settings-screen fix."
     },
@@ -38,13 +38,13 @@
     {
       "title": "'Reset All to 0 deg' wipes an imported horizon with no confirmation, one click from the Import button",
       "outcome": "fixed",
-      "summary": "Reset now runs through _resetHorizon, which asks first whenever there is anything to lose — a destructive ConfirmDialog naming exactly what goes ('The imported survey of 36 samples, and the eight sector values below it, will be replaced by a flat 0 degree horizon') and stating that Nightshade does not keep the file it was imported from, so it cannot be undone. A hand-edited mask (any sector above 0) is guarded the same way. An already-flat horizon still resets with no dialog, so the guard is not noise on the case where nothing is at risk.",
+      "summary": "Reset now runs through _resetHorizon, which asks first whenever there is anything to lose — a destructive ConfirmDialog naming exactly what goes ('The imported survey of 36 samples, and the eight sector values below it, will be replaced by a flat 0 degree horizon') and stating that Skotiq does not keep the file it was imported from, so it cannot be undone. A hand-edited mask (any sector above 0) is guarded the same way. An already-flat horizon still resets with no dialog, so the guard is not noise on the case where nothing is at risk.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/widgets/location_settings.dart",
-        "packages/nightshade_app/test/screens/settings/location_horizon_reset_guard_test.dart",
-        "packages/nightshade_app/test/screens/settings/settings_screen_test.dart"
+        "packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart",
+        "packages/skotiq_app/test/screens/settings/location_horizon_reset_guard_test.dart",
+        "packages/skotiq_app/test/screens/settings/settings_screen_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/settings/location_horizon_reset_guard_test.dart -> 'resetting an imported survey asks before discarding it', 'cancelling the reset keeps the survey', 'confirming the reset flattens the horizon', 'a hand-edited mask is guarded too', 'an already-flat horizon resets without a question'",
+      "test": "packages/skotiq_app/test/screens/settings/location_horizon_reset_guard_test.dart -> 'resetting an imported survey asks before discarding it', 'cancelling the reset keeps the survey', 'confirming the reset flattens the horizon', 'a hand-edited mask is guarded too', 'an already-flat horizon resets without a question'",
       "revert_check": "Changed `if (hasSurvey || hasMask) {` to `if (false && (hasSurvey || hasMask)) {` in location_settings.dart -> 4 of 5 tests FAILED (the survey was wiped with no dialog); restored -> 5/5 pass.",
       "caveats": "settings_screen_test.dart's horizon_reset_button_zeroes_all_directions pinned the old one-click wipe; it now taps through the confirmation and carries a comment saying why."
     },
@@ -53,11 +53,11 @@
       "outcome": "fixed",
       "summary": "SettingsPathInput takes an optional onPathEntered. Where it is supplied the box is a real TextField that commits on Enter AND on focus loss (tabbing away is how people leave a path box) and snaps back to the stored value if the write is refused; where it is not, the box is rendered as a plain label with no border, fill or placeholder, so it stops inviting typing that goes nowhere. Files & Storage supplies it for Image output and Sequences, validated rather than trusted: empty and relative paths are refused with the reason, remote mode still blocks the host-only keys, and a folder this machine cannot create is confirmed ('Store anyway' / Cancel) instead of being silently accepted — which keeps the finding's own use case (a NAS or UNC share that is not mounted yet, unreachable from any directory picker) working without letting a 3am typo become a night of frames written nowhere. The probe is behind storageDirectoryProbeProvider so the flow is drivable without touching disk.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/widgets/settings_widgets/settings_color_and_path_inputs.dart",
-        "packages/nightshade_app/lib/screens/settings/widgets/file_path_settings.dart",
-        "packages/nightshade_app/test/screens/settings/file_path_typed_path_test.dart"
+        "packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_color_and_path_inputs.dart",
+        "packages/skotiq_app/lib/screens/settings/widgets/file_path_settings.dart",
+        "packages/skotiq_app/test/screens/settings/file_path_typed_path_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/settings/file_path_typed_path_test.dart -> 'a typed image output path is stored', 'a relative path is refused, not stored', 'a folder this machine cannot reach is confirmed first', 'cancelling that question keeps the old path'",
+      "test": "packages/skotiq_app/test/screens/settings/file_path_typed_path_test.dart -> 'a typed image output path is stored', 'a relative path is refused, not stored', 'a folder this machine cannot reach is confirmed first', 'cancelling that question keeps the old path'",
       "revert_check": "Deleted the `onPathEntered:` argument from the Image output SettingsPathInput in file_path_settings.dart (the production call site) -> 3 of 5 tests FAILED, the 4th could not even find a TextField; restored -> 5/5 pass.",
       "caveats": "The three plate-solving rows and the PHD2 executable row are the read-only variant: they name a FILE the app then verifies, and they now render as labels rather than pretending to be inputs. Wiring typed entry there needs per-row validation (executable exists / is runnable) and belongs with whoever owns those pages."
     },
@@ -66,22 +66,22 @@
       "outcome": "fixed",
       "summary": "The dense (sub-1280 px) pill now shows the device NAME while the device is disconnected and its live value once it is connected, instead of always dropping the label. Nothing is lost: disconnected is already carried by the muted dot, the muted icon and the tooltip ('Mount: Disconnected'), whereas 'Disconnected' repeated three times carried nothing at all. It also buys width back rather than spending it — 'Camera' is half the length of 'Disconnected' — which mitigates the same finding's complaint that the Focus chip gets scrolled out of the group.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/shell/widgets/status_bar/pill_widgets.dart",
-        "packages/nightshade_app/test/screens/shell/status_bar_overflow_test.dart"
+        "packages/skotiq_app/lib/screens/shell/widgets/status_bar/pill_widgets.dart",
+        "packages/skotiq_app/test/screens/shell/status_bar_overflow_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/shell/status_bar_overflow_test.dart -> 'a narrow bar names the devices instead of repeating the state' (Camera/Mount/Guider/Focus each found once, 'Disconnected' found nowhere) and 'a wide bar keeps both the label and the state' (label plus 3x 'Disconnected')",
+      "test": "packages/skotiq_app/test/screens/shell/status_bar_overflow_test.dart -> 'a narrow bar names the devices instead of repeating the state' (Camera/Mount/Guider/Focus each found once, 'Disconnected' found nowhere) and 'a wide bar keeps both the label and the state' (label plus 3x 'Disconnected')",
       "revert_check": "Replaced `String get _denseText => widget.dense && !widget.isConnected ? widget.label : widget.value;` with `=> widget.value;` -> 'a narrow bar names the devices instead of repeating the state' FAILED; restored -> 7/7 pass.",
       "caveats": "The existing test 'a narrow bar drops pill labels but keeps their values' pinned exactly the behaviour the live run found unusable; it was rewritten (same file) with the reasoning for the inversion recorded above it."
     },
     {
       "title": "Files & Storage refuses to name the application data folder, so a user cannot find their own database, logs or backups",
       "outcome": "fixed",
-      "summary": "The 'Database and logs' row now resolves the real directory (applicationDataPathProvider -> resolveDefaultDatabaseFile().parent) and shows it, with the same 'Open folder' / 'Copy path' action the Backups row one line below already had, and a sentence saying what is in there (nightshade.db, the logs folder, quarantined/recovered database files) and that this is what to attach to a bug report. When NIGHTSHADE_DATABASE_DIR is actually set the row says the folder is pinned by it; on a normal desktop install that line is not shown, because it would be noise.",
+      "summary": "The 'Database and logs' row now resolves the real directory (applicationDataPathProvider -> resolveDefaultDatabaseFile().parent) and shows it, with the same 'Open folder' / 'Copy path' action the Backups row one line below already had, and a sentence saying what is in there (skotiq.db, the logs folder, quarantined/recovered database files) and that this is what to attach to a bug report. When SKOTIQ_DATABASE_DIR is actually set the row says the folder is pinned by it; on a normal desktop install that line is not shown, because it would be noise.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/widgets/file_path_settings.dart",
-        "packages/nightshade_app/test/screens/settings/file_path_typed_path_test.dart"
+        "packages/skotiq_app/lib/screens/settings/widgets/file_path_settings.dart",
+        "packages/skotiq_app/test/screens/settings/file_path_typed_path_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/settings/file_path_typed_path_test.dart -> 'the application data folder is named and reachable' (asserts the path is rendered, that 'Managed automatically' is gone, and that the row's own Open folder button calls the revealer with that path)",
+      "test": "packages/skotiq_app/test/screens/settings/file_path_typed_path_test.dart -> 'the application data folder is named and reachable' (asserts the path is rendered, that 'Managed automatically' is gone, and that the row's own Open folder button calls the revealer with that path)",
       "revert_check": "Put the old `const SettingRow(... subtitle: 'Managed automatically' ...)` back in place of _AppDataFolderRow -> the test FAILED (0 widgets containing '/appdata'); restored -> 5/5 pass.",
       "caveats": "The section is still hidden in remote mode, where the folder belongs to the host and this machine cannot open it."
     },
@@ -90,11 +90,11 @@
       "outcome": "fixed",
       "summary": "The matcher now returns SettingsSearchResult(section, matchingRows) instead of throwing the row information away: matchingSettingsRows keeps every indexed row title that answers ALL query tokens, shortest first (short entries are the ones that really are a row's name), up to three per section. Desktop and mobile both render those rows indented under their section as their own tappable results. Tapping one opens the section AND targets the row: settings_screen publishes the title through a new SettingsRowHighlight inherited widget, and SettingRow reveals itself when it is the target — Scrollable.ensureVisible after the frame that placed it, plus a primary tint that clears after 4 s so it reads as a pointer and not as a selected state. Typing 'Alpaca' now shows 'Alpaca Server Address' and 'Query Alpaca on startup' and takes you to either.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/settings_screen.dart",
-        "packages/nightshade_app/lib/screens/settings/widgets/settings_widgets/settings_section_and_row.dart",
-        "packages/nightshade_app/test/screens/settings/settings_search_row_target_test.dart"
+        "packages/skotiq_app/lib/screens/settings/settings_screen.dart",
+        "packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_section_and_row.dart",
+        "packages/skotiq_app/test/screens/settings/settings_search_row_target_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/settings/settings_search_row_target_test.dart -> 'the result names the row that matched, not just the section', 'opening a row result scrolls to it and marks it' (asserts the row's rendered rect is inside the viewport and the highlight wrapper is tinted), 'the mark fades so it is not mistaken for a state'",
+      "test": "packages/skotiq_app/test/screens/settings/settings_search_row_target_test.dart -> 'the result names the row that matched, not just the section', 'opening a row result scrolls to it and marks it' (asserts the row's rendered rect is inside the viewport and the highlight wrapper is tinted), 'the mark fades so it is not mistaken for a state'",
       "revert_check": "(a) Returned `SettingsSearchResult(section, const [])` from _searchResults -> all 3 tests FAILED. (b) Restored that and set `active: false` on the SettingRow's _HighlightedRow -> the 2 scroll/mark tests FAILED. Both restored -> 3/3 pass, and settings_search_query_test/settings_screen_test/sidebar-keyboard/phone-responsive stay green (41/41).",
       "caveats": "The generated index also holds page headings and some control labels, not only SettingRow titles, so a result whose text is not a row title opens the section without scrolling. That degrades to today's behaviour and still tells the operator which wording to look for."
     },
@@ -103,12 +103,12 @@
       "outcome": "fixed",
       "summary": "The half of 'Location has no place search' that was objectively wrong rather than a matter of taste, and which the previous pass on this findings file recommended but did not implement. Latitude/Longitude were plain SettingsNumberInputs whose digits-only inputFormatter rejected every non-numeric keystroke, so a site held in degrees-minutes-seconds — what a GPS handset, a topo map and most club site lists give you — could not be typed, and PASTING one was a silent no-op: the box did not change and nothing was said. SettingsNumberInput gained an optional `parse` hook which, when supplied, both replaces double.tryParse on commit AND lifts the digits-only formatter (the formatter is what made the paste silent) and switches the phone keyboard to text so N/S/E/W are reachable. parseSiteAngle() in location_settings.dart reads decimal degrees, D M S, D:M:S, degree/prime/double-prime marks, d/m/s unit letters and a leading or trailing hemisphere letter; it disambiguates a trailing 's' (South vs the seconds unit) by whether the string also uses d/m unit letters. It REFUSES rather than guesses — out of range, more than three components, a fraction before the last component, minutes/seconds >= 60, or a sign contradicting the hemisphere all return null, which makes the field snap back to the stored site instead of inventing one. On commit the field normalises to decimal degrees, so the operator sees that '44 3 29 N' was read as 44.058056 and not 4432.9. Both row subtitles now name the accepted forms; the search-index generator only indexes `title:`, so no regeneration was needed.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/settings/widgets/settings_widgets/settings_text_and_number_inputs.dart",
-        "packages/nightshade_app/lib/screens/settings/widgets/location_settings.dart",
-        "packages/nightshade_app/test/screens/settings/location_dms_entry_test.dart"
+        "packages/skotiq_app/lib/screens/settings/widgets/settings_widgets/settings_text_and_number_inputs.dart",
+        "packages/skotiq_app/lib/screens/settings/widgets/location_settings.dart",
+        "packages/skotiq_app/test/screens/settings/location_dms_entry_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/settings/location_dms_entry_test.dart -> 5 widget tests driving the real fields ('take a latitude in degrees, minutes and seconds', 'take a west longitude and store it negative', 'show back what they understood, in decimal degrees', 'still take plain decimal degrees', 'refuse a string they cannot read instead of inventing one') plus 3 parser tests. 8/8 pass.",
-      "revert_check": "(a) Deleted the 5-line `parse:` argument from the Latitude SettingsNumberInput in location_settings.dart (the production call site) -> 3 tests FAILED: 'take a latitude in DMS' Expected within 1e-6 of 44.058056 / Actual 0.0; 'show back what they understood' Expected '44.058056' / Actual '0'; 'refuse a string they cannot read' Actual 0.0. (b) Restored, then reverted settings_text_and_number_inputs.dart `inputFormatters: custom ? const [] : [_numberFormatter],` back to `inputFormatters: [_numberFormatter],` -> 4 tests FAILED (latitude and longitude both, because the formatter ate the notation before the parser could see it). Both restored -> 8/8 pass; packages/nightshade_app/test/screens/settings/ runs 449/449 green with --exclude-tags golden (the gate's own configuration).",
+      "test": "packages/skotiq_app/test/screens/settings/location_dms_entry_test.dart -> 5 widget tests driving the real fields ('take a latitude in degrees, minutes and seconds', 'take a west longitude and store it negative', 'show back what they understood, in decimal degrees', 'still take plain decimal degrees', 'refuse a string they cannot read instead of inventing one') plus 3 parser tests. 8/8 pass.",
+      "revert_check": "(a) Deleted the 5-line `parse:` argument from the Latitude SettingsNumberInput in location_settings.dart (the production call site) -> 3 tests FAILED: 'take a latitude in DMS' Expected within 1e-6 of 44.058056 / Actual 0.0; 'show back what they understood' Expected '44.058056' / Actual '0'; 'refuse a string they cannot read' Actual 0.0. (b) Restored, then reverted settings_text_and_number_inputs.dart `inputFormatters: custom ? const [] : [_numberFormatter],` back to `inputFormatters: [_numberFormatter],` -> 4 tests FAILED (latitude and longitude both, because the formatter ate the notation before the parser could see it). Both restored -> 8/8 pass; packages/skotiq_app/test/screens/settings/ runs 449/449 green with --exclude-tags golden (the gate's own configuration).",
       "caveats": "The Elevation field is left numeric — metres have no alternate notation. captures_landscape_test.dart's two settings goldens fail on this Linux host, but they are @Tags(['golden']) (excluded from `melos run test`), capture the 'general' section rather than Location, and fail on host-specific baselines; unrelated to this change."
     }
   ]

@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:nightshade_bridge/nightshade_bridge.dart' as bridge_error;
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
 import 'package:shelf/shelf.dart';
 
 import 'response_helpers.dart';
@@ -13,13 +13,13 @@ import 'response_helpers.dart';
 /// render `message` verbatim — so any handler interpolating a caught backend
 /// error into a user-facing string must route it through here.
 String describeBackendError(Object error) =>
-    error is bridge_error.NightshadeError
+    error is bridge_error.SkotiqError
     ? _cleanBackendErrorMessage(error)
     : error.toString();
 
 /// Extract a human-readable message from a flutter_rust_bridge
-/// [bridge_error.NightshadeError]. Its `toString()` leaks the freezed wrapper
-/// (`NightshadeError.operationFailed(field0: <msg>)`); unwrap to just `<msg>`
+/// [bridge_error.SkotiqError]. Its `toString()` leaks the freezed wrapper
+/// (`SkotiqError.operationFailed(field0: <msg>)`); unwrap to just `<msg>`
 /// so the wire response carries the actionable text a remote client should
 /// show, not the Dart class plumbing.
 ///
@@ -29,7 +29,7 @@ String describeBackendError(Object error) =>
 /// the constructor form. Without `orElse`, a variant added to the bridge union
 /// stops this function compiling instead of silently leaking again. Do not
 /// reintroduce a catch-all.
-String _cleanBackendErrorMessage(bridge_error.NightshadeError e) {
+String _cleanBackendErrorMessage(bridge_error.SkotiqError e) {
   // `deviceId` is empty on the arms where the driver did not scope the
   // failure to one device; appending "(device )" there would be noise.
   String scoped(String sentence, String deviceId) =>
@@ -136,12 +136,12 @@ String _backendErrorCode(int statusCode) => switch (statusCode) {
   _ => 'device_error',
 };
 
-/// Map a flutter_rust_bridge [bridge_error.NightshadeError] to the HTTP status
+/// Map a flutter_rust_bridge [bridge_error.SkotiqError] to the HTTP status
 /// that best describes it. Without this, every device-operation error reaching
 /// the headless error translator collapses to an opaque 500; a remote tablet
 /// needs "not supported", "not connected", "bad request" so it can react.
 /// Genuinely internal/driver faults stay 500.
-int _httpStatusForBackendError(bridge_error.NightshadeError e) {
+int _httpStatusForBackendError(bridge_error.SkotiqError e) {
   return e.maybeMap(
     notSupported: (_) => 501,
     notConnected: (_) => 409,
@@ -858,7 +858,7 @@ Middleware errorTranslationMiddleware({
           e.toJsonBody(requestId: requestId),
           statusCode: e.statusCode,
         );
-      } on bridge_error.NightshadeError catch (e, stackTrace) {
+      } on bridge_error.SkotiqError catch (e, stackTrace) {
         // Device-operation errors from the native bridge: map the structured
         // category to a meaningful HTTP status (501 not-supported, 409
         // not-connected/busy, 404 not-found, 400 bad-params, 504 timeout, 502

@@ -4,13 +4,13 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/src/database/database.dart';
-import 'package:nightshade_core/src/backend/disconnected_backend.dart';
-import 'package:nightshade_core/src/providers/backend_provider.dart';
-import 'package:nightshade_core/src/providers/database_provider.dart';
-import 'package:nightshade_core/src/providers/settings_provider.dart';
-import 'package:nightshade_core/src/providers/weather_safety_provider.dart';
-import 'package:nightshade_desktop/headless_api/handlers/safety_monitor_handlers.dart';
+import 'package:skotiq_core/src/database/database.dart';
+import 'package:skotiq_core/src/backend/disconnected_backend.dart';
+import 'package:skotiq_core/src/providers/backend_provider.dart';
+import 'package:skotiq_core/src/providers/database_provider.dart';
+import 'package:skotiq_core/src/providers/settings_provider.dart';
+import 'package:skotiq_core/src/providers/weather_safety_provider.dart';
+import 'package:skotiq_desktop/headless_api/handlers/safety_monitor_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -21,10 +21,10 @@ void main() {
   group('SafetyMonitorHandlers', () {
     late ProviderContainer container;
     late SafetyMonitorHandlers handlers;
-    late NightshadeDatabase db;
+    late SkotiqDatabase db;
 
     setUp(() async {
-      db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       container = ProviderContainer(
         overrides: [
           databaseProvider.overrideWithValue(db),

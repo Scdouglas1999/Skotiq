@@ -1,5 +1,5 @@
-name: nightshade
-repository: https://github.com/Scdouglas1999/Nightshade
+name: skotiq
+repository: https://github.com/Scdouglas1999/Skotiq
 
 packages:
   - apps/*
@@ -133,7 +133,7 @@ scripts:
     description: Enforce fail-closed backend policy checks
 
   audit:cargo-duplicates:
-    run: cd native/nightshade_native && cargo tree --duplicates --workspace
+    run: cd native/skotiq_native && cargo tree --duplicates --workspace
     description: Surface duplicate semver versions of the same crate in the Rust workspace
 
   audit:version-consistency:
@@ -190,7 +190,7 @@ scripts:
 
   audit:bridge-boundary:
     run: dart run tools/production/bridge_boundary_audit.dart
-    description: Enforce that nightshade_core is the only Dart package importing package:nightshade_bridge (architecture §1); whitelist holds reviewed exceptions
+    description: Enforce that skotiq_core is the only Dart package importing package:skotiq_bridge (architecture §1); whitelist holds reviewed exceptions
 
   audit:bridge-boundary:self-test:
     run: dart run tools/production/bridge_boundary_audit_self_test.dart
@@ -221,7 +221,7 @@ scripts:
     description: Self-test Linux release workflow audit against temporary workflow fixtures
 
   audit:manual-migration:
-    run: cd packages/nightshade_core && NIGHTSHADE_OLD_DATABASE="$PWD/test/fixtures/nightshade-v4.3.0-profile.db" flutter test tool/production_migration_probe.dart --dart-define=REQUIRE_MIGRATION_ARTIFACT=true
+    run: cd packages/skotiq_core && SKOTIQ_OLD_DATABASE="$PWD/test/fixtures/skotiq-v4.3.0-profile.db" flutter test tool/production_migration_probe.dart --dart-define=REQUIRE_MIGRATION_ARTIFACT=true
     description: Verify the release-authentic v4.3.0 profile/database migration to the current schema
 
   audit:migration-regression:
@@ -333,43 +333,43 @@ scripts:
   build:desktop:windows:
     run: |
       set -euo pipefail
-      cargo build --locked --release --manifest-path native/nightshade_native/bridge/Cargo.toml
-      dart run melos exec --scope="nightshade_desktop" -- flutter build windows --release
+      cargo build --locked --release --manifest-path native/skotiq_native/bridge/Cargo.toml
+      dart run melos exec --scope="skotiq_desktop" -- flutter build windows --release
       powershell -ExecutionPolicy Bypass -File scripts/stage_windows_release.ps1 -Profile Release
     description: Build Windows desktop app (Rust + Flutter + stage native DLLs)
 
   stage:desktop:windows:
     run: powershell -ExecutionPolicy Bypass -File scripts/stage_windows_release.ps1 -Profile Release
-    description: Copy nightshade_bridge.dll, libraw.dll, and MSVC runtime into Release output
+    description: Copy skotiq_bridge.dll, libraw.dll, and MSVC runtime into Release output
 
   build:desktop:macos:
     run: |
       set -euo pipefail
-      cargo build --locked --release --target x86_64-apple-darwin --manifest-path native/nightshade_native/bridge/Cargo.toml || cargo build --locked --release --target aarch64-apple-darwin --manifest-path native/nightshade_native/bridge/Cargo.toml
-      dart run melos exec --scope="nightshade_desktop" -- flutter build macos
+      cargo build --locked --release --target x86_64-apple-darwin --manifest-path native/skotiq_native/bridge/Cargo.toml || cargo build --locked --release --target aarch64-apple-darwin --manifest-path native/skotiq_native/bridge/Cargo.toml
+      dart run melos exec --scope="skotiq_desktop" -- flutter build macos
     description: Build macOS desktop app
 
   build:desktop:linux:
     run: |
       set -eu
-      cargo build --locked --release --manifest-path native/nightshade_native/bridge/Cargo.toml
-      dart run melos exec --scope="nightshade_desktop" -- flutter build linux
+      cargo build --locked --release --manifest-path native/skotiq_native/bridge/Cargo.toml
+      dart run melos exec --scope="skotiq_desktop" -- flutter build linux
     description: Build Linux desktop app
 
   build:mobile:android:
-    run: dart run melos exec --scope="nightshade_mobile" -- flutter build apk
+    run: dart run melos exec --scope="skotiq_mobile" -- flutter build apk
     description: Build Android app
 
   build:mobile:ios:
-    run: dart run melos exec --scope="nightshade_mobile" -- flutter build ios
+    run: dart run melos exec --scope="skotiq_mobile" -- flutter build ios
     description: Build iOS app
 
   build:mobile:ios:simulator:
-    run: dart run melos exec --scope="nightshade_mobile" -- flutter build ios --simulator
+    run: dart run melos exec --scope="skotiq_mobile" -- flutter build ios --simulator
     description: Build iOS app for simulator (no signing required)
 
   run:mobile:ios:
-    run: dart run melos exec --scope="nightshade_mobile" -- flutter run -d iphone
+    run: dart run melos exec --scope="skotiq_mobile" -- flutter run -d iphone
     description: Run iOS app on connected device or simulator
 
   generate:

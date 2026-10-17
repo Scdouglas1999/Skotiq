@@ -19,7 +19,7 @@ if (googleServicesConfigured) {
 }
 
 android {
-    namespace = "com.example.nightshade_mobile"
+    namespace = "com.skotiq.mobile"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -34,7 +34,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.nightshade.mobile"
+        applicationId = "com.skotiq.mobile"
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
@@ -97,7 +97,7 @@ dependencies {
     // launcher and Assistant.
     implementation("androidx.core:core-ktx:1.13.1")
     // Firebase Cloud Messaging client (see PushBridge.kt). Compiled in
-    // unconditionally so the `nightshade/push` channel surface always exists;
+    // unconditionally so the `skotiq/push` channel surface always exists;
     // without google-services.json FirebaseApp.initializeApp returns null and
     // registration reports `fcm_unconfigured` instead of running.
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))

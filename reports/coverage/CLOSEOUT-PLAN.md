@@ -16,7 +16,7 @@ Generated from `reports/coverage/status.json` and `inventory.json` on 2026-08-09
 > **Denominator status (task #31, assessed 2026-08-14)**: the extension this task asked
 > for LANDED on 2026-08-09 — coverage_inventory.dart now counts desktop-app, planetarium,
 > design-system, web and API trees (see the dated comment at its unit-collection block).
-> ~~What remains: (a) server/nightshade_hub is still uncounted; (b) the C3 file splits
+> ~~What remains: (a) server/skotiq_hub is still uncounted; (b) the C3 file splits
 > orphaned pre-split status.json history~~ **Closed 2026-08-14**: (a) the hub tree is
 > counted (`hub:`-prefixed path-qualified units; inventory now 1182 units / 3826
 > controls — the 28 hub files are NEW unswept denominator, honestly widening the gap);
@@ -99,7 +99,7 @@ is required, only a second process.
 * `mobile:checkpoint_resume_dialog.dart` — Shown only from _checkForCheckpoint (mobile_reconnect_ops.dart:552-583), which runs once after a connection is established and returns early unless executor.getCheckpointInfo() yie
 * `mobile:first_run_setup_screen.dart` — FirstRunSetupScreen is only mounted by mobile_dashboard_screen.dart:96 when shouldRunFirstRunSetupProvider resolves to setupNeeds.hasAnyMissing, which requires a live NetworkBacken
 * `screen:constellation/shared_target_detail_screen.dart` — Reachable only from a live Constellation hub: the screen's only entry point is a shared target published by a federated hub, and Constellation is LAN-only/self-hosted with no hub o
-* `screen:suggestions/slider_controls.dart` — Dead code. It is a `part of` suggestion_filters.dart, whose only class SuggestionFilters is referenced solely by packages/nightshade_app/test/screens/suggestions/suggestion_filters
+* `screen:suggestions/slider_controls.dart` — Dead code. It is a `part of` suggestion_filters.dart, whose only class SuggestionFilters is referenced solely by packages/skotiq_app/test/screens/suggestions/suggestion_filters
 * `settings:backup (WebDAV/S3 push and remote restore)` — no WebDAV or S3 endpoint is available to this sandbox; I exercised the three buttons only far enough to confirm they fail closed with 'Server URL is required.'
 * `settings:rig-catalogs (connected state)` — the page requires an active NetworkBackend session to a remote appliance; with no appliance paired it renders only its explanatory note, so the download/verify controls could not b
 * `settings:updates (connected state)` — same -- Appliance Updates drives /api/system/update/* on a remote rig and degrades to a note off-network. The local-desktop half is covered as a finding.
@@ -117,8 +117,8 @@ either way the answer is a code change, not another sweep.
 * `screen:suggestions/transient_alerts_panel.dart` — Dead code. `grep -rn TransientAlertsPanel packages/ --include=*.dart` returns only its own declaration at transient_alerts_panel.dart:29-30 — zero call sites, not even a test.
 * `widget:actions.dart` — `part of` widgets/focus_model_curve_card.dart. FocusModelCurveCard has zero instantiations in the desktop app: repo-wide the only non-test caller is apps/mobile/lib/screens/dashboa
 * `widget:guide_health_card.dart` — Instantiated only by apps/mobile (screens/dashboard/tabs/devices_tab.dart:101). Zero instantiations anywhere in the desktop app — the desktop Guiding screen renders its own Guide G
-* `widget:object_info_panel.dart` — Dead code - no instantiation anywhere in packages/ or apps/ (not even in tests); only the barrel export at nightshade_app.dart:37 references the file. Nothing in the running app ca
-* `widget:sequence_controls.dart` — Dead code - the only reference outside its own file is packages/nightshade_app/test/widgets/run_controls_paused_skip_test.dart:123. No screen mounts SequenceControls; the Sequencer
+* `widget:object_info_panel.dart` — Dead code - no instantiation anywhere in packages/ or apps/ (not even in tests); only the barrel export at skotiq_app.dart:37 references the file. Nothing in the running app ca
+* `widget:sequence_controls.dart` — Dead code - the only reference outside its own file is packages/skotiq_app/test/widgets/run_controls_paused_skip_test.dart:123. No screen mounts SequenceControls; the Sequencer
 * `widget:tour_selection_sheet.dart` — Dead code - zero calls to TourSelectionSheet.show anywhere, despite the file's own doc comment claiming 'Used from Settings and contextual prompts'. Verified live: Settings > Help 
 * `widget:variable_picker.dart` — Dead code - VariablePickerField has no callers outside test/widgets/variable_picker_test.dart, and VariablePickerButton is used only as that field's own suffixIcon. No sequencer te
 
@@ -224,12 +224,12 @@ Verified working on 2026-08-09. This is what unblocks the `remote-appliance` clu
 ```
 mkdir -p /tmp/ns-appliance/data
 cd apps/desktop/build/linux/x64/release/bundle
-NIGHTSHADE_DATABASE_DIR=/tmp/ns-appliance/data \
-  ./nightshade_desktop --headless --require-auth --pairing-print-codes
+SKOTIQ_DATABASE_DIR=/tmp/ns-appliance/data \
+  ./skotiq_desktop --headless --require-auth --pairing-print-codes
 ```
 
-Came up in ~1 s on `http://127.0.0.1:8080`. `NIGHTSHADE_DATABASE_DIR` does isolate the database
-(`/tmp/ns-appliance/data/nightshade.db` plus its own `pairing.db`); the "Data directory:" line the
+Came up in ~1 s on `http://127.0.0.1:8080`. `SKOTIQ_DATABASE_DIR` does isolate the database
+(`/tmp/ns-appliance/data/skotiq.db` plus its own `pairing.db`); the "Data directory:" line the
 appliance prints still points at the real application-support directory and is about catalogs and
 checkpoints, not the database — do not read it as a sign the isolation failed.
 
@@ -240,7 +240,7 @@ Two things to plan around:
   (192.168.1.20 on this machine) for anything that has to pair.
 * The client is the same binary: `--remote-host <host>:<port>`. It refuses to combine that with
   `--serve/--master`, and the single-instance lock refuses two instances sharing a database path,
-  so give the client its own `NIGHTSHADE_DATABASE_DIR` too.
+  so give the client its own `SKOTIQ_DATABASE_DIR` too.
 
 ## Adjudicated 2026-08-09 — what this list actually contains
 

@@ -21,9 +21,9 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/post_session_handlers.dart';
-import 'package:nightshade_desktop/headless_api/job_manager.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/post_session_handlers.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -31,13 +31,13 @@ import 'handler_test_helpers.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late NightshadeDatabase database;
+  late SkotiqDatabase database;
   late ProviderContainer container;
   late JobManager jobManager;
   late PostSessionHandlers handlers;
 
   setUp(() {
-    database = NightshadeDatabase.forTesting(NativeDatabase.memory());
+    database = SkotiqDatabase.forTesting(NativeDatabase.memory());
     container = ProviderContainer(
       overrides: [databaseProvider.overrideWithValue(database)],
     );

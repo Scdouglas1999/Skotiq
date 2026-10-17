@@ -1,5 +1,5 @@
 /*
- * Nightshade Run-Watch — phone/tablet web client.
+ * Skotiq Run-Watch — phone/tablet web client.
  *
  * Vanilla JS so the bundle stays tiny. Three concerns:
  *
@@ -31,16 +31,16 @@
 // ---------------------------------------------------------------------------
 // Auth + storage
 // ---------------------------------------------------------------------------
-const STORAGE_TOKEN_KEY = 'nightshade.runwatch.token';
-const STORAGE_DEVICE_ID_KEY = 'nightshade.runwatch.deviceId';
-const STORAGE_OPTS_KEY = 'nightshade.runwatch.opts';
+const STORAGE_TOKEN_KEY = 'skotiq.runwatch.token';
+const STORAGE_DEVICE_ID_KEY = 'skotiq.runwatch.deviceId';
+const STORAGE_OPTS_KEY = 'skotiq.runwatch.opts';
 /// Whether the token this device holds has ever been ACCEPTED by the desktop.
 /// A pairing exchange mints one that is accepted by construction; a token typed
 /// into the manual box has been accepted by nothing until a request carrying it
 /// comes back 2xx. Persisted so the answer survives a reload — a phone that
 /// watched a whole night on a typed token and then meets a 401 has met a
 /// revocation, not a typo.
-const STORAGE_TOKEN_ACCEPTED_KEY = 'nightshade.runwatch.tokenAccepted';
+const STORAGE_TOKEN_ACCEPTED_KEY = 'skotiq.runwatch.tokenAccepted';
 
 function getToken() {
   try { return localStorage.getItem(STORAGE_TOKEN_KEY); } catch { return null; }
@@ -107,7 +107,7 @@ function effectiveToken() {
 /// The key the dashboard keeps its bearer under, for this tab only — see
 /// `setStoredToken` in web_dashboard/js/app.js, which writes sessionStorage and
 /// scrubs the localStorage copy on every write.
-const DASHBOARD_TAB_TOKEN_KEY = 'nightshade_token';
+const DASHBOARD_TAB_TOKEN_KEY = 'skotiq_token';
 
 /// A bearer adopted from the dashboard's sessionStorage. Held for this page
 /// load only, so the dashboard's own "do not remember me" keeps meaning what
@@ -272,7 +272,7 @@ async function retryAfterSecsFrom(res) {
 /// the desktop had ever honoured it.
 function credentialRefusalText(source, token, wasAccepted) {
   if (source === 'session-cookie') {
-    return 'This browser\'s Nightshade session has ended. Sign in again on the '
+    return 'This browser\'s Skotiq session has ended. Sign in again on the '
       + 'dashboard, or pair this device with a code.';
   }
   if (source === 'dashboard-tab') {
@@ -365,7 +365,7 @@ async function apiFetch(path, opts) {
     // token the server bound to that cookie — that echo is what tells the
     // server the request came from this page rather than from a site that
     // tricked the browser into sending the cookie ambient-style.
-    headers.set('X-Nightshade-CSRF', sessionCsrfToken);
+    headers.set('X-Skotiq-CSRF', sessionCsrfToken);
   }
   if (opts.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
@@ -810,7 +810,7 @@ function codeDeliveryText(data) {
   if (delivery.operatorFile) {
     const name = typeof delivery.operatorFileName === 'string' &&
       delivery.operatorFileName ? delivery.operatorFileName : 'pairing-code.txt';
-    places.push(name + ' in the rig\'s Nightshade support folder');
+    places.push(name + ' in the rig\'s Skotiq support folder');
   }
   if (delivery.console) places.push('the rig\'s console output');
   if (places.length === 0) {
@@ -2494,7 +2494,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // device got back to it.
     showPairScreen(
       source === 'session-cookie'
-        ? 'Signed out of this browser\'s Nightshade session — the dashboard in '
+        ? 'Signed out of this browser\'s Skotiq session — the dashboard in '
           + 'this browser is signed out too. Pair with a code, or sign in again '
           + 'on the dashboard.'
         : source === 'dashboard-tab'

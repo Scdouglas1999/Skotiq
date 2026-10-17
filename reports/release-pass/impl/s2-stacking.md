@@ -86,11 +86,11 @@ states still render `—` with no unit.
 
 ## Files
 
-- `packages/nightshade_core/lib/src/services/live_stacking_service.dart`
+- `packages/skotiq_core/lib/src/services/live_stacking_service.dart`
   (+`autoStretchPreview`, +`saveMaster`, +`LiveStackingMasterSave/Format`)
-- `packages/nightshade_app/lib/screens/imaging/widgets/stacking_panel.dart`
-- `packages/nightshade_app/lib/screens/imaging/widgets/stacking_panel/stacked_preview.dart`
-- `packages/nightshade_app/lib/screens/imaging/widgets/stacking_panel/status_widgets.dart`
+- `packages/skotiq_app/lib/screens/imaging/widgets/stacking_panel.dart`
+- `packages/skotiq_app/lib/screens/imaging/widgets/stacking_panel/stacked_preview.dart`
+- `packages/skotiq_app/lib/screens/imaging/widgets/stacking_panel/status_widgets.dart`
 - tests: `stacking_panel_preview_stretch_test.dart` (new),
   `stacking_panel_stop_and_units_test.dart` (new),
   `stacking_panel_osc_test.dart` (dropped the now-deleted linear-map group),
@@ -98,11 +98,11 @@ states still render `—` with no unit.
 
 ## Test status
 
-- `flutter test test/screens/imaging` in `nightshade_app`: all green except
+- `flutter test test/screens/imaging` in `skotiq_app`: all green except
   `imaging_landscape_capture_test.dart` (3 golden captures, 21–22% whole-screen
   pixel diff on all three device sizes). That file is `@Tags(['golden'])` and is
   excluded from `melos run test`; the baselines are host-specific (Windows-captured)
   and it renders the Capture tab, not the Stack panel — pre-existing, not this batch.
-- `nightshade_core`: `live_stacking_service_config_test`,
+- `skotiq_core`: `live_stacking_service_config_test`,
   `stacking_engine_seam_test`, `stack_and_share_service_test` — 36 green.
 - `dart format` run on the touched files only; `flutter analyze` clean on them.

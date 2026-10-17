@@ -219,7 +219,7 @@ List<HeadlessRoute> buildSequencerRoutes(
   // Recovery Mode — remote-control endpoints used by the
   // mobile companion / web dashboard. Wire shape matches
   // NetworkBackend's recovery POSTs/GETs (see
-  // packages/nightshade_core/.../network_backend.dart).
+  // packages/skotiq_core/.../network_backend.dart).
   HeadlessRoute(
     HttpMethod.post,
     '/api/sequencer/recovery/try-now',

@@ -1,6 +1,6 @@
 # Plugin Best Practices
 
-Guidelines for building reliable, well-behaved Nightshade plugins.
+Guidelines for building reliable, well-behaved Skotiq plugins.
 
 ## Lifecycle Management
 
@@ -9,7 +9,7 @@ Guidelines for building reliable, well-behaved Nightshade plugins.
 Store the `PluginContext` in `onLoad` and null it out in `onUnload`. Use nullable access (`_context?.`) to guard against calls after unload.
 
 ```dart
-class MyPlugin extends NightshadePlugin {
+class MyPlugin extends SkotiqPlugin {
   PluginContext? _context;
 
   @override
@@ -157,7 +157,7 @@ Use `MAJOR.MINOR.PATCH` versioning:
 
 ### Set minAppVersion When Using New APIs
 
-If your plugin depends on features added in a specific Nightshade version, declare the minimum:
+If your plugin depends on features added in a specific Skotiq version, declare the minimum:
 
 ```dart
 @override
@@ -260,7 +260,7 @@ Create a `PluginHost` instance in your tests and register your plugin:
 
 ```dart
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_plugins/nightshade_plugins.dart';
+import 'package:skotiq_plugins/skotiq_plugins.dart';
 
 void main() {
   late PluginHost host;

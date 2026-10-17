@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_mobile/services/mobile_sequence_hooks.dart';
-import 'package:nightshade_mobile/services/notification_service.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_mobile/services/mobile_sequence_hooks.dart';
+import 'package:skotiq_mobile/services/notification_service.dart';
 
 /// Owner decision 2026-10-06: only a risk to the hardware pauses or ends a
 /// run by itself. The phone's own battery running low is not one: at 10% the
@@ -46,7 +46,7 @@ class _PauseRecordingBackend extends DisconnectedBackend {
 }
 
 class _FixedBackendNotifier extends BackendNotifier {
-  _FixedBackendNotifier(super.ref, NightshadeBackend backend) {
+  _FixedBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
   }
 }

@@ -1,4 +1,4 @@
-# iOS publish checklist — Nightshade Mobile
+# iOS publish checklist — Skotiq Mobile
 
 A tick-box checklist for taking `apps/mobile` from a repo checkout to an
 App Store release. The deep how-to lives in
@@ -11,20 +11,20 @@ cover.
 
 | Item | Value | Where it lives |
 |---|---|---|
-| Bundle ID | `com.nightshade.nightshadeMobile` | `apps/mobile/ios/Runner.xcodeproj/project.pbxproj` (`PRODUCT_BUNDLE_IDENTIFIER`) |
-| App Group | `group.com.nightshade.app` | both entitlements files |
+| Bundle ID | `com.skotiq.mobile` | `apps/mobile/ios/Runner.xcodeproj/project.pbxproj` (`PRODUCT_BUNDLE_IDENTIFIER`) |
+| App Group | `group.com.skotiq.app` | both entitlements files |
 | Debug/Profile entitlements | `aps-environment=development` | `apps/mobile/ios/Runner/Runner.entitlements` |
 | Release entitlements | `aps-environment=production` | `apps/mobile/ios/Runner/RunnerRelease.entitlements` |
-| mDNS service browsed | `_nightshade._tcp` | `Info.plist` `NSBonjourServices` |
+| mDNS service browsed | `_skotiq._tcp` | `Info.plist` `NSBonjourServices` |
 
 ## Phase 1 — Apple Developer account (one-time)
 
 - [ ] Paid Apple Developer Program membership active ($99/yr). A free team
       cannot ship App Groups, Push, or Critical Alerts — all used here
       (runbook §0).
-- [ ] App ID registered for `com.nightshade.nightshadeMobile` with
+- [ ] App ID registered for `com.skotiq.mobile` with
       capabilities: **Push Notifications**, **App Groups**.
-- [ ] App Group `group.com.nightshade.app` created in the portal and
+- [ ] App Group `group.com.skotiq.app` created in the portal and
       attached to the App ID and every extension App ID (runbook §4d).
 - [ ] **Critical Alerts entitlement requested from Apple** — this is a
       manual grant via the request form, often takes days/weeks; start it
@@ -45,7 +45,7 @@ cover.
 - [ ] Extension targets created in Xcode if this Mac hasn't built them
       before: Live Activity widget, watch complication, App Intents
       (runbook §4a–4c — these are Xcode-GUI-only steps; the Swift sources
-      are in the repo under `apps/mobile/ios/Nightshade*`).
+      are in the repo under `apps/mobile/ios/Skotiq*`).
 
 ## Phase 3 — Signing and entitlements sanity (the silent killers)
 
@@ -67,7 +67,7 @@ cover.
 
 - [ ] `flutter build ipa --release` from `apps/mobile` (runbook §7).
 - [ ] On a real device against a real (or LAN dev) server, verify:
-  - [ ] discovery finds the server (mDNS `_nightshade._tcp` + UDP beacon),
+  - [ ] discovery finds the server (mDNS `_skotiq._tcp` + UDP beacon),
   - [ ] the **Local Network permission prompt** appears on first discovery
         and the app behaves sanely if denied (manual IP entry path),
   - [ ] pairing completes; TLS fingerprint pinning accepted,
@@ -101,10 +101,10 @@ App-Review materials specific to this app — paste-ready justifications:
 - [ ] **Review notes — local network + Bonjour.** Reviewers cannot reach
       a telescope server, so explain and provide a path:
 
-      > Nightshade Mobile is a companion/remote-control app for the
-      > Nightshade astrophotography server, which runs on the user's own
+      > Skotiq Mobile is a companion/remote-control app for the
+      > Skotiq astrophotography server, which runs on the user's own
       > computer or Raspberry Pi on the same LAN. Local Network access and
-      > Bonjour (`_nightshade._tcp`) are used solely to discover and
+      > Bonjour (`_skotiq._tcp`) are used solely to discover and
       > connect to that server; no third-party devices are scanned and no
       > data leaves the local network except optional push notifications
       > the user's own server sends via APNs. The app is fully unusable

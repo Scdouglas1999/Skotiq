@@ -17,7 +17,7 @@
   {
     "area": "analytics",
     "title": "Calibration wizard prints solved RA/Dec as bare decimals with no unit",
-    "summary": "Real, and the finding's expectation was wrong in a way worth recording: it proposed 'RA 120.0000 deg', but captured_images.solved_ra is HOURS (0-24), not degrees \u2014 the plate-solve writer stores solved.raHours, the headless handler validates min:0/max:24, and star_matching reads it back as WcsSolution.raHours. The reporter's '120.0000' was seeded test data in an hours column. Rows now read 'RA 05:30:00.00  Dec +25:00:00.00' through CoordinateParser.formatRaHms / formatDecDms \u2014 the formatters nightshade_core already owns and that the MPC exporter's sexagesimal output agrees with \u2014 so the value is unambiguous and a degrees-valued seed would now be visibly out of range. The same formatting is used in the new frame inspector."
+    "summary": "Real, and the finding's expectation was wrong in a way worth recording: it proposed 'RA 120.0000 deg', but captured_images.solved_ra is HOURS (0-24), not degrees \u2014 the plate-solve writer stores solved.raHours, the headless handler validates min:0/max:24, and star_matching reads it back as WcsSolution.raHours. The reporter's '120.0000' was seeded test data in an hours column. Rows now read 'RA 05:30:00.00  Dec +25:00:00.00' through CoordinateParser.formatRaHms / formatDecDms \u2014 the formatters skotiq_core already owns and that the MPC exporter's sexagesimal output agrees with \u2014 so the value is unambiguous and a degrees-valued seed would now be visibly out of range. The same formatting is used in the new frame inspector."
   },
   {
     "area": "analytics",

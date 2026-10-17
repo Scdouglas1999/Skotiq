@@ -6,18 +6,18 @@ import WidgetKit
 
 // MARK: - Live Activity host bridge
 //
-// Dart calls into ActivityKit through the `nightshade/live_activity`
+// Dart calls into ActivityKit through the `skotiq/live_activity`
 // MethodChannel. ActivityKit landed in iOS 16.1, but
-// `NightshadeLiveActivityAttributes` (and therefore every ActivityContent we
+// `SkotiqLiveActivityAttributes` (and therefore every ActivityContent we
 // build here) is gated to iOS 16.2 because the `ActivityContent` API itself
 // is 16.2+. On devices that fall outside that gate we fail loudly via a
 // FlutterError: a silent fallback would let an operator believe Live
 // Activities are running when they are not.
 //
-// Channel name (`nightshade/live_activity`) and method/argument names MUST
+// Channel name (`skotiq/live_activity`) and method/argument names MUST
 // match `apps/mobile/lib/services/live_activity_service.dart`. Argument names
 // here also mirror the field names on
-// `NightshadeLiveActivityAttributes.ContentState` 1:1 so the host and the
+// `SkotiqLiveActivityAttributes.ContentState` 1:1 so the host and the
 // widget speak the same vocabulary end to end.
 
 @main
@@ -62,7 +62,7 @@ import WidgetKit
 
     if let controller = window?.rootViewController as? FlutterViewController {
       let channel = FlutterMethodChannel(
-        name: "nightshade/live_activity",
+        name: "skotiq/live_activity",
         binaryMessenger: controller.binaryMessenger
       )
       channel.setMethodCallHandler { [weak self] call, result in
@@ -85,13 +85,13 @@ import WidgetKit
       // sequence + weather state to the App Group `UserDefaults` suite
       // and asks WidgetKit to reload the complication timeline. The
       // watchOS extension in
-      // `apps/mobile/ios/NightshadeWatchComplication/` reads the same
+      // `apps/mobile/ios/SkotiqWatchComplication/` reads the same
       // key when its `TimelineProvider.getTimeline(...)` fires.
       //
       // Channel name + method/argument names MUST stay in lockstep with
       // `apps/mobile/lib/services/watch_complication_service.dart`.
       let watchChannel = FlutterMethodChannel(
-        name: "nightshade/watch_complication",
+        name: "skotiq/watch_complication",
         binaryMessenger: controller.binaryMessenger
       )
       watchChannel.setMethodCallHandler { [weak self] call, result in
@@ -119,7 +119,7 @@ import WidgetKit
       // `/api/push/register-token` so cellular/APNs critical alerts can reach a
       // backgrounded phone.
       let pushChannel = FlutterMethodChannel(
-        name: "nightshade/push",
+        name: "skotiq/push",
         binaryMessenger: controller.binaryMessenger
       )
       pushChannel.setMethodCallHandler { [weak self] call, result in
@@ -176,7 +176,7 @@ import WidgetKit
 
   // MARK: - APNs registration (Phase E)
 
-  /// Handles `nightshade/push` MethodChannel calls from Dart.
+  /// Handles `skotiq/push` MethodChannel calls from Dart.
   ///
   /// Methods:
   ///   * `registerForRemoteNotifications` — ask iOS to (re)issue an APNs token.
@@ -321,10 +321,10 @@ import WidgetKit
   // Shared App Group + UserDefaults pattern between the iOS host and the
   // watchOS WidgetKit extension. The suite name MUST also be set as an
   // App Group entitlement on both the Runner target and the
-  // NightshadeWatchComplication extension target in Xcode (see
-  // `apps/mobile/ios/NightshadeWatchComplication/SETUP.md`).
+  // SkotiqWatchComplication extension target in Xcode (see
+  // `apps/mobile/ios/SkotiqWatchComplication/SETUP.md`).
 
-  static let watchComplicationAppGroupSuite = "group.com.nightshade.app"
+  static let watchComplicationAppGroupSuite = "group.com.skotiq.app"
   static let watchComplicationSnapshotKey = "watch_complication_snapshot"
 
   private func handleWatchComplicationCall(
@@ -391,7 +391,7 @@ import WidgetKit
           code: "app_group_unavailable",
           message:
             "Cannot open UserDefaults(suiteName: \(AppDelegate.watchComplicationAppGroupSuite)). " +
-            "See apps/mobile/ios/NightshadeWatchComplication/SETUP.md.",
+            "See apps/mobile/ios/SkotiqWatchComplication/SETUP.md.",
           details: nil
         )
       )
@@ -428,7 +428,7 @@ import WidgetKit
       }
     } else {
       // Loud failure. iOS 16.1 and below cannot build an `ActivityContent`
-      // for our `NightshadeLiveActivityAttributes` (the type itself is
+      // for our `SkotiqLiveActivityAttributes` (the type itself is
       // 16.2-gated).
       result(
         FlutterError(
@@ -476,7 +476,7 @@ import WidgetKit
       return
     }
 
-    let attributes = NightshadeLiveActivityAttributes(
+    let attributes = SkotiqLiveActivityAttributes(
       sequenceId: sequenceId,
       targetName: targetName
     )
@@ -490,7 +490,7 @@ import WidgetKit
         FlutterError(
           code: "activities_disabled",
           message:
-            "Live Activities are disabled in iOS Settings for Nightshade. Enable them in Settings > Nightshade > Live Activities.",
+            "Live Activities are disabled in iOS Settings for Skotiq. Enable them in Settings > Skotiq > Live Activities.",
           details: nil
         )
       )
@@ -499,7 +499,7 @@ import WidgetKit
 
     do {
       let content = ActivityContent(state: state, staleDate: nil)
-      let activity = try Activity<NightshadeLiveActivityAttributes>.request(
+      let activity = try Activity<SkotiqLiveActivityAttributes>.request(
         attributes: attributes,
         content: content,
         pushType: nil
@@ -546,7 +546,7 @@ import WidgetKit
     }
     guard
       let activity = liveActivities[activityId]
-        as? Activity<NightshadeLiveActivityAttributes>
+        as? Activity<SkotiqLiveActivityAttributes>
     else {
       result(
         FlutterError(
@@ -594,7 +594,7 @@ import WidgetKit
     }
     guard
       let activity = liveActivities[activityId]
-        as? Activity<NightshadeLiveActivityAttributes>
+        as? Activity<SkotiqLiveActivityAttributes>
     else {
       // Already ended (or never tracked). Treat as a no-op success — the
       // caller's intent ("this activity should not be running") is met.
@@ -641,8 +641,8 @@ import WidgetKit
   @available(iOS 16.2, *)
   private func decodeContentState(
     _ args: [String: Any],
-    fallbackToCurrent fallback: NightshadeLiveActivityAttributes.ContentState? = nil
-  ) -> NightshadeLiveActivityAttributes.ContentState {
+    fallbackToCurrent fallback: SkotiqLiveActivityAttributes.ContentState? = nil
+  ) -> SkotiqLiveActivityAttributes.ContentState {
     let framesCompleted =
       (args["framesCompleted"] as? NSNumber)?.intValue ?? fallback?.framesCompleted ?? 0
     let framesTotal =
@@ -678,7 +678,7 @@ import WidgetKit
     let jobState =
       (args["jobState"] as? String) ?? fallback?.jobState ?? "idle"
 
-    return NightshadeLiveActivityAttributes.ContentState(
+    return SkotiqLiveActivityAttributes.ContentState(
       framesCompleted: framesCompleted,
       framesTotal: framesTotal,
       elapsedSeconds: elapsedSeconds,

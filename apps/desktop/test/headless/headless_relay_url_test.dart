@@ -8,7 +8,7 @@
 // normaliser is the load-bearing, deterministic seam, so it is what we pin.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart'
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show RelayUplink;
 
 void main() {

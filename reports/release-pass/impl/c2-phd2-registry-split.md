@@ -29,11 +29,11 @@ different things wearing one name:
 
 ## What was consolidated
 
-### Rust — `native/nightshade_native/bridge/src/api/phd2.rs`
+### Rust — `native/skotiq_native/bridge/src/api/phd2.rs`
 
 | new canonical symbol | replaces | call sites re-pointed |
 |---|---|---|
-| `phd2_client()` (private async accessor over `PHD2_CLIENT`) | the verbatim 4-line block `let mut storage = get_phd2_storage().write().await; let client = storage.as_mut().ok_or_else(\|\| NightshadeError::NotConnected("PHD2".to_string()))?;` | **21** |
+| `phd2_client()` (private async accessor over `PHD2_CLIENT`) | the verbatim 4-line block `let mut storage = get_phd2_storage().write().await; let client = storage.as_mut().ok_or_else(\|\| SkotiqError::NotConnected("PHD2".to_string()))?;` | **21** |
 | `resolve_guider_backend()` + `enum GuiderBackend { Phd2, Builtin }` | the verbatim `if is_phd2_device_id(…) { return … } if device_id == builtin_guider::device_id() { return … } Err(OperationFailed("Unsupported guider device: {}"))` chain | **11** (`api_guider_start_guiding`, `_stop`, `_dither`, `_loop`, `_find_star`, `_set_lock_position`, `_get_lock_position`, `_deselect_star`, `_get_star_image`, `_get_status`, `_get_calibration`) |
 | `pub(crate) const PHD2_DEVICE_ID` | the `"phd2_guider"` string literal | **7** — `phd2.rs` ×5 (`get_active_guider_id_for_ops` ×2, `connection_failed` ×2, the `DeviceInfo.id`, `remove_device`), `api/connection.rs:278` (`is_phd2_device_id`), `api/discovery.rs:799` (the discovery `DeviceInfo.id`) |
 
@@ -43,7 +43,7 @@ different things wearing one name:
 multi-second settle wait (`drop(storage)` → `drop(client)`); a test asserts the lock is
 released on the error path too, since `try_map` returns the guard inside its `Err`.
 
-### Dart — `packages/nightshade_core`
+### Dart — `packages/skotiq_core`
 
 `isPhd2WireToken(String)` (`lib/src/utils/device_id.dart`) is now the single source of
 truth for the four PHD2 id spellings. It is the old private `_isPhd2Token` promoted and
@@ -81,7 +81,7 @@ normalizing wrappers stay the public API, so no package surface changed.
 
 ## Skipped — owner-decision zone
 
-`packages/nightshade_bridge/lib/src/bridge_stub.dart:71` (`_isPhd2DeviceId`) is a fourth
+`packages/skotiq_bridge/lib/src/bridge_stub.dart:71` (`_isPhd2DeviceId`) is a fourth
 copy of the token list, and `bridge_stub/guiding_operations.dart` re-derives the
 `normalizedDeviceId == 'phd2_guider'` backend choice at 9 sites. Both live in the Dart
 fallback device stack that `RELEASE-PASS-2026-08-11.md` § "Owner decisions" lists as
@@ -91,7 +91,7 @@ follow-up.
 
 ## Parity tests added
 
-- `native/nightshade_native/bridge/src/api/phd2.rs` → `mod registry_split_tests` (6 tests):
+- `native/skotiq_native/bridge/src/api/phd2.rs` → `mod registry_split_tests` (6 tests):
   all four PHD2 spellings plus the degenerate `"phd2:"` resolve to `GuiderBackend::Phd2`;
   the built-in id resolves to `Builtin`; unknown ids reproduce the retired error string
   **verbatim** for the empty id, the `phd2x-not-really-phd2` near-miss, an ASCOM id, and
@@ -99,26 +99,26 @@ follow-up.
   `phd2_client()` yields `NotConnected("PHD2")` — the client id, not the device id — with
   an empty slot, and releases the write lock on that error path (a 2 s timeout would
   catch a leaked guard).
-- `packages/nightshade_core/test/utils/phd2_registry_parity_test.dart` (10 tests):
+- `packages/skotiq_core/test/utils/phd2_registry_parity_test.dart` (10 tests):
   the shared token list, the two wrappers' shared acceptances/rejections, their deliberate
   disagreement, `null` handling, and `canonicalGuiderId` round-tripping.
 
 ## Verification
 
-- `cargo build -p nightshade_bridge` — clean, no new warnings.
-- `cargo test -p nightshade_bridge` — **544 passed, 0 failed, 4 ignored**, of which 6 are
+- `cargo build -p skotiq_bridge` — clean, no new warnings.
+- `cargo test -p skotiq_bridge` — **544 passed, 0 failed, 4 ignored**, of which 6 are
   the new parity tests. Includes `device_manager::tests::disconnect_phd2_via_generic_route_calls_phd2_disconnect`,
   which pins `is_phd2_device_id` over the same four spellings.
-- `cargo test -p nightshade_imaging phd2` — 12 passed; the C1/B-fix framing, settle-waiter
+- `cargo test -p skotiq_imaging phd2` — 12 passed; the C1/B-fix framing, settle-waiter
   and JSON-RPC tests are untouched and green.
-- `cargo clippy -p nightshade_bridge --all-targets` — the only 2 warnings are pre-existing
+- `cargo clippy -p skotiq_bridge --all-targets` — the only 2 warnings are pre-existing
   and in files this batch did not touch (`device_manager/ops/weather.rs:254`,
   `sim_capture.rs:434`).
-- `cargo fmt -p nightshade_bridge -- --check` — clean.
+- `cargo fmt -p skotiq_bridge -- --check` — clean.
 - `flutter test` on `test/utils/phd2_registry_parity_test.dart`,
   `test/utils/device_id_test.dart`, `test/services/phd2_status_poll_test.dart` — 40 passed.
-- `flutter test` (full `nightshade_core` suite) — **5771 passed, 4 skipped, 0 failed**.
-- `flutter analyze lib test` (nightshade_core) — 2 pre-existing infos in
+- `flutter test` (full `skotiq_core` suite) — **5771 passed, 4 skipped, 0 failed**.
+- `flutter analyze lib test` (skotiq_core) — 2 pre-existing infos in
   `test/database/restore_clears_recovery_marker_test.dart`, unrelated.
 - `dart format --set-exit-if-changed` on the 3 touched Dart files — clean.
 
@@ -131,9 +131,9 @@ carries all 55 `api_guider_*` references.
 
 ## Files touched
 
-- `native/nightshade_native/bridge/src/api/phd2.rs`
-- `native/nightshade_native/bridge/src/api/connection.rs`
-- `native/nightshade_native/bridge/src/api/discovery.rs`
-- `packages/nightshade_core/lib/src/utils/device_id.dart`
-- `packages/nightshade_core/lib/src/services/phd2_status_poll.dart`
-- `packages/nightshade_core/test/utils/phd2_registry_parity_test.dart` (new)
+- `native/skotiq_native/bridge/src/api/phd2.rs`
+- `native/skotiq_native/bridge/src/api/connection.rs`
+- `native/skotiq_native/bridge/src/api/discovery.rs`
+- `packages/skotiq_core/lib/src/utils/device_id.dart`
+- `packages/skotiq_core/lib/src/services/phd2_status_poll.dart`
+- `packages/skotiq_core/test/utils/phd2_registry_parity_test.dart` (new)

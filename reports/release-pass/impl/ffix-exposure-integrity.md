@@ -8,7 +8,7 @@ contain the mechanism for three of the four items, to the microsecond.
 Constraints honoured: one graphify query first (it surfaced nothing useful and the
 neighbourhood was located by targeted grep from there), no GUI harness, no bundle
 rebuild, no git writes, no melos, no repo-wide formatters (`dart format` on the eleven
-files touched, `cargo fmt -p nightshade_sequencer`), no generated files, no FRB regen —
+files touched, `cargo fmt -p skotiq_sequencer`), no generated files, no FRB regen —
 no wire type was added, only an internal `ProgressUpdate` field.
 
 ---
@@ -191,30 +191,30 @@ Refutation probe: making the card ignore the tally ⇒ tests 1 and 2 fail with
 
 | suite | result |
 |---|---|
-| `cargo test -p nightshade_sequencer` | **786 + 5 + 4 + 12 passed, 0 failed** |
-| `cargo clippy -p nightshade_sequencer --all-targets` | clean (3 warnings are pre-existing, in `nightshade_imaging`) |
+| `cargo test -p skotiq_sequencer` | **786 + 5 + 4 + 12 passed, 0 failed** |
+| `cargo clippy -p skotiq_sequencer --all-targets` | clean (3 warnings are pre-existing, in `skotiq_imaging`) |
 | `cargo build --workspace` | clean |
-| `nightshade_core` `test/providers/sequence` | **611 passed** |
-| `nightshade_app` `test/screens/sequencer` | **465 passed, 2 failed** |
+| `skotiq_core` `test/providers/sequence` | **611 passed** |
+| `skotiq_app` `test/screens/sequencer` | **465 passed, 2 failed** |
 | `flutter analyze` on every file touched | clean |
 
-The two `nightshade_app` failures are `captures_landscape_test.dart`, the known
+The two `skotiq_app` failures are `captures_landscape_test.dart`, the known
 Windows-captured-goldens-on-Linux debt: 9.44 % / 7.17 % pixel diff, byte-identical to the
 figures the D-fix log recorded for the same two goldens at HEAD.
 
 ## Files
 
-Native (`native/nightshade_native/sequencer/src/`):
+Native (`native/skotiq_native/sequencer/src/`):
 `executor/trigger_context.rs`, `executor/start.rs`, `executor/tests/runtime_tests.rs`,
 `meridian_flip_executor.rs`, `instructions/frame_context.rs`, `instructions/expose.rs`,
 `node/instructions/expose.rs`, `node/progress.rs`, `flat_wizard/mod.rs`, and the five
 test files whose burst callbacks gained the third argument.
 
 Dart:
-`packages/nightshade_core/lib/src/providers/sequence/node_exposure_tally.dart` (new),
+`packages/skotiq_core/lib/src/providers/sequence/node_exposure_tally.dart` (new),
 `sequence_progress.dart`, `sequence_executor.dart`,
-`sequence_executor/event_operations.dart`, `packages/nightshade_core/lib/nightshade_core.dart`,
-`packages/nightshade_app/lib/screens/sequencer/widgets/sequence_progress_bar.dart`,
+`sequence_executor/event_operations.dart`, `packages/skotiq_core/lib/skotiq_core.dart`,
+`packages/skotiq_app/lib/screens/sequencer/widgets/sequence_progress_bar.dart`,
 `node_progress_panels.dart`, `node_progress_panels/exposure_progress_panel.dart`,
 `sequence_tree/node_item.dart`, plus the two new test files.
 

@@ -16,21 +16,21 @@
 //
 // The rule: a component that handles a tap must either describe itself with
 // `Semantics`, or delegate to a widget that does (Material's own widgets, or
-// another Nightshade component that is itself covered).
+// another Skotiq component that is itself covered).
 //
 // USAGE
 //   dart run tools/production/semantics_audit.dart
 //   dart run tools/production/semantics_audit.dart --check   # exit 1 on violation
 import 'dart:io';
 
-const _componentsDir = 'packages/nightshade_ui/lib/src/components';
+const _componentsDir = 'packages/skotiq_ui/lib/src/components';
 
 /// Widgets that carry their own accessibility semantics, so a component that
 /// merely wraps one is already covered and does not need its own annotation.
 ///
 /// Matched on a WORD BOUNDARY, which is load-bearing. A plain substring test
-/// excused `nightshade_switch.dart` because `NightshadeSwitch(` contains
-/// `Switch(`, and `nightshade_checkbox.dart` because `NightshadeCheckbox(`
+/// excused `skotiq_switch.dart` because `SkotiqSwitch(` contains
+/// `Switch(`, and `skotiq_checkbox.dart` because `SkotiqCheckbox(`
 /// contains `Checkbox(` — so the first version of this audit passed the two
 /// components it was written to catch.
 final _semanticDelegates = RegExp(
@@ -48,7 +48,7 @@ final _semanticDelegates = RegExp(
 /// Kept deliberately tiny and justified: an allowlist is how this kind of audit
 /// rots into a rubber stamp.
 const _allowed = <String, String>{
-  'nightshade_tooltip.dart':
+  'skotiq_tooltip.dart':
       'renders a hover surface for another control; the control it decorates '
       'carries the semantics.',
 };
@@ -102,7 +102,7 @@ void main(List<String> args) {
   stderr.writeln(
     '\nFix: wrap the tappable subtree in Semantics(...) describing what the '
     'control is and its current state (button:/toggled:/checked:/enabled:), and '
-    'make it focusable so keyboard traversal reaches it. See nightshade_button '
+    'make it focusable so keyboard traversal reaches it. See skotiq_button '
     'or nav_item for the established pattern.',
   );
   exit(args.contains('--check') ? 1 : 0);

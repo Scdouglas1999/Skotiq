@@ -16,9 +16,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_mobile/screens/replay/session_replay_screen.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_mobile/screens/replay/session_replay_screen.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -59,7 +59,7 @@ void main() {
     return ProviderScope(
       child: MaterialApp(
         theme: ThemeData.light().copyWith(
-          extensions: const [NightshadeColors.dark],
+          extensions: const [SkotiqColors.dark],
         ),
         home: child,
       ),

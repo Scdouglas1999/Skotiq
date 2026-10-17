@@ -11,12 +11,12 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_linux_release_package_metadata_self_test_',
+    'skotiq_linux_release_package_metadata_self_test_',
   );
   try {
     final bundle = Directory('${temp.path}/bundle');
     await bundle.create(recursive: true);
-    await File('${bundle.path}/nightshade').writeAsString('binary fixture\n');
+    await File('${bundle.path}/skotiq').writeAsString('binary fixture\n');
     await File(
       '${bundle.path}/data/flutter_assets/AssetManifest.json',
     ).create(recursive: true).then((file) => file.writeAsString('{}\n'));

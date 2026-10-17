@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_mobile/screens/replay/session_picker_screen.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_mobile/screens/replay/session_picker_screen.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 void main() {
   testWidgets('deduplicates runs while advancing by the raw page offset', (
@@ -68,7 +68,7 @@ void main() {
   });
 }
 
-Widget _app(NightshadeBackend backend) => ProviderScope(
+Widget _app(SkotiqBackend backend) => ProviderScope(
   overrides: [
     backendProvider.overrideWith(
       (ref) => _MutableBackendNotifier(ref, backend),
@@ -78,7 +78,7 @@ Widget _app(NightshadeBackend backend) => ProviderScope(
 );
 
 Widget _materialApp() => MaterialApp(
-  theme: ThemeData.dark().copyWith(extensions: const [NightshadeColors.dark]),
+  theme: ThemeData.dark().copyWith(extensions: const [SkotiqColors.dark]),
   home: const SessionPickerScreen(),
 );
 
@@ -109,9 +109,9 @@ class _PagedBackend extends NetworkBackend {
 }
 
 class _MutableBackendNotifier extends BackendNotifier {
-  _MutableBackendNotifier(super.ref, NightshadeBackend backend) {
+  _MutableBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
   }
 
-  void replace(NightshadeBackend backend) => state = backend;
+  void replace(SkotiqBackend backend) => state = backend;
 }

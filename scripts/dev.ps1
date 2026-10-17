@@ -1,4 +1,4 @@
-# Nightshade Development Build Script
+# Skotiq Development Build Script
 # =====================================
 # This script ensures all build artifacts are in sync:
 #   1. Regenerates Flutter Rust Bridge bindings
@@ -28,13 +28,13 @@ function Write-Err($msg) { Write-Host ("  [X] " + $msg) -ForegroundColor Red }
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $ScriptDir
-$NativeDir = Join-Path $ProjectRoot "native\nightshade_native"
+$NativeDir = Join-Path $ProjectRoot "native\skotiq_native"
 $DesktopDir = Join-Path $ProjectRoot "apps\desktop"
-$BridgeDir = Join-Path $ProjectRoot "packages\nightshade_bridge"
+$BridgeDir = Join-Path $ProjectRoot "packages\skotiq_bridge"
 
 Write-Host ""
 Write-Host "==================================================================" -ForegroundColor Magenta
-Write-Host "           Nightshade Development Build Script                    " -ForegroundColor Magenta
+Write-Host "           Skotiq Development Build Script                    " -ForegroundColor Magenta
 Write-Host "==================================================================" -ForegroundColor Magenta
 Write-Host ""
 
@@ -131,7 +131,7 @@ Write-Step "Building Rust native library..."
 
 Set-Location $NativeDir
 
-$cargoArgs = @("build", "--package", "nightshade_bridge", "--release")
+$cargoArgs = @("build", "--package", "skotiq_bridge", "--release")
 $BuildProfile = "release"
 
 cargo @cargoArgs
@@ -148,7 +148,7 @@ Write-Ok ("Rust library built (" + $BuildProfile + ")")
 # ---------------------------
 Write-Step "Copying native library to Flutter app..."
 
-$SourceDll = Join-Path $NativeDir ("target\" + $BuildProfile + "\nightshade_bridge.dll")
+$SourceDll = Join-Path $NativeDir ("target\" + $BuildProfile + "\skotiq_bridge.dll")
 
 if (-not (Test-Path $SourceDll)) {
     Write-Err ("Built DLL not found at: " + $SourceDll)
@@ -156,10 +156,10 @@ if (-not (Test-Path $SourceDll)) {
 }
 
 $Destinations = @(
-    (Join-Path $DesktopDir "nightshade_bridge.dll"),
-    (Join-Path $DesktopDir "windows\nightshade_bridge.dll"),
-    (Join-Path $DesktopDir "build\windows\x64\runner\Debug\nightshade_bridge.dll"),
-    (Join-Path $DesktopDir "build\windows\x64\runner\Release\nightshade_bridge.dll")
+    (Join-Path $DesktopDir "skotiq_bridge.dll"),
+    (Join-Path $DesktopDir "windows\skotiq_bridge.dll"),
+    (Join-Path $DesktopDir "build\windows\x64\runner\Debug\skotiq_bridge.dll"),
+    (Join-Path $DesktopDir "build\windows\x64\runner\Release\skotiq_bridge.dll")
 )
 
 foreach ($dest in $Destinations) {

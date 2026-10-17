@@ -1,6 +1,6 @@
 # Hub sweep findings — 2026-08-14
 
-API-driven per-unit exercise of the 28 `hub:` units under `server/nightshade_hub/lib`,
+API-driven per-unit exercise of the 28 `hub:` units under `server/skotiq_hub/lib`,
 per the hub sweep charter in CLOSEOUT-PLAN.md. A real hub instance was stood up with
 `dart run bin/server.dart` (port 18099, scratch DB/atlas under the session scratchpad,
 `--accepts-raw-subs`, strong secret) and driven through all 44 registered routes the
@@ -48,8 +48,8 @@ Three consequences:
 Expected: `login` (or `_loginHandler`) should refuse a suspended account — e.g.
 403 with a stable `accountSuspended` code — the same way `resolve` fails closed.
 
-Where: `server/nightshade_hub/lib/src/auth/account_service.dart` (`login`),
-`server/nightshade_hub/lib/src/hub_server.dart` (`_loginHandler`).
+Where: `server/skotiq_hub/lib/src/auth/account_service.dart` (`login`),
+`server/skotiq_hub/lib/src/hub_server.dart` (`_loginHandler`).
 
 ## H2 — The "counted hub tree" is not actually in inventory.json (denominator claim is hollow)
 
@@ -65,7 +65,7 @@ the committed blob).
 Cause: `tools/production/coverage_inventory.dart` line 118 routes the hub tree
 through `_treeUnits`, which drops any file where `_countControls` (Flutter/HTML
 widget-control regexes: `Switch(`, `IconButton`, `onTap:`, ...) finds nothing —
-and no file under `server/nightshade_hub/lib` matches any control pattern
+and no file under `server/skotiq_hub/lib` matches any control pattern
 (verified by grep). So all 28 hub files are silently filtered out and the
 +35-unit growth in that commit came entirely from the API-route counter. The
 denominator the plan says was "honestly widened" was not widened at all.

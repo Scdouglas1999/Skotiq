@@ -36,8 +36,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_planetarium/nightshade_planetarium.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 

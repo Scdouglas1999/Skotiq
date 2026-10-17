@@ -34,7 +34,7 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOKEN = "ota-rehearsal-admin-token-0123456789abcdef"
-OWNER, REPO = "Scdouglas1999", "Nightshade"
+OWNER, REPO = "Scdouglas1999", "Skotiq"
 
 
 # --------------------------------------------------------------------------
@@ -190,20 +190,20 @@ class Run:
             "DISPLAY": self.args.display,
             "LIBGL_ALWAYS_SOFTWARE": "1",
             "GALLIUM_DRIVER": "softpipe",
-            "NIGHTSHADE_DATA_DIR": self.data,
-            "NIGHTSHADE_DATABASE_DIR": self.db,
+            "SKOTIQ_DATA_DIR": self.data,
+            "SKOTIQ_DATABASE_DIR": self.db,
         }
         if not self.sc.get("argv_config"):
             env.update({
-                "NIGHTSHADE_HEADLESS": "1",
-                "NIGHTSHADE_PORT": str(self.port),
-                "NIGHTSHADE_AUTH_TOKEN": TOKEN,
+                "SKOTIQ_HEADLESS": "1",
+                "SKOTIQ_PORT": str(self.port),
+                "SKOTIQ_AUTH_TOKEN": TOKEN,
             })
         return env
 
     def launch(self, label):
         log = open(os.path.join(self.dir, f"app-{label}.log"), "ab")
-        cmd = [os.path.join(self.install, "nightshade")]
+        cmd = [os.path.join(self.install, "skotiq")]
         if self.sc.get("argv_config"):
             cmd += ["--headless", f"--port={self.port}", f"--auth-token={TOKEN}"]
         proc = subprocess.Popen(cmd, env=self.env(), stdout=log, stderr=log,
@@ -376,7 +376,7 @@ def run_scenario(args, sc):
     run.ev["marker_after"] = open(marker).read().strip() if os.path.exists(marker) else None
     run.ev["install_is_N"] = run.old_build_intact()
     run.ev["updates_dir_after"] = run.staging_listing()
-    err_log = os.path.join(run.tmp, "nightshade_update_error.log")
+    err_log = os.path.join(run.tmp, "skotiq_update_error.log")
     if os.path.exists(err_log):
         run.ev["updater_error_log"] = open(err_log, errors="replace").read()[-3000:]
     for hook in sc.get("after_apply", []):
@@ -386,7 +386,7 @@ def run_scenario(args, sc):
 
 def pre_hook(run, hook):
     if hook == "readonly_install":
-        # What ProtectSystem=strict does to /opt/nightshade in the appliance
+        # What ProtectSystem=strict does to /opt/skotiq in the appliance
         # unit: the service user cannot write its own install.
         subprocess.run(["mount", "--bind", run.install, run.install], check=True)
         subprocess.run(["mount", "-o", "remount,bind,ro", run.install], check=True)
@@ -405,13 +405,13 @@ def pre_apply_hook(run, hook):
         # Staged tree changed after verification: the Rust updater's own
         # post-apply hash check is what must catch it.
         target = os.path.join(run.data, "updates", "staging", "extracted",
-                              "nightshade_desktop")
+                              "skotiq_desktop")
         with open(target, "r+b") as fh:
             fh.seek(4096)
             b = fh.read(1)
             fh.seek(4096)
             fh.write(bytes([b[0] ^ 0xFF]))
-        run.step("flipped one byte in staged nightshade_desktop")
+        run.step("flipped one byte in staged skotiq_desktop")
 
 
 def after_apply_hook(run, hook, outcome):

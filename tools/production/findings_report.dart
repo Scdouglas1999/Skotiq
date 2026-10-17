@@ -116,8 +116,8 @@ void main(List<String> args) {
   final buf = StringBuffer()
     ..writeln(
       kinds.contains('defect')
-          ? '# Nightshade sweep — findings'
-          : '# Nightshade sweep — product critique\n\n'
+          ? '# Skotiq sweep — findings'
+          : '# Skotiq sweep — product critique\n\n'
                 'Not defects. These are places the app works as built and the design '
                 'is wrong: a default everyone must change, a flow that costs more '
                 'clicks than it should, something a user reaches for and does not '

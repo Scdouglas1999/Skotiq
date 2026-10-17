@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Build a flashable Raspberry Pi OS Lite (arm64) image with the Nightshade
+# Build a flashable Raspberry Pi OS Lite (arm64) image with the Skotiq
 # headless appliance pre-installed.
 #
 # Approach: loopback-mount surgery on an official base image (no pi-gen
 # checkout, no chroot required for the core path). We:
 #   1. copy + decompress the base image, grow the rootfs partition,
-#   2. drop the (pre-built, arm64) release bundle into /opt/nightshade,
+#   2. drop the (pre-built, arm64) release bundle into /opt/skotiq,
 #   3. install the hardened systemd unit from ../systemd/, an env file with
 #      a freshly generated auth token, astronomy USB udev rules,
-#      sysusers/tmpfiles fragments that create the `nightshade` user on first boot,
+#      sysusers/tmpfiles fragments that create the `skotiq` user on first boot,
 #   4. install the first-boot setup service (installs xvfb/xauth if missing) and
 #      the Wi-Fi hotspot fallback provisioning service (provisioning/),
 #   5. enable everything via wants-symlinks (no systemctl needed offline).
@@ -16,9 +16,9 @@
 # Usage (run as root — loop mounts):
 #   sudo ./build_pi_image.sh \
 #     --base-image  ~/Downloads/2025-05-13-raspios-bookworm-arm64-lite.img.xz \
-#     --bundle-tarball /path/to/nightshade-linux-arm64-<ver>.tar.gz \
-#     --out         ./nightshade-pi-arm64.img \
-#     [--hostname nightshade] [--grow-mb 2048] \
+#     --bundle-tarball /path/to/skotiq-linux-arm64-<ver>.tar.gz \
+#     --out         ./skotiq-pi-arm64.img \
+#     [--hostname skotiq] [--grow-mb 2048] \
 #     [--user pi --password 'raspberry'] [--enable-ssh] \
 #     [--wifi-country US] [--allow-arch-mismatch]
 #
@@ -37,7 +37,7 @@
 #        docker run --rm -v "$PWD":/host:ro -v "$PWD/dist-linux":/out \
 #          ghcr.io/cirruslabs/flutter:stable bash /host/scripts/docker_build_linux.sh
 #      (the bundle lands under build/linux/arm64/release/bundle on arm64
-#       hosts and emits nightshade-linux-arm64-<version>.tar.gz),
+#       hosts and emits skotiq-linux-arm64-<version>.tar.gz),
 #   or
 #   b) run the same container under emulation on this x86_64 box
 #      (qemu-user-static + binfmt, `docker run --platform linux/arm64 ...`).
@@ -54,7 +54,7 @@ SYSTEMD_SRC_DIR="$SCRIPT_DIR/../systemd"
 BASE_IMAGE=""
 BUNDLE_TARBALL=""
 OUT_IMAGE=""
-NEW_HOSTNAME="nightshade"
+NEW_HOSTNAME="skotiq"
 GROW_MB=2048
 PI_USER=""
 PI_PASSWORD=""
@@ -93,7 +93,7 @@ for tool in losetup sfdisk e2fsck resize2fs truncate readelf rsync tar; do
 done
 
 # ── 0. Verify the bundle architecture BEFORE touching the image ─────────────
-WORK="$(mktemp -d /tmp/nightshade-pi.XXXXXX)"
+WORK="$(mktemp -d /tmp/skotiq-pi.XXXXXX)"
 LOOPDEV=""
 ROOT_MNT=""
 cleanup() {
@@ -109,15 +109,15 @@ trap cleanup EXIT
 echo "== [0/7] bundle architecture check =="
 mkdir -p "$WORK/bundle"
 tar -xzf "$BUNDLE_TARBALL" -C "$WORK/bundle"
-BUNDLE_EXE="$WORK/bundle/nightshade_desktop"
-[ -f "$BUNDLE_EXE" ] || { echo "ERROR: nightshade_desktop missing from tarball" >&2; exit 1; }
+BUNDLE_EXE="$WORK/bundle/skotiq_desktop"
+[ -f "$BUNDLE_EXE" ] || { echo "ERROR: skotiq_desktop missing from tarball" >&2; exit 1; }
 ELF_MACHINE="$(readelf -h "$BUNDLE_EXE" | awk -F: '/Machine/ {gsub(/^[ \t]+/, "", $2); print $2}')"
 echo "Bundle ELF machine: $ELF_MACHINE"
 if ! printf '%s' "$ELF_MACHINE" | grep -qi 'aarch64'; then
   if [ "$ALLOW_ARCH_MISMATCH" -eq 1 ]; then
     echo "WARNING: bundle is NOT aarch64 ($ELF_MACHINE) — continuing because"
     echo "         --allow-arch-mismatch was passed. The image WILL NOT run"
-    echo "         Nightshade on a Pi. Plumbing dry-run only."
+    echo "         Skotiq on a Pi. Plumbing dry-run only."
   else
     echo "ERROR: bundle is '$ELF_MACHINE', not aarch64. A Raspberry Pi image" >&2
     echo "needs an arm64 build — see the header of this script for the two" >&2
@@ -162,84 +162,84 @@ BOOT_MNT="$ROOT_MNT/boot/firmware"
 mount "$BOOT_PART" "$BOOT_MNT"
 
 # ── 4. Install the application + unit + config ──────────────────────────────
-echo "== [4/7] install Nightshade =="
-install -d -m 0755 "$ROOT_MNT/opt/nightshade/bundle" "$ROOT_MNT/etc/nightshade"
-rsync -a "$WORK/bundle/" "$ROOT_MNT/opt/nightshade/bundle/"
-chown -R 0:0 "$ROOT_MNT/opt/nightshade"
+echo "== [4/7] install Skotiq =="
+install -d -m 0755 "$ROOT_MNT/opt/skotiq/bundle" "$ROOT_MNT/etc/skotiq"
+rsync -a "$WORK/bundle/" "$ROOT_MNT/opt/skotiq/bundle/"
+chown -R 0:0 "$ROOT_MNT/opt/skotiq"
 
 # systemd unit (shared with the bare-metal install) + a Pi drop-in that
 # orders it after the first-boot setup (which installs xvfb/xauth on first boot
 # when it was not baked in below).
-install -m 0644 "$SYSTEMD_SRC_DIR/nightshade-headless.service" \
-  "$ROOT_MNT/etc/systemd/system/nightshade-headless.service"
+install -m 0644 "$SYSTEMD_SRC_DIR/skotiq-headless.service" \
+  "$ROOT_MNT/etc/systemd/system/skotiq-headless.service"
 install -d "$ROOT_MNT/etc/udev/rules.d"
-install -m 0644 "$SYSTEMD_SRC_DIR/99-nightshade-astro.rules" \
-  "$ROOT_MNT/etc/udev/rules.d/99-nightshade-astro.rules"
+install -m 0644 "$SYSTEMD_SRC_DIR/99-skotiq-astro.rules" \
+  "$ROOT_MNT/etc/udev/rules.d/99-skotiq-astro.rules"
 # Static Avahi advertisement so the appliance is discoverable over real mDNS,
 # not just the UDP broadcast beacon. RPi OS Lite ships avahi-daemon, so the
 # service file is picked up at boot with no extra package. (The in-app `nsd`
-# mDNS path has no Linux implementation — see ../avahi/nightshade.service.)
+# mDNS path has no Linux implementation — see ../avahi/skotiq.service.)
 install -d -m 0755 "$ROOT_MNT/etc/avahi/services"
-install -m 0644 "$SCRIPT_DIR/../avahi/nightshade.service" \
-  "$ROOT_MNT/etc/avahi/services/nightshade.service"
-install -d "$ROOT_MNT/etc/systemd/system/nightshade-headless.service.d"
-cat > "$ROOT_MNT/etc/systemd/system/nightshade-headless.service.d/pi.conf" <<'EOF'
+install -m 0644 "$SCRIPT_DIR/../avahi/skotiq.service" \
+  "$ROOT_MNT/etc/avahi/services/skotiq.service"
+install -d "$ROOT_MNT/etc/systemd/system/skotiq-headless.service.d"
+cat > "$ROOT_MNT/etc/systemd/system/skotiq-headless.service.d/pi.conf" <<'EOF'
 # Pi appliance ordering: first boot must finish (xvfb/xauth install, user
 # creation via sysusers) before the daemon starts.
 [Unit]
-Wants=nightshade-firstboot.service
-After=nightshade-firstboot.service
+Wants=skotiq-firstboot.service
+After=skotiq-firstboot.service
 EOF
 
 # Env file with a freshly generated auth token (mode fixed up at first boot
-# by tmpfiles below, since the nightshade gid does not exist yet).
+# by tmpfiles below, since the skotiq gid does not exist yet).
 TOKEN="$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
-sed "s/^NIGHTSHADE_AUTH_TOKEN=.*/NIGHTSHADE_AUTH_TOKEN=$TOKEN/" \
-  "$SYSTEMD_SRC_DIR/headless.env.example" > "$ROOT_MNT/etc/nightshade/headless.env"
-chmod 0600 "$ROOT_MNT/etc/nightshade/headless.env"
-echo "Generated auth token (also in /etc/nightshade/headless.env on the image):"
+sed "s/^SKOTIQ_AUTH_TOKEN=.*/SKOTIQ_AUTH_TOKEN=$TOKEN/" \
+  "$SYSTEMD_SRC_DIR/headless.env.example" > "$ROOT_MNT/etc/skotiq/headless.env"
+chmod 0600 "$ROOT_MNT/etc/skotiq/headless.env"
+echo "Generated auth token (also in /etc/skotiq/headless.env on the image):"
 echo "  $TOKEN"
 
 # Create the service user at first boot, host-side-uid-free: sysusers makes
 # the user, tmpfiles fixes ownership/modes that need the new uid/gid. The
-# unit's StateDirectory=nightshade handles /var/lib/nightshade itself.
-cat > "$ROOT_MNT/etc/sysusers.d/nightshade.conf" <<'EOF'
-u nightshade - "Nightshade appliance" /var/lib/nightshade
-m nightshade dialout
-m nightshade video
-m nightshade plugdev
+# unit's StateDirectory=skotiq handles /var/lib/skotiq itself.
+cat > "$ROOT_MNT/etc/sysusers.d/skotiq.conf" <<'EOF'
+u skotiq - "Skotiq appliance" /var/lib/skotiq
+m skotiq dialout
+m skotiq video
+m skotiq plugdev
 EOF
-cat > "$ROOT_MNT/etc/tmpfiles.d/nightshade.conf" <<'EOF'
-z /etc/nightshade/headless.env 0640 root nightshade -
+cat > "$ROOT_MNT/etc/tmpfiles.d/skotiq.conf" <<'EOF'
+z /etc/skotiq/headless.env 0640 root skotiq -
 EOF
 
 # ── 5. First-boot setup + Wi-Fi provisioning ─────────────────────────────────
 echo "== [5/7] first-boot + provisioning services =="
-install -d -m 0755 "$ROOT_MNT/usr/local/lib/nightshade"
-install -m 0755 "$SCRIPT_DIR/firstboot/nightshade-firstboot.sh" \
-  "$ROOT_MNT/usr/local/lib/nightshade/nightshade-firstboot.sh"
-install -m 0644 "$SCRIPT_DIR/firstboot/nightshade-firstboot.service" \
-  "$ROOT_MNT/etc/systemd/system/nightshade-firstboot.service"
-install -m 0755 "$SCRIPT_DIR/provisioning/nightshade-netprovision.sh" \
-  "$ROOT_MNT/usr/local/lib/nightshade/nightshade-netprovision.sh"
+install -d -m 0755 "$ROOT_MNT/usr/local/lib/skotiq"
+install -m 0755 "$SCRIPT_DIR/firstboot/skotiq-firstboot.sh" \
+  "$ROOT_MNT/usr/local/lib/skotiq/skotiq-firstboot.sh"
+install -m 0644 "$SCRIPT_DIR/firstboot/skotiq-firstboot.service" \
+  "$ROOT_MNT/etc/systemd/system/skotiq-firstboot.service"
+install -m 0755 "$SCRIPT_DIR/provisioning/skotiq-netprovision.sh" \
+  "$ROOT_MNT/usr/local/lib/skotiq/skotiq-netprovision.sh"
 install -m 0755 "$SCRIPT_DIR/provisioning/provision_portal.py" \
-  "$ROOT_MNT/usr/local/lib/nightshade/provision_portal.py"
-install -m 0644 "$SCRIPT_DIR/provisioning/nightshade-netprovision.service" \
-  "$ROOT_MNT/etc/systemd/system/nightshade-netprovision.service"
+  "$ROOT_MNT/usr/local/lib/skotiq/provision_portal.py"
+install -m 0644 "$SCRIPT_DIR/provisioning/skotiq-netprovision.service" \
+  "$ROOT_MNT/etc/systemd/system/skotiq-netprovision.service"
 # Poor-man's captive portal: while the NM hotspot is up, its shared-mode
 # dnsmasq resolves EVERY name to the portal address so phones pop the
 # "sign in to network" sheet. Harmless when no hotspot is active.
 install -d "$ROOT_MNT/etc/NetworkManager/dnsmasq-shared.d"
-cat > "$ROOT_MNT/etc/NetworkManager/dnsmasq-shared.d/nightshade-captive.conf" <<'EOF'
+cat > "$ROOT_MNT/etc/NetworkManager/dnsmasq-shared.d/skotiq-captive.conf" <<'EOF'
 address=/#/10.42.0.1
 EOF
 
 # Enable units offline (equivalent of `systemctl enable`).
 WANTS="$ROOT_MNT/etc/systemd/system/multi-user.target.wants"
 install -d "$WANTS"
-ln -sf /etc/systemd/system/nightshade-headless.service "$WANTS/"
-ln -sf /etc/systemd/system/nightshade-firstboot.service "$WANTS/"
-ln -sf /etc/systemd/system/nightshade-netprovision.service "$WANTS/"
+ln -sf /etc/systemd/system/skotiq-headless.service "$WANTS/"
+ln -sf /etc/systemd/system/skotiq-firstboot.service "$WANTS/"
+ln -sf /etc/systemd/system/skotiq-netprovision.service "$WANTS/"
 
 # Optional: bake xvfb/xauth into the image now via qemu-user-static chroot, so
 # first boot does not need to apt-get it. Best-effort — skipped (with a
@@ -286,7 +286,7 @@ fi
 if [ -n "$WIFI_COUNTRY" ]; then
   # Regulatory domain — required before the Pi will transmit as an AP.
   sed -i "/^REGDOMAIN=/d" "$ROOT_MNT/etc/default/crda" 2>/dev/null || true
-  echo "country=$WIFI_COUNTRY" > "$ROOT_MNT/etc/nightshade/wifi-country"
+  echo "country=$WIFI_COUNTRY" > "$ROOT_MNT/etc/skotiq/wifi-country"
   if ! grep -q 'cfg80211.ieee80211_regdom' "$BOOT_MNT/cmdline.txt"; then
     sed -i "1s/\$/ cfg80211.ieee80211_regdom=$WIFI_COUNTRY/" "$BOOT_MNT/cmdline.txt"
   fi
@@ -310,5 +310,5 @@ echo "DONE -> $OUT_IMAGE"
 echo "Flash:   sudo dd if=$OUT_IMAGE of=/dev/sdX bs=4M conv=fsync status=progress"
 echo "         (or use rpi-imager / balenaEtcher)"
 echo "First boot: if no known Wi-Fi joins within 90 s, look for the"
-echo "'Nightshade-XXXX' hotspot (password: nightshade) and browse to"
+echo "'Skotiq-XXXX' hotspot (password: skotiq) and browse to"
 echo "http://10.42.0.1 to enter your home Wi-Fi credentials."

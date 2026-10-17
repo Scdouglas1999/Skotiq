@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Uninstall the Nightshade headless appliance.
+# Uninstall the Skotiq headless appliance.
 #
 # Usage:
-#   sudo ./uninstall.sh           # remove service + /opt/nightshade, keep data
-#   sudo ./uninstall.sh --purge   # also delete /var/lib/nightshade,
-#                                 # /etc/nightshade and the service user
+#   sudo ./uninstall.sh           # remove service + /opt/skotiq, keep data
+#   sudo ./uninstall.sh --purge   # also delete /var/lib/skotiq,
+#                                 # /etc/skotiq and the service user
 set -euo pipefail
 
-UNIT_NAME=nightshade-headless.service
-SERVICE_USER=nightshade
-UDEV_RULE_NAME=99-nightshade-astro.rules
+UNIT_NAME=skotiq-headless.service
+SERVICE_USER=skotiq
+UDEV_RULE_NAME=99-skotiq-astro.rules
 PURGE=0
 
 case "${1:-}" in
@@ -30,7 +30,7 @@ rm -f "/etc/systemd/system/$UNIT_NAME"
 systemctl daemon-reload
 
 echo "== removing application bundle =="
-rm -rf /opt/nightshade
+rm -rf /opt/skotiq
 rm -f "/etc/udev/rules.d/$UDEV_RULE_NAME"
 if command -v udevadm >/dev/null 2>&1; then
   udevadm control --reload-rules || true
@@ -38,14 +38,14 @@ fi
 
 if [ "$PURGE" -eq 1 ]; then
   echo "== purging data, config and user =="
-  rm -rf /var/lib/nightshade /etc/nightshade
+  rm -rf /var/lib/skotiq /etc/skotiq
   if id -u "$SERVICE_USER" >/dev/null 2>&1; then
     userdel "$SERVICE_USER" || true
   fi
   echo "Purged. All captured-image metadata, pairing DB and tokens are gone."
 else
-  echo "Kept /var/lib/nightshade (sequences, pairing DB, logs) and"
-  echo "/etc/nightshade (tokens). Re-run with --purge to delete them."
+  echo "Kept /var/lib/skotiq (sequences, pairing DB, logs) and"
+  echo "/etc/skotiq (tokens). Re-run with --purge to delete them."
 fi
 
 echo "Done."

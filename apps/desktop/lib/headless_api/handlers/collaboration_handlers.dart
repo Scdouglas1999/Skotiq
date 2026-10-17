@@ -17,8 +17,8 @@ library;
 
 import 'dart:developer' as developer;
 
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shelf/shelf.dart';
 
 import '../request_context.dart';

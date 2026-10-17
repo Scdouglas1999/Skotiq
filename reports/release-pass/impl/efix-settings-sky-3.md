@@ -25,7 +25,7 @@ auditor caught: `Right` → "step 6 of 12: Weather Status", `Right` → "step 11
 is only attached inside `dashboard_widget_registry`'s weather tile, and
 `dashboard_sequence_widget` is attached NOWHERE in the tree.)
 
-**Fix** (`packages/nightshade_app/lib/widgets/tutorial_overlay.dart`):
+**Fix** (`packages/skotiq_app/lib/widgets/tutorial_overlay.dart`):
 the helper now scans the whole run in the direction of travel and returns the
 first *landable* index (a step with no target, or with a live one); the overlay
 moves with `notifier.goToStep(target)` instead of repeated `nextStep()`. No
@@ -60,7 +60,7 @@ selected row's rect lies inside the picker's rect. Verified to FAIL with the
 ## WE-SP-2 — the swallowed nav click after "Reset All Progress"
 
 Root cause found in the auditor's own screenshots: `s43-afterreset.png` shows the
-**first-launch tour overlay** ("Step 1 of 7 — Welcome to Nightshade") on screen —
+**first-launch tour overlay** ("Step 1 of 7 — Welcome to Skotiq") on screen —
 `Reset All Progress` calls `onboardingTourProvider.reset()`, which flips the
 status to `pending` and `OnboardingTourReplayLauncher` mounts `OnboardingOverlay`
 over the app. The next click landed on its scrim, which was wired to `_skip`: the
@@ -79,7 +79,7 @@ Test: `test/widgets/onboarding_overlay_test.dart`, group `WE-SP-2` — a tap at
 ## WE-SP-3 — pairing empty state at 1.31:1
 
 `pairing_screen.dart` painted "Start pairing mode to connect a device" with
-`colorScheme.outline` (a border colour). Now `NightshadeColors.textSecondary`.
+`colorScheme.outline` (a border colour). Now `SkotiqColors.textSecondary`.
 Test `pairing_card_semantics_test.dart` computes the WCAG ratio against
 `colors.surface` and requires ≥ 4.5:1, and asserts the colour is not `outline`.
 
@@ -89,7 +89,7 @@ Test `pairing_card_semantics_test.dart` computes the WCAG ratio against
   get `Semantics(container: true)`, so they stop merging into the neighbouring
   button node. (Flutter merges compatible sibling label fragments into the
   nearest enclosing node; that node was a button.)
-* The copy control is now `_CopyCodeButton` — a named `NightshadeButton` ("Copy
+* The copy control is now `_CopyCodeButton` — a named `SkotiqButton` ("Copy
   code" → "Pairing code copied to clipboard" for 3 s) instead of a bare
   `IconButton` whose tooltip named nothing.
 * The confirmation no longer waits on `Clipboard.setData`. Awaiting the platform
@@ -111,7 +111,7 @@ scrolls clear of the floating prompt. Test:
 ## D-2 — tooltips never left the a11y tree
 
 Two mechanisms, both closed in
-`packages/nightshade_ui/lib/src/components/nightshade_tooltip.dart`:
+`packages/skotiq_ui/lib/src/components/skotiq_tooltip.dart`:
 
 1. the overlay was retired inside `_animController.reverse().then(...)`, and a
    `TickerFuture` whose ticker is cancelled never completes — so a second hide,
@@ -125,9 +125,9 @@ Two mechanisms, both closed in
    `ExcludeSemantics`, and the message rides on the TRIGGER as
    `Semantics(tooltip:)` — which cannot outlive the control it describes.
 
-Test: `packages/nightshade_ui/test/nightshade_tooltip_stale_node_test.dart`
-(4 cases). The pre-existing `nightshade_tooltip_lifecycle_test.dart` /
-`_anchor_` / `_edge_` tests still pass — full `nightshade_ui` suite: 312 passed.
+Test: `packages/skotiq_ui/test/skotiq_tooltip_stale_node_test.dart`
+(4 cases). The pre-existing `skotiq_tooltip_lifecycle_test.dart` /
+`_anchor_` / `_edge_` tests still pass — full `skotiq_ui` suite: 312 passed.
 
 ## D-3 — the search box and the readout strip published themselves DISABLED
 
@@ -180,7 +180,7 @@ nothing readable: the child `Text('5m')` was excluded and `value` never reaches
 AT-SPI (the refuter's probe found no Value interface and an empty description).
 The name is now `'$label $value'` — "Time: 5m" — with `value` still set for
 platforms that read it. Test:
-`packages/nightshade_ui/test/guide_graph_scale_selector_semantics_test.dart`
+`packages/skotiq_ui/test/guide_graph_scale_selector_semantics_test.dart`
 asserts label AND value in the accessible NAME, and that the node is still an
 enabled button.
 
@@ -190,10 +190,10 @@ enabled button.
 
 | suite | result |
 | --- | --- |
-| `packages/nightshade_ui` (full) | 312 passed |
-| `packages/nightshade_planetarium` (full) | 559 passed, 1 failed — `test/benchmark/golden_compare_test.dart` |
-| `nightshade_app` `test/screens/planetarium`, `test/screens/onboarding`, `test/widgets` | 610 passed, 2 failed — both `onboarding/captures_landscape_test.dart` goldens |
-| `nightshade_app` `test/screens/settings`, `test/screens/dashboard` | 684 passed, 6 failed — all `dashboard/captures_landscape_test.dart` goldens |
+| `packages/skotiq_ui` (full) | 312 passed |
+| `packages/skotiq_planetarium` (full) | 559 passed, 1 failed — `test/benchmark/golden_compare_test.dart` |
+| `skotiq_app` `test/screens/planetarium`, `test/screens/onboarding`, `test/widgets` | 610 passed, 2 failed — both `onboarding/captures_landscape_test.dart` goldens |
+| `skotiq_app` `test/screens/settings`, `test/screens/dashboard` | 684 passed, 6 failed — all `dashboard/captures_landscape_test.dart` goldens |
 
 **The 9 failures are pre-existing Linux golden/benchmark failures, not this
 batch.** `captures_*` goldens were captured 2026-06-05 / 2026-07-20 on Windows
@@ -209,6 +209,6 @@ Around 21:47 local the working tree was reverted underneath this agent (tracked
 files snapped back to HEAD; untracked files survived) and several `git`/`sed`
 reads returned stale content for a few minutes. Edits were re-applied and every
 one was re-verified by content grep afterwards — see the marker sweep in the
-session. One casualty: `packages/nightshade_ui/test/nightshade_tooltip_lifecycle_test.dart`
+session. One casualty: `packages/skotiq_ui/test/skotiq_tooltip_lifecycle_test.dart`
 was briefly overwritten by this agent; it was restored from HEAD verbatim and the
-new cases live in `nightshade_tooltip_stale_node_test.dart` instead.
+new cases live in `skotiq_tooltip_stale_node_test.dart` instead.

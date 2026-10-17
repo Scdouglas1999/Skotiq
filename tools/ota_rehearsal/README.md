@@ -27,7 +27,7 @@ hook for pointing it elsewhere, and needs none.
 | File | What it does |
 |------|--------------|
 | `make_keys.py` | Throwaway Ed25519 keypair (same formats as the CI secrets), a second "wrong" key, and a rehearsal CA + server certificate. |
-| `build_bundle.sh` | One Linux bundle, step for step as the `linux` job in `.github/workflows/release.yml` builds it (bridge, `--dart-define=NIGHTSHADE_UPDATE_PUBLIC_KEY`, libraw, launcher, `updater`, license files), copied out so N and N+1 can coexist. |
+| `build_bundle.sh` | One Linux bundle, step for step as the `linux` job in `.github/workflows/release.yml` builds it (bridge, `--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY`, libraw, launcher, `updater`, license files), copied out so N and N+1 can coexist. |
 | `package_release.sh` | Packages and signs one target through `tool/build_update_manifest.dart` with the arguments CI passes, including the per-tag download URL. |
 | `prepare_linux.sh` | Builds every release the scenarios serve (good, tampered, wrong key, unsigned, misnamed, other platform only, downgrade, a build that cannot start) and writes `scenarios.json`. |
 | `fake_github.py` | The three GitHub hosts on one TLS port: releases API, the 302 from `github.com`, asset bytes with Range support, and truncate / drop / stall modes. Logs every request. |
@@ -91,10 +91,10 @@ The same fake GitHub serves APKs to a rooted emulator (a `google_apis`
 image, not `google_play`):
 
 ```bash
-# N and N+1 from one throwaway keystore (never ~/Documents/Nightshade-signing)
+# N and N+1 from one throwaway keystore (never ~/Documents/Skotiq-signing)
 tools/ota_rehearsal/build_apk.sh 7.1.92 92 $R/keys/update_public.b64 $R/android-keystore $R/builds/apk/n.apk
-tools/ota_rehearsal/build_apk.sh 7.1.93 93 $R/keys/update_public.b64 $R/android-keystore $R/builds/apk/nightshade-7.1.93-android-x86_64.apk
-tools/ota_rehearsal/package_release.sh $R/builds/apk/nightshade-7.1.93-android-x86_64.apk 7.1.93 93 android x64 $R/dist/android $R/keys/update_private.b64
+tools/ota_rehearsal/build_apk.sh 7.1.93 93 $R/keys/update_public.b64 $R/android-keystore $R/builds/apk/skotiq-7.1.93-android-x86_64.apk
+tools/ota_rehearsal/package_release.sh $R/builds/apk/skotiq-7.1.93-android-x86_64.apk 7.1.93 93 android x64 $R/dist/android $R/keys/update_private.b64
 
 emulator -avd <avd> -no-window -no-audio -port 5584 -read-only &
 python3 tools/ota_rehearsal/fake_github.py --port 18443 --scenario <scenario.json> \

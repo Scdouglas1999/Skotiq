@@ -9,7 +9,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_docs_link_audit_self_test_',
+    'skotiq_docs_link_audit_self_test_',
   );
   try {
     await _writePassingFixture(temp);

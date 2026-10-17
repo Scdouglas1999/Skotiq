@@ -11,7 +11,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_oversized_file_audit_self_test_',
+    'skotiq_oversized_file_audit_self_test_',
   );
   try {
     await _writeFixture(temp);
@@ -80,7 +80,7 @@ Future<void> main() async {
         .cast<Map<String, dynamic>>();
     _expect(
       priorityCandidates.single['path'] ==
-              'packages/nightshade_remote_protocol/lib/src/web_server.dart' &&
+              'packages/skotiq_remote_protocol/lib/src/web_server.dart' &&
           priorityCandidates.single['reason'].toString().contains('WebRTC'),
       'priority split candidates should preserve backend split rationale',
     );
@@ -88,7 +88,7 @@ Future<void> main() async {
         .cast<Map<String, dynamic>>();
     _expect(
       modularizedFamilies.single['path'] ==
-              'packages/nightshade_core/lib/src/backend/network_backend.dart' &&
+              'packages/skotiq_core/lib/src/backend/network_backend.dart' &&
           modularizedFamilies.single['reason'].toString().contains('transport'),
       'modularized source families should preserve facade rationale',
     );
@@ -129,12 +129,12 @@ Future<void> _writeFixture(Directory root) async {
   await _writeLines(root, 'packages/example/lib/src/critical_file.dart', 8);
   await _writeLines(
     root,
-    'packages/nightshade_core/lib/src/backend/network_backend.dart',
+    'packages/skotiq_core/lib/src/backend/network_backend.dart',
     6,
   );
   await _writeLines(
     root,
-    'packages/nightshade_remote_protocol/lib/src/web_server.dart',
+    'packages/skotiq_remote_protocol/lib/src/web_server.dart',
     6,
   );
   await _writeLines(root, 'packages/example/lib/src/critical_file.g.dart', 20);

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_mobile/services/manual_server_endpoint.dart';
+import 'package:skotiq_mobile/services/manual_server_endpoint.dart';
 
 void main() {
   test('parses hostnames and custom ports', () {

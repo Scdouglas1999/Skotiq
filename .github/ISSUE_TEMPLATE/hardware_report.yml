@@ -1,5 +1,5 @@
 name: Hardware compatibility report
-description: Report how a real camera / mount / focuser / wheel / guider worked (or didn't) with Nightshade
+description: Report how a real camera / mount / focuser / wheel / guider worked (or didn't) with Skotiq
 title: "[Hardware]: "
 labels: ["hardware-validation", "triage"]
 body:
@@ -35,7 +35,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Nightshade version
+      label: Skotiq version
       description: Help → About, asset filename, or release tag
       placeholder: "4.1.0"
     validations:

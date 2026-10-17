@@ -45,7 +45,7 @@ class ImageCacheReading {
       'imgCacheLive=$liveImageCount';
 }
 
-/// Opt-in frame-rate probe, armed by `NIGHTSHADE_FRAME_TIMING=1`.
+/// Opt-in frame-rate probe, armed by `SKOTIQ_FRAME_TIMING=1`.
 ///
 /// Reports engine [FrameTiming] counts and the image cache's occupancy per
 /// window to stdout. It is inert unless enabled and returns a cleanup callback
@@ -56,7 +56,7 @@ void Function() startFrameTimingProbe({
   bool? enabled,
 }) {
   final armed =
-      enabled ?? Platform.environment['NIGHTSHADE_FRAME_TIMING'] == '1';
+      enabled ?? Platform.environment['SKOTIQ_FRAME_TIMING'] == '1';
   if (!armed) {
     return () {};
   }

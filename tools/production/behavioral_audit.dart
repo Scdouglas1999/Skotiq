@@ -8,7 +8,7 @@ const _defaultReportPath = '.behavioral_audit_hits.txt';
 // Audit policed runtime code only — generated, vendored, or tooling files would
 // produce false positives that hide real silent-fallback regressions in the
 // shipped product.
-const _scanRoots = <String>['apps', 'packages', 'native/nightshade_native'];
+const _scanRoots = <String>['apps', 'packages', 'native/skotiq_native'];
 
 const _allowedExtensions = <String>{'.dart', '.rs'};
 
@@ -36,7 +36,7 @@ const _excludedSubstrings = <String>['/frb_generated.'];
 final _runtimePathPatterns = <RegExp>[
   RegExp(r'^apps/[^/]+/lib/'),
   RegExp(r'^packages/[^/]+/lib/'),
-  RegExp(r'^native/nightshade_native(?:/[^/]+)+/src/'),
+  RegExp(r'^native/skotiq_native(?:/[^/]+)+/src/'),
 ];
 
 class _Rule {

@@ -1,6 +1,6 @@
 # Mobile Services - Background Operation Support
 
-This directory contains production-ready services for background operation, notifications, and power management in the Nightshade mobile app.
+This directory contains production-ready services for background operation, notifications, and power management in the Skotiq mobile app.
 
 ## Overview
 
@@ -215,7 +215,7 @@ Consumer(
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                  Sequence Provider                      │
-│           (nightshade_core package)                     │
+│           (skotiq_core package)                     │
 └───────────────────┬─────────────────────────────────────┘
                     │
                     │ State Changes
@@ -391,4 +391,4 @@ The phone's battery running low only notifies. The phone pausing the run
 
 ## License
 
-Part of the Nightshade project.
+Part of the Skotiq project.

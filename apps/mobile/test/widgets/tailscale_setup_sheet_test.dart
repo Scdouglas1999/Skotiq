@@ -7,8 +7,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_mobile/widgets/tailscale_setup_sheet.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_mobile/widgets/tailscale_setup_sheet.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 Future<TailscaleSetupResult?> _showAndCapture(
   WidgetTester tester, {
@@ -17,7 +17,7 @@ Future<TailscaleSetupResult?> _showAndCapture(
   TailscaleSetupResult? captured;
   await tester.pumpWidget(
     MaterialApp(
-      theme: ThemeData(extensions: const [NightshadeColors.dark]),
+      theme: ThemeData(extensions: const [SkotiqColors.dark]),
       home: Scaffold(
         body: Builder(
           builder: (context) => Center(
@@ -55,7 +55,7 @@ void main() {
     final result = await _showAndCapture(
       tester,
       interact: (t) async {
-        // Host field is the first NightshadeTextField (url keyboard).
+        // Host field is the first SkotiqTextField (url keyboard).
         await t.enterText(find.byType(TextField).first, '100.101.102.103');
         await _tapConnect(t);
       },
@@ -110,7 +110,7 @@ void main() {
       interact: (t) async {
         final fields = find.byType(TextField);
         await t.enterText(fields.first, '100.64.0.9');
-        // Token field is the last NightshadeTextField in the form.
+        // Token field is the last SkotiqTextField in the form.
         await t.enterText(fields.last, 'bearer-xyz');
         await _tapConnect(t);
       },

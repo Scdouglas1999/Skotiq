@@ -14,7 +14,7 @@
    "expected": "A session with no end time should say \"in progress\" / \"--\", or compute now-minus-start. 0s is a false statement contradicted by the charts on the same card.",
    "repro": "sqlite3 seed an imaging_sessions row with end_time NULL and captured_images spanning 20 min; restart app; Analytics > Session; the review bar auto-selects that session.",
    "evidence": "/tmp/ns-audit/shots/r-analytics-05.png (DURATION 0s, chart x-axis 0s..20m, EXPOSURES 3)",
-   "where": "packages/nightshade_app/lib/screens/analytics/analytics_screen/session_tab.dart:113 formatDuration((reviewSession.endTime ?? reviewSession.startTime).difference(reviewSession.startTime))",
+   "where": "packages/skotiq_app/lib/screens/analytics/analytics_screen/session_tab.dart:113 formatDuration((reviewSession.endTime ?? reviewSession.startTime).difference(reviewSession.startTime))",
    "proposed_fix": "When endTime is null, use DateTime.now() for a session whose status is in_progress, else render Unfinished."
   },
   {
@@ -26,7 +26,7 @@
    "expected": "Axis labels never overlap - which is exactly what NiceAxis was written to guarantee.",
    "repro": "Seed frames with identical guiding_rms_total (0.70); Analytics > Session; look at the bottom-left of the Guiding performance chart.",
    "evidence": "/tmp/ns-audit/shots/r-analytics-06-guideaxis.png",
-   "where": "packages/nightshade_app/lib/screens/analytics/widgets/chart_axis.dart:33-43 (zero-variance branch)",
+   "where": "packages/skotiq_app/lib/screens/analytics/widgets/chart_axis.dart:33-43 (zero-variance branch)",
    "proposed_fix": "The zero-variance branch returns min = centre - 2*interval without snapping to a tick multiple (0.70 - 0.50 = 0.20 with interval 0.25), so the boundary label lands 0.05 from the 0.25 tick. Snap: min = (centre/interval).floor()*interval - 2*interval, same for max - the same snapping the varying branch already does."
   },
   {
@@ -38,7 +38,7 @@
    "expected": "All four charts on the session card should plot the same, stated population. HfrChart filters isAccepted; the other three do not, and none filters frameType==light. A p90 of 3.9\" for a session whose accepted-frame p90 is 0.905\" is a wrong number a user would act on (they would go hunting for a guiding fault that does not exist).",
    "repro": "Seed session 1 with 10 accepted lights (rms .50-.95), 2 rejected lights (rms 4.2, hfr 9.9, focuser 15100) and 4 darks (sensor_temp only). Restart. Analytics > Session > Reviewing > Night A - M31. Compare the n= counts in the four chart headers.",
    "evidence": "/tmp/ns-audit/shots/r-analytics-08-s1.png - EXPOSURES 10/12 in the strip; chart headers n 10 / 12 / 12 / 16",
-   "where": "packages/nightshade_app/lib/screens/analytics/widgets/session_chart.dart:375 (HfrChart filters isAccepted), :400 TemperatureChart, :425 GuidingRmsChart, :453 FocuserPositionChart (no filter at all)",
+   "where": "packages/skotiq_app/lib/screens/analytics/widgets/session_chart.dart:375 (HfrChart filters isAccepted), :400 TemperatureChart, :425 GuidingRmsChart, :453 FocuserPositionChart (no filter at all)",
    "proposed_fix": "Filter one population in _SessionTab.chartGrid (accepted lights) and pass it to all four charts, or give every chart the same `.where((i)=>i.isAccepted && i.frameType==light)` predicate. If rejected frames are wanted, draw them as a distinct marker series and say so in the header."
   },
   {
@@ -50,7 +50,7 @@
    "expected": "The Captured Images summary on the Session tab should count light frames only, or at minimum not assert a quality grade for a frame that has no quality measurement. \"Good: 12\" is a false count - only 8 frames were assessed good.",
    "repro": "Seed session 1 with 12 lights + 4 darks (darks: sensor_temp only, hfr/star_count/guiding NULL). Restart. Analytics > Session > Night A - M31, scroll to Captured Images; shift+wheel the rail to its right end.",
    "evidence": "/tmp/ns-audit/shots/r-analytics-11.png (chips Good: 12 / Total: 16) and /tmp/ns-audit/shots/r-analytics-15.png (the 4 trailing darks badged GOOD / 75 score)",
-   "where": "packages/nightshade_core/lib/src/services/frame_quality_assessment_service.dart:112 `var advisoryScore = image.qualityScore ?? 75.0;` - a frame with every metric null scores 75 and falls through to FrameQualityLevel.good; packages/nightshade_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart:90 assesses widget.images unfiltered",
+   "where": "packages/skotiq_core/lib/src/services/frame_quality_assessment_service.dart:112 `var advisoryScore = image.qualityScore ?? 75.0;` - a frame with every metric null scores 75 and falls through to FrameQualityLevel.good; packages/skotiq_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart:90 assesses widget.images unfiltered",
    "proposed_fix": "assessBatch should return a distinct `unassessed` level when hfr, starCount, guidingRms and qualityScore are all null, and the strip should either exclude non-light frames or badge them by frame type."
   },
   {
@@ -62,7 +62,7 @@
    "expected": "On desktop, a horizontal rail must be reachable with the wheel a user actually has - either map vertical wheel to the rail, or show a Scrollbar and arrow affordances. A 200-frame night is unusable otherwise.",
    "repro": "Analytics > Session > Night A - M31; hover the Captured Images rail; wheel down (page scrolls). Shift+wheel to reveal the trailing frames.",
    "evidence": "/tmp/ns-audit/shots/r-analytics-11.png before, /tmp/ns-audit/shots/r-analytics-15.png after shift+wheel",
-   "where": "packages/nightshade_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart:178 ListView.builder(scrollDirection: Axis.horizontal) with no Scrollbar and default desktop ScrollBehavior",
+   "where": "packages/skotiq_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart:178 ListView.builder(scrollDirection: Axis.horizontal) with no Scrollbar and default desktop ScrollBehavior",
    "proposed_fix": "Wrap in a Scrollbar(thumbVisibility: true) and add a Listener that maps PointerScrollEvent.dy onto the horizontal controller, as the app already does for the sequencer node rail."
   },
   {
@@ -70,11 +70,11 @@
    "kind": "defect",
    "severity": "P1",
    "unit": "screen:analytics/session_detail_dialog.dart",
-   "what_happened": "History > Night A - M31 > Export CSV wrote /home/scdouglas/Documents/Nightshade/exports/Night A - M31_2026-08-01T14-40-26.csv with a populated \"FWHM (px)\" column - 4.70, 5.17, 5.64 - even though captured_images.fwhm is NULL for every one of those rows. The values are HFR * 2.35.",
+   "what_happened": "History > Night A - M31 > Export CSV wrote /home/scdouglas/Documents/Skotiq/exports/Night A - M31_2026-08-01T14-40-26.csv with a populated \"FWHM (px)\" column - 4.70, 5.17, 5.64 - even though captured_images.fwhm is NULL for every one of those rows. The values are HFR * 2.35.",
    "expected": "For a Gaussian PSF the half-flux radius is 1.1774*sigma and FWHM = 2.3548*sigma, so FWHM = 2.00 * HFR. Multiplying HFR by 2.3548 treats HFR as sigma and inflates every reported FWHM by 17.7% (HFR 2.00 px -> 4.70\" reported vs 4.00\" true). Worse, the real `fwhm` column measured by the pipeline is ignored and overwritten by the derived number, and nothing in the CSV says the value is derived.",
    "repro": "Analytics > History > click Night A - M31 > click the spreadsheet icon; open the CSV. HFR column x 2.35 == FWHM column exactly.",
-   "evidence": "/home/scdouglas/Documents/Nightshade/exports/Night A - M31_2026-08-01T14-40-26.csv rows s1_000..s1_009; DB: select hfr,fwhm from captured_images where session_id=1 -> fwhm all NULL",
-   "where": "packages/nightshade_core/lib/src/services/session_export_service.dart:69-70 and :171; same factor in session_report_service.dart:301 (meanFwhm), capture_preview_loader.dart:180 (live capture FWHM readout), session_report.dart:36",
+   "evidence": "/home/scdouglas/Documents/Skotiq/exports/Night A - M31_2026-08-01T14-40-26.csv rows s1_000..s1_009; DB: select hfr,fwhm from captured_images where session_id=1 -> fwhm all NULL",
+   "where": "packages/skotiq_core/lib/src/services/session_export_service.dart:69-70 and :171; same factor in session_report_service.dart:301 (meanFwhm), capture_preview_loader.dart:180 (live capture FWHM readout), session_report.dart:36",
    "proposed_fix": "Use image.fwhm when present; otherwise derive FWHM = 2.0 * HFR and label the column \"FWHM (px, derived from HFR)\". Fix the constant in all four call sites - the live capture readout is showing the same inflated number during a run."
   },
   {
@@ -86,7 +86,7 @@
    "expected": "One answer, and neither of these. History uses DateTime.now()-startTime for any session without an end time, so a session the app failed to close (crash, power loss - the exact case this matters) accrues fictional elapsed time forever; the Session tab uses 0.",
    "repro": "Seed an imaging_sessions row with end_time NULL. Analytics > History (46h 2m) then Analytics > Session with that session selected (0s).",
    "evidence": "/tmp/ns-audit/shots/r-analytics-19-history.png vs /tmp/ns-audit/shots/r-analytics-05.png",
-   "where": "packages/nightshade_app/lib/screens/analytics/analytics_screen/history_cards.dart:65-67 vs analytics_screen/session_tab.dart:113",
+   "where": "packages/skotiq_app/lib/screens/analytics/analytics_screen/history_cards.dart:65-67 vs analytics_screen/session_tab.dart:113",
    "proposed_fix": "Share one helper: elapsed = (endTime ?? lastFrameCapturedAt ?? startTime) - startTime, and render an explicit unfinished badge when endTime is null rather than a number."
   },
   {
@@ -98,7 +98,7 @@
    "expected": "Two counts of the same thing on one card should agree or be labelled differently. The stats row comes from the denormalised imaging_sessions counters (light frames), the image list from captured_images (lights + calibration frames). Nothing tells the user which is which.",
    "repro": "Analytics > History > Night A - M31.",
    "evidence": "/tmp/ns-audit/shots/r-analytics-20-detail.png",
-   "where": "packages/nightshade_app/lib/screens/analytics/analytics_screen/session_detail_dialog.dart (Statistics block vs ImageThumbnailStrip at :266)",
+   "where": "packages/skotiq_app/lib/screens/analytics/analytics_screen/session_detail_dialog.dart (Statistics block vs ImageThumbnailStrip at :266)",
    "proposed_fix": "Label the list \"Frames (16, incl. 4 calibration)\" or scope both to light frames."
   },
   {
@@ -110,7 +110,7 @@
    "expected": "A gallery of the night frames is the obvious place to enlarge a frame, read its FITS header, or accept/reject it. NINA and the ASIAIR both open the frame from the thumbnail. The ImageGraderDialog that would do this exists but is reachable only from the Science tab.",
    "repro": "Analytics > Session > Night A - M31; click any thumbnail. Nothing happens. Same in History > session detail.",
    "evidence": "/tmp/ns-audit/shots/r-analytics-16-grader.png (screen unchanged after the click); grep shows no call site passes onImageTap",
-   "where": "packages/nightshade_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart:42/189, session_tab.dart:307, session_detail_dialog.dart:266",
+   "where": "packages/skotiq_app/lib/screens/analytics/widgets/image_thumbnail_strip.dart:42/189, session_tab.dart:307, session_detail_dialog.dart:266",
    "proposed_fix": "Pass onImageTap that opens ImageGraderDialog (or a frame inspector) from both call sites."
   },
   {
@@ -122,7 +122,7 @@
    "expected": "An \"Equipment Stats\" tab whose Mount card contains no numbers at all is not worth a tab. Several of these are already derivable from data the app stores: meridian flips are recorded as sequencer decisions/narrator events, guide time and star-lost from guide_rms_history, focuser movements from focus_models/autofocus runs.",
    "repro": "Analytics > Equipment Stats with 3 sessions and 27 frames seeded.",
    "evidence": "/tmp/ns-audit/shots/r-analytics-empty-EquipStats.png (empty profile) and the same six labels with data present",
-   "where": "packages/nightshade_app/lib/screens/analytics/analytics_screen/equipment_stats.dart:137-139,150,156,162",
+   "where": "packages/skotiq_app/lib/screens/analytics/analytics_screen/equipment_stats.dart:137-139,150,156,162",
    "proposed_fix": "Either wire the six to the tables that already hold the data, or drop the Mount card and rename the tab to what it measures (camera + focus + guiding quality)."
   },
   {
@@ -134,7 +134,7 @@
    "expected": "Either a session count over a rolling 30 nights (astronomers do not care about calendar-month boundaries; an observing run straddles them), or a label that says what it counts (\"Targets active this month\").",
    "repro": "Analytics > Projects with sessions dated Jul 25/28/30 and system date Aug 1.",
    "evidence": "/tmp/ns-audit/shots/r-analytics-26-projects.png and -30-projects3.png (0 Active This Month beside 1.5h Total Integration)",
-   "where": "packages/nightshade_app/lib/screens/analytics/widgets/project_tracking_panel.dart:363-370, 414-418",
+   "where": "packages/skotiq_app/lib/screens/analytics/widgets/project_tracking_panel.dart:363-370, 414-418",
    "proposed_fix": "Count sessions in the last 30 days: sessions.where((s)=>s.startTime.isAfter(now.subtract(Duration(days:30)))).length, and relabel \"Nights (30d)\"."
   },
   {
@@ -146,7 +146,7 @@
    "expected": "\"-\", as the tile beside it already does for absent data.",
    "repro": "Observed in the running app for M31 (12.8%, correctly excluding the open session Night C). The all-open case is the same code path with an empty efficiencyInputs list; not reproduced live because every seeded target also had a closed session.",
    "evidence": "source-only for the 0.0% case; /tmp/ns-audit/shots/r-analytics-31-campaign.png confirms the exclusion rule live (12.8% == session 1 alone, not 20.5% over both sessions)",
-   "where": "packages/nightshade_core/lib/src/services/campaign_rollup_service.dart:166 and campaign_rollup_dialog.dart:198-201",
+   "where": "packages/skotiq_core/lib/src/services/campaign_rollup_service.dart:166 and campaign_rollup_dialog.dart:198-201",
    "proposed_fix": "Make meanEffectiveImagingFraction nullable and render - like Mean seeing."
   },
   {
@@ -158,7 +158,7 @@
    "expected": "With no baseline sessions, no baseline claim. The panel should stay silent (or say 'not enough history') instead of asserting a 7.2x regression and deducting 32 points from the equipment health score.",
    "repro": "Seed exactly 5 imaging_sessions with avg_guiding_rms 0.65/1.10/0.70/0.55/0.60 and avg_hfr 2.90/4.20/3.00/2.50/2.20. Restart. Analytics > Science > scroll to Insights.",
    "evidence": "/tmp/ns-audit/shots/r-analytics-41.png. Arithmetic proof: baseline = recentSessions.skip(5).take(10) is EMPTY with 5 sessions, _mean([]) = 0.0, .clamp(0.1,100.0) = 0.1; mean recent guiding 3.60/5 = 0.72; 0.72/0.1 = 7.20 - exactly the number on screen.",
-   "where": "packages/nightshade_core/lib/src/services/equipment_health_service.dart:200 (baseline = skip(5).take(10)), :205-213 (.clamp(0.1,100.0) turns 'no data' into 0.1), :222 and :234 (the two triggers), _mean at :324",
+   "where": "packages/skotiq_core/lib/src/services/equipment_health_service.dart:200 (baseline = skip(5).take(10)), :205-213 (.clamp(0.1,100.0) turns 'no data' into 0.1), :222 and :234 (the two triggers), _mean at :324",
    "proposed_fix": "Make the baselines nullable: if the baseline window is empty, skip both insights entirely and do not deduct score. The clamp exists to avoid divide-by-zero; the real fix is to not divide when there is nothing to divide by."
   },
   {
@@ -166,12 +166,12 @@
    "kind": "defect",
    "severity": "P1",
    "unit": "screen:analytics/session_tab.dart",
-   "what_happened": "On startup this audit instance (NIGHTSHADE_DATABASE_DIR/NIGHTSHADE_DATA_DIR = /tmp/ns-audit/r-analytics/data, with ZERO rows in sequences and sequence_checkpoints) showed 'Recover Sequence? A previous sequence was interrupted and can be resumed - Sequence: New Sequence, Saved 0m ago, Completed 4 frames (0m integration)'. The checkpoint it read is /home/scdouglas/.local/share/com.example.nightshade_desktop/nightshade_session.checkpoint, written by a DIFFERENT concurrently-running instance.",
+   "what_happened": "On startup this audit instance (SKOTIQ_DATABASE_DIR/SKOTIQ_DATA_DIR = /tmp/ns-audit/r-analytics/data, with ZERO rows in sequences and sequence_checkpoints) showed 'Recover Sequence? A previous sequence was interrupted and can be resumed - Sequence: New Sequence, Saved 0m ago, Completed 4 frames (0m integration)'. The checkpoint it read is /home/scdouglas/.local/share/com.skotiq.desktop/skotiq_session.checkpoint, written by a DIFFERENT concurrently-running instance.",
    "expected": "Crash recovery must be scoped to the instance/profile that wrote it. Offering to resume a sequence whose id does not exist in this database is a data-integrity hazard: on a machine that runs both the desktop app and the headless host (a shipped configuration) the two silently clobber each other's recovery state, and Resume would restart the wrong run. Note also the self-contradictory summary line 'Completed 4 frames (0m integration)'.",
-   "repro": "Run two Nightshade desktop instances with different NIGHTSHADE_DATA_DIR values. Build a sequence in one. Restart the other: it offers to recover the first one's sequence.",
-   "evidence": "/tmp/ns-audit/shots/r-analytics-33-sci2.png; sqlite3 <profile db> 'select * from sequence_checkpoints' -> 0 rows, 'select * from sequences' -> 0 rows; the checkpoint file in ~/.local/share/com.example.nightshade_desktop was last written at 14:50 by another pid",
-   "where": "packages/nightshade_app/lib/screens/shell/app_shell.dart:347 getApplicationSupportDirectory() is passed to sequencerSetCheckpointDir, ignoring NIGHTSHADE_DATA_DIR; native/nightshade_native/sequencer/src/checkpoint.rs:516",
-   "proposed_fix": "Derive the checkpoint dir from the same root as the database (NIGHTSHADE_DATA_DIR when set), and stamp the checkpoint with the database path/instance id so a mismatched checkpoint is ignored rather than offered."
+   "repro": "Run two Skotiq desktop instances with different SKOTIQ_DATA_DIR values. Build a sequence in one. Restart the other: it offers to recover the first one's sequence.",
+   "evidence": "/tmp/ns-audit/shots/r-analytics-33-sci2.png; sqlite3 <profile db> 'select * from sequence_checkpoints' -> 0 rows, 'select * from sequences' -> 0 rows; the checkpoint file in ~/.local/share/com.skotiq.desktop was last written at 14:50 by another pid",
+   "where": "packages/skotiq_app/lib/screens/shell/app_shell.dart:347 getApplicationSupportDirectory() is passed to sequencerSetCheckpointDir, ignoring SKOTIQ_DATA_DIR; native/skotiq_native/sequencer/src/checkpoint.rs:516",
+   "proposed_fix": "Derive the checkpoint dir from the same root as the database (SKOTIQ_DATA_DIR when set), and stamp the checkpoint with the database path/instance id so a mismatched checkpoint is ignored rather than offered."
   },
   {
    "title": "'Recover Sequence?' modal has no way out except Discard (destructive) or Resume (acts)",
@@ -182,7 +182,7 @@
    "expected": "A user who wants to look at the sequence before deciding is forced to destroy the checkpoint or start a run. Match the sibling dialog and offer 'Decide later'.",
    "repro": "Launch with a checkpoint present; press Escape - dialog remains.",
    "evidence": "/tmp/ns-audit/shots/r-analytics-34-esc.png (dialog still up after Escape)",
-   "where": "packages/nightshade_app/lib/screens/shell/app_shell.dart startup checkpoint flow",
+   "where": "packages/skotiq_app/lib/screens/shell/app_shell.dart startup checkpoint flow",
    "proposed_fix": "Add a third action that leaves the checkpoint on disk and closes the dialog, as the Incomplete Sessions dialog does."
   },
   {
@@ -194,7 +194,7 @@
    "expected": "Closing an abandoned session should set end_time to the last captured frame's timestamp, not to the clock at recovery time. Otherwise one crash permanently corrupts the night's duration and drags the target's campaign efficiency toward zero.",
    "repro": "Seed a session with status='active', end_time NULL and frames ending 2 days ago. Restart the app, work through the Incomplete Sessions dialog. sqlite3: select status,end_time from imaging_sessions where id=3 -> aborted, <now>.",
    "evidence": "DB before: 3|Night C - M31|active|(null); after: 3|Night C - M31|aborted|1785610346 (2026-08-01 18:52:26Z) while the session's last frame is at 1785440100 (2026-07-30 20:55Z)",
-   "where": "session recovery path in packages/nightshade_core/lib/src/services/session_service.dart (stale 'active' session handling around :431)",
+   "where": "session recovery path in packages/skotiq_core/lib/src/services/session_service.dart (stale 'active' session handling around :431)",
    "proposed_fix": "end_time = max(last captured_images.captured_at for the session, start_time) when force-closing a recovered session."
   },
   {
@@ -206,7 +206,7 @@
    "expected": "The banner reports the in-memory pipeline state for the current app process, which is empty after a restart. When the tab is reviewing a historical session it should say so ('Reviewing stored results') rather than claim no frame has been captured.",
    "repro": "Restart the app, Analytics > Science, select a past session with frames.",
    "evidence": "/tmp/ns-audit/shots/r-analytics-38-scivt.png",
-   "where": "packages/nightshade_app/lib/screens/analytics/widgets/science_status_banner.dart:120-124 (the no-history else branch)",
+   "where": "packages/skotiq_app/lib/screens/analytics/widgets/science_status_banner.dart:120-124 (the no-history else branch)",
    "proposed_fix": "When the selected session is not the live one, render a review-mode subtitle keyed off the stored product counts instead of the live pipeline history."
   },
   {
@@ -218,7 +218,7 @@
    "expected": "The default should be the most recent session that actually has science products. Otherwise a user who took two test frames after a long photometry run comes back to an empty Science tab.",
    "repro": "Analytics > Science with sessions 4 (120 frames, solved+photometry) and 5 (2 frames, nothing) where 5 starts later.",
    "evidence": "/tmp/ns-audit/shots/r-analytics-36-sci4.png (default) vs /tmp/ns-audit/shots/r-analytics-38-scivt.png (after manually selecting Night D)",
-   "where": "packages/nightshade_app/lib/screens/analytics/widgets/science_analytics_tab.dart session selection",
+   "where": "packages/skotiq_app/lib/screens/analytics/widgets/science_analytics_tab.dart session selection",
    "proposed_fix": "Default to the newest session with >0 photometry measurements or >0 solved frames; fall back to newest overall."
   }
  ]

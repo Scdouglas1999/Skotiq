@@ -4,12 +4,12 @@
   "outcome": "fixed",
   "summary": "Lifted every staleness/optimality guard out of cullToRecommended() into a new CullRecommendationOffer getter on SessionReviewController, and made cullToRecommended() run off that same getter. SubCullRail now tracks the offer (not the curve) and renders the quantified primary action only when status == offerable; stale and alreadyOptimal render a non-actionable status chip that quotes the population size vs live accepted count. Also added a gate the finding asked for: predictedSnrGainPct <= 0 is alreadyOptimal, so a '+0%' recommendation can neither be advertised nor executed (it would have rejected 3 of 4 subs for no benefit).",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/session_review/session_review_controller.dart",
-   "packages/nightshade_app/lib/screens/session_review/widgets/sub_cull_rail.dart",
-   "packages/nightshade_app/test/screens/session_review/sub_cull_rail_stale_curve_test.dart",
-   "packages/nightshade_app/test/screens/session_review/sub_cull_rail_dynamic_subs_test.dart"
+   "packages/skotiq_app/lib/screens/session_review/session_review_controller.dart",
+   "packages/skotiq_app/lib/screens/session_review/widgets/sub_cull_rail.dart",
+   "packages/skotiq_app/test/screens/session_review/sub_cull_rail_stale_curve_test.dart",
+   "packages/skotiq_app/test/screens/session_review/sub_cull_rail_dynamic_subs_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/session_review/sub_cull_rail_stale_curve_test.dart (4 tests, real controller + real in-memory DB + real widget, nothing stubbed)",
+  "test": "packages/skotiq_app/test/screens/session_review/sub_cull_rail_stale_curve_test.dart (4 tests, real controller + real in-memory DB + real widget, nothing stubbed)",
   "revert_check": "Reverting the render gate (sub_cull_rail.dart: `onCullToRecommended: _offer.isOfferable` -> `_offer.status != CullOfferStatus.none`) fails 3 of 4 with 'Found 1 widget with text containing Keep best'. Separately reverting the gain gate (session_review_controller.dart: `if (rec.keepN >= population.length || rec.predictedSnrGainPct <= 0)` -> `if (rec.keepN >= population.length)`) fails the +0% test with 'Expected alreadyOptimal / Actual offerable'. Both restored; 73/73 session_review tests green.",
   "caveats": ""
  },
@@ -18,13 +18,13 @@
   "outcome": "fixed",
   "summary": "maximumQuality restated five constructor defaults, so IntegrationSettings.preset(maximumQuality).toBridgeSettings() was byte-identical to balanced's. Gave it three knobs that genuinely cost compute for accuracy and are honored end-to-end by the native side (ransacThresholdPx 1.0 vs 2.0, maxRefStars 120 vs 60, normalization local vs global -- all three read at post_session.rs:1764-1768/1815-1820). Second half of the finding: the panel readout now names the knobs the active profile changes, derived by DIFFING against the Balanced baseline rather than a hand-written per-preset sentence, so a future placebo preset renders 'Same knobs as Balanced.' instead of a fabricated distinction.",
   "files_changed": [
-   "packages/nightshade_core/lib/src/models/imaging/integration_settings.dart",
-   "packages/nightshade_app/lib/screens/session_review/widgets/integration_settings_panel.dart",
-   "packages/nightshade_app/test/screens/session_review/integration_settings_panel_test.dart"
+   "packages/skotiq_core/lib/src/models/imaging/integration_settings.dart",
+   "packages/skotiq_app/lib/screens/session_review/widgets/integration_settings_panel.dart",
+   "packages/skotiq_app/test/screens/session_review/integration_settings_panel_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/session_review/integration_settings_panel_test.dart -- 'no two integration profiles produce the same stack' (payload-collision guard over all 5 presets), 'Maximum Quality actually costs something over Balanced', 'the readout names the knobs the active profile changes'",
+  "test": "packages/skotiq_app/test/screens/session_review/integration_settings_panel_test.dart -- 'no two integration profiles produce the same stack' (payload-collision guard over all 5 presets), 'Maximum Quality actually costs something over Balanced', 'the readout names the knobs the active profile changes'",
   "revert_check": "Restoring the old maximumQuality body (resampler/weighting/generateRejectionMap/cosmeticCorrection/outputBitDepth = the defaults) fails all three: collision guard reports 'Expected null / Actual IntegrationPreset.balanced', cost test 'Expected a value less than <2.0> / Actual <2.0>', readout 'Found 0 widgets with text containing RANSAC 1.0 px'. Restored; 9/9 panel tests green.",
-  "needs_shared_change": "packages/nightshade_core/lib/src/models/imaging/integration_settings.dart is outside my stated ownership (models, not services/science). I edited it because the cause lives there and no other agent's fix2 findings file references that file. Flagging for the merge.",
+  "needs_shared_change": "packages/skotiq_core/lib/src/models/imaging/integration_settings.dart is outside my stated ownership (models, not services/science). I edited it because the cause lives there and no other agent's fix2 findings file references that file. Flagging for the merge.",
   "caveats": "Tightening RANSAC to 1.0px is the trade this profile exists to make (accuracy over robustness); it is opt-in and Balanced is unchanged. Not validated on real subs -- no on-sky run."
  },
  {
@@ -32,10 +32,10 @@
   "outcome": "fixed",
   "summary": "_bindProgress() deliberately leaves a terminal 1.0 fraction on state.progress so the bar lands full, and left clearing it to 'the action's own completion handler' -- a contract with no enforcement that only integrate() honoured. Added SessionReviewController._withLiveProgress<T>(), a try/finally that clears the live progress when the action returns on ANY path, and routed every seam-driven action through it: integrate(), reIntegratePreview(), runColorCalibration(), _runFinishingStep() (background extract / deconvolve / star reduction) and runNarrowband(). The clear can no longer be forgotten by the next action added.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/session_review/session_review_controller.dart",
-   "packages/nightshade_app/test/screens/session_review/session_review_progress_strip_test.dart"
+   "packages/skotiq_app/lib/screens/session_review/session_review_controller.dart",
+   "packages/skotiq_app/test/screens/session_review/session_review_progress_strip_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/session_review/session_review_progress_strip_test.dart -- pumps the REAL SessionReviewScreen over a real controller + in-memory DB, with a seam that emits the same terminal (phase:'preview', fraction:1.0) the native preview integrate does at post_session.rs:838. Asserts the strip renders on a live event (control) and is gone after reIntegratePreview returns.",
+  "test": "packages/skotiq_app/test/screens/session_review/session_review_progress_strip_test.dart -- pumps the REAL SessionReviewScreen over a real controller + in-memory DB, with a seam that emits the same terminal (phase:'preview', fraction:1.0) the native preview integrate does at post_session.rs:838. Asserts the strip renders on a live event (control) and is gone after reIntegratePreview returns.",
   "revert_check": "Replacing `return _withLiveProgress(() async {...})` with `return (() async {...})()` in reIntegratePreview fails with 'Expected: null / Actual: (fraction: 1.0, phase: preview)' -- the exact orphaned strip. Restored; 77/77 session_review tests green.",
   "caveats": "The test drives reIntegratePreview via tester.runAsync because previewIntegrate does real filesystem work (Directory.systemTemp.createTemp) that never completes inside the widget tester's fake-async zone."
  },
@@ -44,12 +44,12 @@
   "outcome": "fixed",
   "summary": "The followers loop awaited _addStackFrame with no try/catch. Every native rejection path in stacking.rs returns Err, so one refused follower threw straight past the framesRejected accounting into the run-level catch, which deleted the incomplete stacked_results row and rethrew -- the remaining subs were never attempted. Wrapped the per-frame await: a refusal now increments framesProcessed/framesRejected, tallies the reason, logs it, emits progress and continues. Authority loss (the only genuine run-level abort raisable from in there) still propagates via `if (!_hasAuthority) rethrow`. Added a floor so the fix cannot produce a new lie: if every follower is rejected, the run throws the new StackAndShareAllFramesRejectedException naming the count and dominant reason instead of persisting a one-frame 'stack'. The completion log now reports the rejected count + dominant reason.",
   "files_changed": [
-   "packages/nightshade_core/lib/src/services/stack_and_share_service.dart",
-   "packages/nightshade_core/test/services/stack_and_share_service_test.dart"
+   "packages/skotiq_core/lib/src/services/stack_and_share_service.dart",
+   "packages/skotiq_core/test/services/stack_and_share_service_test.dart"
   ],
-  "test": "packages/nightshade_core/test/services/stack_and_share_service_test.dart -- 'a rejected follower is counted and skipped; the run continues' and 'a run whose followers are ALL rejected fails with the dominant reason instead of persisting a one-frame \"stack\"'. New _RejectingLiveStacking fake throws the real wrapped message (NightshadeError.imageError(field0: Alignment residual too high: 10.34px (max 10.00px))) the way the native side does.",
+  "test": "packages/skotiq_core/test/services/stack_and_share_service_test.dart -- 'a rejected follower is counted and skipped; the run continues' and 'a run whose followers are ALL rejected fails with the dominant reason instead of persisting a one-frame \"stack\"'. New _RejectingLiveStacking fake throws the real wrapped message (SkotiqError.imageError(field0: Alignment residual too high: 10.34px (max 10.00px))) the way the native side does.",
   "revert_check": "Removing the try/catch around `final result = await _addStackFrame(...)` (back to the bare await) fails both new tests: the skip test errors and the all-rejected test reports 'Expected: throws StackAndShareAllFramesRejectedException ... Actual: <Instance of Future<StackAndShareResult>>'. Restored; 21/21 stack_and_share_service tests green.",
-  "needs_shared_change": "packages/nightshade_core/lib/src/services/stack_and_share_service.dart is outside my stated ownership (services/, not services/science/). Edited because the cause is there and no other agent's fix2 findings file references it.",
+  "needs_shared_change": "packages/skotiq_core/lib/src/services/stack_and_share_service.dart is outside my stated ownership (services/, not services/science/). Edited because the cause is there and no other agent's fix2 findings file references it.",
   "caveats": "The new exception surfaces through the dialog's existing error text. Not driven on real FITS -- verification is the unit suite plus the verifier's live repro of the original."
  },
  {
@@ -57,11 +57,11 @@
   "outcome": "fixed",
   "summary": "The Procrustes fit itself is correct; the input to it is not. match_stars is a greedy brightest-first nearest-neighbour search with a 50px radius that CONSUMES the frame star it picks, so a bright reference star the frame detector missed steals a neighbour inside that radius, that neighbour's true owner is denied and steals another, and the cascade seeds several ~45px pairs. Least-squares over all of them puts the RMS far past the ceiling. Added fit_transform_robust(): iterative outlier rejection (up to 5 passes, cutoff = max(3 x MEDIAN deviation, 1.5px) -- median so the pairs being removed cannot inflate the cutoff), refitting each pass, reporting the RMS over the surviving pairs. add_frame now gates on inlier count (a new, specific 'N of M agree on one transform' rejection) and on the inlier RMS. With that in place the ceiling means something, so max_alignment_residual_px went 10.0 -> 2.0; I did NOT touch match_radius_px, which would have relocated the defect.",
   "files_changed": [
-   "native/nightshade_native/imaging/src/stacking.rs"
+   "native/skotiq_native/imaging/src/stacking.rs"
   ],
-  "test": "native/nightshade_native/imaging/src/stacking.rs -- 'add_frame_survives_a_matcher_cascade_from_missing_stars' drives the WHOLE path (LiveStacker::new + add_frame on synthetic 8x8 45px-pitch fields, 3 bright stars absent from the frame, rigid +2/+1 shift); plus 'mis_paired_stars_do_not_wreck_the_transform_fit' and 'a_clean_match_set_keeps_every_pair' on the fitter.",
-  "revert_check": "Replacing the fit_transform_robust call in add_frame with the old `compute_affine_transform` + `compute_alignment_residual` over all matches fails the e2e test: 'a rigid 2px shift must register despite mis-paired stars, got Some(\"Alignment residual too high: 13.96px (max 2.00px)\")' -- the synthetic cascade reproduces the reported 10.34px shape. (13.96 also exceeds the OLD 10.0 ceiling, so the test does not depend on the threshold change.) Restored; 500/500 nightshade_imaging tests green, cargo fmt clean.",
-  "needs_shared_change": "native/nightshade_native/imaging/src/stacking.rs is outside my stated ownership. Edited because that is where the cause is and no other agent's fix2 findings file references it. NOTE: this changes native code, so the shipped bundle must be rebuilt before the behaviour is observable in the app.",
+  "test": "native/skotiq_native/imaging/src/stacking.rs -- 'add_frame_survives_a_matcher_cascade_from_missing_stars' drives the WHOLE path (LiveStacker::new + add_frame on synthetic 8x8 45px-pitch fields, 3 bright stars absent from the frame, rigid +2/+1 shift); plus 'mis_paired_stars_do_not_wreck_the_transform_fit' and 'a_clean_match_set_keeps_every_pair' on the fitter.",
+  "revert_check": "Replacing the fit_transform_robust call in add_frame with the old `compute_affine_transform` + `compute_alignment_residual` over all matches fails the e2e test: 'a rigid 2px shift must register despite mis-paired stars, got Some(\"Alignment residual too high: 13.96px (max 2.00px)\")' -- the synthetic cascade reproduces the reported 10.34px shape. (13.96 also exceeds the OLD 10.0 ceiling, so the test does not depend on the threshold change.) Restored; 500/500 skotiq_imaging tests green, cargo fmt clean.",
+  "needs_shared_change": "native/skotiq_native/imaging/src/stacking.rs is outside my stated ownership. Edited because that is where the cause is and no other agent's fix2 findings file references it. NOTE: this changes native code, so the shipped bundle must be rebuilt before the behaviour is observable in the app.",
   "caveats": "Not validated on the audit's real FITS (audit_L_018/024) -- no native rebuild was run per the task constraints. The verifier's caveat (c) is still open and separate: detect_stars returns 0 stars on audit_L_001.fits where an independent peak finder reads 40, which is a detector-sensitivity defect this fix does not address."
  },
  {
@@ -69,12 +69,12 @@
   "outcome": "fixed",
   "summary": "The caption font came from the image HEIGHT (fontForHeight) and nothing ever measured the composed caption against the card WIDTH; _drawBottomBar's only width logic was `if (x >= bitmap.width - pad) break;`, after which drawString clipped the rest. On a 512px card the caption needed 565px. Added a real fit pass: fitCaption() steps down the arial48/24/14 ladder and greedy-wraps whole 'LABEL value' segments (never splitting one) into at most 3 rows that fit width - 2*pad, and _drawBottomBar now sizes the bar to the wrapped rows and renders each. Panel geometry was extracted into panelGeometry(font) so pad/gap/radius follow whichever font the caption ends up in.",
   "files_changed": [
-   "packages/nightshade_core/lib/src/services/share_card_renderer.dart",
-   "packages/nightshade_core/test/services/share_card_renderer_test.dart"
+   "packages/skotiq_core/lib/src/services/share_card_renderer.dart",
+   "packages/skotiq_core/test/services/share_card_renderer_test.dart"
   ],
-  "test": "packages/nightshade_core/test/services/share_card_renderer_test.dart -- 'no glyph is drawn in the right-hand padding of a 512px card' RENDERS the PNG for the exact spec from the finding over a black canvas and scans the right padding of each text row for glyph-bright pixels (excluding the final column, which is the bar's opaque stroke); plus 'every wrapped row measures within the card width, losing nothing'.",
+  "test": "packages/skotiq_core/test/services/share_card_renderer_test.dart -- 'no glyph is drawn in the right-hand padding of a 512px card' RENDERS the PNG for the exact spec from the finding over a black canvas and scans the right padding of each text row for glyph-bright pixels (excluding the final column, which is the bar's opaque stroke); plus 'every wrapped row measures within the card width, losing nothing'.",
   "revert_check": "Replacing the fitCaption call with `final barFont = font; final rows = [segments];` (one unfitted row, the old behaviour) fails the pixel test with 'Expected: a value less than <120> / Actual: <255>' -- glyphs painted into the padding. Restored; 27/27 share_card_renderer + 48 combined with stack_share_export tests green.",
-  "needs_shared_change": "packages/nightshade_core/lib/src/services/share_card_renderer.dart is outside my stated ownership. Edited because that is the truncating code (the finding's location_wrong field says so) and no other agent's fix2 findings file references it.",
+  "needs_shared_change": "packages/skotiq_core/lib/src/services/share_card_renderer.dart is outside my stated ownership. Edited because that is the truncating code (the finding's location_wrong field says so) and no other agent's fix2 findings file references it.",
   "caveats": "With the fix the 512px caption wraps to two rows rather than shrinking the font; on very narrow cards it can reach 3 rows. A single segment wider than the whole card at arial14 would still clip -- that is unrenderable at any size and clipping one segment beats clipping the rest with it."
  },
  {
@@ -82,13 +82,13 @@
   "outcome": "fixed",
   "summary": "The verifier was right that Retry already calls ref.invalidate; the break is downstream, and it is worse than reported. I reproduced it IN-PROCESS: with a TEXT tile_id (SQLite affinity allows it in an INTEGER column) drift's generated mapper throws FormatException and kills the WHOLE feed; correcting the row through the SAME database and invalidating still read back the identical error, because drift caches a query stream by its SQL and a cached stream that has thrown replays the failure to every later subscriber without re-running. Two causes, two fixes. (1) DAO: watchRecentDetections/recentDetections now go through customSelect and map rows individually, skipping+logging one undecodable row instead of failing the read -- one corrupt row costs that row, not the feature. (2) Provider: the local feed yields a FRESH one-shot read before the watch stream, and .skip(1)s the watch's immediate replay, which can be STALER than that read (raw statements and out-of-process writers never notify drift's stream store). Without the skip the stale replay clobbered the fresh read and Retry still looked dead -- I caught that in the test loop, not by inspection.",
   "files_changed": [
-   "packages/nightshade_core/lib/src/database/daos/transient_detections_dao.dart",
-   "packages/nightshade_core/lib/src/providers/transient_detections_provider.dart",
-   "packages/nightshade_core/test/providers/first_light_candidates_resilience_test.dart"
+   "packages/skotiq_core/lib/src/database/daos/transient_detections_dao.dart",
+   "packages/skotiq_core/lib/src/providers/transient_detections_provider.dart",
+   "packages/skotiq_core/test/providers/first_light_candidates_resilience_test.dart"
   ],
-  "test": "packages/nightshade_core/test/providers/first_light_candidates_resilience_test.dart -- 4 tests over a real in-memory DB and the real provider: one undecodable row costs that row; good rows render when the bad one is newest; a fixed row is picked up by a re-subscription (what Retry does), not only by a restart; the DAO future read tolerates it too.",
-  "revert_check": "Reverting the DAO half (watchRecentDetections back to select(...).watch()) fails 2 of 4. Separately reverting the provider half (drop the one-shot recentDetections yield and the .skip(1)) fails the Retry test. Both restored; 1307/1307 nightshade_core provider tests green.",
-  "needs_shared_change": "Both files are in packages/nightshade_core (daos/ and providers/), outside my stated ownership. Edited because that is where the cause is (the finding's own location_wrong points at the provider) and no other agent's fix2 findings file references either file.",
+  "test": "packages/skotiq_core/test/providers/first_light_candidates_resilience_test.dart -- 4 tests over a real in-memory DB and the real provider: one undecodable row costs that row; good rows render when the bad one is newest; a fixed row is picked up by a re-subscription (what Retry does), not only by a restart; the DAO future read tolerates it too.",
+  "revert_check": "Reverting the DAO half (watchRecentDetections back to select(...).watch()) fails 2 of 4. Separately reverting the provider half (drop the one-shot recentDetections yield and the .skip(1)) fails the Retry test. Both restored; 1307/1307 skotiq_core provider tests green.",
+  "needs_shared_change": "Both files are in packages/skotiq_core (daos/ and providers/), outside my stated ownership. Edited because that is where the cause is (the finding's own location_wrong points at the provider) and no other agent's fix2 findings file references either file.",
   "caveats": "The .skip(1) drops one event: a write landing between the one-shot read and the subscription would be missed until the next write. Narrow, and the alternative is the stale-replay bug. The finding's secondary claim that the list is 'fetched once per app launch and never refetched' is NOT confirmed and I did not change that -- in-app writes do push through the drift watch stream."
  },
  {
@@ -96,12 +96,12 @@
   "outcome": "fixed",
   "summary": "The two lines read from different records: 'Captured' from recentSessionFramesProvider (frames captured in THIS app run, empty after a restart) and 'Integration' from the restored sessionState.totalIntegrationSecs. The restored exposure count was already in state -- SessionService.recoverSession sets completedExposures from the DB row alongside the integration seconds, and the detail panel below already renders it correctly. The card now takes its count from sessionState.completedExposures whenever a session row is open (dbSessionId != null), falling back to the in-run list only for ad-hoc captures with no session, so the two lines cannot disagree.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/imaging/widgets/capture_panel.dart",
-   "packages/nightshade_app/test/screens/imaging/capture_panel_recovered_session_test.dart"
+   "packages/skotiq_app/lib/screens/imaging/widgets/capture_panel.dart",
+   "packages/skotiq_app/test/screens/imaging/capture_panel_recovered_session_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/imaging/capture_panel_recovered_session_test.dart -- pumps the real CapturePanel with the exact state recoverSession restores (dbSessionId 3, completedExposures 8, totalIntegrationSecs 2400) and an empty in-run frame list; asserts '8 frames' beside '40m 0s' and NO '0 frames'. Plus a singular-label case.",
+  "test": "packages/skotiq_app/test/screens/imaging/capture_panel_recovered_session_test.dart -- pumps the real CapturePanel with the exact state recoverSession restores (dbSessionId 3, completedExposures 8, totalIntegrationSecs 2400) and an empty in-run frame list; asserts '8 frames' beside '40m 0s' and NO '0 frames'. Plus a singular-label case.",
   "revert_check": "Reverting to `final capturedCount = sessionImages.length;` fails both: 'Found 1 widget with text \"0 frames\"' and 'Found 0 widgets with text \"1 frame\"'. Restored; the pre-existing capture_panel_gallery_route_test (which pins the no-session path at '11 frames') stays green, so the fallback is intact.",
-  "needs_shared_change": "packages/nightshade_app/lib/screens/imaging/widgets/capture_panel.dart is in the imaging agent's area. That agent's fix2 findings target imaging_preview_toolbar/focus_panel/guiding_panel/stacking_panel, not capture_panel, so there is no file collision -- but flagging it for the merge.",
+  "needs_shared_change": "packages/skotiq_app/lib/screens/imaging/widgets/capture_panel.dart is in the imaging agent's area. That agent's fix2 findings target imaging_preview_toolbar/focus_panel/guiding_panel/stacking_panel, not capture_panel, so there is no file collision -- but flagging it for the merge.",
   "caveats": ""
  },
  {
@@ -109,23 +109,23 @@
   "outcome": "fixed",
   "summary": "The verifier's correction is right: the alert list IS re-merged and transient_alert_mapper DOES map reviewed -> acknowledged; the Observing Alerts UI just never read the alert's own state. It read transientAlertStatesProvider, a map populated ONLY from the transient_alert_state_<id> settings rows the user's queue/dismiss actions write, and fell back to newAlert on a miss -- so the mapper's `acknowledged` was dead on that surface. Added resolveTransientAlertState(alert, overrides) => overrides[alert.id] ?? alert.state in transient_alert_provider.dart (a user action still wins; API alerts default to newAlert so they are unaffected) and routed every reader through it: the card's state, all three filter branches, and unacknowledgedAlertCountProvider (the badge was over-counting confirmed detections too).",
   "files_changed": [
-   "packages/nightshade_core/lib/src/providers/transient_alert_provider.dart",
-   "packages/nightshade_app/lib/screens/transients/transients_screen.dart",
-   "packages/nightshade_app/test/screens/transients/transients_confirmed_state_test.dart"
+   "packages/skotiq_core/lib/src/providers/transient_alert_provider.dart",
+   "packages/skotiq_app/lib/screens/transients/transients_screen.dart",
+   "packages/skotiq_app/test/screens/transients/transients_confirmed_state_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/transients/transients_confirmed_state_test.dart -- pumps the REAL TransientsView over an alert built by the REAL transientAlertFromDetection mapper from a reviewed detection row; asserts the card badge is 'Seen' not 'New', that an unreviewed detection is still 'New' (control), and that a confirmed detection leaves the 'New' filter bucket.",
+  "test": "packages/skotiq_app/test/screens/transients/transients_confirmed_state_test.dart -- pumps the REAL TransientsView over an alert built by the REAL transientAlertFromDetection mapper from a reviewed detection row; asserts the card badge is 'Seen' not 'New', that an unreviewed detection is still 'New' (control), and that a confirmed detection leaves the 'New' filter bucket.",
   "revert_check": "Reverting both call sites in transients_screen.dart (back to `states[alert.id]` and the null-or-newAlert filter) fails 2 of 3: the badge test and the filter test. The unreviewed control keeps passing, so the tests are not vacuous. Restored; 7/7 transients tests green.",
-  "needs_shared_change": "packages/nightshade_app/lib/screens/transients/transients_screen.dart is ALSO named by the planner--scheduler--tonight--suggestions agent's finding ('Observing Alerts refresh is a silent no-op'), whose fix adds a per-source status strip to the screen header and changes transient_alert_service.dart. My edits are two small call sites in _buildDataState/_filterAlerts, far from the header -- but this file has two writers this wave, so merge it deliberately.",
-  "caveats": "resolveTransientAlertState lives in nightshade_core/providers (uncontested); only the two call-site lines are in the contested screen file."
+  "needs_shared_change": "packages/skotiq_app/lib/screens/transients/transients_screen.dart is ALSO named by the planner--scheduler--tonight--suggestions agent's finding ('Observing Alerts refresh is a silent no-op'), whose fix adds a per-source status strip to the screen header and changes transient_alert_service.dart. My edits are two small call sites in _buildDataState/_filterAlerts, far from the header -- but this file has two writers this wave, so merge it deliberately.",
+  "caveats": "resolveTransientAlertState lives in skotiq_core/providers (uncontested); only the two call-site lines are in the contested screen file."
  },
  {
   "title": "In the Submit-discovery dialog all three network chips are dead and only the selected network's blocker is explained",
   "outcome": "blocked",
-  "summary": "Confirmed real and correctly located: transient_report_panel.dart:127-140 renders the three chips with `onTap: enabled ? ... : null`, :142-151 renders _disabledReason ONLY for the selected _format, and nightshade_chip.dart:65-68 returns the bare chip when onTap is null -- same fill, border and text colour as an enabled chip, no Semantics, no cursor change. So a disabled chip is visually indistinguishable and silently swallows the tap. I did NOT fix it: this is the SAME defect, in the same file and the same line range, as the r-analytics agent's finding 'Transient Discovery Report: the AAVSO and MPC network chips are inert and the app never shows why, because the reason is only rendered for the already-selected network' (reports/coverage/fix2/r-analytics.json), whose where field cites transient_report_panel.dart:129-141 and :142-148. Two agents editing that block concurrently would collide, and it is theirs by area (screens/analytics).",
+  "summary": "Confirmed real and correctly located: transient_report_panel.dart:127-140 renders the three chips with `onTap: enabled ? ... : null`, :142-151 renders _disabledReason ONLY for the selected _format, and skotiq_chip.dart:65-68 returns the bare chip when onTap is null -- same fill, border and text colour as an enabled chip, no Semantics, no cursor change. So a disabled chip is visually indistinguishable and silently swallows the tap. I did NOT fix it: this is the SAME defect, in the same file and the same line range, as the r-analytics agent's finding 'Transient Discovery Report: the AAVSO and MPC network chips are inert and the app never shows why, because the reason is only rendered for the already-selected network' (reports/coverage/fix2/r-analytics.json), whose where field cites transient_report_panel.dart:129-141 and :142-148. Two agents editing that block concurrently would collide, and it is theirs by area (screens/analytics).",
   "files_changed": [],
   "test": "none - not fixed",
   "revert_check": "n/a - not fixed",
-  "needs_shared_change": "packages/nightshade_app/lib/screens/analytics/widgets/transient_report_panel.dart -- duplicate of the r-analytics agent's assignment; let that agent land it. Their proposed fix (allow selecting a disabled network so its reason renders, or render a reason under every disabled chip) also closes this finding. One thing worth adding to their scope that only my finding surfaces: NightshadeChip itself gives a disabled chip no visual or semantic distinction (nightshade_chip.dart:65-68), so 'looks disabled' needs a design-system change, not just a panel change -- that is shared-widget territory.",
+  "needs_shared_change": "packages/skotiq_app/lib/screens/analytics/widgets/transient_report_panel.dart -- duplicate of the r-analytics agent's assignment; let that agent land it. Their proposed fix (allow selecting a disabled network so its reason renders, or render a reason under every disabled chip) also closes this finding. One thing worth adding to their scope that only my finding surfaces: SkotiqChip itself gives a disabled chip no visual or semantic distinction (skotiq_chip.dart:65-68), so 'looks disabled' needs a design-system change, not just a panel change -- that is shared-widget territory.",
   "caveats": "Verified by reading the cited source; not re-driven live."
  }
 ]

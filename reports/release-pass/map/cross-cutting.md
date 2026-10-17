@@ -16,7 +16,7 @@ risk.
 
 ## The single most important structural fact
 
-`native/nightshade_native/flutter_rust_bridge.yaml:4` sets `rust_input: crate::api`.
+`native/skotiq_native/flutter_rust_bridge.yaml:4` sets `rust_input: crate::api`.
 Only `bridge/src/api/**` is exposed to Dart — confirmed by enumerating the
 generated wire functions:
 
@@ -37,7 +37,7 @@ Clusters 1, 2 and 3 below are all consequences of this.
 
 ## Cluster 1 — Three `DeviceOps` implementations; one runs (P1)
 
-`nightshade_sequencer::DeviceOps` (77 methods, `sequencer/src/device_ops.rs`) is
+`skotiq_sequencer::DeviceOps` (77 methods, `sequencer/src/device_ops.rs`) is
 implemented three times inside the bridge crate:
 
 | impl | file | lines | overrides | wired by |
@@ -67,7 +67,7 @@ Two things make this a reliability finding rather than mere clutter:
 
 **(a) The two executor accessors are the same singleton.**
 `bridge/src/api/sequencer.rs:41-44` `get_sequence_executor()` returns
-`nightshade_sequencer::get_executor()` — the `static EXECUTOR: OnceLock` at
+`skotiq_sequencer::get_executor()` — the `static EXECUTOR: OnceLock` at
 `sequencer/src/executor/mod.rs:7985-7991`. `sequencer_api.rs` mutates that same
 global via `exec.set_device_ops(...)`. If any future caller reaches
 `sequencer_api::sequencer_load_plan` / `sequencer_set_simulation_mode` /
@@ -165,7 +165,7 @@ The only live consumers of this file are four pure image helpers, called from
 
 The real capture path is `api/imaging.rs` (7406 lines) + `UnifiedDeviceOps`;
 Dart's `getSessionImages` resolves through the Drift DB / network backend
-(`nightshade_core/lib/src/backend/ffi_backend/session_heartbeat_operations.dart:9`,
+(`skotiq_core/lib/src/backend/ffi_backend/session_heartbeat_operations.dart:9`,
 `network_backend/imaging_profile_operations.dart:485`), never through Rust.
 
 **Survivor:** `api/imaging.rs` for capture; keep the four stretch/debayer/stats
@@ -252,30 +252,30 @@ re-testing; the two registries key differently (`(type,id)` vs `id`), so the
 Every copy carries the same literal `280.46061837 + 360.98564736629 * (jd - 2451545.0)`:
 
 Rust (4):
-* `native/nightshade_native/sequencer/src/scheduling/astronomy.rs:24,45,56` —
+* `native/skotiq_native/sequencer/src/scheduling/astronomy.rs:24,45,56` —
   `julian_date` / `greenwich_mean_sidereal_time` / `local_sidereal_time`,
   plus `equatorial_to_horizontal:64`, `object_alt_az:89`, `airmass:123`,
   `angular_separation:131`. **This is the canonical, tested one.**
-* `native/nightshade_native/sequencer/src/meridian.rs:259,293` — `julian_day` /
+* `native/skotiq_native/sequencer/src/meridian.rs:259,293` — `julian_day` /
   `local_sidereal_time`
-* `native/nightshade_native/bridge/src/unified_device_ops.rs:1883,1909` (private, **live**)
-* `native/nightshade_native/bridge/src/sequencer_ops.rs:1579,1605` (dead) and
+* `native/skotiq_native/bridge/src/unified_device_ops.rs:1883,1909` (private, **live**)
+* `native/skotiq_native/bridge/src/sequencer_ops.rs:1579,1605` (dead) and
   `real_device_ops.rs:2846` (dead)
 
 Dart (10 files, 14 `julianDate`-family definitions):
-* `packages/nightshade_core/lib/src/services/scheduler/sky_calculations.dart:46,101,185`
-* `packages/nightshade_core/lib/src/services/scheduler_service.dart:107,140`
-* `packages/nightshade_core/lib/src/services/night_analysis_service.dart:1019,1039`
-* `packages/nightshade_core/lib/src/services/planning/forecast_planning_service.dart:401`
-* `packages/nightshade_core/lib/src/services/coimaging/coimaging_session_service.dart:976,984`
-* `packages/nightshade_core/lib/src/database/daos/targets_dao.dart:262,273`
-* `packages/nightshade_planetarium/lib/src/coordinate_system.dart:68,89`
-* `packages/nightshade_planetarium/lib/src/astronomy/astronomy_calculations.dart:72,143`
-* `packages/nightshade_planetarium/lib/src/astronomy/planetary_positions.dart:23`,
+* `packages/skotiq_core/lib/src/services/scheduler/sky_calculations.dart:46,101,185`
+* `packages/skotiq_core/lib/src/services/scheduler_service.dart:107,140`
+* `packages/skotiq_core/lib/src/services/night_analysis_service.dart:1019,1039`
+* `packages/skotiq_core/lib/src/services/planning/forecast_planning_service.dart:401`
+* `packages/skotiq_core/lib/src/services/coimaging/coimaging_session_service.dart:976,984`
+* `packages/skotiq_core/lib/src/database/daos/targets_dao.dart:262,273`
+* `packages/skotiq_planetarium/lib/src/coordinate_system.dart:68,89`
+* `packages/skotiq_planetarium/lib/src/astronomy/astronomy_calculations.dart:72,143`
+* `packages/skotiq_planetarium/lib/src/astronomy/planetary_positions.dart:23`,
   `sgp4.dart:492`, `catalogs/minor_planet_catalog.dart:312`,
   `catalogs/variable_star_catalog.dart:235`, `catalogs/mpcorb.dart:269`
-* `server/nightshade_hub/lib/src/scheduler/follow_the_night.dart:247,259`
-* `packages/nightshade_app/lib/screens/analytics/widgets/science_export_hub.dart:108`
+* `server/skotiq_hub/lib/src/scheduler/follow_the_night.dart:247,259`
+* `packages/skotiq_app/lib/screens/analytics/widgets/science_export_hub.dart:108`
 
 The altitude formula `sin(dec)sin(lat) + cos(dec)cos(lat)cos(H)` is separately
 re-typed in nine files (`targets_dao.dart`, `scheduler_service.dart`,
@@ -297,25 +297,25 @@ These are not byte-identical, and the differences are real:
   `scheduler_service.dart:140` and `night_analysis_service.dart:1039` stop at
   whole seconds.
 * **One copy trusts its parameter name for UTC.**
-  `server/nightshade_hub/lib/src/scheduler/follow_the_night.dart:259
+  `server/skotiq_hub/lib/src/scheduler/follow_the_night.dart:259
   static double _julianDay(DateTime utc)` never calls `.toUtc()`. It is safe
   *today* only because both call sites normalise first (`:154`, `:211`). A third
   caller passing a local `DateTime` gets a JD wrong by the whole UTC offset — a
   whole-hours error in LST, i.e. a target scored as up when it is down.
 
 **Survivor:** one shared Dart astronomy module (promote
-`packages/nightshade_core/lib/src/services/scheduler/sky_calculations.dart` —
+`packages/skotiq_core/lib/src/services/scheduler/sky_calculations.dart` —
 it is already `static`, already millisecond-accurate, and already the most
 complete: JD, GMST, sun position, twilight) and, in Rust, the already-canonical
 `sequencer/src/scheduling/astronomy.rs`.
 **Merge:** (1) delete the nine Dart re-typings and import `SkyCalculations`
-— note `nightshade_planetarium` does **not** depend on `nightshade_core` (it is a
+— note `skotiq_planetarium` does **not** depend on `skotiq_core` (it is a
 leaf), so the planetarium copies need the shared module to live in the leaf
-package or in a new tiny `nightshade_astro` package that both depend on.
+package or in a new tiny `skotiq_astro` package that both depend on.
 (2) In Rust, replace the private `julian_day`/`local_sidereal_time` in
 `unified_device_ops.rs:1883-1926` with
-`nightshade_sequencer::scheduling::astronomy::{julian_date, local_sidereal_time}`
-(the bridge already depends on `nightshade_sequencer`), and fold
+`skotiq_sequencer::scheduling::astronomy::{julian_date, local_sidereal_time}`
+(the bridge already depends on `skotiq_sequencer`), and fold
 `meridian.rs:259/293` into the same module.
 (3) Give `follow_the_night.dart:259` a `.toUtc()` on the way in regardless.
 **Risk:** medium. Changing JD precision changes numbers in scheduler golden
@@ -328,28 +328,28 @@ deliberately, not in bulk.
 
 | copy | file | surface |
 |---|---|---|
-| Rust | `native/nightshade_native/imaging/src/wcs_sip.rs` (`SipWcs`, 700 lines) | `pixel_to_world:247`, `world_to_pixel:273`, `undistort:295`, `sip_poly:322`, `tan_project:368`, `tan_deproject:391`, `cd_det:199`, `is_invertible:207`, `pixel_scale_arcsec:239`; 10 unit tests at `:429-650` |
-| Dart | `packages/nightshade_core/lib/src/services/wcs/gnomonic_projection.dart` (`GnomonicProjection`/`SolvedWcs`, 519 lines) | `worldToPixel:244`, `pixelToWorld:318`, `_sipPoly:485`, `_cdDet:236`, `_normaliseRaDeg:477`, `fieldOfViewDeg:472` |
+| Rust | `native/skotiq_native/imaging/src/wcs_sip.rs` (`SipWcs`, 700 lines) | `pixel_to_world:247`, `world_to_pixel:273`, `undistort:295`, `sip_poly:322`, `tan_project:368`, `tan_deproject:391`, `cd_det:199`, `is_invertible:207`, `pixel_scale_arcsec:239`; 10 unit tests at `:429-650` |
+| Dart | `packages/skotiq_core/lib/src/services/wcs/gnomonic_projection.dart` (`GnomonicProjection`/`SolvedWcs`, 519 lines) | `worldToPixel:244`, `pixelToWorld:318`, `_sipPoly:485`, `_cdDet:236`, `_normaliseRaDeg:477`, `fieldOfViewDeg:472` |
 
 Both are live and they serve *the same frames*:
 
 * Rust: `bridge/src/api/sky_atlas.rs:32,95-98,241,828`,
   `bridge/src/api/difference_image.rs:24,83`,
   `imaging/src/mosaic_stitch.rs` — atlas tiling, difference imaging, mosaic stitch.
-* Dart: `nightshade_core/lib/src/services/catalog_overlay_service.dart`,
+* Dart: `skotiq_core/lib/src/services/catalog_overlay_service.dart`,
   `providers/catalog_overlay_provider.dart`,
   `services/sky_atlas/sky_atlas_service.dart` + `sky_atlas_models.dart`,
   `services/transients/first_light_service.dart`,
   `services/science/science_processing_service/private_helpers.dart`,
   `services/science/default_science_backend/helpers.dart`,
   `services/imaging_records_repository.dart`,
-  `nightshade_app/.../catalog_overlay_widget.dart`,
+  `skotiq_app/.../catalog_overlay_widget.dart`,
   `.../live_preview_area/preview_overlays.dart`, `.../frame_selection.dart`,
   `.../photometric_calibration_wizard/star_matching.dart`
   — annotation overlay, click-identify, framing, photometric star matching.
 
 There is even a duplicated *serialisation* of the same SIP block:
-`packages/nightshade_core/lib/src/services/wcs/wcs_sip_codec.dart` hand-encodes
+`packages/skotiq_core/lib/src/services/wcs/wcs_sip_codec.dart` hand-encodes
 `{aOrder,bOrder,a,b,apOrder,bpOrder,ap,bp}` for the `captured_images.solved_sip`
 column, against `SipWcs::from_plate_solve` (`wcs_sip.rs:111`) on the Rust side.
 
@@ -374,41 +374,41 @@ added — do that first regardless.
 
 ## Cluster 6 — Five hand-rolled FITS header parsers/writers in Dart (P2)
 
-Rust already owns FITS: `native/nightshade_native/imaging/src/fits.rs` (3699
+Rust already owns FITS: `native/skotiq_native/imaging/src/fits.rs` (3699
 lines), reached from Dart via `api_save_fits_file_rich` /
 `api/imaging.rs:3741 save_fits_file_rich` and `read_fits`. Dart nevertheless
 re-implements 2880-byte-block card parsing five more times:
 
-1. `packages/nightshade_core/lib/src/services/calibration/fits_header_reader.dart`
+1. `packages/skotiq_core/lib/src/services/calibration/fits_header_reader.dart`
    (137 lines; `blockSize=2880`, `cardSize=80`, `maxBlocks=36`) — Calibration
    Library metadata enrichment.
-2. `packages/nightshade_core/lib/src/services/dark_library_service.dart:368-460`
+2. `packages/skotiq_core/lib/src/services/dark_library_service.dart:368-460`
    (reader, incl. its own `BITPIX`/`BZERO` decode) **and** `:600-640` (writer,
    its own 2880 padding). Its own doc comment at `fits_header_reader.dart:11-12`
    admits the split: "The full pixel parser lives in `DarkLibraryService`; the
    header *writer* in `science/fits_header_writer.dart`."
-3. `packages/nightshade_core/lib/src/services/science/fits_header_writer.dart`
+3. `packages/skotiq_core/lib/src/services/science/fits_header_writer.dart`
    (371 lines; `blockSize=2880` at `:109`) — the science-keyword writer.
-4. `packages/nightshade_core/lib/src/services/mosaic/collaborative_mosaic_service.dart:764-830`
+4. `packages/skotiq_core/lib/src/services/mosaic/collaborative_mosaic_service.dart:764-830`
    — **two** separate inline block scanners (`maxHeaderBytes = 2880*16` at `:775`
    and again at `:812`).
-5. `server/nightshade_hub/lib/src/calibration/fits_master_validation.dart`
+5. `server/skotiq_hub/lib/src/calibration/fits_master_validation.dart`
    (324 lines; `_blockSize=2880` at `:59`, `SIMPLE` check at `:103`/`:133`) —
-   the hub's own master-frame validator. `server/nightshade_hub/pubspec.yaml`
-   depends on no `nightshade_*` package, so this one is forced by the current
+   the hub's own master-frame validator. `server/skotiq_hub/pubspec.yaml`
+   depends on no `skotiq_*` package, so this one is forced by the current
    dependency graph, not by preference.
 
 Divergence already visible: only (1) and (5) enforce a `SIMPLE` first card;
 only (1) caps at 36 blocks; (2) and (4) use different caps again; (2) is the only
 one that rejects unsupported `BITPIX`.
 
-**Survivor:** one `FitsHeaderReader` in `nightshade_core` (extend the existing
+**Survivor:** one `FitsHeaderReader` in `skotiq_core` (extend the existing
 `services/calibration/fits_header_reader.dart` with the `BITPIX`/`BZERO` decode
 from `dark_library_service.dart`), and one writer
 (`services/science/fits_header_writer.dart`).
 **Merge:** re-point `dark_library_service.dart`, `collaborative_mosaic_service.dart`
 (both scanners) and the two writers at the shared pair. For the hub, either add a
-`nightshade_core` path dependency or extract the reader into a new leaf package
+`skotiq_core` path dependency or extract the reader into a new leaf package
 both can depend on — do not leave a sixth copy.
 **Risk:** low-medium. Dark-library reads touch multi-hundred-MB masters, so
 preserve the "header-only, never touch pixels" I/O shape when consolidating.
@@ -418,7 +418,7 @@ preserve the "header-only, never touch pixels" I/O shape when consolidating.
 ## Cluster 7 — RA/Dec sexagesimal formatting: 39 private copies against 2 canonicals (P2)
 
 A canonical exists and even documents the problem:
-`packages/nightshade_core/lib/src/utils/coordinate_format.dart:4-7` —
+`packages/skotiq_core/lib/src/utils/coordinate_format.dart:4-7` —
 *"Historically, ~20 screens each carried their own private `_formatRa` /
 `_formatDec` helper … This class consolidates them."* The consolidation was not
 finished.
@@ -431,7 +431,7 @@ Counts today (excluding tests and `build/`):
 
 Copies live in three packages plus the mobile app, i.e. this is genuinely
 cross-boundary:
-`nightshade_app/.../mount_control_card.dart:24`,
+`skotiq_app/.../mount_control_card.dart:24`,
 `.../imaging/centering_dialog.dart:994,1001`,
 `.../overlay_painters/celestial_grid_painter.dart:357,372`,
 `.../polar_alignment/..._measurement_panel.dart:249,257`,
@@ -445,10 +445,10 @@ cross-boundary:
 `.../widgets/first_light/first_light_flow_dialog.dart:746,755`,
 `.../widgets/catalog_overlay_widget/details_panel.dart:155,164`,
 `.../analytics/widgets/mpc_export_panel.dart:512,523`;
-`nightshade_core/.../services/device_service/mount_controls.dart:54,61`,
+`skotiq_core/.../services/device_service/mount_controls.dart:54,61`,
 `.../services/science/mpc_export_service.dart:291,331`,
 `.../services/science/narrator/detectors/first_light_detectors.dart:216,226`;
-`nightshade_planetarium/.../rendering/sky_renderer/coordinate_layers.dart:249,263`;
+`skotiq_planetarium/.../rendering/sky_renderer/coordinate_layers.dart:249,263`;
 `apps/mobile/.../dashboard/tabs/mount_tab.dart:1110,1119`,
 `.../dashboard/tabs/devices_tab.dart:600,606`.
 
@@ -487,7 +487,7 @@ killing the hours-vs-degrees ambiguity.
 Same shape, lower stakes: **30** private `String _formatDuration(...)` definitions
 against the canonical `formatIntegrationSeconds` /
 `formatIntegrationHours` in
-`packages/nightshade_core/lib/src/utils/duration_format.dart:16,29`, whose own
+`packages/skotiq_core/lib/src/utils/duration_format.dart:16,29`, whose own
 doc records the bug that motivated it ("0 minutes" vs "12s" for the same run).
 
 ---
@@ -507,24 +507,24 @@ if (useCompanionUi) { ... home: const MobileDashboardScreen() ... }
 ```
 
 and `isCompanionUiEnabled` (`apps/mobile/lib/companion_ui_config.dart:7-14`)
-requires `--dart-define=NIGHTSHADE_COMPANION_UI=1` or the env var. A repo-wide
+requires `--dart-define=SKOTIQ_COMPANION_UI=1` or the env var. A repo-wide
 search finds that name in exactly five files, all of them the definition or a
 doc comment — **no build script, CI workflow, gradle config or release recipe
-sets it**. The default path is full `NightshadeApp` parity
-(`packages/nightshade_app/lib/router/app_router.dart:39-46`).
+sets it**. The default path is full `SkotiqApp` parity
+(`packages/skotiq_app/lib/router/app_router.dart:39-46`).
 
 So these tabs are compiled into every shipped APK, are never rendered, and
-duplicate screens that `nightshade_app` already owns — the class-name collisions
+duplicate screens that `skotiq_app` already owns — the class-name collisions
 `MountTab`, `SequencerTab`, `ScienceTab` between
 `apps/mobile/lib/screens/dashboard/tabs/*` and
-`packages/nightshade_app/lib/screens/*` are the giveaway. They also carry their
+`packages/skotiq_app/lib/screens/*` are the giveaway. They also carry their
 own copies of cluster-7's formatters (`mount_tab.dart:1110,1119`,
 `devices_tab.dart:600,606`), so every coordinate-formatting fix has to be applied
 to code no user sees.
 
-**Survivor:** `packages/nightshade_app` (the shared shell).
+**Survivor:** `packages/skotiq_app` (the shared shell).
 **Merge:** this is a product decision, not a refactor — either delete the
-companion tabs and the `NIGHTSHADE_COMPANION_UI` switch, or promote the switch to
+companion tabs and the `SKOTIQ_COMPANION_UI` switch, or promote the switch to
 something a build actually sets and give it a test. Shipping it in the third
 state ("present, unreachable, still maintained") is the only option with no
 upside.
@@ -533,34 +533,34 @@ upside.
 
 ---
 
-## Cluster 9 — `nightshade_bridge` ⇄ `nightshade_core/models/backend` parallel type layer (P3, by design — verify, don't merge)
+## Cluster 9 — `skotiq_bridge` ⇄ `skotiq_core/models/backend` parallel type layer (P3, by design — verify, don't merge)
 
-~35 type names exist in both `packages/nightshade_bridge/lib/src/**` (FRB-generated
-or FRB-adjacent) and `packages/nightshade_core/lib/src/models/backend/**`
+~35 type names exist in both `packages/skotiq_bridge/lib/src/**` (FRB-generated
+or FRB-adjacent) and `packages/skotiq_core/lib/src/models/backend/**`
 (hand-written): `DeviceInfo`, `DeviceType`, `DriverType`, `ConnectionState`,
 `PierSide`, `CameraState`, `CameraStatus`, `MountStatus`, `FocuserStatus`,
 `FilterWheelStatus`, `RotatorStatus`, `ShutterStatus`, `TrackingRate`,
 `CameraCapabilities`, `MountCapabilities`, `FocuserCapabilities`,
 `FilterWheelCapabilities`, `RotatorCapabilities`, `DomeCapabilities`,
-`EventSeverity`, `EventCategory`, `NightshadeEvent`, `FitsWriteHeader`,
+`EventSeverity`, `EventCategory`, `SkotiqEvent`, `FitsWriteHeader`,
 `ImageStats`, `ImageStatsResult`, `CapturedImageResult`, `FocusDataPoint`,
 `SequencerStatus`, `SessionState`, `EquipmentProfile`, `ObserverLocation`,
 `AppSettings`, `BuiltinGuiderConfig`, `Phd2Status`, `Phd2StarImage`,
 `Phd2GuideStats`, `Phd2CalibrationData`, `Phd2AlgoParam`, `PlateSolverInfo`,
 `PlateSolverDetection`.
 
-This is **not** an accident: `NightshadeBackend`
-(`nightshade_core/lib/src/backend/nightshade_backend.dart`) has three
+This is **not** an accident: `SkotiqBackend`
+(`skotiq_core/lib/src/backend/skotiq_backend.dart`) has three
 implementations — `ffi_backend` (9 part files), `network_backend` (24 part
 files), `disconnected_backend` — and the `models/backend/*` types are the
 transport-neutral shape with `fromJson`/`toJson` that the network path needs.
-`nightshade_core` *does* depend on `nightshade_bridge`, so the split is a choice,
+`skotiq_core` *does* depend on `skotiq_bridge`, so the split is a choice,
 and a defensible one.
 
 I am recording it rather than recommending a merge, with one caveat worth
 checking in the tightening pass: the enums are kept identical **by hand** on both
-sides (`nightshade_bridge/lib/src/device.dart:309` vs
-`nightshade_core/lib/src/models/backend/device_types.dart:5` — same 11
+sides (`skotiq_bridge/lib/src/device.dart:309` vs
+`skotiq_core/lib/src/models/backend/device_types.dart:5` — same 11
 `DeviceType` members, same order). Adding a device type in Rust and regenerating
 the bridge will not fail any build; it will silently produce a `DeviceType` the
 network path cannot name.
@@ -573,35 +573,35 @@ merge the layers.
 
 ## Cross-package duplication suspects (flagged, not yet call-path-traced)
 
-* `packages/nightshade_core/lib/src/services/constellation/constellation_models.dart`
-  vs `server/nightshade_hub/lib/src/**` — `SubframeReceipt`, `SharedTarget`,
+* `packages/skotiq_core/lib/src/services/constellation/constellation_models.dart`
+  vs `server/skotiq_hub/lib/src/**` — `SubframeReceipt`, `SharedTarget`,
   `MosaicPanelClaim`, `CoImagingBatonState`, `CoImagingAccounting`,
   `ContributionOutcome`, `HandoffClaim` are declared on both sides. I inspected
   `HandoffClaim` (`constellation_models.dart:221` vs `handoff_service.dart:177`)
   and they are *not* the same type — the server's is a 3-field internal, the
   client's a 6-field wire decode. The suspect is the wire contract itself:
-  `server/nightshade_hub` depends on no `nightshade_*` package, so every JSON key
+  `server/skotiq_hub` depends on no `skotiq_*` package, so every JSON key
   is typed twice with nothing binding them.
-* `packages/nightshade_core/lib/src/backend/network_backend/wire_models.dart` +
+* `packages/skotiq_core/lib/src/backend/network_backend/wire_models.dart` +
   `wire_history_models.dart` (1908 lines) vs
   `apps/desktop/lib/headless_api/handlers/**` — the request/response shapes of
   ~589 endpoints are hand-encoded on the server side and hand-decoded on the
   client side, in different packages.
-* `_median` in six files across `nightshade_core` and `server/nightshade_hub`
+* `_median` in six files across `skotiq_core` and `server/skotiq_hub`
   (`focus_model_service.dart`, `science/default_science_backend/helpers.dart`,
   `science/science_processing_service/private_helpers.dart`,
   `smart_project_service.dart`, `hub/calibration/fits_master_validation.dart`,
   `hub/tiles/tile_quality.dart`); `_percentile` in five.
 * `TwilightTimes` declared in both
-  `nightshade_core/lib/src/services/scheduler/sky_calculations.dart:29` and
-  `nightshade_planetarium/lib/src/astronomy/astronomy_calculations.dart:1667` —
+  `skotiq_core/lib/src/services/scheduler/sky_calculations.dart:29` and
+  `skotiq_planetarium/lib/src/astronomy/astronomy_calculations.dart:1667` —
   same concept, two packages, no shared dependency (see cluster 4's leaf-package
   problem).
-* `TargetScore` in `nightshade_core/lib/src/models/scheduler/scheduler_decision.dart:46`
-  vs `nightshade_planetarium/lib/src/planning/target_scoring.dart:77`;
-  `SurveySource` in `nightshade_core/.../framing_provider/models.dart:370` vs
-  `nightshade_planetarium/.../survey_image_service.dart:6`.
-* `calculate_hfr` exists at `native/nightshade_native/imaging/src/stats.rs:800`
+* `TargetScore` in `skotiq_core/lib/src/models/scheduler/scheduler_decision.dart:46`
+  vs `skotiq_planetarium/lib/src/planning/target_scoring.dart:77`;
+  `SurveySource` in `skotiq_core/.../framing_provider/models.dart:370` vs
+  `skotiq_planetarium/.../survey_image_service.dart:6`.
+* `calculate_hfr` exists at `native/skotiq_native/imaging/src/stats.rs:800`
   (`calculate_hfr_at_point`), `indi/src/autofocus.rs:1100`,
   `sequencer/src/instructions.rs:5301` (`calculate_hfr_with_crops`) and
   `bridge/src/imaging_ops.rs:634` (dead). Worth a dedicated trace: autofocus
@@ -620,7 +620,7 @@ merge the layers.
 | `AppState::update_device_state` | `bridge/src/state.rs:171` | 0 production callers (tests only) |
 | `AppState::first_connected_device_id` | `bridge/src/state.rs:235` | live callers all use `get_device_manager()`; remaining callers are the dead cluster-1 files |
 | stale comment citing `ALPACA_CLIENTS` | `bridge/src/device_manager/mod.rs:985` | the named static does not exist anywhere in the crate |
-| `apps/mobile` companion dashboard (4845 lines) | `apps/mobile/lib/screens/dashboard/**` | gated on `NIGHTSHADE_COMPANION_UI`, which nothing in the repo sets |
+| `apps/mobile` companion dashboard (4845 lines) | `apps/mobile/lib/screens/dashboard/**` | gated on `SKOTIQ_COMPANION_UI`, which nothing in the repo sets |
 
 ---
 
@@ -634,7 +634,7 @@ merge the layers.
    duplication scan gets quieter.
 3. **Cluster 5 conformance test** — cheap, and it converts a silent divergence
    into a build failure before anyone touches either WCS implementation.
-4. **Cluster 4** — needs the leaf-package decision for `nightshade_planetarium`
+4. **Cluster 4** — needs the leaf-package decision for `skotiq_planetarium`
    first; then one consumer per commit with goldens regenerated deliberately.
 5. **Clusters 6, 7** — mechanical, high volume, low risk each.
 6. **Cluster 8** — product decision, then a delete.

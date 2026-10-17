@@ -1,6 +1,6 @@
 # Headless Secure Setup
 
-Nightshade headless mode runs the desktop backend without the Flutter UI and
+Skotiq headless mode runs the desktop backend without the Flutter UI and
 exposes the remote-control API for browser, mobile, and automation clients.
 Treat it like rig-control infrastructure: bind narrowly by default, require a
 token before LAN exposure, and verify the server before connecting devices.
@@ -16,10 +16,10 @@ token before LAN exposure, and verify the server before connecting devices.
 The headless entry point binds to loopback unless one of these is true:
 
 - `--auth-token=<token>` is provided.
-- `NIGHTSHADE_AUTH_TOKEN` is set.
+- `SKOTIQ_AUTH_TOKEN` is set.
 - `--require-auth` is provided, which generates a token at startup.
 - `--allow-unauthenticated-lan` or
-  `NIGHTSHADE_ALLOW_UNAUTHENTICATED_LAN=true` is provided.
+  `SKOTIQ_ALLOW_UNAUTHENTICATED_LAN=true` is provided.
 
 Do not use unauthenticated LAN mode for normal imaging. It exposes control
 commands such as slew, park, device connect, sequence start, and backup restore
@@ -39,7 +39,7 @@ To intentionally serve **everything** without authentication (isolated
 development networks only), opt in explicitly:
 
 - `--allow-unauthenticated`, or
-- `NIGHTSHADE_ALLOW_UNAUTHENTICATED=true`.
+- `SKOTIQ_ALLOW_UNAUTHENTICATED=true`.
 
 The server logs a prominent warning at startup when this is set. Authentication
 (`--allow-unauthenticated`) and network exposure (`--allow-unauthenticated-lan`)
@@ -62,21 +62,21 @@ flutter run -d windows --target=lib/main_headless.dart -- --require-auth
 Packaged Windows run:
 
 ```powershell
-.\build\windows\x64\runner\Release\nightshade_desktop.exe --headless --require-auth
+.\build\windows\x64\runner\Release\skotiq_desktop.exe --headless --require-auth
 ```
 
 Packaged Linux run:
 
 ```bash
-./build/linux/<arch>/release/bundle/nightshade_desktop --headless --require-auth
+./build/linux/<arch>/release/bundle/skotiq_desktop --headless --require-auth
 ```
 
 Use a fixed token when clients need a stable credential:
 
 ```powershell
-$env:NIGHTSHADE_AUTH_TOKEN = "replace-with-a-long-random-token"
-$env:NIGHTSHADE_PORT = "8080"
-.\nightshade_desktop.exe --headless
+$env:SKOTIQ_AUTH_TOKEN = "replace-with-a-long-random-token"
+$env:SKOTIQ_PORT = "8080"
+.\skotiq_desktop.exe --headless
 ```
 
 ## Client Authentication
@@ -95,19 +95,19 @@ Headless mode supports three token scopes:
 | `control` | Imaging-control clients | View access plus device, capture, mount, guider, sequencer, dome, safety, switch, and cover control routes. |
 | `admin` | Trusted operators and maintenance tools | Full protected API access, including self-test, settings, file browsing, and backup/restore. |
 
-The legacy `--auth-token` and `NIGHTSHADE_AUTH_TOKEN` values are admin tokens.
+The legacy `--auth-token` and `SKOTIQ_AUTH_TOKEN` values are admin tokens.
 Use narrower tokens for clients that do not need administrative access:
 
 ```powershell
-$env:NIGHTSHADE_VIEW_TOKEN = "replace-with-a-long-random-view-token"
-$env:NIGHTSHADE_CONTROL_TOKEN = "replace-with-a-long-random-control-token"
-.\nightshade_desktop.exe --headless --auth-token=replace-with-a-long-random-admin-token
+$env:SKOTIQ_VIEW_TOKEN = "replace-with-a-long-random-view-token"
+$env:SKOTIQ_CONTROL_TOKEN = "replace-with-a-long-random-control-token"
+.\skotiq_desktop.exe --headless --auth-token=replace-with-a-long-random-admin-token
 ```
 
 Equivalent CLI flags are available:
 
 ```powershell
-.\nightshade_desktop.exe --headless `
+.\skotiq_desktop.exe --headless `
   --auth-token=replace-with-a-long-random-admin-token `
   --view-token=replace-with-a-long-random-view-token `
   --control-token=replace-with-a-long-random-control-token
@@ -131,10 +131,10 @@ Allow only the ports needed for the deployment:
 
 | Port | Protocol | Purpose |
 |------|----------|---------|
-| `8080` or `NIGHTSHADE_PORT` | TCP | REST API, dashboard, WebSocket updates |
+| `8080` or `SKOTIQ_PORT` | TCP | REST API, dashboard, WebSocket updates |
 | `45679` | UDP | LAN discovery advertisement when LAN binding is enabled |
 
-Keep the TCP API port blocked from untrusted networks. If exposing Nightshade
+Keep the TCP API port blocked from untrusted networks. If exposing Skotiq
 through a VPN or reverse proxy, terminate TLS at that layer and keep the
 headless server bound to loopback when possible.
 
@@ -144,20 +144,20 @@ For systemd, Docker, and Raspberry Pi appliance deployments, keep application
 state under the daemon-owned state directory:
 
 ```bash
-NIGHTSHADE_DATA_DIR=/var/lib/nightshade/data
-NIGHTSHADE_DATABASE_DIR=/var/lib/nightshade/database
+SKOTIQ_DATA_DIR=/var/lib/skotiq/data
+SKOTIQ_DATABASE_DIR=/var/lib/skotiq/database
 ```
 
-`NIGHTSHADE_DATA_DIR` is the native persistence root for generated data such as
-defect maps. `NIGHTSHADE_DATABASE_DIR` pins the Drift database outside any user
+`SKOTIQ_DATA_DIR` is the native persistence root for generated data such as
+defect maps. `SKOTIQ_DATABASE_DIR` pins the Drift database outside any user
 Documents folder. Capture output, backups, and exports can still be pointed at
 operator-selected storage such as an external imaging disk.
 
 Remote clients can browse only allow-listed directories. Add external capture
-disks with `NIGHTSHADE_BROWSE_ROOTS`:
+disks with `SKOTIQ_BROWSE_ROOTS`:
 
 ```bash
-NIGHTSHADE_BROWSE_ROOTS="Captures=/mnt/captures;USB SSD=/media/nightshade"
+SKOTIQ_BROWSE_ROOTS="Captures=/mnt/captures;USB SSD=/media/skotiq"
 ```
 
 In the hardened systemd unit, any external write target must also be listed in
@@ -166,8 +166,8 @@ In the hardened systemd unit, any external write target must also be listed in
 ## Linux Device Access
 
 Bare-metal and Raspberry Pi appliance installs include
-`/etc/udev/rules.d/99-nightshade-astro.rules`. The rule grants `0660` access to
-the `nightshade` service group, plus logind `uaccess`, for common astronomy USB
+`/etc/udev/rules.d/99-skotiq-astro.rules`. The rule grants `0660` access to
+the `skotiq` service group, plus logind `uaccess`, for common astronomy USB
 camera/filter-wheel vendors and USB-serial mount adapters. This replaces the
 world-writable `0666` rules many vendor SDKs suggest.
 
@@ -225,7 +225,7 @@ sudo udevadm trigger --subsystem-match=usb --subsystem-match=tty --subsystem-mat
    ```bash
    lsusb
    ls -l /dev/ttyUSB* /dev/ttyACM* 2>/dev/null || true
-   sudo -u nightshade groups
+   sudo -u skotiq groups
    ```
 
 ## Operational Notes

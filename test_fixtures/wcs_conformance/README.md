@@ -1,12 +1,12 @@
 # `.wcs` conformance fixture
 
-Nightshade parses an ASTAP / astrometry.net `.wcs` sidecar **twice**, in two
+Skotiq parses an ASTAP / astrometry.net `.wcs` sidecar **twice**, in two
 languages, on two different code paths:
 
 | implementation | file | reached from |
 |---|---|---|
-| Rust | `native/nightshade_native/imaging/src/platesolve.rs` — `fits_header_cards`, `parse_wcs_file_inner`, `sip_indices`, `sip_layout` | the native solver (`AstapSolver`), i.e. every FFI/network solve |
-| Dart | `packages/nightshade_core/lib/src/services/plate_solve_service.dart` — `_fitsHeaderCards`, `_parseWcsFile`, `_parseWcsValue` | the local fallback in `PlateSolveService`, i.e. the path that runs precisely when the native solver has already failed |
+| Rust | `native/skotiq_native/imaging/src/platesolve.rs` — `fits_header_cards`, `parse_wcs_file_inner`, `sip_indices`, `sip_layout` | the native solver (`AstapSolver`), i.e. every FFI/network solve |
+| Dart | `packages/skotiq_core/lib/src/services/plate_solve_service.dart` — `_fitsHeaderCards`, `_parseWcsFile`, `_parseWcsValue` | the local fallback in `PlateSolveService`, i.e. the path that runs precisely when the native solver has already failed |
 
 Nothing forced those two to agree. They already drifted once, expensively: the
 Rust side was fixed to card-split a terminator-free FITS header while the Dart
@@ -30,8 +30,8 @@ suites.
 
 ## Consumers
 
-- Dart: `packages/nightshade_core/test/services/wcs_conformance_test.dart`
-- Rust: `native/nightshade_native/imaging/src/platesolve_wcs_conformance_tests.rs`
+- Dart: `packages/skotiq_core/test/services/wcs_conformance_test.dart`
+- Rust: `native/skotiq_native/imaging/src/platesolve_wcs_conformance_tests.rs`
 
 Both locate this directory by walking up from their own package/crate, so both
 suites read the same bytes. Change either parser and one of them goes red.
@@ -88,8 +88,8 @@ Pinning it means a future guard has to update both sides at once.
 Edit `cases/*.wcs` and `cases.json` together, then run both suites:
 
 ```
-cd packages/nightshade_core && flutter test test/services/wcs_conformance_test.dart
-cd native/nightshade_native && cargo test -p nightshade_imaging wcs_conformance
+cd packages/skotiq_core && flutter test test/services/wcs_conformance_test.dart
+cd native/skotiq_native && cargo test -p skotiq_imaging wcs_conformance
 ```
 
 Expected values must be what the implementations actually produce. If you find

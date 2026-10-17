@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless_api/route_metadata.dart';
+import 'package:skotiq_desktop/headless_api/route_metadata.dart';
 
 /// `EndpointRateLimiter` keys on `(clientKey, method, concrete path)`, and
 /// several rate-limited prefixes are parametric — every distinct

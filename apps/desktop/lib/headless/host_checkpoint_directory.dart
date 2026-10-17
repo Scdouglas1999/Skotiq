@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
 /// Resolve and create the directory this host uses for sequencer crash-recovery
 /// checkpoints.
@@ -12,16 +12,16 @@ import 'package:nightshade_core/nightshade_core.dart';
 /// absolute, cannot be created, or cannot be written to, so an unusable
 /// checkpoint location fails loudly instead of being accepted silently.
 ///
-/// Anchored on [resolveNightshadeDataDirectory], not on the platform
+/// Anchored on [resolveSkotiqDataDirectory], not on the platform
 /// application-support folder: that folder is per-application, so two daemons
 /// given their own data directories still resolved one shared
-/// `nightshade_session.checkpoint` and each would offer the operator the
+/// `skotiq_session.checkpoint` and each would offer the operator the
 /// other's interrupted run.
 Future<Directory> resolveHostCheckpointDirectory({
   Map<String, String>? environment,
   Future<Directory> Function()? applicationSupportDirectoryProvider,
 }) async {
-  final dataRoot = await resolveNightshadeDataDirectory(
+  final dataRoot = await resolveSkotiqDataDirectory(
     environment: environment,
     applicationSupportDirectoryProvider: applicationSupportDirectoryProvider,
   );
@@ -37,7 +37,7 @@ Future<Directory> resolveHostCheckpointDirectory({
   await directory.create(recursive: true);
   final probe = File(
     '${directory.path}${Platform.pathSeparator}'
-    '.nightshade-write-probe-${DateTime.now().microsecondsSinceEpoch}',
+    '.skotiq-write-probe-${DateTime.now().microsecondsSinceEpoch}',
   );
   await probe.writeAsString('');
   await probe.delete();

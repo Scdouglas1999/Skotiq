@@ -3,8 +3,8 @@
 **Date** 2026-08-14 · **Driver** live GUI (`tools/ui_audit/drive_linux.py`, profile `decisions-verify`,
 display `:77`) · **Role** driver only — nothing was fixed in this pass.
 
-**Binary** `apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`
-(`lib/libapp.so` mtime **Aug 14 10:46**, `lib/libnightshade_bridge.so` **10:45**), built after
+**Binary** `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`
+(`lib/libapp.so` mtime **Aug 14 10:46**, `lib/libskotiq_bridge.so` **10:45**), built after
 `925bac536` *"feat: the ten owner decisions"* (committed 10:44:42).
 
 Shots: `reports/release-pass/gui/shots/decisions-verify/` · working captures, accessibility dumps

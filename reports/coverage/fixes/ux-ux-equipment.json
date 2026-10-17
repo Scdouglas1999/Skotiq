@@ -7,13 +7,13 @@
       "outcome": "fixed",
       "summary": "Two of the three causes were already closed in this shard's working tree and I revert-verified both: (a) FirstLaunchTourDao.getStatus() maps a MISSING progress row to notStarted rather than pending, so the replay-only coach-mark tour ('Three things to set up first: equipment, a profile, and a sequence') no longer auto-fires on a fresh install on top of the wizard that just did exactly that; (b) ContextualTourPrompt suppresses itself while that coach-mark overlay is mounted. The residue I closed is the one the repro actually lands on: 'Show me on the Sequencer screen' pops the walkthrough and navigates, and the Sequencer then raised its own 'Sequencer Tour — learn how to create and run automated imaging sequences' nudge, offering a tour of the screen the walkthrough step had just explained. Added a session-scoped guidedFlowActiveProvider that the first-night walkthrough claims on open and releases only on Done / Skip forever / Close — deliberately NOT on dispose, because a deep link parks the walkthrough rather than ending it. The prompt checks the flag before showing and hides (without spending the dismissal) if a walkthrough starts while it is already up.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/providers/tutorial_provider.dart",
-        "packages/nightshade_app/lib/screens/tutorial/first_night_wizard.dart",
-        "packages/nightshade_app/lib/widgets/contextual_tour_prompt.dart",
-        "packages/nightshade_app/test/screens/tutorial/first_night_wizard_guided_flow_test.dart",
-        "packages/nightshade_app/test/widgets/contextual_tour_prompt_guided_flow_test.dart"
+        "packages/skotiq_core/lib/src/providers/tutorial_provider.dart",
+        "packages/skotiq_app/lib/screens/tutorial/first_night_wizard.dart",
+        "packages/skotiq_app/lib/widgets/contextual_tour_prompt.dart",
+        "packages/skotiq_app/test/screens/tutorial/first_night_wizard_guided_flow_test.dart",
+        "packages/skotiq_app/test/widgets/contextual_tour_prompt_guided_flow_test.dart"
       ],
-      "test": "packages/nightshade_app/test/widgets/contextual_tour_prompt_guided_flow_test.dart -> 'with no walkthrough running the nudge still appears' (control), 'the nudge stands down while the walkthrough is running', 'a walkthrough started later takes the nudge off screen'; packages/nightshade_app/test/screens/tutorial/first_night_wizard_guided_flow_test.dart -> 'opening the walkthrough claims the guided flow', 'closing the walkthrough hands the screen back', '\"Skip forever\" hands the screen back', 'a bare pop keeps the claim, so a \"Show me\" deep link does too'",
+      "test": "packages/skotiq_app/test/widgets/contextual_tour_prompt_guided_flow_test.dart -> 'with no walkthrough running the nudge still appears' (control), 'the nudge stands down while the walkthrough is running', 'a walkthrough started later takes the nudge off screen'; packages/skotiq_app/test/screens/tutorial/first_night_wizard_guided_flow_test.dart -> 'opening the walkthrough claims the guided flow', 'closing the walkthrough hands the screen back', '\"Skip forever\" hands the screen back', 'a bare pop keeps the claim, so a \"Show me\" deep link does too'",
       "revert_check": "Consumer side: deleted `ref.read(guidedFlowActiveProvider) ||` from the gate in contextual_tour_prompt.dart:_checkAndShowPrompt -> 'the nudge stands down while the walkthrough is running' FAILED, control still passed; restored -> 3/3. Producer side: emptied _releaseGuidedFlow()'s body in first_night_wizard.dart -> both 'hands the screen back' tests FAILED; restored -> 4/4. The pre-existing halves: mapped the null-row branch of FirstLaunchTourDao.getStatus back to pending -> covered by the existing suite.",
       "caveats": "The finding's last clause — per-screen tour toasts 'should be dismissible once globally' — was NOT implemented; a global off switch already exists (Settings > Help & Tutorials disables tutorials, which the prompt honours), and whether one dismissal should kill every screen's offer is a product call, not a defect. Each screen still spends its own dismissal, persisted."
     },
@@ -22,16 +22,16 @@
       "outcome": "fixed",
       "summary": "Already closed in this shard's working tree; I confirmed it by revert. _StepSidebar is now a ConsumerWidget taking the live draft, and a passed step is ticked only when `draft.producedValueFor(step, siteConfigured: ...)` is true — the same question the Review screen answers. Visited-but-empty steps (a guider whose PHD2 test failed and where nothing was selected) render a dash glyph instead of a filled blue tick, with tooltips 'Configured' / 'Skipped — nothing was set' / 'Current step' / 'Not reached yet'. The observing site is read from appSettingsProvider rather than the draft because it is a global observer setting, with null island (0,0) as the not-set sentinel. The redundant trailing optional-step dash is now only drawn ahead of the cursor, since behind it the leading indicator already answers.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/onboarding/onboarding_screen.dart",
-        "packages/nightshade_app/test/screens/onboarding/onboarding_steps_test.dart"
+        "packages/skotiq_app/lib/screens/onboarding/onboarding_screen.dart",
+        "packages/skotiq_app/test/screens/onboarding/onboarding_steps_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/onboarding/onboarding_steps_test.dart -> 'Integration: full wizard flow step list ticks only the steps that captured a value'",
+      "test": "packages/skotiq_app/test/screens/onboarding/onboarding_steps_test.dart -> 'Integration: full wizard flow step list ticks only the steps that captured a value'",
       "revert_check": "Replaced `final isCompleted = isPassed && draft.producedValueFor(step, siteConfigured: siteConfigured);` with `final isCompleted = isPassed;` in onboarding_screen.dart -> that test FAILED; restored -> passes."
     },
     {
       "title": "Step 1's Back button is rendered enabled and is a silent no-op (sub-claim of the step-list finding)",
       "outcome": "not-real",
-      "summary": "Back is already disabled on the welcome step. onboarding_screen.dart:507 computes `onBack = draft.currentStep == OnboardingStep.welcome || draft.currentStep == OnboardingStep.nextSteps || busy ? null : _onBack`, and NightshadeButton treats `onPressed == null` as disabled (nightshade_button.dart:157 `isDisabled`): it drops the tap (`onTap: isDisabled ? null : ...`), sets `Semantics(enabled: false)`, uses a forbidden cursor, and mutes the label to colors.textMuted. So it is neither enabled nor a no-op — it is a correctly disabled button. What likely misled the observer: the outline variant keeps its normal border colour when disabled, so at a glance only the label dims. That is a design-system-wide contrast question about ButtonVariant.outline's disabled state, not an onboarding bug, and is out of scope for this shard.",
+      "summary": "Back is already disabled on the welcome step. onboarding_screen.dart:507 computes `onBack = draft.currentStep == OnboardingStep.welcome || draft.currentStep == OnboardingStep.nextSteps || busy ? null : _onBack`, and SkotiqButton treats `onPressed == null` as disabled (skotiq_button.dart:157 `isDisabled`): it drops the tap (`onTap: isDisabled ? null : ...`), sets `Semantics(enabled: false)`, uses a forbidden cursor, and mutes the label to colors.textMuted. So it is neither enabled nor a no-op — it is a correctly disabled button. What likely misled the observer: the outline variant keeps its normal border colour when disabled, so at a glance only the label dims. That is a design-system-wide contrast question about ButtonVariant.outline's disabled state, not an onboarding bug, and is out of scope for this shard.",
       "files_changed": []
     },
     {
@@ -39,11 +39,11 @@
       "outcome": "fixed",
       "summary": "Already closed in this shard's working tree; I confirmed it by revert. ProfileSidebar takes an onActivateProfile callback and watches activeEquipmentProfileProvider, so selected and active are distinct states. The footer of a selected-but-not-active profile leads with a primary 'Use This Profile' button (Connect All demotes to outline there — two primaries side by side is no emphasis at all), and the same action heads the per-profile menu. Every card now carries a visible '...' overflow button (profileCardMenuButtonKey) opening the menu that used to be right-click only. The star is relabelled to say what it actually controls: 'Make Startup Default' / 'Startup Default' instead of 'Set as Default', which read as 'use this one' and was the only route anyone found to switching rigs — while silently rewriting every future launch.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/equipment/widgets/profile_sidebar.dart",
-        "packages/nightshade_app/lib/screens/equipment/equipment_screen.dart",
-        "packages/nightshade_app/test/screens/equipment/profile_sidebar_activate_test.dart"
+        "packages/skotiq_app/lib/screens/equipment/widgets/profile_sidebar.dart",
+        "packages/skotiq_app/lib/screens/equipment/equipment_screen.dart",
+        "packages/skotiq_app/test/screens/equipment/profile_sidebar_activate_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/equipment/profile_sidebar_activate_test.dart -> 'selecting a profile that is not in use offers a way to use it', 'the profile already in use offers no redundant switch', 'the in-use profile is distinguishable from the selected one', 'every profile card advertises its menu without a right-click'",
+      "test": "packages/skotiq_app/test/screens/equipment/profile_sidebar_activate_test.dart -> 'selecting a profile that is not in use offers a way to use it', 'the profile already in use offers no redundant switch', 'the in-use profile is distinguishable from the selected one', 'every profile card advertises its menu without a right-click'",
       "revert_check": "Changed the footer guard `if (!isActive) ...[` (profile_sidebar.dart) to `if (false) ...[` -> 2 of 4 tests FAILED; restored -> 4/4 pass."
     },
     {
@@ -51,13 +51,13 @@
       "outcome": "fixed",
       "summary": "Two halves. (a) Pixel size: the camera step now resolves the driver-reported camera name through the shipped camera library (hardwarePresetsService.matchCameraByName) and seeds draft.pixelSizeMicrons, only on an actual camera CHANGE so a hand-typed value survives re-selecting the same camera, and only on a match so an unknown camera prefills nothing rather than guessing. The optical-train field's placeholder stopped saying 'Look this up in your camera spec sheet' and a provenance line under it names where a prefilled number came from ('Filled in from ZWO ASI2600MM Pro in the camera library (IMX571)'), disappearing the moment the user types something else. That code was already in this shard's tree but had NO test; I wrote one. (b) The second camera identification: step 9 offered only 'Choose from camera library', so the operator hunted for the same camera again. It now leads with a one-tap 'Use <camera> settings' button built from the same match, retiring once a preset is applied. Deliberately a tap, not a silent write — gain and offset are the imager's call and the library only recommends.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/onboarding/steps/camera_step.dart",
-        "packages/nightshade_app/lib/screens/onboarding/steps/optical_train_step.dart",
-        "packages/nightshade_app/lib/screens/onboarding/steps/camera_defaults_step.dart",
-        "packages/nightshade_app/test/screens/onboarding/camera_step_pixel_size_prefill_test.dart",
-        "packages/nightshade_app/test/screens/onboarding/camera_defaults_matched_preset_test.dart"
+        "packages/skotiq_app/lib/screens/onboarding/steps/camera_step.dart",
+        "packages/skotiq_app/lib/screens/onboarding/steps/optical_train_step.dart",
+        "packages/skotiq_app/lib/screens/onboarding/steps/camera_defaults_step.dart",
+        "packages/skotiq_app/test/screens/onboarding/camera_step_pixel_size_prefill_test.dart",
+        "packages/skotiq_app/test/screens/onboarding/camera_defaults_matched_preset_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/onboarding/camera_step_pixel_size_prefill_test.dart -> 'picking a known camera seeds its pixel size', 'an unrecognised camera prefills nothing'; packages/nightshade_app/test/screens/onboarding/camera_defaults_matched_preset_test.dart -> 'the camera already chosen is offered by name', 'an unrecognised camera offers no shortcut', 'no camera chosen offers no shortcut'",
+      "test": "packages/skotiq_app/test/screens/onboarding/camera_step_pixel_size_prefill_test.dart -> 'picking a known camera seeds its pixel size', 'an unrecognised camera prefills nothing'; packages/skotiq_app/test/screens/onboarding/camera_defaults_matched_preset_test.dart -> 'the camera already chosen is offered by name', 'an unrecognised camera offers no shortcut', 'no camera chosen offers no shortcut'",
       "revert_check": "(a) Deleted `pixelSizeMicrons: preset?.pixelSizeMicrons,` from notifier.setCamera(...) in camera_step.dart -> 'picking a known camera seeds its pixel size' FAILED; restored -> 2/2 pass. (b) Changed the shortcut guard `if (draft.cameraPresetId == null && _matchedPreset != null) ...[` to `if (false) ...[` in camera_defaults_step.dart -> 'the camera already chosen is offered by name' FAILED; restored -> 3/3 pass.",
       "caveats": "The prefill is only as good as the camera library's name matcher. It is deliberately strict (matchCameraByName returns null on ambiguity), so an obscure or renamed camera still leaves the field empty — which is the honest outcome, not a regression."
     },
@@ -66,11 +66,11 @@
       "outcome": "fixed",
       "summary": "The folder row was a read-only Text beside a single Browse button, so the native directory chooser was the only way to answer the step — no way to paste `/mnt/nvme/astro` or a UNC share, and the worst possible control on an appliance driven over VNC. Settings > Files & Storage already accepts a typed path for this exact setting (image_output_path), so the wizard that sets it FIRST was the odd one out. The row is now a real TextField that commits on Enter and on focus loss (tabbing away is how people leave a path box), routed through the same existence + writability check the picker's result goes through. The draft is written only once the check passes, so a typo cannot become the answer that unblocks Next; the rejected text stays in the box to be corrected rather than retyped. Remote mode still asks the host, via the existing _verify path. Browse is unchanged.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/onboarding/steps/capture_dir_step.dart",
-        "packages/nightshade_app/test/screens/onboarding/capture_dir_typed_path_test.dart",
-        "packages/nightshade_app/test/screens/onboarding/onboarding_steps_test.dart"
+        "packages/skotiq_app/lib/screens/onboarding/steps/capture_dir_step.dart",
+        "packages/skotiq_app/test/screens/onboarding/capture_dir_typed_path_test.dart",
+        "packages/skotiq_app/test/screens/onboarding/onboarding_steps_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/onboarding/capture_dir_typed_path_test.dart -> 'a typed folder that checks out becomes the capture directory', 'a typed folder that fails the check is not stored', 'leaving the field commits it, not just Enter'",
+      "test": "packages/skotiq_app/test/screens/onboarding/capture_dir_typed_path_test.dart -> 'a typed folder that checks out becomes the capture directory', 'a typed folder that fails the check is not stored', 'leaving the field commits it, not just Enter'",
       "revert_check": "Replaced `onSubmitted: (value) => unawaited(_commitTypedPath(value))` with `readOnly: true` on the field in capture_dir_step.dart -> all 3 tests FAILED; restored -> 3/3 pass and the 4 pre-existing capture-dir suites stay green.",
       "caveats": "A typed folder that does not exist is rejected rather than created; Browse can create one through the platform chooser. Settings' equivalent offers a 'Store anyway' confirm for unmounted NAS paths — deliberately NOT copied here, because onboarding's whole job is to prove the folder works before the first session."
     },
@@ -78,21 +78,21 @@
       "title": "Should the capture-folder step prefill a default folder?",
       "outcome": "needs-decision",
       "summary": "The other half of the capture-folder finding. Today `image_output_path` defaults to '' app-wide and the sequencer validator refuses to run without it (`image_output_path_not_configured`), so the wizard is the ONLY place a capture folder is ever chosen and it blocks Next until you Browse. Every competitor prefills (NINA uses Documents\\N.I.N.A). But picking the folder means deciding where a user's data lands and creating a directory on their disk before they asked — that is a product call, not a defect, so I did not make it.",
-      "options": "A) Prefill `<Documents>/Nightshade/Captures` (the path shape the app already uses for exports, plugins and science reports) and create it when the user accepts, so onboarding can be finished in one click. B) Offer it as a labelled one-tap suggestion chip next to Browse — the path is visible and nothing is created until tapped. C) Leave as-is: the operator always states where their frames go, which on a rig with a dedicated capture SSD is the answer they'd give anyway.",
+      "options": "A) Prefill `<Documents>/Skotiq/Captures` (the path shape the app already uses for exports, plugins and science reports) and create it when the user accepts, so onboarding can be finished in one click. B) Offer it as a labelled one-tap suggestion chip next to Browse — the path is visible and nothing is created until tapped. C) Leave as-is: the operator always states where their frames go, which on a rig with a dedicated capture SSD is the answer they'd give anyway.",
       "recommendation": "B. It removes the blocking dead end for a first-time user without the app quietly deciding that a night of 16-bit subs belongs in Documents — which on a laptop with a small system drive is a real problem, and this app writes GB per night. It is also reversible in one line if the owner later prefers A.",
       "files_changed": []
     },
     {
       "title": "Equipment Settings mixes auto-save and Apply-required sections and repeats its own title",
       "outcome": "fixed",
-      "summary": "Two parts. (a) The duplicated heading was already removed in this shard's tree (both hosts — the desktop NightshadeDialog and the phone AppBar — already render 'Equipment Settings' directly above the body, and repeating it cost a heading's worth of the dialog's fixed height). (b) The save-model mismatch: Camera/Mount/Focuser save on edit while Built-in Guider alone has Reset/Apply, with nothing saying which is which. Making the guider save on edit would be wrong — it pushes eight interdependent numbers to a guider that may be running right now, and a half-typed max-pulse reaching a live mount is exactly what an atomic Apply prevents — so the difference is now structural rather than remembered: Apply is live ONLY while the fields differ from the config the guider is actually running, a warning-toned 'Not applied yet — press Apply to send these to the guider.' line appears alongside the existing 'Last applied:' line while anything is pending, and the section description states the Apply contract. Typing a value back to its stored value clears the pending state, so the warning never cries wolf.",
+      "summary": "Two parts. (a) The duplicated heading was already removed in this shard's tree (both hosts — the desktop SkotiqDialog and the phone AppBar — already render 'Equipment Settings' directly above the body, and repeating it cost a heading's worth of the dialog's fixed height). (b) The save-model mismatch: Camera/Mount/Focuser save on edit while Built-in Guider alone has Reset/Apply, with nothing saying which is which. Making the guider save on edit would be wrong — it pushes eight interdependent numbers to a guider that may be running right now, and a half-typed max-pulse reaching a live mount is exactly what an atomic Apply prevents — so the difference is now structural rather than remembered: Apply is live ONLY while the fields differ from the config the guider is actually running, a warning-toned 'Not applied yet — press Apply to send these to the guider.' line appears alongside the existing 'Last applied:' line while anything is pending, and the section description states the Apply contract. Typing a value back to its stored value clears the pending state, so the warning never cries wolf.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/equipment/tabs/settings_tab.dart",
-        "packages/nightshade_app/test/screens/equipment/equipment_settings_pending_edits_test.dart",
-        "packages/nightshade_app/test/screens/equipment/equipment_settings_no_duplicate_title_test.dart",
-        "packages/nightshade_app/test/screens/equipment/equipment_settings_builtin_guider_authority_test.dart"
+        "packages/skotiq_app/lib/screens/equipment/tabs/settings_tab.dart",
+        "packages/skotiq_app/test/screens/equipment/equipment_settings_pending_edits_test.dart",
+        "packages/skotiq_app/test/screens/equipment/equipment_settings_no_duplicate_title_test.dart",
+        "packages/skotiq_app/test/screens/equipment/equipment_settings_builtin_guider_authority_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/equipment/equipment_settings_pending_edits_test.dart -> 'nothing pending: Apply is inert and says nothing is waiting', 'an edit arms Apply and is announced as not yet applied', 'applying clears the pending state', 'typing the same value back is not pending'; plus equipment_settings_no_duplicate_title_test.dart -> 'the settings body renders no title of its own'",
+      "test": "packages/skotiq_app/test/screens/equipment/equipment_settings_pending_edits_test.dart -> 'nothing pending: Apply is inert and says nothing is waiting', 'an edit arms Apply and is announced as not yet applied', 'applying clears the pending state', 'typing the same value back is not pending'; plus equipment_settings_no_duplicate_title_test.dart -> 'the settings body renders no title of its own'",
       "revert_check": "Replaced `onPressed: _initialized && !_saving && _hasPendingEdits ? _applyConfig : null` with the old `onPressed: _initialized && !_saving ? _applyConfig : null` -> 3 of 4 tests FAILED; restored -> 4/4 pass.",
       "caveats": "Adjusted one line of the pre-existing equipment_settings_builtin_guider_authority_test.dart: it typed into the gain field and tapped Apply with no pump in between, which used to work only because Apply was unconditionally enabled. Added `await tester.pump();` after the enterText with a comment; the authority assertions are untouched. The finding also called the dialog cramped (two-column masonry scrolling in a short viewport with the right column running past the left) — dropping the duplicated heading gave a heading's worth back, but the masonry column-balance itself is a ResponsiveCardGrid question I did not open."
     },
@@ -101,11 +101,11 @@
       "outcome": "fixed",
       "summary": "The driver step's answer is now stored, not thrown away. `OnboardingNotifier.complete()` used to persist only the capture directory; the `selectedDrivers` set steered the wizard's own discovery passes and then died with the draft, while Settings > Equipment > Connection asked the same question again through 'Query INDI/Alpaca on startup' (both default false). A user who found their camera over INDI during onboarding got an app that never queried INDI at launch again. `_persistAppSettings` now writes imageOutputPath, indi_auto_connect and alpaca_auto_discover together — one read-modify-write on a remote host so a second round trip cannot drop the field it did not carry. Both flags are written, not just the true ones, so unticking INDI can take an inherited `true` away. An empty driver set (a draft restored from before the step existed) leaves both toggles alone rather than answering for the user.",
       "files_changed": [
-        "packages/nightshade_core/lib/src/providers/onboarding_provider.dart",
-        "packages/nightshade_core/test/providers/onboarding_discovery_backends_test.dart",
-        "packages/nightshade_core/test/providers/onboarding_provider_test.dart"
+        "packages/skotiq_core/lib/src/providers/onboarding_provider.dart",
+        "packages/skotiq_core/test/providers/onboarding_discovery_backends_test.dart",
+        "packages/skotiq_core/test/providers/onboarding_provider_test.dart"
       ],
-      "test": "packages/nightshade_core/test/providers/onboarding_discovery_backends_test.dart -> 'the backends ticked in the wizard are queried at startup', 'unticking a backend turns its startup query back off', 'a draft with no driver answer leaves the toggles alone'; plus the remote branch in onboarding_provider_test.dart -> 'complete() on a NetworkBackend resolves the host-created profile id' (now asserts indiAutoConnect/alpacaAutoDiscover reach the host in the SAME updateSettings call).",
+      "test": "packages/skotiq_core/test/providers/onboarding_discovery_backends_test.dart -> 'the backends ticked in the wizard are queried at startup', 'unticking a backend turns its startup query back off', 'a draft with no driver answer leaves the toggles alone'; plus the remote branch in onboarding_provider_test.dart -> 'complete() on a NetworkBackend resolves the host-created profile id' (now asserts indiAutoConnect/alpacaAutoDiscover reach the host in the SAME updateSettings call).",
       "revert_check": "Deleted the `await _persistDiscoveryBackends(...)` call from complete() (before the helper was folded into _persistAppSettings) -> 2 of 3 new tests FAILED; restored -> 3/3 pass, and the 24 onboarding_provider_test cases stay green.",
       "caveats": "Consequence worth knowing: the driver step pre-ticks every non-simulator backend, so a user who accepts the defaults now gets startup INDI + Alpaca discovery on. That is NOT new network behaviour — `discoverAll()` already defaults includeIndi/includeAlpaca to true, so every manual Refresh on the Equipment screen has always scanned both; only the launch pass was gated. If the owner wants a fresh install quiet at launch, the one place to change is the driver step's pre-tick set in onboarding_provider.dart (the `defaults` set in _loadDraft), and the two screens stay consistent either way."
     },
@@ -114,10 +114,10 @@
       "outcome": "fixed",
       "summary": "Already closed in this shard's working tree; I confirmed it by revert. Zero-result classes get the same section chrome as every other class — titled header, icon, and an honest '0 found' count instead of one bare italic line — plus a body that names the backends actually searched and any that errored, or 'Not searched yet — run a scan.' before the first scan, and a route to configuring a remote server. The information already existed (the app log recorded 'Discovery complete for Switch: 0 devices, 0 backend errors'); the section that says nothing was found is where it belongs.",
       "files_changed": [
-        "packages/nightshade_app/lib/screens/equipment/widgets/discovery_panel.dart",
-        "packages/nightshade_app/test/screens/equipment/discovery_empty_class_section_test.dart"
+        "packages/skotiq_app/lib/screens/equipment/widgets/discovery_panel.dart",
+        "packages/skotiq_app/test/screens/equipment/discovery_empty_class_section_test.dart"
       ],
-      "test": "packages/nightshade_app/test/screens/equipment/discovery_empty_class_section_test.dart -> 'a class with no results keeps the section chrome and a count', 'an empty class names the backends it searched and which failed'",
+      "test": "packages/skotiq_app/test/screens/equipment/discovery_empty_class_section_test.dart -> 'a class with no results keeps the section chrome and a count', 'an empty class names the backends it searched and which failed'",
       "revert_check": "Replaced `_buildEmptyClassBody(context, colors, title)` with `const SizedBox.shrink()` in discovery_panel.dart -> 'an empty class names the backends it searched and which failed' FAILED; restored -> 2/2 pass."
     }
   ]

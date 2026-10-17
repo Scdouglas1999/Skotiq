@@ -58,14 +58,14 @@ refracting atmosphere requires. Still omitted, deliberately, when no site is con
 **S6 — two airmass implementations that disagree.** — **STALE, re-checked 2026-08-09. There is one
 implementation.**
 `sequencer/src/scheduling/astronomy.rs:98` no longer contains a formula: its body is
-`nightshade_imaging::calculate_airmass(altitude_deg).unwrap_or(f64::INFINITY)`, and its doc comment
+`skotiq_imaging::calculate_airmass(altitude_deg).unwrap_or(f64::INFINITY)`, and its doc comment
 says so. The surviving "31.73 vs infinity" difference is the scheduler's `altitude_deg <= 0 =>
 INFINITY` POLICY — a target on the horizon must not be scheduled even though its airmass is finite —
 and not a second atmosphere model. `imaging/src/fits.rs` `calculate_airmass` is the single formula,
 it is what the `AIRMASS` card is written from, and
 `bridge/src/api/imaging.rs::airmass_card_agrees_with_the_scheduler_that_chose_the_target` already
 pins the two surfaces together. Nothing to pick; the pick was made in favour of
-`nightshade_imaging::calculate_airmass`.
+`skotiq_imaging::calculate_airmass`.
 
 **S7 — no simulator for Switch or Cover Calibrator.** — **CLOSED, re-checked 2026-08-09.**
 Was confirmed live on 2026-08-01 ("Discovery complete for Switch: 0 devices"). It has since been

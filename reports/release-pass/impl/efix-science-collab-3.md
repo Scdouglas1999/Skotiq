@@ -28,7 +28,7 @@ only my own hunks, so nothing of another agent's was pulled back in. **The
 stash still exists**; if anyone pops it, it will conflict with the current tree.
 This is the "never git stash with concurrent agents" trap from memory, live.
 
-A second concurrency effect: for ~20 minutes `nightshade_core` did not compile
+A second concurrency effect: for ~20 minutes `skotiq_core` did not compile
 (another agent's in-flight `scheduler_engine` / `autopilot_rules` edits), which
 blocked test runs in both packages. Re-run later; all green.
 
@@ -49,14 +49,14 @@ the grader takes (`asGradableFrame`), and a new detector
 (critical when all of them do). This is a reconciliation, not a second opinion —
 the app can no longer hold two contradictory verdicts on one night.
 
-- `packages/nightshade_core/lib/src/services/night_analysis_service.dart`
+- `packages/skotiq_core/lib/src/services/night_analysis_service.dart`
   (import, detector registry, `qualityScore` load)
 - `.../night_analysis_service/night_data.dart` (field + `asGradableFrame`)
 - `.../night_analysis_service/detectors.dart` (`_detectGraderPoorNight`)
 
 **Test** (refuter's own numbers — `captured_images` 13–16, HFR 5.69–5.74,
 `quality_score` 35.26–35.42, against 2.19–2.22 / 84 for the quick captures):
-`packages/nightshade_core/test/services/night_doctor_frame_grade_test.dart`.
+`packages/skotiq_core/test/services/night_doctor_frame_grade_test.dart`.
 Pre-fix: `qualityScore` did not exist, and with it stubbed the report scored
 100/"clean night". Post-fix: `frames_graded_poor`, critical, score < 100,
 evidence `[13, 14, 15, 16]`; a good night still scores 100; one POOR sub in a
@@ -77,10 +77,10 @@ widget tests/embedders). A `go()` now discards it like any other page.
 Also: the app-bar `✕` (which only cleared filters and read as "close" — the
 drive clicked it twice expecting to leave) is now the filter-clear glyph.
 
-- `packages/nightshade_app/lib/router/app_router.dart`
-- `packages/nightshade_app/lib/screens/sequencer/widgets/replay_debug_screen.dart`
+- `packages/skotiq_app/lib/router/app_router.dart`
+- `packages/skotiq_app/lib/screens/sequencer/widgets/replay_debug_screen.dart`
 
-**Test:** `packages/nightshade_app/test/router/replay_route_test.dart` — the
+**Test:** `packages/skotiq_app/test/router/replay_route_test.dart` — the
 route exists, is inside the shell (not above it), and the launcher location
 carries run id, label and scrub window.
 
@@ -96,7 +96,7 @@ denominator.
 and the decision timestamps, and the filter short-circuits entirely at full
 extent.
 
-**Test:** `packages/nightshade_app/test/screens/sequencer/replay_debug_screen_test.dart`
+**Test:** `packages/skotiq_app/test/screens/sequencer/replay_debug_screen_test.dart`
 with a decision 120 ms past `ended_at`. Pre-fix it rendered exactly the live
 symptom ("1 of 2"); post-fix both rows render and the header reads 2 of 2.
 
@@ -151,7 +151,7 @@ footer actions. The mosaic wizard also logs one line per action attempt
 early return), so "clicked and nothing happened" can be told from "the click
 never arrived" — the drive explicitly recorded *no new log line* as evidence.
 
-- `packages/nightshade_app/lib/widgets/gated_action.dart` (new)
+- `packages/skotiq_app/lib/widgets/gated_action.dart` (new)
 - `.../settings/widgets/deep_star_catalog_card.dart`
 - `.../sequencer/widgets/mosaic_wizard_dialog.dart`
 - `.../sequencer/widgets/mosaic_wizard_dialog/wizard_logic.dart`
@@ -184,7 +184,7 @@ a wide bar offers none.
 Bare `GestureDetector` → `panel: Start Anyway`, beside its own siblings
 `button: Re-check` / `button: Cancel`, and unreachable from the keyboard. Now
 `Semantics(button, enabled)` + `FocusableActionDetector` with Enter/Space
-routed through `ActivateIntent`, matching `NightshadeButton`.
+routed through `ActivateIntent`, matching `SkotiqButton`.
 
 - `.../sequencer/widgets/preflight_validation_dialog/action_widgets.dart`
 - Test: `preflight_validation_dialog_test.dart` (semantics pin).
@@ -198,7 +198,7 @@ borrowing it. Stability is argued in-code: showing a chevron only narrows the
 viewport (more scrollable), hiding one at an end widens it and clamps the offset
 to the smaller extent.
 
-- `packages/nightshade_ui/lib/src/components/adaptive_tab_bar.dart`
+- `packages/skotiq_ui/lib/src/components/adaptive_tab_bar.dart`
 - Test: `adaptive_tab_bar_test.dart` — no chevron rect may intersect the
   **visible** part of any tab label, at 900×760, before and after a nudge.
   Verified to FAIL on the old `Stack`/`Positioned` layout and pass on the new one.
@@ -233,18 +233,18 @@ no enabled state, and AT-SPI reads a missing enabled flag as insensitive — hen
 `panel: Advanced (numerical) [DISABLED]` in the mosaic wizard. Both now declare
 `button: true, enabled: true` (and `expanded` for the disclosure).
 
-- `packages/nightshade_app/lib/widgets/equipment_status_indicator.dart`
+- `packages/skotiq_app/lib/widgets/equipment_status_indicator.dart`
 - `.../mosaic_wizard_dialog/config_controls.dart`
 
 ## NEW-C4 residual / dropdown announce parity
 
-`NightshadeDropdown` sets both `selected` and `checked` on its entries;
+`SkotiqDropdown` sets both `selected` and `checked` on its entries;
 `AccessibleDropdown` (which the three Analytics session pickers use) set only
 `selected`. AT-SPI carries the two differently and the audit harness prints
 `[ON]`/`[off]` from checked/checkable, so one family announced the current row
 and the other did not. One line brings them into parity.
 
-- `packages/nightshade_app/lib/screens/accessible_dropdown.dart`
+- `packages/skotiq_app/lib/screens/accessible_dropdown.dart`
 - Test: `accessible_dropdown_test.dart` (hasCheckedState + isChecked per entry).
 
 ---

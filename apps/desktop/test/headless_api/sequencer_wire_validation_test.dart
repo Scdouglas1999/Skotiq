@@ -4,9 +4,9 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/sequencer_handlers.dart';
-import 'package:nightshade_desktop/headless_api/sequence_wire_validation.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/sequencer_handlers.dart';
+import 'package:skotiq_desktop/headless_api/sequence_wire_validation.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -25,7 +25,7 @@ class _MockSequenceExecutor extends Mock implements SequenceExecutor {}
 /// and `binning` are all non-defaulted on the Rust side, so a fixture without
 /// them is a document the executor would reject outright (L8). The matching
 /// canonical document is pinned on the Rust side by
-/// `native/nightshade_native/sequencer/tests/dart_wire_contract.rs`; keep the
+/// `native/skotiq_native/sequencer/tests/dart_wire_contract.rs`; keep the
 /// two in sync when the wire schema changes.
 String wireSequence({
   required double raHours,

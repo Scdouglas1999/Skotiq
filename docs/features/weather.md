@@ -1,6 +1,6 @@
 # Weather Monitoring
 
-Nightshade's Weather screen provides real-time weather monitoring with radar visualization, satellite imagery, cloud motion analysis, and automated safety alerts to protect your equipment during imaging sessions.
+Skotiq's Weather screen provides real-time weather monitoring with radar visualization, satellite imagery, cloud motion analysis, and automated safety alerts to protect your equipment during imaging sessions.
 
 ## Overview
 

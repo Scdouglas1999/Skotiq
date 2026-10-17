@@ -19,15 +19,15 @@
 **/frb_generated.dart linguist-generated=true
 **/frb_generated.io.dart linguist-generated=true
 **/frb_generated.web.dart linguist-generated=true
-packages/nightshade_bridge/lib/src/frb_generated*.dart linguist-generated=true
-packages/nightshade_bridge/lib/src/api/** linguist-generated=true
+packages/skotiq_bridge/lib/src/frb_generated*.dart linguist-generated=true
+packages/skotiq_bridge/lib/src/api/** linguist-generated=true
 
 # flutter_rust_bridge generated Rust bindings and C headers.
 **/frb_generated.rs linguist-generated=true
 **/frb_generated.io.rs linguist-generated=true
 **/frb_generated.web.rs linguist-generated=true
 **/bridge_generated.h linguist-generated=true
-native/nightshade_native/bridge/src/frb_generated*.rs linguist-generated=true
+native/skotiq_native/bridge/src/frb_generated*.rs linguist-generated=true
 
 # Lockfiles: collapse, but keep diff text searchable for security audits.
 pubspec.lock linguist-generated=true

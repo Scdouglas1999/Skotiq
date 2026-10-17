@@ -8,7 +8,7 @@
   "expected": "The field validates the lower bound (0 is refused) but not the upper. A guided first-light flow should clamp to something sane - 60 s is already generous - or at minimum warn above ~120 s. A single fat-fingered keystroke (5 -> 500) silently commits the camera for eight minutes; an extra zero commits it for days.",
   "repro": "Settings > Help & Tutorials > Guided Flows > 'Capture your first light' > Start > select the Exposure length field > Ctrl+A > type 999999 > Start capture. Read /tmp/ns-audit/r-shared-widgets/app.log.",
   "evidence": "app.log 2026-08-02T14:45:17Z 'Starting 999999s exposure with gain=Some(100), offset=Some(50), bin=1x1'; /tmp/ns-audit/shots/rsw-53-orphan.png 'Exposing... 999858.8s remaining'.",
-  "where": "packages/nightshade_app/lib/widgets/first_light/first_light_flow_dialog.dart (exposure validation - only the >0 check exists)"
+  "where": "packages/skotiq_app/lib/widgets/first_light/first_light_flow_dialog.dart (exposure validation - only the >0 check exists)"
  },
  {
   "title": "Closing the First Light dialog mid-capture orphans the exposure, and there is no cancel inside the dialog",
@@ -19,7 +19,7 @@
   "expected": "Dismissing a modal that owns a device operation must either abort the operation or refuse to close while it is in flight. And the working state needs a Cancel button of its own - a progress dialog with only an X, where the X does not cancel, is the shape that costs people a night.",
   "repro": "Settings > Help & Tutorials > 'Capture your first light' > Start > set exposure to 999999 > Start capture > wait for 'Working on it...' > click the X in the dialog title bar > sidebar Imaging. Observe the running countdown, then click the X at the right of the image toolbar (tooltip 'Abort capture') repeatedly.",
   "evidence": "/tmp/ns-audit/shots/rsw-52-working.png (progress state: no Cancel, only the title X); /tmp/ns-audit/shots/rsw-53-orphan.png ('Exposing... 999858.8s remaining' after the dialog was closed); /tmp/ns-audit/shots/rsw-54-abort.png (the 'Abort capture' tooltip visible on the highlighted X while the counter still reads 999800.7s).",
-  "where": "packages/nightshade_app/lib/widgets/first_light/first_light_flow_dialog.dart (no onDismiss abort, no cancel action in the running state). The dead 'Abort capture' is in the imaging viewer toolbar and does not own the first-light capture path."
+  "where": "packages/skotiq_app/lib/widgets/first_light/first_light_flow_dialog.dart (no onDismiss abort, no cancel action in the running state). The dead 'Abort capture' is in the imaging viewer toolbar and does not own the first-light capture path."
  },
  {
   "title": "Readiness panel reports a green \"Profile devices \u2014 every device is connected\" over an empty profile with nothing connected",
@@ -30,7 +30,7 @@
   "expected": "With zero devices assigned the row should read 'No devices assigned to this profile' in a neutral/warn state, not a green all-connected pass. A vacuous truth over an empty set is the single most misleading thing a readiness panel can say.",
   "repro": "Fresh profile -> Equipment -> 'I'll do it manually' -> right STATUS rail -> 'View all (3 more)' -> read the 'Profile devices' row while the status bar shows every device disconnected.",
   "evidence": "/tmp/ns-audit/shots/rsw-09.png (dialog row 'Profile devices' green + 'Every device assigned in the active profile is connected.'; status bar bottom: Camera Disconnected / Mount Disconnected / Guider Disconnected; profile card reads '0 devices')",
-  "where": "packages/nightshade_app/lib/widgets/readiness/readiness_panel.dart"
+  "where": "packages/skotiq_app/lib/widgets/readiness/readiness_panel.dart"
  },
  {
   "title": "Dismissing a blocking readiness item hides it while the summary keeps counting it, so the panel claims 3 blockers and lists 2",
@@ -41,7 +41,7 @@
   "expected": "Either blocking items should not be dismissable at all (NINA/SGP do not let you hide a hard blocker), or the summary must say '3 blocking (1 hidden)' so the count and the list agree.",
   "repro": "Equipment -> right STATUS rail -> click the X on 'Critical devices' -> read the summary line vs the rows shown.",
   "evidence": "/tmp/ns-audit/shots/rsw-10.png \u2014 summary '3 items are blocking first light.' above only 'Observing location' and 'Capture output folder' blockers plus an amber 'Plate solver'; 'Show 1 dismissed' at the bottom restores it correctly.",
-  "where": "packages/nightshade_app/lib/widgets/readiness/readiness_panel.dart"
+  "where": "packages/skotiq_app/lib/widgets/readiness/readiness_panel.dart"
  },
  {
   "title": "Shell equipment indicator reads \"0/0 \u2014 No devices configured\" while four devices are connected",
@@ -52,7 +52,7 @@
   "expected": "The chip should count live connections, e.g. '4 connected' or '4/0 assigned', and its menu should list the connected devices with a Disconnect for each. Saying 'No devices configured' while four devices are streaming is the shell telling the operator the rig is empty.",
   "repro": "Equipment -> 'I'll do it manually' -> Discovery Expand -> Connect on Simulated Camera, Mount, Focuser, Filter Wheel -> click the '\ud83d\udd2d My Equipment 0/0' chip at the far left of the status bar.",
   "evidence": "/tmp/ns-audit/shots/rsw-17-status-0of0-with-4-connected.png \u2014 popup 'My Equipment \u25cf 0/0' + 'No devices configured' next to header '4 connected \u00b7 4 unsaved' and four green Connected rows.",
-  "where": "packages/nightshade_app/lib/widgets/equipment_status_indicator.dart (_countConnectedDevices / _countDevicesInProfile)"
+  "where": "packages/skotiq_app/lib/widgets/equipment_status_indicator.dart (_countConnectedDevices / _countDevicesInProfile)"
  },
  {
   "title": "'Disconnect All' stays enabled and silently no-ops when nothing is connected",
@@ -63,7 +63,7 @@
   "expected": "Disable (grey) 'Disconnect All' when connectedCount == 0, like every other dead action in this build is greyed.",
   "repro": "Fresh profile, nothing connected -> click the equipment chip in the status bar -> 'Disconnect All'. Watch the tree and drive_linux.py log: no change, no message.",
   "evidence": "/tmp/ns-audit/shots/rsw-12.png shows 'No devices configured' above a normal-weight (enabled) 'Disconnect All'; the accessibility tree reports 'button: Disconnect All' with no [DISABLED] state; app log shows no entry after the click.",
-  "where": "packages/nightshade_app/lib/widgets/equipment_status_indicator.dart (_buildDropdownItems)"
+  "where": "packages/skotiq_app/lib/widgets/equipment_status_indicator.dart (_buildDropdownItems)"
  },
  {
   "title": "Guiding-control buttons are invisible to assistive tech: exposed as generic panels with no button role and no disabled state",
@@ -74,7 +74,7 @@
   "expected": "These are the controls that start and stop guiding. They should expose a button role and their enabled/disabled state, so a screen-reader user is told 'Start, button, dimmed' rather than a nameless panel.",
   "repro": "Guiding screen with PHD2 disconnected -> drive_linux.py tree -> read the Guiding Controls subtree.",
   "evidence": "tree output at 14:41 shows 'panel: Start / panel: Pause / panel: Loop Exposures / panel: Star Selection / panel: Auto Select / panel: Deselect / panel: Dither' with no roles or states; the same dump has 'button: Connect' and 'panel: Settle Settings [DISABLED]' so the harness does read roles and states when they are published.",
-  "where": "packages/nightshade_app/lib/widgets/phd2/guide_controls_panel.dart (_actionButton builds a bare Material+InkWell with no Semantics(button: true, enabled: ...))"
+  "where": "packages/skotiq_app/lib/widgets/phd2/guide_controls_panel.dart (_actionButton builds a bare Material+InkWell with no Semantics(button: true, enabled: ...))"
  },
  {
   "title": "Weather status card renders an epoch-zero timestamp as 'Updated 20667 days ago' before the first fetch lands",
@@ -85,7 +85,7 @@
   "expected": "With no data yet the card should say 'Waiting for data' (or hide the footer). Telling the operator their weather data is 56 years old is worse than saying nothing, and 'Updated 20667 days ago' is not a phrase any user can act on.",
   "repro": "Launch fresh, click Weather in the sidebar, run `drive_linux.py tree --profile r-shared-widgets` within the first ~20 seconds while the radar is still loading.",
   "evidence": "tree at 10:24 (weather screen, still showing 'No radar frames available'): 'panel: Updated 20667 days ago'. tree at 10:26 in the same slot: 'panel: Updated 0 sec ago'.",
-  "where": "packages/nightshade_app/lib/widgets/weather/weather_status_card.dart:242 ('Updated ${_formatLastUpdate(widget.lastUpdate!)}') with _formatLastUpdate at :120-137"
+  "where": "packages/skotiq_app/lib/widgets/weather/weather_status_card.dart:242 ('Updated ${_formatLastUpdate(widget.lastUpdate!)}') with _formatLastUpdate at :120-137"
  },
  {
   "title": "Slew dropdown drives the mount 69 degrees BELOW the horizon and reports 'Slew complete'",
@@ -96,7 +96,7 @@
   "expected": "A target at -69 deg altitude is under the ground. NINA refuses (and SGP warns) on a below-horizon GoTo because on a real German-equatorial rig it drives the OTA into the pier or the tripod leg. The shared slew control should compute the target altitude from the site location before dispatching and either block it or require an explicit 'target is 69 deg below the horizon - slew anyway?' confirmation.",
   "repro": "Equipment > Discovery > Connect Simulated Mount. Imaging > Mount tab > Unpark. Scroll to GoTo / Sync, type RA 5.59 and Dec 22.01, click the Slew split-button, choose 'Slew'. Read Alt in Mount Status and the toast.",
   "evidence": "tree after the slew: 'panel: Alt' / 'panel: -69.14' with RA '05h 35m 24.0s' and Dec '+22 00' 36.0\"'; toast 'panel: Slew complete'. /tmp/ns-audit/shots/rsw-43-menu.png shows the menu that was used.",
-  "where": "packages/nightshade_app/lib/widgets/slew_dropdown_button.dart:209-222 (_handleSlew calls mountService.slewTo with no altitude precondition; only the centering paths run _preflightCentering)"
+  "where": "packages/skotiq_app/lib/widgets/slew_dropdown_button.dart:209-222 (_handleSlew calls mountService.slewTo with no altitude precondition; only the centering paths run _preflightCentering)"
  },
  {
   "title": "The Slew split-button is invisible to assistive tech - no node at all in the accessibility tree",
@@ -107,18 +107,18 @@
   "expected": "The button should publish a name and enabled state, e.g. Semantics(button: true, label: 'Slew options') on the PopupMenuButton, so it is announced next to Sync.",
   "repro": "Imaging > Mount > GoTo/Sync with RA/Dec filled in and the mount unparked -> `drive_linux.py tree --profile r-shared-widgets | grep -i slew`. Only 'ABORT SLEW' and 'Sync' come back.",
   "evidence": "tree at 10:35 lists 'button: Park', 'button: Start Track', 'button: ABORT SLEW', 'button: Three-Point Polar Alignment', 'button: Sync' - no 'Slew'. After clicking the chevron the same grep returns 'button: Slew' and 'button: Slew & Center' (the open menu).",
-  "where": "packages/nightshade_app/lib/widgets/slew_dropdown_button.dart:153-181 (ExcludeSemantics around the NightshadeButton child of the PopupMenuButton)"
+  "where": "packages/skotiq_app/lib/widgets/slew_dropdown_button.dart:153-181 (ExcludeSemantics around the SkotiqButton child of the PopupMenuButton)"
  },
  {
   "title": "Connection troubleshooter says it 'couldn't pin down the exact cause' while holding an error that names the exact cause, then gives four irrelevant hardware steps",
   "severity": "P2",
   "kind": "defect",
   "unit": "widget:connection_troubleshooter_dialog.dart",
-  "what_happened": "Connecting the 'Built-in Multi-Star Guider' from Equipment > Discovery fails and opens Connection help. The headline reads 'The connection didn't complete - The guide camera connection didn't complete and we couldn't pin down the exact cause.' Expanding Technical details in the SAME dialog shows the driver message: 'Built-in guider requires positive guide focal length and camera pixel size (focal_length_mm=0, pixel_size_x_um=3.76, pixel_size_y_um=3.76)'. That is a fully-specified, first-party configuration error. The four suggested steps are 'Check the guide camera is connected and powered / Reseat the cable, confirm power', 'Make sure no other program is using the guide camera', 'Restart Nightshade and reconnect', 'Read the raw error below'. None of them fixes it, and the built-in guider has no cable and no power - it is a software guider that reuses the imaging camera.",
+  "what_happened": "Connecting the 'Built-in Multi-Star Guider' from Equipment > Discovery fails and opens Connection help. The headline reads 'The connection didn't complete - The guide camera connection didn't complete and we couldn't pin down the exact cause.' Expanding Technical details in the SAME dialog shows the driver message: 'Built-in guider requires positive guide focal length and camera pixel size (focal_length_mm=0, pixel_size_x_um=3.76, pixel_size_y_um=3.76)'. That is a fully-specified, first-party configuration error. The four suggested steps are 'Check the guide camera is connected and powered / Reseat the cable, confirm power', 'Make sure no other program is using the guide camera', 'Restart Skotiq and reconnect', 'Read the raw error below'. None of them fixes it, and the built-in guider has no cable and no power - it is a software guider that reuses the imaging camera.",
   "expected": "The classifier should match its own bridge's error text and say 'Guide scope focal length is not set. Open Equipment > Edit Profile and enter the guide scope focal length in mm.', with a button that jumps there. Sending the operator to reseat a cable on a device that has no cable, and to restart the app, is worse than no advice: they will do it, it will not work, and they will conclude the app is broken.",
   "repro": "Equipment > Discovery > Expand > GUIDERS > Connect on 'Built-in Multi-Star Guider' (with a profile whose guide focal length is 0, i.e. any fresh profile). Read the headline, then expand 'Technical details'.",
   "evidence": "/tmp/ns-audit/shots/rsw-48-tech.png - headline 'we couldn't pin down the exact cause' directly above the expanded Technical details block quoting focal_length_mm=0. Same string again in the fallback toast after Retry.",
-  "where": "packages/nightshade_app/lib/widgets/troubleshooter/connection_troubleshooter_dialog.dart (classification/knowledge base) - the native message comes from the built-in guider preflight in the Rust bridge."
+  "where": "packages/skotiq_app/lib/widgets/troubleshooter/connection_troubleshooter_dialog.dart (classification/knowledge base) - the native message comes from the built-in guider preflight in the Rust bridge."
  },
  {
   "title": "'Resume' on the incomplete-session dialog is indistinguishable from 'Decide Later' - nothing in the UI shows the session, and it re-prompts identically on the next launch",
@@ -127,9 +127,9 @@
   "unit": "widget:session_recovery_dialog.dart",
   "what_happened": "Clicked 'Resume' on 'NGC 7000 run' (14 exposures, 1h 10m integration, status='active'). The dialog closed. Afterwards the Dashboard still read 'No run active', the top strip still read 'Idle / No Target', the status bar still read 'Idle', and 'Last run' still read 'No runs yet - your first night will appear here.' The imaging_sessions row stayed status='active'. On the next app launch the identical 'Incomplete Sessions Found' dialog reappeared for the same session with the same numbers.",
   "expected": "Recovering a session should be visible: the shell/dashboard should show the adopted session (target, frames so far, integration so far) and offer a way to close it out. As built there is no surface anywhere that reflects the recovered session, so 'Resume' and 'Decide Later' have the same observable effect and the prompt recurs on every launch forever.",
-  "repro": "sqlite3 <scratch>/nightshade.db \"insert into imaging_sessions(name,profile_id,start_time,total_exposures,successful_exposures,failed_exposures,total_integration_secs,avg_hfr,autofocus_count,status) values('NGC 7000 run',1,strftime('%s','now')-5400,20,14,1,4200.0,3.2,2,'active')\" -> launch -> click Resume -> inspect the Dashboard and the DB -> relaunch.",
+  "repro": "sqlite3 <scratch>/skotiq.db \"insert into imaging_sessions(name,profile_id,start_time,total_exposures,successful_exposures,failed_exposures,total_integration_secs,avg_hfr,autofocus_count,status) values('NGC 7000 run',1,strftime('%s','now')-5400,20,14,1,4200.0,3.2,2,'active')\" -> launch -> click Resume -> inspect the Dashboard and the DB -> relaunch.",
   "evidence": "/tmp/ns-audit/shots/rsw-58-recovery3.png (the card before Resume); tree after Resume shows only 'panel: No run active' / 'panel: Last run' / 'panel: No runs yet - your first night will appear here.'; sqlite 'select id,name,status from imaging_sessions' -> '1|NGC 7000 run|active'; tree after the next launch shows 'panel: Incomplete Sessions Found' with the same 'NGC 7000 run / 14 exposures / 1h 10m total / HFR: 3.20 / 1 failed'.",
-  "where": "packages/nightshade_app/lib/widgets/session_recovery_dialog.dart:229 (_recoverSession) -> nightshade_core session_provider.dart:228 recoverSession sets SessionState(isActive: true, ...), which no desktop surface renders."
+  "where": "packages/skotiq_app/lib/widgets/session_recovery_dialog.dart:229 (_recoverSession) -> skotiq_core session_provider.dart:228 recoverSession sets SessionState(isActive: true, ...), which no desktop surface renders."
  },
  {
   "title": "The NIGHT STORY timeline (and every narrator detail sheet) is hidden whenever the session has no science products, even when narrator events exist",
@@ -140,7 +140,7 @@
   "expected": "The Night Narrator is a session-narrative surface, not a science product. A user who imaged all night without a plate solver (which is exactly the user the narrator is written for - 'Guiding RMS doubled after the meridian flip', 'Lost 22 minutes to cloud') gets no story at all. NIGHT STORY should render whenever the session has narrator events, independently of the photometry/transparency/PSF emptiness test.",
   "repro": "Seed imaging_sessions + captured_images + narrator_events for one session, leave all science tables empty, open Analytics > Science with that session selected: empty on-ramp, no NIGHT STORY. Insert any row into transparency_samples for that session and relaunch: NIGHT STORY appears with the same events.",
   "evidence": "/tmp/ns-audit/shots/rsw-67.png (empty on-ramp, no NIGHT STORY, same session selected, 'Plate solve health 0% - 0 of 14 solved'); /tmp/ns-audit/shots/rsw-70-story3.png (after the transparency insert: NIGHT STORY with 'Guiding RMS doubled after the meridian flip 09:44', 'Focus drifted 84 steps as the tube cooled 10:00', 'Lost 22 minutes to cloud 10:17'); /tmp/ns-audit/shots/rsw-71-narratorsheet.png (the detail sheet).",
-  "where": "packages/nightshade_app/lib/screens/analytics/widgets/science_analytics_tab.dart:451-513 - the `allEmpty` test covers only science products, and its early-return branch omits the NIGHT STORY section built at :666-672."
+  "where": "packages/skotiq_app/lib/screens/analytics/widgets/science_analytics_tab.dart:451-513 - the `allEmpty` test covers only science products, and its early-return branch omits the NIGHT STORY section built at :666-672."
  },
  {
   "title": "Dashboard Glance-mode toggle reports itself as DISABLED to assistive tech while working normally",
@@ -151,17 +151,17 @@
   "expected": "A working toggle must announce as enabled. As built a screen-reader user is told the dashboard's Glance-mode control is dimmed and will skip it.",
   "repro": "Dashboard -> `drive_linux.py tree --profile r-shared-widgets | grep -i glance` -> click the eye icon in the dashboard header strip -> tree again.",
   "evidence": "tree before: 'button: Glance mode [off,DISABLED]'; after one click: 'button: Glance mode [ON,DISABLED]'. Same dumps carry correctly-enabled buttons such as 'button: Connect equipment' with no DISABLED flag, so the harness does read the flag when it is published.",
-  "where": "packages/nightshade_app/lib/screens/dashboard/widgets/glance_mode_toggle.dart:60-64 (Semantics(button: true, toggled: enabled, label: 'Glance mode') - no `enabled:`); found while auditing its TouchTargetFloor wrapper at :73."
+  "where": "packages/skotiq_app/lib/screens/dashboard/widgets/glance_mode_toggle.dart:60-64 (Semantics(button: true, toggled: enabled, label: 'Glance mode') - no `enabled:`); found while auditing its TouchTargetFloor wrapper at :73."
  },
  {
   "title": "Four widgets are exported from the app barrel but have zero call sites - dead UI shipping in the binary",
   "severity": "P3",
   "kind": "defect",
   "unit": "widget:object_info_panel.dart",
-  "what_happened": "Repo-wide search (packages/ + apps/, excluding each widget's own file) finds no instantiation of ObjectInfoPanel (0 references anywhere, including tests), TourSelectionSheet (0 references to TourSelectionSheet.show), SequenceControls (referenced only by test/widgets/run_controls_paused_skip_test.dart) or VariablePickerField/VariablePickerButton (VariablePickerButton appears only as the suffixIcon of VariablePickerField in the same file; VariablePickerField has no callers outside test/widgets/variable_picker_test.dart). All four are nonetheless exported from packages/nightshade_app/lib/nightshade_app.dart (lines 37, 39, 46, and the sequence barrel).",
+  "what_happened": "Repo-wide search (packages/ + apps/, excluding each widget's own file) finds no instantiation of ObjectInfoPanel (0 references anywhere, including tests), TourSelectionSheet (0 references to TourSelectionSheet.show), SequenceControls (referenced only by test/widgets/run_controls_paused_skip_test.dart) or VariablePickerField/VariablePickerButton (VariablePickerButton appears only as the suffixIcon of VariablePickerField in the same file; VariablePickerField has no callers outside test/widgets/variable_picker_test.dart). All four are nonetheless exported from packages/skotiq_app/lib/skotiq_app.dart (lines 37, 39, 46, and the sequence barrel).",
   "expected": "Either wire them up or delete them. Two of them carry doc comments that assert they are in use and are therefore actively misleading: tour_selection_sheet.dart:7-8 says 'Used from Settings and contextual prompts' (Settings > Help & Tutorials builds its own inline 'Tutorial Tours' list and never calls it) and variable_picker.dart advertises a picker no sequencer field offers - Settings > Sequencer only mentions it in a comment. A sequencer that stores ${TARGET}/${FILTER}-style variables but exposes no picker is a real capability gap, not just dead code.",
   "repro": "grep -rn 'ObjectInfoPanel|TourSelectionSheet|SequenceControls|VariablePickerField' --include='*.dart' packages apps, excluding each widget's own file. Also confirmed live: the Sequencer and Settings > Sequencer screens have no variable-insert control, and Settings > Help & Tutorials has no tour bottom sheet (its Tutorial Tours rows are inline list tiles).",
   "evidence": "source-only for the zero-reference claim (a widget with no call site cannot be observed in the running app, which IS the finding); the live half - that Settings > Help & Tutorials renders its own inline tour list rather than the sheet - is in /tmp/ns-audit/shots/rsw-50-help.png.",
-  "where": "packages/nightshade_app/lib/widgets/object_info_panel.dart, widgets/tour_selection_sheet.dart, widgets/sequence_controls.dart, widgets/sequence/variable_picker.dart; barrel exports in packages/nightshade_app/lib/nightshade_app.dart:37,39,46."
+  "where": "packages/skotiq_app/lib/widgets/object_info_panel.dart, widgets/tour_selection_sheet.dart, widgets/sequence_controls.dart, widgets/sequence/variable_picker.dart; barrel exports in packages/skotiq_app/lib/skotiq_app.dart:37,39,46."
  }
 ]

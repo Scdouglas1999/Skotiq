@@ -27,8 +27,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:nightshade_app/localization/nightshade_localizations.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_app/localization/skotiq_localizations.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../services/saved_servers_service.dart';
 
@@ -92,7 +92,7 @@ class TailscaleSetupSheet extends StatefulWidget {
     int? initialPort,
     String? initialScheme,
   }) {
-    final colors = NightshadeColors.of(context);
+    final colors = SkotiqColors.of(context);
     return showModalBottomSheet<TailscaleSetupResult>(
       context: context,
       isScrollControlled: true,
@@ -174,7 +174,7 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = NightshadeColors.of(context);
+    final colors = SkotiqColors.of(context);
     final viewInsets = MediaQuery.viewInsetsOf(context);
 
     return Padding(
@@ -184,25 +184,25 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
         decoration: BoxDecoration(
           color: colors.surfaceElevated,
           borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(NightshadeTokens.radiusLg),
+            top: Radius.circular(SkotiqTokens.radiusLg),
           ),
           border: Border(top: BorderSide(color: colors.border)),
-          boxShadow: NightshadeTokens.shadowLg,
+          boxShadow: SkotiqTokens.shadowLg,
         ),
-        padding: NightshadeTokens.dialogPadding,
+        padding: SkotiqTokens.dialogPadding,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(colors),
-              const SizedBox(height: NightshadeTokens.space2xl),
+              const SizedBox(height: SkotiqTokens.space2xl),
               _buildSteps(colors),
-              const SizedBox(height: NightshadeTokens.space2xl),
+              const SizedBox(height: SkotiqTokens.space2xl),
               _buildForm(colors),
-              const SizedBox(height: NightshadeTokens.space2xl),
+              const SizedBox(height: SkotiqTokens.space2xl),
               _buildActions(colors),
-              const SizedBox(height: NightshadeTokens.spaceSm),
+              const SizedBox(height: SkotiqTokens.spaceSm),
             ],
           ),
         ),
@@ -210,34 +210,34 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
     );
   }
 
-  Widget _buildHeader(NightshadeColors colors) {
+  Widget _buildHeader(SkotiqColors colors) {
     final l10n = context.l10n;
     return Row(
       children: [
         Container(
-          padding: NightshadeTokens.paddingSm,
-          decoration: NightshadeDecorations.iconChip(colors.accent),
+          padding: SkotiqTokens.paddingSm,
+          decoration: SkotiqDecorations.iconChip(colors.accent),
           child: Icon(
             LucideIcons.radioTower,
-            size: NightshadeTokens.iconMd,
+            size: SkotiqTokens.iconMd,
             color: colors.accent,
           ),
         ),
-        const SizedBox(width: NightshadeTokens.spaceMd),
+        const SizedBox(width: SkotiqTokens.spaceMd),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 l10n.text('tailscaleConnect'),
-                style: NightshadeTypography.h4.copyWith(
+                style: SkotiqTypography.h4.copyWith(
                   color: colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 l10n.text('tailscaleConnectSubtitle'),
-                style: NightshadeTypography.bodySm.copyWith(
+                style: SkotiqTypography.bodySm.copyWith(
                   color: colors.textSecondary,
                 ),
               ),
@@ -245,7 +245,7 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
           ),
         ),
         IconButton(
-          icon: Icon(LucideIcons.x, size: NightshadeTokens.iconSm),
+          icon: Icon(LucideIcons.x, size: SkotiqTokens.iconSm),
           color: colors.textSecondary,
           tooltip: l10n.text('tailscaleClose'),
           onPressed: () => Navigator.of(context).pop(),
@@ -254,7 +254,7 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
     );
   }
 
-  Widget _buildSteps(NightshadeColors colors) {
+  Widget _buildSteps(SkotiqColors colors) {
     final l10n = context.l10n;
     return SectionWell(
       child: Column(
@@ -266,14 +266,14 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
             title: l10n.text('tailscaleStep1Title'),
             body: l10n.text('tailscaleStep1Body'),
           ),
-          const SizedBox(height: NightshadeTokens.spaceMd),
+          const SizedBox(height: SkotiqTokens.spaceMd),
           _SetupStep(
             index: 2,
             icon: LucideIcons.monitorSmartphone,
             title: l10n.text('tailscaleStep2Title'),
             body: l10n.text('tailscaleStep2Body'),
           ),
-          const SizedBox(height: NightshadeTokens.spaceMd),
+          const SizedBox(height: SkotiqTokens.spaceMd),
           _SetupStep(
             index: 3,
             icon: LucideIcons.link,
@@ -285,19 +285,19 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
     );
   }
 
-  Widget _buildForm(NightshadeColors colors) {
+  Widget _buildForm(SkotiqColors colors) {
     final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           l10n.text('tailscaleAddressLabel'),
-          style: NightshadeTypography.label.copyWith(
+          style: SkotiqTypography.label.copyWith(
             color: colors.textSecondary,
           ),
         ),
-        const SizedBox(height: NightshadeTokens.spaceXs),
-        NightshadeTextField(
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        SkotiqTextField(
           controller: _hostController,
           hint: l10n.text('tailscaleAddressHint'),
           prefixIcon: LucideIcons.globe2,
@@ -309,7 +309,7 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
             if (_hostError != null) setState(() => _hostError = null);
           },
         ),
-        const SizedBox(height: NightshadeTokens.spaceMd),
+        const SizedBox(height: SkotiqTokens.spaceMd),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -320,12 +320,12 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
                 children: [
                   Text(
                     l10n.text('tailscalePortLabel'),
-                    style: NightshadeTypography.label.copyWith(
+                    style: SkotiqTypography.label.copyWith(
                       color: colors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: NightshadeTokens.spaceXs),
-                  NightshadeTextField(
+                  const SizedBox(height: SkotiqTokens.spaceXs),
+                  SkotiqTextField(
                     controller: _portController,
                     hint: '8080',
                     prefixIcon: LucideIcons.hash,
@@ -339,18 +339,18 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
                 ],
               ),
             ),
-            const SizedBox(width: NightshadeTokens.spaceMd),
+            const SizedBox(width: SkotiqTokens.spaceMd),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     l10n.text('tailscaleTransportLabel'),
-                    style: NightshadeTypography.label.copyWith(
+                    style: SkotiqTypography.label.copyWith(
                       color: colors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: NightshadeTokens.spaceXs),
+                  const SizedBox(height: SkotiqTokens.spaceXs),
                   _SchemeToggle(
                     scheme: _scheme,
                     onChanged: (value) => setState(() => _scheme = value),
@@ -360,15 +360,15 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
             ),
           ],
         ),
-        const SizedBox(height: NightshadeTokens.spaceMd),
+        const SizedBox(height: SkotiqTokens.spaceMd),
         Text(
           l10n.text('tailscaleTokenLabel'),
-          style: NightshadeTypography.label.copyWith(
+          style: SkotiqTypography.label.copyWith(
             color: colors.textSecondary,
           ),
         ),
-        const SizedBox(height: NightshadeTokens.spaceXs),
-        NightshadeTextField(
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        SkotiqTextField(
           controller: _tokenController,
           hint: l10n.text('tailscaleTokenHint'),
           prefixIcon: LucideIcons.key,
@@ -378,7 +378,7 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
           suffixWidget: IconButton(
             icon: Icon(
               _tokenVisible ? LucideIcons.eyeOff : LucideIcons.eye,
-              size: NightshadeTokens.iconSm,
+              size: SkotiqTokens.iconSm,
               color: colors.textSecondary,
             ),
             tooltip: _tokenVisible
@@ -391,20 +391,20 @@ class _TailscaleSetupSheetState extends State<TailscaleSetupSheet> {
     );
   }
 
-  Widget _buildActions(NightshadeColors colors) {
+  Widget _buildActions(SkotiqColors colors) {
     final l10n = context.l10n;
     return Row(
       children: [
         Expanded(
-          child: NightshadeButton(
+          child: SkotiqButton(
             label: l10n.text('savedServersCancel'),
             variant: ButtonVariant.ghost,
             onPressed: () => Navigator.of(context).pop(),
           ),
         ),
-        const SizedBox(width: NightshadeTokens.spaceMd),
+        const SizedBox(width: SkotiqTokens.spaceMd),
         Expanded(
-          child: NightshadeButton(
+          child: SkotiqButton(
             label: l10n.text('tailscaleConnectAction'),
             icon: LucideIcons.radioTower,
             onPressed: _submit,
@@ -424,12 +424,12 @@ class _SchemeToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = NightshadeColors.of(context);
+    final colors = SkotiqColors.of(context);
     return Container(
-      height: NightshadeTokens.inputHeight,
+      height: SkotiqTokens.inputHeight,
       decoration: BoxDecoration(
         color: colors.surfaceAlt,
-        borderRadius: NightshadeTokens.borderRadiusMd,
+        borderRadius: SkotiqTokens.borderRadiusMd,
         border: Border.all(color: colors.border),
       ),
       padding: const EdgeInsets.all(3),
@@ -444,7 +444,7 @@ class _SchemeToggle extends StatelessWidget {
 
   Widget _segment(
     BuildContext context,
-    NightshadeColors colors,
+    SkotiqColors colors,
     String value,
     String label,
   ) {
@@ -453,16 +453,16 @@ class _SchemeToggle extends StatelessWidget {
       child: GestureDetector(
         onTap: selected ? null : () => onChanged(value),
         child: AnimatedContainer(
-          duration: NightshadeTokens.durationQuick,
-          curve: NightshadeTokens.curveSnappy,
+          duration: SkotiqTokens.durationQuick,
+          curve: SkotiqTokens.curveSnappy,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: selected ? colors.primary : Colors.transparent,
-            borderRadius: NightshadeTokens.borderRadiusSm,
+            borderRadius: SkotiqTokens.borderRadiusSm,
           ),
           child: Text(
             label,
-            style: NightshadeTypography.labelSm.copyWith(
+            style: SkotiqTypography.labelSm.copyWith(
               color: selected ? colors.onPrimary : colors.textSecondary,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
             ),
@@ -489,7 +489,7 @@ class _SetupStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = NightshadeColors.of(context);
+    final colors = SkotiqColors.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -497,16 +497,16 @@ class _SetupStep extends StatelessWidget {
           width: 28,
           height: 28,
           alignment: Alignment.center,
-          decoration: NightshadeDecorations.tintedBadge(colors.accent),
+          decoration: SkotiqDecorations.tintedBadge(colors.accent),
           child: Text(
             '$index',
-            style: NightshadeTypography.labelSm.copyWith(
+            style: SkotiqTypography.labelSm.copyWith(
               color: colors.accent,
               fontWeight: FontWeight.w700,
             ),
           ),
         ),
-        const SizedBox(width: NightshadeTokens.spaceMd),
+        const SizedBox(width: SkotiqTokens.spaceMd),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -515,14 +515,14 @@ class _SetupStep extends StatelessWidget {
                 children: [
                   Icon(
                     icon,
-                    size: NightshadeTokens.iconSm,
+                    size: SkotiqTokens.iconSm,
                     color: colors.textSecondary,
                   ),
-                  const SizedBox(width: NightshadeTokens.spaceSm),
+                  const SizedBox(width: SkotiqTokens.spaceSm),
                   Expanded(
                     child: Text(
                       title,
-                      style: NightshadeTypography.bodyMedium.copyWith(
+                      style: SkotiqTypography.bodyMedium.copyWith(
                         color: colors.textPrimary,
                       ),
                     ),
@@ -532,7 +532,7 @@ class _SetupStep extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 body,
-                style: NightshadeTypography.bodySm.copyWith(
+                style: SkotiqTypography.bodySm.copyWith(
                   color: colors.textSecondary,
                   height: 1.4,
                 ),

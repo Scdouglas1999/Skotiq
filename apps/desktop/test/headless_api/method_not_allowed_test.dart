@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless_api/routes/headless_route.dart';
+import 'package:skotiq_desktop/headless_api/routes/headless_route.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 

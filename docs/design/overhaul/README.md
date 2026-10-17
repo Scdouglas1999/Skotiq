@@ -1,6 +1,6 @@
-# Nightshade UI/UX overhaul — "Observatory"
+# Skotiq UI/UX overhaul — "Observatory"
 
-A complete, hand-off-ready redesign of the Nightshade desktop (and shared mobile) UI, written on
+A complete, hand-off-ready redesign of the Skotiq desktop (and shared mobile) UI, written on
 2026-09-09 after driving the shipped 7.0.0 app screen by screen. Everything an implementing agent
 needs is in this folder.
 
@@ -58,10 +58,10 @@ list in `shell.js` is the same list as `04-shell.md` §3.2.
 
 - Presentation layer only. Routes, providers, controllers, the database, the API and the Rust
   bridge are untouched. The mobile app inherits the shell and components automatically because it
-  shares `packages/nightshade_app` and `packages/nightshade_ui`.
+  shares `packages/skotiq_app` and `packages/skotiq_ui`.
 - No new features except the command palette (which is how route-only screens become reachable)
   and the first-run checklist (which replaces existing nags rather than adding capability).
-- The planetarium, charts (`NightshadeChartColors`) and image rendering are not redesigned.
+- The planetarium, charts (`SkotiqChartColors`) and image rendering are not redesigned.
 - Windows goldens cannot be regenerated on Linux; wave 4 lists that as an owner follow-up.
 
 ## How this was made
@@ -70,7 +70,7 @@ The shipped app was launched in the Linux GUI harness (`tools/ui_audit/drive_lin
 profile, then with an observing site, simulated camera / mount / focuser, a captured frame and a
 loaded LRGB sequence, in all three themes, with the rail collapsed and expanded, and at a 700 px
 width. Thirty screenshots are in `audit/`. The structural map of the shell, router and design-
-system adoption counts came from reading `packages/nightshade_app/lib/screens/shell/`,
-`router/app_router.dart` and `packages/nightshade_ui`. The palette was then re-derived and
+system adoption counts came from reading `packages/skotiq_app/lib/screens/shell/`,
+`router/app_router.dart` and `packages/skotiq_ui`. The palette was then re-derived and
 validated with `tools/check_tokens.py`, and the mockups were built and rendered with the app's own
 bundled fonts and the Lucide icon font from the pub cache.

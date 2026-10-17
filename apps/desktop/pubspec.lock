@@ -884,66 +884,66 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.0"
-  nightshade_app:
+  skotiq_app:
     dependency: "direct main"
     description:
-      path: "../../packages/nightshade_app"
+      path: "../../packages/skotiq_app"
       relative: true
     source: path
     version: "0.0.1"
-  nightshade_bridge:
+  skotiq_bridge:
     dependency: "direct main"
     description:
-      path: "../../packages/nightshade_bridge"
+      path: "../../packages/skotiq_bridge"
       relative: true
     source: path
     version: "1.0.0"
-  nightshade_core:
+  skotiq_core:
     dependency: "direct main"
     description:
-      path: "../../packages/nightshade_core"
+      path: "../../packages/skotiq_core"
       relative: true
     source: path
     version: "1.0.0"
-  nightshade_planetarium:
+  skotiq_planetarium:
     dependency: "direct main"
     description:
-      path: "../../packages/nightshade_planetarium"
+      path: "../../packages/skotiq_planetarium"
       relative: true
     source: path
     version: "1.0.0"
-  nightshade_plugins:
+  skotiq_plugins:
     dependency: "direct main"
     description:
-      path: "../../packages/nightshade_plugins"
+      path: "../../packages/skotiq_plugins"
       relative: true
     source: path
     version: "1.0.0"
-  nightshade_relay:
+  skotiq_relay:
     dependency: transitive
     description:
-      path: "../../tools/nightshade_relay"
+      path: "../../tools/skotiq_relay"
       relative: true
     source: path
     version: "0.1.0"
-  nightshade_remote_protocol:
+  skotiq_remote_protocol:
     dependency: "direct main"
     description:
-      path: "../../packages/nightshade_remote_protocol"
+      path: "../../packages/skotiq_remote_protocol"
       relative: true
     source: path
     version: "1.0.0"
-  nightshade_ui:
+  skotiq_ui:
     dependency: "direct main"
     description:
-      path: "../../packages/nightshade_ui"
+      path: "../../packages/skotiq_ui"
       relative: true
     source: path
     version: "1.0.0"
-  nightshade_updater:
+  skotiq_updater:
     dependency: "direct main"
     description:
-      path: "../../packages/nightshade_updater"
+      path: "../../packages/skotiq_updater"
       relative: true
     source: path
     version: "1.0.0"

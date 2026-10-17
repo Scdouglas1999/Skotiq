@@ -1,6 +1,6 @@
 # Release-pass map — `core-services-rest`
 
-Subsystem: `packages/nightshade_core/lib/src/services/` **excluding** the device/hardware-control
+Subsystem: `packages/skotiq_core/lib/src/services/` **excluding** the device/hardware-control
 slice owned by `core-services-devices` (`device_service/`, `device_service*.dart`,
 `device_*.dart`, `imaging_service*`, `plate_solve_service.dart`, `centering_service.dart`,
 `flat_wizard_service.dart`, `predictive_af_service.dart`, `phd2_*`, `polar_alignment_service.dart`,
@@ -449,7 +449,7 @@ provider tail is 843–end.
 
 ### 2.1 Astronomy math re-implemented in five places · effort **medium** · **highest-value merge**
 
-`AstronomyCalculations` in `packages/nightshade_planetarium/lib/src/astronomy/astronomy_calculations.dart`
+`AstronomyCalculations` in `packages/skotiq_planetarium/lib/src/astronomy/astronomy_calculations.dart`
 already exports `julianDate` (L72), `localSiderealTime` (L154), `equatorialToHorizontal` (L219),
 `moonPosition` (L838), `angularSeparation` (L1615), and
 `services/scheduler/sky_calculations.dart` wraps `julianDate` (L46) + `localSiderealTimeHours` (L81)
@@ -578,7 +578,7 @@ also present at `calibration_library_service.dart:1477` and `dark_library_servic
 ## 2b. SUSPECTED CROSS-PACKAGE DUPLICATION (one line each — for the cross-cutting agent)
 
 1. `services/scheduler/sky_calculations.dart` + the six private copies in §2.1 vs
-   `packages/nightshade_planetarium/.../astronomy/astronomy_calculations.dart`
+   `packages/skotiq_planetarium/.../astronomy/astronomy_calculations.dart`
    (`julianDate` L72, `localSiderealTime` L154, `equatorialToHorizontal` L219, `moonPosition` L838,
    `angularSeparation` L1615) — the planetarium already owns all of it.
 2. `services/sequence_repository.dart:786–1085` vs
@@ -593,7 +593,7 @@ also present at `calibration_library_service.dart:1477` and `dark_library_servic
    `services/calibration/fits_header_reader.dart` vs the Rust FITS reader behind the bridge —
    a hand-rolled FITS parser in Dart is a duplicate of native capability.
 5. `services/mosaic_service.dart` panel geometry vs `mosaicPanelCenters` imported from
-   `nightshade_planetarium` (already imported at `mosaic_service.dart:4`) — check whether
+   `skotiq_planetarium` (already imported at `mosaic_service.dart:4`) — check whether
    `generatePanels` L261 duplicates what it imports.
 6. `services/backup_service.dart` extended-table export/import registry vs the headless
    backup handlers in `apps/desktop/lib/headless_api/handlers/backup_handlers.dart` — verify the
@@ -610,7 +610,7 @@ also present at `calibration_library_service.dart:1477` and `dark_library_servic
 ## 3. DEAD CODE
 
 ### 3.1 The legacy dark/flat calibration branch is unreachable in production
-**Location:** `packages/nightshade_core/lib/src/services/post_session_integration_service.dart:985-1011`
+**Location:** `packages/skotiq_core/lib/src/services/post_session_integration_service.dart:985-1011`
 
 **Evidence.** The branch is guarded by `if (library != null)` returning at L971-982
 (`_resolveCalibration`). The only production construction site is the provider at
@@ -619,7 +619,7 @@ also present at `calibration_library_service.dart:1477` and `dark_library_servic
 declared `Provider<CalibrationLibraryService>` — **non-nullable** — in
 `calibration_library_service.dart`. So `_calibrationLibrary` is never null in the running app and
 lines 985-1011 are only reached from tests that construct the service without the argument
-(`packages/nightshade_core/test/services/post_session_integration_service_test.dart`).
+(`packages/skotiq_core/test/services/post_session_integration_service_test.dart`).
 
 **Consequence beyond dead lines:** the legacy branch produces `ResolvedCalibration` with an **empty
 `warnings` list** (no `warnings:` argument at L1004-1011), while the live branch propagates
@@ -631,7 +631,7 @@ parameters if nothing else in the class uses them, make `calibrationLibrary` req
 the tests at the live path.
 
 ### 3.2 `MosaicService.checkVisibilityConstraints` + `calculateAltitude` have no callers at all
-**Location:** `packages/nightshade_core/lib/src/services/mosaic_service.dart:683` and `:653`
+**Location:** `packages/skotiq_core/lib/src/services/mosaic_service.dart:683` and `:653`
 
 **Evidence.** `rg -rn 'checkVisibilityConstraints' .` (excluding `build/` and `graphify-out/`)
 returns **exactly one line** — the definition. No app code, no headless handler, no test.
@@ -647,14 +647,14 @@ from §2.1.
 
 ### 3.3 Two cache-retention sweepers are written, tested, documented — and never called
 **Locations:**
-* `packages/nightshade_core/lib/src/services/sky_atlas/sky_atlas_service.dart:892` — `sweepCache`
-* `packages/nightshade_core/lib/src/services/constellation/constellation_service.dart:1265` —
+* `packages/skotiq_core/lib/src/services/sky_atlas/sky_atlas_service.dart:892` — `sweepCache`
+* `packages/skotiq_core/lib/src/services/constellation/constellation_service.dart:1265` —
   `sweepSwarmBlobs`
 
 **Evidence.** `rg -rn '\bsweepCache\b' packages/ apps/` → the definition plus
-`packages/nightshade_core/test/services/sky_atlas_service_test.dart` only.
+`packages/skotiq_core/test/services/sky_atlas_service_test.dart` only.
 `rg -rn 'sweepSwarmBlobs' .` → the definition plus
-`packages/nightshade_core/test/services/constellation_swarm_scale_test.dart` only.
+`packages/skotiq_core/test/services/constellation_swarm_scale_test.dart` only.
 No provider, no startup path, no headless maintenance route, no timer
 (`rg -rn 'sweep[A-Z]' packages/ apps/ --glob '!**/test/**'` outside these two files returns only
 unrelated identifiers).
@@ -674,7 +674,7 @@ schedule that does not exist.
 ## 4. PERF RISKS
 
 ### 4.1 Whole-database pretty-printed JSON built in memory on the calling isolate · impact **high**
-**Location:** `packages/nightshade_core/lib/src/services/backup_service.dart:271`
+**Location:** `packages/skotiq_core/lib/src/services/backup_service.dart:271`
 
 ```dart
 final jsonString = const JsonEncoder.withIndent('  ').convert(backup);
@@ -699,7 +699,7 @@ isolate stall and a plausible OOM.
 `withIndent` for auto-saves, and page `_dumpTable` for the per-frame science tables.
 
 ### 4.2 Remote companions re-fetch and re-decode the entire session image list every 10 s · impact **medium**
-**Location:** `packages/nightshade_core/lib/src/services/imaging_records_repository.dart:304-313`,
+**Location:** `packages/skotiq_core/lib/src/services/imaging_records_repository.dart:304-313`,
 `:619-627`, `:629`; interval default `:58` / `:84` (`Duration(seconds: 10)`).
 
 `watchImagesForSession` on the `NetworkBackend` path polls `getSessionImageRows(sessionId)` — the
@@ -715,7 +715,7 @@ explicitly a `limit: 5` query — it fetches everything, sorts client-side (L294
 at minimum route `getRecentImagesForSession` to a limited endpoint.
 
 ### 4.3 `listMasters` enriches serially, one FITS header read per record · impact **medium**
-**Location:** `packages/nightshade_core/lib/src/services/calibration_library_service.dart:195-198`
+**Location:** `packages/skotiq_core/lib/src/services/calibration_library_service.dart:195-198`
 
 ```dart
 if (enrichFromHeaders && remote == null) {
@@ -750,7 +750,7 @@ becomes real the moment they are wired up, so fix it as part of that wiring (`aw
 ## 5. RELIABILITY RISKS
 
 ### 5.1 `_download` has no timeout on the response body — an unbounded hang on the largest transfers
-**Location:** `packages/nightshade_core/lib/src/services/constellation/constellation_client.dart:185`
+**Location:** `packages/skotiq_core/lib/src/services/constellation/constellation_client.dart:185`
 
 ```dart
 final streamed = await _client.send(request).timeout(_timeout);   // L177 — bounded
@@ -821,14 +821,14 @@ accumulate with no upper bound on a host that runs for months. The code to stop 
 tested; only the call site is missing.
 
 ### 5.5 `scheduler_service.dart` ships with analyzer suppressions for dead members
-**Location:** `packages/nightshade_core/lib/src/services/scheduler_service.dart:1`
+**Location:** `packages/skotiq_core/lib/src/services/scheduler_service.dart:1`
 
 ```dart
 // ignore_for_file: unused_field, unused_local_variable
 ```
 
 A file-wide suppression of exactly the two lints that find dead state. This file is live
-(`schedulerServiceProvider` is read by `nightshade_app/lib/widgets/slew_dropdown_button.dart`,
+(`schedulerServiceProvider` is read by `skotiq_app/lib/widgets/slew_dropdown_button.dart`,
 `screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart`, and
 `apps/desktop/lib/headless_api/handlers/run_watch_handlers.dart`), so the suppression is hiding real
 findings in production code rather than in a scratch file. Removing the ignore and fixing what the

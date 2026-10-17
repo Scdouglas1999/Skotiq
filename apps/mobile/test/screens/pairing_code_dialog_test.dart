@@ -17,8 +17,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_mobile/main.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_mobile/main.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Pumps the dialog inside a route so `Navigator.pop` has somewhere to go, and
 /// captures whatever the dialog pops.
@@ -28,7 +28,7 @@ Future<({String code, bool admin})?> _pumpDialog(WidgetTester tester) async {
 
   await tester.pumpWidget(
     MaterialApp(
-      theme: NightshadeTheme.dark,
+      theme: SkotiqTheme.dark,
       home: Builder(
         builder: (context) {
           ctx = context;
@@ -54,7 +54,7 @@ Future<({String code, bool admin})?> _pumpDialog(WidgetTester tester) async {
 /// cannot accidentally match the instructions instead of the error.
 const String _kEmptyCodeError = 'Enter the pairing code before tapping Pair.';
 
-Finder _pairButton() => find.widgetWithText(NightshadeButton, 'Pair');
+Finder _pairButton() => find.widgetWithText(SkotiqButton, 'Pair');
 
 void main() {
   group('PairingCodeDialog empty-code validation', () {
@@ -110,7 +110,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          theme: NightshadeTheme.dark,
+          theme: SkotiqTheme.dark,
           home: Builder(
             builder: (context) {
               ctx = context;

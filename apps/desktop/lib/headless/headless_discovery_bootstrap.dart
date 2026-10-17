@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 import '../headless_api_server.dart';
 
@@ -25,10 +25,10 @@ Future<void> startDiscoveryServer({
   required HeadlessApiServer apiServer,
   required String appVersion,
 }) async {
-  _discoverySocket = await NightshadeDiscovery.startBroadcasting(
+  _discoverySocket = await SkotiqDiscovery.startBroadcasting(
     webPort: apiServer.actualPort,
     signalingPort: apiServer.actualPort,
-    name: 'Nightshade Headless',
+    name: 'Skotiq Headless',
     version: appVersion,
     scheme: apiServer.isTlsActive ? 'https' : 'http',
     fingerprint: apiServer.serverFingerprint,
@@ -50,17 +50,17 @@ void stopDiscoverySocket() {
 
 /// Directory avahi-daemon watches for static service files on the appliance.
 const _avahiServicesDir = '/etc/avahi/services';
-const _avahiServiceFileName = 'nightshade.service';
+const _avahiServiceFileName = 'skotiq.service';
 
-/// (Re)write `/etc/avahi/services/nightshade.service` so its `<port>` matches
+/// (Re)write `/etc/avahi/services/skotiq.service` so its `<port>` matches
 /// the live bound port and its `scheme=` TXT record matches the active scheme
 /// (https when TLS is on, else http).
 ///
 /// WHY: the appliance ships a STATIC Avahi service file (installed by
 /// packaging/appliance/systemd/install.sh) with a hardcoded `<port>8080</port>`
-/// and `scheme=http`. If the operator changes `NIGHTSHADE_PORT` or enables
+/// and `scheme=http`. If the operator changes `SKOTIQ_PORT` or enables
 /// `--tls`, that file no longer reflects reality and the mobile client's
-/// `_nightshade._tcp` discovery connects to the wrong port/scheme. Rewriting it
+/// `_skotiq._tcp` discovery connects to the wrong port/scheme. Rewriting it
 /// at boot from the live values keeps mDNS discovery correct.
 ///
 /// The services dir only exists (and is only writable) when running as the
@@ -107,8 +107,8 @@ void refreshAvahiServiceFile({
   }
 }
 
-/// Render the `_nightshade._tcp` Avahi service-group XML with the live [port],
-/// [scheme] and [version]. Mirrors packaging/appliance/avahi/nightshade.service
+/// Render the `_skotiq._tcp` Avahi service-group XML with the live [port],
+/// [scheme] and [version]. Mirrors packaging/appliance/avahi/skotiq.service
 /// (same service type + name/version/scheme/pairingSupported/name TXT records)
 /// but with the runtime values substituted.
 String _renderAvahiServiceFile({
@@ -120,27 +120,27 @@ String _renderAvahiServiceFile({
 <?xml version="1.0" standalone='no'?>
 <!DOCTYPE service-group SYSTEM "avahi-service.dtd">
 <!--
-  GENERATED AT BOOT by the Nightshade headless daemon (main_headless.dart,
+  GENERATED AT BOOT by the Skotiq headless daemon (main_headless.dart,
   _refreshAvahiServiceFile). Do not edit by hand — it is overwritten on every
   start so the advertised <port> and scheme= TXT track the live bound port and
   TLS state. The static template lives at
-  packaging/appliance/avahi/nightshade.service.
+  packaging/appliance/avahi/skotiq.service.
 -->
 <service-group>
-  <name replace-wildcards="yes">Nightshade on %h</name>
+  <name replace-wildcards="yes">Skotiq on %h</name>
   <service>
-    <type>_nightshade._tcp</type>
+    <type>_skotiq._tcp</type>
     <port>$port</port>
     <txt-record>version=$version</txt-record>
     <txt-record>scheme=$scheme</txt-record>
     <txt-record>pairingSupported=true</txt-record>
-    <txt-record>name=Nightshade</txt-record>
+    <txt-record>name=Skotiq</txt-record>
   </service>
 </service-group>
 ''';
 }
 
-/// register `_nightshade._tcp` via mDNS so phones on modern Wi-Fi
+/// register `_skotiq._tcp` via mDNS so phones on modern Wi-Fi
 /// (client-isolation enabled) and Tailscale segments discover the server
 /// without UDP broadcast. The registration handle is retained internally so
 /// [stopMdnsAdvertisement] can unregister it before the HTTP server stops.
@@ -158,10 +158,10 @@ Future<void> startMdnsAdvertisement({
     'scheme': apiServer.isTlsActive ? 'https' : 'http',
     'fingerprint': apiServer.serverFingerprint,
     'pairingSupported': 'true',
-    'name': 'Nightshade Headless',
+    'name': 'Skotiq Headless',
   };
   final registration = MdnsServiceRegistration(
-    name: 'Nightshade Headless',
+    name: 'Skotiq Headless',
     port: apiServer.actualPort,
     txt: txt,
     onWarning: (msg) => logger.warning(msg, source: _headlessLogSource),
@@ -170,7 +170,7 @@ Future<void> startMdnsAdvertisement({
   _mdnsRegistration = registration;
   if (registration.isRegistered) {
     logger.info(
-      'mDNS advertisement active: _nightshade._tcp port=${apiServer.actualPort} '
+      'mDNS advertisement active: _skotiq._tcp port=${apiServer.actualPort} '
       'scheme=${txt['scheme']} fingerprint=${apiServer.serverFingerprint}',
       source: _headlessLogSource,
     );

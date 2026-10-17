@@ -4,7 +4,7 @@
 //
 //   * iOS: Siri Shortcuts / AppIntents (iOS 16+). The App Intents extension
 //     reads a JSON snapshot from a shared App Group UserDefaults suite each
-//     time Siri asks "What's Nightshade doing?". Control intents
+//     time Siri asks "What's Skotiq doing?". Control intents
 //     (pause/resume) come back to Dart through the same MethodChannel as an
 //     inbound action.
 //
@@ -15,7 +15,7 @@
 //     forwards it through the channel as an inbound action.
 //
 // JSON keys here are the source of truth for both sides. Touch them only
-// in lockstep with `apps/mobile/ios/NightshadeAppIntents/*.swift` and
+// in lockstep with `apps/mobile/ios/SkotiqAppIntents/*.swift` and
 // `apps/mobile/android/app/src/main/kotlin/.../MainActivity.kt`.
 //
 // Every PlatformException from the host bridge propagates, and an unsupported
@@ -31,7 +31,7 @@ import 'package:flutter/services.dart';
 
 /// Channel name shared with the iOS AppDelegate and Android MainActivity.
 /// Kept here as the single source of truth.
-const String _voiceControlChannelName = 'nightshade/voice_control';
+const String _voiceControlChannelName = 'skotiq/voice_control';
 
 /// Thrown when [VoiceControlService] is invoked on a platform that does
 /// not (and cannot) support a voice assistant integration. The mobile app
@@ -55,18 +55,18 @@ class VoiceControlUnsupportedPlatformException implements Exception {
 /// pattern-match exhaustively. The wire-level identifier comes from
 /// [VoiceControlAction.wireId].
 enum VoiceControlAction {
-  /// "Pause Nightshade sequence" — confirmed by Siri / Assistant before
+  /// "Pause Skotiq sequence" — confirmed by Siri / Assistant before
   /// dispatching.
   pauseSequence('pause_sequence'),
 
-  /// "Resume Nightshade sequence".
+  /// "Resume Skotiq sequence".
   resumeSequence('resume_sequence'),
 
-  /// "Show the last image Nightshade captured" — surface intent for deep
+  /// "Show the last image Skotiq captured" — surface intent for deep
   /// linking. The Dart side opens the gallery route.
   openLastImage('open_last_image'),
 
-  /// "What's Nightshade doing?" — read-only intent. The Dart side does
+  /// "What's Skotiq doing?" — read-only intent. The Dart side does
   /// not have to handle this (the AppIntents extension answers directly
   /// from the cached UserDefaults snapshot), but we still emit it when
   /// the user invokes the intent while the app is foregrounded so we can
@@ -129,7 +129,7 @@ class SequenceStatusSnapshot {
 
   /// One of `idle`, `running`, `paused`, `stopping`, `completed`,
   /// `failed`, `recovering` — mirroring `SequenceExecutionState` from
-  /// nightshade_core so the Swift / Kotlin side can branch on it without
+  /// skotiq_core so the Swift / Kotlin side can branch on it without
   /// having to know about freezed enums.
   final String executionState;
 
@@ -265,12 +265,12 @@ class VoiceControlService {
   /// voice assistant reads.
   ///
   /// On iOS this writes the JSON-encoded snapshot to the shared App
-  /// Group UserDefaults suite (`group.com.nightshade.app`) so the
+  /// Group UserDefaults suite (`group.com.skotiq.app`) so the
   /// AppIntents extension can read it without launching the app.
   ///
   /// On Android this updates a dynamic ShortcutManagerCompat shortcut so
   /// Assistant can answer the status query from cached data and so the
-  /// "What's Nightshade doing?" suggestion stays current in the
+  /// "What's Skotiq doing?" suggestion stays current in the
   /// Assistant launcher.
   ///
   /// Throws [VoiceControlUnsupportedPlatformException] on platforms that
@@ -295,7 +295,7 @@ class VoiceControlService {
   /// status is no longer meaningful (e.g. backend disconnected, no
   /// sequence has ever run since launch). The native side either
   /// removes the UserDefaults key (iOS) or removes the dynamic shortcut
-  /// (Android) so a follow-up "what's Nightshade doing?" question gets
+  /// (Android) so a follow-up "what's Skotiq doing?" question gets
   /// the canonical "no sequence is active" answer.
   Future<void> clearStatus() async {
     _assertSupportedPlatform('clearStatus');

@@ -160,7 +160,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
   }
 
   bool _isFocuserBusy(Object error) {
-    final message = error is bridge_error.NightshadeError
+    final message = error is bridge_error.SkotiqError
         ? error.maybeMap(
             operationFailed: (failure) => failure.field0,
             orElse: () => error.toString(),

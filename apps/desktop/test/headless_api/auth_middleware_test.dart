@@ -4,10 +4,10 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless_api/auth/public_paths.dart';
-import 'package:nightshade_desktop/headless_api/auth_policy.dart';
-import 'package:nightshade_desktop/headless_api_server.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_desktop/headless_api/auth/public_paths.dart';
+import 'package:skotiq_desktop/headless_api/auth_policy.dart';
+import 'package:skotiq_desktop/headless_api_server.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
 import 'handler_test_helpers.dart';
 
@@ -92,7 +92,7 @@ void main() {
         response.headers[RemoteApiCompatibility.apiVersionHeader],
         RemoteApiCompatibility.serverApiVersion.format(),
       );
-      expect(response.headers['x-nightshade-minimum-api-version'], '2.4.0');
+      expect(response.headers['x-skotiq-minimum-api-version'], '2.4.0');
     });
 
     // D4W-4. The auth-exempt surface used to be written out twice — once as

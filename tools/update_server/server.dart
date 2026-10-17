@@ -1,6 +1,6 @@
-/// Nightshade Self-Hosted Update Server
+/// Skotiq Self-Hosted Update Server
 ///
-/// A simple HTTP server for hosting Nightshade OTA updates.
+/// A simple HTTP server for hosting Skotiq OTA updates.
 /// Provides version checking, manifest download, and package download endpoints.
 ///
 /// Usage:
@@ -32,7 +32,7 @@ Future<void> main(List<String> args) async {
   await Directory(releasesDir).create(recursive: true);
   await Directory(manifestsDir).create(recursive: true);
 
-  print('Nightshade Update Server');
+  print('Skotiq Update Server');
   print('========================');
   print('Releases: $releasesDir');
   print('Manifests: $manifestsDir');

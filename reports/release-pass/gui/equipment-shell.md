@@ -1,7 +1,7 @@
 # Release-pass GUI audit — Equipment / Diagnostics / Weather / Dashboard / App shell
 
 Driver: `tools/ui_audit/drive_linux.py`, display `:83`, profile `gui-equipment-shell`, `start --fresh`.
-Build: `apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`.
+Build: `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`.
 Evidence screenshots live in `/tmp/ns-audit/gui-equipment-shell/`.
 
 **Harness note for whoever re-drives this:** `--profile NAME` must come *after* the subcommand.
@@ -76,7 +76,7 @@ label either — there is no way to learn what the eye-with-slash does without c
 **Screen:** Equipment (fresh profile, after skipping onboarding)
 **Repro:**
 1. Fresh profile → skip onboarding → click **Equipment** in the rail.
-2. The pane reads "Welcome to Nightshade / Let's set up your first equipment profile" and lists
+2. The pane reads "Welcome to Skotiq / Let's set up your first equipment profile" and lists
    "1 We'll scan for connected equipment · 2 Select the devices you want to use · 3 Save as a profile
    for one-click connection", with a primary **Start Setup** button.
 3. Click **Start Setup**.
@@ -93,10 +93,10 @@ the whole window.
 **Actual:** lands on the Dashboard. The user has to find Equipment in the rail again. (Verified
 twice; the rail highlight moves to Dashboard and the content pane is the Dashboard briefing.)
 
-### EQP-8 — P3 — A second, competing "Welcome to Nightshade" after the onboarding wizard already said it
+### EQP-8 — P3 — A second, competing "Welcome to Skotiq" after the onboarding wizard already said it
 **Screen:** onboarding step 1 vs Equipment first-run card
-**Repro:** fresh profile → the wizard's step 1 is headed "Welcome to Nightshade"; skip it → Equipment
-shows a *different* full-pane card also headed "Welcome to Nightshade". Two first-run experiences
+**Repro:** fresh profile → the wizard's step 1 is headed "Welcome to Skotiq"; skip it → Equipment
+shows a *different* full-pane card also headed "Welcome to Skotiq". Two first-run experiences
 with the same title, overlapping content (both offer to pick devices and drivers), and no
 acknowledgement of each other.
 
@@ -383,7 +383,7 @@ expanded and collapsed, all four title-bar icons, global status bar, window resi
   offers no way to load any (that inability is EQP-14).
 - Rotator / Safety Monitor / Cover-Calibrator / Switch device cards — discovered and listed, but not
   connected (Discovery's mouse-wheel-only scroll, EQP-16, plus the crash in EQP-23 ended the run).
-- `NIGHTSHADE_SIM_FAULTS` fault-injection pass — not run. The crash in EQP-23 forced a restart and
+- `SKOTIQ_SIM_FAULTS` fault-injection pass — not run. The crash in EQP-23 forced a restart and
   the remaining budget went to re-verifying state truthfulness instead. Error-state review here is
   based only on the one real failure encountered (the built-in guider).
 - The title-bar "person" icon — never opened.

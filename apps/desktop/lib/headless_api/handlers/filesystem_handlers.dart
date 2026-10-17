@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
@@ -26,7 +26,7 @@ class FileSystemHandlers {
       _logger.error(message, source: 'FileSystemHandlers');
 
   /// Returns the canonical host path when [requestedPath] is contained by one
-  /// of Nightshade's configured filesystem roots, otherwise returns null.
+  /// of Skotiq's configured filesystem roots, otherwise returns null.
   ///
   /// Non-browsing endpoints that accept a host path use this at the operation
   /// boundary so callers cannot bypass `/api/files/validate`. Canonicalizing
@@ -219,15 +219,15 @@ class FileSystemHandlers {
 
     // 1. User Documents — always available, anchors a sensible default.
     try {
-      final docs = await resolveNightshadeDocumentsDirectory();
+      final docs = await resolveSkotiqDocumentsDirectory();
       await add('Documents', docs.path);
     } on Object catch (e, stackTrace) {
-      // Why: resolveNightshadeDocumentsDirectory can fail under unusual
+      // Why: resolveSkotiqDocumentsDirectory can fail under unusual
       // platform conditions (e.g. sandboxed CI without HOME); we keep the
       // method best-effort because other roots may still resolve. Log the
       // detail so operators can diagnose the no-roots case.
       _logger.warning(
-        'resolveNightshadeDocumentsDirectory failed: $e',
+        'resolveSkotiqDocumentsDirectory failed: $e',
         source: 'FileSystemHandlers',
         fields: {'stack': stackTrace.toString()},
       );
@@ -270,7 +270,7 @@ class FileSystemHandlers {
   List<_ConfiguredBrowseRoot> _parseBrowseRootsEnv(
     Map<String, String> environment,
   ) {
-    final raw = environment['NIGHTSHADE_BROWSE_ROOTS']?.trim();
+    final raw = environment['SKOTIQ_BROWSE_ROOTS']?.trim();
     if (raw == null || raw.isEmpty) return const [];
 
     return raw
@@ -355,7 +355,7 @@ class FileSystemHandlers {
       tempFile = await File(
         p.join(
           directory.path,
-          '.nightshade_write_test_${DateTime.now().microsecondsSinceEpoch}',
+          '.skotiq_write_test_${DateTime.now().microsecondsSinceEpoch}',
         ),
       ).create();
       return true;

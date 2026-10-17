@@ -5,7 +5,7 @@ layout, what is removed, and the files to touch. Routes and providers do not cha
 presentation layer. Screens not listed (Weather, Guiding, Analytics tabs, Onboarding, Darkroom
 internals) follow the general rules and the notes at the end.
 
-Files are under `packages/nightshade_app/lib/screens/` unless stated.
+Files are under `packages/skotiq_app/lib/screens/` unless stated.
 
 ## Tonight (`/dashboard`) — `dashboard/`
 
@@ -74,7 +74,7 @@ button `panel-right` (toggles the side panel).
 Body (flush):
 - **Viewer** fills everything left of the side panel. A 44 px viewer toolbar on top: left = mono
   12 meta (`6248 × 4176 · Bin 1×1 · Zoom 55% · Sky 19.8 mag/″²`, values in `textPrimary`); right =
-  `NightshadeToolbar` with groups [Overlays ▾, Annotate] [crosshair, zoom in, zoom out, fit,
+  `SkotiqToolbar` with groups [Overlays ▾, Annotate] [crosshair, zoom in, zoom out, fit,
   fullscreen] (28 px buttons).
 - **Canvas** edge to edge under the toolbar (no border, no padding, no inner card). Crosshair and
   centre ring in `primary` 35–50%. Glass elements: top-left `ReadoutRow` (HFR, Ecc, Stars, Median,
@@ -88,7 +88,7 @@ Body (flush):
   Gain / offset) + `SectionTitle(folder, "Files")` + rows (Format, Save to, Name) +
   `SectionTitle(activity, "Session")` + `ReadoutRow` (Captured, Integration, Free).
 
-Removed: the annotation info banner (catalog problem → checklist + a single `NightshadeBanner`
+Removed: the annotation info banner (catalog problem → checklist + a single `SkotiqBanner`
 inside the Annotations section of the side panel); the in-image "No catalogs installed" box; the "Annotation
 Catalogs Required" modal on first snapshot; the bottom "Snapshot / Loop / Save / Dur / G100 /
 Stretch" bar (now the glass capture bar); the 4 × 2 tile tabs; the separate Histogram card and
@@ -117,14 +117,14 @@ Builder body (flush), three columns 264 / 1fr / 300:
   description 12 muted, trailing `plus` muted). Rows are draggable as today.
 - **Canvas** (middle): a 44 px bar: sequence name 15 / 600 (never truncated: it gets the space
   before the meta chips, and the chips shrink first), muted "· unsaved changes", error/warning
-  count chips, summary chip ("1 target · 27 nodes · ~2 h 54 m"), then a `NightshadeToolbar` [undo, redo]
-  [Timeline, Map] [save, more]. Below, 16 / 20 padding: steps as `NightshadePanel`s (8 px gap):
+  count chips, summary chip ("1 target · 27 nodes · ~2 h 54 m"), then a `SkotiqToolbar` [undo, redo]
+  [Timeline, Map] [save, more]. Below, 16 / 20 padding: steps as `SkotiqPanel`s (8 px gap):
   header row `[28 px icon square] [title 14/500] [mono 12 muted detail] … [chips, more]`; the
   target step gets the `panelSelected` ring, a `well` altitude chart (96 px) and its children as
   `well` rows (icon 14, text 13, right-aligned mono count and an 80 × 4 progress track). Last
   row: muted "+ Drop a node here, or double-click one in the palette".
 - **Properties** (right): `SectionTitle(sliders, node name, chip)` + `FormRow`s; hairline;
-  eyebrow "ESTIMATE" + `ReadoutRow`; a `NightshadeBanner(tone: warning)` pinned to the bottom when the plan
+  eyebrow "ESTIMATE" + `ReadoutRow`; a `SkotiqBanner(tone: warning)` pinned to the bottom when the plan
   overruns astro dawn. Empty: `EmptyState(mouse-pointer-click, "Select a node", "Its settings
   appear here")`.
 
@@ -133,7 +133,7 @@ header); the 20-icon toolbar (its actions are distributed: file actions → canv
 Start/Stop/Skip/Reset → page header + run-state chip menu; the six unlabeled view toggles → Timeline
 / Map buttons); the Sequencer Tour prompt.
 
-Templates tab: keep the current design, restyled with `NightshadePanel`, `pageTitle`, chips, and
+Templates tab: keep the current design, restyled with `SkotiqPanel`, `pageTitle`, chips, and
 the filters as `SegmentedControl` (All / Beginner / Intermediate / Advanced / Specialized).
 
 Files: `sequencer/sequencer_screen.dart`, `sequencer/widgets/sequence_toolbar.dart` (→ canvas bar),
@@ -148,7 +148,7 @@ Page header: `plug` · "Equipment" · tabs **Devices / Profiles (count) / Optica
 
 Devices tab body (flush), two columns 1fr / 320:
 - **Device grid**: 3 columns, 16 gap, 20 / 24 padding, `align-content: start`. Each device is a
-  `NightshadePanel` (16 padding): top row `[32 px icon square in well] [role eyebrow 11 +
+  `SkotiqPanel` (16 padding): top row `[32 px icon square in well] [role eyebrow 11 +
   name 14/600] … [status chip]`; `ReadoutRow` (values relevant to the device, 20 px mono); action
   row of `secondary sm` buttons + a ghost settings icon button. A device connected but not in the
   profile shows a `warning` chip "Session only" and ONE 12 px muted line "Connected but not in this
@@ -183,7 +183,7 @@ Constellation and Collaborate as a `SegmentedControl` inside it). Actions: chips
 "Dark 20:54 – 04:51".
 
 Tonight tab body (flush), two columns 1fr / 380:
-- Filter row (12 / 24 padding, bottom hairline): 300 px search field, `NightshadeFilterChip`s (Type, Min
+- Filter row (12 / 24 padding, bottom hairline): 300 px search field, `SkotiqFilterChip`s (Type, Min
   altitude, Fits my FOV, More), right-aligned "Sort: Score".
 - Candidate list (12 / 24 padding, 8 gap): a header row using the same 6-column grid with eyebrows
   (count · Transit · Imageable · Window tonight), then `Candidate` rows (05 §9). The top candidate
@@ -211,7 +211,7 @@ Location, Files & storage), **Observing** (Equipment, Imaging, Automation & safe
 **System** (Notifications & remote, Advanced, Help & about); items 34 px, icon 15, `button` text,
 selected = `primary` at `opacityAccentTint`. Right (24 / 32 padding, max 880): `pageTitle` + ONE `bodySm` lead
 line (allowed here because it carries real information, e.g. the red-night explanation), then
-eyebrow-labelled groups of `NightshadePanel(flush)` containing `SettingRow`s (12 / 16 padding,
+eyebrow-labelled groups of `SkotiqPanel(flush)` containing `SettingRow`s (12 / 16 padding,
 hairlines, title `body` 500, description `caption` `textSecondary`, control right-aligned: 160 px
 dropdown / switch / swatches / theme cards).
 
@@ -227,13 +227,13 @@ Apply the general rules; no dedicated mockup.
   well, Star statistics `ReadoutRow`); centre graph panel with a 40 px options row (RA/Dec/Tot as
   `Readout(sm)`, Time and Scale as small dropdowns) and the chart in a `well`; right side panel
   (Controls, Star selection, Dither, Calibration as `SectionTitle` blocks). Calibration warning =
-  one `NightshadeBanner(tone: warning)`, not a bordered hero.
+  one `SkotiqBanner(tone: warning)`, not a bordered hero.
 - Weather: page header `cloud-sun` · "Weather" · chip (Safe / Unsafe / Not monitored) · actions
   [ghost refresh, ghost settings]. Radar fills the body edge to edge with glass HUD for conditions;
   no site → single `EmptyState`.
 - Analytics: page header `bar-chart-3` · "Analytics" · tabs Session / History / Projects / Equipment
   / Science / Diagnostics. Empty → single `EmptyState`. Charts inside `well`s, chart colours from
-  `NightshadeChartColors` (unchanged).
+  `SkotiqChartColors` (unchanged).
 - Darkroom: page header `aperture` · "Darkroom" · tabs Recipes / Sessions / Masters. Landing state
   (no `?master=` / `?recipe=`) lists recipes and sessions as `Candidate`-style rows; the workbench
   keeps its current structure with glass HUD over the image and the right column as a `SidePanel`.
@@ -243,7 +243,7 @@ Apply the general rules; no dedicated mockup.
 ## Onboarding (`/onboarding`)
 
 Keep the flow. Layout: centred 720 px column on `background`, step list as a 220 px left rail-
-style list (single line per step, done = check), content as a `NightshadePanel` sized to content
+style list (single line per step, done = check), content as a `SkotiqPanel` sized to content
 (no full-height empty card), progress "Step 1 of 13" as an eyebrow, `primary` Next bottom-right,
 ghost "Skip" top-right. Fix F5.
 

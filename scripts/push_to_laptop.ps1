@@ -1,5 +1,5 @@
-$source = "C:\Users\scdou\Documents\Nightshade2\apps\desktop\build\windows\x64\runner\Release"
-$dest = "\\192.168.1.59\Nightshade"
+$source = "C:\Users\scdou\Documents\Skotiq2\apps\desktop\build\windows\x64\runner\Release"
+$dest = "\\192.168.1.59\Skotiq"
 
 Write-Host "Copying from: $source"
 Write-Host "Copying to: $dest"

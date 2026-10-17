@@ -29,7 +29,7 @@ Branch: `agent/ws2-inspector-tabs`
 - **Comment clearing.** `SequenceNode.copyWith(comment:)` is keep-or-replace
   (null keeps), so "no comment" is committed as `''` — the tree's italic line
   and the tab dot both check `isNotEmpty`.
-- **Notes dot.** `AdaptiveTab` has no dot slot (nightshade_ui is out of
+- **Notes dot.** `AdaptiveTab` has no dot slot (skotiq_ui is out of
   scope), so the Notes tab label gains a `•` suffix when the node has a
   comment; `semanticLabel` announces "Notes, has comment".
 - **Banner on mobile.** `_SelectedNodeBanner` is pinned at the bottom of the
@@ -71,13 +71,13 @@ Branch: `agent/ws2-inspector-tabs`
   `TMPDIR=$HOME/.cache/ns-tmp/ws2-inspector-tabs`)
 - `flutter test test/screens/sequencer --concurrency=4` → exit 0,
   **518/518** (507 base + 11 new)
-- `dart format --output=none --set-exit-if-changed packages/nightshade_app
-  packages/nightshade_core packages/nightshade_ui` → exit 1 — **pre-existing
+- `dart format --output=none --set-exit-if-changed packages/skotiq_app
+  packages/skotiq_core packages/skotiq_ui` → exit 1 — **pre-existing
   drift on the base commit**: the 11 unformatted files are all outside my
   file list (`status_bar*`, `mount_site*`, `weather_alert*`,
   `device_operations`, `imaging_chain`, `mount_site_reconciler*`); none are
   in my diff. Scoped to my 6 files the same command exits 0.
-- `cd packages/nightshade_app && dart analyze` → exit 2, 891 issues —
+- `cd packages/skotiq_app && dart analyze` → exit 2, 891 issues —
   **all pre-existing on the base** (0 errors; unused-import warnings +
   deprecation infos in files outside this workstream). Scoped to my files:
   0 issues of any severity. Base count was 893; the change nets −2

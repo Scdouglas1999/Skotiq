@@ -1,6 +1,6 @@
-/// Nightshade Update Pusher
+/// Skotiq Update Pusher
 ///
-/// CLI tool to push updates to Nightshade instances on the local network.
+/// CLI tool to push updates to Skotiq instances on the local network.
 /// Usage:
 ///   dart run tools/update_pusher/push_update.dart --discover
 ///   dart run tools/update_pusher/push_update.dart --push --target 192.168.1.50
@@ -13,8 +13,8 @@ import 'dart:typed_data';
 
 const int discoveryPort = 45679;
 const int pushPort = 45680;
-const String updatePushMessage = 'NIGHTSHADE_UPDATE_PUSH';
-const String updateResponsePrefix = 'NIGHTSHADE_UPDATE_TARGET:';
+const String updatePushMessage = 'SKOTIQ_UPDATE_PUSH';
+const String updateResponsePrefix = 'SKOTIQ_UPDATE_TARGET:';
 
 class UpdateTarget {
   final String host;
@@ -38,7 +38,7 @@ class UpdateTarget {
 }
 
 Future<void> main(List<String> args) async {
-  print('Nightshade Update Pusher');
+  print('Skotiq Update Pusher');
   print('========================\n');
 
   if (args.isEmpty || args.contains('--help') || args.contains('-h')) {
@@ -68,11 +68,11 @@ Future<void> main(List<String> args) async {
 
     final pushSecret =
         getArg(args, '--secret') ??
-        Platform.environment['NIGHTSHADE_UPDATE_PUSH_SECRET'];
+        Platform.environment['SKOTIQ_UPDATE_PUSH_SECRET'];
     if (pushSecret == null || pushSecret.isEmpty) {
       print(
         'Error: No push secret provided. Pass --secret <value> or set '
-        'NIGHTSHADE_UPDATE_PUSH_SECRET.',
+        'SKOTIQ_UPDATE_PUSH_SECRET.',
       );
       exit(1);
     }
@@ -102,7 +102,7 @@ Future<void> main(List<String> args) async {
 void printUsage() {
   print('Usage:');
   print('  dart run tools/update_pusher/push_update.dart --discover');
-  print('    Discover Nightshade instances on the network\n');
+  print('    Discover Skotiq instances on the network\n');
   print('  dart run tools/update_pusher/push_update.dart --push --all');
   print('    Push update to all discovered instances\n');
   print('  dart run tools/update_pusher/push_update.dart --push --target <ip>');
@@ -112,7 +112,7 @@ void printUsage() {
   print('  --manifest <path>  Path to manifest.json (default: auto-detect)');
   print(
     '  --secret <value>   LAN push shared secret '
-    '(or use NIGHTSHADE_UPDATE_PUSH_SECRET)',
+    '(or use SKOTIQ_UPDATE_PUSH_SECRET)',
   );
 }
 
@@ -126,8 +126,8 @@ String? getArg(List<String> args, String name) {
 
 String? findDefaultPackage() {
   final candidates = [
-    'apps/desktop/build/update/nightshade-update.zip',
-    'build/update/nightshade-update.zip',
+    'apps/desktop/build/update/skotiq-update.zip',
+    'build/update/skotiq-update.zip',
   ];
   for (final path in candidates) {
     if (File(path).existsSync()) {
@@ -151,7 +151,7 @@ String? findDefaultManifest() {
 }
 
 Future<List<UpdateTarget>> discoverTargets() async {
-  print('Discovering Nightshade instances...\n');
+  print('Discovering Skotiq instances...\n');
 
   final targets = <UpdateTarget>[];
   final seen = <String>{};
@@ -181,7 +181,7 @@ Future<List<UpdateTarget>> discoverTargets() async {
                 final target = UpdateTarget(
                   host: host,
                   port: info['pushPort'] as int? ?? pushPort,
-                  name: info['name'] as String? ?? 'Nightshade',
+                  name: info['name'] as String? ?? 'Skotiq',
                   version: info['version'] as String? ?? 'unknown',
                   buildNumber: info['buildNumber'] as int? ?? 0,
                   isReceiving: info['isReceiving'] as bool? ?? false,
@@ -213,7 +213,7 @@ Future<List<UpdateTarget>> discoverTargets() async {
   }
 
   if (targets.isEmpty) {
-    print('No Nightshade instances found on the network.');
+    print('No Skotiq instances found on the network.');
   } else {
     print('\nFound ${targets.length} instance(s).');
   }

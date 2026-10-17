@@ -11,7 +11,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_fail_closed_check_self_test_',
+    'skotiq_fail_closed_check_self_test_',
   );
   try {
     await _writePassingFixture(temp);
@@ -89,7 +89,7 @@ Future<void> _writeMissingFileFixture(Directory root) async {
   await _resetWorkspace(root);
   await _writeRequiredFiles(root, bridgeStub: 'void bridgeStub() {}\n');
   await File(
-    '${root.path}/packages/nightshade_core/lib/src/backend/network_backend.dart',
+    '${root.path}/packages/skotiq_core/lib/src/backend/network_backend.dart',
   ).delete();
 }
 
@@ -104,22 +104,22 @@ Future<void> _writeRequiredFiles(
   );
   await _writeFile(
     root,
-    'packages/nightshade_bridge/lib/src/bridge_stub.dart',
+    'packages/skotiq_bridge/lib/src/bridge_stub.dart',
     bridgeStub,
   );
   await _writeFile(
     root,
-    'packages/nightshade_core/lib/src/backend/ffi_backend.dart',
+    'packages/skotiq_core/lib/src/backend/ffi_backend.dart',
     'class FfiBackend {}\n',
   );
   await _writeFile(
     root,
-    'packages/nightshade_core/lib/src/backend/network_backend.dart',
+    'packages/skotiq_core/lib/src/backend/network_backend.dart',
     'class NetworkBackend {}\n',
   );
   await _writeFile(
     root,
-    'packages/nightshade_core/lib/src/backend/disconnected_backend.dart',
+    'packages/skotiq_core/lib/src/backend/disconnected_backend.dart',
     '''
 class DisconnectedBackend {
   Future<void> focuserHalt(String id) async {
@@ -134,7 +134,7 @@ class DisconnectedBackend {
   );
   await _writeFile(
     root,
-    'packages/nightshade_core/lib/src/database/daos/targets_dao.dart',
+    'packages/skotiq_core/lib/src/database/daos/targets_dao.dart',
     'class TargetsDao {}\n',
   );
 }
@@ -143,32 +143,32 @@ const _rulesFixture = r'''
 rules:
   - id: bridge_unimplemented
     description: Disallow UnimplementedError in production backend paths
-    glob: packages/nightshade_bridge/lib/src/bridge_stub.dart
+    glob: packages/skotiq_bridge/lib/src/bridge_stub.dart
     forbidden_pattern: 'UnimplementedError\('
     require_present: true
 
   - id: ffi_backend_unimplemented
     description: Disallow UnimplementedError in production backend paths
-    glob: packages/nightshade_core/lib/src/backend/ffi_backend.dart
+    glob: packages/skotiq_core/lib/src/backend/ffi_backend.dart
     forbidden_pattern: 'UnimplementedError\('
     require_present: true
 
   - id: network_backend_unimplemented
     description: Disallow UnimplementedError in production backend paths
-    glob: packages/nightshade_core/lib/src/backend/network_backend.dart
+    glob: packages/skotiq_core/lib/src/backend/network_backend.dart
     forbidden_pattern: 'UnimplementedError\('
     require_present: true
 
   - id: bridge_stub_noop_log
     description: Disallow sequencer checkpoint no-op stub logging
-    glob: packages/nightshade_bridge/lib/src/bridge_stub.dart
+    glob: packages/skotiq_bridge/lib/src/bridge_stub.dart
     forbidden_pattern: 'sequencer.*no-op in stub mode'
     case_sensitive: false
     require_present: true
 
   - id: focuser_halt_noop
     description: Disconnected backend focuserHalt must not be a no-op
-    glob: packages/nightshade_core/lib/src/backend/disconnected_backend.dart
+    glob: packages/skotiq_core/lib/src/backend/disconnected_backend.dart
     forbidden_pattern: 'Future<void>\s+focuserHalt\s*\([^)]*\)\s*async\s*\{\s*\}'
     multi_line: true
     require_present: true

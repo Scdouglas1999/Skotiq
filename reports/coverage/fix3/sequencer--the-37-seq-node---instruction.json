@@ -8,9 +8,9 @@
   "expected": "Title should be 'No filters configured for SmartExposure'.",
   "repro": "Connect the sim filter wheel, do not add filters to the profile, add a Smart Exposure node, press Start.",
   "evidence": "/tmp/ns-audit/shots/sequencer-nodes-40-fwerror.png",
-  "where": "packages/nightshade_core/lib/src/providers/sequence/rules/ (SmartExposure filter-wheel rule)",
+  "where": "packages/skotiq_core/lib/src/providers/sequence/rules/ (SmartExposure filter-wheel rule)",
   "location_wrong": null,
   "proposed_fix": null,
-  "verdict_reasoning": "Verified at the named source. packages/nightshade_core/lib/src/providers/sequence/rules/smart_exposure_rules.dart:174 sets `title: 'No filter wheel for SmartExposure'` while :176 sets the description to 'Smart Exposure \"${node.name}\" requires a filter wheel, but the active equipment profile has no filters configured.' The title asserts a hardware fact the app can and does contradict on the Equipment screen (I had the Simulated Filter Wheel connected and green throughout this session), while the body states the actual, different cause (an empty profile filter list). The consequence follows directly: a user reads the heading, checks Equipment, sees a connected wheel, and concludes the validator is broken. Not driven live for this one item \u2014 the rule text is unambiguous and there is no runtime behaviour to observe. P3 is correct: pure wording."
+  "verdict_reasoning": "Verified at the named source. packages/skotiq_core/lib/src/providers/sequence/rules/smart_exposure_rules.dart:174 sets `title: 'No filter wheel for SmartExposure'` while :176 sets the description to 'Smart Exposure \"${node.name}\" requires a filter wheel, but the active equipment profile has no filters configured.' The title asserts a hardware fact the app can and does contradict on the Equipment screen (I had the Simulated Filter Wheel connected and green throughout this session), while the body states the actual, different cause (an empty profile filter list). The consequence follows directly: a user reads the heading, checks Equipment, sees a connected wheel, and concludes the validator is broken. Not driven live for this one item \u2014 the rule text is unambiguous and there is no runtime behaviour to observe. P3 is correct: pure wording."
  }
 ]

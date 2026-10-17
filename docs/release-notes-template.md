@@ -1,4 +1,4 @@
-# Nightshade Release Notes Template
+# Skotiq Release Notes Template
 
 Use this template for every public release candidate. Replace bracketed values
 with release-specific evidence before publishing.
@@ -86,7 +86,7 @@ user impact, workaround, and whether the item blocks unattended operation.
 | Production analysis | `dart run melos run analyze:production` | `[pass/fail]` | `[log/path]` |
 | Fail-closed audit | `dart run melos run audit:fail-closed` | `[pass/fail]` | `[log/path]` |
 | Placeholder audit | `dart run melos run audit:placeholders` | `[pass/fail]` | `[log/path]` |
-| Native bridge | `cargo check --manifest-path native/nightshade_native/bridge/Cargo.toml` | `[pass/fail]` | `[log/path]` |
+| Native bridge | `cargo check --manifest-path native/skotiq_native/bridge/Cargo.toml` | `[pass/fail]` | `[log/path]` |
 | Desktop tests | `[command]` | `[pass/fail]` | `[log/path]` |
 | Core tests | `[command]` | `[pass/fail]` | `[log/path]` |
 | Linux build | `[command/environment]` | `[pass/fail]` | `[log/path]` |

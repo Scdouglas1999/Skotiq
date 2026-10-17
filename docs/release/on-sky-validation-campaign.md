@@ -19,7 +19,7 @@ by memory of "it looked fine":
    `DecisionEvent` for every scheduler pick, trigger firing, recovery
    transition, budget milestone, adaptive swap, frame accept/reject
    verdict, plugin invocation, manual action, and system event
-   (`native/nightshade_native/sequencer/src/decision.rs`). Events are
+   (`native/skotiq_native/sequencer/src/decision.rs`). Events are
    bridged as `SequencerEvent::DecisionLogged` and persisted to the
    `sequence_decisions` Drift table — they survive restarts and are the
    source of truth. Filter by the wire-stable categories:
@@ -35,11 +35,11 @@ by memory of "it looked fine":
    (`NetworkSessionReplayDataSource`), so a headless/Pi run is reviewable
    without touching the rig.
 3. **Night Doctor report**
-   (`packages/nightshade_core/lib/src/services/night_analysis_service.dart`
+   (`packages/skotiq_core/lib/src/services/night_analysis_service.dart`
    → `NightReport`/`NightFinding`, surfaced in the session-review screen's
    night report panel). Night 1 validates this tool itself; later nights
    use it as a cross-check.
-4. **Headless journal**: `journalctl -u nightshade-headless` (trigger
+4. **Headless journal**: `journalctl -u skotiq-headless` (trigger
    logs, disk watchdog, push delivery) — export per night.
 5. **The frames** — keep ALL raw frames from validation nights, including
    rejected ones; the reject verdicts in the decision log are only
@@ -86,7 +86,7 @@ follow-up commit referencing this night's data.
 ## Night 2 — Autofocus + predictive focus model
 
 **Goal:** validate the temperature model the sequencer trusts mid-run.
-`PersistedFocusModel` (`native/nightshade_native/sequencer/src/focus_prediction.rs`)
+`PersistedFocusModel` (`native/skotiq_native/sequencer/src/focus_prediction.rs`)
 is keyed `(equipment_profile_id, filter_name)`, accumulates up to 50
 samples, fits slope/intercept/R², and `evaluate()` returns a
 confidence-gated `PredictiveAfDecision`: apply / dampen / force a real
@@ -96,7 +96,7 @@ sweep. Drift detection (`record_prediction_outcome` →
 **Procedure:** start with an empty model for one filter. Run AF sweeps
 every ~30 min across the night's temperature drop (aim for ≥5 °C span),
 letting samples accumulate. Watch the model card
-(`packages/nightshade_app/lib/widgets/focus_model_curve_card.dart`) for
+(`packages/skotiq_app/lib/widgets/focus_model_curve_card.dart`) for
 the fitted curve + R². Mid-night, alternate: let one AF cycle be replaced
 by the prediction, then verify with a sweep — the delta between predicted
 and swept position is the headline number. Repeat on a second filter to
@@ -123,7 +123,7 @@ standalone flip + epoch transform paths — both need sky time).
 full sequence through the flip with hands off but eyes on (first time:
 finger over the stop button). Capture the entire window in the decision
 log — the flip shows up as `system_event`/`trigger_fired` entries from
-the meridian machinery (`native/nightshade_native/sequencer/src/meridian.rs`,
+the meridian machinery (`native/skotiq_native/sequencer/src/meridian.rs`,
 `meridian_events.rs`). Then validate the *standalone* flip path (flip
 commanded outside a sequence) on a second target. If the rig allows,
 repeat once near the safety limits (late flip) to confirm the
@@ -140,7 +140,7 @@ survived.
 ## Night 4 — Weather gate + recovery
 
 **Goal:** the `WeatherUnsafe` trigger
-(`native/nightshade_native/sequencer/src/triggers.rs`) aborts/parks on
+(`native/skotiq_native/sequencer/src/triggers.rs`) aborts/parks on
 EITHER unsafe source — the hardware safety monitor or the Dart-side
 weather verdict fed in via `ExecutorCommand::UpdateWeatherVerdict` — and
 re-fires every poll while conditions stay unsafe; plus the structural
@@ -169,7 +169,7 @@ triggers.rs).
 
 **Goal:** pick defensible defaults for
 `drizzleScale` / `drizzlePixfrac`
-(`packages/nightshade_core/lib/src/models/imaging/integration_settings.dart`;
+(`packages/skotiq_core/lib/src/models/imaging/integration_settings.dart`;
 shipped defaults `2.0` / `0.9`) for the post-session integration pipeline.
 
 **Procedure:** needs a well-dithered set — confirm dither is enabled and
@@ -193,7 +193,7 @@ sampling-regime (undersampled vs well-sampled) in the integration docs.
 
 **Goal:** validate the TV-regularized Richardson–Lucy default
 (`regularization` λ, default `0.01`, bounded iterations — see
-`native/nightshade_native/imaging/src/deconvolution.rs`) on real stacks,
+`native/skotiq_native/imaging/src/deconvolution.rs`) on real stacks,
 not synthetic PSFs.
 
 **Procedure:** use the Night 5 master (and one narrowband or

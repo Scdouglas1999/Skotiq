@@ -11,7 +11,7 @@ triggered by the **first plate solve of the process that actually SUCCEEDS**.
 ### The chain
 
 1. Every captured frame auto-runs the annotation pipeline, fire-and-forget, on the UI
-   isolate — `packages/nightshade_core/lib/src/services/annotation_service.dart:259`
+   isolate — `packages/skotiq_core/lib/src/services/annotation_service.dart:259`
    (`handleCurrentImageChanged` → `processNewImage(next)`, not awaited).
 2. `processNewImage` plate-solves with mount hints
    (`annotation_pipeline.dart:178` `solveWithFallback`). That is the log's
@@ -22,18 +22,18 @@ triggered by the **first plate solve of the process that actually SUCCEEDS**.
    owner was still focusing — HFR 16 → 5). So annotation never ran and nothing hung.
 4. The owner moved the focuser "one last time" → HFR 4.5/3.87, 2171/2469/4400 sources →
    **ASTAP finally solves** (exit 0). ASTAP's success path logs nothing at INFO
-   (`native/nightshade_native/imaging/src/platesolve.rs:1070-1094` only logs the
+   (`native/skotiq_native/imaging/src/platesolve.rs:1070-1094` only logs the
    non-zero-exit failure), which is exactly why all three logs go quiet on the solve
    instead of printing an outcome.
 5. Geometry guards pass (`annotation_pipeline.dart:361-379`), `annotateImage` runs
    (`:386`) → `findObjectsInFov` (`:420`) → `annotationCatalog.searchNearby(...)`
    (`:458`) with `searchRadius ≈ 0.69°` (correctly derived, `:433-437`).
 6. **`AnnotationCatalog.searchNearby` answers that 0.69° query by loading the ENTIRE
-   sky first** — `packages/nightshade_planetarium/lib/src/catalogs/annotation_catalog.dart:392`
+   sky first** — `packages/skotiq_planetarium/lib/src/catalogs/annotation_catalog.dart:392`
    `await loadAll();`.
 7. `AnnotationCatalog.loadAll` (`annotation_catalog.dart:292-378`) calls
    `_gladeLoader.loadAll()` (`:346`), which is
-   `packages/nightshade_planetarium/lib/src/catalogs/glade_plus_catalog.dart:109`:
+   `packages/skotiq_planetarium/lib/src/catalogs/glade_plus_catalog.dart:109`:
 
        final lines = await file.readAsLines();
 
@@ -118,7 +118,7 @@ mechanism is correct, and the third log let me pin the trigger precisely.
 | hang 2 (00:01) | 0001 | **2469** | **no** |
 | hang 3 (00:07) | 0003 | **4341** | **no** |
 
-ASTAP's success path logs nothing at INFO — `native/nightshade_native/imaging/src/platesolve.rs:1070-1094`
+ASTAP's success path logs nothing at INFO — `native/skotiq_native/imaging/src/platesolve.rs:1070-1094`
 logs only the non-zero-exit case. So "no outcome logged" means **the solve worked**. The
 owner was focusing: HFR came down 16 → 5 → 4.5 → 3.98, star counts climbed, and the first
 frame ASTAP could actually solve is the frame that froze the app. That is why it read as
@@ -127,7 +127,7 @@ frame ASTAP could actually solve is the frame that froze the app. That is why it
 ### What a successful solve unlocks
 
 `AnnotationPipeline.processNewImage` runs on every new frame, fire-and-forget on the UI
-isolate (`packages/nightshade_core/lib/src/services/annotation_service.dart:259`). It
+isolate (`packages/skotiq_core/lib/src/services/annotation_service.dart:259`). It
 plate-solves with mount hints (`annotation_pipeline.dart:178`) — that is the log's
 `Plate solving near RA/Dec`. **A failed solve returns at `annotation_pipeline.dart:197-202`**,
 which is why 8 frames in a row were harmless. On success it runs the geometry guards
@@ -139,9 +139,9 @@ derived, `:433-437`).
 
 `AnnotationCatalog.searchNearby` answered that 0.69° query by loading the whole sky first:
 
-- `packages/nightshade_planetarium/lib/src/catalogs/annotation_catalog.dart:392` — `await loadAll();`
+- `packages/skotiq_planetarium/lib/src/catalogs/annotation_catalog.dart:392` — `await loadAll();`
 - `annotation_catalog.dart:346` — `loadAll()` calls `_gladeLoader.loadAll()`
-- `packages/nightshade_planetarium/lib/src/catalogs/glade_plus_catalog.dart:109` —
+- `packages/skotiq_planetarium/lib/src/catalogs/glade_plus_catalog.dart:109` —
   `final lines = await file.readAsLines();`
 
 with the file's own comment at `glade_plus_catalog.dart:124` stating the scale:
@@ -174,7 +174,7 @@ merged list, i.e. quadratic in colliding rows on top of being whole-sky.
 
 Two Dart lanes solve the same frame: the annotation lane (hinted, leads) and the science
 lane's `solveForScience`, which calls `_backend.plateSolve` directly and so bypasses the
-Dart single-flight gate (`packages/nightshade_core/lib/src/services/science/default_science_backend.dart:56-63`).
+Dart single-flight gate (`packages/skotiq_core/lib/src/services/science/default_science_backend.dart:56-63`).
 The **Rust** coalescer caught what the Dart gate missed and logged
 `already being solved; waiting for that result` — `native/.../bridge/src/api/plate_solve.rs:105-183`.
 That code is sound: a `tokio::sync::broadcast` receiver awaited (no spin), an
@@ -186,7 +186,7 @@ under `spawn_blocking`. **Cleared.**
 
 ### 1. Region-scoped streaming catalog queries (the freeze)
 
-New `packages/nightshade_planetarium/lib/src/catalogs/catalog_region_scan.dart`:
+New `packages/skotiq_planetarium/lib/src/catalogs/catalog_region_scan.dart`:
 `CatalogRegionFilter` (cone + magnitude test, primitives only so it is isolate-sendable)
 and `scanCatalogRegion`, which streams the file
 (`openRead().transform(utf8.decoder).transform(LineSplitter())`) and keeps only rows
@@ -212,7 +212,7 @@ across the 0h/24h seam (a plain subtraction dropped half a field straddling RA 0
 
 ### 2. The 3.2 GB texture leak (contributing, separate defect)
 
-`packages/nightshade_app/lib/screens/imaging/widgets/image_display.dart` replaced
+`packages/skotiq_app/lib/screens/imaging/widgets/image_display.dart` replaced
 `_decodedImage` on every frame and had **no `dispose()` at all** — the only image widget
 in the app that omits it, and the one mounted at native resolution on the Imaging screen.
 A `ui.Image` holds its texture off the Dart heap, so dropping the reference leaks it:
@@ -224,17 +224,17 @@ the pattern every sibling already uses (`live_stack_canvas.dart:334-335,379`,
 
 ### Tests
 
-- `packages/nightshade_planetarium/test/catalog_region_scan_test.dart` — 15 tests: cone
+- `packages/skotiq_planetarium/test/catalog_region_scan_test.dart` — 15 tests: cone
   geometry, cos(dec) compression, RA-seam wrap, magnitude cutoff, missing-magnitude
   convention, header skip, malformed-row tolerance, missing-file error, **answer
   proportional to the cone not the catalog**, **the calling isolate keeps being serviced
   for the whole scan** (periodic timer, not a one-shot — a one-shot could slip through the
   old code's awaited `readAsLines`), and truncation under a pathological radius.
-- `packages/nightshade_planetarium/test/annotation_catalog_region_merge_test.dart` — 7
+- `packages/skotiq_planetarium/test/annotation_catalog_region_merge_test.dart` — 7
   tests: region scoping, brightest-first ordering, collision collapse, magnitude cutoff,
   type filter, unavailable with no loaders, and 4,000 colliding rows completing promptly
   (quadratic under the old `indexOf` merge).
-- `packages/nightshade_app/test/screens/imaging/image_display_texture_release_test.dart` —
+- `packages/skotiq_app/test/screens/imaging/image_display_texture_release_test.dart` —
   2 tests: the replaced texture is released, and the live texture is released on dispose.
   Both **verified to fail** with the dispose calls removed
   ("the replaced texture was leaked" / "the texture outlived the widget that owned it").
@@ -268,7 +268,7 @@ success-gated path, that would have frozen the rig again seconds after the first
 landed. It had not been reached when the log went quiet, so it is not the cause of these
 three hangs — but it is reachable on every solved frame.
 
-`packages/nightshade_core/lib/src/services/science/default_science_backend/helpers.dart`
+`packages/skotiq_core/lib/src/services/science/default_science_backend/helpers.dart`
 `_catalogMatches` matched detected stars to catalog stars with a nested scan: **every**
 detected star against **every** projected catalog star. Reachable only with a non-null
 `WcsSolution`, i.e. only once a solve succeeds — the same gate as the catalog load. On
@@ -280,7 +280,7 @@ threaded, logging nothing while it runs.
 Fixed by bucketing: a match must lie within `maxMatchPx`, so with cells that size only
 the nine cells around a detection can hold a candidate — same answer, O(n + m) work. The
 geometry is extracted to a public pure function,
-`packages/nightshade_core/lib/src/services/science/nearest_neighbour_matching.dart`
+`packages/skotiq_core/lib/src/services/science/nearest_neighbour_matching.dart`
 (`matchNearestUnclaimed`), because the original lived in a `part` file behind private
 types and could not be tested. Candidate claiming is still keyed by the catalog star's
 id, not its index, so two coincident catalog rows still cannot both be matched — the
@@ -312,11 +312,11 @@ All commands unpiped, exit codes recorded.
 
 | gate | command | exit | result |
 |---|---|---|---|
-| Rust libs | `cargo test -p nightshade_bridge -p nightshade_native --lib` (`TMPDIR=$HOME/.cache/ns-tests`, `CARGO_TARGET_DIR=$HOME/.cache/ns-worktrees/cargo-target`) | **0** | 696 + 202 passed, 0 failed |
+| Rust libs | `cargo test -p skotiq_bridge -p skotiq_native --lib` (`TMPDIR=$HOME/.cache/ns-tests`, `CARGO_TARGET_DIR=$HOME/.cache/ns-worktrees/cargo-target`) | **0** | 696 + 202 passed, 0 failed |
 | format | `dart format --output=none --set-exit-if-changed packages lib` | **0** | 4287 files, 0 changed |
 | analyze (planetarium lib) | `dart analyze lib` | 0 | No issues found |
-| analyze (core lib) | `dart analyze packages/nightshade_core/lib` | 0 | 2 infos, both pre-existing in `scheduler/rejection_labels.dart` |
-| analyze (app) | `cd packages/nightshade_app && dart analyze` | **0** | 873 infos, all pre-existing; none in any file I touched |
+| analyze (core lib) | `dart analyze packages/skotiq_core/lib` | 0 | 2 infos, both pre-existing in `scheduler/rejection_labels.dart` |
+| analyze (app) | `cd packages/skotiq_app && dart analyze` | **0** | 873 infos, all pre-existing; none in any file I touched |
 | planetarium | `flutter test --exclude-tags golden --concurrency=3` | **0** | 638 passed (612 baseline + 26 new) |
 | core | `flutter test --exclude-tags golden --concurrency=3` | **0** | 6520 passed, 4 skipped (re-run after the science change) |
 | app | `flutter test --exclude-tags golden --concurrency=3` | **0** | 4389 passed |
@@ -405,10 +405,10 @@ Dropped per the coordinator's re-prioritisation, recorded so they are not lost:
    so the cached field survives the mount's drift and the pipeline's moving SNR-based
    magnitude cutoff. Scanning exactly the requested cone would have been correct but would
    have missed the cache on nearly every frame.
-4. **`matchNearestUnclaimed` is public API in `nightshade_core`** rather than a private
+4. **`matchNearestUnclaimed` is public API in `skotiq_core`** rather than a private
    helper, because the code it replaced sat in a `part` file behind private types and was
-   therefore untestable. Exported from both barrels (`nightshade_core.dart` and
-   `nightshade_core_services.dart`).
+   therefore untestable. Exported from both barrels (`skotiq_core.dart` and
+   `skotiq_core_services.dart`).
 5. **The port-exclusion and lock-discipline work the original brief asked for is not
    here.** The coordinator re-scoped mid-task to the freeze once the Sep 10 rollback
    reproduced it; items 1, 2 and 5 of the original brief were explicitly dropped. Findings

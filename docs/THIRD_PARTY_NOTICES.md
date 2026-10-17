@@ -1,16 +1,16 @@
-# Third-Party Notices — Nightshade 5.0.0
+# Third-Party Notices — Skotiq 5.0.0
 
 This notice describes the components redistributed in the official 5.0.0
 artifacts produced by `.github/workflows/release.yml`:
 
-- `nightshade-5.0.0-windows-x64.zip`
-- `nightshade-5.0.0-linux-x64.tar.gz`
-- `nightshade-5.0.0-android-universal.apk`
+- `skotiq-5.0.0-windows-x64.zip`
+- `skotiq-5.0.0-linux-x64.tar.gz`
+- `skotiq-5.0.0-android-universal.apk`
 
-Nightshade's own code and assets are governed by `NIGHTSHADE-LICENSE.txt`
-(the Nightshade Source-Available License, version 1.2). Third-party components
+Skotiq's own code and assets are governed by `SKOTIQ-LICENSE.txt`
+(the Skotiq Source-Available License, version 1.2). Third-party components
 remain governed by their respective licenses. The desktop archives contain
-this notice, the Nightshade license, and `LICENSES/LGPL-2.1.txt`; the GitHub
+this notice, the Skotiq license, and `LICENSES/LGPL-2.1.txt`; the GitHub
 release also publishes those files plus `SOURCE-COMMIT.txt` as separate assets. Flutter's generated
 `NOTICES.Z` remains embedded in each Flutter application and is the detailed
 notice bundle for resolved Dart, Flutter, plugin, font, and icon dependencies.
@@ -19,14 +19,14 @@ notice bundle for resolved Dart, Flutter, plugin, font, and icon dependencies.
 
 | Component | How it is shipped | License / notice |
 | --- | --- | --- |
-| Nightshade native bridge | `nightshade_bridge.dll` on Windows; `libnightshade_bridge.so` on Linux | Nightshade Source-Available License for first-party code; statically linked Rust crates retain their licenses below. |
-| LibRaw | Dynamically linked `libraw.dll` / `libraw.so` next to the bridge | LibRaw is dual-licensed LGPL-2.1-or-later or CDDL-1.0. Nightshade uses the LGPL option. The full LGPL-2.1 text is in `LICENSES/LGPL-2.1.txt`; dynamic linking preserves replacement/relinking. Source: <https://www.libraw.org/download>. |
+| Skotiq native bridge | `skotiq_bridge.dll` on Windows; `libskotiq_bridge.so` on Linux | Skotiq Source-Available License for first-party code; statically linked Rust crates retain their licenses below. |
+| LibRaw | Dynamically linked `libraw.dll` / `libraw.so` next to the bridge | LibRaw is dual-licensed LGPL-2.1-or-later or CDDL-1.0. Skotiq uses the LGPL option. The full LGPL-2.1 text is in `LICENSES/LGPL-2.1.txt`; dynamic linking preserves replacement/relinking. Source: <https://www.libraw.org/download>. |
 | SQLite | Hermetic `libsqlite3.so` native asset from `package:sqlite3` (Linux/desktop archive) | Public domain. See <https://www.sqlite.org/copyright.html>. |
 | Microsoft Visual C++ runtime | Redistributable runtime DLLs staged by the Windows toolchain | Redistributed under the Microsoft Visual Studio license. |
 | WebRTC native libraries | Included by `flutter_webrtc` where required | BSD-style WebRTC/Chromium notices are included in Flutter's generated notice bundle. |
 
 The Linux bridge dynamically uses the system's libusb, libudev, OpenSSL, and
-other platform libraries. Nightshade deliberately does **not** statically
+other platform libraries. Skotiq deliberately does **not** statically
 vendor libusb. The release build installs the development packages only to
 link against the shared libraries; these libraries are not copied into the
 archive.
@@ -34,7 +34,7 @@ archive.
 ## Rust dependencies
 
 The native bridge statically links its resolved Rust dependency graph from
-`native/nightshade_native/Cargo.lock`. The release gate runs the repository's
+`native/skotiq_native/Cargo.lock`. The release gate runs the repository's
 license policy across all targets. Its allowed set is:
 
 - MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception
@@ -57,7 +57,7 @@ including Flutter, Dart packages, platform plugins, `flutter_webrtc`,
 `mobile_scanner`, Lucide icons, Hanken Grotesk, and Spline Sans Mono. The
 Lucide ISC/MIT notice is also tracked at `third_party/lucide_icons/LICENSE`;
 the font OFL-1.1 texts are tracked beside the fonts under
-`packages/nightshade_ui/assets/fonts/`.
+`packages/skotiq_ui/assets/fonts/`.
 
 ## Bundled astronomical catalog data
 
@@ -66,11 +66,11 @@ datasets are licensed CC BY-SA 4.0. The bundled
 `assets/planetarium/catalogs/README.md` provides the required attribution,
 source links, transformation description, and license link. The transformed
 catalog packs themselves are offered under CC BY-SA 4.0; that data license
-does not replace the license for Nightshade's program code.
+does not replace the license for Skotiq's program code.
 
 No JPL ephemeris kernel is bundled or redistributed. Sun and moon positions
 are computed from the Astronomical Almanac low-precision series in
-`native/nightshade_native/sequencer/src/scheduling/ephemeris.rs`.
+`native/skotiq_native/sequencer/src/scheduling/ephemeris.rs`.
 
 ## Vendor device SDKs are not redistributed
 
@@ -85,7 +85,7 @@ confirmed and their required notices are included.
 ## External programs not redistributed
 
 ASTAP, astrometry.net, PHD2, INDI servers/drivers, ASCOM Platform, Alpaca
-servers, and device drivers are user-installed external programs. Nightshade
+servers, and device drivers are user-installed external programs. Skotiq
 invokes or communicates with them but does not include them in the 5.0.0
 artifacts.
 
@@ -94,7 +94,7 @@ artifacts.
 Use the release source tag and lockfiles as the authority:
 
 ```bash
-cd native/nightshade_native
+cd native/skotiq_native
 cargo deny check licenses
 cargo metadata --locked --format-version 1
 

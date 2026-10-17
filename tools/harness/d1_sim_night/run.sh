@@ -2,27 +2,27 @@
 # D1 sim-night end-to-end against the RELEASE bundle: fresh install -> sim
 # LRGB sequence -> natural completion -> masters -> dawn autopilot draft ->
 # watched-folder delivery, asserted at every stage. See
-# docs/plans/nightshade_7_0_d1_runbook.md for the seam evidence.
-#   D1_SCRATCH  scratch root (default /tmp/nightshade-d1-harness; wiped each run)
+# docs/plans/skotiq_7_0_d1_runbook.md for the seam evidence.
+#   D1_SCRATCH  scratch root (default /tmp/skotiq-d1-harness; wiped each run)
 #   D1_BUNDLE   bundle binary (default: this repo's release build)
 #   D1_PORT     API port (default 8093) — give a concurrent run its own port
 #               and its own D1_SCRATCH and the two never meet
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
-D1="${D1_SCRATCH:-/tmp/nightshade-d1-harness}"
+D1="${D1_SCRATCH:-/tmp/skotiq-d1-harness}"
 mkdir -p "$D1"
-BUNDLE="${D1_BUNDLE:-$HERE/../../../apps/desktop/build/linux/x64/release/bundle/nightshade_desktop}"
+BUNDLE="${D1_BUNDLE:-$HERE/../../../apps/desktop/build/linux/x64/release/bundle/skotiq_desktop}"
 T=d1-secret-token
 P="${D1_PORT:-8093}"
 
 # One observing site for the whole leg: the sequence builder picks it (solar
 # 01:00 at the site, so no dawn logic can arm mid-run) and the settings POSTs
 # below use the same pair.
-read D1_SITE_LAT D1_SITE_LON NIGHTSHADE_HARNESS_SITE <<< "$(python3 "$HERE/make_sequence.py" --print-site)"
+read D1_SITE_LAT D1_SITE_LON SKOTIQ_HARNESS_SITE <<< "$(python3 "$HERE/make_sequence.py" --print-site)"
 # Pin the site for the WHOLE leg: make_sequence.py runs again to build the
 # sequence, and without the pin a leg straddling a crossover would target a
 # different observatory than the one it wrote to the profile.
-export NIGHTSHADE_HARNESS_SITE
+export SKOTIQ_HARNESS_SITE
 B="http://127.0.0.1:$P"
 AH="Authorization: Bearer $T"
 DBDIR=$D1/db; OUT=$D1/captures; DROP=$D1/drop; DATA=$D1/data
@@ -35,7 +35,7 @@ bad()  { FAIL=$((FAIL+1)); echo "[d1]   FAIL: $*"; }
 api()  { curl -sf -m 10 -H "$AH" "$@"; }
 
 # Reap only what a previous run of THIS script left behind. `pkill -f
-# nightshade_desktop` killed every instance on the machine — a parallel harness
+# skotiq_desktop` killed every instance on the machine — a parallel harness
 # on another port, another agent's sweep, the operator's own running rig — so
 # the pid is recorded and re-identified by its command line before any signal
 # goes out. A recycled pid belonging to something else does not match and is
@@ -66,7 +66,7 @@ if [ "${FREE_MB:-0}" -lt 3072 ]; then
 fi
 
 launch() {
-  NIGHTSHADE_DATABASE_DIR=$DBDIR NIGHTSHADE_DATA_DIR=$DATA LIBGL_ALWAYS_SOFTWARE=1 \
+  SKOTIQ_DATABASE_DIR=$DBDIR SKOTIQ_DATA_DIR=$DATA LIBGL_ALWAYS_SOFTWARE=1 \
     "$BUNDLE" --headless --auth-token=$T --port=$P >> "$LOG" 2>&1 &
   APP=$!
   echo "$APP" > "$PIDFILE"
@@ -82,13 +82,13 @@ stopapp() { kill -TERM $APP 2>/dev/null; for i in $(seq 1 15); do kill -0 $APP 2
 say "=== phase 1: schema-creation boot ==="
 launch || exit 1
 stopapp
-[ -f "$DBDIR/nightshade.db" ] && ok "database created" || { bad "no database file"; exit 1; }
+[ -f "$DBDIR/skotiq.db" ] && ok "database created" || { bad "no database file"; exit 1; }
 
 say "=== phase 2: seed delivery target + auto_draft (daemon stopped) ==="
 NOW=$(date +%s)
-sqlite3 "$DBDIR/nightshade.db" "INSERT INTO delivery_targets(name,kind,config_json,enabled,content_json,secret_ref,created_at,updated_at) VALUES('d1-drop','watched_folder','{\"path\":\"$DROP\"}',1,'[\"linear_masters\",\"draft_render\",\"night_report\"]',NULL,$NOW,$NOW);" \
+sqlite3 "$DBDIR/skotiq.db" "INSERT INTO delivery_targets(name,kind,config_json,enabled,content_json,secret_ref,created_at,updated_at) VALUES('d1-drop','watched_folder','{\"path\":\"$DROP\"}',1,'[\"linear_masters\",\"draft_render\",\"night_report\"]',NULL,$NOW,$NOW);" \
   && ok "delivery target seeded" || bad "delivery target seed failed"
-sqlite3 "$DBDIR/nightshade.db" "INSERT INTO app_settings(key,value,updated_at) VALUES('darkroom.auto_draft','true',$NOW*1000) ON CONFLICT(key) DO UPDATE SET value=excluded.value;" \
+sqlite3 "$DBDIR/skotiq.db" "INSERT INTO app_settings(key,value,updated_at) VALUES('darkroom.auto_draft','true',$NOW*1000) ON CONFLICT(key) DO UPDATE SET value=excluded.value;" \
   && ok "auto_draft on" || bad "auto_draft seed failed"
 
 say "=== phase 3: relaunch + configure ==="
@@ -147,7 +147,7 @@ say "=== phase 6: wait for dawn job ==="
 JOBSTATE=""
 for i in $(seq 1 150); do
   sleep 2
-  JOBSTATE=$(sqlite3 -cmd ".timeout 10000" "$DBDIR/nightshade.db" "SELECT state FROM darkroom_jobs ORDER BY id DESC LIMIT 1;" 2>/dev/null)
+  JOBSTATE=$(sqlite3 -cmd ".timeout 10000" "$DBDIR/skotiq.db" "SELECT state FROM darkroom_jobs ORDER BY id DESC LIMIT 1;" 2>/dev/null)
   case "$JOBSTATE" in done|failed|cancelled) break;; esac
 done
 [ "$JOBSTATE" = "done" ] && ok "darkroom job done" || bad "darkroom job state='$JOBSTATE'"
@@ -157,7 +157,7 @@ say "=== phase 7: assertions ==="
 # the lock for whole seconds during open-time migration and crash recovery, and
 # on a loaded machine the first query after a relaunch landed inside that window
 # ("database is locked (5)") and read an empty row as a FAIL.
-Q() { sqlite3 -cmd ".timeout 10000" "$DBDIR/nightshade.db" "$1"; }
+Q() { sqlite3 -cmd ".timeout 10000" "$DBDIR/skotiq.db" "$1"; }
 # Every registered frame carries the grader's measurements and its verdict. A
 # null here means the frame reached the library ungraded, and everything that
 # reads quality afterwards — the reject folder, the Darkroom's sub selection,
@@ -402,7 +402,7 @@ RJ=$(find "$OUT" -type d -name 'Reject' -exec sh -c 'ls "$1" | wc -l' _ {} \; 2>
 # this run (a GUI poke profile, a follow-on leg) does not inherit a grading
 # config that rejects every real frame — found by an operator wondering why
 # their frames demanded 100,000 stars.
-sqlite3 "$DBDIR/nightshade.db" "DELETE FROM app_settings WHERE key IN ('image_grading_star_count_min','image_grading_max_consecutive_rejects');" \
+sqlite3 "$DBDIR/skotiq.db" "DELETE FROM app_settings WHERE key IN ('image_grading_star_count_min','image_grading_max_consecutive_rejects');" \
   && say "  grading probe thresholds restored to defaults"
 
 say "=== phase 7c: a crash-resumed pass can still deliver its night report ==="
@@ -413,7 +413,7 @@ say "=== phase 7c: a crash-resumed pass can still deliver its night report ==="
 # `destinationConflict` is terminal, so the report could never land and the
 # morning report said a file had not arrived that never could.
 stopapp
-sqlite3 "$DBDIR/nightshade.db" "UPDATE darkroom_jobs SET state='running', finished_at=NULL WHERE id=$JOB;" \
+sqlite3 "$DBDIR/skotiq.db" "UPDATE darkroom_jobs SET state='running', finished_at=NULL WHERE id=$JOB;" \
   && ok "job $JOB left running, the way a power cut leaves it" || bad "could not stage the crash"
 launch || exit 1
 RESUMED=""

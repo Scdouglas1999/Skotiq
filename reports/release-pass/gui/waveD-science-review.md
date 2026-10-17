@@ -3,8 +3,8 @@
 **Date:** 2026-08-13 (evening). **Harness:** `tools/ui_audit/drive_linux.py`, display `:77`
 (the harness picks the display; `--profile` after the subcommand), profiles
 `waveD-science-review` (populated) and `waveD-sci-fresh` (empty-state check).
-**Binary:** `apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`, built
-18:31 today, with `lib/libnightshade_bridge.so` of the same timestamp — i.e. the fresh
+**Binary:** `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`, built
+18:31 today, with `lib/libskotiq_bridge.so` of the same timestamp — i.e. the fresh
 bundle, not a stale one.
 
 **State built for the repros:** Skip onboarding ▸ Equipment ▸ *I'll do it manually* ▸
@@ -15,7 +15,7 @@ Imaging ▸ Save on ▸ **Loop** 2 s → 37 light frames ▸ Sequencer ▸ Build
 was invoked per frame (38 attempts, all exit 1), which is the state SCI-22/SCI-48 need.
 
 Screenshots for every claim below are in
-`/tmp/claude-1000/-home-scdouglas-Documents-Nightshade2/224b7868-cbfc-40e1-8fb0-99c71d23f174/scratchpad/`
+`/tmp/claude-1000/-home-scdouglas-Documents-Skotiq2/224b7868-cbfc-40e1-8fb0-99c71d23f174/scratchpad/`
 (`s01`–`s29`).
 
 ---
@@ -33,7 +33,7 @@ Screenshots for every claim below are in
 | SCI-44 | VERIFIED_FIXED | Symmetric check. With **Narrative** open, "Narrative" is the accent-blue chip with bright text and "Workbench" is plain (`s22`); with **Workbench** open the treatment swaps exactly (`s23`). The state is no longer inverted, and both are `button:` with no `[DISABLED]`. |
 | SCI-46 | VERIFIED_FIXED (assigned scope) | Analytics ▸ Diagnostics ▸ Select session offers **"Quick captures (no session)"**, and selecting it renders real diagnostics for the 37 loop frames: Optical Health with **Tilt 66**, a **48-tile PSF Field Map**, findings, and an honest *"Collimation not measured — no astrometric residuals on both sides of the field"*. History also now lists a **Quick captures** card describing the 37 frames instead of denying them. **But see NEW-1**: the Session and Science pickers do not offer the same entry. |
 | SCI-22 | VERIFIED_FIXED | Analytics ▸ Science ▸ Plate solve health now reads: *"No frames have solved this session, and a solver (ASTAP, catalog D05) is installed — so it is running and failing, not missing. Check focal length and pixel scale first, then whether the catalog covers this field."* That matches `app.log` exactly (`Running ASTAP: …astap_cli -f … -wcs` followed by `ASTAP exited with non-zero status 1: Using star database D05`, 38 times). The message no longer sends the user to check their solver install. |
-| SCI-48 | VERIFIED_FIXED | The solver now runs in a per-attempt scratch dir — `Running ASTAP: … -f "/tmp/nightshade-solve-1490486-4/Unknown_NoFilter_2026-08-13_0004.fits"` — instead of in the capture folder. After **38 solve attempts** over 41 frames, `ls` of `/tmp/ns-audit/waveD-science-review/data/captures` is `41 fits · 41 jpg · 1 masters/` and `find … -name '*.ini'` returns **0**. The scratch dirs are also cleaned: only the single in-flight `/tmp/nightshade-solve-*` dir existed at any sample point. |
+| SCI-48 | VERIFIED_FIXED | The solver now runs in a per-attempt scratch dir — `Running ASTAP: … -f "/tmp/skotiq-solve-1490486-4/Unknown_NoFilter_2026-08-13_0004.fits"` — instead of in the capture folder. After **38 solve attempts** over 41 frames, `ls` of `/tmp/ns-audit/waveD-science-review/data/captures` is `41 fits · 41 jpg · 1 masters/` and `find … -name '*.ini'` returns **0**. The scratch dirs are also cleaned: only the single in-flight `/tmp/skotiq-solve-*` dir existed at any sample point. |
 
 ---
 

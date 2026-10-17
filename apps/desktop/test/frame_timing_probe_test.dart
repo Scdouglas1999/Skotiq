@@ -1,7 +1,7 @@
 import 'package:flutter/painting.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/frame_timing_probe.dart';
+import 'package:skotiq_desktop/frame_timing_probe.dart';
 
 /// [FrameTiming] wants the full vsync phase vector; only the build and raster
 /// spans are read back, so the rest are pinned at a fixed origin.

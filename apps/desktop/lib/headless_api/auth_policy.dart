@@ -284,7 +284,7 @@ class RouteCapability {
 ///   * [HeadlessAuthGrant.forResources] — a fine-grained grant naming only the
 ///     resources it covers.
 ///   * [HeadlessAuthGrant.parseSpec] — the single canonical text format reused
-///     by config (`NIGHTSHADE_SCOPED_TOKEN`), pairing (`requestedScope`), and
+///     by config (`SKOTIQ_SCOPED_TOKEN`), pairing (`requestedScope`), and
 ///     the in-memory paired map so the surfaces never diverge.
 class HeadlessAuthGrant {
   final UnmodifiableMapView<HeadlessResource, HeadlessAccessLevel> levels;

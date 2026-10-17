@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless/headless_shutdown.dart';
+import 'package:skotiq_desktop/headless/headless_shutdown.dart';
 
 /// Coverage for the bounded, idempotent, repeated-signal-safe headless
 /// shutdown coordinator. These pin the trust/reliability contract that a hung

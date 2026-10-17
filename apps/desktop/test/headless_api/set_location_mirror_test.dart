@@ -15,9 +15,9 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/database_entities.dart' as settings_models;
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/profile_handlers.dart';
+import 'package:skotiq_core/database_entities.dart' as settings_models;
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/profile_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 /// Minimal fake whose `setLocation` succeeds (the real disconnected backend
@@ -41,7 +41,7 @@ class _FakeProfileSettingsBackend implements ProfileSettingsBackend {
 
 void main() {
   test('set location mirrors lat/lon/elev into the settings DAO', () async {
-    final db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+    final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     final container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
@@ -77,7 +77,7 @@ void main() {
   });
 
   test('clearing location zeroes the mirrored DAO values', () async {
-    final db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+    final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     await db.settingsDao.setObserverLatitude(12.0);
     await db.settingsDao.setObserverLongitude(34.0);
     final container = ProviderContainer(

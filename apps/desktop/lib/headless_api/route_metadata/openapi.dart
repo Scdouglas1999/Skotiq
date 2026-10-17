@@ -116,7 +116,7 @@ Map<String, dynamic> buildOpenApiSpec({
   return {
     'openapi': '3.0.3',
     'info': {
-      'title': 'Nightshade Headless API',
+      'title': 'Skotiq Headless API',
       // minor bump for the additive event sequencing
       // (`seq`, `serverInstanceId`, `replay`, `resync_required`) and
       // command/event correlation (`commandId`, `correlatingCommandId`).
@@ -138,7 +138,7 @@ Map<String, dynamic> buildOpenApiSpec({
         'bearerAuth': {
           'type': 'http',
           'scheme': 'bearer',
-          'bearerFormat': 'Nightshade headless token',
+          'bearerFormat': 'Skotiq headless token',
         },
       },
     },

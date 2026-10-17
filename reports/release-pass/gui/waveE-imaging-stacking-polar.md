@@ -1,11 +1,11 @@
 # Wave E dryness check — cluster: imaging-stacking-polar
 
 Harness: `tools/ui_audit/drive_linux.py`, display `:82`, profile `waveE-imaging-stacking-polar`,
-release bundle `apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`
-(`libapp.so` + `libnightshade_bridge.so` both **Aug 13 20:33** — newer than the last D-fix commit
+release bundle `apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`
+(`libapp.so` + `libskotiq_bridge.so` both **Aug 13 20:33** — newer than the last D-fix commit
 `baddf35fd` at 20:30; freshness confirmed by string-grep: `libapp.so` carries
 `Live-stack masters are saved as PNG` and `No catalog objects in this frame`,
-`libnightshade_bridge.so` carries `Plate-solve scale hint provided but NAXIS2 unreadable; skipping
+`libskotiq_bridge.so` carries `Plate-solve scale hint provided but NAXIS2 unreadable; skipping
 ASTAP -fov hint`).
 
 Rig: built-in **Sim** drivers only (Simulated Camera / Mount / Focuser / Filter Wheel, plus the
@@ -137,9 +137,9 @@ Three snapshots early in the session (00:41:27, 00:44:17, 00:44:30) each produce
 a **blind** solve of the same file, started 3.6–23 ms apart:
 
     00:41:27.651770  Plate solving near RA:0.00°, Dec:0.00°: …/Unknown_R_2026-08-14_0001.fits
-    00:41:27.652267  Running ASTAP: … -f /tmp/nightshade-solve-1704317-0/… -ra 0.000000 -spd 90.000000 -r 30.00 …
+    00:41:27.652267  Running ASTAP: … -f /tmp/skotiq-solve-1704317-0/… -ra 0.000000 -spd 90.000000 -r 30.00 …
     00:41:27.656196  Blind plate solving: …/Unknown_R_2026-08-14_0001.fits
-    00:41:27.695193  Running ASTAP: … -f /tmp/nightshade-solve-1704317-1/… -z 2 -d … -wcs
+    00:41:27.695193  Running ASTAP: … -f /tmp/skotiq-solve-1704317-1/… -z 2 -d … -wcs
 
 A process poller sampling every 5 ms measured **max concurrent `astap_cli` = 2**. The 4 ms gap rules
 out a fallback-after-failure: this ASTAP solves the frame in 0.04 s and the second process starts

@@ -30,7 +30,7 @@ const REFUTE_SCHEMA = {
   },
 }
 
-const DRIVE_CHARTER = `You are the DRYNESS check for the Nightshade release pass: the campaign ends when you find nothing new. Drive the FRESH release bundle at apps/desktop/build/linux/x64/release/bundle/nightshade_desktop via tools/ui_audit/drive_linux.py (profile AFTER the subcommand; 'wheel' command available; role-based [DISABLED]; the AT-SPI tree can lag navigation by tens of seconds — re-dump before judging). One graphify query first. Verify EXACTLY the assigned D-fix items against their Wave-D evidence (reports/release-pass/waveD-result.json + reports/release-pass/impl/dfix-*.md list what was claimed fixed and how); classify verified_fixed / still_broken with evidence. Then ONE adversarial sweep pass of your screens for anything the fixes broke. Report to reports/release-pass/gui/waveE-<cluster>.md. Do not fix anything.`
+const DRIVE_CHARTER = `You are the DRYNESS check for the Skotiq release pass: the campaign ends when you find nothing new. Drive the FRESH release bundle at apps/desktop/build/linux/x64/release/bundle/skotiq_desktop via tools/ui_audit/drive_linux.py (profile AFTER the subcommand; 'wheel' command available; role-based [DISABLED]; the AT-SPI tree can lag navigation by tens of seconds — re-dump before judging). One graphify query first. Verify EXACTLY the assigned D-fix items against their Wave-D evidence (reports/release-pass/waveD-result.json + reports/release-pass/impl/dfix-*.md list what was claimed fixed and how); classify verified_fixed / still_broken with evidence. Then ONE adversarial sweep pass of your screens for anything the fixes broke. Report to reports/release-pass/gui/waveE-<cluster>.md. Do not fix anything.`
 
 const CLUSTERS = [
   { key: 'sequencing-autopilot', display: ':81', ids: 'SEQ-12 hardened ownership (arm autopilot, start a manual run AT the tick boundary if you can time it, and after an operator stop of an autopilot run), SEQ-13 (edit target coords, Re-evaluate must use them), SEQ-18 (node card N/N after success), SEQ-19 (one filter story), SEQ-20 (elapsed in seconds), WD-SEQ-N1 (operator Stop = no error banners AND no critical notification — check the bell), WD-SEQ-N2 (900px builder), WD-SEQ-N4, WD-SEQ-N6 (armed-autopilot warning), SCI-43 preflight copy' },
@@ -55,7 +55,7 @@ const drives = parallel(CLUSTERS.map(c => () =>
 ))
 const refutes = parallel(REFUTERS.map(w => () =>
   agent(
-    `You are an adversarial verifier in the dryness check of the Nightshade release pass. One graphify query first. ${w.hint} Do not edit the repo; throwaway tests under /tmp only. Return ONLY the structured result.`,
+    `You are an adversarial verifier in the dryness check of the Skotiq release pass. One graphify query first. ${w.hint} Do not edit the repo; throwaway tests under /tmp only. Return ONLY the structured result.`,
     { label: `E:refute:${w.key}`, phase: 'Refute', schema: REFUTE_SCHEMA, model: 'opus', effort: 'high' }
   )
 ))

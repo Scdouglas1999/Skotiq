@@ -1,6 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_mobile/services/notification_service.dart';
+import 'package:skotiq_mobile/services/notification_service.dart';
 
 /// The eighteen notify* methods share six presentations. Two of them look like
 /// near-duplicates of a sibling and are not: `criticalAlarm` asks Android to
@@ -18,10 +18,10 @@ void main() {
     expect(
       details.values.map((d) => d.android!.channelId).toSet(),
       {
-        'nightshade_sequence',
-        'nightshade_warnings',
-        'nightshade_info',
-        'nightshade_critical',
+        'skotiq_sequence',
+        'skotiq_warnings',
+        'skotiq_info',
+        'skotiq_critical',
       },
       reason: 'a presentation must not invent a channel that is never created',
     );

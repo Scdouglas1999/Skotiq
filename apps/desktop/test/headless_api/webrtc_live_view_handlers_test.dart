@@ -28,8 +28,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:image/image.dart' as img;
-import 'package:nightshade_desktop/headless_api/handlers/live_view_stream_handlers.dart';
-import 'package:nightshade_desktop/headless_api/handlers/webrtc_live_view_handlers.dart';
+import 'package:skotiq_desktop/headless_api/handlers/live_view_stream_handlers.dart';
+import 'package:skotiq_desktop/headless_api/handlers/webrtc_live_view_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 void main() {

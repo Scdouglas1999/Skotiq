@@ -20,20 +20,20 @@ const _systemHandlersPath =
     'apps/desktop/lib/headless_api/handlers/system_endpoint_catalog.dart';
 
 const _networkBackendPath =
-    'packages/nightshade_core/lib/src/backend/network_backend.dart';
+    'packages/skotiq_core/lib/src/backend/network_backend.dart';
 const _networkBackendPartsDirectory =
-    'packages/nightshade_core/lib/src/backend/network_backend';
+    'packages/skotiq_core/lib/src/backend/network_backend';
 const _routeMetadataPath = 'apps/desktop/lib/headless_api/route_metadata.dart';
 const _networkBackendWebSocketTestPath =
-    'packages/nightshade_core/test/backend/network_backend_websocket_test.dart';
+    'packages/skotiq_core/test/backend/network_backend_websocket_test.dart';
 const _networkBackendContractTestPath =
     'apps/desktop/test/headless_api/network_backend_contract_test.dart';
 const _remoteApiCompatibilityPath =
-    'packages/nightshade_core/lib/src/models/backend/remote_api_compatibility.dart';
+    'packages/skotiq_core/lib/src/models/backend/remote_api_compatibility.dart';
 const _serverCompatibilityPath =
-    'packages/nightshade_remote_protocol/lib/src/server_compatibility.dart';
+    'packages/skotiq_remote_protocol/lib/src/server_compatibility.dart';
 const _remoteApiCompatibilityTestPath =
-    'packages/nightshade_core/test/models/remote_api_compatibility_test.dart';
+    'packages/skotiq_core/test/models/remote_api_compatibility_test.dart';
 const _headlessAuthMiddlewareTestPath =
     'apps/desktop/test/headless_api/auth_middleware_test.dart';
 const _dashboardApiPath = 'apps/desktop/web_dashboard/js/api.js';
@@ -383,15 +383,15 @@ Map<String, bool> _versionNegotiationCoverage({
   final normalizedApiDocsSource = apiDocsSource.replaceAll(RegExp(r'\s+'), ' ');
   return {
     // The core compatibility model delegates to the single
-    // NightshadeServerCompatibility policy so the two cannot diverge. Verify
+    // SkotiqServerCompatibility policy so the two cannot diverge. Verify
     // the delegation here and pin the 2.4.0 floor + the three rejection codes
     // in that single source of truth.
     'shared_compatibility_policy':
         remoteApiCompatibilitySource.contains(
-          'NightshadeServerCompatibility.minimumSupportedVersion',
+          'SkotiqServerCompatibility.minimumSupportedVersion',
         ) &&
         remoteApiCompatibilitySource.contains(
-          'NightshadeServerCompatibility.check',
+          'SkotiqServerCompatibility.check',
         ) &&
         serverCompatibilitySource.contains(
           'minimumSupportedVersion = ServerSemanticVersion(2, 4, 0)',
@@ -455,7 +455,7 @@ Map<String, bool> _versionNegotiationCoverage({
           'RemoteApiCompatibility.clientApiVersion.format()',
         ),
     'dashboard_http_version_header': dashboardApiSource.contains(
-      "'X-Nightshade-API-Version': this._apiVersion",
+      "'X-Skotiq-API-Version': this._apiVersion",
     ),
     'dashboard_websocket_query_version': dashboardApiSource.contains(
       "apiVersion=' + encodeURIComponent(this._apiVersion)",

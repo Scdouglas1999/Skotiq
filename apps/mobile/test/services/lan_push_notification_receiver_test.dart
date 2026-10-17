@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_mobile/services/lan_push_notification_receiver.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_mobile/services/lan_push_notification_receiver.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 void main() {
   final fingerprint = 'abcd' * 16; // 64 hex chars

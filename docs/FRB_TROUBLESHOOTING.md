@@ -1,6 +1,6 @@
 # Flutter Rust Bridge Troubleshooting Guide
 
-This document captures known issues with flutter_rust_bridge code generation in the Nightshade project and their solutions.
+This document captures known issues with flutter_rust_bridge code generation in the Skotiq project and their solutions.
 
 ## Environment
 - Flutter: 3.44.1
@@ -133,7 +133,7 @@ Old FRB output from previous configuration or version.
 
 ### 1. Never Edit Generated Files
 Files like `frb_generated.dart`, `frb_generated.io.dart` will be overwritten on regeneration. Always fix issues at the source:
-- Rust code in `native/nightshade_native/bridge/src/`
+- Rust code in `native/skotiq_native/bridge/src/`
 - FRB config in `flutter_rust_bridge.yaml`
 - ffigen config
 
@@ -145,8 +145,8 @@ Before upgrading Flutter/Dart or FRB:
 ### 3. Use `cargo check` Before Generating
 Ensure Rust code compiles before running FRB codegen:
 ```bash
-cd native/nightshade_native
-cargo check --package nightshade_bridge
+cd native/skotiq_native
+cargo check --package skotiq_bridge
 ```
 
 ### 4. Clean Regeneration
@@ -156,11 +156,11 @@ When issues persist:
 flutter clean
 
 # Clean Dart generated files
-rm -rf packages/nightshade_bridge/lib/src/*.dart
-rm -rf packages/nightshade_bridge/lib/src/api/
+rm -rf packages/skotiq_bridge/lib/src/*.dart
+rm -rf packages/skotiq_bridge/lib/src/api/
 
 # Regenerate
-cd native/nightshade_native
+cd native/skotiq_native
 flutter_rust_bridge_codegen generate
 ```
 
@@ -201,14 +201,14 @@ melos run dev:clean
 flutter pub deps | grep flutter_rust_bridge
 
 # Regenerate bindings
-cd native/nightshade_native
+cd native/skotiq_native
 flutter_rust_bridge_codegen generate
 
 # Check for Rust compilation issues
-cargo check --package nightshade_bridge
+cargo check --package skotiq_bridge
 
 # Run Dart analysis
-cd packages/nightshade_bridge
+cd packages/skotiq_bridge
 flutter analyze
 ```
 

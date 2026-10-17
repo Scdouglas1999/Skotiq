@@ -22,7 +22,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       developer.log('Starting enhanced auto-discovery...', name: 'Discovery');
 
       // Use enhanced discovery with cascading fallback
-      final server = await EnhancedNightshadeDiscovery.discoverWithFallback(
+      final server = await EnhancedSkotiqDiscovery.discoverWithFallback(
         onStatus: (status) {
           if (mounted) {
             setState(() => _statusMessage = status);
@@ -49,7 +49,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
           _isDiscovering = false;
           _statusMessage = '';
           _error =
-              'No Nightshade server found on this network.\n\n'
+              'No Skotiq server found on this network.\n\n'
               'If you are away from the observatory, use "Connect over '
               'Tailscale" to reach it by its MagicDNS name — local discovery '
               'only works on the same WiFi.\n\n'
@@ -395,7 +395,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     // the connection to _connectToServer. _connectToServer's NetworkBackend
     // also pins via /api/info, but checking here keeps the failure local to the
     // QR flow with a QR-specific message.
-    final fetched = await EnhancedNightshadeDiscovery.fetchServerInfo(server);
+    final fetched = await EnhancedSkotiqDiscovery.fetchServerInfo(server);
     if (!mounted) return;
     if (fetched?.fingerprint != null &&
         fetched!.fingerprint != data.fingerprint) {
@@ -517,7 +517,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     });
 
     var server = DiscoveredServer(
-      name: 'Nightshade Server',
+      name: 'Skotiq Server',
       host: host,
       webPort: port,
       mode: 'headless',
@@ -526,7 +526,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       pairingSupported: true,
     );
 
-    final fetched = await EnhancedNightshadeDiscovery.fetchServerInfo(server);
+    final fetched = await EnhancedSkotiqDiscovery.fetchServerInfo(server);
     if (fetched != null) {
       server = fetched;
       if ((authToken == null || authToken.isEmpty) &&
@@ -558,7 +558,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
         _error =
             'Cannot reach ${endpoint.scheme}://${endpoint.authority}/api/info '
             'from this device.\n\n'
-            'On the computer running Nightshade: confirm Settings → Remote '
+            'On the computer running Skotiq: confirm Settings → Remote '
             'Access shows "Running" (on a headless appliance, that the service '
             'is up), note the LAN URL, and allow port $port through that '
             "machine's firewall on the private/local network.\n\n"
@@ -642,7 +642,7 @@ class _RelayConnectDialogState extends State<RelayConnectDialog> {
               children: [
                 Text(
                   'Reach your rig from anywhere through a self-hosted '
-                  'Nightshade relay — no VPN or port forwarding. The appliance '
+                  'Skotiq relay — no VPN or port forwarding. The appliance '
                   'id is printed by the headless daemon on first connect.',
                   style: TextStyle(fontSize: 13),
                 ),
@@ -756,19 +756,19 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = NightshadeColors.of(context);
-    return NightshadeDialog(
-      title: 'Pair with Nightshade',
+    final colors = SkotiqColors.of(context);
+    return SkotiqDialog(
+      title: 'Pair with Skotiq',
       icon: LucideIcons.link,
       width: 420,
       actions: [
-        NightshadeButton(
+        SkotiqButton(
           onPressed: () => Navigator.of(context).pop(),
           label: 'Cancel',
           variant: ButtonVariant.ghost,
           size: ButtonSize.small,
         ),
-        NightshadeButton(
+        SkotiqButton(
           onPressed: () {
             final trimmed = _codeController.text.trim();
             if (trimmed.isEmpty) {
@@ -808,7 +808,7 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
               if (_codeError != null) setState(() => _codeError = null);
             },
           ),
-          // Own Material: NightshadeDialog paints its surface with a
+          // Own Material: SkotiqDialog paints its surface with a
           // DecoratedBox, which sits between this tile and the nearest
           // Material ancestor. Flutter asserts on that arrangement because the
           // tile's background and tap ripple are painted on that Material and

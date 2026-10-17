@@ -1,4 +1,4 @@
-# Install the Nightshade pre-commit hook on Windows.
+# Install the Skotiq pre-commit hook on Windows.
 #
 # Run once after cloning the repo from PowerShell:
 #   .\scripts\install-hooks.ps1

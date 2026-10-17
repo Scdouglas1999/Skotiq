@@ -13,8 +13,8 @@
    "what_happened": "With the planetarium plan panel open and the caret blinking in the 'Search objects, names...' field, typing 'Vega' deterministically leaves 'Va' in the field: the 'e' toggled the ecliptic layer on and the 'g' toggled the equatorial grid on instead of entering text. Typing the full lowercase alphabet 'abcdefghijklmnopqrstuvwxyz' left only 'abd' in the field - c/e/f/g/h/m/n/r are all bound to view actions (constellation lines, ecliptic, FOV overlay, grid, reset view, minimap, now) and after 'h' (reset view) the field lost focus entirely so i..z were dropped too. Reproduced at 30ms, 250ms, 400ms and 2000ms inter-key delays: it is a shortcut conflict, not a dropped-keystroke race.",
    "expected": "A focused text field must consume ordinary character keys. Planetarium single-letter hotkeys should be suppressed whenever the primary focus is a text input (Flutter: check FocusManager.instance.primaryFocus?.context?.widget is EditableText, or move the shortcuts into a Shortcuts/Actions scope that a TextField's own shortcut scope shadows).",
    "repro": "Plan Tonight > Planetarium > click the sidebar toggle (top right) > click the 'Search objects, names...' field > type Vega. Field shows 'Va'; the ecliptic line and the RA/Dec grid have both switched on behind the panel.",
-   "evidence": "/tmp/ns-audit/shots/r-planetarium-11.png (grid + ecliptic appeared while typing 'Vega'), /tmp/ns-audit/shots/r-planetarium-18.png ('Va' after 400ms/char), /tmp/ns-audit/shots/r-planetarium-19.png ('Va' after 2000ms/char), /tmp/ns-audit/shots/r-planetarium-20.png ('abd' after typing the whole alphabet). Handler: packages/nightshade_app/lib/screens/planetarium/planetarium_screen/actions.dart:507-624",
-   "where": "packages/nightshade_app/lib/screens/planetarium/planetarium_screen/actions.dart:551-600",
+   "evidence": "/tmp/ns-audit/shots/r-planetarium-11.png (grid + ecliptic appeared while typing 'Vega'), /tmp/ns-audit/shots/r-planetarium-18.png ('Va' after 400ms/char), /tmp/ns-audit/shots/r-planetarium-19.png ('Va' after 2000ms/char), /tmp/ns-audit/shots/r-planetarium-20.png ('abd' after typing the whole alphabet). Handler: packages/skotiq_app/lib/screens/planetarium/planetarium_screen/actions.dart:507-624",
+   "where": "packages/skotiq_app/lib/screens/planetarium/planetarium_screen/actions.dart:551-600",
    "proposed_fix": "In _handleKeyEvent, return KeyEventResult.ignored early when the primary focus is an editable text field, before the single-letter branches."
   },
   {
@@ -25,8 +25,8 @@
    "what_happened": "After clicking anywhere in the planetarium (the sky canvas, the command bar, a panel), every documented view hotkey stops working. With the sky clicked and an object selected, 15 presses of '=' left FOV at 28.9 deg (should zoom in), and 'h' (reset view) left the view at RA 8h25m/FOV 28.9 deg instead of resetting to zenith/FOV 60. The same keys DID fire minutes earlier, while the search text field held focus.",
    "expected": "Tapping the sky canvas should re-request focus for the planetarium Focus node so the documented shortcuts keep working; today only the initial autofocus works and the first click anywhere kills it permanently.",
    "repro": "Plan Tonight > Planetarium > click any star or empty sky > press '=' repeatedly, then 'h'. FOV readout at the bottom never changes.",
-   "evidence": "/tmp/ns-audit/shots/r-planetarium-32.png (FOV 28.9 after 15x '='), /tmp/ns-audit/shots/r-planetarium-33.png (FOV still 28.9 after 'h'). Source: Focus(autofocus:true, onKeyEvent:_handleKeyEvent) wraps a GestureDetector that never calls requestFocus - packages/nightshade_app/lib/screens/planetarium/planetarium_screen.dart:259-262",
-   "where": "packages/nightshade_app/lib/screens/planetarium/planetarium_screen.dart:259",
+   "evidence": "/tmp/ns-audit/shots/r-planetarium-32.png (FOV 28.9 after 15x '='), /tmp/ns-audit/shots/r-planetarium-33.png (FOV still 28.9 after 'h'). Source: Focus(autofocus:true, onKeyEvent:_handleKeyEvent) wraps a GestureDetector that never calls requestFocus - packages/skotiq_app/lib/screens/planetarium/planetarium_screen.dart:259-262",
+   "where": "packages/skotiq_app/lib/screens/planetarium/planetarium_screen.dart:259",
    "proposed_fix": "Give the Focus node a FocusNode and call node.requestFocus() from the sky GestureDetector's onTapDown; keep autofocus for first paint."
   },
   {
@@ -37,8 +37,8 @@
    "what_happened": "Each wheel notch is supposed to zoom 1.15-1.2x. Measured live: 5 notches spaced 2.0s apart took FOV 28.9 -> 14.4 deg (exactly 1.15^5, correct). 12 notches spaced 0.3s took 60.0 -> 41.7 deg (the effect of ~2.6 notches). 120 notches spaced 0.05s took 34.7 -> 28.9 deg (the effect of ~1.3 notches out of 120). Spinning the wheel at any natural speed therefore barely zooms; it took 172 notches over two minutes to get from the default 60 deg to 28.9 deg, and there is no other zoom control on the desktop layout (no +/- buttons, no FOV field, and the '=' / '-' hotkeys are dead - see the focus finding).",
    "expected": "Successive wheel events must compound onto the pending zoom target, not restart the animation from the current (barely-moved) FOV. A user should reach an imaging FOV in a few flicks of the wheel.",
    "repro": "Plan Tonight > Planetarium > point at the sky > spin the wheel up 20 notches quickly, watch 'FOV (short axis)' in the bottom bar.",
-   "evidence": "/tmp/ns-audit/shots/r-planetarium-28.png (41.7 after 12 notches), -29.png (34.7 after 40 more), -31.png (28.9 after 120 more), -36.png (14.4 after 5 slow notches). Source: _animateZoom sets _startFOV = current provider FOV and calls _zoomController.forward(from:0) on every event - packages/nightshade_planetarium/lib/src/widgets/interactive_sky_view.dart:475-485,660-668",
-   "where": "packages/nightshade_planetarium/lib/src/widgets/interactive_sky_view.dart:475",
+   "evidence": "/tmp/ns-audit/shots/r-planetarium-28.png (41.7 after 12 notches), -29.png (34.7 after 40 more), -31.png (28.9 after 120 more), -36.png (14.4 after 5 slow notches). Source: _animateZoom sets _startFOV = current provider FOV and calls _zoomController.forward(from:0) on every event - packages/skotiq_planetarium/lib/src/widgets/interactive_sky_view.dart:475-485,660-668",
+   "where": "packages/skotiq_planetarium/lib/src/widgets/interactive_sky_view.dart:475",
    "proposed_fix": "Accumulate into _targetFOV (use the in-flight target, not the current FOV, as the base) so N rapid notches equal N steps."
   },
   {
@@ -50,7 +50,7 @@
    "expected": "An imaging-scale field is the whole point of a planetarium inside an astrophotography app - it is what you check framing and guide stars against. At 1 deg it should show tens of stars. The bundled catalog is the binding constraint, not the FOV-adaptive magnitude ramp, which the code intends to add up to +7 mag by 1 deg.",
    "repro": "Plan Tonight > Planetarium > wheel-zoom to FOV 1.0 deg > press TONIGHT in the time bar > look at the sky.",
    "evidence": "/tmp/ns-audit/shots/fov1-night2.png (the empty 800x400 field), /tmp/ns-audit/shots/fovzoom-2.png .. fovzoom-16.png (counts above). Bundled catalog: apps/desktop/.../assets/planetarium/catalogs/stars-hyg-v1/tiles = 3,458,592 bytes over 768 tiles, ~28.7 bytes/star -> ~119,600 stars = full HYG.",
-   "where": "packages/nightshade_planetarium/lib/src/providers/planetarium_providers/render_config.dart:434-489",
+   "where": "packages/skotiq_planetarium/lib/src/providers/planetarium_providers/render_config.dart:434-489",
    "proposed_fix": "Ship (or auto-fetch on first run) a Tycho-2-depth tileset, and set the HYG hand-off seam to HYG's real completeness (~9.0), not 11.5."
   },
   {
@@ -61,8 +61,8 @@
    "what_happened": "The Layers panel row 'Deep stars (Tycho-2 / Gaia tier)' reads 'No tileset installed - stars below mag 11.5 are unavailable', which tells the user everything brighter than 11.5 IS drawn. Measured on-screen star density is 2.9/sq deg at every zoom level, which is the entire bundled HYG catalog and corresponds to a limit near mag 9. The constant behind the string, kHygFaintFloorMag = 11.5, is documented as 'the bundled HYG catalog's faint floor' and is also used as minMagnitude when querying the deep-star store, so even after installing a tileset the 9-11.5 gap would never be filled.",
    "expected": "State the real depth of what is installed (about mag 9) and set the merge seam there.",
    "repro": "Plan Tonight > Planetarium > Layers icon in the command bar > read the second row.",
-   "evidence": "/tmp/ns-audit/shots/r-planetarium-30.png; density measurements in the previous finding. packages/nightshade_planetarium/lib/src/providers/deep_star_providers.dart:25-28,91",
-   "where": "packages/nightshade_app/lib/screens/planetarium/widgets/redesign/layers_panel.dart:440",
+   "evidence": "/tmp/ns-audit/shots/r-planetarium-30.png; density measurements in the previous finding. packages/skotiq_planetarium/lib/src/providers/deep_star_providers.dart:25-28,91",
+   "where": "packages/skotiq_app/lib/screens/planetarium/widgets/redesign/layers_panel.dart:440",
    "proposed_fix": "Set kHygFaintFloorMag to HYG's actual completeness limit and reword the subtitle."
   },
   {
@@ -73,8 +73,8 @@
    "what_happened": "The command bar's home button is labelled 'Reset view (center 0,0, FOV 60)'. The action it runs (_resetView) deliberately centres on the observer's zenith instead - the code comment says RA 0/Dec 0 'sat 14 deg BELOW the horizon, so reset view pointed the map at the ground'. The tooltip was not updated with the fix.",
    "expected": "Tooltip should read 'Reset view (zenith, FOV 60)'.",
    "repro": "Plan Tonight > Planetarium > hover the house icon in the command bar.",
-   "evidence": "packages/nightshade_app/lib/screens/planetarium/widgets/redesign/command_bar.dart:78 vs actions.dart:649-658. Observed live: pressing the reset hotkey moved the centre to RA 8h17m31s / Dec +40 00' at LST 08:19 (the zenith), not 0,0 - /tmp/ns-audit/shots/r-planetarium-21.png",
-   "where": "packages/nightshade_app/lib/screens/planetarium/widgets/redesign/command_bar.dart:78",
+   "evidence": "packages/skotiq_app/lib/screens/planetarium/widgets/redesign/command_bar.dart:78 vs actions.dart:649-658. Observed live: pressing the reset hotkey moved the centre to RA 8h17m31s / Dec +40 00' at LST 08:19 (the zenith), not 0,0 - /tmp/ns-audit/shots/r-planetarium-21.png",
+   "where": "packages/skotiq_app/lib/screens/planetarium/widgets/redesign/command_bar.dart:78",
    "proposed_fix": "Update the tooltip string."
   },
   {
@@ -86,7 +86,7 @@
    "expected": "First paint should use the same home centre the reset action uses (skyViewHomeCenterProvider = zenith), so the user opens on sky that is actually up.",
    "repro": "Settings > Location > set lat 40, lon -105 > Plan Tonight > Planetarium. Read the bottom bar and the compass HUD.",
    "evidence": "/tmp/ns-audit/shots/r-planetarium-09.png - 'Center RA: 0h 0m 0s  Center Dec: +0 0'  FOV 60.0' with the compass rose showing 293 deg and the altitude gauge showing -25 deg; independently computed alt/az for RA 0/Dec 0 at 40N/105W at 18:30:10Z is alt -24.6, az 292.6.",
-   "where": "packages/nightshade_app/lib/screens/planetarium/planetarium_screen.dart",
+   "where": "packages/skotiq_app/lib/screens/planetarium/planetarium_screen.dart",
    "proposed_fix": "Initialise skyViewStateProvider's centre from skyViewHomeCenterProvider on first build."
   },
   {
@@ -98,7 +98,7 @@
    "expected": "Apply precession (and ideally refraction) before the horizontal transform. 26 years from J2000 is already ~22 arcmin of position, and the azimuth error near the zenith reaches 1.4 deg, which is enough to mis-call a meridian-flip or an obstruction check.",
    "repro": "Set the site to 40N 105W, open the planetarium at a known UTC, click Capella and Pollux, read 'Current Position'.",
    "evidence": "/tmp/ns-audit/shots/r-planetarium-22.png (Capella: HYG118360, RA 5h16m40.7s Dec +45 59' 52\", Alt 56.5 Az 295.7), /tmp/ns-audit/shots/r-planetarium-24.png (Pollux: HIP37826, RA 7h45m17.7s Dec +28 1' 33\", Alt 76.0 Az 214.0).",
-   "where": "packages/nightshade_planetarium (horizontal transform)",
+   "where": "packages/skotiq_planetarium (horizontal transform)",
    "proposed_fix": "Precess catalogue J2000 coordinates to the observation epoch before computing hour angle."
   },
   {
@@ -110,7 +110,7 @@
    "expected": "The popup heading should use the same proper name the chart uses, and the magnitude should match the catalogue value used to size the star.",
    "repro": "Plan Tonight > Planetarium > reset to zenith at ~18:38Z from 40N/105W > click the bright star labelled Capella.",
    "evidence": "/tmp/ns-audit/shots/r-planetarium-22.png vs /tmp/ns-audit/shots/r-planetarium-24.png",
-   "where": "packages/nightshade_app/lib/screens/planetarium/widgets/object_info_popup.dart",
+   "where": "packages/skotiq_app/lib/screens/planetarium/widgets/object_info_popup.dart",
    "proposed_fix": "Resolve the proper name (and its magnitude) from the same record the renderer labels from."
   }
  ]

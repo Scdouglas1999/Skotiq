@@ -6,8 +6,8 @@ import 'package:drift/native.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/first_light_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/first_light_handlers.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
@@ -16,13 +16,13 @@ import 'handler_test_helpers.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   group('FirstLightHandlers', () {
-    late NightshadeDatabase db;
+    late SkotiqDatabase db;
     late TransientDetectionsDao dao;
     late ProviderContainer container;
     late FirstLightHandlers handlers;
 
     setUp(() {
-      db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       dao = TransientDetectionsDao(db);
       container = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(db)],
@@ -433,7 +433,7 @@ void main() {
       'plugins.flutter.io/path_provider',
     );
     late Directory tempDir;
-    late NightshadeDatabase db;
+    late SkotiqDatabase db;
     late TransientDetectionsDao dao;
     late ProviderContainer container;
     late FirstLightHandlers handlers;
@@ -447,7 +447,7 @@ void main() {
             }
             return null;
           });
-      db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       dao = TransientDetectionsDao(db);
       container = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(db)],

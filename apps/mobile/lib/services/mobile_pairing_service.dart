@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Persists a stable device identity and performs REST pairing against the
@@ -19,7 +19,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Tailscale / Internet-reachable path where the phone is no longer protected
 /// by sharing a trusted LAN segment with the rig.
 class MobilePairingService {
-  static const _deviceIdKey = 'nightshade_mobile_device_id';
+  static const _deviceIdKey = 'skotiq_mobile_device_id';
 
   final RemotePairingClient _client;
 

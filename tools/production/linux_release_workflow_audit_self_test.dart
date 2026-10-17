@@ -11,7 +11,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_linux_release_workflow_audit_self_test_',
+    'skotiq_linux_release_workflow_audit_self_test_',
   );
   try {
     await _writePassingFixture(temp);
@@ -107,7 +107,7 @@ jobs:
       - run: dart run melos bootstrap
       - run: dart run melos run build:desktop:linux --no-select
       - run: |
-          cp LICENSE apps/desktop/build/linux/x64/release/bundle/NIGHTSHADE-LICENSE.txt
+          cp LICENSE apps/desktop/build/linux/x64/release/bundle/SKOTIQ-LICENSE.txt
           cp docs/THIRD_PARTY_NOTICES.md apps/desktop/build/linux/x64/release/bundle/THIRD_PARTY_NOTICES.md
           cp third_party/licenses/LGPL-2.1.txt apps/desktop/build/linux/x64/release/bundle/LGPL-2.1.txt
           printf '%s\\n' "\$GITHUB_SHA" > apps/desktop/build/linux/x64/release/bundle/SOURCE-COMMIT.txt

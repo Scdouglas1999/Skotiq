@@ -1,7 +1,7 @@
-/* Nightshade Web Dashboard — graphite / blue-black (nightshade_ui dark) */
+/* Skotiq Web Dashboard — graphite / blue-black (skotiq_ui dark) */
 
 :root {
-  /* Core palette — matches packages/nightshade_ui NightshadeColors.dark */
+  /* Core palette — matches packages/skotiq_ui SkotiqColors.dark */
   --color-primary: #5B9EC4;
   --color-accent: #7AB8D4;
   --color-background: #0A0C0F;
@@ -32,7 +32,7 @@
      The light theme keeps #FFFFFF: its primary (#2E6F92) is dark (5.52:1). */
   --color-on-primary: #0A0C0F;
 
-  /* NightshadeTokens spacing (4px grid) */
+  /* SkotiqTokens spacing (4px grid) */
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 12px;
@@ -41,7 +41,7 @@
   --space-2xl: 24px;
   --space-3xl: 32px;
 
-  /* NightshadeTokens radius */
+  /* SkotiqTokens radius */
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -49,11 +49,11 @@
   --radius-lg: 12px;
   --radius-xl: 16px;
 
-  /* NightshadeTokens opacity */
+  /* SkotiqTokens opacity */
   --opacity-disabled: 0.38;
   --opacity-status-fill: 0.15;
 
-  /* Semantic tints — NightshadeTokens.opacityStatusFill */
+  /* Semantic tints — SkotiqTokens.opacityStatusFill */
   --tint-primary: rgba(91, 158, 196, var(--opacity-status-fill));
   --tint-primary-strong: rgba(91, 158, 196, 0.35);
   --tint-success: rgba(61, 170, 109, var(--opacity-status-fill));
@@ -89,19 +89,19 @@
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
 
-  /* Breakpoints (NightshadeTokens) — for reference in media queries */
+  /* Breakpoints (SkotiqTokens) — for reference in media queries */
   --bp-mobile: 480px;
   --bp-tablet: 768px;
   --bp-desktop: 1024px;
 }
 
 /* ====== Light theme (§Phase F dashboard-polish) ======
-   The dashboard is dark-first to match nightshade_ui NightshadeColors.dark.
+   The dashboard is dark-first to match skotiq_ui SkotiqColors.dark.
    Light mode is a pure CSS-variable swap toggled by data-theme="light" on the
    <html> element (set/persisted in app.js). Only the *core* palette tokens are
    redefined here; every downstream alias (--bg-*, --text-*, --tint-*, etc.) is
    derived from these via var() in :root, so the cascade flips the whole UI from
-   this one block. Mirrors NightshadeColors.light from packages/nightshade_ui. */
+   this one block. Mirrors SkotiqColors.light from packages/skotiq_ui. */
 :root[data-theme="light"] {
   --color-primary: #2E6F92;
   --color-accent: #3F86AB;
@@ -480,7 +480,7 @@ body {
    A caret button is injected into every panel header by app.js. Collapsed
    panels keep their header (so the operator can re-open them) but hide the
    body and shrink to header height. Which panels are collapsed is persisted to
-   localStorage (nightshade_panel_collapsed) and restored on init, so an
+   localStorage (skotiq_panel_collapsed) and restored on init, so an
    8-hour overnight layout survives reloads. */
 .panel-collapse-btn {
   background: transparent;
@@ -648,7 +648,7 @@ body {
   background: var(--text-muted);
 }
 
-/* ====== Buttons (NightshadeButton semantics) ====== */
+/* ====== Buttons (SkotiqButton semantics) ====== */
 .btn {
   display: inline-flex;
   align-items: center;

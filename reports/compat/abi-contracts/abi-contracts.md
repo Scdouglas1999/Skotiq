@@ -3,7 +3,7 @@
 | Vendor | Kind | Item | Verdict | Evidence | Reason |
 |---|---|---|---|---|---|
 | ZWO | sdk-header | `header files` | pass | SDKs/ZWO/ASI_Camera_SDK/ASI_linux_mac_SDK_V1.40/ASI_linux_mac_SDK_V1.40/include/ASICamera2.h, SDKs/ZWO/ASI_Camera_SDK/ASI_Windows_SDK_V1.40/ASI SDK/include/ASICamera2.h, SDKs/ZWO/ASI_Camera_SDK/ASISDK_ANDROID/ASISDK_ANDROID/CameraSDK/include/ASICamera2.h | required SDK header evidence is present |
-| ZWO | rust-wrapper | `native/nightshade_native/native/src/vendor/zwo.rs` | pass | native/nightshade_native/native/src/vendor/zwo.rs | production Rust wrapper is present |
+| ZWO | rust-wrapper | `native/skotiq_native/native/src/vendor/zwo.rs` | pass | native/skotiq_native/native/src/vendor/zwo.rs | production Rust wrapper is present |
 | ZWO | header-symbol | `ASIGetNumOfConnectedCameras` | pass | SDKs/ZWO/ASI_Camera_SDK/ASI_linux_mac_SDK_V1.40/ASI_linux_mac_SDK_V1.40/include/ASICamera2.h, SDKs/ZWO/ASI_Camera_SDK/ASI_Windows_SDK_V1.40/ASI SDK/include/ASICamera2.h, SDKs/ZWO/ASI_Camera_SDK/ASISDK_ANDROID/ASISDK_ANDROID/CameraSDK/include/ASICamera2.h | vendor header declares required API surface |
 | ZWO | header-symbol | `ASIGetCameraProperty` | pass | SDKs/ZWO/ASI_Camera_SDK/ASI_linux_mac_SDK_V1.40/ASI_linux_mac_SDK_V1.40/include/ASICamera2.h, SDKs/ZWO/ASI_Camera_SDK/ASI_Windows_SDK_V1.40/ASI SDK/include/ASICamera2.h, SDKs/ZWO/ASI_Camera_SDK/ASISDK_ANDROID/ASISDK_ANDROID/CameraSDK/include/ASICamera2.h | vendor header declares required API surface |
 | ZWO | header-symbol | `ASIStartExposure` | pass | SDKs/ZWO/ASI_Camera_SDK/ASI_linux_mac_SDK_V1.40/ASI_linux_mac_SDK_V1.40/include/ASICamera2.h, SDKs/ZWO/ASI_Camera_SDK/ASI_Windows_SDK_V1.40/ASI SDK/include/ASICamera2.h, SDKs/ZWO/ASI_Camera_SDK/ASISDK_ANDROID/ASISDK_ANDROID/CameraSDK/include/ASICamera2.h | vendor header declares required API surface |
@@ -12,59 +12,59 @@
 | ZWO | header-symbol | `EAFMove` | pass | SDKs/ZWO/ASI_Camera_SDK/ASI_linux_mac_SDK_V1.40/ASI_linux_mac_SDK_V1.40/include/ASICamera2.h, SDKs/ZWO/ASI_Camera_SDK/ASI_Windows_SDK_V1.40/ASI SDK/include/ASICamera2.h, SDKs/ZWO/ASI_Camera_SDK/ASISDK_ANDROID/ASISDK_ANDROID/CameraSDK/include/ASICamera2.h | vendor header declares required API surface |
 | ZWO | header-symbol | `EFWGetNum` | pass | SDKs/ZWO/ASI_Camera_SDK/ASI_linux_mac_SDK_V1.40/ASI_linux_mac_SDK_V1.40/include/ASICamera2.h, SDKs/ZWO/ASI_Camera_SDK/ASI_Windows_SDK_V1.40/ASI SDK/include/ASICamera2.h, SDKs/ZWO/ASI_Camera_SDK/ASISDK_ANDROID/ASISDK_ANDROID/CameraSDK/include/ASICamera2.h | vendor header declares required API surface |
 | ZWO | header-symbol | `EFWSetPosition` | pass | SDKs/ZWO/ASI_Camera_SDK/ASI_linux_mac_SDK_V1.40/ASI_linux_mac_SDK_V1.40/include/ASICamera2.h, SDKs/ZWO/ASI_Camera_SDK/ASI_Windows_SDK_V1.40/ASI SDK/include/ASICamera2.h, SDKs/ZWO/ASI_Camera_SDK/ASISDK_ANDROID/ASISDK_ANDROID/CameraSDK/include/ASICamera2.h | vendor header declares required API surface |
-| ZWO | rust-symbol-load | `ASIGetNumOfConnectedCameras` | pass | native/nightshade_native/native/src/vendor/zwo.rs | Rust FFI loader references the same SDK symbol |
-| ZWO | rust-symbol-load | `ASIGetCameraProperty` | pass | native/nightshade_native/native/src/vendor/zwo.rs | Rust FFI loader references the same SDK symbol |
-| ZWO | rust-symbol-load | `ASIStartExposure` | pass | native/nightshade_native/native/src/vendor/zwo.rs | Rust FFI loader references the same SDK symbol |
-| ZWO | rust-symbol-load | `ASIGetDataAfterExp` | pass | native/nightshade_native/native/src/vendor/zwo.rs | Rust FFI loader references the same SDK symbol |
-| ZWO | rust-symbol-load | `EAFGetNum` | pass | native/nightshade_native/native/src/vendor/zwo.rs | Rust FFI loader references the same SDK symbol |
-| ZWO | rust-symbol-load | `EAFMove` | pass | native/nightshade_native/native/src/vendor/zwo.rs | Rust FFI loader references the same SDK symbol |
-| ZWO | rust-symbol-load | `EFWGetNum` | pass | native/nightshade_native/native/src/vendor/zwo.rs | Rust FFI loader references the same SDK symbol |
-| ZWO | rust-symbol-load | `EFWSetPosition` | pass | native/nightshade_native/native/src/vendor/zwo.rs | Rust FFI loader references the same SDK symbol |
-| ZWO | rust-struct-order | `ASICameraInfo` | pass | native/nightshade_native/native/src/vendor/zwo.rs | repr(C) wrapper keeps expected field order |
+| ZWO | rust-symbol-load | `ASIGetNumOfConnectedCameras` | pass | native/skotiq_native/native/src/vendor/zwo.rs | Rust FFI loader references the same SDK symbol |
+| ZWO | rust-symbol-load | `ASIGetCameraProperty` | pass | native/skotiq_native/native/src/vendor/zwo.rs | Rust FFI loader references the same SDK symbol |
+| ZWO | rust-symbol-load | `ASIStartExposure` | pass | native/skotiq_native/native/src/vendor/zwo.rs | Rust FFI loader references the same SDK symbol |
+| ZWO | rust-symbol-load | `ASIGetDataAfterExp` | pass | native/skotiq_native/native/src/vendor/zwo.rs | Rust FFI loader references the same SDK symbol |
+| ZWO | rust-symbol-load | `EAFGetNum` | pass | native/skotiq_native/native/src/vendor/zwo.rs | Rust FFI loader references the same SDK symbol |
+| ZWO | rust-symbol-load | `EAFMove` | pass | native/skotiq_native/native/src/vendor/zwo.rs | Rust FFI loader references the same SDK symbol |
+| ZWO | rust-symbol-load | `EFWGetNum` | pass | native/skotiq_native/native/src/vendor/zwo.rs | Rust FFI loader references the same SDK symbol |
+| ZWO | rust-symbol-load | `EFWSetPosition` | pass | native/skotiq_native/native/src/vendor/zwo.rs | Rust FFI loader references the same SDK symbol |
+| ZWO | rust-struct-order | `ASICameraInfo` | pass | native/skotiq_native/native/src/vendor/zwo.rs | repr(C) wrapper keeps expected field order |
 | Atik | sdk-header | `header files` | pass | SDKs/Atik/extracted/example/C++ Example/AtikCamerasSDKExample/AtikCameras.h, SDKs/Atik/extracted/include/AtikCameras.h, SDKs/Atik/extracted/include/AtikDefs.h | required SDK header evidence is present |
-| Atik | rust-wrapper | `native/nightshade_native/native/src/vendor/atik.rs` | pass | native/nightshade_native/native/src/vendor/atik.rs | production Rust wrapper is present |
+| Atik | rust-wrapper | `native/skotiq_native/native/src/vendor/atik.rs` | pass | native/skotiq_native/native/src/vendor/atik.rs | production Rust wrapper is present |
 | Atik | header-symbol | `ArtemisDeviceCount` | pass | SDKs/Atik/extracted/example/C++ Example/AtikCamerasSDKExample/AtikCameras.h, SDKs/Atik/extracted/include/AtikCameras.h, SDKs/Atik/extracted/include/AtikDefs.h | vendor header declares required API surface |
 | Atik | header-symbol | `ArtemisConnect` | pass | SDKs/Atik/extracted/example/C++ Example/AtikCamerasSDKExample/AtikCameras.h, SDKs/Atik/extracted/include/AtikCameras.h, SDKs/Atik/extracted/include/AtikDefs.h | vendor header declares required API surface |
 | Atik | header-symbol | `ArtemisStartExposure` | pass | SDKs/Atik/extracted/example/C++ Example/AtikCamerasSDKExample/AtikCameras.h, SDKs/Atik/extracted/include/AtikCameras.h, SDKs/Atik/extracted/include/AtikDefs.h | vendor header declares required API surface |
 | Atik | header-symbol | `ArtemisGetImageData` | pass | SDKs/Atik/extracted/example/C++ Example/AtikCamerasSDKExample/AtikCameras.h, SDKs/Atik/extracted/include/AtikCameras.h, SDKs/Atik/extracted/include/AtikDefs.h | vendor header declares required API surface |
 | Atik | header-symbol | `ArtemisSetCooling` | pass | SDKs/Atik/extracted/example/C++ Example/AtikCamerasSDKExample/AtikCameras.h, SDKs/Atik/extracted/include/AtikCameras.h, SDKs/Atik/extracted/include/AtikDefs.h | vendor header declares required API surface |
 | Atik | header-symbol | `ArtemisEFWConnect` | pass | SDKs/Atik/extracted/example/C++ Example/AtikCamerasSDKExample/AtikCameras.h, SDKs/Atik/extracted/include/AtikCameras.h, SDKs/Atik/extracted/include/AtikDefs.h | vendor header declares required API surface |
-| Atik | rust-symbol-load | `ArtemisDeviceCount` | pass | native/nightshade_native/native/src/vendor/atik.rs | Rust FFI loader references the same SDK symbol |
-| Atik | rust-symbol-load | `ArtemisConnect` | pass | native/nightshade_native/native/src/vendor/atik.rs | Rust FFI loader references the same SDK symbol |
-| Atik | rust-symbol-load | `ArtemisStartExposure` | pass | native/nightshade_native/native/src/vendor/atik.rs | Rust FFI loader references the same SDK symbol |
-| Atik | rust-symbol-load | `ArtemisGetImageData` | pass | native/nightshade_native/native/src/vendor/atik.rs | Rust FFI loader references the same SDK symbol |
-| Atik | rust-symbol-load | `ArtemisSetCooling` | pass | native/nightshade_native/native/src/vendor/atik.rs | Rust FFI loader references the same SDK symbol |
-| Atik | rust-symbol-load | `ArtemisDeviceHasFilterWheel` | pass | native/nightshade_native/native/src/vendor/atik.rs | Rust FFI loader references the same SDK symbol |
-| Atik | rust-struct-order | `ArtemisProperties` | pass | native/nightshade_native/native/src/vendor/atik.rs | repr(C) wrapper keeps expected field order |
+| Atik | rust-symbol-load | `ArtemisDeviceCount` | pass | native/skotiq_native/native/src/vendor/atik.rs | Rust FFI loader references the same SDK symbol |
+| Atik | rust-symbol-load | `ArtemisConnect` | pass | native/skotiq_native/native/src/vendor/atik.rs | Rust FFI loader references the same SDK symbol |
+| Atik | rust-symbol-load | `ArtemisStartExposure` | pass | native/skotiq_native/native/src/vendor/atik.rs | Rust FFI loader references the same SDK symbol |
+| Atik | rust-symbol-load | `ArtemisGetImageData` | pass | native/skotiq_native/native/src/vendor/atik.rs | Rust FFI loader references the same SDK symbol |
+| Atik | rust-symbol-load | `ArtemisSetCooling` | pass | native/skotiq_native/native/src/vendor/atik.rs | Rust FFI loader references the same SDK symbol |
+| Atik | rust-symbol-load | `ArtemisDeviceHasFilterWheel` | pass | native/skotiq_native/native/src/vendor/atik.rs | Rust FFI loader references the same SDK symbol |
+| Atik | rust-struct-order | `ArtemisProperties` | pass | native/skotiq_native/native/src/vendor/atik.rs | repr(C) wrapper keeps expected field order |
 | SVBONY | sdk-header | `header files` | pass | SDKs/SVBony/SVBONY/include/SVBCameraSDK.h, SDKs/SVBony/SVBONY/SVBDemo/stdafx.h, SDKs/SVBony/SVBONY/SVBDemo/SVBCameraSDK/SVBCameraSDK.h | required SDK header evidence is present |
-| SVBONY | rust-wrapper | `native/nightshade_native/native/src/vendor/svbony.rs` | pass | native/nightshade_native/native/src/vendor/svbony.rs | production Rust wrapper is present |
+| SVBONY | rust-wrapper | `native/skotiq_native/native/src/vendor/svbony.rs` | pass | native/skotiq_native/native/src/vendor/svbony.rs | production Rust wrapper is present |
 | SVBONY | header-symbol | `SVBGetNumOfConnectedCameras` | pass | SDKs/SVBony/SVBONY/include/SVBCameraSDK.h, SDKs/SVBony/SVBONY/SVBDemo/stdafx.h, SDKs/SVBony/SVBONY/SVBDemo/SVBCameraSDK/SVBCameraSDK.h | vendor header declares required API surface |
 | SVBONY | header-symbol | `SVBGetCameraProperty` | pass | SDKs/SVBony/SVBONY/include/SVBCameraSDK.h, SDKs/SVBony/SVBONY/SVBDemo/stdafx.h, SDKs/SVBony/SVBONY/SVBDemo/SVBCameraSDK/SVBCameraSDK.h | vendor header declares required API surface |
 | SVBONY | header-symbol | `SVBOpenCamera` | pass | SDKs/SVBony/SVBONY/include/SVBCameraSDK.h, SDKs/SVBony/SVBONY/SVBDemo/stdafx.h, SDKs/SVBony/SVBONY/SVBDemo/SVBCameraSDK/SVBCameraSDK.h | vendor header declares required API surface |
 | SVBONY | header-symbol | `SVBStartVideoCapture` | pass | SDKs/SVBony/SVBONY/include/SVBCameraSDK.h, SDKs/SVBony/SVBONY/SVBDemo/stdafx.h, SDKs/SVBony/SVBONY/SVBDemo/SVBCameraSDK/SVBCameraSDK.h | vendor header declares required API surface |
 | SVBONY | header-symbol | `SVBGetVideoData` | pass | SDKs/SVBony/SVBONY/include/SVBCameraSDK.h, SDKs/SVBony/SVBONY/SVBDemo/stdafx.h, SDKs/SVBony/SVBONY/SVBDemo/SVBCameraSDK/SVBCameraSDK.h | vendor header declares required API surface |
-| SVBONY | rust-symbol-load | `SVBGetNumOfConnectedCameras` | pass | native/nightshade_native/native/src/vendor/svbony.rs | Rust FFI loader references the same SDK symbol |
-| SVBONY | rust-symbol-load | `SVBGetCameraProperty` | pass | native/nightshade_native/native/src/vendor/svbony.rs | Rust FFI loader references the same SDK symbol |
-| SVBONY | rust-symbol-load | `SVBOpenCamera` | pass | native/nightshade_native/native/src/vendor/svbony.rs | Rust FFI loader references the same SDK symbol |
-| SVBONY | rust-symbol-load | `SVBStartVideoCapture` | pass | native/nightshade_native/native/src/vendor/svbony.rs | Rust FFI loader references the same SDK symbol |
-| SVBONY | rust-symbol-load | `SVBGetVideoData` | pass | native/nightshade_native/native/src/vendor/svbony.rs | Rust FFI loader references the same SDK symbol |
+| SVBONY | rust-symbol-load | `SVBGetNumOfConnectedCameras` | pass | native/skotiq_native/native/src/vendor/svbony.rs | Rust FFI loader references the same SDK symbol |
+| SVBONY | rust-symbol-load | `SVBGetCameraProperty` | pass | native/skotiq_native/native/src/vendor/svbony.rs | Rust FFI loader references the same SDK symbol |
+| SVBONY | rust-symbol-load | `SVBOpenCamera` | pass | native/skotiq_native/native/src/vendor/svbony.rs | Rust FFI loader references the same SDK symbol |
+| SVBONY | rust-symbol-load | `SVBStartVideoCapture` | pass | native/skotiq_native/native/src/vendor/svbony.rs | Rust FFI loader references the same SDK symbol |
+| SVBONY | rust-symbol-load | `SVBGetVideoData` | pass | native/skotiq_native/native/src/vendor/svbony.rs | Rust FFI loader references the same SDK symbol |
 | Player One | sdk-header | `header files` | pass | SDKs/PlayerOne/PlayerOne_Camera_SDK_Linux_V3.7.1/PlayerOne_Camera_SDK_Linux_V3.7.1/include/PlayerOneCamera.h, SDKs/PlayerOne/PlayerOne_Camera_SDK_MacOS_V3.7.1/PlayerOne_Camera_SDK_MacOS_V3.7.1/include/PlayerOneCamera.h, SDKs/PlayerOne/PlayerOne_Camera_SDK_Windows_V3.7.1/include/PlayerOneCamera.h | required SDK header evidence is present |
-| Player One | rust-wrapper | `native/nightshade_native/native/src/vendor/player_one.rs` | pass | native/nightshade_native/native/src/vendor/player_one.rs | production Rust wrapper is present |
+| Player One | rust-wrapper | `native/skotiq_native/native/src/vendor/player_one.rs` | pass | native/skotiq_native/native/src/vendor/player_one.rs | production Rust wrapper is present |
 | Player One | header-symbol | `POAGetCameraCount` | pass | SDKs/PlayerOne/PlayerOne_Camera_SDK_Linux_V3.7.1/PlayerOne_Camera_SDK_Linux_V3.7.1/include/PlayerOneCamera.h, SDKs/PlayerOne/PlayerOne_Camera_SDK_MacOS_V3.7.1/PlayerOne_Camera_SDK_MacOS_V3.7.1/include/PlayerOneCamera.h, SDKs/PlayerOne/PlayerOne_Camera_SDK_Windows_V3.7.1/include/PlayerOneCamera.h | vendor header declares required API surface |
 | Player One | header-symbol | `POAGetCameraProperties` | pass | SDKs/PlayerOne/PlayerOne_Camera_SDK_Linux_V3.7.1/PlayerOne_Camera_SDK_Linux_V3.7.1/include/PlayerOneCamera.h, SDKs/PlayerOne/PlayerOne_Camera_SDK_MacOS_V3.7.1/PlayerOne_Camera_SDK_MacOS_V3.7.1/include/PlayerOneCamera.h, SDKs/PlayerOne/PlayerOne_Camera_SDK_Windows_V3.7.1/include/PlayerOneCamera.h | vendor header declares required API surface |
 | Player One | header-symbol | `POAOpenCamera` | pass | SDKs/PlayerOne/PlayerOne_Camera_SDK_Linux_V3.7.1/PlayerOne_Camera_SDK_Linux_V3.7.1/include/PlayerOneCamera.h, SDKs/PlayerOne/PlayerOne_Camera_SDK_MacOS_V3.7.1/PlayerOne_Camera_SDK_MacOS_V3.7.1/include/PlayerOneCamera.h, SDKs/PlayerOne/PlayerOne_Camera_SDK_Windows_V3.7.1/include/PlayerOneCamera.h | vendor header declares required API surface |
 | Player One | header-symbol | `POAStartExposure` | pass | SDKs/PlayerOne/PlayerOne_Camera_SDK_Linux_V3.7.1/PlayerOne_Camera_SDK_Linux_V3.7.1/include/PlayerOneCamera.h, SDKs/PlayerOne/PlayerOne_Camera_SDK_MacOS_V3.7.1/PlayerOne_Camera_SDK_MacOS_V3.7.1/include/PlayerOneCamera.h, SDKs/PlayerOne/PlayerOne_Camera_SDK_Windows_V3.7.1/include/PlayerOneCamera.h | vendor header declares required API surface |
 | Player One | header-symbol | `POAImageReady` | pass | SDKs/PlayerOne/PlayerOne_Camera_SDK_Linux_V3.7.1/PlayerOne_Camera_SDK_Linux_V3.7.1/include/PlayerOneCamera.h, SDKs/PlayerOne/PlayerOne_Camera_SDK_MacOS_V3.7.1/PlayerOne_Camera_SDK_MacOS_V3.7.1/include/PlayerOneCamera.h, SDKs/PlayerOne/PlayerOne_Camera_SDK_Windows_V3.7.1/include/PlayerOneCamera.h | vendor header declares required API surface |
 | Player One | header-symbol | `POAGetImageData` | pass | SDKs/PlayerOne/PlayerOne_Camera_SDK_Linux_V3.7.1/PlayerOne_Camera_SDK_Linux_V3.7.1/include/PlayerOneCamera.h, SDKs/PlayerOne/PlayerOne_Camera_SDK_MacOS_V3.7.1/PlayerOne_Camera_SDK_MacOS_V3.7.1/include/PlayerOneCamera.h, SDKs/PlayerOne/PlayerOne_Camera_SDK_Windows_V3.7.1/include/PlayerOneCamera.h | vendor header declares required API surface |
-| Player One | rust-symbol-load | `POAGetCameraCount` | pass | native/nightshade_native/native/src/vendor/player_one.rs | Rust FFI loader references the same SDK symbol |
-| Player One | rust-symbol-load | `POAGetCameraProperties` | pass | native/nightshade_native/native/src/vendor/player_one.rs | Rust FFI loader references the same SDK symbol |
-| Player One | rust-symbol-load | `POAOpenCamera` | pass | native/nightshade_native/native/src/vendor/player_one.rs | Rust FFI loader references the same SDK symbol |
-| Player One | rust-symbol-load | `POAStartExposure` | pass | native/nightshade_native/native/src/vendor/player_one.rs | Rust FFI loader references the same SDK symbol |
-| Player One | rust-symbol-load | `POAImageReady` | pass | native/nightshade_native/native/src/vendor/player_one.rs | Rust FFI loader references the same SDK symbol |
-| Player One | rust-symbol-load | `POAGetImageData` | pass | native/nightshade_native/native/src/vendor/player_one.rs | Rust FFI loader references the same SDK symbol |
-| Player One | rust-struct-order | `POACameraProperties` | pass | native/nightshade_native/native/src/vendor/player_one.rs | repr(C) wrapper keeps expected field order |
+| Player One | rust-symbol-load | `POAGetCameraCount` | pass | native/skotiq_native/native/src/vendor/player_one.rs | Rust FFI loader references the same SDK symbol |
+| Player One | rust-symbol-load | `POAGetCameraProperties` | pass | native/skotiq_native/native/src/vendor/player_one.rs | Rust FFI loader references the same SDK symbol |
+| Player One | rust-symbol-load | `POAOpenCamera` | pass | native/skotiq_native/native/src/vendor/player_one.rs | Rust FFI loader references the same SDK symbol |
+| Player One | rust-symbol-load | `POAStartExposure` | pass | native/skotiq_native/native/src/vendor/player_one.rs | Rust FFI loader references the same SDK symbol |
+| Player One | rust-symbol-load | `POAImageReady` | pass | native/skotiq_native/native/src/vendor/player_one.rs | Rust FFI loader references the same SDK symbol |
+| Player One | rust-symbol-load | `POAGetImageData` | pass | native/skotiq_native/native/src/vendor/player_one.rs | Rust FFI loader references the same SDK symbol |
+| Player One | rust-struct-order | `POACameraProperties` | pass | native/skotiq_native/native/src/vendor/player_one.rs | repr(C) wrapper keeps expected field order |
 | QHYCCD | sdk-header | `header files` | pass | SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/include/qhyccd.h, SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/include/qhyccdstruct.h, SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/testapp/cmake_demo/test_live_multicam_opencv/include/qhyccd.h | required SDK header evidence is present |
-| QHYCCD | rust-wrapper | `native/nightshade_native/native/src/vendor/qhy.rs` | pass | native/nightshade_native/native/src/vendor/qhy.rs | production Rust wrapper is present |
+| QHYCCD | rust-wrapper | `native/skotiq_native/native/src/vendor/qhy.rs` | pass | native/skotiq_native/native/src/vendor/qhy.rs | production Rust wrapper is present |
 | QHYCCD | header-symbol | `InitQHYCCDResource` | pass | SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/include/qhyccd.h, SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/include/qhyccdstruct.h, SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/testapp/cmake_demo/test_live_multicam_opencv/include/qhyccd.h | vendor header declares required API surface |
 | QHYCCD | header-symbol | `ScanQHYCCD` | pass | SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/include/qhyccd.h, SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/include/qhyccdstruct.h, SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/testapp/cmake_demo/test_live_multicam_opencv/include/qhyccd.h | vendor header declares required API surface |
 | QHYCCD | header-symbol | `OpenQHYCCD` | pass | SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/include/qhyccd.h, SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/include/qhyccdstruct.h, SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/testapp/cmake_demo/test_live_multicam_opencv/include/qhyccd.h | vendor header declares required API surface |
@@ -72,37 +72,37 @@
 | QHYCCD | header-symbol | `ExpQHYCCDSingleFrame` | pass | SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/include/qhyccd.h, SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/include/qhyccdstruct.h, SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/testapp/cmake_demo/test_live_multicam_opencv/include/qhyccd.h | vendor header declares required API surface |
 | QHYCCD | header-symbol | `GetQHYCCDSingleFrame` | pass | SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/include/qhyccd.h, SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/include/qhyccdstruct.h, SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/testapp/cmake_demo/test_live_multicam_opencv/include/qhyccd.h | vendor header declares required API surface |
 | QHYCCD | header-symbol | `IsQHYCCDCFWPlugged` | pass | SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/include/qhyccd.h, SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/include/qhyccdstruct.h, SDKs/QHY/sdk_Arm64_25.09.29/sdk_Arm64_25.09.29/usr/local/testapp/cmake_demo/test_live_multicam_opencv/include/qhyccd.h | vendor header declares required API surface |
-| QHYCCD | rust-symbol-load | `InitQHYCCDResource` | pass | native/nightshade_native/native/src/vendor/qhy.rs | Rust FFI loader references the same SDK symbol |
-| QHYCCD | rust-symbol-load | `ScanQHYCCD` | pass | native/nightshade_native/native/src/vendor/qhy.rs | Rust FFI loader references the same SDK symbol |
-| QHYCCD | rust-symbol-load | `OpenQHYCCD` | pass | native/nightshade_native/native/src/vendor/qhy.rs | Rust FFI loader references the same SDK symbol |
-| QHYCCD | rust-symbol-load | `GetQHYCCDChipInfo` | pass | native/nightshade_native/native/src/vendor/qhy.rs | Rust FFI loader references the same SDK symbol |
-| QHYCCD | rust-symbol-load | `ExpQHYCCDSingleFrame` | pass | native/nightshade_native/native/src/vendor/qhy.rs | Rust FFI loader references the same SDK symbol |
-| QHYCCD | rust-symbol-load | `GetQHYCCDSingleFrame` | pass | native/nightshade_native/native/src/vendor/qhy.rs | Rust FFI loader references the same SDK symbol |
-| QHYCCD | rust-symbol-load | `IsQHYCCDCFWPlugged` | pass | native/nightshade_native/native/src/vendor/qhy.rs | Rust FFI loader references the same SDK symbol |
-| QHYCCD | rust-enum-value | `QhyControl.CONTROL_GAIN = 6` | pass | native/nightshade_native/native/src/vendor/qhy.rs | Rust enum discriminant matches SDK header expectation |
-| QHYCCD | rust-enum-value | `QhyControl.CONTROL_OFFSET = 7` | pass | native/nightshade_native/native/src/vendor/qhy.rs | Rust enum discriminant matches SDK header expectation |
-| QHYCCD | rust-enum-value | `QhyControl.CONTROL_EXPOSURE = 8` | pass | native/nightshade_native/native/src/vendor/qhy.rs | Rust enum discriminant matches SDK header expectation |
-| QHYCCD | rust-enum-value | `QhyControl.CONTROL_CURTEMP = 14` | pass | native/nightshade_native/native/src/vendor/qhy.rs | Rust enum discriminant matches SDK header expectation |
-| QHYCCD | rust-enum-value | `QhyControl.CONTROL_COOLER = 18` | pass | native/nightshade_native/native/src/vendor/qhy.rs | Rust enum discriminant matches SDK header expectation |
-| QHYCCD | rust-enum-value | `QhyControl.CAM_BIN2X2MODE = 22` | pass | native/nightshade_native/native/src/vendor/qhy.rs | Rust enum discriminant matches SDK header expectation |
-| QHYCCD | rust-enum-value | `QhyControl.CAM_16BITS = 35` | pass | native/nightshade_native/native/src/vendor/qhy.rs | Rust enum discriminant matches SDK header expectation |
-| QHYCCD | rust-enum-value | `QhyControl.CAM_IS_COLOR = 59` | pass | native/nightshade_native/native/src/vendor/qhy.rs | Rust enum discriminant matches SDK header expectation |
+| QHYCCD | rust-symbol-load | `InitQHYCCDResource` | pass | native/skotiq_native/native/src/vendor/qhy.rs | Rust FFI loader references the same SDK symbol |
+| QHYCCD | rust-symbol-load | `ScanQHYCCD` | pass | native/skotiq_native/native/src/vendor/qhy.rs | Rust FFI loader references the same SDK symbol |
+| QHYCCD | rust-symbol-load | `OpenQHYCCD` | pass | native/skotiq_native/native/src/vendor/qhy.rs | Rust FFI loader references the same SDK symbol |
+| QHYCCD | rust-symbol-load | `GetQHYCCDChipInfo` | pass | native/skotiq_native/native/src/vendor/qhy.rs | Rust FFI loader references the same SDK symbol |
+| QHYCCD | rust-symbol-load | `ExpQHYCCDSingleFrame` | pass | native/skotiq_native/native/src/vendor/qhy.rs | Rust FFI loader references the same SDK symbol |
+| QHYCCD | rust-symbol-load | `GetQHYCCDSingleFrame` | pass | native/skotiq_native/native/src/vendor/qhy.rs | Rust FFI loader references the same SDK symbol |
+| QHYCCD | rust-symbol-load | `IsQHYCCDCFWPlugged` | pass | native/skotiq_native/native/src/vendor/qhy.rs | Rust FFI loader references the same SDK symbol |
+| QHYCCD | rust-enum-value | `QhyControl.CONTROL_GAIN = 6` | pass | native/skotiq_native/native/src/vendor/qhy.rs | Rust enum discriminant matches SDK header expectation |
+| QHYCCD | rust-enum-value | `QhyControl.CONTROL_OFFSET = 7` | pass | native/skotiq_native/native/src/vendor/qhy.rs | Rust enum discriminant matches SDK header expectation |
+| QHYCCD | rust-enum-value | `QhyControl.CONTROL_EXPOSURE = 8` | pass | native/skotiq_native/native/src/vendor/qhy.rs | Rust enum discriminant matches SDK header expectation |
+| QHYCCD | rust-enum-value | `QhyControl.CONTROL_CURTEMP = 14` | pass | native/skotiq_native/native/src/vendor/qhy.rs | Rust enum discriminant matches SDK header expectation |
+| QHYCCD | rust-enum-value | `QhyControl.CONTROL_COOLER = 18` | pass | native/skotiq_native/native/src/vendor/qhy.rs | Rust enum discriminant matches SDK header expectation |
+| QHYCCD | rust-enum-value | `QhyControl.CAM_BIN2X2MODE = 22` | pass | native/skotiq_native/native/src/vendor/qhy.rs | Rust enum discriminant matches SDK header expectation |
+| QHYCCD | rust-enum-value | `QhyControl.CAM_16BITS = 35` | pass | native/skotiq_native/native/src/vendor/qhy.rs | Rust enum discriminant matches SDK header expectation |
+| QHYCCD | rust-enum-value | `QhyControl.CAM_IS_COLOR = 59` | pass | native/skotiq_native/native/src/vendor/qhy.rs | Rust enum discriminant matches SDK header expectation |
 | ToupTek/Altair/OGMA | sdk-header | `header files` | pass | SDKs/Touptek/android/samples/demoandroid/app/src/main/jni/libusbcam/ogmacam.h, SDKs/Touptek/inc/ogmacam.h, SDKs/Touptek/win/samples/demoaf/ogmacam.h | required SDK header evidence is present |
-| ToupTek/Altair/OGMA | rust-wrapper | `native/nightshade_native/native/src/vendor/touptek.rs` | pass | native/nightshade_native/native/src/vendor/touptek.rs | production Rust wrapper is present |
+| ToupTek/Altair/OGMA | rust-wrapper | `native/skotiq_native/native/src/vendor/touptek.rs` | pass | native/skotiq_native/native/src/vendor/touptek.rs | production Rust wrapper is present |
 | ToupTek/Altair/OGMA | header-symbol | `Ogmacam_EnumV2` | pass | SDKs/Touptek/android/samples/demoandroid/app/src/main/jni/libusbcam/ogmacam.h, SDKs/Touptek/inc/ogmacam.h, SDKs/Touptek/win/samples/demoaf/ogmacam.h | vendor header declares required API surface |
 | ToupTek/Altair/OGMA | header-symbol | `Ogmacam_Open` | pass | SDKs/Touptek/android/samples/demoandroid/app/src/main/jni/libusbcam/ogmacam.h, SDKs/Touptek/inc/ogmacam.h, SDKs/Touptek/win/samples/demoaf/ogmacam.h | vendor header declares required API surface |
 | ToupTek/Altair/OGMA | header-symbol | `Ogmacam_StartPullModeWithCallback` | pass | SDKs/Touptek/android/samples/demoandroid/app/src/main/jni/libusbcam/ogmacam.h, SDKs/Touptek/inc/ogmacam.h, SDKs/Touptek/win/samples/demoaf/ogmacam.h | vendor header declares required API surface |
 | ToupTek/Altair/OGMA | header-symbol | `Ogmacam_PullImage` | pass | SDKs/Touptek/android/samples/demoandroid/app/src/main/jni/libusbcam/ogmacam.h, SDKs/Touptek/inc/ogmacam.h, SDKs/Touptek/win/samples/demoaf/ogmacam.h | vendor header declares required API surface |
 | ToupTek/Altair/OGMA | header-symbol | `Ogmacam_put_Option` | pass | SDKs/Touptek/android/samples/demoandroid/app/src/main/jni/libusbcam/ogmacam.h, SDKs/Touptek/inc/ogmacam.h, SDKs/Touptek/win/samples/demoaf/ogmacam.h | vendor header declares required API surface |
 | ToupTek/Altair/OGMA | header-symbol | `Ogmacam_get_Temperature` | pass | SDKs/Touptek/android/samples/demoandroid/app/src/main/jni/libusbcam/ogmacam.h, SDKs/Touptek/inc/ogmacam.h, SDKs/Touptek/win/samples/demoaf/ogmacam.h | vendor header declares required API surface |
-| ToupTek/Altair/OGMA | rust-symbol-load | `sym("EnumV2")` | pass | native/nightshade_native/native/src/vendor/touptek.rs | Rust FFI loader references the same SDK symbol |
-| ToupTek/Altair/OGMA | rust-symbol-load | `sym("OpenByIndex")` | pass | native/nightshade_native/native/src/vendor/touptek.rs | Rust FFI loader references the same SDK symbol |
-| ToupTek/Altair/OGMA | rust-symbol-load | `sym("PullImageV3")` | pass | native/nightshade_native/native/src/vendor/touptek.rs | Rust FFI loader references the same SDK symbol |
-| ToupTek/Altair/OGMA | rust-symbol-load | `sym("put_Option")` | pass | native/nightshade_native/native/src/vendor/touptek.rs | Rust FFI loader references the same SDK symbol |
-| ToupTek/Altair/OGMA | rust-symbol-load | `sym("get_Temperature")` | pass | native/nightshade_native/native/src/vendor/touptek.rs | Rust FFI loader references the same SDK symbol |
-| ToupTek/Altair/OGMA | rust-struct-order | `OgmacamDeviceV2` | pass | native/nightshade_native/native/src/vendor/touptek.rs | repr(C) wrapper keeps expected field order |
+| ToupTek/Altair/OGMA | rust-symbol-load | `sym("EnumV2")` | pass | native/skotiq_native/native/src/vendor/touptek.rs | Rust FFI loader references the same SDK symbol |
+| ToupTek/Altair/OGMA | rust-symbol-load | `sym("OpenByIndex")` | pass | native/skotiq_native/native/src/vendor/touptek.rs | Rust FFI loader references the same SDK symbol |
+| ToupTek/Altair/OGMA | rust-symbol-load | `sym("PullImageV3")` | pass | native/skotiq_native/native/src/vendor/touptek.rs | Rust FFI loader references the same SDK symbol |
+| ToupTek/Altair/OGMA | rust-symbol-load | `sym("put_Option")` | pass | native/skotiq_native/native/src/vendor/touptek.rs | Rust FFI loader references the same SDK symbol |
+| ToupTek/Altair/OGMA | rust-symbol-load | `sym("get_Temperature")` | pass | native/skotiq_native/native/src/vendor/touptek.rs | Rust FFI loader references the same SDK symbol |
+| ToupTek/Altair/OGMA | rust-struct-order | `OgmacamDeviceV2` | pass | native/skotiq_native/native/src/vendor/touptek.rs | repr(C) wrapper keeps expected field order |
 | Moravian | sdk-header | `header files` | pass | SDKs/Moravian/extracted/cxusb.h, SDKs/Moravian/extracted/gxeth.h, SDKs/Moravian/extracted/gxusb.h | required SDK header evidence is present |
-| Moravian | rust-wrapper | `native/nightshade_native/native/src/vendor/moravian.rs` | pass | native/nightshade_native/native/src/vendor/moravian.rs | production Rust wrapper is present |
+| Moravian | rust-wrapper | `native/skotiq_native/native/src/vendor/moravian.rs` | pass | native/skotiq_native/native/src/vendor/moravian.rs | production Rust wrapper is present |
 | Moravian | header-symbol | `Enumerate` | pass | SDKs/Moravian/extracted/cxusb.h, SDKs/Moravian/extracted/gxeth.h, SDKs/Moravian/extracted/gxusb.h | vendor header declares required API surface |
 | Moravian | header-symbol | `Initialize` | pass | SDKs/Moravian/extracted/cxusb.h, SDKs/Moravian/extracted/gxeth.h, SDKs/Moravian/extracted/gxusb.h | vendor header declares required API surface |
 | Moravian | header-symbol | `Open` | pass | SDKs/Moravian/extracted/cxusb.h, SDKs/Moravian/extracted/gxeth.h, SDKs/Moravian/extracted/gxusb.h | vendor header declares required API surface |
@@ -110,39 +110,39 @@
 | Moravian | header-symbol | `GetImage` | pass | SDKs/Moravian/extracted/cxusb.h, SDKs/Moravian/extracted/gxeth.h, SDKs/Moravian/extracted/gxusb.h | vendor header declares required API surface |
 | Moravian | header-symbol | `SetTemperature` | pass | SDKs/Moravian/extracted/cxusb.h, SDKs/Moravian/extracted/gxeth.h, SDKs/Moravian/extracted/gxusb.h | vendor header declares required API surface |
 | Moravian | header-symbol | `SetFilter` | pass | SDKs/Moravian/extracted/cxusb.h, SDKs/Moravian/extracted/gxeth.h, SDKs/Moravian/extracted/gxusb.h | vendor header declares required API surface |
-| Moravian | rust-symbol-load | `Enumerate` | pass | native/nightshade_native/native/src/vendor/moravian.rs | Rust FFI loader references the same SDK symbol |
-| Moravian | rust-symbol-load | `Initialize` | pass | native/nightshade_native/native/src/vendor/moravian.rs | Rust FFI loader references the same SDK symbol |
-| Moravian | rust-symbol-load | `Open` | pass | native/nightshade_native/native/src/vendor/moravian.rs | Rust FFI loader references the same SDK symbol |
-| Moravian | rust-symbol-load | `BeginExposure` | pass | native/nightshade_native/native/src/vendor/moravian.rs | Rust FFI loader references the same SDK symbol |
-| Moravian | rust-symbol-load | `GetImage` | pass | native/nightshade_native/native/src/vendor/moravian.rs | Rust FFI loader references the same SDK symbol |
-| Moravian | rust-symbol-load | `SetTemperature` | pass | native/nightshade_native/native/src/vendor/moravian.rs | Rust FFI loader references the same SDK symbol |
-| Moravian | rust-symbol-load | `SetFilter` | pass | native/nightshade_native/native/src/vendor/moravian.rs | Rust FFI loader references the same SDK symbol |
+| Moravian | rust-symbol-load | `Enumerate` | pass | native/skotiq_native/native/src/vendor/moravian.rs | Rust FFI loader references the same SDK symbol |
+| Moravian | rust-symbol-load | `Initialize` | pass | native/skotiq_native/native/src/vendor/moravian.rs | Rust FFI loader references the same SDK symbol |
+| Moravian | rust-symbol-load | `Open` | pass | native/skotiq_native/native/src/vendor/moravian.rs | Rust FFI loader references the same SDK symbol |
+| Moravian | rust-symbol-load | `BeginExposure` | pass | native/skotiq_native/native/src/vendor/moravian.rs | Rust FFI loader references the same SDK symbol |
+| Moravian | rust-symbol-load | `GetImage` | pass | native/skotiq_native/native/src/vendor/moravian.rs | Rust FFI loader references the same SDK symbol |
+| Moravian | rust-symbol-load | `SetTemperature` | pass | native/skotiq_native/native/src/vendor/moravian.rs | Rust FFI loader references the same SDK symbol |
+| Moravian | rust-symbol-load | `SetFilter` | pass | native/skotiq_native/native/src/vendor/moravian.rs | Rust FFI loader references the same SDK symbol |
 | FLI | sdk-header | `header files` | pass | SDKs/FLI/libfli-1.104/libfli.h | required SDK header evidence is present |
-| FLI | rust-wrapper | `native/nightshade_native/native/src/vendor/fli.rs` | pass | native/nightshade_native/native/src/vendor/fli.rs | production Rust wrapper is present |
+| FLI | rust-wrapper | `native/skotiq_native/native/src/vendor/fli.rs` | pass | native/skotiq_native/native/src/vendor/fli.rs | production Rust wrapper is present |
 | FLI | header-symbol | `FLIOpen` | pass | SDKs/FLI/libfli-1.104/libfli.h | vendor header declares required API surface |
 | FLI | header-symbol | `FLIExposeFrame` | pass | SDKs/FLI/libfli-1.104/libfli.h | vendor header declares required API surface |
 | FLI | header-symbol | `FLIGrabRow` | pass | SDKs/FLI/libfli-1.104/libfli.h | vendor header declares required API surface |
 | FLI | header-symbol | `FLISetTemperature` | pass | SDKs/FLI/libfli-1.104/libfli.h | vendor header declares required API surface |
 | FLI | header-symbol | `FLISetFilterPos` | pass | SDKs/FLI/libfli-1.104/libfli.h | vendor header declares required API surface |
 | FLI | header-symbol | `FLIStepMotor` | pass | SDKs/FLI/libfli-1.104/libfli.h | vendor header declares required API surface |
-| FLI | rust-symbol-load | `FLIOpen` | pass | native/nightshade_native/native/src/vendor/fli.rs | Rust FFI loader references the same SDK symbol |
-| FLI | rust-symbol-load | `FLIExposeFrame` | pass | native/nightshade_native/native/src/vendor/fli.rs | Rust FFI loader references the same SDK symbol |
-| FLI | rust-symbol-load | `FLIGrabRow` | pass | native/nightshade_native/native/src/vendor/fli.rs | Rust FFI loader references the same SDK symbol |
-| FLI | rust-symbol-load | `FLISetTemperature` | pass | native/nightshade_native/native/src/vendor/fli.rs | Rust FFI loader references the same SDK symbol |
-| FLI | rust-symbol-load | `FLISetFilterPos` | pass | native/nightshade_native/native/src/vendor/fli.rs | Rust FFI loader references the same SDK symbol |
-| FLI | rust-symbol-load | `FLIStepMotor` | pass | native/nightshade_native/native/src/vendor/fli.rs | Rust FFI loader references the same SDK symbol |
+| FLI | rust-symbol-load | `FLIOpen` | pass | native/skotiq_native/native/src/vendor/fli.rs | Rust FFI loader references the same SDK symbol |
+| FLI | rust-symbol-load | `FLIExposeFrame` | pass | native/skotiq_native/native/src/vendor/fli.rs | Rust FFI loader references the same SDK symbol |
+| FLI | rust-symbol-load | `FLIGrabRow` | pass | native/skotiq_native/native/src/vendor/fli.rs | Rust FFI loader references the same SDK symbol |
+| FLI | rust-symbol-load | `FLISetTemperature` | pass | native/skotiq_native/native/src/vendor/fli.rs | Rust FFI loader references the same SDK symbol |
+| FLI | rust-symbol-load | `FLISetFilterPos` | pass | native/skotiq_native/native/src/vendor/fli.rs | Rust FFI loader references the same SDK symbol |
+| FLI | rust-symbol-load | `FLIStepMotor` | pass | native/skotiq_native/native/src/vendor/fli.rs | Rust FFI loader references the same SDK symbol |
 | Fujifilm | sdk-header | `header files` | pass | SDKs/Fujifilm/extracted/SDK13410/HEADERS/XAPI.H, SDKs/Fujifilm/extracted/SDK13410/SAMPLES/Windows/HotFolder/HotFolder/XAPI.H, SDKs/Fujifilm/extracted/SDK13410/SAMPLES/Windows/ReleaseButton/ReleaseButton/XAPI.H | required SDK header evidence is present |
-| Fujifilm | rust-wrapper | `native/nightshade_native/native/src/vendor/fujifilm.rs` | pass | native/nightshade_native/native/src/vendor/fujifilm.rs | production Rust wrapper is present |
+| Fujifilm | rust-wrapper | `native/skotiq_native/native/src/vendor/fujifilm.rs` | pass | native/skotiq_native/native/src/vendor/fujifilm.rs | production Rust wrapper is present |
 | Fujifilm | header-symbol | `XSDK_Init` | pass | SDKs/Fujifilm/extracted/SDK13410/HEADERS/XAPI.H, SDKs/Fujifilm/extracted/SDK13410/SAMPLES/Windows/HotFolder/HotFolder/XAPI.H, SDKs/Fujifilm/extracted/SDK13410/SAMPLES/Windows/ReleaseButton/ReleaseButton/XAPI.H | vendor header declares required API surface |
 | Fujifilm | header-symbol | `XSDK_Detect` | pass | SDKs/Fujifilm/extracted/SDK13410/HEADERS/XAPI.H, SDKs/Fujifilm/extracted/SDK13410/SAMPLES/Windows/HotFolder/HotFolder/XAPI.H, SDKs/Fujifilm/extracted/SDK13410/SAMPLES/Windows/ReleaseButton/ReleaseButton/XAPI.H | vendor header declares required API surface |
 | Fujifilm | header-symbol | `XSDK_OpenEx` | pass | SDKs/Fujifilm/extracted/SDK13410/HEADERS/XAPI.H, SDKs/Fujifilm/extracted/SDK13410/SAMPLES/Windows/HotFolder/HotFolder/XAPI.H, SDKs/Fujifilm/extracted/SDK13410/SAMPLES/Windows/ReleaseButton/ReleaseButton/XAPI.H | vendor header declares required API surface |
 | Fujifilm | header-symbol | `XSDK_Release` | pass | SDKs/Fujifilm/extracted/SDK13410/HEADERS/XAPI.H, SDKs/Fujifilm/extracted/SDK13410/SAMPLES/Windows/HotFolder/HotFolder/XAPI.H, SDKs/Fujifilm/extracted/SDK13410/SAMPLES/Windows/ReleaseButton/ReleaseButton/XAPI.H | vendor header declares required API surface |
 | Fujifilm | header-symbol | `XSDK_ReadImageInfo` | pass | SDKs/Fujifilm/extracted/SDK13410/HEADERS/XAPI.H, SDKs/Fujifilm/extracted/SDK13410/SAMPLES/Windows/HotFolder/HotFolder/XAPI.H, SDKs/Fujifilm/extracted/SDK13410/SAMPLES/Windows/ReleaseButton/ReleaseButton/XAPI.H | vendor header declares required API surface |
 | Fujifilm | header-symbol | `XSDK_ReadImage` | pass | SDKs/Fujifilm/extracted/SDK13410/HEADERS/XAPI.H, SDKs/Fujifilm/extracted/SDK13410/SAMPLES/Windows/HotFolder/HotFolder/XAPI.H, SDKs/Fujifilm/extracted/SDK13410/SAMPLES/Windows/ReleaseButton/ReleaseButton/XAPI.H | vendor header declares required API surface |
-| Fujifilm | rust-symbol-load | `XSDK_Init` | pass | native/nightshade_native/native/src/vendor/fujifilm.rs | Rust FFI loader references the same SDK symbol |
-| Fujifilm | rust-symbol-load | `XSDK_Detect` | pass | native/nightshade_native/native/src/vendor/fujifilm.rs | Rust FFI loader references the same SDK symbol |
-| Fujifilm | rust-symbol-load | `XSDK_OpenEx` | pass | native/nightshade_native/native/src/vendor/fujifilm.rs | Rust FFI loader references the same SDK symbol |
-| Fujifilm | rust-symbol-load | `XSDK_Release` | pass | native/nightshade_native/native/src/vendor/fujifilm.rs | Rust FFI loader references the same SDK symbol |
-| Fujifilm | rust-symbol-load | `XSDK_ReadImageInfo` | pass | native/nightshade_native/native/src/vendor/fujifilm.rs | Rust FFI loader references the same SDK symbol |
-| Fujifilm | rust-symbol-load | `XSDK_ReadImage` | pass | native/nightshade_native/native/src/vendor/fujifilm.rs | Rust FFI loader references the same SDK symbol |
-| Fujifilm | rust-struct-order | `XsdkCameraList` | pass | native/nightshade_native/native/src/vendor/fujifilm.rs | repr(C) wrapper keeps expected field order |
+| Fujifilm | rust-symbol-load | `XSDK_Init` | pass | native/skotiq_native/native/src/vendor/fujifilm.rs | Rust FFI loader references the same SDK symbol |
+| Fujifilm | rust-symbol-load | `XSDK_Detect` | pass | native/skotiq_native/native/src/vendor/fujifilm.rs | Rust FFI loader references the same SDK symbol |
+| Fujifilm | rust-symbol-load | `XSDK_OpenEx` | pass | native/skotiq_native/native/src/vendor/fujifilm.rs | Rust FFI loader references the same SDK symbol |
+| Fujifilm | rust-symbol-load | `XSDK_Release` | pass | native/skotiq_native/native/src/vendor/fujifilm.rs | Rust FFI loader references the same SDK symbol |
+| Fujifilm | rust-symbol-load | `XSDK_ReadImageInfo` | pass | native/skotiq_native/native/src/vendor/fujifilm.rs | Rust FFI loader references the same SDK symbol |
+| Fujifilm | rust-symbol-load | `XSDK_ReadImage` | pass | native/skotiq_native/native/src/vendor/fujifilm.rs | Rust FFI loader references the same SDK symbol |
+| Fujifilm | rust-struct-order | `XsdkCameraList` | pass | native/skotiq_native/native/src/vendor/fujifilm.rs | repr(C) wrapper keeps expected field order |

@@ -6,7 +6,7 @@ Branch state: worked against HEAD with other Stage-2 agents live in the tree.
 ## SCI-42 — Session Report printed one warning twice — FIXED
 
 Root cause held at HEAD. `_buildPostSessionHealthSummary`
-(`nightshade_core/lib/src/providers/sequence/sequence_executor/session_diagnostics_operations.dart:388-394`)
+(`skotiq_core/lib/src/providers/sequence/sequence_executor/session_diagnostics_operations.dart:388-394`)
 copied `SequenceRunStats.warningMessages` into
 `PostSessionHealthSummary.noticedConcerns`, and `postsession_rules.dart:146`
 renders every entry as a "Noticed but Did Not Fire" diagnostic. The report
@@ -24,7 +24,7 @@ one consumer (the report dialog), so nothing else loses information; the
 warnings themselves are unaffected (they are persisted per run and still
 rendered verbatim).
 
-Test: `nightshade_core/test/providers/sequence/sequence_executor_lifecycle_test.dart`
+Test: `skotiq_core/test/providers/sequence/sequence_executor_lifecycle_test.dart`
 — "post-session summary does not restate the run warnings". Failed at HEAD with
 the two seeded warnings present in `noticedConcerns`; green after. It also
 asserts `postSessionEquipmentHealthSummary` emits no "Noticed but Did Not Fire"
@@ -80,7 +80,7 @@ Test: `test/screens/sequencer/quick_start_wizard_target_destination_test.dart`
 — drives the wizard with an empty library, fails at HEAD on "Sky or Planner".
 
 BLOCKED — Pre-Flight's "create a master dark from Calibration → Dark Library"
-lives in `nightshade_core/lib/src/providers/sequence/rules/preflight_rules.dart:246`
+lives in `skotiq_core/lib/src/providers/sequence/rules/preflight_rules.dart:246`
 (a `resolutionHint`), outside this batch's SCOPE. It is wrong the same way:
 there is no "Calibration" destination, and Dark Library is its own Settings
 section — the dialog's own button goes to `/settings?section=dark-library`
@@ -104,9 +104,9 @@ carries a deprecation info repo-wide).
 
 ## Verification
 
-* `nightshade_core`: `sequence_executor_lifecycle_test.dart` (19) +
+* `skotiq_core`: `sequence_executor_lifecycle_test.dart` (19) +
   `postsession_rules_test.dart` — green.
-* `nightshade_app`: `test/screens/diagnostics/` (minus goldens), full
+* `skotiq_app`: `test/screens/diagnostics/` (minus goldens), full
   `test/screens/mosaic/` (60), quick-start-wizard + wizard-authority +
   session-report suites (22) — green.
 * `dart analyze` on the touched lib/test dirs: no errors; only pre-existing
@@ -119,7 +119,7 @@ golden failures (1.49% / 1.40% pixel diff). Verified by restoring the three HEAD
 versions of the diagnostics files, re-running, and getting the identical
 failures, then restoring the working-tree versions.
 NOT MINE, seen in the tree while working:
-`nightshade_core/test/providers/sequence/sequence_executor_live_stacking_autofeed_test.dart`
+`skotiq_core/test/providers/sequence/sequence_executor_live_stacking_autofeed_test.dart`
 fails to compile against another agent's in-flight `LiveStackingService`
 (`autoStretchPreview` / `saveMaster`), and `framing_provider/support.dart`
 briefly referenced a not-yet-existing `RememberedSensorSpec`.

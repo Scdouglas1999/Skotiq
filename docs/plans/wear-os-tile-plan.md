@@ -14,7 +14,7 @@ watch:
 - **Tile** (primary surface) — three rows: target name, frame counter
   (`12 / 120`), weather safety label with colour swatch.
 - **ComplicationDataSource** (secondary surface) — short-text + ranged-
-  value complications so users can pin Nightshade onto a Wear OS watch
+  value complications so users can pin Skotiq onto a Wear OS watch
   face that already has slots configured (e.g., Pixel Watch Material
   faces).
 
@@ -28,10 +28,10 @@ apps/mobile/android/wear/
 ├── proguard-rules.pro
 └── src/main/
     ├── AndroidManifest.xml      — declares the Tile + ComplicationDataSource services
-    ├── kotlin/com/nightshade/wear/
-    │   ├── NightshadeTileService.kt
-    │   ├── NightshadeTileRenderer.kt
-    │   ├── NightshadeComplicationDataSourceService.kt
+    ├── kotlin/com/skotiq/wear/
+    │   ├── SkotiqTileService.kt
+    │   ├── SkotiqTileRenderer.kt
+    │   ├── SkotiqComplicationDataSourceService.kt
     │   ├── snapshot/
     │   │   ├── SnapshotPayload.kt              — Kotlin data class matching
     │   │   │                                     watch_complication_service.dart
@@ -40,14 +40,14 @@ apps/mobile/android/wear/
     │   │   └── SnapshotKeys.kt                 — shared path constants
     │   └── ui/
     │       ├── ProgressArc.kt                  — reusable arc renderer
-    │       └── theme/NightshadeWearColors.kt   — palette duplicate
+    │       └── theme/SkotiqWearColors.kt   — palette duplicate
     └── res/
         ├── drawable/
         │   ├── ic_target.xml
         │   └── ic_weather_safe.xml / ic_weather_unsafe.xml
         ├── values/
         │   ├── strings.xml
-        │   └── colors.xml                      — mirrors Nightshade brand
+        │   └── colors.xml                      — mirrors Skotiq brand
         └── xml/
             └── complication_data_source.xml    — declares supported types
 ```
@@ -62,15 +62,15 @@ New files in the existing mobile module:
 ```
 apps/mobile/lib/services/wear_os_complication_service.dart
 apps/mobile/lib/services/wear_os_complication_lifecycle_provider.dart
-apps/mobile/android/app/src/main/kotlin/com/nightshade/mobile/
+apps/mobile/android/app/src/main/kotlin/com/skotiq/mobile/
 └── WearOsComplicationBridge.kt   — DataClient.putDataItem(...) with the
                                     same JSON schema watch_complication_service
                                     publishes to iOS
 ```
 
-The bridge writes to data path `/nightshade/complication/snapshot` with
+The bridge writes to data path `/skotiq/complication/snapshot` with
 an `Asset` carrying the UTF-8 JSON bytes. The Wear OS module subscribes
-in `NightshadeTileService.onTileRequest(...)` and decodes the same
+in `SkotiqTileService.onTileRequest(...)` and decodes the same
 `SnapshotPayload` keys.
 
 ### 3. Required Gradle changes
@@ -100,10 +100,10 @@ plugins {
 }
 
 android {
-    namespace 'com.nightshade.wear'
+    namespace 'com.skotiq.wear'
     compileSdk 34
     defaultConfig {
-        applicationId 'com.nightshade.mobile'   // MUST match phone applicationId
+        applicationId 'com.skotiq.mobile'   // MUST match phone applicationId
         minSdk 30                                // Wear OS 3+
         targetSdk 34
     }
@@ -158,7 +158,7 @@ Inside `apps/mobile/android/wear/src/main/AndroidManifest.xml`:
 ```xml
 <application android:label="@string/app_name">
   <service
-      android:name=".NightshadeTileService"
+      android:name=".SkotiqTileService"
       android:exported="true"
       android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
     <intent-filter>
@@ -170,7 +170,7 @@ Inside `apps/mobile/android/wear/src/main/AndroidManifest.xml`:
   </service>
 
   <service
-      android:name=".NightshadeComplicationDataSourceService"
+      android:name=".SkotiqComplicationDataSourceService"
       android:exported="true"
       android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
     <intent-filter>

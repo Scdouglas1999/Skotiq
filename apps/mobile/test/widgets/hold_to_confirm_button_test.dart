@@ -1,5 +1,5 @@
 // Tests for the hold-to-confirm Stop button (from the
-// headless-2026-05-24 audit). The widget lives in `nightshade_ui` so it can
+// headless-2026-05-24 audit). The widget lives in `skotiq_ui` so it can
 // be reused by the shared MobilePlaybackBar, but the test home is here in
 // `apps/mobile/test/widgets/` to match the audit's deliverable layout and
 // because mobile is the primary consumer.
@@ -11,7 +11,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_ui/nightshade_ui.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 const _kHoldDuration = Duration(milliseconds: 200);
 

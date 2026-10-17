@@ -2,7 +2,7 @@
 
 Driver: `tools/ui_audit/drive_linux.py`, display `:83`, profile `waveE-equipment-chrome`,
 `start --fresh`. Build under test:
-`apps/desktop/build/linux/x64/release/bundle/nightshade_desktop`
+`apps/desktop/build/linux/x64/release/bundle/skotiq_desktop`
 (`lib/libapp.so` stamped 2026-08-13 20:33).
 
 **Freshness proof (the D-fix strings are in this binary):** `strings libapp.so` finds
@@ -39,7 +39,7 @@ rather than from "now at poll time".
 cards and no stale camera entry is left behind.
 **No new noise:** the 10 s poller adds nothing to `app.log` (146 lines for the
 whole 20-minute session).
-Not exercised: a device that stops answering (needs `NIGHTSHADE_SIM_FAULTS` and a
+Not exercised: a device that stops answering (needs `SKOTIQ_SIM_FAULTS` and a
 relaunch) — the "detect a dead mount" half of the original why-it-matters is still
 unproven on this build.
 
@@ -106,7 +106,7 @@ The D-fix log claims (b) FIXED via `_humanizeDeviceIds` in
 (twice), `Focuser · sim_focuser_1`.
 **Why it cannot work as written:** `_humanizeDeviceIds` bails out when
 `friendly == deviceId`, and `friendlyNameFromDeviceId`
-(`nightshade_core/lib/src/utils/device_id.dart:289`) only rewrites ids beginning
+(`skotiq_core/lib/src/utils/device_id.dart:289`) only rewrites ids beginning
 `native:zwo_efw:`, `native:qhy_cfw:`, `native:fli_fw:`, `ascom:` or `alpaca:` —
 everything else falls through to `return deviceId` at line 328. Every id in the
 finding (`sim_camera_1`, `sim_filterwheel_1`, `native:builtin_guider:multi_star`)
@@ -193,7 +193,7 @@ Schedule, Framing, Planetarium, Discover.
 `planner_screen_parts/_schedule_tab.dart:4` states it outright: *"The former
 'This Week' + 'Target Queue' tabs are unified here"* — the tab was removed, and
 `plannerTabTargetQueue: 'Target Queue'`
-(`localization/nightshade_localizations/translations.dart:599`) is now an orphan
+(`localization/skotiq_localizations/translations.dart:599`) is now an orphan
 string with no live UI referent. The nearest thing wearing that name is the
 Sequencer palette's third tab, labelled just **Queue**.
 **Why it matters:** the defect CON-53 filed was "Plan Tonight tells you to use

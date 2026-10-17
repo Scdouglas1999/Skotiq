@@ -178,7 +178,7 @@ Repro: look at the footer and the "Where to next?" list.
 - The footer secondary button is "Capture first light"; the first card in the list is
   "Capture your first light". Same destination, two names, ~300px apart.
 - The header still offers "Skip onboarding" on step 13 of 13, after the profile has already been
-  created and the success banner "Profile created. Welcome to Nightshade." is showing. There is
+  created and the success banner "Profile created. Welcome to Skotiq." is showing. There is
   nothing left to skip.
 Evidence: /tmp/ns-audit/shots/cons/16-allset.png
 

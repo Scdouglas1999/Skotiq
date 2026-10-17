@@ -4,10 +4,10 @@
   "outcome": "fixed",
   "summary": "The onboarding guider step only wrote the guider into the draft inside `if (running)` after a successful socket probe, so a user setting up indoors before launching PHD2 could not record a guider at all - Next dropped the typed host/port and the summary step read '- not set -'. Added an explicit 'Use PHD2' action (plus 'Clear') that persists the draft guider and the phd2Host/phd2Port settings the connect path reads, independent of the probe; Test stays as verification and still selects in one tap when it passes. The selection line is now derived from the draft (not a local flag), so picking a native guider retires it.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/onboarding/steps/guider_step.dart",
-   "packages/nightshade_app/test/screens/onboarding/onboarding_guider_offline_select_test.dart"
+   "packages/skotiq_app/lib/screens/onboarding/steps/guider_step.dart",
+   "packages/skotiq_app/test/screens/onboarding/onboarding_guider_offline_select_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/onboarding/onboarding_guider_offline_select_test.dart - 'PHD2 can be chosen while the probe is failing' drives a failing isPhd2Running, taps Use PHD2 and asserts draft.guiderId/guiderName + persisted phd2Host/phd2Port",
+  "test": "packages/skotiq_app/test/screens/onboarding/onboarding_guider_offline_select_test.dart - 'PHD2 can be chosen while the probe is failing' drives a failing isPhd2Running, taps Use PHD2 and asserts draft.guiderId/guiderName + persisted phd2Host/phd2Port",
   "revert_check": "Reverted guider_step.dart line 'onPressed: phd2IsSelected ? null : _useThisPhd2' to 'onPressed: null' -> both new tests fail (2 failures); restored -> 4/4 pass including the pre-existing onboarding_guider_endpoint_test.dart. Independently re-verified 2026-08-04: full-file revert to HEAD makes the named test fail, restore makes it pass; 47/47 green across the focus, rotator, narrator and onboarding-guider suites, dart analyze clean on all five changed lib files."
  },
  {
@@ -15,13 +15,13 @@
   "outcome": "fixed",
   "summary": "Confirmed: `FocusModelPanel` was constructed nowhere, and Imaging -> Focus carried only Manual Focus and Autofocus, so an operator running autofocus on that very screen had no view of the model those runs build (Settings' focus-model page is remote-only). Mounted the maintained, backend-aware `FocusModelCurveCard` under a 'Temperature Compensation' heading at the foot of the Focus tab - it reads `focusProfileDataProvider`, so it is honest on the rig and on a paired companion alike, and it carries the chart, model quality/R2, prediction and per-filter offsets. Deleted the orphaned `focus_model_panel.dart` (973 lines, zero references, local-only data source that would have shown an empty model over the network) and corrected the stale comment in focus_model_settings.dart that named it. The finding's second half - 'clicking the TC chip in the status bar produced nothing' - is not a defect: status_bar/temperature_and_time.dart:71-95 is a Tooltip-wrapped Container, a passive badge whose tooltip already names slope, R2 and the predicted position; it was never a control, so no drill-in was lost. Mounting the model on Focus is the whole of the real gap.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/imaging/widgets/focus_panel.dart",
-   "packages/nightshade_app/lib/screens/imaging/widgets/focus_model_panel.dart (deleted)",
-   "packages/nightshade_app/lib/screens/settings/widgets/focus_model_settings.dart",
-   "packages/nightshade_app/test/screens/imaging/widgets/focus_panel_temp_comp_test.dart",
-   "packages/nightshade_app/test/screens/imaging/widgets/focus_panel_curve_fit_binding_test.dart"
+   "packages/skotiq_app/lib/screens/imaging/widgets/focus_panel.dart",
+   "packages/skotiq_app/lib/screens/imaging/widgets/focus_model_panel.dart (deleted)",
+   "packages/skotiq_app/lib/screens/settings/widgets/focus_model_settings.dart",
+   "packages/skotiq_app/test/screens/imaging/widgets/focus_panel_temp_comp_test.dart",
+   "packages/skotiq_app/test/screens/imaging/widgets/focus_panel_curve_fit_binding_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/imaging/widgets/focus_panel_temp_comp_test.dart - pumps FocusPanel with a seeded ProfileFocusData and asserts the heading, the card, and the fitted model's own readout ('Excellent - R2=0.95')",
+  "test": "packages/skotiq_app/test/screens/imaging/widgets/focus_panel_temp_comp_test.dart - pumps FocusPanel with a seeded ProfileFocusData and asserts the heading, the card, and the fitted model's own readout ('Excellent - R2=0.95')",
   "revert_check": "Removed the `const FocusModelCurveCard(),` line from focus_panel.dart -> the new test fails; restored -> 30/30 pass across the focus + rotator suites. Two pre-existing tests in focus_panel_curve_fit_binding_test.dart needed `activeEquipmentProfileProvider.overrideWithValue(null)` because the tab is now profile-scoped (they stood up a real drift DB and leaked a stream timer at teardown). Independently re-verified 2026-08-04: full-file revert to HEAD makes the named test fail, restore makes it pass; 47/47 green across the focus, rotator, narrator and onboarding-guider suites, dart analyze clean on all five changed lib files."
  },
  {
@@ -29,10 +29,10 @@
   "outcome": "fixed",
   "summary": "Confirmed by measurement: at the 320 px imaging side panel the six step buttons laid out 16..432 inside a card that ends at 304, so +5 straddled the border and +15 sat entirely outside a clipped horizontal SingleChildScrollView with no fade or partial button to hint at it. Replaced the scroll strip with two rows of three Expanded cells (a fade would only have disclosed the problem, not fixed it): every step is drawn inside the card and hit-testable at any panel width, and the buttons get wider rather than narrower - which is what you want for a control you are tapping in the dark. Centred the button label since the box is now wider than its text.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/imaging/widgets/rotator_panel.dart",
-   "packages/nightshade_app/test/screens/imaging/widgets/rotator_relative_move_fits_test.dart"
+   "packages/skotiq_app/lib/screens/imaging/widgets/rotator_panel.dart",
+   "packages/skotiq_app/test/screens/imaging/widgets/rotator_relative_move_fits_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/imaging/widgets/rotator_relative_move_fits_test.dart - pins the panel to 320 px and asserts all six labels are inside the Relative Move card rect AND hitTestable",
+  "test": "packages/skotiq_app/test/screens/imaging/widgets/rotator_relative_move_fits_test.dart - pins the panel to 320 px and asserts all six labels are inside the Relative Move card rect AND hitTestable",
   "revert_check": "Restored the original horizontal SingleChildScrollView + intrinsic-width Row -> test fails with '+5 deg is laid out outside its card (318.0..354.0 vs 16.0..304.0)'; restored the fix -> passes. Independently re-verified 2026-08-04: full-file revert to HEAD makes the named test fail, restore makes it pass; 47/47 green across the focus, rotator, narrator and onboarding-guider suites, dart analyze clean on all five changed lib files."
  },
  {
@@ -40,10 +40,10 @@
   "outcome": "fixed",
   "summary": "Real, and the cause is structural rather than detector coverage. NarratorTicker returned SizedBox.shrink() whenever sessionStateProvider.dbSessionId was null - and only SequenceExecutor ever calls SessionStateNotifier.startSession, so every manual capture on the Imaging screen is sessionless. NarratorService deliberately keeps running in that case (it binds guiding, weather, autofocus and last-image-stats and persists events with a null session_id), but those rows only ever land in the sessionless bucket that the ticker never read. The strip is now fed from recentNarratorFeedProvider when there is no DB session, and the feed sheet it opens follows the same source so the two cannot contradict each other. The 10-minute rotation window is made mandatory in the sessionless case: that bucket outlives the app, so resting on its newest entry could put a previous night's headline over tonight's canvas.",
   "files_changed": [
-   "packages/nightshade_app/lib/screens/imaging/widgets/narrator_ticker.dart",
-   "packages/nightshade_app/test/screens/imaging/widgets/narrator_ticker_test.dart"
+   "packages/skotiq_app/lib/screens/imaging/widgets/narrator_ticker.dart",
+   "packages/skotiq_app/test/screens/imaging/widgets/narrator_ticker_test.dart"
   ],
-  "test": "packages/nightshade_app/test/screens/imaging/widgets/narrator_ticker_test.dart - 'speaks the sessionless feed when there is no DB session' (replaces the old 'hidden when there is no session', which asserted the defect) plus 'sessionless strip stays quiet on a stale bucket'",
+  "test": "packages/skotiq_app/test/screens/imaging/widgets/narrator_ticker_test.dart - 'speaks the sessionless feed when there is no DB session' (replaces the old 'hidden when there is no session', which asserted the defect) plus 'sessionless strip stays quiet on a stale bucket'",
   "revert_check": "Restored `if (sessionId == null) return const SizedBox.shrink();` in NarratorTicker.build -> 'speaks the sessionless feed when there is no DB session' fails; restored -> 8/8 pass. Independently re-verified 2026-08-04: full-file revert to HEAD makes the named test fail, restore makes it pass; 47/47 green across the focus, rotator, narrator and onboarding-guider suites, dart analyze clean on all five changed lib files."
  },
  {

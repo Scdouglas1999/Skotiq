@@ -1,7 +1,7 @@
 part of '../targets_tab.dart';
 
 class _TargetCard extends ConsumerStatefulWidget {
-  final NightshadeColors colors;
+  final SkotiqColors colors;
   final dynamic
   target; // Using dynamic since Target is a database generated type
 
@@ -88,7 +88,7 @@ class _TargetCardState extends ConsumerState<_TargetCard> {
                     Container(
                       width: 48,
                       height: 48,
-                      decoration: NightshadeDecorations.iconChip(
+                      decoration: SkotiqDecorations.iconChip(
                         typeColor,
                         borderRadius: BorderRadius.circular(8),
                         bordered: false,
@@ -354,7 +354,7 @@ class _TargetCardState extends ConsumerState<_TargetCard> {
                     Row(
                       children: [
                         Expanded(
-                          child: NightshadeButton(
+                          child: SkotiqButton(
                             label: 'Add to Sequence',
                             icon: LucideIcons.plus,
                             onPressed: () {
@@ -374,7 +374,7 @@ class _TargetCardState extends ConsumerState<_TargetCard> {
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: NightshadeButton(
+                          child: SkotiqButton(
                             label: 'Slew to Target',
                             icon: LucideIcons.navigation,
                             variant: ButtonVariant.outline,

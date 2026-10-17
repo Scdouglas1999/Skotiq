@@ -25,20 +25,20 @@ class _AddTargetDialogState extends ConsumerState<_AddTargetDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = NightshadeColors.of(context);
+    final colors = SkotiqColors.of(context);
 
-    return NightshadeDialog(
+    return SkotiqDialog(
       title: 'Add Target',
       icon: LucideIcons.plus,
       width: 400,
       actions: [
-        NightshadeButton(
+        SkotiqButton(
           onPressed: () => Navigator.pop(context),
           label: 'Cancel',
           variant: ButtonVariant.ghost,
           size: ButtonSize.small,
         ),
-        NightshadeButton(
+        SkotiqButton(
           label: 'Add Target',
           icon: LucideIcons.plus,
           size: ButtonSize.small,
@@ -122,7 +122,7 @@ class _AddTargetDialogState extends ConsumerState<_AddTargetDialog> {
   }
 
   Widget _buildField(
-    NightshadeColors colors,
+    SkotiqColors colors,
     String label,
     TextEditingController controller,
     String hint,

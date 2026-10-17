@@ -159,7 +159,7 @@ bool _isDeliveryArtifactPath(String path) {
 }
 
 /// matches the parameterised `/api/logs/files/<filename>/download`
-/// route and its concrete request paths (`/api/logs/files/nightshade.log/
+/// route and its concrete request paths (`/api/logs/files/skotiq.log/
 /// download`). We accept both the templated form (used by the
 /// route-enumeration list) and the instantiated form (used at request
 /// time).

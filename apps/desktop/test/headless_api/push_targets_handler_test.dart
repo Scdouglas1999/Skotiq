@@ -14,10 +14,10 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/auth/pairing_service.dart';
-import 'package:nightshade_desktop/headless_api/handlers/push_handlers.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/auth/pairing_service.dart';
+import 'package:skotiq_desktop/headless_api/handlers/push_handlers.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shelf/shelf.dart';
 
 void main() {

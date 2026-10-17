@@ -6,9 +6,9 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/session_handlers.dart';
-import 'package:nightshade_desktop/headless_api/job_manager.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/session_handlers.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -175,7 +175,7 @@ void main() {
       () async {
         final backend = _EventedPolarBackend();
         addTearDown(backend.close);
-        final db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+        final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
         addTearDown(db.close);
         final hostContainer = ProviderContainer(
           overrides: [
@@ -229,7 +229,7 @@ void main() {
     test('all-sky API cadence reaches hardware and recorded config', () async {
       final backend = _EventedPolarBackend();
       addTearDown(backend.close);
-      final db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
       final hostContainer = ProviderContainer(
         overrides: [
@@ -330,7 +330,7 @@ void main() {
     );
 
     test('trims identifiers and forwards a valid result limit', () async {
-      final db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
       for (var i = 0; i < 2; i++) {
         await db.imagesDao.insertSequenceFrame(
@@ -377,7 +377,7 @@ void main() {
   group('SessionHandlers /api/images/{id}/download (Range)', () {
     late ProviderContainer container;
     late SessionHandlers handlers;
-    late NightshadeDatabase db;
+    late SkotiqDatabase db;
     late Directory tempDir;
     late File testFile;
     late int imageId;
@@ -388,13 +388,13 @@ void main() {
     final payload = List<int>.generate(100, (i) => i % 256);
 
     setUp(() async {
-      db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       container = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(db)],
       );
       handlers = SessionHandlers(container);
 
-      tempDir = await Directory.systemTemp.createTemp('nightshade_range_test_');
+      tempDir = await Directory.systemTemp.createTemp('skotiq_range_test_');
       testFile = File('${tempDir.path}${Platform.pathSeparator}test.fits');
       await testFile.writeAsBytes(payload);
       fileLength = await testFile.length();
@@ -568,7 +568,7 @@ void main() {
 }
 
 class _TestBackendNotifier extends BackendNotifier {
-  _TestBackendNotifier(super.ref, NightshadeBackend initial) : super() {
+  _TestBackendNotifier(super.ref, SkotiqBackend initial) : super() {
     state = initial;
   }
 }
@@ -605,8 +605,8 @@ Future<void> _pumpEvents([int times = 6]) async {
 }
 
 class _EventedPolarBackend extends DisconnectedBackend {
-  final StreamController<NightshadeEvent> _events =
-      StreamController<NightshadeEvent>.broadcast();
+  final StreamController<SkotiqEvent> _events =
+      StreamController<SkotiqEvent>.broadcast();
 
   double? autoCompleteThreshold;
   double? allSkyCadence;
@@ -614,7 +614,7 @@ class _EventedPolarBackend extends DisconnectedBackend {
   int stopCalls = 0;
 
   @override
-  Stream<NightshadeEvent> get eventStream => _events.stream;
+  Stream<SkotiqEvent> get eventStream => _events.stream;
 
   @override
   Future<void> startPolarAlignment({
@@ -655,7 +655,7 @@ class _EventedPolarBackend extends DisconnectedBackend {
 
   void emitStatus(String phase, {String status = ''}) {
     _events.add(
-      NightshadeEvent(
+      SkotiqEvent(
         timestamp: DateTime.now().millisecondsSinceEpoch,
         severity: EventSeverity.info,
         category: EventCategory.polarAlignment,
@@ -671,7 +671,7 @@ class _EventedPolarBackend extends DisconnectedBackend {
     required double total,
   }) {
     _events.add(
-      NightshadeEvent(
+      SkotiqEvent(
         timestamp: DateTime.now().millisecondsSinceEpoch,
         severity: EventSeverity.info,
         category: EventCategory.polarAlignment,

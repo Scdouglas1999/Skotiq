@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/backup_handlers.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/backup_handlers.dart';
 import 'package:shelf/shelf.dart';
 import 'package:uuid/uuid.dart';
 
@@ -179,7 +179,7 @@ void main() {
       final backupId = const Uuid().v4();
       final created = await service.createBackup(
         customPath:
-            '${backupDir.path}/nightshade-backup-manual-$backupId.nsbackup',
+            '${backupDir.path}/skotiq-backup-manual-$backupId.nsbackup',
       );
       expect(created.success, isTrue, reason: created.errorMessage);
 

@@ -3,7 +3,7 @@
 // path for Collaborative Sky shared calibration.
 //
 // The underlying `CalibrationLibraryService` logic is covered in
-// nightshade_core; here we exercise the HANDLER SEAM the prior suite never
+// skotiq_core; here we exercise the HANDLER SEAM the prior suite never
 // touched: body decode, the accept `isRemote` gate, the publish fail-closed
 // license parse + consent construction, the 404-on-missing-record branches, the
 // StateError → 400 mapping, and the happy-path response shapes the
@@ -16,9 +16,9 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/calibration_library_handlers.dart';
-import 'package:nightshade_desktop/headless_api/route_metadata.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/calibration_library_handlers.dart';
+import 'package:skotiq_desktop/headless_api/route_metadata.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -28,7 +28,7 @@ import 'handler_test_helpers.dart';
 /// populated library. Its [getRecord] backs both the publish/retract 404 branch
 /// and the happy paths.
 class _FakeCalibrationLibraryService extends CalibrationLibraryService {
-  _FakeCalibrationLibraryService(NightshadeDatabase db)
+  _FakeCalibrationLibraryService(SkotiqDatabase db)
     : super(
         db: db,
         flatLibraryDao: FlatLibraryDao(db),
@@ -152,12 +152,12 @@ void main() {
 
   group('CalibrationLibraryHandlers — share seam', () {
     late ProviderContainer container;
-    late NightshadeDatabase db;
+    late SkotiqDatabase db;
     late _FakeCalibrationLibraryService service;
     late CalibrationLibraryHandlers handlers;
 
     setUp(() {
-      db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       service = _FakeCalibrationLibraryService(db);
       container = ProviderContainer(
         overrides: [

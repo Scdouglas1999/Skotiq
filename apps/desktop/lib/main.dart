@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_app/nightshade_app.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_updater/nightshade_updater.dart'
+import 'package:skotiq_app/skotiq_app.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_updater/skotiq_updater.dart'
     show setUpdateRelaunchArguments;
 import 'package:window_manager/window_manager.dart';
 
@@ -18,7 +18,7 @@ import 'main_headless.dart' as headless;
 /// A remote rig the desktop GUI should drive as a thin client instead of
 /// connecting local hardware. Populated from `--remote-host=` / `--remote-port=`
 /// / `--remote-token=` / `--remote-scheme=` flags (or the matching
-/// NIGHTSHADE_REMOTE_* env vars). When set, the GUI runs against the headless
+/// SKOTIQ_REMOTE_* env vars). When set, the GUI runs against the headless
 /// rig's NetworkBackend and does NOT start its own embedded host server.
 class _RemoteClientTarget {
   final String host;
@@ -50,7 +50,7 @@ String? _flagValue(List<String> args, String flag, String envKey) {
 /// True when the operator asked this instance to be a MASTER — i.e. own the
 /// hardware AND expose the embedded remote-access server so slave clients (and
 /// the mobile app) can connect. Accepts `--serve` / `--master` (presence or
-/// `=1`/`=true`) and the `NIGHTSHADE_SERVE` env var. This is the easy, reliable
+/// `=1`/`=true`) and the `SKOTIQ_SERVE` env var. This is the easy, reliable
 /// switch for Pi / scripted launches: it forces the effective
 /// `web_server_enabled` setting true for this run WITHOUT flipping the global
 /// default (so a plain desktop launch never silently exposes a LAN server).
@@ -67,19 +67,19 @@ bool _parseServeFlag(List<String> args) {
       }
     }
   }
-  final env = Platform.environment['NIGHTSHADE_SERVE'];
+  final env = Platform.environment['SKOTIQ_SERVE'];
   return env == '1' || env == 'true';
 }
 
 _RemoteClientTarget? _parseRemoteTarget(List<String> args) {
-  final host = _flagValue(args, 'remote-host', 'NIGHTSHADE_REMOTE_HOST');
+  final host = _flagValue(args, 'remote-host', 'SKOTIQ_REMOTE_HOST');
   if (host == null || host.isEmpty) {
     return null;
   }
-  final portRaw = _flagValue(args, 'remote-port', 'NIGHTSHADE_REMOTE_PORT');
-  final token = _flagValue(args, 'remote-token', 'NIGHTSHADE_REMOTE_TOKEN');
+  final portRaw = _flagValue(args, 'remote-port', 'SKOTIQ_REMOTE_PORT');
+  final token = _flagValue(args, 'remote-token', 'SKOTIQ_REMOTE_TOKEN');
   final scheme =
-      _flagValue(args, 'remote-scheme', 'NIGHTSHADE_REMOTE_SCHEME') ?? 'http';
+      _flagValue(args, 'remote-scheme', 'SKOTIQ_REMOTE_SCHEME') ?? 'http';
   return _RemoteClientTarget(
     host: host,
     port: int.tryParse(portRaw ?? '') ?? 8080,
@@ -96,7 +96,7 @@ void main(List<String> args) async {
 
   final isHeadless =
       args.contains('--headless') ||
-      Platform.environment['NIGHTSHADE_HEADLESS'] == '1';
+      Platform.environment['SKOTIQ_HEADLESS'] == '1';
 
   if (isHeadless) {
     headless.main(args);
@@ -111,7 +111,7 @@ void main(List<String> args) async {
   // combination loudly instead of silently picking one.
   if (serveRequested && remoteTarget != null) {
     stderr.writeln(
-      'Nightshade: --serve/--master cannot be combined with --remote-host '
+      'Skotiq: --serve/--master cannot be combined with --remote-host '
       '(an instance cannot be both a hardware-owning master and a remote '
       'slave). Aborting.',
     );
@@ -135,7 +135,7 @@ void main(List<String> args) async {
     await resolveDefaultDatabaseFile(),
   );
   if (contended != null) {
-    stderr.writeln('Nightshade: ${contended.message}');
+    stderr.writeln('Skotiq: ${contended.message}');
     developer.log(
       contended.message,
       name: 'desktop.main',
@@ -161,11 +161,11 @@ void main(List<String> args) async {
     center: true,
     // Opaque theme background — Colors.transparent + TitleBarStyle.hidden
     // composites to an undraggable black hole on Linux/Wayland when the first
-    // Flutter frame is delayed. Match NightshadeColors.dark.background.
+    // Flutter frame is delayed. Match SkotiqColors.dark.background.
     backgroundColor: Color(0xFF0A0C0F),
     skipTaskbar: false,
     titleBarStyle: TitleBarStyle.hidden,
-    title: 'Nightshade',
+    title: 'Skotiq',
   );
 
   final container = ProviderContainer(
@@ -198,8 +198,8 @@ void main(List<String> args) async {
       appVersionProvider.overrideWithValue(appVersion),
       pluginHostAppVersionOverride(appVersion.version),
       // wire `pluginNodeDispatcherProvider` (defined in
-      // nightshade_core) to the real `PluginNodeExecutor` (defined in
-      // nightshade_plugins). Without this override the Rust executor would
+      // skotiq_core) to the real `PluginNodeExecutor` (defined in
+      // skotiq_plugins). Without this override the Rust executor would
       // receive a structured "dispatcher not wired" failure for every
       // PluginNode invocation.
       pluginNodeDispatcherOverride(),
@@ -240,7 +240,7 @@ void main(List<String> args) async {
       await container
           .read(safeRigServiceProvider)
           .safeTheRig(
-            reason: 'Nightshade is shutting down',
+            reason: 'Skotiq is shutting down',
             park: true,
             closeDome: true,
             closeCover: true,
@@ -273,7 +273,7 @@ void main(List<String> args) async {
   final previousSession = lastGasp.readPreviousSession();
   if (previousSession != null && previousSession.endedWithoutShutdownPath) {
     logger.error(
-      'The previous Nightshade session ended without a shutdown record: '
+      'The previous Skotiq session ended without a shutdown record: '
       'nothing was safed on the way out. Check the rig.',
       source: 'desktop.shutdown',
       fields: {
@@ -410,7 +410,7 @@ void main(List<String> args) async {
     );
   }
 
-  // Inert unless NIGHTSHADE_FRAME_TIMING=1. Armed before runApp so the very
+  // Inert unless SKOTIQ_FRAME_TIMING=1. Armed before runApp so the very
   // first frames are counted too.
   startFrameTimingProbe();
 
@@ -424,19 +424,19 @@ void main(List<String> args) async {
   Widget appRoot = Platform.isLinux
       ? const Directionality(
           textDirection: TextDirection.ltr,
-          child: DragToResizeArea(child: NightshadeApp(isDesktop: true)),
+          child: DragToResizeArea(child: SkotiqApp(isDesktop: true)),
         )
-      : const NightshadeApp(isDesktop: true);
+      : const SkotiqApp(isDesktop: true);
 
   // Windows accessibility bridge spam: Flutter logs
   // `[ERROR:flutter/shell/platform/common/accessibility_bridge.cc(114)]
   // Failed to update ui::AXTree, error: N will not be in the tree and is
   // not the new root` whenever semantics nodes churn (tooltips, overlays,
-  // live telemetry). Engine bug, not a Nightshade fault; ExcludeSemantics
+  // live telemetry). Engine bug, not a Skotiq fault; ExcludeSemantics
   // stops those updates reaching AXTree. Screen-reader users can opt back
-  // in with NIGHTSHADE_ENABLE_SEMANTICS=1.
+  // in with SKOTIQ_ENABLE_SEMANTICS=1.
   final enableSemantics =
-      Platform.environment['NIGHTSHADE_ENABLE_SEMANTICS'] == '1';
+      Platform.environment['SKOTIQ_ENABLE_SEMANTICS'] == '1';
   if (Platform.isWindows && !enableSemantics) {
     appRoot = ExcludeSemantics(child: appRoot);
   }

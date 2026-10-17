@@ -3,9 +3,9 @@
 Branch `audit/end-to-end-campaign`, worktree `wf_9953116a-7f8-3`. Not committed.
 
 Files touched (3):
-- `native/nightshade_native/sequencer/src/instructions.rs`
-- `native/nightshade_native/sequencer/src/executor/mod.rs`
-- `native/nightshade_native/sequencer/src/triggers.rs`
+- `native/skotiq_native/sequencer/src/instructions.rs`
+- `native/skotiq_native/sequencer/src/executor/mod.rs`
+- `native/skotiq_native/sequencer/src/triggers.rs`
 
 ## Decision 4 — Unpark only when the mount reports parked
 
@@ -100,9 +100,9 @@ Tests (new):
 
 ## Verdicts
 
-- `cargo test -p nightshade_sequencer`: **PASS** — 701 lib + 5 + 4 + 12
+- `cargo test -p skotiq_sequencer`: **PASS** — 701 lib + 5 + 4 + 12
   integration, 0 failed (1 doc-test ignored, pre-existing).
-- `cargo clippy -p nightshade_sequencer --all-targets`: clean.
+- `cargo clippy -p skotiq_sequencer --all-targets`: clean.
 - `cargo fmt --all -- --check`: clean.
 
 ## Owed / not covered by this batch
@@ -178,13 +178,13 @@ base:
    continuation-specific wording, which would have been false on the abort path.
 
 Verdicts on the main tree:
-- `cargo test -p nightshade_sequencer`: **PASS** — 800 lib + 6 + 4 + 12
+- `cargo test -p skotiq_sequencer`: **PASS** — 800 lib + 6 + 4 + 12
   integration, 0 failed (1 doc-test ignored, pre-existing). The four new tests
   pass; `instructions::tests::park::*` are 3 of them.
-- `cargo clippy -p nightshade_sequencer --all-targets`: clean (the only
+- `cargo clippy -p skotiq_sequencer --all-targets`: clean (the only
   warnings in the workspace are pre-existing doc-indent ones in
-  `nightshade_imaging`, untouched here).
-- `cargo fmt -p nightshade_sequencer -- --check`: clean.
+  `skotiq_imaging`, untouched here).
+- `cargo fmt -p skotiq_sequencer -- --check`: clean.
 
 Still owed, unchanged from the batch: the Dart/bridge INFO push, and a live
 confirmation that a forced trigger-AF failure leaves the run `running` — no test

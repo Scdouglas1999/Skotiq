@@ -4,18 +4,18 @@ The shell is the top bar, the rail, the page header pattern and the instrument b
 once and every screen inherits it. Reference renders: `mockups/png/tonight.png` (collapsed rail),
 `mockups/png/tonight-empty.png` (expanded rail), `mockups/png/narrow.png` (< 768 px).
 
-Files (all under `packages/nightshade_app/lib/screens/shell/`):
+Files (all under `packages/skotiq_app/lib/screens/shell/`):
 
 | Piece | File today | What happens to it |
 |---|---|---|
 | Shell scaffold | `app_shell.dart` (744 lines) | Layout rows/columns change to the grid in §1. `StatusBar` stays at the bottom. `TitleBar` stays at the top. |
 | Title bar | `widgets/title_bar.dart` | Becomes the **top bar** (§2). Gains the command field. Loses nothing else. |
-| Rail | `widgets/side_navigation.dart` + `nightshade_ui/.../nav_item.dart` | Becomes the **rail** (§3). Single-line items, groups, Settings at the bottom. |
+| Rail | `widgets/side_navigation.dart` + `skotiq_ui/.../nav_item.dart` | Becomes the **rail** (§3). Single-line items, groups, Settings at the bottom. |
 | Nav list | `shell_navigation.dart` | `primaryDestinations` becomes the grouped list in §3.2. |
 | Status bar | `widgets/status_bar.dart` | Becomes the **instrument bar** (§5). Loses the web-dashboard and share buttons (they move to the top bar). |
-| Bottom nav | `widgets/nightshade_bottom_navigation.dart` | 5 slots, 64 px (§6). |
+| Bottom nav | `widgets/skotiq_bottom_navigation.dart` | 5 slots, 64 px (§6). |
 | Dashboard command bar | `screens/dashboard/widgets/command_bar.dart` | **Deleted.** Its facts move to the instrument bar (global) and the Tonight hero (local). |
-| Metrics | `nightshade_ui/lib/src/tokens/shell_chrome_metrics.dart` | Values in 03-tokens §3.4. |
+| Metrics | `skotiq_ui/lib/src/tokens/shell_chrome_metrics.dart` | Values in 03-tokens §3.4. |
 
 ## 1. Grid
 
@@ -45,9 +45,9 @@ Left to right, on a `-webkit-app-region: drag`-equivalent (`WindowDragArea` alre
 
 | Zone | Content | Spec |
 |---|---|---|
-| Brand | 22 × 22 `primary` rounded-6 square with `LucideIcons.sparkles` in `onPrimary` at 14 px; wordmark `NIGHTSHADE` 12 px / 700 / +1.6 tracking in `textPrimary` | left padding 16, gap 10 |
+| Brand | 22 × 22 `primary` rounded-6 square with `LucideIcons.sparkles` in `onPrimary` at 14 px; wordmark `SKOTIQ` 12 px / 700 / +1.6 tracking in `textPrimary` | left padding 16, gap 10 |
 | **Command field** | centred, `max-width 520`, `min-width 320`, height 30, `field` decoration on `surface`, `LucideIcons.search` 15 px muted, placeholder "Search targets, settings, or jump to a screen" 13 px muted, trailing `kbd` chip "Ctrl K" | Opens the command palette (§7). Click anywhere on it or press Ctrl/Cmd+K |
-| Actions | four 32 × 32 `NightshadeIconButton`s, gap 2: remote-connection indicator (`monitor` when local, `wifi` when remote, badge dot when degraded; this is the existing `RemoteConnectionIndicator`), alerts (`bell`, existing `TransientAlertBadge` + notification centre), **help for this screen** (`help-circle`, replaces the tour toasts, see 05 §11), settings (`settings`, → `/settings`) | icons 17 px `textSecondary`, hover `surfaceHover` fill + `textPrimary` |
+| Actions | four 32 × 32 `SkotiqIconButton`s, gap 2: remote-connection indicator (`monitor` when local, `wifi` when remote, badge dot when degraded; this is the existing `RemoteConnectionIndicator`), alerts (`bell`, existing `TransientAlertBadge` + notification centre), **help for this screen** (`help-circle`, replaces the tour toasts, see 05 §11), settings (`settings`, → `/settings`) | icons 17 px `textSecondary`, hover `surfaceHover` fill + `textPrimary` |
 | Window controls | existing `WindowControls`, `ShellChromeMetrics.windowControlWidth` (46) each, no radius, icons 14 px muted, 8 px gap before the group | unchanged behaviour |
 
 Removed from the title bar: the equipment-profile button (profiles live on the Equipment screen and
@@ -68,7 +68,7 @@ in the instrument bar's equipment pill).
 | Rest | icon `textSecondary` | same, label `textSecondary` |
 | Badge | 7 px `warning` dot at top-right of the item (8, 8 inset) with 2 px `background` ring | same. Used on Equipment when nothing is connected, on Weather when unsafe |
 | Bottom | `spacer`, then the collapse/expand toggle (`panel-left` / `panel-left-close`) as a normal item | + "Collapse" label |
-| Tooltip (collapsed) | label only, `popover` decoration, 200 ms delay, right of the item, via the existing `NightshadeTooltip`. Fix F4 INSIDE `nightshade_ui/lib/src/components/nightshade_tooltip.dart`: its own comment (lines 63–94) documents the missed `onExit` when the trigger rebuilds; hide the overlay from `didUpdateWidget`/`deactivate` and on any pointer-up outside, and add a widget test that pumps a rebuild while hovered and asserts the overlay is gone | — |
+| Tooltip (collapsed) | label only, `popover` decoration, 200 ms delay, right of the item, via the existing `SkotiqTooltip`. Fix F4 INSIDE `skotiq_ui/lib/src/components/skotiq_tooltip.dart`: its own comment (lines 63–94) documents the missed `onExit` when the trigger rebuilds; hide the overlay from `didUpdateWidget`/`deactivate` and on any pointer-up outside, and add a widget test that pumps a rebuild while hovered and asserts the overlay is gone | — |
 | Transition | width animates 220 ms ease-out; labels fade in over the last 120 ms | |
 
 Persisted in `AppSettings.sidebarCollapsed` as today.
@@ -115,7 +115,7 @@ below 768 px (there is no compact status bar any more). Bar height 64, item =
 
 ## 4. Page header (56 px, inside every screen)
 
-Every routed screen starts with `PageHeader` (new widget in `nightshade_ui`, replaces
+Every routed screen starts with `PageHeader` (new widget in `skotiq_ui`, replaces
 `ScreenHeader`):
 
 ```
@@ -177,9 +177,9 @@ chrome).
 
 ## 7. Command palette (Ctrl/Cmd+K)
 
-New widget `CommandPalette` (`packages/nightshade_app/lib/widgets/command_palette/`), shown with
+New widget `CommandPalette` (`packages/skotiq_app/lib/widgets/command_palette/`), shown with
 `showGeneralDialog` + `Align(alignment: Alignment.topCenter)` and a 96 px top inset (NOT
-`NightshadeDialog`, which forces a title row, a close button and centre alignment). `dialog`
+`SkotiqDialog`, which forces a title row, a close button and centre alignment). `dialog`
 decoration, 560 px wide, input 40 px. Results grouped with eyebrows: **Screens** (every rail destination + Settings sections +
 route-only screens: Polar alignment, Flat wizard, Session review, Mosaic, Pairing, Diagnostics),
 **Targets** (`objectSearchProvider`, the same provider behind the Planetarium search box; shows

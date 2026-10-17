@@ -13,7 +13,7 @@ Worktree `agent/w15-thumbnails` off `5b2235cc7`. Camera in play: ASI1600MM-Cool,
 ### 1. The thumbnail bridge call ran the whole decode on the UI isolate
 
 `api_generate_fits_thumbnail` was `#[flutter_rust_bridge::frb(sync)]`
-(`native/nightshade_native/bridge/src/api/imaging.rs`). An FRB `sync` function executes
+(`native/skotiq_native/bridge/src/api/imaging.rs`). An FRB `sync` function executes
 its Rust body **on the thread of the Dart isolate that called it**, and the caller here
 is the UI isolate: `ThumbnailSidecarService.defaultGenerateFitsThumbnail` ->
 `bridge_api.apiGenerateFitsThumbnail`, reached from
@@ -101,7 +101,7 @@ internally, so the cost is bounded by its viewport, not by the night — left as
 
 ## WHAT CHANGED
 
-### Rust — `native/nightshade_native/bridge/src/api/imaging.rs`
+### Rust — `native/skotiq_native/bridge/src/api/imaging.rs`
 
 * `api_generate_fits_thumbnail` is now `pub async fn`, with the blocking body extracted to
   `generate_fits_thumbnail_jpeg` and run under `tokio::task::spawn_blocking`.
@@ -116,7 +116,7 @@ internally, so the cost is bounded by its viewport, not by the night — left as
 `flutter_rust_bridge = "=2.11.1"`), run through the CPATH dance `scripts/dev.sh` uses.
 Codegen was verified idempotent on the untouched tree first; the only drift it produced
 there was a comment-only re-listing of private fns in
-`packages/nightshade_bridge/lib/src/api/plate_solve.dart` (pre-existing, from w14's Rust
+`packages/skotiq_bridge/lib/src/api/plate_solve.dart` (pre-existing, from w14's Rust
 changes), which is carried in this branch rather than left to reappear.
 
 **A trap worth recording:** `rustContentHash` did **not** change (`-1467366630` before and
@@ -124,7 +124,7 @@ after), even though the wire signature gained a `port_` argument. The startup ha
 would therefore *not* have caught a stale `.so`, so both bundles below were verified by
 string-grepping the binaries rather than by trusting the hash.
 
-### Dart — `packages/nightshade_core`
+### Dart — `packages/skotiq_core`
 
 * `ThumbnailSidecarService` gains `readSidecar(fitsPath, {stampedPath})` and
   `generateAndCacheSidecar(...)`. The read tries the row's stamped path first, then the
@@ -143,7 +143,7 @@ string-grepping the binaries rather than by trusting the hash.
   and `backend_provider.useLocalBackend` passes the container's singleton so the capture
   path's fire-and-forget writes and the UI's reads share one in-flight map and one logger.
 
-### Dart — `packages/nightshade_app`
+### Dart — `packages/skotiq_app`
 
 New `lib/utils/image_decode_size.dart` — `thumbnailDecodeWidth(context, logicalWidth)`,
 returning `logicalWidth * devicePixelRatio` rounded **up**, and null for an unbounded,
@@ -190,7 +190,7 @@ bytes are already the display size):
 
 ### Diagnostics — `apps/desktop/lib/frame_timing_probe.dart`
 
-The probe (opt-in, `NIGHTSHADE_FRAME_TIMING=1`) gained two things, because this defect had
+The probe (opt-in, `SKOTIQ_FRAME_TIMING=1`) gained two things, because this defect had
 no number attached to it and neither existed:
 
 * `imgCacheMB` / `imgCacheImages` / `imgCacheLive` from
@@ -204,7 +204,7 @@ no number attached to it and neither existed:
 ## BEFORE / AFTER, LIVE
 
 Both bundles built from this worktree and verified to be the binaries under test by
-string-grepping them (`libnightshade_bridge.so` for `Thumbnail task join error`,
+string-grepping them (`libskotiq_bridge.so` for `Thumbnail task join error`,
 `libapp.so` for the sidecar log line) — the repo's own freshness signal, and the only one
 available here given the unchanged `rustContentHash`.
 
@@ -215,7 +215,7 @@ available here given the unchanged `rustContentHash`.
 **Fixture**: 120 real 4656 x 3520 BITPIX=16 BZERO=32768 FITS frames (3.7 GB on disk,
 32.78 MB each) carrying a sky gradient and 2,500 Gaussian stars, plus per-frame read
 noise so no two frames are byte-identical; one `imaging_sessions` row and 120
-`captured_images` rows pointing at them in a scratch `NIGHTSHADE_DATABASE_DIR`.
+`captured_images` rows pointing at them in a scratch `SKOTIQ_DATABASE_DIR`.
 
 **Drive**: Xvfb `:87`, softpipe, `tools/ui_audit/drive_linux.py`. Launch -> skip
 onboarding (verified, retried: softpipe drops the odd synthetic click) -> Tonight ->
@@ -304,7 +304,7 @@ This was already true after w13, and I checked rather than assumed:
   buffer.
 * `image_display.dart` disposes the replaced `ui.Image`, disposes on the unmounted-decode
   path, and disposes in `dispose()` (w13's fix, still in place).
-* I audited every other `ui.Image` holder in `packages/nightshade_app/lib` —
+* I audited every other `ui.Image` holder in `packages/skotiq_app/lib` —
   `_image_surface.dart`, `image_canvas.dart`, `live_stack_canvas.dart`,
   `stacked_preview.dart`, `astro_image_viewer.dart`, `objects_panel.dart` — and all six
   dispose both on replace and in `dispose()`. `preview_viewport.dart` and the framing
@@ -319,16 +319,16 @@ All commands unpiped, exit codes recorded. `TMPDIR=$HOME/.cache/ns-tmp/w15-thumb
 |---|---|---|---|
 | FRB codegen (idempotency baseline, untouched tree) | `flutter_rust_bridge_codegen generate` | 0 | only the pre-existing comment drift in `plate_solve.dart` |
 | FRB codegen (after the Rust change) | `flutter_rust_bridge_codegen generate` | 0 | 9 files, all expected |
-| Rust build | `cargo build --release -p nightshade_bridge` | 0 | `libnightshade_bridge.so` 48.9 MB |
-| Rust clippy | `cargo clippy --release -p nightshade_bridge --lib` | 0 | no new findings |
+| Rust build | `cargo build --release -p skotiq_bridge` | 0 | `libskotiq_bridge.so` 48.9 MB |
+| Rust clippy | `cargo clippy --release -p skotiq_bridge --lib` | 0 | no new findings |
 | Rust fmt | `cargo fmt --check` (bridge) | 0 | clean for my files; see caveat below |
-| Rust tests (new) | `cargo test -p nightshade_bridge --lib fits_thumbnail` | 0 | 8 passed |
-| Rust tests (full libs) | `cargo test -p nightshade_bridge -p nightshade_native --lib` | 0 | 721 passed (713 baseline + 8 new), 6 ignored; 202 passed |
-| Dart format | `dart format --output=none --set-exit-if-changed` on `packages/nightshade_core`, `packages/nightshade_app`, `packages/nightshade_bridge` | 0, 0, 0 | clean |
+| Rust tests (new) | `cargo test -p skotiq_bridge --lib fits_thumbnail` | 0 | 8 passed |
+| Rust tests (full libs) | `cargo test -p skotiq_bridge -p skotiq_native --lib` | 0 | 721 passed (713 baseline + 8 new), 6 ignored; 202 passed |
+| Dart format | `dart format --output=none --set-exit-if-changed` on `packages/skotiq_core`, `packages/skotiq_app`, `packages/skotiq_bridge` | 0, 0, 0 | clean |
 | Dart format | `dart format --output=none --set-exit-if-changed apps/desktop` | **1** | 5 files drifted, **all 5 pre-existing at `5b2235cc7`** — see below. My two files in that package are clean. |
-| analyze (bridge) | `dart analyze` in `packages/nightshade_bridge` | 0 | No issues found |
-| analyze (core) | `dart analyze lib` in `packages/nightshade_core` | 0 | 2 infos, both pre-existing in `scheduler/rejection_labels.dart` |
-| analyze (app) | `dart analyze` in `packages/nightshade_app` | 0 | 873 infos — the exact pre-existing baseline; **zero** errors or warnings |
+| analyze (bridge) | `dart analyze` in `packages/skotiq_bridge` | 0 | No issues found |
+| analyze (core) | `dart analyze lib` in `packages/skotiq_core` | 0 | 2 infos, both pre-existing in `scheduler/rejection_labels.dart` |
+| analyze (app) | `dart analyze` in `packages/skotiq_app` | 0 | 873 infos — the exact pre-existing baseline; **zero** errors or warnings |
 | analyze (desktop) | `dart analyze` in `apps/desktop` | 0 | 9 infos, all pre-existing |
 | tests (core) | `flutter test --exclude-tags golden --concurrency=4` | 0 | 6530 passed, 4 skipped (10 new) |
 | tests (app) | `flutter test --exclude-tags golden --concurrency=4` | 0 | 4407 passed (11 new) |
@@ -360,7 +360,7 @@ golden PNGs.
   `imaging/src/depthlock/mod.rs`, `sequencer/src/lib.rs`,
   `sequencer/tests/dart_wire_contract.rs`. `cargo fmt` rewrote them as a side effect; I
   reverted all three.
-* `packages/nightshade_bridge/lib/src/api/plate_solve.dart` carries a comment-only codegen
+* `packages/skotiq_bridge/lib/src/api/plate_solve.dart` carries a comment-only codegen
   refresh (w14's private Rust fns). Kept, because any future codegen run reproduces it.
 
 ## STILL OPEN — identified, deliberately not fixed here
@@ -377,7 +377,7 @@ golden PNGs.
    its own measurement before anyone picks a number; flagged rather than half-fixed with a
    global budget bump.
 3. **The Rust generator still reads the whole FITS.** `read_fits` materialises all 32.8 MB
-   before a single sample is taken, while `nightshade_imaging::generate_thumbnail`
+   before a single sample is taken, while `skotiq_imaging::generate_thumbnail`
    (`imaging/src/reader.rs`) already exists and does a memory-mapped `read_downsampled`.
    Switching to it would cut the remaining per-call allocation roughly 30-fold, but it is a
    different downsampling implementation and would change thumbnail appearance, so it needs

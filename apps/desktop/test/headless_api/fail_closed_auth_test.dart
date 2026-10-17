@@ -4,12 +4,12 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_desktop/headless_api/auth/pairing_service.dart';
-import 'package:nightshade_desktop/headless_api_server.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_desktop/headless_api/auth/pairing_service.dart';
+import 'package:skotiq_desktop/headless_api_server.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
 import 'handler_test_helpers.dart';
-import 'package:nightshade_remote_protocol/nightshade_remote_protocol.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 /// Regression coverage for the fail-closed auth posture: an unconfigured
 /// headless server must NOT serve privileged endpoints unauthenticated, but the

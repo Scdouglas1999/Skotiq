@@ -1,6 +1,6 @@
-# Map — nightshade_core device / imaging services
+# Map — skotiq_core device / imaging services
 
-Subsystem: `packages/nightshade_core/lib/src/services/` — `device_service*`, `imaging_service*`,
+Subsystem: `packages/skotiq_core/lib/src/services/` — `device_service*`, `imaging_service*`,
 `centering_service.dart`, `plate_solve_service.dart`, `flat_wizard_service.dart`,
 `predictive_af_service.dart`, guiding-adjacent services (`phd2_*.dart`,
 `device_service/guiding_sequencer_controls.dart`).
@@ -59,7 +59,7 @@ method** with 5 levels of nesting, its own inner `try/finally`, and 14 separate
   `buildTimestampSubstitutions` (1431–1473).
 - The three `static` + `@visibleForTesting` members must stay **static members of
   `ImagingService`**, not top-level functions — `imaging_service_test.dart` and
-  `native/nightshade_native/imaging/src/naming.rs` parity tests call them as
+  `native/skotiq_native/imaging/src/naming.rs` parity tests call them as
   `ImagingService.expandNamingPattern(...)`. So this file declares
   `extension _ImagingServiceNaming on ImagingService` for the instance method
   `_buildPatternSubstitutions`, and the statics move into a new
@@ -73,7 +73,7 @@ method** with 5 levels of nesting, its own inner `try/finally`, and 14 separate
   `currentImageIsCalibratedProvider` (1500–1511), `previewDisplayHistogramProvider`
   (1515–1524), `histogram256FromRawU16` (1527–1533), `exposureProgressProvider` (1536–1539),
   `ExposureProgressNotifier` (1542–1581).
-- Re-export from `imaging_service.dart` so `package:nightshade_core` barrel consumers
+- Re-export from `imaging_service.dart` so `package:skotiq_core` barrel consumers
   (`live_preview_area.dart:132`, `preview_overlays.dart:21`, mobile `camera_tab.dart:566`) are
   untouched. (~105 lines out.)
 
@@ -197,7 +197,7 @@ service, a remote-authority facade and a UI status model, in one file. Models oc
 models/controller occupies **1213–1396**.
 
 **Split plan** (all plain libraries, re-exported from `predictive_af_service.dart` so the
-`nightshade_core` barrel and `apps/desktop/lib/headless_api/handlers/focus_model_handlers.dart`
+`skotiq_core` barrel and `apps/desktop/lib/headless_api/handlers/focus_model_handlers.dart`
 are untouched):
 
 - `services/predictive_af/predictive_af_models.dart` — `FocusTrainingSample` (38–66),
@@ -378,7 +378,7 @@ abort support for free. Effort: medium. See also §3.4 — `verifyCenter` curren
 caller, so "delete it" is also a legitimate resolution.
 
 ### 2.7 `PredictiveAfService` hand-rolls persistence for a table that already has a drift accessor
-`packages/nightshade_core/lib/src/database/tables/focus_models.dart` exists and
+`packages/skotiq_core/lib/src/database/tables/focus_models.dart` exists and
 `database.g.dart:26218` defines `class FocusModelEntry`. The service nonetheless does every read
 and write with raw SQL strings and untyped row maps: `customStatement` at 650, 679, 825, 846, 959,
 964, 1007, 1030, 1044, 1062; `customSelect` at 905, 909, 1078; and hand-written row decoding in
@@ -415,7 +415,7 @@ subscribe-before-start, a `Completer` settled by imaging events, a timeout equal
 substance, not just style — see §5.2: the flat-wizard one correlates the event to the device
 (`_classifyExposureEvent`, 446–479, plus `_deviceIdKeys` 434–439) and the imaging one does not.
 **Survivor:** the flat-wizard implementation is the better of the two. Extract it as
-`ExposureDriver` (a small collaborator taking a `NightshadeBackend`), and have both services own
+`ExposureDriver` (a small collaborator taking a `SkotiqBackend`), and have both services own
 one. Effort: large — `ImagingService._capture` also drives progress notifiers and shared
 `isExposing` state that the flat wizard does not — but §5.2 must be fixed regardless, and doing it
 by adoption is cheaper than doing it twice.
@@ -448,7 +448,7 @@ Delete, or wire it to the "Re-train" UI next to `clearSamples`.
 
 ### 3.2 `_RegressionFit.sampleCount` — write-only field
 `predictive_af_service.dart:1218` (declared), `:1225` (constructor param), `:1194` (assigned
-`best.length`). `grep -rn "sampleCount" packages/nightshade_core/lib/src/services/` shows no read
+`best.length`). `grep -rn "sampleCount" packages/skotiq_core/lib/src/services/` shows no read
 of `_RegressionFit.sampleCount` anywhere — the other hits are `sky_brightness_tracker.dart:228`,
 `science_processing_service*`, and `guide_rms_collector.dart:68`, all unrelated types.
 Delete the field and the argument.
@@ -581,7 +581,7 @@ for (final line in lines) {
   if (line.startsWith('CRVAL1')) { ... }
 ```
 The authoritative statement of the format lives in this repo, in the native implementation that was
-already fixed: `native/nightshade_native/imaging/src/platesolve.rs:933–944`, doc comment on
+already fixed: `native/skotiq_native/imaging/src/platesolve.rs:933–944`, doc comment on
 `fits_header_cards`:
 
 > A `.wcs` file is a raw FITS header: fixed-width cards packed end to end **with no line
@@ -716,7 +716,7 @@ One line each; each is a Dart implementation in these paths that appears to have
 handler-layer twin.
 
 - **`.wcs` parsing** — `plate_solve_service.dart:728–836` vs
-  `native/nightshade_native/imaging/src/platesolve.rs:977+` (`parse_wcs_file_inner` +
+  `native/skotiq_native/imaging/src/platesolve.rs:977+` (`parse_wcs_file_inner` +
   `fits_header_cards`). The Rust one is correct and richer (CD matrix, SIP, NAXIS); the Dart one is
   broken (§5.1) and returns `cd11..cd22 = 0` even on success (764–775).
 - **ASTAP CLI argument construction** — `plate_solve_service.dart:363–387` vs
@@ -725,11 +725,11 @@ handler-layer twin.
 - **astrometry.net output parsing** — `plate_solve_service.dart:838–896` vs whatever the native
   solver does for `solve-field`; the Dart regex handles only the `RA,Dec = (…)` line.
 - **Capture filename / naming-pattern expansion** — `imaging_service.dart:1198–1473` vs
-  `native/nightshade_native/imaging/src/naming.rs` (`FilenameGenerator`). Cross-referenced by
+  `native/skotiq_native/imaging/src/naming.rs` (`FilenameGenerator`). Cross-referenced by
   comment at `imaging_service.dart:1190–1197` and `imaging_service/file_paths.dart:11–13`; the
   `$SEQUENCE` sentinel at 1464–1470 documents a case where they already diverged.
 - **Focus-model linear regression** — `predictive_af_service._fitRegression` (1139–1196) vs
-  `native/nightshade_native/sequencer/src/focus_prediction.rs` `PersistedFocusModel::refit`,
+  `native/skotiq_native/sequencer/src/focus_prediction.rs` `PersistedFocusModel::refit`,
   declared identical by the header comment at lines 1–18 and 1137–1138. Same 1 °C bucketing,
   lowest-HFR-per-bucket selection, and intercept-at-mean convention duplicated in two languages.
 - **Frame quality score** — `imaging_service/quality_processing.dart:12–27` →
@@ -741,7 +741,7 @@ handler-layer twin.
   two implementations are being kept in sync by hand.
 - **Flat-wizard orchestration** — `apps/desktop/lib/headless_api/handlers/flat_wizard_handlers.dart`
   (:81, :210, :246) re-drives `calibrateMultipleFilters`/`generateCompleteSequence`/`quickCalibrate`
-  in parallel with `packages/nightshade_core/lib/src/providers/flat_wizard_provider.dart:950`;
+  in parallel with `packages/skotiq_core/lib/src/providers/flat_wizard_provider.dart:950`;
   two orchestrators over one non-reentrant service (see §5.4).
 - **Centering orchestration** — `apps/desktop/lib/headless_api/handlers/framing_handlers.dart:109/137`
   and `planetarium_handlers.dart:242/274` each build their own `CenteringConfig`/`PlateSolverConfig`

@@ -24,7 +24,7 @@ jobs:
         with:
           command: check licenses
           arguments: --all-features
-          manifest-path: native/nightshade_native/Cargo.toml
+          manifest-path: native/skotiq_native/Cargo.toml
 
   constellation-hub:
     name: Constellation Hub
@@ -42,15 +42,15 @@ jobs:
           cache: true
 
       - name: Resolve hub dependencies
-        working-directory: server/nightshade_hub
+        working-directory: server/skotiq_hub
         run: dart pub get
 
       - name: Analyze hub
-        working-directory: server/nightshade_hub
+        working-directory: server/skotiq_hub
         run: dart analyze --fatal-infos
 
       - name: Test hub
-        working-directory: server/nightshade_hub
+        working-directory: server/skotiq_hub
         run: dart test
 
   analyze:
@@ -171,8 +171,8 @@ jobs:
       - name: Runtime Behavioral Gate
         run: dart run tools/production/behavioral_audit.dart --register docs/production-readiness/behavioral-audit-register.md --fail-on-unregistered --fail-on-open --report .behavioral_audit_hits.txt --min-files 796
 
-      # nightshade_core is the only Dart package that may import
-      # package:nightshade_bridge. The audit fails closed (exit 1) on any
+      # skotiq_core is the only Dart package that may import
+      # package:skotiq_bridge. The audit fails closed (exit 1) on any
       # un-whitelisted importer; the self-test validates its exemption,
       # whitelist, and violation-detection logic.
       - name: Bridge Boundary Gate
@@ -207,9 +207,9 @@ jobs:
         run: melos run test
 
       - name: Verify v4.3.0 database migration to current schema
-        working-directory: packages/nightshade_core
+        working-directory: packages/skotiq_core
         env:
-          NIGHTSHADE_OLD_DATABASE: ${{ github.workspace }}/packages/nightshade_core/test/fixtures/nightshade-v4.3.0-profile.db
+          SKOTIQ_OLD_DATABASE: ${{ github.workspace }}/packages/skotiq_core/test/fixtures/skotiq-v4.3.0-profile.db
         run: flutter test tool/production_migration_probe.dart --dart-define=REQUIRE_MIGRATION_ARTIFACT=true
 
   test-rust:
@@ -238,14 +238,14 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: native/nightshade_native
+          workspaces: native/skotiq_native
 
       - name: Run Rust tests
-        working-directory: native/nightshade_native
+        working-directory: native/skotiq_native
         run: cargo test --locked --all-features --workspace
 
       - name: Run Rust clippy (workspace, deny warnings + high-value lints)
-        working-directory: native/nightshade_native
+        working-directory: native/skotiq_native
         # High-value lint promotions (clippy debt):
         #   - result_unit_err: forbids `Result<(), ()>` (use a real error type)
         #   - await_holding_lock: catches the FFI deadlock pattern of
@@ -286,17 +286,17 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: native/nightshade_native
+          workspaces: native/skotiq_native
 
       - name: Run Rust tests
-        working-directory: native/nightshade_native
+        working-directory: native/skotiq_native
         # --workspace so the ascom/ crate (Windows-only) gets exercised here
         # in addition to the bridge/imaging/sequencer crates that already
         # build on Linux.
         run: cargo test --locked --all-features --workspace
 
       - name: Run Rust clippy (workspace, deny warnings + high-value lints)
-        working-directory: native/nightshade_native
+        working-directory: native/skotiq_native
         # See the Linux job for the rationale on each `-D` lint. Windows is
         # especially important because the ascom/ crate is Windows-only and most of its
         # unsafe COM-calling lives there.
@@ -319,10 +319,10 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: native/nightshade_native
+          workspaces: native/skotiq_native
 
       - name: Detect duplicate crate versions
-        working-directory: native/nightshade_native
+        working-directory: native/skotiq_native
         run: |
           set -euo pipefail
           current="$(mktemp)"
@@ -365,7 +365,7 @@ jobs:
           components: rustfmt
 
       - name: Check Rust formatting
-        working-directory: native/nightshade_native
+        working-directory: native/skotiq_native
         run: cargo fmt --all -- --check
 
   build-test:
@@ -424,7 +424,7 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: native/nightshade_native
+          workspaces: native/skotiq_native
 
       - name: Install Melos
         run: dart pub global activate melos
@@ -434,17 +434,17 @@ jobs:
 
       - name: Build Rust library (Linux)
         if: matrix.os == 'ubuntu-latest'
-        working-directory: native/nightshade_native
+        working-directory: native/skotiq_native
         run: cargo build --locked --release --manifest-path bridge/Cargo.toml
 
       - name: Build Rust library (Windows)
         if: matrix.os == 'windows-2022'
-        working-directory: native/nightshade_native
+        working-directory: native/skotiq_native
         run: cargo build --locked --release --manifest-path bridge/Cargo.toml
 
       - name: Build Rust library (macOS)
         if: matrix.os == 'macos-15'
-        working-directory: native/nightshade_native
+        working-directory: native/skotiq_native
         run: |
           # Try to build for the current architecture
           cargo build --locked --release --manifest-path bridge/Cargo.toml || true

@@ -262,7 +262,7 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
       RemoteApiCompatibility.apiVersionHeader: RemoteApiCompatibility
           .serverApiVersion
           .format(),
-      'x-nightshade-minimum-api-version': RemoteApiCompatibility
+      'x-skotiq-minimum-api-version': RemoteApiCompatibility
           .minimumSupportedVersion
           .format(),
     };
@@ -279,11 +279,11 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       // Why include the CSRF header: cookie-bearing fetches from the
       // dashboard SPA echo the server-issued CSRF token via
-      // `X-Nightshade-CSRF`; without it in the allow-list the browser
+      // `X-Skotiq-CSRF`; without it in the allow-list the browser
       // would block the request before this middleware ever ran.
       'Access-Control-Allow-Headers':
           'Origin, Content-Type, X-Auth-Token, Authorization, '
-          'X-Nightshade-API-Version, X-Request-ID, X-Nightshade-CSRF',
+          'X-Skotiq-API-Version, X-Request-ID, X-Skotiq-CSRF',
       // Why expose Set-Cookie on the wire but not allow-credentials: the
       // cookie is HttpOnly so the browser stores it without JS seeing it;
       // `credentials: 'include'` on the SPA fetch is what makes the cookie

@@ -5,15 +5,15 @@ Items: SET-17 (P1), SET-1, SET-3, SET-6, SET-8/9, SET-12, SET-18, SET-23, SET-28
 ## Log
 
 ### SET-17 (P1) — pairing store outside the data dir
-HEAD already resolves `pairing.db` under `NIGHTSHADE_DATABASE_DIR`
+HEAD already resolves `pairing.db` under `SKOTIQ_DATABASE_DIR`
 (`resolvePairingDatabaseFile`), so the *location* half was fixed before this
 wave. The observed symptom — a `--fresh` profile listing 13 devices with
-`control`/`admin` scope, matching `~/Documents/Nightshade/pairing.db` — was
+`control`/`admin` scope, matching `~/Documents/Skotiq/pairing.db` — was
 `migrateLegacyPairingStore` copying the machine-wide store into every new data
 directory unconditionally. Made that carry-forward opt-in
-(`NIGHTSHADE_IMPORT_LEGACY_PAIRINGS`), so wiping the data dir now really does
+(`SKOTIQ_IMPORT_LEGACY_PAIRINGS`), so wiping the data dir now really does
 revoke. Failing test first in
-`packages/nightshade_remote_protocol/test/database/pairing_database_location_test.dart`.
+`packages/skotiq_remote_protocol/test/database/pairing_database_location_test.dart`.
 
 ### SET-3 — one guider status line (guider_step.dart `_statusLine`)
 ### SET-9 — the IP offer derives from the live fields; lookups round to 4 dp
@@ -28,22 +28,22 @@ revoke. Failing test first in
 ### SET-12 — tour passes over steps whose target panel is not on screen
 
 ### SET-6 — covered-by-component
-`NightshadeSwitchRow`/`NightshadeSwitch` live in nightshade_ui and are being
+`SkotiqSwitchRow`/`SkotiqSwitch` live in skotiq_ui and are being
 edited by the A11Y-STATE batch this wave (`git status` shows both modified).
 
 ### Pre-existing, not mine
 - `test/screens/{onboarding,settings}/captures_landscape_test.dart` — `@Tags(['golden'])`,
   host-specific baselines, excluded from `melos run test`; fail on Linux by policy.
 - `test/screens/settings/general_language_scope_test.dart` — a `Semantics` wrapper
-  now sits where the test casts to `Text`; `nightshade_dropdown.dart` is modified
+  now sits where the test casts to `Text`; `skotiq_dropdown.dart` is modified
   by the A11Y-STATE batch.
 
 ## Final state
 `flutter test --exclude-tags golden test/screens/{settings,onboarding,tutorial} test/widgets`
-in `packages/nightshade_app`: 1 failure, out of scope
+in `packages/skotiq_app`: 1 failure, out of scope
 (`general_language_scope_test` — the A11Y-STATE batch wrapped the dropdown item
 in `Semantics`, and the test casts `item.child as Text`).
-`flutter test` in `packages/nightshade_remote_protocol`: 191 passing.
+`flutter test` in `packages/skotiq_remote_protocol`: 191 passing.
 `flutter analyze` clean on every file touched.
 
 Two existing tests needed a scroll, not a weaker assertion: the Notifications

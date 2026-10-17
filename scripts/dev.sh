@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Nightshade Development Build Script (Linux/macOS)
+# Skotiq Development Build Script (Linux/macOS)
 # ================================================
 # Linux/macOS counterpart of scripts/dev.ps1. Keeps native + Flutter in sync:
 #   1. (optional) Regenerates Flutter Rust Bridge bindings
@@ -7,7 +7,7 @@
 #   3. Runs / builds the Flutter desktop app
 #
 # The Linux desktop CMake (apps/desktop/linux/CMakeLists.txt) automatically
-# bundles native/nightshade_native/target/release/libnightshade_bridge.so into
+# bundles native/skotiq_native/target/release/libskotiq_bridge.so into
 # the app bundle, so no manual DLL/so copying is needed here (unlike dev.ps1).
 # libraw is linked from the system package (libraw), so it does not need bundling.
 #
@@ -22,7 +22,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-NATIVE_DIR="$ROOT/native/nightshade_native"
+NATIVE_DIR="$ROOT/native/skotiq_native"
 DESKTOP_DIR="$ROOT/apps/desktop"
 
 NO_RUN=0; SKIP_FRB=0; RELEASE=0; CLEAN=0
@@ -74,8 +74,8 @@ if [[ $SKIP_FRB -eq 0 ]]; then
 fi
 
 step "Building Rust native library (release)..."
-( cd "$NATIVE_DIR" && cargo build --release --package nightshade_bridge )
-ok "libnightshade_bridge.so built"
+( cd "$NATIVE_DIR" && cargo build --release --package skotiq_bridge )
+ok "libskotiq_bridge.so built"
 
 cd "$DESKTOP_DIR"
 if [[ $NO_RUN -eq 1 ]]; then

@@ -101,7 +101,7 @@ _BlockerInput _blockerInputFor(
           'dart run melos run audit:public-release-gate --no-select',
         ],
         expectedEvidence: [
-          'apps/desktop/build/windows/x64/runner/Release/nightshade_desktop.exe',
+          'apps/desktop/build/windows/x64/runner/Release/skotiq_desktop.exe',
           'docs/production-readiness/windows-bundle-audit.json',
           'docs/production-readiness/windows-bundle-audit.md',
         ],
@@ -322,7 +322,7 @@ _BlockerInput _manualMigrationBlocker(
     localStatus:
         'artifactProvided=${migration?['artifactProvided']}; migrationVerified=${migration?['migrationVerified']}. ${migration?['blocker'] ?? ''}',
     requiredInput:
-        'An older release-authentic Nightshade SQLite database/profile artifact that can be copied and migrated by the probe.',
+        'An older release-authentic Skotiq SQLite database/profile artifact that can be copied and migrated by the probe.',
     acceptanceCriteria: [
       'Probe runs against a temporary copy of an older release-authentic database/profile.',
       '`artifactProvided=true` and `migrationVerified=true` in `manual-migration-probe.json`.',
@@ -330,13 +330,13 @@ _BlockerInput _manualMigrationBlocker(
       'Synthetic old-schema/profile migration regression tests pass without using real user data.',
     ],
     rerunCommands: [
-      'cd packages/nightshade_core && flutter test test/services/database_migration_test.dart',
-      r'$env:NIGHTSHADE_OLD_DATABASE="<path-to-old-nightshade.sqlite>"; dart run melos run audit:manual-migration --no-select',
+      'cd packages/skotiq_core && flutter test test/services/database_migration_test.dart',
+      r'$env:SKOTIQ_OLD_DATABASE="<path-to-old-skotiq.sqlite>"; dart run melos run audit:manual-migration --no-select',
       'dart run melos run audit:public-release-gate --no-select',
     ],
     expectedEvidence: [
-      'packages/nightshade_core/test/fixtures/synthetic_old_profile_fixtures.dart',
-      'packages/nightshade_core/test/services/database_migration_test.dart',
+      'packages/skotiq_core/test/fixtures/synthetic_old_profile_fixtures.dart',
+      'packages/skotiq_core/test/services/database_migration_test.dart',
       'docs/production-readiness/manual-migration-probe.json',
       'docs/production-readiness/manual-migration-probe.md',
       'Path or secure reference to the source old database artifact',

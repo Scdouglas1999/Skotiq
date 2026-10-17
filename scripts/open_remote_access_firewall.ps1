@@ -1,9 +1,9 @@
-# Allow inbound TCP (HTTP API) and UDP (LAN discovery) for Nightshade remote access.
+# Allow inbound TCP (HTTP API) and UDP (LAN discovery) for Skotiq remote access.
 param(
     [int]$HttpPort = 8080,
     [int]$DiscoveryPort = 45679,
-    [string]$TcpRuleName = "Nightshade Remote Access HTTP",
-    [string]$UdpRuleName = "Nightshade Remote Access Discovery"
+    [string]$TcpRuleName = "Skotiq Remote Access HTTP",
+    [string]$UdpRuleName = "Skotiq Remote Access Discovery"
 )
 
 function Ensure-Rule {

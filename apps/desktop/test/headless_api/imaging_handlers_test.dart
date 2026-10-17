@@ -4,9 +4,9 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/imaging_handlers.dart';
-import 'package:nightshade_desktop/headless_api/job_manager.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/imaging_handlers.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -253,7 +253,7 @@ void main() {
     test('save from capture creates host parent directories first', () async {
       final backend = _SaveFitsBackend();
       final root = await Directory.systemTemp.createTemp(
-        'nightshade-save-fits-',
+        'skotiq-save-fits-',
       );
       addTearDown(() => root.delete(recursive: true));
       final local = ProviderContainer(
@@ -298,10 +298,10 @@ void main() {
     test('save from capture rejects paths outside configured roots', () async {
       final backend = _SaveFitsBackend();
       final allowedRoot = await Directory.systemTemp.createTemp(
-        'nightshade-save-fits-allowed-',
+        'skotiq-save-fits-allowed-',
       );
       final outsideRoot = await Directory.systemTemp.createTemp(
-        'nightshade-save-fits-outside-',
+        'skotiq-save-fits-outside-',
       );
       addTearDown(() => allowedRoot.delete(recursive: true));
       addTearDown(() => outsideRoot.delete(recursive: true));
@@ -480,7 +480,7 @@ class _SaveFitsBackend extends DisconnectedBackend {
 }
 
 class _TestBackendNotifier extends BackendNotifier {
-  _TestBackendNotifier(super.ref, NightshadeBackend backend) {
+  _TestBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
   }
 }

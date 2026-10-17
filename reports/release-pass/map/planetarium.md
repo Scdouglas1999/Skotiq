@@ -1,8 +1,8 @@
-# Release-pass map — `nightshade_planetarium`
+# Release-pass map — `skotiq_planetarium`
 
-Subsystem: `packages/nightshade_planetarium/`
+Subsystem: `packages/skotiq_planetarium/`
 Scope: whole package (`lib/`, plus `benchmark/` and `test/` only as caller evidence).
-No Rust in this package (`find packages/nightshade_planetarium -name '*.rs'` → empty), so all
+No Rust in this package (`find packages/skotiq_planetarium -name '*.rs'` → empty), so all
 Rust-flavoured checks in the brief are N/A here; the Rust twins named below live in other crates
 and are listed as cross-package suspects.
 
@@ -110,7 +110,7 @@ New files, all `part of 'astronomy_calculations.dart'` except the models file:
 | 1570-1588 | 19 | `_LoadStarsArgs`, `_HygRow` |
 
 **Split plan.** `HygStarCatalog` is public and exported from the barrel
-(`lib/nightshade_planetarium.dart:12`), and `_fallbackBrightStars` / `_constellation*` are
+(`lib/skotiq_planetarium.dart:12`), and `_fallbackBrightStars` / `_constellation*` are
 `static` private members of it. Use `part` files so privacy is preserved with zero API change.
 
 `lib/src/catalogs/star_catalog.dart` (stays, target ~470 lines)
@@ -226,7 +226,7 @@ the class body when the extension is in scope in the same library).
 New files under `lib/src/planning/target_scoring/`:
 
 1. `models.dart` (~160 lines) — a **normal file**, not a part, so it can be imported directly by
-   `tonight_ranking.dart` and by `nightshade_core`'s scheduler. Moves lines 18-172:
+   `tonight_ranking.dart` and by `skotiq_core`'s scheduler. Moves lines 18-172:
    `ScoringWeights`, `TargetScore`, `TargetVisibilityInfo`, `WarningType`, `WarningSeverity`,
    `TargetWarning`. `target_scoring.dart` adds `export 'target_scoring/models.dart';` so every
    existing import path keeps resolving these names.
@@ -319,9 +319,9 @@ replace line 10 of `object_details_panel.dart` with four `part` lines.
 
 - Canonical: `lib/src/catalogs/constellation_names.dart:8-97`
   `const Map<String, String> kConstellationNamesByAbbreviation` + `constellationFullName()`
-  (:102-105). Exported from the barrel (`lib/nightshade_planetarium.dart:15`) and used by
+  (:102-105). Exported from the barrel (`lib/skotiq_planetarium.dart:15`) and used by
   `lib/src/catalogs/catalog.dart:335` and
-  `packages/nightshade_app/lib/screens/planner/planner_screen_parts/_filter_controls.dart:265,325`.
+  `packages/skotiq_app/lib/screens/planner/planner_screen_parts/_filter_controls.dart:265,325`.
 - Duplicate: `HygStarCatalog._constellationNames`, `lib/src/catalogs/star_catalog.dart:573-662`.
 
 Evidence: extracting both regions and `diff`ing them shows **zero** differing lines across all 88
@@ -397,9 +397,9 @@ verify its SHA-256, decompress it, write a metadata sidecar":
   (:208), `_promoteTempFile` (:339), `_saveMetadata` (:400), `_importCatalog` (:442). Public entry
   points `downloadStarCatalog`/`downloadDsoCatalog`/`importCatalog`/`deleteCatalogs`
   (`manager.dart:477-505`). **This is what the desktop/mobile GUI uses**
-  (`nightshade_app/lib/screens/settings/catalog_settings_screen.dart:262,271`,
-  `nightshade_app/lib/widgets/catalog_setup_dialog.dart:66,90`,
-  `nightshade_planetarium/lib/src/providers/catalog_providers.dart:125,137`).
+  (`skotiq_app/lib/screens/settings/catalog_settings_screen.dart:262,271`,
+  `skotiq_app/lib/widgets/catalog_setup_dialog.dart:66,90`,
+  `skotiq_planetarium/lib/src/providers/catalog_providers.dart:125,137`).
 - **Unified** (`catalog_manager/unified_catalog_api.dart`): `_downloadAndInstallCatalog` (:169),
   `_fetchUnifiedCandidate` (:395), `_installCatalogFromFile` (:523). Public entry points
   `downloadAndInstall`/`installFromFile`/`listAvailable`/`uninstall`/`verify`
@@ -439,7 +439,7 @@ Two separate `HygStarCatalog` instances load and retain the full ~120k-row HYG C
 - Chain A — `catalog_providers.dart:174` `starCatalogProvider = HygStarCatalog()` (default
   `magnitudeLimit = 15.0`, `star_catalog.dart:29`) → `starsProvider` (:184) →
   `starCatalogFallbackProvider` (:195). Forced alive in the running app by
-  `nightshade_app/lib/screens/planetarium/widgets/star_catalog_fallback_banner.dart:20` and
+  `skotiq_app/lib/screens/planetarium/widgets/star_catalog_fallback_banner.dart:20` and
   `.../star_chart_depth_notice.dart:24`.
 - Chain B — `planetarium_providers/catalog_astronomy.dart:7` `loadedStarsProvider =
   HygStarCatalog(magnitudeLimit: 12.0)` → `starSpatialIndexProvider` (:22) →
@@ -465,7 +465,7 @@ Effort: **medium** — verify `star_catalog_fallback_banner_test.dart` and
 - `lib/src/widgets/interactive_sky_view/fov_overlay_painter.dart` — `_FOVOverlayPainter` +
   `SkyFovProjector`. **Live**: `interactive_sky_view.dart:911`.
 - `lib/src/widgets/multi_fov_overlay.dart` — `MultiFovOverlay`, uses `SkyFovProjector`.
-  **Live**: `nightshade_app/.../layouts.dart:104,409`, `.../planetarium_shell.dart:141`.
+  **Live**: `skotiq_app/.../layouts.dart:104,409`, `.../planetarium_shell.dart:141`.
 - `lib/src/rendering/fov_overlays.dart` (535 lines) — `FOVType`, `FOVIndicator`,
   `FOVOverlayPainter`, `FOVOverlayWidget`. **No production caller**: `FOVOverlayPainter` appears
   only in `benchmark/src/benchmark_scene.dart:122` and `test/fov_overlay_projection_test.dart:513`;
@@ -475,7 +475,7 @@ Effort: **medium** — verify `star_catalog_fallback_banner_test.dart` and
 **Merge/removal:** `FOVOverlayWidget` can be deleted outright. `FOVOverlayPainter` /
 `FOVIndicator` / `FOVType` are load-bearing only for the benchmark and one test, so either
 (a) move the whole file into `benchmark/src/` and drop it from the barrel
-(`lib/nightshade_planetarium.dart:39`), or (b) delete it and retarget
+(`lib/skotiq_planetarium.dart:39`), or (b) delete it and retarget
 `benchmark_scene.dart:122` at `MultiFovOverlay`'s painter. Option (b) is the right one — the
 FrameTiming lab currently spends part of its measured budget on a painter production never runs,
 which makes the benchmark number optimistic about the wrong thing. Effort: **medium**.
@@ -485,25 +485,25 @@ which makes the benchmark number optimistic about the wrong thing. Effort: **med
 ## Cross-package duplication suspects (one line each, for the cross-cutting agent)
 
 - `TargetScoringService._scoreAltitude` / `_scoreMoonDistance` (`target_scoring.dart:548,556`) vs the
-  Rust twin `nightshade_sequencer::scheduling::scoring::{score_altitude, score_moon_distance}` — the
+  Rust twin `skotiq_sequencer::scheduling::scoring::{score_altitude, score_moon_distance}` — the
   source's own comment at `:538-543` records that the Rust copy silently diverged for months.
 - `AstronomyCalculations.airmass` / `airmassForTrueAltitude` (`astronomy_calculations.dart:19,1605`)
-  vs `nightshade_imaging::calculate_airmass` and `nightshade_sequencer::scheduling::astronomy::airmass`
+  vs `skotiq_imaging::calculate_airmass` and `skotiq_sequencer::scheduling::astronomy::airmass`
   (both named in the file's own doc comments at :15 and :1603).
-- `MosaicPlanner.generateRectangularMosaic` (`services/mosaic_planner.dart`) vs `nightshade_core`'s
-  `MosaicService` — already has a parity test (`nightshade_core/test/services/mosaic_geometry_parity_test.dart`)
+- `MosaicPlanner.generateRectangularMosaic` (`services/mosaic_planner.dart`) vs `skotiq_core`'s
+  `MosaicService` — already has a parity test (`skotiq_core/test/services/mosaic_geometry_parity_test.dart`)
   but remains two implementations.
 - `SurveyImageService` + `SurveyImage` (`services/survey_image_service.dart:123,157`, both dead here —
-  §3.4) vs the live framing survey-image service in `nightshade_core`
-  (`loadCachedSurveyImage` / `saveSurveyImage`, `nightshade_core/lib/src/providers/framing_image_cache_provider.dart:55`).
+  §3.4) vs the live framing survey-image service in `skotiq_core`
+  (`loadCachedSurveyImage` / `saveSurveyImage`, `skotiq_core/lib/src/providers/framing_image_cache_provider.dart:55`).
 - `FramingView` (`widgets/framing_view.dart:9`, dead here — §3.1) vs the live
-  `FramingView` in `nightshade_app/lib/screens/framing/framing_screen.dart:28` — **same class name,
+  `FramingView` in `skotiq_app/lib/screens/framing/framing_screen.dart:28` — **same class name,
   both reachable in one import scope**, so this is a latent ambiguous-import hazard as well as dead code.
 - `HygStarCatalog.getStarsNear` (`star_catalog.dart:435`) is mirrored by closure-injected twins in
-  `nightshade_core/lib/src/services/master_annotation_service.dart:25` and
+  `skotiq_core/lib/src/services/master_annotation_service.dart:25` and
   `color_calibration_service.dart:15` (their own comments say "Mirrors `HygStarCatalog.getStarsNear`").
 - `constellationFullName` (`catalogs/constellation_names.dart:102`) is consumed from
-  `nightshade_app`'s planner — confirm no third copy exists in `nightshade_core`'s target library.
+  `skotiq_app`'s planner — confirm no third copy exists in `skotiq_core`'s target library.
 
 ---
 
@@ -518,10 +518,10 @@ live.
 `lib/src/widgets/framing_view.dart` declares `FramingView` (:9) plus `_FramingViewState`,
 `_StarFieldPainter`, `_GridPainter`, `_FOVPainter`, `_MosaicOverlayPainter`, `_CrosshairPainter`,
 `_ZoomControls`, `_ZoomButton`, `_ScaleIndicator`. It is exported at
-`lib/nightshade_planetarium.dart:70`.
+`lib/skotiq_planetarium.dart:70`.
 Evidence: `grep -rn "framing_view.dart\|FramingViewWidget"` across packages+apps returns **only**
 that export line. `grep -rn "\bFramingView\b"` returns only
-`nightshade_app/lib/screens/framing/framing_screen.dart` — which declares its **own** unrelated
+`skotiq_app/lib/screens/framing/framing_screen.dart` — which declares its **own** unrelated
 `FramingView` (:28) and does not import the planetarium one.
 Action: delete the file and its barrel export. Note this also removes a name collision.
 
@@ -556,14 +556,14 @@ live; only the two cache classes go.
 Evidence: `grep -rn "dsoCatalogProvider"` → the definition and `dsosProvider`'s body; `grep -rn "\bdsosProvider\b"`
 → the definition only. (The live DSO chain is `loadedDsosProvider`,
 `planetarium_providers/catalog_astronomy.dart:15`, consumed by
-`nightshade_app/lib/screens/planetarium/widgets/catalog_tab.dart:15` and
-`nightshade_app/lib/screens/framing/framing_search_provider.dart:59`.)
+`skotiq_app/lib/screens/planetarium/widgets/catalog_tab.dart:15` and
+`skotiq_app/lib/screens/framing/framing_search_provider.dart:59`.)
 
 ### 3.6 Dead planning providers
 `lib/src/providers/planning_providers.dart` in its entirety (31 lines):
 `targetScoringServiceProvider` (:6) and `selectedTargetScoreProvider` (:24).
 Evidence: `grep -rn "selectedTargetScoreProvider\|targetScoringServiceProvider"` across packages+apps
-returns **only** lines 6, 24 and 28 of that file. Exported at `lib/nightshade_planetarium.dart:56`.
+returns **only** lines 6, 24 and 28 of that file. Exported at `lib/skotiq_planetarium.dart:56`.
 Worth noting for the perf reviewer: because these are dead, the once-per-second re-score they would
 otherwise cause (`:8` watches the 1 Hz `observationTimeProvider`) does **not** happen today — do not
 report it as a live perf bug.
@@ -584,8 +584,8 @@ This is dead code *and* a reliability gap — see §5.4. Fix by wiring `clearCac
 - `getStarsInConstellation` (`:417-427`) — `grep` → definition only; its helper
   `_getConstellationAbbr` (`:475-480`) dies with it.
 
-`getStarsNear` (`:435`) is live — `nightshade_app/lib/screens/framing/widgets/guide_star_overlay.dart:72`
-and `nightshade_core/lib/src/services/master_annotation_service.dart:241`.
+`getStarsNear` (`:435`) is live — `skotiq_app/lib/screens/framing/widgets/guide_star_overlay.dart:72`
+and `skotiq_core/lib/src/services/master_annotation_service.dart:241`.
 
 ### Explicitly checked and NOT dead (recorded so a later pass does not re-litigate)
 `FovRingsOverlay`, `SkyMinimap`, `CompassHud`, `MultiFovOverlay`, `TimeControlPanel`,
@@ -753,7 +753,7 @@ occupancy from the base layer to the overlay layer (written `paint_lifecycle.dar
 `_projectionCache` (`:151`), `_pointScratch` (`:163`), `_atlasTransforms`/`_atlasRects`/
 `_atlasColors` (`:260-269`) and the `_paintTimings` window (`:220`) are static for the same reason.
 This is sound while exactly one sky view paints, but `SkyCanvasPainter` is also constructed by
-`nightshade_app/lib/services/finder_chart_service.dart:180` at a completely different pose and size.
+`skotiq_app/lib/services/finder_chart_service.dart:180` at a completely different pose and size.
 Painting a finder chart while the sky view is on screen will:
 - invalidate `_projectionCache` (`render_cache.dart:698-711`), forcing the sky view to re-project
   its entire visible catalog on its next frame;

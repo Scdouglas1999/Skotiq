@@ -1,6 +1,6 @@
 # core-providers implementation log
 
-Baseline: b07d91c9d. Scope: `packages/nightshade_core/lib/src/providers/**` minus `sequence/`.
+Baseline: b07d91c9d. Scope: `packages/skotiq_core/lib/src/providers/**` minus `sequence/`.
 No predecessor work existed in scope (only `database_provider.dart`, which is another agent's
 wire-codec dedup — untouched here).
 
@@ -101,10 +101,10 @@ Newly orphaned by these deletions and NOT removed (outside the enumerated item, 
 follow-up): the `TutorialKeyRegistry` class in `tutorial_provider.dart` — its only reference was
 the deleted `tutorialKeyRegistry` provider.
 
-Result: `flutter analyze lib test` on nightshade_core → clean (the 2 remaining infos are
+Result: `flutter analyze lib test` on skotiq_core → clean (the 2 remaining infos are
 pre-existing `deprecated_member_use` in `test/database/restore_clears_recovery_marker_test.dart`).
-Full `flutter test` on nightshade_core → **5655 passed, 4 skipped, 0 failed**.
-`flutter analyze lib` on nightshade_app and apps/desktop → no errors or warnings.
+Full `flutter test` on skotiq_core → **5655 passed, 4 skipped, 0 failed**.
+`flutter analyze lib` on skotiq_app and apps/desktop → no errors or warnings.
 
 ### FALSE POSITIVE: `WeatherSafetyNotifier.evaluateNow`
 
@@ -150,5 +150,5 @@ writes — which is most of the duplicated volume back as hook surface, on eleve
 connect paths, with no way to prove behavior preservation beyond the existing tests. Recorded as
 not-done rather than landed on a guess.
 
-Result: `flutter analyze lib` on nightshade_core → No issues found. Full `flutter test` →
+Result: `flutter analyze lib` on skotiq_core → No issues found. Full `flutter test` →
 5655 passed, 4 skipped, 0 failed.

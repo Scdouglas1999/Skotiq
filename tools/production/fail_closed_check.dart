@@ -7,7 +7,7 @@ const _defaultRulesPath = 'docs/production-readiness/fail_closed_rules.yaml';
 const _scanRoots = <String>[
   'apps',
   'packages',
-  'native/nightshade_native',
+  'native/skotiq_native',
   'tools',
 ];
 

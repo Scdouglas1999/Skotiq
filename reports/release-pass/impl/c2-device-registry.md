@@ -26,8 +26,8 @@ The map named two different things "device registry". Only one of them was mine 
 
 ## What was consolidated
 
-New canonical module: `packages/nightshade_core/lib/src/providers/equipment/device_type_registry.dart`
-(exported from the `nightshade_core` barrel), carrying three tables:
+New canonical module: `packages/skotiq_core/lib/src/providers/equipment/device_type_registry.dart`
+(exported from the `skotiq_core` barrel), carrying three tables:
 
 | symbol | replaces | call sites re-pointed |
 |---|---|---|
@@ -71,7 +71,7 @@ object** (`ref.read(provider).deviceId`) return the same value in production but
 substitutable under test. Several widget suites install a fake that
 `implements <X>StateNotifier` with a `noSuchMethod` body and publishes honest snapshots —
 its getters throw. The first cut of this batch routed every read through the notifier and
-`nightshade_app/test/screens/equipment/discovery_toast_currency_test.dart` failed with
+`skotiq_app/test/screens/equipment/discovery_toast_currency_test.dart` failed with
 `Class '_FakeCameraNotifier' has no instance getter 'connectionState'`.
 
 So the registry deliberately carries **two** accessors, not one: `readDeviceSlot` for
@@ -136,12 +136,12 @@ Recorded for the bug wave, not attempted here. Nothing in `bridge/src` was edite
 
 | suite | result |
 |---|---|
-| `packages/nightshade_core` `flutter test test/services test/providers` | `+4310 ~4: All tests passed!` |
+| `packages/skotiq_core` `flutter test test/services test/providers` | `+4310 ~4: All tests passed!` |
 | `apps/desktop` `flutter test test/headless_api` | `+979: All tests passed!` |
-| `packages/nightshade_app` `test/screens/equipment/` | `+162 -4` — 3 `captures_landscape_test.dart` goldens (21–27 % pixel diff, Linux-vs-Windows fonts) + they fail identically with the baseline `device_row_item.dart` restored from `HEAD`, so pre-existing; the 4th (`discovery_toast_currency_test`) was a REAL regression from the first cut and is now green |
-| `packages/nightshade_app` `test/widgets/equipment_status_indicator_test.dart`, `test/screens/weather/weather_location_gate_test.dart` (the other notifier-fake suites) | `+3: All tests passed!` |
+| `packages/skotiq_app` `test/screens/equipment/` | `+162 -4` — 3 `captures_landscape_test.dart` goldens (21–27 % pixel diff, Linux-vs-Windows fonts) + they fail identically with the baseline `device_row_item.dart` restored from `HEAD`, so pre-existing; the 4th (`discovery_toast_currency_test`) was a REAL regression from the first cut and is now green |
+| `packages/skotiq_app` `test/widgets/equipment_status_indicator_test.dart`, `test/screens/weather/weather_location_gate_test.dart` (the other notifier-fake suites) | `+3: All tests passed!` |
 | new `test/providers/device_type_registry_test.dart` | `+8: All tests passed!` |
-| `dart analyze` | clean on `nightshade_core/lib`, `apps/desktop/lib`, `nightshade_app/lib/screens/equipment`; the 17 `nightshade_app/lib` infos are pre-existing and in files this batch never opened |
+| `dart analyze` | clean on `skotiq_core/lib`, `apps/desktop/lib`, `skotiq_app/lib/screens/equipment`; the 17 `skotiq_app/lib` infos are pre-existing and in files this batch never opened |
 | `dart format` | run on the 25 touched files only |
 
 No Rust was touched, so no `cargo` run was required and no FRB regeneration arises.

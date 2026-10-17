@@ -50,7 +50,7 @@
 // All endpoints return a JSON envelope: `{ "items": [...], "total": N }`.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightshade_core/nightshade_core.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
@@ -72,7 +72,7 @@ class DbReadHandlers {
   DbReadHandlers(this.container);
 
   LoggingService get _logger => container.read(loggingServiceProvider);
-  NightshadeDatabase get _database => container.read(databaseProvider);
+  SkotiqDatabase get _database => container.read(databaseProvider);
 
   void _logInfo(String message) =>
       _logger.info(message, source: 'DbReadHandlers');
@@ -689,7 +689,7 @@ class DbReadHandlers {
   /// `GET /api/sequence-runs/<runId>/events` — paginated events captured
   /// during the run's time window.
   ///
-  /// The headless server does NOT (yet) persist `NightshadeEvent`
+  /// The headless server does NOT (yet) persist `SkotiqEvent`
   /// instances to a dedicated DAO — events are forwarded to the
   /// LoggingService which keeps an in-memory ring buffer (1000 entries)
   /// and the Rust tracing appender that writes to disk. The disk format
@@ -702,7 +702,7 @@ class DbReadHandlers {
   /// list. We surface this loudly via `is_partial: true` in the
   /// envelope so the phone UI can render a banner explaining the gap
   /// rather than silently misleading the operator. Follow-up work is
-  /// tracked in the W7B report — a `nightshade_events` DAO writing every
+  /// tracked in the W7B report — a `skotiq_events` DAO writing every
   /// broadcast event would make this lossless.
   Future<Response> handleGetSequenceRunEvents(
     Request request,
@@ -876,7 +876,7 @@ class DbReadHandlers {
   /// any FITS body bytes — those are served by `/api/images/{id}/...`
   /// endpoints and would balloon this list response.
   ///
-  /// Uses [DbCapturedImage] because the nightshade_core barrel hides
+  /// Uses [DbCapturedImage] because the skotiq_core barrel hides
   /// the raw drift `CapturedImage` entity to avoid colliding with the
   /// imaging-domain class of the same name.
   Map<String, Object?> _capturedImageToJson(DbCapturedImage row) {

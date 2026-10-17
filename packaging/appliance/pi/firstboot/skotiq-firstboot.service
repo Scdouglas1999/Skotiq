@@ -1,0 +1,22 @@
+# One-shot first-boot setup for the Skotiq Pi appliance.
+# Installed + enabled by build_pi_image.sh. skotiq-headless.service
+# orders itself After= this unit via a drop-in, so the daemon never starts
+# before xvfb exists.
+
+[Unit]
+Description=Skotiq appliance first-boot setup (xvfb install)
+ConditionPathExists=!/var/lib/skotiq-firstboot.done
+# apt needs working DNS + routes; the provisioning service (hotspot
+# fallback) is what gets us there on a box with no known Wi-Fi.
+Wants=network-online.target
+After=network-online.target skotiq-netprovision.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/lib/skotiq/skotiq-firstboot.sh
+# apt over slow Wi-Fi on a Pi Zero 2 can be genuinely slow.
+TimeoutStartSec=15min
+
+[Install]
+WantedBy=multi-user.target

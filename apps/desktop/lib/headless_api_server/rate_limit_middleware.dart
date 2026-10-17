@@ -6,7 +6,7 @@ part of '../headless_api_server.dart';
 ///
 /// OFF by default. In the direct-bind deployment those headers are
 /// attacker-controlled, so the lockout/limiter key is derived from the real TCP
-/// socket peer instead. Set `NIGHTSHADE_TRUST_PROXY=true` (or `1`/`yes`) ONLY
+/// socket peer instead. Set `SKOTIQ_TRUST_PROXY=true` (or `1`/`yes`) ONLY
 /// when the appliance runs behind the loopback nginx reverse proxy documented
 /// in `docs/remote-control.md` (the "TLS with nginx" section), which binds
 /// loopback and injects the forwarding headers itself; in that topology the
@@ -16,7 +16,7 @@ part of '../headless_api_server.dart';
 final bool _rateLimitTrustProxyHeaders = _readTrustProxyFlag();
 
 bool _readTrustProxyFlag() {
-  final raw = Platform.environment['NIGHTSHADE_TRUST_PROXY']
+  final raw = Platform.environment['SKOTIQ_TRUST_PROXY']
       ?.trim()
       .toLowerCase();
   return raw == 'true' || raw == '1' || raw == 'yes';

@@ -18,13 +18,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_mobile/services/push_registration_service.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_mobile/services/push_registration_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const channelName = 'nightshade/push';
+  const channelName = 'skotiq/push';
 
   /// A NetworkBackend that never opens a socket (autoConnectWebSocket: false)
   /// so the test only exercises the fields the service reads.

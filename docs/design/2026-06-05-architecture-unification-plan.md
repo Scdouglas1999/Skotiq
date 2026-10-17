@@ -64,14 +64,14 @@ Three independent "what should I image" deciders with **two unrelated scoring fo
 2. `providers/scheduler_provider.dart` — expose a preview provider that runs `previewRanking` against the **same** `SchedulerCandidateLoader` the autopilot uses (same goals/constraints/horizon/filters/scheduledWindow inputs).
 3. `target_suggestion_service.dart` — re-scope: keep peak-altitude/transit/imaging-window/framing-fit/reasoning as advisory; stop presenting its sort order as "what the rig will run."
 4. `providers/target_suggestion_provider.dart` — re-point Planner consumers so authoritative pick order = engine preview; suggestion data is supplementary.
-5. `packages/nightshade_app/lib/screens/planner/**` — label the engine-preview pick as authoritative "what will run tonight"; show suggestion night-outlook as secondary.
+5. `packages/skotiq_app/lib/screens/planner/**` — label the engine-preview pick as authoritative "what will run tonight"; show suggestion night-outlook as secondary.
 6. (Optional, later) `target_scoring.dart` / `scoring.rs` — extract shared five-axis core; **keep parity fixtures green**. No behavior change.
 
 ### Regression guards (must stay/turn green)
 
 - **Untouched (by design):** the entire `scheduler_engine_test.dart` decision/dispatch/park suite — W1 (`:179`,`:212`), W2 (`:387` + `frame_attribution_test.dart`), W3 (`:548`,`:579`), W4 (`:258-385`,`:615`,`:641`,`:665`). The preview method calls the **pure** `scoreCandidate`; it must **never** call `_evaluateOnce` (which mutates/dispatches). Forbid that in review.
 - **New tests:** (a) `previewRanking(now)` returns a ranking identical to mapping `scoreCandidate` over the same candidates and **does not** mutate `_status` or trigger dispatch (assert `_status` unchanged + no `buildSequenceForCandidate` call); (b) Planner preview provider's #1 == engine's would-dispatch pick for a fixed clock/candidate set.
-- **Re-run before merge:** `nightshade_core` full suite (esp. `scheduler_engine_test.dart`, `scheduler_project_filter_test.dart`, `frame_attribution_test.dart`, `target_suggestion_service_test.dart`); the planetarium parity test; `cargo test -p nightshade_sequencer` (scoring + target_scheduler parity).
+- **Re-run before merge:** `skotiq_core` full suite (esp. `scheduler_engine_test.dart`, `scheduler_project_filter_test.dart`, `frame_attribution_test.dart`, `target_suggestion_service_test.dart`); the planetarium parity test; `cargo test -p skotiq_sequencer` (scoring + target_scheduler parity).
 
 ### Effort / risk
 
@@ -194,7 +194,7 @@ Do these as **independent, separately-gated PRs**, lowest-risk first. Each is se
 4. **Subsystem 3 — staged:** (a) eager mount; (b) write the exactly-once canary; (c) collapse the triple feed; (d) re-point legacy call sites; (e) config migration + settings redirect. Each sub-step is its own commit behind the canary.
 5. **(Deferred / optional) shared-core extractions** — `CatalogScoringCore`, shared horizon evaluator + cross-language fixture, `MoonEphemeris` single convention, single night-window derivation. Pure refactors with parity fixtures; do only when there's slack, never coupled to a behavior change.
 
-Re-run the full gate battery (`nightshade_core`, planetarium parity, `cargo test -p nightshade_sequencer`, app + mobile suites) after each PR, independently — do not trust workflow self-report.
+Re-run the full gate battery (`skotiq_core`, planetarium parity, `cargo test -p skotiq_sequencer`, app + mobile suites) after each PR, independently — do not trust workflow self-report.
 
 ---
 

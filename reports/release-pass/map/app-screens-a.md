@@ -1,6 +1,6 @@
 # Release-pass map — `app-screens-a`
 
-**Subsystem:** `packages/nightshade_app/lib/screens/` — imaging, sequencer, guiding, equipment,
+**Subsystem:** `packages/skotiq_app/lib/screens/` — imaging, sequencer, guiding, equipment,
 flat_wizard, polar_alignment, framing, dashboard, diagnostics, weather, shell, settings.
 
 **Scale (measured, `wc -l`, all `.dart` under those 12 dirs):**
@@ -141,7 +141,7 @@ generic card shells.
   (598), `_buildDeviceListItem` (675). → ~420 lines.
 - **new** `settings/pairing/pairing_device_presentation.dart` ← `_getDeviceIcon` (841),
   `_deviceTypeLabel` (862), `_deviceStatus` (891), `_deviceStatusColor` (908), `_formatDate` (924).
-  These take `PairedDevice`/`NightshadeColors` and return presentation values — make them top-level
+  These take `PairedDevice`/`SkotiqColors` and return presentation values — make them top-level
   **public** functions (`deviceIconFor`, `deviceTypeLabelFor`, …) so the file can be a plain import,
   not a part. → ~120 lines.
 - **new** `settings/pairing/pairing_dialogs.dart` ← `_showRenameDialog` (953), `_showRevokeDialog`
@@ -712,16 +712,16 @@ control. A `centering_dialog/image_canvas.dart` part already exists.
 
 ## 2. Duplication inside these paths
 
-### 2.1 Three separate RA/Dec guide-graph renderers — **canonical: `nightshade_ui`'s `GuideGraphAdvanced`**
+### 2.1 Three separate RA/Dec guide-graph renderers — **canonical: `skotiq_ui`'s `GuideGraphAdvanced`**
 
 | impl | file:line | consumers |
 |---|---|---|
-| `GuideGraphAdvanced` (canonical, has 2 UI tests) | `packages/nightshade_ui/lib/src/widgets/phd2/guide_graph_advanced.dart:60` | `guiding/guiding_screen_parts/desktop_sections.dart:625` |
+| `GuideGraphAdvanced` (canonical, has 2 UI tests) | `packages/skotiq_ui/lib/src/widgets/phd2/guide_graph_advanced.dart:60` | `guiding/guiding_screen_parts/desktop_sections.dart:625` |
 | `CompactGuidingGraph` + `_CompactGuidingGraphPainter` | `imaging/widgets/guiding_panel.dart:931`, `:1039` | `imaging/widgets/guiding_panel.dart:257`, `sequencer/widgets/run_dashboard/guiding_panel_card.dart:100` |
 | `_DashboardGuidingGraphPainter` | `dashboard/widgets/guiding_card.dart:192` | `dashboard/widgets/guiding_card.dart` only |
 
 All three plot the same `GuideGraphPoint` RA/Dec series with the same
-`NightshadeChartColors.seriesRed`/`seriesBlue` convention, and each has its own scaling rule — so
+`SkotiqChartColors.seriesRed`/`seriesBlue` convention, and each has its own scaling rule — so
 the same guiding night renders with three different y-scales depending on which surface the operator
 is looking at.
 
@@ -764,7 +764,7 @@ They have already drifted: the canonical uses a **denylist** (`isFitsLikePath`, 
 so the same frame shows a preview in one surface and a placeholder icon in another.
 
 **Merge:** move `frame_thumbnail_loader.dart` to a neutral home
-(`packages/nightshade_app/lib/widgets/frame_thumbnail_loader.dart`), add a `FrameThumbnail` widget
+(`packages/skotiq_app/lib/widgets/frame_thumbnail_loader.dart`), add a `FrameThumbnail` widget
 that wraps the ladder + spinner + placeholder, and re-point all six sites. **Effort: medium.**
 
 ### 2.4 Two flat-calibration orchestrators
@@ -850,17 +850,17 @@ the container. **Effort: medium.** Do §1.27's split first.
 - ~25 private `_formatDuration` / `_formatTime` / `_formatDateTime` helpers across these paths (e.g.
   `sequencer/widgets/target_header_card.dart:691`, `sequencer/tabs/history_tab.dart:870`,
   `sequencer/widgets/preflight_validation_dialog.dart:1215`, `dashboard/widgets/session_progress_card.dart:15`)
-  while `nightshade_core` already exports `formatHms`
-  (`nightshade_core/lib/src/models/imaging/stack_and_share_models.dart:999`) and
-  `formatIntegrationSeconds` (used at `nightshade_core/lib/src/providers/sequence_stats_provider.dart:343`).
+  while `skotiq_core` already exports `formatHms`
+  (`skotiq_core/lib/src/models/imaging/stack_and_share_models.dart:999`) and
+  `formatIntegrationSeconds` (used at `skotiq_core/lib/src/providers/sequence_stats_provider.dart:343`).
 - `_formatBytes` in `diagnostics/diagnostic_dump_screen.dart:381` and
   `settings/catalog_settings_screen/card_builders.dart:243` — two byte formatters; a third probably
-  lives in the backup/storage code in `nightshade_core`.
-- The guide-graph renderers (§2.1) span `nightshade_app` and `nightshade_ui` — the canonical is
-  already in `nightshade_ui`.
+  lives in the backup/storage code in `skotiq_core`.
+- The guide-graph renderers (§2.1) span `skotiq_app` and `skotiq_ui` — the canonical is
+  already in `skotiq_ui`.
 - `flat_wizard/widgets/flat_preview_panel.dart:307 _HistogramPainter` vs
   `imaging/widgets/overlay_widgets.dart:187 HistogramPainter` vs the analytics histogram — three
-  histogram painters; likely a fourth in `nightshade_ui`'s design gallery.
+  histogram painters; likely a fourth in `skotiq_ui`'s design gallery.
 - `sequencer/widgets/mosaic_wizard_dialog/painters.dart:3 _StarFieldPainter` vs
   `imaging/widgets/overlay_painters/basic_overlays.dart:3 StarFieldPainter` — two decorative
   star-field painters; the planetarium package almost certainly has a real one.
@@ -872,7 +872,7 @@ the container. **Effort: medium.** Do §1.27's split first.
   two independent readers of one database file; likely mirrored in the headless host.
 - The device icon / device-type-label switch tables (`settings/pairing_screen.dart:841`, `:862`)
   smell like duplicates of the equipment-package device-type presentation
-  (`equipment/utils/`, `nightshade_ui`).
+  (`equipment/utils/`, `skotiq_ui`).
 
 ---
 
@@ -882,11 +882,11 @@ the container. **Effort: medium.** Do §1.27's split first.
 
 | file | lines | evidence |
 |---|---:|---|
-| `sequencer/widgets/sequence_enhancements.dart` | 544 | Its four public classes `EstimatedCompletionWidget` (:8), `LoopIterationBadge` (:406), `NodeProgressIndicator` (:457), `ActiveBranchHighlight` (:513) each have exactly **2** repo-wide occurrences (the `class` line and the constructor). The file is re-exported by `packages/nightshade_app/lib/nightshade_app.dart:62` — **that barrel export is the only reason the analyzer stays quiet**; no `apps/` or `packages/` file imports the symbols. |
+| `sequencer/widgets/sequence_enhancements.dart` | 544 | Its four public classes `EstimatedCompletionWidget` (:8), `LoopIterationBadge` (:406), `NodeProgressIndicator` (:457), `ActiveBranchHighlight` (:513) each have exactly **2** repo-wide occurrences (the `class` line and the constructor). The file is re-exported by `packages/skotiq_app/lib/skotiq_app.dart:62` — **that barrel export is the only reason the analyzer stays quiet**; no `apps/` or `packages/` file imports the symbols. |
 | `sequencer/widgets/run_dashboard/playback_footer.dart` | 334 | `RunDashboardPlaybackFooter` (:19) has 2 occurrences; `grep -rn "playback_footer" --include="*.dart" packages/` → no hits. Not imported by anything, not in the barrel. |
 | `sequencer/widgets/session_report_forensics_section.dart` | 389 | `ForensicsRunSection` (:23) has 2 occurrences; `grep -rn "session_report_forensics_section"` → no hits. Note the run dashboard *does* have a forensics panel (`run_dashboard/forensics_panel.dart` + `DashboardWidgetId.cockpitForensics`) — this file is the superseded second version. |
 
-**Action:** delete all three plus the barrel export line at `nightshade_app.dart:62`.
+**Action:** delete all three plus the barrel export line at `skotiq_app.dart:62`.
 
 ### 4.2 Individually unreferenced public widgets
 
@@ -1027,7 +1027,7 @@ build path was found in these directories.
 ## 7. Suggested order of work
 
 1. **Delete the 1267 dead lines** (§4.1) + the three dead widgets (§4.2) and the barrel export at
-   `nightshade_app.dart:62`. Zero-risk, and it shrinks the surface every later step has to touch.
+   `skotiq_app.dart:62`. Zero-risk, and it shrinks the surface every later step has to touch.
 2. **§6.1 + §6.2** — one-line `select` on the app root; the single highest-leverage perf change here.
 3. **§5.1/§5.2 via §2.5** — rebuild the five science rows on `SettingsTextInput`. Fixes three
    silent-failure sites, one un-caught keyring write, and drops `science_settings.dart` under 1000

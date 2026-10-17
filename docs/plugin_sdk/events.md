@@ -1,6 +1,6 @@
 # Plugin Events
 
-The plugin event bus provides publish-subscribe communication between plugins and between plugins and the Nightshade application.
+The plugin event bus provides publish-subscribe communication between plugins and between plugins and the Skotiq application.
 
 ## Event Bus Overview
 
@@ -51,7 +51,7 @@ subscribe to specific named events with `eventBus.on(eventName)`.
 Always cancel subscriptions in `onUnload` to prevent memory leaks:
 
 ```dart
-class MyPlugin extends NightshadePlugin {
+class MyPlugin extends SkotiqPlugin {
   PluginContext? _context;
   final List<StreamSubscription> _subscriptions = [];
 
@@ -116,7 +116,7 @@ context.eventBus.emit('weather.alert', { ... });
 
 ## Application Events
 
-The Nightshade application emits events on the plugin event bus for key state changes. Subscribe to these to react to application state:
+The Skotiq application emits events on the plugin event bus for key state changes. Subscribe to these to react to application state:
 
 | Event Name | Data Fields | Description |
 |------------|-------------|-------------|

@@ -3,11 +3,11 @@
   "notesForOtherClusters": [
     "native-dialog cluster is UNBLOCKED: the GTK file chooser IS driveable. Under Xvfb with no window manager it renders black in a screenshot, but it is a real GTK widget tree and it DOES expose the AT-SPI Component interface, so `drive_linux.py click \"<name>\"` finds and clicks it by geometry. Proven on the onboarding capture-folder Browse button: `click \"Documents\"` then `click \"Use this folder\"` returned /home/scdouglas/Documents to the app. The recorded reason ('xdotool cannot activate it') is stale - do not activate the window, click its children by accessible name.",
     "narrow-mobile cluster premise is stale: drive_linux.py DOES have a `resize WIDTH HEIGHT` command (tools/ui_audit/drive_linux.py:636), so 'the harness has no window-resize command' no longer holds.",
-    "remote-appliance / collaborative surfaces: the repo ships its own hub at server/nightshade_hub (pure Dart). `dart pub get && dart run bin/server.dart --secret <s> --db /tmp/.../hub.db --atlas-root /tmp/.../atlas --port <free>` comes up in seconds, and the app signs in over open signup with just an address and a display name - no invite token, no second machine. This is what unblocked coimaging_create_sheet and would also unblock shared_target_detail_screen and the collaborative-mosaic surfaces.",
+    "remote-appliance / collaborative surfaces: the repo ships its own hub at server/skotiq_hub (pure Dart). `dart pub get && dart run bin/server.dart --secret <s> --db /tmp/.../hub.db --atlas-root /tmp/.../atlas --port <free>` comes up in seconds, and the app signs in over open signup with just an address and a display name - no invite token, no second machine. This is what unblocked coimaging_create_sheet and would also unblock shared_target_detail_screen and the collaborative-mosaic surfaces.",
     "Trap worth recording: this shell is zsh, so `P=\"--profile nca\"; cmd $P` passes ONE argument. Use ${=P} or a wrapper script.",
     "Trap that produced a false 'silent failure' during this sweep: dialogs re-centre when their content shrinks. Coordinates read from a screenshot taken BEFORE a result list collapsed landed on the modal barrier and dismissed the sheet, which looks exactly like a submit that did nothing. Re-shoot after any change that resizes a dialog."
   ],
-  "testsRun": "dart run melos exec --scope=\"nightshade_app\" -- flutter test test/screens/collaborative_sky test/screens/mosaic test/screens/onboarding -> 244 passed, 2 failed; both failures are captures_landscape_test.dart golden pixel diffs (27.09%, 108547px) against **/test/**/captures/ baselines that .gitignore:302 excludes as host-specific, i.e. the known non-regression class on this Linux box. The three new files (capture_dir_path_diagnostics_test.dart 5 tests, coimaging_create_required_fields_test.dart 3 tests, mosaic_projects_list_back_label_test.dart 2 tests) pass; dart analyze on every edited file is clean.",
+  "testsRun": "dart run melos exec --scope=\"skotiq_app\" -- flutter test test/screens/collaborative_sky test/screens/mosaic test/screens/onboarding -> 244 passed, 2 failed; both failures are captures_landscape_test.dart golden pixel diffs (27.09%, 108547px) against **/test/**/captures/ baselines that .gitignore:302 excludes as host-specific, i.e. the known non-regression class on this Linux box. The three new files (capture_dir_path_diagnostics_test.dart 5 tests, coimaging_create_required_fields_test.dart 3 tests, mosaic_projects_list_back_label_test.dart 2 tests) pass; dart analyze on every edited file is clean.",
   "units": [
     {
       "unit": "screen:onboarding/capture_dir_step.dart",
@@ -27,7 +27,7 @@
     {
       "unit": "screen:collaborative_sky/coimaging_create_sheet.dart",
       "state": "visited",
-      "evidence": "Unblocked by standing up the repo's own hub (server/nightshade_hub, dart run bin/server.dart --db /tmp/ns-audit/nca/hub/hub.db --port 8137) and signing the app into it (Plan Tonight > Discover > Collaborate > Connect to a hub -> 'Connected / Nightshade Constellation Hub - db963bd6'). 'Start session' opened the sheet ('panel: Start co-imaging session'). Exercised: empty form + Start session -> nothing at all happens (finding below); 'From mount' with no mount -> correctly disabled, tooltip 'Connect a mount to use its position'; name M42 + Look up coordinates -> rows 'M42 83.8187 -5.3897' and 'M4 245.8975 -26.5255'; applying M42 filled Center RA/Dec; Start session created the hub row coimaging_sessions f144a6a6-ee13-4333-a343-ba8c2b00ef7a|M42|83.8187|-5.3897|active and the screen rendered the live card ('Live - awaiting an imager', RIGS 1). The same file's ensureCoImagingSharingConsent gate was also driven: 'Share your co-imaging subs', 4 licences (CC BY / BY-SA / BY-NC / CC0), 'Enable sharing' inert until the consent checkbox is ticked, then accepted."
+      "evidence": "Unblocked by standing up the repo's own hub (server/skotiq_hub, dart run bin/server.dart --db /tmp/ns-audit/nca/hub/hub.db --port 8137) and signing the app into it (Plan Tonight > Discover > Collaborate > Connect to a hub -> 'Connected / Skotiq Constellation Hub - db963bd6'). 'Start session' opened the sheet ('panel: Start co-imaging session'). Exercised: empty form + Start session -> nothing at all happens (finding below); 'From mount' with no mount -> correctly disabled, tooltip 'Connect a mount to use its position'; name M42 + Look up coordinates -> rows 'M42 83.8187 -5.3897' and 'M4 245.8975 -26.5255'; applying M42 filled Center RA/Dec; Start session created the hub row coimaging_sessions f144a6a6-ee13-4333-a343-ba8c2b00ef7a|M42|83.8187|-5.3897|active and the screen rendered the live card ('Live - awaiting an imager', RIGS 1). The same file's ensureCoImagingSharingConsent gate was also driven: 'Share your co-imaging subs', 4 licences (CC BY / BY-SA / BY-NC / CC0), 'Enable sharing' inert until the consent checkbox is ticked, then accepted."
     },
     {
       "unit": "screen:mosaic/mosaic_projects_list_screen.dart",
@@ -46,7 +46,7 @@
       "severity": "P3",
       "title": "Co-imaging create sheet: the \"required field\" errors can never render, so the primary action is silent about what is missing",
       "detail": "Live: with the sheet freshly opened I pressed 'Start session' and nothing happened at all - no message, no field error, no tooltip (a11y tree unchanged, shot coimg_empty.png), while the two buttons directly above it both explain themselves on hover ('Type at least two characters of a target name', 'Connect a mount to use its position'). The sheet does carry the right copy - 'Enter a target name.', 'Enter the target center RA.', 'Enter the target center Dec.', 'Enter a session radius.' - gated on a _submitted flag, but the only assignment to that flag lives inside _create(), and _create() was only reachable once the form already validated. Every one of those strings was unreachable.",
-      "location": "packages/nightshade_app/lib/screens/collaborative_sky/coimaging_create_sheet.dart",
+      "location": "packages/skotiq_app/lib/screens/collaborative_sky/coimaging_create_sheet.dart",
       "fixed": true,
       "fixSummary": "'Start session' is now pressable whenever the sheet is idle (onPressed: _busy ? null : _create); _create marks the incomplete fields instead of a dead button saying nothing. New test coimaging_create_required_fields_test.dart pins the pressable button, the full set of required messages on an empty form, and the half-filled case flagging only what is still missing.",
       "needsOwnerDecision": false
@@ -56,7 +56,7 @@
       "severity": "P3",
       "title": "Mosaic projects: the word \"Back\" is not tappable - only the chevron beside it is",
       "detail": "Live on the pushed /mosaic screen: clicking the label 'Back' left 'Multi-panel mosaics' on screen (unchanged a11y tree); clicking the chevron ~28 px to its left popped the route. The label was a plain Text sitting outside the IconButton, so the part of the control that most reads as a button swallowed the press. The same screen is only reachable by a push and this is its only way out.",
-      "location": "packages/nightshade_app/lib/screens/mosaic/mosaic_projects_list_screen.dart (_BackBar)",
+      "location": "packages/skotiq_app/lib/screens/mosaic/mosaic_projects_list_screen.dart (_BackBar)",
       "fixed": true,
       "fixSummary": "The chevron and the label are now one InkWell with the 'Back' tooltip retained, so the whole row is one tap target. New test mosaic_projects_list_back_label_test.dart taps find.text('Back') and asserts the screen pops. NOTE: the doc comment says this bar 'mirrors' the ones on mosaic_project_screen.dart and the collaborative mosaic detail screen - those are separate copies and were not reproduced or changed here.",
       "needsOwnerDecision": false
@@ -66,7 +66,7 @@
       "severity": "P3",
       "title": "Mosaic projects empty state sends the user somewhere else while \"New mosaic\" sits in the same header",
       "detail": "Live (shot mosaic.png): the header carries a 'New mosaic' button and the body says 'No mosaic projects yet / Design a mosaic in Framing or the Planetarium and save it as a project to capture and stitch it here.' The one moment the operator has nothing on screen and is reading for instructions, the copy routes them away from the button six inches above it.",
-      "location": "packages/nightshade_app/lib/screens/mosaic/mosaic_projects_list_screen.dart",
+      "location": "packages/skotiq_app/lib/screens/mosaic/mosaic_projects_list_screen.dart",
       "fixed": true,
       "fixSummary": "The empty state now leads with 'Start one with \"New mosaic\" above, or design a mosaic in Framing or the Planetarium and save it as a project.' and carries its own 'New mosaic' action. Covered by the second test in mosaic_projects_list_back_label_test.dart.",
       "needsOwnerDecision": false
@@ -76,7 +76,7 @@
       "severity": "P4",
       "title": "Capture-folder rejection dropped the actual OS reason (\"Not writable: Cannot open file\")",
       "detail": "Live: typing /root into onboarding Step 10 answered 'Not writable: Cannot open file'. That is dart:io's generic FileSystemException.message; the reason the operator can act on - Permission denied, Read-only file system, No space left on device - only ever lives in OSError, which the step discarded. Every distinct failure therefore read identically and none of them said what to do.",
-      "location": "packages/nightshade_app/lib/screens/onboarding/steps/capture_dir_step.dart",
+      "location": "packages/skotiq_app/lib/screens/onboarding/steps/capture_dir_step.dart",
       "fixed": true,
       "fixSummary": "Extracted describeCaptureDirWriteFailure(), which leads with error.osError.message and keeps the generic phrase only as the no-errno fallback. Pinned by capture_dir_path_diagnostics_test.dart (permission denied, read-only mount, and the fallback).",
       "needsOwnerDecision": false
@@ -86,7 +86,7 @@
       "severity": "P4",
       "title": "Capture-folder step did not expand ~, and still will not create a folder that does not exist",
       "detail": "Live: typing '~/Documents' - which exists - answered 'That folder does not exist.', because dart:io does not expand a tilde and the step passed the raw text to Directory(). Separately, '/tmp/does-not-exist-xyz' is rejected with the same flat message and no offer to create it, even though the step's own class doc claimed 'the path must exist (or be creatable)'. On a fresh appliance the folder you want (/data/astro/captures) usually does not exist yet.",
-      "location": "packages/nightshade_app/lib/screens/onboarding/steps/capture_dir_step.dart",
+      "location": "packages/skotiq_app/lib/screens/onboarding/steps/capture_dir_step.dart",
       "fixed": true,
       "fixSummary": "PARTIAL. Added expandCaptureDirHome(), applied to the LOCAL branch of _commitTypedPath only (a tilde in a host path is the host's home, not this machine's), plus tests for '~', '~/...', a non-home '~name' path and the untouched-absolute case; and corrected the class doc, which claimed a creatable path is accepted when nothing here creates a folder. NOT fixed: offering to create a missing folder - that adds a write action to a wizard step and belongs with the owner.",
       "needsOwnerDecision": true
@@ -96,7 +96,7 @@
       "severity": "P3",
       "title": "The capture-folder step still opens with an empty box and no proposed default (repeat of an only half-fixed finding)",
       "detail": "Live: Step 10 opens with an empty field, hint 'Type or paste a folder, or use Browse', and Next blocked with 'Pick a capture folder.' until the user supplies one. FINDINGS.md:4905 already reported this as two problems - no typed-path input and no suggested default; the text field was added and the default was not, so the second half is still live. The app knows a perfectly good candidate (it has a platform data dir and Settings > Files & Storage has its own default), and a first-run wizard is exactly where a proposed value beats a blank.",
-      "location": "packages/nightshade_app/lib/screens/onboarding/steps/capture_dir_step.dart",
+      "location": "packages/skotiq_app/lib/screens/onboarding/steps/capture_dir_step.dart",
       "fixed": false,
       "needsOwnerDecision": true
     },
@@ -105,7 +105,7 @@
       "severity": "P3",
       "title": "The star-chart depth notice is permanent and undismissable, and its only action is one most users cannot complete",
       "detail": "Live: at FOV 3.1 deg the chart shows 'Chart is shallower than the sky ... No deep-star tileset is published; it must be self-hosted.' with a single 'Configure' button and no close control (shot depth.png). Zooming to an imaging-scale field is the normal thing to do for framing and guide-star checks, so the banner occupies the top-left of the chart for the entire session, every session, and the remedy it points at is 'build a tileset with tools/catalog_prep and host it yourself'. The honesty is right; the permanence is the problem. Options: (a) dismissible for the session, (b) dismissible per profile with a 'don't show again', (c) shrink to a one-line chip in the chart's status strip after first acknowledgement, (d) leave as-is until a tileset is actually published. This changes how loudly the app talks about its own limits, so it is not mine to decide.",
-      "location": "packages/nightshade_app/lib/screens/planetarium/widgets/star_chart_depth_notice.dart",
+      "location": "packages/skotiq_app/lib/screens/planetarium/widgets/star_chart_depth_notice.dart",
       "fixed": false,
       "needsOwnerDecision": true
     },
@@ -114,7 +114,7 @@
       "severity": "P4",
       "title": "Coordinate-lookup results open below the fold in the sequencer Properties panel",
       "detail": "Live at the app's 1600x900 window: on a freshly added Target node the 'Look up coordinates' button sits near the bottom of the Properties scroll, and the result list (maxHeight 190) renders under the status bar - the first row is visible and the second is cut in half (shot lookup.png), with no scroll-into-view. Pressing the button reads as 'something appeared, mostly off-screen'. Up to 12 catalog matches can be returned and 1.5 of them are visible.",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/target_node_properties/coordinate_lookup.dart",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/target_node_properties/coordinate_lookup.dart",
       "fixed": false,
       "needsOwnerDecision": false
     },
@@ -123,7 +123,7 @@
       "severity": "P4",
       "title": "Lookup result rows throw away the object type and catalog id they already carry",
       "detail": "Live: searching 'M31' in the sequencer Target editor returns two rows - 'M31' and 'M3' - and each shows nothing but a name and coordinates. TargetCoordinateMatch already carries objectType and catalogId from the same query; neither reaches the ListTile. The co-imaging sheet's copy of the list has the same shape ('M42' + 'M4', degrees only). For M31-vs-M3 the coordinates disambiguate; for a name that matches several NGC/IC/Sh2 entries, type and catalog id are exactly what tells them apart, and picking the wrong row silently retargets the sequence.",
-      "location": "packages/nightshade_app/lib/screens/sequencer/widgets/target_node_properties/coordinate_lookup.dart",
+      "location": "packages/skotiq_app/lib/screens/sequencer/widgets/target_node_properties/coordinate_lookup.dart",
       "fixed": false,
       "needsOwnerDecision": false
     },
@@ -132,7 +132,7 @@
       "severity": "P4",
       "title": "The frame inspector cannot step to the next frame, and its file path is inert",
       "detail": "Live: the Analytics frame detail dialog's only controls are 'Flag as poor quality' and 'Close' (a11y tree + shot framedlg.png). Reviewing a night therefore means close, tap the next thumbnail, read, close - once per frame, for however many hundred the night produced, with the strip scrolling underneath. The File row prints the full path as plain text; clicking it produced no clipboard or reveal feedback of any kind.",
-      "location": "packages/nightshade_app/lib/screens/analytics/widgets/frame_detail_dialog.dart",
+      "location": "packages/skotiq_app/lib/screens/analytics/widgets/frame_detail_dialog.dart",
       "fixed": false,
       "needsOwnerDecision": false
     },
@@ -141,7 +141,7 @@
       "severity": "P4",
       "title": "The onboarding step rail is not clickable, even for steps already completed",
       "detail": "Live: at Step 10 of 13 with steps 1-9 ticked, clicking 'Camera' in the left rail did nothing (still Step 10). The rail lists all 13 steps with completion ticks and reads exactly like navigation, but the only way back to a finished step is pressing Back repeatedly. Found while sweeping capture_dir_step; the rail itself belongs to onboarding_screen.dart.",
-      "location": "packages/nightshade_app/lib/screens/onboarding/onboarding_screen.dart (step rail)",
+      "location": "packages/skotiq_app/lib/screens/onboarding/onboarding_screen.dart (step rail)",
       "fixed": false,
       "needsOwnerDecision": false
     }

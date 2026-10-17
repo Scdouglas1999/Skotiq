@@ -1,12 +1,12 @@
-# Nightshade User Documentation
+# Skotiq User Documentation
 
-Welcome to the Nightshade user documentation. Use these guides to install,
-configure, and operate Nightshade within the platform and hardware scope listed
+Welcome to the Skotiq user documentation. Use these guides to install,
+configure, and operate Skotiq within the platform and hardware scope listed
 for the release candidate you are testing.
 
-## What is Nightshade?
+## What is Skotiq?
 
-Nightshade is an astrophotography application for controlling cameras,
+Skotiq is an astrophotography application for controlling cameras,
 mounts, focusers, and related observatory equipment where the release package
 and connected driver backend support those capabilities. Built with Flutter and
 Rust, it is designed for desktop imaging workflows, with platform support
@@ -31,7 +31,7 @@ limited by the artifacts and hardware evidence published for each release.
 
 ## Getting Started
 
-New to Nightshade? Start here:
+New to Skotiq? Start here:
 
 ### Installation and Setup
 
@@ -78,7 +78,7 @@ New to Nightshade? Start here:
 
 ## Feature Guides
 
-Master Nightshade's powerful features:
+Master Skotiq's powerful features:
 
 ### Core Imaging
 
@@ -158,7 +158,7 @@ Master Nightshade's powerful features:
 
 ### Connection Protocols
 
-Nightshade supports multiple ways to connect to your equipment:
+Skotiq supports multiple ways to connect to your equipment:
 
 | Protocol | Best For | Platform | Requirements |
 |----------|----------|----------|--------------|
@@ -317,7 +317,7 @@ Imaging:
 - [Plate Solving Fails](troubleshooting/common-issues.md#plate-solving-fails)
 
 Application:
-- [Nightshade Won't Start](troubleshooting/common-issues.md#nightshade-wont-start)
+- [Skotiq Won't Start](troubleshooting/common-issues.md#skotiq-wont-start)
 - [Application Crashes](troubleshooting/common-issues.md#application-crashes-during-use)
 - [Slow Performance](troubleshooting/common-issues.md#slow-performance--ui-lag)
 
@@ -346,12 +346,12 @@ Application:
 ### Community and Support
 
 - **Documentation**: You're reading it!
-- **GitHub**: https://github.com/Scdouglas1999/Nightshade
-- **Issues**: https://github.com/Scdouglas1999/Nightshade/issues
+- **GitHub**: https://github.com/Scdouglas1999/Skotiq
+- **Issues**: https://github.com/Scdouglas1999/Skotiq/issues
 
 ### Developer Resources
 
-Building plugins or contributing to Nightshade?
+Building plugins or contributing to Skotiq?
 
 - [API Documentation](api/README.md)
 - [Plugin Development Guide](api/plugin-api.md)
@@ -359,7 +359,7 @@ Building plugins or contributing to Nightshade?
 
 ## What's New in 2.0
 
-Coming from Nightshade 1.x? Here's what's new:
+Coming from Skotiq 1.x? Here's what's new:
 
 - **Complete Rewrite**: Modern Flutter/Rust architecture
 - **Platform-Scoped Builds**: Desktop and mobile artifacts are documented per
@@ -388,7 +388,7 @@ We value your feedback!
 
 ## About
 
-Nightshade is developed by astrophotographers for the astrophotography
+Skotiq is developed by astrophotographers for the astrophotography
 community. Its public release scope is intentionally conservative: use the
 release notes, support matrix, and known limitations to decide which workflows
 are supported by the artifact you install.

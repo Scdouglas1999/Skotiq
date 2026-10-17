@@ -9,7 +9,7 @@ const _defaultMarkdownOutputPath =
 const _requiredFiles = <_RequiredFile>[
   _RequiredFile(
     path:
-        'packages/nightshade_core/lib/src/models/backend/platform_capabilities.dart',
+        'packages/skotiq_core/lib/src/models/backend/platform_capabilities.dart',
     label: 'Platform capability model',
     requiredText: [
       "backend: 'ascom'",
@@ -27,7 +27,7 @@ const _requiredFiles = <_RequiredFile>[
   ),
   _RequiredFile(
     path:
-        'packages/nightshade_core/test/models/platform_capabilities_test.dart',
+        'packages/skotiq_core/test/models/platform_capabilities_test.dart',
     label: 'Platform capability model tests',
     requiredText: [
       'marks ASCOM COM as Windows-only',
@@ -112,7 +112,7 @@ const _requiredFiles = <_RequiredFile>[
   ),
   _RequiredFile(
     path:
-        'packages/nightshade_app/lib/screens/equipment/widgets/backend_selector_chips.dart',
+        'packages/skotiq_app/lib/screens/equipment/widgets/backend_selector_chips.dart',
     label: 'Backend selector platform gating',
     requiredText: [
       'unsupportedBackendReasonFor',
@@ -124,7 +124,7 @@ const _requiredFiles = <_RequiredFile>[
   ),
   _RequiredFile(
     path:
-        'packages/nightshade_app/test/screens/equipment/backend_selector_chips_test.dart',
+        'packages/skotiq_app/test/screens/equipment/backend_selector_chips_test.dart',
     label: 'Backend selector platform gating tests',
     requiredText: [
       'unsupportedBackendReasonFor gates ASCOM COM off Linux',
@@ -137,7 +137,7 @@ const _requiredFiles = <_RequiredFile>[
   ),
   _RequiredFile(
     path:
-        'packages/nightshade_app/lib/screens/settings/widgets/connection_settings.dart',
+        'packages/skotiq_app/lib/screens/settings/widgets/connection_settings.dart',
     label: 'Settings platform capability view',
     requiredText: [
       'PlatformCapabilityMatrix.forPlatform(Platform.operatingSystem)',
@@ -153,7 +153,7 @@ const _requiredFiles = <_RequiredFile>[
   ),
   _RequiredFile(
     path:
-        'packages/nightshade_app/test/screens/settings/platform_capabilities_settings_test.dart',
+        'packages/skotiq_app/test/screens/settings/platform_capabilities_settings_test.dart',
     label: 'Settings platform capability tests',
     requiredText: [
       'Connection settings render release-scoped platform capabilities',

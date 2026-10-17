@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-const _scanRoots = <String>['apps', 'packages', 'native/nightshade_native'];
+const _scanRoots = <String>['apps', 'packages', 'native/skotiq_native'];
 const _defaultHitsPath = '.audit_hits.txt';
 const _defaultHighRiskPath = '.audit_highrisk.txt';
 const _defaultAllowlistPath =
@@ -32,7 +32,7 @@ const _allowedExtensions = <String>{
 };
 
 // Excluded directory NAMES anchored to path-segment boundaries (NOT substring
-// matches), so a production module at packages/nightshade_test_utils/lib/...
+// matches), so a production module at packages/skotiq_test_utils/lib/...
 // is not skipped for merely carrying a `/test/`-like fragment in its path.
 const _excludedDirectoryNames = <String>{
   '.dart_tool',
@@ -57,7 +57,7 @@ const _excludedSubstrings = <String>['/frb_generated.'];
 final _runtimePathPatterns = <RegExp>[
   RegExp(r'^apps/[^/]+/lib/'),
   RegExp(r'^packages/[^/]+/lib/'),
-  RegExp(r'^native/nightshade_native(?:/[^/]+)+/src/'),
+  RegExp(r'^native/skotiq_native(?:/[^/]+)+/src/'),
 ];
 
 final _markerPattern = RegExp(
@@ -387,7 +387,7 @@ bool _isRuntimePath(String path) {
 bool _shouldSkip(String normalizedPath) {
   // Directory-name match: only path SEGMENTS named exactly "test" / "example"
   // / etc. are excluded. Production modules whose paths happen to contain
-  // those words as a substring (e.g., `nightshade_test_utils`) are scanned.
+  // those words as a substring (e.g., `skotiq_test_utils`) are scanned.
   final segments = normalizedPath.split('/');
   for (final segment in segments) {
     if (_excludedDirectoryNames.contains(segment)) {

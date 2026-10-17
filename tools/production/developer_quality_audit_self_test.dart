@@ -11,7 +11,7 @@ Future<void> main() async {
   }
 
   final temp = await Directory.systemTemp.createTemp(
-    'nightshade_developer_quality_audit_self_test_',
+    'skotiq_developer_quality_audit_self_test_',
   );
   try {
     await _writePassingFixture(temp);
@@ -227,7 +227,7 @@ Future<void> _writeFailingFixture(Directory root) async {
   );
   await _writeFile(
     root,
-    'packages/nightshade_core/lib/src/services/logging_service.dart',
+    'packages/skotiq_core/lib/src/services/logging_service.dart',
     'class LoggingService {}',
   );
 }
@@ -235,7 +235,7 @@ Future<void> _writeFailingFixture(Directory root) async {
 Future<void> _writeStructuredLoggingFixture(Directory root) async {
   await _writeFile(
     root,
-    'packages/nightshade_core/lib/src/services/logging_service.dart',
+    'packages/skotiq_core/lib/src/services/logging_service.dart',
     '''
 class LogEntry {
   final Map<String, Object?> fields;
@@ -248,7 +248,7 @@ void log(String message, {Map<String, Object?>? fields}) {
   );
   await _writeFile(
     root,
-    'packages/nightshade_core/test/services/logging_service_test.dart',
+    'packages/skotiq_core/test/services/logging_service_test.dart',
     '''
 void main() {
   // records structured fields on log entries
@@ -269,7 +269,7 @@ void logRequest() {
 ''');
   await _writeFile(
     root,
-    'packages/nightshade_core/lib/src/backend/network_backend.dart',
+    'packages/skotiq_core/lib/src/backend/network_backend.dart',
     '''
 class _NetworkBackendTransport {
   static const _requestIdHeader = 'x-request-id';

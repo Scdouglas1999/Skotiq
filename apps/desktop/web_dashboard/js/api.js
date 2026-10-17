@@ -1,5 +1,5 @@
 /**
- * Nightshade Headless API Client
+ * Skotiq Headless API Client
  *
  * Wraps all REST and WebSocket endpoints exposed by the headless server.
  * Handles authentication, request retries, and event streaming.
@@ -37,10 +37,10 @@
  *                   panel may render a positive state off the back of it. Same
  *                   kind, and the same stance, as web_run_watch/js/run-watch.js.
  */
-class NightshadeApiError extends Error {
+class SkotiqApiError extends Error {
   constructor(kind, message, detail) {
     super(message);
-    this.name = 'NightshadeApiError';
+    this.name = 'SkotiqApiError';
     this.kind = kind;
     this.detail = detail || {};
     if (this.detail.retryAfterSecs != null) {
@@ -50,7 +50,7 @@ class NightshadeApiError extends Error {
   }
 }
 
-class NightshadeApi {
+class SkotiqApi {
   constructor() {
     this._baseUrl = '';
     this._authToken = '';
@@ -76,7 +76,7 @@ class NightshadeApi {
     // tricked the browser into sending the cookie ambient-style.
     this._csrfToken = '';
     // When true, fetches include the session cookie via
-    // `credentials: 'include'` AND echo `X-Nightshade-CSRF` on writes.
+    // `credentials: 'include'` AND echo `X-Skotiq-CSRF` on writes.
     // Toggled on after a successful POST /api/auth/cookie OR when the
     // server confirms a pre-existing session via GET /api/auth/csrf.
     this._useSessionCookie = false;
@@ -179,7 +179,7 @@ class NightshadeApi {
   _headers(extraHeaders, method) {
     const h = {
       'Content-Type': 'application/json',
-      'X-Nightshade-API-Version': this._apiVersion,
+      'X-Skotiq-API-Version': this._apiVersion,
       'X-Request-ID': this._nextRequestId(),
       ...extraHeaders,
     };
@@ -198,10 +198,10 @@ class NightshadeApi {
     // read-only methods because cross-site GET can't mutate state).
     if (this._useSessionCookie && this._csrfToken &&
         method && method !== 'GET' && method !== 'HEAD') {
-      h['X-Nightshade-CSRF'] = this._csrfToken;
+      h['X-Skotiq-CSRF'] = this._csrfToken;
     }
     if (this._deviceId) {
-      h['X-Nightshade-Device-Id'] = this._deviceId;
+      h['X-Skotiq-Device-Id'] = this._deviceId;
     }
     return h;
   }
@@ -230,7 +230,7 @@ class NightshadeApi {
   async _request(method, path, body, timeoutMs) {
     const waiting = this.rateLimitRemainingSecs;
     if (waiting > 0) {
-      throw new NightshadeApiError(
+      throw new SkotiqApiError(
         'rate_limited',
         'Server is rate-limiting this session',
         { retryAfterSecs: waiting, method, path },
@@ -262,13 +262,13 @@ class NightshadeApi {
       });
     } catch (e) {
       if (e && e.name === 'AbortError') {
-        throw new NightshadeApiError(
+        throw new SkotiqApiError(
           'timeout',
           method + ' ' + path + ' timed out',
           { method, path },
         );
       }
-      throw new NightshadeApiError(
+      throw new SkotiqApiError(
         'unreachable',
         method + ' ' + path + ' could not reach the server',
         { method, path, cause: e },
@@ -280,12 +280,12 @@ class NightshadeApi {
     this._lastContactAt = Date.now();
     const text = await resp.text();
     if (resp.status === 429) {
-      const secs = NightshadeApi._retryAfterSecsFrom(resp, text);
+      const secs = SkotiqApi._retryAfterSecsFrom(resp, text);
       this._rateLimitedUntil = Date.now() + secs * 1000;
       // The body is deliberately not carried into the message: a rate-limit
       // refusal is a cadence problem, and pasting its JSON into the operator's
       // log panel taught nobody anything.
-      throw new NightshadeApiError(
+      throw new SkotiqApiError(
         'rate_limited',
         'Server is rate-limiting this session',
         { retryAfterSecs: secs, method, path },
@@ -293,15 +293,15 @@ class NightshadeApi {
     }
     this._rateLimitedUntil = 0;
     if (!resp.ok) {
-      const scope = NightshadeApi._scopeRefusalFrom(resp.status, text);
+      const scope = SkotiqApi._scopeRefusalFrom(resp.status, text);
       if (scope) {
-        throw new NightshadeApiError(
+        throw new SkotiqApiError(
           'scope_denied',
           method + ' ' + path + ' is not permitted for this credential',
           Object.assign({ status: resp.status, method, path }, scope),
         );
       }
-      throw new NightshadeApiError(
+      throw new SkotiqApiError(
         'http_error',
         method + ' ' + path + ' failed (' + resp.status + '): ' + text,
         { status: resp.status, method, path, body: text },
@@ -317,7 +317,7 @@ class NightshadeApi {
     // frames. The sibling client already refuses this shape; this is that
     // refusal, here.
     if (!text) {
-      throw new NightshadeApiError(
+      throw new SkotiqApiError(
         'unusable_answer',
         method + ' ' + path + ' answered ' + resp.status +
           ' with an empty body',
@@ -328,7 +328,7 @@ class NightshadeApi {
     try {
       payload = JSON.parse(text);
     } catch (_) {
-      throw new NightshadeApiError(
+      throw new SkotiqApiError(
         'bad_json',
         method + ' ' + path + ' returned invalid JSON',
         { method, path },
@@ -350,10 +350,10 @@ class NightshadeApi {
     // (`web_run_watch/js/run-watch.js` `applySnapshot`); this is that refusal,
     // here.
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-      throw new NightshadeApiError(
+      throw new SkotiqApiError(
         'unusable_answer',
         method + ' ' + path + ' answered ' + resp.status + ' and ' +
-          NightshadeApi.describeWireValue(payload),
+          SkotiqApi.describeWireValue(payload),
         { status: resp.status, method, path },
       );
     }
@@ -394,11 +394,11 @@ class NightshadeApi {
       });
     } catch (e) {
       if (e && e.name === 'AbortError') {
-        throw new NightshadeApiError('timeout', 'GET ' + path + ' timed out', {
+        throw new SkotiqApiError('timeout', 'GET ' + path + ' timed out', {
           path,
         });
       }
-      throw new NightshadeApiError(
+      throw new SkotiqApiError(
         'unreachable',
         'GET ' + path + ' could not reach the server',
         { path, cause: e },
@@ -408,9 +408,9 @@ class NightshadeApi {
     }
     this._lastContactAt = Date.now();
     if (resp.status === 429) {
-      const secs = NightshadeApi._retryAfterSecsFrom(resp, await resp.text());
+      const secs = SkotiqApi._retryAfterSecsFrom(resp, await resp.text());
       this._rateLimitedUntil = Date.now() + secs * 1000;
-      throw new NightshadeApiError(
+      throw new SkotiqApiError(
         'rate_limited',
         'Server is rate-limiting this session',
         { retryAfterSecs: secs, path },
@@ -419,7 +419,7 @@ class NightshadeApi {
     this._rateLimitedUntil = 0;
     if (!resp.ok) {
       const text = await resp.text();
-      throw new NightshadeApiError(
+      throw new SkotiqApiError(
         'http_error',
         'GET ' + path + ' failed (' + resp.status + '): ' + text,
         { status: resp.status, path, body: text },
@@ -1271,7 +1271,7 @@ class NightshadeApi {
   /// as run-watch SSE).
   subscribeLogTail(minSeverity, onEntry, onError, onReplayDone) {
     const q = [];
-    const severities = NightshadeApi.logSeveritiesAtOrAbove(minSeverity);
+    const severities = SkotiqApi.logSeveritiesAtOrAbove(minSeverity);
     if (severities.length) {
       q.push('severity=' + encodeURIComponent(severities.join(',')));
     }
@@ -1313,7 +1313,7 @@ class NightshadeApi {
   /// every entry, rather than a silently narrowed stream the operator did not
   /// ask for.
   static logSeveritiesAtOrAbove(minSeverity) {
-    const levels = NightshadeApi.logLevels;
+    const levels = SkotiqApi.logLevels;
     const at = levels.indexOf(String(minSeverity || '').toLowerCase());
     return at < 0 ? [] : levels.slice(at);
   }
@@ -1592,7 +1592,7 @@ class NightshadeApi {
    * Exchange the current bearer token for an HttpOnly session cookie + CSRF
    * token. The server sets `Set-Cookie` with HttpOnly,
    * Secure, SameSite=Strict; the cookie value never enters JS. The returned
-   * CSRF token is stashed in memory and echoed via `X-Nightshade-CSRF` on
+   * CSRF token is stashed in memory and echoed via `X-Skotiq-CSRF` on
    * every subsequent write.
    *
    * After this call the API client switches to the cookie path: the bearer
@@ -1883,4 +1883,4 @@ class NightshadeApi {
 }
 
 // Singleton instance
-const api = new NightshadeApi();
+const api = new SkotiqApi();

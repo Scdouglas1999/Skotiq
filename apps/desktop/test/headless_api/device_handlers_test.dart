@@ -4,10 +4,10 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightshade_bridge/nightshade_bridge.dart' as bridge;
-import 'package:nightshade_core/nightshade_core.dart';
-import 'package:nightshade_desktop/headless_api/handlers/device_handlers.dart';
-import 'package:nightshade_desktop/headless_api/validation.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
+import 'package:skotiq_desktop/headless_api/validation.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -29,7 +29,7 @@ class _CancelledExposureBackend implements DeviceBackend {
   }) async {
     // This is the exact wrapper emitted by the live NetworkBackend after the
     // native camera reports an operator abort.
-    throw const bridge.NightshadeError.operationFailed('Exposure cancelled');
+    throw const bridge.SkotiqError.operationFailed('Exposure cancelled');
   }
 
   @override
@@ -94,14 +94,14 @@ DeviceInfo _registryFocuser(String id) => DeviceInfo(
 class _BusyFocuserBackend implements DeviceBackend {
   @override
   Future<void> focuserMoveTo(String deviceId, int position) async {
-    throw const bridge.NightshadeError.operationFailed(
+    throw const bridge.SkotiqError.operationFailed(
       'Failed to call method Move: Move Failure',
     );
   }
 
   @override
   Future<void> focuserMoveRelative(String deviceId, int delta) async {
-    throw const bridge.NightshadeError.operationFailed(
+    throw const bridge.SkotiqError.operationFailed(
       'Failed to call method Move: Move Failure',
     );
   }
@@ -137,7 +137,7 @@ void main() {
   group('DeviceHandlers', () {
     late Directory loggerTempDir;
     late LoggingService logger;
-    late NightshadeDatabase db;
+    late SkotiqDatabase db;
     late ProviderContainer container;
     late DeviceHandlers handlers;
 
@@ -152,7 +152,7 @@ void main() {
         currentLogFileProvider: () => null,
       );
       await logger.ensureInitialized();
-      db = NightshadeDatabase.forTesting(NativeDatabase.memory());
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
 
       container = ProviderContainer(
         overrides: [
@@ -593,7 +593,7 @@ void main() {
       test("the driver's own noImageAvailable answers the same", () async {
         await expectScopedRefusal(
           await lastImageJpeg(
-            raise: const bridge.NightshadeError.noImageAvailable(),
+            raise: const bridge.SkotiqError.noImageAvailable(),
           ),
         );
       });
@@ -602,7 +602,7 @@ void main() {
         'any other backend failure keeps its own status and words',
         () async {
           final response = await lastImageJpeg(
-            raise: const bridge.NightshadeError.notConnected('cam-1'),
+            raise: const bridge.SkotiqError.notConnected('cam-1'),
           );
 
           expect(

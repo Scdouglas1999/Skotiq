@@ -3,7 +3,7 @@
 ## Item 1 — BUG: Dart `.wcs` parser splits on newlines only (DONE)
 
 Failing test written first:
-`packages/nightshade_core/test/services/plate_solve_service_test.dart`
+`packages/skotiq_core/test/services/plate_solve_service_test.dart`
 group `.wcs is a raw FITS header, not a text file`:
 - `_parseWcsFile reads a terminator-free ASTAP header` — a 13-card, 1040-char
   header with no line terminators.
@@ -15,7 +15,7 @@ terminator-free case. The newline case passed, as expected.
 
 Fix: added `_fitsHeaderCards(String)` to `plate_solve_service.dart` (newlines
 first via `LineSplitter`, then 80-char card split on any longer segment),
-ported from `native/nightshade_native/imaging/src/platesolve.rs`
+ported from `native/skotiq_native/imaging/src/platesolve.rs`
 `fits_header_cards`. `_parseWcsFile` iterates cards instead of
 `content.split('\n')`.
 
@@ -129,7 +129,7 @@ guide camera's completion really did drive the download in mid-exposure.
 
 ## Verification summary
 
-All run from `packages/nightshade_core`:
+All run from `packages/skotiq_core`:
 
 | Suite | Result |
 |---|---|
@@ -217,7 +217,7 @@ switch is exhaustive over the two remaining arms, and the two headless handlers
 that resolve the type by string (`framing_handlers.dart`,
 `planetarium_handlers.dart`) analyze clean.
 
-**Suites re-run on this pass** (all from `packages/nightshade_core`):
+**Suites re-run on this pass** (all from `packages/skotiq_core`):
 
 | Command | Result |
 |---|---|

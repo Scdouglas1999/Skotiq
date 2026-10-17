@@ -1,5 +1,5 @@
 /*
- * Nightshade Run-Watch — service worker.
+ * Skotiq Run-Watch — service worker.
  *
  * Responsibilities:
  *
@@ -19,7 +19,7 @@
  */
 'use strict';
 
-const CACHE_VERSION = 'nightshade-run-watch-v1';
+const CACHE_VERSION = 'skotiq-run-watch-v1';
 const SHELL_FILES = [
   '/run-watch/',
   '/run-watch/index.html',
@@ -98,16 +98,16 @@ self.addEventListener('push', (event) => {
   let payload = {};
   if (event.data) {
     try { payload = event.data.json(); }
-    catch { payload = { title: 'Nightshade', body: event.data.text() }; }
+    catch { payload = { title: 'Skotiq', body: event.data.text() }; }
   }
-  const title = payload.title || 'Nightshade';
+  const title = payload.title || 'Skotiq';
   const body = payload.body || payload.message || '';
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
       icon: '/run-watch/icons/icon-192.svg',
       badge: '/run-watch/icons/icon-192.svg',
-      tag: payload.eventType || 'nightshade',
+      tag: payload.eventType || 'skotiq',
       data: payload,
       vibrate: [200, 80, 200],
       requireInteraction: payload.severity === 'critical',

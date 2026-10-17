@@ -8,7 +8,7 @@
   "what_happened": "The five 'Best Targets Tonight' on 2026-08-02 at 40N/105W were IC311, NGC5311, NGC5313, IC4155 and NGC6685 - all listed at '90 deg', with transit times 09:24, 19:58, 19:59, 19:13 and 00:48. The same panel, six rows above, states Sunset 22:16 and Sunrise 07:56 and Astro Dusk 00:00 / Astro Dawn 06:12. So four of the five 'best targets tonight' reach their best moment in broad daylight, and the panel says so on its own face. The tooltip is honest about why - 'Objects sorted by transit altitude (>30 deg)' - but that sort has two further consequences: (a) it is maximised at declination = latitude, so the whole list is objects that pass through the ZENITH, which is the one place a German equatorial cannot track through and an alt-az mount cannot slew through; (b) it ignores the Moon entirely, and the panel three rows above says the Moon is 84% Waning Gibbous, so five faint galaxies are the worst possible choice for this night. The app grades these targets itself and disagrees: selecting NGC6685 and opening the sidebar's Info tab shows a score badge of '20 - Poor', for an object the Tonight tab has just called one of the five best targets tonight. It is a magnitude 14.6 galaxy 0.9' x 0.7' across.",
   "expected": "Rank by integration hours available inside astronomical darkness above a user altitude floor, then break ties with moon separation and object brightness/size. NINA's Sky Atlas and the ASIAIR both filter to the dark window by default; SGP's framing/target list at minimum shows the visible-hours bar. A minimum of: drop anything whose transit is outside the dark window, and show 'X.Xh above 30 deg in darkness' instead of a peak altitude that every dec-40 object shares.",
   "repro": "Plan Tonight > Planetarium > right sidebar > Tonight tab > scroll to 'Best Targets Tonight' and compare the transit times against the Evening/Morning Twilight table in the same panel.",
-  "where": "packages/nightshade_planetarium/lib/src/providers/planetarium_providers/mosaic_targets.dart:190",
+  "where": "packages/skotiq_planetarium/lib/src/providers/planetarium_providers/mosaic_targets.dart:190",
   "location_wrong": null,
   "proposed_fix": "Score on darkness-window integration time with a moon-separation penalty (the repo already has _scoreMoonDistance in planning/target_scoring.dart - reuse it), and surface hours-in-darkness rather than peak altitude.",
   "verdict_reasoning": null
@@ -22,7 +22,7 @@
   "what_happened": "The planetarium command bar renders a hardcoded '\u2318K' chip next to Search on every platform. On the Linux desktop build this is the Apple Command glyph on a machine that has no Command key; the handler itself accepts either Meta or Control. The same chip is drawn in the plan panel's search field.",
   "expected": "Show 'Ctrl+K' on Linux/Windows and '\u2318K' only on macOS.",
   "repro": "Plan Tonight > Planetarium on Linux; look at the Search control in the command bar and at the search field in the right panel.",
-  "where": "packages/nightshade_app/lib/screens/planetarium/widgets/redesign/command_bar.dart:193",
+  "where": "packages/skotiq_app/lib/screens/planetarium/widgets/redesign/command_bar.dart:193",
   "location_wrong": null,
   "proposed_fix": "Switch the literal on defaultTargetPlatform.",
   "verdict_reasoning": null
@@ -36,7 +36,7 @@
   "what_happened": "Typing '6720' - an unambiguous NGC designation - returns '175 results'. M57/NGC6720 is ranked first, which is right, but positions 2-6 are NGC7107, IC728, NGC7112, IC5118 and IC59, none of which contain the string '6720' in any designation, plus 169 stars. Selecting the wrong one silently moves the whole chart. There is no way to say 'exact match only', and no visible ordering rule that would let a user predict what they are about to click.",
   "expected": "Exact designation matches first with a visible 'exact' section, then prefix matches, then fuzzy - and cap the fuzzy tail. NINA's object search and the ASIAIR both resolve an exact catalogue ID with a single hit. Also worth noting: the empty-state hint says 'Try \"M42\", \"Andromeda Galaxy\", or \"Sirius\"' which promises name search, but reaching the field at all needs three clicks (see the Search-button finding) and typing letters into it is broken by the view hotkeys (see the hotkey finding), so in practice the digits-only path is the only one that works.",
   "repro": "Plan Tonight > Planetarium > right panel > Search tab > click the field > type 6720.",
-  "where": "packages/nightshade_app/lib/screens/planetarium/widgets/mobile_widgets/search_sheet.dart",
+  "where": "packages/skotiq_app/lib/screens/planetarium/widgets/mobile_widgets/search_sheet.dart",
   "location_wrong": null,
   "proposed_fix": "Rank exact designation > prefix > substring > fuzzy, section the list by match quality, and stop counting the fuzzy tail in the headline number.",
   "verdict_reasoning": null
@@ -50,7 +50,7 @@
   "what_happened": "At a 2.0 deg field centred on M57 the chart drew about 25 stars across the whole 3.8 x 2.0 deg canvas - roughly 3 stars per square degree, the bundled HYG catalog's depth. Turning on Layers > 'Survey imagery (DSS, below 8 deg)', which ships OFF, filled the same field with real Digitized Sky Survey imagery in about 6 seconds and turned an empty grey rectangle into something you could actually frame a target against. The toggle is three clicks deep (command bar > Layers > scroll) and its label does not hint that it is the difference between a usable and an unusable imaging field.",
   "expected": "For an app whose planetarium exists to plan and frame astrophotography, DSS should be ON by default at the FOVs where the star catalog runs out (the layer already self-limits to below 8 deg, so it costs nothing at naked-eye zooms), or the app should offer it the first time the user zooms past the catalog's depth. NINA's framing assistant and Telescopius both default to survey imagery at framing scale for exactly this reason.",
   "repro": "Plan Tonight > Planetarium > zoom to 2 deg > count the stars > command bar > Layers > toggle 'Survey imagery (DSS, below 8 deg)'.",
-  "where": "packages/nightshade_app/lib/screens/planetarium/widgets/redesign/layers_panel.dart",
+  "where": "packages/skotiq_app/lib/screens/planetarium/widgets/redesign/layers_panel.dart",
   "location_wrong": null,
   "proposed_fix": "Default the survey layer on (it is already gated to FOV < 8 deg), and keep a one-line 'uses network' note in the panel.",
   "verdict_reasoning": null
@@ -64,7 +64,7 @@
   "what_happened": "Opening a newly created region shows a title bar ('Ring Region') and then a single card that fills the entire 1600x900 window with flat background and one small grey glyph in the middle - no text, no 'nothing imaged here yet', no action. Only after scrolling does the screen reveal the coordinates line '18h 54m . +33 02' . r 0.50', the hint 'Image this region across more nights to scrub it through time.', a 'Contributing frames' section reading 'No folds at this point in time.', and a 'Deepening over time' chart. The parent Your Sky screen gets this right ('Your sky is dark - for now' plus an explanation and a button); the detail screen does not.",
   "expected": "Put the empty-state message inside the preview card, and size the preview so at least the coordinate line and the contributing-frames section are visible without scrolling on a standard desktop window.",
   "repro": "Plan Tonight > Discover > Your Sky > create a region > click its card.",
-  "where": "packages/nightshade_app/lib/screens/your_sky/region_detail_screen.dart",
+  "where": "packages/skotiq_app/lib/screens/your_sky/region_detail_screen.dart",
   "location_wrong": null,
   "proposed_fix": "Give the preview a max height and an empty-state label.",
   "verdict_reasoning": null

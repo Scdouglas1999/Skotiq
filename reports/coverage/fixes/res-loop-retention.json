@@ -3,16 +3,16 @@
   "outcome": "fixed",
   "summary": "Dashboard Capture card's Loop now runs ImagingService.startLoopCapture(saveFrames:false) instead of the keeper-only captureImage, and the migration is now actually exercised: the previous pass had left it untested and it had silently broken 2 existing tests, so it had never run.",
   "files_changed": [
-    "packages/nightshade_app/lib/screens/dashboard/widgets/capture_settings_card.dart",
-    "packages/nightshade_app/test/screens/dashboard/capture_settings_card_test.dart",
-    "packages/nightshade_app/test/screens/dashboard/capture_card_loop_retention_test.dart"
+    "packages/skotiq_app/lib/screens/dashboard/widgets/capture_settings_card.dart",
+    "packages/skotiq_app/test/screens/dashboard/capture_settings_card_test.dart",
+    "packages/skotiq_app/test/screens/dashboard/capture_card_loop_retention_test.dart"
   ],
   "what_was_wrong_when_i_arrived": [
     "The working tree already had _toggleLoop -> _captureLoopFrame -> startLoopCapture(saveFrames:false). But `flutter test test/screens/dashboard/capture_settings_card_test.dart` failed 2/4: the spy there only overrode captureImage, so the migration had provably never been run.",
     "That spy shape is exactly the failure the brief warns about: it stubbed the keeper entry point by hand, so a Loop button that writes keepers passed and a Loop button that does not also 'passed' by never being observed."
   ],
   "root_cause_verified_in_service": [
-    "imaging_service.dart:498-509 - persistFrame:false routes to ONE reused scratch file per camera (liveview_<deviceId>.fits) under systemTemp/nightshade_captures, never the light-frame folder.",
+    "imaging_service.dart:498-509 - persistFrame:false routes to ONE reused scratch file per camera (liveview_<deviceId>.fits) under systemTemp/skotiq_captures, never the light-frame folder.",
     "imaging_service.dart:556-560 - the captured_images insert is gated on !isTempFile, so a live-view frame is never indexed and never enters session/analytics frame totals.",
     "imaging_service.dart:448-450 - capturePreviewPublisherProvider.publish() is NOT gated on persistFrame, so the dashboard live view still updates."
   ],
@@ -33,24 +33,24 @@
       "Reverted line 418 `final captured = await _captureLoopFrame(imagingService);` -> `final captured = await _captureImage();` => 4 tests FAIL (loop retention 'Loop runs the live-view path and keeps nothing' expected >=3 actual 0; 'Stop Loop remains enabled'; 'Abort sends nothing'; 'host switch stops loop'). Restored => all pass.",
       "Reverted the abort guard at line 445 to a bare `imagingService.cancelExposure();` => 'Abort sends nothing when no exposure is in flight' FAILS (Expected: false Actual: true). Restored => passes."
     ],
-    "command": "cd packages/nightshade_app && flutter test test/screens/dashboard/capture_settings_card_test.dart test/screens/dashboard/capture_card_loop_retention_test.dart  # 7/7 pass",
+    "command": "cd packages/skotiq_app && flutter test test/screens/dashboard/capture_settings_card_test.dart test/screens/dashboard/capture_card_loop_retention_test.dart  # 7/7 pass",
     "gates": "dart analyze (3 files) clean; dart format clean"
   },
   "needs_shared_change": [
     {
-      "file": "packages/nightshade_core/lib/src/services/imaging_service.dart",
+      "file": "packages/skotiq_core/lib/src/services/imaging_service.dart",
       "severity": "P1 - REQUIRED for this fix to be complete",
       "what": "startLoopCapture (line 930) must clear _cancelRequested at entry, before the while loop at line 942.",
       "patch": "insert before `while (!_cancelRequested && ...)`:\n    // A new run is not the cancelled one. cancelExposure() latches\n    // _cancelRequested and only _capture clears it -- which this loop reaches\n    // only AFTER the test below -- so the second Loop press of a session would\n    // start and end without ever exposing.\n    _cancelRequested = false;",
       "evidence": "_cancelRequested is written at only 3 places: 150 (reset inside _capture), 988 (cancelExposure), 1019 (retire). startLoopCapture has no reset. This already bites the Imaging screen TODAY: its Stop Loop calls cancelExposure() (imaging_screen_actions.dart:223), so the second Loop press there is a no-op until a single Capture happens to reset the flag. Migrating the Dashboard card to the same entry point inherits it (mitigated but not removed by my Abort guard: an Abort taken mid-exposure still latches it)."
     },
     {
-      "file": "packages/nightshade_app/lib/widgets/capture_settings_panel.dart",
+      "file": "packages/skotiq_app/lib/widgets/capture_settings_panel.dart",
       "severity": "P2 - same 27 GB/hour defect, currently latent",
       "what": "_toggleLoop (line 504) still loops _captureImage -> captureImage(settings:), i.e. the keeper path. Migrate it the same way, or delete the file: CaptureSettingsPanel has no production reference anywhere (only its own widget test), so it is dead code carrying a live defect."
     },
     {
-      "file": "packages/nightshade_core/lib/src/services/centering_service.dart",
+      "file": "packages/skotiq_core/lib/src/services/centering_service.dart",
       "severity": "P2 - adjacent instance of the same class, NOT covered by my tests",
       "what": "Lines 707 and 1066 capture plate-solve utility frames via captureImage (keeper path) with frameType: FrameType.light and targetName 'Centering' / 'Verification'. Every centering iteration therefore writes a full-size light into the operator's light-frame folder and indexes it as a light, inflating frame/integration totals with frames nobody will stack. These should go through the live-view path (or persist under a non-light classification)."
     }
@@ -58,6 +58,6 @@
   "caveats": [
     "Widget-level proof only: the tests assert which service entry point the card calls and with what retention flag. The on-disk behaviour (scratch path, no DB row) is the service's contract, verified by reading imaging_service.dart, not by a filesystem assertion in these tests.",
     "The card hardcodes saveFrames:false rather than honouring loopSavesFramesProvider. Deliberate: that provider is a session-only StateProvider that lives on the Imaging bottom banner next to a visible toggle; this card has no such control or indicator, so honouring it would let a card with no indicator silently fill the light folder.",
-    "12 other test files under test/screens/dashboard/ fail to COMPILE right now on an unrelated concurrent edit: lib/services/observing_site.dart:3 - 'TwilightTimes' imported from both nightshade_core and nightshade_planetarium. Not caused by this change (verified: the error is in a file I did not touch)."
+    "12 other test files under test/screens/dashboard/ fail to COMPILE right now on an unrelated concurrent edit: lib/services/observing_site.dart:3 - 'TwilightTimes' imported from both skotiq_core and skotiq_planetarium. Not caused by this change (verified: the error is in a file I did not touch)."
   ]
 }

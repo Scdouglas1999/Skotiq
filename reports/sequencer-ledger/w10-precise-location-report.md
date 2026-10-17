@@ -16,7 +16,7 @@ positioning service has mapped them.
 
 ## What was built
 
-### `packages/nightshade_planetarium/lib/src/services/positioning/` (new)
+### `packages/skotiq_planetarium/lib/src/services/positioning/` (new)
 
 - **`positioning_result.dart`** — `PositioningSource`
   (`platformService | wifiScan | ipAddress`), `PositioningTier`, `TierOutcome`
@@ -97,7 +97,7 @@ present:
 3. **The `_nomap` opt-out is honoured in the parser**, so an SSID that has
    asked not to be used for geolocation never enters the request at all.
 
-### `packages/nightshade_app/lib/widgets/geolocation_consent.dart`
+### `packages/skotiq_app/lib/widgets/geolocation_consent.dart`
 
 - `GeolocationConsent` (per-tier) + `geolocationConsentProvider`
   (session-scoped, never persisted) + `ensureGeolocationConsent(...)`: one
@@ -130,7 +130,7 @@ present:
 ### Onboarding → site step
 
 Same `SiteLocator` swap, same consent entry point, the same radio-off offer as
-a `NightshadeBanner` with a `Scan` action. The Estimate-from-IP offer now
+a `SkotiqBanner` with a `Scan` action. The Estimate-from-IP offer now
 passes `includeWifiScan: false`.
 
 ## Real check on this machine (brief item 6)
@@ -179,7 +179,7 @@ place you to within about 100 m. Falls back to this machine’s GPS or your
 internet address.`
 
 **Radio-off row** — title `Turn Wi-Fi on for a precise fix`, subtitle `Wi-Fi
-is switched off, so the precise scan was skipped. Nightshade will switch it
+is switched off, so the precise scan was skipped. Skotiq will switch it
 on, scan for nearby networks, and switch it back off.`, action `Scan`.
 
 **Advanced row** — title `Google Geolocation API key`, subtitle `Optional.
@@ -191,7 +191,7 @@ as the brief asked.)
 
 **Consent dialog** — title `Detect this site’s location?`, body:
 
-> Nightshade will try these in order and stop as soon as one of them places
+> Skotiq will try these in order and stop as soon as one of them places
 > you precisely:
 >
 > • This device’s own location service, if it has one. Nothing leaves the
@@ -299,27 +299,27 @@ Real-machine experiment (item 6; the only permitted state change):
 
 Verification:
 
-- `dart format --output=none --set-exit-if-changed packages/nightshade_app
-  packages/nightshade_core packages/nightshade_ui` → EXIT=1, 41 files changed
+- `dart format --output=none --set-exit-if-changed packages/skotiq_app
+  packages/skotiq_core packages/skotiq_ui` → EXIT=1, 41 files changed
   — ALL pre-existing drift in files I did not touch (`ip_geolocation.dart`,
-  `nightshade_tooltip.dart`, …); identical count and membership to W9's
+  `skotiq_tooltip.dart`, …); identical count and membership to W9's
   report. Zero of my touched files appear. Scoped to my files: 0 changed.
-- `cd packages/nightshade_planetarium && dart analyze` → 9 issues, EXIT=0.
+- `cd packages/skotiq_planetarium && dart analyze` → 9 issues, EXIT=0.
   All pre-existing `deprecated_member_use` infos in `test/time_*`; zero in
   `services/` or the positioning files (`dart analyze lib/src/services` →
   "No issues found!", EXIT=0).
-- `cd packages/nightshade_app && dart analyze` → 891 issues, EXIT=2. Identical
+- `cd packages/skotiq_app && dart analyze` → 891 issues, EXIT=2. Identical
   count to W9's report on the same base; `grep -icE
   'geolocation|location_settings|site_step'` over the output = **0**.
-- `cd packages/nightshade_planetarium && flutter test
+- `cd packages/skotiq_planetarium && flutter test
   test/geolocation_transport_test.dart --concurrency=3` → +18, EXIT=0.
-- `cd packages/nightshade_planetarium && flutter test
+- `cd packages/skotiq_planetarium && flutter test
   test/wifi_scan_parsing_test.dart --concurrency=3` → +16, EXIT=0.
-- `cd packages/nightshade_planetarium && flutter test --concurrency=3` →
+- `cd packages/skotiq_planetarium && flutter test --concurrency=3` →
   +612 −1, EXIT=1. Sole failure `test/benchmark/golden_compare_test.dart`
   "benchmark golden checkpoints (compare)" — the pixel-diff benchmark W9
   already verified PRE-EXISTING on base; renderer/environment, unrelated.
-- `cd packages/nightshade_app && flutter test test/screens/settings
+- `cd packages/skotiq_app && flutter test test/screens/settings
   test/screens/onboarding test/widgets --concurrency=3` → +1067 −14, EXIT=1.
   All 14 failures are PRE-EXISTING and in files I did not touch:
   `backup_restore_notice_test` ×2, `pairing_observatory_kit_test` ×1,
@@ -335,13 +335,13 @@ Verification:
 
 ## Tests added
 
-- `packages/nightshade_planetarium/test/wifi_scan_parsing_test.dart` (new,
+- `packages/skotiq_planetarium/test/wifi_scan_parsing_test.dart` (new,
   16 tests) — verbatim `nmcli -t`, `netsh … mode=bssid` and `iw scan dump`
   fixtures: escaped-colon BSSIDs, the quality→dBm conversions (calibrated
   against the live scan), channels, hidden SSIDs, an SSID containing an
   escaped colon, `_nomap` exclusion, the `Interface name :` header not being
   read as a BSSID, the −90 dBm floor, and the 20-strongest cap.
-- `packages/nightshade_planetarium/test/geolocation_transport_test.dart`
+- `packages/skotiq_planetarium/test/geolocation_transport_test.dart`
   (rewritten tail, 12 new tier tests) — Wi-Fi beats a coarse platform fix; a
   precise platform fix makes no request at all; `fallback: ipf` never counts;
   `considerIp: false` is on the wire; Google first then beaconDB; a
@@ -350,7 +350,7 @@ Verification:
   restores the radio; every tier failing names every reason; a refused tier
   never reaches the network; a 0 m platform accuracy neither wins nor stops
   the search; an IP fix states the mechanism instead of inventing a radius.
-- `packages/nightshade_app/test/widgets/geolocation_consent_copy_test.dart`
+- `packages/skotiq_app/test/widgets/geolocation_consent_copy_test.dart`
   (new, 8 tests) — the disclosure per allowed tier, the Google variant, a
   switched-off tier having no disclosure, and the consent-coverage rule.
 - `location_settings_truth_test.dart` — consent asked once then remembered;

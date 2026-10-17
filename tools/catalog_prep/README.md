@@ -1,6 +1,6 @@
 # catalog_prep — deep-star tile builder
 
-Builds the Nightshade planetarium **deep-star tier**: a downloadable
+Builds the Skotiq planetarium **deep-star tier**: a downloadable
 Tycho-2 / Gaia subset that extends the bundled HYG atlas (which floors out near
 magnitude 11.5) down to ~mag 13. The app streams these tiles on demand via
 `DeepStarCatalogManager`, culling to the view and only when zoomed in past the
@@ -23,7 +23,7 @@ deterministic tileset with no external dependency; that synthetic data is
 ## Tile format (NSDT v1)
 
 Little-endian; this layout is byte-identical to the Dart decoder in
-`packages/nightshade_planetarium/lib/src/catalogs/deep_star_tile.dart`. If you
+`packages/skotiq_planetarium/lib/src/catalogs/deep_star_tile.dart`. If you
 change one, change both.
 
 ```
@@ -46,7 +46,7 @@ Synthetic test tileset (used by the unit tests; tiny, deterministic):
 
 ```bash
 python3 make_deep_star_tiles.py --synthetic \
-    --out ../../packages/nightshade_planetarium/test/fixtures/deep_star_tiles \
+    --out ../../packages/skotiq_planetarium/test/fixtures/deep_star_tiles \
     --synthetic-per-tile 12
 ```
 
@@ -59,13 +59,13 @@ python3 make_deep_star_tiles.py \
     --mag-floor 11.5 --mag-limit 13.0 \
     --name "Tycho-2 deep tier" \
     --source "Tycho-2 (Hog et al. 2000)" \
-    --out ./nightshade_deep_stars
+    --out ./skotiq_deep_stars
 ```
 
 Then host it (any static file server works):
 
 ```bash
-cd nightshade_deep_stars && python3 -m http.server 8765
+cd skotiq_deep_stars && python3 -m http.server 8765
 ```
 
 and point the app's deep-star base URL at
