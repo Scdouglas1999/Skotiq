@@ -143,8 +143,7 @@ impl skotiq_native::traits::NativeCamera for FakeRangedCamera {
 
     async fn get_status(
         &self,
-    ) -> Result<skotiq_native::camera::CameraStatus, skotiq_native::traits::NativeError>
-    {
+    ) -> Result<skotiq_native::camera::CameraStatus, skotiq_native::traits::NativeError> {
         Ok(skotiq_native::camera::CameraStatus {
             state: skotiq_native::camera::CameraState::Idle,
             sensor_temp: Some(-5.0),
@@ -195,10 +194,7 @@ impl skotiq_native::traits::NativeCamera for FakeRangedCamera {
     async fn get_gain(&self) -> Result<i32, skotiq_native::traits::NativeError> {
         Ok(100)
     }
-    async fn set_offset(
-        &mut self,
-        _offset: i32,
-    ) -> Result<(), skotiq_native::traits::NativeError> {
+    async fn set_offset(&mut self, _offset: i32) -> Result<(), skotiq_native::traits::NativeError> {
         Ok(())
     }
     async fn get_offset(&self) -> Result<i32, skotiq_native::traits::NativeError> {
@@ -234,8 +230,7 @@ impl skotiq_native::traits::NativeCamera for FakeRangedCamera {
     }
     async fn get_readout_modes(
         &self,
-    ) -> Result<Vec<skotiq_native::camera::ReadoutMode>, skotiq_native::traits::NativeError>
-    {
+    ) -> Result<Vec<skotiq_native::camera::ReadoutMode>, skotiq_native::traits::NativeError> {
         Ok(Vec::new())
     }
     async fn set_readout_mode(
@@ -246,8 +241,7 @@ impl skotiq_native::traits::NativeCamera for FakeRangedCamera {
     }
     async fn get_vendor_features(
         &self,
-    ) -> Result<skotiq_native::camera::VendorFeatures, skotiq_native::traits::NativeError>
-    {
+    ) -> Result<skotiq_native::camera::VendorFeatures, skotiq_native::traits::NativeError> {
         Ok(skotiq_native::camera::VendorFeatures::default())
     }
     async fn get_gain_range(&self) -> Result<(i32, i32), skotiq_native::traits::NativeError> {

@@ -22,7 +22,7 @@ async fn retrying_ctx(
     std::path::PathBuf,
 ) {
     let mut ctx = ctx_with_ops(ops).await;
-    let dir = std::env::temp_dir().join(format!("ns-device-retry-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-device-retry-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     ctx.save_path = Some(dir.clone());
     ctx.device_retry = DeviceRetryHandle::new(policy);

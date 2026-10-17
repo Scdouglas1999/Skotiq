@@ -8,12 +8,12 @@ use crate::event::*;
 use crate::state::*;
 use crate::storage::{AppSettings, ObserverLocation};
 use crate::unified_device_ops::create_unified_device_ops;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::{
     calculate_airmass, validate_fits_header, validate_image, write_fits, BayerPattern,
     DebayerAlgorithm, FitsHeader, ImageData,
 };
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -58,9 +58,7 @@ pub async fn filter_wheel_get_position(device_id: String) -> Result<i32, SkotiqE
 }
 
 /// Get filter wheel configuration (count, names)
-pub async fn filter_wheel_get_config(
-    device_id: String,
-) -> Result<(i32, Vec<String>), SkotiqError> {
+pub async fn filter_wheel_get_config(device_id: String) -> Result<(i32, Vec<String>), SkotiqError> {
     if device_id.starts_with("sim_") {
         let fw = get_sim_filterwheel().read().await;
         Ok((fw.status.filter_count, fw.status.filter_names.clone()))

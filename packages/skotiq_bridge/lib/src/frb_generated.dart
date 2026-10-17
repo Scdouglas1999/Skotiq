@@ -18843,169 +18843,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  SkotiqError dco_decode_skotiq_error(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    switch (raw[0]) {
-      case 0:
-        return SkotiqError_DeviceNotFound(dco_decode_String(raw[1]));
-      case 1:
-        return SkotiqError_ConnectionFailed(
-          deviceId: dco_decode_String(raw[1]),
-          reason: dco_decode_String(raw[2]),
-        );
-      case 2:
-        return SkotiqError_AlreadyConnected(dco_decode_String(raw[1]));
-      case 3:
-        return SkotiqError_NotConnected(dco_decode_String(raw[1]));
-      case 4:
-        return SkotiqError_DeviceDisconnected(
-          deviceId: dco_decode_String(raw[1]),
-          reason: dco_decode_String(raw[2]),
-        );
-      case 5:
-        return SkotiqError_HardwareError(
-          deviceId: dco_decode_String(raw[1]),
-          message: dco_decode_String(raw[2]),
-          errorCode: dco_decode_opt_box_autoadd_i_32(raw[3]),
-        );
-      case 6:
-        return SkotiqError_CommunicationError(
-          deviceId: dco_decode_String(raw[1]),
-          message: dco_decode_String(raw[2]),
-        );
-      case 7:
-        return SkotiqError_Timeout(dco_decode_String(raw[1]));
-      case 8:
-        return SkotiqError_DeviceTimeout(
-          deviceId: dco_decode_String(raw[1]),
-          operation: dco_decode_String(raw[2]),
-          timeoutSecs: dco_decode_f_64(raw[3]),
-        );
-      case 9:
-        return SkotiqError_ConnectionTimeout(
-          deviceId: dco_decode_String(raw[1]),
-          timeoutSecs: dco_decode_f_64(raw[2]),
-        );
-      case 10:
-        return SkotiqError_InvalidParameter(dco_decode_String(raw[1]));
-      case 11:
-        return SkotiqError_InvalidInput(dco_decode_String(raw[1]));
-      case 12:
-        return SkotiqError_InvalidDeviceId(
-          deviceId: dco_decode_String(raw[1]),
-          reason: dco_decode_String(raw[2]),
-        );
-      case 13:
-        return SkotiqError_ParameterOutOfRange(
-          paramName: dco_decode_String(raw[1]),
-          value: dco_decode_String(raw[2]),
-          min: dco_decode_String(raw[3]),
-          max: dco_decode_String(raw[4]),
-        );
-      case 14:
-        return SkotiqError_OperationFailed(dco_decode_String(raw[1]));
-      case 15:
-        return SkotiqError_NotSupported(
-          deviceId: dco_decode_String(raw[1]),
-          operation: dco_decode_String(raw[2]),
-        );
-      case 16:
-        return SkotiqError_DeviceBusy(
-          deviceId: dco_decode_String(raw[1]),
-          currentOperation: dco_decode_String(raw[2]),
-        );
-      case 17:
-        return SkotiqError_ImageError(dco_decode_String(raw[1]));
-      case 18:
-        return SkotiqError_CameraError(dco_decode_String(raw[1]));
-      case 19:
-        return SkotiqError_NoImageAvailable();
-      case 20:
-        return SkotiqError_ExposureCancelled();
-      case 21:
-        return SkotiqError_ExposureFailed(
-          cameraId: dco_decode_String(raw[1]),
-          reason: dco_decode_String(raw[2]),
-        );
-      case 22:
-        return SkotiqError_DownloadFailed(
-          cameraId: dco_decode_String(raw[1]),
-          reason: dco_decode_String(raw[2]),
-        );
-      case 23:
-        return SkotiqError_IoError(dco_decode_String(raw[1]));
-      case 24:
-        return SkotiqError_SerializationError(dco_decode_String(raw[1]));
-      case 25:
-        return SkotiqError_PlateSolveError(dco_decode_String(raw[1]));
-      case 26:
-        return SkotiqError_SequenceError(dco_decode_String(raw[1]));
-      case 27:
-        return SkotiqError_AscomError(
-          progId: dco_decode_String(raw[1]),
-          message: dco_decode_String(raw[2]),
-          errorCode: dco_decode_i_32(raw[3]),
-        );
-      case 28:
-        return SkotiqError_AlpacaError(
-          baseUrl: dco_decode_String(raw[1]),
-          deviceNumber: dco_decode_u_32(raw[2]),
-          message: dco_decode_String(raw[3]),
-          errorCode: dco_decode_i_32(raw[4]),
-        );
-      case 29:
-        return SkotiqError_IndiError(
-          server: dco_decode_String(raw[1]),
-          port: dco_decode_u_16(raw[2]),
-          deviceName: dco_decode_String(raw[3]),
-          message: dco_decode_String(raw[4]),
-        );
-      case 30:
-        return SkotiqError_NativeError(
-          vendor: dco_decode_String(raw[1]),
-          message: dco_decode_String(raw[2]),
-          errorCode: dco_decode_i_32(raw[3]),
-        );
-      case 31:
-        return SkotiqError_ComError(
-          message: dco_decode_String(raw[1]),
-          hresult: dco_decode_u_32(raw[2]),
-        );
-      case 32:
-        return SkotiqError_Internal(dco_decode_String(raw[1]));
-      case 33:
-        return SkotiqError_Cancelled();
-      case 34:
-        return SkotiqError_RuntimeInitFailed(dco_decode_String(raw[1]));
-      case 35:
-        return SkotiqError_ResourceExhausted(
-          resource: dco_decode_String(raw[1]),
-          message: dco_decode_String(raw[2]),
-        );
-      default:
-        throw Exception("unreachable");
-    }
-  }
-
-  @protected
-  SkotiqEvent dco_decode_skotiq_event(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
-    return SkotiqEvent(
-      eventId: dco_decode_u_64(arr[0]),
-      timestamp: dco_decode_i_64(arr[1]),
-      severity: dco_decode_event_severity(arr[2]),
-      category: dco_decode_event_category(arr[3]),
-      payload: dco_decode_event_payload(arr[4]),
-      causedBy: dco_decode_opt_box_autoadd_u_64(arr[5]),
-      correlationId: dco_decode_opt_String(arr[6]),
-      deviceId: dco_decode_opt_String(arr[7]),
-    );
-  }
-
-  @protected
   NodeDefinitionApi dco_decode_node_definition_api(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -20233,6 +20070,169 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return SimulatedWeather(
       connected: dco_decode_bool(arr[0]),
       conditions: dco_decode_weather_conditions(arr[1]),
+    );
+  }
+
+  @protected
+  SkotiqError dco_decode_skotiq_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return SkotiqError_DeviceNotFound(dco_decode_String(raw[1]));
+      case 1:
+        return SkotiqError_ConnectionFailed(
+          deviceId: dco_decode_String(raw[1]),
+          reason: dco_decode_String(raw[2]),
+        );
+      case 2:
+        return SkotiqError_AlreadyConnected(dco_decode_String(raw[1]));
+      case 3:
+        return SkotiqError_NotConnected(dco_decode_String(raw[1]));
+      case 4:
+        return SkotiqError_DeviceDisconnected(
+          deviceId: dco_decode_String(raw[1]),
+          reason: dco_decode_String(raw[2]),
+        );
+      case 5:
+        return SkotiqError_HardwareError(
+          deviceId: dco_decode_String(raw[1]),
+          message: dco_decode_String(raw[2]),
+          errorCode: dco_decode_opt_box_autoadd_i_32(raw[3]),
+        );
+      case 6:
+        return SkotiqError_CommunicationError(
+          deviceId: dco_decode_String(raw[1]),
+          message: dco_decode_String(raw[2]),
+        );
+      case 7:
+        return SkotiqError_Timeout(dco_decode_String(raw[1]));
+      case 8:
+        return SkotiqError_DeviceTimeout(
+          deviceId: dco_decode_String(raw[1]),
+          operation: dco_decode_String(raw[2]),
+          timeoutSecs: dco_decode_f_64(raw[3]),
+        );
+      case 9:
+        return SkotiqError_ConnectionTimeout(
+          deviceId: dco_decode_String(raw[1]),
+          timeoutSecs: dco_decode_f_64(raw[2]),
+        );
+      case 10:
+        return SkotiqError_InvalidParameter(dco_decode_String(raw[1]));
+      case 11:
+        return SkotiqError_InvalidInput(dco_decode_String(raw[1]));
+      case 12:
+        return SkotiqError_InvalidDeviceId(
+          deviceId: dco_decode_String(raw[1]),
+          reason: dco_decode_String(raw[2]),
+        );
+      case 13:
+        return SkotiqError_ParameterOutOfRange(
+          paramName: dco_decode_String(raw[1]),
+          value: dco_decode_String(raw[2]),
+          min: dco_decode_String(raw[3]),
+          max: dco_decode_String(raw[4]),
+        );
+      case 14:
+        return SkotiqError_OperationFailed(dco_decode_String(raw[1]));
+      case 15:
+        return SkotiqError_NotSupported(
+          deviceId: dco_decode_String(raw[1]),
+          operation: dco_decode_String(raw[2]),
+        );
+      case 16:
+        return SkotiqError_DeviceBusy(
+          deviceId: dco_decode_String(raw[1]),
+          currentOperation: dco_decode_String(raw[2]),
+        );
+      case 17:
+        return SkotiqError_ImageError(dco_decode_String(raw[1]));
+      case 18:
+        return SkotiqError_CameraError(dco_decode_String(raw[1]));
+      case 19:
+        return SkotiqError_NoImageAvailable();
+      case 20:
+        return SkotiqError_ExposureCancelled();
+      case 21:
+        return SkotiqError_ExposureFailed(
+          cameraId: dco_decode_String(raw[1]),
+          reason: dco_decode_String(raw[2]),
+        );
+      case 22:
+        return SkotiqError_DownloadFailed(
+          cameraId: dco_decode_String(raw[1]),
+          reason: dco_decode_String(raw[2]),
+        );
+      case 23:
+        return SkotiqError_IoError(dco_decode_String(raw[1]));
+      case 24:
+        return SkotiqError_SerializationError(dco_decode_String(raw[1]));
+      case 25:
+        return SkotiqError_PlateSolveError(dco_decode_String(raw[1]));
+      case 26:
+        return SkotiqError_SequenceError(dco_decode_String(raw[1]));
+      case 27:
+        return SkotiqError_AscomError(
+          progId: dco_decode_String(raw[1]),
+          message: dco_decode_String(raw[2]),
+          errorCode: dco_decode_i_32(raw[3]),
+        );
+      case 28:
+        return SkotiqError_AlpacaError(
+          baseUrl: dco_decode_String(raw[1]),
+          deviceNumber: dco_decode_u_32(raw[2]),
+          message: dco_decode_String(raw[3]),
+          errorCode: dco_decode_i_32(raw[4]),
+        );
+      case 29:
+        return SkotiqError_IndiError(
+          server: dco_decode_String(raw[1]),
+          port: dco_decode_u_16(raw[2]),
+          deviceName: dco_decode_String(raw[3]),
+          message: dco_decode_String(raw[4]),
+        );
+      case 30:
+        return SkotiqError_NativeError(
+          vendor: dco_decode_String(raw[1]),
+          message: dco_decode_String(raw[2]),
+          errorCode: dco_decode_i_32(raw[3]),
+        );
+      case 31:
+        return SkotiqError_ComError(
+          message: dco_decode_String(raw[1]),
+          hresult: dco_decode_u_32(raw[2]),
+        );
+      case 32:
+        return SkotiqError_Internal(dco_decode_String(raw[1]));
+      case 33:
+        return SkotiqError_Cancelled();
+      case 34:
+        return SkotiqError_RuntimeInitFailed(dco_decode_String(raw[1]));
+      case 35:
+        return SkotiqError_ResourceExhausted(
+          resource: dco_decode_String(raw[1]),
+          message: dco_decode_String(raw[2]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  SkotiqEvent dco_decode_skotiq_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return SkotiqEvent(
+      eventId: dco_decode_u_64(arr[0]),
+      timestamp: dco_decode_i_64(arr[1]),
+      severity: dco_decode_event_severity(arr[2]),
+      category: dco_decode_event_category(arr[3]),
+      payload: dco_decode_event_payload(arr[4]),
+      causedBy: dco_decode_opt_box_autoadd_u_64(arr[5]),
+      correlationId: dco_decode_opt_String(arr[6]),
+      deviceId: dco_decode_opt_String(arr[7]),
     );
   }
 
@@ -23884,237 +23884,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  SkotiqError sse_decode_skotiq_error(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    var tag_ = sse_decode_i_32(deserializer);
-    switch (tag_) {
-      case 0:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_DeviceNotFound(var_field0);
-      case 1:
-        var var_deviceId = sse_decode_String(deserializer);
-        var var_reason = sse_decode_String(deserializer);
-        return SkotiqError_ConnectionFailed(
-          deviceId: var_deviceId,
-          reason: var_reason,
-        );
-      case 2:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_AlreadyConnected(var_field0);
-      case 3:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_NotConnected(var_field0);
-      case 4:
-        var var_deviceId = sse_decode_String(deserializer);
-        var var_reason = sse_decode_String(deserializer);
-        return SkotiqError_DeviceDisconnected(
-          deviceId: var_deviceId,
-          reason: var_reason,
-        );
-      case 5:
-        var var_deviceId = sse_decode_String(deserializer);
-        var var_message = sse_decode_String(deserializer);
-        var var_errorCode = sse_decode_opt_box_autoadd_i_32(deserializer);
-        return SkotiqError_HardwareError(
-          deviceId: var_deviceId,
-          message: var_message,
-          errorCode: var_errorCode,
-        );
-      case 6:
-        var var_deviceId = sse_decode_String(deserializer);
-        var var_message = sse_decode_String(deserializer);
-        return SkotiqError_CommunicationError(
-          deviceId: var_deviceId,
-          message: var_message,
-        );
-      case 7:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_Timeout(var_field0);
-      case 8:
-        var var_deviceId = sse_decode_String(deserializer);
-        var var_operation = sse_decode_String(deserializer);
-        var var_timeoutSecs = sse_decode_f_64(deserializer);
-        return SkotiqError_DeviceTimeout(
-          deviceId: var_deviceId,
-          operation: var_operation,
-          timeoutSecs: var_timeoutSecs,
-        );
-      case 9:
-        var var_deviceId = sse_decode_String(deserializer);
-        var var_timeoutSecs = sse_decode_f_64(deserializer);
-        return SkotiqError_ConnectionTimeout(
-          deviceId: var_deviceId,
-          timeoutSecs: var_timeoutSecs,
-        );
-      case 10:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_InvalidParameter(var_field0);
-      case 11:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_InvalidInput(var_field0);
-      case 12:
-        var var_deviceId = sse_decode_String(deserializer);
-        var var_reason = sse_decode_String(deserializer);
-        return SkotiqError_InvalidDeviceId(
-          deviceId: var_deviceId,
-          reason: var_reason,
-        );
-      case 13:
-        var var_paramName = sse_decode_String(deserializer);
-        var var_value = sse_decode_String(deserializer);
-        var var_min = sse_decode_String(deserializer);
-        var var_max = sse_decode_String(deserializer);
-        return SkotiqError_ParameterOutOfRange(
-          paramName: var_paramName,
-          value: var_value,
-          min: var_min,
-          max: var_max,
-        );
-      case 14:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_OperationFailed(var_field0);
-      case 15:
-        var var_deviceId = sse_decode_String(deserializer);
-        var var_operation = sse_decode_String(deserializer);
-        return SkotiqError_NotSupported(
-          deviceId: var_deviceId,
-          operation: var_operation,
-        );
-      case 16:
-        var var_deviceId = sse_decode_String(deserializer);
-        var var_currentOperation = sse_decode_String(deserializer);
-        return SkotiqError_DeviceBusy(
-          deviceId: var_deviceId,
-          currentOperation: var_currentOperation,
-        );
-      case 17:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_ImageError(var_field0);
-      case 18:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_CameraError(var_field0);
-      case 19:
-        return SkotiqError_NoImageAvailable();
-      case 20:
-        return SkotiqError_ExposureCancelled();
-      case 21:
-        var var_cameraId = sse_decode_String(deserializer);
-        var var_reason = sse_decode_String(deserializer);
-        return SkotiqError_ExposureFailed(
-          cameraId: var_cameraId,
-          reason: var_reason,
-        );
-      case 22:
-        var var_cameraId = sse_decode_String(deserializer);
-        var var_reason = sse_decode_String(deserializer);
-        return SkotiqError_DownloadFailed(
-          cameraId: var_cameraId,
-          reason: var_reason,
-        );
-      case 23:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_IoError(var_field0);
-      case 24:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_SerializationError(var_field0);
-      case 25:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_PlateSolveError(var_field0);
-      case 26:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_SequenceError(var_field0);
-      case 27:
-        var var_progId = sse_decode_String(deserializer);
-        var var_message = sse_decode_String(deserializer);
-        var var_errorCode = sse_decode_i_32(deserializer);
-        return SkotiqError_AscomError(
-          progId: var_progId,
-          message: var_message,
-          errorCode: var_errorCode,
-        );
-      case 28:
-        var var_baseUrl = sse_decode_String(deserializer);
-        var var_deviceNumber = sse_decode_u_32(deserializer);
-        var var_message = sse_decode_String(deserializer);
-        var var_errorCode = sse_decode_i_32(deserializer);
-        return SkotiqError_AlpacaError(
-          baseUrl: var_baseUrl,
-          deviceNumber: var_deviceNumber,
-          message: var_message,
-          errorCode: var_errorCode,
-        );
-      case 29:
-        var var_server = sse_decode_String(deserializer);
-        var var_port = sse_decode_u_16(deserializer);
-        var var_deviceName = sse_decode_String(deserializer);
-        var var_message = sse_decode_String(deserializer);
-        return SkotiqError_IndiError(
-          server: var_server,
-          port: var_port,
-          deviceName: var_deviceName,
-          message: var_message,
-        );
-      case 30:
-        var var_vendor = sse_decode_String(deserializer);
-        var var_message = sse_decode_String(deserializer);
-        var var_errorCode = sse_decode_i_32(deserializer);
-        return SkotiqError_NativeError(
-          vendor: var_vendor,
-          message: var_message,
-          errorCode: var_errorCode,
-        );
-      case 31:
-        var var_message = sse_decode_String(deserializer);
-        var var_hresult = sse_decode_u_32(deserializer);
-        return SkotiqError_ComError(
-          message: var_message,
-          hresult: var_hresult,
-        );
-      case 32:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_Internal(var_field0);
-      case 33:
-        return SkotiqError_Cancelled();
-      case 34:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_RuntimeInitFailed(var_field0);
-      case 35:
-        var var_resource = sse_decode_String(deserializer);
-        var var_message = sse_decode_String(deserializer);
-        return SkotiqError_ResourceExhausted(
-          resource: var_resource,
-          message: var_message,
-        );
-      default:
-        throw UnimplementedError('');
-    }
-  }
-
-  @protected
-  SkotiqEvent sse_decode_skotiq_event(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_eventId = sse_decode_u_64(deserializer);
-    var var_timestamp = sse_decode_i_64(deserializer);
-    var var_severity = sse_decode_event_severity(deserializer);
-    var var_category = sse_decode_event_category(deserializer);
-    var var_payload = sse_decode_event_payload(deserializer);
-    var var_causedBy = sse_decode_opt_box_autoadd_u_64(deserializer);
-    var var_correlationId = sse_decode_opt_String(deserializer);
-    var var_deviceId = sse_decode_opt_String(deserializer);
-    return SkotiqEvent(
-      eventId: var_eventId,
-      timestamp: var_timestamp,
-      severity: var_severity,
-      category: var_category,
-      payload: var_payload,
-      causedBy: var_causedBy,
-      correlationId: var_correlationId,
-      deviceId: var_deviceId,
-    );
-  }
-
-  @protected
   NodeDefinitionApi sse_decode_node_definition_api(
     SseDeserializer deserializer,
   ) {
@@ -25821,6 +25590,234 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return SimulatedWeather(
       connected: var_connected,
       conditions: var_conditions,
+    );
+  }
+
+  @protected
+  SkotiqError sse_decode_skotiq_error(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_DeviceNotFound(var_field0);
+      case 1:
+        var var_deviceId = sse_decode_String(deserializer);
+        var var_reason = sse_decode_String(deserializer);
+        return SkotiqError_ConnectionFailed(
+          deviceId: var_deviceId,
+          reason: var_reason,
+        );
+      case 2:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_AlreadyConnected(var_field0);
+      case 3:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_NotConnected(var_field0);
+      case 4:
+        var var_deviceId = sse_decode_String(deserializer);
+        var var_reason = sse_decode_String(deserializer);
+        return SkotiqError_DeviceDisconnected(
+          deviceId: var_deviceId,
+          reason: var_reason,
+        );
+      case 5:
+        var var_deviceId = sse_decode_String(deserializer);
+        var var_message = sse_decode_String(deserializer);
+        var var_errorCode = sse_decode_opt_box_autoadd_i_32(deserializer);
+        return SkotiqError_HardwareError(
+          deviceId: var_deviceId,
+          message: var_message,
+          errorCode: var_errorCode,
+        );
+      case 6:
+        var var_deviceId = sse_decode_String(deserializer);
+        var var_message = sse_decode_String(deserializer);
+        return SkotiqError_CommunicationError(
+          deviceId: var_deviceId,
+          message: var_message,
+        );
+      case 7:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_Timeout(var_field0);
+      case 8:
+        var var_deviceId = sse_decode_String(deserializer);
+        var var_operation = sse_decode_String(deserializer);
+        var var_timeoutSecs = sse_decode_f_64(deserializer);
+        return SkotiqError_DeviceTimeout(
+          deviceId: var_deviceId,
+          operation: var_operation,
+          timeoutSecs: var_timeoutSecs,
+        );
+      case 9:
+        var var_deviceId = sse_decode_String(deserializer);
+        var var_timeoutSecs = sse_decode_f_64(deserializer);
+        return SkotiqError_ConnectionTimeout(
+          deviceId: var_deviceId,
+          timeoutSecs: var_timeoutSecs,
+        );
+      case 10:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_InvalidParameter(var_field0);
+      case 11:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_InvalidInput(var_field0);
+      case 12:
+        var var_deviceId = sse_decode_String(deserializer);
+        var var_reason = sse_decode_String(deserializer);
+        return SkotiqError_InvalidDeviceId(
+          deviceId: var_deviceId,
+          reason: var_reason,
+        );
+      case 13:
+        var var_paramName = sse_decode_String(deserializer);
+        var var_value = sse_decode_String(deserializer);
+        var var_min = sse_decode_String(deserializer);
+        var var_max = sse_decode_String(deserializer);
+        return SkotiqError_ParameterOutOfRange(
+          paramName: var_paramName,
+          value: var_value,
+          min: var_min,
+          max: var_max,
+        );
+      case 14:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_OperationFailed(var_field0);
+      case 15:
+        var var_deviceId = sse_decode_String(deserializer);
+        var var_operation = sse_decode_String(deserializer);
+        return SkotiqError_NotSupported(
+          deviceId: var_deviceId,
+          operation: var_operation,
+        );
+      case 16:
+        var var_deviceId = sse_decode_String(deserializer);
+        var var_currentOperation = sse_decode_String(deserializer);
+        return SkotiqError_DeviceBusy(
+          deviceId: var_deviceId,
+          currentOperation: var_currentOperation,
+        );
+      case 17:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_ImageError(var_field0);
+      case 18:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_CameraError(var_field0);
+      case 19:
+        return SkotiqError_NoImageAvailable();
+      case 20:
+        return SkotiqError_ExposureCancelled();
+      case 21:
+        var var_cameraId = sse_decode_String(deserializer);
+        var var_reason = sse_decode_String(deserializer);
+        return SkotiqError_ExposureFailed(
+          cameraId: var_cameraId,
+          reason: var_reason,
+        );
+      case 22:
+        var var_cameraId = sse_decode_String(deserializer);
+        var var_reason = sse_decode_String(deserializer);
+        return SkotiqError_DownloadFailed(
+          cameraId: var_cameraId,
+          reason: var_reason,
+        );
+      case 23:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_IoError(var_field0);
+      case 24:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_SerializationError(var_field0);
+      case 25:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_PlateSolveError(var_field0);
+      case 26:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_SequenceError(var_field0);
+      case 27:
+        var var_progId = sse_decode_String(deserializer);
+        var var_message = sse_decode_String(deserializer);
+        var var_errorCode = sse_decode_i_32(deserializer);
+        return SkotiqError_AscomError(
+          progId: var_progId,
+          message: var_message,
+          errorCode: var_errorCode,
+        );
+      case 28:
+        var var_baseUrl = sse_decode_String(deserializer);
+        var var_deviceNumber = sse_decode_u_32(deserializer);
+        var var_message = sse_decode_String(deserializer);
+        var var_errorCode = sse_decode_i_32(deserializer);
+        return SkotiqError_AlpacaError(
+          baseUrl: var_baseUrl,
+          deviceNumber: var_deviceNumber,
+          message: var_message,
+          errorCode: var_errorCode,
+        );
+      case 29:
+        var var_server = sse_decode_String(deserializer);
+        var var_port = sse_decode_u_16(deserializer);
+        var var_deviceName = sse_decode_String(deserializer);
+        var var_message = sse_decode_String(deserializer);
+        return SkotiqError_IndiError(
+          server: var_server,
+          port: var_port,
+          deviceName: var_deviceName,
+          message: var_message,
+        );
+      case 30:
+        var var_vendor = sse_decode_String(deserializer);
+        var var_message = sse_decode_String(deserializer);
+        var var_errorCode = sse_decode_i_32(deserializer);
+        return SkotiqError_NativeError(
+          vendor: var_vendor,
+          message: var_message,
+          errorCode: var_errorCode,
+        );
+      case 31:
+        var var_message = sse_decode_String(deserializer);
+        var var_hresult = sse_decode_u_32(deserializer);
+        return SkotiqError_ComError(message: var_message, hresult: var_hresult);
+      case 32:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_Internal(var_field0);
+      case 33:
+        return SkotiqError_Cancelled();
+      case 34:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_RuntimeInitFailed(var_field0);
+      case 35:
+        var var_resource = sse_decode_String(deserializer);
+        var var_message = sse_decode_String(deserializer);
+        return SkotiqError_ResourceExhausted(
+          resource: var_resource,
+          message: var_message,
+        );
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  SkotiqEvent sse_decode_skotiq_event(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_eventId = sse_decode_u_64(deserializer);
+    var var_timestamp = sse_decode_i_64(deserializer);
+    var var_severity = sse_decode_event_severity(deserializer);
+    var var_category = sse_decode_event_category(deserializer);
+    var var_payload = sse_decode_event_payload(deserializer);
+    var var_causedBy = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_correlationId = sse_decode_opt_String(deserializer);
+    var var_deviceId = sse_decode_opt_String(deserializer);
+    return SkotiqEvent(
+      eventId: var_eventId,
+      timestamp: var_timestamp,
+      severity: var_severity,
+      category: var_category,
+      payload: var_payload,
+      causedBy: var_causedBy,
+      correlationId: var_correlationId,
+      deviceId: var_deviceId,
     );
   }
 
@@ -29084,229 +29081,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_skotiq_error(
-    SkotiqError self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    switch (self) {
-      case SkotiqError_DeviceNotFound(field0: final field0):
-        sse_encode_i_32(0, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_ConnectionFailed(
-        deviceId: final deviceId,
-        reason: final reason,
-      ):
-        sse_encode_i_32(1, serializer);
-        sse_encode_String(deviceId, serializer);
-        sse_encode_String(reason, serializer);
-      case SkotiqError_AlreadyConnected(field0: final field0):
-        sse_encode_i_32(2, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_NotConnected(field0: final field0):
-        sse_encode_i_32(3, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_DeviceDisconnected(
-        deviceId: final deviceId,
-        reason: final reason,
-      ):
-        sse_encode_i_32(4, serializer);
-        sse_encode_String(deviceId, serializer);
-        sse_encode_String(reason, serializer);
-      case SkotiqError_HardwareError(
-        deviceId: final deviceId,
-        message: final message,
-        errorCode: final errorCode,
-      ):
-        sse_encode_i_32(5, serializer);
-        sse_encode_String(deviceId, serializer);
-        sse_encode_String(message, serializer);
-        sse_encode_opt_box_autoadd_i_32(errorCode, serializer);
-      case SkotiqError_CommunicationError(
-        deviceId: final deviceId,
-        message: final message,
-      ):
-        sse_encode_i_32(6, serializer);
-        sse_encode_String(deviceId, serializer);
-        sse_encode_String(message, serializer);
-      case SkotiqError_Timeout(field0: final field0):
-        sse_encode_i_32(7, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_DeviceTimeout(
-        deviceId: final deviceId,
-        operation: final operation,
-        timeoutSecs: final timeoutSecs,
-      ):
-        sse_encode_i_32(8, serializer);
-        sse_encode_String(deviceId, serializer);
-        sse_encode_String(operation, serializer);
-        sse_encode_f_64(timeoutSecs, serializer);
-      case SkotiqError_ConnectionTimeout(
-        deviceId: final deviceId,
-        timeoutSecs: final timeoutSecs,
-      ):
-        sse_encode_i_32(9, serializer);
-        sse_encode_String(deviceId, serializer);
-        sse_encode_f_64(timeoutSecs, serializer);
-      case SkotiqError_InvalidParameter(field0: final field0):
-        sse_encode_i_32(10, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_InvalidInput(field0: final field0):
-        sse_encode_i_32(11, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_InvalidDeviceId(
-        deviceId: final deviceId,
-        reason: final reason,
-      ):
-        sse_encode_i_32(12, serializer);
-        sse_encode_String(deviceId, serializer);
-        sse_encode_String(reason, serializer);
-      case SkotiqError_ParameterOutOfRange(
-        paramName: final paramName,
-        value: final value,
-        min: final min,
-        max: final max,
-      ):
-        sse_encode_i_32(13, serializer);
-        sse_encode_String(paramName, serializer);
-        sse_encode_String(value, serializer);
-        sse_encode_String(min, serializer);
-        sse_encode_String(max, serializer);
-      case SkotiqError_OperationFailed(field0: final field0):
-        sse_encode_i_32(14, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_NotSupported(
-        deviceId: final deviceId,
-        operation: final operation,
-      ):
-        sse_encode_i_32(15, serializer);
-        sse_encode_String(deviceId, serializer);
-        sse_encode_String(operation, serializer);
-      case SkotiqError_DeviceBusy(
-        deviceId: final deviceId,
-        currentOperation: final currentOperation,
-      ):
-        sse_encode_i_32(16, serializer);
-        sse_encode_String(deviceId, serializer);
-        sse_encode_String(currentOperation, serializer);
-      case SkotiqError_ImageError(field0: final field0):
-        sse_encode_i_32(17, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_CameraError(field0: final field0):
-        sse_encode_i_32(18, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_NoImageAvailable():
-        sse_encode_i_32(19, serializer);
-      case SkotiqError_ExposureCancelled():
-        sse_encode_i_32(20, serializer);
-      case SkotiqError_ExposureFailed(
-        cameraId: final cameraId,
-        reason: final reason,
-      ):
-        sse_encode_i_32(21, serializer);
-        sse_encode_String(cameraId, serializer);
-        sse_encode_String(reason, serializer);
-      case SkotiqError_DownloadFailed(
-        cameraId: final cameraId,
-        reason: final reason,
-      ):
-        sse_encode_i_32(22, serializer);
-        sse_encode_String(cameraId, serializer);
-        sse_encode_String(reason, serializer);
-      case SkotiqError_IoError(field0: final field0):
-        sse_encode_i_32(23, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_SerializationError(field0: final field0):
-        sse_encode_i_32(24, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_PlateSolveError(field0: final field0):
-        sse_encode_i_32(25, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_SequenceError(field0: final field0):
-        sse_encode_i_32(26, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_AscomError(
-        progId: final progId,
-        message: final message,
-        errorCode: final errorCode,
-      ):
-        sse_encode_i_32(27, serializer);
-        sse_encode_String(progId, serializer);
-        sse_encode_String(message, serializer);
-        sse_encode_i_32(errorCode, serializer);
-      case SkotiqError_AlpacaError(
-        baseUrl: final baseUrl,
-        deviceNumber: final deviceNumber,
-        message: final message,
-        errorCode: final errorCode,
-      ):
-        sse_encode_i_32(28, serializer);
-        sse_encode_String(baseUrl, serializer);
-        sse_encode_u_32(deviceNumber, serializer);
-        sse_encode_String(message, serializer);
-        sse_encode_i_32(errorCode, serializer);
-      case SkotiqError_IndiError(
-        server: final server,
-        port: final port,
-        deviceName: final deviceName,
-        message: final message,
-      ):
-        sse_encode_i_32(29, serializer);
-        sse_encode_String(server, serializer);
-        sse_encode_u_16(port, serializer);
-        sse_encode_String(deviceName, serializer);
-        sse_encode_String(message, serializer);
-      case SkotiqError_NativeError(
-        vendor: final vendor,
-        message: final message,
-        errorCode: final errorCode,
-      ):
-        sse_encode_i_32(30, serializer);
-        sse_encode_String(vendor, serializer);
-        sse_encode_String(message, serializer);
-        sse_encode_i_32(errorCode, serializer);
-      case SkotiqError_ComError(
-        message: final message,
-        hresult: final hresult,
-      ):
-        sse_encode_i_32(31, serializer);
-        sse_encode_String(message, serializer);
-        sse_encode_u_32(hresult, serializer);
-      case SkotiqError_Internal(field0: final field0):
-        sse_encode_i_32(32, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_Cancelled():
-        sse_encode_i_32(33, serializer);
-      case SkotiqError_RuntimeInitFailed(field0: final field0):
-        sse_encode_i_32(34, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_ResourceExhausted(
-        resource: final resource,
-        message: final message,
-      ):
-        sse_encode_i_32(35, serializer);
-        sse_encode_String(resource, serializer);
-        sse_encode_String(message, serializer);
-    }
-  }
-
-  @protected
-  void sse_encode_skotiq_event(
-    SkotiqEvent self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_64(self.eventId, serializer);
-    sse_encode_i_64(self.timestamp, serializer);
-    sse_encode_event_severity(self.severity, serializer);
-    sse_encode_event_category(self.category, serializer);
-    sse_encode_event_payload(self.payload, serializer);
-    sse_encode_opt_box_autoadd_u_64(self.causedBy, serializer);
-    sse_encode_opt_String(self.correlationId, serializer);
-    sse_encode_opt_String(self.deviceId, serializer);
-  }
-
-  @protected
   void sse_encode_node_definition_api(
     NodeDefinitionApi self,
     SseSerializer serializer,
@@ -30778,6 +30552,220 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_bool(self.connected, serializer);
     sse_encode_weather_conditions(self.conditions, serializer);
+  }
+
+  @protected
+  void sse_encode_skotiq_error(SkotiqError self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case SkotiqError_DeviceNotFound(field0: final field0):
+        sse_encode_i_32(0, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_ConnectionFailed(
+        deviceId: final deviceId,
+        reason: final reason,
+      ):
+        sse_encode_i_32(1, serializer);
+        sse_encode_String(deviceId, serializer);
+        sse_encode_String(reason, serializer);
+      case SkotiqError_AlreadyConnected(field0: final field0):
+        sse_encode_i_32(2, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_NotConnected(field0: final field0):
+        sse_encode_i_32(3, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_DeviceDisconnected(
+        deviceId: final deviceId,
+        reason: final reason,
+      ):
+        sse_encode_i_32(4, serializer);
+        sse_encode_String(deviceId, serializer);
+        sse_encode_String(reason, serializer);
+      case SkotiqError_HardwareError(
+        deviceId: final deviceId,
+        message: final message,
+        errorCode: final errorCode,
+      ):
+        sse_encode_i_32(5, serializer);
+        sse_encode_String(deviceId, serializer);
+        sse_encode_String(message, serializer);
+        sse_encode_opt_box_autoadd_i_32(errorCode, serializer);
+      case SkotiqError_CommunicationError(
+        deviceId: final deviceId,
+        message: final message,
+      ):
+        sse_encode_i_32(6, serializer);
+        sse_encode_String(deviceId, serializer);
+        sse_encode_String(message, serializer);
+      case SkotiqError_Timeout(field0: final field0):
+        sse_encode_i_32(7, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_DeviceTimeout(
+        deviceId: final deviceId,
+        operation: final operation,
+        timeoutSecs: final timeoutSecs,
+      ):
+        sse_encode_i_32(8, serializer);
+        sse_encode_String(deviceId, serializer);
+        sse_encode_String(operation, serializer);
+        sse_encode_f_64(timeoutSecs, serializer);
+      case SkotiqError_ConnectionTimeout(
+        deviceId: final deviceId,
+        timeoutSecs: final timeoutSecs,
+      ):
+        sse_encode_i_32(9, serializer);
+        sse_encode_String(deviceId, serializer);
+        sse_encode_f_64(timeoutSecs, serializer);
+      case SkotiqError_InvalidParameter(field0: final field0):
+        sse_encode_i_32(10, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_InvalidInput(field0: final field0):
+        sse_encode_i_32(11, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_InvalidDeviceId(
+        deviceId: final deviceId,
+        reason: final reason,
+      ):
+        sse_encode_i_32(12, serializer);
+        sse_encode_String(deviceId, serializer);
+        sse_encode_String(reason, serializer);
+      case SkotiqError_ParameterOutOfRange(
+        paramName: final paramName,
+        value: final value,
+        min: final min,
+        max: final max,
+      ):
+        sse_encode_i_32(13, serializer);
+        sse_encode_String(paramName, serializer);
+        sse_encode_String(value, serializer);
+        sse_encode_String(min, serializer);
+        sse_encode_String(max, serializer);
+      case SkotiqError_OperationFailed(field0: final field0):
+        sse_encode_i_32(14, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_NotSupported(
+        deviceId: final deviceId,
+        operation: final operation,
+      ):
+        sse_encode_i_32(15, serializer);
+        sse_encode_String(deviceId, serializer);
+        sse_encode_String(operation, serializer);
+      case SkotiqError_DeviceBusy(
+        deviceId: final deviceId,
+        currentOperation: final currentOperation,
+      ):
+        sse_encode_i_32(16, serializer);
+        sse_encode_String(deviceId, serializer);
+        sse_encode_String(currentOperation, serializer);
+      case SkotiqError_ImageError(field0: final field0):
+        sse_encode_i_32(17, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_CameraError(field0: final field0):
+        sse_encode_i_32(18, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_NoImageAvailable():
+        sse_encode_i_32(19, serializer);
+      case SkotiqError_ExposureCancelled():
+        sse_encode_i_32(20, serializer);
+      case SkotiqError_ExposureFailed(
+        cameraId: final cameraId,
+        reason: final reason,
+      ):
+        sse_encode_i_32(21, serializer);
+        sse_encode_String(cameraId, serializer);
+        sse_encode_String(reason, serializer);
+      case SkotiqError_DownloadFailed(
+        cameraId: final cameraId,
+        reason: final reason,
+      ):
+        sse_encode_i_32(22, serializer);
+        sse_encode_String(cameraId, serializer);
+        sse_encode_String(reason, serializer);
+      case SkotiqError_IoError(field0: final field0):
+        sse_encode_i_32(23, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_SerializationError(field0: final field0):
+        sse_encode_i_32(24, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_PlateSolveError(field0: final field0):
+        sse_encode_i_32(25, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_SequenceError(field0: final field0):
+        sse_encode_i_32(26, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_AscomError(
+        progId: final progId,
+        message: final message,
+        errorCode: final errorCode,
+      ):
+        sse_encode_i_32(27, serializer);
+        sse_encode_String(progId, serializer);
+        sse_encode_String(message, serializer);
+        sse_encode_i_32(errorCode, serializer);
+      case SkotiqError_AlpacaError(
+        baseUrl: final baseUrl,
+        deviceNumber: final deviceNumber,
+        message: final message,
+        errorCode: final errorCode,
+      ):
+        sse_encode_i_32(28, serializer);
+        sse_encode_String(baseUrl, serializer);
+        sse_encode_u_32(deviceNumber, serializer);
+        sse_encode_String(message, serializer);
+        sse_encode_i_32(errorCode, serializer);
+      case SkotiqError_IndiError(
+        server: final server,
+        port: final port,
+        deviceName: final deviceName,
+        message: final message,
+      ):
+        sse_encode_i_32(29, serializer);
+        sse_encode_String(server, serializer);
+        sse_encode_u_16(port, serializer);
+        sse_encode_String(deviceName, serializer);
+        sse_encode_String(message, serializer);
+      case SkotiqError_NativeError(
+        vendor: final vendor,
+        message: final message,
+        errorCode: final errorCode,
+      ):
+        sse_encode_i_32(30, serializer);
+        sse_encode_String(vendor, serializer);
+        sse_encode_String(message, serializer);
+        sse_encode_i_32(errorCode, serializer);
+      case SkotiqError_ComError(message: final message, hresult: final hresult):
+        sse_encode_i_32(31, serializer);
+        sse_encode_String(message, serializer);
+        sse_encode_u_32(hresult, serializer);
+      case SkotiqError_Internal(field0: final field0):
+        sse_encode_i_32(32, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_Cancelled():
+        sse_encode_i_32(33, serializer);
+      case SkotiqError_RuntimeInitFailed(field0: final field0):
+        sse_encode_i_32(34, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_ResourceExhausted(
+        resource: final resource,
+        message: final message,
+      ):
+        sse_encode_i_32(35, serializer);
+        sse_encode_String(resource, serializer);
+        sse_encode_String(message, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_skotiq_event(SkotiqEvent self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.eventId, serializer);
+    sse_encode_i_64(self.timestamp, serializer);
+    sse_encode_event_severity(self.severity, serializer);
+    sse_encode_event_category(self.category, serializer);
+    sse_encode_event_payload(self.payload, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.causedBy, serializer);
+    sse_encode_opt_String(self.correlationId, serializer);
+    sse_encode_opt_String(self.deviceId, serializer);
   }
 
   @protected

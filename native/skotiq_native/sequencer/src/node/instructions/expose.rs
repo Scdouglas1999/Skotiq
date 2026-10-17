@@ -1278,7 +1278,7 @@ mod tests {
     /// it must still run with no sequencer base path configured.
     #[tokio::test]
     async fn exposure_with_an_absolute_save_to_runs_without_a_base_path() {
-        let dir = std::env::temp_dir().join(format!("ns-expose-abs-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("sk-expose-abs-{}", uuid::Uuid::new_v4()));
         let mut ctx = ExecutionContext::new_for_test("expose-abs".to_string());
         ctx.camera_id = Some("sim_camera_1".to_string());
         ctx.save_path = None;
@@ -1313,7 +1313,7 @@ mod tests {
     /// and the two 0.4 s bursts must not finish in ~0.4 s together.
     #[tokio::test]
     async fn two_branches_on_one_camera_serialise_their_exposures() {
-        let dir = std::env::temp_dir().join(format!("ns-expose-lock-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("sk-expose-lock-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).expect("temp dir");
 
         let mut ctx_a = ExecutionContext::new_for_test("expose-a".to_string());
@@ -1359,7 +1359,7 @@ mod tests {
     /// per-device, not global.
     #[tokio::test]
     async fn two_branches_on_different_cameras_still_run_in_parallel() {
-        let dir = std::env::temp_dir().join(format!("ns-expose-par-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("sk-expose-par-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).expect("temp dir");
 
         let mut ctx_a = ExecutionContext::new_for_test("expose-a".to_string());

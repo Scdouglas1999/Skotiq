@@ -144,9 +144,7 @@ impl DeviceManager {
                     return Ok(crate::device::CameraStatus {
                         connected: true,
                         state: match status.state {
-                            skotiq_alpaca::CameraState::Idle => {
-                                crate::device::CameraState::Idle
-                            }
+                            skotiq_alpaca::CameraState::Idle => crate::device::CameraState::Idle,
                             skotiq_alpaca::CameraState::Waiting => {
                                 crate::device::CameraState::Waiting
                             }
@@ -159,9 +157,7 @@ impl DeviceManager {
                             skotiq_alpaca::CameraState::Download => {
                                 crate::device::CameraState::Download
                             }
-                            skotiq_alpaca::CameraState::Error => {
-                                crate::device::CameraState::Error
-                            }
+                            skotiq_alpaca::CameraState::Error => crate::device::CameraState::Error,
                         },
                         sensor_temp: status.ccd_temperature,
                         cooler_power: status.cooler_power,

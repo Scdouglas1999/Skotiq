@@ -144,10 +144,7 @@ pub async fn api_focuser_move_to(device_id: String, position: i32) -> Result<(),
 }
 
 /// Move focuser by relative amount
-pub async fn api_focuser_move_relative(
-    device_id: String,
-    delta: i32,
-) -> Result<(), SkotiqError> {
+pub async fn api_focuser_move_relative(device_id: String, delta: i32) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();
     mgr.focuser_move_rel(&device_id, delta)
         .await

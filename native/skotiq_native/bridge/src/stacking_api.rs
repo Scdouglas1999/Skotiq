@@ -7,9 +7,7 @@ use skotiq_imaging::stack_master::{write_stack_master, FrameProvenance};
 use skotiq_imaging::stacking::{
     debayer_cfa_to_rgb, LiveStackConfig, LiveStacker, SensorMode, StackingStats,
 };
-use skotiq_imaging::{
-    read_image, BayerPattern, DebayerAlgorithm, ImageData, StarDetectionConfig,
-};
+use skotiq_imaging::{read_image, BayerPattern, DebayerAlgorithm, ImageData, StarDetectionConfig};
 use std::sync::Mutex;
 use std::sync::OnceLock;
 
@@ -1065,7 +1063,7 @@ mod tests {
         let _g = singleton_guard();
         let _ = stacking_stop();
 
-        let dir = std::env::temp_dir().join("ns-bridge-stack-master");
+        let dir = std::env::temp_dir().join("sk-bridge-stack-master");
         std::fs::create_dir_all(&dir).expect("temp dir");
         let reference = dir.join("reference.fits");
         let second = dir.join("second.fits");
@@ -1110,7 +1108,7 @@ mod tests {
 
         let err = stacking_save_master_fits(
             std::env::temp_dir()
-                .join("ns-no-stack-master.fits")
+                .join("sk-no-stack-master.fits")
                 .to_string_lossy()
                 .to_string(),
         )

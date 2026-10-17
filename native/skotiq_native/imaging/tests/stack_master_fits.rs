@@ -27,7 +27,7 @@ fn headerless_stack_still_writes_exptime_and_date_obs() {
         provenance.fold(&FrameProvenance::unknown());
     }
 
-    let dir = std::env::temp_dir().join("ns-stack-master-headerless");
+    let dir = std::env::temp_dir().join("sk-stack-master-headerless");
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("master.fits");
     write_stack_master(&path, &gradient_frame(16, 12), &provenance).unwrap();
@@ -78,7 +78,7 @@ fn frame_headers_sum_into_total_integration_and_earliest_date_obs() {
         });
     }
 
-    let dir = std::env::temp_dir().join("ns-stack-master-headers");
+    let dir = std::env::temp_dir().join("sk-stack-master-headers");
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("master.fits");
     write_stack_master(&path, &gradient_frame(8, 8), &provenance).unwrap();

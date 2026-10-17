@@ -311,10 +311,7 @@ impl DeviceOps for ReplayRig {
     fn get_observer_location(&self) -> Option<(f64, f64)> {
         self.inner.get_observer_location()
     }
-    async fn polar_align_update(
-        &self,
-        r: &skotiq_sequencer::PolarAlignResult,
-    ) -> DeviceResult<()> {
+    async fn polar_align_update(&self, r: &skotiq_sequencer::PolarAlignResult) -> DeviceResult<()> {
         self.inner.polar_align_update(r).await
     }
     async fn dome_open(&self, id: &str) -> DeviceResult<()> {

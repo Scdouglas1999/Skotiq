@@ -151,9 +151,8 @@ fn the_autofocus_wire_config_carries_the_measured_backlash() {
         "steps_out": 4,
         "exposure_duration": 0.5,
     });
-    let uncalibrated: skotiq_sequencer::AutofocusConfig =
-        serde_json::from_value(without_figure)
-            .expect("a document with no measured figure must still deserialize");
+    let uncalibrated: skotiq_sequencer::AutofocusConfig = serde_json::from_value(without_figure)
+        .expect("a document with no measured figure must still deserialize");
     assert_eq!(uncalibrated.measured_backlash_in, None);
 
     // Null is what Dart emits for a focuser with no stored calibration, and it

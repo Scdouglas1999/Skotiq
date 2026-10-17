@@ -199,8 +199,7 @@ impl DeviceManager {
                     let clients = self.indi_clients.read().await;
                     if let Some(client) = clients.get(&server_key) {
                         // Create an IndiCamera wrapper to handle BLOB download
-                        let camera =
-                            skotiq_indi::IndiCamera::new(Arc::clone(client), &device_name);
+                        let camera = skotiq_indi::IndiCamera::new(Arc::clone(client), &device_name);
 
                         // Subscribe to BLOB events BEFORE enable_blob + the
                         // metadata round-trips below: the exposure may already
@@ -386,8 +385,7 @@ impl DeviceManager {
                                     timestamp: chrono::Utc::now(),
                                     subframe: None,
                                     readout_mode: None,
-                                    vendor_data: skotiq_native::camera::VendorFeatures::default(
-                                    ),
+                                    vendor_data: skotiq_native::camera::VendorFeatures::default(),
                                 },
                             }
                         };

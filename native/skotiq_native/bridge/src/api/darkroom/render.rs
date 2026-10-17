@@ -28,12 +28,12 @@
 
 use std::sync::Arc;
 
+use serde_json::{json, Value};
 use skotiq_imaging::recipe::ops::stretch::{auto_params, StretchV1};
 use skotiq_imaging::recipe::{
     render, DarkroomOp, ImagePyramid, OpContext, OpImage, OpRegistry, OpStage, Recipe, RecipeError,
     RenderOptions, RenderOutput, StepOutcome,
 };
-use serde_json::{json, Value};
 
 use super::args::{CancelledRender, CatalogStarArgs};
 use super::catalog::SuppliedCatalog;

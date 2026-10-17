@@ -10,7 +10,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 // These functions are ignored because they are not marked as `pub`: `phd2_client`, `resolve_guider_backend`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `GuiderBackend`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `get_active_guider_id_for_ops`, `get_phd2_storage`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `get_active_guider_id_for_ops`, `get_phd2_storage`, `select_fresh_guide_star`
 
 /// Check if PHD2 is running
 bool apiIsPhd2Running() => RustLib.instance.api.crateApiPhd2ApiIsPhd2Running();

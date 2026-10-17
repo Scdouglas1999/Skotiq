@@ -3942,10 +3942,8 @@ mod tests {
             pixel_type: PixelType::U32,
             data,
         };
-        let path = std::env::temp_dir().join(format!(
-            "skotiq_u32_roundtrip_{}.fits",
-            std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("skotiq_u32_roundtrip_{}.fits", std::process::id()));
         write_fits(&path, &image, &FitsHeader::new()).expect("write");
         let on_disk = std::fs::read(&path).expect("read back");
         let _ = std::fs::remove_file(&path);
@@ -3986,8 +3984,7 @@ mod tests {
         header.set_string("OBJECT", "M31");
         let image = ImageData::from_u16(2, 1, 1, &[10, 20]);
 
-        let path =
-            std::env::temp_dir().join(format!("skotiq_strpad_{}.fits", std::process::id()));
+        let path = std::env::temp_dir().join(format!("skotiq_strpad_{}.fits", std::process::id()));
         write_fits(&path, &image, &header).expect("write");
         let on_disk = std::fs::read(&path).expect("read");
         let _ = std::fs::remove_file(&path);
@@ -4084,10 +4081,8 @@ mod tests {
         header.add_history(LONG_PATH_HISTORY_LINE);
         let image = ImageData::from_u16(2, 1, 1, &[1, 2]);
 
-        let path = std::env::temp_dir().join(format!(
-            "skotiq_history_wrap_{}.fits",
-            std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("skotiq_history_wrap_{}.fits", std::process::id()));
         write_fits(&path, &image, &header).expect("write");
         let on_disk = std::fs::read(&path).expect("read");
 
@@ -4408,7 +4403,7 @@ mod tests {
     /// caller that skips the pixels is not comparing a different header.
     #[test]
     fn read_fits_header_matches_the_full_read() {
-        let dir = std::env::temp_dir().join(format!("ns_fits_hdr_{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("sk_fits_hdr_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("frame.fits");
 

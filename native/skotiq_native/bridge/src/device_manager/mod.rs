@@ -517,8 +517,7 @@ pub struct DeviceManager {
     pub(crate) alpaca_focusers: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaFocuser>>>,
 
     /// Active Alpaca filter wheel clients
-    pub(crate) alpaca_filter_wheels:
-        RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaFilterWheel>>>,
+    pub(crate) alpaca_filter_wheels: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaFilterWheel>>>,
 
     /// Active Alpaca rotator clients
     pub(crate) alpaca_rotators: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaRotator>>>,
@@ -989,9 +988,7 @@ impl DeviceManager {
     }
 
     /// Construct an Alpaca HTTP client from a canonical device id (legacy API helper).
-    fn alpaca_client_from_device_id(
-        device_id: &str,
-    ) -> Option<Arc<skotiq_alpaca::AlpacaClient>> {
+    fn alpaca_client_from_device_id(device_id: &str) -> Option<Arc<skotiq_alpaca::AlpacaClient>> {
         use crate::device_id::{parse_device_id_cached, ConnectionInfo};
         use skotiq_alpaca::{AlpacaClient, AlpacaDevice, AlpacaDeviceType};
 

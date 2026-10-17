@@ -17,9 +17,7 @@ pub async fn api_get_weather_conditions(
 /// Read a connected safety monitor directly. This deliberately does not use a
 /// cached Dart provider value: safety checks must fail closed when the driver
 /// read fails.
-pub async fn api_get_safety_monitor_status(
-    device_id: String,
-) -> Result<SafetyStatus, SkotiqError> {
+pub async fn api_get_safety_monitor_status(device_id: String) -> Result<SafetyStatus, SkotiqError> {
     let is_safe = get_device_manager()
         .safety_is_safe(&device_id)
         .await

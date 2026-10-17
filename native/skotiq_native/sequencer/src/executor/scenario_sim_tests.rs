@@ -2378,7 +2378,7 @@ async fn start_capture_run(
     tokio::sync::broadcast::Receiver<super::ExecutorEvent>,
 ) {
     use crate::{ExposureConfig, NodeDefinition, NodeType, SequenceDefinition};
-    let dir = std::env::temp_dir().join(format!("ns-retry-run-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-retry-run-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(Some("cam-1".to_string()), None, None, None, None);

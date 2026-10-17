@@ -18,12 +18,12 @@
 //! registered operation has a row. A range that moves in an operation without
 //! moving here fails those tests rather than misleading the editor.
 
+use serde_json::{json, Map, Value};
 use skotiq_imaging::recipe::ops::crop::auto_rect;
 use skotiq_imaging::recipe::ops::stretch::auto_params;
 use skotiq_imaging::recipe::{
     render, OpContext, OpImage, Recipe, RecipeAuthor, RecipeError, RecipeStep, RenderOptions,
 };
-use serde_json::{json, Map, Value};
 
 use super::state::{registry, render_cache, LoadedMaster};
 

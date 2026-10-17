@@ -59,13 +59,8 @@ fn date_obs_is_the_exposure_start_not_the_readout_time() {
         .single()
         .expect("valid instant");
 
-    let mut ctx = skotiq_sequencer::scheduling::FrameContext::new_light(
-        "session".to_string(),
-        1,
-        1,
-        30.0,
-        1,
-    );
+    let mut ctx =
+        skotiq_sequencer::scheduling::FrameContext::new_light("session".to_string(), 1, 1, 30.0, 1);
     ctx.exposure_started_at = Some(started);
 
     let header = crate::FitsWriteHeaderRich::from_frame_context(&ctx);
@@ -84,13 +79,8 @@ fn date_obs_is_the_exposure_start_not_the_readout_time() {
 /// current clock as its observation time without that being obvious.
 #[test]
 fn date_obs_without_a_recorded_start_falls_back_to_now() {
-    let ctx = skotiq_sequencer::scheduling::FrameContext::new_light(
-        "session".to_string(),
-        1,
-        1,
-        5.0,
-        1,
-    );
+    let ctx =
+        skotiq_sequencer::scheduling::FrameContext::new_light("session".to_string(), 1, 1, 5.0, 1);
     assert!(ctx.exposure_started_at.is_none());
 
     let header = crate::FitsWriteHeaderRich::from_frame_context(&ctx);

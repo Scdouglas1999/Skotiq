@@ -157,9 +157,9 @@ pub(crate) fn interpolate_ra(from: f64, to: f64, fraction: f64) -> f64 {
 /// changed" — impossible to detect, because re-slewing to the same coordinates
 /// re-derived the same answer.
 pub(crate) fn pier_side_after_slew_to(ra_hours: f64, lst_hours: f64) -> PierSide {
-    match skotiq_sequencer::meridian::expected_pier_side(
-        skotiq_sequencer::meridian::hour_angle(ra_hours, lst_hours),
-    ) {
+    match skotiq_sequencer::meridian::expected_pier_side(skotiq_sequencer::meridian::hour_angle(
+        ra_hours, lst_hours,
+    )) {
         skotiq_sequencer::meridian::PierSide::East => PierSide::East,
         skotiq_sequencer::meridian::PierSide::West => PierSide::West,
         skotiq_sequencer::meridian::PierSide::Unknown => PierSide::Unknown,
@@ -324,9 +324,7 @@ pub async fn api_mount_sync_to_coordinates(
 /// Park the mount
 pub async fn api_mount_park(device_id: String) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();
-    mgr.mount_park(&device_id)
-        .await
-        .map_err(SkotiqError::from)
+    mgr.mount_park(&device_id).await.map_err(SkotiqError::from)
 }
 
 /// Unpark the mount

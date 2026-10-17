@@ -9,12 +9,12 @@
 use crate::depthlock_service::engine::{state_label, DepthLockService, IngestOutcome};
 use crate::depthlock_service::store::{GoalDefinition, GoalRecord};
 use crate::error::SkotiqError;
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::depthlock::input::{
     AcquisitionSettings, CompatibilityPolicy, ReferenceGeometry,
 };
 use skotiq_imaging::depthlock::{MeasurementSpec, SkyRectangle, ESTIMATOR_VERSION};
 use skotiq_imaging::{read_fits, PixelType};
-use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
 

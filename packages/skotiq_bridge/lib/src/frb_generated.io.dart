@@ -727,12 +727,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MountTimeInfo dco_decode_mount_time_info(dynamic raw);
 
   @protected
-  SkotiqError dco_decode_skotiq_error(dynamic raw);
-
-  @protected
-  SkotiqEvent dco_decode_skotiq_event(dynamic raw);
-
-  @protected
   NodeDefinitionApi dco_decode_node_definition_api(dynamic raw);
 
   @protected
@@ -1003,6 +997,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SimulatedWeather dco_decode_simulated_weather(dynamic raw);
+
+  @protected
+  SkotiqError dco_decode_skotiq_error(dynamic raw);
+
+  @protected
+  SkotiqEvent dco_decode_skotiq_event(dynamic raw);
 
   @protected
   SolveHints dco_decode_solve_hints(dynamic raw);
@@ -1871,12 +1871,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MountTimeInfo sse_decode_mount_time_info(SseDeserializer deserializer);
 
   @protected
-  SkotiqError sse_decode_skotiq_error(SseDeserializer deserializer);
-
-  @protected
-  SkotiqEvent sse_decode_skotiq_event(SseDeserializer deserializer);
-
-  @protected
   NodeDefinitionApi sse_decode_node_definition_api(
     SseDeserializer deserializer,
   );
@@ -2219,6 +2213,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SimulatedWeather sse_decode_simulated_weather(SseDeserializer deserializer);
 
   @protected
+  SkotiqError sse_decode_skotiq_error(SseDeserializer deserializer);
+
+  @protected
+  SkotiqEvent sse_decode_skotiq_event(SseDeserializer deserializer);
+
+  @protected
   SolveHints sse_decode_solve_hints(SseDeserializer deserializer);
 
   @protected
@@ -2332,9 +2332,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ffi.Pointer<wire_cst_list_prim_u_8_strict>
-  cst_encode_StreamSink_skotiq_event_Dco(
-    RustStreamSink<SkotiqEvent> raw,
-  ) {
+  cst_encode_StreamSink_skotiq_event_Dco(RustStreamSink<SkotiqEvent> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_String(
       raw.setupAndSerialize(
@@ -5877,294 +5875,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  void cst_api_fill_to_wire_skotiq_error(
-    SkotiqError apiObj,
-    wire_cst_skotiq_error wireObj,
-  ) {
-    if (apiObj is SkotiqError_DeviceNotFound) {
-      var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 0;
-      wireObj.kind.DeviceNotFound.field0 = pre_field0;
-      return;
-    }
-    if (apiObj is SkotiqError_ConnectionFailed) {
-      var pre_device_id = cst_encode_String(apiObj.deviceId);
-      var pre_reason = cst_encode_String(apiObj.reason);
-      wireObj.tag = 1;
-      wireObj.kind.ConnectionFailed.device_id = pre_device_id;
-      wireObj.kind.ConnectionFailed.reason = pre_reason;
-      return;
-    }
-    if (apiObj is SkotiqError_AlreadyConnected) {
-      var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 2;
-      wireObj.kind.AlreadyConnected.field0 = pre_field0;
-      return;
-    }
-    if (apiObj is SkotiqError_NotConnected) {
-      var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 3;
-      wireObj.kind.NotConnected.field0 = pre_field0;
-      return;
-    }
-    if (apiObj is SkotiqError_DeviceDisconnected) {
-      var pre_device_id = cst_encode_String(apiObj.deviceId);
-      var pre_reason = cst_encode_String(apiObj.reason);
-      wireObj.tag = 4;
-      wireObj.kind.DeviceDisconnected.device_id = pre_device_id;
-      wireObj.kind.DeviceDisconnected.reason = pre_reason;
-      return;
-    }
-    if (apiObj is SkotiqError_HardwareError) {
-      var pre_device_id = cst_encode_String(apiObj.deviceId);
-      var pre_message = cst_encode_String(apiObj.message);
-      var pre_error_code = cst_encode_opt_box_autoadd_i_32(apiObj.errorCode);
-      wireObj.tag = 5;
-      wireObj.kind.HardwareError.device_id = pre_device_id;
-      wireObj.kind.HardwareError.message = pre_message;
-      wireObj.kind.HardwareError.error_code = pre_error_code;
-      return;
-    }
-    if (apiObj is SkotiqError_CommunicationError) {
-      var pre_device_id = cst_encode_String(apiObj.deviceId);
-      var pre_message = cst_encode_String(apiObj.message);
-      wireObj.tag = 6;
-      wireObj.kind.CommunicationError.device_id = pre_device_id;
-      wireObj.kind.CommunicationError.message = pre_message;
-      return;
-    }
-    if (apiObj is SkotiqError_Timeout) {
-      var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 7;
-      wireObj.kind.Timeout.field0 = pre_field0;
-      return;
-    }
-    if (apiObj is SkotiqError_DeviceTimeout) {
-      var pre_device_id = cst_encode_String(apiObj.deviceId);
-      var pre_operation = cst_encode_String(apiObj.operation);
-      var pre_timeout_secs = cst_encode_f_64(apiObj.timeoutSecs);
-      wireObj.tag = 8;
-      wireObj.kind.DeviceTimeout.device_id = pre_device_id;
-      wireObj.kind.DeviceTimeout.operation = pre_operation;
-      wireObj.kind.DeviceTimeout.timeout_secs = pre_timeout_secs;
-      return;
-    }
-    if (apiObj is SkotiqError_ConnectionTimeout) {
-      var pre_device_id = cst_encode_String(apiObj.deviceId);
-      var pre_timeout_secs = cst_encode_f_64(apiObj.timeoutSecs);
-      wireObj.tag = 9;
-      wireObj.kind.ConnectionTimeout.device_id = pre_device_id;
-      wireObj.kind.ConnectionTimeout.timeout_secs = pre_timeout_secs;
-      return;
-    }
-    if (apiObj is SkotiqError_InvalidParameter) {
-      var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 10;
-      wireObj.kind.InvalidParameter.field0 = pre_field0;
-      return;
-    }
-    if (apiObj is SkotiqError_InvalidInput) {
-      var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 11;
-      wireObj.kind.InvalidInput.field0 = pre_field0;
-      return;
-    }
-    if (apiObj is SkotiqError_InvalidDeviceId) {
-      var pre_device_id = cst_encode_String(apiObj.deviceId);
-      var pre_reason = cst_encode_String(apiObj.reason);
-      wireObj.tag = 12;
-      wireObj.kind.InvalidDeviceId.device_id = pre_device_id;
-      wireObj.kind.InvalidDeviceId.reason = pre_reason;
-      return;
-    }
-    if (apiObj is SkotiqError_ParameterOutOfRange) {
-      var pre_param_name = cst_encode_String(apiObj.paramName);
-      var pre_value = cst_encode_String(apiObj.value);
-      var pre_min = cst_encode_String(apiObj.min);
-      var pre_max = cst_encode_String(apiObj.max);
-      wireObj.tag = 13;
-      wireObj.kind.ParameterOutOfRange.param_name = pre_param_name;
-      wireObj.kind.ParameterOutOfRange.value = pre_value;
-      wireObj.kind.ParameterOutOfRange.min = pre_min;
-      wireObj.kind.ParameterOutOfRange.max = pre_max;
-      return;
-    }
-    if (apiObj is SkotiqError_OperationFailed) {
-      var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 14;
-      wireObj.kind.OperationFailed.field0 = pre_field0;
-      return;
-    }
-    if (apiObj is SkotiqError_NotSupported) {
-      var pre_device_id = cst_encode_String(apiObj.deviceId);
-      var pre_operation = cst_encode_String(apiObj.operation);
-      wireObj.tag = 15;
-      wireObj.kind.NotSupported.device_id = pre_device_id;
-      wireObj.kind.NotSupported.operation = pre_operation;
-      return;
-    }
-    if (apiObj is SkotiqError_DeviceBusy) {
-      var pre_device_id = cst_encode_String(apiObj.deviceId);
-      var pre_current_operation = cst_encode_String(apiObj.currentOperation);
-      wireObj.tag = 16;
-      wireObj.kind.DeviceBusy.device_id = pre_device_id;
-      wireObj.kind.DeviceBusy.current_operation = pre_current_operation;
-      return;
-    }
-    if (apiObj is SkotiqError_ImageError) {
-      var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 17;
-      wireObj.kind.ImageError.field0 = pre_field0;
-      return;
-    }
-    if (apiObj is SkotiqError_CameraError) {
-      var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 18;
-      wireObj.kind.CameraError.field0 = pre_field0;
-      return;
-    }
-    if (apiObj is SkotiqError_NoImageAvailable) {
-      wireObj.tag = 19;
-      return;
-    }
-    if (apiObj is SkotiqError_ExposureCancelled) {
-      wireObj.tag = 20;
-      return;
-    }
-    if (apiObj is SkotiqError_ExposureFailed) {
-      var pre_camera_id = cst_encode_String(apiObj.cameraId);
-      var pre_reason = cst_encode_String(apiObj.reason);
-      wireObj.tag = 21;
-      wireObj.kind.ExposureFailed.camera_id = pre_camera_id;
-      wireObj.kind.ExposureFailed.reason = pre_reason;
-      return;
-    }
-    if (apiObj is SkotiqError_DownloadFailed) {
-      var pre_camera_id = cst_encode_String(apiObj.cameraId);
-      var pre_reason = cst_encode_String(apiObj.reason);
-      wireObj.tag = 22;
-      wireObj.kind.DownloadFailed.camera_id = pre_camera_id;
-      wireObj.kind.DownloadFailed.reason = pre_reason;
-      return;
-    }
-    if (apiObj is SkotiqError_IoError) {
-      var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 23;
-      wireObj.kind.IoError.field0 = pre_field0;
-      return;
-    }
-    if (apiObj is SkotiqError_SerializationError) {
-      var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 24;
-      wireObj.kind.SerializationError.field0 = pre_field0;
-      return;
-    }
-    if (apiObj is SkotiqError_PlateSolveError) {
-      var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 25;
-      wireObj.kind.PlateSolveError.field0 = pre_field0;
-      return;
-    }
-    if (apiObj is SkotiqError_SequenceError) {
-      var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 26;
-      wireObj.kind.SequenceError.field0 = pre_field0;
-      return;
-    }
-    if (apiObj is SkotiqError_AscomError) {
-      var pre_prog_id = cst_encode_String(apiObj.progId);
-      var pre_message = cst_encode_String(apiObj.message);
-      var pre_error_code = cst_encode_i_32(apiObj.errorCode);
-      wireObj.tag = 27;
-      wireObj.kind.AscomError.prog_id = pre_prog_id;
-      wireObj.kind.AscomError.message = pre_message;
-      wireObj.kind.AscomError.error_code = pre_error_code;
-      return;
-    }
-    if (apiObj is SkotiqError_AlpacaError) {
-      var pre_base_url = cst_encode_String(apiObj.baseUrl);
-      var pre_device_number = cst_encode_u_32(apiObj.deviceNumber);
-      var pre_message = cst_encode_String(apiObj.message);
-      var pre_error_code = cst_encode_i_32(apiObj.errorCode);
-      wireObj.tag = 28;
-      wireObj.kind.AlpacaError.base_url = pre_base_url;
-      wireObj.kind.AlpacaError.device_number = pre_device_number;
-      wireObj.kind.AlpacaError.message = pre_message;
-      wireObj.kind.AlpacaError.error_code = pre_error_code;
-      return;
-    }
-    if (apiObj is SkotiqError_IndiError) {
-      var pre_server = cst_encode_String(apiObj.server);
-      var pre_port = cst_encode_u_16(apiObj.port);
-      var pre_device_name = cst_encode_String(apiObj.deviceName);
-      var pre_message = cst_encode_String(apiObj.message);
-      wireObj.tag = 29;
-      wireObj.kind.IndiError.server = pre_server;
-      wireObj.kind.IndiError.port = pre_port;
-      wireObj.kind.IndiError.device_name = pre_device_name;
-      wireObj.kind.IndiError.message = pre_message;
-      return;
-    }
-    if (apiObj is SkotiqError_NativeError) {
-      var pre_vendor = cst_encode_String(apiObj.vendor);
-      var pre_message = cst_encode_String(apiObj.message);
-      var pre_error_code = cst_encode_i_32(apiObj.errorCode);
-      wireObj.tag = 30;
-      wireObj.kind.NativeError.vendor = pre_vendor;
-      wireObj.kind.NativeError.message = pre_message;
-      wireObj.kind.NativeError.error_code = pre_error_code;
-      return;
-    }
-    if (apiObj is SkotiqError_ComError) {
-      var pre_message = cst_encode_String(apiObj.message);
-      var pre_hresult = cst_encode_u_32(apiObj.hresult);
-      wireObj.tag = 31;
-      wireObj.kind.ComError.message = pre_message;
-      wireObj.kind.ComError.hresult = pre_hresult;
-      return;
-    }
-    if (apiObj is SkotiqError_Internal) {
-      var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 32;
-      wireObj.kind.Internal.field0 = pre_field0;
-      return;
-    }
-    if (apiObj is SkotiqError_Cancelled) {
-      wireObj.tag = 33;
-      return;
-    }
-    if (apiObj is SkotiqError_RuntimeInitFailed) {
-      var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 34;
-      wireObj.kind.RuntimeInitFailed.field0 = pre_field0;
-      return;
-    }
-    if (apiObj is SkotiqError_ResourceExhausted) {
-      var pre_resource = cst_encode_String(apiObj.resource);
-      var pre_message = cst_encode_String(apiObj.message);
-      wireObj.tag = 35;
-      wireObj.kind.ResourceExhausted.resource = pre_resource;
-      wireObj.kind.ResourceExhausted.message = pre_message;
-      return;
-    }
-  }
-
-  @protected
-  void cst_api_fill_to_wire_skotiq_event(
-    SkotiqEvent apiObj,
-    wire_cst_skotiq_event wireObj,
-  ) {
-    wireObj.event_id = cst_encode_u_64(apiObj.eventId);
-    wireObj.timestamp = cst_encode_i_64(apiObj.timestamp);
-    wireObj.severity = cst_encode_event_severity(apiObj.severity);
-    wireObj.category = cst_encode_event_category(apiObj.category);
-    cst_api_fill_to_wire_event_payload(apiObj.payload, wireObj.payload);
-    wireObj.caused_by = cst_encode_opt_box_autoadd_u_64(apiObj.causedBy);
-    wireObj.correlation_id = cst_encode_opt_String(apiObj.correlationId);
-    wireObj.device_id = cst_encode_opt_String(apiObj.deviceId);
-  }
-
-  @protected
   void cst_api_fill_to_wire_node_definition_api(
     NodeDefinitionApi apiObj,
     wire_cst_node_definition_api wireObj,
@@ -7382,6 +7092,294 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       apiObj.conditions,
       wireObj.conditions,
     );
+  }
+
+  @protected
+  void cst_api_fill_to_wire_skotiq_error(
+    SkotiqError apiObj,
+    wire_cst_skotiq_error wireObj,
+  ) {
+    if (apiObj is SkotiqError_DeviceNotFound) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 0;
+      wireObj.kind.DeviceNotFound.field0 = pre_field0;
+      return;
+    }
+    if (apiObj is SkotiqError_ConnectionFailed) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
+      var pre_reason = cst_encode_String(apiObj.reason);
+      wireObj.tag = 1;
+      wireObj.kind.ConnectionFailed.device_id = pre_device_id;
+      wireObj.kind.ConnectionFailed.reason = pre_reason;
+      return;
+    }
+    if (apiObj is SkotiqError_AlreadyConnected) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 2;
+      wireObj.kind.AlreadyConnected.field0 = pre_field0;
+      return;
+    }
+    if (apiObj is SkotiqError_NotConnected) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 3;
+      wireObj.kind.NotConnected.field0 = pre_field0;
+      return;
+    }
+    if (apiObj is SkotiqError_DeviceDisconnected) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
+      var pre_reason = cst_encode_String(apiObj.reason);
+      wireObj.tag = 4;
+      wireObj.kind.DeviceDisconnected.device_id = pre_device_id;
+      wireObj.kind.DeviceDisconnected.reason = pre_reason;
+      return;
+    }
+    if (apiObj is SkotiqError_HardwareError) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
+      var pre_message = cst_encode_String(apiObj.message);
+      var pre_error_code = cst_encode_opt_box_autoadd_i_32(apiObj.errorCode);
+      wireObj.tag = 5;
+      wireObj.kind.HardwareError.device_id = pre_device_id;
+      wireObj.kind.HardwareError.message = pre_message;
+      wireObj.kind.HardwareError.error_code = pre_error_code;
+      return;
+    }
+    if (apiObj is SkotiqError_CommunicationError) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
+      var pre_message = cst_encode_String(apiObj.message);
+      wireObj.tag = 6;
+      wireObj.kind.CommunicationError.device_id = pre_device_id;
+      wireObj.kind.CommunicationError.message = pre_message;
+      return;
+    }
+    if (apiObj is SkotiqError_Timeout) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 7;
+      wireObj.kind.Timeout.field0 = pre_field0;
+      return;
+    }
+    if (apiObj is SkotiqError_DeviceTimeout) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
+      var pre_operation = cst_encode_String(apiObj.operation);
+      var pre_timeout_secs = cst_encode_f_64(apiObj.timeoutSecs);
+      wireObj.tag = 8;
+      wireObj.kind.DeviceTimeout.device_id = pre_device_id;
+      wireObj.kind.DeviceTimeout.operation = pre_operation;
+      wireObj.kind.DeviceTimeout.timeout_secs = pre_timeout_secs;
+      return;
+    }
+    if (apiObj is SkotiqError_ConnectionTimeout) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
+      var pre_timeout_secs = cst_encode_f_64(apiObj.timeoutSecs);
+      wireObj.tag = 9;
+      wireObj.kind.ConnectionTimeout.device_id = pre_device_id;
+      wireObj.kind.ConnectionTimeout.timeout_secs = pre_timeout_secs;
+      return;
+    }
+    if (apiObj is SkotiqError_InvalidParameter) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 10;
+      wireObj.kind.InvalidParameter.field0 = pre_field0;
+      return;
+    }
+    if (apiObj is SkotiqError_InvalidInput) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 11;
+      wireObj.kind.InvalidInput.field0 = pre_field0;
+      return;
+    }
+    if (apiObj is SkotiqError_InvalidDeviceId) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
+      var pre_reason = cst_encode_String(apiObj.reason);
+      wireObj.tag = 12;
+      wireObj.kind.InvalidDeviceId.device_id = pre_device_id;
+      wireObj.kind.InvalidDeviceId.reason = pre_reason;
+      return;
+    }
+    if (apiObj is SkotiqError_ParameterOutOfRange) {
+      var pre_param_name = cst_encode_String(apiObj.paramName);
+      var pre_value = cst_encode_String(apiObj.value);
+      var pre_min = cst_encode_String(apiObj.min);
+      var pre_max = cst_encode_String(apiObj.max);
+      wireObj.tag = 13;
+      wireObj.kind.ParameterOutOfRange.param_name = pre_param_name;
+      wireObj.kind.ParameterOutOfRange.value = pre_value;
+      wireObj.kind.ParameterOutOfRange.min = pre_min;
+      wireObj.kind.ParameterOutOfRange.max = pre_max;
+      return;
+    }
+    if (apiObj is SkotiqError_OperationFailed) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 14;
+      wireObj.kind.OperationFailed.field0 = pre_field0;
+      return;
+    }
+    if (apiObj is SkotiqError_NotSupported) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
+      var pre_operation = cst_encode_String(apiObj.operation);
+      wireObj.tag = 15;
+      wireObj.kind.NotSupported.device_id = pre_device_id;
+      wireObj.kind.NotSupported.operation = pre_operation;
+      return;
+    }
+    if (apiObj is SkotiqError_DeviceBusy) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
+      var pre_current_operation = cst_encode_String(apiObj.currentOperation);
+      wireObj.tag = 16;
+      wireObj.kind.DeviceBusy.device_id = pre_device_id;
+      wireObj.kind.DeviceBusy.current_operation = pre_current_operation;
+      return;
+    }
+    if (apiObj is SkotiqError_ImageError) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 17;
+      wireObj.kind.ImageError.field0 = pre_field0;
+      return;
+    }
+    if (apiObj is SkotiqError_CameraError) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 18;
+      wireObj.kind.CameraError.field0 = pre_field0;
+      return;
+    }
+    if (apiObj is SkotiqError_NoImageAvailable) {
+      wireObj.tag = 19;
+      return;
+    }
+    if (apiObj is SkotiqError_ExposureCancelled) {
+      wireObj.tag = 20;
+      return;
+    }
+    if (apiObj is SkotiqError_ExposureFailed) {
+      var pre_camera_id = cst_encode_String(apiObj.cameraId);
+      var pre_reason = cst_encode_String(apiObj.reason);
+      wireObj.tag = 21;
+      wireObj.kind.ExposureFailed.camera_id = pre_camera_id;
+      wireObj.kind.ExposureFailed.reason = pre_reason;
+      return;
+    }
+    if (apiObj is SkotiqError_DownloadFailed) {
+      var pre_camera_id = cst_encode_String(apiObj.cameraId);
+      var pre_reason = cst_encode_String(apiObj.reason);
+      wireObj.tag = 22;
+      wireObj.kind.DownloadFailed.camera_id = pre_camera_id;
+      wireObj.kind.DownloadFailed.reason = pre_reason;
+      return;
+    }
+    if (apiObj is SkotiqError_IoError) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 23;
+      wireObj.kind.IoError.field0 = pre_field0;
+      return;
+    }
+    if (apiObj is SkotiqError_SerializationError) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 24;
+      wireObj.kind.SerializationError.field0 = pre_field0;
+      return;
+    }
+    if (apiObj is SkotiqError_PlateSolveError) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 25;
+      wireObj.kind.PlateSolveError.field0 = pre_field0;
+      return;
+    }
+    if (apiObj is SkotiqError_SequenceError) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 26;
+      wireObj.kind.SequenceError.field0 = pre_field0;
+      return;
+    }
+    if (apiObj is SkotiqError_AscomError) {
+      var pre_prog_id = cst_encode_String(apiObj.progId);
+      var pre_message = cst_encode_String(apiObj.message);
+      var pre_error_code = cst_encode_i_32(apiObj.errorCode);
+      wireObj.tag = 27;
+      wireObj.kind.AscomError.prog_id = pre_prog_id;
+      wireObj.kind.AscomError.message = pre_message;
+      wireObj.kind.AscomError.error_code = pre_error_code;
+      return;
+    }
+    if (apiObj is SkotiqError_AlpacaError) {
+      var pre_base_url = cst_encode_String(apiObj.baseUrl);
+      var pre_device_number = cst_encode_u_32(apiObj.deviceNumber);
+      var pre_message = cst_encode_String(apiObj.message);
+      var pre_error_code = cst_encode_i_32(apiObj.errorCode);
+      wireObj.tag = 28;
+      wireObj.kind.AlpacaError.base_url = pre_base_url;
+      wireObj.kind.AlpacaError.device_number = pre_device_number;
+      wireObj.kind.AlpacaError.message = pre_message;
+      wireObj.kind.AlpacaError.error_code = pre_error_code;
+      return;
+    }
+    if (apiObj is SkotiqError_IndiError) {
+      var pre_server = cst_encode_String(apiObj.server);
+      var pre_port = cst_encode_u_16(apiObj.port);
+      var pre_device_name = cst_encode_String(apiObj.deviceName);
+      var pre_message = cst_encode_String(apiObj.message);
+      wireObj.tag = 29;
+      wireObj.kind.IndiError.server = pre_server;
+      wireObj.kind.IndiError.port = pre_port;
+      wireObj.kind.IndiError.device_name = pre_device_name;
+      wireObj.kind.IndiError.message = pre_message;
+      return;
+    }
+    if (apiObj is SkotiqError_NativeError) {
+      var pre_vendor = cst_encode_String(apiObj.vendor);
+      var pre_message = cst_encode_String(apiObj.message);
+      var pre_error_code = cst_encode_i_32(apiObj.errorCode);
+      wireObj.tag = 30;
+      wireObj.kind.NativeError.vendor = pre_vendor;
+      wireObj.kind.NativeError.message = pre_message;
+      wireObj.kind.NativeError.error_code = pre_error_code;
+      return;
+    }
+    if (apiObj is SkotiqError_ComError) {
+      var pre_message = cst_encode_String(apiObj.message);
+      var pre_hresult = cst_encode_u_32(apiObj.hresult);
+      wireObj.tag = 31;
+      wireObj.kind.ComError.message = pre_message;
+      wireObj.kind.ComError.hresult = pre_hresult;
+      return;
+    }
+    if (apiObj is SkotiqError_Internal) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 32;
+      wireObj.kind.Internal.field0 = pre_field0;
+      return;
+    }
+    if (apiObj is SkotiqError_Cancelled) {
+      wireObj.tag = 33;
+      return;
+    }
+    if (apiObj is SkotiqError_RuntimeInitFailed) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 34;
+      wireObj.kind.RuntimeInitFailed.field0 = pre_field0;
+      return;
+    }
+    if (apiObj is SkotiqError_ResourceExhausted) {
+      var pre_resource = cst_encode_String(apiObj.resource);
+      var pre_message = cst_encode_String(apiObj.message);
+      wireObj.tag = 35;
+      wireObj.kind.ResourceExhausted.resource = pre_resource;
+      wireObj.kind.ResourceExhausted.message = pre_message;
+      return;
+    }
+  }
+
+  @protected
+  void cst_api_fill_to_wire_skotiq_event(
+    SkotiqEvent apiObj,
+    wire_cst_skotiq_event wireObj,
+  ) {
+    wireObj.event_id = cst_encode_u_64(apiObj.eventId);
+    wireObj.timestamp = cst_encode_i_64(apiObj.timestamp);
+    wireObj.severity = cst_encode_event_severity(apiObj.severity);
+    wireObj.category = cst_encode_event_category(apiObj.category);
+    cst_api_fill_to_wire_event_payload(apiObj.payload, wireObj.payload);
+    wireObj.caused_by = cst_encode_opt_box_autoadd_u_64(apiObj.causedBy);
+    wireObj.correlation_id = cst_encode_opt_String(apiObj.correlationId);
+    wireObj.device_id = cst_encode_opt_String(apiObj.deviceId);
   }
 
   @protected
@@ -8730,18 +8728,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_mount_time_info(MountTimeInfo self, SseSerializer serializer);
 
   @protected
-  void sse_encode_skotiq_error(
-    SkotiqError self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_skotiq_event(
-    SkotiqEvent self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_node_definition_api(
     NodeDefinitionApi self,
     SseSerializer serializer,
@@ -9182,6 +9168,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_skotiq_error(SkotiqError self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_skotiq_event(SkotiqEvent self, SseSerializer serializer);
+
+  @protected
   void sse_encode_solve_hints(SolveHints self, SseSerializer serializer);
 
   @protected
@@ -9342,9 +9334,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_stretch_params_api>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_apply_stretch',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_apply_stretch');
   late final _wire__crate__api__imaging__api_apply_stretch =
       _wire__crate__api__imaging__api_apply_stretchPtr
           .asFunction<
@@ -9674,9 +9664,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_calculate_hfr',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_calculate_hfr');
   late final _wire__crate__api__imaging__api_calculate_hfr =
       _wire__crate__api__imaging__api_calculate_hfrPtr
           .asFunction<
@@ -11721,9 +11709,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_debayer_image',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_debayer_image');
   late final _wire__crate__api__imaging__api_debayer_image =
       _wire__crate__api__imaging__api_debayer_imagePtr
           .asFunction<
@@ -11784,9 +11770,7 @@ class RustLibWire implements BaseWire {
             ffi.Bool,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_defect_map_apply',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_defect_map_apply');
   late final _wire__crate__api__imaging__api_defect_map_apply =
       _wire__crate__api__imaging__api_defect_map_applyPtr
           .asFunction<
@@ -11817,9 +11801,7 @@ class RustLibWire implements BaseWire {
             ffi.Double,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_defect_map_build',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_defect_map_build');
   late final _wire__crate__api__imaging__api_defect_map_build =
       _wire__crate__api__imaging__api_defect_map_buildPtr
           .asFunction<
@@ -11858,9 +11840,7 @@ class RustLibWire implements BaseWire {
             ffi.Double,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_defect_map_clear',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_defect_map_clear');
   late final _wire__crate__api__imaging__api_defect_map_clear =
       _wire__crate__api__imaging__api_defect_map_clearPtr
           .asFunction<
@@ -11928,9 +11908,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__storage__api_delete_profile',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__storage__api_delete_profile');
   late final _wire__crate__api__storage__api_delete_profile =
       _wire__crate__api__storage__api_delete_profilePtr
           .asFunction<
@@ -12892,9 +12870,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__dome__api_dome_park',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__devices__dome__api_dome_park');
   late final _wire__crate__api__devices__dome__api_dome_park =
       _wire__crate__api__devices__dome__api_dome_parkPtr
           .asFunction<
@@ -13931,9 +13907,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_16_loose>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_get_image_stats',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_get_image_stats');
   late final _wire__crate__api__imaging__api_get_image_stats =
       _wire__crate__api__imaging__api_get_image_statsPtr
           .asFunction<
@@ -13959,9 +13933,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_get_last_image',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_get_last_image');
   late final _wire__crate__api__imaging__api_get_last_image =
       _wire__crate__api__imaging__api_get_last_imagePtr
           .asFunction<
@@ -14499,9 +14471,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_find_star',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_find_star');
   late final _wire__crate__api__phd2__api_guider_find_star =
       _wire__crate__api__phd2__api_guider_find_starPtr
           .asFunction<
@@ -14607,9 +14577,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_get_status',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_get_status');
   late final _wire__crate__api__phd2__api_guider_get_status =
       _wire__crate__api__phd2__api_guider_get_statusPtr
           .asFunction<
@@ -14817,9 +14785,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__init__api_init_with_logging',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__init__api_init_with_logging');
   late final _wire__crate__api__init__api_init_with_logging =
       _wire__crate__api__init__api_init_with_loggingPtr
           .asFunction<
@@ -15540,9 +15506,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_algo_param',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_algo_param');
   late final _wire__crate__api__phd2__api_phd2_get_algo_param =
       _wire__crate__api__phd2__api_phd2_get_algo_paramPtr
           .asFunction<
@@ -15709,9 +15673,7 @@ class RustLibWire implements BaseWire {
             ffi.Double,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_set_algo_param',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_set_algo_param');
   late final _wire__crate__api__phd2__api_phd2_set_algo_param =
       _wire__crate__api__phd2__api_phd2_set_algo_paramPtr
           .asFunction<
@@ -15795,9 +15757,7 @@ class RustLibWire implements BaseWire {
         ffi.NativeFunction<
           ffi.Void Function(ffi.Int64, ffi.Double, ffi.Double, ffi.Double)
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_start_guiding',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_start_guiding');
   late final _wire__crate__api__phd2__api_phd2_start_guiding =
       _wire__crate__api__phd2__api_phd2_start_guidingPtr
           .asFunction<void Function(int, double, double, double)>();
@@ -16042,9 +16002,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_fits_file',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_fits_file');
   late final _wire__crate__api__imaging__api_read_fits_file =
       _wire__crate__api__imaging__api_read_fits_filePtr
           .asFunction<
@@ -16115,9 +16073,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_xisf_file',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_xisf_file');
   late final _wire__crate__api__imaging__api_read_xisf_file =
       _wire__crate__api__imaging__api_read_xisf_filePtr
           .asFunction<
@@ -16347,9 +16303,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_autofocus_config_api>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_run_autofocus',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_run_autofocus');
   late final _wire__crate__api__imaging__api_run_autofocus =
       _wire__crate__api__imaging__api_run_autofocusPtr
           .asFunction<
@@ -16467,9 +16421,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_fits_write_header>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_fits_file',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_fits_file');
   late final _wire__crate__api__imaging__api_save_fits_file =
       _wire__crate__api__imaging__api_save_fits_filePtr
           .asFunction<
@@ -16578,9 +16530,7 @@ class RustLibWire implements BaseWire {
             ffi.Uint8,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_jpeg_file',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_jpeg_file');
   late final _wire__crate__api__imaging__api_save_jpeg_file =
       _wire__crate__api__imaging__api_save_jpeg_filePtr
           .asFunction<
@@ -16621,9 +16571,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_16_loose>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_png_file',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_png_file');
   late final _wire__crate__api__imaging__api_save_png_file =
       _wire__crate__api__imaging__api_save_png_filePtr
           .asFunction<
@@ -16771,9 +16719,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_16_loose>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_tiff_file',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_tiff_file');
   late final _wire__crate__api__imaging__api_save_tiff_file =
       _wire__crate__api__imaging__api_save_tiff_filePtr
           .asFunction<
@@ -16816,9 +16762,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_record_string_string>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_xisf_file',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_xisf_file');
   late final _wire__crate__api__imaging__api_save_xisf_file =
       _wire__crate__api__imaging__api_save_xisf_filePtr
           .asFunction<
@@ -18816,9 +18760,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_api_live_stacking_config>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_start',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_start');
   late final _wire__crate__api__imaging__api_stacking_start =
       _wire__crate__api__imaging__api_stacking_startPtr
           .asFunction<
@@ -19120,9 +19062,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<ffi.Double>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__session__api_start_session',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__session__api_start_session');
   late final _wire__crate__api__session__api_start_session =
       _wire__crate__api__session__api_start_sessionPtr
           .asFunction<
@@ -19557,9 +19497,7 @@ class RustLibWire implements BaseWire {
         ffi.NativeFunction<
           WireSyncRust2DartDco Function(ffi.Pointer<wire_cst_app_settings>)
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__storage__api_update_settings',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__storage__api_update_settings');
   late final _wire__crate__api__storage__api_update_settings =
       _wire__crate__api__storage__api_update_settingsPtr
           .asFunction<
@@ -20183,9 +20121,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_abort',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_abort');
   late final _wire__crate__api__devices__mount__mount_abort =
       _wire__crate__api__devices__mount__mount_abortPtr
           .asFunction<
@@ -20422,9 +20358,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_park',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_park');
   late final _wire__crate__api__devices__mount__mount_park =
       _wire__crate__api__devices__mount__mount_parkPtr
           .asFunction<
@@ -20660,9 +20594,7 @@ class RustLibWire implements BaseWire {
             ffi.Double,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_slew',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_slew');
   late final _wire__crate__api__devices__mount__mount_slew =
       _wire__crate__api__devices__mount__mount_slewPtr
           .asFunction<
@@ -20727,9 +20659,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_stop',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_stop');
   late final _wire__crate__api__devices__mount__mount_stop =
       _wire__crate__api__devices__mount__mount_stopPtr
           .asFunction<
@@ -20760,9 +20690,7 @@ class RustLibWire implements BaseWire {
             ffi.Double,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_sync',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_sync');
   late final _wire__crate__api__devices__mount__mount_sync =
       _wire__crate__api__devices__mount__mount_syncPtr
           .asFunction<
@@ -20789,9 +20717,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_unpark',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_unpark');
   late final _wire__crate__api__devices__mount__mount_unpark =
       _wire__crate__api__devices__mount__mount_unparkPtr
           .asFunction<
@@ -20858,9 +20784,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_fits_write_header_rich>,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__save_fits_file_rich',
-      );
+      >('frbgen_skotiq_bridge_wire__crate__api__imaging__save_fits_file_rich');
   late final _wire__crate__api__imaging__save_fits_file_rich =
       _wire__crate__api__imaging__save_fits_file_richPtr
           .asFunction<
@@ -21350,9 +21274,7 @@ class RustLibWire implements BaseWire {
         ffi.NativeFunction<
           ffi.Pointer<wire_cst_api_acquisition_settings> Function()
         >
-      >(
-        'frbgen_skotiq_bridge_cst_new_box_autoadd_api_acquisition_settings',
-      );
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_api_acquisition_settings');
   late final _cst_new_box_autoadd_api_acquisition_settings =
       _cst_new_box_autoadd_api_acquisition_settingsPtr
           .asFunction<
@@ -21410,9 +21332,7 @@ class RustLibWire implements BaseWire {
         ffi.NativeFunction<
           ffi.Pointer<wire_cst_api_depth_goal_definition> Function()
         >
-      >(
-        'frbgen_skotiq_bridge_cst_new_box_autoadd_api_depth_goal_definition',
-      );
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_api_depth_goal_definition');
   late final _cst_new_box_autoadd_api_depth_goal_definition =
       _cst_new_box_autoadd_api_depth_goal_definitionPtr
           .asFunction<
@@ -21457,9 +21377,7 @@ class RustLibWire implements BaseWire {
         ffi.NativeFunction<
           ffi.Pointer<wire_cst_api_live_stacking_config> Function()
         >
-      >(
-        'frbgen_skotiq_bridge_cst_new_box_autoadd_api_live_stacking_config',
-      );
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_api_live_stacking_config');
   late final _cst_new_box_autoadd_api_live_stacking_config =
       _cst_new_box_autoadd_api_live_stacking_configPtr
           .asFunction<
@@ -21673,9 +21591,7 @@ class RustLibWire implements BaseWire {
         ffi.NativeFunction<
           ffi.Pointer<wire_cst_filter_wheel_capabilities> Function()
         >
-      >(
-        'frbgen_skotiq_bridge_cst_new_box_autoadd_filter_wheel_capabilities',
-      );
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_filter_wheel_capabilities');
   late final _cst_new_box_autoadd_filter_wheel_capabilities =
       _cst_new_box_autoadd_filter_wheel_capabilitiesPtr
           .asFunction<
@@ -21800,9 +21716,7 @@ class RustLibWire implements BaseWire {
         ffi.NativeFunction<
           ffi.Pointer<wire_cst_indi_autofocus_config_api> Function()
         >
-      >(
-        'frbgen_skotiq_bridge_cst_new_box_autoadd_indi_autofocus_config_api',
-      );
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_indi_autofocus_config_api');
   late final _cst_new_box_autoadd_indi_autofocus_config_api =
       _cst_new_box_autoadd_indi_autofocus_config_apiPtr
           .asFunction<
@@ -21875,9 +21789,7 @@ class RustLibWire implements BaseWire {
         ffi.NativeFunction<
           ffi.Pointer<wire_cst_plate_solver_config_payload> Function()
         >
-      >(
-        'frbgen_skotiq_bridge_cst_new_box_autoadd_plate_solver_config_payload',
-      );
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_plate_solver_config_payload');
   late final _cst_new_box_autoadd_plate_solver_config_payload =
       _cst_new_box_autoadd_plate_solver_config_payloadPtr
           .asFunction<
@@ -21909,9 +21821,7 @@ class RustLibWire implements BaseWire {
         ffi.NativeFunction<
           ffi.Pointer<wire_cst_polar_alignment_image_event> Function()
         >
-      >(
-        'frbgen_skotiq_bridge_cst_new_box_autoadd_polar_alignment_image_event',
-      );
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_polar_alignment_image_event');
   late final _cst_new_box_autoadd_polar_alignment_image_event =
       _cst_new_box_autoadd_polar_alignment_image_eventPtr
           .asFunction<
@@ -22002,9 +21912,7 @@ class RustLibWire implements BaseWire {
         ffi.NativeFunction<
           ffi.Pointer<wire_cst_safety_monitor_capabilities> Function()
         >
-      >(
-        'frbgen_skotiq_bridge_cst_new_box_autoadd_safety_monitor_capabilities',
-      );
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_safety_monitor_capabilities');
   late final _cst_new_box_autoadd_safety_monitor_capabilities =
       _cst_new_box_autoadd_safety_monitor_capabilitiesPtr
           .asFunction<
@@ -22021,9 +21929,7 @@ class RustLibWire implements BaseWire {
         ffi.NativeFunction<
           ffi.Pointer<wire_cst_secondary_rig_config_api> Function()
         >
-      >(
-        'frbgen_skotiq_bridge_cst_new_box_autoadd_secondary_rig_config_api',
-      );
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_secondary_rig_config_api');
   late final _cst_new_box_autoadd_secondary_rig_config_api =
       _cst_new_box_autoadd_secondary_rig_config_apiPtr
           .asFunction<
@@ -22081,9 +21987,7 @@ class RustLibWire implements BaseWire {
         ffi.NativeFunction<
           ffi.Pointer<wire_cst_star_detection_config_api> Function()
         >
-      >(
-        'frbgen_skotiq_bridge_cst_new_box_autoadd_star_detection_config_api',
-      );
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_star_detection_config_api');
   late final _cst_new_box_autoadd_star_detection_config_api =
       _cst_new_box_autoadd_star_detection_config_apiPtr
           .asFunction<
@@ -22586,9 +22490,7 @@ class RustLibWire implements BaseWire {
             ffi.Int32,
           )
         >
-      >(
-        'frbgen_skotiq_bridge_cst_new_list_record_string_field_availability',
-      );
+      >('frbgen_skotiq_bridge_cst_new_list_record_string_field_availability');
   late final _cst_new_list_record_string_field_availability =
       _cst_new_list_record_string_field_availabilityPtr
           .asFunction<
@@ -22625,9 +22527,7 @@ class RustLibWire implements BaseWire {
           ffi.Pointer<wire_cst_list_record_string_map_string_f_64_none>
           Function(ffi.Int32)
         >
-      >(
-        'frbgen_skotiq_bridge_cst_new_list_record_string_map_string_f_64_none',
-      );
+      >('frbgen_skotiq_bridge_cst_new_list_record_string_map_string_f_64_none');
   late final _cst_new_list_record_string_map_string_f_64_none =
       _cst_new_list_record_string_map_string_f_64_nonePtr
           .asFunction<
@@ -26369,299 +26269,6 @@ final class wire_cst_mount_time_info extends ffi.Struct {
   external double utc_offset_hours;
 }
 
-final class wire_cst_SkotiqError_DeviceNotFound extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-}
-
-final class wire_cst_SkotiqError_ConnectionFailed extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
-}
-
-final class wire_cst_SkotiqError_AlreadyConnected extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-}
-
-final class wire_cst_SkotiqError_NotConnected extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-}
-
-final class wire_cst_SkotiqError_DeviceDisconnected extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
-}
-
-final class wire_cst_SkotiqError_HardwareError extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
-
-  external ffi.Pointer<ffi.Int32> error_code;
-}
-
-final class wire_cst_SkotiqError_CommunicationError extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
-}
-
-final class wire_cst_SkotiqError_Timeout extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-}
-
-final class wire_cst_SkotiqError_DeviceTimeout extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> operation;
-
-  @ffi.Double()
-  external double timeout_secs;
-}
-
-final class wire_cst_SkotiqError_ConnectionTimeout extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
-
-  @ffi.Double()
-  external double timeout_secs;
-}
-
-final class wire_cst_SkotiqError_InvalidParameter extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-}
-
-final class wire_cst_SkotiqError_InvalidInput extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-}
-
-final class wire_cst_SkotiqError_InvalidDeviceId extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
-}
-
-final class wire_cst_SkotiqError_ParameterOutOfRange extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> param_name;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> value;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> min;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> max;
-}
-
-final class wire_cst_SkotiqError_OperationFailed extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-}
-
-final class wire_cst_SkotiqError_NotSupported extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> operation;
-}
-
-final class wire_cst_SkotiqError_DeviceBusy extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> current_operation;
-}
-
-final class wire_cst_SkotiqError_ImageError extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-}
-
-final class wire_cst_SkotiqError_CameraError extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-}
-
-final class wire_cst_SkotiqError_ExposureFailed extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_id;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
-}
-
-final class wire_cst_SkotiqError_DownloadFailed extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_id;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
-}
-
-final class wire_cst_SkotiqError_IoError extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-}
-
-final class wire_cst_SkotiqError_SerializationError extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-}
-
-final class wire_cst_SkotiqError_PlateSolveError extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-}
-
-final class wire_cst_SkotiqError_SequenceError extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-}
-
-final class wire_cst_SkotiqError_AscomError extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> prog_id;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
-
-  @ffi.Int32()
-  external int error_code;
-}
-
-final class wire_cst_SkotiqError_AlpacaError extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> base_url;
-
-  @ffi.Uint32()
-  external int device_number;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
-
-  @ffi.Int32()
-  external int error_code;
-}
-
-final class wire_cst_SkotiqError_IndiError extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> server;
-
-  @ffi.Uint16()
-  external int port;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_name;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
-}
-
-final class wire_cst_SkotiqError_NativeError extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> vendor;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
-
-  @ffi.Int32()
-  external int error_code;
-}
-
-final class wire_cst_SkotiqError_ComError extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
-
-  @ffi.Uint32()
-  external int hresult;
-}
-
-final class wire_cst_SkotiqError_Internal extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-}
-
-final class wire_cst_SkotiqError_RuntimeInitFailed extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-}
-
-final class wire_cst_SkotiqError_ResourceExhausted extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> resource;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
-}
-
-final class SkotiqErrorKind extends ffi.Union {
-  external wire_cst_SkotiqError_DeviceNotFound DeviceNotFound;
-
-  external wire_cst_SkotiqError_ConnectionFailed ConnectionFailed;
-
-  external wire_cst_SkotiqError_AlreadyConnected AlreadyConnected;
-
-  external wire_cst_SkotiqError_NotConnected NotConnected;
-
-  external wire_cst_SkotiqError_DeviceDisconnected DeviceDisconnected;
-
-  external wire_cst_SkotiqError_HardwareError HardwareError;
-
-  external wire_cst_SkotiqError_CommunicationError CommunicationError;
-
-  external wire_cst_SkotiqError_Timeout Timeout;
-
-  external wire_cst_SkotiqError_DeviceTimeout DeviceTimeout;
-
-  external wire_cst_SkotiqError_ConnectionTimeout ConnectionTimeout;
-
-  external wire_cst_SkotiqError_InvalidParameter InvalidParameter;
-
-  external wire_cst_SkotiqError_InvalidInput InvalidInput;
-
-  external wire_cst_SkotiqError_InvalidDeviceId InvalidDeviceId;
-
-  external wire_cst_SkotiqError_ParameterOutOfRange ParameterOutOfRange;
-
-  external wire_cst_SkotiqError_OperationFailed OperationFailed;
-
-  external wire_cst_SkotiqError_NotSupported NotSupported;
-
-  external wire_cst_SkotiqError_DeviceBusy DeviceBusy;
-
-  external wire_cst_SkotiqError_ImageError ImageError;
-
-  external wire_cst_SkotiqError_CameraError CameraError;
-
-  external wire_cst_SkotiqError_ExposureFailed ExposureFailed;
-
-  external wire_cst_SkotiqError_DownloadFailed DownloadFailed;
-
-  external wire_cst_SkotiqError_IoError IoError;
-
-  external wire_cst_SkotiqError_SerializationError SerializationError;
-
-  external wire_cst_SkotiqError_PlateSolveError PlateSolveError;
-
-  external wire_cst_SkotiqError_SequenceError SequenceError;
-
-  external wire_cst_SkotiqError_AscomError AscomError;
-
-  external wire_cst_SkotiqError_AlpacaError AlpacaError;
-
-  external wire_cst_SkotiqError_IndiError IndiError;
-
-  external wire_cst_SkotiqError_NativeError NativeError;
-
-  external wire_cst_SkotiqError_ComError ComError;
-
-  external wire_cst_SkotiqError_Internal Internal;
-
-  external wire_cst_SkotiqError_RuntimeInitFailed RuntimeInitFailed;
-
-  external wire_cst_SkotiqError_ResourceExhausted ResourceExhausted;
-}
-
-final class wire_cst_skotiq_error extends ffi.Struct {
-  @ffi.Int32()
-  external int tag;
-
-  external SkotiqErrorKind kind;
-}
-
-final class wire_cst_skotiq_event extends ffi.Struct {
-  @ffi.Uint64()
-  external int event_id;
-
-  @ffi.Int64()
-  external int timestamp;
-
-  @ffi.Int32()
-  external int severity;
-
-  @ffi.Int32()
-  external int category;
-
-  external wire_cst_event_payload payload;
-
-  external ffi.Pointer<ffi.Uint64> caused_by;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> correlation_id;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
-}
-
 final class wire_cst_phd_2_calibration_data extends ffi.Struct {
   @ffi.Bool()
   external bool is_calibrated;
@@ -27085,6 +26692,299 @@ final class wire_cst_simulated_weather extends ffi.Struct {
   external bool connected;
 
   external wire_cst_weather_conditions conditions;
+}
+
+final class wire_cst_SkotiqError_DeviceNotFound extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
+final class wire_cst_SkotiqError_ConnectionFailed extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+}
+
+final class wire_cst_SkotiqError_AlreadyConnected extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
+final class wire_cst_SkotiqError_NotConnected extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
+final class wire_cst_SkotiqError_DeviceDisconnected extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+}
+
+final class wire_cst_SkotiqError_HardwareError extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+
+  external ffi.Pointer<ffi.Int32> error_code;
+}
+
+final class wire_cst_SkotiqError_CommunicationError extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+}
+
+final class wire_cst_SkotiqError_Timeout extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
+final class wire_cst_SkotiqError_DeviceTimeout extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> operation;
+
+  @ffi.Double()
+  external double timeout_secs;
+}
+
+final class wire_cst_SkotiqError_ConnectionTimeout extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  @ffi.Double()
+  external double timeout_secs;
+}
+
+final class wire_cst_SkotiqError_InvalidParameter extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
+final class wire_cst_SkotiqError_InvalidInput extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
+final class wire_cst_SkotiqError_InvalidDeviceId extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+}
+
+final class wire_cst_SkotiqError_ParameterOutOfRange extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> param_name;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> value;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> min;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> max;
+}
+
+final class wire_cst_SkotiqError_OperationFailed extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
+final class wire_cst_SkotiqError_NotSupported extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> operation;
+}
+
+final class wire_cst_SkotiqError_DeviceBusy extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> current_operation;
+}
+
+final class wire_cst_SkotiqError_ImageError extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
+final class wire_cst_SkotiqError_CameraError extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
+final class wire_cst_SkotiqError_ExposureFailed extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+}
+
+final class wire_cst_SkotiqError_DownloadFailed extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+}
+
+final class wire_cst_SkotiqError_IoError extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
+final class wire_cst_SkotiqError_SerializationError extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
+final class wire_cst_SkotiqError_PlateSolveError extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
+final class wire_cst_SkotiqError_SequenceError extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
+final class wire_cst_SkotiqError_AscomError extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> prog_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+
+  @ffi.Int32()
+  external int error_code;
+}
+
+final class wire_cst_SkotiqError_AlpacaError extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> base_url;
+
+  @ffi.Uint32()
+  external int device_number;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+
+  @ffi.Int32()
+  external int error_code;
+}
+
+final class wire_cst_SkotiqError_IndiError extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> server;
+
+  @ffi.Uint16()
+  external int port;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_name;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+}
+
+final class wire_cst_SkotiqError_NativeError extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> vendor;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+
+  @ffi.Int32()
+  external int error_code;
+}
+
+final class wire_cst_SkotiqError_ComError extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+
+  @ffi.Uint32()
+  external int hresult;
+}
+
+final class wire_cst_SkotiqError_Internal extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
+final class wire_cst_SkotiqError_RuntimeInitFailed extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
+final class wire_cst_SkotiqError_ResourceExhausted extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> resource;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+}
+
+final class SkotiqErrorKind extends ffi.Union {
+  external wire_cst_SkotiqError_DeviceNotFound DeviceNotFound;
+
+  external wire_cst_SkotiqError_ConnectionFailed ConnectionFailed;
+
+  external wire_cst_SkotiqError_AlreadyConnected AlreadyConnected;
+
+  external wire_cst_SkotiqError_NotConnected NotConnected;
+
+  external wire_cst_SkotiqError_DeviceDisconnected DeviceDisconnected;
+
+  external wire_cst_SkotiqError_HardwareError HardwareError;
+
+  external wire_cst_SkotiqError_CommunicationError CommunicationError;
+
+  external wire_cst_SkotiqError_Timeout Timeout;
+
+  external wire_cst_SkotiqError_DeviceTimeout DeviceTimeout;
+
+  external wire_cst_SkotiqError_ConnectionTimeout ConnectionTimeout;
+
+  external wire_cst_SkotiqError_InvalidParameter InvalidParameter;
+
+  external wire_cst_SkotiqError_InvalidInput InvalidInput;
+
+  external wire_cst_SkotiqError_InvalidDeviceId InvalidDeviceId;
+
+  external wire_cst_SkotiqError_ParameterOutOfRange ParameterOutOfRange;
+
+  external wire_cst_SkotiqError_OperationFailed OperationFailed;
+
+  external wire_cst_SkotiqError_NotSupported NotSupported;
+
+  external wire_cst_SkotiqError_DeviceBusy DeviceBusy;
+
+  external wire_cst_SkotiqError_ImageError ImageError;
+
+  external wire_cst_SkotiqError_CameraError CameraError;
+
+  external wire_cst_SkotiqError_ExposureFailed ExposureFailed;
+
+  external wire_cst_SkotiqError_DownloadFailed DownloadFailed;
+
+  external wire_cst_SkotiqError_IoError IoError;
+
+  external wire_cst_SkotiqError_SerializationError SerializationError;
+
+  external wire_cst_SkotiqError_PlateSolveError PlateSolveError;
+
+  external wire_cst_SkotiqError_SequenceError SequenceError;
+
+  external wire_cst_SkotiqError_AscomError AscomError;
+
+  external wire_cst_SkotiqError_AlpacaError AlpacaError;
+
+  external wire_cst_SkotiqError_IndiError IndiError;
+
+  external wire_cst_SkotiqError_NativeError NativeError;
+
+  external wire_cst_SkotiqError_ComError ComError;
+
+  external wire_cst_SkotiqError_Internal Internal;
+
+  external wire_cst_SkotiqError_RuntimeInitFailed RuntimeInitFailed;
+
+  external wire_cst_SkotiqError_ResourceExhausted ResourceExhausted;
+}
+
+final class wire_cst_skotiq_error extends ffi.Struct {
+  @ffi.Int32()
+  external int tag;
+
+  external SkotiqErrorKind kind;
+}
+
+final class wire_cst_skotiq_event extends ffi.Struct {
+  @ffi.Uint64()
+  external int event_id;
+
+  @ffi.Int64()
+  external int timestamp;
+
+  @ffi.Int32()
+  external int severity;
+
+  @ffi.Int32()
+  external int category;
+
+  external wire_cst_event_payload payload;
+
+  external ffi.Pointer<ffi.Uint64> caused_by;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> correlation_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
 }
 
 final class wire_cst_solve_hints extends ffi.Struct {

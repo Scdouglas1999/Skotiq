@@ -21,12 +21,12 @@
 //! degenerate solve, a canvas blow-up, a write failure) surfaces as
 //! `Err(String)` — never a silent partial mosaic.
 
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::mosaic_stitch::{
     stitch_mosaic, MosaicBlend, MosaicError, MosaicPanel, MosaicStitchConfig,
 };
 use skotiq_imaging::registration::Interpolator;
 use skotiq_imaging::{add_wcs_headers, read_fits, write_fits, FitsHeader, WcsInfo};
-use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 // JSON contracts
@@ -434,7 +434,7 @@ mod tests {
     fn temp_dir(tag: &str) -> TempDir {
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
         let p = std::env::temp_dir().join(format!(
-            "ns_mosaic_ffi_{}_{}_{}",
+            "sk_mosaic_ffi_{}_{}_{}",
             tag,
             std::process::id(),
             n

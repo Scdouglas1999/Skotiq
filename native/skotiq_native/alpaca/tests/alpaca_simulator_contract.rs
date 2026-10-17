@@ -19,8 +19,8 @@
 //!   simulator's connected state to `false` if the test client sends a
 //!   malformed PUT — again surfacing the bad payload via the test
 //!   assertion rather than silently succeeding.
-use skotiq_alpaca::{AlpacaCamera, AlpacaFilterWheel, AlpacaTelescope, CameraState, DriveRate};
 use serde_json::{json, Value};
+use skotiq_alpaca::{AlpacaCamera, AlpacaFilterWheel, AlpacaTelescope, CameraState, DriveRate};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};

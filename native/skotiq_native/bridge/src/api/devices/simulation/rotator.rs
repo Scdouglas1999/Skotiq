@@ -72,10 +72,7 @@ pub async fn api_rotator_move_to(device_id: String, angle: f64) -> Result<(), Sk
 }
 
 /// Move rotator relative
-pub async fn api_rotator_move_relative(
-    device_id: String,
-    delta: f64,
-) -> Result<(), SkotiqError> {
+pub async fn api_rotator_move_relative(device_id: String, delta: f64) -> Result<(), SkotiqError> {
     // Real device - calculate target angle and use DeviceManager
     let mgr = get_device_manager();
     let current = mgr
@@ -91,10 +88,7 @@ pub async fn api_rotator_move_relative(
 
 /// Set the rotator's reverse-direction flag (IRotatorV3 `Reverse`, Alpaca
 /// `reverse`, INDI `ROTATOR_REVERSE`).
-pub async fn api_rotator_set_reverse(
-    device_id: String,
-    reverse: bool,
-) -> Result<(), SkotiqError> {
+pub async fn api_rotator_set_reverse(device_id: String, reverse: bool) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();
     mgr.rotator_set_reverse(&device_id, reverse)
         .await

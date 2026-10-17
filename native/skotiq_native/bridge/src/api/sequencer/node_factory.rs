@@ -281,10 +281,7 @@ pub fn api_create_target_header_node(
     let integration_budget = integration_budget_json
         .map(|json| {
             serde_json::from_str(&json).map_err(|e| {
-                SkotiqError::SerializationError(format!(
-                    "Invalid integration_budget JSON: {}",
-                    e
-                ))
+                SkotiqError::SerializationError(format!("Invalid integration_budget JSON: {}", e))
             })
         })
         .transpose()?;

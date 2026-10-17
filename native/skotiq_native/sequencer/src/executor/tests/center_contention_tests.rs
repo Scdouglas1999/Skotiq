@@ -347,7 +347,7 @@ async fn run_center(keep: &[&str]) -> CenterRun {
     // The start pre-flight refuses a centering sequence on a machine with no
     // solver; the double's plate_solve never runs one, so an existing file at
     // the configured ASTAP path is all the pre-flight needs to see.
-    let solver_dir = std::env::temp_dir().join(format!("ns-center-{}", uuid::Uuid::new_v4()));
+    let solver_dir = std::env::temp_dir().join(format!("sk-center-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&solver_dir).unwrap();
     let astap = solver_dir.join("astap");
     std::fs::write(&astap, b"").unwrap();

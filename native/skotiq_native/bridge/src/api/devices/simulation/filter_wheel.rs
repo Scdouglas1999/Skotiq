@@ -240,9 +240,10 @@ pub async fn api_filterwheel_set_by_name(
     let mgr = get_device_manager();
 
     // Get filter names from device
-    let (_, filter_names) = mgr.filter_wheel_get_config(&device_id).await.map_err(|e| {
-        SkotiqError::OperationFailed(format!("Failed to get filter config: {}", e))
-    })?;
+    let (_, filter_names) = mgr
+        .filter_wheel_get_config(&device_id)
+        .await
+        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to get filter config: {}", e)))?;
 
     // Find filter position by name (case-insensitive)
     let position = find_filter_match(&filter_names, &name)
@@ -274,8 +275,6 @@ pub async fn api_filterwheel_set_filter_names(
     let mgr = get_device_manager();
     mgr.filter_wheel_set_filter_names(&device_id, names)
         .await
-        .map_err(|e| {
-            SkotiqError::OperationFailed(format!("Failed to set filter names: {}", e))
-        })?;
+        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to set filter names: {}", e)))?;
     Ok(())
 }

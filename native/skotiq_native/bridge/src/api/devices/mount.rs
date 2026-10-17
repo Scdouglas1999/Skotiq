@@ -8,12 +8,12 @@ use crate::event::*;
 use crate::state::*;
 use crate::storage::{AppSettings, ObserverLocation};
 use crate::unified_device_ops::create_unified_device_ops;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::{
     calculate_airmass, validate_fits_header, validate_image, write_fits, BayerPattern,
     DebayerAlgorithm, FitsHeader, ImageData,
 };
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -46,9 +46,7 @@ pub async fn mount_sync(device_id: String, ra: f64, dec: f64) -> Result<(), Skot
 /// Park mount
 pub async fn mount_park(device_id: String) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();
-    mgr.mount_park(&device_id)
-        .await
-        .map_err(SkotiqError::from)
+    mgr.mount_park(&device_id).await.map_err(SkotiqError::from)
 }
 
 /// Unpark mount
@@ -70,17 +68,13 @@ pub async fn mount_get_coordinates(device_id: String) -> Result<(f64, f64), Skot
 /// Abort mount slew
 pub async fn mount_abort(device_id: String) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();
-    mgr.mount_abort(&device_id)
-        .await
-        .map_err(SkotiqError::from)
+    mgr.mount_abort(&device_id).await.map_err(SkotiqError::from)
 }
 
 /// Stop mount motion (abort slew without disconnecting)
 pub async fn mount_stop(device_id: String) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();
-    mgr.mount_stop(&device_id)
-        .await
-        .map_err(SkotiqError::from)
+    mgr.mount_stop(&device_id).await.map_err(SkotiqError::from)
 }
 
 /// Query whether a mount supports parking
@@ -138,11 +132,7 @@ pub async fn mount_get_tracking_rate(device_id: String) -> Result<i32, SkotiqErr
 /// Move mount axis at specified rate (degrees/second)
 /// axis: 0=RA/Azimuth (primary), 1=Dec/Altitude (secondary)
 /// rate: degrees per second (positive = N/E, negative = S/W), 0 to stop
-pub async fn mount_move_axis(
-    device_id: String,
-    axis: i32,
-    rate: f64,
-) -> Result<(), SkotiqError> {
+pub async fn mount_move_axis(device_id: String, axis: i32, rate: f64) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();
     mgr.mount_move_axis(&device_id, axis, rate)
         .await

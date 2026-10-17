@@ -81,7 +81,7 @@ async fn overdue_meridian_flip_does_not_stall_the_exposure_burst() {
     // is not on-sky) without weakening the meridian gate, which keys only
     // off frame type + target + mount id.
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_mount_parked(true));
-    let dir = std::env::temp_dir().join(format!("ns-mer-overdue-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-mer-overdue-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
 
     let mut ec = crate::node::context::ExecutionContext::new_for_test("overdue-node".to_string());
@@ -176,7 +176,7 @@ async fn overdue_meridian_flip_does_not_stall_the_exposure_burst() {
 #[tokio::test]
 async fn gate_does_not_hold_when_the_mount_cannot_make_the_trigger_fire() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_mount_parked(true));
-    let dir = std::env::temp_dir().join(format!("ns-mer-nofire-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-mer-nofire-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
 
     let mut ec = crate::node::context::ExecutionContext::new_for_test("nofire-node".to_string());

@@ -8,12 +8,12 @@ use crate::event::*;
 use crate::state::*;
 use crate::storage::{AppSettings, ObserverLocation};
 use crate::unified_device_ops::create_unified_device_ops;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::{
     calculate_airmass, validate_fits_header, validate_image, write_fits, BayerPattern,
     DebayerAlgorithm, FitsHeader, ImageData,
 };
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -763,17 +763,10 @@ async fn plate_solve_blind_inner(
     // runner, which kills and reaps the child on expiry.
     let owned_path = path.to_path_buf();
     let result = tokio::task::spawn_blocking(move || {
-        skotiq_imaging::blind_solve_with_timeout(
-            &owned_path,
-            timeout_secs,
-            hint_scale,
-            downsample,
-        )
+        skotiq_imaging::blind_solve_with_timeout(&owned_path, timeout_secs, hint_scale, downsample)
     })
     .await
-    .map_err(|error| {
-        SkotiqError::OperationFailed(format!("Plate-solve task failed: {error}"))
-    })?;
+    .map_err(|error| SkotiqError::OperationFailed(format!("Plate-solve task failed: {error}")))?;
 
     Ok(PlateSolveResult {
         success: result.success,
@@ -1158,9 +1151,7 @@ async fn plate_solve_near_inner(
         )
     })
     .await
-    .map_err(|error| {
-        SkotiqError::OperationFailed(format!("Plate-solve task failed: {error}"))
-    })?;
+    .map_err(|error| SkotiqError::OperationFailed(format!("Plate-solve task failed: {error}")))?;
 
     Ok(PlateSolveResult {
         success: result.success,
@@ -1339,8 +1330,7 @@ pub fn api_platesolve_verify(executable_path: String) -> Result<PlateSolverInfo,
 /// the storage was never written.
 #[flutter_rust_bridge::frb(sync)]
 pub fn api_platesolve_get_config() -> Result<PlateSolverConfigPayload, SkotiqError> {
-    let pref =
-        crate::state::get_platesolver_preference().map_err(SkotiqError::OperationFailed)?;
+    let pref = crate::state::get_platesolver_preference().map_err(SkotiqError::OperationFailed)?;
     Ok(pref.into())
 }
 
@@ -1948,7 +1938,7 @@ mod solve_ladder_tests {
     async fn a_follower_receives_the_escalated_result_not_the_first_rung() {
         static RUNS: AtomicUsize = AtomicUsize::new(0);
         let path =
-            std::env::temp_dir().join(format!("ns-ladder-coalesce-{}.fits", std::process::id()));
+            std::env::temp_dir().join(format!("sk-ladder-coalesce-{}.fits", std::process::id()));
         std::fs::write(&path, b"not a real frame").expect("scratch file");
         let key = path.to_string_lossy().to_string();
 
@@ -1997,7 +1987,7 @@ mod solve_ladder_tests {
         // No solver is installed in the test environment, so every rung fails
         // immediately — which is exactly the path this message is for.
         let path =
-            std::env::temp_dir().join(format!("ns-ladder-message-{}.fits", std::process::id()));
+            std::env::temp_dir().join(format!("sk-ladder-message-{}.fits", std::process::id()));
         std::fs::write(&path, b"not a real frame").expect("scratch file");
 
         let result = solve_ladder(

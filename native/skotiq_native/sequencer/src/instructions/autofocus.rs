@@ -1677,9 +1677,7 @@ pub(crate) fn calculate_hfr_with_crops(
     use_brightest_n_stars: u32,
 ) -> HfrMeasurementWithCrops {
     use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-    use skotiq_imaging::{
-        detect_stars_with_stats, extract_top_star_crops, StarDetectionConfig,
-    };
+    use skotiq_imaging::{detect_stars_with_stats, extract_top_star_crops, StarDetectionConfig};
 
     // 1 channel = monochrome; raw imager output is treated as mono for HFR
     // regardless of Bayer pattern, because debayering before star detection

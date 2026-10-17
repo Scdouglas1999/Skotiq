@@ -23,6 +23,7 @@
 //! another regen. All failure modes surface as `Err(String)`; nothing is ever
 //! silently best-effort'd.
 
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::color_calibration::{
     apply_color_calibration, solve_color_calibration, ColorStar,
 };
@@ -32,7 +33,6 @@ use skotiq_imaging::{
     carry_source_header, detect_stars, read_fits, write_fits, FitsHeader, ImageData, PixelType,
     StarDetectionConfig,
 };
-use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 // api_analyze_night — marginal-SNR optimizer
@@ -793,7 +793,7 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let p = std::env::temp_dir().join(format!("ns_fa_{prefix}_{}_{n}", std::process::id()));
+        let p = std::env::temp_dir().join(format!("sk_fa_{prefix}_{}_{n}", std::process::id()));
         std::fs::create_dir_all(&p).unwrap();
         TempDir(p)
     }

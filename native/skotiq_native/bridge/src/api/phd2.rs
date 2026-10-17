@@ -8,12 +8,12 @@ use crate::event::*;
 use crate::state::*;
 use crate::storage::{AppSettings, ObserverLocation};
 use crate::unified_device_ops::create_unified_device_ops;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::{
     calculate_airmass, validate_fits_header, validate_image, write_fits, BayerPattern,
     DebayerAlgorithm, FitsHeader, ImageData,
 };
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -117,10 +117,8 @@ pub fn get_phd2_storage() -> &'static Arc<RwLock<Option<skotiq_imaging::Phd2Clie
 /// The returned guard holds the write lock for as long as it is alive; drop it
 /// early where a long wait must not stall other PHD2 calls (see
 /// `api_phd2_dither`).
-async fn phd2_client() -> Result<
-    tokio::sync::RwLockMappedWriteGuard<'static, skotiq_imaging::Phd2Client>,
-    SkotiqError,
-> {
+async fn phd2_client(
+) -> Result<tokio::sync::RwLockMappedWriteGuard<'static, skotiq_imaging::Phd2Client>, SkotiqError> {
     let storage = get_phd2_storage().write().await;
     tokio::sync::RwLockWriteGuard::try_map(storage, |slot| slot.as_mut())
         .map_err(|_| SkotiqError::NotConnected("PHD2".to_string()))
@@ -181,16 +179,12 @@ pub async fn get_active_guider_id_for_ops() -> Option<String> {
 }
 
 /// Connect to PHD2
-pub async fn api_phd2_connect(
-    host: Option<String>,
-    port: Option<u16>,
-) -> Result<(), SkotiqError> {
+pub async fn api_phd2_connect(host: Option<String>, port: Option<u16>) -> Result<(), SkotiqError> {
     // Why: localhost + PHD2 default port 4400 are the
     // documented PHD2 defaults from the PHD2 EventMonitoring wiki and the
     // Skotiq PHD2-settings UI placeholder values.
-    let host = skotiq_imaging::normalize_phd2_tcp_host(
-        &host.unwrap_or_else(|| "127.0.0.1".to_string()),
-    );
+    let host =
+        skotiq_imaging::normalize_phd2_tcp_host(&host.unwrap_or_else(|| "127.0.0.1".to_string()));
     let port = port.unwrap_or(4400);
 
     tracing::info!("Connecting to PHD2 at {}:{}", host, port);
@@ -279,9 +273,7 @@ pub async fn api_phd2_connect(
                 }
             }
             skotiq_imaging::Phd2Event::StarLost => GuidingEvent::LostStar,
-            skotiq_imaging::Phd2Event::StarSelected { x, y } => {
-                GuidingEvent::StarSelected { x, y }
-            }
+            skotiq_imaging::Phd2Event::StarSelected { x, y } => GuidingEvent::StarSelected { x, y },
             skotiq_imaging::Phd2Event::SettleBegin => GuidingEvent::Settling,
             skotiq_imaging::Phd2Event::SettleDone {
                 status,
@@ -475,12 +467,9 @@ pub async fn api_phd2_dither(
     let wait = skotiq_imaging::Phd2Client::settle_wait_duration(settle_time, settle_timeout);
     let settle = tokio::task::spawn_blocking(move || waiter.wait(wait))
         .await
-        .map_err(|e| {
-            SkotiqError::OperationFailed(format!("Dither settle task failed: {}", e))
-        })?;
+        .map_err(|e| SkotiqError::OperationFailed(format!("Dither settle task failed: {}", e)))?;
 
-    settle
-        .map_err(|e| SkotiqError::OperationFailed(format!("Dither did not settle: {}", e)))?;
+    settle.map_err(|e| SkotiqError::OperationFailed(format!("Dither did not settle: {}", e)))?;
 
     get_state().publish_guiding_event(GuidingEvent::Settled { rms: 0.0 }, EventSeverity::Info);
 
@@ -491,9 +480,9 @@ pub async fn api_phd2_dither(
 pub async fn api_phd2_get_status() -> Result<Phd2Status, SkotiqError> {
     let mut client = phd2_client().await?;
 
-    let state = client.get_app_state().map_err(|e| {
-        SkotiqError::OperationFailed(format!("Failed to get PHD2 state: {}", e))
-    })?;
+    let state = client
+        .get_app_state()
+        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to get PHD2 state: {}", e)))?;
 
     // Why: pixel scale is reported only after PHD2 has
     // selected a star and run a calibration; before that, the RPC errors.
@@ -542,9 +531,9 @@ pub async fn api_phd2_get_status() -> Result<Phd2Status, SkotiqError> {
 pub async fn api_phd2_get_star_image(size: u32) -> Result<Phd2StarImage, SkotiqError> {
     let mut client = phd2_client().await?;
 
-    let image_data = client.get_star_image_data(size).map_err(|e| {
-        SkotiqError::OperationFailed(format!("Failed to get star image: {}", e))
-    })?;
+    let image_data = client
+        .get_star_image_data(size)
+        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to get star image: {}", e)))?;
 
     Ok(Phd2StarImage {
         frame: image_data.frame,
@@ -560,9 +549,9 @@ pub async fn api_phd2_get_star_image(size: u32) -> Result<Phd2StarImage, SkotiqE
 pub async fn api_phd2_get_algo_param_names(axis: String) -> Result<Vec<String>, SkotiqError> {
     let mut client = phd2_client().await?;
 
-    client.get_algo_param_names(&axis).map_err(|e| {
-        SkotiqError::OperationFailed(format!("Failed to get algo param names: {}", e))
-    })
+    client
+        .get_algo_param_names(&axis)
+        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to get algo param names: {}", e)))
 }
 
 /// Get PHD2 algorithm parameter value
@@ -588,9 +577,7 @@ pub async fn api_phd2_set_algo_param(
 }
 
 /// Get all PHD2 algorithm parameters for an axis
-pub async fn api_phd2_get_all_algo_params(
-    axis: String,
-) -> Result<Vec<Phd2AlgoParam>, SkotiqError> {
+pub async fn api_phd2_get_all_algo_params(axis: String) -> Result<Vec<Phd2AlgoParam>, SkotiqError> {
     let mut client = phd2_client().await?;
 
     let params = client.get_all_algo_params(&axis).map_err(|e| {
@@ -630,9 +617,9 @@ pub async fn api_phd2_set_paused(paused: bool) -> Result<(), SkotiqError> {
 pub async fn api_phd2_clear_calibration(which: String) -> Result<(), SkotiqError> {
     let mut client = phd2_client().await?;
 
-    client.clear_calibration(&which).map_err(|e| {
-        SkotiqError::OperationFailed(format!("Failed to clear calibration: {}", e))
-    })
+    client
+        .clear_calibration(&which)
+        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to clear calibration: {}", e)))
 }
 
 /// Flip PHD2 calibration (after meridian flip)
@@ -700,25 +687,21 @@ pub async fn api_phd2_find_star() -> Result<(f64, f64), SkotiqError> {
 }
 
 /// Set guide star lock position
-pub async fn api_phd2_set_lock_position(
-    x: f64,
-    y: f64,
-    exact: bool,
-) -> Result<(), SkotiqError> {
+pub async fn api_phd2_set_lock_position(x: f64, y: f64, exact: bool) -> Result<(), SkotiqError> {
     let mut client = phd2_client().await?;
 
-    client.set_lock_position(x, y, exact).map_err(|e| {
-        SkotiqError::OperationFailed(format!("Failed to set lock position: {}", e))
-    })
+    client
+        .set_lock_position(x, y, exact)
+        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to set lock position: {}", e)))
 }
 
 /// Get current guide star lock position
 pub async fn api_phd2_get_lock_position() -> Result<(f64, f64), SkotiqError> {
     let mut client = phd2_client().await?;
 
-    client.get_lock_position().map_err(|e| {
-        SkotiqError::OperationFailed(format!("Failed to get lock position: {}", e))
-    })
+    client
+        .get_lock_position()
+        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to get lock position: {}", e)))
 }
 
 /// Start looping exposures (without guiding)
@@ -929,9 +912,7 @@ pub async fn api_guider_set_lock_position(
     }
 }
 
-pub async fn api_guider_get_lock_position(
-    device_id: String,
-) -> Result<(f64, f64), SkotiqError> {
+pub async fn api_guider_get_lock_position(device_id: String) -> Result<(f64, f64), SkotiqError> {
     match resolve_guider_backend(&device_id)? {
         GuiderBackend::Phd2 => api_phd2_get_lock_position().await,
         GuiderBackend::Builtin => crate::builtin_guider::get_lock_position().await,

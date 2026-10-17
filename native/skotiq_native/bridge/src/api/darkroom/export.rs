@@ -47,13 +47,13 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use serde_json::{json, Value};
 use skotiq_imaging::recipe::ops::stretch::{auto_params, StretchV1};
 use skotiq_imaging::recipe::{
     canonical_json, fingerprint_hex, DarkroomOp, OpImage, OpRegistry, OpStage, Recipe,
     RenderOptions, RenderReport, StepOutcome, RECIPE_SCHEMA_VERSION,
 };
 use skotiq_imaging::{write_jpeg, write_png, write_tiff, FitsHeader, ImageData, PixelType};
-use serde_json::{json, Value};
 
 use super::args::{empty_report_json, report_json, CancelledRender, DarkroomExportArgs};
 use super::render::{

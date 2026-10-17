@@ -217,9 +217,7 @@ async fn refresh_volatile_state(device_id: &str, capabilities: &mut DeviceCapabi
 }
 
 /// Get capabilities for any device type
-pub async fn get_device_capabilities(
-    device_id: &str,
-) -> Result<DeviceCapabilities, SkotiqError> {
+pub async fn get_device_capabilities(device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
     // Use cached parsing for better performance
     let parsed = parse_device_id_cached(device_id)?;
 

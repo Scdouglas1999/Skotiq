@@ -14,7 +14,7 @@ use super::*;
 async fn pause_stops_the_burst_before_the_next_frame_starts() {
     let paused = Arc::new(AtomicBool::new(false));
     let ops = Arc::new(ScriptedDomeRotatorOps::new().pausing_after_first_exposure(paused.clone()));
-    let dir = std::env::temp_dir().join(format!("ns-pause-burst-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-pause-burst-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
 
     let mut ec = crate::node::context::ExecutionContext::new_for_test("pause-node".to_string());

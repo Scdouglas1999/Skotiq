@@ -1678,10 +1678,7 @@ mod tests {
         retain_restore_point(&install, &backup, &log).unwrap();
 
         // Sanity: install now holds v2 and the added file.
-        assert_eq!(
-            fs::read(install.join("skotiq.exe")).unwrap(),
-            b"v2-exe"
-        );
+        assert_eq!(fs::read(install.join("skotiq.exe")).unwrap(), b"v2-exe");
         assert!(install.join("extras/added.txt").exists());
         // The install dir must be clean of stray .bak files.
         assert!(!backup_path_for(&install.join("skotiq.exe")).exists());
@@ -1692,10 +1689,7 @@ mod tests {
         restore_from_restore_point(&install, &restore_root, &log).unwrap();
 
         // The predecessor version is back, and the v2-only file is gone.
-        assert_eq!(
-            fs::read(install.join("skotiq.exe")).unwrap(),
-            b"v1-exe"
-        );
+        assert_eq!(fs::read(install.join("skotiq.exe")).unwrap(), b"v1-exe");
         assert_eq!(
             fs::read(install.join("skotiq_bridge.dll")).unwrap(),
             b"v1-bridge"
@@ -1807,10 +1801,7 @@ mod tests {
             "rollback must remove directories apply created if empty"
         );
         // Critical file restored to old contents.
-        assert_eq!(
-            fs::read(install.join("skotiq.exe")).unwrap(),
-            b"old-exe"
-        );
+        assert_eq!(fs::read(install.join("skotiq.exe")).unwrap(), b"old-exe");
     }
 
     #[test]

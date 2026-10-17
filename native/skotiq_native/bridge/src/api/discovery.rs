@@ -8,12 +8,12 @@ use crate::event::*;
 use crate::state::*;
 use crate::storage::{AppSettings, ObserverLocation};
 use crate::unified_device_ops::create_unified_device_ops;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::{
     calculate_airmass, validate_fits_header, validate_image, write_fits, BayerPattern,
     DebayerAlgorithm, FitsHeader, ImageData,
 };
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -915,9 +915,7 @@ fn scan_simulator_for_type(device_type: DeviceType) -> Vec<DeviceInfo> {
 ///     stores the error so retry-after-TTL semantics still apply (avoids
 ///     hammering a broken backend), but successful sibling entries remain
 ///     valid.
-pub async fn api_discover_devices(
-    device_type: DeviceType,
-) -> Result<Vec<DeviceInfo>, SkotiqError> {
+pub async fn api_discover_devices(device_type: DeviceType) -> Result<Vec<DeviceInfo>, SkotiqError> {
     tracing::debug!("Discovering {} devices", device_type.as_str());
 
     let drivers = drivers_for_device_type(device_type);

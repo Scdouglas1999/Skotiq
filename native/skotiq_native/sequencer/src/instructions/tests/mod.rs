@@ -1018,7 +1018,7 @@ impl Drop for ScratchDir {
 }
 
 fn scratch_dir(tag: &str) -> ScratchDir {
-    let dir = std::env::temp_dir().join(format!("ns-{}-{}", tag, uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-{}-{}", tag, uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("scratch dir");
     ScratchDir(dir)
 }

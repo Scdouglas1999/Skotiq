@@ -231,7 +231,7 @@ fn synthetic_night(label: &str, count: usize, structure_adu: f64) -> Night {
 
 fn synthetic_night_on(sensor: Sensor, label: &str, count: usize, structure_adu: f64) -> Night {
     let dir = std::env::temp_dir().join(format!(
-        "ns-depthlock-{label}-{}-{}",
+        "sk-depthlock-{label}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

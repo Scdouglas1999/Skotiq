@@ -381,7 +381,7 @@ fn instructions_parented_under_a_leaf_are_reported_as_unreachable() {
 /// `errorMessages: []` against a header chip reading "3 frames".
 #[tokio::test]
 async fn a_run_that_never_reaches_part_of_its_tree_does_not_report_completed() {
-    let dir = std::env::temp_dir().join(format!("ns-unreachable-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-unreachable-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
 
     let mut executor = SequenceExecutor::new();
@@ -640,7 +640,7 @@ async fn start_refuses_a_save_path_that_cannot_be_written() {
     // only refuses on Linux — Windows reads it as a path on the current drive
     // and creates it happily, so the run was never refused and the test failed
     // there.
-    let blocker = std::env::temp_dir().join(format!("ns-not-a-dir-{}", uuid::Uuid::new_v4()));
+    let blocker = std::env::temp_dir().join(format!("sk-not-a-dir-{}", uuid::Uuid::new_v4()));
     std::fs::write(&blocker, b"not a directory").expect("blocker file writes");
     executor.set_save_path(Some(blocker.join("skotiq-cannot-write")));
 
@@ -659,7 +659,7 @@ async fn start_refuses_a_save_path_that_cannot_be_written() {
 /// The gate must not fire when there is a real destination.
 #[tokio::test]
 async fn start_accepts_a_capture_sequence_with_a_writable_save_path() {
-    let dir = std::env::temp_dir().join(format!("ns-start-gate-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-start-gate-{}", uuid::Uuid::new_v4()));
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor
@@ -689,7 +689,7 @@ async fn start_accepts_a_capture_sequence_with_a_writable_save_path() {
 /// path: this test then sees `Ok` from `start()` instead of the refusal.
 #[tokio::test]
 async fn start_refuses_a_capture_sequence_with_no_camera() {
-    let dir = std::env::temp_dir().join(format!("ns-cam-gate-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-cam-gate-{}", uuid::Uuid::new_v4()));
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor
@@ -724,7 +724,7 @@ async fn start_refuses_a_capture_sequence_with_no_camera() {
 /// `{"state":"completed","progress":1.0}`.
 #[tokio::test]
 async fn start_accepts_a_capture_sequence_once_a_camera_is_assigned() {
-    let dir = std::env::temp_dir().join(format!("ns-cam-gate-ok-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-cam-gate-ok-{}", uuid::Uuid::new_v4()));
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor
@@ -779,7 +779,7 @@ async fn start_allows_a_non_capturing_sequence_with_no_camera() {
 /// than hang in recovery.
 #[tokio::test]
 async fn start_refuses_an_absolute_save_to_capture_with_no_camera() {
-    let dir = std::env::temp_dir().join(format!("ns-cam-abs-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-cam-abs-{}", uuid::Uuid::new_v4()));
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor
@@ -854,7 +854,7 @@ fn single_instruction_sequence(name: &str, node_type: crate::NodeType) -> Sequen
 }
 
 async fn start_refusal_for(node_type: crate::NodeType, step_name: &str) -> String {
-    let dir = std::env::temp_dir().join(format!("ns-dev-gate-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-dev-gate-{}", uuid::Uuid::new_v4()));
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor
@@ -910,7 +910,7 @@ async fn start_refuses_a_filter_change_with_no_filter_wheel() {
 
 #[tokio::test]
 async fn start_refuses_an_exposure_that_requests_a_filter_with_no_filter_wheel() {
-    let dir = std::env::temp_dir().join(format!("ns-fw-gate-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-fw-gate-{}", uuid::Uuid::new_v4()));
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor
@@ -960,7 +960,7 @@ async fn start_refuses_an_exposure_that_requests_a_filter_with_no_filter_wheel()
 /// one left that path open.
 #[tokio::test]
 async fn start_refuses_a_smart_exposure_whose_plan_names_no_filter() {
-    let dir = std::env::temp_dir().join(format!("ns-se-gate-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-se-gate-{}", uuid::Uuid::new_v4()));
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor
@@ -1000,7 +1000,7 @@ async fn start_refuses_a_smart_exposure_whose_plan_names_no_filter() {
 /// filter wheel is connected`.
 #[tokio::test]
 async fn start_refuses_autofocus_pinned_to_a_filter_with_no_filter_wheel() {
-    let dir = std::env::temp_dir().join(format!("ns-af-fw-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-af-fw-{}", uuid::Uuid::new_v4()));
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor
@@ -1038,7 +1038,7 @@ async fn start_refuses_autofocus_pinned_to_a_filter_with_no_filter_wheel() {
 /// sweep still runs, so demanding one here would refuse a run that works.
 #[tokio::test]
 async fn start_allows_autofocus_without_a_filter_when_there_is_no_wheel() {
-    let dir = std::env::temp_dir().join(format!("ns-af-nofw-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-af-nofw-{}", uuid::Uuid::new_v4()));
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor
@@ -1180,7 +1180,7 @@ async fn start_accepts_those_same_sequences_once_the_devices_are_assigned() {
             }),
         ),
     ] {
-        let dir = std::env::temp_dir().join(format!("ns-dev-ok-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("sk-dev-ok-{}", uuid::Uuid::new_v4()));
         let mut executor = SequenceExecutor::new();
         executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
         executor
@@ -1224,7 +1224,7 @@ async fn start_ignores_devices_only_a_disabled_subtree_would_need() {
         .expect("step node")
         .enabled = false;
 
-    let dir = std::env::temp_dir().join(format!("ns-dev-off-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-dev-off-{}", uuid::Uuid::new_v4()));
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor.load_sequence(sequence).expect("sequence loads");
@@ -1244,7 +1244,7 @@ async fn start_ignores_devices_only_a_disabled_subtree_would_need() {
 /// `FlatWizardRun::do_filter_change` returns `Ok` when there is no wheel.
 #[tokio::test]
 async fn start_does_not_demand_a_filter_wheel_for_a_flat_wizard() {
-    let dir = std::env::temp_dir().join(format!("ns-flat-gate-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("sk-flat-gate-{}", uuid::Uuid::new_v4()));
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
     executor

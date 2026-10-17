@@ -63,11 +63,7 @@ fn rig(new_launcher: &str) -> Rig {
     fs::write(staging.join("lib/libskotiq_bridge.so"), "new bridge").unwrap();
 
     let mut files = HashMap::new();
-    for rel in [
-        "skotiq.sh",
-        "skotiq",
-        "lib/libskotiq_bridge.so",
-    ] {
+    for rel in ["skotiq.sh", "skotiq", "lib/libskotiq_bridge.so"] {
         files.insert(rel.to_string(), sha(&staging.join(rel)));
     }
     fs::write(&hashes, serde_json::json!({ "files": files }).to_string()).unwrap();
@@ -210,11 +206,7 @@ fn a_failed_apply_starts_the_previous_build_again() {
     // verification after the swap; it rolls back, and must not leave the
     // operator with nothing running.
     let r = rig("#!/bin/sh\necho \"new $*\" >> '@LOG@'\n");
-    fs::write(
-        r.staging.join("skotiq"),
-        "tampered after staging",
-    )
-    .unwrap();
+    fs::write(r.staging.join("skotiq"), "tampered after staging").unwrap();
     let out = run_updater(&r, &["--relaunch-arg=--headless"]);
 
     assert!(!out.status.success());

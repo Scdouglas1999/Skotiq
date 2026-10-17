@@ -664,10 +664,8 @@ mod tests {
 
     /// Reproduce the capture loop's metric assembly for a light frame.
     fn measure_light_frame(image: &skotiq_imaging::ImageData) -> FrameMetrics {
-        let stars = skotiq_imaging::detect_stars(
-            image,
-            &skotiq_imaging::StarDetectionConfig::default(),
-        );
+        let stars =
+            skotiq_imaging::detect_stars(image, &skotiq_imaging::StarDetectionConfig::default());
         FrameMetrics {
             hfr: skotiq_imaging::calculate_median_hfr(image),
             eccentricity: skotiq_imaging::frame_eccentricity(&stars),

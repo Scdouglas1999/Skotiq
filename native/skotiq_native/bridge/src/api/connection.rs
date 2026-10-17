@@ -9,12 +9,12 @@ use crate::event::*;
 use crate::state::*;
 use crate::storage::{AppSettings, ObserverLocation};
 use crate::unified_device_ops::create_unified_device_ops;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::{
     calculate_airmass, validate_fits_header, validate_image, write_fits, BayerPattern,
     DebayerAlgorithm, FitsHeader, ImageData,
 };
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -439,8 +439,7 @@ pub mod ascom_connections {
         ASCOM_MOUNTS.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
     }
 
-    fn get_ascom_focusers() -> &'static Arc<RwLock<HashMap<String, skotiq_ascom::AscomFocuser>>>
-    {
+    fn get_ascom_focusers() -> &'static Arc<RwLock<HashMap<String, skotiq_ascom::AscomFocuser>>> {
         ASCOM_FOCUSERS.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
     }
 
@@ -614,11 +613,7 @@ pub mod ascom_connections {
         Err(unavailable("read ASCOM mount coordinates"))
     }
 
-    pub async fn slew_ascom_mount(
-        _prog_id: &str,
-        _ra: f64,
-        _dec: f64,
-    ) -> Result<(), SkotiqError> {
+    pub async fn slew_ascom_mount(_prog_id: &str, _ra: f64, _dec: f64) -> Result<(), SkotiqError> {
         Err(unavailable("slew ASCOM mount"))
     }
 

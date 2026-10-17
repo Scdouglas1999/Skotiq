@@ -72,12 +72,8 @@ pub(crate) fn ascom_registry_type_for_capabilities(
         AscomCapabilityDeviceType::FilterWheel => skotiq_ascom::AscomDeviceType::FilterWheel,
         AscomCapabilityDeviceType::Rotator => skotiq_ascom::AscomDeviceType::Rotator,
         AscomCapabilityDeviceType::Dome => skotiq_ascom::AscomDeviceType::Dome,
-        AscomCapabilityDeviceType::SafetyMonitor => {
-            skotiq_ascom::AscomDeviceType::SafetyMonitor
-        }
-        AscomCapabilityDeviceType::Weather => {
-            skotiq_ascom::AscomDeviceType::ObservingConditions
-        }
+        AscomCapabilityDeviceType::SafetyMonitor => skotiq_ascom::AscomDeviceType::SafetyMonitor,
+        AscomCapabilityDeviceType::Weather => skotiq_ascom::AscomDeviceType::ObservingConditions,
         AscomCapabilityDeviceType::Switch => skotiq_ascom::AscomDeviceType::Switch,
         AscomCapabilityDeviceType::CoverCalibrator => {
             skotiq_ascom::AscomDeviceType::CoverCalibrator
@@ -499,8 +495,8 @@ pub(crate) async fn get_ascom_capabilities(
 
         let _ = init_com();
 
-        let mut dome = AscomDome::new(&prog_id)
-            .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+        let mut dome =
+            AscomDome::new(&prog_id).map_err(|e| SkotiqError::connection_failed(device_id, e))?;
 
         let should_disconnect = capability_probe_should_own_connection(dome.is_connected());
         if should_disconnect {
@@ -620,8 +616,8 @@ pub(crate) async fn get_ascom_capabilities(
 
         let _ = init_com();
 
-        let mut switch = AscomSwitch::new(&prog_id)
-            .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+        let mut switch =
+            AscomSwitch::new(&prog_id).map_err(|e| SkotiqError::connection_failed(device_id, e))?;
 
         let should_disconnect = capability_probe_should_own_connection(switch.is_connected());
         if should_disconnect {

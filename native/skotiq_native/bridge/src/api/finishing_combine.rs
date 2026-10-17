@@ -24,6 +24,7 @@
 //! geometry mismatch, bad parameters, write failure) surfaces as `Err(String)`
 //! — never a silent partial result.
 
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::calibration::calibrate_frame;
 use skotiq_imaging::calibration_masters::{cosmetic_correct_transient, CosmeticConfig};
 use skotiq_imaging::channel_combine::{combine_channels, hoo_palette, sho_palette};
@@ -36,7 +37,6 @@ use skotiq_imaging::{
     copy_astrometry_headers, read_bayer_geometry, read_fits, write_fits, FitsHeader, ImageData,
     PixelType,
 };
-use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 // api_drizzle_integrate — JSON contracts
@@ -732,7 +732,7 @@ mod tests {
     /// rng): the per-test name plus the process id keeps parallel runs from
     /// colliding while staying fully reproducible.
     fn temp_dir(name: &str) -> TempDir {
-        let p = std::env::temp_dir().join(format!("ns_fc_{name}_{}", std::process::id()));
+        let p = std::env::temp_dir().join(format!("sk_fc_{name}_{}", std::process::id()));
         std::fs::create_dir_all(&p).unwrap();
         TempDir(p)
     }

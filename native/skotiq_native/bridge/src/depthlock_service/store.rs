@@ -8,14 +8,14 @@
 //! goal the user has since redefined. A failed commit poisons the store
 //! until restart rather than letting memory and disk disagree.
 
+use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 use skotiq_imaging::depthlock::input::{
     AcquisitionSettings, CompatibilityPolicy, ReferenceGeometry,
 };
 use skotiq_imaging::depthlock::{
     ApertureFrame, Candidate, DepthReport, DepthState, MeasurementSpec, CONFIRMATION_FRAMES,
 };
-use parking_lot::Mutex;
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};

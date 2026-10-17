@@ -25,9 +25,8 @@ pub(crate) async fn get_native_capabilities(
         devices.get(device_id).map(|d| d.info.device_type.clone())
     };
 
-    let device_type = device_type.ok_or_else(|| {
-        SkotiqError::hardware_error(device_id, "Device not found in registry")
-    })?;
+    let device_type = device_type
+        .ok_or_else(|| SkotiqError::hardware_error(device_id, "Device not found in registry"))?;
 
     match device_type {
         crate::device::DeviceType::Camera => {

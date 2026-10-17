@@ -436,9 +436,7 @@ impl Deadline {
     {
         let remaining = self.remaining();
         if remaining.is_zero() {
-            return Err(SkotiqError::Timeout(
-                "Deadline already expired".to_string(),
-            ));
+            return Err(SkotiqError::Timeout("Deadline already expired".to_string()));
         }
 
         timeout(remaining, future)

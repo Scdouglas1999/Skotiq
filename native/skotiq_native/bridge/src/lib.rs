@@ -417,11 +417,7 @@ pub fn list_log_files() -> Vec<String> {
         if let Ok(entries) = std::fs::read_dir(log_dir) {
             return entries
                 .filter_map(|e| e.ok())
-                .filter(|e| {
-                    e.file_name()
-                        .to_string_lossy()
-                        .starts_with("skotiq.log")
-                })
+                .filter(|e| e.file_name().to_string_lossy().starts_with("skotiq.log"))
                 .map(|e| e.path().to_string_lossy().to_string())
                 .collect();
         }
