@@ -269,7 +269,9 @@ class SequenceMapPainter extends CustomPainter {
       // it has already done is the only thing the strip is being read for.
       switch (progress.nodeStatuses[entry.node.id]) {
         case NodeStatus.running:
-          blockColor = colors.primary;
+          // brandWarm, not primary: the running block is the strip's "now"
+          // marker, the same role the warm lane plays in the brand mark.
+          blockColor = colors.brandWarm;
         case NodeStatus.success:
           blockColor =
               colors.success.withValues(alpha: SkotiqTokens.opacityMuted);

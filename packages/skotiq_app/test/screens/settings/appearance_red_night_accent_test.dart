@@ -28,11 +28,11 @@ class _StubAppSettingsNotifier extends AppSettingsNotifier {
 /// The seven swatches the picker renders on the DARK theme, keyed by hex in
 /// the widget tree (03 §1.4: the offered set is per theme).
 const _swatchKeys = [
+  '#A48CF2',
   '#6EB3EC',
   '#43B67A',
   '#E0A53E',
   '#E86A6A',
-  '#A48CF2',
   '#E77FB3',
   '#4FC3C8',
 ];

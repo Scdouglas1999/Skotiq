@@ -11,11 +11,11 @@ class SettingsColorPicker extends StatefulWidget {
   /// control whose only other description is its own pixels can be found and
   /// read.
   static const List<String> accentNames = [
+    'Violet',
     'Blue',
     'Green',
     'Amber',
     'Red',
-    'Violet',
     'Pink',
     'Teal',
   ];
@@ -60,8 +60,11 @@ class SettingsColorPicker extends StatefulWidget {
     this.swatches,
   });
 
-  /// Diameter of one swatch (06 §Settings: "Accent swatches 22 px").
-  static const double swatchSize = 22;
+  /// Diameter of one swatch. Each swatch carries the Trails mark rendered in
+  /// its accent, so the swatch is sized for the mark's 24–32 px band rather
+  /// than the old 22 px flat disc — the tap target (swatch + ring margin)
+  /// grows with it, never shrinking below the previous 30 px.
+  static const double swatchSize = 30;
 
   @override
   State<SettingsColorPicker> createState() => _SettingsColorPickerState();
@@ -181,15 +184,13 @@ class _SettingsColorPickerState extends State<SettingsColorPicker> {
             customBorder: const CircleBorder(),
             child: Container(
               // The selected swatch is ringed, not outlined: a 2 px ring held
-              // off the colour by a 2 px gap in the page's own ground, so the
-              // mark reads on a swatch of any hue without eating into it.
+              // off the mark by a 2 px gap in the page's own ground.
               // Painted last-on-top, so the gap ring covers the inner half of
               // the outer one.
               margin: const EdgeInsets.all(_swatchRingExtent),
               width: size,
               height: size,
               decoration: BoxDecoration(
-                color: color,
                 shape: BoxShape.circle,
                 boxShadow: isSelected
                     ? [
@@ -203,6 +204,15 @@ class _SettingsColorPickerState extends State<SettingsColorPicker> {
                         ),
                       ]
                     : null,
+              ),
+              // The swatch IS the mark in this accent's colorway: it previews
+              // the logo each choice produces, on the same ground the logo
+              // will sit on. Decorative — the Semantics wrapper above is what
+              // announces the swatch's name and state.
+              child: SkotiqMark(
+                size: size,
+                tone: SkotiqMarkTone.theme,
+                themeAccent: color,
               ),
             ),
           ),

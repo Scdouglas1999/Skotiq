@@ -271,7 +271,10 @@ class _FrameChip extends ConsumerWidget {
     final exposurePct = exposure.percent.clamp(0.0, 100.0) / 100.0;
     final valueText =
         hasFrame ? formatSeconds(exposure.remaining) : 'Downloading…';
-    final valueColor = hasFrame ? colors.primary : colors.warning;
+    // The running step's countdown is the dashboard's brand moment — the
+    // mark's warm lane colour marks "the step in flight now". The
+    // downloading branch keeps `warning`: that is a status, not decoration.
+    final valueColor = hasFrame ? colors.brandWarm : colors.warning;
 
     return SizedBox(
       // The caption is what grows in glance mode, so the box has to grow with
@@ -306,6 +309,7 @@ class _FrameChip extends ConsumerWidget {
           SkotiqProgressBar(
             value: hasFrame ? exposurePct : 0,
             height: 3,
+            foregroundColor: colors.brandWarm,
           ),
         ],
       ),
