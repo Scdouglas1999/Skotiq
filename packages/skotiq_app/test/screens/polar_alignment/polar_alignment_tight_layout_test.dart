@@ -220,6 +220,19 @@ void main() {
         reason: 'the readout row is on screen without scrolling');
   });
 
+  testWidgets('the all-sky reticle leaves its readouts on screen too',
+      (tester) async {
+    await _pump(tester);
+    await tester.tap(find.text('All-sky'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // The reticle used to report its column's width as its height, which in
+    // the wide idle column pushed the readout row ~500px below the screen.
+    expect(tester.getRect(find.text('TOTAL')).bottom,
+        lessThanOrEqualTo(_desktop.height));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'a simulated run: the progress rail, the readouts and the bullseye '
       'scale follow every measurement', (tester) async {

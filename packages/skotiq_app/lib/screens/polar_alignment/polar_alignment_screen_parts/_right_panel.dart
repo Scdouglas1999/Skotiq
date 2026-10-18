@@ -154,8 +154,13 @@ extension _RightPanel on _PolarAlignmentScreenState {
                 child: Column(
                   children: [
                     Expanded(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(minHeight: 160 * textScale),
+                      // The target fills whatever height is left; it claims
+                      // only its 160px floor when the column asks how tall it
+                      // is. The all-sky reticle answered with its own width,
+                      // so in a wide idle column it claimed ~1300px and
+                      // scrolled the readouts off the bottom of the screen.
+                      child: _IntrinsicHeightFloor(
+                        height: 160 * textScale,
                         child: visualization,
                       ),
                     ),
@@ -305,5 +310,56 @@ extension _RightPanel on _PolarAlignmentScreenState {
     if (error < 60) return colors.info;
     if (error < 120) return colors.warning;
     return colors.error;
+  }
+}
+
+/// Reports [height] as its child's intrinsic height and lays the child out at
+/// whatever height its parent actually gives it (never less than [height]).
+class _IntrinsicHeightFloor extends SingleChildRenderObjectWidget {
+  const _IntrinsicHeightFloor({required this.height, super.child});
+
+  final double height;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderIntrinsicHeightFloor(height);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderIntrinsicHeightFloor renderObject,
+  ) {
+    renderObject.height = height;
+  }
+}
+
+class _RenderIntrinsicHeightFloor extends RenderProxyBox {
+  _RenderIntrinsicHeightFloor(this._height);
+
+  double _height;
+  set height(double value) {
+    if (value == _height) return;
+    _height = value;
+    markNeedsLayout();
+  }
+
+  @override
+  double computeMinIntrinsicHeight(double width) => _height;
+
+  @override
+  double computeMaxIntrinsicHeight(double width) => _height;
+
+  @override
+  void performLayout() {
+    final child = this.child;
+    final floored = constraints.enforce(
+      BoxConstraints(minHeight: math.min(_height, constraints.maxHeight)),
+    );
+    if (child == null) {
+      size = floored.smallest;
+      return;
+    }
+    child.layout(floored, parentUsesSize: true);
+    size = child.size;
   }
 }
