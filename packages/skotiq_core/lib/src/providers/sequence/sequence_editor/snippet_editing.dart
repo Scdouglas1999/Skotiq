@@ -304,6 +304,7 @@ extension CurrentSequenceSnippetEditing on CurrentSequenceNotifier {
       RotatorNode _ ||
       ParkNode _ ||
       UnparkNode _ ||
+      HomeMountNode _ ||
       WaitTimeNode _ ||
       DelayNode _ ||
       NotificationNode _ ||
@@ -666,6 +667,16 @@ extension CurrentSequenceSnippetEditing on CurrentSequenceNotifier {
         return UnparkNode(
           id: id,
           name: name ?? 'Unpark Mount',
+          parentId: parentId,
+          childIds: childIds,
+          orderIndex: orderIndex,
+          isEnabled: isEnabled,
+        );
+
+      case 'homemount':
+        return HomeMountNode(
+          id: id,
+          name: name ?? 'Home mount',
           parentId: parentId,
           childIds: childIds,
           orderIndex: orderIndex,

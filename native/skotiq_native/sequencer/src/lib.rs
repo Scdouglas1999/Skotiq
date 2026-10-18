@@ -227,6 +227,9 @@ pub enum NodeType {
     MoveRotator(RotatorConfig),
     Park,
     Unpark,
+    /// Send the mount to its mechanical home position. Never parks it and
+    /// never unparks it; a parked mount fails the node instead.
+    HomeMount,
     WaitForTime(WaitTimeConfig),
     Delay(DelayConfig),
     Notification(NotificationConfig),

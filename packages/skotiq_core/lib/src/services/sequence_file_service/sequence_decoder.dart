@@ -364,6 +364,16 @@ extension _SequenceFileDecoder on SequenceFileService {
           isEnabled: isEnabled,
         );
 
+      case 'homemount':
+        return HomeMountNode(
+          id: id,
+          name: name ?? 'Home mount',
+          parentId: parentId,
+          childIds: childIds,
+          orderIndex: orderIndex,
+          isEnabled: isEnabled,
+        );
+
       case 'waitfortime':
       case 'waittime':
         return WaitTimeNode(

@@ -325,6 +325,8 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
       ),
       RotatorNode() => const Duration(seconds: 15),
       ParkNode() || UnparkNode() => const Duration(seconds: 30),
+      // A home is a full-length slew to the mechanical rest position.
+      HomeMountNode() => const Duration(seconds: 60),
       CoolCameraNode() => Duration(
         minutes: (node.durationMins ?? _defaultCoolingMins).round(),
       ),

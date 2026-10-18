@@ -105,6 +105,11 @@ class _SimpleInstructionInfo extends StatelessWidget {
       description =
           'Unparks the mount and enables tracking. Required before slewing or imaging.';
       icon = LucideIcons.unlock;
+    } else if (node is HomeMountNode) {
+      description =
+          'Sends the mount to its home position. Homing does not park the '
+          'mount; a parked mount must be unparked first.';
+      icon = LucideIcons.home;
     } else {
       description = 'This instruction has no additional settings.';
       icon = LucideIcons.settings;

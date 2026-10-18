@@ -39,6 +39,7 @@ pub(super) fn owns_dawn_end(sequence: &SequenceDefinition) -> bool {
             | NodeType::WarmCamera(_)
             | NodeType::Unpark
             | NodeType::Park
+            | NodeType::HomeMount
             | NodeType::StopGuiding
                 if node.children.is_empty() => {}
             // Exposures or repeating containers outside bounded targets still

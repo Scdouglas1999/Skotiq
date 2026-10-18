@@ -166,7 +166,8 @@ class _NodeEditor extends ConsumerWidget {
       NotificationNode n => _NotificationProperties(colors: colors, node: n),
       ScriptNode n => _ScriptProperties(colors: colors, node: n),
       ParkNode() ||
-      UnparkNode() =>
+      UnparkNode() ||
+      HomeMountNode() =>
         _SimpleInstructionInfo(colors: colors, node: node),
       MeridianFlipNode n => _MeridianFlipProperties(colors: colors, node: n),
       OpenDomeNode() ||

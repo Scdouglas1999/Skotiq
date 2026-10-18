@@ -317,7 +317,8 @@ extension _SequenceFileEncoder on SequenceFileService {
       InstructionSetNode() ||
       StopGuidingNode() ||
       ParkNode() ||
-      UnparkNode() => const <String, dynamic>{},
+      UnparkNode() ||
+      HomeMountNode() => const <String, dynamic>{},
     };
 
     base.addAll(extras);

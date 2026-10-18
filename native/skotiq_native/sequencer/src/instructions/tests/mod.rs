@@ -125,6 +125,11 @@ struct ScriptedDomeRotatorOps {
     /// answering `mount_parked`.
     mount_is_parked_error: Option<String>,
     mount_unpark_calls: AtomicU32,
+    mount_find_home_calls: AtomicU32,
+    mount_abort_calls: AtomicU32,
+    /// What `mount_is_at_home` answers; `Err` stands in for a driver that
+    /// does not report AtHome.
+    scripted_at_home: DeviceResult<bool>,
     // per-frame capture truth
     /// Every `FrameContext` this ops layer was handed by `save_fits`, in
     /// order. This is the FITS writer's own input — recording it is the
@@ -203,6 +208,9 @@ impl ScriptedDomeRotatorOps {
             mount_parked: false,
             mount_is_parked_error: None,
             mount_unpark_calls: AtomicU32::new(0),
+            mount_find_home_calls: AtomicU32::new(0),
+            mount_abort_calls: AtomicU32::new(0),
+            scripted_at_home: Ok(true),
             focuser_moves: Mutex::new(Vec::new()),
             focuser_halt_calls: AtomicU32::new(0),
             filter_position: AtomicI32::new(1),
@@ -330,6 +338,11 @@ impl ScriptedDomeRotatorOps {
 
     fn with_mount_is_parked_error(mut self, msg: &str) -> Self {
         self.mount_is_parked_error = Some(msg.to_string());
+        self
+    }
+
+    fn with_at_home(mut self, at_home: DeviceResult<bool>) -> Self {
+        self.scripted_at_home = at_home;
         self
     }
 
@@ -493,7 +506,15 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         self.inner.mount_slew_to_coordinates(id, ra, dec).await
     }
     async fn mount_abort_slew(&self, id: &str) -> DeviceResult<()> {
+        self.mount_abort_calls.fetch_add(1, Ordering::SeqCst);
         self.inner.mount_abort_slew(id).await
+    }
+    async fn mount_find_home(&self, id: &str) -> DeviceResult<()> {
+        self.mount_find_home_calls.fetch_add(1, Ordering::SeqCst);
+        self.inner.mount_find_home(id).await
+    }
+    async fn mount_is_at_home(&self, _id: &str) -> DeviceResult<bool> {
+        self.scripted_at_home.clone()
     }
     async fn mount_get_coordinates(&self, id: &str) -> DeviceResult<(f64, f64)> {
         match self.scripted_mount_coordinates {

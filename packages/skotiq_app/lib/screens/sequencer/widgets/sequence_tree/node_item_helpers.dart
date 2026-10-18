@@ -261,6 +261,8 @@ IconData sequenceNodeIcon(String iconName) {
       return LucideIcons.parkingCircle;
     case 'unlock':
       return LucideIcons.unlock;
+    case 'home':
+      return LucideIcons.home;
     case 'focus':
       return LucideIcons.focus;
     case 'snowflake':

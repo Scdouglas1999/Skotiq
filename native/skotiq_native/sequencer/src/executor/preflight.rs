@@ -160,6 +160,7 @@ pub(super) fn collect_required_devices(
         NodeType::SlewToTarget(_)
         | NodeType::Park
         | NodeType::Unpark
+        | NodeType::HomeMount
         | NodeType::MeridianFlip(_) => {
             require(RequiredDevice::Mount, false);
         }
