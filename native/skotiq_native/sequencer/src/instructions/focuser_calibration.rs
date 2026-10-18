@@ -954,8 +954,8 @@ mod tests {
             "app_version": "7.0.0+27"
         }"#;
 
-        let config: BacklashCalibrationConfig = serde_json::from_str(json)
-            .expect("the Dart calibration payload must deserialize");
+        let config: BacklashCalibrationConfig =
+            serde_json::from_str(json).expect("the Dart calibration payload must deserialize");
 
         assert_eq!(config.center_position, Some(6600));
         assert_eq!(config.step_size, 45);
@@ -1007,8 +1007,8 @@ mod tests {
             "app_version": "7.0.0+27"
         }"#;
 
-        let config: BacklashCalibrationConfig = serde_json::from_str(json)
-            .expect("the Dart calibration payload must deserialize");
+        let config: BacklashCalibrationConfig =
+            serde_json::from_str(json).expect("the Dart calibration payload must deserialize");
 
         assert_eq!(config.center_position, None);
         assert_eq!(config.gain, None);
@@ -1043,8 +1043,8 @@ mod tests {
             "app_version": "7.0.0+27"
         }"#;
 
-        let config: BacklashCalibrationConfig = serde_json::from_str(json)
-            .expect("the Dart calibration payload must deserialize");
+        let config: BacklashCalibrationConfig =
+            serde_json::from_str(json).expect("the Dart calibration payload must deserialize");
         let error = validate_backlash_calibration_config(&config)
             .expect_err("a run-up smaller than the step size must be refused");
         assert!(error.contains("must exceed the step size"), "{error}");

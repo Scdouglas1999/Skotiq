@@ -309,14 +309,65 @@ extension MountDeviceHandlers on DeviceHandlers {
     });
   }
 
-  Future<Response> handleMountFindHome(Request request) async {
-    _logInfo('[API] POST /api/mount/find-home');
+  /// POST `/api/mount/home` (and its older spelling `/api/mount/find-home`).
+  ///
+  /// Sends the mount to its home position. Homing is not parking: the mount
+  /// is left unparked and commandable. Answers once the driver has accepted
+  /// the command (`status: homing`); progress and arrival come from
+  /// `GET /api/mount/status` (`slewing`, `atHome`, and
+  /// `availability.at_home`, which says whether the driver can report
+  /// arrival at all).
+  ///
+  /// * 400 `capability_unsupported` — the mount has no home position.
+  /// * 409 `mount_parked` — the mount is parked; it is NOT unparked here,
+  ///   the client unparks it first.
+  Future<Response> handleMountHome(Request request) async {
+    _logInfo('[API] POST /${request.url.path}');
     final payload = await readJsonObject(request);
     final deviceId = requireString(payload, 'deviceId');
 
     final backend = container.read(deviceBackendProvider);
+    final capabilities = await backend.getMountCapabilities(deviceId);
+    if (capabilities == null) {
+      throw HandlerFailure(
+        code: 'capabilities_unavailable',
+        statusCode: 409,
+        message:
+            'Mount $deviceId did not report its capabilities; check that it '
+            'is connected before sending it home',
+        details: {'deviceId': deviceId},
+      );
+    }
+    if (!capabilities.canFindHome) {
+      throw HandlerFailure(
+        code: 'capability_unsupported',
+        statusCode: 400,
+        message:
+            'Mount $deviceId cannot find home: its driver does not report a '
+            'home position (canFindHome is false)',
+        details: {'deviceId': deviceId, 'capability': 'canFindHome'},
+      );
+    }
+    final status = await backend.getMountStatus(deviceId);
+    if (status.parked) {
+      throw HandlerFailure(
+        code: 'mount_parked',
+        statusCode: 409,
+        message: 'Mount $deviceId is parked. Unpark it before sending it home.',
+        details: {'deviceId': deviceId},
+      );
+    }
+
+    final commandId = commandCorrelator?.beginCommand(
+      operation: 'mount.home',
+      deviceId: deviceId,
+    );
+
     await backend.mountFindHome(deviceId);
 
-    return jsonOk({'status': 'finding_home'});
+    return jsonOk({
+      if (commandId != null) 'commandId': commandId,
+      'status': 'homing',
+    });
   }
 }

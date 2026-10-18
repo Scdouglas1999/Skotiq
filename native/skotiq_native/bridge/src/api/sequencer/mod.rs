@@ -142,6 +142,7 @@ impl From<&NodeDefinition> for NodeDefinitionApi {
             NodeType::MoveRotator(_) => "rotator",
             NodeType::Park => "park",
             NodeType::Unpark => "unpark",
+            NodeType::HomeMount => "home_mount",
             NodeType::WaitForTime(_) => "wait_time",
             NodeType::Delay(_) => "delay",
             NodeType::Notification(_) => "notification",

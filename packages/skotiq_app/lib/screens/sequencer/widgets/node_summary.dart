@@ -484,6 +484,9 @@ List<SummaryFragment> nodeSummary(
     UnparkNode() => const <SummaryFragment>[
         StaticFragment('unpark mount'),
       ],
+    HomeMountNode() => const <SummaryFragment>[
+        StaticFragment('home mount'),
+      ],
 
     // Script / notification — descriptors; static.
     ScriptNode(scriptPath: final path) => <SummaryFragment>[

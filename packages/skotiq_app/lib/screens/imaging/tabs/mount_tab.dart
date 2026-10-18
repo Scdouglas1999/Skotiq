@@ -171,6 +171,13 @@ class _MountTabState extends ConsumerState<MountTab> {
       (c) => c.canSlew || c.canSlewAsync,
       loadingDefault: false,
     );
+    // Home is never pressed blind, so it is not offered until the driver has
+    // said it has a home position.
+    final canFindHome = gateCapability<MountCapabilities>(
+      mountCapsAsync,
+      (c) => c.canFindHome,
+      loadingDefault: false,
+    );
     final canPulseGuide = gateCapability<MountCapabilities>(
       mountCapsAsync,
       (c) => c.canPulseGuide,
@@ -193,6 +200,12 @@ class _MountTabState extends ConsumerState<MountTab> {
         !mountState.isSlewing;
 
     final parkLabel = mountState.isParked ? 'Unpark' : 'Park';
+    final mountMoving = mountState.isSlewing || mountState.isHoming;
+    final homeBlockedReason = MountCommandService.homeUnavailableReason(
+      mountState: mountState,
+      isConnected: isConnected,
+      canFindHome: canFindHome,
+    );
     final trackingLabel =
         mountState.isTracking ? 'Stop tracking' : 'Start tracking';
 
@@ -218,11 +231,12 @@ class _MountTabState extends ConsumerState<MountTab> {
           PanelSection(
             title: 'Actions',
             colors: colors,
-            // Two compact rows, read in order: the two "stop" actions an
-            // operator reaches for mid-run lead; Park follows — it is never
-            // pressed unasked, so it does not get the first, loudest slot —
-            // beside Polar alignment, which used to be a card holding a
-            // single button.
+            // Compact rows, read in order: the two "stop" actions an operator
+            // reaches for mid-run lead; Park follows — it is never pressed
+            // unasked, so it does not get the first, loudest slot — beside
+            // Home, the other "put the mount somewhere known" action; Polar
+            // alignment, which used to be a card holding a single button,
+            // closes the grid.
             child: _ActionPairs(
               cells: <AdaptiveCell>[
                 _actionCell(
@@ -239,7 +253,7 @@ class _MountTabState extends ConsumerState<MountTab> {
                     onPressed: isConnected &&
                             canSetTracking &&
                             !mountState.isParked &&
-                            !mountState.isSlewing
+                            !mountMoving
                         ? () => ref
                                 .read(mountCommandServiceProvider)
                                 .setTracking(!mountState.isTracking)
@@ -288,11 +302,39 @@ class _MountTabState extends ConsumerState<MountTab> {
                     // Gate on canPark/canUnpark with fail-closed capability
                     // lookup — see gateCapability above.
                     onPressed: isConnected &&
-                            !mountState.isSlewing &&
+                            !mountMoving &&
                             (mountState.isParked ? canUnpark : canPark)
                         ? () => ref
                                 .read(mountCommandServiceProvider)
                                 .togglePark()
+                                .then((result) {
+                              if (context.mounted) {
+                                context.showCommandActionResult(result);
+                              }
+                            })
+                        : null,
+                  ),
+                ),
+                // Home sits beside Park because the two are easy to confuse
+                // and must not be: Home moves the mount to its home position
+                // and leaves it unparked and commandable.
+                _actionCell(
+                  context,
+                  label: 'Home',
+                  child: _LabelFirstButton(
+                    key: const ValueKey<String>('mount-home-button'),
+                    label: 'Home',
+                    icon: LucideIcons.home,
+                    size: ButtonSize.small,
+                    variant: ButtonVariant.secondary,
+                    tooltip: homeBlockedReason ??
+                        'Send the mount to its home position. It stays '
+                            'unparked.',
+                    semanticsHint: homeBlockedReason,
+                    onPressed: homeBlockedReason == null
+                        ? () => ref
+                                .read(mountCommandServiceProvider)
+                                .findHome()
                                 .then((result) {
                               if (context.mounted) {
                                 context.showCommandActionResult(result);
@@ -369,7 +411,7 @@ class _MountTabState extends ConsumerState<MountTab> {
                               isEnabled: isConnected &&
                                   canSlew &&
                                   !mountState.isParked &&
-                                  !mountState.isSlewing,
+                                  !mountMoving,
                             ),
                     ),
                     AdaptiveCell(
@@ -386,7 +428,7 @@ class _MountTabState extends ConsumerState<MountTab> {
                                 canSync &&
                                 hasValidTarget &&
                                 !mountState.isParked &&
-                                !mountState.isSlewing
+                                !mountMoving
                             ? _handleSync
                             : null,
                       ),
@@ -489,17 +531,29 @@ class _ActionPairs extends StatelessWidget {
     }
     final half = (width - _gap) / 2;
     final even = pair.every((AdaptiveCell c) => c.minWidth <= half);
+    if (even) {
+      return Row(
+        children: <Widget>[
+          Expanded(child: pair[0].child),
+          const SizedBox(width: _gap),
+          Expanded(child: pair[1].child),
+        ],
+      );
+    }
+    // Each cell gets its measured width plus a share of the slack in
+    // proportion to it. Integer flex factors rounded the split and could hand
+    // a cell a fraction of a pixel less than its label needs, which is
+    // enough to ellipsise it ("Unpark" beside "Home" at 160 px did).
+    final total = pair[0].minWidth + pair[1].minWidth;
+    final slack = width - needed;
     return Row(
       children: <Widget>[
-        Expanded(
-          flex: even ? 1 : pair[0].minWidth.ceil(),
+        SizedBox(
+          width: pair[0].minWidth + slack * pair[0].minWidth / total,
           child: pair[0].child,
         ),
         const SizedBox(width: _gap),
-        Expanded(
-          flex: even ? 1 : pair[1].minWidth.ceil(),
-          child: pair[1].child,
-        ),
+        Expanded(child: pair[1].child),
       ],
     );
   }
@@ -515,11 +569,14 @@ class _ActionPairs extends StatelessWidget {
 /// label here keeps its glyph.
 class _LabelFirstButton extends StatelessWidget {
   const _LabelFirstButton({
+    super.key,
     required this.label,
     required this.icon,
     required this.onPressed,
     this.variant = ButtonVariant.primary,
     this.size = ButtonSize.medium,
+    this.tooltip,
+    this.semanticsHint,
   });
 
   final String label;
@@ -527,6 +584,12 @@ class _LabelFirstButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final ButtonVariant variant;
   final ButtonSize size;
+
+  /// Shown on hover or long-press; for a disabled button, why it is disabled.
+  final String? tooltip;
+
+  /// Read after the label by assistive tech; see [SkotiqButton.semanticsHint].
+  final String? semanticsHint;
 
   @override
   Widget build(BuildContext context) {
@@ -540,13 +603,17 @@ class _LabelFirstButton extends StatelessWidget {
       builder: (BuildContext context, BoxConstraints constraints) {
         final fits =
             !constraints.hasBoundedWidth || constraints.maxWidth >= withIcon;
-        return SkotiqButton(
+        final button = SkotiqButton(
           label: label,
           icon: fits ? icon : null,
           variant: variant,
           size: size,
           onPressed: onPressed,
+          semanticsHint: semanticsHint,
         );
+        final message = tooltip;
+        if (message == null) return button;
+        return SkotiqTooltip(message: message, child: button);
       },
     );
   }
@@ -565,6 +632,10 @@ class _StatusBlock extends StatelessWidget {
   /// parked mount that is also disconnected has to report the connection.
   ({String label, ChipTone tone}) get _status {
     if (!isConnected) return (label: 'Disconnected', tone: ChipTone.error);
+    // A home in progress reads the way a slew does, and says which it is.
+    if (mountState.isHoming) {
+      return (label: 'Homing', tone: ChipTone.warning);
+    }
     if (mountState.isSlewing) {
       return (label: 'Slewing', tone: ChipTone.warning);
     }
@@ -572,6 +643,15 @@ class _StatusBlock extends StatelessWidget {
       return (label: 'Tracking', tone: ChipTone.success);
     }
     return (label: 'Stopped', tone: ChipTone.neutral);
+  }
+
+  /// Where the mount is resting: parked, at home (confirmed by the driver, or
+  /// unconfirmed when the driver cannot report it), or simply ready.
+  String get _positionLabel {
+    if (mountState.isParked) return 'Parked';
+    if (mountState.isAtHome) return 'At home';
+    if (mountState.homeUnconfirmed) return 'Home (unconfirmed)';
+    return 'Ready';
   }
 
   /// The reported side of pier, or null when the mount does not say.
@@ -626,7 +706,7 @@ class _StatusBlock extends StatelessWidget {
         // readout at all rather than a permanent dash beside a live status.
         _ReadoutPair(<(String, String?)>[
           if (_pierSide != null) ('Pier', _pierSide),
-          ('Status', mountState.isParked ? 'Parked' : 'Ready'),
+          ('Status', _positionLabel),
         ]),
       ],
     );

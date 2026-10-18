@@ -264,12 +264,10 @@ impl DeviceManager {
                             &mut availability,
                         );
 
-                        // ASCOM wrapper does not yet expose AtHome — record as Unsupported
-                        // rather than fabricating false. Driver work tracked separately.
-                        Self::set_mount_availability(
-                            &mut availability,
+                        let at_home_opt = Self::availability_from_native_result(
+                            mount.at_home().await,
                             mount_status_field::AT_HOME,
-                            FieldAvailability::Unsupported,
+                            &mut availability,
                         );
 
                         let capabilities = match mount.get_capabilities().await {
@@ -316,7 +314,7 @@ impl DeviceManager {
                             tracking,
                             slewing,
                             parked,
-                            at_home: None,
+                            at_home: at_home_opt,
                             side_of_pier: side_of_pier_opt,
                             right_ascension: ra,
                             declination: dec,

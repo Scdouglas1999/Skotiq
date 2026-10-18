@@ -104,7 +104,10 @@ List<HeadlessRoute> buildDeviceRoutes(DeviceHandlers h) => <HeadlessRoute>[
     '/api/mount/slew-alt-az',
     h.handleMountSlewAltAz,
   ),
-  HeadlessRoute(HttpMethod.post, '/api/mount/find-home', h.handleMountFindHome),
+  HeadlessRoute(HttpMethod.post, '/api/mount/home', h.handleMountHome),
+  // The original spelling, kept so clients built before `/api/mount/home`
+  // existed keep working. Same handler, same checks.
+  HeadlessRoute(HttpMethod.post, '/api/mount/find-home', h.handleMountHome),
 
   // Focuser Control
   HeadlessRoute(HttpMethod.post, '/api/focuser/move-to', h.handleFocuserMoveTo),

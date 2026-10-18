@@ -18,6 +18,10 @@ pub type DeviceResult<T> = Result<T, String>;
 /// real problem under noise.
 pub const NO_GUIDER_CONFIGURED: &str = "No active guider configured";
 
+/// Error text the default homing operations return when a backend has not
+/// implemented them.
+pub const HOMING_UNSUPPORTED: &str = "Homing is not supported by this device backend";
+
 /// Whether [`DeviceResult`] error text is the benign "this rig has no guider"
 /// marker rather than a real guider failure.
 pub fn is_no_guider_configured(error: &str) -> bool {
@@ -162,6 +166,22 @@ pub trait DeviceOps: Send + Sync {
 
     /// Unpark the mount
     async fn mount_unpark(&self, mount_id: &str) -> DeviceResult<()>;
+
+    /// Send the mount to its mechanical home position.
+    ///
+    /// Homing is not parking: the mount is left unparked and commandable. The
+    /// default fails closed so a backend that never wired homing says so
+    /// instead of reporting a move that did not happen.
+    async fn mount_find_home(&self, _mount_id: &str) -> DeviceResult<()> {
+        Err(HOMING_UNSUPPORTED.to_string())
+    }
+
+    /// Whether the mount reports that it is at its home position.
+    ///
+    /// Fails closed by default for the same reason as [`Self::mount_find_home`].
+    async fn mount_is_at_home(&self, _mount_id: &str) -> DeviceResult<bool> {
+        Err(HOMING_UNSUPPORTED.to_string())
+    }
 
     /// Check if mount is slewing
     async fn mount_is_slewing(&self, mount_id: &str) -> DeviceResult<bool>;
@@ -650,6 +670,15 @@ impl DeviceOps for NullDeviceOps {
         tracing::info!("[NULL] Unparking mount");
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         Ok(())
+    }
+
+    async fn mount_find_home(&self, _mount_id: &str) -> DeviceResult<()> {
+        tracing::info!("[NULL] Homing mount");
+        Ok(())
+    }
+
+    async fn mount_is_at_home(&self, _mount_id: &str) -> DeviceResult<bool> {
+        Ok(true)
     }
 
     async fn mount_is_slewing(&self, _mount_id: &str) -> DeviceResult<bool> {

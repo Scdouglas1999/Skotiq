@@ -12,6 +12,7 @@ enum OperationType {
   domeSlew,
   parkMount,
   unparkMount,
+  homeMount,
   dither,
   guideSettle,
   focuserMove,
@@ -42,6 +43,8 @@ extension OperationTypeLabel on OperationType {
         return 'Parking mount';
       case OperationType.unparkMount:
         return 'Unparking mount';
+      case OperationType.homeMount:
+        return 'Homing mount';
       case OperationType.dither:
         return 'Dithering';
       case OperationType.guideSettle:
@@ -75,6 +78,8 @@ extension OperationTypeLabel on OperationType {
         return 'Parking...';
       case OperationType.unparkMount:
         return 'Unparking...';
+      case OperationType.homeMount:
+        return 'Homing...';
       case OperationType.dither:
         return 'Dithering...';
       case OperationType.guideSettle:

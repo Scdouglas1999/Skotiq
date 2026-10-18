@@ -33,6 +33,7 @@ import 'camera_warmup_controller.dart';
 import 'device_heartbeat_router.dart';
 import 'device_reconnect_coordinator.dart';
 import 'device_exceptions.dart';
+import 'mount_home_watcher.dart';
 import 'logging_service.dart';
 import 'error_service.dart';
 import 'phd2_launcher.dart';
@@ -489,7 +490,7 @@ class DeviceService {
   Future<void> abortMountSlew() => _trackInFlight(_abortMountSlew);
   Future<void> slewMountToAltAz(double altitude, double azimuth) =>
       _trackInFlight(() => _slewMountToAltAz(altitude, azimuth));
-  Future<void> findMountHome() => _trackInFlight(_findMountHome);
+  Future<MountHomeOutcome> findMountHome() => _trackInFlight(_findMountHome);
   Future<void> pulseGuidMount({
     required String direction,
     required int durationMs,

@@ -99,6 +99,9 @@ impl InstructionRegistry {
         });
         factories.insert("Park", || Box::new(i::park::ParkInstruction));
         factories.insert("Unpark", || Box::new(i::unpark::UnparkInstruction));
+        factories.insert("HomeMount", || {
+            Box::new(i::home_mount::HomeMountInstruction)
+        });
         factories.insert("WaitForTime", || {
             Box::new(i::wait_for_time::WaitForTimeInstruction)
         });
@@ -193,6 +196,7 @@ pub fn node_type_discriminant(node_type: &NodeType) -> Option<&'static str> {
         NodeType::MoveRotator(_) => Some("MoveRotator"),
         NodeType::Park => Some("Park"),
         NodeType::Unpark => Some("Unpark"),
+        NodeType::HomeMount => Some("HomeMount"),
         NodeType::WaitForTime(_) => Some("WaitForTime"),
         NodeType::Delay(_) => Some("Delay"),
         NodeType::Notification(_) => Some("Notification"),
@@ -256,6 +260,7 @@ mod tests {
             NodeType::MoveRotator(Default::default()),
             NodeType::Park,
             NodeType::Unpark,
+            NodeType::HomeMount,
             NodeType::WaitForTime(Default::default()),
             NodeType::Delay(DelayConfig::default()),
             NodeType::Notification(Default::default()),
@@ -346,6 +351,7 @@ mod tests {
             (NodeType::MoveRotator(Default::default()), "Move Rotator"),
             (NodeType::Park, "Park"),
             (NodeType::Unpark, "Unpark"),
+            (NodeType::HomeMount, "Home Mount"),
             (NodeType::WaitForTime(Default::default()), "Wait"),
             (NodeType::Delay(Default::default()), "Delay"),
             (NodeType::Notification(Default::default()), "Notification"),

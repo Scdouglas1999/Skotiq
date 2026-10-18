@@ -134,6 +134,20 @@ class MountState extends Equatable {
   final bool isTracking;
   final bool isSlewing;
   final bool isParked;
+
+  /// The driver reports the mount stopped at its home position (`AtHome`).
+  /// False both when it is not home and when the driver cannot say.
+  final bool isAtHome;
+
+  /// A Home command from this app is in progress. Distinct from
+  /// [isSlewing], which is the driver's own report: a home is in progress
+  /// from the moment it is sent, before the driver has started moving.
+  final bool isHoming;
+
+  /// The last home ended with the mount stopped, but its driver cannot
+  /// report `AtHome`, so being at home is unconfirmed. Cleared as soon as the
+  /// mount moves again or parks.
+  final bool homeUnconfirmed;
   final String? sideOfPier;
   final TrackingRate trackingRate;
   final bool canSetTrackingRate;
@@ -155,6 +169,9 @@ class MountState extends Equatable {
     this.isTracking = false,
     this.isSlewing = false,
     this.isParked = true,
+    this.isAtHome = false,
+    this.isHoming = false,
+    this.homeUnconfirmed = false,
     this.sideOfPier,
     this.trackingRate = TrackingRate.sidereal,
     this.canSetTrackingRate = false,
@@ -177,6 +194,9 @@ class MountState extends Equatable {
     bool? isTracking,
     bool? isSlewing,
     bool? isParked,
+    bool? isAtHome,
+    bool? isHoming,
+    bool? homeUnconfirmed,
     String? sideOfPier,
     TrackingRate? trackingRate,
     bool? canSetTrackingRate,
@@ -202,6 +222,9 @@ class MountState extends Equatable {
       isTracking: isTracking ?? this.isTracking,
       isSlewing: isSlewing ?? this.isSlewing,
       isParked: isParked ?? this.isParked,
+      isAtHome: isAtHome ?? this.isAtHome,
+      isHoming: isHoming ?? this.isHoming,
+      homeUnconfirmed: homeUnconfirmed ?? this.homeUnconfirmed,
       // Like the horizon frame, a mount that stops reporting its side of pier
       // needs [clearSideOfPier]: a null argument means "leave unchanged".
       sideOfPier: clearSideOfPier ? null : (sideOfPier ?? this.sideOfPier),
@@ -225,6 +248,9 @@ class MountState extends Equatable {
     isTracking,
     isSlewing,
     isParked,
+    isAtHome,
+    isHoming,
+    homeUnconfirmed,
     sideOfPier,
     trackingRate,
     canSetTrackingRate,

@@ -201,6 +201,26 @@ impl DeviceOps for UnifiedDeviceOps {
         result
     }
 
+    async fn mount_find_home(&self, mount_id: &str) -> DeviceResult<()> {
+        tracing::info!("Homing mount {}", mount_id);
+
+        get_device_manager()
+            .mount_find_home(mount_id)
+            .await
+            .map_err(|e| format!("Home failed: {}", e))
+    }
+
+    async fn mount_is_at_home(&self, mount_id: &str) -> DeviceResult<bool> {
+        let status = get_device_manager()
+            .mount_get_status(mount_id)
+            .await
+            .map_err(|e| format!("Failed to get mount status: {}", e))?;
+
+        status
+            .at_home
+            .ok_or_else(|| "Mount does not report whether it is at home".to_string())
+    }
+
     async fn mount_is_slewing(&self, mount_id: &str) -> DeviceResult<bool> {
         let status = get_device_manager()
             .mount_get_status(mount_id)

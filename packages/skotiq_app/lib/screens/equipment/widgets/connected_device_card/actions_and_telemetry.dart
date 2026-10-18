@@ -217,15 +217,36 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
         final flipInProgress = ref.watch(isFlipInProgressProvider);
         final sequenceSettled =
             ref.watch(sequenceExecutionStateProvider).canStart;
+        final homeBlockedReason = MountCommandService.homeUnavailableReason(
+          mountState: state,
+          isConnected: connected,
+          canFindHome: canFindHome,
+        );
+        // Home sits next to Park: both put the mount somewhere known, and
+        // keeping them together keeps the difference in view — Home leaves
+        // the mount unparked and commandable.
         return [
           _ActionButton(
             label: state.isParked ? 'Unpark' : 'Park',
             onTap: connected &&
                     canPark &&
                     !state.isSlewing &&
+                    !state.isHoming &&
                     !flipInProgress &&
                     !_mountCommandInFlight
                 ? _handleTogglePark
+                : null,
+            colors: colors,
+          ),
+          const SizedBox(width: 8),
+          _ActionButton(
+            label: 'Home',
+            tooltip: homeBlockedReason ??
+                'Send the mount to its home position. It stays unparked.',
+            onTap: homeBlockedReason == null &&
+                    !flipInProgress &&
+                    !_mountCommandInFlight
+                ? _handleFindHome
                 : null,
             colors: colors,
           ),
@@ -235,21 +256,10 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
             onTap: connected &&
                     canSetTracking &&
                     !state.isSlewing &&
+                    !state.isHoming &&
                     !flipInProgress &&
                     !_mountCommandInFlight
                 ? () => _handleToggleTracking(state.isTracking)
-                : null,
-            colors: colors,
-          ),
-          const SizedBox(width: 8),
-          _ActionButton(
-            label: 'Home',
-            onTap: connected &&
-                    canFindHome &&
-                    !state.isSlewing &&
-                    !flipInProgress &&
-                    !_mountCommandInFlight
-                ? _handleFindHome
                 : null,
             colors: colors,
           ),

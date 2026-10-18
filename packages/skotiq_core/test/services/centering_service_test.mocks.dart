@@ -15,6 +15,7 @@ import 'package:skotiq_core/src/providers/profiles_provider.dart' as _i11;
 import 'package:skotiq_core/src/services/device_exceptions.dart' as _i10;
 import 'package:skotiq_core/src/services/device_service.dart' as _i9;
 import 'package:skotiq_core/src/services/imaging_service.dart' as _i6;
+import 'package:skotiq_core/src/services/mount_home_watcher.dart' as _i12;
 import 'package:skotiq_core/src/services/plate_solve_service.dart' as _i8;
 
 // ignore_for_file: type=lint
@@ -847,13 +848,14 @@ class MockDeviceService extends _i1.Mock implements _i9.DeviceService {
           as _i7.Future<void>);
 
   @override
-  _i7.Future<void> findMountHome() =>
+  _i7.Future<_i12.MountHomeOutcome> findMountHome() =>
       (super.noSuchMethod(
             Invocation.method(#findMountHome, []),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
+            returnValue: _i7.Future<_i12.MountHomeOutcome>.value(
+              _i12.MountHomeOutcome.confirmed,
+            ),
           )
-          as _i7.Future<void>);
+          as _i7.Future<_i12.MountHomeOutcome>);
 
   @override
   _i7.Future<void> pulseGuidMount({

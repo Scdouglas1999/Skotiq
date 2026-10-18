@@ -298,6 +298,12 @@ class SystemPromptBuilder {
       ['Unpark', 'Unpark the mount.', ''],
       ['Park', 'Park the mount.', ''],
       [
+        'HomeMount',
+        'Send the mount to its home position without parking it. '
+            'Only when the user asks for it.',
+        '',
+      ],
+      [
         'Dither',
         'One-shot dither.',
         '`pixels` (number), `settlePixels` (number), '

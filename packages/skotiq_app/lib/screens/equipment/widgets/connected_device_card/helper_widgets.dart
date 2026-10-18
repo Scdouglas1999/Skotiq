@@ -25,24 +25,33 @@ class _ActionButton extends StatelessWidget {
   final VoidCallback? onLongPress;
   final SkotiqColors colors;
 
+  /// Hover text; for a disabled action, why it is disabled. Also read by
+  /// assistive tech while the action is disabled.
+  final String? tooltip;
+
   const _ActionButton({
     required this.label,
     required this.onTap,
     this.onLongPress,
     required this.colors,
+    this.tooltip,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final button = GestureDetector(
       onLongPress: onTap == null ? null : onLongPress,
       child: SkotiqButton(
         onPressed: onTap,
         label: label,
         variant: ButtonVariant.secondary,
         size: ButtonSize.small,
+        semanticsHint: onTap == null ? tooltip : null,
       ),
     );
+    final message = tooltip;
+    if (message == null) return button;
+    return SkotiqTooltip(message: message, child: button);
   }
 }
 

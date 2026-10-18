@@ -128,7 +128,13 @@ impl DeviceManager {
                 // fault injector.
                 crate::device_manager::ops::sim_gate::require_mount_connected().await?;
                 let m = crate::api::devices::simulation::get_sim_mount();
-                m.write().await.status.tracking = enabled;
+                let mut m = m.write().await;
+                m.status.tracking = enabled;
+                // Tracking turns the RA axis, which carries the mount off the
+                // home pose a FindHome left it in.
+                if enabled {
+                    m.status.at_home = Some(false);
+                }
                 Ok(())
             }
         }

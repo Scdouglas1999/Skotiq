@@ -700,7 +700,12 @@ impl DeviceManager {
                 // `slewing` so subsequent `mount_get_status` reflects the move
                 // command. A real driver wouldn't no-op silently.
                 let m = crate::api::devices::simulation::get_sim_mount();
-                m.write().await.status.slewing = rate != 0.0;
+                let mut m = m.write().await;
+                m.status.slewing = rate != 0.0;
+                // Driving an axis moves the mount off its home pose.
+                if rate != 0.0 {
+                    m.status.at_home = Some(false);
+                }
                 Ok(())
             }
         }

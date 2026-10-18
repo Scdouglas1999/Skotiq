@@ -277,13 +277,17 @@ extension _SequenceRepositoryNodeEncoder on SequenceRepository {
       InstructionSetNode() ||
       StopGuidingNode() ||
       ParkNode() ||
-      UnparkNode() => const <String, dynamic>{},
+      UnparkNode() ||
+      HomeMountNode() => const <String, dynamic>{},
     };
   }
 
   /// Wraps _nodeToProperties to include base-class fields like comment
   Map<String, dynamic> _nodeToPropertiesWithComment(SequenceNode node) {
-    final props = _nodeToProperties(node);
+    // Copy: the side-effect-only nodes return a const empty map, and writing
+    // the comment into it threw, so a commented Park, Unpark, Home mount or
+    // Stop guiding step could not be saved at all.
+    final props = <String, dynamic>{..._nodeToProperties(node)};
     if (node.comment != null && node.comment!.isNotEmpty) {
       props['comment'] = node.comment;
     }

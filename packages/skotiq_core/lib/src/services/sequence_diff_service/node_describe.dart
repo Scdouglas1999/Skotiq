@@ -81,6 +81,8 @@ extension _SequenceDiffNodeDescribe on SequenceDiffService {
         return 'Park mount';
       case UnparkNode():
         return 'Unpark mount';
+      case HomeMountNode():
+        return 'Home mount';
       case OpenCoverNode():
         return 'Open dust cover';
       case CloseCoverNode():

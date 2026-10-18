@@ -190,6 +190,17 @@ extension _SequenceRepositoryNodeDecoder on SequenceRepository {
           comment: props['comment'] as String?,
         );
 
+      case 'homemount':
+      case 'HomeMount':
+        return HomeMountNode(
+          id: dbNode.nodeId,
+          name: dbNode.name,
+          parentId: dbNode.parentNodeId,
+          orderIndex: dbNode.orderIndex,
+          isEnabled: dbNode.isEnabled,
+          comment: props['comment'] as String?,
+        );
+
       case 'waitTime':
       case 'WaitForTime':
         return WaitTimeNode(

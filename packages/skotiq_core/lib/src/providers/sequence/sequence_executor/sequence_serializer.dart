@@ -432,6 +432,8 @@ class SequenceSerializer {
         return {'type': 'Park'};
       case UnparkNode _:
         return {'type': 'Unpark'};
+      case HomeMountNode _:
+        return {'type': 'HomeMount'};
       case WaitTimeNode n:
         return {
           'type': 'WaitForTime',

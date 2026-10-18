@@ -725,6 +725,7 @@ bool isContainerNode(SequenceNode node) {
     RotatorNode _ ||
     ParkNode _ ||
     UnparkNode _ ||
+    HomeMountNode _ ||
     WaitTimeNode _ ||
     DelayNode _ ||
     NotificationNode _ ||

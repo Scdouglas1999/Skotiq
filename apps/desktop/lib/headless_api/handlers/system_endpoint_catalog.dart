@@ -83,6 +83,7 @@ List<String> availableHeadlessEndpoints() {
     'POST /api/mount/set-tracking-rate',
     'POST /api/mount/move-axis',
     'POST /api/mount/slew-alt-az',
+    'POST /api/mount/home',
     'POST /api/mount/find-home',
     'GET /api/mount/site-capabilities',
     'GET /api/mount/site',

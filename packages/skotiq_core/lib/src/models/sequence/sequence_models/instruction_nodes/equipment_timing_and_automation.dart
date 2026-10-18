@@ -326,6 +326,56 @@ class UnparkNode extends SequenceNode {
   }
 }
 
+/// Home mount instruction: sends the mount to its mechanical home position.
+///
+/// Homing is not parking. The mount is left unparked and tracking is left as
+/// the driver reports it; a parked mount fails the node instead of being
+/// unparked behind the operator's back.
+class HomeMountNode extends SequenceNode {
+  HomeMountNode({
+    super.id,
+    super.name = 'Home mount',
+    super.isEnabled,
+    super.childIds = const [],
+    super.parentId,
+    super.orderIndex,
+    super.comment,
+  });
+
+  @override
+  String get nodeType => 'HomeMount';
+
+  @override
+  String get iconName => 'home';
+
+  @override
+  NodeCategory get category => NodeCategory.instruction;
+
+  @override
+  Set<DeviceType> get requiredDevices => {DeviceType.mount};
+
+  @override
+  HomeMountNode copyWith({
+    String? id,
+    String? name,
+    bool? isEnabled,
+    List<String>? childIds,
+    String? parentId,
+    int? orderIndex,
+    String? comment,
+  }) {
+    return HomeMountNode(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      isEnabled: isEnabled ?? this.isEnabled,
+      childIds: childIds ?? this.childIds,
+      parentId: parentId ?? this.parentId,
+      orderIndex: orderIndex ?? this.orderIndex,
+      comment: comment ?? this.comment,
+    );
+  }
+}
+
 /// Wait for time instruction
 class WaitTimeNode extends SequenceNode {
   final DateTime? waitUntil;

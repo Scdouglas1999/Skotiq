@@ -761,6 +761,7 @@ extension _SequenceDiffNodeFields on SequenceDiffService {
       case StopGuidingNode():
       case ParkNode():
       case UnparkNode():
+      case HomeMountNode():
       case OpenCoverNode():
       case CloseCoverNode():
       case CalibratorOnNode():

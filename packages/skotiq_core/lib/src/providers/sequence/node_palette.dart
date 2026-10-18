@@ -312,6 +312,12 @@ final nodePaletteProvider = Provider<List<NodePaletteCategory>>((ref) {
           createNode: () => UnparkNode(),
         ),
         NodePaletteItem(
+          name: 'Home mount',
+          icon: 'home',
+          description: 'Send the mount to its home position without parking it',
+          createNode: () => HomeMountNode(),
+        ),
+        NodePaletteItem(
           name: 'Meridian flip',
           icon: 'refresh-cw',
           description: 'Perform meridian flip',

@@ -657,4 +657,9 @@ impl NativeMount for Lx200Mount {
     fn can_set_tracking_rate(&self) -> bool {
         true
     }
+
+    fn can_find_home(&self) -> bool {
+        // Only OnStep has a home command (`:hF#`); see `find_home`.
+        self.mount_type.is_onstep()
+    }
 }

@@ -26,6 +26,7 @@ bool hasMeaningfulDuration(SequenceNode node) {
     RotatorNode _ ||
     ParkNode _ ||
     UnparkNode _ ||
+    HomeMountNode _ ||
     CoolCameraNode _ ||
     WarmCameraNode _ ||
     StartGuidingNode _ ||
@@ -401,6 +402,15 @@ class NodeTimingSection extends ConsumerWidget {
         _DurationDetail(
           label: 'Est. time',
           value: '~30s',
+        ),
+      ];
+    }
+
+    if (node is HomeMountNode) {
+      return const [
+        _DurationDetail(
+          label: 'Est. time',
+          value: '~60s',
         ),
       ];
     }

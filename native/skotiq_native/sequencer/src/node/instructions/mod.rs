@@ -25,6 +25,7 @@ pub mod delay;
 pub mod dither;
 pub mod expose;
 pub mod flat_wizard;
+pub mod home_mount;
 // LiveStacking — EAA / outreach broadcast node.
 pub mod live_stacking;
 pub mod meridian_flip;

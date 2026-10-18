@@ -56,6 +56,8 @@ class SequenceManagementHandlers {
     'Park',
     'unpark',
     'Unpark',
+    'homeMount',
+    'HomeMount',
     'waitTime',
     'WaitForTime',
     'delay',

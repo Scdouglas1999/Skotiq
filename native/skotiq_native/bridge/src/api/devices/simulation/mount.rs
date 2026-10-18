@@ -108,6 +108,10 @@ pub(crate) struct SimSlew {
     pub(crate) from: (f64, f64),
     pub(crate) to: (f64, f64),
     pub(crate) to_pier: PierSide,
+    /// Whether this motion is a FindHome. Only a home that runs to the end of
+    /// its settle reports `AtHome`; an abort part-way leaves it false, exactly
+    /// as a real driver does.
+    pub(crate) homing: bool,
 }
 
 pub(crate) static SIM_SLEW: OnceLock<Arc<RwLock<Option<SimSlew>>>> = OnceLock::new();
@@ -207,10 +211,48 @@ pub(crate) async fn begin_sim_slew(ra: f64, dec: f64, now: chrono::DateTime<chro
         from,
         to: (ra, dec),
         to_pier,
+        homing: false,
     });
     let mut mount = get_sim_mount().write().await;
     mount.status.slewing = true;
     mount.status.parked = false;
+    mount.status.at_home = Some(false);
+}
+
+/// Start a simulated FindHome: the same timed motion as a slew, onto the home
+/// position from [`sim_home_position`].
+///
+/// A German equatorial's home is a mechanical pose — counterweights down, tube
+/// on the pole — so it does not change sides of the pier on the way there; the
+/// mount keeps the side it is on. Tracking is switched off when the motion
+/// starts, which is the ASCOM convention (`FindHome` leaves `Tracking` false)
+/// and the only behavior that keeps a homed mount sitting at its home pose
+/// instead of drifting off it with the sky.
+///
+/// `AtHome` is cleared now and set by [`advance_sim_slew`] only once the
+/// motion has finished its settle.
+pub(crate) async fn begin_sim_home() {
+    let (from, current_pier) = {
+        let mount = get_sim_mount().read().await;
+        (
+            (mount.status.right_ascension, mount.status.declination),
+            mount.status.side_of_pier.unwrap_or(PierSide::Unknown),
+        )
+    };
+    let to = sim_home_position();
+    let duration_secs = sim_slew_duration_secs(angular_separation_deg(from, to), false);
+
+    *sim_slew().write().await = Some(SimSlew {
+        start: std::time::Instant::now(),
+        duration_secs,
+        from,
+        to,
+        to_pier: current_pier,
+        homing: true,
+    });
+    let mut mount = get_sim_mount().write().await;
+    mount.status.slewing = true;
+    mount.status.tracking = false;
     mount.status.at_home = Some(false);
 }
 
@@ -241,6 +283,9 @@ pub(crate) async fn advance_sim_slew() {
         mount.status.side_of_pier = Some(slew.to_pier);
         if elapsed_secs >= slew.duration_secs + SIM_SLEW_SETTLE_SECS {
             mount.status.slewing = false;
+            if slew.homing {
+                mount.status.at_home = Some(true);
+            }
             drop(mount);
             *sim_slew().write().await = None;
         } else {
@@ -287,6 +332,16 @@ pub(crate) fn sim_park_position() -> (f64, f64) {
         .flatten()
         .is_some_and(|site| site.latitude < 0.0);
     (0.0, if southern { -90.0 } else { 90.0 })
+}
+
+/// The equatorial coordinates the simulated mount's home position reports.
+///
+/// The simulated mount homes to the same mechanical pose it parks in —
+/// counterweights down, tube on the celestial pole of the configured site's
+/// hemisphere — and only the state it is left in differs: a homed mount is
+/// not parked and still accepts commands.
+pub(crate) fn sim_home_position() -> (f64, f64) {
+    sim_park_position()
 }
 
 /// Get mount status

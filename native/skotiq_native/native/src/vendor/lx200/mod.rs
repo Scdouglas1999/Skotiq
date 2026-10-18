@@ -183,6 +183,14 @@ mod home_tests {
         ));
     }
 
+    /// The capability flag the UI gates the Home button on must agree with
+    /// whether `find_home` can do anything.
+    #[test]
+    fn only_onstep_advertises_a_home_command() {
+        assert!(Lx200Mount::new_onstep("TEST_PORT".to_string()).can_find_home());
+        assert!(!Lx200Mount::new_meade("TEST_PORT".to_string()).can_find_home());
+    }
+
     #[test]
     fn find_home_uses_the_onstep_home_command() {
         assert_eq!(commands::ONSTEP_FIND_HOME, ":hF#");
