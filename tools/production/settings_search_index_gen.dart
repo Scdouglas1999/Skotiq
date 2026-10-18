@@ -282,7 +282,18 @@ final _nonRowTitle = RegExp(
 );
 
 /// Every human-readable setting name in [source], with `l10n` keys resolved.
-List<String> _titles(String source, Map<String, String> english) {
+///
+/// A row's `subtitle:` is matched too, because `subtitle:` ends in `title:`,
+/// and that is kept on purpose: a description is how an operator who does not
+/// know a setting's name still finds it. Each subtitle is also recorded in
+/// [rowOf] against its own row's title, so a consumer that lists results can
+/// show the row once instead of once for its name and again for its
+/// description.
+List<String> _titles(
+  String source,
+  Map<String, String> english, {
+  Map<String, String>? rowOf,
+}) {
   final found = <String>[];
 
   void addLiteral(RegExp pattern, {bool inputsOnly = false}) {
@@ -319,6 +330,10 @@ List<String> _titles(String source, Map<String, String> english) {
         if (resolved != null) found.add(resolved);
       } else {
         found.add(m.group(1)!);
+        if (rowOf != null && _isSubtitle(source, m.start)) {
+          final title = _siblingTitle(source, m.start, english);
+          if (title != null) rowOf[m.group(1)!] = title;
+        }
       }
     }
   }
@@ -376,12 +391,13 @@ List<String> _collect(
   Map<String, String> english, {
   int depth = 0,
   Set<String>? visited,
+  Map<String, String>? rowOf,
 }) {
   visited ??= <String>{};
   if (library == null || !visited.add(library.path) || depth > 3) {
     return const [];
   }
-  final found = _titles(library.source, english);
+  final found = _titles(library.source, english, rowOf: rowOf);
   // Follow constructor calls that resolve to another page under settings/,
   // excluding the shared row/section components — those are generic chrome and
   // their internal strings are not this page's content.
@@ -393,10 +409,35 @@ List<String> _collect(
     if (!target.path.contains('/screens/settings/')) continue;
     if (target.path.contains('/widgets/settings_widgets/')) continue;
     found.addAll(
-      _collect(target, libraries, english, depth: depth + 1, visited: visited),
+      _collect(
+        target,
+        libraries,
+        english,
+        depth: depth + 1,
+        visited: visited,
+        rowOf: rowOf,
+      ),
     );
   }
   return found;
+}
+
+/// Whether the `title:` match at [offset] is really the tail of `subtitle:`.
+bool _isSubtitle(String source, int offset) =>
+    offset >= 3 && source.substring(offset - 3, offset) == 'sub';
+
+/// The `title:` given to the same constructor call as the subtitle at
+/// [offset], resolved through the translations when it is an `l10n` key.
+String? _siblingTitle(String source, int offset, Map<String, String> english) {
+  final open = _enclosingCall(source, offset).open;
+  if (open == null) return null;
+  final args = source.substring(open, offset);
+  final literal = RegExp(r"\btitle:\s*'((?:[^'\\]|\\.)*)'").firstMatch(args);
+  if (literal != null) return literal.group(1);
+  final key = RegExp(
+    r"\btitle:\s*(?:context\.)?l10n\.text\(\s*'([A-Za-z0-9_]+)'",
+  ).firstMatch(args);
+  return key == null ? null : english[key.group(1)!];
 }
 
 /// Whether the argument at [offset] belongs to an input-like constructor.
@@ -419,10 +460,14 @@ String? _enclosingConstructor(String source, int offset) =>
 ({String? name, int? open}) _enclosingCall(String source, int offset) {
   final from = offset < 2000 ? 0 : offset - 2000;
   // Blank out string literals so parentheses inside labels ("Exposure (s)") do
-  // not unbalance the count.
+  // not unbalance the count. Blanked to the same length, so an index into the
+  // window is still an index into [source].
   final window = source
       .substring(from, offset)
-      .replaceAll(RegExp(r"'(?:[^'\\\n]|\\.)*'"), "''");
+      .replaceAllMapped(
+        RegExp(r"'(?:[^'\\\n]|\\.)*'"),
+        (m) => "'${' ' * (m.group(0)!.length - 2)}'",
+      );
   var depth = 0;
   for (var i = window.length - 1; i >= 0; i--) {
     final c = window[i];
@@ -445,21 +490,28 @@ String? _enclosingConstructor(String source, int offset) =>
   return (name: null, open: null);
 }
 
+/// [raw] as a search term, or null when it is not a useful, stable one.
+String? _cleanTerm(String raw) {
+  // Dart interpolation renders differently per state, so it is not a term.
+  if (raw.contains(r'$')) return null;
+  final text = raw
+      .replaceAll(r'\n', ' ')
+      .replaceAll(r"\'", "'")
+      .replaceAll(RegExp(r'\\u[0-9A-Fa-f]{4}'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+  if (text.length < 3) return null;
+  // A title needs at least one word; bare punctuation or units are noise.
+  if (!RegExp(r'[A-Za-z]{3}').hasMatch(text)) return null;
+  return text;
+}
+
 /// Keeps only titles that are useful, stable search terms.
 List<String> _clean(Iterable<String> titles) {
   final seen = <String, String>{};
   for (final raw in titles) {
-    // Dart interpolation renders differently per state, so it is not a term.
-    if (raw.contains(r'$')) continue;
-    final text = raw
-        .replaceAll(r'\n', ' ')
-        .replaceAll(r"\'", "'")
-        .replaceAll(RegExp(r'\\u[0-9A-Fa-f]{4}'), '')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    if (text.length < 3) continue;
-    // A title needs at least one word; bare punctuation or units are noise.
-    if (!RegExp(r'[A-Za-z]{3}').hasMatch(text)) continue;
+    final text = _cleanTerm(raw);
+    if (text == null) continue;
     seen.putIfAbsent(text.toLowerCase(), () => text);
   }
   final result = seen.values.toList()
@@ -477,6 +529,7 @@ String _generate(String repoRoot) {
 
   final missing = <String>[];
   final entries = <String, List<String>>{};
+  final rowOf = <String, Map<String, String>>{};
   for (final key in widgets.keys.toList()..sort()) {
     final widget = widgets[key]!;
     // Index this page against a source in which every OTHER section's root
@@ -490,8 +543,26 @@ String _generate(String repoRoot) {
       missing.add('$key -> $widget');
       continue;
     }
-    final titles = _clean(_collect(library, libraries, english));
+    final rawRowOf = <String, String>{};
+    final titles = _clean(
+      _collect(library, libraries, english, rowOf: rawRowOf),
+    );
     if (titles.isNotEmpty) entries[key] = titles;
+    final sectionRowOf = <String, String>{};
+    for (final pair in rawRowOf.entries) {
+      final description = _cleanTerm(pair.key);
+      final title = _cleanTerm(pair.value);
+      if (description == null || title == null) continue;
+      if (description.toLowerCase() == title.toLowerCase()) continue;
+      if (!titles.contains(description) || !titles.contains(title)) continue;
+      sectionRowOf[description] = title;
+    }
+    if (sectionRowOf.isNotEmpty) {
+      rowOf[key] = Map.fromEntries(
+        sectionRowOf.entries.toList()
+          ..sort((a, b) => a.key.toLowerCase().compareTo(b.key.toLowerCase())),
+      );
+    }
   }
   if (missing.isNotEmpty) {
     stderr.writeln(
@@ -528,6 +599,29 @@ String _generate(String repoRoot) {
       );
     }
     out.writeln('  ],');
+  }
+  out
+    ..writeln('};')
+    ..writeln()
+    ..writeln(
+      '/// Settings section key -> a term that is a row\'s description -> that',
+    )
+    ..writeln(
+      '/// row\'s title. Lets a result list show a row once, under its name,',
+    )
+    ..writeln('/// whichever of the two the query matched.')
+    ..writeln(
+      'const Map<String, Map<String, String>> kSettingsSearchRowTitles = {',
+    );
+  String quote(String term) =>
+      "'${term.replaceAll(r'\', r'\\').replaceAll("'", r"\'")}'";
+  for (final key in rowOf.keys) {
+    out.writeln("  '$key': {");
+    for (final pair in rowOf[key]!.entries) {
+      out.writeln('    ${quote(pair.key)}:');
+      out.writeln('        ${quote(pair.value)},');
+    }
+    out.writeln('  },');
   }
   out.writeln('};');
   return out.toString();

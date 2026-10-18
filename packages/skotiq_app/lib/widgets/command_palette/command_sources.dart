@@ -154,18 +154,27 @@ List<CommandEntry> buildSettingEntries(BuildContext context, String query) {
   kSettingsSearchTerms.forEach((sectionKey, terms) {
     final section = sectionLabels[sectionKey];
     if (section == null) return;
+    final rowTitles = kSettingsSearchRowTitles[sectionKey] ?? const {};
+    final listed = <String>{};
     for (final term in terms) {
       if (!term.toLowerCase().contains(query)) continue;
+      // A row's description is indexed so it can be FOUND by, but it names
+      // the same setting as the row's title; listing both showed "Polar
+      // alignment stale after" and "If the last polar alignment is older
+      // than" as two results for one control.
+      final label = rowTitles[term] ?? term;
+      if (!listed.add(label.toLowerCase())) continue;
       // The section's own title is already a Screens row; a duplicate here
       // would put the same destination on screen twice under two headings.
-      if (term.toLowerCase() == section.label.toLowerCase()) continue;
+      if (label.toLowerCase() == section.label.toLowerCase()) continue;
       entries.add(
         CommandEntry(
-          id: 'setting:$sectionKey:$term',
+          id: 'setting:$sectionKey:$label',
           group: CommandGroup.settings,
           icon: section.icon,
-          label: term,
+          label: label,
           hint: section.label,
+          keywords: label == term ? const [] : [term],
           invoke: (context, ref) => _openSettingsSection(context, sectionKey),
         ),
       );
