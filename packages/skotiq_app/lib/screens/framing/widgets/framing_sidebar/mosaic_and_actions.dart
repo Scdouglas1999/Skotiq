@@ -328,11 +328,25 @@ class FramingActionsPanel extends ConsumerWidget {
               onPressed: hasTarget ? onAddToSequence : null,
             )),
         const SizedBox(height: SkotiqTokens.spaceSm),
-        const Material(
+        // Sized like the "Utilities" header below it: Material's default
+        // ExpansionTile title is a 16px body line with 16px gutters, which
+        // wrapped this label onto two lines in a 300px sidebar.
+        Material(
           type: MaterialType.transparency,
           child: ExpansionTile(
-            title: Text('Framing checks and manual solve'),
-            children: [FramingActionRail()],
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.zero,
+            dense: true,
+            visualDensity: VisualDensity.compact,
+            minTileHeight: SkotiqTokens.minTouchTarget,
+            iconColor: colors.textSecondary,
+            collapsedIconColor: colors.textSecondary,
+            title: Text(
+              'Checks and manual solve',
+              style:
+                  SkotiqTypography.eyebrow.copyWith(color: colors.textPrimary),
+            ),
+            children: const [FramingActionRail()],
           ),
         ),
 
