@@ -8,11 +8,17 @@ final starImageSizeProvider = StateProvider<int>((ref) => 50);
 /// Provider for star image polling interval (milliseconds)
 final starImagePollIntervalProvider = StateProvider<int>((ref) => 500);
 
-/// Provider for star image data
-final starImageProvider =
-    StateNotifierProvider<StarImageNotifier, AsyncValue<Phd2StarImage>>((ref) {
-      return StarImageNotifier(ref);
-    });
+/// Provider for star image data.
+///
+/// Auto-disposed: the poll runs only while something shows the image. Kept
+/// alive, it went on polling PHD2 twice a second for as long as PHD2 looped,
+/// whether or not the Guiding screen was open.
+final starImageProvider = StateNotifierProvider.autoDispose<
+  StarImageNotifier,
+  AsyncValue<Phd2StarImage>
+>((ref) {
+  return StarImageNotifier(ref);
+});
 
 /// Notifier that polls PHD2 for star image data
 class StarImageNotifier extends StateNotifier<AsyncValue<Phd2StarImage>> {

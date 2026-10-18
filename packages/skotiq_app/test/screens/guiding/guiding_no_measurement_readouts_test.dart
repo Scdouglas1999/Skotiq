@@ -63,6 +63,16 @@ class _MeasuredStats extends GuideStatsNotifier {
   }
 }
 
+/// While PHD2 loops or guides the guide-star image is polled on a timer, for
+/// as long as something shows it. Close the screen and its provider scope
+/// before the test ends so the poll stops with them, as it does when the app
+/// closes. (Tearing down the whole tree also removes the scope that would run
+/// the poll's auto-dispose, so the container is disposed here directly.)
+Future<void> _closeScreen(WidgetTester tester, HarnessHandle handle) async {
+  await tester.pumpWidget(const SizedBox());
+  handle.container.dispose();
+}
+
 Future<void> _drainAsyncFrames(WidgetTester tester) async {
   for (var i = 0; i < 8; i++) {
     await tester.pump(const Duration(milliseconds: 50));
@@ -81,7 +91,7 @@ void main() {
 
   testWidgets('no guide step measured yet renders dashes, never 0.00',
       (tester) async {
-    await pumpAppScreen(
+    final handle = await pumpAppScreen(
       tester,
       const GuidingScreen(),
       size: const Size(1400, 900),
@@ -101,11 +111,12 @@ void main() {
     // status bar are gone (06 §Guiding: one status surface), so five, not
     // eight.
     expect(find.text('—'), findsAtLeastNWidgets(5));
+    await _closeScreen(tester, handle);
   });
 
   testWidgets('star statistics show dashes rather than a red 0.0 SNR',
       (tester) async {
-    await pumpAppScreen(
+    final handle = await pumpAppScreen(
       tester,
       const GuidingScreen(),
       size: const Size(1400, 900),
@@ -126,11 +137,12 @@ void main() {
     // Frame count of zero is a real count, so it still renders as a number.
     expect(find.text('FRAMES'), findsOneWidget);
     expect(find.text('0'), findsOneWidget);
+    await _closeScreen(tester, handle);
   });
 
   testWidgets('measured samples render once, in one consistent unit',
       (tester) async {
-    await pumpAppScreen(
+    final handle = await pumpAppScreen(
       tester,
       const GuidingScreen(),
       size: const Size(1400, 900),
@@ -149,6 +161,7 @@ void main() {
       reason: 'pixels must never be labelled arcseconds',
     );
     expect(find.text('24.5'), findsOneWidget, reason: 'real SNR shows through');
+    await _closeScreen(tester, handle);
   });
 
   testWidgets('idle guider is not told it is waiting for an image',

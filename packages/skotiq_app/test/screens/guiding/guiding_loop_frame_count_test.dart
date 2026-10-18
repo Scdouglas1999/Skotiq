@@ -72,6 +72,16 @@ class _GuidingStats extends GuideStatsNotifier {
   }
 }
 
+/// While PHD2 loops or guides the guide-star image is polled on a timer, for
+/// as long as something shows it. Close the screen and its provider scope
+/// before the test ends so the poll stops with them, as it does when the app
+/// closes. (Tearing down the whole tree also removes the scope that would run
+/// the poll's auto-dispose, so the container is disposed here directly.)
+Future<void> _closeScreen(WidgetTester tester, HarnessHandle handle) async {
+  await tester.pumpWidget(const SizedBox());
+  handle.container.dispose();
+}
+
 Future<void> _drainAsyncFrames(WidgetTester tester) async {
   for (var i = 0; i < 8; i++) {
     await tester.pump(const Duration(milliseconds: 50));
@@ -98,7 +108,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('a running loop reports the loop\'s own frames', (tester) async {
-    await pumpAppScreen(
+    final handle = await pumpAppScreen(
       tester,
       const GuidingScreen(),
       size: const Size(1400, 900),
@@ -113,11 +123,12 @@ void main() {
       '12',
       reason: 'looping showed 0 while SNR and Star Mass updated per frame',
     );
+    await _closeScreen(tester, handle);
   });
 
   testWidgets('guiding reports guide steps, not the last loop\'s frames',
       (tester) async {
-    await pumpAppScreen(
+    final handle = await pumpAppScreen(
       tester,
       const GuidingScreen(),
       size: const Size(1400, 900),
@@ -128,6 +139,7 @@ void main() {
     await _drainAsyncFrames(tester);
 
     expect(_frameCountValue(tester), '37');
+    await _closeScreen(tester, handle);
   });
 
   testWidgets('a stopped guider reports guide steps', (tester) async {

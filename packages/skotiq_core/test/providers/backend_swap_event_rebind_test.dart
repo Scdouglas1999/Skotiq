@@ -221,6 +221,11 @@ void main() {
     container.read(guiderStateProvider.notifier)
       ..setConnecting('phd2_guider', 'PHD2')
       ..setConnected();
+    // Watched, as the Guiding screen watches it: unwatched, the auto-disposed
+    // notifier would be replaced by a fresh one and the assertion below would
+    // pass without the late image ever being discarded.
+    final sub = container.listen(starImageProvider, (_, __) {});
+    addTearDown(sub.close);
     final notifier = container.read(starImageProvider.notifier);
 
     final refresh = notifier.refresh();
@@ -242,6 +247,11 @@ void main() {
     await refresh;
     await _pump();
 
+    expect(
+      identical(container.read(starImageProvider.notifier), notifier),
+      isTrue,
+      reason: 'the same notifier received the late image',
+    );
     expect(container.read(starImageProvider).isLoading, isTrue);
   });
 
@@ -269,7 +279,10 @@ void main() {
     // PHD2 started looping before anything read the star image — the Guiding
     // screen opened onto a loop already running.
     container.read(phd2StateProvider.notifier).state = Phd2State.looping;
-    container.read(starImageProvider);
+    // Watched, as the Guiding screen watches it: the image is polled only
+    // while something shows it.
+    final sub = container.listen(starImageProvider, (_, __) {});
+    addTearDown(sub.close);
     await _pump();
 
     expect(container.read(starImageProvider).valueOrNull?.frame, 3);
