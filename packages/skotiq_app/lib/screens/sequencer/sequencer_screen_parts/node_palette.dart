@@ -151,9 +151,9 @@ class _NodeCategorySection extends ConsumerWidget {
   }
 }
 
-/// A palette row: `[26 px icon square in well] [name 13] [description 12
-/// muted] … [plus muted]` (06 §Sequencer). Draggable onto the canvas, and a
-/// single tap on the trailing plus adds it under the selection.
+/// A palette row: `[26 px icon square in well] [name 13] [one-line
+/// description 12 muted] … [plus muted]` (06 §Sequencer). Draggable onto the
+/// canvas, and a single tap on the trailing plus adds it under the selection.
 class _DraggableNodeItemCompact extends ConsumerStatefulWidget {
   final NodePaletteItem item;
   final SkotiqColors colors;
@@ -248,10 +248,10 @@ class _DraggableNodeItemCompactState
         child: GestureDetector(
           onDoubleTap: _addNode,
           child: Container(
-            margin: const EdgeInsets.only(top: SkotiqTokens.spaceXs + 2),
+            margin: const EdgeInsets.only(top: SkotiqTokens.spaceXs),
             padding: const EdgeInsets.symmetric(
               horizontal: SkotiqTokens.spaceSm + 2,
-              vertical: SkotiqTokens.spaceSm,
+              vertical: SkotiqTokens.spaceXs + 2,
             ),
             decoration: _isHovered
                 ? SkotiqDecorations.panel(colors).copyWith(
@@ -299,13 +299,18 @@ class _DraggableNodeItemCompactState
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            Text(
-                              widget.item.description,
-                              style: SkotiqTypography.caption.copyWith(
-                                color: colors.textMuted,
+                            // One line, so a screenful of the palette holds
+                            // twice the nodes; the whole sentence is on hover.
+                            SkotiqTooltip(
+                              message: widget.item.description,
+                              child: Text(
+                                widget.item.description,
+                                style: SkotiqTypography.caption.copyWith(
+                                  color: colors.textMuted,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),

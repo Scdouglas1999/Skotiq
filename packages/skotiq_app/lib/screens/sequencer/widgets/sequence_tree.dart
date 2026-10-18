@@ -948,12 +948,19 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
                                       // Through the SAME cross-fade the rows
                                       // take, so the header does not blink out
                                       // ahead of the tree it labels (spec §9).
+                                      // An empty sequence has no columns to
+                                      // name: the header would sit over the
+                                      // lone drop line and read as a table
+                                      // with its rows missing.
                                       densityCrossfade(
                                         context: context,
                                         density: canvasDensity,
                                         animate: !densityClamped,
                                         child: canvasDensity ==
-                                                SequencerDensity.ledger
+                                                    SequencerDensity.ledger &&
+                                                sequence
+                                                    .getChildren(rootNode.id)
+                                                    .isNotEmpty
                                             ? _LedgerColumnHeader(
                                                 colors: widget.colors)
                                             : const SizedBox.shrink(),
