@@ -31,6 +31,11 @@ class TonightGuidingPanel extends ConsumerWidget {
 
     final connected = guider.connectionState == DeviceConnectionState.connected;
     final guiding = guider.isGuiding;
+    // PHD2 looping exposures is not guiding, but it is not idle either: the
+    // Safety card logs "Guider looping" while this chip said "Idle".
+    final looping = connected &&
+        !guiding &&
+        ref.watch(phd2StateProvider) == Phd2State.looping;
 
     // Every RMS number is a claim about guiding happening NOW. The values
     // linger in guider state after a session stops, so they are blanked unless
@@ -46,68 +51,84 @@ class TonightGuidingPanel extends ConsumerWidget {
           SkotiqChip(
             label: !connected
                 ? l10n.text('tnDisconnected')
-                : (guiding ? l10n.text('tnGuiding') : l10n.text('tnIdle')),
+                : guiding
+                    ? l10n.text('tnGuiding')
+                    : looping
+                        ? l10n.text('tnLooping')
+                        : l10n.text('tnIdle'),
             tone: guiding ? ChipTone.success : ChipTone.neutral,
-            dot: guiding,
+            dot: guiding || looping,
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Container(
-            height: _chartHeight,
-            padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
-            decoration: BoxDecoration(
-              color: colors.well,
-              borderRadius: SkotiqTokens.borderRadiusSm,
-            ),
-            child: points.isEmpty
-                ? Center(
-                    child: Text(
-                      connected
-                          ? l10n.text('tnNoGuideData')
-                          : l10n.text('tnConnectGuider'),
-                      style: SkotiqTypography.bodySm.copyWith(
-                        color: colors.textMuted,
-                      ),
-                    ),
-                  )
-                : CustomPaint(
-                    painter: _GuideChartPainter(points: points, colors: colors),
-                    child: const SizedBox.expand(),
+      // Not guiding and nothing to plot: one line, not a 96 px empty chart
+      // over four em dashes.
+      child: !guiding && points.isEmpty
+          ? Text(
+              !connected
+                  ? l10n.text('tnConnectGuider')
+                  : looping
+                      ? l10n.text('tnLoopingNotGuiding')
+                      : l10n.text('tnNoGuideData'),
+              style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Container(
+                  height: _chartHeight,
+                  padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
+                  decoration: BoxDecoration(
+                    color: colors.well,
+                    borderRadius: SkotiqTokens.borderRadiusSm,
                   ),
-          ),
-          const SizedBox(height: SkotiqTokens.spaceMd),
-          ReadoutRow(
-            gap: SkotiqTokens.space2xl,
-            children: <Readout>[
-              Readout(
-                value: rms(guider.rmsRa),
-                unit: '"',
-                label: l10n.text('tnRaRms'),
-              ),
-              Readout(
-                value: rms(guider.rmsDec),
-                unit: '"',
-                label: l10n.text('tnDecRms'),
-              ),
-              Readout(
-                value: rms(guider.rmsTotal),
-                unit: '"',
-                label: l10n.text('tnTotal'),
-              ),
-              Readout(
-                value: guiding && stats.snr > 0
-                    ? stats.snr.toStringAsFixed(1)
-                    : null,
-                label: l10n.text('tnSnr'),
-              ),
-            ],
-          ),
-        ],
-      ),
+                  child: points.isEmpty
+                      ? Center(
+                          child: Text(
+                            connected
+                                ? l10n.text('tnNoGuideData')
+                                : l10n.text('tnConnectGuider'),
+                            style: SkotiqTypography.bodySm.copyWith(
+                              color: colors.textMuted,
+                            ),
+                          ),
+                        )
+                      : CustomPaint(
+                          painter: _GuideChartPainter(
+                              points: points, colors: colors),
+                          child: const SizedBox.expand(),
+                        ),
+                ),
+                const SizedBox(height: SkotiqTokens.spaceMd),
+                ReadoutRow(
+                  gap: SkotiqTokens.space2xl,
+                  children: <Readout>[
+                    Readout(
+                      value: rms(guider.rmsRa),
+                      unit: '"',
+                      label: l10n.text('tnRaRms'),
+                    ),
+                    Readout(
+                      value: rms(guider.rmsDec),
+                      unit: '"',
+                      label: l10n.text('tnDecRms'),
+                    ),
+                    Readout(
+                      value: rms(guider.rmsTotal),
+                      unit: '"',
+                      label: l10n.text('tnTotal'),
+                    ),
+                    Readout(
+                      value: guiding && stats.snr > 0
+                          ? stats.snr.toStringAsFixed(1)
+                          : null,
+                      label: l10n.text('tnSnr'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 }

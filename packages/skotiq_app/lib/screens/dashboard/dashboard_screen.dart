@@ -29,10 +29,13 @@ import 'widgets/tonight/tonight_night_band.dart';
 import 'widgets/tonight/tonight_side_panels.dart';
 import 'widgets/widget_picker_dialog.dart';
 
-/// The page body's gutter and the gap above the hero (06 §Tonight: 24 px
-/// gutter, 20 px top).
+/// The page body's gutter and the gap above the hero.
+///
+/// 8 px on top, not 06's 20: the 56 px page header already centres its title
+/// in its own height, so the 20 px stacked a second band of empty space
+/// between "Tonight" and the hero's eyebrow.
 const double _gutter = SkotiqTokens.space2xl;
-const double _topGap = SkotiqTokens.spaceXl;
+const double _topGap = SkotiqTokens.spaceSm;
 
 /// Below this the first-run checklist and its side column stack.
 const double _checklistStackWidth = 900;

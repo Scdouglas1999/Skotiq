@@ -1,5 +1,9 @@
 // The equipment panel — Tonight's c4 tile beside the preview (06 §Tonight).
 //
+// Readouts are end-aligned: they sit at the row's right edge, and start-aligned
+// they put each value over the left of its label, so "L" over FILTER and "—"
+// over TOTAL RMS started at different x than the values in the rows above.
+//
 // One `DeviceRow` per device. A device that is connected shows its live
 // readouts; one that is not shows a muted "Not connected" and NO readouts,
 // because a stale number beside a dead device is the most glanceable lie this
@@ -41,12 +45,14 @@ class TonightEquipmentPanel extends ConsumerWidget {
             unit: '°C',
             label: l10n.text('tnSensor'),
             size: ReadoutSize.sm,
+            alignment: CrossAxisAlignment.end,
           ),
           Readout(
             value: camera.coolerPower?.toStringAsFixed(0),
             unit: '%',
             label: l10n.text('tnCooler'),
             size: ReadoutSize.sm,
+            alignment: CrossAxisAlignment.end,
           ),
         ],
       ),
@@ -59,17 +65,20 @@ class TonightEquipmentPanel extends ConsumerWidget {
             value: mount.ra == null ? null : _ra(mount.ra!),
             label: l10n.text('tnRa'),
             size: ReadoutSize.sm,
+            alignment: CrossAxisAlignment.end,
           ),
           Readout(
             value: mount.dec == null ? null : _dec(mount.dec!),
             label: l10n.text('tnDec'),
             size: ReadoutSize.sm,
+            alignment: CrossAxisAlignment.end,
           ),
           Readout(
             value: mount.altitude?.toStringAsFixed(1),
             unit: '°',
             label: l10n.text('tnAlt'),
             size: ReadoutSize.sm,
+            alignment: CrossAxisAlignment.end,
           ),
         ],
       ),
@@ -82,12 +91,14 @@ class TonightEquipmentPanel extends ConsumerWidget {
             value: focuser.position?.toString(),
             label: l10n.text('tnPosition'),
             size: ReadoutSize.sm,
+            alignment: CrossAxisAlignment.end,
           ),
           Readout(
             value: focuser.temperature?.toStringAsFixed(1),
             unit: '°C',
             label: l10n.text('tnTemp'),
             size: ReadoutSize.sm,
+            alignment: CrossAxisAlignment.end,
           ),
         ],
       ),
@@ -100,6 +111,7 @@ class TonightEquipmentPanel extends ConsumerWidget {
             value: _filterName(wheel),
             label: l10n.text('tnFilter'),
             size: ReadoutSize.sm,
+            alignment: CrossAxisAlignment.end,
           ),
         ],
       ),
@@ -114,6 +126,7 @@ class TonightEquipmentPanel extends ConsumerWidget {
             unit: '"',
             label: l10n.text('tnTotalRms'),
             size: ReadoutSize.sm,
+            alignment: CrossAxisAlignment.end,
           ),
         ],
       ),
@@ -161,6 +174,7 @@ class TonightEquipmentPanel extends ConsumerWidget {
                         value: null,
                         label: l10n.text('tnNotConnected'),
                         size: ReadoutSize.sm,
+                        alignment: CrossAxisAlignment.end,
                       ),
                     ],
             ),

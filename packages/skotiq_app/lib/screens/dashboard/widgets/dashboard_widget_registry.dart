@@ -104,6 +104,11 @@ class DashboardWidgetDefinition {
   /// affordances. Avoids double borders on the transplanted cockpit panels.
   final bool selfChromed;
 
+  /// How wide the tile wants to be inside the width its span gives it, or
+  /// null for "all of it". The Tonight grid hands what a tile does not use to
+  /// the other tiles on its row.
+  final DashboardTileWidthPreference? preferredWidth;
+
   const DashboardWidgetDefinition({
     required this.id,
     required this.title,
@@ -113,8 +118,18 @@ class DashboardWidgetDefinition {
     required this.builder,
     this.selfChromed = false,
     this.group = DashboardWidgetGroup.liveRun,
+    this.preferredWidth,
   });
 }
+
+/// Reads what a tile's width depends on, and returns how wide the tile wants
+/// to be for a given span width (null takes the span).
+///
+/// Two steps so the provider reads happen in the grid's `build`, where `ref`
+/// may watch, and the arithmetic happens later, once the grid knows its span
+/// widths.
+typedef DashboardTileWidthPreference = double? Function(double spanWidth)
+    Function(WidgetRef ref);
 
 const dashboardWidgetRegistry = <DashboardWidgetDefinition>[
   // The Observatory Tonight grid (06 §Tonight). Self-chromed: each one is a
@@ -128,6 +143,7 @@ const dashboardWidgetRegistry = <DashboardWidgetDefinition>[
     defaultZone: DashboardZone.primary,
     selfChromed: true,
     builder: _buildTonightPreview,
+    preferredWidth: tonightPreviewPreferredWidth,
   ),
   DashboardWidgetDefinition(
     id: DashboardWidgetId.tonightEquipment,

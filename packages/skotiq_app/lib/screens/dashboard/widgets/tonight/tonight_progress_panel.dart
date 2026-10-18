@@ -7,6 +7,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -15,6 +16,7 @@ import '../../../../localization/skotiq_localizations.dart';
 import '../../../sequencer/widgets/run_dashboard/quality_panel.dart'
     show runDashboardQualitySummaryProvider;
 import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
+import 'tonight_hero.dart' show TonightHeroState, tonightHeroStateProvider;
 import 'tonight_night.dart';
 
 /// The ring's diameter and stroke (06 §Tonight, row 2).
@@ -48,20 +50,53 @@ class TonightProgressPanel extends ConsumerWidget {
     // and R, which is not the order anyone builds or reads an LRGB run in.
     final filters = totals.goalSecs.keys.toList(growable: false);
 
-    return SkotiqPanel(
-      head: PanelHead(
-        icon: LucideIcons.activity,
-        label: l10n.text('tnProgress'),
-        trailing: <Widget>[
-          if (endsAt != null)
-            Text(
-              l10n.text('tnEndsAt', params: {'time': tonightClock(endsAt)}),
-              style: SkotiqTypography.caption.copyWith(
-                color: colors.textMuted,
+    final head = PanelHead(
+      icon: LucideIcons.activity,
+      label: l10n.text('tnProgress'),
+      trailing: <Widget>[
+        if (endsAt != null)
+          Text(
+            l10n.text('tnEndsAt', params: {'time': tonightClock(endsAt)}),
+            style: SkotiqTypography.caption.copyWith(
+              color: colors.textMuted,
+            ),
+          ),
+      ],
+    );
+
+    // Nothing to run and nothing run yet: a 0% ring, "No per-filter plan" and
+    // a row of em dashes said the same absence three ways at full height.
+    final nothingLoaded = ref.watch(tonightHeroStateProvider) ==
+            TonightHeroState.nothingRunning &&
+        progress.completedIntegrationSecs <= 0;
+    if (nothingLoaded) {
+      return SkotiqPanel(
+        head: head,
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                l10n.text('tnNothingLoaded'),
+                style: SkotiqTypography.bodySm.copyWith(
+                  color: colors.textMuted,
+                ),
               ),
             ),
-        ],
-      ),
+            const SizedBox(width: SkotiqTokens.spaceMd),
+            SkotiqButton(
+              label: l10n.text('tnOpenSequencer'),
+              icon: LucideIcons.listOrdered,
+              variant: ButtonVariant.ghost,
+              size: ButtonSize.small,
+              onPressed: () => context.go('/sequencer'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SkotiqPanel(
+      head: head,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,

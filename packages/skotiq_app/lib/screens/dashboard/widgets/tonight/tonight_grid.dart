@@ -5,6 +5,7 @@
 // asks for. Nothing here knows what a panel contains.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../dashboard_layout.dart';
@@ -23,7 +24,7 @@ const double kTonightGridGap = SkotiqTokens.spaceLg;
 const double _singleColumnWidth = ShellChromeMetrics.shellLayoutBreakpoint;
 
 /// Lays [tiles] out across [kTonightGridColumns], wrapping when a row is full.
-class TonightGrid extends StatelessWidget {
+class TonightGrid extends ConsumerWidget {
   const TonightGrid({
     super.key,
     required this.tiles,
@@ -45,7 +46,7 @@ class TonightGrid extends StatelessWidget {
   final void Function(DashboardWidgetId id, bool enabled) onToggleEnabled;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final registry = {for (final def in dashboardWidgetRegistry) def.id: def};
     final visible = tiles
         .where((tile) => tile.enabled && registry.containsKey(tile.widgetId))
@@ -53,6 +54,12 @@ class TonightGrid extends StatelessWidget {
       ..sort((a, b) => a.order.compareTo(b.order));
 
     if (visible.isEmpty) return const SizedBox.shrink();
+
+    final preferences = <DashboardWidgetId, double? Function(double)>{
+      for (final tile in visible)
+        if (registry[tile.widgetId]!.preferredWidth case final preference?)
+          tile.widgetId: preference(ref),
+    };
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -83,28 +90,65 @@ class TonightGrid extends StatelessWidget {
         }
         if (current.isNotEmpty) rows.add(current);
 
+        // A tile that asks for less than its span (the preview, sized to its
+        // frame) gives the rest to the tiles beside it, in proportion to their
+        // spans, rather than leaving it as dead space inside itself. Not while
+        // editing: the resize handles must show the spans as configured.
+        List<double> widthsFor(List<(DashboardTileConfig, int)> row) {
+          final widths = [for (final cell in row) widthFor(cell.$2)];
+          if (narrow || isEditing || row.length < 2) return widths;
+          var slack = 0.0;
+          final absorbing = <int>[];
+          for (var i = 0; i < row.length; i++) {
+            final preference = preferences[row[i].$1.widgetId]?.call(
+              widths[i],
+            );
+            if (preference != null && preference < widths[i]) {
+              slack += widths[i] - preference;
+              widths[i] = preference;
+            } else if (preference == null) {
+              absorbing.add(i);
+            }
+          }
+          if (slack == 0) return widths;
+          if (absorbing.isEmpty) {
+            return [for (final cell in row) widthFor(cell.$2)];
+          }
+          final absorbingSpan =
+              absorbing.fold<int>(0, (sum, i) => sum + row[i].$2);
+          for (final i in absorbing) {
+            widths[i] += slack * row[i].$2 / absorbingSpan;
+          }
+          return widths;
+        }
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             for (var r = 0; r < rows.length; r++) ...<Widget>[
               if (r > 0) const SizedBox(height: kTonightGridGap),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  for (var c = 0; c < rows[r].length; c++) ...<Widget>[
-                    if (c > 0) const SizedBox(width: kTonightGridGap),
-                    SizedBox(
-                      width: widthFor(rows[r][c].$2),
-                      child: _tile(rows[r][c].$1, registry),
-                    ),
-                  ],
-                ],
-              ),
+              _row(rows[r], widthsFor(rows[r]), registry),
             ],
           ],
         );
       },
+    );
+  }
+
+  Widget _row(
+    List<(DashboardTileConfig, int)> row,
+    List<double> widths,
+    Map<DashboardWidgetId, DashboardWidgetDefinition> registry,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        for (var c = 0; c < row.length; c++) ...<Widget>[
+          if (c > 0) const SizedBox(width: kTonightGridGap),
+          SizedBox(width: widths[c], child: _tile(row[c].$1, registry)),
+        ],
+      ],
     );
   }
 

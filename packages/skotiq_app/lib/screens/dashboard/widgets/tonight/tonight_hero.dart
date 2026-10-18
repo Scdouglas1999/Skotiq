@@ -243,7 +243,11 @@ class _Facts extends ConsumerWidget {
     final facts = <String>[];
 
     final sequence = ref.watch(currentSequenceProvider);
-    if (sequence != null && sequence.nodes.isNotEmpty) {
+    // Visible instructions, not `nodes`: a fresh sequence holds its invisible
+    // root, and the hero printed "New Sequence · 0 nodes · ~0 m" for nothing.
+    final instructions =
+        sequence == null ? 0 : visibleInstructionCount(sequence);
+    if (sequence != null && instructions > 0) {
       final estimator = SequenceTimeEstimator(
         overhead: ref.watch(sequencerOverheadConfigProvider),
       );
@@ -254,7 +258,7 @@ class _Facts extends ConsumerWidget {
       // a number the operator can see on both.
       final nodes = l10n.text(
         'tnNodeCount',
-        params: {'count': '${visibleInstructionCount(sequence)}'},
+        params: {'count': '$instructions'},
       );
       facts.add(
         '${sequence.name} · $nodes · ~${tonightDuration(total) ?? '—'}',
