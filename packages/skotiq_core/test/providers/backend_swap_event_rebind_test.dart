@@ -245,6 +245,36 @@ void main() {
     expect(container.read(starImageProvider).isLoading, isTrue);
   });
 
+  test('a star image is polled when PHD2 is already looping', () async {
+    when(
+      () => oldBackend.guiderGetStarImage(
+        deviceId: any(named: 'deviceId'),
+        size: any(named: 'size'),
+      ),
+    ).thenAnswer(
+      (_) async => Phd2StarImage(
+        frame: 3,
+        width: 1,
+        height: 1,
+        starX: 0,
+        starY: 0,
+        pixels: Uint8List.fromList([7]),
+      ),
+    );
+
+    final container = buildContainer();
+    container.read(guiderStateProvider.notifier)
+      ..setConnecting('phd2_guider', 'PHD2')
+      ..setConnected();
+    // PHD2 started looping before anything read the star image — the Guiding
+    // screen opened onto a loop already running.
+    container.read(phd2StateProvider.notifier).state = Phd2State.looping;
+    container.read(starImageProvider);
+    await _pump();
+
+    expect(container.read(starImageProvider).valueOrNull?.frame, 3);
+  });
+
   test(
     'late old-host brain settings are discarded after backend swap',
     () async {
