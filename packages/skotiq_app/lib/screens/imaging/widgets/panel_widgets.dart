@@ -964,10 +964,16 @@ class ReadOnlyField extends StatelessWidget {
     required this.value,
     this.mono = false,
     this.muted = false,
+    this.showFullValueOnHover = false,
   });
 
   /// What the field states.
   final String value;
+
+  /// Offers the whole [value] in a tooltip. For values that are routinely
+  /// longer than the field — a save folder, a file-name pattern — which the
+  /// field cuts short with an ellipsis.
+  final bool showFullValueOnHover;
 
   /// Values that are data (paths, patterns) are mono; prose is not.
   final bool mono;
@@ -979,7 +985,7 @@ class ReadOnlyField extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
     final base = mono ? SkotiqTypography.inputMono : SkotiqTypography.bodySm;
-    return Container(
+    final field = Container(
       height: fieldHeight,
       padding: const EdgeInsets.symmetric(
         horizontal: SkotiqTokens.spaceMd - 2,
@@ -995,5 +1001,7 @@ class ReadOnlyField extends StatelessWidget {
         ),
       ),
     );
+    if (!showFullValueOnHover) return field;
+    return SkotiqTooltip(message: value, maxWidth: 360, child: field);
   }
 }

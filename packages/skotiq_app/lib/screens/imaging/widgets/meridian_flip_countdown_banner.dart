@@ -21,8 +21,19 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 final meridianBannerDismissedSeverityProvider =
     StateProvider<int?>((ref) => null);
 
-/// Non-intrusive status banner that surfaces the live meridian-flip countdown
-/// in the imaging-tab banner stack.
+/// The meridian-flip countdown, at the two weights it can need.
+///
+/// A calm, far-off countdown ("flip in 3h 6m", or armed against a tracking
+/// limit with no countdown) needs no action, so it is a compact
+/// [MeridianFlipChip] in the viewer toolbar row with the explanation in its
+/// tooltip. Only a flip that needs the operator's eye — under
+/// [MeridianFlipCountdownBanner.kWarningThreshold] or imminent — takes this
+/// full-width banner above the canvas. The calm banner used to spend 85 px of
+/// every armed night pushing the whole view down to say "no action needed".
+///
+/// The countdown model has no manual-flip or failed-flip state to surface
+/// here: a failed flip is reported by the flip itself (the meridian-flip
+/// progress dialog and notifications), not by this projection.
 ///
 /// The flip is **always** performed automatically — by the Rust `meridian_flip`
 /// trigger (an always-on watchdog) or, during a running sequence, by the
@@ -32,12 +43,13 @@ final meridianBannerDismissedSeverityProvider =
 /// [meridianCountdownProvider], a read-only projection; this widget never
 /// mutates flip state.
 ///
-/// The 15-second wall-clock tick lives HERE, not in the provider: a
-/// [Timer.periodic] created in [initState] and cancelled in [dispose]
-/// invalidates the (timer-free) provider each tick so the remaining-time
-/// readout counts down. Owning the timer in the widget means it is cancelled
-/// synchronously when the tree is torn down, so it cannot leak past disposal
-/// the way an autoDispose periodic stream does.
+/// The 15-second wall-clock tick lives in the widgets, not in the provider:
+/// [_MeridianCountdownTicker] creates a [Timer.periodic] in `initState`,
+/// cancels it in `dispose`, and invalidates the (timer-free) provider each
+/// tick so the remaining-time readout counts down. Owning the timer in the
+/// widget means it is cancelled synchronously when the tree is torn down, so
+/// it cannot leak past disposal the way an autoDispose periodic stream does.
+/// The chip and the banner each own one, so either keeps counting on its own.
 class MeridianFlipCountdownBanner extends ConsumerStatefulWidget {
   const MeridianFlipCountdownBanner({super.key});
 
@@ -58,10 +70,32 @@ class MeridianFlipCountdownBanner extends ConsumerStatefulWidget {
       _MeridianFlipCountdownBannerState();
 }
 
-class _MeridianFlipCountdownBannerState
-    extends ConsumerState<MeridianFlipCountdownBanner> {
+/// Re-reads [meridianCountdownProvider] on [kMeridianCountdownTick] so a
+/// countdown ticks down even when no upstream input changes.
+mixin _MeridianCountdownTicker<T extends ConsumerStatefulWidget>
+    on ConsumerState<T> {
   Timer? _ticker;
 
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(kMeridianCountdownTick, (_) {
+      if (mounted) {
+        ref.invalidate(meridianCountdownProvider);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+}
+
+class _MeridianFlipCountdownBannerState
+    extends ConsumerState<MeridianFlipCountdownBanner>
+    with _MeridianCountdownTicker<MeridianFlipCountdownBanner> {
   /// Pending reset of the operator's dismissal, armed while the flip is
   /// disarmed. See [MeridianFlipCountdownBanner.kDismissalResetGrace].
   Timer? _disarmResetTimer;
@@ -74,21 +108,7 @@ class _MeridianFlipCountdownBannerState
   String? _lastSeenPierSide;
 
   @override
-  void initState() {
-    super.initState();
-    // Recompute the projection on a fixed cadence so the numeric countdown ticks
-    // down even when no upstream input changes. Cancelled synchronously in
-    // [dispose] (see the class doc) — no leaked timer.
-    _ticker = Timer.periodic(kMeridianCountdownTick, (_) {
-      if (mounted) {
-        ref.invalidate(meridianCountdownProvider);
-      }
-    });
-  }
-
-  @override
   void dispose() {
-    _ticker?.cancel();
     _disarmResetTimer?.cancel();
     super.dispose();
   }
@@ -182,8 +202,9 @@ class _MeridianFlipCountdownView extends StatelessWidget {
 
     // Not armed and nothing worth surfacing -> render nothing. This is the
     // common idle case (mount disconnected, flip disabled, parked, etc.); the
-    // banner must not editorialize about a disabled feature.
-    if (spec == null) {
+    // banner must not editorialize about a disabled feature. A calm countdown
+    // is the toolbar chip's to show, not this banner's.
+    if (spec == null || !spec.needsBanner) {
       return const SizedBox.shrink();
     }
 
@@ -349,6 +370,64 @@ _BannerSpec? _resolveSpec(MeridianCountdownState state) {
   );
 }
 
+/// The calm meridian-flip countdown, as a compact chip for the viewer toolbar:
+/// "Flip in 3h 6m", or "Flip armed" when the flip is armed against a tracking
+/// limit and has no countdown to show. The explanation the banner used to
+/// spell out ("Automatic — the watchdog will run this for you") is in the
+/// tooltip.
+///
+/// Renders nothing when no flip is armed, and nothing once the flip needs
+/// attention: from [MeridianFlipCountdownBanner.kWarningThreshold] on, the
+/// banner above the canvas carries it and two surfaces would say it twice.
+class MeridianFlipChip extends ConsumerStatefulWidget {
+  const MeridianFlipChip({super.key});
+
+  @override
+  ConsumerState<MeridianFlipChip> createState() => _MeridianFlipChipState();
+}
+
+class _MeridianFlipChipState extends ConsumerState<MeridianFlipChip>
+    with _MeridianCountdownTicker<MeridianFlipChip> {
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(meridianCountdownProvider);
+    final spec = _resolveSpec(state);
+    if (spec == null || spec.needsBanner) return const SizedBox.shrink();
+
+    final remaining = state.timeToFlip;
+    final label = remaining == null
+        ? 'Flip armed'
+        : 'Flip in ${formatTimeToFlip(remaining)}';
+    final side = state.sideOfPier;
+    final explanation = <String>[
+      spec.title.trailing == null
+          ? spec.title.text
+          : '${spec.title.text}${spec.title.trailing}',
+      spec.subtitle,
+      if (side != null && side.trim().isNotEmpty) 'Pier ${pierSideLabel(side)}',
+    ].join('\n');
+
+    return Padding(
+      // The meta line's own segment gap, so the chip reads as its next part.
+      padding: const EdgeInsets.only(left: SkotiqTokens.spaceMd),
+      child: SkotiqTooltip(
+        message: explanation,
+        position: SkotiqTooltipPosition.bottom,
+        maxWidth: 320,
+        child: Semantics(
+          container: true,
+          label: explanation,
+          excludeSemantics: true,
+          child: SkotiqChip(
+            label: label,
+            icon: LucideIcons.flipHorizontal2,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Formats a countdown duration as a compact `H​h M​m` / `M​m` label.
 ///
 /// Rounds *up* to whole minutes so the readout never claims less time than is
@@ -438,7 +517,7 @@ class _PierSideChip extends StatelessWidget {
               size: SkotiqTokens.iconXs, color: colors.textMuted),
           const SizedBox(width: SkotiqTokens.spaceXs),
           Text(
-            'Pier ${_pierLabel(sideOfPier)}',
+            'Pier ${pierSideLabel(sideOfPier)}',
             style:
                 SkotiqTypography.labelSm.copyWith(color: colors.textSecondary),
           ),
@@ -446,22 +525,22 @@ class _PierSideChip extends StatelessWidget {
       ),
     );
   }
+}
 
-  /// Normalizes the driver-reported side-of-pier string to a clean, capitalized
-  /// label. Unknown / unexpected values pass through verbatim rather than being
-  /// silently dropped — the operator should see exactly what the mount reports.
-  String _pierLabel(String raw) {
-    final v = raw.trim();
-    switch (v.toLowerCase()) {
-      case 'east':
-      case 'pierside_east':
-        return 'East';
-      case 'west':
-      case 'pierside_west':
-        return 'West';
-      default:
-        return v.isEmpty ? 'Unknown' : v;
-    }
+/// Normalizes the driver-reported side-of-pier string to a clean, capitalized
+/// label. Unknown / unexpected values pass through verbatim rather than being
+/// silently dropped — the operator should see exactly what the mount reports.
+String pierSideLabel(String raw) {
+  final v = raw.trim();
+  switch (v.toLowerCase()) {
+    case 'east':
+    case 'pierside_east':
+      return 'East';
+    case 'west':
+    case 'pierside_west':
+      return 'West';
+    default:
+      return v.isEmpty ? 'Unknown' : v;
   }
 }
 
@@ -480,4 +559,8 @@ class _BannerSpec {
   final _BannerTitle title;
   final String subtitle;
   final bool showPierChip;
+
+  /// Whether this state earns the full-width banner. Everything calmer than a
+  /// warning is ambient status and rides in the toolbar chip instead.
+  bool get needsBanner => severity != SkotiqAlertSeverity.info;
 }

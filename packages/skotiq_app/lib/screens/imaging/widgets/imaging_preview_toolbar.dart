@@ -17,12 +17,14 @@ import 'depthlock/depthlock_region_layer.dart'
         depthLockRegionToolActiveProvider;
 import 'depthlock/depthlock_selection.dart' show depthLockSelectionProvider;
 import 'live_preview_area.dart' show previewReadoutsVisibleProvider;
+import 'meridian_flip_countdown_banner.dart' show MeridianFlipChip;
 import 'preview_display_scale.dart' show previewDisplayScaleProvider;
+import 'preview_histogram_visibility.dart';
 
 /// The 44 px viewer toolbar above the canvas (06 §Imaging).
 ///
 /// Left: the frame's mono meta line — size, binning, zoom and sky brightness,
-/// values loud and their labels quiet. Right: one [SkotiqToolbar] with the
+/// values loud and their labels quiet — then the calm meridian-flip chip. Right: one [SkotiqToolbar] with the
 /// named actions first (Overlays, Annotate) and the view glyphs after it.
 ///
 /// Nothing here floats over the image. The canvas below runs edge to edge and
@@ -200,6 +202,11 @@ class _ImagingPreviewToolbarState extends ConsumerState<ImagingPreviewToolbar> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
                     meta,
+                    // The calm meridian-flip countdown lives here, in the
+                    // toolbar row, instead of a full-width banner over the
+                    // canvas. Self-hides while no flip is armed or while the
+                    // flip needs attention (the banner takes over then).
+                    const MeridianFlipChip(),
                     const SizedBox(width: SkotiqTokens.spaceSm),
                     const Spacer(),
                     toolbar,
@@ -271,17 +278,18 @@ class _ViewerMeta extends StatelessWidget {
       );
     }
 
-    // A segment whose value is unknown says "Sky —", never "Sky — mag/\"2":
-    // a unit on a value that does not exist describes nothing. The frame size
-    // and the zoom drop out entirely with no frame on the canvas, because an
-    // em dash is worth a slot only when the slot is permanent.
+    // A segment with no value drops out rather than saying "Sky —": the sky
+    // reading only exists once a frame has been photometrically calibrated,
+    // which most frames never are, so a permanent slot for it was a permanent
+    // dash. The frame size and the zoom drop out with no frame on the canvas
+    // for the same reason.
     final parts = <Widget>[
       if (resolution != null) segment(null, resolution),
       segment('Bin', binning),
       if (resolution != null) segment('Zoom', zoom),
       // ASCII quote, not U+2033: the bundled fonts have no prime glyph and
       // an arcsecond mark rendered as a tofu box on the toolbar.
-      segment('Sky', sky, sky == null ? null : 'mag/sq"'),
+      if (sky != null) segment('Sky', sky, 'mag/sq"'),
     ];
 
     return Row(
@@ -424,6 +432,7 @@ class _OverlaysMenuButtonState extends ConsumerState<OverlaysMenuButton> {
     final scienceMode = ref.watch(scienceModeStateProvider);
     final scienceHudVisible = scienceMode.scienceHudVisible;
     final readoutsVisible = ref.watch(previewReadoutsVisibleProvider);
+    final histogramVisible = ref.watch(previewHistogramVisibleProvider);
     final depthLockGoalsVisible =
         ref.watch(depthLockGoalOverlayVisibleProvider);
 
@@ -524,9 +533,6 @@ class _OverlaysMenuButtonState extends ConsumerState<OverlaysMenuButton> {
                   scienceHudVisible: !scienceHudVisible,
                 ),
               ),
-              // The measurement readouts are explicit and default ON — nothing
-              // on the canvas hides itself on a timer. This row is how the
-              // clean-frame view is asked for.
               _overlayItem(
                 colors: colors,
                 value: 6,
@@ -538,16 +544,31 @@ class _OverlaysMenuButtonState extends ConsumerState<OverlaysMenuButton> {
                     .read(depthLockGoalOverlayVisibleProvider.notifier)
                     .state = !depthLockGoalsVisible,
               ),
+              // The frame readouts are explicit and default ON — nothing on
+              // the canvas hides itself on a timer. This row is how the
+              // clean-frame view is asked for.
               _overlayItem(
                 colors: colors,
                 value: 7,
                 icon: SkotiqIcons.activity,
                 label: 'Readouts',
-                subtitle: 'Histogram, HFR / stars, image stats',
+                subtitle: 'Frame info, HFR and stars',
                 active: readoutsVisible,
                 onTap: () => ref
                     .read(previewReadoutsVisibleProvider.notifier)
                     .state = !readoutsVisible,
+              ),
+              // Opt-in and remembered: the histogram is a setup reading, so
+              // it stays off the frame until asked for.
+              _overlayItem(
+                colors: colors,
+                value: 8,
+                icon: LucideIcons.barChart3,
+                label: 'Histogram',
+                active: histogramVisible,
+                onTap: () => ref
+                    .read(previewHistogramVisibleProvider.notifier)
+                    .setVisible(!histogramVisible),
               ),
             ];
           },

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/equipment/equipment_models.dart';
+import '../../models/backend/device_types.dart' show PierSide;
 import 'device_connection_notifier.dart';
 import '../../services/device_service.dart';
 import '../backend_provider.dart';
@@ -272,13 +273,23 @@ class MountStateNotifier extends StateNotifier<MountState>
         status.azimuth,
       );
 
-      // Also sync tracking/slewing/parked state from hardware
+      // Also sync tracking/slewing/parked state and the side of pier from
+      // hardware. The side of pier was read on every poll and dropped here, so
+      // every panel that shows it (Imaging → Mount, the flip countdown's pier
+      // hint and its new-cycle reset) only ever saw null.
       final wasSlewing = state.isSlewing;
+      final pierSide = switch (status.sideOfPier) {
+        PierSide.east => 'East',
+        PierSide.west => 'West',
+        PierSide.unknown => null,
+      };
       state = state.copyWith(
         isTracking: status.tracking,
         isSlewing: status.slewing,
         isParked: status.parked,
         canPark: status.canPark,
+        sideOfPier: pierSide,
+        clearSideOfPier: pierSide == null,
       );
 
       // If slewing state changed, adjust poll rate

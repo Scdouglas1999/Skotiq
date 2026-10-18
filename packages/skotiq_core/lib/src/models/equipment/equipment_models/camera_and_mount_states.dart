@@ -185,6 +185,7 @@ class MountState extends Equatable {
     bool? autoReconnectEnabled,
     bool clearError = false,
     bool clearHorizonFrame = false,
+    bool clearSideOfPier = false,
   }) {
     return MountState(
       connectionState: connectionState ?? this.connectionState,
@@ -201,7 +202,9 @@ class MountState extends Equatable {
       isTracking: isTracking ?? this.isTracking,
       isSlewing: isSlewing ?? this.isSlewing,
       isParked: isParked ?? this.isParked,
-      sideOfPier: sideOfPier ?? this.sideOfPier,
+      // Like the horizon frame, a mount that stops reporting its side of pier
+      // needs [clearSideOfPier]: a null argument means "leave unchanged".
+      sideOfPier: clearSideOfPier ? null : (sideOfPier ?? this.sideOfPier),
       trackingRate: trackingRate ?? this.trackingRate,
       canSetTrackingRate: canSetTrackingRate ?? this.canSetTrackingRate,
       canPark: canPark ?? this.canPark,

@@ -118,12 +118,12 @@ void main() {
         tester,
         _state(
           isArmed: true,
-          timeToFlip: const Duration(minutes: 42),
+          timeToFlip: const Duration(minutes: 7),
         ),
       );
 
       expect(find.textContaining('Meridian flip in'), findsOneWidget);
-      expect(find.text('42m'), findsOneWidget);
+      expect(find.text('7m'), findsOneWidget);
       expect(
         find.text(
           'Automatic — the meridian-flip watchdog will run this for you. '
@@ -160,7 +160,9 @@ void main() {
           decoration.border!.top.color, colors.warning.withValues(alpha: 0.35));
     });
 
-    testWidgets('calm tone above the warning threshold', (tester) async {
+    testWidgets(
+        'a calm countdown above the warning threshold leaves the banner to '
+        'the toolbar chip', (tester) async {
       await _pump(
         tester,
         _state(
@@ -169,17 +171,12 @@ void main() {
         ),
       );
 
-      final container = tester.widget<Container>(
-        find
-            .descendant(
-              of: find.byType(MeridianFlipCountdownBanner),
-              matching: find.byType(Container),
-            )
-            .first,
+      expect(
+        tester.getSize(find.byType(MeridianFlipCountdownBanner)),
+        Size.zero,
+        reason: 'an informational countdown must not push the view down',
       );
-      final decoration = container.decoration as BoxDecoration;
-      const colors = SkotiqColors.dark;
-      expect(decoration.border!.top.color, colors.info.withValues(alpha: 0.35));
+      expect(find.textContaining('Meridian flip'), findsNothing);
     });
 
     testWidgets('sequencer-owned countdown uses the sequence copy',
@@ -188,7 +185,7 @@ void main() {
         tester,
         _state(
           isArmed: true,
-          timeToFlip: const Duration(minutes: 20),
+          timeToFlip: const Duration(minutes: 8),
           isSequencerOwned: true,
         ),
       );
@@ -201,8 +198,8 @@ void main() {
     });
 
     testWidgets(
-        'tracking-limit method (null countdown) shows monitored banner '
-        'with no fake timer', (tester) async {
+        'tracking-limit method (null countdown) is calm status, not a banner',
+        (tester) async {
       await _pump(
         tester,
         _state(
@@ -214,14 +211,11 @@ void main() {
         ),
       );
 
-      expect(find.text('Meridian flip armed'), findsOneWidget);
       expect(
-        find.text('Monitored by the sequencer — no action needed.'),
-        findsOneWidget,
+        tester.getSize(find.byType(MeridianFlipCountdownBanner)),
+        Size.zero,
       );
-      // No fabricated countdown: the "Meridian flip in <time>" title must not
-      // appear for a method that has no Dart-computable countdown.
-      expect(find.textContaining('Meridian flip in'), findsNothing);
+      expect(find.textContaining('Meridian flip'), findsNothing);
     });
 
     testWidgets('flip imminent (zero) shows warning imminent banner',
@@ -257,7 +251,7 @@ void main() {
         tester,
         _state(
           isArmed: true,
-          timeToFlip: const Duration(minutes: 25),
+          timeToFlip: const Duration(minutes: 5),
           sideOfPier: 'west',
         ),
       );
@@ -271,7 +265,7 @@ void main() {
         tester,
         _state(
           isArmed: true,
-          timeToFlip: const Duration(minutes: 25),
+          timeToFlip: const Duration(minutes: 5),
         ),
       );
 
@@ -284,7 +278,7 @@ void main() {
         tester,
         _state(
           isArmed: true,
-          timeToFlip: const Duration(minutes: 25),
+          timeToFlip: const Duration(minutes: 5),
         ),
       );
 
@@ -299,7 +293,7 @@ void main() {
     testWidgets('tapping dismiss hides the banner', (tester) async {
       await _pump(
         tester,
-        _state(isArmed: true, timeToFlip: const Duration(minutes: 25)),
+        _state(isArmed: true, timeToFlip: const Duration(minutes: 5)),
       );
       expect(find.textContaining('Meridian flip in'), findsOneWidget);
 
@@ -315,11 +309,12 @@ void main() {
 
     testWidgets('stays hidden at or below the dismissed severity',
         (tester) async {
-      // Dismissed at the calm info tone; a still-calm countdown stays silenced.
+      // Dismissed at the warning tone; a flip still at that tone stays
+      // silenced.
       await _pump(
         tester,
-        _state(isArmed: true, timeToFlip: const Duration(minutes: 30)),
-        dismissedSeverityIndex: SkotiqAlertSeverity.info.index,
+        _state(isArmed: true, timeToFlip: const Duration(minutes: 4)),
+        dismissedSeverityIndex: SkotiqAlertSeverity.warning.index,
       );
 
       expect(
@@ -382,7 +377,7 @@ void main() {
         StateProvider<MeridianCountdownState>(
           (ref) => _state(
             isArmed: true,
-            timeToFlip: const Duration(minutes: 25),
+            timeToFlip: const Duration(minutes: 5),
             sideOfPier: sideOfPier,
           ),
         );
@@ -403,7 +398,7 @@ void main() {
 
       container.read(driver.notifier).state = _state(
           isArmed: true,
-          timeToFlip: const Duration(minutes: 25),
+          timeToFlip: const Duration(minutes: 5),
           sideOfPier: 'east');
       await tester.pump();
 
@@ -426,7 +421,7 @@ void main() {
       );
 
       container.read(driver.notifier).state =
-          _state(isArmed: true, timeToFlip: const Duration(minutes: 25));
+          _state(isArmed: true, timeToFlip: const Duration(minutes: 5));
       await tester.pump();
 
       expect(find.textContaining('Meridian flip in'), findsOneWidget);
@@ -444,7 +439,7 @@ void main() {
       // The flip actually happened: the mount reports the other pier side.
       container.read(driver.notifier).state = _state(
           isArmed: true,
-          timeToFlip: const Duration(minutes: 25),
+          timeToFlip: const Duration(minutes: 5),
           sideOfPier: 'west');
       await tester.pump();
 
@@ -468,11 +463,129 @@ void main() {
       await tester.pump();
       container.read(driver.notifier).state = _state(
           isArmed: true,
-          timeToFlip: const Duration(minutes: 25),
+          timeToFlip: const Duration(minutes: 5),
           sideOfPier: 'west');
       await tester.pump();
 
       expect(find.textContaining('Meridian flip in'), findsOneWidget);
+    });
+  });
+
+  // The calm countdown moved out of the banner into a compact chip in the
+  // viewer toolbar. The two must never show the same flip at once.
+  group('MeridianFlipChip', () {
+    Future<void> pumpBoth(
+      WidgetTester tester,
+      MeridianCountdownState state,
+    ) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(900, 600);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [meridianCountdownProvider.overrideWith((ref) => state)],
+          child: MaterialApp(
+            theme: SkotiqTheme.dark,
+            home: const Scaffold(
+              body: Column(
+                children: <Widget>[
+                  MeridianFlipChip(),
+                  MeridianFlipCountdownBanner(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    testWidgets('a far-off countdown is a chip, with the explanation behind it',
+        (tester) async {
+      await pumpBoth(
+        tester,
+        _state(
+          isArmed: true,
+          timeToFlip: const Duration(hours: 3, minutes: 6),
+          sideOfPier: 'east',
+        ),
+      );
+
+      expect(find.text('Flip in 3h 6m'), findsOneWidget);
+      final tooltip = tester.widget<SkotiqTooltip>(
+        find.ancestor(
+          of: find.text('Flip in 3h 6m'),
+          matching: find.byType(SkotiqTooltip),
+        ),
+      );
+      expect(tooltip.message, contains('watchdog will run this for you'));
+      expect(tooltip.message, contains('Pier East'));
+      expect(
+        tester.getSize(find.byType(MeridianFlipCountdownBanner)),
+        Size.zero,
+        reason: 'the chip says it; the banner must not say it again',
+      );
+    });
+
+    testWidgets('a flip that needs attention is the banner, not the chip',
+        (tester) async {
+      await pumpBoth(
+        tester,
+        _state(isArmed: true, timeToFlip: const Duration(minutes: 6)),
+      );
+
+      expect(find.textContaining('Flip in'), findsNothing);
+      expect(find.textContaining('Meridian flip in'), findsOneWidget);
+    });
+
+    testWidgets('an imminent flip is the banner, not the chip', (tester) async {
+      await pumpBoth(
+        tester,
+        _state(isArmed: true, timeToFlip: Duration.zero),
+      );
+
+      expect(find.textContaining('Flip in'), findsNothing);
+      expect(find.text('Meridian flip imminent'), findsOneWidget);
+    });
+
+    testWidgets('a tracking-limit flip reads "Flip armed" with no countdown',
+        (tester) async {
+      await pumpBoth(
+        tester,
+        _state(
+          isArmed: true,
+          timeToFlip: null,
+          isSequencerOwned: true,
+          method: MeridianTriggerMethod.minutesBeforeLimit,
+          disabledReason: 'Monitored by sequencer (tracking-limit method)',
+        ),
+      );
+
+      expect(find.text('Flip armed'), findsOneWidget);
+      expect(find.textContaining('Flip in'), findsNothing);
+      final tooltip = tester.widget<SkotiqTooltip>(
+        find.ancestor(
+          of: find.text('Flip armed'),
+          matching: find.byType(SkotiqTooltip),
+        ),
+      );
+      expect(tooltip.message, contains('Monitored by the sequencer'));
+    });
+
+    testWidgets('no flip armed shows neither', (tester) async {
+      await pumpBoth(
+        tester,
+        _state(isArmed: false, disabledReason: 'Mount not connected'),
+      );
+
+      expect(find.byType(SkotiqChip), findsNothing);
+      expect(
+        tester.getSize(find.byType(MeridianFlipCountdownBanner)),
+        Size.zero,
+      );
     });
   });
 }

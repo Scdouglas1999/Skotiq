@@ -195,9 +195,10 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
               bottom: narrow ? const ImagingStatusStrip() : null,
             ),
 
-            // Live meridian-flip countdown. Self-hides (SizedBox.shrink, zero
-            // height) whenever a flip is not armed, so it adds no chrome on idle
-            // nights and never pushes the canvas down.
+            // Meridian-flip banner, for a flip that needs attention only
+            // (under ten minutes, or imminent). A calm countdown is the chip
+            // in the viewer toolbar; with nothing urgent this is zero height
+            // and never pushes the canvas down.
             const MeridianFlipCountdownBanner(),
 
             Expanded(

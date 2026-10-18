@@ -110,20 +110,17 @@ void main() {
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
-    expectVisible(tester, find.byType(HistogramHud), 'histogram');
-    expectVisible(tester, find.byType(FrameStatsHud), 'frame stats');
+    expectVisible(tester, find.byType(FrameInfoPill), 'frame info');
 
     // Well past any plausible idle-hide delay: the readouts do not self-hide.
     await tester.pump(const Duration(seconds: 6));
-    expectVisible(tester, find.byType(HistogramHud), 'histogram');
-    expectVisible(tester, find.byType(FrameStatsHud), 'frame stats');
+    expectVisible(tester, find.byType(FrameInfoPill), 'frame info');
 
     // Turning the readouts off is now an explicit, user-owned decision.
     handle.container.read(previewReadoutsVisibleProvider.notifier).state =
         false;
     await tester.pump();
-    expect(find.byType(HistogramHud), findsNothing);
-    expect(find.byType(FrameStatsHud), findsNothing);
+    expect(find.byType(FrameInfoPill), findsNothing);
   });
 
   testWidgets('an in-flight exposure suppresses the empty-state prompt',
