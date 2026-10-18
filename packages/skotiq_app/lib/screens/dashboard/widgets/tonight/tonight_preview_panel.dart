@@ -23,6 +23,32 @@ import '../../../sequencer/widgets/run_dashboard/quality_panel.dart'
 /// that the row-2 panels stay above the fold at 900 px.
 const double _previewHeight = 300;
 
+/// The narrowest the panel gets, as a share of its span, however tall and
+/// narrow the frame is: below it the HUD glass no longer fits beside itself.
+const double _minSpanShare = 0.3;
+
+/// The panel's width for the frame on screen: exactly the frame's width at
+/// [_previewHeight], so the frame meets both edges.
+///
+/// The panel used to take its whole c8 span whatever the frame was, and a
+/// 4:3 sub at 300 px tall left ~280 px of black on either side of it at
+/// 1920 px. Null while there is no frame: the empty state reads fine at any
+/// width.
+double? Function(double spanWidth) tonightPreviewPreferredWidth(
+  WidgetRef ref,
+) {
+  final aspect = ref.watch(
+    currentImageProvider.select(
+      (image) => image == null || image.width <= 0 || image.height <= 0
+          ? null
+          : image.width / image.height,
+    ),
+  );
+  return (spanWidth) => aspect == null
+      ? null
+      : (_previewHeight * aspect).clamp(spanWidth * _minSpanShare, spanWidth);
+}
+
 /// The thumbnail strip's cells: 52 × 32, per the mockup.
 const double _thumbWidth = 52;
 const double _thumbHeight = 32;

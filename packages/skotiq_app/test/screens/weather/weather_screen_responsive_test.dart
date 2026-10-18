@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:skotiq_app/screens/weather/weather_screen.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
 
@@ -79,4 +80,34 @@ void main() {
       },
     );
   }
+
+  // Live at 1920x1080 the safety chip, refresh and settings sat at x ~= 900:
+  // a Flexible chip split the header's free space with the title's Expanded.
+  testWidgets('the header actions sit at the right edge on a desktop window',
+      (tester) async {
+    const size = Size(1920, 1080);
+    final handle = await pumpAppScreen(
+      tester,
+      const WeatherScreen(),
+      size: size,
+      settle: false,
+      registerTearDown: false,
+    );
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    final settings = tester.getRect(find.byTooltip('Weather settings'));
+    final refresh = tester.getRect(find.byTooltip('Refresh radar data'));
+    final chip = tester.getRect(find.byType(SkotiqChip).first);
+    expect(settings.right, greaterThan(size.width - 2 * SkotiqTokens.space3xl));
+    expect(refresh.right, lessThan(settings.left));
+    expect(chip.right, lessThan(refresh.left));
+    expect(refresh.left - chip.right, lessThan(SkotiqTokens.spaceLg),
+        reason: 'the chip is one of the actions, not a mid-header island');
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    handle.container.dispose();
+    await tester.pump(Duration.zero);
+  });
 }

@@ -279,6 +279,12 @@ class _NightStoryTimelineState extends ConsumerState<NightStoryTimeline> {
         child: _errorState(colors, sessionId),
       ),
       data: (allEvents) {
+        // No events: the empty state alone. The count strip ("No events yet
+        // this session.") and a row of filter chips with nothing to filter
+        // stated the same absence twice above it.
+        if (allEvents.isEmpty) {
+          return _StoryShell(colors: colors, child: _emptyState());
+        }
         final summary = summarizeNightStory(allEvents);
         final filtered = filterNightStoryEvents(allEvents, _active);
         final groups = groupNightStoryByHour(filtered);
@@ -292,9 +298,7 @@ class _NightStoryTimelineState extends ConsumerState<NightStoryTimeline> {
               const SizedBox(height: 12),
               _FilterChipRow(active: _active, onTapped: _onChipTapped),
               const SizedBox(height: 12),
-              if (allEvents.isEmpty)
-                _emptyState()
-              else if (groups.isEmpty)
+              if (groups.isEmpty)
                 _filteredEmptyState(colors)
               else
                 _Timeline(groups: groups, colors: colors),

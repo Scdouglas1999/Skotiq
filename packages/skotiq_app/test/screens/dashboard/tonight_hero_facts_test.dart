@@ -79,4 +79,29 @@ void main() {
     );
     expect(find.textContaining('28 nodes'), findsNothing);
   });
+
+  // Live: "New Sequence · 0 nodes · ~0 m" led the facts line with nothing
+  // loaded, because a fresh sequence's `nodes` holds its root.
+  testWidgets('an empty sequence puts no sequence fact on the line',
+      (tester) async {
+    final empty = _sequence(instructions: 0);
+    expect(empty.nodes, isNotEmpty, reason: 'the root is always there');
+
+    await pumpAppScreen(
+      tester,
+      const TonightHero(),
+      size: const Size(1400, 300),
+      settle: false,
+      extraOverrides: [
+        currentSequenceProvider
+            .overrideWith((ref) => _SeedingNotifier(ref, empty)),
+      ],
+    );
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    expect(find.textContaining('0 nodes'), findsNothing);
+    expect(find.textContaining(empty.name), findsNothing);
+  });
 }

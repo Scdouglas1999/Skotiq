@@ -6,6 +6,7 @@ import 'widgets/autofocus_settings.dart';
 import 'widgets/file_path_settings.dart';
 import 'widgets/focus_model_settings.dart';
 import 'widgets/predictive_af_settings.dart';
+import 'widgets/settings_widgets.dart' show settingsPagePadding;
 
 /// Stacks two existing settings widgets into one continuously-scrolling section.
 ///
@@ -51,10 +52,10 @@ class _MergedSection extends StatelessWidget {
     final colors = SkotiqColors.of(context);
     final headerPadding = isMobile
         ? SkotiqTokens.paddingLg
-        : const EdgeInsets.fromLTRB(
-            SkotiqTokens.space3xl,
-            SkotiqTokens.space2xl,
-            SkotiqTokens.space3xl,
+        : EdgeInsets.fromLTRB(
+            settingsPagePadding.left,
+            settingsPagePadding.top,
+            settingsPagePadding.right,
             SkotiqTokens.spaceLg,
           );
     return SingleChildScrollView(
@@ -69,7 +70,7 @@ class _MergedSection extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: SkotiqTypography.pageTitle.copyWith(
+                  style: SkotiqTypography.sectionTitle.copyWith(
                     color: colors.textPrimary,
                   ),
                 ),

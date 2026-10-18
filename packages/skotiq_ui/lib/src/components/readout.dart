@@ -40,6 +40,7 @@ class Readout extends StatelessWidget {
     this.unit,
     this.size = ReadoutSize.md,
     this.valueColor,
+    this.alignment = CrossAxisAlignment.start,
   });
 
   /// The value. Null renders the em dash in `textMuted`.
@@ -65,6 +66,11 @@ class Readout extends StatelessWidget {
   /// status. Ignored when [value] is null, which is always muted.
   final Color? valueColor;
 
+  /// How the value and the label line up with each other. `end` for a column
+  /// of readouts at a row's right edge, so the values line up down the column
+  /// whatever width each label is.
+  final CrossAxisAlignment alignment;
+
   /// Gap between the value baseline row and the label.
   static const double labelGap = 2;
 
@@ -89,7 +95,7 @@ class Readout extends StatelessWidget {
     );
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: alignment,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Text.rich(

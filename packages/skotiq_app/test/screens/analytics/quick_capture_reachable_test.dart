@@ -85,6 +85,11 @@ Finder _pickerUnder(String label) => find.descendant(
       matching: find.byType(AccessibleDropdown<int>),
     );
 
+/// What the Session tab is reviewing: the picker IS the session panel's title,
+/// so its value is what the tab is showing.
+int? _reviewing(WidgetTester tester) =>
+    tester.widget<AccessibleDropdown<int>>(_pickerUnder('Reviewing')).value;
+
 /// Advance frames without `pumpAndSettle`: the Analytics IndexedStack keeps a
 /// shimmer skeleton animating on a sibling tab, so settling never completes.
 Future<void> _pumpFrames(WidgetTester tester, [int frames = 12]) async {
@@ -114,8 +119,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     // Preconditions: the run won the auto-pick, so the tab is on the run.
-    expect(find.text('New Sequence'), findsWidgets);
-    expect(find.text('Quick Capture'), findsNothing);
+    expect(_reviewing(tester), 1);
+    expect(find.text('37'), findsNothing);
 
     await tester.tap(_pickerUnder('Reviewing'));
     await _pumpFrames(tester);
@@ -131,10 +136,15 @@ void main() {
     await _pumpFrames(tester);
 
     expect(
-      find.text('Quick Capture'),
-      findsOneWidget,
+      _reviewing(tester),
+      kQuickCaptureSessionSelection,
       reason: 'choosing the quick captures must actually switch to them, not '
           'fall straight back to the auto-picked run',
+    );
+    expect(
+      find.text('37'),
+      findsWidgets,
+      reason: 'the summary counts the 37 loose frames once they are chosen',
     );
   });
 
@@ -149,7 +159,7 @@ void main() {
     // The live drive's second half: the auto-pick must not quietly reclaim the
     // tab on the next build.
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Quick Capture'), findsOneWidget);
+    expect(_reviewing(tester), kQuickCaptureSessionSelection);
   });
 
   testWidgets('Science offers the same entry under its own label',

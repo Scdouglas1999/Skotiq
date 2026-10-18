@@ -308,8 +308,12 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
     // One flat list with an eyebrow rendered above the first entry of each
     // group: a nested list would make the arrow keys walk a tree, and the
     // arrow keys must walk exactly what the eye reads.
+    // Shrink-wrapped so six results make a six-row panel. Without it the
+    // list claimed the whole [CommandPalette.maxResultsHeight] whatever it
+    // held, and a short result set sat over ~150 px of empty panel.
     return ListView.builder(
       controller: _scrollController,
+      shrinkWrap: true,
       padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceSm),
       itemCount: entries.length,
       itemBuilder: (context, index) {

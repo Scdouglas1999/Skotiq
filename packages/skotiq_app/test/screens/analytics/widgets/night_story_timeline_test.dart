@@ -167,6 +167,10 @@ void main() {
       expect(
           find.textContaining('No story yet for this session'), findsOneWidget);
       expect(find.byType(NarratorCard), findsNothing);
+      // The empty state alone: a count strip saying "No events yet" and a
+      // row of filter chips with nothing to filter said it twice more.
+      expect(find.text('No events yet this session.'), findsNothing);
+      expect(find.text('Discoveries'), findsNothing);
     });
 
     testWidgets('renders hour headers, summary strip and filter chips',

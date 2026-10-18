@@ -25,7 +25,7 @@ class ObservingListsSettings extends ConsumerWidget {
             children: [
               Text(
                 'Observing Lists',
-                style: SkotiqTypography.pageTitle.copyWith(
+                style: SkotiqTypography.sectionTitle.copyWith(
                   color: colors.textPrimary,
                 ),
               ),

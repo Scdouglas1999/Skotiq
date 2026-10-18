@@ -13,18 +13,18 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
         if (!widget.isMobile) ...[
           Text(
             'Catalogs',
-            style: SkotiqTypography.pageTitle.copyWith(
+            style: SkotiqTypography.sectionTitle.copyWith(
               color: colors.textPrimary,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: SkotiqTokens.spaceXs),
           Text(
             'Download star and deep sky object catalogs to enable full planetarium functionality.',
             style: SkotiqTypography.bodySm.copyWith(
               color: colors.textSecondary,
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: SkotiqTokens.spaceLg),
         ],
 
         // Download progress
