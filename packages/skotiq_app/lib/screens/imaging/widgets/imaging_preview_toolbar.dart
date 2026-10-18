@@ -66,6 +66,18 @@ class ImagingPreviewToolbar extends ConsumerStatefulWidget {
   /// The bar's height (06 §Imaging: "A 44 px viewer toolbar on top").
   static const double height = 44;
 
+  /// Below this width Annotate and Mark region drop their words and keep
+  /// their glyphs, with the words in their tooltips.
+  ///
+  /// The bar scrolls rather than clip, but a scrolled bar hides its trailing
+  /// group, and that group holds Abort capture. At a 1536x864 window (a
+  /// 1920x1080 panel at 125%) with the rail open, the bar gets about 972 px
+  /// and needed about 1000 with a meridian flip armed and an exposure in
+  /// flight, so Abort sat off the edge. The two words are about 150 px; with
+  /// the rail collapsed the same window gives about 1128 px, which holds the
+  /// full bar.
+  static const double compactBelowWidth = 1100;
+
   @override
   ConsumerState<ImagingPreviewToolbar> createState() =>
       _ImagingPreviewToolbarState();
@@ -107,71 +119,71 @@ class _ImagingPreviewToolbarState extends ConsumerState<ImagingPreviewToolbar> {
     // draws five view glyphs; Skotiq also has 1:1 zoom and the catalog
     // overlay's magnitude settings, which exist today and have nowhere else to
     // live, so they ride in the same groups rather than being deleted.
-    final toolbar = SkotiqToolbar(
-      groups: <List<Widget>>[
-        <Widget>[
-          OverlaysMenuButton(
-            showCrosshair: widget.showCrosshair,
-            showStarOverlay: widget.showStarOverlay,
-            onToggleCrosshair: widget.onToggleCrosshair,
-            onToggleStarOverlay: widget.onToggleStarOverlay,
-          ),
-          _AnnotateButton(enabled: currentImage != null),
-          const _DepthLockRegionButton(),
-        ],
-        <Widget>[
-          SkotiqIconButton(
-            icon: SkotiqIcons.crosshair,
-            tooltip: 'Crosshair',
-            size: IconButtonSize.sm,
-            selected: widget.showCrosshair,
-            onPressed: widget.onToggleCrosshair,
-          ),
-          SkotiqIconButton(
-            icon: LucideIcons.zoomIn,
-            tooltip: 'Zoom in',
-            size: IconButtonSize.sm,
-            onPressed: widget.onZoomIn,
-          ),
-          SkotiqIconButton(
-            icon: LucideIcons.zoomOut,
-            tooltip: 'Zoom out',
-            size: IconButtonSize.sm,
-            onPressed: widget.onZoomOut,
-          ),
-          SkotiqIconButton(
-            icon: SkotiqIcons.collapse,
-            tooltip: '1:1 zoom',
-            size: IconButtonSize.sm,
-            onPressed: widget.onZoom1to1,
-          ),
-          SkotiqIconButton(
-            icon: LucideIcons.scan,
-            tooltip: 'Fit to window',
-            size: IconButtonSize.sm,
-            onPressed: widget.onFitToWindow,
-          ),
-          SkotiqIconButton(
-            icon: LucideIcons.maximize,
-            tooltip: 'Fullscreen',
-            size: IconButtonSize.sm,
-            onPressed: widget.onFullscreen,
-          ),
-        ],
-        <Widget>[
-          const _CatalogOverlaySettingsButton(),
-          if (showAbort)
-            SkotiqIconButton(
-              key: ImagingTutorialKeys.abortBtn,
-              icon: SkotiqIcons.close,
-              tooltip: 'Abort capture',
-              size: IconButtonSize.sm,
-              color: colors.error,
-              onPressed: widget.onAbortCapture,
-            ),
-        ],
-      ],
-    );
+    Widget toolbar({required bool compact}) => SkotiqToolbar(
+          groups: <List<Widget>>[
+            <Widget>[
+              OverlaysMenuButton(
+                showCrosshair: widget.showCrosshair,
+                showStarOverlay: widget.showStarOverlay,
+                onToggleCrosshair: widget.onToggleCrosshair,
+                onToggleStarOverlay: widget.onToggleStarOverlay,
+              ),
+              _AnnotateButton(enabled: currentImage != null, compact: compact),
+              _DepthLockRegionButton(compact: compact),
+            ],
+            <Widget>[
+              SkotiqIconButton(
+                icon: SkotiqIcons.crosshair,
+                tooltip: 'Crosshair',
+                size: IconButtonSize.sm,
+                selected: widget.showCrosshair,
+                onPressed: widget.onToggleCrosshair,
+              ),
+              SkotiqIconButton(
+                icon: LucideIcons.zoomIn,
+                tooltip: 'Zoom in',
+                size: IconButtonSize.sm,
+                onPressed: widget.onZoomIn,
+              ),
+              SkotiqIconButton(
+                icon: LucideIcons.zoomOut,
+                tooltip: 'Zoom out',
+                size: IconButtonSize.sm,
+                onPressed: widget.onZoomOut,
+              ),
+              SkotiqIconButton(
+                icon: SkotiqIcons.collapse,
+                tooltip: '1:1 zoom',
+                size: IconButtonSize.sm,
+                onPressed: widget.onZoom1to1,
+              ),
+              SkotiqIconButton(
+                icon: LucideIcons.scan,
+                tooltip: 'Fit to window',
+                size: IconButtonSize.sm,
+                onPressed: widget.onFitToWindow,
+              ),
+              SkotiqIconButton(
+                icon: LucideIcons.maximize,
+                tooltip: 'Fullscreen',
+                size: IconButtonSize.sm,
+                onPressed: widget.onFullscreen,
+              ),
+            ],
+            <Widget>[
+              const _CatalogOverlaySettingsButton(),
+              if (showAbort)
+                SkotiqIconButton(
+                  key: ImagingTutorialKeys.abortBtn,
+                  icon: SkotiqIcons.close,
+                  tooltip: 'Abort capture',
+                  size: IconButtonSize.sm,
+                  color: colors.error,
+                  onPressed: widget.onAbortCapture,
+                ),
+            ],
+          ],
+        );
 
     return Container(
       height: ImagingPreviewToolbar.height,
@@ -192,6 +204,8 @@ class _ImagingPreviewToolbarState extends ConsumerState<ImagingPreviewToolbar> {
       // scrolls. Nothing is ever clipped, at any width.
       child: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
+          final compact =
+              constraints.maxWidth < ImagingPreviewToolbar.compactBelowWidth;
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: ConstrainedBox(
@@ -209,7 +223,7 @@ class _ImagingPreviewToolbarState extends ConsumerState<ImagingPreviewToolbar> {
                     const MeridianFlipChip(),
                     const SizedBox(width: SkotiqTokens.spaceSm),
                     const Spacer(),
-                    toolbar,
+                    toolbar(compact: compact),
                   ],
                 ),
               ),
@@ -308,31 +322,52 @@ class _ViewerMeta extends StatelessWidget {
 /// [toggleAnnotationDrawPalette] so the docked drawing palette appears at the
 /// bottom of the canvas only while drawing is active.
 class _AnnotateButton extends ConsumerWidget {
-  const _AnnotateButton({required this.enabled});
+  const _AnnotateButton({required this.enabled, this.compact = false});
 
   final bool enabled;
+
+  /// Glyph only, the word in its tooltip. See
+  /// [ImagingPreviewToolbar.compactBelowWidth].
+  final bool compact;
+
+  static const String _label = 'Annotate';
+  static const String _disabledHint = 'Available once a frame is on screen';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final active = ref.watch(customAnnotationDrawModeActiveProvider);
+    final VoidCallback? onPressed = enabled
+        ? () {
+            // The DepthLock region tool captures the same drag, so only
+            // one of the two may own the canvas at a time.
+            cancelDepthLockRegionTool(ref);
+            toggleAnnotationDrawPalette(ref);
+          }
+        : null;
+    if (compact) {
+      return Semantics(
+        toggled: active,
+        hint: enabled ? null : _disabledHint,
+        child: SkotiqIconButton(
+          icon: SkotiqIcons.tag,
+          tooltip: _label,
+          size: IconButtonSize.sm,
+          selected: active,
+          onPressed: onPressed,
+        ),
+      );
+    }
     // A ghost button has no on-state in the sheet, so the toggle publishes it
     // as semantics; on screen the docked drawing palette IS the on-state.
     return Semantics(
       toggled: active,
       child: SkotiqButton(
-        label: 'Annotate',
+        label: _label,
         icon: SkotiqIcons.tag,
         size: ButtonSize.small,
         variant: ButtonVariant.ghost,
-        semanticsHint: enabled ? null : 'Available once a frame is on screen',
-        onPressed: enabled
-            ? () {
-                // The DepthLock region tool captures the same drag, so only
-                // one of the two may own the canvas at a time.
-                cancelDepthLockRegionTool(ref);
-                toggleAnnotationDrawPalette(ref);
-              }
-            : null,
+        semanticsHint: enabled ? null : _disabledHint,
+        onPressed: onPressed,
       ),
     );
   }
@@ -345,7 +380,18 @@ class _AnnotateButton extends ConsumerWidget {
 /// must be mutually exclusive: entering one leaves the other, so a drag can
 /// only ever mean one thing.
 class _DepthLockRegionButton extends ConsumerWidget {
-  const _DepthLockRegionButton();
+  const _DepthLockRegionButton({this.compact = false});
+
+  /// Glyph only, the words in its tooltip. See
+  /// [ImagingPreviewToolbar.compactBelowWidth].
+  final bool compact;
+
+  static const String _label = 'Mark region';
+
+  /// A dashed selection box. The crosshair it used to share with the
+  /// Crosshair toggle two buttons along could not tell the two apart once the
+  /// narrow bar dropped the words.
+  static const IconData _icon = LucideIcons.boxSelect;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -355,31 +401,45 @@ class _DepthLockRegionButton extends ConsumerWidget {
     // why in the hint rather than doing nothing.
     final selection = ref.watch(depthLockSelectionProvider);
     final enabled = selection.canSelect;
+    final String? hint = enabled
+        ? 'Drag two boxes on the frame to define a DepthLock goal'
+        : selection.blocker;
+    final VoidCallback? onPressed = enabled
+        ? () {
+            if (active) {
+              cancelDepthLockRegionTool(ref);
+              return;
+            }
+            // Leave any annotation tool first: two layers capturing the
+            // same drag would each draw half a shape.
+            if (ref.read(customAnnotationDrawModeActiveProvider)) {
+              toggleAnnotationDrawPalette(ref);
+            }
+            ref.read(depthLockRegionToolActiveProvider.notifier).state = true;
+          }
+        : null;
+    if (compact) {
+      return Semantics(
+        toggled: active,
+        hint: hint,
+        child: SkotiqIconButton(
+          icon: _icon,
+          tooltip: _label,
+          size: IconButtonSize.sm,
+          selected: active,
+          onPressed: onPressed,
+        ),
+      );
+    }
     return Semantics(
       toggled: active,
       child: SkotiqButton(
-        label: 'Mark region',
-        icon: SkotiqIcons.crosshair,
+        label: _label,
+        icon: _icon,
         size: ButtonSize.small,
         variant: ButtonVariant.ghost,
-        semanticsHint: enabled
-            ? 'Drag two boxes on the frame to define a DepthLock goal'
-            : selection.blocker,
-        onPressed: enabled
-            ? () {
-                if (active) {
-                  cancelDepthLockRegionTool(ref);
-                  return;
-                }
-                // Leave any annotation tool first: two layers capturing the
-                // same drag would each draw half a shape.
-                if (ref.read(customAnnotationDrawModeActiveProvider)) {
-                  toggleAnnotationDrawPalette(ref);
-                }
-                ref.read(depthLockRegionToolActiveProvider.notifier).state =
-                    true;
-              }
-            : null,
+        semanticsHint: hint,
+        onPressed: onPressed,
       ),
     );
   }

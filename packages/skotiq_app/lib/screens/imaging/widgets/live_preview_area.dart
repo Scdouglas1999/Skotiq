@@ -19,6 +19,7 @@ import 'fullscreen_image_viewer.dart';
 import 'guiding_active_chip.dart';
 import 'image_display.dart';
 import 'imaging_hud.dart';
+import 'measured_width.dart';
 import 'narrator_ticker.dart';
 import 'overlay_painters.dart';
 import 'overlay_widgets.dart';
@@ -97,19 +98,21 @@ const double _infoPillHeight = 36;
 /// plus the gap it sits on plus the gap above it.
 const double _captureBarBand = SkotiqTokens.spaceLg + 48 + _hudInset;
 
-/// Where the bottom-right histogram sits.
+/// Where a readout in one of the two bottom corners sits.
 ///
-/// The capture bar is CENTRED, so what the histogram competes for is the slack
-/// on one side of it. The histogram keeps the corner while that slack holds
-/// the panel, and steps up over the bar when it does not. A zero
-/// [captureBarWidth] means the bar has not been laid out yet, or is not on
-/// screen at all — the corner's case either way.
-double _histogramBottom({
+/// The capture bar is CENTRED, so what a corner readout [cornerWidth] wide
+/// competes for is the slack on one side of it. The readout keeps the corner
+/// while that slack holds it, and steps up over the bar when it does not. A
+/// zero [captureBarWidth] means the bar has not been laid out yet, or is not
+/// on screen at all — the corner's case either way.
+double _bottomCornerOffset({
   required double canvasWidth,
   required double captureBarWidth,
+  required double cornerWidth,
 }) {
+  if (captureBarWidth <= 0) return _hudInset;
   final slack = (canvasWidth - captureBarWidth) / 2;
-  final clears = slack >= HistogramHud.width + 2 * _hudInset;
+  final clears = slack >= cornerWidth + 2 * _hudInset;
   return clears ? _hudInset : _hudInset + _captureBarBand;
 }
 
@@ -124,6 +127,10 @@ double _histogramBottom({
 final previewReadoutsVisibleProvider = StateProvider<bool>((ref) => true);
 
 class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
+  /// The bottom-left science / guiding stack's laid-out width; zero while
+  /// both chips hide themselves.
+  double _bottomLeftReadoutsWidth = 0;
+
   /// Hand the measured display scale to readers outside this subtree (the
   /// preview toolbar's zoom readout), which cannot see the preview viewport.
   ///
@@ -566,6 +573,18 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                       plateSolve: currentSkySolution.plateSolve,
                       bottomLeftOccupied: readoutsVisible,
                       bottomRightOccupied: histogramVisible,
+                      bottomLeftLift: _bottomCornerOffset(
+                            canvasWidth: viewportSize.width,
+                            captureBarWidth: widget.captureBarWidth,
+                            cornerWidth: _bottomLeftReadoutsWidth,
+                          ) -
+                          _hudInset,
+                      bottomRightLift: _bottomCornerOffset(
+                            canvasWidth: viewportSize.width,
+                            captureBarWidth: widget.captureBarWidth,
+                            cornerWidth: HistogramHud.width,
+                          ) -
+                          _hudInset,
                     ),
 
                   if (currentImage != null &&
@@ -770,9 +789,10 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                   // glass — a readout you cannot read is worse than one that
                   // moved.
                   Positioned(
-                    bottom: _histogramBottom(
+                    bottom: _bottomCornerOffset(
                       canvasWidth: viewportSize.width,
                       captureBarWidth: widget.captureBarWidth,
+                      cornerWidth: HistogramHud.width,
                     ),
                     right: _hudInset,
                     child: _readout(
@@ -793,25 +813,43 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                   // would silently kill. They absorb the pointer only within
                   // their own compact footprint; the rest of the canvas keeps
                   // its pan / zoom gestures.
+                  //
+                  // The capture bar shares this edge too. On a 1536 px window
+                  // the bar's left end reached x=360 and drew over the
+                  // Guiding chip ("Guiding RMS 0." with the value under
+                  // Snapshot), so the stack steps up over the bar when the
+                  // slack beside it cannot hold the chips' measured width.
                   if (currentImage != null)
                     Positioned(
-                      bottom: _hudInset,
+                      bottom: _bottomCornerOffset(
+                        canvasWidth: viewportSize.width,
+                        captureBarWidth: widget.captureBarWidth,
+                        cornerWidth: _bottomLeftReadoutsWidth,
+                      ),
                       left: _hudInset,
                       child: _readout(
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: Responsive.previewOverlayMaxWidth(
-                              viewportSize.width,
+                        MeasuredWidth(
+                          onWidth: (width) {
+                            if (!mounted || width == _bottomLeftReadoutsWidth) {
+                              return;
+                            }
+                            setState(() => _bottomLeftReadoutsWidth = width);
+                          },
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: Responsive.previewOverlayMaxWidth(
+                                viewportSize.width,
+                              ),
                             ),
-                          ),
-                          child: const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              FrameScienceChip(),
-                              SizedBox(height: SkotiqTokens.spaceXs),
-                              GuidingActiveChip(),
-                            ],
+                            child: const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                FrameScienceChip(),
+                                SizedBox(height: SkotiqTokens.spaceXs),
+                                GuidingActiveChip(),
+                              ],
+                            ),
                           ),
                         ),
                         visible: readoutsVisible,

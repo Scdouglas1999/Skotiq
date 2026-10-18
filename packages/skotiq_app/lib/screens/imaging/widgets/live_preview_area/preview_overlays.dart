@@ -64,11 +64,18 @@ class _CompassScaleBarOverlay extends ConsumerWidget {
   /// compass rose would otherwise be drawn under it.
   final bool bottomRightOccupied;
 
+  /// How far each corner's readouts stepped up over the capture bar; the
+  /// scale bar and the compass clear them by the same amount.
+  final double bottomLeftLift;
+  final double bottomRightLift;
+
   const _CompassScaleBarOverlay({
     required this.zoomLevel,
     required this.plateSolve,
     required this.bottomLeftOccupied,
     required this.bottomRightOccupied,
+    this.bottomLeftLift = 0,
+    this.bottomRightLift = 0,
   });
 
   @override
@@ -93,6 +100,8 @@ class _CompassScaleBarOverlay extends ConsumerWidget {
             zoomLevel: zoomLevel,
             bottomLeftOccupied: bottomLeftOccupied,
             bottomRightOccupied: bottomRightOccupied,
+            bottomLeftLift: bottomLeftLift,
+            bottomRightLift: bottomRightLift,
             colors: SkotiqColors.of(context),
           ),
         ),
@@ -110,6 +119,8 @@ class _CompassScaleBarCombinedPainter extends CustomPainter {
   final double zoomLevel;
   final bool bottomLeftOccupied;
   final bool bottomRightOccupied;
+  final double bottomLeftLift;
+  final double bottomRightLift;
   final SkotiqColors colors;
 
   _CompassScaleBarCombinedPainter({
@@ -119,6 +130,8 @@ class _CompassScaleBarCombinedPainter extends CustomPainter {
     required this.zoomLevel,
     required this.bottomLeftOccupied,
     required this.bottomRightOccupied,
+    this.bottomLeftLift = 0,
+    this.bottomRightLift = 0,
     required this.colors,
   });
 
@@ -127,8 +140,9 @@ class _CompassScaleBarCombinedPainter extends CustomPainter {
         pixelScaleArcsecPerPixel: plateSolve.pixelScale,
         imageWidthPixels: plateSolve.imageWidth.toDouble(),
         zoomLevel: zoomLevel,
-        bottomMargin:
-            bottomLeftOccupied ? PreviewReadoutInsets.bottomLeft : null,
+        bottomMargin: bottomLeftOccupied
+            ? PreviewReadoutInsets.bottomLeft + bottomLeftLift
+            : null,
       );
 
   /// The compass painter this widget draws with.
@@ -138,7 +152,9 @@ class _CompassScaleBarCombinedPainter extends CustomPainter {
   /// draw would put that resolve on every frame.
   late final CompassOverlayPainter _compass = CompassOverlayPainter(
     rotationDegrees: plateSolve.rotation,
-    bottomMargin: bottomRightOccupied ? PreviewReadoutInsets.bottomRight : null,
+    bottomMargin: bottomRightOccupied
+        ? PreviewReadoutInsets.bottomRight + bottomRightLift
+        : null,
     colors: colors,
   );
 
@@ -162,6 +178,8 @@ class _CompassScaleBarCombinedPainter extends CustomPainter {
         oldDelegate.zoomLevel != zoomLevel ||
         oldDelegate.bottomLeftOccupied != bottomLeftOccupied ||
         oldDelegate.bottomRightOccupied != bottomRightOccupied ||
+        oldDelegate.bottomLeftLift != bottomLeftLift ||
+        oldDelegate.bottomRightLift != bottomRightLift ||
         oldDelegate.colors != colors;
   }
 }

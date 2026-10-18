@@ -218,7 +218,8 @@ class _StackCanvasToolbar extends ConsumerWidget {
             toggled: toolActive,
             child: SkotiqButton(
               label: toolActive ? 'Stop marking' : 'Mark region',
-              icon: SkotiqIcons.crosshair,
+              // The same dashed selection box as the live view's Mark region.
+              icon: LucideIcons.boxSelect,
               size: ButtonSize.small,
               variant: ButtonVariant.ghost,
               semanticsHint: selection.canSelect
