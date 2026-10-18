@@ -681,6 +681,89 @@ void main() {
   });
 
   group('Candidate', () {
+    testWidgets(
+      'shared columns line the header and rows up whatever the button',
+      (tester) async {
+        const columns = CandidateColumns(readoutWidth: 96, actionWidth: 120);
+        Widget row(String action, {CandidateWindow? window}) => Candidate(
+          score: '90',
+          name: 'M33',
+          detail: 'Galaxy',
+          columns: columns,
+          dense: true,
+          readouts: const <Readout>[
+            Readout(value: '00:48 · 81°', label: 'Transit'),
+            Readout(value: '9h 45m', label: 'Above 30°'),
+          ],
+          window: window,
+          action: SkotiqButton(
+            label: action,
+            size: ButtonSize.small,
+            variant: ButtonVariant.secondary,
+            onPressed: () {},
+          ),
+        );
+
+        await tester.pumpWidget(
+          _host(
+            SizedBox(
+              width: 900,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  const CandidateHeader(
+                    leading: Text('3 candidates'),
+                    readoutLabels: <String>['Transit', 'Imageable'],
+                    windowLabel: 'Window',
+                    columns: columns,
+                  ),
+                  row(
+                    'Image tonight',
+                    window: const CandidateWindow(start: 0, end: 1, now: 0.5),
+                  ),
+                  row(
+                    'Add',
+                    window: const CandidateWindow(start: 0, end: 1, now: 0.5),
+                  ),
+                  // No window tonight: its slot is still held.
+                  row('Add'),
+                ],
+              ),
+            ),
+          ),
+        );
+
+        final header = find.byType(CandidateHeader);
+        final rows = find.byType(Candidate);
+        for (var c = 0; c < 2; c++) {
+          final label = c == 0 ? 'TRANSIT' : 'IMAGEABLE';
+          final headerX = tester
+              .getTopLeft(
+                find.descendant(of: header, matching: find.text(label)),
+              )
+              .dx;
+          for (var r = 0; r < 3; r++) {
+            final readout = find
+                .descendant(of: rows.at(r), matching: find.byType(Readout))
+                .at(c);
+            expect(tester.getTopLeft(readout).dx, headerX);
+          }
+        }
+        final rights = <double>[
+          for (var r = 0; r < 3; r++)
+            tester
+                .getTopRight(
+                  find.descendant(
+                    of: rows.at(r),
+                    matching: find.byType(SkotiqButton),
+                  ),
+                )
+                .dx,
+        ];
+        expect(rights.toSet(), hasLength(1));
+      },
+    );
+
     testWidgets('the window bar places its span and its now tick', (
       tester,
     ) async {
