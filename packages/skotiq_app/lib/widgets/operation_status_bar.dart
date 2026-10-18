@@ -90,7 +90,9 @@ class _OperationStatusBarState extends ConsumerState<OperationStatusBar>
 
     try {
       switch (operation.type) {
+        // A home is mount motion like a slew, and Abort slew is what stops it.
         case OperationType.slewToTarget:
+        case OperationType.homeMount:
           await ref.read(deviceServiceProvider).abortMountSlew();
           break;
         case OperationType.autofocus:
@@ -135,6 +137,8 @@ class _OperationStatusBarState extends ConsumerState<OperationStatusBar>
         return LucideIcons.parkingCircle;
       case OperationType.unparkMount:
         return LucideIcons.play;
+      case OperationType.homeMount:
+        return LucideIcons.home;
       case OperationType.dither:
         return LucideIcons.shuffle;
       case OperationType.guideSettle:

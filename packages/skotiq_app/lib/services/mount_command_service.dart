@@ -205,29 +205,36 @@ class MountCommandService {
     });
   }
 
-  /// Aborts any current slew operation.
+  /// Aborts any current slew operation, including a home in progress.
+  ///
+  /// The panic button does NOT take the one-command-at-a-time slot: a slew or
+  /// a home holds that slot for as long as the mount is moving, which is
+  /// exactly when abort is pressed. Queued behind it, abort was refused with
+  /// "Another mount command is already in progress".
   Future<CommandActionResult> abortSlew({bool showFeedback = true}) async {
-    return _runExclusive((deviceId) async {
-      try {
-        final capabilities = await _getCapabilities(deviceId);
-        final changed = _connectionChanged(deviceId);
-        if (changed != null) return changed;
-        if (!capabilities.canAbortSlew) {
-          return const CommandActionResult.failure(
-            'This mount reports that aborting a slew is unsupported',
-          );
-        }
-        await _deviceService.abortMountSlew();
-        if (showFeedback) {
-          return const CommandActionResult.success(
-            message: 'Mount slew aborted',
-          );
-        }
-        return CommandActionResult.ok;
-      } catch (e) {
-        return CommandActionResult.failure('Failed to abort slew: $e');
+    final deviceId = _connectedMountId;
+    if (deviceId == null) {
+      return const CommandActionResult.failure('No mount connected');
+    }
+    try {
+      final capabilities = await _getCapabilities(deviceId);
+      final changed = _connectionChanged(deviceId);
+      if (changed != null) return changed;
+      if (!capabilities.canAbortSlew) {
+        return const CommandActionResult.failure(
+          'This mount reports that aborting a slew is unsupported',
+        );
       }
-    });
+      await _deviceService.abortMountSlew();
+      if (showFeedback) {
+        return const CommandActionResult.success(
+          message: 'Mount slew aborted',
+        );
+      }
+      return CommandActionResult.ok;
+    } catch (e) {
+      return CommandActionResult.failure('Failed to abort slew: $e');
+    }
   }
 
   /// Sets the mount tracking state.
@@ -349,7 +356,13 @@ class MountCommandService {
     });
   }
 
-  /// Finds the mount home position.
+  /// Sends the mount to its home position and reports where it ended up.
+  ///
+  /// Homing is not parking: the mount is left unparked and commandable. A
+  /// parked mount is refused with a request to unpark it first, never
+  /// unparked silently. The result is a success only once the mount has been
+  /// seen to move and stop (see [MountHomeWatcher]); when its driver cannot
+  /// report `AtHome` the success says the home is unconfirmed.
   Future<CommandActionResult> findHome() async {
     return _runExclusive((deviceId) async {
       try {
@@ -358,18 +371,53 @@ class MountCommandService {
         if (changed != null) return changed;
         if (!capabilities.canFindHome) {
           return const CommandActionResult.failure(
-            'This mount does not support the Find Home operation',
+            'This mount does not have a home position it can find',
           );
         }
-        await _deviceService.findMountHome();
-        return const CommandActionResult.success(
-          message: 'Mount homing complete',
-        );
+        if (_mountState.isParked) {
+          return const CommandActionResult.failure(homeWhileParkedMessage);
+        }
+        final outcome = await _deviceService.findMountHome();
+        return switch (outcome) {
+          MountHomeOutcome.confirmed => const CommandActionResult.success(
+              message: 'Mount is at home',
+            ),
+          MountHomeOutcome.unconfirmed => const CommandActionResult.success(
+              message: homeUnconfirmedMessage,
+            ),
+        };
+      } on MountHomeException catch (e) {
+        return CommandActionResult.failure(e.message);
       } catch (e) {
-        return CommandActionResult.failure('Find home failed: $e');
+        return CommandActionResult.failure('Home failed: $e');
       }
     });
   }
+
+  /// Why Home cannot be pressed right now, or null when it can.
+  ///
+  /// Every Home control (Imaging › Mount, the Equipment mount card) gates on
+  /// this, so they refuse for the same reasons in the same words.
+  static String? homeUnavailableReason({
+    required MountState mountState,
+    required bool isConnected,
+    required bool canFindHome,
+  }) {
+    if (!isConnected) return 'Connect a mount to send it home.';
+    if (!canFindHome) return 'This mount does not have a home position.';
+    if (mountState.isParked) return 'Unpark the mount before sending it home.';
+    if (mountState.isHoming) return 'The mount is on its way home.';
+    if (mountState.isSlewing) return 'Wait for the mount to stop moving.';
+    return null;
+  }
+
+  /// Why Home refuses a parked mount.
+  static const String homeWhileParkedMessage =
+      'The mount is parked. Unpark it before sending it home.';
+
+  /// The success message for a home whose driver cannot report `AtHome`.
+  static const String homeUnconfirmedMessage =
+      'The mount moved and stopped, but its driver cannot confirm it is at home';
 
   /// Sends a pulse guide command in the specified direction.
   Future<CommandActionResult> pulseGuide(String direction,

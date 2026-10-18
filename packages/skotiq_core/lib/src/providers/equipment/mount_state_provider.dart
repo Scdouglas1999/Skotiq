@@ -196,6 +196,21 @@ class MountStateNotifier extends StateNotifier<MountState>
     state = state.copyWith(isParked: parked);
   }
 
+  /// Mark a Home command as in progress (or over). Starting one clears the
+  /// previous home's unconfirmed flag; it is about to be superseded.
+  void setHoming(bool homing) {
+    state = state.copyWith(
+      isHoming: homing,
+      homeUnconfirmed: homing ? false : null,
+    );
+  }
+
+  /// Record how the last home ended: [unconfirmed] when the mount stopped but
+  /// its driver cannot report `AtHome`.
+  void setHomeUnconfirmed(bool unconfirmed) {
+    state = state.copyWith(homeUnconfirmed: unconfirmed);
+  }
+
   void setTrackingRate(TrackingRate rate) {
     state = state.copyWith(trackingRate: rate);
   }
@@ -287,6 +302,15 @@ class MountStateNotifier extends StateNotifier<MountState>
         isTracking: status.tracking,
         isSlewing: status.slewing,
         isParked: status.parked,
+        isAtHome: status.atHome,
+        // An unconfirmed home stops being the mount's position the moment
+        // it moves again, parks, or its driver confirms home after all. Not
+        // cleared while the home itself is still running.
+        homeUnconfirmed:
+            !state.isHoming &&
+                (status.slewing || status.parked || status.atHome)
+            ? false
+            : null,
         canPark: status.canPark,
         sideOfPier: pierSide,
         clearSideOfPier: pierSide == null,

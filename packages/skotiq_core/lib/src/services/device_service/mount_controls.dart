@@ -152,8 +152,11 @@ extension _DeviceServiceMountControls on DeviceService {
       throw Exception('No mount connected');
     }
 
-    await _backend.mountAbort(deviceId);
     final mountNotifier = _ref.read(mountStateProvider.notifier);
+    // Ends a home in progress too: the home watcher reads this flag and stops
+    // waiting for a mount the operator has just stopped.
+    mountNotifier.setHoming(false);
+    await _backend.mountAbort(deviceId);
     mountNotifier.setSlewing(false);
   }
 
@@ -187,8 +190,16 @@ extension _DeviceServiceMountControls on DeviceService {
     }
   }
 
-  /// Find mount home position
-  Future<void> _findMountHome() async {
+  /// Send the mount home and watch until it is there.
+  ///
+  /// Homing never parks and never unparks: a parked mount is refused here
+  /// rather than unparked behind the operator's back, and the parked flag is
+  /// left alone afterward. Tracking is left as the driver leaves it.
+  ///
+  /// Completes only once [MountHomeWatcher] has seen the mount move and stop;
+  /// a driver that accepts FindHome and does nothing is reported as a failure,
+  /// not a home. Abort slew stops it (see [_abortMountSlew]).
+  Future<MountHomeOutcome> _findMountHome() async {
     final deviceId = await _getMountDeviceId();
     if (deviceId == null || deviceId.isEmpty) {
       throw Exception('No mount connected');
@@ -197,19 +208,56 @@ extension _DeviceServiceMountControls on DeviceService {
     final mountNotifier = _ref.read(mountStateProvider.notifier);
     final operationsNotifier = _ref.read(activeOperationsProvider.notifier);
 
-    mountNotifier.setSlewing(true);
+    final before = await _backend.getMountStatus(deviceId);
+    if (before.parked) {
+      throw const MountHomeException(
+        'The mount is parked. Unpark it before sending it home.',
+      );
+    }
+
+    mountNotifier.setHoming(true);
     final operationId = operationsNotifier.startOperation(
-      type: OperationType.slewToTarget,
-      description: 'Finding mount home position',
+      type: OperationType.homeMount,
+      description: 'Sending the mount to its home position',
+      canCancel: true,
     );
 
     try {
       await _backend.mountFindHome(deviceId);
-      mountNotifier.setParked(false);
+      final watcher = _ref.read(mountHomeWatcherFactoryProvider)(
+        readStatus: () => _backend.getMountStatus(deviceId),
+        // Abort slew clears the homing flag; that is the operator stopping it.
+        isCancelled: () => !_ref.read(mountStateProvider).isHoming,
+      );
+      final MountHomeOutcome outcome;
+      try {
+        outcome = await watcher.watch(before);
+      } on MountHomeException catch (e) {
+        if (e.message == MountHomeWatcher.didNotMoveMessage) {
+          // A driver that ignored Home may still start late; stop it so it
+          // cannot move unwatched. Best effort: the report that it did not
+          // move is the error the operator needs.
+          try {
+            await _backend.mountAbort(deviceId);
+          } catch (abortError) {
+            _safeLog(
+              (l) => l.warning(
+                'Mount $deviceId ignored Home; the follow-up abort also '
+                'failed: $abortError',
+                source: 'DeviceService',
+              ),
+              'mount-home-abort',
+            );
+          }
+        }
+        rethrow;
+      }
+      mountNotifier.setHomeUnconfirmed(outcome == MountHomeOutcome.unconfirmed);
+      return outcome;
     } finally {
-      mountNotifier.setSlewing(false);
+      mountNotifier.setHoming(false);
       operationsNotifier.completeOperation(
-        OperationType.slewToTarget,
+        OperationType.homeMount,
         operationId: operationId,
       );
     }
