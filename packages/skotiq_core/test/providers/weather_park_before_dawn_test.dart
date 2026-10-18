@@ -98,8 +98,10 @@ void main() {
 
   /// Evaluate a clear night with park-before-dawn on, at [now].
   Future<({WeatherSafetyState state, List<String> safeRigReasons})> evaluateAt(
-    DateTime now,
-  ) async {
+    DateTime now, {
+    double latitude = _latitude,
+    double longitude = _longitude,
+  }) async {
     _RecordingSafeRigService? safeRig;
     final provider =
         StateNotifierProvider<WeatherSafetyNotifier, WeatherSafetyState>(
@@ -112,9 +114,9 @@ void main() {
         ),
         appSettingsProvider.overrideWith(
           () => _FakeAppSettingsNotifier(
-            const AppSettingsState(
-              latitude: _latitude,
-              longitude: _longitude,
+            AppSettingsState(
+              latitude: latitude,
+              longitude: longitude,
               safetyFailMode: SafetyFailMode.failClosed,
               parkOnUnsafeWeather: true,
               parkBeforeDawn: true,
@@ -181,6 +183,25 @@ void main() {
     verify(
       () => backend.sequencerUpdateWeatherVerdict(unsafeOverride: true),
     ).called(greaterThan(0));
+  });
+
+  test('with no observing site there is no dawn to park before', () async {
+    // The unset site reads as 0°, 0°. Twenty minutes before dawn THERE, a
+    // rig with no site on record was held unsafe and told dawn was coming.
+    final nullIslandDawn = SkyCalculations.computeTwilight(
+      noonLocal: DateTime(2026, 3, 15, 12),
+      latitudeDegrees: 0,
+      longitudeDegrees: 0,
+      kind: TwilightKind.astronomical,
+    ).morningStart!.toLocal();
+    final result = await evaluateAt(
+      nullIslandDawn.subtract(const Duration(minutes: 20)),
+      latitude: 0,
+      longitude: 0,
+    );
+
+    expect(result.state.status, WeatherSafetyStatus.safe);
+    expect(result.safeRigReasons, isEmpty);
   });
 
   test('three hours before dawn the same night is safe', () async {

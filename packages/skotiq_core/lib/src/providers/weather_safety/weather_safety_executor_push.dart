@@ -261,6 +261,10 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
 
   bool _isParkBeforeDawnDue(AppSettingsState? appSettings) {
     if (appSettings == null || !appSettings.parkBeforeDawn) return false;
+    // No site, no dawn. The unset site reads as 0°, 0°, and measuring dawn
+    // there parked (or announced "Astronomical dawn is approaching") half an
+    // hour before sunrise on Null Island: 00:20 on a US east-coast night.
+    if (!appSettings.hasObserverLocation) return false;
     final now = _clock();
     // The next dawn, not the dawn after today's noon. Dawn comes after
     // midnight, and from midnight on, "today's night" is the one that starts
