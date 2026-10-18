@@ -341,6 +341,7 @@ const Set<String> _ownershipRequiredPaths = {
   '/api/mount/park',
   '/api/mount/unpark',
   '/api/mount/abort',
+  '/api/mount/home',
   '/api/mount/find-home',
   '/api/mount/move-axis',
   '/api/mount/pulse-guide',
