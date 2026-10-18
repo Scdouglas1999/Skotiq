@@ -491,8 +491,9 @@ void main() {
     );
     await _drainAsyncFrames(tester);
 
-    expect(find.byKey(ImagingTutorialKeys.statsPanel), findsOneWidget,
-        reason: 'the frame-stats glass owns the top-left corner of the canvas');
+    expect(find.byKey(ImagingTutorialKeys.statsPanel), findsNothing,
+        reason: 'with no frame on screen nothing covers the canvas; the '
+            'frame-info pill arrives with the first frame');
     expect(find.text('17.3 °C'), findsWidgets,
         reason: 'The connected camera temperature must surface on the Capture '
             'section chip — a missing match means the cameraStateProvider '

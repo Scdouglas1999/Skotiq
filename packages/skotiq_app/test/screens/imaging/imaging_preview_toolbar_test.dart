@@ -108,8 +108,8 @@ void main() {
   testWidgets(
       'overlays_menu_label_is_not_squeezed_by_its_description: the Readouts '
       'row renders its label on one unbroken line', (tester) async {
-    // The Readouts row is the only one carrying a trailing description
-    // ("Histogram, HFR / stars, image stats"). Laid out beside the label it
+    // The Readouts row carries a trailing description ("Frame info, HFR and
+    // stars"). Laid out beside the label it
     // claimed its full intrinsic width first and left the label a ~29 px
     // sliver inside the popup's 296 px cap, so "Readouts" rendered broken
     // across two lines as "Rea" / "dou".
@@ -128,7 +128,7 @@ void main() {
 
     expect(find.text('Readouts'), findsOneWidget,
         reason: 'The Overlays popover must expose the Readouts row.');
-    expect(find.text('Histogram, HFR / stars, image stats'), findsOneWidget,
+    expect(find.text('Frame info, HFR and stars'), findsOneWidget,
         reason: 'The description must still be shown, just not competing with '
             'the label for the same line.');
 
@@ -146,6 +146,36 @@ void main() {
     expect(paragraph.didExceedMaxLines, isFalse,
         reason: 'The control name must not be ellipsised either: a label '
             'squeezed to "Rea…" is just as unreadable as one broken in half.');
+  });
+
+  testWidgets(
+      'sky_segment_hidden_without_a_reading: the meta line drops "Sky" when '
+      'there is no sky brightness to report', (tester) async {
+    _swallowKnownOverflows();
+    final handle = await pumpAppScreen(
+      tester,
+      const ImagingScreen(),
+      size: const Size(1600, 900),
+      settle: false,
+    );
+    await _drainAsyncFrames(tester);
+    addTearDown(() async => handle.database.close());
+
+    expect(
+      find.descendant(
+        of: find.byType(ImagingPreviewToolbar),
+        matching: find.text('Sky'),
+      ),
+      findsNothing,
+      reason: 'a field with no value is left out, not shown as "Sky —"',
+    );
+    expect(
+      find.descendant(
+        of: find.byType(ImagingPreviewToolbar),
+        matching: find.text('Bin'),
+      ),
+      findsOneWidget,
+    );
   });
 
   // W17 regression: `PopupMenuButton.constraints` bounds the OPENED MENU, not

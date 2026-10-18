@@ -46,10 +46,10 @@ class SubQualityBadge extends ConsumerWidget {
 
   /// Whether to draw the HFR / ECC / star chips.
   ///
-  /// False on the imaging canvas, where the glass readout in the top-left
-  /// corner already carries those three numbers and a second copy under the
-  /// capture bar is the same measurement said twice. The verdict chip — the
-  /// part no other surface shows — is drawn either way.
+  /// False where another surface on screen already carries those three
+  /// numbers, so the badge does not say the same measurement twice. The
+  /// verdict chip is drawn either way. The imaging canvas uses
+  /// [SubQualityVerdict] inside its frame-info pill instead.
   final bool showMetrics;
 
   const SubQualityBadge({
@@ -66,25 +66,8 @@ class SubQualityBadge extends ConsumerWidget {
     if (stats == null) return const SizedBox.shrink();
 
     final colors = SkotiqColors.of(context);
-    final rules = ref.watch(
-      scienceSettingsProvider.select(
-        (async) => async.valueOrNull?.resolvedFrameGradeRules(),
-      ),
-    );
-    // Live guiding RMS (arcseconds) only matters for the verdict; select the
-    // single field so the badge does not rebuild on every unrelated guide-stat
-    // tick. This is the same arcsecond value GuideHealthCard renders, compared
-    // against the arcsecond maxGuidingRmsTotalArcsec threshold.
-    final guidingRmsTotal = ref.watch(
-      guideStatsProvider.select((s) => s.rmsTotal),
-    );
-
-    // Prefer the live per-frame eccentricity now measured by the native star
-    // detector and carried on [ImageStats]; fall back to the injected
-    // science-row value only when the live frame did not measure it (too few
-    // reliable stars). Either may be null → rendered as `ECC —` and skipped by
-    // the grade rule, matching [FrameGradeRules.gradeStats] semantics.
-    final effectiveEccentricity = stats.eccentricity ?? eccentricity;
+    final grade = _grade(ref, stats, eccentricity);
+    final effectiveEccentricity = grade.eccentricity;
 
     final hfrText = stats.hfr != null ? stats.hfr!.toStringAsFixed(2) : '—';
     final eccText = effectiveEccentricity != null
@@ -92,20 +75,9 @@ class SubQualityBadge extends ConsumerWidget {
         : '—';
     final starText = stats.starCount != null ? '${stats.starCount}' : '—';
 
-    // PHD2 reports 0.0 as its "no data yet" sentinel for rolling RMS; treat
-    // that as "no guiding telemetry" so we never reject a frame on a phantom
-    // perfect-zero RMS before the guider has produced a sample.
-    final liveRms = guidingRmsTotal > 0 ? guidingRmsTotal : null;
-
-    final hasRules = rules != null && rules.hasActiveRules;
+    final hasRules = grade.hasRules;
     if (!showMetrics && !hasRules) return const SizedBox.shrink();
-    final rejectReason = hasRules
-        ? rules.gradeStats(
-            stats,
-            guidingRmsTotal: liveRms,
-            eccentricity: effectiveEccentricity,
-          )
-        : null;
+    final rejectReason = grade.rejectReason;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -140,6 +112,79 @@ class SubQualityBadge extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The live verdict for the frame on screen, graded exactly as the persisted
+/// auto-grader grades it.
+typedef _Grade = ({
+  bool hasRules,
+  String? rejectReason,
+  double? eccentricity,
+});
+
+_Grade _grade(WidgetRef ref, ImageStats stats, double? injectedEccentricity) {
+  final rules = ref.watch(
+    scienceSettingsProvider.select(
+      (async) => async.valueOrNull?.resolvedFrameGradeRules(),
+    ),
+  );
+  // Live guiding RMS (arcseconds) only matters for the verdict; select the
+  // single field so the badge does not rebuild on every unrelated guide-stat
+  // tick. This is the same arcsecond value GuideHealthCard renders, compared
+  // against the arcsecond maxGuidingRmsTotalArcsec threshold.
+  final guidingRmsTotal = ref.watch(
+    guideStatsProvider.select((s) => s.rmsTotal),
+  );
+
+  // Prefer the live per-frame eccentricity now measured by the native star
+  // detector and carried on [ImageStats]; fall back to the injected
+  // science-row value only when the live frame did not measure it (too few
+  // reliable stars). Either may be null → skipped by the grade rule, matching
+  // [FrameGradeRules.gradeStats] semantics.
+  final eccentricity = stats.eccentricity ?? injectedEccentricity;
+
+  // PHD2 reports 0.0 as its "no data yet" sentinel for rolling RMS; treat
+  // that as "no guiding telemetry" so we never reject a frame on a phantom
+  // perfect-zero RMS before the guider has produced a sample.
+  final liveRms = guidingRmsTotal > 0 ? guidingRmsTotal : null;
+
+  final hasRules = rules != null && rules.hasActiveRules;
+  return (
+    hasRules: hasRules,
+    rejectReason: hasRules
+        ? rules.gradeStats(
+            stats,
+            guidingRmsTotal: liveRms,
+            eccentricity: eccentricity,
+          )
+        : null,
+    eccentricity: eccentricity,
+  );
+}
+
+/// The ACCEPT / REJECT verdict on its own, for the canvas's frame-info pill.
+///
+/// The verdict used to float in its own glass box in the bottom-left corner of
+/// the image. It qualifies the same frame the pill names, so it rides inside
+/// that pill instead of claiming another corner. Collapses to nothing with no
+/// frame or no active grading rules.
+class SubQualityVerdict extends ConsumerWidget {
+  const SubQualityVerdict({super.key, this.eccentricity});
+
+  /// Per-frame eccentricity from the science row, or `null` when unavailable.
+  final double? eccentricity;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stats = ref.watch(lastImageStatsProvider);
+    if (stats == null) return const SizedBox.shrink();
+    final grade = _grade(ref, stats, eccentricity);
+    if (!grade.hasRules) return const SizedBox.shrink();
+    return _VerdictChip(
+      reason: grade.rejectReason,
+      colors: SkotiqColors.of(context),
     );
   }
 }

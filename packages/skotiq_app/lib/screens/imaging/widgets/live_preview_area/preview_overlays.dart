@@ -55,17 +55,20 @@ class _CompassScaleBarOverlay extends ConsumerWidget {
   final double zoomLevel;
   final PlateSolveData? plateSolve;
 
-  /// Whether the corner readouts (histogram bottom-left, image stats
-  /// bottom-right) are on screen. They are separately-anchored siblings in the
-  /// same stack, so the painters have to be told to stay off their corners —
-  /// otherwise the scale bar is drawn straight across the histogram plot and
-  /// the stats card lands on top of the compass rose.
-  final bool readoutsVisible;
+  /// Whether the bottom-left chip stack (science, guiding) may be on screen.
+  /// The corner glass is a separately-anchored sibling in the same stack, so
+  /// the scale bar has to be told to stay off that corner.
+  final bool bottomLeftOccupied;
+
+  /// Whether the opt-in histogram holds the bottom-right corner, where the
+  /// compass rose would otherwise be drawn under it.
+  final bool bottomRightOccupied;
 
   const _CompassScaleBarOverlay({
     required this.zoomLevel,
     required this.plateSolve,
-    required this.readoutsVisible,
+    required this.bottomLeftOccupied,
+    required this.bottomRightOccupied,
   });
 
   @override
@@ -88,7 +91,8 @@ class _CompassScaleBarOverlay extends ConsumerWidget {
             showCompass: showCompass,
             showScaleBar: showScaleBar,
             zoomLevel: zoomLevel,
-            readoutsVisible: readoutsVisible,
+            bottomLeftOccupied: bottomLeftOccupied,
+            bottomRightOccupied: bottomRightOccupied,
             colors: SkotiqColors.of(context),
           ),
         ),
@@ -104,7 +108,8 @@ class _CompassScaleBarCombinedPainter extends CustomPainter {
   final bool showCompass;
   final bool showScaleBar;
   final double zoomLevel;
-  final bool readoutsVisible;
+  final bool bottomLeftOccupied;
+  final bool bottomRightOccupied;
   final SkotiqColors colors;
 
   _CompassScaleBarCombinedPainter({
@@ -112,7 +117,8 @@ class _CompassScaleBarCombinedPainter extends CustomPainter {
     required this.showCompass,
     required this.showScaleBar,
     required this.zoomLevel,
-    required this.readoutsVisible,
+    required this.bottomLeftOccupied,
+    required this.bottomRightOccupied,
     required this.colors,
   });
 
@@ -121,7 +127,8 @@ class _CompassScaleBarCombinedPainter extends CustomPainter {
         pixelScaleArcsecPerPixel: plateSolve.pixelScale,
         imageWidthPixels: plateSolve.imageWidth.toDouble(),
         zoomLevel: zoomLevel,
-        bottomMargin: readoutsVisible ? PreviewReadoutInsets.bottomLeft : null,
+        bottomMargin:
+            bottomLeftOccupied ? PreviewReadoutInsets.bottomLeft : null,
       );
 
   /// The compass painter this widget draws with.
@@ -131,7 +138,7 @@ class _CompassScaleBarCombinedPainter extends CustomPainter {
   /// draw would put that resolve on every frame.
   late final CompassOverlayPainter _compass = CompassOverlayPainter(
     rotationDegrees: plateSolve.rotation,
-    bottomMargin: readoutsVisible ? PreviewReadoutInsets.bottomRight : null,
+    bottomMargin: bottomRightOccupied ? PreviewReadoutInsets.bottomRight : null,
     colors: colors,
   );
 
@@ -153,7 +160,8 @@ class _CompassScaleBarCombinedPainter extends CustomPainter {
         oldDelegate.showCompass != showCompass ||
         oldDelegate.showScaleBar != showScaleBar ||
         oldDelegate.zoomLevel != zoomLevel ||
-        oldDelegate.readoutsVisible != readoutsVisible ||
+        oldDelegate.bottomLeftOccupied != bottomLeftOccupied ||
+        oldDelegate.bottomRightOccupied != bottomRightOccupied ||
         oldDelegate.colors != colors;
   }
 }

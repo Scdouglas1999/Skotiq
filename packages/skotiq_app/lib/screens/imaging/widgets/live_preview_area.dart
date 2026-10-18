@@ -23,6 +23,7 @@ import 'narrator_ticker.dart';
 import 'overlay_painters.dart';
 import 'overlay_widgets.dart';
 import 'preview_display_scale.dart';
+import 'preview_histogram_visibility.dart';
 import 'science_hud.dart';
 import 'sub_quality_badge.dart';
 
@@ -84,6 +85,14 @@ const double _cornerReadoutBandHeight = 120.0;
 /// (`mockups/imaging.html`: 14 px).
 const double _hudInset = 14.0;
 
+/// The top of the row under the frame-info pill: the pill's inset, its height,
+/// and a small gap.
+const double _belowPillTop = _hudInset + _infoPillHeight + SkotiqTokens.spaceSm;
+
+/// The frame-info pill's rendered height with a badge in it: 22 px of chip plus
+/// its glass padding.
+const double _infoPillHeight = 36;
+
 /// Vertical room the capture bar needs above the canvas edge: its own height
 /// plus the gap it sits on plus the gap above it.
 const double _captureBarBand = SkotiqTokens.spaceLg + 48 + _hudInset;
@@ -104,8 +113,9 @@ double _histogramBottom({
   return clears ? _hudInset : _hudInset + _captureBarBand;
 }
 
-/// Whether the on-canvas measurement readouts — the histogram, the HFR / ECC /
-/// star-count chip and the image-stats panel — are drawn.
+/// Whether the on-canvas frame readouts — the frame-info pill and the
+/// bottom-left science / guiding chips — are drawn. The histogram has its own
+/// opt-in toggle, [previewHistogramVisibleProvider].
 ///
 /// Visibility is explicit and user-owned (Overlays → Readouts), defaulting on:
 /// nothing on this canvas disappears because of a timer. A pointer-idle fade
@@ -161,6 +171,7 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
     final onPanUpdate = widget.onPanUpdate;
     final currentImage = ref.watch(currentImageProvider);
     final readoutsVisible = ref.watch(previewReadoutsVisibleProvider);
+    final histogramVisible = ref.watch(previewHistogramVisibleProvider);
     final exposureProgress = ref.watch(exposureProgressProvider);
     final cameraState = ref.watch(cameraStateProvider);
     final starDetectionResult = ref.watch(starDetectionResultProvider);
@@ -220,13 +231,13 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
           (tile) => tile.layerType == ScienceLayerType.clipLow.dbValue,
         )
         .toList(growable: false);
-    // Representative per-frame eccentricity for the SubQualityBadge, derived
+    // Representative per-frame eccentricity for the frame verdict, derived
     // purely from the science tile metrics already watched above for
     // `currentFrameImageId`. Each eccentricity-layer tile carries its own
     // representative eccentricity in `value`; the median across tiles is a
     // robust single verdict that ignores a few hot corners. No new query or
     // analyzer is introduced — when no eccentricity tiles exist for the frame
-    // this is null and the badge honestly renders `ECC —`.
+    // this is null and the eccentricity rule is skipped.
     final frameEccentricity = _medianEccentricity(currentFrameTileMetrics);
     final sessionMovingCandidates = sessionId == null
         ? const <MovingObjectCandidateRow>[]
@@ -553,7 +564,8 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                     _CompassScaleBarOverlay(
                       zoomLevel: displayScale,
                       plateSolve: currentSkySolution.plateSolve,
-                      readoutsVisible: readoutsVisible,
+                      bottomLeftOccupied: readoutsVisible,
+                      bottomRightOccupied: histogramVisible,
                     ),
 
                   if (currentImage != null &&
@@ -667,37 +679,6 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                       ),
                     ),
 
-                  // Top-right: what the frame on screen is and when it
-                  // landed, with the raw-load and calibration badges that
-                  // qualify the SAME frame riding inside the one glass panel
-                  // rather than as two more floating boxes (05 §14: at most
-                  // four glass elements, one per corner).
-                  if (currentImage != null)
-                    Positioned(
-                      top: _hudInset,
-                      right: _hudInset,
-                      child: _readout(
-                        LastFrameStatusHud(
-                          trailing: <Widget>[
-                            if (currentImage.rawLoadStatus !=
-                                RawLoadStatus.idle)
-                              RawPreviewStatusBadge(
-                                status: currentImage.rawLoadStatus,
-                                colors: colors,
-                              ),
-                            // Surface whether the on-disk frame backing the
-                            // current preview has actually been through the
-                            // calibration pipeline. The provider only reports
-                            // true when the saved file path ended up at
-                            // `_cal.fits`, so an uncalibrated frame never
-                            // wears the badge.
-                            _CalibratedBadge(colors: colors),
-                          ],
-                        ),
-                        visible: readoutsVisible,
-                      ),
-                    ),
-
                   // Top-right science chrome column: the Night Narrator
                   // ticker (surface #2) over the Science HUD panel. Both fade
                   // with the rest of the corner readouts on idle. The ticker
@@ -709,7 +690,7 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                   // the two stack without overlapping when both are present.
                   if (viewportSize.height > 120)
                     Positioned(
-                      top: 56,
+                      top: _hudInset,
                       right: _hudInset,
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
@@ -736,17 +717,51 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                       ),
                     ),
 
-                  // Top-left: the frame's measurements (06 §Imaging).
-                  Positioned(
-                    top: _hudInset,
-                    left: _hudInset,
-                    child: _readout(
-                      FrameStatsHud(eccentricity: frameEccentricity),
-                      visible: readoutsVisible,
+                  // Top-left: the one frame-info pill (Imaging.dc.html) —
+                  // what the frame is, when it landed, HFR and stars, and the
+                  // badges that qualify the same frame: the raw-load state,
+                  // calibration, and the accept / reject verdict. They used to
+                  // be four separate glass boxes spread over three corners.
+                  if (currentImage != null)
+                    Positioned(
+                      top: _hudInset,
+                      left: _hudInset,
+                      child: _readout(
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: math.max(
+                              0,
+                              viewportSize.width - 2 * _hudInset,
+                            ),
+                          ),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.topLeft,
+                            child: FrameInfoPill(
+                              eccentricity: frameEccentricity,
+                              trailing: <Widget>[
+                                if (currentImage.rawLoadStatus !=
+                                    RawLoadStatus.idle)
+                                  RawPreviewStatusBadge(
+                                    status: currentImage.rawLoadStatus,
+                                    colors: colors,
+                                  ),
+                                // Only reports true when the saved file path
+                                // ended up at `_cal.fits`, so an uncalibrated
+                                // frame never wears the badge.
+                                _CalibratedBadge(colors: colors),
+                                SubQualityVerdict(
+                                  eccentricity: frameEccentricity,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        visible: readoutsVisible,
+                      ),
                     ),
-                  ),
 
-                  // Bottom-right: the histogram and the stretch in force.
+                  // Bottom-right, opt-in (Overlays → Histogram): the histogram.
                   //
                   // The capture bar is centred on the same edge. On a wide
                   // canvas the two clear each other; on a narrow one the bar
@@ -762,31 +777,22 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                     right: _hudInset,
                     child: _readout(
                       const HistogramHud(),
-                      visible: readoutsVisible,
+                      visible: histogramVisible,
                     ),
                   ),
 
-                  // Bottom-left at-a-glance quality stack: the tappable
-                  // FrameScienceChip over a per-sub quality verdict badge and
-                  // a live "Guiding" indicator. The chip leads so its touch
-                  // target sits furthest from the bottom-left histogram (which
-                  // occupies bottom:16 + 80px height); the whole stack is
-                  // anchored a full spaceLg above the histogram top so a long
-                  // REJECT verdict never crowds it, and constrained to the same
-                  // previewOverlayMaxWidth as the sibling overlays so it can't
-                  // run over the bottom-right ImageStatsOverlay. The detailed
-                  // ImageStatsOverlay continues to own the bottom-right corner.
-                  // All children self-gate on their own providers, so this
-                  // region is empty until there is something honest to show.
+                  // Bottom-left: the science calibration chip over the live
+                  // "Guiding" indicator. Both self-gate on their own
+                  // providers, so on most frames this corner is empty. The
+                  // accept / reject verdict that used to lead this stack now
+                  // rides in the frame-info pill, beside the frame it grades.
                   //
                   // Deliberately NOT wrapped in IgnorePointer: the children
-                  // expose hover tooltips (GuidingActiveChip's RMS-units note
-                  // and SubQualityBadge's reject-reason) that an IgnorePointer
-                  // would silently kill. Like the bottom-right ImageStatsOverlay
-                  // these are small, non-gesture corner widgets; they absorb the
-                  // pointer only within their own compact footprint, matching
-                  // that overlay's established pointer behaviour, and the rest
-                  // of the canvas keeps its pan/zoom gestures.
+                  // expose hover tooltips (GuidingActiveChip's RMS-units note)
+                  // and a tap target (FrameScienceChip) that an IgnorePointer
+                  // would silently kill. They absorb the pointer only within
+                  // their own compact footprint; the rest of the canvas keeps
+                  // its pan / zoom gestures.
                   if (currentImage != null)
                     Positioned(
                       bottom: _hudInset,
@@ -798,22 +804,13 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                               viewportSize.width,
                             ),
                           ),
-                          child: Column(
+                          child: const Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const FrameScienceChip(),
-                              const SizedBox(height: SkotiqTokens.spaceXs),
-                              // Verdict only. HFR / ECC / stars used to be
-                              // repeated here under the capture bar; 06 removes
-                              // the on-canvas HFR/stars box and the top-left
-                              // glass readout says those numbers once, louder.
-                              SubQualityBadge(
-                                eccentricity: frameEccentricity,
-                                showMetrics: false,
-                              ),
-                              const SizedBox(height: SkotiqTokens.spaceXs),
-                              const GuidingActiveChip(),
+                              FrameScienceChip(),
+                              SizedBox(height: SkotiqTokens.spaceXs),
+                              GuidingActiveChip(),
                             ],
                           ),
                         ),
@@ -821,10 +818,11 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                       ),
                     ),
 
-                  // Mini annotation object chips (top, below overlay bar)
+                  // Mini annotation object chips, in the row under the
+                  // frame-info pill so the two never overlap.
                   if (currentImage != null)
                     Positioned(
-                      top: 44,
+                      top: _belowPillTop,
                       left: 8,
                       right: 8,
                       child: AnnotationMiniChips(colors: colors),
