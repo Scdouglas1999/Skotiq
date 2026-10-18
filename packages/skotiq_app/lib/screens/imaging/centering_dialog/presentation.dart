@@ -9,15 +9,27 @@ Future<CenteringResult?> showCenteringDialog({
   double? targetRa,
   double? targetDec,
   String? targetName,
+  VoidCallback? onRunEnded,
 }) {
   final overlay = Overlay.of(context, rootOverlay: true);
   final existing = _centeringPresentations[overlay];
   if (existing != null) {
-    existing.key.currentState?._restore();
+    final state = existing.key.currentState;
+    state?._restore();
+    if (onRunEnded != null) {
+      // A run already in flight reports its end to this caller too; a dialog
+      // resting on a result has no run to wait for.
+      if (state != null && state._isCentering) {
+        existing.runEndedListeners.add(onRunEnded);
+      } else {
+        onRunEnded();
+      }
+    }
     return existing.result.future;
   }
 
   final presentation = _CenteringPresentation();
+  if (onRunEnded != null) presentation.runEndedListeners.add(onRunEnded);
   _centeringPresentations[overlay] = presentation;
   final container = ProviderScope.containerOf(context);
   final themes = InheritedTheme.capture(from: context, to: overlay.context);
@@ -39,6 +51,7 @@ Future<CenteringResult?> showCenteringDialog({
         targetDec: targetDec,
         targetName: targetName,
         onClose: close,
+        onRunEnded: presentation.notifyRunEnded,
       )),
     ),
   );
@@ -55,6 +68,17 @@ Future<CenteringResult?> showCenteringDialog({
 class _CenteringPresentation {
   final key = GlobalKey<_CenteringDialogState>();
   final result = Completer<CenteringResult?>();
+
+  /// Callers waiting on the current run, each told once.
+  final runEndedListeners = <VoidCallback>[];
+
+  void notifyRunEnded() {
+    final listeners = List<VoidCallback>.of(runEndedListeners);
+    runEndedListeners.clear();
+    for (final listener in listeners) {
+      listener();
+    }
+  }
 }
 
 extension _CenteringPresentationWidgets on _CenteringDialogState {

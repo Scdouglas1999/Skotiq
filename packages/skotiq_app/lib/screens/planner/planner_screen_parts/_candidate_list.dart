@@ -10,6 +10,21 @@ const double _kPlannerDetailWidth = 380;
 /// default so the label and the number describe the same threshold.
 const double _kPlannerDefaultMinAltitude = 30;
 
+/// The column widths every candidate row and the header above them share.
+///
+/// Fixed rather than measured per row: "00:46 · 84°" is the widest transit
+/// readout and "Image tonight" the widest action, and a row sized to its own
+/// button put its readouts somewhere else than the row beneath it.
+const CandidateColumns _kPlannerCandidateColumns = CandidateColumns(
+  readoutWidth: 96,
+  actionWidth: 120,
+);
+
+/// Below this list width the fixed columns would squeeze the target's name to
+/// nothing, so the rows size their columns to content and the header drops
+/// the column names.
+const double _kPlannerCandidateGridFloor = 720;
+
 class _CandidateList extends ConsumerWidget {
   final List<TargetSuggestion> candidates;
   final SkotiqColors colors;
@@ -48,6 +63,43 @@ class _CandidateList extends ConsumerWidget {
     final hasRisks = riskFactors.isNotEmpty;
     final leading = hasRisks ? 2 : 1;
 
+    return LayoutBuilder(
+      builder: (context, constraints) => _buildList(
+        context,
+        ref,
+        l10n: l10n,
+        visible: visible,
+        visibleCount: visibleCount,
+        minAltitude: minAltitude,
+        night: night,
+        query: query,
+        hasLookups: hasLookups,
+        hasLoadMore: hasLoadMore,
+        hasRisks: hasRisks,
+        leading: leading,
+        columns: constraints.maxWidth - 2 * SkotiqTokens.space2xl >=
+                _kPlannerCandidateGridFloor
+            ? _kPlannerCandidateColumns
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildList(
+    BuildContext context,
+    WidgetRef ref, {
+    required SkotiqLocalizations l10n,
+    required List<TargetSuggestion> visible,
+    required int visibleCount,
+    required double minAltitude,
+    required _PlannerNightWindow? night,
+    required String query,
+    required bool hasLookups,
+    required bool hasLoadMore,
+    required bool hasRisks,
+    required int leading,
+    required CandidateColumns? columns,
+  }) {
     return ListView.separated(
       controller: scrollController,
       padding: const EdgeInsets.symmetric(
@@ -70,6 +122,7 @@ class _CandidateList extends ConsumerWidget {
               total: candidates.length,
               shown: visible.length,
             ),
+            columns: columns,
           );
         }
         final rowIndex = index - leading;
@@ -106,6 +159,7 @@ class _CandidateList extends ConsumerWidget {
           selected: selected,
           minAltitude: minAltitude,
           night: night,
+          columns: columns,
           onSelect: () => onSelect(candidate),
         );
       },
@@ -135,52 +189,51 @@ String _candidateCountLabel(
 }
 
 /// The column-header row above the candidates: the count on the left and the
-/// three measured columns named on the right, all in `eyebrow`.
+/// three measured columns named over their values, all in `eyebrow`.
 class _CandidateColumnHeader extends StatelessWidget {
   final String count;
 
-  const _CandidateColumnHeader({required this.count});
+  /// The widths the rows beneath use, or null when the list is too narrow
+  /// for fixed columns and the rows size them to content.
+  final CandidateColumns? columns;
 
-  /// Below this the column names are dropped: a `Candidate` narrower than this
-  /// has already given its measurements up to the name, so naming columns that
-  /// are not there would be the header describing a row nobody can see.
-  static const double _columnNamesFloor = 560;
+  const _CandidateColumnHeader({required this.count, required this.columns});
 
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final l10n = context.l10n;
-    final style = SkotiqTypography.eyebrow.copyWith(color: colors.textMuted);
+    final countLabel = Text(
+      count.toUpperCase(),
+      style: SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+    final grid = columns;
 
     return Padding(
-      padding: const EdgeInsets.only(
-        left: Candidate.badgeSize + Candidate.columnGap,
-        bottom: SkotiqTokens.spaceXs,
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) => Row(
-          children: [
-            Expanded(
-              child: Text(
-                count.toUpperCase(),
-                style: style,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+      padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceXs),
+      // Without fixed columns there is nothing for a name to line up with, so
+      // naming them would be the header describing positions no row uses.
+      child: grid == null
+          ? Padding(
+              padding: const EdgeInsets.only(
+                left: Candidate.padding +
+                    Candidate.outlineWidth +
+                    Candidate.badgeSize +
+                    Candidate.columnGap,
               ),
+              child: countLabel,
+            )
+          : CandidateHeader(
+              leading: countLabel,
+              readoutLabels: [
+                l10n.text('plannerColTransit'),
+                l10n.text('plannerColImageable'),
+              ],
+              windowLabel: l10n.text('plannerColWindow'),
+              columns: grid,
             ),
-            if (constraints.maxWidth >= _columnNamesFloor) ...[
-              Text(l10n.text('plannerColTransit').toUpperCase(), style: style),
-              const SizedBox(width: SkotiqTokens.space2xl),
-              Text(
-                l10n.text('plannerColImageable').toUpperCase(),
-                style: style,
-              ),
-              const SizedBox(width: SkotiqTokens.space2xl),
-              Text(l10n.text('plannerColWindow').toUpperCase(), style: style),
-            ],
-          ],
-        ),
-      ),
     );
   }
 }
@@ -191,6 +244,7 @@ class _PlannerCandidateRow extends ConsumerWidget {
   final bool selected;
   final double minAltitude;
   final _PlannerNightWindow? night;
+  final CandidateColumns? columns;
   final VoidCallback onSelect;
 
   const _PlannerCandidateRow({
@@ -199,6 +253,7 @@ class _PlannerCandidateRow extends ConsumerWidget {
     required this.selected,
     required this.minAltitude,
     required this.night,
+    required this.columns,
     required this.onSelect,
   });
 
@@ -220,6 +275,8 @@ class _PlannerCandidateRow extends ConsumerWidget {
       detail: _candidateDetailLine(suggestion),
       selected: selected,
       onTap: onSelect,
+      columns: columns,
+      dense: true,
       readouts: [
         Readout(
           value: _transitValue(visibility),

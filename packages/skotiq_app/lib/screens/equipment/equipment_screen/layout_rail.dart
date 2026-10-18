@@ -139,12 +139,19 @@ class _EquipmentSidePanel extends ConsumerWidget {
     final collapsed = ref.watch(equipmentStatusRailCollapsedProvider);
     return SidePanel(
       collapsed: collapsed,
-      child: SingleChildScrollView(
-        child: _SidePanelContent(
-          selectedProfile: selectedProfile,
-          onSettings: onSettings,
-          onEditProfile: onEditProfile,
-          onDisconnectAll: onDisconnectAll,
+      // SidePanel centers its child on the cross axis, and a scroll view
+      // shorter than the panel shrinks to its content, so a short readiness
+      // list floated the profile block ~90px down the column. Pin it to the
+      // top instead.
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: SingleChildScrollView(
+          child: _SidePanelContent(
+            selectedProfile: selectedProfile,
+            onSettings: onSettings,
+            onEditProfile: onEditProfile,
+            onDisconnectAll: onDisconnectAll,
+          ),
         ),
       ),
     );

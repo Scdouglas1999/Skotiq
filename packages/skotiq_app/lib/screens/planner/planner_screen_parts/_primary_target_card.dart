@@ -21,7 +21,11 @@ class _TargetDetailColumn extends ConsumerWidget {
   });
 
   /// Height of the field preview at the top of the column.
-  static const double _previewHeight = 150;
+  ///
+  /// The well holds only the target's extent against the frame, never a sky
+  /// image, so at 150px it was mostly empty dark box while the facts below
+  /// were pushed out under the action footer.
+  static const double _previewHeight = 96;
 
   /// Height of the altitude well.
   static const double _altitudeHeight = 110;

@@ -48,15 +48,34 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
     SkotiqColors colors,
     ThemeData theme,
   ) {
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: clampPanelWidth(
-          MediaQuery.sizeOf(context).height,
-          fraction: 0.45,
-          min: 200,
-          max: 400,
+    final maxHeight = clampPanelWidth(
+      MediaQuery.sizeOf(context).height,
+      fraction: 0.45,
+      min: 200,
+      max: 400,
+    );
+    final aspect = imageData.width > 0 && imageData.height > 0
+        ? imageData.width / imageData.height
+        : 1.0;
+    // The pane takes the frame's own shape. A box of a fixed height letterboxed
+    // a 4656x3520 frame with a dark band, floated the size badge below the
+    // image, and stood taller than the status column beside it. Aligned so the
+    // ratio can shrink the width when the height cap binds.
+    return Align(
+      alignment: Alignment.topCenter,
+      heightFactor: 1,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: AspectRatio(
+          aspectRatio: aspect,
+          child: _buildImagePane(imageData, colors),
         ),
       ),
+    );
+  }
+
+  Widget _buildImagePane(CapturedImageData imageData, SkotiqColors colors) {
+    return Container(
       decoration: BoxDecoration(
         color: colors.background,
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
@@ -67,6 +86,7 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusButton),
         child: Stack(
+          fit: StackFit.expand,
           children: [
             // Image
             Center(

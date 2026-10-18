@@ -25,12 +25,19 @@ class CenteringDialog extends ConsumerStatefulWidget {
   final String? targetName;
   final ValueChanged<CenteringResult?>? onClose;
 
+  /// Called each time a centering run this dialog started ends, however it
+  /// ended: centered, failed, aborted, or refused before the first exposure.
+  /// The dialog itself stays open on the result, so a caller that shows a busy
+  /// state for the run needs this rather than the dialog's close.
+  final VoidCallback? onRunEnded;
+
   const CenteringDialog({
     super.key,
     this.targetRa,
     this.targetDec,
     this.targetName,
     this.onClose,
+    this.onRunEnded,
   });
 
   @override
@@ -521,6 +528,14 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog> {
       _exposureError = null;
     });
 
+    try {
+      await _runCentering(exposureTime);
+    } finally {
+      widget.onRunEnded?.call();
+    }
+  }
+
+  Future<void> _runCentering(double exposureTime) async {
     final centeringService = ref.read(centeringServiceProvider);
 
     // Pre-flight the user's actual selection (including ASTAP's catalog), not
