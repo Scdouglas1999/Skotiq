@@ -54,7 +54,7 @@ extension _ProfileEditorShellAndIdentity on _ProfileEditorDialogState {
     ];
   }
 
-  /// The same footer for the embedded Optical train page, which has no dialog
+  /// The same footer for the embedded Profiles page, which has no dialog
   /// chrome to lay the actions out for it.
   Widget _buildFooter(SkotiqColors colors) {
     return Padding(

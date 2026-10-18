@@ -379,13 +379,26 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
                       children: [
                         _buildValidationBanner(colors),
                         _buildOpticalTrainSection(colors, theme),
+                        // Under the form it saves, not pinned to the window's
+                        // bottom-right corner: the section is a few rows tall,
+                        // and the page footer left Save a screen away from it.
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            top: SkotiqTokens.spaceLg,
+                          ),
+                          child: Wrap(
+                            alignment: WrapAlignment.end,
+                            spacing: SkotiqTokens.spaceSm,
+                            runSpacing: SkotiqTokens.spaceSm,
+                            children: _footerActions(),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
               ),
             ),
-            _buildFooter(colors),
           ],
         ),
       );
