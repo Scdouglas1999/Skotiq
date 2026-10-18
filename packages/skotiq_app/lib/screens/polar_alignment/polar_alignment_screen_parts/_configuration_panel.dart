@@ -33,6 +33,10 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
                     _buildSettingsLockedNote(colors),
                     const SizedBox(height: 12),
                   ],
+                  if (state.phase == PolarAlignPhase.idle) ...[
+                    _buildIdleGuide(colors),
+                    const SizedBox(height: SkotiqTokens.spaceLg),
+                  ],
                   // Essential settings - always visible
                   _buildSectionHeader(
                       colors, 'Essential', SkotiqIcons.settings),
@@ -64,16 +68,15 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
                         colors, 'Adjustment tips', SkotiqIcons.idea),
                     const SizedBox(height: 12),
                     _buildAdjustmentTips(colors),
-                    if (state.currentError != null) ...[
-                      const SizedBox(height: 16),
-                      _buildAdjustmentGuidance(colors, state.currentError!),
-                    ],
                   ],
 
                   // History panel (shown when toggled)
                   if (ui.showHistoryPanel) ...[
                     const SizedBox(height: 24),
-                    _buildHistoryPanel(colors),
+                    KeyedSubtree(
+                      key: _historyPanelKey,
+                      child: _buildHistoryPanel(colors),
+                    ),
                   ],
                 ],
               ),

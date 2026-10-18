@@ -1,4 +1,4 @@
-// Polar alignment error visualizations: the sparkline error-trend chart (public ErrorTrendChart), the bullseye overlay painter, and the radar-style live error indicator.
+// Polar alignment error visualizations: the sparkline error-trend chart (public ErrorTrendChart) and the auto-scaling error bullseye.
 part of '../polar_alignment_screen.dart';
 
 // Task 4.5: error trend sparkline chart
@@ -145,107 +145,7 @@ class _SparklinePainter extends CustomPainter {
   }
 }
 
-// Bullseye and polar error visualization painters
-
-class _BullseyeOverlayPainter extends CustomPainter {
-  final SkotiqColors colors;
-  final double? azimuthError;
-  final double? altitudeError;
-
-  _BullseyeOverlayPainter({
-    required this.colors,
-    this.azimuthError,
-    this.altitudeError,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final maxRadius =
-        (size.width < size.height ? size.width : size.height) / 2 - 40;
-
-    // Scale: 120 arcseconds = maxRadius
-    final scale = maxRadius / 120.0;
-
-    // Draw concentric rings at 30", 60", 120"
-    final ringPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-
-    for (final arcsec in [30.0, 60.0, 120.0]) {
-      ringPaint.color = arcsec == 30.0
-          ? colors.success.withValues(alpha: 0.6)
-          : arcsec == 60.0
-              ? colors.warning.withValues(alpha: 0.6)
-              : colors.error.withValues(alpha: 0.6);
-      canvas.drawCircle(center, arcsec * scale, ringPaint);
-
-      // Draw labels
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: '${arcsec.toInt()}"',
-          style: TextStyle(
-            fontSize: SkotiqTypography.fontSize10,
-            color: ringPaint.color,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(
-            center.dx + arcsec * scale + 4, center.dy - textPainter.height / 2),
-      );
-    }
-
-    // Draw crosshairs
-    final crossPaint = Paint()
-      ..color = colors.textMuted.withValues(alpha: 0.4)
-      ..strokeWidth = 1;
-    canvas.drawLine(
-      Offset(center.dx - maxRadius, center.dy),
-      Offset(center.dx + maxRadius, center.dy),
-      crossPaint,
-    );
-    canvas.drawLine(
-      Offset(center.dx, center.dy - maxRadius),
-      Offset(center.dx, center.dy + maxRadius),
-      crossPaint,
-    );
-
-    // Draw center target
-    final targetPaint = Paint()
-      ..color = colors.primary
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, 6, targetPaint);
-
-    // Draw error position
-    if (azimuthError != null && altitudeError != null) {
-      final errorX = azimuthError!.clamp(-120.0, 120.0) * scale;
-      final errorY = -altitudeError!.clamp(-120.0, 120.0) *
-          scale; // Negative because screen Y is inverted
-      final errorPos = Offset(center.dx + errorX, center.dy + errorY);
-
-      // Draw line from center to error position
-      final linePaint = Paint()
-        ..color = colors.error.withValues(alpha: 0.5)
-        ..strokeWidth = 2;
-      canvas.drawLine(center, errorPos, linePaint);
-
-      final errorPaint = Paint()
-        ..color = colors.error
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(errorPos, 8, errorPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _BullseyeOverlayPainter oldDelegate) {
-    return oldDelegate.azimuthError != azimuthError ||
-        oldDelegate.altitudeError != altitudeError;
-  }
-}
+// Polar error bullseye
 
 class _PolarErrorVisualization extends StatelessWidget {
   final SkotiqColors colors;
@@ -279,6 +179,80 @@ class _PolarErrorVisualization extends StatelessWidget {
   }
 }
 
+/// Outer-ring scales the TPPA bullseye steps through, in arcseconds.
+///
+/// The finest is the classic 120"/60"/30" target. The rest exist because the
+/// first measurement on a mount set up by eye is routinely several arcminutes
+/// to degrees off, and a fixed 120" target pinned every such marker to the rim
+/// — it did not move while the operator turned a bolt, which is the one thing
+/// a bullseye is for.
+const List<double> kPolarBullseyeScalesArcsec = <double>[
+  120,
+  240,
+  600,
+  1200,
+  2400,
+  7200,
+  14400,
+  36000,
+  72000,
+];
+
+/// The bullseye's outer-ring scale for an error of ([azimuth], [altitude])
+/// arcseconds: the finest scale that contains the marker, so the marker sits
+/// inside the rings and moves as the error changes. As the error shrinks the
+/// target zooms in, step by step, to the 120" target.
+double polarBullseyeOuterScaleArcsec(double? azimuth, double? altitude) {
+  if (azimuth == null || altitude == null) {
+    return kPolarBullseyeScalesArcsec.first;
+  }
+  final magnitude = math.sqrt(azimuth * azimuth + altitude * altitude);
+  if (!magnitude.isFinite) return kPolarBullseyeScalesArcsec.last;
+  for (final scale in kPolarBullseyeScalesArcsec) {
+    if (magnitude <= scale) return scale;
+  }
+  return kPolarBullseyeScalesArcsec.last;
+}
+
+/// A ring label: arcseconds up to the finest outer ring (120"), arcminutes
+/// below a degree, then degrees — the unit the operator would say out loud.
+String polarBullseyeRingLabel(double arcsec) {
+  String trim(double v) {
+    final fixed = v.toStringAsFixed(1);
+    return fixed.endsWith('.0') ? fixed.substring(0, fixed.length - 2) : fixed;
+  }
+
+  // The finest target keeps its familiar 120"/60"/30" labels.
+  if (arcsec <= kPolarBullseyeScalesArcsec.first) return '${trim(arcsec)}"';
+  if (arcsec < 3600) return "${trim(arcsec / 60)}'";
+  return '${trim(arcsec / 3600)}°';
+}
+
+/// Gap between a bullseye ring and its label.
+const double kPolarBullseyeLabelGap = 4;
+
+/// Largest outer-ring radius. Beyond this a bigger target only spreads the
+/// same three rings further apart; it shows nothing more.
+const double kPolarBullseyeMaxRadius = 300;
+
+/// The bullseye's outer-ring radius in a paint area of [size], leaving room
+/// for the outer ring's label, [labelWidth] wide, beside it.
+///
+/// The radius used to be half the short side less 20px, but the label is
+/// drawn 4px OUTSIDE the ring and is wider than the 16px that left, so in a
+/// square-ish column the outer label — and on a wide one the ring itself —
+/// was cut off at the column edge.
+double polarBullseyeOuterRadius(Size size, double labelWidth) {
+  final horizontal = size.width / 2 - kPolarBullseyeLabelGap - labelWidth;
+  final vertical = size.height / 2;
+  final fit = horizontal < vertical ? horizontal : vertical;
+  if (fit <= 0) return 0;
+  return fit < kPolarBullseyeMaxRadius ? fit : kPolarBullseyeMaxRadius;
+}
+
+/// The style of a bullseye ring label, before its colour.
+const TextStyle kPolarBullseyeLabelStyle = SkotiqTypography.caption;
+
 class _PolarErrorPainter extends CustomPainter {
   final SkotiqColors colors;
   final PolarAlignmentError? error;
@@ -292,26 +266,44 @@ class _PolarErrorPainter extends CustomPainter {
     required this.pulseValue,
   });
 
+  TextPainter _ringLabel(String text) => TextPainter(
+        text: TextSpan(
+          text: text,
+          style: kPolarBullseyeLabelStyle.copyWith(color: colors.textMuted),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+  /// Zone colour for a ring at [arcsec]: the same 30"/60" grading the error
+  /// readouts use, so a coarse-scale target is honestly all red.
+  Color _zoneColor(double arcsec) {
+    if (arcsec <= 30) return colors.success;
+    if (arcsec <= 60) return colors.warning;
+    return colors.error;
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final maxRadius =
-        size.width < size.height ? size.width / 2 - 20 : size.height / 2 - 20;
-
-    // Draw error zones (120", 60", 30")
-    final zones = [
-      (120.0, colors.error.withValues(alpha: 0.1)),
-      (60.0, colors.warning.withValues(alpha: 0.1)),
-      (30.0, colors.success.withValues(alpha: 0.1)),
+    final hasMeasurement = error != null && phase != PolarAlignPhase.idle;
+    final outerScale = hasMeasurement
+        ? polarBullseyeOuterScaleArcsec(
+            error!.azimuthError,
+            error!.altitudeError,
+          )
+        : kPolarBullseyeScalesArcsec.first;
+    // Outer, half and quarter: 120"/60"/30" on the finest scale.
+    final rings = [outerScale, outerScale / 2, outerScale / 4];
+    final labels = [
+      for (final arcsec in rings) _ringLabel(polarBullseyeRingLabel(arcsec)),
     ];
+    final maxRadius = polarBullseyeOuterRadius(size, labels.first.width);
+    if (maxRadius <= 0) return;
 
-    for (final (errorVal, color) in zones) {
-      final radius = maxRadius * (errorVal / 120.0);
-      canvas.drawCircle(
-        center,
-        radius,
-        Paint()..color = color,
-      );
+    for (final arcsec in rings) {
+      final color = _zoneColor(arcsec).withValues(alpha: 0.1);
+      final radius = maxRadius * (arcsec / outerScale);
+      canvas.drawCircle(center, radius, Paint()..color = color);
       canvas.drawCircle(
         center,
         radius,
@@ -344,7 +336,6 @@ class _PolarErrorPainter extends CustomPainter {
     // The gate is the MEASUREMENT, not the phase: gating on `adjusting` snaps a
     // finished run's marker back to dead centre and captions it "No measurement
     // yet" while the row beneath reports the final error.
-    final hasMeasurement = error != null && phase != PolarAlignPhase.idle;
     if (hasMeasurement) {
       final targetRadius = 8.0 + pulseValue * 4;
       canvas.drawCircle(
@@ -369,35 +360,36 @@ class _PolarErrorPainter extends CustomPainter {
       );
     }
 
-    // Draw error position
     if (hasMeasurement) {
-      final scale = maxRadius / 120.0; // 120 arcseconds = max radius
-      final errorX = error!.azimuthError.clamp(-120.0, 120.0) * scale;
-      final errorY = -error!.altitudeError.clamp(-120.0, 120.0) * scale;
-      final errorPos = Offset(center.dx + errorX, center.dy + errorY);
-
-      canvas.drawCircle(
-        errorPos,
-        6,
-        Paint()..color = colors.error,
-      );
+      // Clamped RADIALLY, past the coarsest scale only. Clamping each axis
+      // to the square put every large error on the same 45° corner, outside
+      // the outer ring, whatever its direction.
+      final scale = maxRadius / outerScale;
+      var dx = error!.azimuthError * scale;
+      var dy = -error!.altitudeError * scale;
+      final reach = math.sqrt(dx * dx + dy * dy);
+      if (reach.isFinite && reach > maxRadius) {
+        dx *= maxRadius / reach;
+        dy *= maxRadius / reach;
+      }
+      if (dx.isFinite && dy.isFinite) {
+        canvas.drawCircle(
+          Offset(center.dx + dx, center.dy + dy),
+          6,
+          Paint()..color = colors.error,
+        );
+      }
     }
 
-    // Draw labels
-    final textPainter = TextPainter(textDirection: TextDirection.ltr);
-    final labels = ['120"', '60"', '30"'];
-    final positions = [120.0, 60.0, 30.0];
+    // Ring labels, just outside each ring on the horizontal axis.
     for (int i = 0; i < labels.length; i++) {
-      final radius = maxRadius * (positions[i] / 120.0);
-      textPainter.text = TextSpan(
-        text: labels[i],
-        style: TextStyle(
-            fontSize: SkotiqTypography.fontSize9, color: colors.textMuted),
-      );
-      textPainter.layout();
-      textPainter.paint(
+      final radius = maxRadius * (rings[i] / outerScale);
+      labels[i].paint(
         canvas,
-        Offset(center.dx + radius + 4, center.dy - textPainter.height / 2),
+        Offset(
+          center.dx + radius + kPolarBullseyeLabelGap,
+          center.dy - labels[i].height / 2,
+        ),
       );
     }
   }

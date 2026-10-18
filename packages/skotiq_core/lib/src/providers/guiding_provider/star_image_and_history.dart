@@ -8,9 +8,16 @@ final starImageSizeProvider = StateProvider<int>((ref) => 50);
 /// Provider for star image polling interval (milliseconds)
 final starImagePollIntervalProvider = StateProvider<int>((ref) => 500);
 
-/// Provider for star image data
+/// Provider for star image data.
+///
+/// Auto-disposed: the poll runs only while something shows the image. Kept
+/// alive, it went on polling PHD2 twice a second for as long as PHD2 looped,
+/// whether or not the Guiding screen was open.
 final starImageProvider =
-    StateNotifierProvider<StarImageNotifier, AsyncValue<Phd2StarImage>>((ref) {
+    StateNotifierProvider.autoDispose<
+      StarImageNotifier,
+      AsyncValue<Phd2StarImage>
+    >((ref) {
       return StarImageNotifier(ref);
     });
 
@@ -22,16 +29,20 @@ class StarImageNotifier extends StateNotifier<AsyncValue<Phd2StarImage>> {
   bool _pollInFlight = false;
 
   StarImageNotifier(this.ref) : super(const AsyncValue.loading()) {
-    // Start polling when guiding or looping
+    // Poll while PHD2 is producing frames. `fireImmediately`, because this
+    // notifier is first read when the Guiding screen opens: if PHD2 was
+    // already looping by then, a change-only listener never fired, nothing
+    // polled, and the guide-star panel sat on "Waiting for image..." for as
+    // long as the loop ran.
     ref.listen<Phd2State>(phd2StateProvider, (previous, next) {
       if (next == Phd2State.guiding ||
           next == Phd2State.looping ||
           next == Phd2State.calibrating) {
         _startPolling();
-      } else {
+      } else if (previous != null) {
         _stopPolling();
       }
-    });
+    }, fireImmediately: true);
 
     // Stop polling and reset state when PHD2 disconnects
     ref.listen<GuiderState>(guiderStateProvider, (previous, next) {

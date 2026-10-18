@@ -59,138 +59,40 @@ extension _HistoryPanel on _PolarAlignmentScreenState {
     );
   }
 
-  /// Task 4.2: Adjustment magnitude guidance widget
-  Widget _buildAdjustmentGuidance(
+  /// How large a turn the current total error calls for, as a heading and a
+  /// one-line hint, in the error's colour.
+  Widget _buildAdjustmentMagnitude(
       SkotiqColors colors, PolarAlignmentError error) {
-    // Calculate magnitude categories based on total error in arcseconds
     final totalArcsec = error.totalError;
+    final (String magnitudeText, String adjustmentHint, Color magnitudeColor) =
+        totalArcsec < 10
+            ? ('Micro adjustments', 'Barely touch the knobs', colors.success)
+            : totalArcsec < 30
+                ? ('1/8 turn', 'Very small movements', colors.success)
+                : totalArcsec < 60
+                    ? ('1/4 turn', 'Small, careful movements', colors.info)
+                    : totalArcsec < 120
+                        ? ('1/2 turn', 'Medium adjustments', colors.warning)
+                        : (
+                            'Large adjustments',
+                            'Significant correction needed',
+                            colors.error,
+                          );
 
-    // Determine adjustment magnitude
-    String magnitudeText;
-    String adjustmentHint;
-    Color magnitudeColor;
-    IconData magnitudeIcon;
-
-    if (totalArcsec < 10) {
-      magnitudeText = 'Micro adjustments';
-      adjustmentHint = 'Barely touch the knobs';
-      magnitudeColor = colors.success;
-      magnitudeIcon = SkotiqIcons.success;
-    } else if (totalArcsec < 30) {
-      magnitudeText = '1/8 turn';
-      adjustmentHint = 'Very small movements';
-      magnitudeColor = colors.success;
-      magnitudeIcon = SkotiqIcons.arrowRight;
-    } else if (totalArcsec < 60) {
-      magnitudeText = '1/4 turn';
-      adjustmentHint = 'Small, careful movements';
-      magnitudeColor = colors.info;
-      magnitudeIcon = SkotiqIcons.arrowRight;
-    } else if (totalArcsec < 120) {
-      magnitudeText = '1/2 turn';
-      adjustmentHint = 'Medium adjustments';
-      magnitudeColor = colors.warning;
-      magnitudeIcon = LucideIcons.alertCircle;
-    } else {
-      magnitudeText = 'Large adjustments';
-      adjustmentHint = 'Significant correction needed';
-      magnitudeColor = colors.error;
-      magnitudeIcon = SkotiqIcons.warning;
-    }
-
-    // Direction indicators
-    final azDirection = error.azimuthAdjustment;
-    final altDirection = error.altitudeAdjustment;
-    final azMagnitude = error.azimuthError.abs();
-    final altMagnitude = error.altitudeError.abs();
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: SkotiqDecorations.emphasisSurface(
-        magnitudeColor,
-        borderRadius: SkotiqTokens.borderRadiusInline8,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(magnitudeIcon, size: 16, color: magnitudeColor),
-              const SizedBox(width: 8),
-              Text(
-                magnitudeText,
-                style: SkotiqTypography.h6.copyWith(color: magnitudeColor),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            adjustmentHint,
-            style: TextStyle(
-              fontSize: SkotiqTypography.fontSize11,
-              color: colors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Azimuth direction
-          if (azMagnitude > 1)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                children: [
-                  Icon(
-                    error.azimuthError > 0
-                        ? SkotiqIcons.arrowLeft
-                        : SkotiqIcons.arrowRight,
-                    size: 12,
-                    color: _getErrorMagnitudeColor(colors, azMagnitude),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Azimuth: $azDirection ${formatPolarError(azMagnitude)}',
-                      style: TextStyle(
-                        fontSize: SkotiqTypography.fontSize11,
-                        color: _getErrorMagnitudeColor(colors, azMagnitude),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          // Altitude direction
-          if (altMagnitude > 1)
-            Row(
-              children: [
-                Icon(
-                  error.altitudeError > 0
-                      ? SkotiqIcons.arrowDown
-                      : SkotiqIcons.arrowUp,
-                  size: 12,
-                  color: _getErrorMagnitudeColor(colors, altMagnitude),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Altitude: $altDirection ${formatPolarError(altMagnitude)}',
-                    style: TextStyle(
-                      fontSize: SkotiqTypography.fontSize11,
-                      color: _getErrorMagnitudeColor(colors, altMagnitude),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          magnitudeText,
+          style: SkotiqTypography.bodyStrong.copyWith(color: magnitudeColor),
+        ),
+        Text(
+          adjustmentHint,
+          style: SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+        ),
+      ],
     );
-  }
-
-  Color _getErrorMagnitudeColor(SkotiqColors colors, double arcsec) {
-    if (arcsec < 10) return colors.success;
-    if (arcsec < 30) return colors.info;
-    if (arcsec < 60) return colors.warning;
-    return colors.error;
   }
 
   /// History panel.

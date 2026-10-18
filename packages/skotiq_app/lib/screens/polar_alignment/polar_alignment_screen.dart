@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -45,6 +47,10 @@ class PolarAlignmentScreen extends ConsumerStatefulWidget {
 class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
     with TickerProviderStateMixin {
   late AnimationController _pulseController;
+
+  /// Header width at which the device chips and the labelled Back and History
+  /// fit on the header row beside the title, the method tabs and the primary.
+  static const double headerRoomyWidth = 1200;
 
   /// Scroll position of the left configuration column, owned here so the header
   /// History toggle can bring the panel it reveals into view. The panel is
@@ -103,13 +109,27 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
     });
   }
 
+  /// Marks the Alignment History panel so the toggle can scroll to it.
+  final GlobalKey _historyPanelKey = GlobalKey(debugLabel: 'polar_history');
+
   /// Bring the Alignment History panel into view after the toggle adds it to
   /// the bottom of the configuration column.
-  void _revealHistoryPanel() {
+  ///
+  /// Scrolls to the panel itself, not to the column's current end: the panel
+  /// streams its rows in after it is first laid out, and on a phone the
+  /// column is a tab page that is still sliding in, so the end measured on
+  /// the first frame is short of where the panel finally sits. The panel may
+  /// not be built for a few frames while that tab animates, hence the retry.
+  void _revealHistoryPanel([int attempt = 0]) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_configScrollController.hasClients) return;
-      _configScrollController.animateTo(
-        _configScrollController.position.maxScrollExtent,
+      if (!mounted) return;
+      final panel = _historyPanelKey.currentContext;
+      if (panel == null || !_configScrollController.hasClients) {
+        if (attempt < 30) _revealHistoryPanel(attempt + 1);
+        return;
+      }
+      Scrollable.ensureVisible(
+        panel,
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeOut,
       );
@@ -303,7 +323,9 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
           Expanded(
             child: PolarAlignmentBodyLayout(
               leftPanel: _buildLeftPanel(colors, state, config, isRunning),
-              centerPanel: _buildCenterPanel(colors, state, config),
+              centerPanel: state.phase == PolarAlignPhase.idle
+                  ? null
+                  : _buildCenterPanel(colors, state, config),
               rightPanel: _buildRightPanel(colors, state, config),
             ),
           ),

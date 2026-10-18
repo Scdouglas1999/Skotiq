@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -32,10 +34,6 @@ extension Phd2GuidingStateIcon on Phd2GuidingState {
 
 /// Panel containing main guiding controls
 class GuideControlsPanel extends StatefulWidget {
-  /// Key of the "more content below" fade + chevron affordance. Present only
-  /// while the control list is taller than its slot.
-  static const Key moreBelowKey = ValueKey('guideControlsMoreBelow');
-
   /// Key of the inline "why that control is unavailable" banner, raised when
   /// the operator presses a control that cannot act.
   static const Key noticeBannerKey = ValueKey('guideControlsNotice');
@@ -125,38 +123,6 @@ class GuideControlsPanel extends StatefulWidget {
 class _GuideControlsPanelState extends State<GuideControlsPanel> {
   bool _settleExpanded = false;
 
-  /// Scroll state for the overflow affordance. [_hasMoreBelow] drives the fade
-  /// + chevron, [_isScrolled] keeps the scrollbar thumb visible once the user
-  /// has reached the bottom so the region still reads as scrollable.
-  final ScrollController _scrollController = ScrollController();
-  bool _hasMoreBelow = false;
-  bool _isScrolled = false;
-
-  /// Recompute the overflow flags from live scroll metrics. Driven by both
-  /// `ScrollNotification` (user scrolled) and `ScrollMetricsNotification`
-  /// (content or viewport changed size without a scroll), so expanding the
-  /// Settle Settings section updates the affordance immediately.
-  void _updateOverflow(ScrollMetrics metrics) {
-    final hasMoreBelow = metrics.extentAfter > 4;
-    final isScrolled = metrics.extentBefore > 4;
-    if (hasMoreBelow == _hasMoreBelow && isScrolled == _isScrolled) return;
-    // Metrics notifications arrive during layout/paint; defer the rebuild.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (hasMoreBelow == _hasMoreBelow && isScrolled == _isScrolled) return;
-      setState(() {
-        _hasMoreBelow = hasMoreBelow;
-        _isScrolled = isScrolled;
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
   /// Two busy lanes mirroring the controller's command gate so a Stop can
   /// always pre-empt a settling Start (the safe abort direction) while a
   /// duplicate of either is swallowed. [_positiveInFlight] holds the id of the
@@ -232,110 +198,47 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
     return error.toString().replaceFirst('Exception: ', '');
   }
 
+  /// The panel sizes to its content and never scrolls on its own.
+  ///
+  /// It used to be a bordered card with its own scroll view inside the side
+  /// panel's: a column of full-width 44px buttons whose Dither and Settle
+  /// sections sat below the fold of the inner scroll, announced only by a
+  /// fade. The buttons are a compact grid now, and the host scrolls the whole
+  /// column if a short window needs it.
   @override
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: SkotiqTokens.borderRadiusLg,
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // No state header here: the page header carries the guider state
-          // chip (06 §Guiding), and one screen states a fact once.
-          Expanded(
-            // At common laptop heights (e.g. a 1000 px-tall window) the panel
-            // is taller than its slot, and the only hint that Settle Settings
-            // existed was a few pixels of a card edge at the bottom margin —
-            // the control that governs post-dither settle was effectively
-            // invisible. Keep the scrollbar thumb permanently visible and fade
-            // the clipped edge so hidden content announces itself.
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: NotificationListener<ScrollMetricsNotification>(
-                    onNotification: (notification) {
-                      _updateOverflow(notification.metrics);
-                      return false;
-                    },
-                    child: NotificationListener<ScrollNotification>(
-                      onNotification: (notification) {
-                        _updateOverflow(notification.metrics);
-                        return false;
-                      },
-                      child: Scrollbar(
-                        controller: _scrollController,
-                        thumbVisibility: _hasMoreBelow || _isScrolled,
-                        child: SingleChildScrollView(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              if (_errorText != null) ...[
-                                _buildErrorBanner(colors, _errorText!),
-                                const SizedBox(height: 16),
-                              ],
-                              if (_noticeText != null) ...[
-                                _buildNoticeBanner(colors, _noticeText!),
-                                const SizedBox(height: 16),
-                              ],
-                              _buildMainControls(colors),
-                              const SizedBox(height: 20),
-                              _buildStarSelection(colors),
-                              const SizedBox(height: 20),
-                              _buildDitherControls(colors),
-                              const SizedBox(height: 16),
-                              _buildSettleSettings(colors),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                if (_hasMoreBelow)
-                  Positioned(
-                    key: GuideControlsPanel.moreBelowKey,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: IgnorePointer(
-                      child: Container(
-                        height: 28,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              colors.surface.withValues(alpha: 0.0),
-                              colors.surface,
-                            ],
-                          ),
-                        ),
-                        alignment: Alignment.bottomCenter,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 2),
-                          child: Icon(
-                            LucideIcons.chevronDown,
-                            size: 14,
-                            color: colors.textMuted,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // No state header here: the page header carries the guider state
+        // chip (06 §Guiding), and one screen states a fact once.
+        if (_errorText != null) ...[
+          _buildErrorBanner(colors, _errorText!),
+          const SizedBox(height: _sectionGap),
         ],
-      ),
+        if (_noticeText != null) ...[
+          _buildNoticeBanner(colors, _noticeText!),
+          const SizedBox(height: _sectionGap),
+        ],
+        _buildMainControls(colors),
+        const SizedBox(height: _sectionGap),
+        _buildStarSelection(colors),
+        const SizedBox(height: _sectionGap),
+        _buildDitherControls(colors),
+        const SizedBox(height: SkotiqTokens.spaceMd),
+        _buildSettleSettings(colors),
+      ],
     );
   }
+
+  /// Gap between the panel's sections.
+  static const double _sectionGap = SkotiqTokens.spaceLg;
+
+  /// Gap between a section's header and its buttons, and between buttons.
+  static const double _gridGap = SkotiqTokens.spaceSm;
 
   Widget _buildMainControls(SkotiqColors colors) {
     // All enable/label decisions flow from the shared capability layer so the
@@ -360,8 +263,8 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildSectionHeader('Guiding controls', LucideIcons.target, colors),
-        const SizedBox(height: 12),
-        _buttonPair(
+        const SizedBox(height: _gridGap),
+        _buttonGrid([
           _buildControlButton(
             id: primaryId,
             icon: primaryIsStop ? LucideIcons.square : LucideIcons.play,
@@ -384,20 +287,23 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
                 : null,
             unavailableReason: widget.pauseUnavailableReason,
           ),
-        ),
-        const SizedBox(height: 10),
-        // Outline, not a fill: 05 §5 gives a view ONE primary, and Start owns
-        // it here. Loop exposures, Auto select and Deselect were all painted
-        // as fills, so the panel read as three primaries stacked.
-        _buildControlButton(
-          id: 'loop',
-          icon: LucideIcons.refreshCw,
-          label: 'Loop exposures',
-          color: colors.info,
-          colors: colors,
-          isOutline: true,
-          onPressed: connected && state.canLoop ? widget.onLoop : null,
-        ),
+          // Outline, not a fill: 05 §5 gives a view ONE primary, and Start
+          // owns it here. Loop exposures, Auto select and Deselect were all
+          // painted as fills, so the panel read as three primaries stacked.
+          // "Loop" fits a third of the panel; the tooltip and the semantics
+          // label keep the full name.
+          _buildControlButton(
+            id: 'loop',
+            icon: LucideIcons.refreshCw,
+            label: 'Loop',
+            semanticLabel: 'Loop exposures',
+            tooltip: 'Loop exposures without guiding',
+            color: colors.info,
+            colors: colors,
+            isOutline: true,
+            onPressed: connected && state.canLoop ? widget.onLoop : null,
+          ),
+        ]),
       ],
     );
   }
@@ -482,8 +388,8 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildSectionHeader('Star selection', LucideIcons.star, colors),
-        const SizedBox(height: 12),
-        _buttonPair(
+        const SizedBox(height: _gridGap),
+        _buttonGrid([
           _buildControlButton(
             id: 'findStar',
             icon: LucideIcons.search,
@@ -502,41 +408,52 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
             isOutline: true,
             onPressed: widget.isConnected ? widget.onDeselectStar : null,
           ),
-        ),
+        ]),
       ],
     );
   }
 
-  /// Width at which two half-width control buttons stop holding their labels.
+  /// Narrowest a grid cell may get before its label stops fitting.
   ///
-  /// Measured against the longest pair in this panel ("Auto select" beside
-  /// "Deselect"): in a 300 px side panel each button gets ~113 px, which
-  /// clipped "Auto select" to "Auto Sel...". A truncated control name is not a
-  /// name, so under this width the pair stacks and keeps both words.
-  static const double _buttonPairMinWidth = 260.0;
+  /// Measured against the longest label in a cell ("Auto select", and
+  /// "Resume" in a third of the row): below it a label truncates, and a
+  /// truncated control name is not a name, so the row breaks into fewer
+  /// columns and keeps the words whole.
+  static const double _gridCellMinWidth = 80.0;
 
-  /// Two control buttons side by side, stacked when the column is too narrow
-  /// for their labels.
-  Widget _buttonPair(Widget first, Widget second) {
+  /// Control buttons in one row of equal cells, as many columns as there are
+  /// buttons when they fit, wrapping onto further rows when they do not.
+  Widget _buttonGrid(List<Widget> buttons) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < _buttonPairMinWidth) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              first,
-              const SizedBox(height: 10),
-              second,
-            ],
-          );
+        var columns = buttons.length;
+        while (columns > 1 &&
+            (constraints.maxWidth - _gridGap * (columns - 1)) / columns <
+                _gridCellMinWidth) {
+          columns--;
         }
-        return Row(
-          children: [
-            Expanded(child: first),
-            const SizedBox(width: 10),
-            Expanded(child: second),
-          ],
+        final rows = <Widget>[];
+        for (var start = 0; start < buttons.length; start += columns) {
+          final cells = buttons.sublist(
+            start,
+            math.min(start + columns, buttons.length),
+          );
+          if (rows.isNotEmpty) rows.add(const SizedBox(height: _gridGap));
+          rows.add(Row(
+            children: [
+              for (var i = 0; i < columns; i++) ...[
+                if (i > 0) const SizedBox(width: _gridGap),
+                Expanded(
+                  child: i < cells.length ? cells[i] : const SizedBox.shrink(),
+                ),
+              ],
+            ],
+          ));
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: rows,
         );
       },
     );
@@ -547,7 +464,7 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildSectionHeader('Dither', LucideIcons.shuffle, colors),
-        const SizedBox(height: 12),
+        const SizedBox(height: _gridGap),
         Row(
           children: [
             Text(
@@ -811,6 +728,13 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
     bool isOutline = false,
     bool small = false,
     String? unavailableReason,
+
+    /// The control's full name for assistive tech, when [label] is the short
+    /// form that fits the grid.
+    String? semanticLabel,
+
+    /// Hover help for a live control.
+    String? tooltip,
   }) {
     final action = onPressedReporting ??
         (onPressed == null
@@ -841,7 +765,9 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
       container: true,
       button: true,
       enabled: !isDisabled,
-      label: reason == null ? label : '$label — $reason',
+      label: reason == null
+          ? (semanticLabel ?? label)
+          : '${semanticLabel ?? label} — $reason',
       onTap: isDisabled ? null : () => _runReportingAction(id, action),
       excludeSemantics: true,
       child: Material(
@@ -850,13 +776,21 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
           onTap: isDisabled ? null : () => _runReportingAction(id, action),
           borderRadius: SkotiqTokens.borderRadiusLg,
           child: ConstrainedBox(
-            // Ensure minimum 44px touch target height for accessibility
-            constraints: BoxConstraints(minHeight: small ? 40 : 44),
+            // The standard control height on desktop; the platform minimum
+            // touch target on a touch device. These were 44px everywhere,
+            // which on a desktop side panel made five buttons the height of
+            // a column of cards.
+            constraints: BoxConstraints(
+              minHeight: SkotiqTouchTarget.minExtent(
+                context,
+                desktopExtent: SkotiqTokens.buttonHeight,
+              ),
+            ),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
-              padding: EdgeInsets.symmetric(
-                horizontal: small ? 10 : 12,
-                vertical: small ? 10 : 12,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(
+                horizontal: SkotiqTokens.spaceSm,
               ),
               decoration: BoxDecoration(
                 color: isOutline
@@ -910,7 +844,12 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
       ),
     );
 
-    if (reason == null) return button;
+    if (reason == null) {
+      return tooltip == null
+          ? button
+          : Tooltip(
+              message: tooltip, excludeFromSemantics: true, child: button);
+    }
 
     // The button stays disabled — it is genuinely not a live control, and the
     // semantics node above says so. What changes is that pressing it is no
