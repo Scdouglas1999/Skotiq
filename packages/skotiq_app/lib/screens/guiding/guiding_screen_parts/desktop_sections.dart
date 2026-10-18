@@ -308,34 +308,54 @@ mixin _GuidingDesktopSections
     final guiderId = ref.watch(guiderStateProvider).deviceId;
     final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
 
+    final brainButton = SkotiqButton(
+      key: GuidingTutorialKeys.brainBtn,
+      label: isPhd2Guider
+          ? (_showBrainPanel ? 'Hide brain settings' : 'Brain settings')
+          : 'Guider settings',
+      icon: isPhd2Guider ? SkotiqIcons.brain : SkotiqIcons.settings,
+      variant: ButtonVariant.secondary,
+      size: ButtonSize.small,
+      onPressed: isPhd2Guider
+          ? () => setState(() => _showBrainPanel = !_showBrainPanel)
+          : () => context.go('/equipment'),
+    );
+
+    // The controls, calibration and the Brain toggle are one column that
+    // sizes to its content and scrolls as a whole. They were three flex
+    // slots: the controls scrolled inside a 3/8 slot, and the calibration's
+    // 2/8 slot ran on empty below its readouts down to a Brain button pinned
+    // at the bottom of the panel.
+    final sections = SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildControls(isConnected, phd2State),
+          const SizedBox(height: SidePanel.sectionGap),
+          isPhd2Guider
+              ? _buildCalibrationSection(colors, isConnected, phd2State)
+              : _buildNonPhd2GuiderInfo(colors),
+          const SizedBox(height: SidePanel.sectionGap),
+          brainButton,
+        ],
+      ),
+    );
+
+    // Top-aligned: SidePanel hands its content loose constraints inside a
+    // Row, which would centre a column shorter than the panel.
+    if (!(isPhd2Guider && _showBrainPanel)) {
+      return Align(alignment: Alignment.topCenter, child: sections);
+    }
+
+    // The Brain editor needs a bounded height of its own, so with it open the
+    // column above it shares the panel with it.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(flex: 3, child: _buildControls(isConnected, phd2State)),
+        Flexible(flex: 2, child: sections),
         const SizedBox(height: SidePanel.sectionGap),
-        Expanded(
-          flex: 2,
-          child: isPhd2Guider
-              ? _buildCalibrationSection(colors, isConnected, phd2State)
-              : _buildNonPhd2GuiderInfo(colors),
-        ),
-        const SizedBox(height: SidePanel.sectionGap),
-        SkotiqButton(
-          key: GuidingTutorialKeys.brainBtn,
-          label: isPhd2Guider
-              ? (_showBrainPanel ? 'Hide brain settings' : 'Brain settings')
-              : 'Guider settings',
-          icon: isPhd2Guider ? SkotiqIcons.brain : SkotiqIcons.settings,
-          variant: ButtonVariant.secondary,
-          size: ButtonSize.small,
-          onPressed: isPhd2Guider
-              ? () => setState(() => _showBrainPanel = !_showBrainPanel)
-              : () => context.go('/equipment'),
-        ),
-        if (isPhd2Guider && _showBrainPanel) ...[
-          const SizedBox(height: SidePanel.sectionGap),
-          Expanded(flex: 3, child: _buildBrainPanel(colors)),
-        ],
+        Expanded(flex: 3, child: _buildBrainPanel(colors)),
       ],
     );
   }

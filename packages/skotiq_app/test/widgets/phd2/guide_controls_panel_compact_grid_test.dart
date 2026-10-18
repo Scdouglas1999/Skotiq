@@ -1,18 +1,27 @@
-// The panel must announce its clipped content. At a 1600x1000 window the
-// guiding controls card is taller than the slot the Guiding screen gives it,
-// and a ~4 px sliver of a card edge at the bottom margin is the only hint more
-// exists — so "Settle Settings", the control that governs post-dither settle
-// behaviour, is invisible unless the user guesses they can scroll inside the
-// card.
+// The guiding controls as a compact grid with nothing hidden.
+//
+// The panel was a bordered card with its own scroll view inside the Guiding
+// side panel: Stop, Pause, Loop exposures, Auto select and Deselect stacked as
+// full-width 44px buttons, with Dither and Settle settings below the fold of
+// the inner scroll and announced only by a fade. It now sizes to its content,
+// lays its buttons out in rows of equal cells at the standard control height,
+// and leaves scrolling to the column that holds it.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/widgets/phd2/guide_controls_panel.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-Future<void> _pumpPanel(WidgetTester tester, {required double height}) async {
+/// The Guiding side panel's content width: 300 less its 16px padding.
+const double _sidePanelContentWidth = 268;
+
+Future<void> _pumpPanel(
+  WidgetTester tester, {
+  double width = _sidePanelContentWidth,
+  TargetPlatform platform = TargetPlatform.linux,
+}) async {
   tester.view.devicePixelRatio = 1.0;
-  tester.view.physicalSize = Size(420, height + 40);
+  tester.view.physicalSize = const Size(420, 900);
   addTearDown(() {
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
@@ -20,64 +29,99 @@ Future<void> _pumpPanel(WidgetTester tester, {required double height}) async {
 
   await tester.pumpWidget(
     MaterialApp(
-      theme: SkotiqTheme.dark,
+      theme: SkotiqTheme.dark.copyWith(platform: platform),
       home: Scaffold(
-        body: SizedBox(
-          width: 360,
-          height: height,
-          child: const GuideControlsPanel(
-            state: Phd2GuidingState.stopped,
-            isConnected: true,
+        body: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: width,
+            child: const GuideControlsPanel(
+              state: Phd2GuidingState.looping,
+              isConnected: true,
+            ),
           ),
         ),
       ),
     ),
   );
-  // One extra frame: the affordance is computed from live scroll metrics and
-  // committed in a post-frame callback.
-  await tester.pump();
   await tester.pump();
 }
 
-Finder get _moreBelowChevron => find.byKey(GuideControlsPanel.moreBelowKey);
+Rect _buttonRect(WidgetTester tester, String label) => tester.getRect(
+      find.ancestor(of: find.text(label), matching: find.byType(InkWell)).first,
+    );
 
 void main() {
-  testWidgets('short panel advertises the content below the fold',
+  testWidgets('the panel has no scroll view of its own and hides nothing',
       (tester) async {
-    await _pumpPanel(tester, height: 380);
+    await _pumpPanel(tester);
 
     expect(
-      _moreBelowChevron,
-      findsOneWidget,
-      reason: 'clipped controls must announce themselves',
-    );
-    final scrollbar = tester.widget<Scrollbar>(
       find.descendant(
         of: find.byType(GuideControlsPanel),
-        matching: find.byType(Scrollbar),
+        matching: find.byType(Scrollable),
       ),
+      findsNothing,
+      reason: 'a nested scroll area hid Dither and Settle below its fold',
     );
-    expect(scrollbar.thumbVisibility, isTrue);
+    for (final label in [
+      'Guiding controls',
+      'Star selection',
+      'Dither',
+      'Dither now',
+      'Settle settings',
+    ]) {
+      expect(find.text(label), findsOneWidget, reason: '$label is laid out');
+    }
+    final panel = tester.getRect(find.byType(GuideControlsPanel));
+    expect(panel.height, lessThan(420),
+        reason: 'the whole panel fits a laptop side panel with room to spare');
+    expect(tester.takeException(), isNull);
   });
 
-  testWidgets('tall panel shows no affordance because nothing is hidden',
+  testWidgets('the run controls share one row at standard height on desktop',
       (tester) async {
-    await _pumpPanel(tester, height: 1400);
+    await _pumpPanel(tester);
 
-    expect(_moreBelowChevron, findsNothing);
-    expect(find.text('Settle settings'), findsOneWidget);
+    final stop = _buttonRect(tester, 'Stop');
+    final pause = _buttonRect(tester, 'Pause');
+    final loop = _buttonRect(tester, 'Loop');
+    expect(pause.top, stop.top);
+    expect(loop.top, stop.top);
+    expect(stop.height, SkotiqTokens.buttonHeight);
+
+    final auto = _buttonRect(tester, 'Auto select');
+    final deselect = _buttonRect(tester, 'Deselect');
+    expect(deselect.top, auto.top, reason: 'the star controls pair up');
+    expect(auto.top, greaterThan(stop.bottom));
   });
 
-  testWidgets('scrolling to the settle section reveals it', (tester) async {
-    await _pumpPanel(tester, height: 380);
+  testWidgets('a touch device keeps the platform touch target', (tester) async {
+    await _pumpPanel(tester, platform: TargetPlatform.android);
 
-    await tester.drag(
-      find.byType(SingleChildScrollView).first,
-      const Offset(0, -600),
+    expect(
+      _buttonRect(tester, 'Stop').height,
+      greaterThanOrEqualTo(kMinInteractiveDimension),
     );
-    await tester.pump();
-    await tester.pump();
+  });
 
-    expect(find.text('Settle settings'), findsOneWidget);
+  testWidgets('a narrow column wraps the grid instead of truncating labels',
+      (tester) async {
+    await _pumpPanel(tester, width: 200);
+
+    final stop = _buttonRect(tester, 'Stop');
+    final loop = _buttonRect(tester, 'Loop');
+    expect(loop.top, greaterThan(stop.top),
+        reason: 'three cells do not fit 200px, so Loop moves to a new row');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the short Loop label keeps its full name for assistive tech',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _pumpPanel(tester);
+
+    expect(find.bySemanticsLabel('Loop exposures'), findsOneWidget);
+    semantics.dispose();
   });
 }

@@ -224,44 +224,25 @@ mixin _GuidingMobileSections
     final guiderId = ref.watch(guiderStateProvider).deviceId;
     final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
 
-    // The two blocks share the pane 3 : 2, but never below the height at
-    // which the guiding controls stop fitting: under that the tab scrolls
-    // instead of squeezing them into an overflow.
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final available = constraints.maxHeight -
-            SkotiqTokens.spaceMd * 3 -
-            SkotiqTokens.spaceMd;
-        final total = math.max(available, _controlsTabMinBodyHeight);
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                height: total * _controlsShare,
-                child: _buildControls(isConnected, phd2State),
-              ),
-              const SizedBox(height: SkotiqTokens.spaceMd),
-              SizedBox(
-                height: total * (1 - _controlsShare),
-                child: isPhd2Guider
-                    ? _buildCalibrationSection(colors, isConnected, phd2State)
-                    : _buildNonPhd2GuiderInfo(colors),
-              ),
-            ],
-          ),
-        );
-      },
+    // The controls and the calibration stack at their own heights and the
+    // tab scrolls. They used to share the pane 3 : 2 in fixed boxes, which
+    // left the controls scrolling inside their box and the calibration's box
+    // mostly empty.
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildControls(isConnected, phd2State),
+          const SizedBox(height: SkotiqTokens.spaceLg),
+          isPhd2Guider
+              ? _buildCalibrationSection(colors, isConnected, phd2State)
+              : _buildNonPhd2GuiderInfo(colors),
+        ],
+      ),
     );
   }
-
-  /// Height below which the Controls tab scrolls rather than compress.
-  static const double _controlsTabMinBodyHeight = 400.0;
-
-  /// The controls block's share of the Controls tab (the old 3 : 2 flex).
-  static const double _controlsShare = 0.6;
 
   Widget _buildNarrowSettingsTab(SkotiqColors colors) {
     final guiderId = ref.watch(guiderStateProvider).deviceId;
