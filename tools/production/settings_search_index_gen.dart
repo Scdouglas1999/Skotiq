@@ -21,6 +21,7 @@
 // The hand-written `keywords` lists are deliberately KEPT. They carry synonyms a
 // title cannot ("dark mode" for Appearance, "gain" for a page that says
 // "Sensor"), which is exactly the value a derived index cannot supply.
+import 'dart:convert';
 import 'dart:io';
 
 const _generatedPath =
@@ -31,7 +32,7 @@ const _translationsPath =
     'packages/skotiq_app/lib/localization/skotiq_localizations/translations.dart';
 const _libRoot = 'packages/skotiq_app/lib';
 
-void main(List<String> args) {
+Future<void> main(List<String> args) async {
   final checkOnly = args.contains('--check');
   final repoRoot = _findRepoRoot();
   if (repoRoot == null) {
@@ -39,15 +40,17 @@ void main(List<String> args) {
     exit(2);
   }
 
-  final generated = _generate(repoRoot);
+  final raw = _generate(repoRoot);
+  final generated = await _formatted(repoRoot, raw);
   final target = File('$repoRoot/$_generatedPath');
 
   if (!checkOnly) {
     target.writeAsStringSync(generated);
-    final terms = RegExp(
-      r"^\s{4}'",
-      multiLine: true,
-    ).allMatches(generated).length;
+    // Counted in the unformatted source, where every term of the first map
+    // sits on its own line.
+    final terms = RegExp(r"^\s{4}'", multiLine: true)
+        .allMatches(raw.substring(0, raw.indexOf('kSettingsSearchRowTitles')))
+        .length;
     stdout.writeln('wrote $_generatedPath ($terms search terms)');
     return;
   }
@@ -64,6 +67,25 @@ void main(List<String> args) {
     'Fix: dart run tools/production/settings_search_index_gen.dart',
   );
   exit(1);
+}
+
+/// [source] as `dart format` writes it for the generated file's own package,
+/// so the package's format gate passes over the generated file too.
+Future<String> _formatted(String repoRoot, String source) async {
+  final process = await Process.start(Platform.resolvedExecutable, [
+    'format',
+    '--stdin-name',
+    _generatedPath,
+  ], workingDirectory: repoRoot);
+  process.stdin.write(source);
+  await process.stdin.close();
+  final out = await process.stdout.transform(utf8.decoder).join();
+  final err = await process.stderr.transform(utf8.decoder).join();
+  if (await process.exitCode != 0) {
+    stderr.writeln('error: dart format rejected the generated index:\n$err');
+    exit(2);
+  }
+  return out;
 }
 
 String? _findRepoRoot() {

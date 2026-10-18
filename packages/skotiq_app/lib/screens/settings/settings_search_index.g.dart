@@ -819,12 +819,10 @@ const Map<String, List<String>> kSettingsSearchTerms = {
 /// whichever of the two the query matched.
 const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
   'adaptive-conditions': {
-    'Influence of cloud cover and opacity estimates.':
-        'Cloud weight',
+    'Influence of cloud cover and opacity estimates.': 'Cloud weight',
     'Influence of cloudless, clear-sky transparency in the composed conditions score.':
         'Transparency weight',
-    'Influence of star sharpness and atmospheric steadiness.':
-        'Seeing weight',
+    'Influence of star sharpness and atmospheric steadiness.': 'Seeing weight',
     'Influence of wind speed when choosing whether to stay on target.':
         'Wind weight',
     'Minimum seconds between adaptive target swaps. Range 0-3600.':
@@ -835,104 +833,65 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Score floor',
   },
   'adaptive-exposure': {
-    'Adaptive exposure never goes above this':
-        'Longest exposure',
-    'Adaptive exposure never goes below this':
-        'Shortest exposure',
+    'Adaptive exposure never goes above this': 'Longest exposure',
+    'Adaptive exposure never goes below this': 'Shortest exposure',
     'Apply adaptive exposure to capture steps that have no':
         'Enable global default',
     'The darkness your planned exposures were chosen for,':
         'Reference sky brightness',
   },
   'annotations': {
-    'Animation speed in milliseconds':
-        'Fade duration',
-    'Automatically annotate plate-solved images':
-        'Auto-annotate images',
-    'Brightest objects to show (lower = brighter)':
-        'Minimum magnitude',
-    'Brightness when mouse is over image':
-        'Hover opacity',
-    'Brightness when mouse leaves image':
-        'Idle opacity',
-    'Click on image to identify objects':
-        'Enable click to identify',
-    'Dim annotations when mouse leaves image':
-        'Fade when not hovering',
-    'Display magnitude values with labels':
-        'Show magnitudes',
-    'Display object names next to markers':
-        'Show labels',
-    'Distance to search for objects (arcseconds)':
-        'Search radius',
-    'Faintest objects to show (higher = fainter)':
-        'Maximum magnitude',
-    'Grid type: pixel, celestial RA/Dec, or off':
-        'Grid overlay',
-    'Larger objects get larger markers':
-        'Scale by object size',
-    'Limit number of annotations for performance':
-        'Max objects to display',
-    'Show object annotations on images':
-        'Enable annotations',
-    'Size of text labels':
-        'Label font size',
-    'Thickness of marker outlines':
-        'Stroke width',
+    'Animation speed in milliseconds': 'Fade duration',
+    'Automatically annotate plate-solved images': 'Auto-annotate images',
+    'Brightest objects to show (lower = brighter)': 'Minimum magnitude',
+    'Brightness when mouse is over image': 'Hover opacity',
+    'Brightness when mouse leaves image': 'Idle opacity',
+    'Click on image to identify objects': 'Enable click to identify',
+    'Dim annotations when mouse leaves image': 'Fade when not hovering',
+    'Display magnitude values with labels': 'Show magnitudes',
+    'Display object names next to markers': 'Show labels',
+    'Distance to search for objects (arcseconds)': 'Search radius',
+    'Faintest objects to show (higher = fainter)': 'Maximum magnitude',
+    'Grid type: pixel, celestial RA/Dec, or off': 'Grid overlay',
+    'Larger objects get larger markers': 'Scale by object size',
+    'Limit number of annotations for performance': 'Max objects to display',
+    'Show object annotations on images': 'Enable annotations',
+    'Size of text labels': 'Label font size',
+    'Thickness of marker outlines': 'Stroke width',
   },
   'appearance': {
-    'Auto follows the display. Compact (0.8×) for a':
-        'UI scale',
-    'Dark is the default at the telescope. Light suits':
-        'Theme',
-    'Enlarges status readouts so they read from across the':
-        'Glance mode',
-    'Red night is monochrome red, so the accent has':
-        'Accent',
-    'Scales every label and readout.':
-        'Text size',
-    'Used for the primary action, selection and':
-        'Accent',
+    'Auto follows the display. Compact (0.8×) for a': 'UI scale',
+    'Dark is the default at the telescope. Light suits': 'Theme',
+    'Enlarges status readouts so they read from across the': 'Glance mode',
+    'Red night is monochrome red, so the accent has': 'Accent',
+    'Scales every label and readout.': 'Text size',
+    'Used for the primary action, selection and': 'Accent',
   },
   'autofocus': {
-    'Apply focus offsets when changing filters':
-        'Use filter offsets',
+    'Apply focus offsets when changing filters': 'Use filter offsets',
     'Below this count, even a high-R² model still forces a':
         'Minimum samples for trust',
-    'Central exclusion; must be smaller than outer':
-        'Inner crop ratio',
+    'Central exclusion; must be smaller than outer': 'Inner crop ratio',
     'Connect a filter wheel to configure per-filter autofocus settings.':
         'No filter wheel connected',
     'Consecutive bad predictions required before the app':
         'Bad runs before warning',
     'Default 10. 0 uses every detected star; faint ones skew the HFR':
         'Use brightest n stars',
-    'Default AF frame exposure':
-        'Exposure time',
-    'Filter to switch to for AF runs':
-        'Designated autofocus filter',
-    'Focuser steps between measurement points':
-        'Step size',
-    'Frames to average per focus position':
-        'Exposures per point',
+    'Default AF frame exposure': 'Exposure time',
+    'Filter to switch to for AF runs': 'Designated autofocus filter',
+    'Focuser steps between measurement points': 'Step size',
+    'Frames to average per focus position': 'Exposures per point',
     'How many focuser steps a prediction can be off before':
         'Drift threshold (steps)',
-    'Minimum acceptable curve fit quality':
-        'R threshold',
-    'Must be greater than the inner crop ratio':
-        'Outer crop ratio',
-    'Retry count on failure':
-        'Number of attempts',
-    'R² < this → force a real AF sweep.':
-        'Low-confidence threshold (R²)',
-    'R² ≥ this → apply prediction directly.':
-        'High-confidence threshold (R²)',
-    'Steps out from center for V-curve':
-        'Initial offset steps',
-    'Stop autoguider while focusing':
-        'Disable guiding during AF',
-    'Wait after focuser move':
-        'Focuser settle time',
+    'Minimum acceptable curve fit quality': 'R threshold',
+    'Must be greater than the inner crop ratio': 'Outer crop ratio',
+    'Retry count on failure': 'Number of attempts',
+    'R² < this → force a real AF sweep.': 'Low-confidence threshold (R²)',
+    'R² ≥ this → apply prediction directly.': 'High-confidence threshold (R²)',
+    'Steps out from center for V-curve': 'Initial offset steps',
+    'Stop autoguider while focusing': 'Disable guiding during AF',
+    'Wait after focuser move': 'Focuser settle time',
     'When enabled, each successful AF run appends a sample':
         'Auto-learn focus models',
   },
@@ -943,10 +902,8 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Auto-match from dark library',
   },
   'connection': {
-    'Current host and port for this Skotiq server':
-        'Server address',
-    'Drive the equipment attached to this computer instead of':
-        'Work locally',
+    'Current host and port for this Skotiq server': 'Server address',
+    'Drive the equipment attached to this computer instead of': 'Work locally',
     'Include the configured Alpaca server in automatic startup discovery':
         'Query Alpaca on startup',
     'Include the configured INDI server in automatic startup discovery':
@@ -957,8 +914,7 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
   'dark-library': {
     'Apply dark, flat, and bias correction to captured images':
         'Auto-calibrate light frames',
-    'Maximum temperature difference for dark matching':
-        'Temperature tolerance',
+    'Maximum temperature difference for dark matching': 'Temperature tolerance',
   },
   'darkroom': {
     'One notification goes out when the pass finishes, through the same':
@@ -973,30 +929,24 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
   'files-storage': {
     'Automatic backup scheduling is stored and executed on':
         'Configure on the host',
-    'How often to create backups (hours)':
-        'Backup interval',
-    'How often to save pending sequence edits':
-        'Sequence save interval',
-    'Number of auto-save backups to retain':
-        'Maximum backups',
-    'Periodically create full database backups':
-        'Enable automatic backups',
+    'How often to create backups (hours)': 'Backup interval',
+    'How often to save pending sequence edits': 'Sequence save interval',
+    'Number of auto-save backups to retain': 'Maximum backups',
+    'Periodically create full database backups': 'Enable automatic backups',
     'Persist local sequence edits in the background':
         'Enable sequence auto-save',
   },
   'help': {
     '7-step guided wizard for your first imaging session —':
         'First night walkthrough',
-    'Clear all tutorial progress and start fresh':
-        'Reset all progress',
+    'Clear all tutorial progress and start fresh': 'Reset all progress',
     'Package logs, settings, profile metadata, and system details for support.':
         'Generate diagnostic dump',
     'Replay the first-launch spotlight tour that highlights':
         'Re-run onboarding tour',
     'Run the one-click first-light flow again — short exposure,':
         'Capture your first light',
-    'Show tutorial prompts and guided tours':
-        'Enable tutorials',
+    'Show tutorial prompts and guided tours': 'Enable tutorials',
     'Walk back through the equipment onboarding wizard to scan':
         'Re-run equipment setup',
   },
@@ -1015,8 +965,7 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Reject folder path',
   },
   'imaging': {
-    'Captured images are saved as lossless 16-bit FITS files':
-        'Archive format',
+    'Captured images are saved as lossless 16-bit FITS files': 'Archive format',
   },
   'integrations': {
     'Open Skotiq on the rig to enable plugins and enter':
@@ -1025,90 +974,59 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Post to Discord / Pushover on observatory events',
   },
   'location': {
-    'Decimal degrees or DMS (121 18 55 W). Positive is':
-        'Longitude',
-    'Decimal degrees or DMS (44 3 29 N). Positive is':
-        'Latitude',
-    'Fetch location from the connected imaging host':
-        'Sync from server',
-    'Height above sea level':
-        'Elevation',
-    'Nearby Wi-Fi networks place you to within':
-        'Detect location',
+    'Decimal degrees or DMS (121 18 55 W). Positive is': 'Longitude',
+    'Decimal degrees or DMS (44 3 29 N). Positive is': 'Latitude',
+    'Fetch location from the connected imaging host': 'Sync from server',
+    'Height above sea level': 'Elevation',
+    'Nearby Wi-Fi networks place you to within': 'Detect location',
     'Optional. beaconDB, the key-free service Detect':
         'Google Geolocation API key',
-    'Sync time from operating system':
-        'Use system time',
-    'Town or observatory by name. Accurate on a desktop':
-        'Search place',
+    'Sync time from operating system': 'Use system time',
+    'Town or observatory by name. Accurate on a desktop': 'Search place',
     'Wi-Fi is switched off, so the precise scan was':
         'Turn Wi-Fi on for a precise fix',
   },
   'notifications': {
     'Auto-discover this observatory over host-side MQTT':
         'Publish to Home Assistant',
-    'Blank = "Skotiq Observatory <profile>"':
-        'Device name',
-    'Blank = Skotiq Observatory and active profile':
-        'Device name',
-    'Discord channel webhook for notifications':
-        'Webhook URL',
+    'Blank = "Skotiq Observatory <profile>"': 'Device name',
+    'Blank = Skotiq Observatory and active profile': 'Device name',
+    'Discord channel webhook for notifications': 'Webhook URL',
     'Email, webhook, Pushover, Telegram, Discord, and MQTT':
         'Configure routing on the Skotiq host',
     'Lets HA pause/resume and abort the running sequence.':
         'Allow control from Home Assistant',
-    'One per line, format: Name: value':
-        'Headers',
+    'One per line, format: Name: value': 'Headers',
     'Per-event routing (Settings → Notification Routing)':
         'Per-event routing is the live one',
     'Permit pause, resume, and abort commands':
         'Allow control from Home Assistant',
-    'Play sounds for notifications':
-        'Sound alerts',
+    'Play sounds for notifications': 'Sound alerts',
     'Play the system bell when a critical error fires':
         'Audible alert on critical events',
-    'POST target (Home Assistant, n8n, etc.)':
-        'URL',
-    'Push controls will be available when the':
-        'Loading push configuration…',
-    'Push on meridian flip events':
-        'Meridian flip',
-    'Push on sequence errors or stops':
-        'Sequence failed',
-    'Push when a device disconnects':
-        'Equipment disconnected',
-    'Push when autofocus fails':
-        'Autofocus failed',
-    'Push when camera exposure fails':
-        'Exposure failed',
-    'Push when guide star is lost':
-        'Guiding lost',
-    'Push when safety monitor reports unsafe':
-        'Weather unsafe',
-    'Push when sequence finishes':
-        'Sequence completed',
-    'Pushover application API key':
-        'API key',
-    'Pushover user/group key':
-        'User key',
+    'POST target (Home Assistant, n8n, etc.)': 'URL',
+    'Push controls will be available when the': 'Loading push configuration…',
+    'Push on meridian flip events': 'Meridian flip',
+    'Push on sequence errors or stops': 'Sequence failed',
+    'Push when a device disconnects': 'Equipment disconnected',
+    'Push when autofocus fails': 'Autofocus failed',
+    'Push when camera exposure fails': 'Exposure failed',
+    'Push when guide star is lost': 'Guiding lost',
+    'Push when safety monitor reports unsafe': 'Weather unsafe',
+    'Push when sequence finishes': 'Sequence completed',
+    'Pushover application API key': 'API key',
+    'Pushover user/group key': 'User key',
     'Queue a test to the active transport (host logs report cloud failures)':
         'Test push notification',
-    'Recommended for ports 25/587':
-        'Use STARTTLS',
+    'Recommended for ports 25/587': 'Use STARTTLS',
     'Reconnect to the imaging host and try again.':
         'Host configuration unavailable',
-    'Send a test email through the configured SMTP server':
-        'Test email',
-    'Send a test notification to your device':
-        'Test Pushover',
-    'Send a test notification to your Discord channel':
-        'Test Discord',
-    'Send alerts to connected mobile devices':
-        'Enable push to mobile',
-    'Send notifications for important events':
-        'Enable notifications',
-    'Stored securely in the OS keyring.':
-        'Password',
+    'Send a test email through the configured SMTP server': 'Test email',
+    'Send a test notification to your device': 'Test Pushover',
+    'Send a test notification to your Discord channel': 'Test Discord',
+    'Send alerts to connected mobile devices': 'Enable push to mobile',
+    'Send notifications for important events': 'Enable notifications',
+    'Stored securely in the OS keyring.': 'Password',
     'The master push gate and event toggles are':
         'Configure push on the Skotiq host',
     'The URL itself authenticates the request, so it is stored securely.':
@@ -1117,26 +1035,18 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Runs on the imaging host',
     'When off, no per-category routing fires (legacy push still works)':
         'Notification routing enabled',
-    'Which sound to play when critical events fire':
-        'Alert sound',
-    'Write-only secret stored on the imaging host.':
-        'Broker password',
+    'Which sound to play when critical events fire': 'Alert sound',
+    'Write-only secret stored on the imaging host.': 'Broker password',
   },
   'phd2-guiding': {
-    'PHD2 server hostname or IP address':
-        'Host',
-    'PHD2 server port (default: 4400)':
-        'Port',
+    'PHD2 server hostname or IP address': 'Host',
+    'PHD2 server port (default: 4400)': 'Port',
   },
   'plate-solving': {
-    'Always ignore position hints (slower, but useful':
-        'Blind solve',
-    'How far around the expected position to search':
-        'Search radius',
-    'Maximum time to attempt a solve before giving up':
-        'Timeout',
-    'Reading saved solve parameters':
-        'Loading…',
+    'Always ignore position hints (slower, but useful': 'Blind solve',
+    'How far around the expected position to search': 'Search radius',
+    'Maximum time to attempt a solve before giving up': 'Timeout',
+    'Reading saved solve parameters': 'Loading…',
     'Sync the mount to each solved position so Slew &':
         'Sync mount when centering',
   },
@@ -1145,8 +1055,7 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Polar alignment max age',
   },
   'replay-debug': {
-    'Decisions older than this are pruned daily. Range':
-        'Retention (days)',
+    'Decisions older than this are pruned daily. Range': 'Retention (days)',
     'When enabled, every adaptive-exposure swap, trigger':
         'Replay decision logging',
   },
@@ -1155,86 +1064,61 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Show advanced overlay controls',
     'After each light frame, reject captures that exceed':
         'Auto-reject bad frames',
-    'Analyze field-wide seeing and tilt patterns':
-        'PSF field map',
-    'Build residual heatmaps and mount feedback':
-        'Astrometric residuals',
+    'Analyze field-wide seeing and tilt patterns': 'PSF field map',
+    'Build residual heatmaps and mount feedback': 'Astrometric residuals',
     'Compute clipping, uniformity, background and SNR tile maps':
         'Frame quality maps',
     'Compute zeropoint and limiting magnitude':
         'Per-frame photometric calibration',
-    'Converts sky background to electrons for limiting':
-        'Camera gain (e⁻/ADU)',
-    'Detect and track moving candidates':
-        'Moving object mode',
+    'Converts sky background to electrons for limiting': 'Camera gain (e⁻/ADU)',
+    'Detect and track moving candidates': 'Moving object mode',
     'Enable overlays such as PSF map, residual vectors, and tracks':
         'Science overlays',
     'Enable surface explorer and interactive mesh rendering':
         '3D science surfaces',
     'Fetch B/V photometry to ~mag 16 from VizieR for zero-point':
         'Deep catalog lookups (APASS DR9)',
-    'Generate SII/Ha, OIII/Ha, and SII/OIII products':
-        'Narrowband line ratios',
+    'Generate SII/Ha, OIII/Ha, and SII/OIII products': 'Narrowband line ratios',
     'Reference catalog your solver uses (ADES astCat, e.g.':
         'Astrometric catalog',
-    'Reporter shown on TNS (falls back to observer':
-        'Reporter name',
+    'Reporter shown on TNS (falls back to observer': 'Reporter name',
     'Stamp MAGZP / MAGZPERR / TRANSPAR back into the FITS':
         'Write science keywords to FITS',
     'Submit to the TNS sandbox instead of production (no public record).':
         'Use TNS sandbox',
     'Target/comparison tracking and live light curves':
         'Live differential photometry',
-    'Track atmospheric transparency over time':
-        'Transparency and extinction',
+    'Track atmospheric transparency over time': 'Transparency and extinction',
     'Used for limiting magnitude calculations (default 3.5)':
         'Camera read noise (e⁻)',
-    'White level used to reject saturated stars from':
-        'Saturation level (ADU)',
-    'Written into MPC ADES headers and the TNS reporter':
-        'Observer name',
-    'Your 3-character MPC observatory code (e.g.,':
-        'MPC observatory code',
-    'Your assigned AAVSO observer initials (1-5 chars,':
-        'AAVSO observer code',
-    'Your TNS bot id (tns_marker tns_id).':
-        'Bot id',
-    'Your TNS bot name (tns_marker name).':
-        'Bot name',
-    'Your TNS discovery_data_source_id.':
-        'Data source id',
-    'Your TNS reporting_group_id.':
-        'Reporting group id',
+    'White level used to reject saturated stars from': 'Saturation level (ADU)',
+    'Written into MPC ADES headers and the TNS reporter': 'Observer name',
+    'Your 3-character MPC observatory code (e.g.,': 'MPC observatory code',
+    'Your assigned AAVSO observer initials (1-5 chars,': 'AAVSO observer code',
+    'Your TNS bot id (tns_marker tns_id).': 'Bot id',
+    'Your TNS bot name (tns_marker name).': 'Bot name',
+    'Your TNS discovery_data_source_id.': 'Data source id',
+    'Your TNS reporting_group_id.': 'Reporting group id',
   },
   'sequencer': {
-    'Append per-filter flats when the active':
-        'Include flats at end',
-    'Average is fastest; Median + Rejection and Sigma':
-        'Default stack method',
+    'Append per-filter flats when the active': 'Include flats at end',
+    'Average is fastest; Median + Rejection and Sigma': 'Default stack method',
     'Default per-target imaging budget the wizard uses.':
         'Integration budget per target',
     'Delay after tracking limit detected (0 = flip immediately)':
         'Wait before flip',
     'Flip after target crosses meridian by this amount':
         'Minutes past meridian',
-    'Flip before mount reaches tracking limit':
-        'Minutes before limit',
-    'Flip when hour angle exceeds this value':
-        'Hour angle threshold',
-    'How many exposures between autofocus runs':
-        'Autofocus cadence (frames)',
-    'If the last polar alignment is older than':
-        'Polar alignment stale after',
+    'Flip before mount reaches tracking limit': 'Minutes before limit',
+    'Flip when hour angle exceeds this value': 'Hour angle threshold',
+    'How many exposures between autofocus runs': 'Autofocus cadence (frames)',
+    'If the last polar alignment is older than': 'Polar alignment stale after',
     'Master kill switch — every LiveStacking node will':
         'Disable broadcast everywhere',
-    'Move mount slightly between exposures':
-        'Enable dithering',
-    'Number of frames between dithers':
-        'Dither every',
-    'Number of retry attempts if flip fails':
-        'Max retries',
-    'Off → new nodes start with auth required. Turn on':
-        'Public by default',
+    'Move mount slightly between exposures': 'Enable dithering',
+    'Number of frames between dithers': 'Dither every',
+    'Number of retry attempts if flip fails': 'Max retries',
+    'Off → new nodes start with auth required. Turn on': 'Public by default',
     'Off: when guiding RMS goes over its limit, a':
         'Stop the run for quality problems',
     'Output dimensions for the broadcast JPEG. Smaller':
@@ -1243,40 +1127,27 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Park before dawn',
     'Park the mount and close the cover and dome when':
         'Park on unsafe weather',
-    'Plate solve and re-center target after flip':
-        'Recenter after flip',
-    'Play sound when flip starts/completes/fails':
-        'Sound alert',
-    'Port used by newly-created LiveStacking nodes.':
-        'Default broadcast port',
+    'Plate solve and re-center target after flip': 'Recenter after flip',
+    'Play sound when flip starts/completes/fails': 'Sound alert',
+    'Port used by newly-created LiveStacking nodes.': 'Default broadcast port',
     'Rendered on the broadcast JPEG. Variable interpolation':
         'Default watermark template',
-    'Restart autoguider if it was running':
-        'Resume guiding after flip',
-    'Run auto focus periodically':
-        'Auto focus interval',
-    'Run auto focus when switching filters':
-        'Auto focus on filter change',
-    'Run autofocus after flip completes':
-        'Refocus after flip',
+    'Restart autoguider if it was running': 'Resume guiding after flip',
+    'Run auto focus periodically': 'Auto focus interval',
+    'Run auto focus when switching filters': 'Auto focus on filter change',
+    'Run autofocus after flip completes': 'Refocus after flip',
     'Run autofocus every N completed exposures (frames-based)':
         'Auto focus every N frames',
-    'Send notification to mobile app':
-        'Push notification',
+    'Send notification to mobile app': 'Push notification',
     'Show a quick journal-entry dialog when a sequence':
         'Prompt for notes after run',
-    'Show the Smart Night prompt on the dashboard':
-        'Dashboard auto-prompt',
-    'Temporarily stop autoguider during flip':
-        'Pause guiding before flip',
-    'Times a failed exposure or image download is':
-        'Camera retries',
-    'Times a failed filter change, or one where the':
-        'Filter wheel retries',
+    'Show the Smart Night prompt on the dashboard': 'Dashboard auto-prompt',
+    'Temporarily stop autoguider during flip': 'Pause guiding before flip',
+    'Times a failed exposure or image download is': 'Camera retries',
+    'Times a failed filter change, or one where the': 'Filter wheel retries',
     'Use the scheduler when target count reaches this':
         'Scheduler threshold (targets)',
-    'Wait time after flip before resuming':
-        'Settle time',
+    'Wait time after flip before resuming': 'Settle time',
     'Wrap multi-target plans in a TargetScheduler so':
         'Scheduler for multi-target nights',
   },
