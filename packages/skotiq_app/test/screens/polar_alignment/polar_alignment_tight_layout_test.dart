@@ -18,6 +18,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'package:skotiq_app/widgets/tutorial_keys/polar_alignment_keys.dart';
 
+import '../../golden/surface_golden_harness.dart';
 import '../../harness/pump_app_screen.dart';
 
 /// The screen's share of a 1920x1080 window: the navigation rail and the top
@@ -276,6 +277,34 @@ void main() {
     expect(find.text('30.0"'), findsOneWidget, reason: 'the total');
     expect(polarBullseyeOuterScaleArcsec(-24, 18), 120);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'at the owner\'s 1536x864 window the Adjust card stays on screen '
+      'under the frame', (tester) async {
+    // A 1920x1080 panel at 125% is a 1536x864 window; with the rail open the
+    // screen gets about 1308x774 of it. The center column is then under the
+    // 520 px side-by-side threshold, and a 4:3 frame stacked above the card
+    // pushed its threshold bar and auto-complete line below the fold.
+    const owner = Size(1308, 774);
+    await SurfaceGoldenHarness.ensureFonts();
+    final handle = await _pump(tester, size: owner);
+    final backend = handle.backend;
+
+    backend.emitEvent(_status('measuring', 'Plate solving point 2', 2));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(tester.takeException(), isNull);
+
+    backend.emitEvent(_status('adjusting', 'Adjusting', 0));
+    await tester.pump(const Duration(milliseconds: 100));
+    backend.emitEvent(_error(-300, 200));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(tester.takeException(), isNull);
+
+    expect(find.text('Adjust mount'), findsOneWidget);
+    final threshold = tester.getRect(find.text('Adjust to threshold'));
+    expect(threshold.bottom, lessThanOrEqualTo(owner.height),
+        reason: 'the whole Adjust card is on screen without scrolling');
   });
 
   test('ring labels use the unit the operator would say', () {

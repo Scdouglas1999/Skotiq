@@ -42,7 +42,63 @@ const double _runSideCardWidth = 220;
 /// stacks and scrolls instead.
 const double _runRowMinHeight = 320;
 
+/// Shortest the frame gets when it stacks above its card in a column of known
+/// height; below this the card scrolls instead of the frame shrinking further.
+const double _stackedFrameMinHeight = 200;
+
 extension _MeasurementPanel on _PolarAlignmentScreenState {
+  /// The frame above its card, for a column too narrow to set them side by
+  /// side.
+  ///
+  /// Where the column's height is known, the card keeps its natural height and
+  /// the frame takes what is left, so the whole card stays on screen. At a
+  /// 1536x864 window (a 1920x1080 panel at 125%) the center column is about
+  /// 496 px wide, and a 4:3 frame there pushed the Adjust card's threshold bar
+  /// and auto-complete line below the fold mid-adjustment. Where the height is
+  /// unbounded or short, the pair scrolls as before.
+  Widget _stackedRun({
+    required BoxConstraints constraints,
+    required Widget imageArea,
+    required Widget card,
+  }) {
+    const padding = SkotiqTokens.spaceLg;
+    const gap = SkotiqTokens.spaceLg;
+    if (constraints.hasBoundedHeight &&
+        constraints.maxHeight >= _runRowMinHeight) {
+      final cardMax = math.max(
+        0.0,
+        constraints.maxHeight - 2 * padding - gap - _stackedFrameMinHeight,
+      );
+      return Padding(
+        padding: const EdgeInsets.all(padding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: imageArea),
+            const SizedBox(height: gap),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: cardMax),
+              child: SingleChildScrollView(child: card),
+            ),
+          ],
+        ),
+      );
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(padding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Give the image a generous square-ish area then let the card flow
+          // beneath it.
+          AspectRatio(aspectRatio: 4 / 3, child: imageArea),
+          const SizedBox(height: gap),
+          card,
+        ],
+      ),
+    );
+  }
+
   Widget _buildMeasuringStatus(SkotiqColors colors, PolarAlignmentState state) {
     final status = state.statusMessage;
     // One number for the whole panel: the progress list and the activity line
@@ -211,18 +267,10 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
         );
 
         if (stack) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Give the image a generous square-ish area then let the
-                // progress panel flow beneath it.
-                AspectRatio(aspectRatio: 4 / 3, child: imageArea),
-                const SizedBox(height: SkotiqTokens.spaceLg),
-                progressPanel,
-              ],
-            ),
+          return _stackedRun(
+            constraints: constraints,
+            imageArea: imageArea,
+            card: progressPanel,
           );
         }
 
@@ -493,16 +541,10 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
         );
 
         if (stack) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AspectRatio(aspectRatio: 4 / 3, child: imageArea),
-                const SizedBox(height: SkotiqTokens.spaceLg),
-                directionPanel,
-              ],
-            ),
+          return _stackedRun(
+            constraints: constraints,
+            imageArea: imageArea,
+            card: directionPanel,
           );
         }
 
