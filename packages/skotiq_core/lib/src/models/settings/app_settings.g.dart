@@ -207,6 +207,8 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
   afBacklashOut: (json['afBacklashOut'] as num?)?.toInt() ?? 0,
   afAutofocusFilterName: json['afAutofocusFilterName'] as String? ?? '',
   afFilterSettingsJson: json['afFilterSettingsJson'] as String? ?? '{}',
+  focuserBacklashCalibrationJson:
+      json['focuserBacklashCalibrationJson'] as String? ?? '',
   useFilterFocusOffsets: json['useFilterFocusOffsets'] as bool? ?? true,
   astrometryPath: json['astrometryPath'] as String? ?? '',
   observerName: json['observerName'] as String? ?? '',
@@ -381,6 +383,7 @@ Map<String, dynamic> _$AppSettingsToJson(
   'afBacklashOut': instance.afBacklashOut,
   'afAutofocusFilterName': instance.afAutofocusFilterName,
   'afFilterSettingsJson': instance.afFilterSettingsJson,
+  'focuserBacklashCalibrationJson': instance.focuserBacklashCalibrationJson,
   'useFilterFocusOffsets': instance.useFilterFocusOffsets,
   'astrometryPath': instance.astrometryPath,
   'observerName': instance.observerName,

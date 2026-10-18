@@ -87,16 +87,19 @@ void main() {
       expect(r.refusal, contains('no connected camera has that name'));
     });
 
-    test('an unplugged device keeps its saved id so the connect reports it', () {
-      final r = resolveProfileSlot(
-        savedId: 'native:zwo:1',
-        savedName: 'ZWO ASI1600MM-Cool',
-        deviceLabel: 'camera',
-        discovered: [_camera('native:zwo:0', 'ZWO ASI178MM')],
-      );
-      expect(r.deviceId, 'native:zwo:1');
-      expect(r.corrected, isFalse);
-    });
+    test(
+      'an unplugged device keeps its saved id so the connect reports it',
+      () {
+        final r = resolveProfileSlot(
+          savedId: 'native:zwo:1',
+          savedName: 'ZWO ASI1600MM-Cool',
+          deviceLabel: 'camera',
+          discovered: [_camera('native:zwo:0', 'ZWO ASI178MM')],
+        );
+        expect(r.deviceId, 'native:zwo:1');
+        expect(r.corrected, isFalse);
+      },
+    );
 
     test('ids that already name a device, unnamed slots and an empty '
         'discovery are left alone', () {

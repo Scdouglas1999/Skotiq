@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../screens/settings/widgets/settings_widgets.dart';
 import 'focuser_backlash_text.dart';
 
 /// The focuser backlash calibration wizard.
@@ -93,6 +95,14 @@ class FocuserBacklashCalibrationDialog extends ConsumerWidget {
     final notifier = ref.read(focuserBacklashCalibrationProvider.notifier);
     switch (_surfaceFor(state)) {
       case _Surface.intro:
+        // The settings provider surfaces a stored-but-invalid config rather
+        // than substituting the seed, so an unusable combination can be
+        // displayed and fixed — never started.
+        final settingsValid = ref.watch(
+          focuserBacklashCalibrationSettingsProvider.select(
+            (s) => s.isValid,
+          ),
+        );
         return [
           SkotiqButton(
             label: 'Not now',
@@ -104,11 +114,17 @@ class FocuserBacklashCalibrationDialog extends ConsumerWidget {
             icon: LucideIcons.play,
             // Disabled until the plan is in: the run needs a centre position
             // and travel limits read off the focuser, and starting without
-            // them would move it blind.
-            onPressed: state.plan == null ? null : () => notifier.run(),
-            semanticsHint: state.plan == null
-                ? 'Reading the focuser position and travel limits'
-                : null,
+            // them would move it blind. Also gated on the settings: the
+            // dialog names the problem inline rather than launching a run
+            // native would refuse.
+            onPressed: state.plan == null || !settingsValid
+                ? null
+                : () => notifier.run(),
+            semanticsHint: !settingsValid
+                ? 'A calibration setting needs attention'
+                : state.plan == null
+                    ? 'Reading the focuser position and travel limits'
+                    : null,
           ),
         ];
       case _Surface.progress:
@@ -212,7 +228,13 @@ class _Body extends StatelessWidget {
         // line otherwise — above all a cancellation, which lands back here
         // ready to re-run. Shown verbatim so the operator is told the focuser
         // has been put back rather than left wondering.
-        return _IntroPanel(plan: state.plan, note: state.status);
+        return _IntroPanel(
+          plan: state.plan,
+          note: state.status,
+          // A plan that could not be worked out lands here, where the plan
+          // would have been quoted — the same wording the service raised.
+          problem: state.errorMessage,
+        );
       case _Surface.progress:
         return _ProgressPanel(state: state);
       case _Surface.result:
@@ -228,12 +250,17 @@ class _Body extends StatelessWidget {
 // Intro
 
 class _IntroPanel extends StatelessWidget {
-  const _IntroPanel({required this.plan, this.note = ''});
+  const _IntroPanel({required this.plan, this.note = '', this.problem});
 
   final FocuserBacklashCalibrationPlan? plan;
 
   /// How the previous attempt ended, if there was one. Verbatim.
   final String note;
+
+  /// Why the plan could not be produced, when it could not — the wording the
+  /// service raised, which includes the settings rules the dialog itself
+  /// enforces.
+  final String? problem;
 
   @override
   Widget build(BuildContext context) {
@@ -247,6 +274,14 @@ class _IntroPanel extends StatelessWidget {
             tone: BannerTone.info,
             icon: LucideIcons.info,
             title: note,
+          ),
+          const SizedBox(height: SkotiqTokens.spaceXl),
+        ],
+        if (problem != null) ...[
+          SkotiqBanner(
+            tone: BannerTone.warning,
+            title: 'The plan could not be worked out',
+            message: problem,
           ),
           const SizedBox(height: SkotiqTokens.spaceXl),
         ],
@@ -277,7 +312,12 @@ class _IntroPanel extends StatelessWidget {
           style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
         ),
         const SizedBox(height: SkotiqTokens.spaceXl),
-        if (plan == null) const _PlanLoading() else _PlanSummary(plan: plan!),
+        if (plan != null)
+          _PlanSummary(plan: plan!)
+        else if (problem == null)
+          const _PlanLoading(),
+        const SizedBox(height: SkotiqTokens.spaceXl),
+        const _CalibrationSettingsSection(),
         const SizedBox(height: SkotiqTokens.spaceMd),
         Text(
           backlashVariesNotice,
@@ -1061,6 +1101,463 @@ class _LegendEntry extends StatelessWidget {
           '$label — $detail',
           style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
+      ],
+    );
+  }
+}
+
+// Settings
+
+/// The operator's tuning for the measurement: the scan's geometry and the
+/// camera it shoots with, with the fit thresholds and limits behind an
+/// 'Advanced' disclosure so the dialog's job stays the start button and the
+/// result.
+///
+/// Every field writes through the app settings store — the persisted values
+/// win, and a stored blob that parses but breaks one of the shared rules is
+/// shown here with its problems named rather than silently discarded. The
+/// reset clears the stored choices entirely, which re-seeds the fields from
+/// the autofocus settings the operator already tuned for this rig.
+class _CalibrationSettingsSection extends ConsumerStatefulWidget {
+  const _CalibrationSettingsSection();
+
+  /// ValueKey prefix for each field control, so tests can address them
+  /// without depending on label text.
+  static const String fieldKeyPrefix = 'backlash-calibration-field';
+
+  /// The 'Advanced' disclosure toggle.
+  static const String advancedKey = 'backlash-calibration-advanced';
+
+  /// The 'Reset to autofocus settings' button.
+  static const String resetKey = 'backlash-calibration-reset';
+
+  @override
+  ConsumerState<_CalibrationSettingsSection> createState() =>
+      _CalibrationSettingsSectionState();
+}
+
+class _CalibrationSettingsSectionState
+    extends ConsumerState<_CalibrationSettingsSection> {
+  bool _advancedOpen = false;
+
+  /// The backend the displayed values belong to, so a host switch discards an
+  /// in-flight edit rather than carrying it to a different rig.
+  Object? _authority;
+
+  final _stepSize = TextEditingController();
+  final _stepsOut = TextEditingController();
+  final _clearance = TextEditingController();
+  final _exposure = TextEditingController();
+  final _exposuresPerPoint = TextEditingController();
+  final _gain = TextEditingController();
+  final _offset = TextEditingController();
+  final _minStars = TextEditingController();
+  final _rSquared = TextEditingController();
+  final _innerCrop = TextEditingController();
+  final _outerCrop = TextEditingController();
+  final _brightestN = TextEditingController();
+  final _settle = TextEditingController();
+  final _sigma = TextEditingController();
+  final _maxTime = TextEditingController();
+
+  /// One grid cell: a label-left `FormRow` at the width two columns take in
+  /// the 720px dialog.
+  static const double _cellWidth = 296;
+  static const double _cellLabelWidth = 92;
+
+  @override
+  void dispose() {
+    _stepSize.dispose();
+    _stepsOut.dispose();
+    _clearance.dispose();
+    _exposure.dispose();
+    _exposuresPerPoint.dispose();
+    _gain.dispose();
+    _offset.dispose();
+    _minStars.dispose();
+    _rSquared.dispose();
+    _innerCrop.dispose();
+    _outerCrop.dispose();
+    _brightestN.dispose();
+    _settle.dispose();
+    _sigma.dispose();
+    _maxTime.dispose();
+    super.dispose();
+  }
+
+  /// Fold an edit into the persisted blob. Serialized behind the settings
+  /// notifier's write tail so back-to-back commits from different fields
+  /// cannot overwrite each other.
+  void _persist(
+    FocuserBacklashCalibrationSettings Function(
+      FocuserBacklashCalibrationSettings current,
+    ) update,
+  ) {
+    unawaited(
+      ref
+          .read(appSettingsProvider.notifier)
+          .updateFocuserBacklashCalibrationSettings(
+            update,
+            fallback: ref.read(focuserBacklashCalibrationSettingsProvider),
+          ),
+    );
+  }
+
+  Widget _numberField({
+    required String name,
+    required String label,
+    required TextEditingController controller,
+    required double value,
+    required double min,
+    required double max,
+    int decimals = 0,
+    String suffix = '',
+    required FocuserBacklashCalibrationSettings Function(
+      FocuserBacklashCalibrationSettings settings,
+    )
+            Function(double value)
+        apply,
+  }) {
+    return SizedBox(
+      width: _cellWidth,
+      child: FormRow(
+        label: label,
+        labelWidth: _cellLabelWidth,
+        child: SettingsNumberInput(
+          key: ValueKey<String>(
+            '${_CalibrationSettingsSection.fieldKeyPrefix}-$name',
+          ),
+          controller: controller,
+          authoritativeValue: value,
+          authorityKey: _authority,
+          suffix: suffix,
+          min: min,
+          max: max,
+          decimals: decimals,
+          flexible: true,
+          onChanged: (value) => _persist(apply(value)),
+        ),
+      ),
+    );
+  }
+
+  /// A camera field that may be left unset — blank means "whatever the camera
+  /// is configured with", the same convention autofocus uses.
+  Widget _optionalCameraField({
+    required String name,
+    required String label,
+    required TextEditingController controller,
+    required int? value,
+    required FocuserBacklashCalibrationSettings Function(
+      FocuserBacklashCalibrationSettings settings,
+      int? value,
+    ) apply,
+  }) {
+    return SizedBox(
+      width: _cellWidth,
+      child: FormRow(
+        label: label,
+        labelWidth: _cellLabelWidth,
+        child: SettingsTextInput(
+          key: ValueKey<String>(
+            '${_CalibrationSettingsSection.fieldKeyPrefix}-$name',
+          ),
+          controller: controller,
+          authoritativeValue: value?.toString() ?? '',
+          authorityKey: _authority,
+          hint: 'Camera default',
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          flexible: true,
+          onChanged: (text) => _persist(
+            (s) => apply(s, text.trim().isEmpty ? null : int.tryParse(text)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.skotiqColors;
+    final settings = ref.watch(focuserBacklashCalibrationSettingsProvider);
+    _authority = ref.watch(backendProvider);
+    final problems = settings.problems;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Settings',
+              style: SkotiqTypography.labelStrong.copyWith(
+                color: colors.textPrimary,
+              ),
+            ),
+            const SizedBox(width: SkotiqTokens.spaceMd),
+            Expanded(
+              child: Text(
+                'Seeded from your autofocus settings',
+                overflow: TextOverflow.ellipsis,
+                style: SkotiqTypography.caption.copyWith(
+                  color: colors.textMuted,
+                ),
+              ),
+            ),
+            SkotiqButton(
+              key: const ValueKey<String>(
+                _CalibrationSettingsSection.resetKey,
+              ),
+              label: 'Reset to autofocus settings',
+              icon: LucideIcons.rotateCcw,
+              variant: ButtonVariant.ghost,
+              size: ButtonSize.small,
+              onPressed: () => unawaited(
+                ref
+                    .read(appSettingsProvider.notifier)
+                    .setFocuserBacklashCalibrationJson(''),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: SkotiqTokens.spaceSm),
+        Wrap(
+          spacing: SkotiqTokens.spaceLg,
+          runSpacing: SkotiqTokens.spaceMd,
+          children: [
+            _numberField(
+              name: 'step-size',
+              label: 'Step size',
+              controller: _stepSize,
+              value: settings.stepSize.toDouble(),
+              min: 1,
+              max: 100000,
+              suffix: 'steps',
+              apply: (v) => (s) => s.copyWith(stepSize: v.round()),
+            ),
+            _numberField(
+              name: 'points-a-side',
+              label: 'Points a side',
+              controller: _stepsOut,
+              value: settings.stepsOut.toDouble(),
+              min: 3,
+              max: 50,
+              apply: (v) => (s) => s.copyWith(stepsOut: v.round()),
+            ),
+            _numberField(
+              name: 'run-up',
+              label: 'Run-up',
+              controller: _clearance,
+              value: settings.clearanceSteps.toDouble(),
+              min: 1,
+              max: 1000000,
+              suffix: 'steps',
+              apply: (v) => (s) => s.copyWith(clearanceSteps: v.round()),
+            ),
+            _numberField(
+              name: 'exposure',
+              label: 'Exposure',
+              controller: _exposure,
+              value: settings.exposureDurationSecs,
+              min: 0.01,
+              max: 600,
+              decimals: 2,
+              suffix: 's',
+              apply: (v) => (s) => s.copyWith(exposureDurationSecs: v),
+            ),
+            _numberField(
+              name: 'exposures-per-point',
+              label: 'Frames/point',
+              controller: _exposuresPerPoint,
+              value: settings.exposuresPerPoint.toDouble(),
+              min: 1,
+              max: 20,
+              apply: (v) => (s) => s.copyWith(exposuresPerPoint: v.round()),
+            ),
+            SizedBox(
+              width: _cellWidth,
+              child: FormRow(
+                label: 'Binning',
+                labelWidth: _cellLabelWidth,
+                child: SkotiqDropdown(
+                  key: const ValueKey<String>(
+                    '${_CalibrationSettingsSection.fieldKeyPrefix}-binning',
+                  ),
+                  value: '${settings.binning}',
+                  items: const ['1', '2', '3', '4'],
+                  itemLabels: const ['1×1', '2×2', '3×3', '4×4'],
+                  dense: true,
+                  isExpanded: true,
+                  onChanged: (value) {
+                    final parsed = int.tryParse(value ?? '');
+                    if (parsed == null) return;
+                    _persist((s) => s.copyWith(binning: parsed));
+                  },
+                ),
+              ),
+            ),
+            _optionalCameraField(
+              name: 'gain',
+              label: 'Gain',
+              controller: _gain,
+              value: settings.gain,
+              apply: (s, v) => s.copyWith(gain: v),
+            ),
+            _optionalCameraField(
+              name: 'offset',
+              label: 'Offset',
+              controller: _offset,
+              value: settings.offset,
+              apply: (s, v) => s.copyWith(offset: v),
+            ),
+          ],
+        ),
+        const SizedBox(height: SkotiqTokens.spaceSm),
+        Semantics(
+          button: true,
+          expanded: _advancedOpen,
+          label: 'Advanced calibration settings',
+          child: InkWell(
+            key: const ValueKey<String>(
+              _CalibrationSettingsSection.advancedKey,
+            ),
+            borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
+            onTap: () => setState(() => _advancedOpen = !_advancedOpen),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: SkotiqTokens.spaceSm,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _advancedOpen
+                        ? LucideIcons.chevronDown
+                        : LucideIcons.chevronRight,
+                    size: SkotiqTokens.iconSm,
+                    color: colors.textMuted,
+                  ),
+                  const SizedBox(width: SkotiqTokens.spaceSm),
+                  Text(
+                    'Advanced',
+                    style: SkotiqTypography.bodySm.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(width: SkotiqTokens.spaceMd),
+                  Expanded(
+                    child: Text(
+                      'Fit thresholds, settle time and limits',
+                      overflow: TextOverflow.ellipsis,
+                      style: SkotiqTypography.caption.copyWith(
+                        color: colors.textMuted,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (_advancedOpen)
+          Padding(
+            padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceSm),
+            child: Wrap(
+              spacing: SkotiqTokens.spaceLg,
+              runSpacing: SkotiqTokens.spaceMd,
+              children: [
+                _numberField(
+                  name: 'min-stars',
+                  label: 'Min stars',
+                  controller: _minStars,
+                  value: settings.minStarCount.toDouble(),
+                  min: 0,
+                  max: 10000,
+                  apply: (v) => (s) => s.copyWith(minStarCount: v.round()),
+                ),
+                _numberField(
+                  name: 'r-squared',
+                  label: 'R² floor',
+                  controller: _rSquared,
+                  value: settings.rSquaredThreshold,
+                  min: 0,
+                  max: 1,
+                  decimals: 2,
+                  apply: (v) => (s) => s.copyWith(rSquaredThreshold: v),
+                ),
+                _numberField(
+                  name: 'inner-crop',
+                  label: 'Inner crop',
+                  controller: _innerCrop,
+                  value: settings.innerCropRatio,
+                  min: 0,
+                  max: 1,
+                  decimals: 2,
+                  apply: (v) => (s) => s.copyWith(innerCropRatio: v),
+                ),
+                _numberField(
+                  name: 'outer-crop',
+                  label: 'Outer crop',
+                  controller: _outerCrop,
+                  value: settings.outerCropRatio,
+                  min: 0,
+                  max: 1,
+                  decimals: 2,
+                  apply: (v) => (s) => s.copyWith(outerCropRatio: v),
+                ),
+                _numberField(
+                  name: 'brightest-stars',
+                  label: 'Brightest stars',
+                  controller: _brightestN,
+                  value: settings.useBrightestNStars.toDouble(),
+                  min: 0,
+                  max: 10000,
+                  apply: (v) =>
+                      (s) => s.copyWith(useBrightestNStars: v.round()),
+                ),
+                _numberField(
+                  name: 'settle',
+                  label: 'Settle',
+                  controller: _settle,
+                  value: settings.focuserSettleTimeMs.toDouble(),
+                  min: 0,
+                  max: 10000,
+                  suffix: 'ms',
+                  apply: (v) =>
+                      (s) => s.copyWith(focuserSettleTimeMs: v.round()),
+                ),
+                _numberField(
+                  name: 'outlier-sigma',
+                  label: 'Outlier σ',
+                  controller: _sigma,
+                  value: settings.outlierRejectionSigma,
+                  min: 0,
+                  max: 100,
+                  decimals: 1,
+                  apply: (v) => (s) => s.copyWith(outlierRejectionSigma: v),
+                ),
+                _numberField(
+                  name: 'max-time',
+                  label: 'Max run time',
+                  controller: _maxTime,
+                  value: settings.maxDurationSecs,
+                  min: 1,
+                  max: 86400,
+                  suffix: 's',
+                  apply: (v) => (s) => s.copyWith(maxDurationSecs: v),
+                ),
+              ],
+            ),
+          ),
+        if (problems.isNotEmpty)
+          SkotiqBanner(
+            tone: BannerTone.warning,
+            title: problems.length == 1
+                ? 'A calibration setting needs attention'
+                : '${problems.length} calibration settings need attention',
+            message: problems.join(' '),
+          ),
       ],
     );
   }

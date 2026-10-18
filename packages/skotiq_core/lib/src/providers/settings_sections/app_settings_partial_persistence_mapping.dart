@@ -94,6 +94,7 @@ extension _AppSettingsPartialPersistenceMapping on AppSettingsNotifier {
     'temp_compensation',
     'temp_coefficient',
     'backlash_compensation',
+    'focuser_backlash_calibration_settings',
     // Guider settle (calibration).
     'settle_threshold',
     'settle_timeout',
@@ -611,6 +612,8 @@ extension _AppSettingsPartialPersistenceMapping on AppSettingsNotifier {
           : null,
       afAutofocusFilterName: settings['af_autofocus_filter_name'],
       afFilterSettingsJson: settings['af_filter_settings'],
+      focuserBacklashCalibrationJson:
+          settings['focuser_backlash_calibration_settings'],
       // Observer name (FITS OBSERVER).
       observerName: settings['observer_name'],
       // Image Grading. Nullable double / int fields use

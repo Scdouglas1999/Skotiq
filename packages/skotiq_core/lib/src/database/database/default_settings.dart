@@ -104,6 +104,9 @@ const Map<String, String> _defaultSettings = {
   'af_backlash_in': '0',
   // ask | never
   'focuser_backlash_offer_mode': 'ask',
+  // Saved backlash-calibration choices as a JSON blob. Empty means none —
+  // the dialog seeds from the autofocus settings until a field is edited.
+  'focuser_backlash_calibration_settings': '',
   // ask | computerToMount | mountToComputer | never
   'mount_site_sync_mode': 'ask',
   'af_backlash_out': '0',

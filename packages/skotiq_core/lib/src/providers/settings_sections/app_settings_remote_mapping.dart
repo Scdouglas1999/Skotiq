@@ -159,6 +159,9 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       afBacklashOut: remote.afBacklashOut,
       afAutofocusFilterName: remote.afAutofocusFilterName,
       afFilterSettingsJson: remote.afFilterSettingsJson,
+      // The operator's tuned backlash-calibration settings round-trip so a
+      // phone-driven night measures with the same geometry.
+      focuserBacklashCalibrationJson: remote.focuserBacklashCalibrationJson,
       useFilterFocusOffsets: remote.useFilterFocusOffsets,
       astrometryPath: remote.astrometryPath,
       observerName: remote.observerName,
@@ -350,6 +353,7 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       afBacklashOut: settings.afBacklashOut,
       afAutofocusFilterName: settings.afAutofocusFilterName,
       afFilterSettingsJson: settings.afFilterSettingsJson,
+      focuserBacklashCalibrationJson: settings.focuserBacklashCalibrationJson,
       useFilterFocusOffsets: settings.useFilterFocusOffsets,
       astrometryPath: settings.astrometryPath,
       observerName: settings.observerName,
@@ -898,6 +902,10 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       case 'afFilterSettingsJson':
         return value is String
             ? current.copyWith(afFilterSettingsJson: value)
+            : null;
+      case 'focuserBacklashCalibrationJson':
+        return value is String
+            ? current.copyWith(focuserBacklashCalibrationJson: value)
             : null;
       case 'useFilterFocusOffsets':
         return value is bool

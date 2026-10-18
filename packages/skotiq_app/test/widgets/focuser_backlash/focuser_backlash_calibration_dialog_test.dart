@@ -4,6 +4,8 @@
 // The three outcomes are the point: a figure is never shown bare, "no
 // measurable backlash" reads as a success, and a refusal is a dignified
 // first-class outcome carrying native's own words.
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/widgets/focuser_backlash/focuser_backlash_calibration_dialog.dart';
@@ -62,13 +64,13 @@ class _FakeNotifier extends FocuserBacklashCalibrationNotifier {
   void reset() {}
 }
 
-Future<_FakeNotifier> _open(
+Future<(_FakeNotifier, HarnessHandle)> _openHarness(
   WidgetTester tester,
   FocuserBacklashCalibrationState state, {
   bool settle = true,
 }) async {
   late _FakeNotifier notifier;
-  await pumpAppScreen(
+  final handle = await pumpAppScreen(
     tester,
     Builder(
       builder: (context) => Center(
@@ -96,8 +98,15 @@ Future<_FakeNotifier> _open(
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
   }
-  return notifier;
+  return (notifier, handle);
 }
+
+Future<_FakeNotifier> _open(
+  WidgetTester tester,
+  FocuserBacklashCalibrationState state, {
+  bool settle = true,
+}) async =>
+    (await _openHarness(tester, state, settle: settle)).$1;
 
 void main() {
   group('intro', () {
@@ -623,6 +632,241 @@ void main() {
       expect(find.textContaining('This is not a refusal'), findsOneWidget);
       expect(find.widgetWithText(SkotiqButton, 'Try again'), findsOneWidget);
       expect(find.widgetWithText(SkotiqButton, 'Close'), findsOneWidget);
+    });
+  });
+
+  group('settings', () {
+    /// The data key `_CalibrationSettingsSection` tags each control with.
+    Finder field(String name) =>
+        findByDataKey('backlash-calibration-field-$name');
+
+    /// The text a number or text field is currently showing.
+    String fieldText(WidgetTester tester, String name) => tester
+        .widget<EditableText>(
+          find.descendant(of: field(name), matching: find.byType(EditableText)),
+        )
+        .controller
+        .text;
+
+    /// Enter a value and commit it, then let the settings write land.
+    ///
+    /// Fields commit on submit, not per keystroke — the same convention the
+    /// settings screens use — so an edit needs the done action followed by a
+    /// few pumps for the serialized write to reach the provider.
+    Future<void> commit(
+      WidgetTester tester,
+      String name,
+      String text,
+    ) async {
+      await tester.ensureVisible(field(name));
+      await tester.enterText(field(name), text);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 25));
+      }
+    }
+
+    Map<String, dynamic> storedBlob(HarnessHandle handle) {
+      final json = handle.container
+          .read(appSettingsProvider)
+          .value!
+          .focuserBacklashCalibrationJson;
+      return jsonDecode(json) as Map<String, dynamic>;
+    }
+
+    testWidgets('shows the values seeded from the autofocus settings', (
+      tester,
+    ) async {
+      final (_, handle) = await _openHarness(
+        tester,
+        const FocuserBacklashCalibrationState(plan: plan9Points),
+      );
+
+      final settings = handle.container.read(
+        focuserBacklashCalibrationSettingsProvider,
+      );
+      expect(find.text('Settings'), findsOneWidget);
+      expect(
+        find.textContaining('Seeded from your autofocus settings'),
+        findsOneWidget,
+      );
+      // Every field shows the resolved settings, not a hardcoded default.
+      expect(
+        double.parse(fieldText(tester, 'step-size')),
+        settings.stepSize.toDouble(),
+      );
+      expect(
+        double.parse(fieldText(tester, 'points-a-side')),
+        settings.stepsOut.toDouble(),
+      );
+      expect(
+        double.parse(fieldText(tester, 'run-up')),
+        settings.clearanceSteps.toDouble(),
+      );
+      expect(
+        double.parse(fieldText(tester, 'exposure')),
+        settings.exposureDurationSecs,
+      );
+      expect(
+        double.parse(fieldText(tester, 'exposures-per-point')),
+        settings.exposuresPerPoint.toDouble(),
+      );
+      // Blank means "the camera's configured value".
+      expect(fieldText(tester, 'gain'), '');
+      expect(fieldText(tester, 'offset'), '');
+      // Advanced stays tucked away until asked for.
+      expect(find.text('Advanced'), findsOneWidget);
+      expect(field('settle'), findsNothing);
+    });
+
+    testWidgets('opens the advanced fit thresholds on request', (tester) async {
+      await _open(
+        tester,
+        const FocuserBacklashCalibrationState(plan: plan9Points),
+      );
+
+      expect(field('min-stars'), findsNothing);
+      await tester
+          .ensureVisible(findByDataKey('backlash-calibration-advanced'));
+      await tester.tap(findByDataKey('backlash-calibration-advanced'));
+      await tester.pumpAndSettle();
+
+      for (final name in [
+        'min-stars',
+        'r-squared',
+        'inner-crop',
+        'outer-crop',
+        'brightest-stars',
+        'settle',
+        'outlier-sigma',
+        'max-time',
+      ]) {
+        expect(field(name), findsOneWidget, reason: name);
+      }
+      // And it collapses again.
+      await tester.tap(findByDataKey('backlash-calibration-advanced'));
+      await tester.pumpAndSettle();
+      expect(field('settle'), findsNothing);
+    });
+
+    testWidgets('edits persist through the settings store as the wire map', (
+      tester,
+    ) async {
+      final (_, handle) = await _openHarness(
+        tester,
+        const FocuserBacklashCalibrationState(plan: plan9Points),
+      );
+
+      await commit(tester, 'step-size', '45');
+
+      final stored = storedBlob(handle);
+      // The persisted blob IS the wire vocabulary — same snake_case keys.
+      expect(stored['step_size'], 45);
+      expect(stored['steps_out'], isNotNull);
+      expect(stored['method'], 'Quadratic');
+      expect(
+        handle.container
+            .read(focuserBacklashCalibrationSettingsProvider)
+            .stepSize,
+        45,
+      );
+    });
+
+    testWidgets('an unusable combination is named and the run stays shut', (
+      tester,
+    ) async {
+      final (_, handle) = await _openHarness(
+        tester,
+        const FocuserBacklashCalibrationState(plan: plan9Points),
+      );
+
+      // The seeded run-up is 3x the step size; stepping to 200 puts the
+      // step size past it, the rule native would refuse the run on.
+      await commit(tester, 'step-size', '200');
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('must exceed the step size'), findsWidgets);
+      final button = tester.widget<SkotiqButton>(
+        find.widgetWithText(SkotiqButton, 'Measure backlash'),
+      );
+      expect(button.onPressed, isNull);
+      expect(
+        handle.container
+            .read(focuserBacklashCalibrationSettingsProvider)
+            .isValid,
+        isFalse,
+      );
+    });
+
+    testWidgets('editing a field re-reads the plan', (tester) async {
+      final (notifier, _) = await _openHarness(
+        tester,
+        const FocuserBacklashCalibrationState(plan: plan9Points),
+      );
+      // The open itself asked for the plan.
+      expect(notifier.planCalls, 1);
+
+      await commit(tester, 'points-a-side', '8');
+      await tester.pumpAndSettle();
+
+      // The plan on screen would otherwise quote travel for settings that
+      // are no longer in force.
+      expect(notifier.planCalls, greaterThan(1));
+    });
+
+    testWidgets('reset clears the stored choices back to the autofocus seed', (
+      tester,
+    ) async {
+      final (_, handle) = await _openHarness(
+        tester,
+        const FocuserBacklashCalibrationState(plan: plan9Points),
+      );
+
+      await commit(tester, 'points-a-side', '9');
+      expect(storedBlob(handle)['steps_out'], 9);
+
+      await tester.ensureVisible(findByDataKey('backlash-calibration-reset'));
+      await tester.tap(findByDataKey('backlash-calibration-reset'));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 25));
+      }
+      await tester.pumpAndSettle();
+
+      // An empty store is the reset: the provider re-seeds from autofocus.
+      expect(
+        handle.container
+            .read(appSettingsProvider)
+            .value!
+            .focuserBacklashCalibrationJson,
+        '',
+      );
+      final seeded = handle.container.read(
+        focuserBacklashCalibrationSettingsProvider,
+      );
+      expect(
+        double.parse(fieldText(tester, 'points-a-side')),
+        seeded.stepsOut.toDouble(),
+      );
+    });
+
+    testWidgets('binning writes through as the native enum name', (
+      tester,
+    ) async {
+      final (_, handle) = await _openHarness(
+        tester,
+        const FocuserBacklashCalibrationState(plan: plan9Points),
+      );
+
+      await tester.ensureVisible(field('binning'));
+      await tester.tap(field('binning'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('2×2'));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 25));
+      }
+      await tester.pumpAndSettle();
+
+      expect(storedBlob(handle)['binning'], 'Two');
     });
   });
 }

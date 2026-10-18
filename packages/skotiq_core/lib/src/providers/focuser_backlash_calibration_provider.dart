@@ -79,6 +79,7 @@ class FocuserBacklashCalibrationState {
     bool clearErrorMessage = false,
     bool? isSaved,
     FocuserBacklashCalibrationPlan? plan,
+    bool clearPlan = false,
   }) {
     return FocuserBacklashCalibrationState(
       phase: phase ?? this.phase,
@@ -94,7 +95,7 @@ class FocuserBacklashCalibrationState {
           ? null
           : (errorMessage ?? this.errorMessage),
       isSaved: isSaved ?? this.isSaved,
-      plan: plan ?? this.plan,
+      plan: clearPlan ? null : (plan ?? this.plan),
     );
   }
 }
@@ -113,6 +114,17 @@ class FocuserBacklashCalibrationNotifier
     // arriving from whichever backend is active.
     _ref.listen<DiagnosticsBackend>(diagnosticsBackendProvider, (_, next) {
       _bindToBackend(next);
+    });
+    // The plan on screen states the travel and cost of the settings that were
+    // in force when it was fetched; editing a field silently makes those
+    // numbers wrong, so the plan is re-read rather than left describing a run
+    // that will not happen. A rejected plan also retries — the operator's fix
+    // is exactly the change this listener sees.
+    _ref.listen(focuserBacklashCalibrationSettingsProvider, (previous, next) {
+      if (!mounted || previous == next) return;
+      if (state.isRunning) return;
+      if (state.plan == null && state.errorMessage == null) return;
+      unawaited(loadPlan());
     });
   }
 
@@ -220,7 +232,9 @@ class FocuserBacklashCalibrationNotifier
       state = state.copyWith(plan: plan, clearErrorMessage: true);
     } catch (error) {
       if (!mounted) return;
-      state = state.copyWith(errorMessage: '$error');
+      // A stale plan quotes travel and time for settings that are no longer
+      // in force; without a fresh one there is nothing honest to quote.
+      state = state.copyWith(errorMessage: '$error', clearPlan: true);
     }
   }
 

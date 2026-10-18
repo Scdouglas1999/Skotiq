@@ -924,6 +924,132 @@ mod tests {
         );
     }
 
+    /// The exact JSON Dart's `focuserBacklashCalibrationConfigJson` emits for
+    /// a typical tuned config — every settings field under the snake_case key
+    /// this struct expects, plus the run-scoped `center_position` and
+    /// `app_version`. If a key ever drifts from this map serde silently
+    /// substitutes a default the operator never chose; this test is the
+    /// contract that makes the drift loud.
+    #[test]
+    fn the_dart_config_deserializes_every_field_and_validates() {
+        let json = r#"{
+            "step_size": 45,
+            "steps_out": 6,
+            "clearance_steps": 200,
+            "exposure_duration": 4.0,
+            "exposures_per_point": 2,
+            "binning": "Two",
+            "gain": 100,
+            "offset": 50,
+            "min_star_count": 12,
+            "r_squared_threshold": 0.85,
+            "outer_crop_ratio": 0.9,
+            "inner_crop_ratio": 0.1,
+            "use_brightest_n_stars": 15,
+            "focuser_settle_time_ms": 750,
+            "method": "Quadratic",
+            "outlier_rejection_sigma": 2.5,
+            "max_duration_secs": 900.0,
+            "center_position": 6600,
+            "app_version": "7.0.0+27"
+        }"#;
+
+        let config: BacklashCalibrationConfig = serde_json::from_str(json)
+            .expect("the Dart calibration payload must deserialize");
+
+        assert_eq!(config.center_position, Some(6600));
+        assert_eq!(config.step_size, 45);
+        assert_eq!(config.steps_out, 6);
+        assert_eq!(config.clearance_steps, 200);
+        assert_eq!(config.exposure_duration, 4.0);
+        assert_eq!(config.exposures_per_point, 2);
+        assert_eq!(config.binning, Binning::Two);
+        assert_eq!(config.gain, Some(100));
+        assert_eq!(config.offset, Some(50));
+        assert_eq!(config.min_star_count, 12);
+        assert_eq!(config.r_squared_threshold, 0.85);
+        assert_eq!(config.outer_crop_ratio, 0.9);
+        assert_eq!(config.inner_crop_ratio, 0.1);
+        assert_eq!(config.use_brightest_n_stars, 15);
+        assert_eq!(config.focuser_settle_time_ms, 750);
+        assert_eq!(config.method, AutofocusMethod::Quadratic);
+        assert_eq!(config.outlier_rejection_sigma, 2.5);
+        assert_eq!(config.max_duration_secs, 900.0);
+        assert_eq!(config.app_version, "7.0.0+27");
+
+        validate_backlash_calibration_config(&config)
+            .expect("a valid Dart config must pass the same validator the run uses");
+    }
+
+    /// Dart sends null for both the unset camera fields and "wherever the
+    /// focuser is" — both land in `Option` fields and must round-trip as such.
+    #[test]
+    fn the_dart_config_carries_nulls_for_unset_fields() {
+        let json = r#"{
+            "step_size": 30,
+            "steps_out": 6,
+            "clearance_steps": 90,
+            "exposure_duration": 2.0,
+            "exposures_per_point": 1,
+            "binning": "One",
+            "gain": null,
+            "offset": null,
+            "min_star_count": 10,
+            "r_squared_threshold": 0.7,
+            "outer_crop_ratio": 1.0,
+            "inner_crop_ratio": 0.0,
+            "use_brightest_n_stars": 10,
+            "focuser_settle_time_ms": 500,
+            "method": "Quadratic",
+            "outlier_rejection_sigma": 3.0,
+            "max_duration_secs": 1200.0,
+            "center_position": null,
+            "app_version": "7.0.0+27"
+        }"#;
+
+        let config: BacklashCalibrationConfig = serde_json::from_str(json)
+            .expect("the Dart calibration payload must deserialize");
+
+        assert_eq!(config.center_position, None);
+        assert_eq!(config.gain, None);
+        assert_eq!(config.offset, None);
+        validate_backlash_calibration_config(&config)
+            .expect("camera defaults left unset are a valid config");
+    }
+
+    /// The dialog gates the run with a Dart copy of the validator; this is the
+    /// same JSON shape failing where the shared rules say it must.
+    #[test]
+    fn a_dart_config_outside_the_rules_still_fails() {
+        let json = r#"{
+            "step_size": 200,
+            "steps_out": 6,
+            "clearance_steps": 100,
+            "exposure_duration": 2.0,
+            "exposures_per_point": 1,
+            "binning": "One",
+            "gain": null,
+            "offset": null,
+            "min_star_count": 10,
+            "r_squared_threshold": 0.9,
+            "outer_crop_ratio": 1.0,
+            "inner_crop_ratio": 0.0,
+            "use_brightest_n_stars": 10,
+            "focuser_settle_time_ms": 500,
+            "method": "Quadratic",
+            "outlier_rejection_sigma": 3.0,
+            "max_duration_secs": 1200.0,
+            "center_position": null,
+            "app_version": "7.0.0+27"
+        }"#;
+
+        let config: BacklashCalibrationConfig = serde_json::from_str(json)
+            .expect("the Dart calibration payload must deserialize");
+        let error = validate_backlash_calibration_config(&config)
+            .expect_err("a run-up smaller than the step size must be refused");
+        assert!(error.contains("must exceed the step size"), "{error}");
+    }
+
     /// The owner's own from-below numbers, fitted by the engine autofocus
     /// uses, must land on 6620 — the position he measured HFR 2.94 at.
     #[test]
