@@ -12,7 +12,11 @@ import '../../../widgets/focuser_controls.dart';
 import 'panel_widgets.dart';
 
 /// Gap between the manual-focus step-size chips, in logical pixels.
-const double _stepChipGap = 6;
+/// The manual-move step sizes offered in the Focus tab, in steps.
+const List<int> _manualSteps = <int>[10, 50, 100, 500];
+
+/// Gap between the step-size segments.
+const double _stepChipGap = SkotiqTokens.spaceXs;
 
 class FocusPanel extends ConsumerStatefulWidget {
   final SkotiqColors colors;
@@ -239,7 +243,7 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
                 ),
                 if (temperature != null)
                   Padding(
-                    padding: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.only(top: SkotiqTokens.spaceXs),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -254,79 +258,51 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
                       ],
                     ),
                   ),
-                const SizedBox(height: 16),
+                const SizedBox(height: SkotiqTokens.spaceMd),
 
                 // Movement buttons - using shared FocuserControls widget
                 const FocuserControls(
                   compact: true,
                   showAutofocus: false,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: SkotiqTokens.spaceMd),
 
-                // Step size selector
+                // Step size: one row of equal segments, label and control
+                // on the same flex split as the Autofocus rows below so the
+                // tab reads as one column of labels. A Wrap here put 500 alone
+                // on a second line at the side panel's width.
                 Row(
                   children: [
-                    Text('Step Size:',
-                        style: SkotiqTypography.caption
-                            .copyWith(color: widget.colors.textSecondary)),
-                    const SizedBox(width: 8),
-                    // A Wrap, not a horizontal scroll view: at the side
-                    // panel's 216px the strip clipped 500 to "50(" with no
-                    // fade or arrow to say it continued, so the largest step
-                    // read as a rendering fault rather than a control.
                     Expanded(
-                      child: Wrap(
-                        spacing: _stepChipGap,
-                        runSpacing: _stepChipGap,
-                        children: [10, 50, 100, 500].map((step) {
-                          final isSelected = focusSettings.stepSize == step;
-                          return GestureDetector(
-                            onTap: () => ref
-                                .read(focusSettingsProvider.notifier)
-                                .update(focusSettings.copyWith(stepSize: step)),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: isSelected
-                                  ? SkotiqDecorations.selectedSurface(
-                                      widget.colors.primary,
-                                      borderRadius: BorderRadius.circular(
-                                          SkotiqTokens.radiusInline4),
-                                      fillAlpha: 0.15,
-                                    )
-                                  : BoxDecoration(
-                                      color: widget.colors.background,
-                                      borderRadius: BorderRadius.circular(
-                                          SkotiqTokens.radiusInline4),
-                                      border: Border.all(
-                                        color: widget.colors.border,
-                                      ),
-                                    ),
-                              child: Text(
-                                '$step',
-                                style: SkotiqTypography.caption.copyWith(
-                                    fontWeight: isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.normal,
-                                    color: isSelected
-                                        ? widget.colors.primary
-                                        : widget.colors.textSecondary),
-                              ),
-                            ),
-                          );
-                        }).toList(),
+                      flex: SkotiqTokens.panelRowLabelFlex,
+                      child: Text(
+                        'Step size',
+                        style: SkotiqTypography.caption
+                            .copyWith(color: widget.colors.textSecondary),
+                      ),
+                    ),
+                    Expanded(
+                      flex: SkotiqTokens.panelRowControlFlex,
+                      child: _StepSizeSegments(
+                        steps: _manualSteps,
+                        selected: focusSettings.stepSize,
+                        colors: widget.colors,
+                        onSelected: (step) => ref
+                            .read(focusSettingsProvider.notifier)
+                            .update(focusSettings.copyWith(stepSize: step)),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: SkotiqTokens.spaceMd),
 
-                // Go to position button
+                // Secondary: Run Autofocus is this tab's one primary action.
                 SizedBox(
                   width: double.infinity,
                   child: SmallButton(
                     label: 'Go To Position...',
                     icon: SkotiqIcons.move,
+                    isOutline: true,
                     colors: widget.colors,
                     isEnabled: isConnected &&
                         focuserState.isAbsolute &&
@@ -337,7 +313,7 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
                 ),
                 if (isConnected && !focuserState.isAbsolute)
                   Padding(
-                    padding: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.only(top: SkotiqTokens.spaceSm),
                     child: Text(
                       'Absolute positioning is not supported by this focuser.',
                       style: SkotiqTypography.caption
@@ -347,7 +323,7 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: SidePanel.sectionGap),
 
           // Autofocus Section
           PanelSection(
@@ -393,7 +369,7 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
                           .copyWith(color: widget.colors.textMuted),
                     ),
                   ),
-                const SizedBox(height: 12),
+                const SizedBox(height: SkotiqTokens.spaceMd),
                 InputRowEditable(
                   label: 'Step size',
                   value: '${focusSettings.afStepSize}',
@@ -408,7 +384,7 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
                     }
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: SkotiqTokens.spaceMd),
                 InputRowEditable(
                   label: 'Steps out',
                   value: '${focusSettings.stepsOut}',
@@ -422,7 +398,7 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
                     }
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: SkotiqTokens.spaceMd),
                 InputRowEditable(
                   label: 'Exposure',
                   value: focusSettings.exposureTime.toStringAsFixed(1),
@@ -437,7 +413,7 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
                     }
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: SkotiqTokens.spaceLg),
                 SizedBox(
                   width: double.infinity,
                   child: SmallButton(
@@ -458,7 +434,7 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: SidePanel.sectionGap),
 
           // The temperature-compensation model those autofocus runs are
           // building. This tab had no surface for it at all: the only mounted
@@ -471,7 +447,7 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
           // Deliberately not wrapped in PanelSection: the card draws its own
           // surface + border, and PanelSection would nest a second one.
           Text(
-            'Temperature Compensation',
+            'Temperature compensation',
             style: SkotiqTypography.caption.copyWith(
                 fontWeight: FontWeight.w600, color: widget.colors.textPrimary),
           ),
@@ -709,6 +685,80 @@ class _GoToPositionDialogState extends State<GoToPositionDialog> {
             size: ButtonSize.small,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The manual step sizes as one row of equal-width segments.
+///
+/// Equal widths rather than intrinsic ones so 10 and 500 are the same size of
+/// target, and the row always fits the control column without wrapping.
+class _StepSizeSegments extends StatelessWidget {
+  const _StepSizeSegments({
+    required this.steps,
+    required this.selected,
+    required this.colors,
+    required this.onSelected,
+  });
+
+  final List<int> steps;
+  final int selected;
+  final SkotiqColors colors;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var i = 0; i < steps.length; i++) ...[
+          if (i > 0) const SizedBox(width: _stepChipGap),
+          Expanded(child: _segment(steps[i])),
+        ],
+      ],
+    );
+  }
+
+  Widget _segment(int step) {
+    final isSelected = step == selected;
+    final radius = BorderRadius.circular(SkotiqTokens.radiusInline4);
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: 'Step size $step',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: () => onSelected(step),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceXs),
+            alignment: Alignment.center,
+            decoration: isSelected
+                ? BoxDecoration(
+                    color: colors.primary
+                        .withValues(alpha: SkotiqTokens.opacityStatusFill),
+                    borderRadius: radius,
+                    border: Border.all(
+                      color: colors.primary
+                          .withValues(alpha: SkotiqTokens.opacitySelectedRing),
+                    ),
+                  )
+                : BoxDecoration(
+                    color: colors.background,
+                    borderRadius: radius,
+                    border: Border.all(color: colors.border),
+                  ),
+            child: Text(
+              '$step',
+              style: SkotiqTypography.withTabular(SkotiqTypography.caption)
+                  .copyWith(
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                color: isSelected ? colors.primary : colors.textSecondary,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

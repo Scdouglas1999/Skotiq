@@ -19,6 +19,7 @@ import 'package:skotiq_core/skotiq_core.dart'
 import '../../../services/mount_command_service.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/slew_dropdown_button.dart';
+import '../widgets/meridian_flip_countdown_banner.dart' show pierSideLabel;
 import '../widgets/panel_widgets.dart';
 
 /// The trailing half of [SlewDropdownButton]: a 4px gap and the popup that
@@ -97,6 +98,24 @@ class _MountTabState extends ConsumerState<MountTab> {
     final result = await ref.read(mountCommandServiceProvider).sync(ra, dec);
     if (!mounted) return;
     context.showCommandActionResult(result);
+  }
+
+  /// One cell of the Actions grid. Its floor is the label's width WITHOUT
+  /// the icon: [_LabelFirstButton] gives the glyph up before the words, so
+  /// two compact buttons can share a row the icons alone would have stacked.
+  AdaptiveCell _actionCell(
+    BuildContext context, {
+    required String label,
+    required Widget child,
+  }) {
+    return AdaptiveCell(
+      minWidth: SkotiqButton.measureWidth(
+        context,
+        label: label,
+        size: ButtonSize.small,
+      ),
+      child: child,
+    );
   }
 
   @override
@@ -199,107 +218,105 @@ class _MountTabState extends ConsumerState<MountTab> {
           PanelSection(
             title: 'Actions',
             colors: colors,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                AdaptiveColumns(
-                  cells: <AdaptiveCell>[
-                    AdaptiveCell(
-                      minWidth: SkotiqButton.measureWidth(
-                        context,
-                        label: parkLabel,
-                        hasIcon: true,
-                      ),
-                      child: _LabelFirstButton(
-                        label: parkLabel,
-                        icon: LucideIcons.parkingSquare,
-                        variant: ButtonVariant.secondary,
-                        // Gate on canPark/canUnpark with
-                        // fail-closed capability lookup — see
-                        // gateCapability above.
-                        onPressed: isConnected &&
-                                !mountState.isSlewing &&
-                                (mountState.isParked ? canUnpark : canPark)
-                            ? () => ref
-                                    .read(mountCommandServiceProvider)
-                                    .togglePark()
-                                    .then((result) {
-                                  if (context.mounted) {
-                                    context.showCommandActionResult(result);
-                                  }
-                                })
-                            : null,
-                      ),
-                    ),
-                    AdaptiveCell(
-                      minWidth: SkotiqButton.measureWidth(
-                        context,
-                        label: trackingLabel,
-                        hasIcon: true,
-                      ),
-                      child: _LabelFirstButton(
-                        label: trackingLabel,
-                        icon: SkotiqIcons.activity,
-                        variant: mountState.isTracking
-                            ? ButtonVariant.secondary
-                            : ButtonVariant.primary,
-                        // Gate on canSetTracking capability.
-                        onPressed: isConnected &&
-                                canSetTracking &&
-                                !mountState.isParked &&
-                                !mountState.isSlewing
-                            ? () => ref
-                                    .read(mountCommandServiceProvider)
-                                    .setTracking(!mountState.isTracking)
-                                    .then((result) {
-                                  if (context.mounted) {
-                                    context.showCommandActionResult(result);
-                                  }
-                                })
-                            : null,
-                      ),
-                    ),
-                  ],
+            // Two compact rows, read in order: the two "stop" actions an
+            // operator reaches for mid-run lead; Park follows — it is never
+            // pressed unasked, so it does not get the first, loudest slot —
+            // beside Polar alignment, which used to be a card holding a
+            // single button.
+            child: _ActionPairs(
+              cells: <AdaptiveCell>[
+                _actionCell(
+                  context,
+                  label: trackingLabel,
+                  child: _LabelFirstButton(
+                    label: trackingLabel,
+                    icon: SkotiqIcons.activity,
+                    size: ButtonSize.small,
+                    variant: mountState.isTracking
+                        ? ButtonVariant.secondary
+                        : ButtonVariant.primary,
+                    // Gate on canSetTracking capability.
+                    onPressed: isConnected &&
+                            canSetTracking &&
+                            !mountState.isParked &&
+                            !mountState.isSlewing
+                        ? () => ref
+                                .read(mountCommandServiceProvider)
+                                .setTracking(!mountState.isTracking)
+                                .then((result) {
+                              if (context.mounted) {
+                                context.showCommandActionResult(result);
+                              }
+                            })
+                        : null,
+                  ),
                 ),
-                const SizedBox(height: SkotiqTokens.spaceSm),
-                // The panic button keeps the full width in every layout and
-                // takes the destructive face: it is the one control here the
-                // operator reaches for without reading, and it must never
-                // share a row with an ordinary action.
-                _LabelFirstButton(
+                _actionCell(
+                  context,
                   label: 'Abort slew',
-                  icon: LucideIcons.octagon,
-                  variant: ButtonVariant.destructive,
-                  // Gate on canAbortSlew. Drivers without
-                  // abort support would otherwise stall the user when
-                  // a runaway slew demands the panic button.
-                  onPressed: isConnected && canAbortSlew
-                      ? () => ref
-                              .read(mountCommandServiceProvider)
-                              .abortSlew()
-                              .then((result) {
-                            if (context.mounted) {
-                              context.showCommandActionResult(result);
-                            }
-                          })
-                      : null,
+                  // The panic button keeps the destructive face: it is the
+                  // one control here the operator reaches for without
+                  // reading.
+                  child: _LabelFirstButton(
+                    label: 'Abort slew',
+                    icon: LucideIcons.octagon,
+                    size: ButtonSize.small,
+                    variant: ButtonVariant.destructive,
+                    // Gate on canAbortSlew. Drivers without abort support
+                    // would otherwise stall the user when a runaway slew
+                    // demands the panic button.
+                    onPressed: isConnected && canAbortSlew
+                        ? () => ref
+                                .read(mountCommandServiceProvider)
+                                .abortSlew()
+                                .then((result) {
+                              if (context.mounted) {
+                                context.showCommandActionResult(result);
+                              }
+                            })
+                        : null,
+                  ),
+                ),
+                _actionCell(
+                  context,
+                  label: parkLabel,
+                  child: _LabelFirstButton(
+                    label: parkLabel,
+                    icon: LucideIcons.parkingSquare,
+                    size: ButtonSize.small,
+                    variant: ButtonVariant.secondary,
+                    // Gate on canPark/canUnpark with fail-closed capability
+                    // lookup — see gateCapability above.
+                    onPressed: isConnected &&
+                            !mountState.isSlewing &&
+                            (mountState.isParked ? canUnpark : canPark)
+                        ? () => ref
+                                .read(mountCommandServiceProvider)
+                                .togglePark()
+                                .then((result) {
+                              if (context.mounted) {
+                                context.showCommandActionResult(result);
+                              }
+                            })
+                        : null,
+                  ),
+                ),
+                // "Polar alignment" is what the screen behind this button is
+                // called everywhere else it is offered (the Sequencer toolbar,
+                // the command palette). Three-point is the method chosen
+                // inside it, not the name of the door.
+                _actionCell(
+                  context,
+                  label: 'Polar alignment',
+                  child: _LabelFirstButton(
+                    label: 'Polar alignment',
+                    icon: SkotiqIcons.compass,
+                    size: ButtonSize.small,
+                    variant: ButtonVariant.secondary,
+                    onPressed: () => context.push('/polar-alignment'),
+                  ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: SkotiqTokens.spaceLg),
-          PanelSection(
-            title: 'Alignment',
-            colors: colors,
-            // "Polar alignment" is what the screen behind this button is
-            // called everywhere else it is offered (the Sequencer toolbar, the
-            // command palette). Three-point is the method chosen inside it,
-            // not the name of the door.
-            child: _LabelFirstButton(
-              label: 'Polar alignment',
-              icon: SkotiqIcons.compass,
-              variant: ButtonVariant.secondary,
-              onPressed: () => context.push('/polar-alignment'),
             ),
           ),
           const SizedBox(height: SkotiqTokens.spaceLg),
@@ -422,6 +439,72 @@ class _MountTabState extends ConsumerState<MountTab> {
   }
 }
 
+/// The Actions buttons as rows of two.
+///
+/// Each pair shares a row whenever both labels fit beside each other, in
+/// equal halves when each fits half the row and otherwise in proportion to
+/// what each label needs — "Park" beside "Polar alignment" does not need an
+/// even split to say both in full. A pair that cannot share a row stacks.
+/// Equal-width columns across the whole grid ([AdaptiveColumns]) would stack
+/// every row as soon as the single widest label stopped fitting a half.
+class _ActionPairs extends StatelessWidget {
+  const _ActionPairs({required this.cells});
+
+  final List<AdaptiveCell> cells;
+
+  static const double _gap = SkotiqTokens.spaceSm;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final width = constraints.maxWidth;
+        final rows = <Widget>[];
+        for (var i = 0; i < cells.length; i += 2) {
+          final pair = cells.sublist(i, math.min(i + 2, cells.length));
+          if (rows.isNotEmpty) rows.add(const SizedBox(height: _gap));
+          rows.add(_row(pair, width));
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: rows,
+        );
+      },
+    );
+  }
+
+  Widget _row(List<AdaptiveCell> pair, double width) {
+    if (pair.length == 1) return pair.single.child;
+    final needed = pair[0].minWidth + _gap + pair[1].minWidth;
+    if (!width.isFinite || needed > width) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          pair[0].child,
+          const SizedBox(height: _gap),
+          pair[1].child,
+        ],
+      );
+    }
+    final half = (width - _gap) / 2;
+    final even = pair.every((AdaptiveCell c) => c.minWidth <= half);
+    return Row(
+      children: <Widget>[
+        Expanded(
+          flex: even ? 1 : pair[0].minWidth.ceil(),
+          child: pair[0].child,
+        ),
+        const SizedBox(width: _gap),
+        Expanded(
+          flex: even ? 1 : pair[1].minWidth.ceil(),
+          child: pair[1].child,
+        ),
+      ],
+    );
+  }
+}
+
 /// A button that would rather lose its icon than its label.
 ///
 /// The glyph plus its gap is 22px of a 32px-tall control and says nothing the
@@ -436,12 +519,14 @@ class _LabelFirstButton extends StatelessWidget {
     required this.icon,
     required this.onPressed,
     this.variant = ButtonVariant.primary,
+    this.size = ButtonSize.medium,
   });
 
   final String label;
   final IconData icon;
   final VoidCallback? onPressed;
   final ButtonVariant variant;
+  final ButtonSize size;
 
   @override
   Widget build(BuildContext context) {
@@ -449,6 +534,7 @@ class _LabelFirstButton extends StatelessWidget {
       context,
       label: label,
       hasIcon: true,
+      size: size,
     );
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
@@ -458,6 +544,7 @@ class _LabelFirstButton extends StatelessWidget {
           label: label,
           icon: fits ? icon : null,
           variant: variant,
+          size: size,
           onPressed: onPressed,
         );
       },
@@ -485,6 +572,13 @@ class _StatusBlock extends StatelessWidget {
       return (label: 'Tracking', tone: ChipTone.success);
     }
     return (label: 'Stopped', tone: ChipTone.neutral);
+  }
+
+  /// The reported side of pier, or null when the mount does not say.
+  String? get _pierSide {
+    final side = mountState.sideOfPier?.trim();
+    if (!isConnected || side == null || side.isEmpty) return null;
+    return pierSideLabel(side);
   }
 
   @override
@@ -528,8 +622,10 @@ class _StatusBlock extends StatelessWidget {
           ),
         ]),
         const SizedBox(height: SkotiqTokens.spaceSm),
+        // A mount whose driver does not report its side of pier gets no Pier
+        // readout at all rather than a permanent dash beside a live status.
         _ReadoutPair(<(String, String?)>[
-          ('Pier', mountState.sideOfPier),
+          if (_pierSide != null) ('Pier', _pierSide),
           ('Status', mountState.isParked ? 'Parked' : 'Ready'),
         ]),
       ],

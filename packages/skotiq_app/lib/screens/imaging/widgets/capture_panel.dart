@@ -261,6 +261,8 @@ class CapturePanel extends ConsumerWidget {
                     value: savePathUnset ? 'Not set' : namingPattern.baseDir,
                     mono: !savePathUnset,
                     muted: savePathUnset,
+                    // A Windows capture folder never fits the field.
+                    showFullValueOnHover: !savePathUnset,
                   ),
                 ),
                 const SizedBox(width: SkotiqTokens.spaceSm - 2),
@@ -275,7 +277,11 @@ class CapturePanel extends ConsumerWidget {
           const SizedBox(height: FormRow.rowGap),
           FormRow(
             label: 'Name',
-            child: ReadOnlyField(value: namingPattern.pattern, mono: true),
+            child: ReadOnlyField(
+              value: namingPattern.pattern,
+              mono: true,
+              showFullValueOnHover: true,
+            ),
           ),
           const SizedBox(height: SidePanel.sectionGap),
           SectionTitle(

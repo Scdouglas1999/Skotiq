@@ -76,7 +76,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Temperature Compensation'), findsOneWidget);
+    expect(find.text('Temperature compensation'), findsOneWidget);
     expect(find.byType(FocusModelCurveCard), findsOneWidget);
     // The model itself, not just a heading: quality + R² off the fitted model.
     expect(find.text('Excellent · R²=0.95'), findsOneWidget);

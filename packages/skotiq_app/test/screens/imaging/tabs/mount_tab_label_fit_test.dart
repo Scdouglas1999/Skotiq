@@ -113,27 +113,58 @@ void main() {
     );
   });
 
-  testWidgets('actions stack while two labelled buttons do not fit',
+  testWidgets(
+      'the stop actions lead and Park comes last, never in the first slot',
       (tester) async {
-    await _pumpAt(tester, 220);
+    await _pumpAt(tester, 320);
 
-    final park = _topLeftOf(tester, 'Unpark');
-    final tracking = _topLeftOf(tester, 'Start tracking');
-    expect(tracking.dy, greaterThan(park.dy),
-        reason: 'the two actions stack rather than share a cut-off row');
-    expect(tracking.dx, park.dx);
+    // Reading order: top to bottom, then left to right.
+    final order = <String>[
+      'Start tracking',
+      'Abort slew',
+      'Unpark',
+      'Polar alignment',
+    ]..sort((a, b) {
+        final pa = _topLeftOf(tester, a);
+        final pb = _topLeftOf(tester, b);
+        final byRow = pa.dy.compareTo(pb.dy);
+        return byRow != 0 ? byRow : pa.dx.compareTo(pb.dx);
+      });
+    expect(order, <String>[
+      'Start tracking',
+      'Abort slew',
+      'Unpark',
+      'Polar alignment',
+    ]);
+    // Polar alignment is an action in this grid now, not a card of its own.
+    expect(find.text('Alignment'), findsNothing);
   });
 
-  testWidgets('actions share a row once both labels fit', (tester) async {
-    // The narrow bottom sheet is as wide as the window; a phone at 430 gives
-    // the section more room than the desktop panel does.
-    await _pumpAt(tester, 430);
+  testWidgets('the stop actions share one row at the side panel width',
+      (tester) async {
+    // 244 is the content width the 320 px side panel gives the section.
+    await _pumpAt(tester, 244);
 
-    final park = _topLeftOf(tester, 'Unpark');
     final tracking = _topLeftOf(tester, 'Start tracking');
-    expect(tracking.dy, park.dy, reason: 'two columns share one line');
-    expect(tracking.dx, greaterThan(park.dx));
+    final abort = _topLeftOf(tester, 'Abort slew');
+    expect(abort.dy, tracking.dy, reason: 'two columns share one line');
+    expect(abort.dx, greaterThan(tracking.dx));
+    final park = _topLeftOf(tester, 'Unpark');
+    final polar = _topLeftOf(tester, 'Polar alignment');
+    expect(polar.dy, park.dy);
+    expect(park.dy, greaterThan(tracking.dy));
     expect(_buttonLabels(tester).every(((String, bool) e) => !e.$2), isTrue);
+  });
+
+  testWidgets('a pair stacks while its two labels do not fit side by side',
+      (tester) async {
+    await _pumpAt(tester, 160);
+
+    final tracking = _topLeftOf(tester, 'Start tracking');
+    final abort = _topLeftOf(tester, 'Abort slew');
+    expect(abort.dy, greaterThan(tracking.dy),
+        reason: 'the two actions stack rather than share a cut-off row');
+    expect(abort.dx, tracking.dx);
   });
 
   testWidgets('a coordinate readout never wraps or truncates', (tester) async {
