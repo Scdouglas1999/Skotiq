@@ -21,29 +21,25 @@ class _WeatherHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final chip = SkotiqChip(
+      label: weatherSafetyChipLabel(status: status, monitoring: monitoring),
+      tone: weatherSafetyChipTone(status: status, monitoring: monitoring),
+      dot: true,
+    );
+    // Flexible only where the chip can run out of room: "Not monitored" plus
+    // two 32 px buttons plus the title does not fit 360 px, and a header that
+    // overflows is worse than a label that shortens. On a wide header a
+    // Flexible chip splits the free space with the title's Expanded, so the
+    // chip and both buttons sat mid-header instead of at its right edge.
+    final narrow = MediaQuery.sizeOf(context).width <
+        ShellChromeMetrics.shellLayoutBreakpoint;
     return SafeArea(
       bottom: false,
       child: PageHeader(
         icon: SkotiqIcons.weather,
         title: 'Weather',
         actions: [
-          // Flexible so the chip ellipsizes instead of pushing the header off
-          // its own right edge: "Not monitored" plus two 32 px buttons plus the
-          // title does not fit 360 px, and a header that overflows is worse
-          // than a label that shortens.
-          Flexible(
-            child: SkotiqChip(
-              label: weatherSafetyChipLabel(
-                status: status,
-                monitoring: monitoring,
-              ),
-              tone: weatherSafetyChipTone(
-                status: status,
-                monitoring: monitoring,
-              ),
-              dot: true,
-            ),
-          ),
+          if (narrow) Flexible(child: chip) else chip,
           SkotiqIconButton(
             key: WeatherTutorialKeys.refreshBtn,
             icon: SkotiqIcons.refresh,
