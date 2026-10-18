@@ -495,6 +495,34 @@ void main() {
     expect(find.text('Browse masters'), findsOneWidget);
   });
 
+  // Live: "Recipes 0" opened in front of "Sessions 66", so the first thing
+  // the rail showed was an empty state with the content one tab over.
+  testWidgets('with no recipes it opens on the first tab that has content', (
+    tester,
+  ) async {
+    await SessionsDao(db).createSession(
+      ImagingSessionsCompanion.insert(startTime: DateTime.utc(2026, 9, 14, 22)),
+    );
+    await pump(tester, const DarkroomScope.empty());
+    await tester.pump(const Duration(milliseconds: 20));
+
+    expect(find.text('No recipes yet'), findsNothing);
+    final sessionsTab = tester.widget<AdaptiveTabBar>(
+      find.byType(AdaptiveTabBar),
+    );
+    expect(sessionsTab.selectedIndex, 1, reason: 'Sessions holds the content');
+
+    // An explicit pick is kept, even when the picked tab is empty.
+    await tester
+        .tap(find.byKey(const ValueKey('darkroom_landing_tab_recipes')));
+    await tester.pump(const Duration(milliseconds: 20));
+    expect(find.text('No recipes yet'), findsOneWidget);
+    expect(
+      tester.widget<AdaptiveTabBar>(find.byType(AdaptiveTabBar)).selectedIndex,
+      0,
+    );
+  });
+
   testWidgets('a recipe id with no row names the row AND a route back', (
     tester,
   ) async {

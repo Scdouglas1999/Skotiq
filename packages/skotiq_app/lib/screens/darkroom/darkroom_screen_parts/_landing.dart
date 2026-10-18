@@ -104,11 +104,30 @@ class _DarkroomLandingView extends ConsumerStatefulWidget {
 }
 
 class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
-  _DarkroomLandingTab _tab = _DarkroomLandingTab.recipes;
+  /// The tab the operator picked on this visit, or null until they pick one.
+  _DarkroomLandingTab? _chosen;
+
+  /// The picked tab, otherwise the first one with something in it.
+  ///
+  /// Opening on "Recipes 0" beside "Sessions 66" put an empty state in front
+  /// of the content; the empty Recipes tab is still the answer when nothing
+  /// has anything in it, because it explains where recipes come from.
+  _DarkroomLandingTab _tabFor(_DarkroomLandingData? data) {
+    final chosen = _chosen;
+    if (chosen != null) return chosen;
+    if (data == null) return _DarkroomLandingTab.recipes;
+    return _DarkroomLandingTab.values.firstWhere(
+      (tab) => _countOf(tab, data) > 0,
+      orElse: () => _DarkroomLandingTab.recipes,
+    );
+  }
+
+  void _choose(_DarkroomLandingTab tab) => setState(() => _chosen = tab);
 
   @override
   Widget build(BuildContext context) {
     final data = ref.watch(_darkroomLandingProvider);
+    final tab = _tabFor(data.valueOrNull);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -124,9 +143,8 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
                   buttonKey: ValueKey('darkroom_landing_tab_${tab.name}'),
                 ),
             ],
-            selectedIndex: _tab.index,
-            onSelected: (index) =>
-                setState(() => _tab = _DarkroomLandingTab.values[index]),
+            selectedIndex: tab.index,
+            onSelected: (index) => _choose(_DarkroomLandingTab.values[index]),
           ),
           actions: [
             SkotiqIconButton(
@@ -136,7 +154,7 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
             ),
           ],
         ),
-        Expanded(child: _body(data)),
+        Expanded(child: _body(data, tab)),
       ],
     );
   }
@@ -152,14 +170,20 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
   ) {
     final value = data.valueOrNull;
     if (value == null) return null;
-    return switch (tab) {
-      _DarkroomLandingTab.recipes => '${value.recipes.length}',
-      _DarkroomLandingTab.sessions => '${value.sessions.length}',
-      _DarkroomLandingTab.masters => '${value.entries.length}',
-    };
+    return '${_countOf(tab, value)}';
   }
 
-  Widget _body(AsyncValue<_DarkroomLandingData> data) {
+  static int _countOf(_DarkroomLandingTab tab, _DarkroomLandingData data) =>
+      switch (tab) {
+        _DarkroomLandingTab.recipes => data.recipes.length,
+        _DarkroomLandingTab.sessions => data.sessions.length,
+        _DarkroomLandingTab.masters => data.entries.length,
+      };
+
+  Widget _body(
+    AsyncValue<_DarkroomLandingData> data,
+    _DarkroomLandingTab tab,
+  ) {
     // The one loading, error and empty pattern (07, wave 3 checklist): a
     // centred spinner, ONE EmptyState with one button, never a stack of cards.
     return data.when(
@@ -179,7 +203,7 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
           ),
         ),
       ),
-      data: (value) => switch (_tab) {
+      data: (value) => switch (tab) {
         _DarkroomLandingTab.recipes => _recipes(value),
         _DarkroomLandingTab.sessions => _sessions(value),
         _DarkroomLandingTab.masters => _masters(value),
@@ -215,7 +239,7 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
             icon: SkotiqIcons.layers,
             variant: ButtonVariant.secondary,
             size: ButtonSize.small,
-            onPressed: () => setState(() => _tab = _DarkroomLandingTab.masters),
+            onPressed: () => _choose(_DarkroomLandingTab.masters),
           ),
         ),
       );
