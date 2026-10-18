@@ -368,7 +368,11 @@ class _NightBandLegend extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final shown = _labelsFor(width);
+        final shown = _labelsFor(
+          width,
+          _labelStyle(),
+          MediaQuery.textScalerOf(context),
+        );
         return Stack(
           clipBehavior: Clip.none,
           children: <Widget>[
@@ -386,9 +390,7 @@ class _NightBandLegend extends StatelessWidget {
                           : _LabelAnchor.centre),
                 child: Text(
                   shown[i].$2,
-                  style: SkotiqTypography.monoCaption.copyWith(
-                    color: colors.textMuted,
-                  ),
+                  style: _labelStyle(),
                   maxLines: 1,
                   softWrap: false,
                 ),
@@ -425,15 +427,63 @@ class _NightBandLegend extends StatelessWidget {
     );
   }
 
+  /// The smallest gap left between two event labels. Closer than this they
+  /// read as one string ("21:14 sunset22:38 astro dark"), so the middle one is
+  /// dropped instead.
+  static const double labelGap = SkotiqTokens.spaceMd;
+
+  TextStyle _labelStyle() =>
+      SkotiqTypography.monoCaption.copyWith(color: colors.textMuted);
+
   /// The labels that fit in [width].
   ///
   /// Narrow, that is the first and the last — never all of them squeezed
   /// together. 07 is explicit: reduce content, do not shrink type.
-  List<(double, String)> _labelsFor(double width) {
-    if (width >= NightBand.legendCompactWidth || labels.length <= 2) {
-      return labels;
+  ///
+  /// Wider, a middle label still goes when it would come within [labelGap] of
+  /// a neighbour. How close sunset and astro dark sit depends on the date and
+  /// the latitude, not only the width: at a 1536 px window an October night at
+  /// 35° N put the two labels edge to edge. The canvas draws both moments as
+  /// dashed verticals, so a dropped word loses nothing the picture lacks.
+  List<(double, String)> _labelsFor(
+    double width,
+    TextStyle style,
+    TextScaler textScaler,
+  ) {
+    if (labels.length <= 2) return labels;
+    if (width < NightBand.legendCompactWidth) {
+      return <(double, String)>[labels.first, labels.last];
     }
-    return <(double, String)>[labels.first, labels.last];
+
+    double measure(String text) {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: textScaler,
+        maxLines: 1,
+      )..layout();
+      final measured = painter.width;
+      painter.dispose();
+      return measured;
+    }
+
+    final firstRight = measure(labels.first.$2);
+    final lastLeft = width - measure(labels.last.$2);
+    final kept = <(double, String)>[labels.first];
+    var previousRight = firstRight;
+    for (final label in labels.sublist(1, labels.length - 1)) {
+      final labelWidth = measure(label.$2);
+      final centre = label.$1.clamp(0.0, 1.0) * width;
+      final left = centre - labelWidth / 2;
+      final right = centre + labelWidth / 2;
+      if (left - previousRight < labelGap || lastLeft - right < labelGap) {
+        continue;
+      }
+      kept.add(label);
+      previousRight = right;
+    }
+    kept.add(labels.last);
+    return kept;
   }
 
   Widget _positioned({

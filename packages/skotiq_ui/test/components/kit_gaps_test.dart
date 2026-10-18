@@ -195,13 +195,58 @@ void main() {
     testWidgets('a wide band names every event', (tester) async {
       // The default 800px test surface is itself under the compact threshold,
       // so the wide case has to widen the window, not just the box.
+      // Wide enough for the test font's square glyphs to leave every label
+      // clear of its neighbours.
+      tester.view.physicalSize = const Size(2000, 600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(host(band(), width: 1900));
+      expect(find.text('20:48 astro dark'), findsOneWidget);
+      expect(find.text('04:51 astro dawn'), findsOneWidget);
+    });
+
+    testWidgets('a middle label that would touch its neighbour is dropped', (
+      tester,
+    ) async {
+      // An October night at 35° N: astro dark 84 minutes after sunset and
+      // astro dawn 84 minutes before sunrise. At the band a 1536 px window
+      // gives, each middle label ran into the end label beside it.
       tester.view.physicalSize = const Size(1400, 600);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(host(band(), width: 1200));
-      expect(find.text('20:48 astro dark'), findsOneWidget);
-      expect(find.text('04:51 astro dawn'), findsOneWidget);
+      final sunset = DateTime(2026, 10, 17, 18, 14);
+      final sunrise = DateTime(2026, 10, 18, 7, 0);
+      await tester.pumpWidget(
+        host(
+          NightBand(
+            sunset: sunset,
+            astroDark: DateTime(2026, 10, 17, 19, 38),
+            astroDawn: DateTime(2026, 10, 18, 5, 36),
+            sunrise: sunrise,
+            now: DateTime(2026, 10, 17, 23, 41),
+            events: <NightBandEvent>[
+              NightBandEvent(time: sunset, label: '18:14 sunset'),
+              NightBandEvent(
+                time: DateTime(2026, 10, 17, 19, 38),
+                label: '19:38 astro dark',
+              ),
+              NightBandEvent(
+                time: DateTime(2026, 10, 18, 5, 36),
+                label: '05:36 astro dawn',
+              ),
+              NightBandEvent(time: sunrise, label: '07:00 sunrise'),
+            ],
+          ),
+          width: 1200,
+        ),
+      );
+      expect(find.text('18:14 sunset'), findsOneWidget);
+      expect(find.text('07:00 sunrise'), findsOneWidget);
+      expect(find.text('19:38 astro dark'), findsNothing);
+      expect(find.text('05:36 astro dawn'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('a narrow band keeps only sunset and sunrise', (tester) async {
