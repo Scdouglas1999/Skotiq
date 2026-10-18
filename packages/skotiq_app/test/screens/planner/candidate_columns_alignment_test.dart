@@ -44,8 +44,12 @@ TargetSuggestion _s(int id, String name, String type, double size, double mag,
       moonDistance: 104,
       transitAltitude: alt,
       transitTime: t,
-      riseTime: now.subtract(const Duration(hours: 4)),
-      setTime: now.add(const Duration(hours: 8)),
+      // Up through any night that contains or follows the test's clock, so
+      // every row has a window bar whatever hour the suite runs at. With
+      // now-4h..now+8h a run between dawn and noon had the target set before
+      // dusk, and the window column was empty.
+      riseTime: now.subtract(const Duration(hours: 20)),
+      setTime: now.add(const Duration(hours: 20)),
       hoursAboveMinAlt: hours,
     ),
     objectType: type,

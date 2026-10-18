@@ -447,17 +447,29 @@ final _plannerNightWindowProvider = Provider.autoDispose<_PlannerNightWindow?>(
   (ref) {
     final location = ref.watch(appObserverLocationProvider);
     if (plannerSiteUnset(location)) return null;
-    final twilight = AstronomyCalculations.calculateTwilightTimes(
-      date: DateTime.now(),
-      latitudeDeg: location!.latitude,
-      longitudeDeg: location.longitude,
-    );
-    final dusk = twilight.astronomicalDusk;
-    final dawn = twilight.astronomicalDawn;
-    if (dusk == null || dawn == null) return null;
-    // Dusk and dawn come back for the same calendar date, so dawn precedes
-    // dusk by a day; carry it forward or every window measures negative.
-    final end = dawn.isAfter(dusk) ? dawn : dawn.add(const Duration(days: 1));
-    return _PlannerNightWindow(start: dusk, end: end);
+    final now = DateTime.now();
+
+    _PlannerNightWindow? nightStarting(DateTime date) {
+      final twilight = AstronomyCalculations.calculateTwilightTimes(
+        date: date,
+        latitudeDeg: location!.latitude,
+        longitudeDeg: location.longitude,
+      );
+      final dusk = twilight.astronomicalDusk;
+      final dawn = twilight.astronomicalDawn;
+      if (dusk == null || dawn == null) return null;
+      // Dusk and dawn come back for the same calendar date, so dawn precedes
+      // dusk by a day; carry it forward or every window measures negative.
+      final end = dawn.isAfter(dusk) ? dawn : dawn.add(const Duration(days: 1));
+      return _PlannerNightWindow(start: dusk, end: end);
+    }
+
+    // After midnight the night under way began yesterday. Computing from
+    // today's date alone placed every row on the NEXT night, so at 00:06 a
+    // target setting at 08:00 had no window at all. Same rule as the
+    // planetarium's twilight provider that Tonight reads.
+    final previous = nightStarting(now.subtract(const Duration(days: 1)));
+    if (previous != null && previous.end.isAfter(now)) return previous;
+    return nightStarting(now);
   },
 );
