@@ -69,6 +69,42 @@ class _ControlledMountService extends MountCommandService {
   }
 }
 
+class _ConnectedCameraNotifier extends CameraStateNotifier {
+  _ConnectedCameraNotifier(super.ref) {
+    // ignore: invalid_use_of_protected_member
+    state = const CameraStateSnapshot(
+      connectionState: DeviceConnectionState.connected,
+    );
+  }
+}
+
+class _AvailableSolver extends PlateSolveService {
+  _AvailableSolver(super.ref);
+
+  @override
+  Future<void> ensureSolverAvailable() async {}
+}
+
+/// A centering run the test ends by hand, the way an abort ends it.
+class _ControlledCentering extends CenteringService {
+  _ControlledCentering(super.ref);
+
+  final result = Completer<CenteringResult>();
+
+  @override
+  Future<CenteringResult> centerOnTarget({
+    required double targetRa,
+    required double targetDec,
+    required PlateSolverConfig solverConfig,
+    CenteringConfig config = const CenteringConfig(),
+    void Function(CenteringStatus)? onStatusUpdate,
+  }) =>
+      result.future;
+
+  @override
+  Future<void> stop() async {}
+}
+
 Widget _harness({required bool mountConnected, double width = 220}) {
   return ProviderScope(
     overrides: [
@@ -447,5 +483,67 @@ void main() {
       expect(service.calls, 0);
       expect(find.textContaining('Slew was not sent'), findsOneWidget);
     });
+  });
+
+  testWidgets(
+      'an aborted centering run gives the button back while its result '
+      'stays on screen', (tester) async {
+    late _ControlledMountService mount;
+    late _ControlledCentering centering;
+    await pumpAppScreen(
+      tester,
+      const SizedBox(
+        width: 280,
+        child: SlewDropdownButton(
+          ra: 1.6,
+          dec: 15.8,
+          targetName: 'M74',
+          defaultMode: SlewMode.slewAndCenter,
+        ),
+      ),
+      size: const Size(1280, 900),
+      extraOverrides: [
+        mountStateProvider.overrideWith(_ConnectedMountNotifier.new),
+        cameraStateProvider.overrideWith(_ConnectedCameraNotifier.new),
+        activeEquipmentProfileProvider.overrideWithValue(null),
+        plateSolveServiceProvider.overrideWith(_AvailableSolver.new),
+        mountCommandServiceProvider
+            .overrideWith((ref) => mount = _ControlledMountService(ref)),
+        centeringServiceProvider
+            .overrideWith((ref) => centering = _ControlledCentering(ref)),
+      ],
+    );
+
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Slew & Center'));
+    await tester.pump();
+    mount.result.complete(CommandActionResult.ok);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Start centering'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.widgetWithText(SkotiqButton, 'Working...'), findsOneWidget,
+        reason: 'the button is busy while the run it started is going');
+
+    await tester.tap(find.text('Abort'));
+    await tester.pump();
+    centering.result.complete(CenteringResult.failure(
+      errorMessage: 'Aborted by user',
+      iterations: 2,
+      iterationHistory: const [],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Aborted by user'), findsOneWidget,
+        reason: 'the dialog stays open on the result');
+    expect(find.widgetWithText(SkotiqButton, 'Working...'), findsNothing);
+    final idle = tester.widget<SkotiqButton>(
+      find.widgetWithText(SkotiqButton, 'Slew & Center'),
+    );
+    expect(idle.onPressed, isNotNull,
+        reason: 'a finished run must not leave the slew disabled');
+
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
   });
 }

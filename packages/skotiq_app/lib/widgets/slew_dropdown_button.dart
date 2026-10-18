@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -283,15 +285,22 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
       return;
     }
 
-    // Wait for slew to complete, then show centering dialog
-    // The centering dialog handles the plate solve loop
+    // The centering dialog runs the plate-solve loop and then stays open on
+    // its result until the user closes it. The button is busy for the RUN, not
+    // for the dialog: after an abort or a failure it has to offer the slew
+    // again, not sit on "Working..." behind a finished result.
     if (!mounted) return;
-    await showCenteringDialog(
+    final runEnded = Completer<void>();
+    final dialogClosed = showCenteringDialog(
       context: context,
       targetRa: widget.ra,
       targetDec: widget.dec,
       targetName: widget.targetName ?? 'Target',
+      onRunEnded: () {
+        if (!runEnded.isCompleted) runEnded.complete();
+      },
     );
+    await Future.any<void>([runEnded.future, dialogClosed]);
   }
 
   Future<void> _handleSlewCenterRotate(
