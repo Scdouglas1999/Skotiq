@@ -45,7 +45,7 @@ class _ObservationLogSettingsState
               const SizedBox(width: 12),
               Text(
                 'Observation Log',
-                style: SkotiqTypography.pageTitle.copyWith(
+                style: SkotiqTypography.sectionTitle.copyWith(
                   color: colors.textPrimary,
                 ),
               ),

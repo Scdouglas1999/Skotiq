@@ -12,6 +12,7 @@ import '../../utils/confirm_dialog.dart';
 import '../../utils/snackbar_helper.dart';
 import 'widgets/deep_star_catalog_card.dart';
 import 'widgets/element_refresh_card.dart';
+import 'widgets/settings_widgets.dart' show settingsPagePadding;
 
 part 'catalog_settings_screen/card_builders.dart';
 
@@ -577,7 +578,7 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
           ? const Center(
               child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36))
           : SingleChildScrollView(
-              padding: EdgeInsets.all(padding),
+              padding: settingsPagePadding,
               child: _buildContent(context),
             ),
     );

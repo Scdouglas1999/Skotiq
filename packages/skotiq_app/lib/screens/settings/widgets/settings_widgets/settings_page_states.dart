@@ -33,20 +33,19 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
 
-    final padding = isMobile
-        ? SkotiqTokens.paddingLg
-        : const EdgeInsets.symmetric(
-            horizontal: SkotiqTokens.space3xl,
-            vertical: SkotiqTokens.space2xl,
-          );
+    final padding = isMobile ? SkotiqTokens.paddingLg : settingsPagePadding;
 
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (!hideHeader) ...[
+          // `sectionTitle`, not `pageTitle`: the page header above already
+          // says "Settings" at page scale and the nav beside this highlights
+          // the same name, so a second page-scale title stacked two headings
+          // over the first row.
           Text(
             title,
-            style: SkotiqTypography.pageTitle.copyWith(
+            style: SkotiqTypography.sectionTitle.copyWith(
               color: colors.textPrimary,
             ),
           ),
@@ -59,7 +58,7 @@ class SettingsPage extends StatelessWidget {
               color: colors.textSecondary,
             ),
           ),
-          const SizedBox(height: SkotiqTokens.spaceXl),
+          const SizedBox(height: SkotiqTokens.spaceLg),
         ],
         ...children,
       ],
@@ -88,6 +87,17 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
+/// A settings leaf's desktop padding.
+///
+/// The top inset matches the nav column's, so the page's title starts level
+/// with the search field beside it instead of a row lower.
+const EdgeInsets settingsPagePadding = EdgeInsets.fromLTRB(
+  SkotiqTokens.space3xl,
+  SkotiqTokens.spaceMd,
+  SkotiqTokens.space3xl,
+  SkotiqTokens.space2xl,
+);
+
 /// Widest a settings leaf's content column may get on desktop.
 ///
 /// 880 px, from the mockup (`mockups/settings.html` `.page`). Settings rows are
@@ -115,12 +125,7 @@ class SettingsLoadingState extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
 
-    final padding = isMobile
-        ? SkotiqTokens.paddingLg
-        : const EdgeInsets.symmetric(
-            horizontal: SkotiqTokens.space3xl,
-            vertical: SkotiqTokens.space2xl,
-          );
+    final padding = isMobile ? SkotiqTokens.paddingLg : settingsPagePadding;
 
     // The skeleton is the loaded page's own anatomy (title, lead line, then
     // eyebrow + panel groups) drawn in `well`, so nothing jumps when the real
@@ -131,7 +136,7 @@ class SettingsLoadingState extends StatelessWidget {
         children: [
           Container(
             width: 220,
-            height: SkotiqTokens.space3xl - SkotiqTokens.spaceXs,
+            height: SkotiqTokens.spaceXl,
             decoration: BoxDecoration(
               color: colors.well,
               borderRadius: SkotiqTokens.borderRadiusSm,
@@ -146,7 +151,7 @@ class SettingsLoadingState extends StatelessWidget {
               borderRadius: SkotiqTokens.borderRadiusSm,
             ),
           ),
-          const SizedBox(height: SkotiqTokens.spaceXl),
+          const SizedBox(height: SkotiqTokens.spaceLg),
           for (var i = 0; i < 2; i++) ...[
             Container(
               width: 140,

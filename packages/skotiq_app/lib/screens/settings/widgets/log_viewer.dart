@@ -12,6 +12,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../services/file_download_service.dart';
 import '../../../utils/exported_file_reveal.dart';
 import '../../accessible_dropdown.dart';
+import 'settings_widgets.dart' show settingsPagePadding;
 
 part 'log_viewer_parts/_export_seams.dart';
 part 'log_viewer_parts/_actions.dart';
@@ -207,8 +208,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final isMobile = widget.isMobile;
-    final padding =
-        isMobile ? const EdgeInsets.all(16) : const EdgeInsets.all(32);
+    final padding = isMobile ? const EdgeInsets.all(16) : settingsPagePadding;
 
     return Padding(
       padding: padding,
@@ -218,7 +218,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
           if (!isMobile) ...[
             Text(
               'Logs',
-              style: SkotiqTypography.pageTitle.copyWith(
+              style: SkotiqTypography.sectionTitle.copyWith(
                 color: colors.textPrimary,
               ),
             ),
