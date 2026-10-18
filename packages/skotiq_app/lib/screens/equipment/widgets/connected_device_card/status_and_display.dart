@@ -444,13 +444,19 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
             label: 'Dec',
           ),
           _DeviceMetric(
-            value: state.isSlewing
-                ? 'Slewing'
-                : state.isParked
-                    ? 'Parked'
-                    : state.isTracking
-                        ? 'Tracking'
-                        : 'Idle',
+            value: state.isHoming
+                ? 'Homing'
+                : state.isSlewing
+                    ? 'Slewing'
+                    : state.isParked
+                        ? 'Parked'
+                        : state.isTracking
+                            ? 'Tracking'
+                            : state.isAtHome
+                                ? 'At home'
+                                : state.homeUnconfirmed
+                                    ? 'Home (unconfirmed)'
+                                    : 'Idle',
             label: 'State',
           ),
         ];

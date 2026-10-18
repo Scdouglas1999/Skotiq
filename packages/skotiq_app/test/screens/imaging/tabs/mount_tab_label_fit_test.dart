@@ -114,8 +114,8 @@ void main() {
   });
 
   testWidgets(
-      'the stop actions lead and Park comes last, never in the first slot',
-      (tester) async {
+      'the stop actions lead, Park follows with Home beside it, never in the '
+      'first slot', (tester) async {
     await _pumpAt(tester, 320);
 
     // Reading order: top to bottom, then left to right.
@@ -123,6 +123,7 @@ void main() {
       'Start tracking',
       'Abort slew',
       'Unpark',
+      'Home',
       'Polar alignment',
     ]..sort((a, b) {
         final pa = _topLeftOf(tester, a);
@@ -134,6 +135,7 @@ void main() {
       'Start tracking',
       'Abort slew',
       'Unpark',
+      'Home',
       'Polar alignment',
     ]);
     // Polar alignment is an action in this grid now, not a card of its own.
@@ -150,9 +152,12 @@ void main() {
     expect(abort.dy, tracking.dy, reason: 'two columns share one line');
     expect(abort.dx, greaterThan(tracking.dx));
     final park = _topLeftOf(tester, 'Unpark');
+    final home = _topLeftOf(tester, 'Home');
     final polar = _topLeftOf(tester, 'Polar alignment');
-    expect(polar.dy, park.dy);
+    expect(home.dy, park.dy, reason: 'Home shares the Park row');
+    expect(home.dx, greaterThan(park.dx));
     expect(park.dy, greaterThan(tracking.dy));
+    expect(polar.dy, greaterThan(park.dy));
     expect(_buttonLabels(tester).every(((String, bool) e) => !e.$2), isTrue);
   });
 
