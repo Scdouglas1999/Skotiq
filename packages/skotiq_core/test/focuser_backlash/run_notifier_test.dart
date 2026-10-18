@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/backend/disconnected_backend.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
+import 'package:skotiq_core/src/models/focuser_backlash_calibration.dart';
 import 'package:skotiq_core/src/models/focuser_backlash_progress.dart';
+import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
@@ -18,17 +20,25 @@ import '../harness/in_memory_database.dart';
 import 'fixtures.dart';
 
 class CalibrationBackend extends DisconnectedBackend {
-  CalibrationBackend({this.outcomeJson, this.error, this.planJson});
+  CalibrationBackend({
+    this.outcomeJson,
+    this.error,
+    this.planJson,
+    this.planError,
+  });
 
   final String? outcomeJson;
   final Object? error;
   final String? planJson;
+  final Object? planError;
 
   final events = StreamController<SkotiqEvent>.broadcast();
   final started = Completer<void>();
   String? lastConfigJson;
   int cancelCalls = 0;
   int? lastPlanCentre;
+  String? lastPlanConfigJson;
+  int planCalls = 0;
 
   /// Held until a test releases it, so progress frames can be delivered while
   /// the run is still in flight.
@@ -61,6 +71,9 @@ class CalibrationBackend extends DisconnectedBackend {
     required int centerPosition,
   }) async {
     lastPlanCentre = centerPosition;
+    lastPlanConfigJson = configJson;
+    planCalls++;
+    if (planError != null) throw planError!;
     return planJson!;
   }
 }
@@ -115,6 +128,18 @@ SkotiqEvent progressEvent(Map<String, dynamic> frame) => SkotiqEvent(
   timestamp: DateTime.now().millisecondsSinceEpoch,
   data: {'device_id': 'zwo-eaf-1', 'detail': jsonEncode(frame)},
 );
+
+String calibrationPlanJson() => jsonEncode({
+  'points_per_scan': 13,
+  'total_exposures': 52,
+  'scan_low_position': 6440,
+  'scan_high_position': 6800,
+  'travel_low_position': 6040,
+  'travel_high_position': 7200,
+  'estimated_duration_secs': 330.0,
+  'reversal_budget_steps': 760,
+  'reversal_budget_at_vertex_steps': 580,
+});
 
 Map<String, dynamic> scanFrame({
   required String phase,
@@ -513,6 +538,184 @@ void main() {
 
       backend.release.complete();
       await run;
+    });
+  });
+
+  group('the settings on the wire', () {
+    test(
+      'the plan is priced on the same configuration the run sends',
+      () async {
+        final backend = CalibrationBackend(
+          outcomeJson: measuredOutcomeJson(),
+          planJson: calibrationPlanJson(),
+        );
+        final container = buildContainer(backend);
+        await container.read(appSettingsProvider.future);
+        seedConnectedEquipment(container);
+        final notifier = container.read(
+          focuserBacklashCalibrationProvider.notifier,
+        );
+
+        await notifier.loadPlan();
+        backend.release.complete();
+        await notifier.run();
+
+        // The plan quoted travel and time; the run must execute exactly that.
+        expect(backend.lastPlanConfigJson, isNotNull);
+        expect(backend.lastConfigJson, isNotNull);
+        expect(backend.lastPlanConfigJson, backend.lastConfigJson);
+      },
+    );
+
+    test('the operator\'s persisted tuning is what gets sent', () async {
+      final stored = FocuserBacklashCalibrationSettings.seededFromAutofocus(
+        const AutofocusSettings(),
+      ).copyWith(stepSize: 45, clearanceSteps: 200);
+      final backend = CalibrationBackend(
+        outcomeJson: measuredOutcomeJson(),
+        planJson: calibrationPlanJson(),
+      );
+      final container = buildContainer(backend);
+      await container.read(appSettingsProvider.future);
+      await container
+          .read(appSettingsProvider.notifier)
+          .setFocuserBacklashCalibrationJson(jsonEncode(stored.toJson()));
+      seedConnectedEquipment(container);
+
+      backend.release.complete();
+      await container.read(focuserBacklashCalibrationProvider.notifier).run();
+
+      final config =
+          jsonDecode(backend.lastConfigJson!) as Map<String, dynamic>;
+      expect(config['step_size'], 45);
+      expect(config['clearance_steps'], 200);
+      expect(config['binning'], 'One');
+      expect(config['method'], 'Quadratic');
+      expect(config['app_version'], isNotNull);
+    });
+
+    test('editing a setting while idle re-reads the plan', () async {
+      final backend = CalibrationBackend(planJson: calibrationPlanJson());
+      final container = buildContainer(backend);
+      await container.read(appSettingsProvider.future);
+      seedConnectedEquipment(container);
+      final notifier = container.read(
+        focuserBacklashCalibrationProvider.notifier,
+      );
+
+      await notifier.loadPlan();
+      expect(backend.planCalls, 1);
+
+      final updated = FocuserBacklashCalibrationSettings.seededFromAutofocus(
+        const AutofocusSettings(),
+      ).copyWith(stepsOut: 8);
+      await container
+          .read(appSettingsProvider.notifier)
+          .setFocuserBacklashCalibrationJson(jsonEncode(updated.toJson()));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(backend.planCalls, 2);
+      expect((jsonDecode(backend.lastPlanConfigJson!) as Map)['steps_out'], 8);
+    });
+
+    test('editing a setting mid-run leaves the running plan alone', () async {
+      final backend = CalibrationBackend(
+        outcomeJson: measuredOutcomeJson(),
+        planJson: calibrationPlanJson(),
+      );
+      final container = buildContainer(backend);
+      await container.read(appSettingsProvider.future);
+      seedConnectedEquipment(container);
+      final notifier = container.read(
+        focuserBacklashCalibrationProvider.notifier,
+      );
+
+      await notifier.loadPlan();
+      expect(backend.planCalls, 1);
+
+      final run = notifier.run();
+      await backend.started.future;
+
+      final updated = FocuserBacklashCalibrationSettings.seededFromAutofocus(
+        const AutofocusSettings(),
+      ).copyWith(stepsOut: 9);
+      await container
+          .read(appSettingsProvider.notifier)
+          .setFocuserBacklashCalibrationJson(jsonEncode(updated.toJson()));
+      await Future<void>.delayed(Duration.zero);
+
+      // A re-plan now would quote a run that is not the one on the mount.
+      expect(backend.planCalls, 1);
+
+      backend.release.complete();
+      await run;
+    });
+
+    test(
+      'an unusable combination is refused before the backend is asked',
+      () async {
+        final invalid = FocuserBacklashCalibrationSettings.seededFromAutofocus(
+          const AutofocusSettings(),
+        ).copyWith(stepSize: 200, clearanceSteps: 100);
+        final backend = CalibrationBackend(
+          outcomeJson: measuredOutcomeJson(),
+          planJson: calibrationPlanJson(),
+        );
+        final container = buildContainer(backend);
+        await container.read(appSettingsProvider.future);
+        await container
+            .read(appSettingsProvider.notifier)
+            .setFocuserBacklashCalibrationJson(jsonEncode(invalid.toJson()));
+        seedConnectedEquipment(container);
+        final notifier = container.read(
+          focuserBacklashCalibrationProvider.notifier,
+        );
+
+        await notifier.loadPlan();
+        expect(backend.planCalls, 0);
+        expect(
+          container.read(focuserBacklashCalibrationProvider).errorMessage,
+          contains('must exceed the step size'),
+        );
+
+        await notifier.run();
+        // The start call never reached the backend.
+        expect(backend.started.isCompleted, isFalse);
+        expect(backend.lastConfigJson, isNull);
+        final state = container.read(focuserBacklashCalibrationProvider);
+        expect(state.phase, FocuserBacklashPhase.failed);
+        expect(state.errorMessage, contains('must exceed the step size'));
+      },
+    );
+
+    test('a failed re-plan drops the stale numbers it was replacing', () async {
+      final backend = CalibrationBackend(planJson: calibrationPlanJson());
+      final container = buildContainer(backend);
+      await container.read(appSettingsProvider.future);
+      seedConnectedEquipment(container);
+      final notifier = container.read(
+        focuserBacklashCalibrationProvider.notifier,
+      );
+
+      await notifier.loadPlan();
+      expect(
+        container.read(focuserBacklashCalibrationProvider).plan,
+        isNotNull,
+      );
+
+      // Invalid settings make the plan call refuse before the backend is
+      // asked; the failed reload must not leave the old plan on screen.
+      final invalid = FocuserBacklashCalibrationSettings.seededFromAutofocus(
+        const AutofocusSettings(),
+      ).copyWith(stepSize: 200, clearanceSteps: 100);
+      await container
+          .read(appSettingsProvider.notifier)
+          .setFocuserBacklashCalibrationJson(jsonEncode(invalid.toJson()));
+      await Future<void>.delayed(Duration.zero);
+
+      final state = container.read(focuserBacklashCalibrationProvider);
+      expect(state.plan, isNull);
+      expect(state.errorMessage, contains('must exceed the step size'));
     });
   });
 

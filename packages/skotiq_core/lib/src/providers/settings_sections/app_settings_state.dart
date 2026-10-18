@@ -232,6 +232,11 @@ class AppSettingsState {
   /// The operator can dismiss the offer for good — it must never become a
   /// prompt that reappears every cold start.
   final String focuserBacklashOfferMode;
+
+  /// The operator's saved choices for a backlash calibration run, as a JSON
+  /// blob of `FocuserBacklashCalibrationSettings.toJson`. Empty means no
+  /// choices stored — the run seeds itself from the autofocus settings.
+  final String focuserBacklashCalibrationJson;
   final String mountSiteSyncMode;
   final int afBacklashOut;
   final String
@@ -607,6 +612,7 @@ class AppSettingsState {
     this.afBacklashCompMethod = 'Overshoot',
     this.afBacklashIn = 0,
     this.focuserBacklashOfferMode = 'ask',
+    this.focuserBacklashCalibrationJson = '',
     this.mountSiteSyncMode = 'ask',
     this.afBacklashOut = 0,
     this.afAutofocusFilterName = '',

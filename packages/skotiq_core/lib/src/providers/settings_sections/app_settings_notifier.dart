@@ -36,6 +36,10 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   // so quick edits to different fields or filters cannot overwrite each other
   // from the same stale snapshot.
   Future<void> _filterAutofocusWriteTail = Future<void>.value();
+  // Backlash-calibration settings are the same shape of problem — one JSON
+  // blob, several field editors — so they get their own serialized
+  // read-modify-write tail rather than sharing the filter one.
+  Future<void> _focuserBacklashCalibrationWriteTail = Future<void>.value();
   int _backendGeneration = 0;
   bool _disposeHookRegistered = false;
 

@@ -459,6 +459,10 @@ abstract class AppSettings with _$AppSettings {
     /// Per-filter AF config JSON map. DB `af_filter_settings`.
     @Default('{}') String afFilterSettingsJson,
 
+    /// Saved backlash-calibration choices as a JSON blob. DB
+    /// `focuser_backlash_calibration_settings`.
+    @Default('') String focuserBacklashCalibrationJson,
+
     /// Apply focus offsets on filter change. DB `use_filter_focus_offsets`.
     @Default(true) bool useFilterFocusOffsets,
     // Misc imaging / FITS / plate-solve config relevant to an unattended night.

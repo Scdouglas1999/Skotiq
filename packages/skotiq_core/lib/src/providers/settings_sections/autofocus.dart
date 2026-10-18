@@ -10,7 +10,9 @@
 //     afRSquaredThreshold
 //   * Orchestration: afDisableGuidingDuringAf, afFocuserSettleTimeMs,
 //     afExposuresPerPoint
-//   * Backlash: afBacklashCompMethod, afBacklashIn, afBacklashOut
+//   * Backlash: afBacklashCompMethod, afBacklashIn, afBacklashOut,
+//     focuserBacklashCalibrationJson (the calibration dialog's saved choices —
+//     they live here because they are seeded from the AF fields above)
 //   * Per-filter: afAutofocusFilterName, afFilterSettingsJson +
 //     setFilterAutofocusConfig / removeFilterAutofocusConfig helpers
 //
@@ -187,6 +189,46 @@ extension AutofocusSettingsSection on AppSettingsNotifier {
   Future<void> setAfFilterSettingsJson(String value) async {
     await _saveSetting('af_filter_settings', value);
     _patchState((s) => s.copyWith(afFilterSettingsJson: value));
+  }
+
+  /// The persisted blob of backlash-calibration choices. Passing '' clears
+  /// the stored choices, which is how "reset to autofocus settings" works —
+  /// with nothing stored the calibration dialog re-seeds from the autofocus
+  /// settings.
+  Future<void> setFocuserBacklashCalibrationJson(String value) async {
+    await _saveSetting('focuser_backlash_calibration_settings', value);
+    _patchState((s) => s.copyWith(focuserBacklashCalibrationJson: value));
+  }
+
+  /// Atomically update the saved backlash-calibration settings.
+  ///
+  /// The fields are one JSON row, so edits from two different field
+  /// controllers are read-modify-write — serialize the whole mutation, not
+  /// just the final write, or a fast second commit would rebuild the blob
+  /// from the pre-first-commit snapshot and silently lose the first field's
+  /// change. [fallback] is the seeded value the caller displayed: used when
+  /// nothing is stored yet (or the stored blob is unreadable), so the first
+  /// edit persists the whole seed and not just one field.
+  Future<void> updateFocuserBacklashCalibrationSettings(
+    FocuserBacklashCalibrationSettings Function(
+      FocuserBacklashCalibrationSettings current,
+    )
+    update, {
+    required FocuserBacklashCalibrationSettings fallback,
+  }) {
+    final operation = _focuserBacklashCalibrationWriteTail.then((_) async {
+      final stored = _currentValueOrNull?.focuserBacklashCalibrationJson ?? '';
+      final current =
+          FocuserBacklashCalibrationSettings.tryParse(stored) ?? fallback;
+      await setFocuserBacklashCalibrationJson(
+        jsonEncode(update(current).toJson()),
+      );
+    });
+    _focuserBacklashCalibrationWriteTail = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
+    return operation;
   }
 
   /// Update a single filter's autofocus configuration.

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/focuser_backlash_calibration.dart';
+import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 
 import 'fixtures.dart';
 
@@ -292,21 +293,55 @@ void main() {
     test('a null centre means "wherever the focuser is now"', () {
       final config =
           jsonDecode(
-                focuserBacklashCalibrationConfigJson(appVersion: '7.0.0+27'),
+                focuserBacklashCalibrationConfigJson(
+                  settings:
+                      FocuserBacklashCalibrationSettings.seededFromAutofocus(
+                        const AutofocusSettings(),
+                      ),
+                  appVersion: '7.0.0+27',
+                ),
               )
               as Map<String, dynamic>;
 
       expect(config['center_position'], isNull);
       expect(config['app_version'], '7.0.0+27');
-      // Nothing else is sent: step size, run-up, exposure and fit thresholds
-      // are native's defaults, stated once where the mechanics live.
-      expect(config.keys, unorderedEquals(['center_position', 'app_version']));
+      // The operator's whole tuning goes on the wire under the snake_case
+      // keys the native struct deserialises — nothing falls back to a
+      // native default the operator never saw.
+      expect(
+        config.keys,
+        unorderedEquals([
+          'center_position',
+          'app_version',
+          'step_size',
+          'steps_out',
+          'clearance_steps',
+          'exposure_duration',
+          'exposures_per_point',
+          'binning',
+          'gain',
+          'offset',
+          'min_star_count',
+          'r_squared_threshold',
+          'outer_crop_ratio',
+          'inner_crop_ratio',
+          'use_brightest_n_stars',
+          'focuser_settle_time_ms',
+          'method',
+          'outlier_rejection_sigma',
+          'max_duration_secs',
+        ]),
+      );
     });
 
     test('an explicit centre is passed through', () {
       final config =
           jsonDecode(
                 focuserBacklashCalibrationConfigJson(
+                  settings:
+                      FocuserBacklashCalibrationSettings.seededFromAutofocus(
+                        const AutofocusSettings(),
+                      ),
                   centerPosition: 6600,
                   appVersion: '7.0.0+27',
                 ),
@@ -315,5 +350,76 @@ void main() {
 
       expect(config['center_position'], 6600);
     });
+
+    test('every settings field is sent under its native key', () {
+      const settings = FocuserBacklashCalibrationSettings(
+        stepSize: 30,
+        stepsOut: 6,
+        clearanceSteps: 90,
+        exposureDurationSecs: 2.5,
+        exposuresPerPoint: 2,
+        binning: 2,
+        gain: 100,
+        offset: 50,
+        minStarCount: 12,
+        rSquaredThreshold: 0.9,
+        outerCropRatio: 0.9,
+        innerCropRatio: 0.1,
+        useBrightestNStars: 15,
+        focuserSettleTimeMs: 800,
+        method: 'Hyperbolic',
+        outlierRejectionSigma: 2.5,
+        maxDurationSecs: 900,
+      );
+      final config =
+          jsonDecode(
+                focuserBacklashCalibrationConfigJson(
+                  settings: settings,
+                  centerPosition: 6600,
+                  appVersion: '7.0.0+27',
+                ),
+              )
+              as Map<String, dynamic>;
+
+      expect(config['step_size'], 30);
+      expect(config['steps_out'], 6);
+      expect(config['clearance_steps'], 90);
+      expect(config['exposure_duration'], 2.5);
+      expect(config['exposures_per_point'], 2);
+      // The enums cross the wire as the variant names serde expects.
+      expect(config['binning'], 'Two');
+      expect(config['method'], 'Hyperbolic');
+      expect(config['gain'], 100);
+      expect(config['offset'], 50);
+      expect(config['min_star_count'], 12);
+      expect(config['r_squared_threshold'], 0.9);
+      expect(config['outer_crop_ratio'], 0.9);
+      expect(config['inner_crop_ratio'], 0.1);
+      expect(config['use_brightest_n_stars'], 15);
+      expect(config['focuser_settle_time_ms'], 800);
+      expect(config['outlier_rejection_sigma'], 2.5);
+      expect(config['max_duration_secs'], 900);
+    });
+
+    test(
+      'unset camera fields are sent as null, the native "leave it" value',
+      () {
+        final config =
+            jsonDecode(
+                  focuserBacklashCalibrationConfigJson(
+                    settings:
+                        FocuserBacklashCalibrationSettings.seededFromAutofocus(
+                          const AutofocusSettings(),
+                        ),
+                    appVersion: '7.0.0+27',
+                  ),
+                )
+                as Map<String, dynamic>;
+
+        expect(config.containsKey('gain'), isTrue);
+        expect(config['gain'], isNull);
+        expect(config['offset'], isNull);
+      },
+    );
   });
 }

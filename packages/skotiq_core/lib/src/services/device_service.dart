@@ -6,7 +6,9 @@ import '../providers/profiles_provider.dart';
 import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart' show settingsDaoProvider;
 import '../providers/focuser_backlash_provider.dart'
-    show focuserBacklashOfferSessionProvider;
+    show
+        focuserBacklashCalibrationSettingsProvider,
+        focuserBacklashOfferSessionProvider;
 import '../providers/sequence_provider.dart';
 import '../providers/session_provider.dart';
 import '../providers/settings_provider.dart';

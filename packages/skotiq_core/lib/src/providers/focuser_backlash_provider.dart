@@ -2,9 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/daos/settings_dao.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
+import '../models/focuser_backlash_calibration.dart';
 import '../services/focuser_backlash/effective_focuser_backlash.dart';
 import 'database_provider.dart';
 import 'equipment/camera_state_provider.dart';
+import 'equipment/filter_wheel_state_provider.dart';
 import 'equipment/focuser_state_provider.dart';
 import 'settings_provider.dart';
 
@@ -69,6 +71,34 @@ final measuredFocuserBacklashStepsProvider = Provider<int?>((ref) {
   if (record == null || !record.isUsable || !record.measurable) return null;
   return record.steps;
 });
+
+/// The settings the next backlash calibration will run with.
+///
+/// The operator's persisted choices win; with none stored the values are
+/// seeded from the autofocus settings — already tuned for this rig — plus
+/// the active filter's per-filter autofocus overrides where autofocus itself
+/// would apply them (exposure, binning, gain, offset). A stored blob that
+/// parses but fails validation is still surfaced, so the dialog can name the
+/// problem rather than silently substituting different values.
+final focuserBacklashCalibrationSettingsProvider =
+    Provider<FocuserBacklashCalibrationSettings>((ref) {
+      final stored = ref.watch(
+        appSettingsProvider.select(
+          (s) => s.valueOrNull?.focuserBacklashCalibrationJson ?? '',
+        ),
+      );
+      final autofocus = ref.watch(autofocusSettingsProvider);
+      final activeFilterName = ref.watch(
+        filterWheelStateProvider.select((s) => s.currentFilterName),
+      );
+      return FocuserBacklashCalibrationSettings.resolve(
+        stored,
+        autofocus: autofocus,
+        activeFilter: activeFilterName == null
+            ? null
+            : autofocus.filterSettings[activeFilterName],
+      );
+    });
 
 // The offer ----------------------------------------------------------------
 

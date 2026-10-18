@@ -273,6 +273,10 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
       afBacklashIn: _parseInt(allSettings['af_backlash_in'], 0),
       focuserBacklashOfferMode:
           allSettings['focuser_backlash_offer_mode']?.toString() ?? 'ask',
+      // Empty means "no saved choices" — the calibration dialog seeds from
+      // the autofocus settings until the operator edits a field.
+      focuserBacklashCalibrationJson:
+          allSettings['focuser_backlash_calibration_settings'] ?? '',
       mountSiteSyncMode:
           allSettings['mount_site_sync_mode']?.toString() ?? 'ask',
       afBacklashOut: _parseInt(allSettings['af_backlash_out'], 0),
@@ -662,6 +666,7 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
       'af_backlash_comp_method': s.afBacklashCompMethod,
       'af_backlash_in': s.afBacklashIn.toString(),
       'focuser_backlash_offer_mode': s.focuserBacklashOfferMode,
+      'focuser_backlash_calibration_settings': s.focuserBacklashCalibrationJson,
       'mount_site_sync_mode': s.mountSiteSyncMode,
       'af_backlash_out': s.afBacklashOut.toString(),
       'af_autofocus_filter_name': s.afAutofocusFilterName,

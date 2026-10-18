@@ -12,6 +12,7 @@ extension _DeviceServiceFocuserBacklashCalibration on DeviceService {
     int? centerPosition,
   }) async {
     final ids = _admitFocuserBacklashCalibration();
+    final settings = _admissibleFocuserBacklashCalibrationSettings();
     _isFocuserBacklashCalibrationRunning = true;
     final focuserNotifier = _ref.read(focuserStateProvider.notifier);
     focuserNotifier.setMoving(true);
@@ -20,6 +21,7 @@ extension _DeviceServiceFocuserBacklashCalibration on DeviceService {
         deviceId: ids.focuserId,
         cameraId: ids.cameraId,
         configJson: focuserBacklashCalibrationConfigJson(
+          settings: settings,
           centerPosition: centerPosition,
           appVersion: _appVersionForCalibrationRecord(),
         ),
@@ -58,8 +60,12 @@ extension _DeviceServiceFocuserBacklashCalibration on DeviceService {
         'cannot be worked out. Connect the focuser first.',
       );
     }
+    // The same settings the run will use, so the travel and time the plan
+    // states are the travel and time the operator is agreeing to.
+    final settings = _admissibleFocuserBacklashCalibrationSettings();
     final planJson = await _backend.focuserBacklashCalibrationPlan(
       configJson: focuserBacklashCalibrationConfigJson(
+        settings: settings,
         centerPosition: centerPosition,
         appVersion: _appVersionForCalibrationRecord(),
       ),
@@ -70,6 +76,20 @@ extension _DeviceServiceFocuserBacklashCalibration on DeviceService {
       throw StateError('The backlash calibration plan could not be read');
     }
     return plan;
+  }
+
+  /// The settings a run or plan will be driven with, or an exception naming
+  /// the first problem — the same rules native's
+  /// `validate_backlash_calibration_config` enforces, refused here so the
+  /// operator gets the dialog's wording instead of a failed run.
+  FocuserBacklashCalibrationSettings
+  _admissibleFocuserBacklashCalibrationSettings() {
+    final settings = _ref.read(focuserBacklashCalibrationSettingsProvider);
+    final problems = settings.problems;
+    if (problems.isNotEmpty) {
+      throw StateError(problems.join(' '));
+    }
+    return settings;
   }
 
   /// The camera and focuser to drive, or an exception naming what is missing.

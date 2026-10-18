@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import '../database/daos/settings_dao.dart';
 import 'autofocus_progress.dart';
+import 'imaging/imaging_models.dart'
+    show AutofocusSettings, FilterAutofocusConfig;
 
 /// Which face of the gear train a scan's points were reached from.
 ///
@@ -451,18 +453,469 @@ class FocuserBacklashCalibrationPlan {
   }
 }
 
+/// The operator-tunable settings for a backlash calibration run.
+///
+/// One of these drives both halves of the feature: the dialog edits it, the
+/// settings store persists it as a JSON blob, and
+/// [focuserBacklashCalibrationConfigJson] folds it into the config native's
+/// `BacklashCalibrationConfig` deserializes. The wire keys in [toJson] are
+/// the struct's snake_case field names, so the persisted blob and the wire
+/// payload share one vocabulary — a stored blob is simply a saved copy of
+/// the fields that will be sent.
+///
+/// Values are seeded from the autofocus settings the operator has already
+/// tuned for their rig (see [FocuserBacklashCalibrationSettings.seededFromAutofocus]),
+/// not from native's defaults, because the autofocus sweep and the backlash
+/// scans are sampling the same drawtube with the same camera.
+class FocuserBacklashCalibrationSettings {
+  const FocuserBacklashCalibrationSettings({
+    required this.stepSize,
+    required this.stepsOut,
+    required this.clearanceSteps,
+    required this.exposureDurationSecs,
+    required this.exposuresPerPoint,
+    required this.binning,
+    this.gain,
+    this.offset,
+    required this.minStarCount,
+    required this.rSquaredThreshold,
+    required this.outerCropRatio,
+    required this.innerCropRatio,
+    required this.useBrightestNStars,
+    required this.focuserSettleTimeMs,
+    this.method = _defaultMethodWireName,
+    required this.outlierRejectionSigma,
+    required this.maxDurationSecs,
+  });
+
+  /// Sample spacing in focuser steps. Finer than a typical autofocus sweep
+  /// step is healthy: the pair of fitted vertices can only be resolved to
+  /// about half the spacing, and that resolution floors the measurement.
+  final int stepSize;
+
+  /// Points sampled either side of the centre per scan, so a scan has
+  /// `2 * stepsOut + 1` points. Native requires 3–50.
+  final int stepsOut;
+
+  /// The run-up every point is approached with — the distance overshot
+  /// before reversing onto the point, which is what loads the drive train
+  /// onto one face of the dead band. Must exceed [stepSize].
+  final int clearanceSteps;
+
+  /// Exposure per frame, in seconds.
+  final double exposureDurationSecs;
+
+  /// Frames median-combined into each sampled point.
+  final int exposuresPerPoint;
+
+  /// 1, 2, 3 or 4 — serialized as the native `Binning` variant.
+  final int binning;
+
+  /// Camera gain for the run, or null to leave the camera's configured
+  /// value — the same convention autofocus uses.
+  final int? gain;
+
+  /// Camera offset for the run, or null to leave the camera's configured
+  /// value.
+  final int? offset;
+
+  /// Minimum detected stars for a frame to be usable.
+  final int minStarCount;
+
+  /// Fit quality floor below which a scan is refused rather than reported.
+  final double rSquaredThreshold;
+
+  /// Outer edge of the detection crop, as a fraction of the frame.
+  final double outerCropRatio;
+
+  /// Inner edge of the detection crop, as a fraction of the frame.
+  final double innerCropRatio;
+
+  /// Detection is limited to the N brightest stars.
+  final int useBrightestNStars;
+
+  /// Pause after each focuser move before exposing, in milliseconds.
+  final int focuserSettleTimeMs;
+
+  /// Native `AutofocusMethod` wire name — one of `VCurve`, `Quadratic`,
+  /// `Hyperbolic`. Not offered in the dialog; it round-trips so a stored
+  /// blob stays faithful.
+  final String method;
+
+  /// Sigma for the fit's outlier rejection pass.
+  final double outlierRejectionSigma;
+
+  /// Wall-clock ceiling for the whole run, in seconds.
+  final double maxDurationSecs;
+
+  /// The method the seeded settings start from. Native deliberately defaults
+  /// this measurement to a parabola — a narrow scan either side of focus has
+  /// none of the wide, deeply defocused wings a V-curve fit exists for — and
+  /// the autofocus screen's curve-fitting option is a different enum for the
+  /// wide sweep, so it is not mapped across.
+  static const String _defaultMethodWireName = 'Quadratic';
+
+  /// The wire names native's `Binning` enum serializes, in `binning` order.
+  static const _binningWireNames = {1: 'One', 2: 'Two', 3: 'Three', 4: 'Four'};
+
+  /// The wire names native's `AutofocusMethod` enum accepts.
+  static const methodWireNames = {'VCurve', 'Quadratic', 'Hyperbolic'};
+
+  /// Seed a run's settings from the autofocus configuration — the values the
+  /// operator already tuned for this focuser and camera. [activeFilter] is
+  /// the per-filter autofocus override for the currently selected filter,
+  /// when there is one; autofocus applies it to exactly the fields it is
+  /// read from here (exposure, binning, gain, offset).
+  factory FocuserBacklashCalibrationSettings.seededFromAutofocus(
+    AutofocusSettings autofocus, {
+    FilterAutofocusConfig? activeFilter,
+  }) {
+    final stepSize = autofocus.stepSize;
+    return FocuserBacklashCalibrationSettings(
+      stepSize: stepSize,
+      // The autofocus sweep's "steps out from centre" is the same quantity
+      // this field sets. Native needs 3–50; a tuned autofocus value can only
+      // fall outside that through a corrupted store, so clamp rather than
+      // seed a config native would refuse.
+      stepsOut: autofocus.initialOffsetSteps.clamp(3, 50),
+      // Autofocus has no run-up concept — the validator only requires it
+      // exceed the step size. The run-up sets the scan's reversal budget,
+      // `(clearance - step) * points`, the widest dead band the run can
+      // expose; 3x the step size keeps the seeded run compact while leaving
+      // a budget of `2 * step * points`, several times the worst backlash
+      // measured on the owner's rig. Operators with a coarser drive train
+      // raise it.
+      clearanceSteps: stepSize * 3,
+      exposureDurationSecs:
+          activeFilter?.afExposureTime ?? autofocus.exposureTime,
+      exposuresPerPoint: autofocus.exposuresPerPoint.clamp(1, 20),
+      binning: (activeFilter?.binning ?? autofocus.binning).clamp(1, 4),
+      // Null means "the camera's configured value", which is exactly what
+      // autofocus does when a filter has no override.
+      gain: activeFilter?.gain,
+      offset: activeFilter?.offset,
+      // No autofocus equivalent exists for the detection floor; the value is
+      // the one native's shared autofocus defaults carry.
+      minStarCount: 10,
+      rSquaredThreshold: autofocus.rSquaredThreshold.clamp(0.0, 1.0),
+      outerCropRatio: autofocus.outerCropRatio.clamp(0.0, 1.0),
+      innerCropRatio: autofocus.innerCropRatio.clamp(0.0, 1.0),
+      useBrightestNStars: autofocus.useBrightestNStars,
+      focuserSettleTimeMs: autofocus.focuserSettleTimeMs.clamp(0, 10000),
+      // See _defaultMethodWireName: a parabola is the honest model for this
+      // scan and the seeded settings keep it.
+      method: _defaultMethodWireName,
+      outlierRejectionSigma: 3.0,
+      // Twenty minutes, native's ceiling — two scans at the seeded geometry
+      // take a small fraction of that.
+      maxDurationSecs: 1200.0,
+    );
+  }
+
+  /// Resolve the settings a run should use: the operator's persisted choices
+  /// when a stored blob parses, otherwise the autofocus-seeded defaults.
+  ///
+  /// A blob that parses but fails validation is still returned — the dialog
+  /// shows the offending values with [problems] rather than silently
+  /// discarding what was stored.
+  static FocuserBacklashCalibrationSettings resolve(
+    String storedJson, {
+    required AutofocusSettings autofocus,
+    FilterAutofocusConfig? activeFilter,
+  }) =>
+      tryParse(storedJson) ??
+      FocuserBacklashCalibrationSettings.seededFromAutofocus(
+        autofocus,
+        activeFilter: activeFilter,
+      );
+
+  /// The fields as native's `BacklashCalibrationConfig` expects them. The
+  /// persisted blob encodes exactly this map, and
+  /// [focuserBacklashCalibrationConfigJson] adds the two run-scoped fields
+  /// (`center_position`, `app_version`) on top.
+  Map<String, Object?> toJson() => {
+    'step_size': stepSize,
+    'steps_out': stepsOut,
+    'clearance_steps': clearanceSteps,
+    'exposure_duration': exposureDurationSecs,
+    'exposures_per_point': exposuresPerPoint,
+    'binning':
+        _binningWireNames[binning] ??
+        (throw ArgumentError.value(
+          binning,
+          'binning',
+          'must be 1, 2, 3 or 4 to map onto the native Binning enum',
+        )),
+    'gain': gain,
+    'offset': offset,
+    'min_star_count': minStarCount,
+    'r_squared_threshold': rSquaredThreshold,
+    'outer_crop_ratio': outerCropRatio,
+    'inner_crop_ratio': innerCropRatio,
+    'use_brightest_n_stars': useBrightestNStars,
+    'focuser_settle_time_ms': focuserSettleTimeMs,
+    'method': method,
+    'outlier_rejection_sigma': outlierRejectionSigma,
+    'max_duration_secs': maxDurationSecs,
+  };
+
+  FocuserBacklashCalibrationSettings copyWith({
+    int? stepSize,
+    int? stepsOut,
+    int? clearanceSteps,
+    double? exposureDurationSecs,
+    int? exposuresPerPoint,
+    int? binning,
+    Object? gain = _unset,
+    Object? offset = _unset,
+    int? minStarCount,
+    double? rSquaredThreshold,
+    double? outerCropRatio,
+    double? innerCropRatio,
+    int? useBrightestNStars,
+    int? focuserSettleTimeMs,
+    String? method,
+    double? outlierRejectionSigma,
+    double? maxDurationSecs,
+  }) => FocuserBacklashCalibrationSettings(
+    stepSize: stepSize ?? this.stepSize,
+    stepsOut: stepsOut ?? this.stepsOut,
+    clearanceSteps: clearanceSteps ?? this.clearanceSteps,
+    exposureDurationSecs: exposureDurationSecs ?? this.exposureDurationSecs,
+    exposuresPerPoint: exposuresPerPoint ?? this.exposuresPerPoint,
+    binning: binning ?? this.binning,
+    gain: identical(gain, _unset) ? this.gain : gain as int?,
+    offset: identical(offset, _unset) ? this.offset : offset as int?,
+    minStarCount: minStarCount ?? this.minStarCount,
+    rSquaredThreshold: rSquaredThreshold ?? this.rSquaredThreshold,
+    outerCropRatio: outerCropRatio ?? this.outerCropRatio,
+    innerCropRatio: innerCropRatio ?? this.innerCropRatio,
+    useBrightestNStars: useBrightestNStars ?? this.useBrightestNStars,
+    focuserSettleTimeMs: focuserSettleTimeMs ?? this.focuserSettleTimeMs,
+    method: method ?? this.method,
+    outlierRejectionSigma: outlierRejectionSigma ?? this.outlierRejectionSigma,
+    maxDurationSecs: maxDurationSecs ?? this.maxDurationSecs,
+  );
+
+  /// Parse the persisted blob. Null on anything that does not decode to a
+  /// complete settings map — a corrupt or truncated store falls back to the
+  /// autofocus-seeded defaults rather than stranding the dialog.
+  static FocuserBacklashCalibrationSettings? tryParse(String json) {
+    Object? decoded;
+    try {
+      decoded = jsonDecode(json);
+    } on FormatException {
+      return null;
+    }
+    if (decoded is! Map) return null;
+    return tryParseMap(decoded);
+  }
+
+  /// Structural parse: every required field present with the right type.
+  /// Enum fields are checked against their variant names here because the
+  /// wire can only carry valid variants — that is a deserialization concern,
+  /// not a [problems] rule. Value ranges are deliberately NOT checked; they
+  /// are the validator's job, and a stored-but-invalid config is shown with
+  /// its errors rather than discarded.
+  static FocuserBacklashCalibrationSettings? tryParseMap(
+    Map<dynamic, dynamic> json,
+  ) {
+    num? number(String key) => switch (json[key]) {
+      final num v => v,
+      _ => null,
+    };
+
+    final stepSize = number('step_size');
+    final stepsOut = number('steps_out');
+    final clearanceSteps = number('clearance_steps');
+    final exposureDuration = number('exposure_duration');
+    final exposuresPerPoint = number('exposures_per_point');
+    final gain = json['gain'];
+    final offset = json['offset'];
+    final minStarCount = number('min_star_count');
+    final rSquared = number('r_squared_threshold');
+    final outerCrop = number('outer_crop_ratio');
+    final innerCrop = number('inner_crop_ratio');
+    final brightestN = number('use_brightest_n_stars');
+    final settle = number('focuser_settle_time_ms');
+    final sigma = number('outlier_rejection_sigma');
+    final maxDuration = number('max_duration_secs');
+    final method = json['method'];
+    if (stepSize == null ||
+        stepsOut == null ||
+        clearanceSteps == null ||
+        exposureDuration == null ||
+        exposuresPerPoint == null ||
+        (gain != null && gain is! num) ||
+        (offset != null && offset is! num) ||
+        minStarCount == null ||
+        rSquared == null ||
+        outerCrop == null ||
+        innerCrop == null ||
+        brightestN == null ||
+        settle == null ||
+        sigma == null ||
+        maxDuration == null) {
+      return null;
+    }
+    final binning = switch (json['binning']) {
+      'One' => 1,
+      'Two' => 2,
+      'Three' => 3,
+      'Four' => 4,
+      _ => null,
+    };
+    if (binning == null) return null;
+    // A missing method is a blob written before the field existed — take the
+    // seeded value. A present but unknown one cannot cross the wire at all.
+    if (method != null &&
+        (method is! String || !methodWireNames.contains(method))) {
+      return null;
+    }
+    return FocuserBacklashCalibrationSettings(
+      stepSize: stepSize.toInt(),
+      stepsOut: stepsOut.toInt(),
+      clearanceSteps: clearanceSteps.toInt(),
+      exposureDurationSecs: exposureDuration.toDouble(),
+      exposuresPerPoint: exposuresPerPoint.toInt(),
+      binning: binning,
+      gain: (gain as num?)?.toInt(),
+      offset: (offset as num?)?.toInt(),
+      minStarCount: minStarCount.toInt(),
+      rSquaredThreshold: rSquared.toDouble(),
+      outerCropRatio: outerCrop.toDouble(),
+      innerCropRatio: innerCrop.toDouble(),
+      useBrightestNStars: brightestN.toInt(),
+      focuserSettleTimeMs: settle.toInt(),
+      method: (method as String?) ?? _defaultMethodWireName,
+      outlierRejectionSigma: sigma.toDouble(),
+      maxDurationSecs: maxDuration.toDouble(),
+    );
+  }
+
+  /// The same rules native's `validate_backlash_calibration_config` enforces,
+  /// in the same order, so the dialog can name the problem before a run is
+  /// attempted. The messages are native's own wording — one vocabulary for
+  /// the rule on both sides of the bridge.
+  List<String> get problems {
+    final issues = <String>[];
+    if (!exposureDurationSecs.isFinite || exposureDurationSecs <= 0) {
+      issues.add('Exposure duration must be finite and positive');
+    }
+    if (!maxDurationSecs.isFinite || maxDurationSecs <= 0) {
+      issues.add('Maximum duration must be finite and positive');
+    }
+    if (stepSize <= 0) {
+      issues.add('Step size must be positive');
+    }
+    if (stepsOut < 3 || stepsOut > 50) {
+      issues.add(
+        'Points either side of centre must be between 3 and 50 — fewer '
+        'than 3 cannot describe a focus curve',
+      );
+    }
+    if (clearanceSteps <= 0) {
+      issues.add(
+        'Run-up must be positive: with no run-up both scans approach every '
+        'point the same way and there is no backlash to see',
+      );
+    }
+    if (clearanceSteps <= stepSize) {
+      issues.add(
+        'Run-up ($clearanceSteps steps) must exceed the step size '
+        '($stepSize steps), or moving to the next point already undoes '
+        'the approach',
+      );
+    }
+    if (exposuresPerPoint < 1 || exposuresPerPoint > 20) {
+      issues.add('Exposures per point must be between 1 and 20');
+    }
+    if (!rSquaredThreshold.isFinite ||
+        rSquaredThreshold < 0 ||
+        rSquaredThreshold > 1) {
+      issues.add('R² threshold must be between 0 and 1');
+    }
+    if (!outerCropRatio.isFinite ||
+        !innerCropRatio.isFinite ||
+        outerCropRatio <= 0 ||
+        outerCropRatio > 1 ||
+        innerCropRatio < 0 ||
+        innerCropRatio >= outerCropRatio) {
+      issues.add('Crop ratios must satisfy 0 <= inner < outer <= 1');
+    }
+    if (focuserSettleTimeMs > 10000) {
+      issues.add('Focuser settle time cannot exceed 10000 ms');
+    }
+    if ((gain ?? 0) < 0 || (offset ?? 0) < 0) {
+      issues.add('Gain and offset cannot be negative');
+    }
+    return issues;
+  }
+
+  bool get isValid => problems.isEmpty;
+
+  @override
+  bool operator ==(Object other) =>
+      other is FocuserBacklashCalibrationSettings &&
+      stepSize == other.stepSize &&
+      stepsOut == other.stepsOut &&
+      clearanceSteps == other.clearanceSteps &&
+      exposureDurationSecs == other.exposureDurationSecs &&
+      exposuresPerPoint == other.exposuresPerPoint &&
+      binning == other.binning &&
+      gain == other.gain &&
+      offset == other.offset &&
+      minStarCount == other.minStarCount &&
+      rSquaredThreshold == other.rSquaredThreshold &&
+      outerCropRatio == other.outerCropRatio &&
+      innerCropRatio == other.innerCropRatio &&
+      useBrightestNStars == other.useBrightestNStars &&
+      focuserSettleTimeMs == other.focuserSettleTimeMs &&
+      method == other.method &&
+      outlierRejectionSigma == other.outlierRejectionSigma &&
+      maxDurationSecs == other.maxDurationSecs;
+
+  @override
+  int get hashCode => Object.hashAll([
+    stepSize,
+    stepsOut,
+    clearanceSteps,
+    exposureDurationSecs,
+    exposuresPerPoint,
+    binning,
+    gain,
+    offset,
+    minStarCount,
+    rSquaredThreshold,
+    outerCropRatio,
+    innerCropRatio,
+    useBrightestNStars,
+    focuserSettleTimeMs,
+    method,
+    outlierRejectionSigma,
+    maxDurationSecs,
+  ]);
+}
+
+/// Sentinel distinguishing "leave the field" from "set it to null" for the
+/// nullable camera fields — the same device `AppSettingsState.copyWith` uses.
+const Object _unset = Object();
+
 /// The config JSON a calibration run or plan is requested with.
 ///
-/// Only the two values Dart has any business setting are sent: where to scan,
-/// and which build is doing the measuring. Step size, run-up, exposure, fit
-/// thresholds and the rest are left to the native defaults, which are derived
-/// from the mechanics of the measurement and documented where they live.
-/// Restating them here would give the product two answers to one question.
+/// Every field of [settings] is sent under the snake_case key native's
+/// `BacklashCalibrationConfig` expects, so the plan the dialog quotes and
+/// the run it starts are the same configuration rather than two different
+/// blends of native defaults.
 ///
 /// A null [centerPosition] means "wherever the focuser is now", which is the
 /// operator's rough focus and the only place the measurement is worth taking.
 String focuserBacklashCalibrationConfigJson({
+  required FocuserBacklashCalibrationSettings settings,
   int? centerPosition,
   required String appVersion,
-}) =>
-    jsonEncode({'center_position': centerPosition, 'app_version': appVersion});
+}) => jsonEncode({
+  ...settings.toJson(),
+  'center_position': centerPosition,
+  'app_version': appVersion,
+});

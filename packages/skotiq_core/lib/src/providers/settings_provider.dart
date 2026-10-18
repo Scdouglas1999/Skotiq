@@ -16,6 +16,8 @@ import '../models/settings/app_settings.dart'
     show ObserverLocation, SafetyFailMode, kDefaultAccentColorHex;
 import '../models/imaging/imaging_models.dart'
     show AutofocusSettings, FilterAutofocusConfig;
+import '../models/focuser_backlash_calibration.dart'
+    show FocuserBacklashCalibrationSettings;
 
 // Section parts: AppSettingsNotifier is one notifier split across `part` files
 // under `settings_sections/`, one per UI / domain section. `part` rather than
