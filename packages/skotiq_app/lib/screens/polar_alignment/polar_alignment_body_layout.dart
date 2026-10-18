@@ -5,13 +5,17 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Responsive three-panel body for [PolarAlignmentScreen].
 ///
-/// Wide viewports use a horizontal row (settings | guide | error display).
-/// Medium viewports stack the guide on top with settings and errors below.
+/// Wide viewports use a horizontal row (settings | run view | error display).
+/// Medium viewports stack the run view on top with settings and errors below.
 /// Narrow viewports collapse into tabs so the center column never shrinks
 /// below readable width (~400 logical px).
+///
+/// [centerPanel] is null while nothing is running: the instructions then live
+/// at the top of the settings column, and the error display takes the space a
+/// centre column would have left as an empty band.
 class PolarAlignmentBodyLayout extends StatelessWidget {
   final Widget leftPanel;
-  final Widget centerPanel;
+  final Widget? centerPanel;
   final Widget rightPanel;
 
   const PolarAlignmentBodyLayout({
@@ -20,6 +24,11 @@ class PolarAlignmentBodyLayout extends StatelessWidget {
     required this.centerPanel,
     required this.rightPanel,
   });
+
+  /// Logical compact-tab indices, stable whether or not the run view exists.
+  static const int settingsTab = 0;
+  static const int runTab = 1;
+  static const int errorsTab = 2;
 
   /// Minimum width before attempting wide three-column row layout.
   static const double wideBreakpoint = 1100;
@@ -33,8 +42,15 @@ class PolarAlignmentBodyLayout extends StatelessWidget {
   static const double layoutDividerWidth = 2;
 
   /// Preferred side widths at full wide layout (clamped down when space is tight).
-  static const double leftPanelPreferred = 320;
-  static const double rightPanelPreferred = 400;
+  ///
+  /// 360 rather than 320: at idle the setup checklist shares this column with
+  /// the settings, and its step titles wrapped to two lines at 320.
+  static const double leftPanelPreferred = 360;
+
+  ///
+  /// The right column is 440 so the error row can give Total a degrees-sized
+  /// value without wrapping it under the other two.
+  static const double rightPanelPreferred = 440;
 
   static const double leftPanelMin = 240;
   static const double rightPanelMin = 280;
@@ -99,6 +115,15 @@ class PolarAlignmentBodyLayout extends StatelessWidget {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
 
+        if (shouldUseWideLayout(width) && centerPanel == null) {
+          return _IdleWideLayout(
+            colors: colors,
+            leftWidth: panelWidthsForWide(width).left,
+            leftPanel: leftPanel,
+            rightPanel: rightPanel,
+          );
+        }
+
         if (shouldUseWideLayout(width)) {
           final panels = panelWidthsForWide(width);
           return _WideLayout(
@@ -106,7 +131,7 @@ class PolarAlignmentBodyLayout extends StatelessWidget {
             leftWidth: panels.left,
             rightWidth: panels.right,
             leftPanel: leftPanel,
-            centerPanel: centerPanel,
+            centerPanel: centerPanel!,
             rightPanel: rightPanel,
           );
         }
@@ -127,6 +152,32 @@ class PolarAlignmentBodyLayout extends StatelessWidget {
           rightPanel: rightPanel,
         );
       },
+    );
+  }
+}
+
+class _IdleWideLayout extends StatelessWidget {
+  final SkotiqColors colors;
+  final double leftWidth;
+  final Widget leftPanel;
+  final Widget rightPanel;
+
+  const _IdleWideLayout({
+    required this.colors,
+    required this.leftWidth,
+    required this.leftPanel,
+    required this.rightPanel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(width: leftWidth, child: leftPanel),
+        Container(width: 1, color: colors.border),
+        Expanded(child: rightPanel),
+      ],
     );
   }
 }
@@ -173,7 +224,7 @@ class _WideLayout extends StatelessWidget {
 class _MediumLayout extends StatelessWidget {
   final SkotiqColors colors;
   final Widget leftPanel;
-  final Widget centerPanel;
+  final Widget? centerPanel;
   final Widget rightPanel;
 
   const _MediumLayout({
@@ -185,22 +236,22 @@ class _MediumLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sides = Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: leftPanel),
+        Container(width: 1, color: colors.border),
+        Expanded(child: rightPanel),
+      ],
+    );
+    final center = centerPanel;
+    if (center == null) return sides;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(flex: 3, child: centerPanel),
+        Expanded(flex: 3, child: center),
         Container(height: 1, color: colors.border),
-        Expanded(
-          flex: 2,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: leftPanel),
-              Container(width: 1, color: colors.border),
-              Expanded(child: rightPanel),
-            ],
-          ),
-        ),
+        Expanded(flex: 2, child: sides),
       ],
     );
   }
@@ -209,7 +260,7 @@ class _MediumLayout extends StatelessWidget {
 class _CompactTabLayout extends ConsumerStatefulWidget {
   final SkotiqColors colors;
   final Widget leftPanel;
-  final Widget centerPanel;
+  final Widget? centerPanel;
   final Widget rightPanel;
 
   const _CompactTabLayout({
@@ -245,41 +296,85 @@ class _CompactTabLayoutState extends ConsumerState<_CompactTabLayout>
     super.dispose();
   }
 
-  void _syncTabController(int index) {
-    if (_tabController != null) {
-      if (_tabController!.index != index) {
+  /// Logical tabs shown, in order. Without a run view the Guide tab would be
+  /// an empty page, so it is left out until a run starts.
+  List<int> get _logicalTabs => widget.centerPanel == null
+      ? const [
+          PolarAlignmentBodyLayout.settingsTab,
+          PolarAlignmentBodyLayout.errorsTab,
+        ]
+      : const [
+          PolarAlignmentBodyLayout.settingsTab,
+          PolarAlignmentBodyLayout.runTab,
+          PolarAlignmentBodyLayout.errorsTab,
+        ];
+
+  /// Position of a logical tab in the visible strip. A logical tab that is not
+  /// shown (the run view, before a run) falls back to Settings, which now
+  /// carries the instructions that page used to hold.
+  int _positionOf(int logical, List<int> tabs) {
+    final i = tabs.indexOf(logical);
+    return i < 0 ? 0 : i;
+  }
+
+  void _syncTabController(int logicalIndex, List<int> tabs) {
+    final position = _positionOf(logicalIndex, tabs);
+    final existing = _tabController;
+    if (existing != null && existing.length == tabs.length) {
+      if (existing.index != position) {
         _applyingExternalIndex = true;
         try {
-          _tabController!.index = index;
+          existing.index = position;
         } finally {
           _applyingExternalIndex = false;
         }
       }
       return;
     }
+    if (existing != null) {
+      existing.removeListener(_onTabChanged);
+      // The TabBar and TabBarView still hold the old controller until this
+      // build replaces them, and they detach from it as they update. Dispose
+      // after that frame, not under them.
+      WidgetsBinding.instance.addPostFrameCallback((_) => existing.dispose());
+    }
     _tabController = TabController(
-      length: 3,
+      length: tabs.length,
       vsync: this,
-      initialIndex: index,
+      initialIndex: position,
     );
     _tabController!.addListener(_onTabChanged);
   }
 
   void _onTabChanged() {
     if (_applyingExternalIndex) return;
-    if (_tabController == null || _tabController!.indexIsChanging) {
+    final controller = _tabController;
+    if (controller == null || controller.indexIsChanging) {
       return;
     }
     ref
         .read(polarAlignmentUiStateProvider.notifier)
-        .setCompactTabIndex(_tabController!.index);
+        .setCompactTabIndex(_logicalTabs[controller.index]);
   }
+
+  static const Map<int, String> _tabLabels = {
+    PolarAlignmentBodyLayout.settingsTab: 'Settings',
+    PolarAlignmentBodyLayout.runTab: 'Guide',
+    PolarAlignmentBodyLayout.errorsTab: 'Errors',
+  };
 
   @override
   Widget build(BuildContext context) {
     final tabIndex = ref.watch(polarAlignmentUiStateProvider).compactTabIndex;
-    _syncTabController(tabIndex);
+    final tabs = _logicalTabs;
+    _syncTabController(tabIndex, tabs);
     final controller = _tabController!;
+
+    Widget pageFor(int logical) => switch (logical) {
+          PolarAlignmentBodyLayout.settingsTab => widget.leftPanel,
+          PolarAlignmentBodyLayout.runTab => widget.centerPanel!,
+          _ => widget.rightPanel,
+        };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -295,21 +390,13 @@ class _CompactTabLayoutState extends ConsumerState<_CompactTabLayout>
             labelStyle: SkotiqTypography.h6,
             unselectedLabelStyle:
                 const TextStyle(fontSize: SkotiqTypography.fontSize12),
-            tabs: const [
-              Tab(text: 'Settings'),
-              Tab(text: 'Guide'),
-              Tab(text: 'Errors'),
-            ],
+            tabs: [for (final t in tabs) Tab(text: _tabLabels[t])],
           ),
         ),
         Expanded(
           child: TabBarView(
             controller: controller,
-            children: [
-              widget.leftPanel,
-              widget.centerPanel,
-              widget.rightPanel,
-            ],
+            children: [for (final t in tabs) pageFor(t)],
           ),
         ),
       ],

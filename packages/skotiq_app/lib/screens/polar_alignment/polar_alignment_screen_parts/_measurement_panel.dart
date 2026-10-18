@@ -34,6 +34,14 @@ String _runActivityLabel(String status, int point) {
   return 'Point $at of 3';
 }
 
+/// Width of the card beside the frame in the measuring and adjusting views.
+const double _runSideCardWidth = 220;
+
+/// Shortest column the frame and its card share side by side. Below it the
+/// frame would be a strip too short for its own placeholder, so the view
+/// stacks and scrolls instead.
+const double _runRowMinHeight = 320;
+
 extension _MeasurementPanel on _PolarAlignmentScreenState {
   Widget _buildMeasuringStatus(SkotiqColors colors, PolarAlignmentState state) {
     final status = state.statusMessage;
@@ -44,13 +52,9 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
     return LayoutBuilder(
       builder: (context, constraints) {
         // Below ~520px the image + fixed side panel get too tight, so stack
-        // the image above the progress panel in a phone column.
-        // The center panel is vertically scrollable, so active content often
-        // receives an unbounded height even on a wide viewport. A stretched
-        // Row cannot lay out under that constraint; stack in that case and let
-        // the scroll view own the vertical extent.
-        final stack =
-            constraints.maxWidth < 520 || !constraints.hasBoundedHeight;
+        // the image above the progress panel in a scrolling phone column.
+        final stack = constraints.maxWidth < 520 ||
+            constraints.maxHeight < _runRowMinHeight;
 
         final imageArea = Container(
           key: PolarAlignmentTutorialKeys.imageView,
@@ -160,57 +164,12 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: stack ? MainAxisSize.min : MainAxisSize.max,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'Progress',
-                style: SkotiqTypography.h6.copyWith(color: colors.textPrimary),
-              ),
-              const SizedBox(height: 16),
-              _MeasurementProgressItem(
-                colors: colors,
-                label: 'Point 1',
-                isActive: point == 1,
-                isComplete: point > 1,
-              ),
-              const SizedBox(height: 8),
-              _MeasurementProgressItem(
-                colors: colors,
-                label: 'Point 2',
-                isActive: point == 2,
-                isComplete: point > 2,
-              ),
-              const SizedBox(height: 8),
-              _MeasurementProgressItem(
-                colors: colors,
-                label: 'Point 3',
-                isActive: point == 3,
-                isComplete: point > 3,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Status',
-                style: TextStyle(
-                  fontSize: SkotiqTypography.fontSize11,
-                  color: colors.textMuted,
-                ),
-              ),
-              const SizedBox(height: 6),
-
-              // Task 4.4: Solve progress indicator with timer
-              if (status.toLowerCase().contains('solv'))
-                _SolveProgressIndicator(colors: colors, status: status)
-              else
-                Text(
-                  status,
-                  style: TextStyle(
-                    fontSize: SkotiqTypography.fontSize12,
-                    color: colors.textSecondary,
-                  ),
-                ),
-
-              if (!stack) const Spacer() else const SizedBox(height: 16),
-              // Mount activity indicator
+              // What the run is doing now leads the card; the run's own status
+              // line, or the solve timer, is the detail under it. The point
+              // list that used to head the card repeated the progress rail
+              // directly above it.
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
@@ -237,20 +196,30 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
                   ],
                 ),
               ),
+              const SizedBox(height: SkotiqTokens.spaceMd),
+              if (status.toLowerCase().contains('solv'))
+                _SolveProgressIndicator(colors: colors, status: status)
+              else
+                Text(
+                  status,
+                  style: SkotiqTypography.bodySm.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                ),
             ],
           ),
         );
 
         if (stack) {
-          return Padding(
-            padding: const EdgeInsets.all(16),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Give the image a generous square-ish area then let the
                 // progress panel flow beneath it.
                 AspectRatio(aspectRatio: 4 / 3, child: imageArea),
-                const SizedBox(height: 16),
+                const SizedBox(height: SkotiqTokens.spaceLg),
                 progressPanel,
               ],
             ),
@@ -258,13 +227,20 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
         }
 
         return Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(flex: 2, child: imageArea),
-              const SizedBox(width: 16),
-              SizedBox(width: 180, child: progressPanel),
+              Expanded(child: imageArea),
+              const SizedBox(width: SkotiqTokens.spaceLg),
+              SizedBox(
+                width: _runSideCardWidth,
+                // Sized to its content at the top of the column, scrolling if
+                // a short window cannot fit it. Stretched to the frame's
+                // height, the card was mostly empty space between its first
+                // lines and the footer pinned to its bottom.
+                child: SingleChildScrollView(child: progressPanel),
+              ),
             ],
           ),
         );
@@ -297,10 +273,10 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // See the measuring panel above: the surrounding active-state scroll
-        // view supplies unbounded height, which makes a stretched Row invalid.
-        final stack =
-            constraints.maxWidth < 520 || !constraints.hasBoundedHeight;
+        // As in the measuring panel: side by side unless the column is too
+        // narrow, in which case it stacks and scrolls.
+        final stack = constraints.maxWidth < 520 ||
+            constraints.maxHeight < _runRowMinHeight;
 
         final imageArea = Container(
           decoration: BoxDecoration(
@@ -345,16 +321,10 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
                   ),
                 ),
 
-              // Bullseye overlay
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _BullseyeOverlayPainter(
-                    colors: colors,
-                    azimuthError: error?.azimuthError,
-                    altitudeError: error?.altitudeError,
-                  ),
-                ),
-              ),
+              // No bullseye is drawn over the frame. The right column carries
+              // the bullseye; a second, unscaled one over the stars plotted
+              // arcseconds on a pixel image and pinned every large error to
+              // its rim.
             ],
           ),
         );
@@ -366,7 +336,7 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: stack ? MainAxisSize.min : MainAxisSize.max,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 'Adjust mount',
@@ -440,43 +410,18 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
                   ),
                 ),
 
-              const SizedBox(height: 24),
-              Divider(color: colors.border),
-              const SizedBox(height: 16),
+              // How hard to turn, from the total. The total itself is the
+              // loud readout under the bullseye; repeating it here, and again
+              // with both directions in the settings column, put the same
+              // three numbers on screen three times.
+              if (error != null) ...[
+                const SizedBox(height: SkotiqTokens.spaceLg),
+                Divider(color: colors.border),
+                const SizedBox(height: SkotiqTokens.spaceMd),
+                _buildAdjustmentMagnitude(colors, error),
+              ],
 
-              // Total error
-              Text(
-                'Total error',
-                style: TextStyle(
-                  fontSize: SkotiqTypography.fontSize11,
-                  color: colors.textMuted,
-                ),
-              ),
-              const SizedBox(height: 4),
-              if (error != null)
-                Text(
-                  formatPolarError(error.totalError),
-                  style: TextStyle(
-                    fontSize: SkotiqTypography.fontSize28,
-                    fontWeight: FontWeight.bold,
-                    color: error.totalError < 30
-                        ? colors.success
-                        : error.totalError < 60
-                            ? colors.warning
-                            : colors.error,
-                  ),
-                )
-              else
-                Text(
-                  kReadoutUnknown,
-                  style: TextStyle(
-                    fontSize: SkotiqTypography.fontSize28,
-                    fontWeight: FontWeight.bold,
-                    color: colors.textMuted,
-                  ),
-                ),
-
-              if (!stack) const Spacer() else const SizedBox(height: 20),
+              const SizedBox(height: SkotiqTokens.spaceLg),
 
               // Progress toward threshold
               Text(
@@ -548,13 +493,13 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
         );
 
         if (stack) {
-          return Padding(
-            padding: const EdgeInsets.all(16),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 AspectRatio(aspectRatio: 4 / 3, child: imageArea),
-                const SizedBox(height: 16),
+                const SizedBox(height: SkotiqTokens.spaceLg),
                 directionPanel,
               ],
             ),
@@ -562,13 +507,20 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
         }
 
         return Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(flex: 2, child: imageArea),
-              const SizedBox(width: 16),
-              SizedBox(width: 200, child: directionPanel),
+              Expanded(child: imageArea),
+              const SizedBox(width: SkotiqTokens.spaceLg),
+              SizedBox(
+                width: _runSideCardWidth,
+                // Sized to its content at the top of the column, scrolling if
+                // a short window cannot fit it. Stretched to the frame's
+                // height, the card was mostly empty space between its first
+                // lines and the footer pinned to its bottom.
+                child: SingleChildScrollView(child: directionPanel),
+              ),
             ],
           ),
         );

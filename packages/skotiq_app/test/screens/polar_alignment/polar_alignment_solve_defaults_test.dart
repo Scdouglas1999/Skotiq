@@ -43,8 +43,11 @@ Future<void> _pumpWizard(WidgetTester tester) async {
 
 /// The settings sections start collapsed, and a collapsed [ExpansionTile] does
 /// not build its children at all — so a section has to be opened before
-/// anything can be asserted about what it shows.
+/// anything can be asserted about what it shows. The setup checklist heads the
+/// same column while idle, so the section is scrolled into view first.
 Future<void> _openSettingsSection(WidgetTester tester, String title) async {
+  await tester.ensureVisible(find.text(title));
+  await tester.pump();
   await tester.tap(find.text(title));
   for (var i = 0; i < 6; i++) {
     await tester.pump(const Duration(milliseconds: 100));

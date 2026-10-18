@@ -37,48 +37,35 @@ extension _RightPanel on _PolarAlignmentScreenState {
         : Stack(
             alignment: Alignment.center,
             children: [
-              _PolarErrorVisualization(
-                colors: colors,
-                error: state.currentError,
-                phase: state.phase,
-                pulseAnimation: _pulseController,
+              // Inset so the outer ring and its label clear the column edge;
+              // the painter sizes the rings to whatever this leaves.
+              Padding(
+                padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
+                child: _PolarErrorVisualization(
+                  colors: colors,
+                  error: state.currentError,
+                  phase: state.phase,
+                  pulseAnimation: _pulseController,
+                ),
               ),
               // A run that never reached a measurement — not started, or ended
               // in error — leaves the rings with nothing to show. Say so, so
               // the empty target is read as "no reading" and not as zero error.
               // The test is whether a measurement EXISTS: a completed run still
               // has one, and captioning its plotted result "No measurement yet"
-              // contradicted the numbers printed directly beneath it.
+              // contradicted the numbers printed directly beneath it. Idle says
+              // nothing here: the setup checklist already explains the target.
               if (state.phase != PolarAlignPhase.idle &&
                   state.currentError == null)
                 Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 24,
+                  left: SkotiqTokens.spaceLg,
+                  right: SkotiqTokens.spaceLg,
+                  bottom: SkotiqTokens.spaceSm,
                   child: Text(
                     'No measurement yet',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: SkotiqTypography.fontSize12,
-                      color: colors.textMuted,
-                    ),
-                  ),
-                ),
-              if (state.phase == PolarAlignPhase.idle)
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 24,
-                  child: Text(
-                    'After you start, this bullseye shows live '
-                    'azimuth and altitude error while you adjust the '
-                    'mount. Rings mark 30", 60", and 120" error zones.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: SkotiqTypography.fontSize12,
-                      color: colors.textSecondary,
-                      height: 1.4,
-                    ),
+                    style: SkotiqTypography.bodySm
+                        .copyWith(color: colors.textMuted),
                   ),
                 ),
             ],
@@ -126,29 +113,33 @@ extension _RightPanel on _PolarAlignmentScreenState {
             : null;
 
     // Error values
-    final Widget errorValues = Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colors.surfaceAlt,
-        border: Border(top: BorderSide(color: colors.border)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildErrorValues(colors, state.currentError),
-          // All-Sky derives the polar error from the DRIFT between a fixed
-          // baseline solve and the current one, so its precision is a function
-          // of how long that baseline has been running — and nothing on screen
-          // said how long that was. The first samples produced a 0.0" reading
-          // and an 11-degree reading minutes apart, both presented with the
-          // same authority.
-          if (isAllSky) ...[
-            const SizedBox(height: 10),
-            _buildDriftBaselineCaption(colors, state),
-          ],
-        ],
-      ),
-    );
+    Widget errorValues(double panelWidth) => Container(
+          padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
+          decoration: BoxDecoration(
+            color: colors.surfaceAlt,
+            border: Border(top: BorderSide(color: colors.border)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildErrorValues(
+                colors,
+                state.currentError,
+                panelWidth - 2 * SkotiqTokens.spaceLg,
+              ),
+              // All-Sky derives the polar error from the DRIFT between a fixed
+              // baseline solve and the current one, so its precision is a function
+              // of how long that baseline has been running — and nothing on screen
+              // said how long that was. The first samples produced a 0.0" reading
+              // and an 11-degree reading minutes apart, both presented with the
+              // same authority.
+              if (isAllSky) ...[
+                const SizedBox(height: 10),
+                _buildDriftBaselineCaption(colors, state),
+              ],
+            ],
+          ),
+        );
 
     return Container(
       key: PolarAlignmentTutorialKeys.errorDisplay,
@@ -169,7 +160,7 @@ extension _RightPanel on _PolarAlignmentScreenState {
                       ),
                     ),
                     if (trendChart != null) trendChart,
-                    errorValues,
+                    errorValues(constraints.maxWidth),
                   ],
                 ),
               ),
@@ -228,37 +219,86 @@ extension _RightPanel on _PolarAlignmentScreenState {
   /// These were label-above-value tiles printing "--" before the first solve.
   /// A Readout is value-loud, label-quiet (02 rule 3), and renders an unknown
   /// as an em dash from a null value — never a pair of hyphens.
-  Widget _buildErrorValues(SkotiqColors colors, PolarAlignmentError? error) {
-    return ReadoutRow(
-      gap: SkotiqTokens.spaceLg,
-      children: <Readout>[
-        Readout(
-          label: 'Azimuth',
-          value: error == null ? null : formatPolarError(error.azimuthError),
-          size: ReadoutSize.sm,
-          valueColor: error == null
-              ? null
-              : _getErrorColor(colors, error.azimuthError.abs()),
+  ///
+  /// Each readout owns a fixed third of the row and the row aligns their
+  /// BOTTOMS, so the three labels share one baseline even though Total is the
+  /// larger value. Top-aligned in a centred Wrap, Total's label sat lower than
+  /// the other two, and every change in a value's width slid all three
+  /// sideways while the operator was turning a bolt. A column too narrow for
+  /// three fixed thirds falls back to wrapping rather than ellipsizing a
+  /// number.
+  ///
+  /// [width] is the row's width, passed in rather than measured with a
+  /// LayoutBuilder because the column sizes this row intrinsically.
+  Widget _buildErrorValues(
+    SkotiqColors colors,
+    PolarAlignmentError? error,
+    double width,
+  ) {
+    final readouts = <Readout>[
+      Readout(
+        key: const ValueKey('polar-readout-azimuth'),
+        label: 'Azimuth',
+        value: error == null ? null : formatPolarError(error.azimuthError),
+        size: ReadoutSize.sm,
+        valueColor: error == null
+            ? null
+            : _getErrorColor(colors, error.azimuthError.abs()),
+      ),
+      Readout(
+        key: const ValueKey('polar-readout-altitude'),
+        label: 'Altitude',
+        value: error == null ? null : formatPolarError(error.altitudeError),
+        size: ReadoutSize.sm,
+        valueColor: error == null
+            ? null
+            : _getErrorColor(colors, error.altitudeError.abs()),
+      ),
+      // The total is the number the operator is driving to zero, so it is
+      // the loud one.
+      Readout(
+        key: const ValueKey('polar-readout-total'),
+        label: 'Total',
+        value: error == null ? null : formatPolarError(error.totalError),
+        valueColor:
+            error == null ? null : _getErrorColor(colors, error.totalError),
+      ),
+    ];
+    if (width < _errorValuesRowMinWidth) {
+      return Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.end,
+        spacing: SkotiqTokens.spaceLg,
+        runSpacing: ReadoutRow.runGap,
+        children: readouts,
+      );
+    }
+    // Capped, so on the wide idle column the three stay a group under the
+    // target instead of spreading to the far edges.
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _errorValuesRowMaxWidth),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            // Total is the larger value, so it gets the larger share.
+            for (var i = 0; i < readouts.length; i++)
+              Expanded(
+                flex: i == readouts.length - 1 ? 4 : 3,
+                child: Center(child: readouts[i]),
+              ),
+          ],
         ),
-        Readout(
-          label: 'Altitude',
-          value: error == null ? null : formatPolarError(error.altitudeError),
-          size: ReadoutSize.sm,
-          valueColor: error == null
-              ? null
-              : _getErrorColor(colors, error.altitudeError.abs()),
-        ),
-        // The total is the number the operator is driving to zero, so it is
-        // the loud one.
-        Readout(
-          label: 'Total',
-          value: error == null ? null : formatPolarError(error.totalError),
-          valueColor:
-              error == null ? null : _getErrorColor(colors, error.totalError),
-        ),
-      ],
+      ),
     );
   }
+
+  /// Below this the fixed shares are narrower than a degrees-sized value
+  /// ("-11° 08' 24\""), which an operator's first measurement often is.
+  static const double _errorValuesRowMinWidth = 380;
+
+  /// Widest the error row grows: the outer ring's diameter, near enough.
+  static const double _errorValuesRowMaxWidth = 560;
 
   Color _getErrorColor(SkotiqColors colors, double error) {
     if (error < 30) return colors.success;

@@ -3,32 +3,61 @@
 part of '../polar_alignment_screen.dart';
 
 extension _ScreenShell on _PolarAlignmentScreenState {
-  /// The page header: identity, the method switch, and the ONE primary.
+  /// The page header: identity, the method tabs, the device chips and the
+  /// ONE primary, on one row.
   ///
-  /// This was a bespoke `surface` bar carrying an h4 title with a subtitle
-  /// under it, a Material `SegmentedButton` and two red device chips, and the
-  /// primary action lived in a footer at the other end of the screen with the
-  /// blocker sentence beside it. 04 §4 gives the screen one 56px header, and
-  /// 02 rule 4 puts its single primary in that header.
+  /// The method switch and the device chips used to sit on a second 60px row
+  /// under the header, leaving the header itself mostly empty. Every other
+  /// screen with tabs (Imaging, Equipment, Analytics) carries them in the
+  /// header's tab slot, so this one does too; the chips are status, so they
+  /// lead the actions. Below the shell breakpoint [PageHeader] moves the tabs
+  /// to their own row, and the chips follow them into [PageHeader.bottom]
+  /// because a phone header has no width for them beside the primary.
   Widget _buildHeader(SkotiqColors colors, bool isRunning) {
+    return LayoutBuilder(
+      builder: (context, constraints) => _buildHeaderFor(
+        colors,
+        isRunning,
+        roomy:
+            constraints.maxWidth >= _PolarAlignmentScreenState.headerRoomyWidth,
+      ),
+    );
+  }
+
+  /// [roomy] is whether the header row has the width for the device chips
+  /// and the labelled Back and History beside the title, the tabs and the
+  /// primary. Without it the chips drop to a strip under the header and Back
+  /// and History shed their labels, rather than the row overflowing.
+  Widget _buildHeaderFor(
+    SkotiqColors colors,
+    bool isRunning, {
+    required bool roomy,
+  }) {
     final ui = ref.watch(polarAlignmentUiStateProvider);
     final uiNotifier = ref.read(polarAlignmentUiStateProvider.notifier);
 
-    final modeSelector = SegmentedControl(
-      segments: const ['TPPA', 'All-sky'],
+    final modeTabs = AdaptiveTabBar(
+      horizontalPadding: 0,
+      // Two short labels. The bar collapses to bare icons below 480px of
+      // strip, which the actions beside it leave on most desktop widths, and
+      // a compass and a globe do not say "TPPA" and "All-sky".
+      collapseLabelsWhenTight: false,
+      tabs: const <AdaptiveTab>[
+        AdaptiveTab(label: 'TPPA', icon: SkotiqIcons.compass),
+        AdaptiveTab(label: 'All-sky', icon: SkotiqIcons.globe),
+      ],
       selectedIndex: ui.mode == PolarAlignmentMode.threePoint ? 0 : 1,
-      onSelected: isRunning
-          ? (_) {}
-          : (index) => uiNotifier.setMode(
-                index == 0
-                    ? PolarAlignmentMode.threePoint
-                    : PolarAlignmentMode.allSky,
-              ),
+      // A run owns its method; switching mid-run is refused, not queued.
+      onSelected: (index) {
+        if (isRunning) return;
+        uiNotifier.setMode(
+          index == 0
+              ? PolarAlignmentMode.threePoint
+              : PolarAlignmentMode.allSky,
+        );
+      },
     );
 
-    // The header row has to hold the title, the way back, History and the
-    // primary. On a phone that is more than 360px of controls, so History
-    // sheds its label — the tooltip still names it.
     final narrow = MediaQuery.sizeOf(context).width <
         ShellChromeMetrics.shellLayoutBreakpoint;
 
@@ -37,57 +66,69 @@ extension _ScreenShell on _PolarAlignmentScreenState {
         ? 'Hide past alignment runs'
         : 'Show past alignment runs';
 
+    void leave() {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/imaging');
+      }
+    }
+
     return PageHeader(
       // No leading glyph on a phone: PageHeader's icon is inflexible, so at
       // 360px it kept 28px the title block had already given away and pushed
       // the header over by 11px.
       icon: narrow ? null : SkotiqIcons.compass,
       title: 'Polar alignment',
-      // The method, as the header's context line — not a subtitle sentence
-      // under the title (02 rule 5). Dropped on a phone, where the header row
-      // has no room for it and the segmented control directly below already
-      // names the method.
-      context: narrow ? null : ui.mode.displayName,
-      bottom: Container(
-        color: colors.background,
-        padding: const EdgeInsets.fromLTRB(
-          SkotiqTokens.space2xl,
-          SkotiqTokens.spaceMd,
-          SkotiqTokens.space2xl,
-          SkotiqTokens.spaceMd,
-        ),
-        // A Wrap, not a Row with a Spacer: at 360px the method switch and the
-        // two device chips do not fit on one line, and a Row overflowed by
-        // 109px rather than breaking.
-        child: Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: SkotiqTokens.spaceMd,
-          runSpacing: SkotiqTokens.spaceSm,
-          children: [
-            modeSelector,
-            _buildEquipmentIndicators(colors),
-          ],
-        ),
-      ),
+      // Roomy: the tabs ride in the header row. A phone: PageHeader moves
+      // them to a row of their own. Between the two the header row has no
+      // width left for a strip once the title and the actions are placed, so
+      // the tabs share the chips' strip under it.
+      tabs: roomy || narrow ? modeTabs : null,
+      bottom: roomy
+          ? null
+          : Container(
+              color: colors.background,
+              padding: const EdgeInsets.symmetric(
+                horizontal: SkotiqTokens.space2xl,
+                vertical: SkotiqTokens.spaceSm,
+              ),
+              alignment: Alignment.centerLeft,
+              child: narrow
+                  ? _buildEquipmentIndicators(colors)
+                  : Row(
+                      children: [
+                        Expanded(child: modeTabs),
+                        const SizedBox(width: SkotiqTokens.spaceMd),
+                        _buildEquipmentIndicators(colors),
+                      ],
+                    ),
+            ),
       actions: <Widget>[
-        // While a run is in flight the way back is refused anyway, and on a
-        // phone a disabled arrow is 40px the Stop button needs.
-        if (!(isRunning && narrow))
+        if (roomy) _buildEquipmentIndicators(colors),
+        // The way back, as a labelled header action — the shape the Darkroom
+        // editor and the mosaic screens use. A bare arrow between the title
+        // and History read as a stray glyph. While a run is in flight the way
+        // back is refused anyway, and on a phone a disabled control is width
+        // the Stop button needs.
+        if (!roomy && !(narrow && isRunning))
           SkotiqIconButton(
             icon: SkotiqIcons.arrowLeft,
             tooltip: isRunning ? 'Stop alignment first' : 'Back',
-            onPressed: isRunning
-                ? null
-                : () {
-                    if (context.canPop()) {
-                      context.pop();
-                    } else {
-                      context.go('/imaging');
-                    }
-                  },
+            onPressed: isRunning ? null : leave,
+          )
+        else if (roomy)
+          Tooltip(
+            message: isRunning ? 'Stop alignment first' : 'Back',
+            child: SkotiqButton(
+              label: 'Back',
+              icon: SkotiqIcons.arrowLeft,
+              variant: ButtonVariant.ghost,
+              size: ButtonSize.small,
+              onPressed: isRunning ? null : leave,
+            ),
           ),
-        if (narrow)
+        if (!roomy)
           SkotiqIconButton(
             icon: SkotiqIcons.history,
             tooltip: historyTooltip,
