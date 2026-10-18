@@ -39,6 +39,12 @@ pub struct AscomMountCapabilities {
     pub is_equatorial: bool,
 }
 
+/// Worker reply for a `FindHome` the driver says it cannot perform
+/// (`CanFindHome` false). [`AscomMountWrapper::find_home`] turns it into
+/// [`NativeError::NotSupported`] so the refusal reaches the caller as
+/// "unsupported" rather than as a driver fault.
+const FIND_HOME_UNSUPPORTED: &str = "Mount does not support FindHome";
+
 /// Command sent to the ASCOM worker thread
 enum AscomMountCommand {
     Connect(oneshot::Sender<Result<(), String>>),
@@ -69,6 +75,7 @@ enum AscomMountCommand {
     SlewToAltAz(f64, f64, oneshot::Sender<Result<(), String>>),
     // Find home
     FindHome(oneshot::Sender<Result<(), String>>),
+    AtHome(oneshot::Sender<Result<bool, String>>),
     GetSite(oneshot::Sender<Result<(f64, f64, Option<f64>), String>>),
     SetSite(f64, f64, Option<f64>, oneshot::Sender<Result<(), String>>),
     GetUtcDate(oneshot::Sender<Result<f64, String>>),
@@ -475,14 +482,20 @@ impl AscomMountWrapper {
                                     let _ = reply.send(m.find_home().map_err(|e| e.to_string()));
                                 }
                                 Ok(false) => {
-                                    let _ = reply
-                                        .send(Err("Mount does not support FindHome".to_string()));
+                                    let _ = reply.send(Err(FIND_HOME_UNSUPPORTED.to_string()));
                                 }
                                 Err(e) => {
                                     let _ = reply
                                         .send(Err(format!("Failed to check CanFindHome: {}", e)));
                                 }
                             }
+                        } else {
+                            let _ = reply.send(Err("Mount not created".to_string()));
+                        }
+                    }
+                    AscomMountCommand::AtHome(reply) => {
+                        if let Some(m) = &mut mount {
+                            let _ = reply.send(m.at_home().map_err(|e| e.to_string()));
                         } else {
                             let _ = reply.send(Err("Mount not created".to_string()));
                         }
@@ -609,13 +622,35 @@ impl AscomMountWrapper {
         Self::recv_with_timeout(rx, Timeouts::property_write(), "set_utc_date").await
     }
 
+    /// Send the mount to its home position through the COM worker.
+    ///
+    /// ITelescopeV3 drivers implement `FindHome` synchronously and hand the
+    /// call back when the mount arrives, so the wait is bounded by the
+    /// find-home timeout rather than a property-read one. A driver whose
+    /// `CanFindHome` is false answers [`NativeError::NotSupported`].
     pub async fn find_home(&self) -> Result<(), NativeError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomMountCommand::FindHome(tx))
             .await
             .map_err(|e| NativeError::SdkError(e.to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::long_slew(), "find_home").await
+        match Self::recv_with_timeout(rx, Timeouts::find_home(), "find_home").await {
+            Err(NativeError::SdkError(message)) if message == FIND_HOME_UNSUPPORTED => {
+                Err(NativeError::NotSupported)
+            }
+            other => other,
+        }
+    }
+
+    /// `AtHome`: whether the mount is stopped at its home position. ASCOM sets
+    /// it only after a `FindHome` and clears it on the next slew.
+    pub async fn at_home(&self) -> Result<bool, NativeError> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomMountCommand::AtHome(tx))
+            .await
+            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        Self::recv_with_timeout(rx, Timeouts::property_read(), "at_home").await
     }
 
     pub async fn stop(&self) -> Result<(), NativeError> {
@@ -1080,6 +1115,54 @@ mod tests {
 
         let caps = wrapper.get_capabilities().await.expect("get_capabilities");
         assert!(caps.can_park);
+    }
+
+    /// FindHome travels through the COM worker and its success comes back
+    /// to the caller.
+    #[tokio::test]
+    async fn find_home_is_sent_to_the_com_worker() {
+        let sent = Arc::new(Mutex::new(0u32));
+        let sent_flag = Arc::clone(&sent);
+        let wrapper = build_test_wrapper(move |cmd| {
+            if let AscomMountCommand::FindHome(reply) = cmd {
+                *sent_flag.lock().expect("lock sent") += 1;
+                let _ = reply.send(Ok(()));
+            }
+            false
+        });
+
+        wrapper.find_home().await.expect("find_home");
+        assert_eq!(*sent.lock().expect("lock sent"), 1);
+    }
+
+    /// A driver whose CanFindHome is false is reported as unsupported, not as
+    /// a driver fault, so the caller can tell the operator the mount has no
+    /// home rather than that something broke.
+    #[tokio::test]
+    async fn find_home_on_a_driver_without_home_is_not_supported() {
+        let wrapper = build_test_wrapper(|cmd| {
+            if let AscomMountCommand::FindHome(reply) = cmd {
+                let _ = reply.send(Err(FIND_HOME_UNSUPPORTED.to_string()));
+            }
+            false
+        });
+
+        assert!(matches!(
+            wrapper.find_home().await,
+            Err(NativeError::NotSupported)
+        ));
+    }
+
+    #[tokio::test]
+    async fn at_home_reads_the_driver_flag() {
+        let wrapper = build_test_wrapper(|cmd| {
+            if let AscomMountCommand::AtHome(reply) = cmd {
+                let _ = reply.send(Ok(true));
+            }
+            false
+        });
+
+        assert!(wrapper.at_home().await.expect("at_home"));
     }
 
     #[tokio::test]

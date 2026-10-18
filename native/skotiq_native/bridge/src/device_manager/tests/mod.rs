@@ -17,6 +17,7 @@ mod heartbeat_config;
 mod heartbeat_events;
 mod identity;
 mod indi_ids;
+mod mount_home;
 mod mount_ops;
 mod reconnect_state;
 mod simulator;

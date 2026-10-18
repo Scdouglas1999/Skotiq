@@ -483,7 +483,14 @@ impl IndiMount {
         let prop = coord.as_str();
         let client = self.client.read().await;
         match client.get_property_state(&self.device_name, prop).await {
-            Some(state) => Ok(state == crate::IndiPropertyState::Busy),
+            // A FindHome is motion too. Drivers report it as TELESCOPE_HOME
+            // Busy and need not touch the coordinate vector's state while it
+            // runs, so a poller that only watched the coordinates would read
+            // the mount as idle the moment the home started.
+            Some(state) => Ok(state == crate::IndiPropertyState::Busy
+                || client
+                    .is_property_busy(&self.device_name, TELESCOPE_HOME)
+                    .await),
             None => Err(IndiError::PropertyNotFound {
                 device: self.device_name.clone(),
                 property: prop.to_string(),
@@ -1159,6 +1166,35 @@ mod tests {
         let mount = IndiMount::new(client, "TestMount");
         let result = mount.try_is_tracking().await;
         assert!(matches!(result, Err(IndiError::PropertyNotFound { .. })));
+    }
+
+    async fn slewing_while_home_is(home_state: &str) -> bool {
+        let payload = format!(
+            "{MOUNT_BASE_PROPERTIES}
+<defNumberVector device=\"Mount\" name=\"EQUATORIAL_EOD_COORD\" state=\"Ok\" perm=\"rw\">
+  <defNumber name=\"RA\" min=\"0\" max=\"24\">10.0</defNumber>
+  <defNumber name=\"DEC\" min=\"-90\" max=\"90\">45.0</defNumber>
+</defNumberVector>
+<defSwitchVector device=\"Mount\" name=\"TELESCOPE_HOME\" state=\"{home_state}\" perm=\"rw\" rule=\"AtMostOne\">
+  <defSwitch name=\"FIND\">Off</defSwitch>
+  <defSwitch name=\"SET\">Off</defSwitch>
+  <defSwitch name=\"GO\">Off</defSwitch>
+</defSwitchVector>
+"
+        );
+        let (mount, server, _) = mount_from_fake_server(payload.as_bytes(), TELESCOPE_HOME).await;
+        let slewing = mount.try_is_slewing().await.expect("read slewing");
+        drop(mount);
+        server.await.expect("fake server should finish");
+        slewing
+    }
+
+    /// A home in progress is motion: the mount reads as slewing while
+    /// TELESCOPE_HOME is Busy even though the coordinate vector is idle.
+    #[tokio::test]
+    async fn a_home_in_progress_reads_as_slewing() {
+        assert!(slewing_while_home_is("Busy").await);
+        assert!(!slewing_while_home_is("Ok").await);
     }
 
     /// Same contract for try_is_slewing.

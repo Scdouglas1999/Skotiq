@@ -80,6 +80,18 @@ pub enum DeviceOpError {
     #[error("{detail}")]
     Unsupported { detail: String },
 
+    /// The device is connected and the operation is supported, but the device
+    /// is in a state that refuses it right now (a parked mount asked to home).
+    /// The operator has to change that state first; retrying unchanged cannot
+    /// succeed.
+    #[error("{detail}")]
+    InvalidState {
+        /// Device id the refusal is about.
+        device_id: String,
+        /// What is wrong and what to do about it.
+        detail: String,
+    },
+
     /// A hardware / SDK / protocol call failed. `detail` carries the full
     /// legacy message (which frequently embeds the device id and the
     /// underlying driver error), so `Display` renders it verbatim.
@@ -134,6 +146,14 @@ impl DeviceOpError {
         }
     }
 
+    /// Device state refuses the operation until the operator changes it.
+    pub(crate) fn invalid_state(device_id: impl Into<String>, detail: impl Into<String>) -> Self {
+        DeviceOpError::InvalidState {
+            device_id: device_id.into(),
+            detail: detail.into(),
+        }
+    }
+
     /// Hardware / SDK / protocol failure carrying the full legacy message.
     pub(crate) fn hardware(device_id: Option<String>, detail: impl Into<String>) -> Self {
         DeviceOpError::Hardware {
@@ -163,6 +183,7 @@ impl DeviceOpError {
             DeviceOpError::DeviceNotFound(id) => Some(id),
             DeviceOpError::NotConnected { device_id, .. }
             | DeviceOpError::Hardware { device_id, .. } => device_id.as_deref(),
+            DeviceOpError::InvalidState { device_id, .. } => Some(device_id),
             DeviceOpError::InvalidDeviceId { .. }
             | DeviceOpError::InvalidParameter { .. }
             | DeviceOpError::Unsupported { .. }
@@ -302,6 +323,13 @@ impl From<DeviceOpError> for SkotiqError {
                 operation: detail,
             },
             DeviceOpError::InvalidParameter { detail } => SkotiqError::InvalidParameter(detail),
+            // A state conflict, not a fault: the HTTP layer answers
+            // `deviceBusy` with 409, which is what tells a client "change the
+            // device's state, then ask again" rather than "retry later".
+            DeviceOpError::InvalidState { device_id, detail } => SkotiqError::DeviceBusy {
+                device_id,
+                current_operation: detail,
+            },
             DeviceOpError::InvalidDeviceId { detail } => SkotiqError::InvalidDeviceId {
                 device_id: String::new(),
                 reason: detail,

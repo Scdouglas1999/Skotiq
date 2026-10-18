@@ -7,7 +7,7 @@ import '../../error.dart';
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `run_polar_alignment`, `write_temp_fits_for_solve`
+// These functions are ignored because they are not marked as `pub`: `adjustment_binning`, `adjustment_solve_hint`, `run_polar_alignment`, `write_temp_fits_for_solve`
 
 /// Start three-point polar alignment
 ///

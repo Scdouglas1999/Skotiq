@@ -434,6 +434,16 @@ pub trait NativeMount: NativeDevice {
         Err(NativeError::NotSupported)
     }
 
+    /// Whether this mount has a home command [`NativeMount::find_home`] can
+    /// send.
+    ///
+    /// Answered from the protocol, not by probing the hardware: a mount either
+    /// speaks a home command or it does not. Defaults to `false` alongside the
+    /// `NotSupported` default of `find_home`, so the two can never disagree.
+    fn can_find_home(&self) -> bool {
+        false
+    }
+
     /// Send the mount to its mechanical home position.
     ///
     /// Defaults to `NotSupported` because most serial protocols have no home

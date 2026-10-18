@@ -46,6 +46,10 @@ mod commands {
     pub const SET_TRACKING_SOLAR: &str = ":RT2#";
     pub const SET_TRACKING_KING: &str = ":RT3#";
 
+    /// Slew to the zero (home) position: counterweights down, pointing at
+    /// the pole. Answers `1`.
+    pub const GOTO_ZERO_POSITION: &str = ":MH#";
+
     pub const PARK: &str = ":MP1#";
     pub const UNPARK: &str = ":MP0#";
 
@@ -613,6 +617,26 @@ impl NativeMount for IOptronMount {
         Ok(())
     }
 
+    async fn find_home(&mut self) -> Result<(), NativeError> {
+        if !self.is_connected() {
+            return Err(NativeError::NotConnected);
+        }
+
+        // iOptron's home is its zero position. The mount reports the motion
+        // through the slewing flag of `:GAS#` like any goto, so callers that
+        // poll `is_slewing` wait for it to arrive.
+        tracing::info!("Sending mount to its zero (home) position");
+        let response = self.send_command(commands::GOTO_ZERO_POSITION)?;
+        if response != "1" {
+            return Err(NativeError::SdkError(format!(
+                "Mount refused the zero-position slew: {}",
+                response
+            )));
+        }
+
+        Ok(())
+    }
+
     async fn unpark(&mut self) -> Result<(), NativeError> {
         if !self.is_connected() {
             return Err(NativeError::NotConnected);
@@ -836,6 +860,10 @@ impl NativeMount for IOptronMount {
     fn can_set_tracking_rate(&self) -> bool {
         true
     }
+
+    fn can_find_home(&self) -> bool {
+        true
+    }
 }
 
 // Discovery
@@ -945,6 +973,20 @@ pub fn is_available() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// iOptron's home is the zero position (`:MH#`). The driver must
+    /// implement it rather than inherit the trait's `NotSupported`, and the
+    /// capability flag must say so.
+    #[tokio::test]
+    async fn find_home_is_implemented_and_advertised() {
+        let mut mount = IOptronMount::new("TEST_PORT".to_string(), None);
+        assert!(mount.can_find_home());
+        assert!(
+            matches!(mount.find_home().await, Err(NativeError::NotConnected)),
+            "find_home should reach the connection check, not the trait default"
+        );
+        assert_eq!(commands::GOTO_ZERO_POSITION, ":MH#");
+    }
 
     #[test]
     fn goto_targets_never_emit_sixty_seconds() {
