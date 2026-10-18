@@ -258,6 +258,23 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
           // stat strip above counts.
           final images = acceptedLights(allImages);
           final excluded = allImages.length - images.length;
+          // Four ~250 px cards that each say "No … recorded" are one fact
+          // stated four times. When no plotted frame carries any of the four
+          // measurements, say it once; one frame with one value brings the
+          // charts back.
+          final anythingToPlot = images.any(
+            (image) =>
+                image.hfr != null ||
+                image.guidingRmsTotal != null ||
+                image.focuserPosition != null ||
+                image.sensorTemp != null,
+          );
+          if (!anythingToPlot) {
+            return _NothingToChart(
+              accepted: images.length,
+              excluded: excluded,
+            );
+          }
           final hfr =
               HfrChart(key: AnalyticsTutorialKeys.hfrChart, images: images);
           final guiding = GuidingRmsChart(
@@ -318,23 +335,16 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
           );
         }
 
+        // With sessions to pick from, the picker IS the session's identity:
+        // it names the session and its date, so the panel does not repeat
+        // them in a title and subtitle under a second bar that said the same.
+        final showPicker = allSessions.isNotEmpty && !isLive;
+        final reviewStatus = showPicker ? reviewSession?.status : null;
+
         return SingleChildScrollView(
           padding: outerPadding,
           child: Column(
             children: [
-              if (allSessions.isNotEmpty && !isLive) ...[
-                _SessionReviewBar(
-                  sessions: allSessions,
-                  selectedId: reviewSelectionId,
-                  offerQuickCaptures: offerQuickCaptures,
-                  onSelected: (id) => setState(() => _selectedSessionId = id),
-                  onClear: _selectedSessionId == null
-                      ? null
-                      : () => setState(() => _selectedSessionId = null),
-                ),
-                const SizedBox(height: SkotiqTokens.spaceLg),
-              ],
-
               // Session summary — one panel: the eyebrow head names it, the
               // session's own name and date sit under it, and the four numbers
               // are Readouts that wrap instead of overflowing a phone column.
@@ -349,24 +359,43 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                         tone: ChipTone.success,
                         dot: true,
                       ),
+                    if (reviewStatus != null)
+                      SkotiqChip(
+                        label: reviewStatus,
+                        tone: _SessionHistoryCard._statusTone(reviewStatus),
+                      ),
                   ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      headerTitle,
-                      style: SkotiqTypography.sectionTitle.copyWith(
-                        color: colors.textPrimary,
+                    if (showPicker)
+                      _SessionReviewBar(
+                        sessions: allSessions,
+                        selectedId: reviewSelectionId,
+                        offerQuickCaptures: offerQuickCaptures,
+                        framed: false,
+                        onSelected: (id) =>
+                            setState(() => _selectedSessionId = id),
+                        onClear: _selectedSessionId == null
+                            ? null
+                            : () => setState(() => _selectedSessionId = null),
+                      )
+                    else ...[
+                      Text(
+                        headerTitle,
+                        style: SkotiqTypography.sectionTitle.copyWith(
+                          color: colors.textPrimary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: SkotiqTokens.spaceXs),
-                    Text(
-                      headerSubtitle,
-                      style: SkotiqTypography.bodySm.copyWith(
-                        color: colors.textSecondary,
+                      const SizedBox(height: SkotiqTokens.spaceXs),
+                      Text(
+                        headerSubtitle,
+                        style: SkotiqTypography.bodySm.copyWith(
+                          color: colors.textSecondary,
+                        ),
                       ),
-                    ),
+                    ],
                     const SizedBox(height: SkotiqTokens.spaceLg),
                     Wrap(
                       spacing: _summaryReadoutGap,
@@ -438,6 +467,49 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
           ),
         );
       },
+    );
+  }
+}
+
+/// The chart grid's state when no plotted frame has anything to plot: one
+/// line in place of four empty charts.
+class _NothingToChart extends StatelessWidget {
+  const _NothingToChart({required this.accepted, required this.excluded});
+
+  /// Accepted light frames — the population the charts would plot.
+  final int accepted;
+
+  /// Frames left out of that population (rejected or calibration).
+  final int excluded;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
+    final what = accepted == 0
+        ? 'No accepted light frames to chart'
+        : 'None of the $accepted accepted light frames recorded HFR, '
+            'guiding RMS, focuser position or sensor temperature';
+    return SkotiqPanel(
+      child: Row(
+        children: [
+          Icon(
+            LucideIcons.lineChart,
+            size: SkotiqTokens.iconSm,
+            color: colors.textMuted,
+          ),
+          const SizedBox(width: SkotiqTokens.spaceMd),
+          Expanded(
+            child: Text(
+              excluded == 0
+                  ? what
+                  : '$what · $excluded excluded (rejected or calibration)',
+              style: SkotiqTypography.bodySm.copyWith(
+                color: colors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -656,12 +728,17 @@ class _SessionReviewBar extends StatelessWidget {
   final ValueChanged<int?> onSelected;
   final VoidCallback? onClear;
 
+  /// False when the bar sits inside the session panel, which is already the
+  /// frame around it.
+  final bool framed;
+
   const _SessionReviewBar({
     required this.sessions,
     required this.selectedId,
     required this.onSelected,
     this.offerQuickCaptures = false,
     this.onClear,
+    this.framed = true,
   });
 
   @override
@@ -675,77 +752,79 @@ class _SessionReviewBar extends StatelessWidget {
     // A labelled control, so it is a FormRow (05 §8): the label sits to the
     // LEFT of the field, not above it and not as a sentence beside it. The
     // container is a panel, not the deprecated `surfaceAlt` box it was.
+    final row = Row(
+      children: [
+        Expanded(
+          child: FormRow(
+            label: 'Reviewing',
+            child: DropdownButtonHideUnderline(
+              child: AccessibleDropdown<int>(
+                value: hasSelection ? selectedId : null,
+                isExpanded: true,
+                isDense: true,
+                dropdownColor: colors.surfaceElevated,
+                borderRadius: SkotiqTokens.borderRadiusMd,
+                hint: Text(
+                  'Quick captures (no session selected)',
+                  style:
+                      SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
+                ),
+                style:
+                    SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
+                onChanged: onSelected,
+                items: [
+                  // First, and named exactly as Diagnostics names it: an
+                  // operator who learns the entry on one tab finds it on all.
+                  if (offerQuickCaptures)
+                    DropdownMenuItem<int>(
+                      value: kQuickCaptureSessionSelection,
+                      child: Text(
+                        kQuickCaptureSessionLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: SkotiqTypography.bodySm
+                            .copyWith(color: colors.textPrimary),
+                      ),
+                    ),
+                  for (final session in sessions.take(60))
+                    DropdownMenuItem<int>(
+                      value: session.id,
+                      child: Text(
+                        '${session.name ?? 'Session ${session.id}'}'
+                        '  ·  ${format.format(session.startTime)}'
+                        // "frames returned": `successful_exposures` counts
+                        // what the camera handed back, not what the culling
+                        // kept.
+                        '  ·  ${session.successfulExposures} frames returned',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: SkotiqTypography.bodySm
+                            .copyWith(color: colors.textPrimary),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (onClear != null) ...[
+          const SizedBox(width: SkotiqTokens.spaceSm),
+          SkotiqButton(
+            label: 'Most recent',
+            variant: ButtonVariant.ghost,
+            size: ButtonSize.small,
+            onPressed: onClear,
+          ),
+        ],
+      ],
+    );
+    if (!framed) return row;
     return SkotiqPanel(
       padding: const EdgeInsets.symmetric(
         horizontal: SkotiqTokens.spaceMd,
         vertical: SkotiqTokens.spaceMd,
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: FormRow(
-              label: 'Reviewing',
-              child: DropdownButtonHideUnderline(
-                child: AccessibleDropdown<int>(
-                  value: hasSelection ? selectedId : null,
-                  isExpanded: true,
-                  isDense: true,
-                  dropdownColor: colors.surfaceElevated,
-                  borderRadius: SkotiqTokens.borderRadiusMd,
-                  hint: Text(
-                    'Quick captures (no session selected)',
-                    style: SkotiqTypography.bodySm
-                        .copyWith(color: colors.textMuted),
-                  ),
-                  style: SkotiqTypography.bodySm
-                      .copyWith(color: colors.textPrimary),
-                  onChanged: onSelected,
-                  items: [
-                    // First, and named exactly as Diagnostics names it: an
-                    // operator who learns the entry on one tab finds it on all.
-                    if (offerQuickCaptures)
-                      DropdownMenuItem<int>(
-                        value: kQuickCaptureSessionSelection,
-                        child: Text(
-                          kQuickCaptureSessionLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: SkotiqTypography.bodySm
-                              .copyWith(color: colors.textPrimary),
-                        ),
-                      ),
-                    for (final session in sessions.take(60))
-                      DropdownMenuItem<int>(
-                        value: session.id,
-                        child: Text(
-                          '${session.name ?? 'Session ${session.id}'}'
-                          '  ·  ${format.format(session.startTime)}'
-                          // "frames returned": `successful_exposures` counts
-                          // what the camera handed back, not what the culling
-                          // kept.
-                          '  ·  ${session.successfulExposures} frames returned',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: SkotiqTypography.bodySm
-                              .copyWith(color: colors.textPrimary),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          if (onClear != null) ...[
-            const SizedBox(width: SkotiqTokens.spaceSm),
-            SkotiqButton(
-              label: 'Most recent',
-              variant: ButtonVariant.ghost,
-              size: ButtonSize.small,
-              onPressed: onClear,
-            ),
-          ],
-        ],
-      ),
+      child: row,
     );
   }
 }
