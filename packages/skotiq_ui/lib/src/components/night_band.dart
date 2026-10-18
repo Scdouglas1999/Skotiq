@@ -441,7 +441,7 @@ class _NightBandLegend extends StatelessWidget {
   /// together. 07 is explicit: reduce content, do not shrink type.
   ///
   /// Wider, a middle label still goes when it would come within [labelGap] of
-  /// a neighbour. How close sunset and astro dark sit depends on the date and
+  /// a neighbor. How close sunset and astro dark sit depends on the date and
   /// the latitude, not only the width: at a 1536 px window an October night at
   /// 35° N put the two labels edge to edge. The canvas draws both moments as
   /// dashed verticals, so a dropped word loses nothing the picture lacks.
@@ -473,9 +473,9 @@ class _NightBandLegend extends StatelessWidget {
     var previousRight = firstRight;
     for (final label in labels.sublist(1, labels.length - 1)) {
       final labelWidth = measure(label.$2);
-      final centre = label.$1.clamp(0.0, 1.0) * width;
-      final left = centre - labelWidth / 2;
-      final right = centre + labelWidth / 2;
+      final center = label.$1.clamp(0.0, 1.0) * width;
+      final left = center - labelWidth / 2;
+      final right = center + labelWidth / 2;
       if (left - previousRight < labelGap || lastLeft - right < labelGap) {
         continue;
       }

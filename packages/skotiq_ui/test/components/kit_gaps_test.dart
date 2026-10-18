@@ -196,7 +196,7 @@ void main() {
       // The default 800px test surface is itself under the compact threshold,
       // so the wide case has to widen the window, not just the box.
       // Wide enough for the test font's square glyphs to leave every label
-      // clear of its neighbours.
+      // clear of its neighbors.
       tester.view.physicalSize = const Size(2000, 600);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -206,7 +206,7 @@ void main() {
       expect(find.text('04:51 astro dawn'), findsOneWidget);
     });
 
-    testWidgets('a middle label that would touch its neighbour is dropped', (
+    testWidgets('a middle label that would touch its neighbor is dropped', (
       tester,
     ) async {
       // An October night at 35° N: astro dark 84 minutes after sunset and

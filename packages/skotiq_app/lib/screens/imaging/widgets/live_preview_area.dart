@@ -100,7 +100,7 @@ const double _captureBarBand = SkotiqTokens.spaceLg + 48 + _hudInset;
 
 /// Where a readout in one of the two bottom corners sits.
 ///
-/// The capture bar is CENTRED, so what a corner readout [cornerWidth] wide
+/// The capture bar is CENTERED, so what a corner readout [cornerWidth] wide
 /// competes for is the slack on one side of it. The readout keeps the corner
 /// while that slack holds it, and steps up over the bar when it does not. A
 /// zero [captureBarWidth] means the bar has not been laid out yet, or is not
