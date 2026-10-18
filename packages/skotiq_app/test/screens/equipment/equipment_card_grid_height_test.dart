@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/widgets/connected_device_card.dart';
 import 'package:skotiq_app/screens/equipment/widgets/device_tile_width.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../golden/surface_golden_harness.dart';
 import '../../harness/harness.dart';
 
 class _MountNotifier extends MountStateNotifier {
@@ -15,6 +17,14 @@ class _MountNotifier extends MountStateNotifier {
 class _DomeNotifier extends DomeStateNotifier {
   _DomeNotifier(super.ref, DomeState initial) {
     state = initial;
+  }
+}
+
+class _FilterWheelNotifier extends FilterWheelStateNotifier {
+  _FilterWheelNotifier(super.ref) {
+    setConnecting('efw', 'ZWO EFW 7x36');
+    setConnected(filterNames: const ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII']);
+    updatePosition(4);
   }
 }
 
@@ -85,6 +95,88 @@ void main() {
     }
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+      'a filter wheel card with its filter select lays out in a grid row at '
+      'the owner\'s 1308 px content width', (tester) async {
+    // The select measured itself through a bare LayoutBuilder, which has no
+    // intrinsic height: in this IntrinsicHeight row it asserted in debug and
+    // counted as zero in release, so the row came out short of the card.
+    const camera = CameraStateSnapshot(
+      connectionState: DeviceConnectionState.connected,
+      deviceId: 'cam-1',
+      deviceName: 'Sim Camera',
+    );
+    // The shipped fonts, so the readouts take their real widths.
+    await SurfaceGoldenHarness.ensureFonts();
+    final handle = await pumpAppScreen(
+      tester,
+      const _FilterWheelRow(),
+      size: const Size(1308, 774),
+      settle: false,
+      extraOverrides: [
+        cameraStateProvider.overrideWith((ref) => _CameraNotifier(ref, camera)),
+        filterWheelStateProvider.overrideWith(_FilterWheelNotifier.new),
+      ],
+    );
+    addTearDown(() async => handle.database.close());
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(tester.takeException(), isNull);
+    final select = find.byType(SkotiqDropdown);
+    expect(select, findsOneWidget,
+        reason: 'non-vacuous: the filter wheel card carries its select');
+    final card = find.ancestor(
+      of: select,
+      matching: find.byType(ConnectedDeviceCard),
+    );
+    expect(
+      tester.getRect(select).bottom,
+      lessThanOrEqualTo(tester.getRect(card).bottom),
+      reason: 'the select sits inside its card',
+    );
+  });
+}
+
+/// Two tiles of the grid's width at 1308 px: (1308 - padding - gaps) / 3.
+class _FilterWheelRow extends StatelessWidget {
+  const _FilterWheelRow();
+
+  static const double _tile = 380;
+
+  @override
+  Widget build(BuildContext context) {
+    return const SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.all(20),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: _tile,
+                child: DeviceTileWidth(
+                  width: _tile,
+                  child: ConnectedDeviceCard(type: ConnectedDeviceType.camera),
+                ),
+              ),
+              SizedBox(width: 16),
+              SizedBox(
+                width: _tile,
+                child: DeviceTileWidth(
+                  width: _tile,
+                  child: ConnectedDeviceCard(
+                    type: ConnectedDeviceType.filterWheel,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Mirrors the dashboard's desktop grid: fixed-width tiles in an

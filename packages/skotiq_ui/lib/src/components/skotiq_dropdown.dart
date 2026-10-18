@@ -154,33 +154,43 @@ class _SkotiqDropdownState extends State<SkotiqDropdown> {
       child: Semantics(
         button: true,
         enabled: _isEnabled,
-        child: LayoutBuilder(
-          builder: (context, constraints) => _control(
-            colors,
-            // A select is a FIELD: given a width it fills it, so the value
-            // reads from the leading edge and the chevron sits at the trailing
-            // one. Where the width is UNBOUNDED — a shrink-wrapping Row, which
-            // is how a settings row hosts one — filling is not a thing a box
-            // can do.
-            expand: widget.isExpanded || constraints.hasBoundedWidth,
+        // The control is always [_boxHeight] tall, and saying so here gives it
+        // an intrinsic height. A bare LayoutBuilder has none: inside an
+        // IntrinsicHeight row (the Equipment device grid) it asserted in debug
+        // and measured as zero in release, so the row came out shorter than
+        // the card holding the select.
+        child: SizedBox(
+          height: _boxHeight(context),
+          child: LayoutBuilder(
+            builder: (context, constraints) => _control(
+              colors,
+              // A select is a FIELD: given a width it fills it, so the value
+              // reads from the leading edge and the chevron sits at the
+              // trailing one. Where the width is UNBOUNDED — a shrink-wrapping
+              // Row, which is how a settings row hosts one — filling is not a
+              // thing a box can do.
+              expand: widget.isExpanded || constraints.hasBoundedWidth,
+            ),
           ),
         ),
       ),
     );
   }
 
+  /// The interactive box's height.
+  ///
+  /// 32 is a desktop POINTER size (03 §3.3). A finger needs 48, so on a touch
+  /// platform the interactive box grows to it while the painted field stays
+  /// the height the sheet specifies — the same split `SkotiqIconButton`
+  /// makes, and the reason the mobile tap-target audit measured this control
+  /// at 24px tall.
+  double _boxHeight(BuildContext context) =>
+      math.max(widget.height, SkotiqTouchTarget.minExtent(context));
+
   Widget _control(SkotiqColors colors, {required bool expand}) {
     final Widget field = _closed(colors, expand: expand);
 
-    // 32 is a desktop POINTER size (03 §3.3). A finger needs 48, so on a touch
-    // platform the interactive box grows to it while the painted field stays
-    // the height the sheet specifies — the same split `SkotiqIconButton`
-    // makes, and the reason the mobile tap-target audit measured this control
-    // at 24px tall.
-    final double box = math.max(
-      widget.height,
-      SkotiqTouchTarget.minExtent(context),
-    );
+    final double box = _boxHeight(context);
     final Widget sized = box == widget.height
         ? field
         : SizedBox(
