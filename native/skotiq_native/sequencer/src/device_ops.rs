@@ -59,6 +59,11 @@ pub struct PlateSolveResult {
     pub dec_degrees: f64,
     pub pixel_scale: f64,
     pub rotation: f64,
+    /// Position angle of the image's +Y axis, degrees east of north, read
+    /// from the CD matrix. Unlike `rotation` (the solver's CROTA2) its sign
+    /// does not depend on whether the image is mirrored, which is what a
+    /// camera attitude needs (see `polar_align::CameraAttitude`).
+    pub up_position_angle_deg: f64,
     pub success: bool,
 }
 
@@ -877,6 +882,7 @@ impl DeviceOps for NullDeviceOps {
             dec_degrees,
             pixel_scale: 1.5,
             rotation: 0.0,
+            up_position_angle_deg: 0.0,
             success: true,
         })
     }

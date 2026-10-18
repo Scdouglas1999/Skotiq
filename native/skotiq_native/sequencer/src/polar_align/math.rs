@@ -160,8 +160,39 @@ fn normalise(v: [f64; 3]) -> Option<[f64; 3]> {
     (mag > 1e-9).then(|| [v[0] / mag, v[1] / mag, v[2] / mag])
 }
 
+/// Precess a mechanical axis measured from plate solves (J2000, the frame
+/// ASTAP reports in) to mean-of-date, the frame the sky turns about tonight.
+///
+/// Without it the error is measured against the J2000 pole, which in 2026 sits
+/// about 9' from the pole the mount has to track about, a fixed 9' the
+/// operator would be steered into. Meeus, *Astronomical Algorithms* 2nd ed.,
+/// eq. 21.3 and 21.4: the same rotation as the bridge's
+/// `precess_j2000_to_jd`, which this crate cannot depend on.
+pub fn axis_j2000_to_date(
+    ra_degrees: f64,
+    dec_degrees: f64,
+    when: chrono::DateTime<chrono::Utc>,
+) -> (f64, f64) {
+    let t = (crate::julian_day(&when) - 2451545.0) / 36525.0;
+    let arcsec = std::f64::consts::PI / (180.0 * 3600.0);
+    let zeta = (2306.2181 + (0.30188 + 0.017998 * t) * t) * t * arcsec;
+    let z = (2306.2181 + (1.09468 + 0.018203 * t) * t) * t * arcsec;
+    let theta = (2004.3109 - (0.42665 + 0.041833 * t) * t) * t * arcsec;
+
+    let ra0 = ra_degrees.to_radians();
+    let dec0 = dec_degrees.to_radians();
+    let a = dec0.cos() * (ra0 + zeta).sin();
+    let b = theta.cos() * dec0.cos() * (ra0 + zeta).cos() - theta.sin() * dec0.sin();
+    let c = theta.sin() * dec0.cos() * (ra0 + zeta).cos() + theta.cos() * dec0.sin();
+    (
+        (z + a.atan2(b)).to_degrees().rem_euclid(360.0),
+        c.clamp(-1.0, 1.0).asin().to_degrees(),
+    )
+}
+
 /// Compute (Δaz, Δalt, total) alignment error in arcminutes from the
-/// mechanical axis coordinates and observer location.
+/// mechanical axis coordinates (mean-of-date: see
+/// [`axis_j2000_to_date`] for an axis measured from plate solves) and observer location.
 pub fn calculate_alignment_error_arcmin(
     axis_ra_degrees: f64,
     axis_dec_degrees: f64,
@@ -251,18 +282,17 @@ fn unit_to_radec(v: (f64, f64, f64)) -> (f64, f64) {
     (ra.to_degrees(), dec.to_degrees())
 }
 
-/// Track the mount's mechanical axis through a live adjustment.
+/// Track the mount's mechanical axis from the field CENTRE alone.
 ///
-/// During the adjustment phase the operator turns the alt/az bolts, which
-/// moves the whole mount head — both the optics and the mechanical rotation
-/// axis — rigidly. The geodesic (minimal) rotation that carried the reference
-/// star from its INITIAL solved position to its CURRENT solved position is
-/// therefore the same rigid rotation that moved the axis (exact in the
-/// small-angle limit, and convergent: the displayed error reaches zero exactly
-/// when the live axis reaches the pole). Applying it to the measured initial
-/// axis yields the LIVE axis, which is what makes the displayed error respond
-/// to the bolts instead of leaving the operator aligning blind. Returns the
-/// live axis (RA, Dec) in degrees.
+/// The fallback for a solve that reports no field rotation. It applies the
+/// smallest rotation that carries the initial field centre to the current one,
+/// which is NOT the rotation the bolts made: that rotation also turns the
+/// field about its own centre, and the centre alone cannot see that part. It
+/// is close only when the camera points near the pole. Thirty degrees from the
+/// pole, where three-point alignment adjusts, it misjudged each bolt move by
+/// 22-61% in simulation, and on the owner's rig a run that reported 23.8"
+/// left about a degree of error (2026-10-17). Use
+/// [`rotate_axis_by_attitude_change`] whenever the solve has a rotation.
 pub fn rotate_axis_by_star_motion(
     axis: (f64, f64),
     star_initial: (f64, f64),
@@ -307,6 +337,84 @@ pub fn rotate_axis_by_star_motion(
         v.2 * cos_t + kxv.2 * sin_t + k.2 * kv * (1.0 - cos_t),
     );
     unit_to_radec(rotated)
+}
+
+/// Where a camera points and which way its image is turned, as a rotation
+/// matrix whose columns are the boresight and the image's "up" direction on
+/// the sky (and their cross product).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CameraAttitude {
+    columns: [[f64; 3]; 3],
+}
+
+impl CameraAttitude {
+    /// From a plate solve: the field centre, and the position angle of the
+    /// image's +Y axis measured east of north, in degrees. The angle only has
+    /// to be measured the same way on every frame of a run; the rotation
+    /// between two attitudes does not depend on the convention.
+    pub fn from_solve(ra_deg: f64, dec_deg: f64, position_angle_deg: f64) -> Self {
+        let (ra, dec, pa) = (
+            ra_deg.to_radians(),
+            dec_deg.to_radians(),
+            position_angle_deg.to_radians(),
+        );
+        let c = [dec.cos() * ra.cos(), dec.cos() * ra.sin(), dec.sin()];
+        let east = [-ra.sin(), ra.cos(), 0.0];
+        let north = [-dec.sin() * ra.cos(), -dec.sin() * ra.sin(), dec.cos()];
+        let up = [
+            pa.cos() * north[0] + pa.sin() * east[0],
+            pa.cos() * north[1] + pa.sin() * east[1],
+            pa.cos() * north[2] + pa.sin() * east[2],
+        ];
+        let side = [
+            c[1] * up[2] - c[2] * up[1],
+            c[2] * up[0] - c[0] * up[2],
+            c[0] * up[1] - c[1] * up[0],
+        ];
+        Self {
+            columns: [c, up, side],
+        }
+    }
+}
+
+/// Position angle of an image's +Y axis, degrees east of north, from a WCS CD
+/// matrix: +Y moves the intermediate coordinates by (`cd1_2` east, `cd2_2`
+/// north). A solver's CROTA2 cannot stand in for it: on a mirrored image (the
+/// imaging laptop's, with a positive CD determinant) CROTA2 has the opposite
+/// sign. Falls back to `crota2_deg` only when the solver gave no CD matrix.
+pub fn up_position_angle_deg(cd1_2: f64, cd2_2: f64, crota2_deg: f64) -> f64 {
+    if cd1_2 == 0.0 && cd2_2 == 0.0 {
+        return crota2_deg;
+    }
+    cd1_2.atan2(cd2_2).to_degrees()
+}
+
+/// Track the mount's mechanical axis through a live adjustment.
+///
+/// Turning the alt/az bolts moves the whole mount head rigidly: the optics and
+/// the rotation axis turn by one and the same rotation. Two plate solves fix
+/// the camera's full attitude, its centre and its roll, so the rotation
+/// between them is known exactly, wherever the camera points, and applying it
+/// to the measured initial axis gives the live axis. Returns (RA, Dec) in
+/// degrees.
+pub fn rotate_axis_by_attitude_change(
+    axis: (f64, f64),
+    initial: &CameraAttitude,
+    current: &CameraAttitude,
+) -> (f64, f64) {
+    let v = radec_to_unit(axis.0, axis.1);
+    let v = [v.0, v.1, v.2];
+    // R = Current · Initialᵀ, so R·v = Σ_k current_k (initial_k · v).
+    let mut out = [0.0; 3];
+    for k in 0..3 {
+        let i = initial.columns[k];
+        let proj = i[0] * v[0] + i[1] * v[1] + i[2] * v[2];
+        let c = current.columns[k];
+        for (o, ck) in out.iter_mut().zip(c) {
+            *o += ck * proj;
+        }
+    }
+    unit_to_radec((out[0], out[1], out[2]))
 }
 
 #[cfg(test)]
@@ -644,5 +752,143 @@ mod tests {
         let (ra, dec) = rotate_axis_by_star_motion((50.0, 80.0), (0.0, 0.0), (30.0, 0.0));
         assert!((ra - 80.0).abs() < 1e-6, "ra {ra}");
         assert!((dec - 80.0).abs() < 1e-6, "dec {dec}");
+    }
+
+    /// The imaging laptop's solve of Unknown_L_2026-10-17_0013 (ASTAP):
+    /// CROTA2 = -23.83 deg, CD1_2 = 8.786e-5, CD2_2 = 2.001e-4. The image is
+    /// mirrored, so the +Y axis lies 23.7 deg EAST of north, the opposite sign
+    /// to CROTA2.
+    #[test]
+    fn the_up_angle_comes_from_the_cd_matrix_not_crota2() {
+        let up = up_position_angle_deg(8.785_967_892e-5, 2.000_969_137e-4, -23.828);
+        assert!((up - 23.70).abs() < 0.05, "got {up}");
+        assert_eq!(up_position_angle_deg(0.0, 0.0, -23.828), -23.828);
+    }
+
+    /// The J2000 pole is about 9' from the pole of date in late 2026, which
+    /// is the error a solve-measured axis on the true pole would have shown.
+    #[test]
+    fn a_plate_solved_axis_is_measured_against_the_pole_of_date() {
+        let when = chrono::Utc
+            .with_ymd_and_hms(2026, 10, 17, 23, 30, 0)
+            .unwrap();
+        let (_, dec) = axis_j2000_to_date(0.0, 90.0, when);
+        let offset_arcmin = (90.0 - dec) * 60.0;
+        assert!((offset_arcmin - 8.95).abs() < 0.1, "got {offset_arcmin}'");
+    }
+
+    mod attitude_tracking {
+        use super::super::*;
+
+        type V = [f64; 3];
+
+        fn unit(ra_deg: f64, dec_deg: f64) -> V {
+            let (x, y, z) = radec_to_unit(ra_deg, dec_deg);
+            [x, y, z]
+        }
+
+        fn rot(axis: V, angle_rad: f64, v: V) -> V {
+            let n = (axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]).sqrt();
+            let k = [axis[0] / n, axis[1] / n, axis[2] / n];
+            let (s, c) = angle_rad.sin_cos();
+            let kv = k[0] * v[0] + k[1] * v[1] + k[2] * v[2];
+            let kxv = [
+                k[1] * v[2] - k[2] * v[1],
+                k[2] * v[0] - k[0] * v[2],
+                k[0] * v[1] - k[1] * v[0],
+            ];
+            [
+                v[0] * c + kxv[0] * s + k[0] * kv * (1.0 - c),
+                v[1] * c + kxv[1] * s + k[1] * kv * (1.0 - c),
+                v[2] * c + kxv[2] * s + k[2] * kv * (1.0 - c),
+            ]
+        }
+
+        /// What a solver reports for a camera pointing along `c` with image
+        /// "up" along `up`: centre and position angle east of north.
+        fn solve_of(c: V, up: V) -> (f64, f64, f64) {
+            let (ra, dec) = unit_to_radec((c[0], c[1], c[2]));
+            let (r, d) = (ra.to_radians(), dec.to_radians());
+            let east = [-r.sin(), r.cos(), 0.0];
+            let north = [-d.sin() * r.cos(), -d.sin() * r.sin(), d.cos()];
+            let e = up[0] * east[0] + up[1] * east[1] + up[2] * east[2];
+            let n = up[0] * north[0] + up[1] * north[1] + up[2] * north[2];
+            (ra, dec, e.atan2(n).to_degrees())
+        }
+
+        fn sep_arcsec(a: V, b: V) -> f64 {
+            let dot = (a[0] * b[0] + a[1] * b[1] + a[2] * b[2]).clamp(-1.0, 1.0);
+            dot.acos().to_degrees() * 3600.0
+        }
+
+        /// The imaging laptop's case (latitude ~40 N): the axis about a degree
+        /// off the pole, the camera 30 degrees from it where three-point
+        /// alignment adjusts, the mount tracking, and the operator turning each
+        /// bolt in turn.
+        #[test]
+        fn bolt_turns_and_tracking_move_the_live_axis_exactly_as_the_mount_did() {
+            let lat = 40.0_f64.to_radians();
+            let lst = 20.3_f64.to_radians() * 15.0;
+            let zenith = [lat.cos() * lst.cos(), lat.cos() * lst.sin(), lat.sin()];
+            let east_west = [-lst.sin(), lst.cos(), 0.0];
+
+            let mut axis = unit(37.0, 89.0);
+            // Camera 30 degrees from the axis, image up roughly toward it.
+            let mut c = unit(330.0, 60.0);
+            let mut up = rot(
+                [
+                    c[1] * axis[2] - c[2] * axis[1],
+                    c[2] * axis[0] - c[0] * axis[2],
+                    c[0] * axis[1] - c[1] * axis[0],
+                ],
+                0.0,
+                axis,
+            );
+            let initial_axis = unit_to_radec((axis[0], axis[1], axis[2]));
+            let (ra0, dec0, pa0) = solve_of(c, up);
+            let reference = CameraAttitude::from_solve(ra0, dec0, pa0);
+
+            let mut worst_old = 0.0_f64;
+            let moves: [(&str, V, f64); 5] = [
+                ("azimuth bolt", zenith, 20.0 / 60.0),
+                ("tracking", [0.0; 3], 0.0),
+                ("altitude bolt", east_west, -35.0 / 60.0),
+                ("tracking", [0.0; 3], 0.0),
+                ("azimuth bolt", zenith, -7.0 / 60.0),
+            ];
+            for (what, about, deg) in moves {
+                if what == "tracking" {
+                    // 20 s of sidereal tracking turns the head about its own axis.
+                    let angle = (20.0 * 15.041 / 3600.0_f64).to_radians();
+                    c = rot(axis, angle, c);
+                    up = rot(axis, angle, up);
+                } else {
+                    let angle = deg.to_radians();
+                    axis = rot(about, angle, axis);
+                    c = rot(about, angle, c);
+                    up = rot(about, angle, up);
+                }
+                let (ra, dec, pa) = solve_of(c, up);
+                let live = rotate_axis_by_attitude_change(
+                    initial_axis,
+                    &reference,
+                    &CameraAttitude::from_solve(ra, dec, pa),
+                );
+                let live = unit(live.0, live.1);
+                assert!(
+                    sep_arcsec(live, axis) < 0.01,
+                    "after the {what}, the live axis is {:.3}\" from the real one",
+                    sep_arcsec(live, axis)
+                );
+
+                let old = rotate_axis_by_star_motion(initial_axis, (ra0, dec0), (ra, dec));
+                worst_old = worst_old.max(sep_arcsec(unit(old.0, old.1), axis));
+            }
+            // The centre-only estimate this replaces, on the same moves.
+            assert!(
+                worst_old > 60.0,
+                "the centre-only estimate was expected to be arcminutes out, got {worst_old:.1}\""
+            );
+        }
     }
 }

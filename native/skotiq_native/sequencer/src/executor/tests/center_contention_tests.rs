@@ -102,6 +102,7 @@ impl DeviceOps for CenterContentionOps {
             dec_degrees: TARGET_DEC + offset_deg,
             pixel_scale: 1.0,
             rotation: 0.0,
+            up_position_angle_deg: 0.0,
             success: true,
         })
     }

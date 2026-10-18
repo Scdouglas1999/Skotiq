@@ -444,14 +444,15 @@ pub(crate) async fn run_polar_alignment(
     // three near-identical points give a degenerate plane, which collapses the
     // axis toward the pole and reports ~0 error from a badly misaligned mount.
     //
-    // Instead we hold the measured axis and apply the displacement of the
-    // boresight (how far the current solved position has moved from the first
-    // adjustment frame) to the axis. Any physical mount adjustment shifts the
-    // whole sky-to-mount mapping by the same small rotation, so the boresight
-    // displacement equals the axis displacement to first order. `reference_solve`
-    // is captured on the first successful adjustment solve below.
+    // Instead we hold the measured axis and apply to it the rotation the camera
+    // has turned through since the first adjustment frame. A bolt adjustment
+    // turns the optics and the axis by one rigid rotation, and two solves (each
+    // a centre and a roll) give that rotation exactly. Tracking needs no
+    // special case: it turns the camera about the axis itself, which leaves the
+    // axis where it was. `reference_solve` is captured on the first successful
+    // adjustment solve below.
     let initial_axis = (center_ra, center_dec);
-    let mut reference_solve: Option<(f64, f64)> = None;
+    let mut reference_solve: Option<skotiq_sequencer::CameraAttitude> = None;
 
     // Auto-complete timer: tracks when error first dropped below threshold
     let mut auto_complete_start: Option<std::time::Instant> = None;
@@ -657,26 +658,32 @@ pub(crate) async fn run_polar_alignment(
             Some(solve_result.dec),
         );
 
-        // Track the current mount axis by applying the boresight
-        // displacement (vs the first adjustment frame) to the measured axis.
-        // This reflects the user's physical alt/az adjustments WITHOUT the
-        // degenerate re-fit-from-stationary-points collapse.
-        let (ref_ra, ref_dec) = *reference_solve.get_or_insert((ra_degrees, solve_result.dec));
-
-        // Apply the exact geodesic rotation that moved the solved
-        // boresight to the measured mechanical axis. This remains stable
-        // near the pole where dividing a first-order RA delta by cos(dec)
-        // becomes singular and can explode a tiny adjustment.
-        let (cur_axis_ra, cur_axis_dec) = skotiq_sequencer::rotate_axis_by_star_motion(
+        // Track the current mount axis by applying the rigid rotation the
+        // bolts made (camera attitude now vs the first adjustment frame) to
+        // the measured axis, WITHOUT the degenerate re-fit-from-stationary-
+        // points collapse. The attitude is the field centre AND its roll:
+        // this far from the pole the centre alone misjudged each bolt move by
+        // a fifth to over a half, and a run that reported 23.8" left the
+        // owner's mount about a degree out (2026-10-17).
+        let up_angle = skotiq_sequencer::up_position_angle_deg(
+            solve_result.cd1_2,
+            solve_result.cd2_2,
+            solve_result.rotation,
+        );
+        let current_attitude =
+            skotiq_sequencer::CameraAttitude::from_solve(ra_degrees, solve_result.dec, up_angle);
+        let reference_attitude = *reference_solve.get_or_insert(current_attitude);
+        let (cur_axis_ra, cur_axis_dec) = skotiq_sequencer::rotate_axis_by_attitude_change(
             initial_axis,
-            (ref_ra, ref_dec),
-            (ra_degrees, solve_result.dec),
+            &reference_attitude,
+            &current_attitude,
         );
 
-        tracing::debug!(
-            "Adjustment: boresight Δ=({:.4}°,{:.4}°) → current axis RA={:.4}°, Dec={:.4}°",
-            ra_degrees - ref_ra,
-            solve_result.dec - ref_dec,
+        tracing::info!(
+            "Adjustment: field at RA {:.4}°, Dec {:.4}°, up {:.2}° E of N → axis RA {:.4}°, Dec {:.4}°",
+            ra_degrees,
+            solve_result.dec,
+            up_angle,
             cur_axis_ra,
             cur_axis_dec
         );
@@ -685,14 +692,19 @@ pub(crate) async fn run_polar_alignment(
         // uses 30"/60" colour bands, and the auto-complete threshold is in
         // the same unit. Emitting arcminutes here shows a 5' error as 5" and
         // fires the auto-complete ~60x too early.
+        // The axis is in the plate solver's J2000 frame; the pole it has to
+        // reach is tonight's.
+        let now = chrono::Utc::now();
+        let (axis_ra_of_date, axis_dec_of_date) =
+            skotiq_sequencer::axis_j2000_to_date(cur_axis_ra, cur_axis_dec, now);
         let (az_arcmin, alt_arcmin, total_arcmin) =
             skotiq_sequencer::calculate_alignment_error_arcmin(
-                cur_axis_ra,
-                cur_axis_dec,
+                axis_ra_of_date,
+                axis_dec_of_date,
                 is_north,
                 observer_latitude,
                 observer_longitude,
-                chrono::Utc::now(),
+                now,
             );
         let (az_error, alt_error, total_error) =
             (az_arcmin * 60.0, alt_arcmin * 60.0, total_arcmin * 60.0);
@@ -783,6 +795,9 @@ pub(crate) async fn run_polar_alignment(
 /// degrees. A turn of an altitude or azimuth bolt moves the field by
 /// arcminutes; three degrees still holds several full turns between frames.
 pub(crate) const ADJUSTMENT_SOLVE_SEARCH_RADIUS_DEG: f64 = 3.0;
+
+// The narrowed search must actually be narrower than the pole-region one.
+const _: () = assert!(ADJUSTMENT_SOLVE_SEARCH_RADIUS_DEG < POLAR_SOLVE_SEARCH_RADIUS_DEG);
 
 /// Binning for the adjustment frames: the run's own, but never finer than 2x2.
 pub(crate) fn adjustment_binning(run_binning: i32) -> i32 {
@@ -884,7 +899,6 @@ mod adjustment_tests {
         let next = adjustment_solve_hint(Some((37.5, 88.9)), Some(mount)).unwrap();
         assert_eq!((next.ra_degrees, next.dec_degrees), (37.5, 88.9));
         assert_eq!(next.search_radius_deg, ADJUSTMENT_SOLVE_SEARCH_RADIUS_DEG);
-        assert!(ADJUSTMENT_SOLVE_SEARCH_RADIUS_DEG < POLAR_SOLVE_SEARCH_RADIUS_DEG);
     }
 
     #[test]

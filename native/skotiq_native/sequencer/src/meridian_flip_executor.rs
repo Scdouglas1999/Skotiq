@@ -2425,6 +2425,7 @@ mod tests {
                 dec_degrees: hint_dec.unwrap_or(0.0),
                 pixel_scale: 1.5,
                 rotation: 0.0,
+                up_position_angle_deg: 0.0,
                 success: !should_fail,
             })
         }

@@ -28,8 +28,9 @@ mod math;
 mod preview;
 
 pub use math::{
-    calculate_alignment_error_arcmin, fit_rotation_axis, rotate_axis_by_star_motion,
-    RotationAxisFit,
+    axis_j2000_to_date, calculate_alignment_error_arcmin, fit_rotation_axis,
+    rotate_axis_by_attitude_change, rotate_axis_by_star_motion, up_position_angle_deg,
+    CameraAttitude, RotationAxisFit,
 };
 pub use preview::prepare_image_for_display;
 
@@ -402,7 +403,7 @@ where
         // position drifts from this; the rigid rotation between them is applied
         // to the measured axis so the displayed error actually tracks the
         // adjustment instead of being frozen at the initial measurement.
-        let mut initial_solved: Option<(f64, f64)> = None;
+        let mut initial_solved: Option<math::CameraAttitude> = None;
 
         let (observer_latitude, observer_longitude) = match (ctx.latitude, ctx.longitude) {
             (Some(lat), Some(lon)) => (lat, lon),
@@ -470,24 +471,33 @@ where
 
             let pole_dec = if self.config.is_north { 90.0 } else { -90.0 };
 
-            // Anchor the reference star on the first solved frame, then track
-            // the mechanical axis as the mount is adjusted.
-            let current_solved = (solve_result.ra_degrees, solve_result.dec_degrees);
-            let star_initial = *initial_solved.get_or_insert(current_solved);
-            let (live_axis_ra, live_axis_dec) = math::rotate_axis_by_star_motion(
+            // Anchor the camera's attitude on the first solved frame, then
+            // track the mechanical axis through the same rigid rotation as the
+            // mount is adjusted. The roll matters as much as the centre this
+            // far from the pole (see `rotate_axis_by_attitude_change`).
+            let current_attitude = math::CameraAttitude::from_solve(
+                solve_result.ra_degrees,
+                solve_result.dec_degrees,
+                solve_result.up_position_angle_deg,
+            );
+            let initial_attitude = *initial_solved.get_or_insert(current_attitude);
+            let (live_axis_ra, live_axis_dec) = math::rotate_axis_by_attitude_change(
                 (center_ra, center_dec),
-                star_initial,
-                current_solved,
+                &initial_attitude,
+                &current_attitude,
             );
 
+            let now = chrono::Utc::now();
+            let (axis_ra_of_date, axis_dec_of_date) =
+                math::axis_j2000_to_date(live_axis_ra, live_axis_dec, now);
             let (az_error_am, alt_error_am, total_error_am) =
                 math::calculate_alignment_error_arcmin(
-                    live_axis_ra,
-                    live_axis_dec,
+                    axis_ra_of_date,
+                    axis_dec_of_date,
                     self.config.is_north,
                     observer_latitude,
                     observer_longitude,
-                    chrono::Utc::now(),
+                    now,
                 );
 
             let result = PolarAlignResult {

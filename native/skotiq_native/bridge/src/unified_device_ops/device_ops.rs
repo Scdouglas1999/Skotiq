@@ -1236,6 +1236,9 @@ impl DeviceOps for UnifiedDeviceOps {
                 dec_degrees: r.dec,
                 pixel_scale: r.pixel_scale,
                 rotation: r.rotation,
+                up_position_angle_deg: skotiq_sequencer::up_position_angle_deg(
+                    r.cd1_2, r.cd2_2, r.rotation,
+                ),
                 success: r.success,
             })
             .map_err(|e| format!("Plate solve failed: {}", e))

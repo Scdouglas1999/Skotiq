@@ -65,7 +65,9 @@ use super::state::{registry, RenderCancelToken};
 const HISTORY_RECIPE_MARKER: &str = "SKRECIPE-B64";
 
 /// The marker exports stamped before the rebrand. Accepted on replay so
-/// recipes embedded in older FITS still decode.
+/// recipes embedded in older FITS still decode; replay is only exercised by
+/// the tests today.
+#[cfg(test)]
 const LEGACY_HISTORY_RECIPE_MARKER: &str = "NSRECIPE-B64";
 
 /// Base64 characters per `HISTORY` card. A commentary card holds 72 bytes of
