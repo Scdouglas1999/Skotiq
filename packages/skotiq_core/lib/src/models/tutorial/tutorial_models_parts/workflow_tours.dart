@@ -1,135 +1,66 @@
 // Dashboard through sequencer screen-tour definitions.
 part of '../tutorial_models.dart';
 
-// Dashboard tour (12 steps)
+// Tonight tour (6 steps). Every step is centered: the tour names the
+// screen's regions rather than spotlighting widgets.
 const List<TutorialStep> _dashboardTour = [
   TutorialStep(
     id: 'dt_welcome',
-    title: 'Welcome to Dashboard',
+    title: 'Welcome to Tonight',
     description:
-        'The Dashboard is your mission control for astrophotography. It provides an at-a-glance view of all active systems and lets you customize the layout to match your workflow.',
+        'Tonight is where you run the night: the plan on the left, the latest frame in the middle and the equipment panel on the right.',
     position: TooltipPosition.center,
     order: 0,
     category: TutorialCategory.dashboardTour,
     spotlightShape: SpotlightShape.roundedRect,
   ),
   TutorialStep(
-    id: 'dt_edit_button',
-    title: 'Customize Layout',
+    id: 'dt_header',
+    title: 'Run Controls',
     description:
-        'Click the Edit button to rearrange dashboard widgets. Drag widgets to reorder them, resize panels, or hide ones you don\'t need. Your layout is saved automatically.',
-    targetKey: 'dashboard_edit_button',
-    position: TooltipPosition.bottom,
+        'The header shows the run\'s state, the night from sunset to sunrise and the run controls: Start now or Start at dark before a run, then Pause, Skip step and a hold-to-confirm Stop.',
+    position: TooltipPosition.center,
     order: 1,
     category: TutorialCategory.dashboardTour,
-    spotlightShape: SpotlightShape.circle,
+    spotlightShape: SpotlightShape.roundedRect,
   ),
   TutorialStep(
-    id: 'dt_live_preview',
-    title: 'Live Image Preview',
+    id: 'dt_plan',
+    title: 'The Plan',
     description:
-        'This panel shows your latest captured image with real-time updates during exposures. Use pinch to zoom and pan to inspect details.',
-    targetKey: 'dashboard_live_preview',
-    position: TooltipPosition.left,
+        'The left column lists the target, the plan\'s progress by filter and every step with its time. Open a step in the Sequencer to change it.',
+    position: TooltipPosition.center,
     order: 2,
     category: TutorialCategory.dashboardTour,
     spotlightShape: SpotlightShape.roundedRect,
   ),
   TutorialStep(
-    id: 'dt_capture_controls',
-    title: 'Quick Capture',
+    id: 'dt_frame',
+    title: 'Frame and Manual Actions',
     description:
-        'Take snapshots or start loop exposures directly from the Dashboard without navigating away. Perfect for quick focus checks or framing adjustments.',
-    targetKey: 'dashboard_capture_controls',
-    position: TooltipPosition.left,
+        'The center shows the latest frame with its HFR and star count, the frames taken this session and the focus, guiding and temperature charts. The buttons under the frame run a snapshot, autofocus, a solve or a dither; during a run they pause it after the current frame and resume it afterwards.',
+    position: TooltipPosition.center,
     order: 3,
     category: TutorialCategory.dashboardTour,
     spotlightShape: SpotlightShape.roundedRect,
   ),
   TutorialStep(
-    id: 'dt_session_widget',
-    title: 'Session Progress',
+    id: 'dt_panel',
+    title: 'Equipment Panel',
     description:
-        'Track your current imaging session: total frames captured, integration time accumulated, and estimated time remaining. Click to view detailed session statistics.',
-    targetKey: 'dashboard_session_widget',
-    position: TooltipPosition.left,
+        'The tabs on the right hold the camera, focuser, mount, guider and plate solver. A dot on a tab means something there needs a look; the panel never switches tabs on its own.',
+    position: TooltipPosition.center,
     order: 4,
     category: TutorialCategory.dashboardTour,
     spotlightShape: SpotlightShape.roundedRect,
   ),
   TutorialStep(
-    id: 'dt_weather_widget',
-    title: 'Weather Status',
-    description:
-        'Monitor current weather conditions including cloud cover, humidity, and approaching weather systems. Alerts appear here when conditions threaten your imaging session.',
-    targetKey: 'dashboard_weather_widget',
-    position: TooltipPosition.left,
-    order: 5,
-    category: TutorialCategory.dashboardTour,
-    spotlightShape: SpotlightShape.roundedRect,
-  ),
-  TutorialStep(
-    id: 'dt_guiding_widget',
-    title: 'Guiding Status',
-    description:
-        'View real-time guiding performance from PHD2. The graph shows RA/Dec errors, and RMS values indicate tracking accuracy. Green means excellent guiding.',
-    targetKey: 'dashboard_guiding_widget',
-    position: TooltipPosition.left,
-    order: 6,
-    category: TutorialCategory.dashboardTour,
-    spotlightShape: SpotlightShape.roundedRect,
-  ),
-  TutorialStep(
-    id: 'dt_mount_widget',
-    title: 'Mount Position',
-    description:
-        'See your mount\'s current coordinates, tracking status, and pier side. Quick slew controls let you center objects or park the mount without leaving the Dashboard.',
-    targetKey: 'dashboard_mount_widget',
-    position: TooltipPosition.left,
-    order: 7,
-    category: TutorialCategory.dashboardTour,
-    spotlightShape: SpotlightShape.roundedRect,
-  ),
-  TutorialStep(
-    id: 'dt_focuser_widget',
-    title: 'Focuser Control',
-    description:
-        'Monitor focus position and temperature. Run autofocus routines or make manual adjustments. The temperature compensation feature keeps focus sharp as the night cools.',
-    targetKey: 'dashboard_focuser_widget',
-    position: TooltipPosition.left,
-    order: 8,
-    category: TutorialCategory.dashboardTour,
-    spotlightShape: SpotlightShape.roundedRect,
-  ),
-  TutorialStep(
-    id: 'dt_equipment_status',
-    title: 'Equipment Overview',
-    description:
-        'See connection status for all your devices at a glance. Green indicates connected, red means disconnected. Click any device to jump to its detailed controls.',
-    targetKey: 'dashboard_equipment_status',
-    position: TooltipPosition.left,
-    order: 9,
-    category: TutorialCategory.dashboardTour,
-    spotlightShape: SpotlightShape.roundedRect,
-  ),
-  TutorialStep(
-    id: 'dt_sequence_widget',
-    title: 'Active Sequence',
-    description:
-        'When a sequence is running, this widget shows current progress, active target, and remaining time. Pause or abort the sequence directly from here.',
-    targetKey: 'dashboard_sequence_widget',
-    position: TooltipPosition.left,
-    order: 10,
-    category: TutorialCategory.dashboardTour,
-    spotlightShape: SpotlightShape.roundedRect,
-  ),
-  TutorialStep(
     id: 'dt_complete',
-    title: 'Dashboard Complete',
+    title: 'Tour Complete',
     description:
-        'You\'ve learned the Dashboard basics! Customize the layout to fit your workflow. The Dashboard adapts to show what matters most during your imaging sessions.',
+        'That is Tonight. Load a plan in the Sequencer, then come back here to start it.',
     position: TooltipPosition.center,
-    order: 11,
+    order: 5,
     category: TutorialCategory.dashboardTour,
     spotlightShape: SpotlightShape.roundedRect,
   ),

@@ -87,9 +87,6 @@ class TutorialKeys {
     }
 
     // Delegate to screen-specific key classes based on prefix
-    if (keyId.startsWith('dashboard_')) {
-      return DashboardTutorialKeys.getKey(keyId);
-    }
     if (keyId.startsWith('equipment_')) {
       return EquipmentTutorialKeys.getKey(keyId);
     }
