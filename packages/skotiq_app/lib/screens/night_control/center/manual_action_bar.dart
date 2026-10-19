@@ -34,8 +34,8 @@ class ManualActionBar extends ConsumerWidget {
     final actions = ref.watch(nightManualActionsProvider);
     final state = ref.watch(nightActionStateProvider);
     final phase = ref.watch(nightRunPhaseProvider);
-    final hideSubs = density?.hideActionSubLabels ?? false;
-    final collapseHint = density?.collapseActionHint ?? false;
+    final hideSubs = density?.hideActionSubLabels == true;
+    final collapseHint = density?.collapseActionHint == true;
 
     final hint = l10n.text(
       _runLoaded(phase) ? 'nightActHint' : 'nightCtrHintIdle',

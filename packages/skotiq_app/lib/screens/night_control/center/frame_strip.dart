@@ -311,7 +311,7 @@ class _StripTileState extends ConsumerState<_StripTile> {
                       child: FrameThumbnail(
                         iconSize: 12,
                         bytesFuture: _bytes,
-                        fallbackFilePath: frame.filePath ?? '',
+                        fallbackFilePath: frame.filePath ?? nightNoLocalFile,
                         colors: colors,
                       ),
                     ),

@@ -599,13 +599,13 @@ class _SelectedFramePreviewState extends ConsumerState<_SelectedFramePreview> {
       label: l10n.text(
         'nightCtrPreviewSemantics',
         params: <String, String>{
-          'frame': _stripTitle(frame) ?? '',
+          'frame': _stripTitle(frame) ?? l10n.text('nightCtrFrame'),
         },
       ),
       child: ExcludeSemantics(
         child: FrameThumbnail(
           bytesFuture: _bytes,
-          fallbackFilePath: frame.filePath ?? '',
+          fallbackFilePath: frame.filePath ?? nightNoLocalFile,
           colors: context.skotiqColors,
           iconSize: 28,
           fit: BoxFit.contain,

@@ -1,6 +1,10 @@
 // Small formatters shared by the center column's widgets. Times arrive on
 // the operator's clock already (the view models' rule), so these only print.
 
+/// The thumbnail fallback for a frame whose file is not on this machine (a
+/// remote viewer): no path, so the tile shows its placeholder.
+const String nightNoLocalFile = '';
+
 String _two(int value) => value.toString().padLeft(2, '0');
 
 /// `23:49`.

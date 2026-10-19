@@ -407,7 +407,7 @@ class _StageButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
-    final on = selected ?? false;
+    final on = selected == true;
     final button = Semantics(
       button: true,
       toggled: selected,

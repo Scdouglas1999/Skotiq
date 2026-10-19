@@ -516,10 +516,13 @@ class _GuideChart extends ConsumerWidget {
     final semantic = vm.isEmpty
         ? l10n.text('nightCtrSemNoData', params: {'title': title})
         : _join(<String>[
-            l10n.text(
-              'nightCtrSemGuide',
-              params: <String, String>{'minutes': '${minutes ?? ''}'},
-            ),
+            if (minutes != null)
+              l10n.text(
+                'nightCtrSemGuide',
+                params: <String, String>{'minutes': '$minutes'},
+              )
+            else
+              l10n.text('nightCtrSemGuideNoSpan'),
             if (ra.isNotEmpty)
               l10n.text(
                 'nightCtrSemRms',
