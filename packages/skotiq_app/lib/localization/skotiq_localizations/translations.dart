@@ -935,6 +935,20 @@ final Map<String, Map<String, String>> _localizedValues = {
     // Tonight night control: the plan column as a drawer at medium widths.
     'nightPlanDrawer': 'Plan',
     'nightPlanDrawerClose': 'Close plan',
+    // Tonight night control (P1a): why a header run control is disabled.
+    'ncPlanCannotCommand': 'This app cannot send commands to the rig right now',
+    'ncPlanRecovering': 'The run is recovering from a fault',
+    'ncPlanStopping': 'The run is stopping',
+    'ncPlanFinalizing': 'The run has stopped and is saving its results',
+    'ncPlanActionOwnsResume':
+        'The run resumes on its own when the manual action finishes',
+    'ncPlanActionInProgress': 'Wait for the manual action to finish',
+    'ncPlanNoPlan': 'No plan is loaded',
+    'ncPlanNothingToRun': 'The plan has no targets or exposures',
+    'ncPlanConnectCamera': 'Connect the camera first',
+    'ncPlanNoSite': 'Set an observing site to know when it gets dark',
+    'ncPlanNoDarkTonight': 'The sky does not get fully dark tonight',
+    'ncPlanAlreadyDark': 'It is already dark, so the run can start now',
   },
   'es': {
     'appTitle': 'Skotiq',
@@ -1865,5 +1879,21 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsLive': 'En vivo',
     'nightPlanDrawer': 'Plan',
     'nightPlanDrawerClose': 'Cerrar plan',
+    'ncPlanCannotCommand':
+        'Esta app no puede enviar órdenes al equipo en este momento',
+    'ncPlanRecovering': 'La ejecución se está recuperando de un fallo',
+    'ncPlanStopping': 'La ejecución se está deteniendo',
+    'ncPlanFinalizing':
+        'La ejecución se detuvo y está guardando sus resultados',
+    'ncPlanActionOwnsResume':
+        'La ejecución se reanuda sola cuando termine la acción manual',
+    'ncPlanActionInProgress': 'Espera a que termine la acción manual',
+    'ncPlanNoPlan': 'No hay ningún plan cargado',
+    'ncPlanNothingToRun': 'El plan no tiene objetivos ni exposiciones',
+    'ncPlanConnectCamera': 'Conecta primero la cámara',
+    'ncPlanNoSite': 'Indica un lugar de observación para saber cuándo oscurece',
+    'ncPlanNoDarkTonight': 'Esta noche el cielo no llega a oscurecer del todo',
+    'ncPlanAlreadyDark':
+        'Ya es de noche, así que la ejecución puede empezar ahora',
   },
 };
