@@ -141,6 +141,7 @@ class NightHarness {
     this.noPlan = false,
     List<PlanStepVm>? steps,
     List<UpcomingItemVm>? upcoming,
+    this.extra = const <Override>[],
   })  : header = header ?? board.header,
         target = target ?? board.target,
         plan = plan ?? board.plan,
@@ -155,6 +156,9 @@ class NightHarness {
   final bool noPlan;
   final List<PlanStepVm> steps;
   final List<UpcomingItemVm> upcoming;
+
+  /// Overrides appended after the harness's own.
+  final List<Override> extra;
   final RecordingActionApi api = RecordingActionApi();
   RecordingSequenceActions? actions;
   late final ProviderContainer container;
@@ -178,6 +182,7 @@ class NightHarness {
         sequenceActionServiceProvider.overrideWith(
           (ref) => actions = RecordingSequenceActions(ref),
         ),
+        ...extra,
       ];
 
   /// Pumps [child] at [size], with the text scaled by [textScale]. The

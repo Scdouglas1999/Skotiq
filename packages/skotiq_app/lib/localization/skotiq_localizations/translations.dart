@@ -1531,6 +1531,12 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScrPausedForSolve': 'Paused for a plate solve',
     'nightActBusySolve': 'A plate solve is running',
     'nightActErrSolve': 'Plate solve failed: {detail}',
+    'nightScrArmButton': 'Arm for {time}',
+    'nightScrArmNotStarted': 'Start at dark did not start the run',
+    'nightScrArmBlocked':
+        'The pre-flight checks found {count} error(s), first: {issue}',
+    'nightScrArmCheckFailed': 'The pre-flight checks could not run: {detail}',
+    'nightScrArmUnparkFailed': 'The mount did not unpark: {detail}',
   },
   'es': {
     'appTitle': 'Skotiq',
@@ -3078,5 +3084,13 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScrPausedForSolve': 'En pausa para una resolución de placa',
     'nightActBusySolve': 'Hay una resolución de placa en curso',
     'nightActErrSolve': 'La resolución de placa falló: {detail}',
+    'nightScrArmButton': 'Programar para las {time}',
+    'nightScrArmNotStarted': 'Iniciar al anochecer no inició la sesión',
+    'nightScrArmBlocked':
+        'Las comprobaciones previas encontraron {count} error(es); el primero: {issue}',
+    'nightScrArmCheckFailed':
+        'No se pudieron ejecutar las comprobaciones previas: {detail}',
+    'nightScrArmUnparkFailed':
+        'La montura no salió de su posición de aparcado: {detail}',
   },
 };

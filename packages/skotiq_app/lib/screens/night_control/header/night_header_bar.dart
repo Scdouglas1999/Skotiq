@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_core/skotiq_core.dart' show clockProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
@@ -18,8 +19,10 @@ import '../../../services/sequence_action_service.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../sequencer/sequencer_screen.dart' show kSequencerRoutePath;
 import '../../sequencer/widgets/preflight_validation_dialog.dart';
+import '../actions/armed_start_provider.dart';
 import '../actions/night_action_controller.dart';
 import '../data/plan/night_header_provider.dart';
+import '../data/plan/night_plan_inputs.dart' show NightClockTimes;
 import '../data/plan/night_run_phase_provider.dart';
 import '../data/plan/night_timeline_provider.dart';
 import '../left/night_time_format.dart';
@@ -394,19 +397,40 @@ class NightHeaderBar extends ConsumerWidget {
     );
   }
 
+  /// Arming goes through the same pre-flight as Start now, checked as if
+  /// the run started at dark; an error there leaves nothing armed.
   static Future<void> _armStartAtDark(
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final api = ref.read(nightActionApiProvider);
-    await api.armStartAtDark();
-    if (!context.mounted) return;
-    // The controller clears its error when arming succeeds, so an error now
-    // is this attempt's refusal.
-    final error = api.state.error;
-    if (error != null) {
-      context.showErrorSnackBar(error.resolve(SkotiqLocalizations.of(context)));
-    }
+    final l10n = SkotiqLocalizations.of(context);
+    final dark = ref.read(nightAstroDarkProvider);
+    final darkOnClock =
+        dark == null ? null : ref.read(clockProvider).toNightClock(dark);
+    return showDialog<void>(
+      context: context,
+      builder: (_) => PreFlightValidationDialog(
+        armOnly: true,
+        simulationStart: dark?.toLocal(),
+        startLabel: darkOnClock == null
+            ? l10n.text('nightActStartAtDark')
+            : l10n.text(
+                'nightScrArmButton',
+                params: {'time': nightHm(darkOnClock)},
+              ),
+        onStartSequence: () async {
+          final api = ref.read(nightActionApiProvider);
+          await api.armStartAtDark();
+          if (!context.mounted) return;
+          // The controller clears its error when arming succeeds, so an
+          // error now is this attempt's refusal.
+          final error = api.state.error;
+          if (error != null) {
+            context.showErrorSnackBar(error.resolve(l10n));
+          }
+        },
+      ),
+    );
   }
 }
 

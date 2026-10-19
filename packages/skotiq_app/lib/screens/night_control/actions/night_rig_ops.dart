@@ -33,6 +33,14 @@ abstract interface class NightRigOps {
   Future<CommandActionResult> resumeRun();
   Future<CommandActionResult> startRun();
 
+  /// The Start dialog's pre-flight validation of [sequence]. Throws when
+  /// the validator cannot run.
+  Future<ValidationResult> validateRun(Sequence sequence);
+
+  /// Takes the mount off its park. The only mount command Start at dark
+  /// issues, and only for a run that needs the sky.
+  Future<CommandActionResult> unparkForRun();
+
   /// One utility frame with the manual settings. Throws on failure.
   Future<void> snapshot();
 
@@ -136,6 +144,22 @@ class ServiceNightRigOps implements NightRigOps {
 
   @override
   Future<CommandActionResult> startRun() => _sequence.start();
+
+  @override
+  Future<ValidationResult> validateRun(Sequence sequence) async {
+    // Held for the whole validation: the validator is auto-disposed and
+    // would otherwise go away under its own await.
+    final validator = _ref.listen(sequenceValidatorProvider, (_, __) {});
+    try {
+      return await validator.read().validate(sequence);
+    } finally {
+      validator.close();
+    }
+  }
+
+  @override
+  Future<CommandActionResult> unparkForRun() =>
+      _ref.read(mountCommandServiceProvider).unpark();
 
   @override
   Future<void> snapshot() => _capture.snapshot(persist: false);

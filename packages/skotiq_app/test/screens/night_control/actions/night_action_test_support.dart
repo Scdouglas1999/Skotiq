@@ -138,6 +138,25 @@ class FakeRigOps implements NightRigOps {
     return startResult;
   }
 
+  /// The issues the pre-flight validator reports for the armed run.
+  List<ValidationIssue> validationIssues = const [];
+  CommandActionResult unparkResult = CommandActionResult.ok;
+
+  @override
+  Future<ValidationResult> validateRun(Sequence sequence) async {
+    calls.add('validate');
+    return ValidationResult(
+      issues: validationIssues,
+      validatedAt: DateTime.utc(2026, 10, 19),
+    );
+  }
+
+  @override
+  Future<CommandActionResult> unparkForRun() async {
+    calls.add('unpark');
+    return unparkResult;
+  }
+
   @override
   Future<void> snapshot() => _act('snapshot');
 

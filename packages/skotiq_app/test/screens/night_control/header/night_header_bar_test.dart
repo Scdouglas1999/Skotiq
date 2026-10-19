@@ -274,34 +274,6 @@ void main() {
       expect(harness.actions!.stopPreservedCheckpoint, isTrue);
     });
 
-    testWidgets('Start at dark arms through the action controller',
-        (tester) async {
-      final harness = await _pumpHeader(tester, NightRunPhase.ready);
-      await tester.tap(_button('Start at dark'));
-      await tester.pump();
-      expect(harness.api.calls, <String>['arm']);
-    });
-
-    testWidgets('a refused arm shows the controller\'s reason', (tester) async {
-      final harness = NightHarness(
-        board: NightFixtures.ready(),
-        header: headerFor(NightRunPhase.ready),
-      );
-      harness.api.armError = const NightText('nightActErrArmNoPlan');
-      await harness.pump(
-        tester,
-        const NightHeaderBar(),
-        size: const Size(1316, 400),
-      );
-      await tester.tap(_button('Start at dark'));
-      await tester.pump();
-      await tester.pump();
-      expect(
-        find.text('Load a plan before arming Start at dark'),
-        findsOneWidget,
-      );
-    });
-
     testWidgets('Edit plan opens the Sequencer', (tester) async {
       final harness = await _pumpHeader(tester, NightRunPhase.ready);
       await tester.tap(_button('Edit plan'));

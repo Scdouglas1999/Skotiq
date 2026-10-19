@@ -8,10 +8,12 @@
 //  3. a failure lands in [ManualActionState.error] and the log. Nothing here
 //     stops a run or parks the mount; a failed resume leaves the run paused.
 import 'dart:async';
+import 'dart:ui' show Locale, PlatformDispatcher;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
+import '../../../localization/skotiq_localizations.dart';
 import '../../../services/manual_capture_controller.dart';
 import '../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart'
     show runDashboardActiveTargetProvider;
@@ -400,29 +402,87 @@ class NightActionController extends Notifier<ManualActionState>
     _log.info('Start at dark cancelled', source: _logSource);
   }
 
+  /// Starts the armed run, after the checks the Start dialog makes that
+  /// need no one at the keyboard. A check that fails leaves the run
+  /// unstarted and says why; nothing here stops, parks or retries.
   Future<void> _fireArmedStart() async {
-    _log.info('Start at dark: starting the run', source: _logSource);
-    if (!ref.read(backendCanCommandProvider)) {
-      _update(error: const NightText('nightActWhyNoHost'));
-      _log.error('Start at dark skipped: no command path to the host',
-          source: _logSource);
+    _log.info('Start at dark: checking the run', source: _logSource);
+    NightText? refusal;
+    try {
+      refusal = await _fireRefusal();
+    } catch (e) {
+      refusal =
+          NightText('nightScrArmCheckFailed', params: {'detail': _clean(e)});
+    }
+    if (refusal != null) {
+      _notifyArmedStartSkipped(refusal);
       return;
     }
+    _log.info('Start at dark: starting the run', source: _logSource);
     try {
       final result = await _ops.startRun();
       if (!result.isSuccess) {
-        final detail = result.message ?? _noReason;
-        _update(
-          error: NightText('nightActErrArmStart', params: {'detail': detail}),
-        );
-        _log.error('Start at dark failed: $detail', source: _logSource);
+        _notifyArmedStartSkipped(NightText('nightActErrArmStart',
+            params: {'detail': result.message ?? _noReason}));
       }
     } catch (e) {
-      _update(
-        error: NightText('nightActErrArmStart', params: {'detail': _clean(e)}),
+      _notifyArmedStartSkipped(
+        NightText('nightActErrArmStart', params: {'detail': _clean(e)}),
       );
-      _log.error('Start at dark failed: $e', source: _logSource);
     }
+  }
+
+  /// Why the armed run must not start now, or null when it may. Unparks a
+  /// parked mount when the run needs the sky, as the Start dialog does.
+  Future<NightText?> _fireRefusal() async {
+    if (!ref.read(backendCanCommandProvider)) {
+      return const NightText('nightActWhyNoHost');
+    }
+    final sequence = ref.read(currentSequenceProvider);
+    if (sequence == null) return const NightText('nightActErrArmNoPlan');
+    if (!ref.read(sequenceExecutionStateProvider).canStart) {
+      return const NightText('nightActErrArmRunActive');
+    }
+    final validation = await _ops.validateRun(sequence);
+    if (validation.hasErrors) {
+      final first = validation.issues
+          .firstWhere((issue) => issue.severity == ValidationSeverity.error);
+      return NightText('nightScrArmBlocked', params: {
+        'count': '${validation.errorCount}',
+        'issue': first.title,
+      });
+    }
+    final mount = ref.read(mountStateProvider);
+    if (mount.connectionState == DeviceConnectionState.connected &&
+        mount.isParked &&
+        sequenceNeedsMountOffPark(sequence)) {
+      _log.info('Start at dark: unparking the mount for the run',
+          source: _logSource);
+      final unpark = await _ops.unparkForRun();
+      if (!unpark.isSuccess) {
+        return NightText('nightScrArmUnparkFailed',
+            params: {'detail': unpark.message ?? _noReason});
+      }
+    }
+    return null;
+  }
+
+  /// The run did not start at dark: the reason goes on the action bar, into
+  /// the log and into a toast, since nobody may be watching the screen.
+  void _notifyArmedStartSkipped(NightText reason) {
+    _update(error: reason);
+    final settings = ref.read(appSettingsProvider).valueOrNull;
+    final language =
+        settings?.language ?? PlatformDispatcher.instance.locale.languageCode;
+    final l10n = SkotiqLocalizations(Locale(language));
+    final message = reason.resolve(l10n);
+    _log.error('Start at dark did not start the run: $message',
+        source: _logSource);
+    ref.read(uiNotificationProvider.notifier).showError(
+          message,
+          title: l10n.text('nightScrArmNotStarted'),
+          duration: const Duration(minutes: 10),
+        );
   }
 
   // -------------------------------------------------------------------------

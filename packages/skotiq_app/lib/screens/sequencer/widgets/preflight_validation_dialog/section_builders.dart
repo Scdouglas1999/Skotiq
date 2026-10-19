@@ -462,6 +462,7 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
         },
       ),
       _StartSequenceButton(
+        label: widget.startLabel,
         canStart: canStart,
         hasWarningsOnly: hasWarningsOnly,
         blockedReason: _startBlockedReason(
