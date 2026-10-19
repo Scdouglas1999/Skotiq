@@ -86,7 +86,7 @@ void main() {
     expect(find.text("8.7'"), findsOneWidget, reason: 'off target');
   });
 
-  testWidgets('Solve & sync and Center go through the action controller',
+  testWidgets('Solve, Solve & sync and Center go through the action controller',
       (tester) async {
     final api = RecordingActionApi();
     await pumpPanelTab(
@@ -94,14 +94,37 @@ void main() {
       const NightSolveTab(),
       overrides: panelOverrides(
         api: api,
-        inputs: panelInputs(runState: SequenceExecutionState.running),
+        inputs: panelInputs(
+          runState: SequenceExecutionState.running,
+          hasFrame: true,
+        ),
       ),
     );
+    await tester.tap(find.byKey(_solve));
+    await tester.pump();
     await tester.tap(find.byKey(_solveSync));
     await tester.pump();
     await tester.tap(find.byKey(_center));
     await tester.pump();
-    expect(api.calls, ['solveAndSync', 'center']);
+    expect(api.calls, ['solve', 'solveAndSync', 'center']);
+  });
+
+  testWidgets('the centering note quotes the config Center runs',
+      (tester) async {
+    await pumpPanelTab(
+      tester,
+      const NightSolveTab(),
+      overrides: [
+        ...panelOverrides(),
+        nightCenteringConfigProvider.overrideWithValue(
+          const CenteringConfig(maxIterations: 7, toleranceArcsec: 12),
+        ),
+      ],
+    );
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
+    await tester.pump();
+    expect(
+        find.textContaining('Center within 12" · 7 attempts'), findsOneWidget);
   });
 
   testWidgets('a busy controller disables its actions with the reason',

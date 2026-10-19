@@ -96,6 +96,8 @@ class RecordingActionApi implements NightActionApi {
   @override
   Future<void> autofocus() async => calls.add('autofocus');
   @override
+  Future<void> solve() async => calls.add('solve');
+  @override
   Future<void> solveAndSync() async => calls.add('solveAndSync');
   @override
   Future<void> center() async => calls.add('center');

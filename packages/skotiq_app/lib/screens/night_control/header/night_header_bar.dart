@@ -655,6 +655,8 @@ class _RunPill extends StatelessWidget {
         ManualActionId.snapshot => 'nightCtlPausedForSnapshot',
         ManualActionId.loop => 'nightCtlPausedForLoop',
         ManualActionId.autofocus => 'nightCtlPausedForAutofocus',
+        // A plain solve never pauses the run; the key keeps the switch whole.
+        ManualActionId.solve => 'nightScrPausedForSolve',
         ManualActionId.solveSync => 'nightCtlPausedForSolveSync',
         ManualActionId.center => 'nightCtlPausedForCenter',
         ManualActionId.dither => 'nightCtlPausedForDither',

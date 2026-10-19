@@ -45,6 +45,8 @@ class FakeNightActionApi implements NightActionApi {
   @override
   Future<void> autofocus() async {}
   @override
+  Future<void> solve() async {}
+  @override
   Future<void> solveAndSync() async {}
   @override
   Future<void> center() async {}

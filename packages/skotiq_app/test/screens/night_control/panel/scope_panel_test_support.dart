@@ -34,6 +34,7 @@ NightActionInputs panelInputs({
   bool mountParked = false,
   bool mountTracking = true,
   bool hasTarget = true,
+  bool hasFrame = false,
 }) =>
     NightActionInputs(
       canCommand: canCommand,
@@ -47,6 +48,7 @@ NightActionInputs panelInputs({
       mountParked: mountParked,
       mountTracking: mountTracking,
       hasTarget: hasTarget,
+      hasFrame: hasFrame,
       targetName: hasTarget ? 'M74' : null,
     );
 
@@ -114,6 +116,8 @@ class RecordingActionApi implements NightActionApi {
   Future<void> toggleLoop() => _record('toggleLoop');
   @override
   Future<void> autofocus() => _record('autofocus');
+  @override
+  Future<void> solve() => _record('solve');
   @override
   Future<void> solveAndSync() => _record('solveAndSync');
   @override

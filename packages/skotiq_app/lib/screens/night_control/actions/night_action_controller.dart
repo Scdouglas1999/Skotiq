@@ -118,6 +118,7 @@ NightActionInputs readNightActionInputs(
     coolerSetpoint: read(nightCoolerSetpointProvider),
     targetName: target?.name,
     hasTarget: target != null,
+    hasFrame: read(currentImageProvider)?.filePath != null,
     exposureSeconds: read(exposureSettingsProvider).exposureTime,
     filterName: read(filterWheelStateProvider).currentFilterName,
   );
@@ -163,6 +164,7 @@ class NightActionController extends Notifier<ManualActionState>
         ManualActionId.snapshot => snapshot(),
         ManualActionId.loop => toggleLoop(),
         ManualActionId.autofocus => autofocus(),
+        ManualActionId.solve => solve(),
         ManualActionId.solveSync => solveAndSync(),
         ManualActionId.center => center(),
         ManualActionId.dither => dither(),
@@ -213,6 +215,29 @@ class NightActionController extends Notifier<ManualActionState>
           _log.info('Autofocus cancelled', source: _logSource);
         }
       });
+
+  @override
+  Future<void> solve() => _start(
+        ManualActionId.solve,
+        holdRun: false,
+        () async {
+          final path = ref.read(currentImageProvider)?.filePath;
+          if (path == null) {
+            throw const _ActionFailure(NightText('nightScopeWhyNoFrame'));
+          }
+          final watch = Stopwatch()..start();
+          final result = await _ops.solveFile(path);
+          watch.stop();
+          _update(lastSolveDuration: watch.elapsed);
+          if (!result.success) {
+            throw _ActionFailure(NightText('nightActErrSolve', params: {
+              'detail': result.error ?? _noReason,
+            }));
+          }
+          _log.info('Solved in ${watch.elapsedMilliseconds} ms',
+              source: _logSource);
+        },
+      );
 
   @override
   Future<void> solveAndSync() => _start(ManualActionId.solveSync, () async {
@@ -319,6 +344,7 @@ class NightActionController extends Notifier<ManualActionState>
           _ops.cancelSolve();
         case ManualActionId.center:
           await _ops.cancelCenter();
+        case ManualActionId.solve:
         case ManualActionId.dither:
         case ManualActionId.flip:
         case ManualActionId.tracking:
@@ -404,8 +430,13 @@ class NightActionController extends Notifier<ManualActionState>
   // -------------------------------------------------------------------------
 
   /// Single flight: the action in flight is joined, a different one while
-  /// busy is ignored, a disabled one is refused.
-  Future<void> _start(ManualActionId id, Future<void> Function() body) {
+  /// busy is ignored, a disabled one is refused. [holdRun] false skips the
+  /// run pause for an action that touches no device.
+  Future<void> _start(
+    ManualActionId id,
+    Future<void> Function() body, {
+    bool holdRun = true,
+  }) {
     final inFlight = _inFlight;
     if (inFlight != null) {
       return _inFlightId == id ? inFlight : Future<void>.value();
@@ -417,15 +448,16 @@ class NightActionController extends Notifier<ManualActionState>
       return Future<void>.value();
     }
     _inFlightId = id;
-    final future = _execute(id, body);
+    final future = _execute(id, body, holdRun: holdRun);
     _inFlight = future;
     return future;
   }
 
   Future<void> _execute(
     ManualActionId id,
-    Future<void> Function() body,
-  ) async {
+    Future<void> Function() body, {
+    required bool holdRun,
+  }) async {
     _cancelRequested = false;
     final cancelSignal = _cancelSignal = Completer<void>();
     final lastSolve = state.lastSolveDuration;
@@ -444,14 +476,16 @@ class NightActionController extends Notifier<ManualActionState>
     var hold = RunHold.notOwed;
     NightText? error;
     try {
-      await guard.hold(
-        cancelled: cancelSignal.future,
-        onHeld: (held) {
-          hold = held;
-          _update(startedRunPause: held.weStartedPause);
-        },
-        onProgress: _onHoldProgress,
-      );
+      if (holdRun) {
+        await guard.hold(
+          cancelled: cancelSignal.future,
+          onHeld: (held) {
+            hold = held;
+            _update(startedRunPause: held.weStartedPause);
+          },
+          onProgress: _onHoldProgress,
+        );
+      }
       _update(
         phase: ManualActionPhase.running,
         message: null,

@@ -1528,6 +1528,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrChartCooling': 'Cooling',
     'nightCtrCoolingNone': 'No cooler readings yet',
     'nightScrCoolingTo': '{temp} to {target}',
+    'nightScrPausedForSolve': 'Paused for a plate solve',
+    'nightActBusySolve': 'A plate solve is running',
+    'nightActErrSolve': 'Plate solve failed: {detail}',
   },
   'es': {
     'appTitle': 'Skotiq',
@@ -3072,5 +3075,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrChartCooling': 'Refrigeración',
     'nightCtrCoolingNone': 'Aún no hay lecturas del refrigerador',
     'nightScrCoolingTo': '{temp} a {target}',
+    'nightScrPausedForSolve': 'En pausa para una resolución de placa',
+    'nightActBusySolve': 'Hay una resolución de placa en curso',
+    'nightActErrSolve': 'La resolución de placa falló: {detail}',
   },
 };
