@@ -10,9 +10,6 @@ library;
 //
 // Surfaces captured (all under the dark production theme):
 //   * surface-sequencer-node-palette.png  — sequencer node palette sidebar
-//   * surface-run-storage-card.png        — run-dashboard storage projection panel
-//   * surface-cockpit-equipment-strip.png — cockpit equipment-telemetry strip
-//   * surface-run-session-progress.png    — run-dashboard active-session panel
 //   * surface-imaging-overlay-hud.png     — imaging live-view overlay chip row + HUD
 //   * surface-settings-appearance.png     — Appearance settings section page
 
@@ -23,96 +20,12 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'package:skotiq_app/screens/dashboard/widgets/equipment_status_card.dart';
-import 'package:skotiq_app/screens/dashboard/widgets/session_progress_card.dart';
-import 'package:skotiq_app/screens/dashboard/widgets/storage_card.dart';
 import 'package:skotiq_app/screens/imaging/widgets/overlay_widgets.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/node_palette.dart';
 import 'package:skotiq_app/screens/settings/widgets/appearance_settings.dart';
 
 import '../harness/pump_app_screen.dart';
 import 'surface_golden_harness.dart';
-
-int _gb(int n) => n * 1024 * 1024 * 1024;
-
-/// A settings notifier that resolves to defaults synchronously, with no
-/// database stream — so surfaces that read [appSettingsProvider] don't spin up
-/// a drift query (whose teardown schedules a pending timer that fails the test).
-class _StaticAppSettings extends AppSettingsNotifier {
-  @override
-  Future<AppSettingsState> build() async => const AppSettingsState();
-}
-
-/// Override set that severs every database/backend stream the cockpit surface
-/// would otherwise open transitively (settings + active profile), keeping the
-/// render deterministic and the test teardown timer-free.
-final List<Override> _dbFreeGraph = [
-  appSettingsProvider.overrideWith(_StaticAppSettings.new),
-  activeEquipmentProfileProvider.overrideWithValue(null),
-  smartNightExposureContextProvider.overrideWith((ref) async => null),
-];
-
-/// Seeds the camera/mount/guider/focuser/filter-wheel state notifiers to a
-/// `connected` snapshot so the cockpit equipment strip renders its live state.
-class _ConnectedCamera extends CameraStateNotifier {
-  _ConnectedCamera(super.ref) {
-    // ignore: invalid_use_of_protected_member
-    state = const CameraStateSnapshot(
-      connectionState: DeviceConnectionState.connected,
-    );
-  }
-}
-
-class _ConnectedMount extends MountStateNotifier {
-  _ConnectedMount(super.ref) {
-    // ignore: invalid_use_of_protected_member
-    state = const MountState(connectionState: DeviceConnectionState.connected);
-  }
-}
-
-class _ConnectedGuider extends GuiderStateNotifier {
-  _ConnectedGuider(super.ref) {
-    // ignore: invalid_use_of_protected_member
-    state = const GuiderState(connectionState: DeviceConnectionState.connected);
-  }
-}
-
-class _ConnectedFocuser extends FocuserStateNotifier {
-  _ConnectedFocuser(super.ref) {
-    // ignore: invalid_use_of_protected_member
-    state =
-        const FocuserState(connectionState: DeviceConnectionState.connected);
-  }
-}
-
-class _ConnectedFilterWheel extends FilterWheelStateNotifier {
-  _ConnectedFilterWheel(super.ref) {
-    // ignore: invalid_use_of_protected_member
-    state = const FilterWheelState(
-      connectionState: DeviceConnectionState.connected,
-    );
-  }
-}
-
-/// Seeds an active imaging session so the session-progress panel renders its
-/// running state (target, progress bar, integration totals).
-class _ActiveSession extends SessionStateNotifier {
-  _ActiveSession(super.ref) {
-    // ignore: invalid_use_of_protected_member
-    state = SessionState(
-      isActive: true,
-      startTime: DateTime(2026, 6, 4, 22, 14),
-      targetName: 'NGC 7000',
-      totalExposures: 60,
-      completedExposures: 38,
-      totalIntegrationSecs: 4560,
-      currentFilter: 'Ha',
-      isGuiding: true,
-      isCapturing: true,
-      avgHfr: 2.13,
-    );
-  }
-}
 
 /// Pumps [child] under the dark production theme inside a [RepaintBoundary] of
 /// exactly [size], with [overrides] applied to a [ProviderScope]. Captures the
@@ -234,94 +147,6 @@ void main() {
     expect(file.existsSync(), isTrue);
     expect(file.lengthSync(), greaterThan(1024));
     expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('surface — run-dashboard storage panel', (tester) async {
-    await pumpAndCapture(
-      tester,
-      fileName: 'surface-run-storage-card.png',
-      size: const Size(380, 240),
-      overrides: [
-        captureDirDiskSpaceProvider.overrideWith((ref) async* {
-          yield DiskSpaceInfo(
-            path: 'D:\\Astro\\Captures',
-            totalBytes: _gb(2000),
-            freeBytes: _gb(640),
-            sampledAt: DateTime(2026, 6, 4, 22, 0),
-          );
-        }),
-        sequenceDiskProjectionProvider.overrideWith((ref) async {
-          return SequenceDiskProjectionSnapshot(
-            projection: DiskSpaceProjection(
-              freeBytes: _gb(640),
-              totalBytes: _gb(2000),
-              projectedBytes: _gb(48),
-              severity: DiskSpaceSeverity.info,
-              headline: '640 GB free; tonight\'s run will use ~48 GB',
-              detail: '592 GB will remain after the sequence completes.',
-            ),
-            capturePathConfigured: true,
-          );
-        }),
-      ],
-      child: _panel(
-        child: const SizedBox(
-          width: 340,
-          child: StorageCard(colors: SkotiqColors.dark),
-        ),
-      ),
-    );
-  });
-
-  testWidgets('surface — cockpit equipment-telemetry strip', (tester) async {
-    await pumpAndCapture(
-      tester,
-      fileName: 'surface-cockpit-equipment-strip.png',
-      size: const Size(380, 200),
-      overrides: [
-        // Sever DB/backend streams (the filter-wheel notifier listens to the
-        // active-profile provider, which is DB-backed) so teardown is
-        // timer-free.
-        ..._dbFreeGraph,
-        cameraStateProvider.overrideWith((ref) => _ConnectedCamera(ref)),
-        mountStateProvider.overrideWith((ref) => _ConnectedMount(ref)),
-        guiderStateProvider.overrideWith((ref) => _ConnectedGuider(ref)),
-        focuserStateProvider.overrideWith((ref) => _ConnectedFocuser(ref)),
-        filterWheelStateProvider
-            .overrideWith((ref) => _ConnectedFilterWheel(ref)),
-      ],
-      child: _panel(
-        child: const SizedBox(
-          width: 340,
-          child: EquipmentStatusCard(colors: SkotiqColors.dark),
-        ),
-      ),
-    );
-  });
-
-  testWidgets('surface — run-dashboard session progress', (tester) async {
-    await pumpAndCapture(
-      tester,
-      fileName: 'surface-run-session-progress.png',
-      size: const Size(380, 240),
-      overrides: [
-        sessionStateProvider.overrideWith((ref) => _ActiveSession(ref)),
-        exposureSettingsProvider.overrideWith(
-          (ref) => const ExposureSettings(
-            exposureTime: 300,
-            gain: 100,
-            offset: 30,
-            filter: 'Ha',
-          ),
-        ),
-      ],
-      child: _panel(
-        child: const SizedBox(
-          width: 340,
-          child: SessionProgressCard(colors: SkotiqColors.dark),
-        ),
-      ),
-    );
   });
 
   testWidgets('surface — imaging live-view overlay HUD', (tester) async {

@@ -17,6 +17,7 @@ import '../../widgets/onboarding_tour_replay_launcher.dart';
 import '../../widgets/tutorial_overlay.dart';
 import '../../widgets/mobile_sequence_overlay.dart';
 import '../../widgets/running_sequence_mini_bar.dart';
+import '../night_control/night_control_screen.dart' show isTonightLocation;
 import '../sequencer/sequencer_screen.dart' show kSequencerRoutePath;
 import '../../widgets/notification_toast_overlay.dart';
 import '../../widgets/autofocus_progress_overlay.dart';
@@ -582,8 +583,13 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                           kSequencerRoutePath)
                                                     const MobileSequenceOverlay(),
                                                   // Autofocus progress
-                                                  // overlay
-                                                  const AutofocusProgressOverlay(),
+                                                  // overlay. Tonight shows
+                                                  // the run in its Focus
+                                                  // tab and on the frame.
+                                                  if (!isTonightLocation(
+                                                    currentLocation,
+                                                  ))
+                                                    const AutofocusProgressOverlay(),
                                                   // Toast notifications -
                                                   // always on top
                                                   const NotificationToastOverlay(),

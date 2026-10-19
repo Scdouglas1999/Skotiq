@@ -5,7 +5,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
 
-import '../../../dashboard/widgets/tonight/tonight_night.dart';
+import '../tonight_night.dart';
 import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import '../../night_control_contracts.dart';
 import 'night_plan_inputs.dart';

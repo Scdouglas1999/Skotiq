@@ -8,6 +8,8 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../localization/skotiq_localizations.dart';
+import '../screens/night_control/night_control_screen.dart'
+    show isTonightLocation;
 import '../screens/sequencer/sequencer_screen.dart' show kSequencerRoutePath;
 import '../screens/sequencer/widgets/run_dashboard/sequence_status_visuals.dart';
 import '../services/sequence_action_service.dart';
@@ -44,8 +46,10 @@ class RunningSequenceMiniBar extends ConsumerWidget {
     // terminal completed/failed states hide the bar.
     if (!executionState.isBusy) return const SizedBox.shrink();
 
-    // On the sequencer route the full controls are already on screen.
-    if (currentLocation.split('?').first == kSequencerRoutePath) {
+    // On the sequencer route the full controls are already on screen, and
+    // Tonight's header carries the same run controls.
+    if (currentLocation.split('?').first == kSequencerRoutePath ||
+        isTonightLocation(currentLocation)) {
       return const SizedBox.shrink();
     }
 

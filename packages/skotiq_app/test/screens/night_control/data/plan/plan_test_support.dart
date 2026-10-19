@@ -3,7 +3,7 @@
 // override, so each test states exactly the rig, run and clock it means.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_app/screens/dashboard/widgets/tonight/tonight_night.dart';
+import 'package:skotiq_app/screens/night_control/data/tonight_night.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
@@ -21,12 +21,11 @@ const LocationSettings boston = LocationSettings(
 );
 
 /// The night of 2026-10-19 into the 20th, on the host's clock.
-TonightNight bostonNight({required DateTime now}) => TonightNight(
+TonightNight bostonNight() => TonightNight(
       sunset: DateTime(2026, 10, 19, 18, 18),
       astroDark: DateTime(2026, 10, 19, 19, 48),
       astroDawn: DateTime(2026, 10, 20, 5, 44),
       sunrise: DateTime(2026, 10, 20, 7, 10),
-      now: now,
       moonSet: DateTime(2026, 10, 19, 23, 9),
       moonIlluminationPercent: 44,
     );
@@ -183,7 +182,7 @@ ProviderContainer planContainer({
       clockProvider.overrideWithValue(clock),
       nightNowProvider.overrideWithValue(now.toUtc()),
       tonightNightProvider.overrideWithValue(
-        site ? (night ?? bostonNight(now: now)) : null,
+        site ? (night ?? bostonNight()) : null,
       ),
       appObserverLocationProvider.overrideWithValue(site ? boston : null),
       effectiveHorizonDegProvider.overrideWithValue(30),

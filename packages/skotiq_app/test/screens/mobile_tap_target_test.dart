@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
-import 'package:skotiq_app/screens/dashboard/dashboard_screen.dart';
+import 'package:skotiq_app/screens/night_control/night_control_screen.dart';
 import 'package:skotiq_app/screens/equipment/equipment_screen.dart';
 import 'package:skotiq_app/screens/guiding/guiding_screen.dart';
 import 'package:skotiq_app/screens/imaging/imaging_screen.dart';
@@ -118,7 +118,7 @@ const _phoneSizes = <(String, Size)>[
 
 void main() {
   final screens = <String, Widget Function()>{
-    'dashboard': () => const DashboardScreen(),
+    'tonight': () => const NightControlScreen(),
     'equipment': () => const EquipmentScreen(),
     'imaging': () => const ImagingScreen(),
     'sequencer': () => const SequencerScreen(),

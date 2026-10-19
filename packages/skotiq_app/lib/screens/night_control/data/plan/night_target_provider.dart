@@ -7,7 +7,7 @@ import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
 import 'package:skotiq_planetarium/skotiq_planetarium.dart'
     show AstronomyCalculations, airmassForTrueAltitude;
 
-import '../../../dashboard/widgets/tonight/tonight_night.dart';
+import '../tonight_night.dart';
 import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import '../../night_control_contracts.dart';
 import 'night_plan_inputs.dart';

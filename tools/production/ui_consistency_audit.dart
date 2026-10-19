@@ -403,9 +403,6 @@ String _classifyRawMaterialColor({required String path, required String line}) {
     '/imaging/tabs/camera_tab.dart',
     '/imaging/tabs/capture_tab.dart',
     '/planetarium/',
-    '/dashboard/widgets/live_preview_card.dart',
-    '/dashboard/widgets/dashboard_tile.dart',
-    '/dashboard/widgets/glass_card.dart',
     '/analytics/widgets/session_chart.dart',
     '/settings/widgets/captured_images_settings.dart',
   ];
