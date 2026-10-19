@@ -127,11 +127,17 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
         final binning = camera.binning;
         return <NightText>[
           if (temp != null)
-            NightText.literal(
-              cooling
-                  ? '${nightCelsius(temp)} → ${nightFixed(camera.targetTemp, 0)}'
-                  : nightCelsius(temp),
-            ),
+            // A word, not an arrow: the mono face this row is set in has no
+            // arrow glyph.
+            cooling
+                ? NightText(
+                    'nightScrCoolingTo',
+                    params: <String, String>{
+                      'temp': nightCelsius(temp),
+                      'target': nightFixed(camera.targetTemp, 0),
+                    },
+                  )
+                : NightText.literal(nightCelsius(temp)),
           if (camera.coolerPower != null)
             NightText.literal('${camera.coolerPower!.round()}%'),
           if (gain != null || offset != null)

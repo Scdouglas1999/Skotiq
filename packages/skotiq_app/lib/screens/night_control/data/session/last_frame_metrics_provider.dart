@@ -80,10 +80,10 @@ double nightSeparationArcsec(
   return 2 * math.asin(math.min(1, math.sqrt(h))) / toRad * 3600;
 }
 
-/// `0.8″`, `12.4′`, `1.2°`.
+/// `0.8"`, `12.4'`, `1.2°`. ASCII marks: the bundled faces have no ″ or ′.
 String nightAngle(double arcsec) {
-  if (arcsec < 60) return '${arcsec.toStringAsFixed(1)}″';
-  if (arcsec < 3600) return '${(arcsec / 60).toStringAsFixed(1)}′';
+  if (arcsec < 60) return '${arcsec.toStringAsFixed(1)}"';
+  if (arcsec < 3600) return "${(arcsec / 60).toStringAsFixed(1)}'";
   return '${(arcsec / 3600).toStringAsFixed(1)}°';
 }
 

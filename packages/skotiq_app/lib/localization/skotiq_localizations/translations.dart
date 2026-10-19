@@ -936,7 +936,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionLogAutofocusDone': 'Autofocus finished',
     'nightSessionLogFrame': '#{n}{filter} accepted{hfr}',
     'nightSessionLogFrameRejected': '#{n}{filter} rejected{hfr}{reason}',
-    'nightSessionMetricBgSigma': 'Bg σ',
+    'nightSessionMetricBgSigma': 'Bg noise',
     'nightSessionMetricEcc': 'Ecc',
     'nightSessionMetricFwhm': 'FWHM',
     'nightSessionMetricHfr': 'HFR',
@@ -1454,7 +1454,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrAfStarting': 'Autofocus starting',
     'nightCtrHfrValue': 'HFR {hfr}',
     'nightCtrSolved': 'Solved {ra} {dec}',
-    'nightCtrSolveOff': '{offset}′ off',
+    'nightCtrSolveOff': "{offset}' off",
     'nightCtrBackToLatest': 'Back to latest',
     'nightCtrViewStretch': 'Stretch',
     'nightCtrViewStretchTip':
@@ -1527,6 +1527,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrGuideOpenFailed': 'PHD2 did not open: {detail}',
     'nightCtrChartCooling': 'Cooling',
     'nightCtrCoolingNone': 'No cooler readings yet',
+    'nightScrCoolingTo': '{temp} to {target}',
   },
   'es': {
     'appTitle': 'Skotiq',
@@ -2459,7 +2460,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionLogAutofocusDone': 'Autoenfoque terminado',
     'nightSessionLogFrame': '#{n}{filter} aceptada{hfr}',
     'nightSessionLogFrameRejected': '#{n}{filter} rechazada{hfr}{reason}',
-    'nightSessionMetricBgSigma': 'Fondo σ',
+    'nightSessionMetricBgSigma': 'Ruido fondo',
     'nightSessionMetricEcc': 'Exc',
     'nightSessionMetricFwhm': 'FWHM',
     'nightSessionMetricHfr': 'HFR',
@@ -2995,7 +2996,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrAfStarting': 'Autoenfoque iniciando',
     'nightCtrHfrValue': 'HFR {hfr}',
     'nightCtrSolved': 'Resuelto {ra} {dec}',
-    'nightCtrSolveOff': 'desviado {offset}′',
+    'nightCtrSolveOff': "desviado {offset}'",
     'nightCtrBackToLatest': 'Volver a la última',
     'nightCtrViewStretch': 'Estirar',
     'nightCtrViewStretchTip':
@@ -3070,5 +3071,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrGuideOpenFailed': 'PHD2 no se abrió: {detail}',
     'nightCtrChartCooling': 'Refrigeración',
     'nightCtrCoolingNone': 'Aún no hay lecturas del refrigerador',
+    'nightScrCoolingTo': '{temp} a {target}',
   },
 };

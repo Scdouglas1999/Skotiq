@@ -171,7 +171,7 @@ void main() {
         runDashboardActiveTargetProvider.overrideWithValue(target),
       ],
     );
-    // 0.8″ north of the target.
+    // 0.8" north of the target.
     await h.addFrame(
       minutes: 0,
       hfr: 2.2,
@@ -179,7 +179,7 @@ void main() {
       solvedDec: 15.7836 + 0.8 / 3600,
     );
     final vm = (await h.settle(nightLastFrameProvider))!;
-    expect(_metric(vm, 'nightSessionMetricOffTarget').value, '0.8″');
+    expect(_metric(vm, 'nightSessionMetricOffTarget').value, '0.8"');
     // No frame on screen: the newest row stands in, with what it stores.
     expect(_metric(vm, 'nightSessionMetricFwhm').value, isNull);
   });
