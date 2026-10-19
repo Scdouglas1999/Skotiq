@@ -215,6 +215,11 @@ List<HeadlessRoute> buildSequencerRoutes(
     '/api/sequencer/meridian-flip',
     h.handlePerformMeridianFlip,
   ),
+  HeadlessRoute(
+    HttpMethod.post,
+    '/api/sequencer/request-meridian-flip',
+    h.handleSequencerRequestMeridianFlip,
+  ),
 
   // Recovery Mode — remote-control endpoints used by the
   // mobile companion / web dashboard. Wire shape matches

@@ -491,6 +491,7 @@ class DeviceService {
   Future<void> slewMountToAltAz(double altitude, double azimuth) =>
       _trackInFlight(() => _slewMountToAltAz(altitude, azimuth));
   Future<MountHomeOutcome> findMountHome() => _trackInFlight(_findMountHome);
+  Future<void> setMountParkHere() => _trackInFlight(_setMountParkHere);
   Future<void> pulseGuidMount({
     required String direction,
     required int durationMs,
@@ -580,6 +581,11 @@ class DeviceService {
   Future<void> stopSequence() => _stopSequence();
   Future<void> pauseSequence() => _pauseSequence();
   Future<void> resumeSequence() => _resumeSequence();
+
+  /// Ask the running sequence to flip at its next safe point. See
+  /// [SequencerBackend.sequencerRequestMeridianFlip]; throws with the reason
+  /// when the flip cannot run now.
+  Future<void> requestSequenceMeridianFlip() => _requestSequenceMeridianFlip();
   Future<void> loadSequence(String json) => _loadSequence(json);
   Future<SequencerStatus> getSequencerStatus() => _getSequencerStatus();
 }

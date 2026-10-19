@@ -370,4 +370,56 @@ extension MountDeviceHandlers on DeviceHandlers {
       'status': 'homing',
     });
   }
+
+  /// POST `/api/mount/set-park`.
+  ///
+  /// Stores the mount's current position as its park position. Nothing moves
+  /// and the mount is not parked.
+  ///
+  /// * 400 `capability_unsupported` — the driver cannot set park.
+  /// * 409 `mount_slewing` — the mount is moving; the position it passes
+  ///   through is not one the client chose.
+  Future<Response> handleMountSetPark(Request request) async {
+    _logInfo('[API] POST /api/mount/set-park');
+    final payload = await readJsonObject(request);
+    final deviceId = requireString(payload, 'deviceId');
+
+    final backend = container.read(deviceBackendProvider);
+    final capabilities = await backend.getMountCapabilities(deviceId);
+    if (capabilities == null) {
+      throw HandlerFailure(
+        code: 'capabilities_unavailable',
+        statusCode: 409,
+        message:
+            'Mount $deviceId did not report its capabilities; check that it '
+            'is connected before setting its park position',
+        details: {'deviceId': deviceId},
+      );
+    }
+    if (!capabilities.canSetPark) {
+      throw HandlerFailure(
+        code: 'capability_unsupported',
+        statusCode: 400,
+        message:
+            'Mount $deviceId cannot set its park position: its driver does '
+            'not support it (canSetPark is false)',
+        details: {'deviceId': deviceId, 'capability': 'canSetPark'},
+      );
+    }
+    final status = await backend.getMountStatus(deviceId);
+    if (status.slewing) {
+      throw HandlerFailure(
+        code: 'mount_slewing',
+        statusCode: 409,
+        message:
+            'Mount $deviceId is moving. Wait for it to stop before setting '
+            'park.',
+        details: {'deviceId': deviceId},
+      );
+    }
+
+    await backend.mountSetPark(deviceId);
+
+    return jsonOk({'status': 'park_set'});
+  }
 }

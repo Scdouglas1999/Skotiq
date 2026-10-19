@@ -31,6 +31,7 @@ const _expectedHighRiskActions = {
   '/api/mount/unpark': 'mount_unpark',
   '/api/mount/home': 'mount_home',
   '/api/mount/find-home': 'mount_home',
+  '/api/mount/set-park': 'mount_set_park',
   '/api/framing/slew-to-target': 'framing_slew_to_target',
   '/api/framing/center-on-target': 'framing_center_on_target',
   '/api/framing/park': 'framing_park',
@@ -44,6 +45,7 @@ const _expectedHighRiskActions = {
   '/api/sequencer/start': 'sequence_start',
   '/api/sequencer/stop': 'sequence_stop',
   '/api/sequencer/resume': 'sequence_resume',
+  '/api/sequencer/request-meridian-flip': 'sequence_request_meridian_flip',
 };
 
 const _defaultLimitedRoutes = {

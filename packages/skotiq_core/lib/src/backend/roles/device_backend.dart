@@ -265,6 +265,11 @@ abstract class DeviceBackend {
   /// Find mount home position
   Future<void> mountFindHome(String deviceId);
 
+  /// Store the mount's current position as its park position. Nothing moves.
+  /// Refused natively when the driver cannot set park (`canSetPark` false) or
+  /// the mount is slewing.
+  Future<void> mountSetPark(String deviceId);
+
   /// Which site/time directions this mount's driver can actually honour.
   Future<MountSiteCapabilities> mountSiteCapabilities(String deviceId);
 

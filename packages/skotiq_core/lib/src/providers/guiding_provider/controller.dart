@@ -264,6 +264,7 @@ class Phd2Controller {
           case 'Connected':
             _linkLossHandled = false;
             ref.read(guiderStateProvider.notifier).setConnected();
+            unawaited(_refreshPixelScale());
             break;
           case 'Disconnected':
             _handlePhd2LinkLost();
@@ -288,6 +289,7 @@ class Phd2Controller {
           case 'GuidingStarted':
             ref.read(phd2StateProvider.notifier).state = Phd2State.guiding;
             guiderNotifier.setGuiding(true);
+            unawaited(_refreshPixelScale());
             break;
           case 'GuidingStopped':
             _resetStarLoss();
@@ -327,6 +329,7 @@ class Phd2Controller {
             if (calibrationNotifier.mounted) {
               unawaited(calibrationNotifier.refreshCalibrationData());
             }
+            unawaited(_refreshPixelScale());
             break;
           // Note: StarSelected is handled by LockPositionNotifier's own event listener
         }
@@ -477,6 +480,27 @@ class Phd2Controller {
     });
     _connectOperation = operation;
     return operation;
+  }
+
+  /// Read the guide camera's pixel scale (arcsec/px) into [guiderStateProvider].
+  ///
+  /// PHD2 computes it from its profile's focal length and pixel size, so it
+  /// is read when the link comes up and again when calibration or guiding
+  /// starts, the points at which a profile change would have taken effect.
+  /// A guider with no scale, or a failed read, leaves it null: the guide
+  /// chart then stays in pixels rather than converting with a guess.
+  Future<void> _refreshPixelScale() async {
+    try {
+      final status = await backend.phd2GetStatus();
+      if (_disposed || !status.connected) return;
+      ref.read(guiderStateProvider.notifier).setPixelScale(status.pixelScale);
+    } catch (e) {
+      if (_disposed) return;
+      _logger.debug(
+        'Could not read the guider pixel scale: $e',
+        source: 'Phd2Controller',
+      );
+    }
   }
 
   Future<void> _connect(String host, int port) async {

@@ -514,6 +514,11 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
   }
 
   @override
+  Future<void> sequencerRequestMeridianFlip() async {
+    await bridge.NativeBridge.sequencerRequestMeridianFlip();
+  }
+
+  @override
   Future<void> performMeridianFlip({
     required String mountId,
     String? cameraId,

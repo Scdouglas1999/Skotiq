@@ -394,6 +394,50 @@ class MountCommandService {
     });
   }
 
+  /// Stores the mount's current position as its park position.
+  ///
+  /// Nothing moves and the mount is not parked. Refused when the driver
+  /// cannot set park or the mount is moving.
+  Future<CommandActionResult> setParkHere() async {
+    return _runExclusive((deviceId) async {
+      try {
+        final capabilities = await _getCapabilities(deviceId);
+        final changed = _connectionChanged(deviceId);
+        if (changed != null) return changed;
+        final unavailable = setParkUnavailableReason(
+          mountState: _mountState,
+          isConnected: true,
+          canSetPark: capabilities.canSetPark,
+        );
+        if (unavailable != null) {
+          return CommandActionResult.failure(unavailable);
+        }
+        await _deviceService.setMountParkHere();
+        return const CommandActionResult.success(
+          message: 'Park position set to where the mount is pointing',
+        );
+      } catch (e) {
+        return CommandActionResult.failure('Set park failed: $e');
+      }
+    });
+  }
+
+  /// Why Set park cannot be pressed right now, or null when it can.
+  static String? setParkUnavailableReason({
+    required MountState mountState,
+    required bool isConnected,
+    required bool canSetPark,
+  }) {
+    if (!isConnected) return 'Connect a mount to set its park position.';
+    if (!canSetPark) {
+      return 'This mount cannot store a park position from the app.';
+    }
+    if (mountState.isSlewing || mountState.isHoming) {
+      return 'Wait for the mount to stop moving.';
+    }
+    return null;
+  }
+
   /// Why Home cannot be pressed right now, or null when it can.
   ///
   /// Every Home control (Imaging › Mount, the Equipment mount card) gates on

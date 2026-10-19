@@ -224,6 +224,11 @@ class DisconnectedBackend
   }
 
   @override
+  Future<void> mountSetPark(String deviceId) async {
+    _throwNotConnected();
+  }
+
+  @override
   Future<MountSiteCapabilities> mountSiteCapabilities(String deviceId) async {
     _throwNotConnected();
   }
@@ -864,6 +869,11 @@ class DisconnectedBackend
 
   @override
   Future<void> resumeFromCheckpoint() async {
+    _throwNotConnected();
+  }
+
+  @override
+  Future<void> sequencerRequestMeridianFlip() async {
     _throwNotConnected();
   }
 

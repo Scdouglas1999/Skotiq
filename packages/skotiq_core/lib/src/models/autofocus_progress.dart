@@ -81,12 +81,21 @@ class VCurvePoint {
   final int position;
   final double hfr;
 
-  const VCurvePoint({required this.position, required this.hfr});
+  /// Stars measured in this point's frame. Null when the event came from a
+  /// build that did not report it per point.
+  final int? starCount;
+
+  const VCurvePoint({
+    required this.position,
+    required this.hfr,
+    this.starCount,
+  });
 
   factory VCurvePoint.fromJson(Map<String, dynamic> json) {
     return VCurvePoint(
       position: json['position'] as int,
       hfr: (json['hfr'] as num).toDouble(),
+      starCount: (json['star_count'] as num?)?.toInt(),
     );
   }
 }

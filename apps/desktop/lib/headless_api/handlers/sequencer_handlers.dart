@@ -141,6 +141,8 @@ class SequencerHandlers {
       _handleSequencerResumeFromCheckpoint(request);
   Future<Response> handlePerformMeridianFlip(Request request) =>
       _handlePerformMeridianFlip(request);
+  Future<Response> handleSequencerRequestMeridianFlip(Request request) =>
+      _handleSequencerRequestMeridianFlip(request);
   Future<Response> handleSequencerDiscardCheckpoint(Request request) =>
       _handleSequencerDiscardCheckpoint(request);
   Future<Response> handleSequencerSaveCheckpoint(Request request) =>

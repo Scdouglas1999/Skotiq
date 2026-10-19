@@ -165,6 +165,12 @@ class GuiderState extends Equatable {
   final double? rmsRa;
   final double? rmsDec;
   final double? rmsTotal;
+
+  /// Guide camera pixel scale in arcseconds per pixel, as the guider reports
+  /// it. Null when unknown (PHD2 has no focal length or pixel size in its
+  /// profile, or the scale has not been read yet); guide errors are then only
+  /// known in pixels.
+  final double? pixelScaleArcsecPerPixel;
   final DeviceError? lastError;
 
   /// Whether auto-reconnection is enabled for this device.
@@ -179,6 +185,7 @@ class GuiderState extends Equatable {
     this.rmsRa,
     this.rmsDec,
     this.rmsTotal,
+    this.pixelScaleArcsecPerPixel,
     this.lastError,
     this.autoReconnectEnabled = true,
   });
@@ -195,6 +202,8 @@ class GuiderState extends Equatable {
     double? rmsRa,
     double? rmsDec,
     double? rmsTotal,
+    double? pixelScaleArcsecPerPixel,
+    bool clearPixelScale = false,
     DeviceError? lastError,
     bool? autoReconnectEnabled,
     bool clearError = false,
@@ -208,6 +217,9 @@ class GuiderState extends Equatable {
       rmsRa: rmsRa ?? this.rmsRa,
       rmsDec: rmsDec ?? this.rmsDec,
       rmsTotal: rmsTotal ?? this.rmsTotal,
+      pixelScaleArcsecPerPixel: clearPixelScale
+          ? null
+          : (pixelScaleArcsecPerPixel ?? this.pixelScaleArcsecPerPixel),
       lastError: clearError ? null : (lastError ?? this.lastError),
       autoReconnectEnabled: autoReconnectEnabled ?? this.autoReconnectEnabled,
     );
@@ -223,6 +235,7 @@ class GuiderState extends Equatable {
     rmsRa,
     rmsDec,
     rmsTotal,
+    pixelScaleArcsecPerPixel,
     lastError,
     autoReconnectEnabled,
   ];

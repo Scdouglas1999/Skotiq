@@ -200,6 +200,30 @@ extension _SequencerCheckpoints on SequencerHandlers {
     return jsonOk({'status': 'flipped'});
   }
 
+  /// POST `/api/sequencer/request-meridian-flip`.
+  ///
+  /// Asks the running sequence to flip at its next safe point through its own
+  /// meridian trigger. Answers once the request is queued
+  /// (`status: flip_requested`); the flip's outcome arrives on the event
+  /// stream. A request the run refuses (target not past the meridian, mount
+  /// parked, run paused, ...) answers 409 `flip_refused` with the reason.
+  Future<Response> _handleSequencerRequestMeridianFlip(Request request) async {
+    _logInfo('[API] POST /api/sequencer/request-meridian-flip');
+    final backend = container.read(sequencerBackendProvider);
+    try {
+      await backend.sequencerRequestMeridianFlip();
+    } on HandlerFailure {
+      rethrow;
+    } catch (error) {
+      throw HandlerFailure(
+        code: 'flip_refused',
+        statusCode: 409,
+        message: describeBackendError(error),
+      );
+    }
+    return jsonOk({'status': 'flip_requested'});
+  }
+
   Future<Response> _handleSequencerDiscardCheckpoint(Request request) async {
     _logInfo('[API] POST /api/sequencer/checkpoint/discard');
     final backend = container.read(sequencerBackendProvider);
