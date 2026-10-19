@@ -276,17 +276,17 @@ class _NightCaptureSectionState extends ConsumerState<NightCaptureSection> {
         ),
         if (vm.runLive) ...<Widget>[
           NightPanelNote(
-            vm.step != null
-                ? l10n.text(
-                    'nightPanelCaptureRunNote',
-                    params: <String, String>{'step': vm.stepLabel ?? ''},
-                  )
-                : vm.stepLabel != null
-                    ? l10n.text(
-                        'nightPanelCaptureNotExposure',
-                        params: <String, String>{'step': vm.stepLabel!},
-                      )
-                    : l10n.text('nightPanelCaptureNoStep'),
+            switch ((vm.step, vm.stepLabel)) {
+              (_?, final label?) => l10n.text(
+                  'nightPanelCaptureRunNote',
+                  params: <String, String>{'step': label},
+                ),
+              (null, final label?) => l10n.text(
+                  'nightPanelCaptureNotExposure',
+                  params: <String, String>{'step': label},
+                ),
+              (_, null) => l10n.text('nightPanelCaptureNoStep'),
+            },
           ),
           NightPanelButton(
             label: l10n.text('nightPanelEditInSequencer'),

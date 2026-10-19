@@ -213,7 +213,7 @@ final nightCameraPanelProvider = Provider<NightCameraPanelVm>((ref) {
       projection?.freeBytes ?? ref.watch(nightCaptureFreeBytesProvider);
   final perNight = projection?.projectedBytes;
   final outputPath =
-      ref.watch(appSettingsProvider).valueOrNull?.imageOutputPath ?? '';
+      ref.watch(appSettingsProvider).valueOrNull?.imageOutputPath;
 
   return NightCameraPanelVm(
     canCommand: ref.watch(backendCanCommandProvider),
@@ -246,7 +246,7 @@ final nightCameraPanelProvider = Provider<NightCameraPanelVm>((ref) {
     sensorSpecs: _sensorSpecs(
       ref.watch(activeCameraSensorSpecsProvider).valueOrNull,
     ),
-    savesTo: outputPath.isEmpty ? null : outputPath,
+    savesTo: outputPath == null || outputPath.isEmpty ? null : outputPath,
     diskFreeBytes: free,
     nightsOfSpace: free != null && perNight != null && perNight > 0
         ? free ~/ perNight

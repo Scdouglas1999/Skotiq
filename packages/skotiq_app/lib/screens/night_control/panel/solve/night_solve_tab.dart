@@ -248,7 +248,8 @@ class _LastSolveSection extends ConsumerWidget {
           label: l10n.text('nightScopeSolveSyncCentering'),
           tooltip: l10n.text('nightScopeSolveSyncCenteringHint'),
           compact: true,
-          value: settings?.centeringSyncMount ?? false,
+          // Off and disabled until the settings load.
+          value: settings?.centeringSyncMount == true,
           enabled: settings != null,
           onChanged: settings == null
               ? null
