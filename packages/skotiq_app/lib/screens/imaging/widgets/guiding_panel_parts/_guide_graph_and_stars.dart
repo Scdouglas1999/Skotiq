@@ -93,6 +93,11 @@ class CompactGuidingGraph extends StatelessWidget {
                 Text('Dec',
                     style: SkotiqTypography.caption
                         .copyWith(color: colors.textMuted)),
+                const SizedBox(width: 12),
+                // The vertical range, in the unit the data is in.
+                Text('±4 px',
+                    style: SkotiqTypography.caption
+                        .copyWith(color: colors.textMuted)),
               ],
             ),
           ),
@@ -138,7 +143,8 @@ class _CompactGuidingGraphPainter extends CustomPainter {
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
-    // Scale: +/- 4 arcsec range (same as the full guiding graph)
+    // Scale: +/- 4 px. The points are guide-camera pixels (PHD2's raw
+    // distances); with no pixel scale exposed they cannot be arcseconds.
     const range = 4.0;
     final scaleY = size.height / (range * 2);
     // Show last 100 points spread across the width
