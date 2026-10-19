@@ -418,7 +418,12 @@ class _CardButton extends StatelessWidget {
           onTap: enabled ? onPressed : null,
           borderRadius: SkotiqTokens.borderRadiusLg,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 28),
+            // The touch-target floor on phones; 28 px with a pointer.
+            constraints: BoxConstraints(
+              minHeight:
+                  SkotiqTouchTarget.minExtent(context, desktopExtent: 28),
+              minWidth: SkotiqTouchTarget.minExtent(context),
+            ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               child: Center(

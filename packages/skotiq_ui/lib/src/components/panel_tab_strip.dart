@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../theme/skotiq_colors.dart';
 import '../theme/skotiq_tokens.dart';
 import '../theme/skotiq_typography.dart';
+import '../utils/touch_target.dart';
 
 /// The dot after a [PanelTabItem]'s label.
 enum PanelTabBadge {
@@ -71,7 +72,8 @@ class PanelTabStrip extends StatelessWidget {
   /// Names the strip, e.g. "Panel".
   final String semanticLabel;
 
-  /// The strip's height.
+  /// The strip's height with a pointer; on touch platforms the strip grows
+  /// to the touch-target floor and the tabs stay centered in it.
   static const double height = 36;
 
   /// A tab's height, centered in the strip.
@@ -151,7 +153,10 @@ class PanelTabStrip extends StatelessWidget {
           builder: (context) {
             final focused = Focus.of(context).hasPrimaryFocus;
             return SizedBox(
-              height: height,
+              height: SkotiqTouchTarget.minExtent(
+                context,
+                desktopExtent: height,
+              ).clamp(height, double.infinity),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: horizontalPadding,

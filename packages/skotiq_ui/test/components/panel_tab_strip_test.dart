@@ -217,7 +217,13 @@ void main() {
 
     testWidgets('the six tabs fit 300 px in the real fonts', (tester) async {
       await GoldenHarness.ensureFonts();
-      await tester.pumpWidget(_host(const _Harness()));
+      await tester.pumpWidget(
+        _host(
+          const _Harness(),
+          // With a pointer: on touch the strip grows to the touch floor.
+          theme: SkotiqTheme.dark.copyWith(platform: TargetPlatform.linux),
+        ),
+      );
 
       expect(tester.takeException(), isNull);
       expect(
@@ -239,6 +245,26 @@ void main() {
       final last = tester.getTopRight(find.bySemanticsLabel('Solve'));
       expect(first.dx, PanelTabStrip.horizontalPadding);
       expect(last.dx, closeTo(300 - PanelTabStrip.horizontalPadding, 0.5));
+    });
+
+    testWidgets('on a touch platform each tab is a full touch target', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const _Harness(),
+          theme: SkotiqTheme.dark.copyWith(platform: TargetPlatform.android),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getSize(find.byType(PanelTabStrip)).height,
+        SkotiqTokens.minTouchTarget,
+      );
+      expect(
+        tester.getSize(find.bySemanticsLabel('Overview')).height,
+        greaterThanOrEqualTo(SkotiqTokens.minTouchTarget),
+      );
     });
 
     testWidgets('too narrow for the words, the labels ellipsize cleanly', (

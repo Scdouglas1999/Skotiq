@@ -534,7 +534,11 @@ class _ChecklistAction extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusXs),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 24),
+          // The touch-target floor on phones; 24 px with a pointer.
+          constraints: BoxConstraints(
+            minHeight: SkotiqTouchTarget.minExtent(context, desktopExtent: 24),
+            minWidth: SkotiqTouchTarget.minExtent(context),
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: SkotiqTokens.spaceXs,
