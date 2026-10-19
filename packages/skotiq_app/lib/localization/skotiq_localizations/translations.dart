@@ -932,6 +932,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     // The live dot's chip. One word, because the panel head beside it
     // already says which session this is.
     'analyticsLive': 'Live',
+    // Tonight night control: the plan column as a drawer at medium widths.
+    'nightPlanDrawer': 'Plan',
+    'nightPlanDrawerClose': 'Close plan',
   },
   'es': {
     'appTitle': 'Skotiq',
@@ -1860,5 +1863,7 @@ final Map<String, Map<String, String>> _localizedValues = {
             'secuencia.',
     'analyticsEquipmentTab': 'Equipo',
     'analyticsLive': 'En vivo',
+    'nightPlanDrawer': 'Plan',
+    'nightPlanDrawerClose': 'Cerrar plan',
   },
 };
