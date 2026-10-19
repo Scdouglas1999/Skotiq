@@ -13,6 +13,8 @@ import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
 // names collide with the wire event model the barrel keeps canonical.
 import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
 
+import '../../actions/armed_start_provider.dart';
+import '../../actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 
 /// Now, as a true instant (UTC), on Tonight's shared 30 s tick.
@@ -52,25 +54,24 @@ extension NightClockTimes on Clock {
 }
 
 // ---------------------------------------------------------------------------
-// P2 seams
+// Manual-action state
 // ---------------------------------------------------------------------------
 
 /// The manual-action controller's state, for "Paused for autofocus".
-///
-/// Seam for P2: `nightActionStateProvider` does not exist yet, so this reads
-/// idle and the run phase can only say [NightRunPhase.pausedByUser]. When P2
-/// lands, integration makes this `ref.watch(nightActionStateProvider)`.
-final nightPlanActionStateSeamProvider =
-    Provider<ManualActionState>((ref) => ManualActionState.idle);
+final nightPlanActionStateSeamProvider = Provider<ManualActionState>(
+  (ref) => ref.watch(nightActionStateProvider),
+);
 
 /// When an armed "Start at dark" fires, on the operator's clock; null when
 /// nothing is armed.
 ///
-/// Seam for P2: `NightActionApi.armedStartAt` lives behind
-/// `nightActionApiProvider`, which does not exist yet, so this reads null and
-/// the run phase never says [NightRunPhase.armed]. When P2 lands, integration
-/// makes this watch P2's armed-start state.
-final nightPlanArmedStartSeamProvider = Provider<DateTime?>((ref) => null);
+/// [nightArmedStartProvider] holds the instant (UTC); the plan view models
+/// carry operator-clock times.
+final nightPlanArmedStartSeamProvider = Provider<DateTime?>((ref) {
+  final armedAt = ref.watch(nightArmedStartProvider);
+  if (armedAt == null) return null;
+  return ref.watch(clockProvider).toNightClock(armedAt);
+});
 
 // ---------------------------------------------------------------------------
 // The plan, flattened
