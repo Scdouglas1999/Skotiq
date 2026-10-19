@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skotiq · Tonight, night control</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=Spline+Sans+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; background: #0A0910; color: #EDEFF3; font-family: 'Hanken Grotesk', sans-serif; font-size: 12px; border-radius: 10px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.09)">
+
+<aside style="width: 56px; flex: none; background: #121119; display: flex; flex-direction: column; align-items: center; gap: 14px; padding-top: 14px">
+<svg viewBox="0 0 100 100" width="24" height="24" aria-hidden="true"><g transform="translate(50 50) scale(1.08) translate(-50 -50.5)" style="fill: none; stroke-width: 4.6; stroke-linecap: round"><path d="M66.55,23.07 A21.00,21.00 0 1 0 50.00,57.00 A7.00,7.00 0 1 1 45.32,69.20" style="stroke: #6E56CF"></path><path d="M59.73,25.93 A14.00,14.00 0 1 0 50.00,50.00 A14.00,14.00 0 1 1 39.28,73.00" style="stroke: #B9ABFF"></path><path d="M53.50,29.94 A7.00,7.00 0 1 0 50.00,43.00 A21.00,21.00 0 1 1 40.14,82.54" style="stroke: #FFD9A8"></path></g></svg>
+<sc-for list="{{rail}}" as="r" hint-placeholder-count="8">
+<span style="width: 30px; height: 30px; border-radius: 9px; background: {{r.bg}}; display: block"></span>
+</sc-for>
+</aside>
+
+<main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+
+<header style="height: 48px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 12px 0 16px; border-bottom: 1px solid rgba(255,255,255,0.06)">
+<span style="font-size: 17px; font-weight: 700">Tonight</span>
+<span style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: rgba(67,182,122,0.14); color: #7FD6A6; font-weight: 600"><span style="width: 6px; height: 6px; border-radius: 3px; background: #43B67A"></span>Running 4 h 04 m</span>
+<span style="font-size: 13px; font-weight: 600">M74 Plan</span>
+<span style="color: #B3BAC5">target 1 of 2 · step 7 of 12 · Ha 180 s · 44/60</span>
+<span style="flex: 1"></span>
+<div style="width: 360px; display: flex; flex-direction: column; gap: 3px">
+<svg viewBox="0 0 360 14" width="360" height="14" role="img" aria-label="Night timeline from sunset 18:18 to sunrise 07:14, now 23:52; M74 imaged until 03:40, then NGC 891">
+<rect x="0" y="3" width="360" height="8" rx="4" style="fill: #15132A"></rect>
+<rect x="40" y="3" width="276" height="8" style="fill: #0C0B16"></rect>
+<rect x="44" y="4" width="182" height="6" rx="2" style="fill: rgba(164,140,242,0.55)"></rect>
+<rect x="228" y="4" width="84" height="6" rx="2" style="fill: rgba(255,217,168,0.45)"></rect>
+<rect x="44" y="4" width="106" height="6" rx="2" style="fill: #A48CF2"></rect>
+<rect x="150" y="0" width="2" height="14" rx="1" style="fill: #FFFFFF"></rect>
+</svg>
+<div style="display: flex; justify-content: space-between; font-size: 10px; color: #8E97A4"><span>dark 19:48</span><span style="color: #EDEFF3">now 23:52</span><span>M74 → 03:40</span><span>NGC 891 → 05:30</span><span>dawn 05:44</span></div>
+</div>
+<span style="width: 1px; height: 22px; background: rgba(255,255,255,0.08)"></span>
+<button type="button" style="all: unset; height: 30px; padding: 0 12px; border-radius: 8px; background: rgba(255,255,255,0.06); font-size: 13px; display: flex; align-items: center">Pause</button>
+<button type="button" style="all: unset; height: 30px; padding: 0 12px; border-radius: 8px; background: rgba(255,255,255,0.06); font-size: 13px; display: flex; align-items: center">Skip step</button>
+<button type="button" style="all: unset; height: 30px; padding: 0 12px; border-radius: 8px; box-shadow: inset 0 0 0 1px rgba(255,120,120,0.45); color: #FF9C9C; font-size: 13px; display: flex; align-items: center">Stop</button>
+</header>
+
+<div style="flex: 1; min-height: 0; display: flex">
+
+<aside style="width: 272px; flex: none; background: #100F17; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid rgba(255,255,255,0.05)">
+
+<section style="padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.06)">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-weight: 700; font-size: 13px">Target · M74</span><span style="color: #8E97A4">Psc · galaxy 9.9′</span></div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 8px">
+<sc-for list="{{target}}" as="t" hint-placeholder-count="6">
+<div style="display: flex; flex-direction: column"><span style="font-family: 'Spline Sans Mono', monospace; font-size: 12px">{{t.v}}</span><span style="font-size: 10px; color: #8E97A4">{{t.k}}</span></div>
+</sc-for>
+</div>
+<svg viewBox="0 0 248 58" width="248" height="58" role="img" aria-label="M74 altitude over the night: transit 00:51 at 66 degrees, below 30 degrees after 04:20; moon sets 23:09">
+<line x1="0" y1="40" x2="248" y2="40" style="stroke: rgba(255,255,255,0.12); stroke-dasharray: 2 3"></line>
+<path d="M0,52 C40,30 70,10 110,8 C150,8 190,26 248,56" style="fill: none; stroke: #A48CF2; stroke-width: 2"></path>
+<path d="M0,22 C30,28 50,40 80,57" style="fill: none; stroke: #8E97A4; stroke-width: 1; stroke-dasharray: 3 2"></path>
+<line x1="103" y1="0" x2="103" y2="58" style="stroke: #FFFFFF; stroke-width: 1"></line>
+<line x1="118" y1="0" x2="118" y2="58" style="stroke: #FFD9A8; stroke-width: 1; stroke-dasharray: 2 2"></line>
+</svg>
+<div style="display: flex; gap: 10px; font-size: 10px; color: #8E97A4"><span><span style="color: #A48CF2">━</span> altitude</span><span>┄ moon 44%</span><span style="color: #FFD9A8">┆ flip 01:58</span><span>30° limit</span></div>
+</section>
+
+<section style="padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; border-bottom: 1px solid rgba(255,255,255,0.06)">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-weight: 700; font-size: 13px">Plan</span><span style="color: #8E97A4">5 h 10 m / 7 h · ETA 05:30</span></div>
+<sc-for list="{{filters}}" as="p" hint-placeholder-count="5">
+<div style="display: grid; grid-template-columns: 22px minmax(0, 1fr) 42px 44px; align-items: center; gap: 6px">
+<span style="color: {{p.labelColor}}; font-weight: 600">{{p.name}}</span>
+<span style="height: 5px; border-radius: 3px; background: rgba(255,255,255,0.07); position: relative; overflow: hidden; display: block"><span style="position: absolute; left: 0; top: 0; bottom: 0; width: {{p.pct}}; background: {{p.color}}"></span></span>
+<span style="text-align: right; color: #B3BAC5; font-family: 'Spline Sans Mono', monospace; font-size: 11px">{{p.count}}</span>
+<span style="text-align: right; color: #8E97A4; font-family: 'Spline Sans Mono', monospace; font-size: 11px">{{p.time}}</span>
+</div>
+</sc-for>
+</section>
+
+<section style="padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; border-bottom: 1px solid rgba(255,255,255,0.06)">
+<div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px"><span style="font-weight: 700; font-size: 13px">Steps</span><span style="color: #8E97A4">open in Sequencer</span></div>
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="9">
+<div style="display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 3px 6px; border-radius: 6px; background: {{s.bg}}; color: {{s.color}}">
+<span style="font-size: 10px">{{s.mark}}</span>
+<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.name}}</span>
+<span style="font-family: 'Spline Sans Mono', monospace; font-size: 11px; color: #8E97A4">{{s.when}}</span>
+</div>
+</sc-for>
+</section>
+
+<section style="padding: 10px 12px; display: flex; flex-direction: column; gap: 4px">
+<div style="font-weight: 700; font-size: 13px">Coming up</div>
+<sc-for list="{{upcoming}}" as="u" hint-placeholder-count="4">
+<div style="display: flex; justify-content: space-between"><span style="color: #B3BAC5">{{u.k}}</span><span style="color: {{u.color}}; font-family: 'Spline Sans Mono', monospace; font-size: 11px">{{u.v}}</span></div>
+</sc-for>
+</section>
+</aside>
+
+<section style="flex: 1; min-width: 0; display: flex; flex-direction: column; background: #050409">
+<div style="flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden">
+<img src="/_blob/38996321699b7b2c40e0cdf3b1fcb988" alt="The latest frame of M74" style="height: 100%; display: block">
+<div style="position: absolute; top: 0; left: 0; height: 3px; width: 40%; background: #A48CF2"></div>
+<div style="position: absolute; top: 10px; left: 10px; display: flex; align-items: center; gap: 10px; padding: 5px 10px; border-radius: 999px; background: rgba(18,17,25,0.86)">
+<span style="width: 6px; height: 6px; border-radius: 3px; background: #43B67A"></span>
+<span style="font-weight: 600">#43 · Ha 180 s</span>
+<span style="color: #8E97A4">23:49:12</span>
+<span style="color: #7FD6A6">Accepted</span>
+</div>
+<div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 10px; padding: 5px 10px; border-radius: 999px; background: rgba(18,17,25,0.86); color: #B3BAC5"><span>#44 exposing</span><span style="font-family: 'Spline Sans Mono', monospace; color: #EDEFF3">72 / 180 s</span></div>
+<div style="position: absolute; bottom: 10px; right: 10px; display: flex; gap: 4px">
+<sc-for list="{{viewBtns}}" as="b" hint-placeholder-count="4">
+<button type="button" style="all: unset; height: 26px; padding: 0 9px; border-radius: 7px; background: rgba(18,17,25,0.86); color: #B3BAC5; font-size: 11px; display: flex; align-items: center">{{b}}</button>
+</sc-for>
+</div>
+</div>
+<div style="height: 44px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 8px; background: #121119; border-top: 1px solid rgba(255,255,255,0.06)">
+<sc-for list="{{actions}}" as="a" hint-placeholder-count="9">
+<button type="button" style="all: unset; height: 30px; padding: 0 10px; border-radius: 8px; background: {{a.bg}}; color: {{a.color}}; box-shadow: {{a.ring}}; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; white-space: nowrap">{{a.name}}<span style="font-weight: 400; color: #8E97A4">{{a.sub}}</span></button>
+</sc-for>
+<span style="flex: 1"></span>
+<span style="color: #8E97A4; font-size: 11px">Manual actions pause the run, then resume it</span>
+</div>
+<div style="height: 70px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 8px; background: #0E0D14; overflow: hidden; border-top: 1px solid rgba(255,255,255,0.05)">
+<sc-for list="{{strip}}" as="f" hint-placeholder-count="12">
+<figure style="margin: 0; width: 76px; flex: none; display: flex; flex-direction: column; gap: 3px">
+<span style="height: 44px; border-radius: 5px; background: #1A1825; box-shadow: {{f.ring}}; display: block; overflow: hidden"><img src="/_blob/38996321699b7b2c40e0cdf3b1fcb988" alt="" style="width: 76px; height: 44px; object-fit: cover; object-position: {{f.pos}}; opacity: {{f.op}}; display: block"></span>
+<figcaption style="display: flex; justify-content: space-between; font-size: 10px; color: #8E97A4"><span>{{f.n}}</span><span style="font-family: 'Spline Sans Mono', monospace; color: {{f.hfrColor}}">{{f.hfr}}</span></figcaption>
+</figure>
+</sc-for>
+</div>
+<div style="height: 120px; flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #100F17; border-top: 1px solid rgba(255,255,255,0.06)">
+<div style="padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid rgba(255,255,255,0.05)">
+<div style="display: flex; justify-content: space-between"><span style="font-weight: 700">HFR · stars</span><span style="color: #8E97A4">session, 87 frames</span></div>
+<svg viewBox="0 0 240 70" width="100%" height="70" preserveAspectRatio="none" role="img" aria-label="HFR across the session per filter, steady near 2.1 in Ha; autofocus at 21:40 and 23:10">
+<polyline points="0,44 10,42 20,45 30,40 40,43 50,47 60,30 70,32 80,31 90,34 100,33 110,36 120,38 130,40 140,26 150,27 160,29 170,28 180,30 190,32 200,31 210,33 220,32 230,34 240,33" style="fill: none; stroke: #A48CF2; stroke-width: 1.6"></polyline>
+<polyline points="0,18 10,20 20,17 30,19 40,22 50,24 60,14 70,15 80,16 90,15 100,17 110,18 120,20 130,22 140,12 150,13 160,14 170,13 180,15 190,16 200,15 210,17 220,16 230,18 240,17" style="fill: none; stroke: #FFD9A8; stroke-width: 1.2; opacity: 0.8"></polyline>
+<line x1="60" y1="0" x2="60" y2="70" style="stroke: rgba(255,255,255,0.18); stroke-dasharray: 2 3"></line>
+<line x1="140" y1="0" x2="140" y2="70" style="stroke: rgba(255,255,255,0.18); stroke-dasharray: 2 3"></line>
+<circle cx="200" cy="58" r="2.5" style="fill: #FF9C9C"></circle>
+</svg>
+<div style="display: flex; gap: 10px; font-size: 10px; color: #8E97A4"><span><span style="color: #A48CF2">━</span> HFR 2.13 (min 1.98)</span><span><span style="color: #FFD9A8">━</span> stars 1184</span><span>┆ AF</span><span style="color: #FF9C9C">● rejected</span></div>
+</div>
+<div style="padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid rgba(255,255,255,0.05)">
+<div style="display: flex; justify-content: space-between"><span style="font-weight: 700">Guiding</span><span style="font-family: 'Spline Sans Mono', monospace">0.42″ total</span></div>
+<svg viewBox="0 0 240 70" width="100%" height="70" preserveAspectRatio="none" role="img" aria-label="Guide error over ten minutes within half an arcsecond, one dither at the 6 minute mark">
+<line x1="0" y1="35" x2="240" y2="35" style="stroke: rgba(255,255,255,0.08)"></line>
+<polyline points="0,33 8,37 16,31 24,36 32,39 40,32 48,34 56,38 64,30 72,35 80,33 88,40 96,32 104,36 112,34 120,29 128,37 136,35 144,20 152,46 160,38 168,33 176,36 184,31 192,35 200,33 208,38 216,31 224,36 232,34 240,33" style="fill: none; stroke: #7FB2FF; stroke-width: 1.3"></polyline>
+<polyline points="0,36 8,34 16,38 24,33 32,35 40,37 48,32 56,34 64,38 72,33 80,36 88,34 96,37 104,32 112,36 120,38 128,33 136,35 144,48 152,25 160,32 168,36 176,34 184,37 192,33 200,36 208,32 216,37 224,34 232,36 240,35" style="fill: none; stroke: #FF9C9C; stroke-width: 1.3"></polyline>
+<line x1="144" y1="0" x2="144" y2="70" style="stroke: rgba(255,217,168,0.4); stroke-dasharray: 2 3"></line>
+</svg>
+<div style="display: flex; gap: 10px; font-size: 10px; color: #8E97A4"><span><span style="color: #7FB2FF">━</span> RA 0.31″</span><span><span style="color: #FF9C9C">━</span> Dec 0.28″</span><span>peak 1.1″</span><span>SNR 42</span><span>┆ dither</span></div>
+</div>
+<div style="padding: 8px 10px; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; justify-content: space-between"><span style="font-weight: 700">Temperature · focus</span><span style="color: #8E97A4">since dusk</span></div>
+<svg viewBox="0 0 240 70" width="100%" height="70" preserveAspectRatio="none" role="img" aria-label="Ambient falling from 16 to 12 degrees; focuser position stepping inward after each autofocus">
+<polyline points="0,14 30,18 60,24 90,30 120,36 150,40 180,44 210,47 240,49" style="fill: none; stroke: #8E97A4; stroke-width: 1.3"></polyline>
+<polyline points="0,56 60,56 60,50 140,50 140,44 240,44" style="fill: none; stroke: #A48CF2; stroke-width: 1.6"></polyline>
+<polyline points="0,62 240,62" style="fill: none; stroke: #43B67A; stroke-width: 1.2; stroke-dasharray: 3 2"></polyline>
+</svg>
+<div style="display: flex; gap: 10px; font-size: 10px; color: #8E97A4"><span>━ ambient 12.0 °C</span><span><span style="color: #A48CF2">━</span> focuser 45 484</span><span><span style="color: #43B67A">┄</span> sensor −10.0</span></div>
+</div>
+</div>
+</section>
+
+<aside style="width: 300px; flex: none; background: #121119; display: flex; flex-direction: column; overflow: hidden; border-left: 1px solid rgba(255,255,255,0.05)">
+<nav aria-label="Panel" style="flex: none; display: flex; gap: 2px; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.06)">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="6">
+<button type="button" style="all: unset; flex: 1; text-align: center; height: 26px; line-height: 26px; border-radius: 7px; font-size: 11px; font-weight: 600; background: {{t.bg}}; color: {{t.color}}">{{t.name}}</button>
+</sc-for>
+</nav>
+
+<section style="padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.06)">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-weight: 700; font-size: 13px">Last frame · #43</span><span style="color: #8E97A4">vs night median</span></div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px 6px">
+<sc-for list="{{frame}}" as="m" hint-placeholder-count="8">
+<div style="display: flex; flex-direction: column"><span style="font-family: 'Spline Sans Mono', monospace; font-size: 12px">{{m.v}}</span><span style="font-size: 10px; color: #8E97A4">{{m.k}} <span style="color: {{m.dc}}">{{m.d}}</span></span></div>
+</sc-for>
+</div>
+<svg viewBox="0 0 276 30" width="276" height="30" role="img" aria-label="Histogram of the last frame, narrow peak near the dark end">
+<path d="M0,30 L20,30 L30,29 L36,24 L40,10 L44,2 L48,8 L54,20 L62,27 L80,29 L276,30 Z" style="fill: rgba(164,140,242,0.35); stroke: #A48CF2; stroke-width: 1"></path>
+</svg>
+</section>
+
+<section style="padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid rgba(255,255,255,0.06)">
+<div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px"><span style="font-weight: 700; font-size: 13px">Session</span><span style="color: #8E97A4">87 frames · 4 h 21 m</span></div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 6px">
+<sc-for list="{{session}}" as="s" hint-placeholder-count="8">
+<div style="display: flex; flex-direction: column"><span style="font-family: 'Spline Sans Mono', monospace; font-size: 12px; color: {{s.c}}">{{s.v}}</span><span style="font-size: 10px; color: #8E97A4">{{s.k}}</span></div>
+</sc-for>
+</div>
+</section>
+
+<section style="padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; border-bottom: 1px solid rgba(255,255,255,0.06)">
+<div style="font-weight: 700; font-size: 13px; margin-bottom: 3px">Equipment</div>
+<sc-for list="{{gear}}" as="g" hint-placeholder-count="7">
+<div style="display: grid; grid-template-columns: 8px 62px minmax(0, 1fr); gap: 6px; align-items: baseline; padding: 2px 0">
+<span style="width: 6px; height: 6px; border-radius: 3px; background: {{g.dot}}; display: block"></span>
+<span style="color: #8E97A4">{{g.k}}</span>
+<span style="font-family: 'Spline Sans Mono', monospace; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{g.v}}</span>
+</div>
+</sc-for>
+</section>
+
+<section style="padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid rgba(255,255,255,0.06)">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-weight: 700; font-size: 13px">Conditions</span><span style="color: #7FD6A6">Safe</span></div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 6px">
+<sc-for list="{{sky}}" as="w" hint-placeholder-count="8">
+<div style="display: flex; flex-direction: column"><span style="font-family: 'Spline Sans Mono', monospace; font-size: 12px">{{w.v}}</span><span style="font-size: 10px; color: #8E97A4">{{w.k}}</span></div>
+</sc-for>
+</div>
+</section>
+
+<section style="flex: 1; min-height: 0; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; overflow: hidden">
+<div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px"><span style="font-weight: 700; font-size: 13px">Log</span><span style="color: #8E97A4">all events</span></div>
+<sc-for list="{{log}}" as="l" hint-placeholder-count="8">
+<div style="display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 6px"><span style="font-family: 'Spline Sans Mono', monospace; font-size: 11px; color: #8E97A4">{{l.t}}</span><span style="color: {{l.c}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{l.m}}</span></div>
+</sc-for>
+</section>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tab":{"editor":"select","options":["Overview","Camera","Focus","Mount","Guide","Solve"],"default":"Overview"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const rail = [];
+    for (let i = 0; i < 8; i++) rail.push({ bg: i === 0 ? 'rgba(164,140,242,0.18)' : 'rgba(255,255,255,0.04)' });
+    const target = [
+      { k: 'RA', v: '01h36m42s' }, { k: 'Dec', v: '+15°47′01″' }, { k: 'Rotation', v: '0.4°' },
+      { k: 'Altitude', v: '62.8°' }, { k: 'Hour angle', v: '−0h59m' }, { k: 'Airmass', v: '1.12' },
+    ];
+    const filters = [
+      { name: 'L', count: '60/60', time: '3h00', pct: '100%', color: '#6E56CF', labelColor: '#8E97A4' },
+      { name: 'R', count: '20/20', time: '1h00', pct: '100%', color: '#6E56CF', labelColor: '#8E97A4' },
+      { name: 'G', count: '20/20', time: '1h00', pct: '100%', color: '#6E56CF', labelColor: '#8E97A4' },
+      { name: 'B', count: '12/20', time: '0h36', pct: '60%', color: '#6E56CF', labelColor: '#8E97A4' },
+      { name: 'Ha', count: '43/60', time: '2h09', pct: '72%', color: '#A48CF2', labelColor: '#EDEFF3' },
+    ];
+    const done = { mark: '✓', bg: 'transparent', color: '#8E97A4' };
+    const steps = [
+      Object.assign({ name: 'Cool to −10 °C', when: '19:40' }, done),
+      Object.assign({ name: 'Slew & center M74', when: '19:52' }, done),
+      Object.assign({ name: 'Start guiding', when: '19:55' }, done),
+      Object.assign({ name: 'Autofocus (L)', when: '19:57' }, done),
+      Object.assign({ name: 'L 60 × 180 s', when: '20:01' }, done),
+      Object.assign({ name: 'RGB 20 × 180 s each', when: '21:40' }, done),
+      { name: 'Ha 60 × 180 s, dither 3', when: '44/60', mark: '▶', bg: 'rgba(164,140,242,0.16)', color: '#EDEFF3' },
+      { name: 'Slew & center NGC 891', when: '03:40', mark: '·', bg: 'transparent', color: '#B3BAC5' },
+      { name: 'L 30 × 180 s', when: '03:46', mark: '·', bg: 'transparent', color: '#B3BAC5' },
+      { name: 'Warm up & stop guiding', when: '05:30', mark: '·', bg: 'transparent', color: '#B3BAC5' },
+    ];
+    const upcoming = [
+      { k: 'Dither', v: 'after #45', color: '#EDEFF3' },
+      { k: 'Autofocus', v: '6 frames or Δ1 °C', color: '#EDEFF3' },
+      { k: 'Meridian flip', v: '01:58 · in 2 h 06 m', color: '#FFD9A8' },
+      { k: 'Target switch', v: '03:40 · NGC 891', color: '#EDEFF3' },
+      { k: 'Astro dawn', v: '05:44', color: '#EDEFF3' },
+    ];
+    const hfrs = ['2.21', '2.18', '2.40', '2.16', '2.14', '3.05', '2.12', '2.15', '2.11', '2.13', '2.10', '2.13'];
+    const strip = hfrs.map((h, i) => ({
+      n: '#' + (32 + i),
+      hfr: h,
+      pos: `${8 + i * 7}% ${30 + (i % 3) * 20}%`,
+      op: h === '3.05' ? 0.4 : 1,
+      hfrColor: h === '3.05' ? '#FF9C9C' : '#B3BAC5',
+      ring: i === hfrs.length - 1 ? '0 0 0 2px #A48CF2' : 'none',
+    }));
+    const viewBtns = ['Stretch', 'Stars', 'Annotate', 'Zoom 1:1'];
+    const frame = [
+      { k: 'HFR', v: '2.13', d: '−0.04', dc: '#7FD6A6' }, { k: 'FWHM', v: '3.4″', d: '−0.1', dc: '#7FD6A6' },
+      { k: 'Ecc', v: '0.31', d: '+0.02', dc: '#8E97A4' }, { k: 'Stars', v: '1184', d: '+36', dc: '#7FD6A6' },
+      { k: 'Median', v: '528', d: '+4', dc: '#8E97A4' }, { k: 'Bg σ', v: '11.2', d: '−0.3', dc: '#7FD6A6' },
+      { k: 'SNR', v: '38.6', d: '+1.2', dc: '#7FD6A6' }, { k: 'Solve', v: '0.8″', d: 'off', dc: '#8E97A4' },
+    ];
+    const session = [
+      { k: 'Accepted', v: '84', c: '#EDEFF3' }, { k: 'Rejected', v: '3', c: '#FF9C9C' },
+      { k: 'Integration', v: '4h12', c: '#EDEFF3' }, { k: 'Remaining', v: '1h50', c: '#EDEFF3' },
+      { k: 'Autofocus', v: '3 runs', c: '#EDEFF3' }, { k: 'Dithers', v: '28', c: '#EDEFF3' },
+      { k: 'Disk', v: '639 GB', c: '#EDEFF3' }, { k: 'Dropouts', v: '0', c: '#EDEFF3' },
+    ];
+    const ok = '#43B67A';
+    const gear = [
+      { k: 'Camera', v: '−10.0 °C · 20% · g139 o21 · 1×1', dot: ok },
+      { k: 'Filter', v: 'Ha (5 of 8) · offset +40', dot: ok },
+      { k: 'Focuser', v: '45 484 · 12.0 °C · TC on', dot: ok },
+      { k: 'Mount', v: 'tracking · pier W · alt 62.8°', dot: ok },
+      { k: 'Guider', v: 'guiding · star 1.4 px · mass 8.2k', dot: ok },
+      { k: 'Rotator', v: 'none', dot: '#4A4F5A' },
+      { k: 'Power', v: '12.6 V · 3.2 A · dew 40%', dot: ok },
+    ];
+    const sky = [
+      { k: 'Clouds', v: '0%' }, { k: 'Humidity', v: '71%' }, { k: 'Dew point', v: '4.1 °C' }, { k: 'Wind', v: '6 km/h' },
+      { k: 'Seeing', v: '2.1″' }, { k: 'SQM', v: '19.4' }, { k: 'Moon', v: 'set 23:09' }, { k: 'Ambient', v: '12.0 °C' },
+    ];
+    const log = [
+      { t: '23:49', m: '#43 Ha accepted · HFR 2.13', c: '#B3BAC5' },
+      { t: '23:46', m: '#42 Ha accepted · HFR 2.10', c: '#B3BAC5' },
+      { t: '23:43', m: 'Dither 1.5 px · settled 9 s', c: '#B3BAC5' },
+      { t: '23:40', m: '#41 Ha rejected · HFR 3.05 (cloud?)', c: '#FF9C9C' },
+      { t: '23:10', m: 'Autofocus 45 484 · HFR 1.98 · 2 m 40 s', c: '#EDEFF3' },
+      { t: '23:09', m: 'Moon set', c: '#B3BAC5' },
+      { t: '22:58', m: 'Guide star lost 4 s · recovered', c: '#FFD9A8' },
+      { t: '21:40', m: 'Autofocus 45 502 · HFR 2.02', c: '#B3BAC5' },
+    ];
+    const tabNames = ['Overview', 'Camera', 'Focus', 'Mount', 'Guide', 'Solve'];
+    const active = this.props.tab ?? 'Overview';
+    const tabs = tabNames.map((n) => ({ name: n, bg: n === active ? 'rgba(164,140,242,0.18)' : 'transparent', color: n === active ? '#EDEFF3' : '#8E97A4' }));
+    const plain = { bg: 'rgba(255,255,255,0.06)', color: '#EDEFF3', ring: 'none', sub: '' };
+    const actions = [
+      Object.assign({}, plain, { name: 'Snapshot', sub: '5 s' }),
+      Object.assign({}, plain, { name: 'Loop' }),
+      Object.assign({}, plain, { name: 'Autofocus', sub: 'Ha' }),
+      Object.assign({}, plain, { name: 'Solve & sync' }),
+      Object.assign({}, plain, { name: 'Center', sub: 'M74' }),
+      Object.assign({}, plain, { name: 'Dither' }),
+      Object.assign({}, plain, { name: 'Flip now' }),
+    ];
+    return { tabs, actions, rail, target, filters, steps, upcoming, strip, viewBtns, frame, session, gear, sky, log };
+  }
+}
+</script>
+</body>
+</html>
