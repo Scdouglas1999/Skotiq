@@ -95,3 +95,8 @@ export 'src/layout/side_panel.dart';
 // Observatory wave 1
 export 'src/components/instrument_pill.dart';
 export 'src/components/page_header.dart';
+// Night control
+export 'src/components/night_timeline_strip.dart';
+export 'src/components/series_chart.dart';
+export 'src/components/metric_grid.dart';
+export 'src/components/panel_tab_strip.dart';
