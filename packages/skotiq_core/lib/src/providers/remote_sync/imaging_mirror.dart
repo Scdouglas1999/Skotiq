@@ -52,7 +52,11 @@ void _applyExposureMirror(
       break;
     case 'ExposureComplete':
     case 'ExposureCancelled':
+    case 'ExposureFailed':
+      // The frame is over however it ended; a countdown left standing reads
+      // as an exposure still in flight on every ring that draws it.
       cameraNotifier.setExposing(false);
+      progressNotifier.reset();
       break;
   }
 }

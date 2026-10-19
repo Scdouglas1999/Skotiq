@@ -136,8 +136,9 @@ final nightStageExposureProvider = Provider<NightExposureVm?>((ref) {
   if (!exposing) return null;
   final phase = ref.watch(nightRunPhaseProvider);
   // `exposureProgressProvider` follows only captures made through the
-  // imaging service (snapshot, loop, autofocus frames). It is never reset,
-  // so while the run itself exposes it still holds the last manual frame.
+  // imaging service (snapshot, loop, autofocus frames) and the remote
+  // mirror; the run's own frames never reach it, so during a run the
+  // countdown comes from the run's start time instead.
   if (phase != NightRunPhase.running) {
     final progress = ref.watch(exposureProgressProvider);
     final total = progress.elapsed + progress.remaining;
