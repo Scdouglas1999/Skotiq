@@ -263,6 +263,17 @@ extension _DeviceServiceMountControls on DeviceService {
     }
   }
 
+  /// Store the mount's current position as its park position. Nothing moves
+  /// and the parked flag is untouched; the native side refuses a driver that
+  /// cannot set park and a mount that is slewing.
+  Future<void> _setMountParkHere() async {
+    final deviceId = await _getMountDeviceId();
+    if (deviceId == null || deviceId.isEmpty) {
+      throw Exception('No mount connected');
+    }
+    await _backend.mountSetPark(deviceId);
+  }
+
   /// Pulse guide the mount in a given direction for a duration
   Future<void> _pulseGuidMount({
     required String direction,

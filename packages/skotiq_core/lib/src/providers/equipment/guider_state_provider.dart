@@ -177,6 +177,17 @@ class GuiderStateNotifier extends StateNotifier<GuiderState>
     state = state.copyWith(rmsRa: ra, rmsDec: dec, rmsTotal: total);
   }
 
+  /// Record the guider's pixel scale (arcsec/px), or clear it with null when
+  /// the guider reports none.
+  void setPixelScale(double? arcsecPerPixel) {
+    final known =
+        arcsecPerPixel != null && arcsecPerPixel.isFinite && arcsecPerPixel > 0;
+    state = state.copyWith(
+      pixelScaleArcsecPerPixel: known ? arcsecPerPixel : null,
+      clearPixelScale: !known,
+    );
+  }
+
   @override
   void setError(Object error) {
     state = state.copyWith(

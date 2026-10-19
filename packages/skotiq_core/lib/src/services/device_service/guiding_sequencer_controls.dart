@@ -114,6 +114,10 @@ extension _DeviceServiceGuidingSequencerControls on DeviceService {
     await _backend.sequencerResume();
   }
 
+  Future<void> _requestSequenceMeridianFlip() async {
+    await _backend.sequencerRequestMeridianFlip();
+  }
+
   Future<void> _loadSequence(String json) async {
     await _backend.sequencerLoadJson(json);
   }

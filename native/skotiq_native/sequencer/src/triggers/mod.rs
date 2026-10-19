@@ -8,6 +8,7 @@
 
 mod dawn;
 mod manager;
+mod manual_flip;
 mod meridian_window;
 mod state;
 mod trigger;

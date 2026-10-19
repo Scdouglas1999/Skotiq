@@ -151,6 +151,11 @@ class Phd2Status {
   /// Average guide star distance from lock position (pixels)
   final double avgDistance;
 
+  /// Guide camera pixel scale in arcseconds per pixel, from PHD2's profile
+  /// (or the built-in guider's camera and binning). Null when the guider has
+  /// no scale to give, so guide errors stay in pixels.
+  final double? pixelScale;
+
   /// Per-star tracked-star list. Populated by the built-in multi-star guider
   /// (up to 8 stars); empty for PHD2 / external guiders, which report only the
   /// single aggregate lock star above. Rides through the guiding status path
@@ -166,6 +171,7 @@ class Phd2Status {
     this.snr = 0.0,
     this.starMass = 0.0,
     this.avgDistance = 0.0,
+    this.pixelScale,
     this.trackedStars = const [],
   });
 
@@ -180,6 +186,7 @@ class Phd2Status {
       snr: (json['snr'] as num?)?.toDouble() ?? 0.0,
       starMass: (json['starMass'] as num?)?.toDouble() ?? 0.0,
       avgDistance: (json['avgDistance'] as num?)?.toDouble() ?? 0.0,
+      pixelScale: _positiveOrNull(json['pixelScale']),
       trackedStars: decodeTrackedStars(json['trackedStars']),
     );
   }
@@ -194,6 +201,7 @@ class Phd2Status {
     'snr': snr,
     'starMass': starMass,
     'avgDistance': avgDistance,
+    'pixelScale': pixelScale,
     'trackedStars': trackedStars.map((s) => s.toJson()).toList(),
   };
 
@@ -205,4 +213,10 @@ class Phd2Status {
 
   /// Check if guiding is stopped
   bool get isStopped => state == 'Stopped';
+
+  static double? _positiveOrNull(Object? value) {
+    if (value is! num) return null;
+    final scale = value.toDouble();
+    return scale.isFinite && scale > 0 ? scale : null;
+  }
 }

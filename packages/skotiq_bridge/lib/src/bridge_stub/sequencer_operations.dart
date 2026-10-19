@@ -586,6 +586,12 @@ extension _NativeBridgeSequencerOperations on _NativeBridgeImplementation {
     }
   }
 
+  /// Ask the running sequence to flip at its next safe point.
+  Future<void> sequencerRequestMeridianFlip() => _native(
+    'sequencerRequestMeridianFlip',
+    gen_api.apiSequencerRequestMeridianFlip,
+  );
+
   /// Standalone meridian flip (canonical flip engine, outside a sequence).
   Future<void> performMeridianFlip({
     required String mountId,

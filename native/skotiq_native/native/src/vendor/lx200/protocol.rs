@@ -74,6 +74,7 @@ pub(crate) mod commands {
     pub const ONSTEP_TRACK_DISABLE: &str = ":Td#";
     pub const ONSTEP_UNPARK: &str = ":hR#";
     pub const ONSTEP_FIND_HOME: &str = ":hF#";
+    pub const ONSTEP_SET_PARK: &str = ":hQ#";
 
     // Site and clock. Latitude/longitude are DMS; longitude is WEST-positive
     // on the wire. `:GC#`/`:SC#` carry a two-digit year.

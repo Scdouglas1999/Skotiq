@@ -117,6 +117,40 @@ void main() {
       },
     );
 
+    test('status carries the guider pixel scale, null when unknown', () async {
+      Future<Object?> scaleFor(double? pixelScale) async {
+        final backend = _MockBackend();
+        when(
+          () => backend.eventStream,
+        ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+        when(() => backend.phd2GetStatus()).thenAnswer(
+          (_) async => Phd2Status(
+            state: 'Guiding',
+            connected: true,
+            pixelScale: pixelScale,
+          ),
+        );
+        final hostContainer = ProviderContainer(
+          overrides: [
+            backendProvider.overrideWith(
+              (ref) => _FixedBackendNotifier(ref, backend),
+            ),
+          ],
+        );
+        addTearDown(hostContainer.dispose);
+        final response = await GuidingHandlers(hostContainer)
+            .handlePhd2GetStatus(
+              Request('GET', Uri.parse('http://localhost/api/phd2/status')),
+            );
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body.containsKey('pixelScale'), isTrue);
+        return body['pixelScale'];
+      }
+
+      expect(await scaleFor(1.25), 1.25);
+      expect(await scaleFor(null), isNull);
+    });
+
     test('connect forwards the requested host and port to the host', () async {
       final backend = _MockBackend();
       when(

@@ -660,6 +660,11 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   }
 
   @override
+  Future<void> mountSetPark(String deviceId) async {
+    await _post('mount/set-park', {'deviceId': deviceId});
+  }
+
+  @override
   Future<MountSiteCapabilities> mountSiteCapabilities(String deviceId) async {
     final json = await _get('mount/site-capabilities', {'deviceId': deviceId});
     return MountSiteCapabilities(

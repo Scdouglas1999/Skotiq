@@ -123,6 +123,10 @@ Future<void> mountSlewAltAz({
 Future<void> mountFindHome({required String deviceId}) =>
     RustLib.instance.api.crateApiDevicesMountMountFindHome(deviceId: deviceId);
 
+/// Store the mount's current position as its park position
+Future<void> mountSetPark({required String deviceId}) =>
+    RustLib.instance.api.crateApiDevicesMountMountSetPark(deviceId: deviceId);
+
 /// Which site/time directions this mount can honour.
 ///
 /// The reconciliation card asks the operator which way to copy; asking about a

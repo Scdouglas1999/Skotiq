@@ -85,6 +85,7 @@ List<String> availableHeadlessEndpoints() {
     'POST /api/mount/slew-alt-az',
     'POST /api/mount/home',
     'POST /api/mount/find-home',
+    'POST /api/mount/set-park',
     'GET /api/mount/site-capabilities',
     'GET /api/mount/site',
     'POST /api/mount/site',
@@ -216,6 +217,7 @@ List<String> availableHeadlessEndpoints() {
     'POST /api/sequencer/update-conditions-score',
     'GET /api/sequencer/adaptive-swap',
     'POST /api/sequencer/meridian-flip',
+    'POST /api/sequencer/request-meridian-flip',
     'POST /api/sequencer/update-weather-verdict',
     // Secondary rig (dual-rig dither coordination)
     'GET /api/sequencer/secondary-rig',

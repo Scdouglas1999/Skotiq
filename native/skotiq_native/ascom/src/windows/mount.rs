@@ -167,6 +167,11 @@ impl AscomMount {
         self.device.get_bool_property("CanFindHome")
     }
 
+    /// Check if the current position can be stored as the park position
+    pub fn can_set_park(&self) -> Result<bool, String> {
+        self.device.get_bool_property("CanSetPark")
+    }
+
     /// Get alignment mode (0=AltAz, 1=Polar, 2=GermanPolar)
     pub fn alignment_mode(&self) -> Result<i32, String> {
         self.device.get_int_property("AlignmentMode")
@@ -206,6 +211,10 @@ impl AscomMount {
 
     pub fn find_home(&mut self) -> Result<(), String> {
         self.device.call_method("FindHome")
+    }
+
+    pub fn set_park(&mut self) -> Result<(), String> {
+        self.device.call_method("SetPark")
     }
 
     pub fn slew_to_coordinates_async(&mut self, ra: f64, dec: f64) -> Result<(), String> {

@@ -5943,7 +5943,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.rms_total = cst_encode_f_64(apiObj.rmsTotal);
     wireObj.snr = cst_encode_f_64(apiObj.snr);
     wireObj.star_mass = cst_encode_f_64(apiObj.starMass);
-    wireObj.pixel_scale = cst_encode_f_64(apiObj.pixelScale);
+    wireObj.pixel_scale = cst_encode_opt_box_autoadd_f_64(apiObj.pixelScale);
   }
 
   @protected
@@ -17228,6 +17228,23 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sequencer__runtime_config__api_sequencer_recovery_try_nowPtr
           .asFunction<void Function(int)>();
 
+  void
+  wire__crate__api__sequencer__lifecycle__api_sequencer_request_meridian_flip(
+    int port_,
+  ) {
+    return _wire__crate__api__sequencer__lifecycle__api_sequencer_request_meridian_flip(
+      port_,
+    );
+  }
+
+  late final _wire__crate__api__sequencer__lifecycle__api_sequencer_request_meridian_flipPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_request_meridian_flip',
+      );
+  late final _wire__crate__api__sequencer__lifecycle__api_sequencer_request_meridian_flip =
+      _wire__crate__api__sequencer__lifecycle__api_sequencer_request_meridian_flipPtr
+          .asFunction<void Function(int)>();
+
   void wire__crate__api__sequencer__lifecycle__api_sequencer_reset(int port_) {
     return _wire__crate__api__sequencer__lifecycle__api_sequencer_reset(port_);
   }
@@ -20401,6 +20418,30 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               int,
             )
+          >();
+
+  void wire__crate__api__devices__mount__mount_set_park(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+  ) {
+    return _wire__crate__api__devices__mount__mount_set_park(port_, device_id);
+  }
+
+  late final _wire__crate__api__devices__mount__mount_set_parkPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_park',
+      );
+  late final _wire__crate__api__devices__mount__mount_set_park =
+      _wire__crate__api__devices__mount__mount_set_parkPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
   void wire__crate__api__devices__mount__mount_set_site(
@@ -26322,8 +26363,7 @@ final class wire_cst_phd_2_status extends ffi.Struct {
   @ffi.Double()
   external double star_mass;
 
-  @ffi.Double()
-  external double pixel_scale;
+  external ffi.Pointer<ffi.Double> pixel_scale;
 }
 
 final class wire_cst_plate_solve_result extends ffi.Struct {

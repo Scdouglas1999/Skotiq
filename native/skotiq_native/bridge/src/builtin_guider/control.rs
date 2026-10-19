@@ -464,7 +464,8 @@ pub async fn get_status() -> Result<Phd2Status, SkotiqError> {
         rms_total: status.rms_total,
         snr: status.snr,
         star_mass: status.star_mass,
-        pixel_scale: status.pixel_scale,
+        // The guider keeps 0 until a camera and binning give it a scale.
+        pixel_scale: Some(status.pixel_scale).filter(|scale| scale.is_finite() && *scale > 0.0),
     })
 }
 

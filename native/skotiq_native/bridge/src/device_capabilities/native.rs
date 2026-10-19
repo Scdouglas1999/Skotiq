@@ -128,6 +128,7 @@ pub(crate) async fn get_native_capabilities(
                     can_set_tracking,
                     can_abort_slew,
                     can_find_home: mount.can_find_home(),
+                    can_set_park: mount.can_set_park(),
                     is_equatorial: true,
                     tracking,
                     axis_count: 2,

@@ -150,6 +150,11 @@ pub struct TriggerState {
     pub mount_tracking_limit_time: Option<i64>,
     /// Whether we've already flipped for the current target (prevents double-flip)
     pub has_flipped_this_target: bool,
+    /// The operator asked the running sequence to flip now rather than wait
+    /// for the configured window. The meridian trigger fires on the next tick
+    /// while [`TriggerState::manual_flip_refusal`] has no objection, and the
+    /// flip action clears it when its turn comes. See `manual_flip.rs`.
+    pub meridian_flip_requested: bool,
     /// Target name for the current meridian flip tracking
     pub current_target_name: Option<String>,
     /// Legacy field - Unix timestamp for flip (deprecated, use current_hour_angle instead)
@@ -393,6 +398,7 @@ impl Default for TriggerState {
             pier_side: None,
             mount_tracking_limit_time: None,
             has_flipped_this_target: false,
+            meridian_flip_requested: false,
             current_target_name: None,
             next_meridian_flip_time: None,
             meridian_flip_minutes_past: None,
@@ -623,6 +629,7 @@ impl TriggerState {
         self.filter_changed = false;
         self.current_filter = None;
         self.has_flipped_this_target = false;
+        self.meridian_flip_requested = false;
         self.flip_origin_pier_side = None;
         self.last_applied_filter_offset = 0;
         self.completed_exposures = 0;
@@ -1111,6 +1118,8 @@ impl TriggerState {
             // the flag and the recorded origin so flip bookkeeping starts
             // fresh.
             self.has_flipped_this_target = false;
+            // A flip asked for on the previous target is not one for this one.
+            self.meridian_flip_requested = false;
             self.flip_origin_pier_side = None;
             if let Some(previous) = previous {
                 self.invalidate_autofocus(format!("target changed from {}", previous));
@@ -1125,6 +1134,7 @@ impl TriggerState {
     /// a second flip on the same long-running target.
     pub fn mark_flip_performed(&mut self) {
         self.has_flipped_this_target = true;
+        self.meridian_flip_requested = false;
         // The pier side was updated immediately after the flip, so it now
         // reflects the *post-flip* side. The origin (pre-flip) side is the
         // opposite of the current side. East <-> West; Unknown stays Unknown
@@ -1150,6 +1160,7 @@ impl TriggerState {
         self.pier_side = None;
         self.mount_tracking_limit_time = None;
         self.has_flipped_this_target = false;
+        self.meridian_flip_requested = false;
         self.flip_origin_pier_side = None; //
         self.current_target_name = None;
         self.next_meridian_flip_time = None;

@@ -387,6 +387,14 @@ abstract class SequencerBackend implements AdaptiveSwapBackend {
   /// Save a checkpoint of current execution state
   Future<void> saveCheckpoint();
 
+  /// Ask the RUNNING sequence to flip at its next safe point, through its own
+  /// meridian trigger (wait for the frame in flight, stop guiding, flip,
+  /// re-center, restart guiding, settle). Completes once the request is
+  /// queued; the flip's outcome arrives as the usual meridian-flip event.
+  /// Throws with the native reason when the flip cannot run now, e.g. the
+  /// target has not crossed the meridian or the mount is parked.
+  Future<void> sequencerRequestMeridianFlip();
+
   /// Standalone meridian flip via the canonical native flip engine,
   /// outside any running sequence. The native side refuses while the
   /// sequencer is running (the in-sequence trigger owns flips there).

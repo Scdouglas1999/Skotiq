@@ -19,6 +19,7 @@ mod identity;
 mod indi_ids;
 mod mount_home;
 mod mount_ops;
+mod mount_set_park;
 mod reconnect_state;
 mod simulator;
 mod switch_ops;

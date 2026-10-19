@@ -61,6 +61,11 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
   }
 
   @override
+  Future<void> mountSetPark(String deviceId) async {
+    await bridge_api.mountSetPark(deviceId: deviceId);
+  }
+
+  @override
   Future<bridge.MountSiteCapabilities> mountSiteCapabilities(
     String deviceId,
   ) async {
@@ -481,6 +486,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
       rmsTotal: status.rmsTotal,
       snr: status.snr,
       starMass: status.starMass,
+      pixelScale: status.pixelScale,
       // FRB Phd2Status carries no avgDistance; the legacy field reports 0.
       avgDistance: 0.0,
       trackedStars: trackedStars,

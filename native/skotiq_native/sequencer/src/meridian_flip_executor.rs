@@ -504,8 +504,19 @@ impl MeridianFlipExecutor {
                     });
                     // always mark the flip as performed on success so
                     // trigger evaluation does not re-fire for the same target.
+                    //
+                    // The pier side is stamped first: the trigger state still
+                    // holds the pre-flip reading (the monitor refreshes it on
+                    // its own tick), and `mark_flip_performed` derives the
+                    // origin side from it. Read stale, the origin came out as
+                    // the post-flip side, and the next telemetry tick took
+                    // the mount's new side for a return to the old one and
+                    // cleared the flipped flag seconds after every flip.
                     if let Some(ts) = ctx.trigger_state.as_ref() {
                         let mut state = ts.write().await;
+                        if !matches!(new_pier_side, PierSide::Unknown) {
+                            state.pier_side = Some(new_pier_side);
+                        }
                         state.mark_flip_performed();
                     }
                     return FlipResult::Success {
@@ -2782,6 +2793,47 @@ mod tests {
 
     /// A clean first-attempt flip must report exactly one attempt
     /// and no failed steps, so the run vitals can distinguish it from a flip
+    /// A successful flip records the side it started from, not the side it
+    /// landed on. The trigger state still held the pre-flip reading when the
+    /// flip was marked, so the origin came out as the new side and the next
+    /// telemetry tick cleared the flipped flag as a "return" to it.
+    #[tokio::test]
+    async fn a_completed_flip_stays_marked_when_the_new_side_is_read_back() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.pier_sides.lock().unwrap().extend([
+            crate::meridian::PierSide::West,
+            crate::meridian::PierSide::East,
+        ]);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            pause_guiding: false,
+            auto_center: false,
+            refocus_after: false,
+            resume_guiding: false,
+            settle_time: 0.0,
+            max_retries: 0,
+            ..Default::default()
+        };
+        let mut trigger_state = TriggerState::new();
+        trigger_state.pier_side = Some(PierSide::West);
+        let trigger_state = Arc::new(RwLock::new(trigger_state));
+        let ctx = FlipContext {
+            trigger_state: Some(trigger_state.clone()),
+            ..make_ctx(&state)
+        };
+
+        let result = MeridianFlipExecutor::new(config, ops).execute(&ctx).await;
+        assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");
+
+        let mut ts = trigger_state.write().await;
+        assert_eq!(ts.flip_origin_pier_side, Some(PierSide::West));
+        ts.update_pier_side(PierSide::East);
+        assert!(
+            ts.has_flipped_this_target,
+            "reading the post-flip side back must not clear the flipped flag"
+        );
+    }
+
     /// that only worked because the retry ladder saved it.
     #[tokio::test]
     async fn clean_flip_reports_one_attempt_and_no_failed_steps() {

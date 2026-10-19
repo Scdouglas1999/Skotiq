@@ -663,6 +663,11 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   }
 
   @override
+  Future<void> sequencerRequestMeridianFlip() async {
+    await _post('sequencer/request-meridian-flip', {});
+  }
+
+  @override
   Future<void> performMeridianFlip({
     required String mountId,
     String? cameraId,

@@ -350,6 +350,7 @@ void main() {
         '/api/mount/unpark',
         '/api/mount/home',
         '/api/mount/find-home',
+        '/api/mount/set-park',
         '/api/framing/slew-to-target',
         '/api/framing/center-on-target',
         '/api/framing/park',
@@ -363,6 +364,7 @@ void main() {
         '/api/sequencer/start',
         '/api/sequencer/stop',
         '/api/sequencer/resume',
+        '/api/sequencer/request-meridian-flip',
       ]) {
         expect(
           endpointRateLimitFor(method: 'POST', path: path)!.maxRequests,
@@ -582,6 +584,7 @@ void main() {
         '/api/mount/unpark': 'mount_unpark',
         '/api/mount/home': 'mount_home',
         '/api/mount/find-home': 'mount_home',
+        '/api/mount/set-park': 'mount_set_park',
         '/api/framing/slew-to-target': 'framing_slew_to_target',
         '/api/framing/center-on-target': 'framing_center_on_target',
         '/api/framing/park': 'framing_park',
@@ -595,6 +598,8 @@ void main() {
         '/api/sequencer/start': 'sequence_start',
         '/api/sequencer/stop': 'sequence_stop',
         '/api/sequencer/resume': 'sequence_resume',
+        '/api/sequencer/request-meridian-flip':
+            'sequence_request_meridian_flip',
       };
 
       for (final entry in expectedActions.entries) {

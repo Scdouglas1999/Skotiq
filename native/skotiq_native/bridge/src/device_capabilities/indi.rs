@@ -271,7 +271,10 @@ pub(crate) async fn get_indi_capabilities(
             can_sync,
             can_park,
             can_unpark: can_park,
-            can_set_park: false,
+            // `IndiMount::set_park_to_current` drives PARK_CURRENT.
+            can_set_park: properties.iter().any(|p| {
+                p.name == "TELESCOPE_PARK_OPTION" && p.elements.iter().any(|e| e == "PARK_CURRENT")
+            }),
             can_pulse_guide: can_guide,
             can_get_side_of_pier,
             can_set_tracking: can_track,

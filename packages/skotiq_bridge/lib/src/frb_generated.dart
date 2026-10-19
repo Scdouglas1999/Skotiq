@@ -126,7 +126,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1064576201;
+  int get rustContentHash => 1703080;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1429,6 +1429,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiSequencerRuntimeConfigApiSequencerRecoveryTryNow();
 
+  Future<void> crateApiSequencerLifecycleApiSequencerRequestMeridianFlip();
+
   Future<void> crateApiSequencerLifecycleApiSequencerReset();
 
   Future<void> crateApiSequencerLifecycleApiSequencerResume();
@@ -1938,6 +1940,8 @@ abstract class RustLibApi extends BaseApi {
     required String direction,
     required int durationMs,
   });
+
+  Future<void> crateApiDevicesMountMountSetPark({required String deviceId});
 
   Future<void> crateApiDevicesMountMountSetSite({
     required String deviceId,
@@ -11582,6 +11586,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiSequencerLifecycleApiSequencerRequestMeridianFlip() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire
+              .wire__crate__api__sequencer__lifecycle__api_sequencer_request_meridian_flip(
+                port_,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta:
+            kCrateApiSequencerLifecycleApiSequencerRequestMeridianFlipConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSequencerLifecycleApiSequencerRequestMeridianFlipConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_sequencer_request_meridian_flip",
+        argNames: [],
+      );
+
+  @override
   Future<void> crateApiSequencerLifecycleApiSequencerReset() {
     return handler.executeNormal(
       NormalTask(
@@ -15443,6 +15476,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiDevicesMountMountSetPark({required String deviceId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(deviceId);
+          return wire.wire__crate__api__devices__mount__mount_set_park(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiDevicesMountMountSetParkConstMeta,
+        argValues: [deviceId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDevicesMountMountSetParkConstMeta =>
+      const TaskConstMeta(debugName: "mount_set_park", argNames: ["deviceId"]);
+
+  @override
   Future<void> crateApiDevicesMountMountSetSite({
     required String deviceId,
     required double latitudeDeg,
@@ -19143,7 +19201,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       rmsTotal: dco_decode_f_64(arr[4]),
       snr: dco_decode_f_64(arr[5]),
       starMass: dco_decode_f_64(arr[6]),
-      pixelScale: dco_decode_f_64(arr[7]),
+      pixelScale: dco_decode_opt_box_autoadd_f_64(arr[7]),
     );
   }
 
@@ -24350,7 +24408,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_rmsTotal = sse_decode_f_64(deserializer);
     var var_snr = sse_decode_f_64(deserializer);
     var var_starMass = sse_decode_f_64(deserializer);
-    var var_pixelScale = sse_decode_f_64(deserializer);
+    var var_pixelScale = sse_decode_opt_box_autoadd_f_64(deserializer);
     return Phd2Status(
       connected: var_connected,
       state: var_state,
@@ -29526,7 +29584,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.rmsTotal, serializer);
     sse_encode_f_64(self.snr, serializer);
     sse_encode_f_64(self.starMass, serializer);
-    sse_encode_f_64(self.pixelScale, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.pixelScale, serializer);
   }
 
   @protected

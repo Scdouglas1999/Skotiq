@@ -93,6 +93,7 @@ pub(crate) async fn get_simulator_capabilities(
             can_sync: true,
             can_park: true,
             can_unpark: true,
+            can_set_park: true,
             can_pulse_guide: true,
             can_set_tracking: true,
             is_equatorial: true,

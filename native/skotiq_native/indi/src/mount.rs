@@ -658,6 +658,49 @@ impl IndiMount {
             .await
     }
 
+    /// Whether the driver can store the current position as its park
+    /// position: it defines `TELESCOPE_PARK_OPTION.PARK_CURRENT`.
+    pub async fn can_set_park(&self) -> bool {
+        let client = self.client.read().await;
+        client
+            .get_switch(&self.device_name, TELESCOPE_PARK_OPTION, "PARK_CURRENT")
+            .await
+            .is_some()
+    }
+
+    /// Store the current position as the park position.
+    ///
+    /// `PARK_CURRENT` sets the driver's park position in memory; drivers that
+    /// also define `PARK_WRITE_DATA` keep it only once it is written to their
+    /// park data file, so that is sent too, or the new park position would be
+    /// lost when the driver restarts.
+    pub async fn set_park_to_current(&self) -> IndiResult<()> {
+        let mut client = self.client.write().await;
+        client
+            .set_switch(
+                &self.device_name,
+                TELESCOPE_PARK_OPTION,
+                "PARK_CURRENT",
+                true,
+            )
+            .await?;
+        if client
+            .get_switch(&self.device_name, TELESCOPE_PARK_OPTION, "PARK_WRITE_DATA")
+            .await
+            .is_some()
+        {
+            client
+                .set_switch(
+                    &self.device_name,
+                    TELESCOPE_PARK_OPTION,
+                    "PARK_WRITE_DATA",
+                    true,
+                )
+                .await?;
+        }
+        Ok(())
+    }
+
     /// Get horizontal coordinates (Altitude, Azimuth)
     pub async fn get_horizontal_coordinates(&self) -> Result<(f64, f64), String> {
         let client = self.client.read().await;
@@ -1195,6 +1238,32 @@ mod tests {
     async fn a_home_in_progress_reads_as_slewing() {
         assert!(slewing_while_home_is("Busy").await);
         assert!(!slewing_while_home_is("Ok").await);
+    }
+
+    async fn can_set_park_with(park_option: &str) -> bool {
+        let payload = format!(
+            "{MOUNT_BASE_PROPERTIES}
+<defSwitchVector device=\"Mount\" name=\"TELESCOPE_PARK_OPTION\" state=\"Idle\" perm=\"rw\" rule=\"AtMostOne\">
+{park_option}
+</defSwitchVector>
+"
+        );
+        let (mount, server, _) =
+            mount_from_fake_server(payload.as_bytes(), TELESCOPE_PARK_OPTION).await;
+        let can = mount.can_set_park().await;
+        drop(mount);
+        server.await.expect("fake server should finish");
+        can
+    }
+
+    /// Set park is offered only when the driver defines PARK_CURRENT.
+    #[tokio::test]
+    async fn set_park_needs_the_park_current_option() {
+        assert!(
+            can_set_park_with("  <defSwitch name=\"PARK_CURRENT\">Off</defSwitch>\n  <defSwitch name=\"PARK_WRITE_DATA\">Off</defSwitch>")
+                .await
+        );
+        assert!(!can_set_park_with("  <defSwitch name=\"PARK_DEFAULT\">Off</defSwitch>").await);
     }
 
     /// Same contract for try_is_slewing.

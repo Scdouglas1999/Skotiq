@@ -424,6 +424,205 @@ impl DeviceManager {
         }
     }
 
+    /// Store the mount's current position as its park position.
+    ///
+    /// Nothing moves. Two preconditions are checked for every driver first:
+    ///
+    /// * the driver must report that it can set park
+    ///   ([`Self::mount_can_set_park`]), otherwise the call fails as
+    ///   [`DeviceOpError::Unsupported`];
+    /// * the mount must not be slewing: the position read mid-slew is a point
+    ///   the mount is passing through, not one the operator chose, so it is
+    ///   refused with [`DeviceOpError::InvalidState`].
+    pub async fn mount_set_park(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        if !self.mount_can_set_park(device_id).await? {
+            return Err(DeviceOpError::unsupported(format!(
+                "Mount {} cannot set its park position: its driver does not support it",
+                device_id
+            )));
+        }
+        // The same status path the sequencer reads, taken before the device
+        // map lock below because it takes that lock too.
+        if self.mount_get_status(device_id).await?.slewing {
+            return Err(DeviceOpError::invalid_state(
+                device_id,
+                format!(
+                    "Mount {} is moving. Wait for it to stop before setting park.",
+                    device_id
+                ),
+            ));
+        }
+
+        let devices = self.devices.read().await;
+        let info = devices
+            .get(device_id)
+            .map(|d| d.info.clone())
+            .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
+        drop(devices);
+
+        match info.driver_type {
+            DriverType::Ascom => {
+                #[cfg(windows)]
+                {
+                    let mounts = self.ascom_mounts.read().await;
+                    if let Some(mount) = mounts.get(device_id) {
+                        // `set_park` takes `&self`: the wrapper's COM worker
+                        // serializes the call, so a read guard is enough.
+                        let mount = mount.read().await;
+                        return mount.set_park().await.map_err(|e| {
+                            tracing::error!("mount_set_park ASCOM error: {}", e);
+                            DeviceOpError::from(e)
+                        });
+                    }
+                }
+                Err(DeviceOpError::not_connected(
+                    Some(device_id.to_string()),
+                    "ASCOM mount not connected",
+                ))
+            }
+            DriverType::Alpaca => {
+                let mounts = self.alpaca_mounts.read().await;
+                if let Some(mount) = mounts.get(device_id) {
+                    return mount.set_park().await.map_err(|e| {
+                        tracing::error!("mount_set_park Alpaca error: {}", e);
+                        DeviceOpError::driver(e)
+                    });
+                }
+                Err(DeviceOpError::not_connected(
+                    Some(device_id.to_string()),
+                    format!("Alpaca mount {} not connected", device_id),
+                ))
+            }
+            DriverType::Indi => {
+                if let Ok((host, port, device_name)) = Self::parse_indi_device_id(device_id) {
+                    let server_key = format!("{host}:{port}");
+                    let clients = self.indi_clients.read().await;
+                    if let Some(client) = clients.get(&server_key) {
+                        let mount = skotiq_indi::IndiMount::new(client.clone(), &device_name);
+                        return mount.set_park_to_current().await.map_err(|e| {
+                            tracing::error!("mount_set_park INDI error: {}", e);
+                            DeviceOpError::driver(e)
+                        });
+                    }
+                    return Err(DeviceOpError::not_connected(
+                        Some(device_id.to_string()),
+                        format!("INDI client not connected for {}", server_key),
+                    ));
+                }
+                Err(DeviceOpError::invalid_device_id(format!(
+                    "Invalid INDI device ID format: {}",
+                    device_id
+                )))
+            }
+            DriverType::Native => {
+                // Only OnStep (`:hQ#`) can store a park position; every other
+                // serial protocol answers NotSupported from the trait default,
+                // already refused above through `mount_can_set_park`.
+                let mut native_mounts = self.native_mounts.write().await;
+                if let Some(mount) = native_mounts.get_mut(device_id) {
+                    return mount.set_park().await.map_err(|e| {
+                        tracing::error!("mount_set_park native error: {}", e);
+                        DeviceOpError::from(e)
+                    });
+                }
+                Err(DeviceOpError::not_connected(
+                    Some(device_id.to_string()),
+                    "Native mount not connected",
+                ))
+            }
+            DriverType::Simulator => {
+                crate::device_manager::ops::sim_gate::require_mount_connected().await?;
+                crate::device_manager::ops::sim_gate::refuse_while_mount_slewing("set park")
+                    .await?;
+                let (ra, dec) = {
+                    let m = crate::api::devices::simulation::get_sim_mount()
+                        .read()
+                        .await;
+                    (m.status.right_ascension, m.status.declination)
+                };
+                crate::api::devices::simulation::set_sim_park_position(ra, dec);
+                Ok(())
+            }
+        }
+    }
+
+    /// Whether the mount's driver can store the current position as its park
+    /// position.
+    ///
+    /// The same answer the capability snapshot publishes as `can_set_park`,
+    /// read live from the driver so a command is never sent on a stale flag.
+    pub async fn mount_can_set_park(&self, device_id: &str) -> Result<bool, DeviceOpError> {
+        let devices = self.devices.read().await;
+        let info = devices
+            .get(device_id)
+            .map(|d| d.info.clone())
+            .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
+        drop(devices);
+
+        match info.driver_type {
+            DriverType::Ascom => {
+                #[cfg(windows)]
+                {
+                    let mounts = self.ascom_mounts.read().await;
+                    if let Some(mount) = mounts.get(device_id) {
+                        let mount = mount.read().await;
+                        return mount
+                            .get_capabilities()
+                            .await
+                            .map(|caps| caps.can_set_park)
+                            .map_err(DeviceOpError::driver);
+                    }
+                }
+                Err(DeviceOpError::not_connected(
+                    Some(device_id.to_string()),
+                    "ASCOM mount not connected",
+                ))
+            }
+            DriverType::Alpaca => {
+                let mounts = self.alpaca_mounts.read().await;
+                if let Some(mount) = mounts.get(device_id) {
+                    return mount.can_set_park().await.map_err(DeviceOpError::driver);
+                }
+                Err(DeviceOpError::not_connected(
+                    Some(device_id.to_string()),
+                    format!("Alpaca mount {} not connected", device_id),
+                ))
+            }
+            DriverType::Indi => {
+                if let Ok((host, port, device_name)) = Self::parse_indi_device_id(device_id) {
+                    let server_key = format!("{host}:{port}");
+                    let clients = self.indi_clients.read().await;
+                    if let Some(client) = clients.get(&server_key) {
+                        let mount = skotiq_indi::IndiMount::new(client.clone(), &device_name);
+                        return Ok(mount.can_set_park().await);
+                    }
+                    return Err(DeviceOpError::not_connected(
+                        Some(device_id.to_string()),
+                        format!("INDI client not connected for {}", server_key),
+                    ));
+                }
+                Err(DeviceOpError::invalid_device_id(format!(
+                    "Invalid INDI device ID format: {}",
+                    device_id
+                )))
+            }
+            DriverType::Native => {
+                let native_mounts = self.native_mounts.read().await;
+                if let Some(mount) = native_mounts.get(device_id) {
+                    return Ok(mount.can_set_park());
+                }
+                Err(DeviceOpError::not_connected(
+                    Some(device_id.to_string()),
+                    format!("Native mount {} not connected", device_id),
+                ))
+            }
+            DriverType::Simulator => {
+                crate::device_manager::ops::sim_gate::read_mount_status().await?;
+                Ok(true)
+            }
+        }
+    }
+
     pub async fn mount_can_park(&self, device_id: &str) -> Result<bool, DeviceOpError> {
         let devices = self.devices.read().await;
         let info = devices

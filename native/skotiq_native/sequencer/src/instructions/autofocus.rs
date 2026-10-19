@@ -1161,7 +1161,11 @@ pub(crate) async fn execute_autofocus_once(
                     "max": positions[total_points - 1]
                 },
                 "vcurve_points": focus_data.iter().map(|point| {
-                    serde_json::json!({"position": point.position, "hfr": point.hfr})
+                    serde_json::json!({
+                        "position": point.position,
+                        "hfr": point.hfr,
+                        "star_count": point.star_count
+                    })
                 }).collect::<Vec<_>>(),
                 "star_crops": measurement.star_crops.iter().map(|crop| {
                     serde_json::json!({

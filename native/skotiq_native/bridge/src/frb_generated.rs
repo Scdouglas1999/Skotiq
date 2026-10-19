@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1064576201;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1703080;
 
 // Section: executor
 
@@ -7427,6 +7427,30 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_recovery_try_now_i
         },
     )
 }
+fn wire__crate__api__sequencer__lifecycle__api_sequencer_request_meridian_flip_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_sequencer_request_meridian_flip",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::sequencer::lifecycle::api_sequencer_request_meridian_flip()
+                                .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__sequencer__lifecycle__api_sequencer_reset_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -10117,6 +10141,31 @@ fn wire__crate__api__devices__mount__mount_pulse_guide_impl(
                             api_duration_ms,
                         )
                         .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__devices__mount__mount_set_park_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    device_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "mount_set_park",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_device_id = device_id.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::devices::mount::mount_set_park(api_device_id).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -14720,7 +14769,7 @@ impl SseDecode for crate::api::phd2::Phd2Status {
         let mut var_rmsTotal = <f64>::sse_decode(deserializer);
         let mut var_snr = <f64>::sse_decode(deserializer);
         let mut var_starMass = <f64>::sse_decode(deserializer);
-        let mut var_pixelScale = <f64>::sse_decode(deserializer);
+        let mut var_pixelScale = <Option<f64>>::sse_decode(deserializer);
         return crate::api::phd2::Phd2Status {
             connected: var_connected,
             state: var_state,
@@ -24098,7 +24147,7 @@ impl SseEncode for crate::api::phd2::Phd2Status {
         <f64>::sse_encode(self.rms_total, serializer);
         <f64>::sse_encode(self.snr, serializer);
         <f64>::sse_encode(self.star_mass, serializer);
-        <f64>::sse_encode(self.pixel_scale, serializer);
+        <Option<f64>>::sse_encode(self.pixel_scale, serializer);
     }
 }
 
@@ -30994,7 +31043,7 @@ mod io {
                 rms_total: Default::default(),
                 snr: Default::default(),
                 star_mass: Default::default(),
-                pixel_scale: Default::default(),
+                pixel_scale: core::ptr::null_mut(),
             }
         }
     }
@@ -34814,6 +34863,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_request_meridian_flip(
+        port_: i64,
+    ) {
+        wire__crate__api__sequencer__lifecycle__api_sequencer_request_meridian_flip_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_reset(
         port_: i64,
     ) {
@@ -35969,6 +36025,14 @@ mod io {
             direction,
             duration_ms,
         )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_park(
+        port_: i64,
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__devices__mount__mount_set_park_impl(port_, device_id)
     }
 
     #[unsafe(no_mangle)]
@@ -38821,7 +38885,7 @@ mod io {
         rms_total: f64,
         snr: f64,
         star_mass: f64,
-        pixel_scale: f64,
+        pixel_scale: *mut f64,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
