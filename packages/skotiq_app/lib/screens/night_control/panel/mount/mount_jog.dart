@@ -1,9 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
-/// Identity for one arrow of the jog pad. The chevron icons are not unique in
-/// the card (the rate dropdowns use the same chevron), so the arrows carry an
-/// explicit key rather than relying on their glyph.
+/// Identity for one arrow of the jog pad. The arrows carry an explicit key
+/// rather than relying on their glyph or letter, which other controls share.
 ValueKey<String> mountJogButtonKey(String direction) =>
     ValueKey<String>('mountJog.$direction');
 
@@ -16,12 +15,15 @@ const ValueKey<String> mountJogDisabledVeilKey =
 
 /// The sidereal rate in degrees per second (15.041"/s). The jog speed ladder is
 /// quoted as multiples of it because that is the language every mount handset,
-/// NINA and SGP use ("8x", "64x"), not because the tracking rate is involved.
+/// NINA and SGP use ("4×", "64×"), not because the tracking rate is involved.
 const double kSiderealDegPerSec = 0.00417807;
 
 /// The speed ladder the jog pad offers, as multiples of sidereal: guide,
-/// centre, find, slew.
-const List<int> kMountJogMultiples = <int>[1, 8, 64, 400];
+/// center, find, and two slew speeds.
+const List<double> kMountJogMultiples = <double>[0.5, 4, 16, 64, 256];
+
+/// The rate the pad starts on: a centering speed.
+const String kMountJogDefaultLabel = '4×';
 
 /// How long a single guide pulse lasts in the [MountJogMode.pulse] fallback.
 const int kMountJogPulseMs = 500;
@@ -51,7 +53,7 @@ enum MountJogMode {
 
 /// One selectable jog speed.
 class MountJogRate {
-  /// Short label for the selector, e.g. `8x` or `Max`.
+  /// Short label for the selector, e.g. `4×` or `Max`.
   final String label;
 
   /// The MoveAxis rate in degrees per second.
@@ -92,7 +94,7 @@ MountJogMode mountJogModeFor(MountCapabilities? capabilities) {
 List<MountJogRate> mountJogRates(double? maxSlewRateDegPerSec) {
   final ladder = [
     for (final multiple in kMountJogMultiples)
-      MountJogRate('${multiple}x', multiple * kSiderealDegPerSec),
+      MountJogRate(_multipleLabel(multiple), multiple * kSiderealDegPerSec),
   ];
 
   final ceiling = maxSlewRateDegPerSec;
@@ -104,11 +106,16 @@ List<MountJogRate> mountJogRates(double? maxSlewRateDegPerSec) {
   return withinCeiling;
 }
 
-/// The rate the pad starts on: the centring speed (8x sidereal) when it is
-/// offered, otherwise the fastest rate that is.
+/// `0.5×`, `4×`.
+String _multipleLabel(double multiple) => multiple == multiple.roundToDouble()
+    ? '${multiple.toInt()}×'
+    : '$multiple×';
+
+/// The rate the pad starts on: the centering speed ([kMountJogDefaultLabel])
+/// when it is offered, otherwise the fastest rate that is.
 MountJogRate defaultMountJogRate(List<MountJogRate> rates) {
   return rates.firstWhere(
-    (rate) => rate.label == '8x',
+    (rate) => rate.label == kMountJogDefaultLabel,
     orElse: () => rates.last,
   );
 }

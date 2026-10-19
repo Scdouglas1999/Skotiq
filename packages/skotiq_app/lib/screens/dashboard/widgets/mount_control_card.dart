@@ -11,7 +11,7 @@ import '../../../services/mount_command_service.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../accessible_dropdown.dart';
 import 'glass_card.dart';
-import 'mount_jog.dart';
+import '../../night_control/panel/mount/mount_jog.dart';
 
 class MountControlCard extends ConsumerWidget {
   final SkotiqColors colors;
