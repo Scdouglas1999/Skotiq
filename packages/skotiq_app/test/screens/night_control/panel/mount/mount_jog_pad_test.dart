@@ -2,23 +2,26 @@
 // pulse is about four arcseconds at guide rate, invisible on the RA/Dec
 // readout, and a 2 s press-and-hold produces exactly one.
 //
-// These tests drive the real MountControlCard with pointer down/up gestures and
-// assert on the backend calls, so restoring pulseGuide-on-tap fails them.
+// These tests drive the Mount tab's real move pad with pointer down/up gestures
+// and assert on the backend calls, so restoring pulseGuide-on-tap fails them.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/models/command_action_result.dart';
-import 'package:skotiq_app/screens/dashboard/widgets/mount_control_card.dart';
-import 'package:skotiq_app/screens/dashboard/widgets/mount_jog.dart';
+import 'package:skotiq_app/screens/night_control/panel/mount/mount_jog.dart';
+import 'package:skotiq_app/screens/night_control/panel/mount/mount_move_pad.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../harness/harness.dart';
+import '../../../../harness/harness.dart';
 
 const _mountId = 'simulator:mount:0';
+
+/// What the Mount tab says when the pad is gated off by a parked mount.
+const _parkedReason = 'The mount is parked';
 
 class _ConnectedMountNotifier extends MountStateNotifier {
   _ConnectedMountNotifier(super.ref, {bool parked = false}) {
@@ -34,7 +37,7 @@ class _ConnectedMountNotifier extends MountStateNotifier {
     );
   }
 
-  /// Drop the connection, which is what removes the jog pad from the card while
+  /// Drop the connection, which is what removes the pad from [_PadHost] while
   /// the rest of the app (and its providers) keep running.
   void goOffline() {
     // ignore: invalid_use_of_protected_member
@@ -74,6 +77,13 @@ class _RecordingMountCommands extends MountCommandService {
       : super(backend: backend, deviceService: _NoDeviceService());
 
   final List<({String direction, int durationMs})> pulseCalls = [];
+  int abortCalls = 0;
+
+  @override
+  Future<CommandActionResult> abortSlew({bool showFeedback = true}) async {
+    abortCalls++;
+    return CommandActionResult.ok;
+  }
 
   @override
   Future<CommandActionResult> pulseGuide(
@@ -97,6 +107,34 @@ class _Recorders {
       commands.pulseCalls;
 }
 
+/// Hosts the pad the way the Mount tab does: gone while the mount is not
+/// connected, gated off while it is parked.
+class _PadHost extends ConsumerWidget {
+  const _PadHost();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mount = ref.watch(mountStateProvider);
+    if (mount.connectionState != DeviceConnectionState.connected) {
+      return const SizedBox.shrink();
+    }
+    final caps = ref.watch(mountCapabilitiesProvider(_mountId));
+    return Align(
+      alignment: Alignment.topLeft,
+      child: SizedBox(
+        width: 276,
+        child: NightMountMovePad(
+          isEnabled: !mount.isParked,
+          disabledReason: mount.isParked ? _parkedReason : null,
+          deviceId: mount.deviceId,
+          capabilities: caps.valueOrNull,
+          capabilitiesLoading: caps.isLoading,
+        ),
+      ),
+    );
+  }
+}
+
 Future<_Recorders> _pump(
   WidgetTester tester,
   MountCapabilities? capabilities, {
@@ -105,10 +143,7 @@ Future<_Recorders> _pump(
   final backend = _RecordingBackend();
   final handle = await pumpAppScreen(
     tester,
-    const SizedBox(
-      width: 420,
-      child: MountControlCard(colors: SkotiqColors.dark),
-    ),
+    const _PadHost(),
     extraOverrides: [
       mountStateProvider
           .overrideWith((ref) => _ConnectedMountNotifier(ref, parked: parked)),
@@ -174,15 +209,21 @@ void main() {
       (tester) async {
     final backend = await _pump(tester, slewCapable);
 
-    // Default is the centring speed.
-    expect(find.textContaining('8x'), findsOneWidget);
+    // Default is the centering speed.
+    var gesture = await tester.startGesture(tester.getCenter(_eastButton));
+    await tester.pump(const Duration(milliseconds: 50));
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(
+      backend.moveAxisCalls.first.rate,
+      closeTo(4 * kSiderealDegPerSec, 1e-9),
+    );
+    backend.moveAxisCalls.clear();
 
-    await tester.tap(find.byType(DropdownButton<MountJogRate>));
-    await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('64x').last);
-    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey<String>('mountJog.rate.64×')));
+    await tester.pump();
 
-    final gesture = await tester.startGesture(tester.getCenter(_eastButton));
+    gesture = await tester.startGesture(tester.getCenter(_eastButton));
     await tester.pump(const Duration(milliseconds: 50));
     await gesture.up();
     await tester.pump(const Duration(milliseconds: 50));
@@ -235,7 +276,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
   });
 
-  testWidgets('tearing the card down mid-press still stops the axis',
+  testWidgets('tearing the pad down mid-press still stops the axis',
       (tester) async {
     final backend = await _pump(tester, slewCapable);
 
@@ -270,7 +311,8 @@ void main() {
       findsOneWidget,
       reason: 'a pad that guide-pulses must not look like a slew pad',
     );
-    expect(find.byType(DropdownButton<MountJogRate>), findsNothing);
+    expect(
+        find.byKey(const ValueKey<String>('mountJog.rate.4×')), findsNothing);
 
     final gesture = await tester.startGesture(tester.getCenter(_eastButton));
     await tester.pump(const Duration(milliseconds: 50));
@@ -300,7 +342,7 @@ void main() {
     final semantics = tester.ensureSemantics();
     final backend = await _pump(tester, slewCapable);
 
-    final node = tester.getSemantics(find.bySemanticsLabel('Jog E'));
+    final node = tester.getSemantics(find.bySemanticsLabel('East'));
     expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
     // RendererBinding.rootPipelineOwner exposes no semanticsOwner to drive an
     // action through on the Flutter version this repo pins.
@@ -326,7 +368,7 @@ void main() {
     final backend = await _pump(tester, const MountCapabilities());
 
     expect(
-      find.textContaining('neither axis slewing nor guide pulses'),
+      find.textContaining('neither axis moves nor guide pulses'),
       findsOneWidget,
     );
 
@@ -339,6 +381,53 @@ void main() {
     expect(backend.pulseCalls, isEmpty);
   });
 
+  testWidgets('a keyboard activation sends one bounded nudge, never a hold',
+      (tester) async {
+    final backend = await _pump(tester, slewCapable);
+
+    // Focus the east arrow the way Tab would, then press Enter.
+    final detector = tester.widget<FocusableActionDetector>(
+      find.descendant(
+        of: _eastButton,
+        matching: find.byType(FocusableActionDetector),
+      ),
+    );
+    detector.focusNode!.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(backend.moveAxisCalls, hasLength(1));
+    expect(backend.moveAxisCalls.single.rate, greaterThan(0));
+
+    // No key-up is needed: the nudge releases itself.
+    await tester.pump(kMountJogNudge + const Duration(milliseconds: 50));
+    await tester.pump();
+    expect(backend.moveAxisCalls, hasLength(2));
+    expect(backend.moveAxisCalls.last.rate, 0.0,
+        reason: 'a keyboard press must never leave an axis moving');
+  });
+
+  testWidgets('Stop all motion releases a held arrow', (tester) async {
+    final backend = await _pump(tester, slewCapable);
+
+    final gesture = await tester.startGesture(tester.getCenter(_eastButton));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(backend.moveAxisCalls, hasLength(1));
+
+    // A second pointer on STOP while the first still holds the arrow.
+    await tester.tap(find.byKey(mountJogStopKey));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(backend.moveAxisCalls.last.rate, 0.0);
+    expect(backend.commands.abortCalls, 1,
+        reason: 'Stop all motion also aborts any slew');
+    expect(find.bySemanticsLabel('Stop all motion'), findsOneWidget);
+
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
   // A parked mount refuses every move command, so the pad is gated off — and
   // says so. Being inert is correct; being inert and mute (identical pixels, no
   // tooltip change, no toast, no log line) is the defect.
@@ -347,11 +436,11 @@ void main() {
         (tester) async {
       await _pump(tester, slewCapable, parked: true);
 
-      expect(find.text('Mount is parked — unpark first.'), findsOneWidget,
+      expect(find.text(_parkedReason), findsOneWidget,
           reason: 'the pad must state the reason it cannot move');
 
       final tooltip = tester.widget<Tooltip>(_eastButton);
-      expect(tooltip.message, 'Mount is parked — unpark first.',
+      expect(tooltip.message, _parkedReason,
           reason: 'a "Hold to slew E" tooltip over an inert arrow is a lie');
 
       // The whole pad dims, not just the icon colour: textPrimary -> textMuted
@@ -371,7 +460,7 @@ void main() {
       expect(backend.moveAxisCalls, isEmpty,
           reason: 'a parked mount must not be commanded to move');
       expect(backend.pulseCalls, isEmpty);
-      expect(find.text('Mount is parked — unpark first.'), findsWidgets,
+      expect(find.text(_parkedReason), findsWidgets,
           reason: 'the press must surface the reason, not vanish');
       expect(find.byType(SnackBar), findsOneWidget);
     });
@@ -380,7 +469,7 @@ void main() {
       final backend = await _pump(tester, slewCapable);
 
       expect(find.byKey(mountJogDisabledVeilKey), findsNothing);
-      expect(find.text('Mount is parked — unpark first.'), findsNothing);
+      expect(find.text(_parkedReason), findsNothing);
 
       final gesture = await tester.startGesture(tester.getCenter(_eastButton));
       await tester.pump(const Duration(milliseconds: 50));
@@ -394,14 +483,14 @@ void main() {
   group('rate ladder', () {
     test('drops rates the driver cannot reach and offers its real maximum', () {
       final rates = mountJogRates(0.5);
-      expect(rates.map((r) => r.label), ['1x', '8x', '64x', 'Max']);
+      expect(rates.map((r) => r.label), ['0.5×', '4×', '16×', '64×', 'Max']);
       expect(rates.last.degPerSec, 0.5);
     });
 
     test('offers the full ladder when the driver reports no ceiling', () {
       expect(
         mountJogRates(null).map((r) => r.label),
-        ['1x', '8x', '64x', '400x'],
+        ['0.5×', '4×', '16×', '64×', '256×'],
       );
     });
 
