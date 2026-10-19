@@ -53,6 +53,7 @@ class _RecordingSafeRigService extends SafeRigService {
     bool abortExposure = false,
     bool disableCooling = false,
     bool quiesceSecondaryRig = true,
+    IdleMountPolicy idleMount = IdleMountPolicy.leave,
     bool notify = true,
   }) async {
     reasons.add(reason);

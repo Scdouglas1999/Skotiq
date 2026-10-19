@@ -39,6 +39,7 @@ class _NoopSafeRigService extends SafeRigService {
     bool abortExposure = false,
     bool disableCooling = false,
     bool quiesceSecondaryRig = true,
+    IdleMountPolicy idleMount = IdleMountPolicy.leave,
     bool notify = true,
   }) async => const SafeRigResult();
 }

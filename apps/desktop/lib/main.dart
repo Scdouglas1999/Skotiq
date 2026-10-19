@@ -250,6 +250,9 @@ void main(List<String> args) async {
           .safeTheRig(
             reason: 'Skotiq is shutting down',
             park: true,
+            // Quitting is not a reason to move an idle mount: it parks only
+            // when a run was in progress.
+            idleMount: IdleMountPolicy.leave,
             closeDome: true,
             closeCover: true,
             abortExposure: true,

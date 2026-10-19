@@ -314,7 +314,7 @@ void main() {
       expect(result.mountParked, isFalse);
     });
 
-    test('does not pause when no sequence is running', () async {
+    test('does not pause or park when no sequence is running', () async {
       when(
         () => backend.sequencerPause(),
       ).thenThrow(Exception('no sequence running'));
@@ -328,10 +328,96 @@ void main() {
           .safeTheRig(reason: 'test', park: true);
 
       verifyNever(() => backend.sequencerPause());
-      verify(() => backend.mountPark('simulator:test-mount-1')).called(1);
+      verifyNever(() => backend.mountPark(any()));
+      verifyNever(() => backend.mountSetTracking(any(), any()));
       expect(result.sequencePaused, isFalse);
-      expect(result.mountParked, isTrue);
+      expect(result.mountParked, isFalse);
+      expect(result.mountLeftIdle, isTrue);
       expect(result.hasFailures, isFalse);
+      expect(container.read(mountStateProvider).isParked, isFalse);
+    });
+
+    test('turns tracking off on an idle mount instead of parking it', () async {
+      when(
+        () => backend.mountSetTracking(any(), any()),
+      ).thenAnswer((_) async {});
+      final container = makeContainer(
+        executionState: SequenceExecutionState.idle,
+      );
+      addTearDown(container.dispose);
+
+      final result = await container
+          .read(safeRigServiceProvider)
+          .safeTheRig(
+            reason: 'Astronomical dawn is approaching',
+            park: true,
+            idleMount: IdleMountPolicy.stopTracking,
+          );
+
+      verifyNever(() => backend.mountPark(any()));
+      verify(
+        () => backend.mountSetTracking('simulator:test-mount-1', false),
+      ).called(1);
+      expect(result.trackingStopped, isTrue);
+      expect(result.mountLeftIdle, isTrue);
+      expect(container.read(mountStateProvider).isTracking, isFalse);
+      final posted = container.read(uiNotificationProvider).last;
+      expect(posted.message, contains('mount tracking turned off'));
+      expect(posted.message, contains('the mount was not parked'));
+    });
+
+    test('parks an idle mount only when the caller asks for it', () async {
+      final container = makeContainer(
+        executionState: SequenceExecutionState.idle,
+      );
+      addTearDown(container.dispose);
+
+      final result = await container
+          .read(safeRigServiceProvider)
+          .safeTheRig(
+            reason: 'End of observing night',
+            park: true,
+            idleMount: IdleMountPolicy.park,
+          );
+
+      verify(() => backend.mountPark('simulator:test-mount-1')).called(1);
+      expect(result.mountParked, isTrue);
+      expect(result.mountLeftIdle, isFalse);
+    });
+
+    test('a paused run still has its mount parked', () async {
+      final container = makeContainer(
+        executionState: SequenceExecutionState.paused,
+      );
+      addTearDown(container.dispose);
+
+      final result = await container
+          .read(safeRigServiceProvider)
+          .safeTheRig(reason: 'test', park: true);
+
+      verifyNever(() => backend.sequencerPause());
+      verify(() => backend.mountPark('simulator:test-mount-1')).called(1);
+      expect(result.mountParked, isTrue);
+    });
+
+    test('a running secondary rig still has its mount parked', () async {
+      final container = makeContainer(
+        executionState: SequenceExecutionState.idle,
+        safeRigBuilder: (ref) => SafeRigService(
+          ref,
+          backend: ref.watch(backendProvider),
+          stopSecondaryRig: () async => true,
+        ),
+      );
+      addTearDown(container.dispose);
+
+      final result = await container
+          .read(safeRigServiceProvider)
+          .safeTheRig(reason: 'test', park: true);
+
+      verify(() => backend.mountPark('simulator:test-mount-1')).called(1);
+      expect(result.secondaryRigQuiesced, isTrue);
+      expect(result.mountParked, isTrue);
     });
 
     test('closes dome and cover when requested and open', () async {

@@ -70,6 +70,10 @@ extension _WeatherSafetyEnforcement on WeatherSafetyNotifier {
         // Cover follows the dome decision: if conditions warrant closing the
         // dome shutter they also warrant closing a flip-flat / cover.
         closeCover: actions.shouldCloseDome,
+        // Dawn and weather park a mount to protect a run. With nothing
+        // running the mount is the operator's: turn its tracking off, which
+        // moves nothing, and leave it where it is.
+        idleMount: IdleMountPolicy.stopTracking,
       );
       recordOwnership(result);
       return true;
@@ -118,9 +122,16 @@ extension _WeatherSafetyEnforcement on WeatherSafetyNotifier {
         deviceId != null &&
         deviceId.isNotEmpty;
 
-    if (_ref.read(sequenceExecutionStateProvider).canPause) return true;
+    final execution = _ref.read(sequenceExecutionStateProvider);
+    if (execution.canPause || execution.canResume) return true;
+    // An idle mount is only ever stopped from tracking, never parked, so one
+    // that is parked or not tracking gives SafeRig nothing to command.
     final mount = _ref.read(mountStateProvider);
-    if (connected(mount.connectionState, mount.deviceId)) return true;
+    if (connected(mount.connectionState, mount.deviceId) &&
+        !mount.isParked &&
+        mount.isTracking) {
+      return true;
+    }
     final dome = _ref.read(domeStateProvider);
     if (connected(dome.connectionState, dome.deviceId)) return true;
     final cover = _ref.read(coverCalibratorStateProvider);

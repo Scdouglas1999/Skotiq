@@ -40,6 +40,9 @@ class _RecordingSafeRigService extends SafeRigService {
   /// unexecuted (never even constructed) service still reads as zero calls.
   final List<String> _calls;
 
+  /// What each executed safing was told to do with an idle mount.
+  static final idleMountPolicies = <IdleMountPolicy>[];
+
   @override
   Future<SafeRigResult> safeTheRig({
     required String reason,
@@ -49,9 +52,11 @@ class _RecordingSafeRigService extends SafeRigService {
     bool abortExposure = false,
     bool disableCooling = false,
     bool quiesceSecondaryRig = true,
+    IdleMountPolicy idleMount = IdleMountPolicy.leave,
     bool notify = true,
   }) async {
     _calls.add(reason);
+    idleMountPolicies.add(idleMount);
     return const SafeRigResult();
   }
 }
@@ -169,11 +174,14 @@ void main() {
       expect(safeRigCalls, isEmpty);
     });
 
-    test('a connected mount is still safed', () async {
+    test('a tracking mount is still safed, without being parked', () async {
+      _RecordingSafeRigService.idleMountPolicies.clear();
       final container = buildContainer();
       final mount = container.read(mountStateProvider.notifier);
       mount.setConnecting('mount-1');
       mount.setConnected();
+      mount.setParked(false);
+      mount.setTracking(true);
 
       container.read(weatherSafetyProvider.notifier);
       await settle(container);
@@ -183,6 +191,26 @@ void main() {
         hasLength(1),
         reason: 'the gate must never suppress a real safing',
       );
+      expect(_RecordingSafeRigService.idleMountPolicies, [
+        IdleMountPolicy.stopTracking,
+      ]);
+    });
+
+    // The owner found the mount driven into the ground two mornings running:
+    // the dawn park sent an idle, not-tracking mount a park command at 05:15
+    // with nothing running. There is nothing to protect on such a mount.
+    test('an idle mount that is not tracking is left alone', () async {
+      final container = buildContainer();
+      final mount = container.read(mountStateProvider.notifier);
+      mount.setConnecting('mount-1');
+      mount.setConnected();
+      mount.setParked(false);
+      mount.setTracking(false);
+
+      container.read(weatherSafetyProvider.notifier);
+      await settle(container);
+
+      expect(safeRigCalls, isEmpty);
     });
 
     test('an armed secondary rig is still safed', () async {

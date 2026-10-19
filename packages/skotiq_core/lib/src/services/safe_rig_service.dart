@@ -14,6 +14,28 @@ import '../providers/secondary_rig_provider.dart';
 import '../providers/sequence_provider.dart';
 import '../providers/ui_notification_provider.dart';
 
+/// What [SafeRigService.safeTheRig] does with a connected, unparked mount when
+/// nothing of Skotiq's is running: no sequence running or paused and no
+/// secondary capture loop.
+///
+/// An idle mount belongs to whoever left it there. Parking it unasked is a
+/// slew nobody is watching, and a slew computed from a mount model that has
+/// drifted (a lost home reference, a bumped tube, a firmware glitch) can drive
+/// the optics into the pier or the ground. So the automatic paths never park
+/// an idle mount; only a caller acting on an explicit operator choice may.
+enum IdleMountPolicy {
+  /// Send the mount nothing.
+  leave,
+
+  /// Turn tracking off if it is on. It does not move the mount, and it stops a
+  /// forgotten mount tracking into its limits through the day.
+  stopTracking,
+
+  /// Park it anyway. Only for a caller acting on an explicit operator choice,
+  /// such as the autopilot the operator engaged for the night.
+  park,
+}
+
 /// Outcome of a single [SafeRigService.safeTheRig] invocation.
 ///
 /// Every step that was *attempted* is recorded so callers (and tests) can see
@@ -51,6 +73,13 @@ class SafeRigResult {
   /// command was needed. This one genuinely is safe.
   final bool mountAlreadyParked;
 
+  /// True when a park was requested but nothing of Skotiq's was running, so
+  /// the mount was not parked (see [IdleMountPolicy]).
+  final bool mountLeftIdle;
+
+  /// True when an idle mount's tracking was turned off instead of parking it.
+  final bool trackingStopped;
+
   /// True when the dome shutter close command was issued successfully.
   final bool domeClosed;
 
@@ -71,6 +100,8 @@ class SafeRigResult {
     this.mountParked = false,
     this.mountAbsent = false,
     this.mountAlreadyParked = false,
+    this.mountLeftIdle = false,
+    this.trackingStopped = false,
     this.domeClosed = false,
     this.coverClosed = false,
     this.coolerDisabled = false,
@@ -94,6 +125,8 @@ class SafeRigResult {
     bool? mountParked,
     bool? mountAbsent,
     bool? mountAlreadyParked,
+    bool? mountLeftIdle,
+    bool? trackingStopped,
     bool? domeClosed,
     bool? coverClosed,
     bool? coolerDisabled,
@@ -106,6 +139,8 @@ class SafeRigResult {
       mountParked: mountParked ?? this.mountParked,
       mountAbsent: mountAbsent ?? this.mountAbsent,
       mountAlreadyParked: mountAlreadyParked ?? this.mountAlreadyParked,
+      mountLeftIdle: mountLeftIdle ?? this.mountLeftIdle,
+      trackingStopped: trackingStopped ?? this.trackingStopped,
       domeClosed: domeClosed ?? this.domeClosed,
       coverClosed: coverClosed ?? this.coverClosed,
       coolerDisabled: coolerDisabled ?? this.coolerDisabled,
@@ -215,6 +250,11 @@ class SafeRigService {
   /// skipped and recorded as
   /// [SafeRigResult.mountAlreadySafe] — that is success, not a failure.
   ///
+  /// [idleMount] decides what a requested park does when nothing of Skotiq's
+  /// is running (no sequence running or paused, no secondary capture loop).
+  /// It defaults to [IdleMountPolicy.leave]: automatic safing parks a mount
+  /// only to protect a run.
+  ///
   /// [notify] controls whether the CRITICAL UI notification is posted (default
   /// true). Callers that emit their own richer notification can disable it.
   ///
@@ -228,11 +268,18 @@ class SafeRigService {
     bool abortExposure = false,
     bool disableCooling = false,
     bool quiesceSecondaryRig = true,
+    IdleMountPolicy idleMount = IdleMountPolicy.leave,
     bool notify = true,
   }) async {
     final failures = <String, Object>{};
     var result = const SafeRigResult();
     _ensureAuthority(reason, result, failures);
+
+    // Read before the steps below change it: pausing a running sequence must
+    // not make the rig look idle to the park decision.
+    final runWasActive = _isRunActive(
+      _ref.read(sequenceExecutionStateProvider),
+    );
 
     // The secondary rig owns a capture loop outside the primary sequencer.
     // Stop it first and wait for its native exposure abort to complete before
@@ -306,6 +353,20 @@ class SafeRigService {
       } else if (mount.isParked) {
         // Already parked — already safe.
         result = result.copyWith(mountAlreadyParked: true);
+      } else if (!runWasActive &&
+          !result.secondaryRigQuiesced &&
+          idleMount != IdleMountPolicy.park) {
+        result = result.copyWith(mountLeftIdle: true);
+        if (idleMount == IdleMountPolicy.stopTracking && mount.isTracking) {
+          try {
+            await _backend.mountSetTracking(mount.deviceId!, false);
+            _ensureAuthority(reason, result, failures);
+            _ref.read(mountStateProvider.notifier).setTracking(false);
+            result = result.copyWith(trackingStopped: true);
+          } catch (e) {
+            failures['tracking'] = e;
+          }
+        }
       } else {
         try {
           await _backend.mountPark(mount.deviceId!);
@@ -446,6 +507,17 @@ class SafeRigService {
     return result;
   }
 
+  /// Whether a run is in progress that the park protects. A paused run counts:
+  /// it is still the night's run, and weather pauses it before parking.
+  static bool _isRunActive(SequenceExecutionState state) => switch (state) {
+    SequenceExecutionState.running ||
+    SequenceExecutionState.paused ||
+    SequenceExecutionState.recovering ||
+    SequenceExecutionState.stopping ||
+    SequenceExecutionState.stopFailed => true,
+    _ => false,
+  };
+
   /// Issue the dome-shutter close command against [deviceId].
   ///
   /// Routed through the active backend's [DeviceBackend] role: the network
@@ -487,12 +559,16 @@ class SafeRigService {
     if (result.mountAlreadyParked && !result.mountParked) {
       steps.add('mount was already parked');
     }
+    if (result.trackingStopped) steps.add('mount tracking turned off');
     if (result.domeClosed) steps.add('dome closed');
     if (result.coverClosed) steps.add('cover closed');
     if (result.coolerDisabled) steps.add('cooler disabled');
     final gap = result.mountAbsent
         ? ' NO MOUNT CONNECTED — nothing was parked; if a mount is tracking '
               'under another program it is still exposed.'
+        : result.mountLeftIdle
+        ? ' Nothing was running, so the mount was not parked and was left '
+              'where it is.'
         : '';
 
     if (steps.isEmpty) {
