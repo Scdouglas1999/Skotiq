@@ -463,12 +463,16 @@ class _SkotiqButtonState extends State<SkotiqButton>
                 Icon(widget.icon, size: _iconSize, color: face.ink),
                 const SizedBox(width: _buttonIconGap),
               ],
+              // The button's own node already carries the label; the painted
+              // Text would merge into it and read it a second time.
               Flexible(
-                child: Text(
-                  widget.label,
-                  style: _textStyle.copyWith(color: face.ink),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
+                child: ExcludeSemantics(
+                  child: Text(
+                    widget.label,
+                    style: _textStyle.copyWith(color: face.ink),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
               ),
               if (widget.badge != null) ...<Widget>[
