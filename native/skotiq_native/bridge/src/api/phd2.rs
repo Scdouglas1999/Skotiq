@@ -34,7 +34,20 @@ pub struct Phd2Status {
     pub rms_total: f64,
     pub snr: f64,
     pub star_mass: f64,
-    pub pixel_scale: f64,
+    /// Guide camera pixel scale in arcseconds per pixel, as PHD2 reports it
+    /// from its profile (guide camera pixel size and focal length). `None`
+    /// when PHD2 has no scale to give: no profile values entered, or the
+    /// RPC failed. Never a placeholder 0.
+    pub pixel_scale: Option<f64>,
+}
+
+/// Turn PHD2's `get_pixel_scale` answer into a scale the UI can convert with.
+///
+/// PHD2 answers JSON null when its profile has no focal length or pixel size,
+/// which the client reports as an error; a zero or negative number is no scale
+/// either. Both read as unknown.
+fn known_pixel_scale(reply: Result<f64, String>) -> Option<f64> {
+    reply.ok().filter(|scale| scale.is_finite() && *scale > 0.0)
 }
 
 /// PHD2 calibration data
@@ -484,11 +497,7 @@ pub async fn api_phd2_get_status() -> Result<Phd2Status, SkotiqError> {
         .get_app_state()
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to get PHD2 state: {}", e)))?;
 
-    // Why: pixel scale is reported only after PHD2 has
-    // selected a star and run a calibration; before that, the RPC errors.
-    // 0.0 communicates "not yet calibrated" to the UI guiding panel, which
-    // hides the arc-sec/pixel readout when the value is non-positive.
-    let pixel_scale = client.get_pixel_scale().unwrap_or(0.0);
+    let pixel_scale = known_pixel_scale(client.get_pixel_scale());
 
     // Why: forward the raw PHD2 state name when unrecognised so the desktop
     // UI can render "PHD2 says: GuidingPaused" instead of pretending

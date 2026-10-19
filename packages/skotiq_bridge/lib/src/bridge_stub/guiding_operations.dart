@@ -123,7 +123,6 @@ extension _NativeBridgeGuidingOperations on _NativeBridgeImplementation {
       rmsTotal: 0,
       snr: 0,
       starMass: 0,
-      pixelScale: 0,
     );
   }
 

@@ -1693,6 +1693,14 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                     }
                 }
                 RecoveryAction::MeridianFlip(config) => {
+                    // An operator's request is consumed here whatever happens
+                    // next: it asked for this flip, not for every later one.
+                    let requested = std::mem::take(
+                        &mut trigger_state_for_actions
+                            .write()
+                            .await
+                            .meridian_flip_requested,
+                    );
                     // The flip waited for the imaging train, and the mount may
                     // have moved meanwhile -- a target change fires this on the
                     // new target's hour angle against the old pointing's pier
@@ -1721,7 +1729,15 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                         };
                         let pier_now =
                             fresh_pier.or(trigger_state_for_actions.read().await.pier_side);
-                        if !crate::triggers::flip_still_due(config, hour_angle, pier_now) {
+                        // A requested flip waives the window threshold but
+                        // not the pre-flip side, so it is re-asked that way.
+                        let still_due = if requested {
+                            hour_angle
+                                .is_some_and(|ha| crate::triggers::on_pre_flip_side(ha, pier_now))
+                        } else {
+                            crate::triggers::flip_still_due(config, hour_angle, pier_now)
+                        };
+                        if !still_due {
                             tracing::info!(
                                 "[MERIDIAN] Flip no longer due when its turn came (hour angle {:?}h, \
                                  pier side {:?}); the mount is already on the post-flip side",
@@ -1732,7 +1748,14 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                             continue;
                         }
                     }
-                    tracing::info!("[MERIDIAN] Trigger fired - executing meridian flip");
+                    tracing::info!(
+                        "[MERIDIAN] Trigger fired - executing meridian flip{}",
+                        if requested {
+                            " (requested by the operator)"
+                        } else {
+                            ""
+                        }
+                    );
 
                     let (target_name, target_ra, target_dec, current_filter) = {
                         let ts = trigger_state_for_actions.read().await;

@@ -45,6 +45,11 @@ pub struct AscomMountCapabilities {
 /// "unsupported" rather than as a driver fault.
 const FIND_HOME_UNSUPPORTED: &str = "Mount does not support FindHome";
 
+/// Worker reply for a `SetPark` the driver says it cannot perform
+/// (`CanSetPark` false); [`AscomMountWrapper::set_park`] turns it into
+/// [`NativeError::NotSupported`].
+const SET_PARK_UNSUPPORTED: &str = "Mount does not support SetPark";
+
 /// Command sent to the ASCOM worker thread
 enum AscomMountCommand {
     Connect(oneshot::Sender<Result<(), String>>),
@@ -76,6 +81,8 @@ enum AscomMountCommand {
     // Find home
     FindHome(oneshot::Sender<Result<(), String>>),
     AtHome(oneshot::Sender<Result<bool, String>>),
+    // Store the current position as the park position
+    SetPark(oneshot::Sender<Result<(), String>>),
     GetSite(oneshot::Sender<Result<(f64, f64, Option<f64>), String>>),
     SetSite(f64, f64, Option<f64>, oneshot::Sender<Result<(), String>>),
     GetUtcDate(oneshot::Sender<Result<f64, String>>),
@@ -261,7 +268,7 @@ impl AscomMountWrapper {
                                 can_sync: ascom_caps.can_sync.unwrap_or(false),
                                 can_park: ascom_caps.can_park.unwrap_or(false),
                                 can_unpark: ascom_caps.can_unpark.unwrap_or(false),
-                                can_set_park: false, // ASCOM MountCapabilities doesn't expose this
+                                can_set_park: m.can_set_park().unwrap_or(false),
                                 can_pulse_guide: ascom_caps.can_pulse_guide.unwrap_or(false),
                                 can_set_tracking: ascom_caps.can_set_tracking.unwrap_or(false),
                                 can_find_home: m.can_find_home().unwrap_or(false),
@@ -500,6 +507,24 @@ impl AscomMountWrapper {
                             let _ = reply.send(Err("Mount not created".to_string()));
                         }
                     }
+                    AscomMountCommand::SetPark(reply) => {
+                        if let Some(m) = &mut mount {
+                            match m.can_set_park() {
+                                Ok(true) => {
+                                    let _ = reply.send(m.set_park().map_err(|e| e.to_string()));
+                                }
+                                Ok(false) => {
+                                    let _ = reply.send(Err(SET_PARK_UNSUPPORTED.to_string()));
+                                }
+                                Err(e) => {
+                                    let _ = reply
+                                        .send(Err(format!("Failed to check CanSetPark: {}", e)));
+                                }
+                            }
+                        } else {
+                            let _ = reply.send(Err("Mount not created".to_string()));
+                        }
+                    }
                 }
                 PumpOutcome::DidWork
             })
@@ -636,6 +661,23 @@ impl AscomMountWrapper {
             .map_err(|e| NativeError::SdkError(e.to_string()))?;
         match Self::recv_with_timeout(rx, Timeouts::find_home(), "find_home").await {
             Err(NativeError::SdkError(message)) if message == FIND_HOME_UNSUPPORTED => {
+                Err(NativeError::NotSupported)
+            }
+            other => other,
+        }
+    }
+
+    /// Store the current position as the park position through the COM
+    /// worker. A driver whose `CanSetPark` is false answers
+    /// [`NativeError::NotSupported`].
+    pub async fn set_park(&self) -> Result<(), NativeError> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomMountCommand::SetPark(tx))
+            .await
+            .map_err(|e| NativeError::SdkError(e.to_string()))?;
+        match Self::recv_with_timeout(rx, Timeouts::property_write(), "set_park").await {
+            Err(NativeError::SdkError(message)) if message == SET_PARK_UNSUPPORTED => {
                 Err(NativeError::NotSupported)
             }
             other => other,
@@ -1149,6 +1191,21 @@ mod tests {
 
         assert!(matches!(
             wrapper.find_home().await,
+            Err(NativeError::NotSupported)
+        ));
+    }
+
+    #[tokio::test]
+    async fn set_park_on_a_driver_without_set_park_is_not_supported() {
+        let wrapper = build_test_wrapper(|cmd| {
+            if let AscomMountCommand::SetPark(reply) = cmd {
+                let _ = reply.send(Err(SET_PARK_UNSUPPORTED.to_string()));
+            }
+            false
+        });
+
+        assert!(matches!(
+            wrapper.set_park().await,
             Err(NativeError::NotSupported)
         ));
     }

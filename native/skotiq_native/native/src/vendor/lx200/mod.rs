@@ -195,6 +195,25 @@ mod home_tests {
     fn find_home_uses_the_onstep_home_command() {
         assert_eq!(commands::ONSTEP_FIND_HOME, ":hF#");
     }
+
+    /// Set park follows the same rule as home: OnStep overrides the trait
+    /// default, Meade reports that it has no such command.
+    #[tokio::test]
+    async fn only_onstep_can_set_park() {
+        let mut onstep = Lx200Mount::new_onstep("TEST_PORT".to_string());
+        assert!(onstep.can_set_park());
+        assert!(matches!(
+            onstep.set_park().await,
+            Err(NativeError::NotConnected)
+        ));
+        let mut meade = Lx200Mount::new_meade("TEST_PORT".to_string());
+        assert!(!meade.can_set_park());
+        assert!(matches!(
+            meade.set_park().await,
+            Err(NativeError::NotSupported)
+        ));
+        assert_eq!(commands::ONSTEP_SET_PARK, ":hQ#");
+    }
 }
 
 /// A Meade-protocol mount on a pseudo-terminal, answering the way the classic

@@ -460,6 +460,21 @@ pub trait NativeMount: NativeDevice {
     async fn at_home(&self) -> Result<bool, NativeError> {
         Err(NativeError::NotSupported)
     }
+
+    /// Whether [`NativeMount::set_park`] can store the current position as
+    /// the park position. Answered from the protocol, and defaults to `false`
+    /// alongside the `NotSupported` default of `set_park`.
+    fn can_set_park(&self) -> bool {
+        false
+    }
+
+    /// Store the mount's current position as its park position.
+    ///
+    /// Defaults to `NotSupported`: most serial protocols park at a fixed or
+    /// hand-controller-configured pose and have no command to move it.
+    async fn set_park(&mut self) -> Result<(), NativeError> {
+        Err(NativeError::NotSupported)
+    }
 }
 
 /// Where the mount believes it is standing.

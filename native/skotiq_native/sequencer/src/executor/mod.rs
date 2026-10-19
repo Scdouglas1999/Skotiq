@@ -78,6 +78,7 @@ pub const AUTOFOCUS_TRIGGER_UNGUIDED_HOLD_SUMMARY: &str =
 const DEFAULT_WEATHER_VERDICT_STALENESS_SECS: u64 = 360;
 
 mod failure_cause;
+mod flip_request;
 mod monitoring;
 mod preflight;
 mod recovery_ops;

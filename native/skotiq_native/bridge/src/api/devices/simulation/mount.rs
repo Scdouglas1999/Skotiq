@@ -317,31 +317,90 @@ pub(crate) async fn sim_slew_in_flight() -> bool {
     sim_slew().read().await.is_some()
 }
 
-/// The equatorial coordinates a parked simulated mount reports.
+/// A park position stored by Set park.
 ///
-/// A parked German equatorial sits with the counterweights down pointing at the
-/// celestial pole, which is a fixed point in the horizon frame — altitude
-/// equals the site latitude and azimuth is due pole, whatever the time. Park
-/// therefore moves RA/Dec to the pole: leaving them at the previous target
-/// makes a parked mount report the altitude of whatever it was last imaging,
-/// still tracking the sky.
-pub(crate) fn sim_park_position() -> (f64, f64) {
-    let southern = crate::api::get_state()
+/// A park position is a pose of the mount, fixed against the horizon, not a
+/// point on the sky. With a site configured it is kept as hour angle and
+/// declination, so parking later lands on the same pose rather than on the
+/// RA the sky has since carried away. Without a site there is no sidereal
+/// time to measure an hour angle from, and the coordinates are kept as they
+/// were read.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum SimParkPose {
+    HourAngle { hour_angle: f64, dec: f64 },
+    Equatorial { ra: f64, dec: f64 },
+}
+
+static SIM_SET_PARK: std::sync::Mutex<Option<SimParkPose>> = std::sync::Mutex::new(None);
+
+fn sim_site() -> Option<ObserverLocation> {
+    crate::api::get_state()
         .get_observer_location()
         .ok()
         .flatten()
-        .is_some_and(|site| site.latitude < 0.0);
+}
+
+/// Store the simulated mount's current pointing as its park position.
+pub(crate) fn set_sim_park_position(ra: f64, dec: f64) {
+    let pose = match sim_local_sidereal_time(chrono::Utc::now()) {
+        Some(lst) => SimParkPose::HourAngle {
+            hour_angle: (lst - ra).rem_euclid(24.0),
+            dec,
+        },
+        None => SimParkPose::Equatorial { ra, dec },
+    };
+    if let Ok(mut stored) = SIM_SET_PARK.lock() {
+        *stored = Some(pose);
+    }
+}
+
+/// Forget a stored park position, back to the default pole pose.
+#[cfg(test)]
+pub(crate) fn clear_sim_park_position() {
+    if let Ok(mut stored) = SIM_SET_PARK.lock() {
+        *stored = None;
+    }
+}
+
+/// The celestial pole of the configured site's hemisphere, at RA 0.
+///
+/// A German equatorial with the counterweights down points at the pole, a
+/// fixed point in the horizon frame whatever the time.
+fn sim_pole_position() -> (f64, f64) {
+    let southern = sim_site().is_some_and(|site| site.latitude < 0.0);
     (0.0, if southern { -90.0 } else { 90.0 })
+}
+
+/// The equatorial coordinates a parked simulated mount reports.
+///
+/// The position stored by Set park when there is one; otherwise the default
+/// park, counterweights down on the pole. Park moves RA/Dec there: leaving
+/// them at the previous target makes a parked mount report the altitude of
+/// whatever it was last imaging, still tracking the sky.
+pub(crate) fn sim_park_position() -> (f64, f64) {
+    let stored = SIM_SET_PARK.lock().ok().and_then(|stored| *stored);
+    match stored {
+        Some(SimParkPose::HourAngle { hour_angle, dec }) => {
+            match sim_local_sidereal_time(chrono::Utc::now()) {
+                Some(lst) => ((lst - hour_angle).rem_euclid(24.0), dec),
+                // The site was removed after the park was stored: the hour angle
+                // can no longer be placed on the sky, so park on the pole.
+                None => sim_pole_position(),
+            }
+        }
+        Some(SimParkPose::Equatorial { ra, dec }) => (ra, dec),
+        None => sim_pole_position(),
+    }
 }
 
 /// The equatorial coordinates the simulated mount's home position reports.
 ///
-/// The simulated mount homes to the same mechanical pose it parks in —
+/// The simulated mount homes to the mechanical pose it parks in by default —
 /// counterweights down, tube on the celestial pole of the configured site's
-/// hemisphere — and only the state it is left in differs: a homed mount is
-/// not parked and still accepts commands.
+/// hemisphere. Set park does not move home. A homed mount is not parked and
+/// still accepts commands.
 pub(crate) fn sim_home_position() -> (f64, f64) {
-    sim_park_position()
+    sim_pole_position()
 }
 
 /// Get mount status

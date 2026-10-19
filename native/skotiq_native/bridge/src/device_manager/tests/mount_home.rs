@@ -6,7 +6,11 @@ use super::*;
 use crate::dispatch::error::DeviceOpError;
 use crate::storage::ObserverLocation;
 
-async fn register_mount(manager: &DeviceManager, device_id: &str, driver_type: DriverType) {
+pub(super) async fn register_mount(
+    manager: &DeviceManager,
+    device_id: &str,
+    driver_type: DriverType,
+) {
     manager.devices.write().await.insert(
         device_id.to_string(),
         ManagedDevice {
@@ -26,7 +30,7 @@ async fn register_mount(manager: &DeviceManager, device_id: &str, driver_type: D
 
 /// Put the simulated mount somewhere that is plainly not home: unparked,
 /// tracking, pointing well away from either pole.
-async fn connect_sim_mount_away_from_home() {
+pub(super) async fn connect_sim_mount_away_from_home() {
     crate::api::devices::simulation::cancel_sim_slew().await;
     let mount = crate::api::devices::simulation::get_sim_mount();
     let mut mount = mount.write().await;
@@ -38,7 +42,7 @@ async fn connect_sim_mount_away_from_home() {
     mount.status.declination = 20.0;
 }
 
-async fn disconnect_sim_mount() {
+pub(super) async fn disconnect_sim_mount() {
     crate::api::devices::simulation::cancel_sim_slew().await;
     crate::api::devices::simulation::get_sim_mount()
         .write()
@@ -49,7 +53,7 @@ async fn disconnect_sim_mount() {
 
 /// Run `body` with the observing site at `latitude`, then put the previous
 /// site back so the hemisphere does not leak into other simulator tests.
-async fn with_site_latitude<F, Fut>(latitude: f64, body: F)
+pub(super) async fn with_site_latitude<F, Fut>(latitude: f64, body: F)
 where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = ()>,
@@ -71,7 +75,7 @@ where
 
 /// Poll status (which is what advances the simulated motion) until the mount
 /// reports idle.
-async fn wait_until_idle(manager: &DeviceManager, device_id: &str) -> MountStatus {
+pub(super) async fn wait_until_idle(manager: &DeviceManager, device_id: &str) -> MountStatus {
     let mut status = manager.mount_get_status(device_id).await.unwrap();
     for _ in 0..200 {
         if !status.slewing {

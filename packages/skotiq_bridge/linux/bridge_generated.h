@@ -2116,7 +2116,7 @@ typedef struct wire_cst_phd_2_status {
   double rms_total;
   double snr;
   double star_mass;
-  double pixel_scale;
+  double *pixel_scale;
 } wire_cst_phd_2_status;
 
 typedef struct wire_cst_plate_solve_result {
@@ -3621,6 +3621,8 @@ void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_seque
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_recovery_try_now(int64_t port_);
 
+void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_request_meridian_flip(int64_t port_);
+
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_reset(int64_t port_);
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_resume(int64_t port_);
@@ -4045,6 +4047,9 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_pulse_guide(in
                                                                               struct wire_cst_list_prim_u_8_strict *device_id,
                                                                               struct wire_cst_list_prim_u_8_strict *direction,
                                                                               uint32_t duration_ms);
+
+void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_park(int64_t port_,
+                                                                           struct wire_cst_list_prim_u_8_strict *device_id);
 
 void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_site(int64_t port_,
                                                                            struct wire_cst_list_prim_u_8_strict *device_id,
@@ -4536,6 +4541,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_move_axis);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_park);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_pulse_guide);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_park);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_site);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_time);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_tracking);
@@ -4778,6 +4784,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_load_json);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_pause);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_plugin_node_finished);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_request_meridian_flip);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_reset);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_resume);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_resume_from_checkpoint);

@@ -283,6 +283,12 @@ impl Trigger {
                     return false;
                 }
 
+                // An operator's request skips the window threshold, never the
+                // preconditions below; the refusal check applies them all.
+                if state.meridian_flip_requested && state.manual_flip_refusal().is_none() {
+                    return true;
+                }
+
                 // A flip only means anything for a target we are tracking.
                 // Hour angle comes from the MOUNT, so without this the trigger
                 // fires on a run that never set a target — and the flip arm

@@ -44,6 +44,7 @@ pub mod standard_properties {
     pub const TELESCOPE_TRACK_STATE: &str = "TELESCOPE_TRACK_STATE";
     pub const TELESCOPE_TRACK_RATE: &str = "TELESCOPE_TRACK_RATE";
     pub const TELESCOPE_PARK: &str = "TELESCOPE_PARK";
+    pub const TELESCOPE_PARK_OPTION: &str = "TELESCOPE_PARK_OPTION";
     pub const TELESCOPE_ABORT_MOTION: &str = "TELESCOPE_ABORT_MOTION";
     pub const TELESCOPE_MOTION_NS: &str = "TELESCOPE_MOTION_NS";
     pub const TELESCOPE_MOTION_WE: &str = "TELESCOPE_MOTION_WE";

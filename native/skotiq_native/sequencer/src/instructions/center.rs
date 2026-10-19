@@ -563,6 +563,9 @@ pub(crate) async fn wait_for_meridian_flip_window(
     let lock = ctx.trigger_state.as_ref()?;
     let started = tokio::time::Instant::now();
     let mut announced = false;
+    // Kept apart from `announced`, which scopes the escape hatches below to
+    // gate entry; a hold for a request must not switch them off.
+    let mut announced_request = false;
     loop {
         if let Some(result) = ctx.check_cancelled() {
             return Some(result);
@@ -575,6 +578,7 @@ pub(crate) async fn wait_for_meridian_flip_window(
             trigger_has_target,
             mount_parked,
             mount_following,
+            flip_requested,
         ) = {
             let state = lock.read().await;
             (
@@ -589,8 +593,41 @@ pub(crate) async fn wait_for_meridian_flip_window(
                 // in `Trigger::check`), so holding for it there waits out the
                 // whole bound on every frame.
                 state.mount_parked != Some(true) && state.mount_is_tracking != Some(false),
+                state.meridian_flip_requested && state.manual_flip_refusal().is_none(),
             )
         };
+        // An operator's flip request fires the trigger on its next tick, and
+        // the flip then takes the imaging train. Hold here until the request
+        // has been taken up, so this frame does not take the train first and
+        // put the flip back by a whole exposure. Any trigger method, so this
+        // is checked before the MinutesPastMeridian-only prediction below.
+        if flip_requested {
+            if started.elapsed() > MERIDIAN_GATE_MAX_WAIT {
+                let message = format!(
+                    "Held the next exposure {}s for the requested meridian flip without it \
+                     starting; proceeding with the exposure.",
+                    started.elapsed().as_secs()
+                );
+                tracing::warn!("{}", message);
+                control.report(&message);
+                return None;
+            }
+            if !announced_request {
+                let message = format!(
+                    "Holding the next {exposure_secs:.0}s exposure for the requested meridian flip."
+                );
+                tracing::info!("{}", message);
+                control.report(&message);
+                announced_request = true;
+            }
+            tokio::select! {
+                _ = sleep(Duration::from_millis(500)) => {}
+                _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {
+                    return Some(InstructionResult::cancelled("Exposure cancelled"));
+                }
+            }
+            continue;
+        }
         // No MinutesPastMeridian trigger armed / already flipped — nothing
         // predictable to gate on.
         let threshold_min = threshold_min?;

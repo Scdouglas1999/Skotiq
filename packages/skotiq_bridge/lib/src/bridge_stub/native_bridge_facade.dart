@@ -399,6 +399,8 @@ abstract final class NativeBridge {
       _nativeBridge.sequencerGetCheckpointInfo();
   static Future<void> sequencerResumeFromCheckpoint() =>
       _nativeBridge.sequencerResumeFromCheckpoint();
+  static Future<void> sequencerRequestMeridianFlip() =>
+      _nativeBridge.sequencerRequestMeridianFlip();
   static Future<void> performMeridianFlip({
     required String mountId,
     String? cameraId,

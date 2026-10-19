@@ -575,6 +575,26 @@ impl NativeMount for Lx200Mount {
         Ok(())
     }
 
+    async fn set_park(&mut self) -> Result<(), NativeError> {
+        // `:hQ#` is an OnStep extension, refused on classic Meade/Losmandy for
+        // the same reason as `find_home`, and checked before the connection.
+        if !self.mount_type.is_onstep() {
+            return Err(NativeError::NotSupported);
+        }
+
+        if !self.is_connected() {
+            return Err(NativeError::NotConnected);
+        }
+
+        tracing::info!("Setting park position to the current position");
+        if !self.send_command_bool(commands::ONSTEP_SET_PARK)? {
+            return Err(NativeError::SdkError(
+                "Mount refused to store the park position".into(),
+            ));
+        }
+        Ok(())
+    }
+
     async fn at_home(&self) -> Result<bool, NativeError> {
         if !self.mount_type.is_onstep() {
             return Err(NativeError::NotSupported);
@@ -660,6 +680,11 @@ impl NativeMount for Lx200Mount {
 
     fn can_find_home(&self) -> bool {
         // Only OnStep has a home command (`:hF#`); see `find_home`.
+        self.mount_type.is_onstep()
+    }
+
+    fn can_set_park(&self) -> bool {
+        // Only OnStep can store a park position (`:hQ#`); see `set_park`.
         self.mount_type.is_onstep()
     }
 }

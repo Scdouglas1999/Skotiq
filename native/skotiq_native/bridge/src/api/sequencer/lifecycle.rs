@@ -324,6 +324,24 @@ pub async fn api_sequencer_resume_from_checkpoint() -> Result<(), SkotiqError> {
         .map_err(|e| SkotiqError::OperationFailed(e))
 }
 
+/// Ask the RUNNING sequence to flip at its next safe point.
+///
+/// The counterpart of [`api_perform_meridian_flip`], which is refused during a
+/// run. The flip runs through the run's own meridian trigger: it waits for the
+/// frame in flight, then stops guiding, flips, re-centers, refocuses if
+/// configured, restarts guiding and settles. Returns once the request is
+/// queued; the result arrives as the usual meridian-flip outcome event. An
+/// `Err` carries the operator-facing reason the flip cannot run now (target
+/// not yet past the meridian, mount parked or not tracking, already flipped,
+/// the run paused, ...).
+pub async fn api_sequencer_request_meridian_flip() -> Result<(), SkotiqError> {
+    let executor = get_sequence_executor().read().await;
+    executor
+        .request_meridian_flip()
+        .await
+        .map_err(SkotiqError::OperationFailed)
+}
+
 /// Standalone meridian flip — runs the canonical [`MeridianFlipExecutor`]
 /// OUTSIDE any running sequence.
 ///

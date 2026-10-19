@@ -159,6 +159,14 @@ pub async fn mount_find_home(device_id: String) -> Result<(), SkotiqError> {
         .map_err(SkotiqError::from)
 }
 
+/// Store the mount's current position as its park position
+pub async fn mount_set_park(device_id: String) -> Result<(), SkotiqError> {
+    let mgr = get_device_manager();
+    mgr.mount_set_park(&device_id)
+        .await
+        .map_err(SkotiqError::from)
+}
+
 /// Which site/time directions this mount can honour.
 ///
 /// The reconciliation card asks the operator which way to copy; asking about a
