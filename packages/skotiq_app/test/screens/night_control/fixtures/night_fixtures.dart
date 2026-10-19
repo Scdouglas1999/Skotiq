@@ -843,7 +843,7 @@ abstract final class NightFixtures {
           title: _t('Weather'),
           detail: _t('no source · safety cannot react'),
           actionLabel: _t('Add'),
-          route: '/settings/weather',
+          route: '/settings?section=weather-safety',
         ),
         ChecklistItemVm(
           id: ChecklistItemId.dawn,

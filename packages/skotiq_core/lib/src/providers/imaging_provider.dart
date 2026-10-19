@@ -596,16 +596,36 @@ final temperatureHistoryProvider =
 class TemperatureHistoryNotifier extends StateNotifier<List<TemperaturePoint>> {
   static const int maxPoints = 120; // 10 minutes at 5-second intervals
 
+  /// One reading per minute in [longHistory]: twelve hours in 720 points.
+  static const Duration longBucket = Duration(minutes: 1);
+  static const int maxLongPoints = 720;
+
   TemperatureHistoryNotifier() : super([]);
 
-  void addPoint(double temperature, {double? targetTemp, double? coolerPower}) {
+  final List<TemperaturePoint> _long = <TemperaturePoint>[];
+
+  /// The night's cooler history, downsampled to the last reading of each
+  /// minute and capped at twelve hours, so a chart can say "since 19:20"
+  /// where [state] only covers the last ten minutes. Every point is a real
+  /// reading; nothing is averaged or filled in.
+  List<TemperaturePoint> get longHistory =>
+      List<TemperaturePoint>.unmodifiable(_long);
+
+  /// [at] defaults to now; tests pass it to build hours of history.
+  void addPoint(
+    double temperature, {
+    double? targetTemp,
+    double? coolerPower,
+    DateTime? at,
+  }) {
     final point = TemperaturePoint(
       temperature: temperature,
       targetTemp: targetTemp,
       coolerPower: coolerPower,
-      time: DateTime.now(),
+      time: at ?? DateTime.now(),
     );
 
+    _addLong(point);
     if (state.length >= maxPoints) {
       state = [...state.sublist(1), point];
     } else {
@@ -613,7 +633,25 @@ class TemperatureHistoryNotifier extends StateNotifier<List<TemperaturePoint>> {
     }
   }
 
+  void _addLong(TemperaturePoint point) {
+    if (_long.isNotEmpty &&
+        _bucketOf(_long.last.time) == _bucketOf(point.time)) {
+      _long[_long.length - 1] = point;
+    } else {
+      _long.add(point);
+    }
+    final cutoff = point.time.subtract(longBucket * maxLongPoints);
+    _long.removeWhere((p) => p.time.isBefore(cutoff));
+    if (_long.length > maxLongPoints) {
+      _long.removeRange(0, _long.length - maxLongPoints);
+    }
+  }
+
+  static int _bucketOf(DateTime time) =>
+      time.millisecondsSinceEpoch ~/ longBucket.inMilliseconds;
+
   void clear() {
+    _long.clear();
     state = [];
   }
 
@@ -637,3 +675,12 @@ class TemperatureHistoryNotifier extends StateNotifier<List<TemperaturePoint>> {
     return (minTemp - 5, maxTemp + 5);
   }
 }
+
+/// The cooler history of the last twelve hours, one reading per minute. See
+/// [TemperatureHistoryNotifier.longHistory].
+final temperatureLongHistoryProvider = Provider<List<TemperaturePoint>>((ref) {
+  // Every reading replaces the short list, so watching it is the change
+  // signal for the long one as well.
+  ref.watch(temperatureHistoryProvider);
+  return ref.read(temperatureHistoryProvider.notifier).longHistory;
+});
