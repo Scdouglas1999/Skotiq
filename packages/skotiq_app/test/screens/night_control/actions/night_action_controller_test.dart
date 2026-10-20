@@ -288,7 +288,7 @@ void main() {
     });
 
     test(
-        'the ready board shows tracking and cooler, a run shows dither and '
+        'the ready board has no tracking or cooler, a run shows dither and '
         'flip', () {
       final ready = actionHarness();
       addTearDown(ready.container.dispose);
@@ -300,8 +300,6 @@ void main() {
           ManualActionId.autofocus,
           ManualActionId.solveSync,
           ManualActionId.center,
-          ManualActionId.tracking,
-          ManualActionId.cooler,
         ],
       );
       final run = actionHarness(runState: running);
@@ -339,7 +337,13 @@ void main() {
       };
       expect(vms[ManualActionId.snapshot]!.disabledReason?.key,
           'nightActWhyNoCamera');
-      expect(vms[ManualActionId.tracking]!.enabled, isTrue);
+      expect(
+        manualActionDisabledReason(
+          h.container.read(nightActionInputsProvider),
+          ManualActionId.tracking,
+        ),
+        isNull,
+      );
     });
   });
 

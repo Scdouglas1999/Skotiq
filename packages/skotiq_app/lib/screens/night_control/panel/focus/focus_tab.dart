@@ -1,6 +1,8 @@
 // The Focus tab (TonightFocus.dc.html): the live V-curve and its points,
 // the focuser's position and moves, temperature compensation and this
 // session's autofocus runs.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -88,6 +90,14 @@ class NightAutofocusSection extends ConsumerWidget {
         : !running
             ? l10n.text('nightPanelWhyNoAutofocus')
             : null;
+    // The same gating as the bar's Autofocus button.
+    final runAction = ref
+        .watch(nightManualActionsProvider)
+        .where((a) => a.id == ManualActionId.autofocus)
+        .firstOrNull;
+    final runBlocked = runAction == null || runAction.enabled
+        ? null
+        : runAction.disabledReason?.resolve(l10n);
     final points = vm.points;
     final latest = points.isEmpty ? null : points.length - 1;
 
@@ -134,21 +144,36 @@ class NightAutofocusSection extends ConsumerWidget {
         NightPanelGrid(
           columns: 2,
           children: <Widget>[
-            NightPanelButton(
-              label: l10n.text('nightPanelCancelAutofocus'),
-              semanticLabel: l10n.text('nightPanelCancelAutofocusSemantics'),
-              disabledReason: cancelBlocked,
-              onPressed: cancelBlocked == null
-                  ? () => vm.startedHere
-                      ? ref.read(nightActionApiProvider).cancel()
-                      : nightPanelAttempt(
-                          context,
-                          'nightPanelErrAutofocusCancel',
-                          () =>
-                              ref.read(nightPanelOpsProvider).cancelAutofocus(),
+            if (!running)
+              NightPanelButton(
+                label: l10n.text('nightPanelRunAutofocus'),
+                semanticLabel: l10n.text('nightPanelRunAutofocusSemantics'),
+                disabledReason: runBlocked,
+                onPressed: runBlocked == null
+                    ? () => unawaited(
+                          ref
+                              .read(nightActionApiProvider)
+                              .run(ManualActionId.autofocus),
                         )
-                  : null,
-            ),
+                    : null,
+              )
+            else
+              NightPanelButton(
+                label: l10n.text('nightPanelCancelAutofocus'),
+                semanticLabel: l10n.text('nightPanelCancelAutofocusSemantics'),
+                disabledReason: cancelBlocked,
+                onPressed: cancelBlocked == null
+                    ? () => vm.startedHere
+                        ? ref.read(nightActionApiProvider).cancel()
+                        : nightPanelAttempt(
+                            context,
+                            'nightPanelErrAutofocusCancel',
+                            () => ref
+                                .read(nightPanelOpsProvider)
+                                .cancelAutofocus(),
+                          )
+                    : null,
+              ),
             NightPanelButton(
               label: l10n.text('nightPanelSettingsEllipsis'),
               semanticLabel: l10n.text('nightPanelAfSettingsSemantics'),

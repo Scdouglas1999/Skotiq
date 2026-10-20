@@ -138,6 +138,36 @@ void main() {
     expect(ops.calls, <String>['halt']);
   });
 
+  testWidgets('idle: Run starts autofocus through the action controller',
+      (tester) async {
+    final api = FakeActionApi();
+    await pumpPanel(
+      tester,
+      child: const NightFocusTab(),
+      overrides: panelOverrides(
+        board: NightFixtures.ready(),
+        focus: PanelFixtures.focusIdle,
+        api: api,
+      ),
+    );
+
+    expect(_button('Cancel autofocus'), findsNothing);
+    await tester.tap(_button('Run autofocus'));
+    await tester.pump();
+    expect(api.calls, <String>['run autofocus']);
+  });
+
+  testWidgets('while autofocus runs, Cancel takes the place of Run',
+      (tester) async {
+    await pumpPanel(
+      tester,
+      child: const NightFocusTab(),
+      overrides: panelOverrides(board: NightFixtures.autofocus()),
+    );
+    expect(_button('Run autofocus'), findsNothing);
+    expect(_button('Cancel autofocus'), findsOneWidget);
+  });
+
   testWidgets('idle: jog and go-to move the focuser', (tester) async {
     final ops = FakePanelOps();
     await pumpPanel(
@@ -235,15 +265,8 @@ void main() {
     expect(find.text('Done'), findsOneWidget);
     expect(find.text('fit R² 0.994 · min ≈ ${nightGrouped(45470)} · 1.97'),
         findsOneWidget);
-    expect(
-      tester.getSemantics(_button('Cancel autofocus')),
-      matchesSemantics(
-        label: 'Cancel autofocus',
-        hint: 'No autofocus is running',
-        isButton: true,
-        hasEnabledState: true,
-        hasSelectedState: true,
-      ),
-    );
+    // Nothing running: Run takes Cancel's place.
+    expect(_button('Cancel autofocus'), findsNothing);
+    expect(_button('Run autofocus'), findsOneWidget);
   });
 }

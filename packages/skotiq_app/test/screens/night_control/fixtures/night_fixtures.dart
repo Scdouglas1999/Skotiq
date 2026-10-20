@@ -915,8 +915,6 @@ abstract final class NightFixtures {
         _action(ManualActionId.autofocus, 'Autofocus', sub: 'L'),
         _action(ManualActionId.solveSync, 'Solve & sync'),
         _action(ManualActionId.center, 'Center', sub: 'M74'),
-        _action(ManualActionId.tracking, 'Track', sub: 'sidereal'),
-        _action(ManualActionId.cooler, 'Cooler', sub: '−10 °C'),
       ];
 
   static List<ManualActionVm> autofocusActions() {

@@ -95,8 +95,6 @@ List<ManualActionId> visibleManualActions(NightActionInputs inputs) =>
             ManualActionId.autofocus,
             ManualActionId.solveSync,
             ManualActionId.center,
-            ManualActionId.tracking,
-            ManualActionId.cooler,
           ];
 
 /// Why [id] cannot run now, or null when it can.

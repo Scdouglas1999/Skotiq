@@ -11,7 +11,7 @@ import '../fixtures/night_fixtures.dart';
 import 'center_test_support.dart';
 
 void main() {
-  testWidgets('pressing an action runs it and selects its panel tab',
+  testWidgets('pressing an action opens its panel tab and starts nothing',
       (tester) async {
     final api = FakeNightActionApi();
     final container = await pumpCenter(
@@ -24,18 +24,17 @@ void main() {
 
     await tester.tap(find.text('Autofocus'));
     await tester.pump();
-    expect(api.ran, <ManualActionId>[ManualActionId.autofocus]);
     expect(container.read(nightPanelTabProvider), NightPanelTab.focus);
 
     await tester.ensureVisible(find.text('Dither'));
     await tester.pump();
     await tester.tap(find.text('Dither'));
     await tester.pump();
-    expect(api.ran.last, ManualActionId.dither);
     expect(container.read(nightPanelTabProvider), NightPanelTab.guide);
+    expect(api.ran, isEmpty);
   });
 
-  testWidgets('a disabled action gives its reason and does nothing',
+  testWidgets('an action that cannot run gives its reason and opens its tab',
       (tester) async {
     final handle = tester.ensureSemantics();
     final api = FakeNightActionApi();
@@ -50,16 +49,18 @@ void main() {
     expect(flip, findsOneWidget);
     final data = tester.getSemantics(flip).getSemanticsData();
     expect(data.hint, reason);
-    expect(data.flagsCollection.isEnabled, Tristate.isFalse);
+    expect(data.flagsCollection.isEnabled, Tristate.isTrue);
     expect(
       find.byWidgetPredicate((w) => w is Tooltip && w.message == reason),
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Flip now'), warnIfMissed: false);
+    await tester.ensureVisible(find.text('Flip now'));
+    await tester.pump();
+    await tester.tap(find.text('Flip now'));
     await tester.pump();
     expect(api.ran, isEmpty);
-    expect(container.read(nightPanelTabProvider), NightPanelTab.overview);
+    expect(container.read(nightPanelTabProvider), NightPanelTab.mount);
     handle.dispose();
   });
 
@@ -142,7 +143,8 @@ void main() {
       find.text('Nothing is running · actions run right away'),
       findsOneWidget,
     );
-    expect(find.text('Track'), findsOneWidget);
-    expect(find.text('Cooler'), findsOneWidget);
+    // Tracking and the cooler live in the Mount and Camera tabs.
+    expect(find.text('Track'), findsNothing);
+    expect(find.text('Cooler'), findsNothing);
   });
 }

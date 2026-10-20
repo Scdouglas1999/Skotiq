@@ -1,7 +1,7 @@
 // The manual-action bar under the frame: Snapshot, Loop, Autofocus, Solve &
-// sync, Center, then Dither and Flip during a run or Track and Cooler before
-// one. The buttons and their gating come from the action controller (P2);
-// this bar only renders them, runs the pressed one and shows its panel tab.
+// sync, Center, plus Dither and Flip during a run. The buttons and their
+// gating come from the action controller (P2). Pressing one only opens its
+// panel tab; the action itself starts from the button in that tab.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -96,8 +96,9 @@ class ManualActionBar extends ConsumerWidget {
   }
 }
 
-/// One action. Pressing it runs the action and shows its panel tab; a
-/// disabled one says why in its tooltip and its semantics hint.
+/// One action. Pressing it shows its panel tab and starts nothing. One that
+/// cannot run now is muted and says why in its tooltip and semantics hint,
+/// and still opens its tab.
 class _ActionButton extends ConsumerWidget {
   const _ActionButton({required this.action, required this.hideSub});
 
@@ -128,11 +129,11 @@ class _ActionButton extends ConsumerWidget {
 
     final button = Semantics(
       button: true,
-      enabled: action.enabled,
+      enabled: true,
       label: sub == null ? label : '$label, $sub',
       hint: reason,
       excludeSemantics: true,
-      onTap: action.enabled ? () => _press(ref) : null,
+      onTap: () => _press(ref),
       child: Material(
         color: fill,
         shape: RoundedRectangleBorder(
@@ -146,7 +147,7 @@ class _ActionButton extends ConsumerWidget {
               : BorderSide.none,
         ),
         child: InkWell(
-          onTap: action.enabled ? () => _press(ref) : null,
+          onTap: () => _press(ref),
           borderRadius: SkotiqTokens.borderRadiusLg,
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 30),
@@ -181,7 +182,6 @@ class _ActionButton extends ConsumerWidget {
 
   void _press(WidgetRef ref) {
     ref.read(nightPanelTabProvider.notifier).state = action.id.panelTab;
-    unawaited(ref.read(nightActionApiProvider).run(action.id));
   }
 }
 
