@@ -45,6 +45,7 @@ async fn meridian_gate_does_not_hold_a_target_east_of_the_meridian() {
         104.65,
     );
     ctx.target_ra = Some((lst + 4.0) % 24.0);
+    ctx.target_dec = Some(40.0);
 
     let gate = tokio::time::timeout(
         Duration::from_secs(2),

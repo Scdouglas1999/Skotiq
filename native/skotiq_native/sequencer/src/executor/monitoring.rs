@@ -146,9 +146,11 @@ pub(super) fn target_sky_state(
             _ => return None,
         };
 
-    // `TriggerState` stores target RA in DEGREES (it is compared against
-    // plate-solve output); the astronomy helpers take hours.
-    let ra_hours = ra_degrees / 15.0;
+    // `TriggerState` stores target RA in DEGREES and in J2000 (it is compared
+    // against plate-solve output); the astronomy helpers take hours, and the
+    // hour angle needs the RA of date (see `meridian::target_of_date`).
+    let (ra_hours, dec_degrees) =
+        crate::meridian::target_of_date(ra_degrees / 15.0, dec_degrees, now);
     let lst = crate::meridian::local_sidereal_time(crate::meridian::julian_day(&now), longitude);
     Some(TargetSkyState {
         altitude_degrees: crate::meridian::calculate_altitude(

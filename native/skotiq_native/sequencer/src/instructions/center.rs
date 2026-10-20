@@ -797,9 +797,12 @@ pub(crate) async fn wait_for_meridian_flip_window(
 /// the published value when the target or the site is unknown here — the two
 /// are the same quantity, computed from the same target coordinates.
 pub(crate) fn current_target_hour_angle(ctx: &InstructionContext) -> Option<f64> {
-    let ra_hours = ctx.target_ra?;
     let longitude = ctx.longitude?;
     let now = chrono::Utc::now();
+    // J2000 target, of-date LST: precess first, as the trigger monitor does.
+    // Without a declination, fall back to the trigger monitor's published
+    // value, which is computed that way.
+    let (ra_hours, _) = crate::meridian::target_of_date(ctx.target_ra?, ctx.target_dec?, now);
     let jd = crate::meridian::julian_day(&now);
     let lst = crate::meridian::local_sidereal_time(jd, longitude);
     Some(crate::meridian::hour_angle(ra_hours, lst))

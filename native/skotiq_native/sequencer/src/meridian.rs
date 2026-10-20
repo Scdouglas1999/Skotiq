@@ -54,6 +54,20 @@ pub fn calculate_meridian_crossing(
     current_time + chrono::Duration::seconds(seconds)
 }
 
+/// Precess a J2000 target (RA hours, Dec degrees) to mean-of-date at `when`.
+///
+/// Hour angle is LST − RA, and LST is a time of date, so the RA it is taken
+/// against must be of date too. Target coordinates in the sequencer are J2000
+/// (catalogues, plate solves), and in 2026 the two frames are ~1.3 min of RA
+/// apart: an hour angle from the J2000 RA puts the meridian that far off, and a
+/// flip fired inside that window slews the mount without changing pier side.
+/// Every hour angle or altitude taken from a target's coordinates goes through
+/// here first. Same rotation as [`crate::axis_j2000_to_date`].
+pub fn target_of_date(ra_hours: f64, dec_degrees: f64, when: DateTime<Utc>) -> (f64, f64) {
+    let (ra_degrees, dec) = crate::axis_j2000_to_date(ra_hours * 15.0, dec_degrees, when);
+    (ra_degrees / 15.0, dec)
+}
+
 /// Calculate a target's hour angle in hours from its RA and the Local Sidereal
 /// Time, normalized to -12..+12: negative is east of the meridian
 /// (approaching), positive is west of it (past the meridian).
