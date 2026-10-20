@@ -82,6 +82,11 @@ abstract interface class NightRigOps {
   /// Standalone meridian flip. Returns the failure text, null on success.
   Future<String?> flip();
 
+  /// Asks the running run to flip at its next safe point, through its own
+  /// meridian trigger. Completes once the request is queued; throws with
+  /// the native reason when the run cannot flip now.
+  Future<void> requestRunFlip();
+
   Future<CommandActionResult> setTracking(bool enabled);
 
   /// Throws on failure.
@@ -346,6 +351,9 @@ class ServiceNightRigOps implements NightRigOps {
     if (ok) return null;
     return _ref.read(flipLastErrorProvider) ?? 'The meridian flip failed';
   }
+
+  @override
+  Future<void> requestRunFlip() => _devices.requestSequenceMeridianFlip();
 
   @override
   Future<CommandActionResult> setTracking(bool enabled) =>

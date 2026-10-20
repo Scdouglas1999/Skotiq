@@ -3,6 +3,7 @@
 // compensation and this session's runs.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/skotiq_core.dart' show VCurvePoint;
 import 'package:skotiq_app/screens/night_control/data/session/session_format.dart';
 import 'package:skotiq_app/screens/night_control/panel/focus/focus_panel_vm.dart';
 import 'package:skotiq_app/screens/night_control/panel/focus/focus_tab.dart';
@@ -49,6 +50,23 @@ void main() {
 
     expect(find.text('stars'), findsOneWidget);
     expect(find.text('1131'), findsOneWidget);
+  });
+
+  test('star counts come from the V-curve points, index for index', () {
+    expect(
+      nightAfStarCounts(const [
+        VCurvePoint(position: 100, hfr: 3.1, starCount: 812),
+        VCurvePoint(position: 200, hfr: 2.4),
+        VCurvePoint(position: 300, hfr: 2.9, starCount: 905),
+      ]),
+      <int?>[812, null, 905],
+    );
+    // No point has a count (an older build): no column, never zeros.
+    expect(
+      nightAfStarCounts(const [VCurvePoint(position: 100, hfr: 3.1)]),
+      isNull,
+    );
+    expect(nightAfStarCounts(const []), isNull);
   });
 
   testWidgets('Cancel goes through the action controller for its own run',

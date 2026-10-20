@@ -1,12 +1,13 @@
-// The guiding chart: RA and Dec error in pixels, RMS, dither marks.
+// The guiding chart: RA and Dec error, RMS, dither marks.
 //
-// The samples come from the guider's GuideStep events. They are pixels: the
-// event carries PHD2's raw distances and nothing in the app exposes PHD2's
-// pixel scale, so every label says "px" (plan N4). `guideGraphProvider`
-// turns a missing axis into 0, which draws a perfect guide step that never
-// happened; this provider keeps its own buffer and drops such a sample.
-// The RMS beside the chart is computed from the same samples, so the chart
-// and its numbers always describe the same window.
+// The samples come from the guider's GuideStep events, which carry PHD2's
+// raw distances in guide-camera pixels. They are shown in arcseconds only
+// when the guider reports its pixel scale, and in pixels otherwise; nothing
+// assumes a scale. `guideGraphProvider` turns a missing axis into 0, which
+// draws a perfect guide step that never happened; this provider keeps its
+// own buffer and drops such a sample. The RMS beside the chart is computed
+// from the same samples, so the chart and its numbers always describe the
+// same window.
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -115,11 +116,33 @@ double _rms(Iterable<double> values) {
   return math.sqrt(sum / n);
 }
 
-String _px(double value) => '${value.toStringAsFixed(2)} px';
+/// The guide camera's arcseconds per pixel as the guider reports it, or null
+/// when it has not reported one; guide distances are then in pixels.
+final nightGuideScaleProvider = Provider<double?>((ref) {
+  final scale = ref.watch(
+    guiderStateProvider.select((g) => g.pixelScaleArcsecPerPixel),
+  );
+  return scale != null && scale.isFinite && scale > 0 ? scale : null;
+});
 
-/// The guiding chart's lines (pixels), dither marks and legend.
+/// A guide distance of [px] pixels: `0.42″` when [arcsecPerPixel] is known,
+/// `0.31 px` otherwise.
+String nightGuideDistance(
+  double px,
+  double? arcsecPerPixel, {
+  int decimals = 2,
+}) =>
+    arcsecPerPixel == null
+        ? '${px.toStringAsFixed(decimals)} px'
+        : '${(px * arcsecPerPixel).toStringAsFixed(decimals)}″';
+
+/// The guiding chart's lines (arcseconds when the scale is known, else
+/// pixels), dither marks and legend.
 final nightGuideSeriesProvider = Provider<NightSeriesVm>((ref) {
   final samples = ref.watch(nightGuideSamplesProvider);
+  final scale = ref.watch(nightGuideScaleProvider);
+  final k = scale ?? 1.0;
+  String distance(double px) => nightGuideDistance(px, scale);
   final dithers = ref.watch(
     nightSessionEventsProvider.select((events) => events.dithers),
   );
@@ -156,14 +179,14 @@ final nightGuideSeriesProvider = Provider<NightSeriesVm>((ref) {
       SeriesLineVm(
         id: NightSeriesId.guideRa,
         points: <SeriesPoint>[
-          for (final s in samples) SeriesPoint(s.t, s.raPx),
+          for (final s in samples) SeriesPoint(s.t, s.raPx * k),
         ],
         tone: SeriesTone.primary,
       ),
       SeriesLineVm(
         id: NightSeriesId.guideDec,
         points: <SeriesPoint>[
-          for (final s in samples) SeriesPoint(s.t, s.decPx),
+          for (final s in samples) SeriesPoint(s.t, s.decPx * k),
         ],
         tone: SeriesTone.tertiary,
       ),
@@ -178,19 +201,19 @@ final nightGuideSeriesProvider = Provider<NightSeriesVm>((ref) {
     legend: <MetricVm>[
       MetricVm(
         label: const NightText('nightSessionGuideTotal'),
-        value: _px(math.sqrt(rmsRa * rmsRa + rmsDec * rmsDec)),
+        value: distance(math.sqrt(rmsRa * rmsRa + rmsDec * rmsDec)),
       ),
       MetricVm(
         label: const NightText('nightSessionGuideRa'),
-        value: _px(rmsRa),
+        value: distance(rmsRa),
       ),
       MetricVm(
         label: const NightText('nightSessionGuideDec'),
-        value: _px(rmsDec),
+        value: distance(rmsDec),
       ),
       MetricVm(
         label: const NightText('nightSessionGuidePeak'),
-        value: _px(peak),
+        value: distance(peak),
       ),
       if (snr != null)
         MetricVm(

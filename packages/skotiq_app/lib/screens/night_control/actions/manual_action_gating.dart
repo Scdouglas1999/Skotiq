@@ -162,9 +162,11 @@ NightText? manualActionDisabledReason(
       if (!inputs.isGuiding) return const NightText('nightActWhyNotGuiding');
       return null;
     case ManualActionId.flip:
-      // Native refuses a standalone flip while the executor runs or is
-      // paused; the run's meridian trigger owns flips (plan finding 5).
-      if (inputs.runActive) return const NightText('nightActWhyFlipRun');
+      // During a run the flip is a request to the run's own meridian
+      // trigger, which only acts while the run is running.
+      if (inputs.runState == SequenceExecutionState.paused) {
+        return const NightText('nightActWhyFlipPaused');
+      }
       if (!inputs.mountConnected) return noMount;
       if (inputs.mountParked) return parked;
       if (!inputs.mountTracking) {

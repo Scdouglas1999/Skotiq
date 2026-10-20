@@ -73,10 +73,8 @@ class NightFocusPanelVm {
   /// The current or last run's samples, in the order measured.
   final List<VCurvePoint> points;
 
-  /// Stars per point, index for index with [points]; null while the
-  /// progress events carry only the current point's count.
-  // P9: per-point star counts (native item N3) fill this; the table's stars
-  // column appears as soon as it is non-null.
+  /// Stars per point, index for index with [points]; null when no point
+  /// carries a count (an event from a build that did not report it).
   final List<int?>? starCounts;
 
   /// The finished run's result.
@@ -104,6 +102,13 @@ class NightFocusPanelVm {
   /// Newest first.
   final List<NightAutofocusRun> recentRuns;
 }
+
+/// The stars column for [points], index for index; null when no point
+/// carries a count, which hides the column.
+List<int?>? nightAfStarCounts(List<VCurvePoint> points) =>
+    points.any((p) => p.starCount != null)
+        ? [for (final p in points) p.starCount]
+        : null;
 
 final nightFocusPanelProvider = Provider<NightFocusPanelVm>((ref) {
   final overlay = ref.watch(autofocusOverlayProvider);
@@ -147,6 +152,7 @@ final nightFocusPanelProvider = Provider<NightFocusPanelVm>((ref) {
         ? overlay.totalPoints
         : null,
     points: overlay.vcurvePoints,
+    starCounts: nightAfStarCounts(overlay.vcurvePoints),
     bestPosition:
         status == NightAutofocusStatus.done ? result?.bestPosition : null,
     bestHfr: status == NightAutofocusStatus.done ? result?.bestHfr : null,

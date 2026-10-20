@@ -1,8 +1,9 @@
-// The Mount section: Home, Flip now, Unpark, Park, Limits… and a line that
-// states the meridian-flip settings in force.
+// The Mount section: Home, Flip now, Unpark, Park, Set park, Limits… and a
+// line that states the meridian-flip settings in force.
 //
 // Park is the only control on Tonight that parks the mount, and only after
-// the operator confirms it in a dialog. Nothing here parks on its own.
+// the operator confirms it in a dialog. Nothing here parks on its own. Set
+// park moves nothing; it asks first because it changes where Park goes.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -33,7 +34,7 @@ class NightMountActionsSection extends ConsumerStatefulWidget {
 
 class _NightMountActionsSectionState
     extends ConsumerState<NightMountActionsSection> {
-  /// The command in flight ('home', 'park', 'unpark').
+  /// The command in flight ('home', 'park', 'unpark', 'setPark').
   String? _busy;
 
   @override
@@ -73,7 +74,27 @@ class _NightMountActionsSectionState
       parkReason = l10n.text('nightScopeWhyMountCannot');
     }
 
-    // P9: an in-run "request flip now" (native N2) enables Flip during a run.
+    // Moves nothing, but changes where every later Park goes; a loaded run
+    // owns the mount, so it waits.
+    String? setParkReason = facts.baseReason(l10n) ?? busy;
+    if (setParkReason == null) {
+      if (!caps!.canSetPark) {
+        setParkReason = l10n.text('nightScopeWhyNoSetPark');
+      } else if (mount.isHoming) {
+        setParkReason = l10n.text('nightScopeWhyHoming');
+      } else if (mount.isSlewing) {
+        setParkReason = l10n.text('nightScopeWhySlewing');
+      } else {
+        // The service's own refusal, should it ever disagree.
+        setParkReason = MountCommandService.setParkUnavailableReason(
+          mountState: mount,
+          isConnected: facts.connected,
+          canSetPark: caps.canSetPark,
+        );
+      }
+    }
+
+    // During a running run this asks the run's own meridian trigger to flip.
     final flipReason =
         manualActionDisabledReason(facts.inputs, ManualActionId.flip)
             ?.resolve(l10n);
@@ -129,8 +150,15 @@ class _NightMountActionsSectionState
                   ? () => unawaited(_confirmPark(facts.runActive))
                   : null,
             ),
-            // P9: "Set park" joins this row once the bridge has
-            // mount_set_park (native N1); until then it is left out.
+            NightPanelButtonSpec(
+              key: const ValueKey<String>('nightMount.setPark'),
+              label: l10n.text('nightScopeSetPark'),
+              busy: _busy == 'setPark',
+              disabledReason: setParkReason,
+              onPressed: setParkReason == null
+                  ? () => unawaited(_confirmSetPark())
+                  : null,
+            ),
             NightPanelButtonSpec(
               key: const ValueKey<String>('nightMount.limits'),
               label: l10n.text('nightScopeLimits'),
@@ -158,6 +186,24 @@ class _NightMountActionsSectionState
     );
     if (!confirmed || !mounted) return;
     await _run('park', () => ref.read(mountCommandServiceProvider).park());
+  }
+
+  /// Stores the current pointing as the park position, after the operator
+  /// confirms; nothing moves.
+  Future<void> _confirmSetPark() async {
+    final l10n = context.l10n;
+    final confirmed = await ConfirmDialog.show(
+      context: context,
+      title: l10n.text('nightScopeSetParkTitle'),
+      message: l10n.text('nightScopeSetParkBody'),
+      confirmLabel: l10n.text('nightScopeSetPark'),
+      cancelLabel: l10n.text('cancel'),
+    );
+    if (!confirmed || !mounted) return;
+    await _run(
+      'setPark',
+      () => ref.read(mountCommandServiceProvider).setParkHere(),
+    );
   }
 
   Future<void> _run(

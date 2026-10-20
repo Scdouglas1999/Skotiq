@@ -252,6 +252,16 @@ class FakeRigOps implements NightRigOps {
     return null;
   }
 
+  /// The native refusal [requestRunFlip] throws, when set.
+  Object? flipRequestError;
+
+  @override
+  Future<void> requestRunFlip() async {
+    calls.add('requestRunFlip');
+    final error = flipRequestError;
+    if (error != null) throw error;
+  }
+
   @override
   Future<CommandActionResult> setTracking(bool enabled) async {
     calls.add('setTracking $enabled');

@@ -232,20 +232,59 @@ void main() {
       expect(api.armedStartAt, isNull);
     });
 
-    test('flip is disabled while a run is loaded, with the reason', () async {
-      for (final runState in [running, paused]) {
-        final h = actionHarness(runState: runState);
-        addTearDown(h.container.dispose);
+    test('flip is disabled while the run is paused, with the reason', () async {
+      final h = actionHarness(runState: paused);
+      addTearDown(h.container.dispose);
 
-        final flip = h.container
-            .read(nightManualActionsProvider)
-            .firstWhere((a) => a.id == ManualActionId.flip);
-        expect(flip.enabled, isFalse);
-        expect(flip.disabledReason?.key, 'nightActWhyFlipRun');
+      final flip = h.container
+          .read(nightManualActionsProvider)
+          .firstWhere((a) => a.id == ManualActionId.flip);
+      expect(flip.enabled, isFalse);
+      expect(flip.disabledReason?.key, 'nightActWhyFlipPaused');
 
-        await h.container.read(nightActionApiProvider).flipNow();
-        expect(h.ops.calls, isEmpty);
-      }
+      await h.container.read(nightActionApiProvider).flipNow();
+      expect(h.ops.calls, isEmpty);
+    });
+
+    test('flip during a running run asks the run to flip, without pausing',
+        () async {
+      final h = actionHarness(runState: running);
+      addTearDown(h.container.dispose);
+
+      final flip = h.container
+          .read(nightManualActionsProvider)
+          .firstWhere((a) => a.id == ManualActionId.flip);
+      expect(flip.enabled, isTrue);
+
+      await h.container.read(nightActionApiProvider).flipNow();
+      expect(h.ops.calls, ['requestRunFlip']);
+      expect(h.container.read(sequenceExecutionStateProvider), running);
+      expect(h.container.read(nightActionStateProvider).error, isNull);
+    });
+
+    test('a refused in-run flip shows the native reason', () async {
+      final h = actionHarness(runState: running);
+      addTearDown(h.container.dispose);
+      h.ops.flipRequestError =
+          Exception('The target has not crossed the meridian yet');
+
+      await h.container.read(nightActionApiProvider).flipNow();
+
+      expect(h.ops.calls, ['requestRunFlip']);
+      expect(h.container.read(sequenceExecutionStateProvider), running);
+      final state = h.container.read(nightActionStateProvider);
+      expect(state.phase, ManualActionPhase.idle);
+      expect(state.error?.key, 'nightActErrFlipRequest');
+      expect(state.error?.params['detail'],
+          'The target has not crossed the meridian yet');
+    });
+
+    test('flip with no run loaded uses the standalone flip', () async {
+      final h = actionHarness();
+      addTearDown(h.container.dispose);
+
+      await h.container.read(nightActionApiProvider).flipNow();
+      expect(h.ops.calls, ['flip']);
     });
 
     test(

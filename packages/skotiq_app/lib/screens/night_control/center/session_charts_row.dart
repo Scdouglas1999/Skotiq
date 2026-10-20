@@ -490,6 +490,9 @@ class _GuideChart extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final vm = ref.watch(nightGuideSeriesProvider);
+    // Arcseconds only when the guider reports its pixel scale.
+    final arcsec = ref.watch(nightGuideScaleProvider) != null;
+    String unit(String key) => arcsec ? '${key}Arcsec' : key;
     final title = l10n.text('nightCtrChartGuide');
     final ra = _values(_lineOf(vm, NightSeriesId.guideRa));
     final dec = _values(_lineOf(vm, NightSeriesId.guideDec));
@@ -518,14 +521,14 @@ class _GuideChart extends ConsumerWidget {
         : _join(<String>[
             if (minutes != null)
               l10n.text(
-                'nightCtrSemGuide',
+                unit('nightCtrSemGuide'),
                 params: <String, String>{'minutes': '$minutes'},
               )
             else
-              l10n.text('nightCtrSemGuideNoSpan'),
+              l10n.text(unit('nightCtrSemGuideNoSpan')),
             if (ra.isNotEmpty)
               l10n.text(
-                'nightCtrSemRms',
+                unit('nightCtrSemRms'),
                 params: <String, String>{
                   'axis': l10n.text('nightSessionGuideRa'),
                   'value': rms(ra).toStringAsFixed(2),
@@ -533,7 +536,7 @@ class _GuideChart extends ConsumerWidget {
               ),
             if (dec.isNotEmpty)
               l10n.text(
-                'nightCtrSemRms',
+                unit('nightCtrSemRms'),
                 params: <String, String>{
                   'axis': l10n.text('nightSessionGuideDec'),
                   'value': rms(dec).toStringAsFixed(2),
@@ -548,9 +551,7 @@ class _GuideChart extends ConsumerWidget {
 
     return _Cell(
       title: title,
-      // The guide samples are PHD2 pixels until PHD2's pixel scale is exposed
-      // to the app. P9: label arcseconds once the scale is known (plan N4).
-      note: l10n.text('nightCtrChartGuideNote'),
+      note: l10n.text(unit('nightCtrChartGuideNote')),
       body: _ChartBody(
         semanticLabel: semantic,
         empty: vm.isEmpty ? l10n.text('nightCtrChartNoGuiding') : null,

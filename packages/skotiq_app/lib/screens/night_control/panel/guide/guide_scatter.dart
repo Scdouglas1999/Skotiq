@@ -1,5 +1,6 @@
-// RA against Dec error for the recent guide steps, in pixels: a dot per step
-// around the lock position, the newest one ringed.
+// RA against Dec error for the recent guide steps: a dot per step around the
+// lock position, the newest one ringed. The plot works in pixels; its span
+// reads in arcseconds when the guider reports its pixel scale.
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -18,11 +19,21 @@ class NightGuideScatter extends StatelessWidget {
     super.key,
     required this.samples,
     required this.semanticLabel,
+    this.arcsecPerPixel,
   });
 
   /// Oldest first.
   final List<NightGuideSample> samples;
   final String semanticLabel;
+
+  /// The guider's pixel scale; null labels the span in pixels.
+  final double? arcsecPerPixel;
+
+  /// `±0.5 px`, or `±0.8″` with a known [arcsecPerPixel].
+  static String spanLabel(double scale, double? arcsecPerPixel) =>
+      arcsecPerPixel == null
+          ? '±${_scaleLabel(scale)} px'
+          : '±${(scale * arcsecPerPixel).toStringAsFixed(1)}″';
 
   /// The half-width the plot uses for [samples].
   static double scaleFor(List<NightGuideSample> samples) {
@@ -71,7 +82,7 @@ class NightGuideScatter extends StatelessWidget {
               right: 4,
               bottom: 2,
               child: Text(
-                '±${_scaleLabel(scale)} px',
+                spanLabel(scale, arcsecPerPixel),
                 style: SkotiqTypography.captionSm
                     .copyWith(color: colors.textMuted),
               ),

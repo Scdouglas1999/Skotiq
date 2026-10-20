@@ -300,10 +300,27 @@ class NightActionController extends Notifier<ManualActionState>
   Future<void> dither() => _start(ManualActionId.dither, () => _ops.dither());
 
   @override
-  Future<void> flipNow() => _start(ManualActionId.flip, () async {
-        final error = await _ops.flip();
-        if (error != null) throw StateError(error);
+  Future<void> flipNow() {
+    // A running run flips through its own meridian trigger, which waits for
+    // the frame in flight itself, so the run is not paused for it.
+    if (ref.read(sequenceExecutionStateProvider) ==
+        SequenceExecutionState.running) {
+      return _start(ManualActionId.flip, holdRun: false, () async {
+        try {
+          await _ops.requestRunFlip();
+        } catch (e) {
+          throw _ActionFailure(NightText('nightActErrFlipRequest',
+              params: {'detail': _clean(e)}));
+        }
+        _log.info('Flip requested; the run flips at its next safe point',
+            source: _logSource);
       });
+    }
+    return _start(ManualActionId.flip, () async {
+      final error = await _ops.flip();
+      if (error != null) throw StateError(error);
+    });
+  }
 
   @override
   Future<void> toggleTracking() => _start(ManualActionId.tracking, () async {

@@ -2,8 +2,9 @@
 // error, its controls, the guide star, calibration, and the dither and
 // settle values the run uses.
 //
-// Errors are in guide-camera pixels throughout: PHD2's pixel scale is not
-// exposed, so nothing here claims arcseconds.
+// Errors are in arcseconds when the guider reports its pixel scale and in
+// guide-camera pixels otherwise. PHD2's own settings (dither amount, settle
+// threshold) are pixels either way.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -17,6 +18,7 @@ import '../../../../utils/snackbar_helper.dart';
 import '../../../../widgets/phd2_connection_dialog.dart';
 import '../../actions/manual_action_gating.dart';
 import '../../actions/night_action_controller.dart';
+import '../../data/session/guide_series_provider.dart';
 import '../../night_control_contracts.dart';
 import '../mount/night_panel_parts.dart';
 import 'guide_metrics.dart';
@@ -168,20 +170,20 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
     final snr = measured && stats.snr > 0 ? stats.snr : null;
     final mass = measured && stats.starMass > 0 ? stats.starMass : null;
 
-    // P9: label these in arcseconds once PHD2's pixel scale reaches the app
-    // (native N4).
+    // Arcseconds when the guider reports its pixel scale, else pixels.
+    final scale = ref.watch(nightGuideScaleProvider);
     final metrics = [
       MetricGridItem(
         label: l10n.text('nightScopeGuideRaRms'),
-        value: formatPx(rms.ra),
+        value: formatGuide(rms.ra, scale),
       ),
       MetricGridItem(
         label: l10n.text('nightScopeGuideDecRms'),
-        value: formatPx(rms.dec),
+        value: formatGuide(rms.dec, scale),
       ),
       MetricGridItem(
         label: l10n.text('nightScopeGuideTotalRms'),
-        value: formatPx(rms.total),
+        value: formatGuide(rms.total, scale),
       ),
       MetricGridItem(
         label: l10n.text('nightScopeGuideSnr'),
@@ -193,7 +195,7 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
       ),
       MetricGridItem(
         label: l10n.text('nightScopeGuidePeak'),
-        value: formatPx(rms.peak),
+        value: formatGuide(rms.peak, scale),
       ),
     ];
 

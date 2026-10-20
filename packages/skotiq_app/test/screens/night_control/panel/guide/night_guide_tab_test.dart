@@ -1,5 +1,5 @@
-// The Guide tab: the no-PHD2 state, pixel units throughout, the run owning
-// guiding, and the 300 px layout.
+// The Guide tab: the no-PHD2 state, pixels unless the guider reports its
+// pixel scale, the run owning guiding, and the 300 px layout.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +17,18 @@ class _Guider extends GuiderStateNotifier {
       deviceId: kPhd2CanonicalId,
       deviceName: 'PHD2',
       isGuiding: true,
+    );
+  }
+}
+
+class _ScaledGuider extends GuiderStateNotifier {
+  _ScaledGuider(super.ref) {
+    state = const GuiderState(
+      connectionState: DeviceConnectionState.connected,
+      deviceId: kPhd2CanonicalId,
+      deviceName: 'PHD2',
+      isGuiding: true,
+      pixelScaleArcsecPerPixel: 1.5,
     );
   }
 }
@@ -70,6 +82,24 @@ void main() {
     expect(find.textContaining('″'), findsNothing);
     expect(find.textContaining('arcsec'), findsNothing);
     expect(find.text('±0.5 px'), findsOneWidget, reason: 'scatter scale');
+  });
+
+  testWidgets('guide error reads in arcseconds once the scale is reported',
+      (tester) async {
+    await pumpPanelTab(
+      tester,
+      const NightGuideTab(),
+      overrides: [
+        ..._connected(),
+        guiderStateProvider.overrideWith(_ScaledGuider.new),
+      ],
+    );
+    expectCleanLayout(tester);
+    expect(find.text('0.45″'), findsOneWidget, reason: 'RA RMS');
+    expect(find.text('0.60″'), findsOneWidget, reason: 'Dec RMS');
+    expect(find.text('0.75″'), findsWidgets, reason: 'total and peak');
+    expect(find.text('±0.8″'), findsOneWidget, reason: 'scatter span');
+    expect(find.text('0.30 px'), findsNothing);
   });
 
   testWidgets('no samples shows dashes, not zeros', (tester) async {
