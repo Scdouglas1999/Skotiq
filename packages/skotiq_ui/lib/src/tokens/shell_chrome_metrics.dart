@@ -83,6 +83,11 @@ abstract final class ShellChromeMetrics {
   /// expanded.
   static const double railItemSize = 40.0;
 
+  /// A rail destination's height when the window is too short for nine
+  /// 40 px items, their group headings and the collapse toggle: the rail
+  /// compacts to this before it resorts to scrolling.
+  static const double railItemSizeCompact = 32.0;
+
   /// How long the pointer rests on a collapsed rail item before its label
   /// appears (04 §3.1).
   ///

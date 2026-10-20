@@ -9,7 +9,8 @@ import '../tokens/shell_chrome_metrics.dart';
 /// One rail destination (04-shell §3.1).
 ///
 /// 40 px tall in both states: a 40 x 40 square when the rail is collapsed, the
-/// full rail width with a label when it is expanded. Selection is tone, not a
+/// full rail width with a label when it is expanded. A short window passes
+/// [height] ([ShellChromeMetrics.railItemSizeCompact]) so every item fits. Selection is tone, not a
 /// left accent bar — the fill and the icon colour carry it, and a 2 px rule on
 /// the leading edge is a line where the design language asks for tone.
 class NavItem extends StatefulWidget {
@@ -26,6 +27,9 @@ class NavItem extends StatefulWidget {
   /// the item leads to.
   final bool hasBadge;
 
+  /// The item's height; the glyph keeps its size and stays centered.
+  final double height;
+
   const NavItem({
     super.key,
     required this.icon,
@@ -34,6 +38,7 @@ class NavItem extends StatefulWidget {
     required this.isExpanded,
     required this.onTap,
     this.hasBadge = false,
+    this.height = ShellChromeMetrics.railItemSize,
   });
 
   @override
@@ -91,7 +96,7 @@ class _NavItemState extends State<NavItem> {
             child: AnimatedContainer(
               duration: SkotiqTokens.durationNormal,
               curve: SkotiqTokens.curveStandard,
-              height: ShellChromeMetrics.railItemSize,
+              height: widget.height,
               decoration: widget.isSelected
                   ? SkotiqDecorations.railItemSelected(colors)
                   : BoxDecoration(
