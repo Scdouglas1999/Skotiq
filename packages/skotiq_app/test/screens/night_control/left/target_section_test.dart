@@ -76,6 +76,26 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('the altitude plot labels degrees and clock hours',
+      (tester) async {
+    await _pump(tester);
+    for (final deg in <String>['90°', '60°', '30°', '0°']) {
+      expect(find.text(deg), findsOneWidget, reason: deg);
+    }
+    // The board's night runs about 18:18 to 07:14: every two hours.
+    for (final hour in <String>['20h', '22h', '00h', '02h', '04h', '06h']) {
+      expect(find.text(hour), findsOneWidget, reason: hour);
+    }
+    expect(find.text('21h'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the axes fit the column at 1.3x text', (tester) async {
+    await _pump(tester, textScale: 1.3);
+    expect(find.text('00h'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('unknown values read as a dash, never zero', (tester) async {
     await _pump(tester, target: _named('M74'));
     // Rotation, altitude, hour angle and airmass are unknown.

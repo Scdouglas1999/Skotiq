@@ -15,7 +15,7 @@ import 'night_time_format.dart';
 class NightTargetSection extends ConsumerWidget {
   const NightTargetSection({super.key});
 
-  static const double chartHeight = 58;
+  static const double chartHeight = 76;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -207,7 +207,8 @@ class _CoordinateGrid extends StatelessWidget {
 }
 
 /// Altitude across the night on a fixed 0 to 90° scale, the moon dashed,
-/// the horizon limit as the center line, now and the flip as markers.
+/// the horizon limit as the center line, now and the flip as markers, with
+/// degrees down the left and clock hours along the bottom.
 class _AltitudeChart extends StatelessWidget {
   const _AltitudeChart({
     required this.target,
@@ -225,7 +226,7 @@ class _AltitudeChart extends StatelessWidget {
     List<(DateTime, double?)> points(List<SeriesPoint> series) =>
         <(DateTime, double?)>[for (final p in series) (p.t, p.y)];
     final moon = target.moonAltitudeCurve;
-    return SeriesChart(
+    final chart = SeriesChart(
       height: NightTargetSection.chartHeight,
       from: curve.first.t,
       to: curve.last.t,
@@ -252,6 +253,11 @@ class _AltitudeChart extends StatelessWidget {
           SeriesChartMarker(flip, tone: SeriesChartTone.warning),
       ],
       semanticLabel: _sentence(l10n),
+    );
+    return _AltitudeAxes(
+      from: curve.first.t,
+      to: curve.last.t,
+      chart: chart,
     );
   }
 
@@ -285,6 +291,196 @@ class _AltitudeChart extends StatelessWidget {
     if (extras.isNotEmpty) buffer.write('; ${extras.join(', ')}');
     return buffer.toString();
   }
+}
+
+/// Degree labels and faint gridlines at 0, 30, 60 and 90°, and an hour
+/// scale under the plot, so a point on the curve reads as a time and an
+/// altitude without hovering.
+class _AltitudeAxes extends StatelessWidget {
+  const _AltitudeAxes({
+    required this.from,
+    required this.to,
+    required this.chart,
+  });
+
+  final DateTime from;
+  final DateTime to;
+  final Widget chart;
+
+  static const double _gutter = 24;
+  static const double _scaleHeight = 13;
+  static const double _labelHeight = 11;
+  static const List<int> _degrees = <int>[90, 60, 30, 0];
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.skotiqColors;
+    final style = SkotiqTypography.captionSm.copyWith(
+      color: colors.textMuted,
+      fontSize: 9,
+      height: 1,
+    );
+    const height = NightTargetSection.chartHeight;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SizedBox(
+          height: height,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              SizedBox(
+                width: _gutter,
+                child: ExcludeSemantics(
+                  child: Stack(
+                    children: <Widget>[
+                      for (final deg in _degrees)
+                        Positioned(
+                          right: 4,
+                          top: (height * (1 - deg / 90) - _labelHeight / 2)
+                              .clamp(0.0, height - _labelHeight),
+                          child: Text('$deg°', style: style),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              Expanded(
+                child: CustomPaint(
+                  painter: _AltitudeGridPainter(
+                    ticks: _hourTicks(from, to),
+                    from: from,
+                    to: to,
+                    line: colors.border,
+                  ),
+                  child: chart,
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: _scaleHeight,
+          child: Padding(
+            padding: const EdgeInsets.only(left: _gutter),
+            child: ExcludeSemantics(
+              child: LayoutBuilder(
+                builder: (context, constraints) => _HourScale(
+                  width: constraints.maxWidth,
+                  from: from,
+                  to: to,
+                  style: style,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Whole hours between [from] and [to], every two hours on a long night.
+List<DateTime> _hourTicks(DateTime from, DateTime to) {
+  final span = to.difference(from);
+  if (span.inMinutes <= 0) return const <DateTime>[];
+  final step = span.inHours > 6 ? 2 : 1;
+  var t = DateTime(from.year, from.month, from.day, from.hour)
+      .add(const Duration(hours: 1));
+  while (t.hour % step != 0) {
+    t = t.add(const Duration(hours: 1));
+  }
+  final ticks = <DateTime>[];
+  for (; !t.isAfter(to); t = t.add(Duration(hours: step))) {
+    ticks.add(t);
+  }
+  return ticks;
+}
+
+double _fractionOf(DateTime t, DateTime from, DateTime to) =>
+    t.difference(from).inSeconds / to.difference(from).inSeconds;
+
+class _HourScale extends StatelessWidget {
+  const _HourScale({
+    required this.width,
+    required this.from,
+    required this.to,
+    required this.style,
+  });
+
+  final double width;
+  final DateTime from;
+  final DateTime to;
+  final TextStyle style;
+
+  static const double _labelWidth = 26;
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = <Widget>[];
+    var lastRight = double.negativeInfinity;
+    for (final t in _hourTicks(from, to)) {
+      final center = width * _fractionOf(t, from, to);
+      final left = (center - _labelWidth / 2).clamp(0.0, width - _labelWidth);
+      if (left < lastRight + 2) continue;
+      lastRight = left + _labelWidth;
+      labels.add(
+        Positioned(
+          left: left,
+          top: 2,
+          width: _labelWidth,
+          child: Text(
+            '${t.hour.toString().padLeft(2, '0')}h',
+            style: style,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+    return Stack(clipBehavior: Clip.none, children: labels);
+  }
+}
+
+class _AltitudeGridPainter extends CustomPainter {
+  _AltitudeGridPainter({
+    required this.ticks,
+    required this.from,
+    required this.to,
+    required this.line,
+  });
+
+  final List<DateTime> ticks;
+  final DateTime from;
+  final DateTime to;
+  final Color line;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = line.withValues(alpha: 0.5)
+      ..strokeWidth = 1;
+    for (final deg in _AltitudeAxes._degrees) {
+      final y = (size.height * (1 - deg / 90)).clamp(0.5, size.height - 0.5);
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+    for (final t in ticks) {
+      final x = size.width * _fractionOf(t, from, to);
+      canvas.drawLine(
+        Offset(x, size.height - 3),
+        Offset(x, size.height),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_AltitudeGridPainter old) =>
+      old.line != line ||
+      old.from != from ||
+      old.to != to ||
+      old.ticks.length != ticks.length;
 }
 
 class _Legend extends StatelessWidget {
