@@ -169,18 +169,111 @@ class _FocusCard extends ConsumerWidget {
           },
         ),
         excludeSemantics: true,
-        child: CustomPaint(
-          size: Size.infinite,
-          painter: _VCurvePainter(
-            points: curve.points,
-            best: best,
-            line: colors.primary.withValues(alpha: 0.6),
-            dot: colors.primary,
+        child: _VCurveAxes(
+          points: curve.points,
+          chart: CustomPaint(
+            size: Size.infinite,
+            painter: _VCurvePainter(
+              points: curve.points,
+              best: best,
+              line: colors.primary.withValues(alpha: 0.6),
+              dot: colors.primary,
+            ),
           ),
         ),
       ),
-      legend: TextSpan(text: caption),
+      legend: Text(caption),
     );
+  }
+}
+
+/// The V-curve's scales: the HFR range down the left, the focuser range
+/// along the bottom, at the painter's own [_VCurvePainter.inset] so the
+/// numbers sit level with the extremes they name.
+class _VCurveAxes extends StatelessWidget {
+  const _VCurveAxes({required this.points, required this.chart});
+
+  final List<(int, double)> points;
+  final Widget chart;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = nightAxisStyle(context);
+    final labelHeight = MediaQuery.textScalerOf(context).scale(9);
+    var minHfr = points.first.$2;
+    var maxHfr = minHfr;
+    var minPos = points.first.$1;
+    var maxPos = minPos;
+    for (final (position, hfr) in points) {
+      minHfr = math.min(minHfr, hfr);
+      maxHfr = math.max(maxHfr, hfr);
+      minPos = math.min(minPos, position);
+      maxPos = math.max(maxPos, position);
+    }
+    Text label(String text, {TextAlign align = TextAlign.right}) => Text(
+          text,
+          style: style,
+          maxLines: 1,
+          softWrap: false,
+          textAlign: align,
+        );
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final chartHeight = constraints.maxHeight - labelHeight - 3;
+      if (chartHeight < NightChartAxes.minChartHeight) return chart;
+      const inset = _VCurvePainter.inset;
+      final top = (inset - labelHeight / 2).clamp(0.0, chartHeight).toDouble();
+      final bottom = (chartHeight - inset - labelHeight / 2)
+          .clamp(0.0, math.max(0.0, chartHeight - labelHeight))
+          .toDouble();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          SizedBox(
+            height: chartHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                SizedBox(
+                  width: 28,
+                  child: Stack(
+                    children: <Widget>[
+                      Positioned(
+                        top: top,
+                        left: 0,
+                        right: 3,
+                        child: label(maxHfr.toStringAsFixed(1)),
+                      ),
+                      if (bottom - top >= labelHeight)
+                        Positioned(
+                          top: bottom,
+                          left: 0,
+                          right: 3,
+                          child: label(minHfr.toStringAsFixed(1)),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(child: chart),
+              ],
+            ),
+          ),
+          Container(
+            height: labelHeight + 3,
+            padding: const EdgeInsets.only(left: 28, top: 3),
+            clipBehavior: Clip.hardEdge,
+            decoration: const BoxDecoration(),
+            child: Row(
+              children: <Widget>[
+                label(nightGrouped(minPos), align: TextAlign.left),
+                const Spacer(),
+                label(nightGrouped(maxPos)),
+              ],
+            ),
+          ),
+        ],
+      );
+    });
   }
 }
 
@@ -198,6 +291,9 @@ class _VCurvePainter extends CustomPainter {
   final Color line;
   final Color dot;
 
+  /// Space kept free around the curve; the axes label at it.
+  static const double inset = 4.0;
+
   @override
   void paint(Canvas canvas, Size size) {
     if (points.length < 2 || size.isEmpty) return;
@@ -210,7 +306,6 @@ class _VCurvePainter extends CustomPainter {
       minY = math.min(minY, hfr);
       maxY = math.max(maxY, hfr);
     }
-    const inset = 4.0;
     double x(num v) => maxX == minX
         ? size.width / 2
         : inset + (v - minX) / (maxX - minX) * (size.width - 2 * inset);
@@ -318,43 +413,78 @@ class _GuiderIdleCard extends ConsumerWidget {
       title: l10n.text('nightCtrChartGuide'),
       note: status,
       noteColor: statusColor,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          if (body != null)
-            Flexible(
-              child: Text(
-                body,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: SkotiqTypography.captionSm.copyWith(
-                  color: colors.textSecondary,
-                ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // In a short row at large text the sentence would show as a
+          // clipped sliver above the button; the status note already says
+          // it, so it steps aside.
+          final scaler = MediaQuery.textScalerOf(context);
+          final line = scaler.scale(16);
+          final button = math.max(
+            SkotiqTouchTarget.minExtent(context, desktopExtent: 28),
+            line + 8,
+          );
+          final roomForBody = constraints.maxHeight >= line + button + 2;
+          return _guiderCardBody(
+            context,
+            body: roomForBody ? body : null,
+            guider: guider,
+            loopReason: loopReason,
+            openReason: openReason,
+            ref: ref,
+            l10n: l10n,
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _guiderCardBody(
+    BuildContext context, {
+    required String? body,
+    required NightGuiderIdleVm guider,
+    required String? loopReason,
+    required String? openReason,
+    required WidgetRef ref,
+    required SkotiqLocalizations l10n,
+  }) {
+    final colors = context.skotiqColors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        if (body != null)
+          Flexible(
+            child: Text(
+              body,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: SkotiqTypography.captionSm.copyWith(
+                color: colors.textSecondary,
               ),
             ),
-          const Spacer(),
-          SingleChildScrollView(
-            primary: false,
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: <Widget>[
-                if (guider.connected)
-                  _CardButton(
-                    label: l10n.text('nightCtrGuideStartLooping'),
-                    disabledReason: loopReason,
-                    onPressed: () => _loop(ref, l10n),
-                  )
-                else
-                  _CardButton(
-                    label: l10n.text('nightCtrGuideOpen'),
-                    disabledReason: openReason,
-                    onPressed: () => _open(ref, l10n),
-                  ),
-              ],
-            ),
           ),
-        ],
-      ),
+        const Spacer(),
+        SingleChildScrollView(
+          primary: false,
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: <Widget>[
+              if (guider.connected)
+                _CardButton(
+                  label: l10n.text('nightCtrGuideStartLooping'),
+                  disabledReason: loopReason,
+                  onPressed: () => _loop(ref, l10n),
+                )
+              else
+                _CardButton(
+                  label: l10n.text('nightCtrGuideOpen'),
+                  disabledReason: openReason,
+                  onPressed: () => _open(ref, l10n),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -475,6 +605,7 @@ class _CoolingCard extends ConsumerWidget {
               params: <String, String>{'time': nightClockHm(from)},
             ),
       body: _ChartBody(
+        leftUnit: ' °C',
         semanticLabel: semantic,
         empty: sensor.isEmpty ? l10n.text('nightCtrCoolingNone') : null,
         lines: <SeriesChartLine>[for (final line in vm.lines) _line(line)],

@@ -10,6 +10,7 @@ import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../golden/surface_golden_harness.dart';
 import '../fixtures/night_fixtures.dart';
 import 'center_test_support.dart';
 
@@ -37,6 +38,9 @@ String _allText(WidgetTester tester) => tester
     .join('\n');
 
 void main() {
+  // Real faces, so the legend fits by the widths the app measures.
+  setUpAll(SurfaceGoldenHarness.ensureFonts);
+
   testWidgets('during a run: three charts with labels built from the data',
       (tester) async {
     final handle = tester.ensureSemantics();

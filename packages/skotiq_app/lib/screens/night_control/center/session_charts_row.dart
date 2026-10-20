@@ -1,10 +1,13 @@
 // The chart row under the strip.
 //
 // During and after a run: HFR · stars per frame with autofocus and rejected
-// marks, guide error in pixels with dither marks, temperature · focus. Before
-// a run (TonightReady.dc.html): the last autofocus curve, the guider's idle
-// card with Start looping / Open PHD2, and the cooling ramp. Every chart
-// carries a semantics sentence built from the same data it draws.
+// marks, guide error (arcseconds when the guider reports its scale, pixels
+// otherwise) with dither marks, temperature · focus. Before a run
+// (TonightReady.dc.html): the last autofocus curve, the guider's idle card
+// with Start looping / Open PHD2, and the cooling ramp. Each chart has value
+// and clock scales (chart_axes.dart), and its legend drops its least useful
+// entries rather than truncate. Every chart carries a semantics sentence
+// built from the same data it draws.
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -22,6 +25,7 @@ import '../data/session/guide_series_provider.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
 import 'center_format.dart';
+import 'chart_axes.dart';
 import 'frame_stage.dart' show nightIsBeforeRun;
 
 part 'session_charts_ready.dart';
@@ -125,7 +129,9 @@ class _Cell extends StatelessWidget {
   final String? note;
   final Color? noteColor;
   final Widget body;
-  final InlineSpan? legend;
+
+  /// One line under the chart; text in it gets the legend style.
+  final Widget? legend;
 
   @override
   Widget build(BuildContext context) {
@@ -176,13 +182,13 @@ class _Cell extends StatelessWidget {
           Expanded(child: body),
           if (legend != null) ...<Widget>[
             const SizedBox(height: 3),
-            Text.rich(
-              legend!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            DefaultTextStyle(
               style: SkotiqTypography.captionSm.copyWith(
                 color: colors.textMuted,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              child: legend!,
             ),
           ],
         ],
@@ -191,7 +197,8 @@ class _Cell extends StatelessWidget {
   }
 }
 
-/// A chart filling the body, or a quiet line when there is nothing to draw.
+/// A chart with its scales filling the body, or a quiet line when there is
+/// nothing to draw.
 class _ChartBody extends StatelessWidget {
   const _ChartBody({
     required this.semanticLabel,
@@ -202,6 +209,8 @@ class _ChartBody extends StatelessWidget {
     this.to,
     this.zeroLineY,
     this.empty,
+    this.leftUnit = '',
+    this.rightGrouped = false,
   });
 
   final String semanticLabel;
@@ -214,6 +223,10 @@ class _ChartBody extends StatelessWidget {
 
   /// Shown instead of the chart when set.
   final String? empty;
+
+  /// See [NightChartAxes].
+  final String leftUnit;
+  final bool rightGrouped;
 
   @override
   Widget build(BuildContext context) {
@@ -235,17 +248,16 @@ class _ChartBody extends StatelessWidget {
         ),
       );
     }
-    return LayoutBuilder(
-      builder: (context, constraints) => SeriesChart(
-        lines: lines,
-        markers: markers,
-        highlights: highlights,
-        from: from,
-        to: to,
-        zeroLineY: zeroLineY,
-        height: math.max(0, constraints.maxHeight),
-        semanticLabel: semanticLabel,
-      ),
+    return NightChartAxes(
+      lines: lines,
+      markers: markers,
+      highlights: highlights,
+      from: from,
+      to: to,
+      zeroLineY: zeroLineY,
+      semanticLabel: semanticLabel,
+      leftUnit: leftUnit,
+      rightGrouped: rightGrouped,
     );
   }
 }
@@ -314,52 +326,166 @@ const Map<String, NightSeriesId> _legendLine = <String, NightSeriesId>{
   'nightSessionSensorTemp': NightSeriesId.sensorTemp,
 };
 
-InlineSpan _legend(
+/// The legend line: what each line is, its latest numbers and the marks.
+/// At a narrow cell the least useful entries go first (plain numbers, then
+/// marks) so the line keys always fit whole.
+Widget _legend(
   BuildContext context,
   NightSeriesVm vm, {
   List<(String, SeriesChartTone)> marks = const <(String, SeriesChartTone)>[],
 }) {
   final colors = context.skotiqColors;
   final l10n = context.l10n;
-  final spans = <InlineSpan>[];
-  void gap() {
-    if (spans.isNotEmpty) spans.add(const TextSpan(text: '   '));
-  }
-
+  final entries = <_LegendEntry>[];
   for (final item in vm.legend) {
-    gap();
     final id = _legendLine[item.label.key];
     final line = id == null ? null : _lineOf(vm, id);
-    if (line != null) {
-      spans.add(
-        _swatch(
-          line.dashed ? _SwatchKind.dashed : _SwatchKind.line,
-          SeriesChart.colorFor(_tone(line.tone), colors),
-        ),
-      );
-    }
-    spans.add(
-      TextSpan(
-        text: item.value == null
-            ? item.label.resolve(l10n)
-            : '${item.label.resolve(l10n)} ${item.value}',
+    entries.add(
+      _LegendEntry(
+        text: item.label.resolve(l10n),
+        value: item.value,
+        swatch: line == null
+            ? null
+            : line.dashed
+                ? _SwatchKind.dashed
+                : _SwatchKind.line,
+        swatchColor: line == null
+            ? null
+            : SeriesChart.colorFor(_tone(line.tone), colors),
+        rank: line == null ? 2 : 0,
       ),
     );
   }
   for (final (label, tone) in marks) {
-    gap();
     final dot = tone == SeriesChartTone.error;
     final color = SeriesChart.colorFor(tone, colors);
-    spans
-      ..add(_swatch(dot ? _SwatchKind.dot : _SwatchKind.marker, color))
-      ..add(
-        TextSpan(
-          text: label,
-          style: TextStyle(color: dot ? color : null),
-        ),
-      );
+    entries.add(
+      _LegendEntry(
+        text: label,
+        swatch: dot ? _SwatchKind.dot : _SwatchKind.marker,
+        swatchColor: color,
+        textColor: dot ? color : null,
+        rank: 1,
+      ),
+    );
   }
-  return TextSpan(children: spans);
+  return _FitLegend(entries: entries);
+}
+
+@immutable
+class _LegendEntry {
+  const _LegendEntry({
+    required this.text,
+    this.value,
+    required this.rank,
+    this.swatch,
+    this.swatchColor,
+    this.textColor,
+  });
+
+  final String text;
+
+  /// The latest number after [text]; the first thing a key line gives up.
+  final String? value;
+
+  /// 0 keeps longest (a line's key), 2 goes first (a plain number).
+  final int rank;
+  final _SwatchKind? swatch;
+  final Color? swatchColor;
+  final Color? textColor;
+}
+
+/// One legend line fitted to its width. Plain numbers go first, then each
+/// line key's number (the scale beside the chart still gives it), then the
+/// marks, then line keys from the end; one entry always stays.
+class _FitLegend extends StatelessWidget {
+  const _FitLegend({required this.entries});
+
+  final List<_LegendEntry> entries;
+
+  static const String _gap = '  ';
+
+  static double _swatchWidth(_SwatchKind kind) => switch (kind) {
+        _SwatchKind.line => 10,
+        _SwatchKind.dashed => 10,
+        _SwatchKind.marker => 1.5,
+        _SwatchKind.dot => 6,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final style = DefaultTextStyle.of(context).style;
+    final scaler = MediaQuery.textScalerOf(context);
+    double measure(String text) {
+      final tp = TextPainter(
+        text: TextSpan(text: text, style: style),
+        textScaler: scaler,
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+      )..layout();
+      final w = tp.width;
+      tp.dispose();
+      return w;
+    }
+
+    String label(_LegendEntry e, bool withValue) =>
+        withValue && e.value != null ? '${e.text} ${e.value}' : e.text;
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final max = constraints.maxWidth;
+      final gap = measure(_gap);
+      final kept = List<bool>.filled(entries.length, true);
+      final withValue = List<bool>.filled(entries.length, true);
+      double width(int i) {
+        final swatch = entries[i].swatch;
+        return measure(label(entries[i], withValue[i])) +
+            (swatch == null ? 0 : _swatchWidth(swatch) + 4);
+      }
+
+      double total() {
+        var sum = 0.0;
+        var count = 0;
+        for (var i = 0; i < entries.length; i++) {
+          if (!kept[i]) continue;
+          sum += width(i);
+          count++;
+        }
+        return sum + gap * math.max(0, count - 1);
+      }
+
+      // A few pixels of slack for the swatches' placeholder rounding.
+      bool fits() => total() <= max - 4;
+      int keptCount() => kept.where((k) => k).length;
+      void dropRank(int rank) {
+        for (var i = entries.length - 1; i >= 0 && !fits(); i--) {
+          if (entries[i].rank == rank && keptCount() > 1) kept[i] = false;
+        }
+      }
+
+      dropRank(2);
+      for (var i = entries.length - 1; i >= 0 && !fits(); i--) {
+        if (entries[i].rank == 0) withValue[i] = false;
+      }
+      dropRank(1);
+      dropRank(0);
+
+      final spans = <InlineSpan>[];
+      for (var i = 0; i < entries.length; i++) {
+        if (!kept[i]) continue;
+        final e = entries[i];
+        if (spans.isNotEmpty) spans.add(const TextSpan(text: _gap));
+        final swatch = e.swatch;
+        if (swatch != null) spans.add(_swatch(swatch, e.swatchColor!));
+        spans.add(
+          TextSpan(
+            text: label(e, withValue[i]),
+            style: TextStyle(color: e.textColor),
+          ),
+        );
+      }
+      return Text.rich(TextSpan(children: spans));
+    });
+  }
 }
 
 String _join(List<String> parts) => parts.join('; ');
@@ -457,6 +583,8 @@ class _HfrChart extends ConsumerWidget {
               params: <String, String>{'count': '$count'},
             ),
       body: _ChartBody(
+        leftUnit: ' px',
+        rightGrouped: true,
         semanticLabel: semantic,
         empty: vm.isEmpty ? l10n.text('nightCtrChartNoFrames') : null,
         lines: <SeriesChartLine>[for (final line in vm.lines) _line(line)],
@@ -553,6 +681,7 @@ class _GuideChart extends ConsumerWidget {
       title: title,
       note: l10n.text(unit('nightCtrChartGuideNote')),
       body: _ChartBody(
+        leftUnit: arcsec ? '″' : ' px',
         semanticLabel: semantic,
         empty: vm.isEmpty ? l10n.text('nightCtrChartNoGuiding') : null,
         lines: <SeriesChartLine>[
@@ -625,6 +754,8 @@ class _TemperatureChart extends ConsumerWidget {
               params: <String, String>{'time': nightClockHm(from)},
             ),
       body: _ChartBody(
+        leftUnit: ' °C',
+        rightGrouped: true,
         semanticLabel: semantic,
         empty: vm.isEmpty ? l10n.text('nightCtrChartNoTemps') : null,
         lines: <SeriesChartLine>[for (final line in vm.lines) _line(line)],
