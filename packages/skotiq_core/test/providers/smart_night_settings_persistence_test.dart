@@ -42,7 +42,6 @@ void main() {
     expect(settings.smartNightSubExposureFloorSecs, 30.0);
     expect(settings.smartNightSubExposureCeilingSecs, 300.0);
     expect(settings.smartNightTargetSnr, 30.0);
-    expect(settings.smartNightAutoPromptEnabled, isTrue);
   });
 
   test('Notes prompt toggle defaults to ON (opt-out, not opt-in)', () {
@@ -64,7 +63,6 @@ void main() {
       smartNightSubExposureFloorSecs: 45.0,
       smartNightSubExposureCeilingSecs: 420.0,
       smartNightTargetSnr: 42.0,
-      smartNightAutoPromptEnabled: false,
     );
     expect(next.smartNightMaxSessionHours, 8.5);
     expect(next.smartNightDefaultAfCadenceFrames, 10);
@@ -77,7 +75,6 @@ void main() {
     expect(next.smartNightSubExposureFloorSecs, 45.0);
     expect(next.smartNightSubExposureCeilingSecs, 420.0);
     expect(next.smartNightTargetSnr, 42.0);
-    expect(next.smartNightAutoPromptEnabled, isFalse);
 
     // Untouched fields preserve their values.
     expect(next.promptForNotesAfterRun, initial.promptForNotesAfterRun);

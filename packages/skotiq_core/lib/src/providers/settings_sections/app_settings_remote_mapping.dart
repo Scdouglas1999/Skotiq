@@ -135,7 +135,6 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       audibleAlertsOnCritical: remote.audibleAlertsOnCritical,
       criticalAlertSound: remote.criticalAlertSound,
       pushCriticalAlerts: remote.pushCriticalAlerts,
-      smartNightAutoPromptEnabled: remote.smartNightAutoPromptEnabled,
       promptForNotesAfterRun: remote.promptForNotesAfterRun,
       sessionHandoffAutoPrompt: remote.sessionHandoffAutoPrompt,
       campaignRollupSurfaceTargetsTab: remote.campaignRollupSurfaceTargetsTab,
@@ -329,7 +328,6 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       audibleAlertsOnCritical: settings.audibleAlertsOnCritical,
       criticalAlertSound: settings.criticalAlertSound,
       pushCriticalAlerts: settings.pushCriticalAlerts,
-      smartNightAutoPromptEnabled: settings.smartNightAutoPromptEnabled,
       promptForNotesAfterRun: settings.promptForNotesAfterRun,
       sessionHandoffAutoPrompt: settings.sessionHandoffAutoPrompt,
       campaignRollupSurfaceTargetsTab: settings.campaignRollupSurfaceTargetsTab,
@@ -812,10 +810,6 @@ extension _AppSettingsRemoteMapping on AppSettingsNotifier {
       case 'pushCriticalAlerts':
         return value is bool
             ? current.copyWith(pushCriticalAlerts: value)
-            : null;
-      case 'smartNightAutoPromptEnabled':
-        return value is bool
-            ? current.copyWith(smartNightAutoPromptEnabled: value)
             : null;
       case 'promptForNotesAfterRun':
         return value is bool

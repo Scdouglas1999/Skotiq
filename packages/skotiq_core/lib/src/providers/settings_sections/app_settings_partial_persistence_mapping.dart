@@ -145,7 +145,6 @@ extension _AppSettingsPartialPersistenceMapping on AppSettingsNotifier {
     'critical_alert_sound',
     'push_critical_alerts',
     // Session-lifecycle + campaign-rollup prefs.
-    'smart_night.auto_prompt_enabled',
     'notes.prompt_after_run',
     'session.handoff_auto_prompt',
     'campaign_rollup.surface_targets_tab',
@@ -821,13 +820,6 @@ extension _AppSettingsPartialPersistenceMapping on AppSettingsNotifier {
           ? _parseDouble(
               settings['smart_night_target_snr'],
               current.smartNightTargetSnr,
-            )
-          : null,
-      smartNightAutoPromptEnabled:
-          settings.containsKey('smart_night.auto_prompt_enabled')
-          ? _parseBool(
-              settings['smart_night.auto_prompt_enabled'],
-              current.smartNightAutoPromptEnabled,
             )
           : null,
       promptForNotesAfterRun: settings.containsKey('notes.prompt_after_run')

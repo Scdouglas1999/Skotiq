@@ -177,8 +177,6 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
   audibleAlertsOnCritical: json['audibleAlertsOnCritical'] as bool? ?? false,
   criticalAlertSound: json['criticalAlertSound'] as String? ?? 'systemBell',
   pushCriticalAlerts: json['pushCriticalAlerts'] as bool? ?? true,
-  smartNightAutoPromptEnabled:
-      json['smartNightAutoPromptEnabled'] as bool? ?? true,
   promptForNotesAfterRun: json['promptForNotesAfterRun'] as bool? ?? true,
   sessionHandoffAutoPrompt: json['sessionHandoffAutoPrompt'] as bool? ?? true,
   campaignRollupSurfaceTargetsTab:
@@ -358,7 +356,6 @@ Map<String, dynamic> _$AppSettingsToJson(
   'audibleAlertsOnCritical': instance.audibleAlertsOnCritical,
   'criticalAlertSound': instance.criticalAlertSound,
   'pushCriticalAlerts': instance.pushCriticalAlerts,
-  'smartNightAutoPromptEnabled': instance.smartNightAutoPromptEnabled,
   'promptForNotesAfterRun': instance.promptForNotesAfterRun,
   'sessionHandoffAutoPrompt': instance.sessionHandoffAutoPrompt,
   'campaignRollupSurfaceTargetsTab': instance.campaignRollupSurfaceTargetsTab,

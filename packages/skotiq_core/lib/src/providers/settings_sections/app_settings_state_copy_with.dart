@@ -166,7 +166,6 @@ extension AppSettingsStateCopyWith on AppSettingsState {
     double? smartNightSubExposureFloorSecs,
     double? smartNightSubExposureCeilingSecs,
     double? smartNightTargetSnr,
-    bool? smartNightAutoPromptEnabled,
     bool? smartNightAutoSelect,
     int? smartNightAutoSelectCount,
     String? smartNightPromptDismissedDayKey,
@@ -419,8 +418,6 @@ extension AppSettingsStateCopyWith on AppSettingsState {
           smartNightSubExposureCeilingSecs ??
           this.smartNightSubExposureCeilingSecs,
       smartNightTargetSnr: smartNightTargetSnr ?? this.smartNightTargetSnr,
-      smartNightAutoPromptEnabled:
-          smartNightAutoPromptEnabled ?? this.smartNightAutoPromptEnabled,
       smartNightAutoSelect: smartNightAutoSelect ?? this.smartNightAutoSelect,
       smartNightAutoSelectCount:
           smartNightAutoSelectCount ?? this.smartNightAutoSelectCount,
