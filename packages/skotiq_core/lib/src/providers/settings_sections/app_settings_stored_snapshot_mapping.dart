@@ -421,10 +421,6 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
         allSettings['smart_night_target_snr'],
         30.0,
       ).clamp(1.0, 500.0),
-      smartNightAutoPromptEnabled: _parseBool(
-        allSettings['smart_night.auto_prompt_enabled'],
-        true,
-      ),
       smartNightAutoSelect: _parseBool(
         allSettings['smart_night.auto_select'],
         true,
@@ -739,8 +735,6 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
           .smartNightSubExposureCeilingSecs
           .toString(),
       'smart_night_target_snr': s.smartNightTargetSnr.toString(),
-      'smart_night.auto_prompt_enabled': s.smartNightAutoPromptEnabled
-          .toString(),
       'smart_night.auto_select': s.smartNightAutoSelect.toString(),
       'smart_night.auto_select_count': s.smartNightAutoSelectCount.toString(),
       'smart_night.prompt_dismissed_day_key': s.smartNightPromptDismissedDayKey,

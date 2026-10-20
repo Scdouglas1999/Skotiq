@@ -14,7 +14,7 @@
 //     smartNightSchedulerTargetThreshold
 //   * smartNightDefaultStrategy, smartNightPolarAlignmentStaleAfterDays
 //   * smartNightSubExposureFloorSecs, smartNightSubExposureCeilingSecs
-//   * smartNightTargetSnr, smartNightAutoPromptEnabled
+//   * smartNightTargetSnr
 // * promptForNotesAfterRun (post-run notes prompt)
 //
 // Does NOT own:
@@ -157,13 +157,6 @@ extension SmartNightSettingsSection on AppSettingsNotifier {
     final clamped = value.clamp(1.0, 500.0);
     await _saveSetting('smart_night_target_snr', clamped.toString());
     _patchState((s) => s.copyWith(smartNightTargetSnr: clamped));
-  }
-
-  /// Whether the dashboard Smart Night auto-prompt may appear. This does
-  /// not disable the manual Plan Tonight buttons.
-  Future<void> setSmartNightAutoPromptEnabled(bool value) async {
-    await _saveSetting('smart_night.auto_prompt_enabled', value.toString());
-    _patchState((s) => s.copyWith(smartNightAutoPromptEnabled: value));
   }
 
   /// Whether the Smart Night wizard defaults to auto-picking the top N

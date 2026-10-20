@@ -805,20 +805,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
               title: 'Smart night defaults',
               children: [
                 SettingRow(
-                  icon: LucideIcons.bell,
-                  title: 'Dashboard auto-prompt',
-                  subtitle: 'Show the Smart Night prompt on the dashboard '
-                      'when your equipment is ready.',
-                  trailing: SettingsSwitch(
-                    value: settings.smartNightAutoPromptEnabled,
-                    onChanged: (value) {
-                      return ref
-                          .read(appSettingsProvider.notifier)
-                          .setSmartNightAutoPromptEnabled(value);
-                    },
-                  ),
-                ),
-                SettingRow(
                   icon: LucideIcons.focus,
                   title: 'Autofocus cadence (frames)',
                   subtitle: 'How many exposures between autofocus runs '

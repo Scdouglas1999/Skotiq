@@ -59,6 +59,7 @@ const MountCapabilities kFullMount = MountCapabilities(
   canSync: true,
   canPark: true,
   canUnpark: true,
+  canSetPark: true,
   canFindHome: true,
   canSetTracking: true,
   canSetTrackingRate: true,
@@ -170,6 +171,8 @@ class RecordingMountCommands extends MountCommandService {
   Future<CommandActionResult> togglePark() => _ok('togglePark');
   @override
   Future<CommandActionResult> findHome() => _ok('findHome');
+  @override
+  Future<CommandActionResult> setParkHere() => _ok('setParkHere');
   @override
   Future<CommandActionResult> setTracking(bool enabled) =>
       _ok('setTracking:$enabled');

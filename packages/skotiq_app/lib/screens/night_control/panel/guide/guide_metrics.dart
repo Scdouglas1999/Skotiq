@@ -1,8 +1,8 @@
 // The Guide tab's numbers: RMS over the same samples the center chart draws,
 // the plan's dither cadence, and a few formatters.
 //
-// Every distance here is in guide-camera pixels. PHD2's pixel scale is not
-// exposed to the app, so nothing converts to arcseconds (plan N4).
+// The distances are computed in guide-camera pixels and shown in arcseconds
+// only when the guider reports its pixel scale (plan N4).
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -93,6 +93,11 @@ double ditherScalePixels(String scale) => switch (scale) {
       'Large' => 10.0,
       _ => 5.0,
     };
+
+/// A guide distance in arcseconds when [arcsecPerPixel] is known, else in
+/// pixels; null stays null.
+String? formatGuide(double? px, double? arcsecPerPixel) =>
+    px == null || !px.isFinite ? null : nightGuideDistance(px, arcsecPerPixel);
 
 /// `0.31 px`; null stays null.
 String? formatPx(double? px, {int decimals = 2}) =>

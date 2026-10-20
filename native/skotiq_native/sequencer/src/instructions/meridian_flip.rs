@@ -88,11 +88,16 @@ pub async fn execute_meridian_flip_with_autofocus(
     };
 
     let now = chrono::Utc::now();
+    // The target is J2000 and LST is of date: precess before asking about the
+    // meridian, or a flip inside the ~1.3 min precession window (2026) slews
+    // without changing pier side. The flip itself still gets the J2000 target
+    // below; the device layer precesses what it sends.
+    let (target_ra_of_date, _) = crate::meridian::target_of_date(target_ra, target_dec, now);
     let should_flip =
-        crate::meridian::should_flip_now(target_ra, lon, now, config.minutes_past_meridian);
+        crate::meridian::should_flip_now(target_ra_of_date, lon, now, config.minutes_past_meridian);
     if !should_flip {
         let ha = crate::meridian::hour_angle(
-            target_ra,
+            target_ra_of_date,
             crate::meridian::local_sidereal_time(crate::meridian::julian_day(&now), lon),
         );
         tracing::info!(

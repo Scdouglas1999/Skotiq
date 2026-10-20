@@ -370,10 +370,6 @@ abstract class AppSettings with _$AppSettings {
     /// Forward critical alerts to paired phones as push. DB `push_critical_alerts`.
     @Default(true) bool pushCriticalAlerts,
     // Session-lifecycle + campaign-rollup prefs.
-    /// Show the Smart-Night auto-prompt when equipment is ready. DB
-    /// `smart_night.auto_prompt_enabled`.
-    @Default(true) bool smartNightAutoPromptEnabled,
-
     /// Prompt for notes after a run. DB `notes.prompt_after_run`.
     @Default(true) bool promptForNotesAfterRun,
 

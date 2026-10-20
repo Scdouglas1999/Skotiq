@@ -709,7 +709,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Autofocus cadence (frames)',
     'Average is fastest; Median + Rejection and Sigma',
     'Camera retries',
-    'Dashboard auto-prompt',
     'Default broadcast port',
     'Default per-target imaging budget the wizard uses.',
     'Default stack method',
@@ -773,7 +772,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Sequencer',
     'Settle time',
     'Show a quick journal-entry dialog when a sequence',
-    'Show the Smart Night prompt on the dashboard',
     'Smart night defaults',
     'Sound alert',
     'Standalone monitoring',
@@ -1141,7 +1139,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
     'Send notification to mobile app': 'Push notification',
     'Show a quick journal-entry dialog when a sequence':
         'Prompt for notes after run',
-    'Show the Smart Night prompt on the dashboard': 'Dashboard auto-prompt',
     'Temporarily stop autoguider during flip': 'Pause guiding before flip',
     'Times a failed exposure or image download is': 'Camera retries',
     'Times a failed filter change, or one where the': 'Filter wheel retries',

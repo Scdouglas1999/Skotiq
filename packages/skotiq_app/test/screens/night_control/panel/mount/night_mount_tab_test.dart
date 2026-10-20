@@ -1,5 +1,6 @@
-// The Mount tab: Park only after an explicit confirmation, Flip refused
-// during a run with its reason, Home's caution, and the 300 px layout.
+// The Mount tab: Park and Set park only after an explicit confirmation,
+// Flip asks a running run to flip and is refused while it is paused, Home's
+// caution, and the 300 px layout.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/panel/mount/night_mount_tab.dart';
@@ -12,6 +13,7 @@ import '../scope_panel_test_support.dart';
 const _park = ValueKey<String>('nightMount.park');
 const _flip = ValueKey<String>('nightMount.flip');
 const _home = ValueKey<String>('nightMount.home');
+const _setPark = ValueKey<String>('nightMount.setPark');
 
 RecordingMountCommands _commands(HarnessHandle handle) =>
     handle.container.read(mountCommandServiceProvider)
@@ -30,8 +32,7 @@ void main() {
     expect(find.text('Go to'), findsOneWidget);
     expect(find.text('NYX-101'), findsOneWidget);
     expect(find.text('01h37m58s'), findsOneWidget);
-    expect(find.text('Set park'), findsNothing,
-        reason: 'no native set-park command exists yet');
+    expect(find.text('Set park'), findsOneWidget);
     expect(find.textContaining('Swap E/W'), findsNothing);
   });
 
@@ -107,7 +108,7 @@ void main() {
     });
   });
 
-  testWidgets('Flip now is disabled during a run and says why', (tester) async {
+  testWidgets('Flip now asks a running run to flip', (tester) async {
     final api = RecordingActionApi();
     await pumpPanelTab(
       tester,
@@ -118,12 +119,116 @@ void main() {
       ),
     );
     await tester.ensureVisible(find.byKey(_flip));
+    expect(isEnabled(tester, _flip), isTrue);
+    await tester.tap(find.byKey(_flip));
+    await tester.pump();
+    expect(api.calls, ['flipNow']);
+  });
+
+  testWidgets('Flip now is disabled while the run is paused and says why',
+      (tester) async {
+    final api = RecordingActionApi();
+    await pumpPanelTab(
+      tester,
+      const NightMountTab(),
+      overrides: panelOverrides(
+        api: api,
+        inputs: panelInputs(runState: SequenceExecutionState.paused),
+      ),
+    );
+    await tester.ensureVisible(find.byKey(_flip));
     expect(isEnabled(tester, _flip), isFalse);
-    expect(tooltipOf(tester, _flip), "The run's meridian trigger owns flips");
+    expect(tooltipOf(tester, _flip), 'Resume the run to flip it now');
 
     await tester.tap(find.byKey(_flip), warnIfMissed: false);
     await tester.pump();
     expect(api.calls, isEmpty);
+  });
+
+  group('Set park', () {
+    testWidgets('explains itself first and does nothing when cancelled',
+        (tester) async {
+      final handle = await pumpPanelTab(
+        tester,
+        const NightMountTab(),
+        overrides: panelOverrides(),
+      );
+      await tester.ensureVisible(find.byKey(_setPark));
+      await tester.tap(find.byKey(_setPark));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Set park here?'), findsOneWidget);
+      expect(find.textContaining('Park will go to where the mount points now'),
+          findsOneWidget);
+      expect(find.textContaining('Nothing moves'), findsOneWidget);
+      expect(_commands(handle).calls, isEmpty,
+          reason: 'opening the dialog must not set park');
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(_commands(handle).calls, isEmpty);
+    });
+
+    testWidgets('stores the park position once confirmed', (tester) async {
+      final handle = await pumpPanelTab(
+        tester,
+        const NightMountTab(),
+        overrides: panelOverrides(),
+      );
+      await tester.ensureVisible(find.byKey(_setPark));
+      await tester.tap(find.byKey(_setPark));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(Dialog),
+          matching: find.text('Set park'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(_commands(handle).calls, ['setParkHere']);
+    });
+
+    testWidgets('is refused with the reason when the driver cannot set park',
+        (tester) async {
+      await pumpPanelTab(
+        tester,
+        const NightMountTab(),
+        overrides: panelOverrides(
+          capabilities: const MountCapabilities(canPark: true),
+        ),
+      );
+      await tester.ensureVisible(find.byKey(_setPark));
+      expect(isEnabled(tester, _setPark), isFalse);
+      expect(tooltipOf(tester, _setPark),
+          'This mount cannot store a park position');
+    });
+
+    testWidgets('waits while the mount slews', (tester) async {
+      await pumpPanelTab(
+        tester,
+        const NightMountTab(),
+        overrides: panelOverrides(
+          mount: kTrackingMount.copyWith(isSlewing: true),
+        ),
+      );
+      await tester.ensureVisible(find.byKey(_setPark));
+      expect(isEnabled(tester, _setPark), isFalse);
+      expect(tooltipOf(tester, _setPark), 'Wait for the mount to stop moving');
+    });
+
+    testWidgets('a loaded run owns the mount', (tester) async {
+      await pumpPanelTab(
+        tester,
+        const NightMountTab(),
+        overrides: panelOverrides(
+          inputs: panelInputs(runState: SequenceExecutionState.running),
+        ),
+      );
+      await tester.ensureVisible(find.byKey(_setPark));
+      expect(isEnabled(tester, _setPark), isFalse);
+      expect(tooltipOf(tester, _setPark),
+          'The run controls this while it is loaded');
+    });
   });
 
   testWidgets('Flip now goes through the action controller when idle',

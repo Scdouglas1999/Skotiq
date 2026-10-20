@@ -1,12 +1,16 @@
 // The chart row: the three session charts with data-built labels during a
-// run, the guide chart in pixels, and the before-the-run cards.
+// run, the guide chart in pixels or (with a known scale) arcseconds, and the
+// before-the-run cards.
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/center/session_charts_row.dart';
+import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../golden/surface_golden_harness.dart';
 import '../fixtures/night_fixtures.dart';
 import 'center_test_support.dart';
 
@@ -34,6 +38,9 @@ String _allText(WidgetTester tester) => tester
     .join('\n');
 
 void main() {
+  // Real faces, so the legend fits by the widths the app measures.
+  setUpAll(SurfaceGoldenHarness.ensureFonts);
+
   testWidgets('during a run: three charts with labels built from the data',
       (tester) async {
     final handle = tester.ensureSemantics();
@@ -85,6 +92,45 @@ void main() {
     expect(text, contains('dither'));
     expect(text, isNot(contains('″')));
     expect(text, isNot(contains('arcsec')));
+  });
+
+  testWidgets('with the guider\'s pixel scale the guide chart reads arcsec',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    final base = NightFixtures.guideSeries();
+    await pumpCenter(
+      tester,
+      <Override>[
+        ...centerOverrides(
+          NightFixtures.running(),
+          guideSeries: NightSeriesVm(
+            lines: base.lines,
+            markers: base.markers,
+            from: base.from,
+            to: base.to,
+            legend: const <MetricVm>[
+              MetricVm(label: NightText('nightSessionGuideRa'), value: '0.32″'),
+              MetricVm(
+                label: NightText('nightSessionGuideDec'),
+                value: '0.30″',
+              ),
+            ],
+          ),
+        ),
+        nightGuideScaleProvider.overrideWithValue(1.5),
+      ],
+      child: const SessionChartsRow(),
+      size: const Size(1200, 120),
+    );
+    expect(find.text('error in arcsec'), findsOneWidget);
+    expect(find.text('error in px'), findsNothing);
+    final guide = tester.widget<SeriesChart>(find.byType(SeriesChart).at(1));
+    expect(guide.semanticLabel,
+        startsWith('Guide error in arcseconds over 10 min'));
+    expect(guide.semanticLabel, contains('arcseconds'));
+    expect(guide.semanticLabel, isNot(contains(' px')));
+    expect(_allText(tester), contains('RA 0.32″'));
+    handle.dispose();
   });
 
   testWidgets('a run without guide data says so instead of drawing zero',

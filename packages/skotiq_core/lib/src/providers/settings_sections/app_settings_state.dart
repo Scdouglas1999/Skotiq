@@ -378,11 +378,6 @@ class AppSettingsState {
   /// Smart Night planning SNR target used by the exposure calculator.
   final double smartNightTargetSnr;
 
-  /// Whether the dashboard may show the Smart Night auto-prompt after
-  /// equipment is ready. Manual Plan Tonight actions stay available when
-  /// this is false.
-  final bool smartNightAutoPromptEnabled;
-
   /// Whether the Smart Night wizard defaults to auto-picking the top N
   /// targets (vs. manual selection). Persisted so the choice survives
   /// across launches instead of resetting to true each time.
@@ -650,7 +645,6 @@ class AppSettingsState {
     this.smartNightSubExposureFloorSecs = 30.0,
     this.smartNightSubExposureCeilingSecs = 300.0,
     this.smartNightTargetSnr = 30.0,
-    this.smartNightAutoPromptEnabled = true,
     this.smartNightAutoSelect = true,
     this.smartNightAutoSelectCount = 2,
     this.smartNightPromptDismissedDayKey = '',

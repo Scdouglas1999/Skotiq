@@ -66,6 +66,11 @@ List<SideNavTab> sideNavigationTabs(BuildContext context) => [
 /// command field, drag strip) at the top, the destinations in the middle, and
 /// the Rig card pinned to the bottom.
 ///
+/// When the window is too short for the destinations and the collapse toggle
+/// at full size (1443 x 760 with the rail open), the rail compacts: 32 px
+/// items and tighter group gaps. Only if that still does not fit does the
+/// list scroll, so no item is left half hidden behind the toggle.
+///
 /// `surface`-toned — a tonal step lighter than the `background` main area —
 /// with a faint wash of the user's accent at the top-left corner that follows
 /// the lockup's own accent (red in red night). There is no border on the
@@ -100,6 +105,46 @@ class SideNavigation extends ConsumerWidget {
   /// Rail items sit 2 px apart; anything more and nine of them stop reading as
   /// one list.
   static const double _itemGap = 2.0;
+
+  /// [_collapsedGroupGap] and [_headingSpaceAbove] in a compact rail.
+  static const double _collapsedGroupGapCompact = 8.0;
+  static const double _headingSpaceAboveCompact = 4.0;
+
+  /// The height the destinations, their headings and the collapse toggle
+  /// need at the given density.
+  @visibleForTesting
+  static double contentHeight({
+    required List<SideNavEntry> entries,
+    required bool isExpanded,
+    required bool compact,
+    required double headingTextHeight,
+  }) {
+    final item = compact
+        ? ShellChromeMetrics.railItemSizeCompact
+        : ShellChromeMetrics.railItemSize;
+    var height = 0.0;
+    for (var row = 0; row < entries.length; row++) {
+      switch (entries[row]) {
+        case SideNavGroupHeading():
+          if (!isExpanded) {
+            if (row > 0) {
+              height +=
+                  compact ? _collapsedGroupGapCompact : _collapsedGroupGap;
+            }
+          } else {
+            if (row > 0) {
+              height +=
+                  compact ? _headingSpaceAboveCompact : _headingSpaceAbove;
+            }
+            height += headingTextHeight + SkotiqTokens.spaceXs;
+          }
+        case SideNavTab():
+          height += item + _itemGap;
+      }
+    }
+    // The list's bottom padding, then the toggle and its own padding.
+    return height + SkotiqTokens.spaceSm + item + SkotiqTokens.spaceSm;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -151,40 +196,81 @@ class SideNavigation extends ConsumerWidget {
                 // window (with room for macOS traffic lights).
                 SidebarChromeHeader(isExpanded: isExpanded),
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(
-                      SkotiqTokens.spaceMd,
-                      0,
-                      SkotiqTokens.spaceMd,
-                      SkotiqTokens.spaceSm,
-                    ),
-                    children: [
-                      for (var row = 0; row < entries.length; row++)
-                        _buildEntry(context, entries, row, badgedRoutes),
-                    ],
-                  ),
-                ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final headingText = TextPainter(
+                        text: const TextSpan(
+                          text: 'X',
+                          style: SkotiqTypography.eyebrow,
+                        ),
+                        textScaler: MediaQuery.textScalerOf(context),
+                        textDirection: TextDirection.ltr,
+                        maxLines: 1,
+                      )..layout();
+                      final compact = contentHeight(
+                            entries: entries,
+                            isExpanded: isExpanded,
+                            compact: false,
+                            headingTextHeight: headingText.height,
+                          ) >
+                          constraints.maxHeight;
+                      headingText.dispose();
+                      final itemHeight = compact
+                          ? ShellChromeMetrics.railItemSizeCompact
+                          : ShellChromeMetrics.railItemSize;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: ListView(
+                              key: const ValueKey<String>('sideNav.list'),
+                              padding: const EdgeInsets.fromLTRB(
+                                SkotiqTokens.spaceMd,
+                                0,
+                                SkotiqTokens.spaceMd,
+                                SkotiqTokens.spaceSm,
+                              ),
+                              children: [
+                                for (var row = 0; row < entries.length; row++)
+                                  _buildEntry(
+                                    context,
+                                    entries,
+                                    row,
+                                    badgedRoutes,
+                                    compact: compact,
+                                  ),
+                              ],
+                            ),
+                          ),
 
-                // The collapse toggle is a rail item like any other, at the
-                // foot of the list. It is NAMED for what the tap does, not
-                // for the glyph: "Expand navigation" while collapsed.
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    SkotiqTokens.spaceMd,
-                    0,
-                    SkotiqTokens.spaceMd,
-                    SkotiqTokens.spaceSm,
-                  ),
-                  child: NavItem(
-                    icon: isExpanded
-                        ? LucideIcons.panelLeftClose
-                        : LucideIcons.panelLeft,
-                    label: isExpanded
-                        ? '${l10n.text('collapse')} navigation'
-                        : 'Expand navigation',
-                    isSelected: false,
-                    isExpanded: isExpanded,
-                    onTap: onToggleExpanded,
+                          // The collapse toggle is a rail item like any other,
+                          // at the foot of the list. It is NAMED for what the
+                          // tap does, not for the glyph: "Expand navigation"
+                          // while collapsed.
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              SkotiqTokens.spaceMd,
+                              0,
+                              SkotiqTokens.spaceMd,
+                              SkotiqTokens.spaceSm,
+                            ),
+                            child: NavItem(
+                              key: const ValueKey<String>('sideNav.toggle'),
+                              icon: isExpanded
+                                  ? LucideIcons.panelLeftClose
+                                  : LucideIcons.panelLeft,
+                              label: isExpanded
+                                  ? '${l10n.text('collapse')} navigation'
+                                  : 'Expand navigation',
+                              isSelected: false,
+                              isExpanded: isExpanded,
+                              height: itemHeight,
+                              onTap: onToggleExpanded,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
 
@@ -204,8 +290,9 @@ class SideNavigation extends ConsumerWidget {
     BuildContext context,
     List<SideNavEntry> entries,
     int row,
-    Set<String> badgedRoutes,
-  ) {
+    Set<String> badgedRoutes, {
+    required bool compact,
+  }) {
     final entry = entries[row];
     switch (entry) {
       case SideNavGroupHeading():
@@ -213,12 +300,22 @@ class SideNavigation extends ConsumerWidget {
         // gap instead. The first group gets neither: it needs no separation
         // from the rail's top edge.
         if (!isExpanded) {
-          return SizedBox(height: row == 0 ? 0 : _collapsedGroupGap);
+          return SizedBox(
+            height: row == 0
+                ? 0
+                : compact
+                    ? _collapsedGroupGapCompact
+                    : _collapsedGroupGap,
+          );
         }
         return Padding(
           padding: EdgeInsets.fromLTRB(
             _NavItemMetrics.iconInset,
-            row == 0 ? 0 : _headingSpaceAbove,
+            row == 0
+                ? 0
+                : compact
+                    ? _headingSpaceAboveCompact
+                    : _headingSpaceAbove,
             _NavItemMetrics.iconInset,
             SkotiqTokens.spaceXs,
           ),
@@ -242,6 +339,9 @@ class SideNavigation extends ConsumerWidget {
           isSelected: entry.index == currentIndex,
           isExpanded: isExpanded,
           hasBadge: badgedRoutes.contains(destination.route),
+          height: compact
+              ? ShellChromeMetrics.railItemSizeCompact
+              : ShellChromeMetrics.railItemSize,
           onTap: () => onTabSelected(entry.index),
         );
         return Padding(

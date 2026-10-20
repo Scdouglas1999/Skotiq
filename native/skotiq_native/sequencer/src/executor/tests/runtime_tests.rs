@@ -1091,11 +1091,14 @@ async fn a_mid_run_location_change_reaches_the_altitude_dawn_and_meridian_inputs
         "DawnApproaching reads TriggerState::dawn_time; a cached dawn from the \
          previous site would stop the run at the wrong hour"
     );
+    // The target is the J2000 pole, which in 2026 sits ~9' from the pole of
+    // date the sky turns about, so its altitude swings that far around the
+    // latitude. The two sites are ~75 deg apart; 0.2 deg still tells them apart.
     for (snapshot, latitude) in [(&first, NEW_YORK.0), (&second, SYDNEY.0)] {
         assert!(
             snapshot
                 .current_altitude
-                .is_some_and(|altitude| (altitude - latitude).abs() < 0.001),
+                .is_some_and(|altitude| (altitude - latitude).abs() < 0.2),
             "pole altitude must be recomputed for observer latitude {latitude}: {:?}",
             snapshot.current_altitude,
         );
@@ -1680,8 +1683,10 @@ fn the_published_hour_angle_belongs_to_the_target_not_the_mount() {
     )
     .expect("target and site are both known");
 
+    // 1.5h east in J2000 terms; the published hour angle is taken against the
+    // RA of date, which in 2026 sits ~1.3 min further east.
     assert!(
-        (sky.hour_angle_hours - -1.5).abs() < 1e-6,
+        (sky.hour_angle_hours - -1.5).abs() < 0.05,
         "a target 1.5h east of the meridian must publish HA -1.50h, got {:+.4}h",
         sky.hour_angle_hours
     );
@@ -1707,6 +1712,53 @@ fn the_published_hour_angle_belongs_to_the_target_not_the_mount() {
         "target altitude {:.2}° is not the geometry of a target 1.5h from transit \
          at dec = latitude",
         sky.altitude_degrees
+    );
+}
+
+/// The target RA is J2000 but LST is of date. In October 2026 the two frames
+/// are ~1.4 min of RA apart, so a target the J2000 RA puts one minute PAST the
+/// meridian has not reached it yet. Taking the hour angle from the J2000 RA
+/// fired the flip early, inside that window: the mount slewed back to the same
+/// target without changing pier side, and the run paused on a failed flip.
+#[test]
+fn the_flip_hour_angle_is_taken_against_the_target_ra_of_date() {
+    use chrono::TimeZone;
+
+    let latitude = 40.0;
+    let longitude = 0.0;
+    let dec = 20.0;
+    let now = chrono::Utc.with_ymd_and_hms(2026, 10, 19, 3, 0, 0).unwrap();
+    let lst = crate::meridian::local_sidereal_time(crate::meridian::julian_day(&now), longitude);
+
+    // One minute past the meridian by its J2000 RA.
+    let ra_j2000_hours = (lst - 1.0 / 60.0).rem_euclid(24.0);
+    let j2000_hour_angle = crate::meridian::hour_angle(ra_j2000_hours, lst);
+    assert!(j2000_hour_angle > 0.0);
+
+    let sky = target_sky_state(
+        Some(ra_j2000_hours * 15.0),
+        Some(dec),
+        Some(latitude),
+        Some(longitude),
+        now,
+    )
+    .expect("target and site are both known");
+
+    let minutes = sky.hour_angle_hours * 60.0;
+    assert!(
+        minutes < 0.0,
+        "the target is still EAST of the meridian of date, got HA {minutes:+.3} min"
+    );
+    // Precession in RA at dec 20 deg, 26.8 years after J2000: about 1.4 min.
+    let shift = (j2000_hour_angle - sky.hour_angle_hours) * 60.0;
+    assert!(
+        (1.2..1.6).contains(&shift),
+        "HA of date must sit the 2026 precession ({shift:.3} min) east of the J2000 one"
+    );
+    // So the pier side the flip would be heading for is still the pre-flip one.
+    assert_eq!(
+        crate::meridian::expected_pier_side(sky.hour_angle_hours),
+        crate::meridian::PierSide::West
     );
 }
 

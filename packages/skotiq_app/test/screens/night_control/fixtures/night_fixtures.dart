@@ -489,8 +489,9 @@ abstract final class NightFixtures {
       from: start,
       to: at(23, 52),
       legend: <MetricVm>[
-        MetricVm(label: _t('HFR'), value: '2.13 (min 1.98)'),
-        MetricVm(label: _t('stars'), value: '1184'),
+        MetricVm(label: NightText('nightSessionHfr'), value: '2.13'),
+        MetricVm(label: NightText('nightSessionHfrMin'), value: '1.98'),
+        MetricVm(label: NightText('nightSessionStars'), value: '1184'),
       ],
       sampleCount: 87,
     );
@@ -586,9 +587,12 @@ abstract final class NightFixtures {
       from: start,
       to: at(23, 52),
       legend: <MetricVm>[
-        MetricVm(label: _t('focuser'), value: '12.0 °C'),
-        MetricVm(label: _t('position'), value: '45 484'),
-        MetricVm(label: _t('sensor'), value: '−10.0 °C'),
+        MetricVm(label: NightText('nightSessionFocuserTemp'), value: '12.0 °C'),
+        MetricVm(
+          label: NightText('nightSessionFocuserPosition'),
+          value: '45 484',
+        ),
+        MetricVm(label: NightText('nightSessionSensorTemp'), value: '−10.0 °C'),
       ],
     );
   }

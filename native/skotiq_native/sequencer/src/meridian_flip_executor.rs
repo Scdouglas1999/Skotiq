@@ -463,7 +463,7 @@ impl MeridianFlipExecutor {
             );
         }
 
-        let hour_angle = self.calculate_hour_angle(ctx.target_ra_hours);
+        let hour_angle = self.calculate_hour_angle(ctx.target_ra_hours, ctx.target_dec_degrees);
 
         self.emit_event(MeridianFlipEvent::Starting {
             target_name: ctx.target_name.clone(),
@@ -1598,7 +1598,9 @@ impl MeridianFlipExecutor {
         })
     }
 
-    fn calculate_hour_angle(&self, ra_hours: f64) -> f64 {
+    /// Hour angle of the J2000 target `ra_hours`/`dec_degrees`, taken against
+    /// its RA of date like every other hour angle in the crate.
+    fn calculate_hour_angle(&self, ra_hours: f64, dec_degrees: f64) -> f64 {
         // HA = LST - RA.6 deleted the duplicate jd/LST helpers
         // here and routed through the meridian module so a future LST tweak
         // (e.g. nutation correction) lands in one place.
@@ -1623,7 +1625,8 @@ impl MeridianFlipExecutor {
                 0.0
             });
         let lst = local_sidereal_time(jd, longitude_deg);
-        let ha = lst - ra_hours;
+        let (ra_of_date, _) = meridian::target_of_date(ra_hours, dec_degrees, now);
+        let ha = lst - ra_of_date;
 
         // HA is canonically reported in [-12, +12) h so consumers can use
         // sign alone to determine east-vs-west of meridian; raw mod-24 would

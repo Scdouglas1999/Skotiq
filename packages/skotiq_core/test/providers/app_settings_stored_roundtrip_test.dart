@@ -211,7 +211,6 @@ void main() {
       smartNightSubExposureFloorSecs: 45.0,
       smartNightSubExposureCeilingSecs: 240.0,
       smartNightTargetSnr: 40.0,
-      smartNightAutoPromptEnabled: false,
       promptForNotesAfterRun: false,
       // Session lifecycle
       sessionHandoffAutoPrompt: false,
@@ -251,4 +250,40 @@ void main() {
     // Sanity: the snapshot is comprehensive (every persisted field present).
     expect(before.length, greaterThanOrEqualTo(139));
   });
+  test(
+    'the retired dashboard auto-prompt key is neither written nor wired',
+    () async {
+      final controller = StreamController<SkotiqEvent>.broadcast();
+      addTearDown(controller.close);
+      final backend = _MockNetworkBackend();
+      when(() => backend.eventStream).thenAnswer((_) => controller.stream);
+      when(
+        () => backend.getSettings(),
+      ).thenAnswer((_) async => const models.AppSettings());
+      final container = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container.read(appSettingsProvider.future);
+      final notifier = container.read(appSettingsProvider.notifier);
+
+      // A database written by an older build keeps the row; nothing reads it
+      // and a full save does not write it again.
+      expect(
+        notifier.debugStoredMapFromState(const AppSettingsState()).keys,
+        isNot(contains('smart_night.auto_prompt_enabled')),
+      );
+      // An older peer still sends the field on the wire; it is ignored.
+      final remote = models.AppSettings.fromJson(<String, dynamic>{
+        'smartNightAutoPromptEnabled': false,
+        'theme': 'light',
+      });
+      expect(remote.theme, 'light');
+      expect(remote.toJson(), isNot(contains('smartNightAutoPromptEnabled')));
+    },
+  );
 }

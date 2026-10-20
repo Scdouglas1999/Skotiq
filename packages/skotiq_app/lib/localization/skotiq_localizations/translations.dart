@@ -805,7 +805,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActWhyParked': 'The mount is parked',
     'nightActWhyNotTracking': 'Start tracking first',
     'nightActWhyNoTarget': 'No target with coordinates',
-    'nightActWhyFlipRun': "The run's meridian trigger owns flips",
     'nightActWhyRunOwns': 'The run controls this while it is loaded',
     'nightActWhyNoSetpoint': 'The profile has no cooler setpoint',
     'nightActBusySnapshot': 'A snapshot is running',
@@ -1367,7 +1366,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGuideImageUnavailable': 'Guide star image unavailable',
     'nightScopeGuideScatterEmpty': 'Guide error scatter: no guide steps yet',
     'nightScopeGuideScatterLabel':
-        'Guide error scatter of the last {count} steps, total RMS {rms}, plot spans ±{scale} px',
+        'Guide error scatter of the last {count} steps, total RMS {rms}, plot spans {scale}',
     'nightScopeGuideLostNone': 'No lost star this session',
     'nightScopeGuideLost': 'Lost this session: {count} · last {time}',
     'nightScopeGuideSettleBelow': 'Settle below {px} px',
@@ -1537,6 +1536,18 @@ final Map<String, Map<String, String>> _localizedValues = {
         'The pre-flight checks found {count} error(s), first: {issue}',
     'nightScrArmCheckFailed': 'The pre-flight checks could not run: {detail}',
     'nightScrArmUnparkFailed': 'The mount did not unpark: {detail}',
+    'nightActWhyFlipPaused': 'Resume the run to flip it now',
+    'nightActErrFlipRequest': 'Flip not requested: {detail}',
+    'nightScopeSetPark': 'Set park',
+    'nightScopeSetParkTitle': 'Set park here?',
+    'nightScopeSetParkBody':
+        'Park will go to where the mount points now, not to its current '
+            'park position. Nothing moves and the mount is not parked.',
+    'nightScopeWhyNoSetPark': 'This mount cannot store a park position',
+    'nightCtrChartGuideNoteArcsec': 'error in arcsec',
+    'nightCtrSemGuideArcsec': 'Guide error in arcseconds over {minutes} min',
+    'nightCtrSemGuideNoSpanArcsec': 'Guide error in arcseconds',
+    'nightCtrSemRmsArcsec': '{axis} RMS {value} arcseconds',
   },
   'es': {
     'appTitle': 'Skotiq',
@@ -2335,8 +2346,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActWhyParked': 'La montura está aparcada',
     'nightActWhyNotTracking': 'Activa primero el seguimiento',
     'nightActWhyNoTarget': 'No hay objetivo con coordenadas',
-    'nightActWhyFlipRun':
-        'El disparador de meridiano de la sesión controla los volteos',
     'nightActWhyRunOwns': 'La sesión controla esto mientras está cargada',
     'nightActWhyNoSetpoint': 'El perfil no tiene temperatura de enfriamiento',
     'nightActBusySnapshot': 'Hay una instantánea en curso',
@@ -2917,7 +2926,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGuideScatterEmpty':
         'Dispersión del error de guiado: aún no hay pasos',
     'nightScopeGuideScatterLabel':
-        'Dispersión del error de guiado de los últimos {count} pasos, RMS total {rms}, el gráfico abarca ±{scale} px',
+        'Dispersión del error de guiado de los últimos {count} pasos, RMS total {rms}, el gráfico abarca {scale}',
     'nightScopeGuideLostNone': 'Ninguna estrella perdida en esta sesión',
     'nightScopeGuideLost': 'Perdida en esta sesión: {count} · última {time}',
     'nightScopeGuideSettleBelow': 'Estabiliza por debajo de {px} px',
@@ -3092,5 +3101,19 @@ final Map<String, Map<String, String>> _localizedValues = {
         'No se pudieron ejecutar las comprobaciones previas: {detail}',
     'nightScrArmUnparkFailed':
         'La montura no salió de su posición de aparcado: {detail}',
+    'nightActWhyFlipPaused': 'Reanuda la sesión para voltear ahora',
+    'nightActErrFlipRequest': 'No se pidió el volteo: {detail}',
+    'nightScopeSetPark': 'Fijar aparcado',
+    'nightScopeSetParkTitle': '¿Fijar el aparcado aquí?',
+    'nightScopeSetParkBody':
+        'Aparcar llevará la montura a donde apunta ahora, no a su posición '
+            'de aparcado actual. Nada se mueve y la montura no se aparca.',
+    'nightScopeWhyNoSetPark':
+        'Esta montura no puede guardar una posición de aparcado',
+    'nightCtrChartGuideNoteArcsec': 'error en arcsec',
+    'nightCtrSemGuideArcsec':
+        'Error de guiado en segundos de arco durante {minutes} min',
+    'nightCtrSemGuideNoSpanArcsec': 'Error de guiado en segundos de arco',
+    'nightCtrSemRmsArcsec': 'RMS {axis} {value} segundos de arco',
   },
 };

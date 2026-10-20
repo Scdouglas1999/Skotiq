@@ -111,8 +111,8 @@ class VCurvePainter extends CustomPainter {
   /// below the Observatory scale's 10px floor on purpose: they have to fit the
   /// overlay's 36px y-gutter, and the scale has nothing that does. The expanded
   /// density, which has the room, uses the scale.
-  static const double _compactAxisTitleSize = 8;
-  static const double _compactTickSize = 7;
+  static const double _compactAxisTitleSize = 9;
+  static const double _compactTickSize = 9;
 
   /// Chart insets. Left is wide enough for a two-digit-plus-decimal HFR tick.
   static const EdgeInsets _padding = EdgeInsets.fromLTRB(36, 8, 8, 20);
@@ -125,9 +125,12 @@ class VCurvePainter extends CustomPainter {
   static const double _vertexRingRadius = 8;
 
   TextStyle _axisTitleStyle() => switch (density) {
-    VCurveChartDensity.compact => TextStyle(
+    // The app's faces, not the platform default a bare TextStyle falls
+    // back to on a canvas.
+    VCurveChartDensity.compact => SkotiqTypography.captionSm.copyWith(
       color: textColor,
       fontSize: _compactAxisTitleSize,
+      height: 1,
     ),
     VCurveChartDensity.expanded => SkotiqTypography.captionSm.copyWith(
       color: textColor,
@@ -135,9 +138,10 @@ class VCurvePainter extends CustomPainter {
   };
 
   TextStyle _tickStyle() => switch (density) {
-    VCurveChartDensity.compact => TextStyle(
+    VCurveChartDensity.compact => SkotiqTypography.monoXs.copyWith(
       color: textColor,
       fontSize: _compactTickSize,
+      height: 1,
     ),
     VCurveChartDensity.expanded => SkotiqTypography.monoXs.copyWith(
       color: textColor,
@@ -193,7 +197,15 @@ class VCurvePainter extends CustomPainter {
     for (final s in series) {
       _paintSeries(canvas, chartArea, s, toX, toY);
     }
-    _paintAxes(canvas, size, chartArea, displayMinHfr, displayMaxHfr);
+    _paintAxes(
+      canvas,
+      size,
+      chartArea,
+      displayMinHfr,
+      displayMaxHfr,
+      minPos,
+      maxPos,
+    );
   }
 
   void _paintGrid(Canvas canvas, Rect chartArea) {
@@ -362,6 +374,8 @@ class VCurvePainter extends CustomPainter {
     Rect chartArea,
     double displayMinHfr,
     double displayMaxHfr,
+    int minPos,
+    int maxPos,
   ) {
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
     final axisTitle = _axisTitleStyle();
@@ -373,11 +387,28 @@ class VCurvePainter extends CustomPainter {
       textPainter.paint(canvas, place(textPainter.size));
     }
 
-    draw('HFR', axisTitle, (_) => Offset(4, chartArea.top));
+    // The titles sit between their two tick values, so neither collides
+    // with a number: HFR halfway down the gutter, Position between the
+    // scan's ends along the bottom.
+    draw(
+      'HFR',
+      axisTitle,
+      (s) => Offset(4, chartArea.center.dy - s.height / 2),
+    );
     draw(
       'Position',
       axisTitle,
       (s) => Offset(chartArea.center.dx - s.width / 2, size.height - 12),
+    );
+    draw(
+      _grouped(minPos),
+      tick,
+      (s) => Offset(chartArea.left, size.height - 12),
+    );
+    draw(
+      _grouped(maxPos),
+      tick,
+      (s) => Offset(chartArea.right - s.width, size.height - 12),
     );
     draw(
       displayMaxHfr.toStringAsFixed(1),
@@ -389,6 +420,17 @@ class VCurvePainter extends CustomPainter {
       tick,
       (s) => Offset(chartArea.left - s.width - 2, chartArea.bottom - 6),
     );
+  }
+
+  /// `45 484`: thousands grouped with a no-break space.
+  static String _grouped(int value) {
+    final digits = value.abs().toString();
+    final buffer = StringBuffer(value < 0 ? '-' : '');
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('\u00a0');
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
   }
 
   @override

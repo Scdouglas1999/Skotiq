@@ -203,6 +203,61 @@ void main() {
       );
     });
 
+    test('with the guider\'s pixel scale the chart reads in arcseconds',
+        () async {
+      final h = await sessionHarness(overrides: [
+        guiderStateProvider.overrideWith(
+          (ref) => FixedGuider(
+            ref,
+            const GuiderState(
+              connectionState: DeviceConnectionState.connected,
+              deviceName: 'PHD2',
+              pixelScaleArcsecPerPixel: 2.0,
+            ),
+          ),
+        ),
+      ]);
+      final keep = h.container.listen(nightGuideSamplesProvider, (_, __) {});
+      addTearDown(keep.close);
+      final t0 = DateTime(2026, 10, 19, 23, 40);
+      h.backend
+        ..emitEvent(
+          _guideStep(t0, <String, dynamic>{
+            'RADistanceRaw': 0.3,
+            'DECDistanceRaw': -0.4,
+          }),
+        )
+        ..emitEvent(
+          _guideStep(t0.add(const Duration(seconds: 2)), <String, dynamic>{
+            'RADistanceRaw': -0.3,
+            'DECDistanceRaw': 0.4,
+          }),
+        );
+      await Future<void>.delayed(Duration.zero);
+
+      final vm = h.read(nightGuideSeriesProvider);
+      final ra = vm.lines.firstWhere((l) => l.id == NightSeriesId.guideRa);
+      expect(ra.points.map((p) => p.y), <double>[0.6, -0.6]);
+      final total =
+          vm.legend.firstWhere((m) => m.label.key == 'nightSessionGuideTotal');
+      expect(total.value, '1.00″');
+      expect(vm.legend.any((m) => m.value!.contains('px')), isFalse);
+    });
+
+    test('a zero or missing scale is unknown: pixels', () {
+      expect(nightGuideDistance(0.5, null), '0.50 px');
+      final h = ProviderContainer(overrides: [
+        guiderStateProvider.overrideWith(
+          (ref) => FixedGuider(
+            ref,
+            const GuiderState(pixelScaleArcsecPerPixel: 0),
+          ),
+        ),
+      ]);
+      addTearDown(h.dispose);
+      expect(h.read(nightGuideScaleProvider), isNull);
+    });
+
     test('dither marks land on the guiding chart', () async {
       final h = await sessionHarness();
       final keepSamples =

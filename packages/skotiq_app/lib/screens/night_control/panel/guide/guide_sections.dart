@@ -34,6 +34,7 @@ class NightGuideStarSection extends ConsumerWidget {
     final image = ref.watch(starImageProvider);
     final samples = ref.watch(nightGuideSamplesProvider);
     final rms = ref.watch(nightGuideRmsProvider);
+    final scale = ref.watch(nightGuideScaleProvider);
     final lost = ref.watch(
       nightSessionEventsProvider.select((events) => events.starLost),
     );
@@ -70,8 +71,11 @@ class NightGuideStarSection extends ConsumerWidget {
             'nightScopeGuideScatterLabel',
             params: {
               'count': '${samples.length}',
-              'rms': formatPx(rms.total) ?? kReadoutUnknown,
-              'scale': NightGuideScatter.scaleFor(samples).toString(),
+              'rms': formatGuide(rms.total, scale) ?? kReadoutUnknown,
+              'scale': NightGuideScatter.spanLabel(
+                NightGuideScatter.scaleFor(samples),
+                scale,
+              ),
             },
           );
 
@@ -107,6 +111,7 @@ class NightGuideStarSection extends ConsumerWidget {
                 child: NightGuideScatter(
                   samples: samples,
                   semanticLabel: scatterLabel,
+                  arcsecPerPixel: scale,
                 ),
               ),
             ),
