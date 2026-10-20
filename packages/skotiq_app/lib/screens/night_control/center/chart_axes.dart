@@ -218,17 +218,18 @@ class NightChartAxes extends StatelessWidget {
             );
 
       // Labels closer than a line apart: keep the outer ones.
+      // Each label with the y it sits at, in chart order.
       List<(double, String)> spaced(
         List<(double, String)> items,
         SeriesChartAxis axis,
       ) {
         final kept = <(double, String)>[];
         double? lastY;
-        for (final item in items) {
-          final y = painter.yOf(item.$1, axis, chartHeight);
+        for (final (value, text) in items) {
+          final y = painter.yOf(value, axis, chartHeight);
           if (y == null) continue;
           if (lastY != null && (lastY - y).abs() < labelHeight + 1) continue;
-          kept.add(item);
+          kept.add((y, text));
           lastY = y;
         }
         return kept;
@@ -237,7 +238,6 @@ class NightChartAxes extends StatelessWidget {
       Widget gutter(
         List<(double, String)> items,
         double width,
-        SeriesChartAxis axis,
         TextAlign align,
       ) =>
           SizedBox(
@@ -246,12 +246,11 @@ class NightChartAxes extends StatelessWidget {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: <Widget>[
-                  for (final (value, text) in items)
+                  for (final (y, text) in items)
                     Positioned(
                       left: 0,
                       right: 0,
-                      top: ((painter.yOf(value, axis, chartHeight) ?? 0) -
-                              labelHeight / 2)
+                      top: (y - labelHeight / 2)
                           .clamp(0.0, math.max(0.0, chartHeight - labelHeight)),
                       child: Padding(
                         padding: EdgeInsets.only(
@@ -284,7 +283,6 @@ class NightChartAxes extends StatelessWidget {
                   gutter(
                     spaced(left, SeriesChartAxis.left),
                     leftWidth,
-                    SeriesChartAxis.left,
                     TextAlign.right,
                   ),
                 Expanded(
@@ -302,7 +300,6 @@ class NightChartAxes extends StatelessWidget {
                   gutter(
                     spaced(right, SeriesChartAxis.right),
                     rightWidth,
-                    SeriesChartAxis.right,
                     TextAlign.left,
                   ),
               ],

@@ -141,7 +141,8 @@ String nightGuideDistance(
 final nightGuideSeriesProvider = Provider<NightSeriesVm>((ref) {
   final samples = ref.watch(nightGuideSamplesProvider);
   final scale = ref.watch(nightGuideScaleProvider);
-  final k = scale ?? 1.0;
+  // Pixels stay pixels when the guider has not reported a scale.
+  double shown(double px) => scale == null ? px : px * scale;
   String distance(double px) => nightGuideDistance(px, scale);
   final dithers = ref.watch(
     nightSessionEventsProvider.select((events) => events.dithers),
@@ -179,14 +180,14 @@ final nightGuideSeriesProvider = Provider<NightSeriesVm>((ref) {
       SeriesLineVm(
         id: NightSeriesId.guideRa,
         points: <SeriesPoint>[
-          for (final s in samples) SeriesPoint(s.t, s.raPx * k),
+          for (final s in samples) SeriesPoint(s.t, shown(s.raPx)),
         ],
         tone: SeriesTone.primary,
       ),
       SeriesLineVm(
         id: NightSeriesId.guideDec,
         points: <SeriesPoint>[
-          for (final s in samples) SeriesPoint(s.t, s.decPx * k),
+          for (final s in samples) SeriesPoint(s.t, shown(s.decPx)),
         ],
         tone: SeriesTone.tertiary,
       ),
