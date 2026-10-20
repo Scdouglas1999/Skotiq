@@ -96,7 +96,7 @@ enum TutorialCategory {
 
   // Screen-specific tours (12 screens)
 
-  /// Dashboard screen deep tour (12 steps)
+  /// Tonight screen tour (6 steps)
   dashboardTour,
 
   /// Equipment screen deep tour (10 steps)

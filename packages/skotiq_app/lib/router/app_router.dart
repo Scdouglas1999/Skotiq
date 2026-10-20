@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../screens/shell/app_shell.dart';
-import '../screens/dashboard/dashboard_screen.dart';
+import '../screens/night_control/night_control_screen.dart';
 import '../screens/equipment/equipment_screen.dart';
 import '../screens/imaging/imaging_screen.dart';
 import '../screens/guiding/guiding_screen.dart';
@@ -79,7 +79,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/dashboard',
             name: 'dashboard',
             pageBuilder: (context, state) => const CustomTransitionPage(
-              child: DashboardScreen(),
+              child: NightControlScreen(),
               transitionsBuilder: PageTransitions.slideFadeTransition,
               transitionDuration: Duration(milliseconds: 300),
             ),
@@ -539,7 +539,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               transitionDuration: Duration(milliseconds: 300),
             ),
           ),
-          // First-night wizard entry. The route renders the dashboard
+          // First-night wizard entry. The route renders Tonight
           // underneath and opens the wizard as a modal dialog on top —
           // this is how Settings → Help → "First Night Walkthrough" and
           // the auto-launch flow both reach the wizard. Dismissing the

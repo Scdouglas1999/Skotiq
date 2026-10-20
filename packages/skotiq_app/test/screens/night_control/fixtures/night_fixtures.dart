@@ -177,8 +177,23 @@ abstract final class NightFixtures {
       framesDone: runLoaded ? 44 : null,
       framesTotal: runLoaded ? 60 : null,
       plannedDuration: const Duration(hours: 7),
-      pauseResume: runLoaded ? enabled : null,
-      skipStep: runLoaded ? enabled : null,
+      // A manual action that paused the run resumes it itself, so the
+      // header offers neither Resume nor Skip meanwhile (as the provider
+      // does).
+      pauseResume: !runLoaded
+          ? null
+          : pausedFor != null
+              ? const NightControlVm.disabled(
+                  NightText('ncPlanActionOwnsResume'),
+                )
+              : enabled,
+      skipStep: !runLoaded
+          ? null
+          : pausedFor != null
+              ? const NightControlVm.disabled(
+                  NightText('ncPlanActionInProgress'),
+                )
+              : enabled,
       stop: runLoaded ? enabled : null,
       startNow: runLoaded ? null : enabled,
       startAtDark: runLoaded ? null : enabled,
@@ -509,11 +524,14 @@ abstract final class NightFixtures {
       ],
       from: start,
       to: end,
-      legend: <MetricVm>[
-        MetricVm(label: _t('RA'), value: '0.31″'),
-        MetricVm(label: _t('Dec'), value: '0.28″'),
-        MetricVm(label: _t('total'), value: '0.42″'),
-        MetricVm(label: _t('SNR'), value: '42'),
+      // The board's 0.31" / 0.28" / 0.42" at 1.34"/px, in the pixels the
+      // provider reports until PHD2's pixel scale reaches it.
+      legend: const <MetricVm>[
+        MetricVm(label: NightText('nightSessionGuideTotal'), value: '0.31 px'),
+        MetricVm(label: NightText('nightSessionGuideRa'), value: '0.23 px'),
+        MetricVm(label: NightText('nightSessionGuideDec'), value: '0.21 px'),
+        MetricVm(label: NightText('nightSessionGuidePeak'), value: '0.66 px'),
+        MetricVm(label: NightText('nightSessionGuideSnr'), value: '42'),
       ],
     );
   }
@@ -588,7 +606,7 @@ abstract final class NightFixtures {
           ),
           MetricVm(
             label: _t('FWHM'),
-            value: '3.4″',
+            value: '3.4"',
             delta: '−0.1',
             deltaTone: MetricTone.good,
           ),
@@ -601,7 +619,7 @@ abstract final class NightFixtures {
           ),
           MetricVm(label: _t('Median'), value: '528', delta: '+4'),
           MetricVm(
-            label: _t('Bg σ'),
+            label: _t('Bg noise'),
             value: '11.2',
             delta: '−0.3',
             deltaTone: MetricTone.good,
@@ -612,7 +630,7 @@ abstract final class NightFixtures {
             delta: '+1.2',
             deltaTone: MetricTone.good,
           ),
-          MetricVm(label: _t('Solve'), value: '0.8″', delta: 'off'),
+          MetricVm(label: _t('Solve'), value: '0.8"', delta: 'off'),
         ],
         histogram: <int>[
           for (var i = 0; i < 256; i++)
@@ -687,7 +705,7 @@ abstract final class NightFixtures {
           status: EquipmentStatus.ok,
           deviceName: 'ZWO ASI1600MM Pro',
           details: <NightText>[
-            _t('−7.4 °C → −10'),
+            _t('−7.4 °C to −10'),
             _t('64%'),
             _t('g139 o21'),
           ],
@@ -775,7 +793,7 @@ abstract final class NightFixtures {
   static List<NightLogEntryVm> readyLog() => <NightLogEntryVm>[
         NightLogEntryVm(
           at: at(18, 31),
-          message: _t('Snapshot L 5 s · solved 0.4′ from M74'),
+          message: _t("Snapshot L 5 s · solved 0.4' from M74"),
         ),
         NightLogEntryVm(
           at: at(18, 29),
@@ -790,7 +808,7 @@ abstract final class NightFixtures {
           at: at(18, 21),
           message: _t('Mount, camera, focuser, filter wheel connected'),
         ),
-        NightLogEntryVm(at: at(18, 20), message: _t('Profile 10″ Newt loaded')),
+        NightLogEntryVm(at: at(18, 20), message: _t('Profile 10" Newt loaded')),
       ];
 
   static List<ChecklistItemVm> beforeYouStart() => <ChecklistItemVm>[
@@ -829,7 +847,7 @@ abstract final class NightFixtures {
           id: ChecklistItemId.solver,
           state: ChecklistItemState.ok,
           title: _t('Solver'),
-          detail: _t('ASTAP · D50 · last solve 0.4′ off'),
+          detail: _t("ASTAP · D50 · last solve 0.4' off"),
         ),
         ChecklistItemVm(
           id: ChecklistItemId.disk,

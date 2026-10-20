@@ -1,7 +1,7 @@
 // pumpAppScreen: ergonomic widget-test bootstrap for skotiq_app screens.
 //
 // Mirrors the production override surface from apps/desktop/lib/main.dart so
-// a test pumping (say) DashboardScreen sees the same provider graph the
+// a test pumping (say) NightControlScreen sees the same provider graph the
 // shipped desktop GUI initialises. The harness wires:
 //
 //   - backendProvider       -> MockBackend via TestBackendNotifier

@@ -82,12 +82,15 @@ class NightMountFacts {
 /// Reads [NightMountFacts] for the current mount.
 NightMountFacts watchNightMountFacts(WidgetRef ref) {
   final mount = ref.watch(mountStateProvider);
-  final caps = ref.watch(mountCapabilitiesProvider(mount.deviceId ?? ''));
+  final deviceId = mount.deviceId;
+  // No mount, no capabilities to ask about.
+  final caps =
+      deviceId == null ? null : ref.watch(mountCapabilitiesProvider(deviceId));
   return NightMountFacts(
     mount: mount,
     inputs: ref.watch(nightActionInputsProvider),
-    capabilities: caps.valueOrNull,
-    capabilitiesLoading: caps.isLoading,
+    capabilities: caps?.valueOrNull,
+    capabilitiesLoading: caps?.isLoading == true,
   );
 }
 

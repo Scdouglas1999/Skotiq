@@ -8,10 +8,12 @@
 //  3. a failure lands in [ManualActionState.error] and the log. Nothing here
 //     stops a run or parks the mount; a failed resume leaves the run paused.
 import 'dart:async';
+import 'dart:ui' show Locale, PlatformDispatcher;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
+import '../../../localization/skotiq_localizations.dart';
 import '../../../services/manual_capture_controller.dart';
 import '../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart'
     show runDashboardActiveTargetProvider;
@@ -118,6 +120,7 @@ NightActionInputs readNightActionInputs(
     coolerSetpoint: read(nightCoolerSetpointProvider),
     targetName: target?.name,
     hasTarget: target != null,
+    hasFrame: read(currentImageProvider)?.filePath != null,
     exposureSeconds: read(exposureSettingsProvider).exposureTime,
     filterName: read(filterWheelStateProvider).currentFilterName,
   );
@@ -163,6 +166,7 @@ class NightActionController extends Notifier<ManualActionState>
         ManualActionId.snapshot => snapshot(),
         ManualActionId.loop => toggleLoop(),
         ManualActionId.autofocus => autofocus(),
+        ManualActionId.solve => solve(),
         ManualActionId.solveSync => solveAndSync(),
         ManualActionId.center => center(),
         ManualActionId.dither => dither(),
@@ -213,6 +217,29 @@ class NightActionController extends Notifier<ManualActionState>
           _log.info('Autofocus cancelled', source: _logSource);
         }
       });
+
+  @override
+  Future<void> solve() => _start(
+        ManualActionId.solve,
+        holdRun: false,
+        () async {
+          final path = ref.read(currentImageProvider)?.filePath;
+          if (path == null) {
+            throw const _ActionFailure(NightText('nightScopeWhyNoFrame'));
+          }
+          final watch = Stopwatch()..start();
+          final result = await _ops.solveFile(path);
+          watch.stop();
+          _update(lastSolveDuration: watch.elapsed);
+          if (!result.success) {
+            throw _ActionFailure(NightText('nightActErrSolve', params: {
+              'detail': result.error ?? _noReason,
+            }));
+          }
+          _log.info('Solved in ${watch.elapsedMilliseconds} ms',
+              source: _logSource);
+        },
+      );
 
   @override
   Future<void> solveAndSync() => _start(ManualActionId.solveSync, () async {
@@ -319,6 +346,7 @@ class NightActionController extends Notifier<ManualActionState>
           _ops.cancelSolve();
         case ManualActionId.center:
           await _ops.cancelCenter();
+        case ManualActionId.solve:
         case ManualActionId.dither:
         case ManualActionId.flip:
         case ManualActionId.tracking:
@@ -374,29 +402,87 @@ class NightActionController extends Notifier<ManualActionState>
     _log.info('Start at dark cancelled', source: _logSource);
   }
 
+  /// Starts the armed run, after the checks the Start dialog makes that
+  /// need no one at the keyboard. A check that fails leaves the run
+  /// unstarted and says why; nothing here stops, parks or retries.
   Future<void> _fireArmedStart() async {
-    _log.info('Start at dark: starting the run', source: _logSource);
-    if (!ref.read(backendCanCommandProvider)) {
-      _update(error: const NightText('nightActWhyNoHost'));
-      _log.error('Start at dark skipped: no command path to the host',
-          source: _logSource);
+    _log.info('Start at dark: checking the run', source: _logSource);
+    NightText? refusal;
+    try {
+      refusal = await _fireRefusal();
+    } catch (e) {
+      refusal =
+          NightText('nightScrArmCheckFailed', params: {'detail': _clean(e)});
+    }
+    if (refusal != null) {
+      _notifyArmedStartSkipped(refusal);
       return;
     }
+    _log.info('Start at dark: starting the run', source: _logSource);
     try {
       final result = await _ops.startRun();
       if (!result.isSuccess) {
-        final detail = result.message ?? _noReason;
-        _update(
-          error: NightText('nightActErrArmStart', params: {'detail': detail}),
-        );
-        _log.error('Start at dark failed: $detail', source: _logSource);
+        _notifyArmedStartSkipped(NightText('nightActErrArmStart',
+            params: {'detail': result.message ?? _noReason}));
       }
     } catch (e) {
-      _update(
-        error: NightText('nightActErrArmStart', params: {'detail': _clean(e)}),
+      _notifyArmedStartSkipped(
+        NightText('nightActErrArmStart', params: {'detail': _clean(e)}),
       );
-      _log.error('Start at dark failed: $e', source: _logSource);
     }
+  }
+
+  /// Why the armed run must not start now, or null when it may. Unparks a
+  /// parked mount when the run needs the sky, as the Start dialog does.
+  Future<NightText?> _fireRefusal() async {
+    if (!ref.read(backendCanCommandProvider)) {
+      return const NightText('nightActWhyNoHost');
+    }
+    final sequence = ref.read(currentSequenceProvider);
+    if (sequence == null) return const NightText('nightActErrArmNoPlan');
+    if (!ref.read(sequenceExecutionStateProvider).canStart) {
+      return const NightText('nightActErrArmRunActive');
+    }
+    final validation = await _ops.validateRun(sequence);
+    if (validation.hasErrors) {
+      final first = validation.issues
+          .firstWhere((issue) => issue.severity == ValidationSeverity.error);
+      return NightText('nightScrArmBlocked', params: {
+        'count': '${validation.errorCount}',
+        'issue': first.title,
+      });
+    }
+    final mount = ref.read(mountStateProvider);
+    if (mount.connectionState == DeviceConnectionState.connected &&
+        mount.isParked &&
+        sequenceNeedsMountOffPark(sequence)) {
+      _log.info('Start at dark: unparking the mount for the run',
+          source: _logSource);
+      final unpark = await _ops.unparkForRun();
+      if (!unpark.isSuccess) {
+        return NightText('nightScrArmUnparkFailed',
+            params: {'detail': unpark.message ?? _noReason});
+      }
+    }
+    return null;
+  }
+
+  /// The run did not start at dark: the reason goes on the action bar, into
+  /// the log and into a toast, since nobody may be watching the screen.
+  void _notifyArmedStartSkipped(NightText reason) {
+    _update(error: reason);
+    final settings = ref.read(appSettingsProvider).valueOrNull;
+    final language =
+        settings?.language ?? PlatformDispatcher.instance.locale.languageCode;
+    final l10n = SkotiqLocalizations(Locale(language));
+    final message = reason.resolve(l10n);
+    _log.error('Start at dark did not start the run: $message',
+        source: _logSource);
+    ref.read(uiNotificationProvider.notifier).showError(
+          message,
+          title: l10n.text('nightScrArmNotStarted'),
+          duration: const Duration(minutes: 10),
+        );
   }
 
   // -------------------------------------------------------------------------
@@ -404,8 +490,13 @@ class NightActionController extends Notifier<ManualActionState>
   // -------------------------------------------------------------------------
 
   /// Single flight: the action in flight is joined, a different one while
-  /// busy is ignored, a disabled one is refused.
-  Future<void> _start(ManualActionId id, Future<void> Function() body) {
+  /// busy is ignored, a disabled one is refused. [holdRun] false skips the
+  /// run pause for an action that touches no device.
+  Future<void> _start(
+    ManualActionId id,
+    Future<void> Function() body, {
+    bool holdRun = true,
+  }) {
     final inFlight = _inFlight;
     if (inFlight != null) {
       return _inFlightId == id ? inFlight : Future<void>.value();
@@ -417,15 +508,16 @@ class NightActionController extends Notifier<ManualActionState>
       return Future<void>.value();
     }
     _inFlightId = id;
-    final future = _execute(id, body);
+    final future = _execute(id, body, holdRun: holdRun);
     _inFlight = future;
     return future;
   }
 
   Future<void> _execute(
     ManualActionId id,
-    Future<void> Function() body,
-  ) async {
+    Future<void> Function() body, {
+    required bool holdRun,
+  }) async {
     _cancelRequested = false;
     final cancelSignal = _cancelSignal = Completer<void>();
     final lastSolve = state.lastSolveDuration;
@@ -444,14 +536,16 @@ class NightActionController extends Notifier<ManualActionState>
     var hold = RunHold.notOwed;
     NightText? error;
     try {
-      await guard.hold(
-        cancelled: cancelSignal.future,
-        onHeld: (held) {
-          hold = held;
-          _update(startedRunPause: held.weStartedPause);
-        },
-        onProgress: _onHoldProgress,
-      );
+      if (holdRun) {
+        await guard.hold(
+          cancelled: cancelSignal.future,
+          onHeld: (held) {
+            hold = held;
+            _update(startedRunPause: held.weStartedPause);
+          },
+          onProgress: _onHoldProgress,
+        );
+      }
       _update(
         phase: ManualActionPhase.running,
         message: null,

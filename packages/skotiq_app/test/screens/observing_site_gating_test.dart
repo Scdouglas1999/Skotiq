@@ -3,13 +3,14 @@
 // The planetarium astronomy providers cannot answer "I don't know" — they take
 // a latitude and a longitude, and with none configured they are handed 0°N 0°E
 // and return a complete, plausible night for the Gulf of Guinea. Consumed
-// ungated, the cockpit sky panel, the command-bar night chip, the standby night
-// timeline and the planetarium Tonight tab all report that night as the user's.
+// ungated, Tonight's night strip and the planetarium Tonight tab would both
+// report that night as the user's.
 //
-// All four route through `siteTwilightTimesProvider` / `siteMoonTimesProvider`,
-// which are `null` when there is no site. These tests pump the real production
-// widgets so removing a gate from a widget's build fails here — a test that only
-// exercised the providers would survive it.
+// Both route through `siteTwilightTimesProvider` / `siteMoonTimesProvider`,
+// which are `null` when there is no site. The planetarium tab is pumped as the
+// real production widget, so removing a gate from its build fails here; Tonight
+// is checked at `tonightNightProvider`, the one night every Tonight surface
+// reads.
 //
 // The twilight fixture is deliberately fully populated: that is exactly what
 // the calculator hands back for 0/0, so "no fields are null" must not be enough
@@ -18,10 +19,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/dashboard/widgets/cockpit_sky_context.dart';
-import 'package:skotiq_app/screens/dashboard/widgets/standby/night_timeline.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/night_timeline_provider.dart';
+import 'package:skotiq_app/screens/night_control/data/tonight_night.dart';
 import 'package:skotiq_app/screens/planetarium/widgets/tonight_tab.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import 'package:skotiq_app/services/observing_site.dart';
 import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
@@ -122,103 +122,31 @@ void main() {
     });
   });
 
-  group('NightTimeline', () {
-    testWidgets('says nothing about the night when no site is on record',
-        (tester) async {
-      await _pump(
-        tester,
-        site: null,
-        child: Builder(
-          builder: (context) => NightTimeline(colors: SkotiqColors.of(context)),
-        ),
-      );
-
-      expect(find.text('Set an observing location for twilight times.'),
-          findsOneWidget);
-      expect(find.text('IMAGING WINDOW'), findsNothing);
-      // "9h 28m" is the Null Island imaging window the audit caught on screen.
-      expect(find.textContaining('9h 28m'), findsNothing);
-    });
-
-    testWidgets('renders the countdown and window for a real site',
-        (tester) async {
-      await _pump(
-        tester,
-        site: _realSite,
-        child: Builder(
-          builder: (context) => NightTimeline(colors: SkotiqColors.of(context)),
-        ),
-      );
-
-      expect(find.text('Set an observing location for twilight times.'),
-          findsNothing);
-      expect(find.text('IMAGING WINDOW'), findsOneWidget);
-      expect(find.text('9h 28m'), findsOneWidget);
-    });
-  });
-
-  group('CockpitSkyContext', () {
-    testWidgets('idle asks for a location instead of naming a dark window',
-        (tester) async {
-      await _pump(
-        tester,
-        site: null,
-        child: const CockpitSkyContext(),
-        extra: [runDashboardActiveTargetProvider.overrideWithValue(null)],
-      );
-
-      expect(find.textContaining('set an observing location'), findsOneWidget);
-      expect(find.textContaining('19:26'), findsNothing);
-      // The moon phase is the same everywhere on Earth, so it survives.
-      expect(find.textContaining('Moon 42%'), findsOneWidget);
-    });
-
-    testWidgets('idle names the dark window for a real site', (tester) async {
-      await _pump(
-        tester,
-        site: _realSite,
-        child: const CockpitSkyContext(),
-        extra: [runDashboardActiveTargetProvider.overrideWithValue(null)],
-      );
-
-      expect(find.textContaining('astro dark 19:26'), findsOneWidget);
-    });
-
-    testWidgets('with a target, "astro dark left" is blank without a site',
-        (tester) async {
-      await _pump(
-        tester,
-        site: null,
-        child: const CockpitSkyContext(),
-        extra: [
-          runDashboardActiveTargetProvider.overrideWithValue(
-            TargetHeaderNode(
-                targetName: 'M31', raHours: 0.71, decDegrees: 41.2),
-          ),
+  group('Tonight', () {
+    test('has no night and no timeline without a site', () {
+      final without = ProviderContainer(
+        overrides: [
+          ..._overrides(site: null),
+          clockProvider.overrideWithValue(const SystemClock()),
         ],
       );
-
-      expect(find.text('Astro dark left'), findsOneWidget);
-      expect(find.text('—'), findsWidgets);
-      // 6h 54m is dawn-minus-now for the fabricated observer.
-      expect(find.text('6h 54m'), findsNothing);
+      addTearDown(without.dispose);
+      expect(without.read(tonightNightProvider), isNull);
+      expect(without.read(nightTimelineProvider), isNull,
+          reason: 'the strip must not draw the Gulf of Guinea night');
     });
 
-    testWidgets('with a target and a site, "astro dark left" counts down',
-        (tester) async {
-      await _pump(
-        tester,
-        site: _realSite,
-        child: const CockpitSkyContext(),
-        extra: [
-          runDashboardActiveTargetProvider.overrideWithValue(
-            TargetHeaderNode(
-                targetName: 'M31', raHours: 0.71, decDegrees: 41.2),
-          ),
+    test('carries the night for a real site', () {
+      final with_ = ProviderContainer(
+        overrides: [
+          ..._overrides(site: _realSite),
+          clockProvider.overrideWithValue(const SystemClock()),
         ],
       );
-
-      expect(find.text('6h 54m'), findsOneWidget);
+      addTearDown(with_.dispose);
+      final night = with_.read(tonightNightProvider);
+      expect(night, isNotNull);
+      expect(night!.astroDark, _nullIslandNight.astronomicalDusk!.toLocal());
     });
   });
 

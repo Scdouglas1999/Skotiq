@@ -1,5 +1,6 @@
 // Shared fakes for the night-control action tests.
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/models/command_action_result.dart';
@@ -137,6 +138,25 @@ class FakeRigOps implements NightRigOps {
     return startResult;
   }
 
+  /// The issues the pre-flight validator reports for the armed run.
+  List<ValidationIssue> validationIssues = const [];
+  CommandActionResult unparkResult = CommandActionResult.ok;
+
+  @override
+  Future<ValidationResult> validateRun(Sequence sequence) async {
+    calls.add('validate');
+    return ValidationResult(
+      issues: validationIssues,
+      validatedAt: DateTime.utc(2026, 10, 19),
+    );
+  }
+
+  @override
+  Future<CommandActionResult> unparkForRun() async {
+    calls.add('unpark');
+    return unparkResult;
+  }
+
   @override
   Future<void> snapshot() => _act('snapshot');
 
@@ -185,6 +205,15 @@ class FakeRigOps implements NightRigOps {
 
   @override
   void cancelSolve() => calls.add('cancelSolve');
+
+  /// Whether [solveFile] matches the frame.
+  bool fileSolveSucceeds = true;
+
+  @override
+  Future<PlateSolveResult> solveFile(String path) async {
+    await _act('solveFile $path');
+    return fakePlateSolve(success: fileSolveSucceeds);
+  }
 
   @override
   Future<CenteringResult> center(NightCenterTarget target) async {
@@ -274,3 +303,28 @@ class FakeRigOps implements NightRigOps {
 
 /// Lets queued microtasks and zero-length timers run.
 Future<void> settle() => Future<void>.delayed(Duration.zero);
+
+/// A solver answer for M74, or a failure that found no match.
+PlateSolveResult fakePlateSolve({bool success = true}) => PlateSolveResult(
+      success: success,
+      ra: 24.17,
+      dec: 15.78,
+      pixelScale: 1.34,
+      rotation: 12,
+      fieldWidth: 1.7,
+      fieldHeight: 1.3,
+      solveTimeSecs: 3,
+      error: success ? null : 'No match',
+      cd11: 0,
+      cd12: 0,
+      cd21: 0,
+      cd22: 0,
+      sipAOrder: 0,
+      sipBOrder: 0,
+      sipACoeffs: Float64List(0),
+      sipBCoeffs: Float64List(0),
+      sipApOrder: 0,
+      sipBpOrder: 0,
+      sipApCoeffs: Float64List(0),
+      sipBpCoeffs: Float64List(0),
+    );

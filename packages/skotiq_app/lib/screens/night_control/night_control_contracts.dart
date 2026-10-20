@@ -181,14 +181,20 @@ enum NightRunPhase {
   finished,
 }
 
-/// The center action bar's buttons.
+/// The manual actions: the center action bar's buttons, and [solve], the
+/// Solve tab's own button.
 ///
 /// [tracking] and [cooler] appear only when no run is active (the Ready
-/// board); [dither] and [flip] only while a run is loaded.
+/// board); [dither] and [flip] only while a run is loaded. [solve] is never
+/// on the action bar.
 enum ManualActionId {
   snapshot,
   loop,
   autofocus,
+
+  /// Solves the frame on screen without syncing; touches no device, so it
+  /// never pauses the run.
+  solve,
   solveSync,
   center,
   dither,
@@ -204,6 +210,7 @@ extension ManualActionPanelTab on ManualActionId {
         ManualActionId.snapshot || ManualActionId.loop => NightPanelTab.camera,
         ManualActionId.cooler => NightPanelTab.camera,
         ManualActionId.autofocus => NightPanelTab.focus,
+        ManualActionId.solve ||
         ManualActionId.solveSync ||
         ManualActionId.center =>
           NightPanelTab.solve,

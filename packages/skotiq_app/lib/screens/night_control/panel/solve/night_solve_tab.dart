@@ -2,9 +2,9 @@
 // Solve / Solve & sync / Center, the settings a solve uses, rotation advice
 // against the target, and this session's solves.
 //
-// Solve & sync and Center go through the action controller, which pauses a
-// running run first and resumes it after. Solve alone touches no device: it
-// solves the frame already on screen.
+// Solve, Solve & sync and Center go through the action controller. Solve &
+// sync and Center pause a running run first and resume it after; Solve
+// alone touches no device and solves the frame already on screen.
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -14,7 +14,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
-import '../../../../utils/snackbar_helper.dart';
 import '../../actions/manual_action_gating.dart';
 import '../../actions/night_action_controller.dart';
 import '../../data/plan/night_plan_inputs.dart';
@@ -72,18 +71,11 @@ String formatClockTime(DateTime t) =>
 double? _known(double value, {bool positive = false}) =>
     !value.isFinite || (positive && value <= 0) ? null : value;
 
-class _LastSolveSection extends ConsumerStatefulWidget {
+class _LastSolveSection extends ConsumerWidget {
   const _LastSolveSection();
 
   @override
-  ConsumerState<_LastSolveSection> createState() => _LastSolveSectionState();
-}
-
-class _LastSolveSectionState extends ConsumerState<_LastSolveSection> {
-  bool _solving = false;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final colors = context.skotiqColors;
     final solveState = ref.watch(plateSolveStateProvider);
@@ -92,7 +84,6 @@ class _LastSolveSectionState extends ConsumerState<_LastSolveSection> {
     final action = ref.watch(nightActionStateProvider);
     final inputs = ref.watch(nightActionInputsProvider);
     final target = ref.watch(nightCenterTargetProvider);
-    final frame = ref.watch(currentImageProvider);
     final settings = ref.watch(appSettingsProvider).valueOrNull;
     final clock = ref.watch(clockProvider);
 
@@ -114,7 +105,9 @@ class _LastSolveSectionState extends ConsumerState<_LastSolveSection> {
 
     final String status;
     final Color statusColor;
-    if (solveState.isSolving || _solving) {
+    bool inFlight(ManualActionId id) => action.isBusy && action.active == id;
+
+    if (solveState.isSolving || inFlight(ManualActionId.solve)) {
       status = l10n.text('nightScopeSolveSolving');
       statusColor = colors.warning;
     } else if (result == null) {
@@ -142,30 +135,19 @@ class _LastSolveSectionState extends ConsumerState<_LastSolveSection> {
         ? null
         : separationArcsec(ra, dec, target.raHours * 15, target.decDegrees);
 
-    // Solve: the frame on screen, no device. The controller's actions keep
-    // their own gating so the action bar and this tab never disagree.
-    final busyReason = action.isBusy
-        ? l10n.text(
-            action.active == null
-                ? 'nightActWhyBusy'
-                : manualActionKey('nightActBusy', action.active!),
-          )
-        : null;
-    final solveReason = !inputs.canCommand
-        ? l10n.text('nightActWhyNoHost')
-        : busyReason ??
-            (solveState.isSolving || _solving
-                ? l10n.text('nightScopeWhySolving')
-                : frame?.filePath == null
-                    ? l10n.text('nightScopeWhyNoFrame')
-                    : null);
+    // The controller's gating, so the action bar and this tab never
+    // disagree. A solve started elsewhere (the Imaging screen) holds the solver too.
+    final solveReason = manualActionDisabledReason(inputs, ManualActionId.solve)
+            ?.resolve(l10n) ??
+        (solveState.isSolving && !inFlight(ManualActionId.solve)
+            ? l10n.text('nightScopeWhySolving')
+            : null);
     final syncReason =
         manualActionDisabledReason(inputs, ManualActionId.solveSync)
             ?.resolve(l10n);
     final centerReason =
         manualActionDisabledReason(inputs, ManualActionId.center)
             ?.resolve(l10n);
-    bool inFlight(ManualActionId id) => action.isBusy && action.active == id;
 
     return NightPanelSection(
       title: l10n.text('nightScopeSolveLast'),
@@ -244,10 +226,10 @@ class _LastSolveSectionState extends ConsumerState<_LastSolveSection> {
             NightPanelButtonSpec(
               key: const ValueKey<String>('nightSolve.solve'),
               label: l10n.text('nightScopeSolveSolve'),
-              busy: _solving,
+              busy: inFlight(ManualActionId.solve),
               disabledReason: solveReason,
               onPressed: solveReason == null
-                  ? () => unawaited(_solve(frame!.filePath!))
+                  ? () => unawaited(ref.read(nightActionApiProvider).solve())
                   : null,
             ),
             NightPanelButtonSpec(
@@ -266,7 +248,8 @@ class _LastSolveSectionState extends ConsumerState<_LastSolveSection> {
           label: l10n.text('nightScopeSolveSyncCentering'),
           tooltip: l10n.text('nightScopeSolveSyncCenteringHint'),
           compact: true,
-          value: settings?.centeringSyncMount ?? false,
+          // Off and disabled until the settings load.
+          value: settings?.centeringSyncMount == true,
           enabled: settings != null,
           onChanged: settings == null
               ? null
@@ -278,34 +261,6 @@ class _LastSolveSectionState extends ConsumerState<_LastSolveSection> {
         ),
       ],
     );
-  }
-
-  /// Solves the frame on screen. No device moves and the run is untouched.
-  Future<void> _solve(String path) async {
-    final l10n = context.l10n;
-    final mount = ref.read(mountStateProvider);
-    setState(() => _solving = true);
-    try {
-      final result =
-          await ref.read(plateSolveServiceProvider).solveWithFallback(
-                imagePath: path,
-                hintRaHours: mount.ra,
-                hintDecDegrees: mount.dec,
-              );
-      if (mounted && !result.success) {
-        context.showErrorSnackBar(
-          result.error ?? l10n.text('nightScopeSolveFailed'),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        context.showErrorSnackBar(
-          l10n.text('nightScopeSolveError', params: {'error': '$e'}),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _solving = false);
-    }
   }
 }
 

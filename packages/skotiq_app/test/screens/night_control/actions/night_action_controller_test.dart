@@ -405,10 +405,10 @@ void main() {
         async.elapse(const Duration(hours: 1, minutes: 59));
         expect(h.ops.calls, isEmpty);
         async.elapse(const Duration(minutes: 2));
-        expect(h.ops.calls, ['start']);
+        expect(h.ops.calls, ['validate', 'start']);
         expect(api.armedStartAt, isNull);
         async.elapse(const Duration(hours: 6));
-        expect(h.ops.calls, ['start']);
+        expect(h.ops.calls, ['validate', 'start']);
         h.container.dispose();
       });
     });

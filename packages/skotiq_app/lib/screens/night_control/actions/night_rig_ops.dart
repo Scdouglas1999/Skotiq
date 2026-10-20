@@ -33,6 +33,14 @@ abstract interface class NightRigOps {
   Future<CommandActionResult> resumeRun();
   Future<CommandActionResult> startRun();
 
+  /// The Start dialog's pre-flight validation of [sequence]. Throws when
+  /// the validator cannot run.
+  Future<ValidationResult> validateRun(Sequence sequence);
+
+  /// Takes the mount off its park. The only mount command Start at dark
+  /// issues, and only for a run that needs the sky.
+  Future<CommandActionResult> unparkForRun();
+
   /// One utility frame with the manual settings. Throws on failure.
   Future<void> snapshot();
 
@@ -49,6 +57,10 @@ abstract interface class NightRigOps {
   /// Solves the last frame when it is at the current pointing, otherwise a
   /// fresh one, then syncs.
   Future<SolveAndSyncResult> solveAndSync({bool Function()? cancelled});
+
+  /// Solves the image at [path] with the mount's pointing as the hint.
+  /// Syncs nothing.
+  Future<PlateSolveResult> solveFile(String path);
 
   /// Aborts the solve frame's exposure, if one is in flight. A running solve
   /// cannot be interrupted; [solveAndSync] skips the sync after it.
@@ -78,6 +90,35 @@ abstract interface class NightRigOps {
 
 final nightRigOpsProvider = Provider<NightRigOps>(ServiceNightRigOps.new);
 
+/// The centering Center runs, from the settings and the active profile, so
+/// the Solve tab shows the tolerance and attempts Center really uses.
+CenteringConfig nightCenteringConfig({
+  required AppSettingsState settings,
+  required EquipmentProfileModel? profile,
+}) {
+  final exposure = profile?.defaultCenteringExposure;
+  // As the slew-and-center dialog builds it.
+  return CenteringConfig(
+    maxIterations: 5,
+    toleranceArcsec: 30.0,
+    exposureTime: exposure != null && exposure > 0 ? exposure : 5.0,
+    binning: profile?.defaultBinX ?? 2,
+    gain: profile?.defaultGain,
+    offset: profile?.defaultOffset,
+    syncMount: settings.centeringSyncMount,
+  );
+}
+
+/// [nightCenteringConfig] for the current settings; null until they load.
+final nightCenteringConfigProvider = Provider<CenteringConfig?>((ref) {
+  final settings = ref.watch(appSettingsProvider).valueOrNull;
+  if (settings == null) return null;
+  return nightCenteringConfig(
+    settings: settings,
+    profile: ref.watch(activeEquipmentProfileProvider),
+  );
+});
+
 class ServiceNightRigOps implements NightRigOps {
   ServiceNightRigOps(this._ref);
 
@@ -103,6 +144,22 @@ class ServiceNightRigOps implements NightRigOps {
 
   @override
   Future<CommandActionResult> startRun() => _sequence.start();
+
+  @override
+  Future<ValidationResult> validateRun(Sequence sequence) async {
+    // Held for the whole validation: the validator is auto-disposed and
+    // would otherwise go away under its own await.
+    final validator = _ref.listen(sequenceValidatorProvider, (_, __) {});
+    try {
+      return await validator.read().validate(sequence);
+    } finally {
+      validator.close();
+    }
+  }
+
+  @override
+  Future<CommandActionResult> unparkForRun() =>
+      _ref.read(mountCommandServiceProvider).unpark();
 
   @override
   Future<void> snapshot() => _capture.snapshot(persist: false);
@@ -173,10 +230,18 @@ class ServiceNightRigOps implements NightRigOps {
   void cancelSolve() => _solveCapture?.cancelExposure();
 
   @override
+  Future<PlateSolveResult> solveFile(String path) {
+    final mount = _ref.read(mountStateProvider);
+    return _ref.read(plateSolveServiceProvider).solveWithFallback(
+          imagePath: path,
+          hintRaHours: mount.ra,
+          hintDecDegrees: mount.dec,
+        );
+  }
+
+  @override
   Future<CenteringResult> center(NightCenterTarget target) async {
     final settings = await _ref.read(appSettingsProvider.future);
-    final profile = _ref.read(activeEquipmentProfileProvider);
-    final exposure = profile?.defaultCenteringExposure;
     return _ref.read(centeringServiceProvider).centerOnTarget(
           targetRa: target.raHours,
           targetDec: target.decDegrees,
@@ -186,15 +251,9 @@ class ServiceNightRigOps implements NightRigOps {
             timeoutSeconds: settings.plateSolveTimeout,
             searchRadius: settings.plateSolveSearchRadius,
           ),
-          // As the slew-and-center dialog builds it.
-          config: CenteringConfig(
-            maxIterations: 5,
-            toleranceArcsec: 30.0,
-            exposureTime: exposure != null && exposure > 0 ? exposure : 5.0,
-            binning: profile?.defaultBinX ?? 2,
-            gain: profile?.defaultGain,
-            offset: profile?.defaultOffset,
-            syncMount: settings.centeringSyncMount,
+          config: nightCenteringConfig(
+            settings: settings,
+            profile: _ref.read(activeEquipmentProfileProvider),
           ),
           onStatusUpdate: (status) =>
               _ref.read(centeringStatusProvider.notifier).state = status,

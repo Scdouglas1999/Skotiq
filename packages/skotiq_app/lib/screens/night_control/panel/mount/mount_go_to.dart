@@ -110,7 +110,11 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
   }
 
   void _fill(String? name, double raHours, double decDegrees) {
-    _name.text = name ?? '';
+    if (name == null) {
+      _name.clear();
+    } else {
+      _name.text = name;
+    }
     _ra.text = CoordinateFormat.ra(
       raHours,
       style: SexagesimalStyle.compactLetters,

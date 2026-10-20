@@ -171,6 +171,11 @@ abstract interface class NightActionApi {
 
   Future<void> autofocus();
 
+  /// Solves the frame on screen and does not sync. No device moves and the
+  /// run is not paused; the solve's time lands in
+  /// [ManualActionState.lastSolveDuration].
+  Future<void> solve();
+
   /// Solves the last frame taken at the current pointing, or a short new
   /// one, then syncs the mount.
   Future<void> solveAndSync();

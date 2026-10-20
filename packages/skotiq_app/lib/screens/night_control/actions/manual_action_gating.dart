@@ -27,6 +27,7 @@ class NightActionInputs {
     this.coolerSetpoint,
     this.targetName,
     this.hasTarget = false,
+    this.hasFrame = false,
     this.exposureSeconds,
     this.filterName,
   });
@@ -54,6 +55,9 @@ class NightActionInputs {
 
   final String? targetName;
   final bool hasTarget;
+
+  /// A saved frame is on screen, so there is a file to solve.
+  final bool hasFrame;
 
   /// Manual exposure length, for the Snapshot sub-label.
   final double? exposureSeconds;
@@ -114,6 +118,12 @@ NightText? manualActionDisabledReason(
         : NightText(manualActionKey('nightActBusy', active));
   }
 
+  // A solve reads a file and pauses nothing, so the run's state is no
+  // reason to refuse it.
+  if (id == ManualActionId.solve) {
+    return inputs.hasFrame ? null : const NightText('nightScopeWhyNoFrame');
+  }
+
   if (inputs.runActive && !inputs.runPausable) {
     return const NightText('nightActWhyRunSettling');
   }
@@ -131,6 +141,8 @@ NightText? manualActionDisabledReason(
       if (!inputs.focuserConnected) {
         return const NightText('nightActWhyNoFocuser');
       }
+      return null;
+    case ManualActionId.solve:
       return null;
     case ManualActionId.solveSync:
       if (!inputs.cameraConnected) return noCamera;
@@ -195,6 +207,7 @@ NightText _label(NightActionInputs inputs, ManualActionId id) => switch (id) {
           ? const NightText('nightActStopLoop')
           : const NightText('nightActLoop'),
       ManualActionId.autofocus => const NightText('nightActAutofocus'),
+      ManualActionId.solve => const NightText('nightScopeSolveSolve'),
       ManualActionId.solveSync => const NightText('nightActSolveSync'),
       ManualActionId.center => const NightText('nightActCenter'),
       ManualActionId.dither => const NightText('nightActDither'),
@@ -241,6 +254,7 @@ NightText? _sub(NightActionInputs inputs, ManualActionId id) {
           ? null
           : NightText.literal(formatCelsius(setpoint, decimals: 0));
     case ManualActionId.loop:
+    case ManualActionId.solve:
     case ManualActionId.solveSync:
     case ManualActionId.dither:
     case ManualActionId.flip:

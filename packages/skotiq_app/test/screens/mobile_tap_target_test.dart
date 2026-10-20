@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
-import 'package:skotiq_app/screens/dashboard/dashboard_screen.dart';
+import 'package:skotiq_app/screens/night_control/night_control_screen.dart';
 import 'package:skotiq_app/screens/equipment/equipment_screen.dart';
 import 'package:skotiq_app/screens/guiding/guiding_screen.dart';
 import 'package:skotiq_app/screens/imaging/imaging_screen.dart';
@@ -59,6 +59,20 @@ class _Target {
 /// to sit at a viewport edge is still reported, because it fails the other
 /// dimension too.
 bool _isClippedByScroll(_Target target, List<Rect> viewports) {
+  // A target in the corner where a horizontal scroller meets the edge of
+  // the page's vertical one is cut on both axes, by two viewports.
+  var atSide = false;
+  var atEnd = false;
+  for (final viewport in viewports) {
+    if (!viewport.overlaps(target.rect)) continue;
+    atSide = atSide ||
+        (target.rect.right - viewport.right).abs() < 1.0 ||
+        (target.rect.left - viewport.left).abs() < 1.0;
+    atEnd = atEnd ||
+        (target.rect.bottom - viewport.bottom).abs() < 1.0 ||
+        (target.rect.top - viewport.top).abs() < 1.0;
+  }
+  if (atSide && atEnd) return true;
   for (final viewport in viewports) {
     if (!viewport.overlaps(target.rect)) continue;
     final cutHorizontally = target.rect.width < kMinTapTarget &&
@@ -118,7 +132,7 @@ const _phoneSizes = <(String, Size)>[
 
 void main() {
   final screens = <String, Widget Function()>{
-    'dashboard': () => const DashboardScreen(),
+    'tonight': () => const NightControlScreen(),
     'equipment': () => const EquipmentScreen(),
     'imaging': () => const ImagingScreen(),
     'sequencer': () => const SequencerScreen(),

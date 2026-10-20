@@ -166,7 +166,7 @@ void main() {
     expect(find.textContaining('Snapshot · L 5 s'), findsOneWidget);
     expect(find.textContaining('not saved'), findsOneWidget);
     expect(find.textContaining('Solved 01h36m40s'), findsOneWidget);
-    expect(find.textContaining('0.4′ off'), findsOneWidget);
+    expect(find.textContaining("0.4' off"), findsOneWidget);
   });
 
   testWidgets('view buttons sit over a frame and toggle the shared viewer',

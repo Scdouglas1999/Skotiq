@@ -28,9 +28,23 @@ part 'preflight_validation_dialog/section_builders.dart';
 class PreFlightValidationDialog extends ConsumerStatefulWidget {
   final VoidCallback? onStartSequence;
 
+  /// The primary button's label; null for "Start sequence".
+  final String? startLabel;
+
+  /// Arming a start for later (Tonight's Start at dark): the run is checked
+  /// as if it started at [simulationStart], and a parked mount is not
+  /// unparked now. The armed start unparks it when it fires.
+  final bool armOnly;
+
+  /// When the run will start; null for now.
+  final DateTime? simulationStart;
+
   const PreFlightValidationDialog({
     super.key,
     this.onStartSequence,
+    this.startLabel,
+    this.armOnly = false,
+    this.simulationStart,
   });
 
   @override
@@ -138,7 +152,7 @@ class _PreFlightValidationDialogState
         ),
       ).simulate(
         sequence,
-        start: DateTime.now(),
+        start: widget.simulationStart ?? DateTime.now(),
         latitude: settings.latitude,
         longitude: settings.longitude,
         minAltitude: settings.effectiveHorizonDeg,
@@ -296,8 +310,9 @@ class _PreFlightValidationDialogState
     // performed it, leaving the mount off its park for a run of three darks.
     final needsSky = sequence == null || sequenceNeedsMountOffPark(sequence);
 
-    // If mount is connected and parked, show the unpark dialog
-    if (isMountConnected && isMountParked && needsSky) {
+    // If mount is connected and parked, show the unpark dialog. An armed
+    // start unparks when it fires, not hours early.
+    if (isMountConnected && isMountParked && needsSky && !widget.armOnly) {
       if (!navigator.mounted) return;
       final result = await showMountUnparkDialog(navigator.context);
 

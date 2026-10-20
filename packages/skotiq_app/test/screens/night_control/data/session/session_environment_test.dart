@@ -405,7 +405,12 @@ void main() {
       expect(rotator.status, EquipmentStatus.absent);
       expect(rotator.details, isEmpty);
       final camera = rows.firstWhere((r) => r.kind == EquipmentKind.camera);
-      expect(camera.details.first.literal, '−7.4 °C → −10');
+      final cooling = camera.details.first;
+      expect(cooling.key, 'nightScrCoolingTo');
+      expect(cooling.params, <String, String>{
+        'temp': '−7.4 °C',
+        'target': '−10',
+      });
       final mount = rows.firstWhere((r) => r.kind == EquipmentKind.mount);
       expect(
         mount.details.map((d) => d.key),

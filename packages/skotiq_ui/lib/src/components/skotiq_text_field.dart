@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/skotiq_colors.dart';
@@ -225,13 +227,17 @@ class _SkotiqTextFieldState extends State<SkotiqTextField> {
       leadingDistribution: TextLeadingDistribution.even,
     );
     final hintStyle = lineStyle.copyWith(color: colors.textMuted);
+    // One line at the reader's text size: a slot of the bare font size cut
+    // the value and the placeholder off at 1.3x text.
+    final lineHeight = MediaQuery.textScalerOf(context).scale(fontSize);
+    final wellHeight = widget.height;
     final input = SizedBox(
-      height: fontSize,
+      height: lineHeight,
       child: _input(
         textStyle: lineStyle,
         decoration: _collapsedDecoration(hintStyle, colors),
         maxLines: 1,
-        cursorHeight: fontSize,
+        cursorHeight: lineHeight,
         strutStyle: StrutStyle(
           fontSize: fontSize,
           height: 1.0,
@@ -260,7 +266,10 @@ class _SkotiqTextFieldState extends State<SkotiqTextField> {
               }
             : null,
         child: Container(
-          height: widget.height,
+          // The well grows only when the scaled line would not fit inside it.
+          height: wellHeight == null
+              ? null
+              : math.max(wellHeight, lineHeight + 2 * SkotiqTokens.spaceXs),
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.symmetric(
             horizontal: fieldHorizontalPadding,

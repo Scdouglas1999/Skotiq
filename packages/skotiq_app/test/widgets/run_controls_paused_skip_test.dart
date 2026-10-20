@@ -3,14 +3,14 @@
 // The canonical run-control contract (SequenceExecutionStateCapabilities)
 // declares `canSkip == running || paused`: the backend skip advances the node
 // pointer in both states, and the desktop toolbar and mobile playback bar both
-// route through it. The dashboard cockpit strip and the app-shell mini bar had
-// drifted to an open-coded `isRunning`, so a PAUSED run could not be skipped
-// from either surface. These tests pin that both now dispatch a skip while
-// paused.
+// route through it. The app-shell mini bar had drifted to an open-coded
+// `isRunning`, so a PAUSED run could not be skipped from it. These tests pin
+// that the mini bar and the mobile playback bar dispatch a skip while paused.
+// Tonight's header takes `canSkip` from the same capability through
+// `nightHeaderProvider`.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/dashboard/widgets/cockpit_run_controls.dart';
 import 'package:skotiq_app/widgets/running_sequence_mini_bar.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/mobile_playback_bar.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -42,53 +42,16 @@ void _swallowKnownOverflows() {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('cockpit run controls dispatch a skip while PAUSED',
-      (tester) async {
-    _swallowKnownOverflows();
-    late _SkipRecordingExecutor executor;
-    final handle = await pumpAppScreen(
-      tester,
-      Builder(
-        builder: (context) =>
-            CockpitRunControls(colors: SkotiqColors.of(context)),
-      ),
-      size: const Size(1000, 400),
-      settle: false,
-      extraOverrides: [
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.paused),
-        sequenceExecutorProvider.overrideWith((ref) {
-          executor = _SkipRecordingExecutor(ref);
-          return executor;
-        }),
-      ],
-    );
-    await tester.pump();
-    // Ensure the overridden executor is built and captured.
-    handle.container.read(sequenceExecutorProvider);
-
-    final skip = find.byTooltip('Skip');
-    expect(skip, findsOneWidget,
-        reason: 'The cockpit run-control strip renders a Skip control while '
-            'paused.');
-
-    await tester.tap(skip);
-    await tester.pump();
-    await tester.pump();
-
-    expect(executor.skipCount, 1,
-        reason: 'A paused run must be skippable from the cockpit (canSkip).');
-  });
-
   testWidgets('app-shell mini bar dispatches a skip while PAUSED',
       (tester) async {
     _swallowKnownOverflows();
     late _SkipRecordingExecutor executor;
     final handle = await pumpAppScreen(
       tester,
-      // Any non-sequencer location so the mini bar renders (it hides on the
-      // sequencer route, where the in-page controls own the surface).
-      const RunningSequenceMiniBar(currentLocation: '/dashboard'),
+      // A location without its own run controls, so the mini bar renders (it
+      // hides on the sequencer route and on Tonight, whose pages carry the
+      // run controls themselves).
+      const RunningSequenceMiniBar(currentLocation: '/weather'),
       size: const Size(1000, 400),
       settle: false,
       extraOverrides: [

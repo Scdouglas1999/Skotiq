@@ -19,6 +19,9 @@ class _StartSequenceButton extends StatelessWidget {
   final bool hasWarningsOnly;
   final VoidCallback? onPressed;
 
+  /// Replaces the default label when set.
+  final String? label;
+
   /// Why the run cannot start, or null when it can.
   final String? blockedReason;
 
@@ -27,11 +30,13 @@ class _StartSequenceButton extends StatelessWidget {
     required this.hasWarningsOnly,
     this.blockedReason,
     this.onPressed,
+    this.label,
   });
 
   @override
   Widget build(BuildContext context) {
-    final label = hasWarningsOnly ? 'Start anyway' : 'Start sequence';
+    final label =
+        this.label ?? (hasWarningsOnly ? 'Start anyway' : 'Start sequence');
     final reason = blockedReason;
 
     final Widget button = SkotiqButton(

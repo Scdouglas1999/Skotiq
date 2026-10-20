@@ -124,7 +124,45 @@ void main() {
       networkBackend: backend,
     );
     expect(container.read(cameraStateProvider).isExposing, isFalse);
+    expect(
+      container.read(exposureProgressProvider),
+      ExposureProgress.idle(),
+      reason: 'the last countdown must not outlive the frame',
+    );
   });
+
+  for (final ending in <String>['ExposureCancelled', 'ExposureFailed']) {
+    test('$ending ends the mirrored exposure', () async {
+      final backend = slaveBackend();
+      addTearDown(backend.dispose);
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await applyRemoteSyncEvent(
+        container,
+        imagingEvent('ExposureProgress', {
+          'progress': 0.5,
+          'remainingSecs': 30.0,
+        }),
+        networkBackend: backend,
+      );
+      await applyRemoteSyncEvent(
+        container,
+        imagingEvent(ending, const {'error': 'driver fault'}),
+        networkBackend: backend,
+      );
+
+      expect(container.read(cameraStateProvider).isExposing, isFalse);
+      expect(container.read(exposureProgressProvider), ExposureProgress.idle());
+    });
+  }
 
   test(
     'exposure events are IGNORED on the host path (no network backend)',
