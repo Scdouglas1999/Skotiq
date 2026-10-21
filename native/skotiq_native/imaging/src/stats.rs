@@ -416,7 +416,9 @@ pub fn calculate_median_hfr(image: &ImageData) -> Option<f64> {
         .iter()
         .take(count)
         .map(|s| s.hfr)
-        .filter(|&h| h > 0.0 && h < 20.0) // Filter outliers
+        // No upper bound: a defocused star is measured whole and its HFR can
+        // be well past 20 px.
+        .filter(|&h| h.is_finite() && h > 0.0)
         .collect();
 
     if hfrs.is_empty() {
@@ -1279,6 +1281,41 @@ mod tests {
     /// sources offset below it. Trailed sources are given the HIGHER peak so
     /// they sort to the front by flux — if the selection filter is not doing
     /// its job they, not the round stars, are what a consumer picks up.
+    /// A strongly defocused frame (annuli of outer radius 30 px, 0.6
+    /// obstruction, HFR 0.82 of the radius) reads its real HFR, past 20 px.
+    #[test]
+    fn median_hfr_of_a_strongly_defocused_frame_is_its_real_size() {
+        let (w, h) = (640usize, 640usize);
+        let mut state = 0x2545_f491_4f6c_dd1du64;
+        let mut px: Vec<f64> = (0..w * h)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                800.0 + 40.0 * ((state >> 11) as f64 / (1u64 << 53) as f64 - 0.5)
+            })
+            .collect();
+        let (outer, inner) = (30.0f64, 18.0f64);
+        let level = 3.0e5 / (std::f64::consts::PI * (outer * outer - inner * inner));
+        for row in 0..4 {
+            for col in 0..4 {
+                let (cx, cy) = (80.0 + col as f64 * 160.0, 80.0 + row as f64 * 160.0);
+                for y in (cy as usize - 40)..(cy as usize + 40) {
+                    for x in (cx as usize - 40)..(cx as usize + 40) {
+                        let d = (x as f64 - cx).hypot(y as f64 - cy);
+                        if (inner..=outer).contains(&d) {
+                            px[y * w + x] += level;
+                        }
+                    }
+                }
+            }
+        }
+        let data: Vec<u16> = px.iter().map(|v| v.clamp(0.0, 65535.0) as u16).collect();
+        let hfr = calculate_median_hfr(&ImageData::from_u16(w as u32, h as u32, 1, &data))
+            .expect("measured");
+        assert!((hfr - 0.8246 * outer).abs() < 2.0, "HFR {hfr:.2}");
+    }
+
     fn mixed_round_and_trailed_field(include_trailed: bool) -> ImageData {
         let mut sources: Vec<Source> = (0..8)
             .map(|i| {
