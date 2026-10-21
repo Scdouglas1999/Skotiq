@@ -39,6 +39,7 @@ import '../stack_result/stack_and_share_dialog.dart'
     show describeStackShareFailure;
 import 'darkroom_branch_controller.dart';
 import 'darkroom_controller.dart';
+import 'darkroom_measured_values.dart';
 
 part 'darkroom_screen_parts/_landing.dart';
 part 'darkroom_screen_parts/_image_surface.dart';
@@ -49,6 +50,7 @@ part 'darkroom_screen_parts/_recipe_panel.dart';
 part 'darkroom_screen_parts/_branch_bar.dart';
 part 'darkroom_screen_parts/_compare.dart';
 part 'darkroom_screen_parts/_export_sheet.dart';
+part 'darkroom_screen_parts/_histogram.dart';
 
 /// The Darkroom editor screen.
 class DarkroomScreen extends ConsumerStatefulWidget {

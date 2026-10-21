@@ -813,6 +813,17 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
         );
       case DarkroomParamKind.numberArray:
         control = _arrayControl(colors, index, step, spec, effective);
+      case DarkroomParamKind.boolean:
+        control = Align(
+          alignment: Alignment.centerLeft,
+          child: SkotiqSwitch(
+            value: effective == true,
+            onChanged: (value) =>
+                widget.onParamChanged(index, spec.name, value),
+          ),
+        );
+      case DarkroomParamKind.object:
+        control = _measuredValue(colors, spec, effective);
       case DarkroomParamKind.numberList:
       case DarkroomParamKind.unrepresented:
         control = _readOnlyValue(colors, spec, effective);
@@ -879,7 +890,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
               ),
             ),
           ),
-        if (!spec.independent)
+        if (!spec.independent && spec.kind != DarkroomParamKind.object)
           Padding(
             padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceXs),
             child: Text(
@@ -1113,6 +1124,48 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
   /// The alternative — an invented control — would write values the operation
   /// may refuse, and a variable-length curve is edited with a curve editor
   /// rather than a row of boxes.
+  /// A measured structured value, summarized in lines an operator can read:
+  /// a color composite's masters and how each was registered, the common
+  /// area, the flux matching.
+  Widget _measuredValue(
+    SkotiqColors colors,
+    DarkroomParamSpec spec,
+    Object? effective,
+  ) {
+    final lines = darkroomMeasuredValueLines(spec.name, effective);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
+          decoration: BoxDecoration(
+            color: colors.well,
+            borderRadius: SkotiqTokens.borderRadiusSm,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final line in lines)
+                Text(
+                  line,
+                  style: SkotiqTypography.bodySm.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        Text(
+          'Measured when the draft was composed. Draft again to measure it '
+          'again.',
+          style: SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
+        ),
+      ],
+    );
+  }
+
   Widget _readOnlyValue(
     SkotiqColors colors,
     DarkroomParamSpec spec,
