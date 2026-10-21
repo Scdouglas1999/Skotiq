@@ -540,9 +540,15 @@ enum UpcomingKind {
   autofocus,
   meridianFlip,
   targetSwitch,
+
+  /// The current target drops below the altitude limit.
+  targetLow,
   sunset,
   astroDark,
   moon,
+
+  /// The plan's estimated end.
+  planEnd,
   astroDawn,
 }
 
@@ -561,6 +567,7 @@ class UpcomingItemVm {
     this.tempDeltaC,
     this.every,
     this.moonIlluminationPct,
+    this.limitDeg,
     this.tone = MetricTone.neutral,
   });
 
@@ -572,7 +579,8 @@ class UpcomingItemVm {
   /// True for "Sunset 18:18 · passed".
   final bool passed;
 
-  /// The next target for [UpcomingKind.targetSwitch].
+  /// The next target for [UpcomingKind.targetSwitch], the current one for
+  /// [UpcomingKind.targetLow].
   final String? subject;
 
   /// "Dither after #45": the frame number it follows.
@@ -586,6 +594,9 @@ class UpcomingItemVm {
 
   /// For [UpcomingKind.moon].
   final double? moonIlluminationPct;
+
+  /// The altitude limit, for [UpcomingKind.targetLow].
+  final double? limitDeg;
 
   /// The meridian flip row is [MetricTone.warning] on the boards.
   final MetricTone tone;
@@ -602,6 +613,7 @@ class UpcomingItemVm {
       other.tempDeltaC == tempDeltaC &&
       other.every == every &&
       other.moonIlluminationPct == moonIlluminationPct &&
+      other.limitDeg == limitDeg &&
       other.tone == tone;
 
   @override
@@ -615,6 +627,7 @@ class UpcomingItemVm {
         tempDeltaC,
         every,
         moonIlluminationPct,
+        limitDeg,
         tone,
       );
 }

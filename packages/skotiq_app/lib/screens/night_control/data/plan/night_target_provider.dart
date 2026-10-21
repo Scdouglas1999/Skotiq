@@ -10,6 +10,7 @@ import 'package:skotiq_planetarium/skotiq_planetarium.dart'
 import '../tonight_night.dart';
 import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import '../../night_control_contracts.dart';
+import '../session/session_events_provider.dart';
 import 'night_plan_inputs.dart';
 import 'night_run_phase_provider.dart';
 
@@ -227,6 +228,10 @@ DateTime? _flipAt(
     );
     final toFlip = countdown.timeToFlip;
     if (countdown.isArmed && toFlip != null) {
+      // Past the threshold the countdown reads zero whether or not the flip
+      // has run; one that succeeded during this run has done this transit's
+      // flip, and the next is a night away.
+      if (toFlip == Duration.zero && _flippedThisRun(ref)) return null;
       return clock.toNightClock(now.add(toFlip));
     }
   }
@@ -238,4 +243,12 @@ DateTime? _flipAt(
   );
   if (flip.isBefore(now) || !tonight(flip)) return null;
   return clock.toNightClock(flip);
+}
+
+/// Whether a meridian flip succeeded since the run started.
+bool _flippedThisRun(Ref ref) {
+  final flips = ref.watch(nightSessionEventsProvider.select((e) => e.flips));
+  if (flips.isEmpty) return false;
+  final started = ref.watch(sessionStateProvider.select((s) => s.startTime));
+  return started == null || !flips.last.isBefore(started);
 }

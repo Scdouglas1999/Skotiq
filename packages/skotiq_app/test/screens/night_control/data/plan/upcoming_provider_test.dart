@@ -2,6 +2,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/upcoming_provider.dart';
+import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
 
@@ -105,16 +106,23 @@ void main() {
       UpcomingKind.dither,
       UpcomingKind.autofocus,
       UpcomingKind.targetSwitch,
+      UpcomingKind.planEnd,
+      UpcomingKind.moon,
       UpcomingKind.astroDawn,
     ]);
     // M74's L step dithers after every frame; none taken in this step yet
     // and one frame in the session, so the dither follows frame #2.
     expect(items[0].afterFrame, 2);
-    expect(items[1].everyFrames, 6);
+    // Every 6 frames, no autofocus yet this session: after frame #6.
+    expect(items[1].afterFrame, 6);
+    expect(items[1].everyFrames, isNull);
     expect(items[1].tempDeltaC, 1.0);
     expect(items[2].subject, 'NGC 891');
     expect(items[2].at!.isAfter(DateTime(2026, 10, 19, 19, 50)), isTrue);
-    expect(items[3].passed, isFalse);
+    expect(items[3].at!.isAfter(items[2].at!), isTrue);
+    expect(items[4].at, DateTime(2026, 10, 19, 23, 9));
+    expect(items[4].moonIlluminationPct, 44);
+    expect(items[5].passed, isFalse);
   });
 
   test('no dither left in the step: no dither row', () {
@@ -162,5 +170,108 @@ void main() {
     expect(byKind[UpcomingKind.moon]!.passed, isTrue);
     expect(byKind[UpcomingKind.astroDawn]!.passed, isFalse);
     expect(items.last.kind, UpcomingKind.astroDawn);
+  });
+
+  // The owner's run: one Smart Exposure node, no autofocus node or trigger in
+  // the plan, autofocus from the interval setting every run gets.
+  test('a Smart Exposure run: its dither cadence and the next autofocus', () {
+    final smart = SmartExposureNode(
+      id: 'smart',
+      parentId: 't',
+      batchSize: 4,
+      plans: const [
+        FilterPlan(
+            filterName: 'L', count: 30, durationSecs: 90, ditherEvery: 2),
+        FilterPlan(
+            filterName: 'R', count: 10, durationSecs: 90, ditherEvery: 3),
+      ],
+    );
+    final target = TargetHeaderNode(
+      id: 't',
+      parentId: 'root',
+      targetName: 'NGC 891',
+      raHours: 2.376,
+      decDegrees: 42.349,
+      childIds: const ['smart'],
+    );
+    final root = InstructionSetNode(id: 'root', childIds: const ['t']);
+    final sequence = Sequence.create(
+      name: 'NGC 891',
+      rootNodeId: 'root',
+      nodes: {root.id: root, target.id: target, smart.id: smart},
+    );
+    final first = DateTime(2026, 10, 19, 21);
+    final container = planContainer(
+      now: DateTime(2026, 10, 19, 22),
+      sequence: sequence,
+      execution: SequenceExecutionState.running,
+      session: SessionState(isActive: true, startTime: first),
+      progress: const SequenceProgress(
+        state: SequenceExecutionState.running,
+        currentNodeId: 'smart',
+        currentTarget: 'NGC 891',
+        currentFilter: 'R',
+        nodeStatuses: {'t': NodeStatus.running, 'smart': NodeStatus.running},
+      ),
+      sessionFrames: [
+        for (var i = 0; i < 30; i++)
+          lightFrame(
+              '$i', i.isEven ? 'L' : 'R', first.add(Duration(minutes: 2 * i))),
+      ],
+    );
+    addTearDown(container.dispose);
+    // An autofocus ran after the tenth frame.
+    // ignore: invalid_use_of_protected_member
+    container.read(nightSessionEventsProvider.notifier).state =
+        NightSessionEvents(
+      autofocusRuns: [
+        NightAutofocusRun(at: first.add(const Duration(minutes: 19))),
+      ],
+    );
+
+    final items = container.read(nightUpcomingProvider);
+    final dither = items.firstWhere((i) => i.kind == UpcomingKind.dither);
+    expect(dither.everyFrames, 3, reason: 'R is exposing; R dithers every 3');
+    final autofocus = items.firstWhere((i) => i.kind == UpcomingKind.autofocus);
+    final every =
+        container.read(sequencerDefaultsProvider).autofocusIntervalFrames;
+    expect(autofocus.afterFrame, 10 + every);
+  });
+
+  test('one frame per filter visit never reaches a Smart Exposure dither', () {
+    final smart = SmartExposureNode(
+      id: 'smart',
+      parentId: 'root',
+      plans: const [
+        FilterPlan(filterName: 'L', count: 30, ditherEvery: 2),
+        FilterPlan(filterName: 'R', count: 30, ditherEvery: 2),
+      ],
+    );
+    final root = InstructionSetNode(id: 'root', childIds: const ['smart']);
+    final container = planContainer(
+      now: DateTime(2026, 10, 19, 22),
+      sequence: Sequence.create(
+        name: 'LR',
+        rootNodeId: 'root',
+        nodes: {root.id: root, smart.id: smart},
+      ),
+      execution: SequenceExecutionState.running,
+      session: SessionState(
+        isActive: true,
+        startTime: DateTime(2026, 10, 19, 21),
+      ),
+      progress: const SequenceProgress(
+        state: SequenceExecutionState.running,
+        currentNodeId: 'smart',
+        currentFilter: 'L',
+        nodeStatuses: {'smart': NodeStatus.running},
+      ),
+    );
+    addTearDown(container.dispose);
+
+    expect(
+      container.read(nightUpcomingProvider).map((i) => i.kind),
+      isNot(contains(UpcomingKind.dither)),
+    );
   });
 }

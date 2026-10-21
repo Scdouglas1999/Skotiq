@@ -2,10 +2,19 @@
 // nothing invented without a site.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_target_provider.dart';
+import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
+import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
 
 import 'plan_test_support.dart';
+
+class _Mount extends MountStateNotifier {
+  _Mount(super.ref, MountState value) {
+    state = value;
+  }
+}
 
 /// Boston's clock in October, so the sky checks below hold on any host.
 const _edt = FixedOffsetClock(
@@ -99,5 +108,59 @@ void main() {
       target.flipAt!.difference(target.transitAt!).inMinutes,
       inInclusiveRange(9, 10),
     );
+  });
+
+  // Past the threshold the mount's countdown reads zero before the flip and
+  // after it alike; Coming up said "Meridian flip now" for the rest of the
+  // target after the flip had run.
+  test('a flip done this run is not still coming', () {
+    final lst = computeLocalSiderealTimeHours(lateEvening, boston.longitude);
+    final container = planContainer(
+      now: lateEvening,
+      sequence: TwoTargetPlan().sequence,
+      clock: _edt,
+      execution: SequenceExecutionState.running,
+      session: SessionState(
+        isActive: true,
+        startTime: lateEvening.subtract(const Duration(hours: 1)),
+      ),
+      extra: [
+        nightRunPhaseProvider.overrideWithValue(NightRunPhase.running),
+        isMeridianFlipEnabledProvider.overrideWithValue(true),
+        effectiveMeridianFlipSettingsProvider.overrideWithValue(
+          const MeridianFlipSettings(
+            triggerMethod: MeridianTriggerMethod.minutesPastMeridian,
+            minutesPastMeridian: 10,
+          ),
+        ),
+        mountStateProvider.overrideWith(
+          (ref) => _Mount(
+            ref,
+            MountState(
+              connectionState: DeviceConnectionState.connected,
+              isTracking: true,
+              isParked: false,
+              // An hour past the meridian.
+              ra: (lst - 1 + 24) % 24,
+              dec: 42,
+            ),
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    expect(
+      container.read(nightTargetProvider)!.flipAt,
+      _edt.fromUtc(lateEvening),
+      reason: 'past the threshold and not flipped: the flip is due now',
+    );
+
+    // ignore: invalid_use_of_protected_member
+    container.read(nightSessionEventsProvider.notifier).state =
+        NightSessionEvents(
+      flips: [lateEvening.subtract(const Duration(minutes: 40))],
+    );
+    expect(container.read(nightTargetProvider)!.flipAt, isNull);
   });
 }

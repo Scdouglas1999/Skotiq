@@ -58,6 +58,39 @@ void main() {
     expect(find.text('no moonset tonight'), findsOneWidget);
   });
 
+  testWidgets('the next autofocus, the target sinking and the plan end',
+      (tester) async {
+    await _pump(
+      tester,
+      NightHarness(
+        board: NightFixtures.running(),
+        upcoming: <UpcomingItemVm>[
+          const UpcomingItemVm(
+            kind: UpcomingKind.autofocus,
+            afterFrame: 52,
+            tempDeltaC: 1,
+          ),
+          UpcomingItemVm(
+            kind: UpcomingKind.targetLow,
+            at: DateTime(2026, 10, 20, 3, 12),
+            subject: 'NGC 891',
+            limitDeg: 30,
+          ),
+          UpcomingItemVm(
+            kind: UpcomingKind.planEnd,
+            at: DateTime(2026, 10, 20, 4, 30),
+          ),
+        ],
+      ),
+    );
+    expect(find.text('after #52 or 1 °C change'), findsOneWidget);
+    expect(find.text('NGC 891 below 30°'), findsOneWidget);
+    expect(find.textContaining('03:12'), findsOneWidget);
+    expect(find.text('Plan ends'), findsOneWidget);
+    expect(find.text('≈04:30'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('nothing coming up says so', (tester) async {
     await _pump(
       tester,

@@ -1,5 +1,6 @@
-// "Coming up" while a run is live (next dither, autofocus cadence, flip,
-// target switch, dawn) and "The night" before one (sunset, dark, moon, flip,
+// "Coming up" while a run is live (next dither and autofocus, flip, target
+// switch, the target dropping below its limit, moonset, the plan's end,
+// dawn) and "The night" before one (sunset, dark, moon, flip,
 // dawn). Each row's words are built here from its kind and typed fields; the
 // next timed event also says how far off it is.
 import 'package:flutter/material.dart';
@@ -121,6 +122,17 @@ String nightUpcomingName(SkotiqLocalizations l10n, UpcomingItemVm item) {
       return l10n.text('nightCtlUpFlip');
     case UpcomingKind.targetSwitch:
       return l10n.text('nightCtlUpTargetSwitch');
+    case UpcomingKind.targetLow:
+      final limit = item.limitDeg;
+      final subject = item.subject;
+      return subject == null || subject.isEmpty || limit == null
+          ? l10n.text('nightCtlUpTargetLowPlain')
+          : l10n.text('nightCtlUpTargetLow', params: {
+              'target': subject,
+              'deg': _trim(limit),
+            });
+    case UpcomingKind.planEnd:
+      return l10n.text('nightCtlUpPlanEnd');
     case UpcomingKind.sunset:
       return l10n.text('nightCtlUpSunset');
     case UpcomingKind.astroDark:
@@ -155,6 +167,8 @@ String? nightUpcomingValue(
       }
     case UpcomingKind.autofocus:
       final cadence = <String>[
+        if (item.afterFrame case final frame?)
+          l10n.text('nightCtlUpAfterFrame', params: {'frame': '$frame'}),
         if (item.everyFrames case final n?)
           l10n.text('nightCtlUpFrames', params: {'n': '$n'}),
         if (item.tempDeltaC case final delta?)
@@ -173,6 +187,9 @@ String? nightUpcomingValue(
       if (item.subject case final subject? when subject.isNotEmpty) {
         parts.add(subject);
       }
+    case UpcomingKind.planEnd:
+      // The estimator's.
+      if (at != null) parts.add(nightHmMaybeEstimated(at, estimated: true));
     case UpcomingKind.moon:
       parts.add(
         at == null
@@ -180,6 +197,7 @@ String? nightUpcomingValue(
             : l10n.text('nightCtlUpMoonSets', params: {'time': nightHm(at)}),
       );
     case UpcomingKind.meridianFlip ||
+          UpcomingKind.targetLow ||
           UpcomingKind.sunset ||
           UpcomingKind.astroDark ||
           UpcomingKind.astroDawn:

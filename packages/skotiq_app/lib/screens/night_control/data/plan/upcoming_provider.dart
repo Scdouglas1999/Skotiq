@@ -1,16 +1,24 @@
-// "Coming up" while a run is live (next dither, autofocus cadence, flip,
-// target switch, dawn) and "The night" before one (sunset, dark, moon, flip,
-// dawn). A row whose facts cannot be read is left out, never sent half empty.
+// "Coming up" while a run is live and "The night" before one (sunset, dark,
+// moon, flip, dawn). A row whose facts cannot be read is left out, never sent
+// half empty.
+//
+// During a run, every row is something the app knows will happen and either
+// when or after which frame: the next dither and autofocus from the plan's
+// cadence (or, for autofocus, the operator's interval setting every run
+// gets), the flip, the next target, the current target dropping below the
+// altitude limit, the moon setting, the plan's estimated end and dawn.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
 
+import '../session/session_events_provider.dart';
 import '../tonight_night.dart';
 import '../../night_control_contracts.dart';
 import 'night_plan_inputs.dart';
 import 'night_run_phase_provider.dart';
 import 'night_target_provider.dart';
 import 'night_timeline_provider.dart';
+import 'plan_progress_provider.dart';
 import 'plan_steps_provider.dart';
 
 final nightUpcomingProvider = Provider<List<UpcomingItemVm>>((ref) {
@@ -66,17 +74,51 @@ final nightUpcomingProvider = Provider<List<UpcomingItemVm>>((ref) {
 
   final dither = _nextDither(ref, tree);
   if (dither != null) items.add(dither);
-  final autofocus = _autofocusCadence(tree);
+  final autofocus = _nextAutofocus(ref, tree);
   if (autofocus != null) items.add(autofocus);
+
+  bool ahead(DateTime? when) =>
+      when != null &&
+      now.isBefore(when) &&
+      (night == null || when.isBefore(night.astroDawn));
+
+  final target = ref.watch(nightTargetProvider);
+  final belowLimit = target?.belowLimitAt;
+  final moonSet =
+      target?.moonSet ?? (night == null ? null : _moonSetTonight(night));
+  final moonPct = night?.moonIlluminationPercent;
+  final planEnd = ref.watch(nightPlanProgressProvider.select((p) => p?.eta));
+
+  final nextTarget = _nextTarget(ref);
+  final switchAt =
+      nextTarget == null ? null : clock.toNightClock(nextTarget.start);
+  // The current target sinking matters only while the run is still on it.
+  final lowMatters = belowLimit != null &&
+      (switchAt == null || belowLimit.isBefore(switchAt)) &&
+      (planEnd == null || belowLimit.isBefore(planEnd));
 
   final timed = <UpcomingItemVm>[
     if (flip != null) flip,
-    if (_nextTarget(ref) case final next?)
+    if (nextTarget != null)
       UpcomingItemVm(
         kind: UpcomingKind.targetSwitch,
-        at: clock.toNightClock(next.start),
-        subject: next.target.displayName,
+        at: switchAt,
+        subject: nextTarget.target.displayName,
       ),
+    if (target != null && lowMatters && ahead(belowLimit))
+      UpcomingItemVm(
+        kind: UpcomingKind.targetLow,
+        at: belowLimit,
+        subject: target.name,
+        limitDeg: target.horizonLimitDeg,
+      ),
+    if (moonPct != null && ahead(moonSet))
+      UpcomingItemVm(
+        kind: UpcomingKind.moon,
+        at: moonSet,
+        moonIlluminationPct: moonPct,
+      ),
+    if (ahead(planEnd)) UpcomingItemVm(kind: UpcomingKind.planEnd, at: planEnd),
     if (night != null && now.isBefore(night.astroDawn))
       at(UpcomingKind.astroDawn, night.astroDawn),
   ]..sort((a, b) => a.at!.compareTo(b.at!));
@@ -117,6 +159,26 @@ UpcomingItemVm? _nextDither(Ref ref, NightPlanTree? tree) {
       );
     }
   }
+  // A Smart Exposure dithers on each filter's own cadence; the filter
+  // exposing now says which one. The cadence counts inside one burst, and
+  // the executor never dithers after a burst's last frame, so it only ever
+  // fires when a burst is longer than it: rotating filters one frame at a
+  // time, a plan's "dither every 2" never dithers.
+  if (active is SmartExposureNode) {
+    final filter = ref.watch(sequenceProgressProvider).currentFilter;
+    final plan = active.plans.where((p) => p.filterName == filter).firstOrNull;
+    final every = plan?.ditherEvery;
+    if (plan != null && every != null && every > 0) {
+      final burst = active.loopUntilStopped
+          ? 1
+          : active.rotateFilters || plan.depthGoal != null
+              ? active.batchSize
+              : plan.count;
+      if (burst > every) {
+        return UpcomingItemVm(kind: UpcomingKind.dither, everyFrames: every);
+      }
+    }
+  }
   final trigger = tree?.entries
       .map((e) => e.node)
       .whereType<RecoveryNode>()
@@ -129,7 +191,51 @@ UpcomingItemVm? _nextDither(Ref ref, NightPlanTree? tree) {
   );
 }
 
-/// "Autofocus 6 frames or Δ1 °C", from the plan's autofocus triggers.
+/// "Autofocus after #12 or 1 °C change".
+///
+/// The cadence is the plan's autofocus triggers, else the operator's
+/// interval setting, which every run started from this app gets as its
+/// standard autofocus trigger. The executor refocuses once that many frames
+/// have been taken since the last autofocus, so the frame it follows is the
+/// session's frame count at the last autofocus this app saw, plus the
+/// interval.
+UpcomingItemVm? _nextAutofocus(Ref ref, NightPlanTree? tree) {
+  final cadence = _autofocusCadence(tree);
+  var everyFrames = cadence?.everyFrames;
+  if (everyFrames == null) {
+    final setting = ref.watch(
+      sequencerDefaultsProvider.select((d) => d.autofocusIntervalFrames),
+    );
+    if (setting > 0) everyFrames = setting;
+  }
+  final tempDelta = cadence?.tempDeltaC;
+  if (everyFrames == null && tempDelta == null) return null;
+
+  int? afterFrame;
+  if (everyFrames != null) {
+    final frames = ref.watch(recentSessionFramesProvider);
+    final lastRun = ref.watch(
+      nightSessionEventsProvider.select(
+        (e) => e.autofocusRuns.isEmpty ? null : e.autofocusRuns.last.at,
+      ),
+    );
+    final atLastRun = lastRun == null
+        ? 0
+        : frames.where((f) => !f.capturedAt.isAfter(lastRun)).length;
+    final next = atLastRun + everyFrames;
+    // Past it with no autofocus seen (one this app missed, a restart): the
+    // frame is not known, the cadence is.
+    if (next > frames.length) afterFrame = next;
+  }
+  return UpcomingItemVm(
+    kind: UpcomingKind.autofocus,
+    afterFrame: afterFrame,
+    everyFrames: afterFrame == null ? everyFrames : null,
+    tempDeltaC: tempDelta,
+  );
+}
+
+/// The plan's own autofocus triggers: every N frames, a temperature change.
 UpcomingItemVm? _autofocusCadence(NightPlanTree? tree) {
   if (tree == null) return null;
   int? everyFrames;
