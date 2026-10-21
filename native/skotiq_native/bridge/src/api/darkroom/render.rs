@@ -212,6 +212,7 @@ pub(crate) fn encode_preview(
     encoding: PreviewEncoding,
     ctx: &OpContext,
     token: &RenderCancelToken,
+    measure_only: bool,
 ) -> Result<EncodedPreview, String> {
     let registry = registry()?;
     let stretched = is_stretched_domain(output, registry);
@@ -228,6 +229,32 @@ pub(crate) fn encode_preview(
 
     if token.is_cancelled() {
         return Err(CancelledRender::err(token.render_id(), "encode"));
+    }
+
+    if measure_only {
+        let screen_params = match resolved {
+            PreviewEncoding::Screen => Some(
+                auto_params(&output.image)
+                    .map_err(|e| e.to_string())?
+                    .to_params(),
+            ),
+            _ => None,
+        };
+        return Ok(EncodedPreview {
+            rgba: Vec::new(),
+            width: output.image.width(),
+            height: output.image.height(),
+            is_color: output.image.channels() >= 3,
+            description: json!({
+                "requested": encoding.as_wire(),
+                "applied": "none",
+                "sourceDomain": if stretched { "stretched" } else { "linear" },
+                "clampedSamples": 0,
+                "screenTransfer": screen_params,
+                "screenTransferAffectsRecipe": false,
+                "measureOnly": true,
+            }),
+        });
     }
 
     let (image, screen_params) = match resolved {

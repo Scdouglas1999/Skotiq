@@ -890,3 +890,97 @@ fn a_carried_balance_is_still_refused_on_a_mono_master() {
         }
     );
 }
+
+/// A three-channel field of isolated stars on a grid, every star `cast` times
+/// a neutral color, except every tenth star, which is `outlier` times it; and a
+/// sky of `sky` per channel. `paint` adds anything else to a pixel.
+fn average_star_scene(
+    cast: [f64; 3],
+    outlier: [f64; 3],
+    sky: [f64; 3],
+    paint: impl Fn(usize, usize, usize) -> f64,
+) -> OpImage {
+    let (w, h) = (512usize, 512usize);
+    let mut rng = crate::color_composite::test_scene::Lcg::new(23);
+    let mut data = vec![0.0_f32; w * h * 3];
+    let mut stars = Vec::new();
+    let mut n = 0;
+    for y in (24..h - 24).step_by(32) {
+        for x in (24..w - 24).step_by(32) {
+            let flux = 4_000.0 + 400.0 * (n % 13) as f64;
+            let color = if n % 10 == 0 { outlier } else { cast };
+            stars.push((x as f64 + 0.3, y as f64 - 0.2, flux, color));
+            n += 1;
+        }
+    }
+    for y in 0..h {
+        for x in 0..w {
+            for c in 0..3 {
+                let mut v = sky[c] + paint(x, y, c) + 6.0 * rng.normal();
+                for (sx, sy, flux, color) in &stars {
+                    let d2 = (x as f64 - sx).powi(2) + (y as f64 - sy).powi(2);
+                    if d2 < 100.0 {
+                        v += flux * color[c] / (2.0 * std::f64::consts::PI * 2.0 * 2.0)
+                            * (-d2 / (2.0 * 2.0 * 2.0)).exp();
+                    }
+                }
+                data[(y * w + x) * 3 + c] = v as f32;
+            }
+        }
+    }
+    OpImage::new(w as u32, h as u32, 3, data, FitsHeader::new()).expect("image")
+}
+
+fn average_star_measurement(image: &OpImage) -> Value {
+    ColorCalibrateV1
+        .apply_measured(
+            image,
+            &json!({"whiteReference": "averageStar", "neutralizeBackground": true}),
+            &OpContext::new(),
+        )
+        .expect("the balance solves")
+        .measurement
+        .expect("a measurement")
+}
+
+#[test]
+fn the_average_star_balance_clips_stars_whose_color_is_not_the_fields() {
+    // A tenth of the stars are vivid green: a blend, a variable, a bad pixel.
+    let image = average_star_scene([1.3, 1.0, 0.7], [0.5, 2.0, 0.5], [500.0; 3], |_, _, _| 0.0);
+    let measured = average_star_measurement(&image);
+    let scale: Vec<f64> = serde_json::from_value(measured["channelScale"].clone()).unwrap();
+    assert!((scale[0] * 1.3 - 1.0).abs() < 0.02, "{measured}");
+    assert!((scale[2] * 0.7 - 1.0).abs() < 0.02, "{measured}");
+    let kept = measured["matchedStars"].as_u64().unwrap();
+    assert!(kept > 50, "enough stars are kept: {measured}");
+}
+
+#[test]
+fn background_neutralization_reads_the_sky_not_the_target_or_a_dust_shadow() {
+    // A bright red object over a quarter of the frame and a deep shadow in blue
+    // alone: neither is sky.
+    let image = average_star_scene([1.0; 3], [1.0; 3], [500.0, 400.0, 700.0], |x, y, c| {
+        let object = if x < 256 && y < 256 {
+            [300.0, 120.0, 60.0][c]
+        } else {
+            0.0
+        };
+        let d2 = (x as f64 - 380.0).powi(2) + (y as f64 - 380.0).powi(2);
+        let shadow = if c == 2 && d2 < 60.0 * 60.0 {
+            -60.0
+        } else {
+            0.0
+        };
+        object + shadow
+    });
+    let measured = average_star_measurement(&image);
+    let scale: Vec<f64> = serde_json::from_value(measured["channelScale"].clone()).unwrap();
+    let offset: Vec<f64> = serde_json::from_value(measured["channelOffset"].clone()).unwrap();
+    let sky: Vec<f64> = [500.0, 400.0, 700.0]
+        .iter()
+        .enumerate()
+        .map(|(c, s)| s * scale[c] + offset[c])
+        .collect();
+    assert!((sky[0] - sky[1]).abs() < 3.0, "{sky:?} from {measured}");
+    assert!((sky[2] - sky[1]).abs() < 3.0, "{sky:?} from {measured}");
+}

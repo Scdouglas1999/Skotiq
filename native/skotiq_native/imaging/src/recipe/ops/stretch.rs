@@ -77,8 +77,10 @@ const POINT_BOUND: f64 = 1e12;
 
 /// Lowest stretch intensity; `0` is the identity transfer.
 const D_MIN: f64 = 0.0;
-/// Highest stretch intensity.
-const D_MAX: f64 = 100.0;
+/// Highest stretch intensity. A deep master's sky sits a few thousandths of
+/// its range above black, and lifting that to a viewable level with the
+/// midtones-transfer family (`b = 1`) needs `D` in the hundreds or more.
+const D_MAX: f64 = 10_000.0;
 /// Stretch intensity when the parameter is absent.
 const D_DEFAULT: f64 = 1.0;
 
@@ -103,18 +105,23 @@ const SYMMETRY_DEFAULT: f64 = 0.0;
 /// `b·D·t` term to rounding once it underflows against `1`.
 const B_EXPONENTIAL_EPSILON: f64 = 1e-8;
 
-/// Sigmas below the measured background [`auto_params`] places the black point.
+/// Sigmas below the measured background [`auto_params`] places the black point:
+/// PixInsight's ScreenTransferFunction default shadows clipping.
 const AUTO_SHADOW_CLIP: f64 = 2.8;
-/// Quantile [`auto_params`] places the white point at, so a hot pixel does not
-/// set the top of the range.
-const AUTO_WHITE_QUANTILE: f64 = 0.999;
-/// Normalised level [`auto_params`] lifts the background to.
-const AUTO_TARGET_BACKGROUND: f64 = 0.25;
-/// Samples [`auto_params`] measures the histogram from. The stride follows from
-/// the sample count, so it never depends on how the work is scheduled.
+/// Display level [`auto_params`] lifts the background to. PixInsight's screen
+/// transfer uses 0.25, which suits inspecting a linear image; a finished deep-sky
+/// image keeps its sky darker, around 0.1 to 0.15.
+const AUTO_TARGET_BACKGROUND: f64 = 0.12;
+/// The `b` [`auto_params`] drafts: at `b = 1` and `SP = 0` the curve is
+/// PixInsight's midtones transfer function, whose highlights stay below white
+/// instead of saturating the way the exponential family's do.
+const AUTO_B: f64 = 1.0;
+/// Samples [`auto_params`] measures the median and noise from. The stride
+/// follows from the sample count, so it never depends on how the work is
+/// scheduled.
 const AUTO_SAMPLE_BUDGET: usize = 262_144;
-/// Bisection steps [`auto_params`] spends solving for `D`. A fixed count, never
-/// an elapsed-time bound.
+/// Bisection steps [`solve_intensity`] spends solving for `D`. A fixed count,
+/// never an elapsed-time bound.
 const AUTO_BISECTION_STEPS: u32 = 64;
 
 /// Channel mean, in black-to-white units, at which `luminance` mode starts
@@ -369,32 +376,44 @@ impl StretchAutoParams {
     }
 }
 
-/// Compute a first-draft parameter set from `image`'s histogram.
+/// Compute a first-draft parameter set from `image`'s histogram, the way
+/// PixInsight's automatic screen transfer function does.
 ///
 /// The formula, in order:
 ///
-/// 1. Sample the image on a fixed stride (at most [`AUTO_SAMPLE_BUDGET`]
-///    samples), drop non-finite samples, and sort.
-/// 2. `median` is the sample median; `sigma` is the sample MAD scaled by the
-///    Gaussian consistency constant.
-/// 3. `blackPoint = max(min sample, median − `[`AUTO_SHADOW_CLIP`]`·sigma)` —
-///    the shadow clip never cuts below data that exists.
-/// 4. `whitePoint` is the [`AUTO_WHITE_QUANTILE`] sample quantile, so one hot
-///    pixel does not set the top of the range.
-/// 5. `b = 0` and `symmetryPoint = 0`: the exponential family anchored at the
-///    black end, which is the family whose lift is monotone in `D`.
-/// 6. `D` is solved by [`AUTO_BISECTION_STEPS`] bisection steps on `[0, D_MAX]`
-///    so the normalised background `(median − blackPoint)/(whitePoint −
-///    blackPoint)` lands on [`AUTO_TARGET_BACKGROUND`]. A background already at
-///    or above the target needs no lift and yields `D = 0`.
+/// 1. The measured plane is the image itself for one channel and each pixel's
+///    channel mean for three, the quantity a `luminance` color stretch maps.
+/// 2. Sample the plane on a fixed stride (at most [`AUTO_SAMPLE_BUDGET`]
+///    samples), drop non-finite samples; `median` is the sample median and
+///    `sigma` the sample MAD scaled by the Gaussian consistency constant.
+/// 3. `blackPoint = max(min sample, median − `[`AUTO_SHADOW_CLIP`]`·sigma)`.
+/// 4. `whitePoint` is the plane's brightest finite value, read over every
+///    pixel: the top of the data, as PixInsight maps the top of the range, so
+///    no star core is clipped by the stretch itself.
+/// 5. `b = `[`AUTO_B`] and `symmetryPoint = 0`: the midtones transfer function.
+/// 6. `D` lifts the normalised background `(median − blackPoint)/(whitePoint −
+///    blackPoint)` to [`AUTO_TARGET_BACKGROUND`]. A background already at or
+///    above the target needs no lift and yields `D = 0`.
+///
+/// The noise, the median and the brightest value all depend on resolution: a
+/// coarse preview level has averaged the noise down and the star cores with it.
+/// Measure over the resolution the stretch will be rendered at.
 ///
 /// Reports [`OpError::Failed`] rather than inventing a parameter when the image
 /// carries no finite samples, no measurable background spread, or no dynamic
 /// range above its black point.
 pub fn auto_params(image: &OpImage) -> Result<StretchAutoParams, OpError> {
     let data = image.data();
-    let stride = (data.len() / AUTO_SAMPLE_BUDGET).max(1);
-    let mut samples: Vec<f64> = data
+    let channels = image.channels() as usize;
+    let plane: Vec<f32> = if channels == 3 {
+        data.par_chunks_exact(3)
+            .map(|p| ((p[0] as f64 + p[1] as f64 + p[2] as f64) / 3.0) as f32)
+            .collect()
+    } else {
+        data.to_vec()
+    };
+    let stride = (plane.len() / AUTO_SAMPLE_BUDGET).max(1);
+    let mut samples: Vec<f64> = plane
         .iter()
         .step_by(stride)
         .map(|&value| value as f64)
@@ -417,7 +436,11 @@ pub fn auto_params(image: &OpImage) -> Result<StretchAutoParams, OpError> {
     }
 
     let black_point = (median - AUTO_SHADOW_CLIP * sigma).max(samples[0]);
-    let white_point = percentile_nearest_rank(&samples, AUTO_WHITE_QUANTILE);
+    let white_point = plane
+        .par_iter()
+        .map(|v| *v as f64)
+        .filter(|v| v.is_finite())
+        .reduce(|| f64::NEG_INFINITY, f64::max);
     if white_point <= black_point {
         return Err(auto_failure(
             "the image has no dynamic range above its black point",
@@ -434,33 +457,37 @@ pub fn auto_params(image: &OpImage) -> Result<StretchAutoParams, OpError> {
     Ok(StretchAutoParams {
         black_point,
         white_point,
-        d: solve_intensity(background, AUTO_TARGET_BACKGROUND),
-        b: B_DEFAULT,
+        d: solve_intensity(background, AUTO_TARGET_BACKGROUND, AUTO_B),
+        b: AUTO_B,
         symmetry_point: SYMMETRY_DEFAULT,
     })
 }
 
-/// The `D` that lifts a normalised `background` to `target` under `b = 0`,
+/// The `D` that lifts a normalised `background` to `target` under `b`,
 /// `SP = 0`.
 ///
 /// `Y(x)` is monotone increasing in `D` for a fixed `x ∈ (0, 1)`, so bisection
-/// converges; the step count is fixed, never a wall-clock bound. A background
-/// already at or above the target needs no lift.
-fn solve_intensity(background: f64, target: f64) -> f64 {
+/// converges; it runs over `log D`, because the answer spans seven decades, for a
+/// fixed step count, never a wall-clock bound. A background already at or above
+/// the target needs no lift.
+fn solve_intensity(background: f64, target: f64, b: f64) -> f64 {
     if background >= target {
         return 0.0;
     }
-    let mut low = D_MIN;
-    let mut high = D_MAX;
+    if Curve::new(D_MAX, b, SYMMETRY_DEFAULT).eval(background) < target {
+        return D_MAX;
+    }
+    let mut low = (1e-6_f64).ln();
+    let mut high = D_MAX.ln();
     for _ in 0..AUTO_BISECTION_STEPS {
         let mid = 0.5 * (low + high);
-        if Curve::new(mid, B_DEFAULT, SYMMETRY_DEFAULT).eval(background) < target {
+        if Curve::new(mid.exp(), b, SYMMETRY_DEFAULT).eval(background) < target {
             low = mid;
         } else {
             high = mid;
         }
     }
-    0.5 * (low + high)
+    (0.5 * (low + high)).exp()
 }
 
 /// An [`auto_params`] failure attributed to this operation.

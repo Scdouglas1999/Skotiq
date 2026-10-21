@@ -61,8 +61,9 @@
 //! # Without a plate solve: the average star
 //!
 //! `whiteReference: "averageStar"` balances the channels so the median color
-//! of the field's own unsaturated stars comes out neutral, PixInsight
-//! ColorCalibration's star-based white reference. The average field star sits
+//! of the field's own isolated, unsaturated, well-measured stars comes out
+//! neutral, after outliers are clipped: PixInsight ColorCalibration's
+//! star-based white reference. The average field star sits
 //! near the Sun's color, so this approximates a G2V white without astrometry
 //! or a catalog; it is reported as `averageStar`, never as photometric.
 //!
@@ -70,8 +71,9 @@
 //!
 //! `neutralizeBackground: true` adds, after the scales, a per-channel offset
 //! that brings every channel's sky level to their common mean (PixInsight's
-//! BackgroundNeutralization). The sky level is the median of the pixels whose
-//! channel mean sits in the darker half of the frame. Like the scales, the
+//! BackgroundNeutralization). The sky level is read from a lattice of
+//! sigma-clipped sky boxes, keeping only boxes near the median box's level so
+//! neither the target nor a dust shadow is read as sky. Like the scales, the
 //! offsets are reported and can be pinned as `channelOffset`.
 //!
 //! # Preview scale
@@ -176,6 +178,29 @@ const SOURCE_AVERAGE_STAR: &str = "averageStar";
 
 /// Fewest stars an average-star balance is read from.
 const AVERAGE_STAR_MIN_STARS: usize = 20;
+/// Lowest detection SNR of a star the average-star balance reads.
+const AVERAGE_STAR_MIN_SNR: f64 = 20.0;
+/// A star brighter than this fraction of the brightest star's peak may be
+/// saturated in one of the masters and is left out.
+const AVERAGE_STAR_PEAK_FRACTION: f64 = 0.5;
+/// A star with another detection within this many of its HFRs is a blend risk
+/// and is left out.
+const AVERAGE_STAR_ISOLATION_HFR: f64 = 6.0;
+/// Robust sigmas of the per-star color clip.
+const AVERAGE_STAR_CLIP_SIGMA: f64 = 2.5;
+/// Passes of the per-star color clip, at most.
+const AVERAGE_STAR_CLIP_ITERATIONS: usize = 10;
+
+/// Side of a background-neutralization sky box, in full-resolution pixels.
+const SKY_BOX_PX: f64 = 64.0;
+/// Smallest sky box side at the render level, in pixels.
+const SKY_BOX_MIN_PX: usize = 4;
+/// Sky boxes darker than the median box by more than this many robust sigmas
+/// (dust shadows) are not sky.
+const SKY_BOX_LOW_SIGMA: f64 = 2.0;
+/// Sky boxes brighter than the median box by more than this many robust sigmas
+/// (the target, halos, faint nebulosity) are not sky.
+const SKY_BOX_HIGH_SIGMA: f64 = 1.0;
 
 /// Widest offset a payload may carry, in the image's own units.
 const OFFSET_BOUND: f64 = 1e9;
@@ -322,7 +347,7 @@ impl DarkroomOp for ColorCalibrateV1 {
         ctx.check_cancel()?;
         let offsets = match &settings.channel_offset {
             Some(offsets) => Some(offsets.clone()),
-            None if settings.neutralize_background => Some(neutral_offsets(image, &scales)),
+            None if settings.neutralize_background => Some(neutral_offsets(image, &scales, ctx)),
             None => None,
         };
         if let Some(offsets) = &offsets {
@@ -490,93 +515,170 @@ pub fn solve(image: &OpImage, params: &Value, ctx: &OpContext) -> Result<ColorSo
 
 /// Balance the channels on the median color of the field's own stars.
 ///
-/// Every detected star whose aperture photometry is positive in all three
-/// channels contributes its red/green and blue/green flux ratios; the medians
-/// of those ratios are the color that is rendered neutral.
+/// Only stars whose color is a measurement take part: detected at an SNR of at
+/// least [`AVERAGE_STAR_MIN_SNR`], below half the brightest star's peak (so no
+/// master's copy of it is saturated), with no other detection within
+/// [`AVERAGE_STAR_ISOLATION_HFR`] of their HFRs (so no neighbor's light is in
+/// the aperture), and positive in every channel. Their red/green and
+/// blue/green flux ratios are then clipped, in `log10`, at
+/// [`AVERAGE_STAR_CLIP_SIGMA`] robust sigmas about the median until the kept
+/// set stops changing, which removes blends, variables and unflagged
+/// saturation. The medians of what is left are rendered neutral.
 fn solve_average_star(image: &OpImage, ctx: &OpContext) -> Result<ColorSolve, OpError> {
     let detected = star_detect::detect(image, &StarDetectionConfig::default(), ctx)?;
-    let mut red = Vec::new();
-    let mut blue = Vec::new();
+    let brightest = detected.iter().map(|s| s.peak).fold(0.0_f64, f64::max);
+    let mut ratios: Vec<(f64, f64)> = Vec::new();
     for star in &detected {
+        if star.snr < AVERAGE_STAR_MIN_SNR || star.peak > AVERAGE_STAR_PEAK_FRACTION * brightest {
+            continue;
+        }
+        let reach = AVERAGE_STAR_ISOLATION_HFR * star.hfr;
+        let crowded = detected.iter().any(|other| {
+            let d2 = (other.x - star.x).powi(2) + (other.y - star.y).powi(2);
+            d2 > 0.0 && d2 <= reach * reach
+        });
+        if crowded {
+            continue;
+        }
         let Some(flux) = aperture_flux(image, star) else {
             continue;
         };
         if flux.iter().all(|f| *f > 0.0 && f.is_finite()) {
-            red.push(flux[0] / flux[1]);
-            blue.push(flux[2] / flux[1]);
+            ratios.push(((flux[0] / flux[1]).log10(), (flux[2] / flux[1]).log10()));
         }
     }
-    if red.len() < AVERAGE_STAR_MIN_STARS {
+    let candidates = ratios.len();
+    if candidates < AVERAGE_STAR_MIN_STARS {
         return Err(failed(&format!(
-            "{} star{} could be measured in all three channels and the average-star balance needs {AVERAGE_STAR_MIN_STARS}",
-            red.len(),
-            if red.len() == 1 { "" } else { "s" }
+            "{candidates} isolated, unsaturated star{} could be measured in all three channels and the average-star balance needs {AVERAGE_STAR_MIN_STARS}",
+            if candidates == 1 { "" } else { "s" }
         )));
     }
-    let matched = red.len();
-    let log_spread = |ratios: &[f64], centre: f64| {
-        let mut deviations: Vec<f64> = ratios
+    let mut keep = vec![true; ratios.len()];
+    let mut centre = (0.0, 0.0);
+    let mut spread = (0.0, 0.0);
+    for _ in 0..AVERAGE_STAR_CLIP_ITERATIONS {
+        let kept: Vec<(f64, f64)> = ratios
             .iter()
-            .map(|r| (r.log10() - centre.log10()).abs())
+            .zip(&keep)
+            .filter_map(|(r, k)| k.then_some(*r))
             .collect();
-        median_in_place(&mut deviations) * crate::robust_stats::MAD_TO_SIGMA
-    };
-    let red_mid = median_in_place(&mut red);
-    let blue_mid = median_in_place(&mut blue);
-    if !(red_mid > 0.0 && blue_mid > 0.0) {
-        return Err(failed("the field's stars carry no measurable color"));
+        let (mid_r, sigma_r) = median_and_sigma(kept.iter().map(|r| r.0));
+        let (mid_b, sigma_b) = median_and_sigma(kept.iter().map(|r| r.1));
+        centre = (mid_r, mid_b);
+        spread = (sigma_r, sigma_b);
+        let next: Vec<bool> = ratios
+            .iter()
+            .map(|(r, b)| {
+                (r - mid_r).abs() <= AVERAGE_STAR_CLIP_SIGMA * sigma_r.max(1e-6)
+                    && (b - mid_b).abs() <= AVERAGE_STAR_CLIP_SIGMA * sigma_b.max(1e-6)
+            })
+            .collect();
+        if next == keep || next.iter().filter(|k| **k).count() < AVERAGE_STAR_MIN_STARS {
+            break;
+        }
+        keep = next;
     }
-    let residual = log_spread(&red, red_mid).max(log_spread(&blue, blue_mid));
+    let matched = keep.iter().filter(|k| **k).count();
     Ok(ColorSolve {
-        channel_scale: vec![1.0 / red_mid, 1.0, 1.0 / blue_mid],
+        channel_scale: vec![10f64.powf(-centre.0), 1.0, 10f64.powf(-centre.1)],
         white_ref_bv: f64::NAN,
         matched,
-        residual,
+        residual: spread.0.max(spread.1),
         source: SOURCE_AVERAGE_STAR,
     })
 }
 
+/// The median and `1.4826 · MAD` of `values`.
+fn median_and_sigma(values: impl Iterator<Item = f64>) -> (f64, f64) {
+    let mut values: Vec<f64> = values.collect();
+    if values.is_empty() {
+        return (0.0, 0.0);
+    }
+    let centre = median_in_place(&mut values.clone());
+    let mut deviations: Vec<f64> = values.iter_mut().map(|v| (*v - centre).abs()).collect();
+    (
+        centre,
+        median_in_place(&mut deviations) * crate::robust_stats::MAD_TO_SIGMA,
+    )
+}
+
 /// Offsets that bring every channel's sky, after `scales`, to their mean.
 ///
-/// The sky is read as each channel's median over the pixels whose channel mean
-/// lies below the frame's median channel mean: the darker half of the frame,
-/// which on a deep-sky master is background.
-fn neutral_offsets(image: &OpImage, scales: &[f64]) -> Vec<f64> {
+/// The sky is read from a lattice of boxes [`SKY_BOX_PX`] full-resolution
+/// pixels on a side, each box's level the sigma-clipped median of its pixels so
+/// a star inside it does not move it. Only boxes whose channel-mean level sits
+/// within [`SKY_BOX_LOW_SIGMA`] below and [`SKY_BOX_HIGH_SIGMA`] above the
+/// median box are sky: brighter boxes hold the target or a halo, darker ones a
+/// dust shadow. Each channel's sky is the median of its kept boxes.
+fn neutral_offsets(image: &OpImage, scales: &[f64], ctx: &OpContext) -> Vec<f64> {
+    let width = image.width() as usize;
+    let height = image.height() as usize;
+    let side = ((SKY_BOX_PX * ctx.scale()).round() as usize).max(SKY_BOX_MIN_PX);
+    let (gw, gh) = ((width / side).max(1), (height / side).max(1));
     let data = image.data();
-    let pixels = image.pixel_count();
-    let stride = (pixels / (1 << 20)).max(1);
-    let mut means: Vec<f64> = (0..pixels)
-        .step_by(stride)
-        .map(|p| {
-            (0..3)
-                .map(|c| data[p * 3 + c] as f64 * scales[c])
-                .sum::<f64>()
-                / 3.0
+    let boxes: Vec<[f64; 4]> = (0..gw * gh)
+        .into_par_iter()
+        .map(|i| {
+            let (bx, by) = (i % gw, i / gw);
+            let mut levels = [0.0; 4];
+            let mut planes: [Vec<f64>; 3] = Default::default();
+            for y in by * side..((by + 1) * side).min(height) {
+                for x in bx * side..((bx + 1) * side).min(width) {
+                    let p = (y * width + x) * 3;
+                    for c in 0..3 {
+                        let v = data[p + c] as f64 * scales[c];
+                        if v.is_finite() {
+                            planes[c].push(v);
+                        }
+                    }
+                }
+            }
+            for c in 0..3 {
+                levels[c] = clipped_median(&mut planes[c]);
+            }
+            levels[3] = (levels[0] + levels[1] + levels[2]) / 3.0;
+            levels
         })
         .collect();
-    let mut sorted = means.clone();
-    let cut = median_in_place(&mut sorted);
-    let mut levels = vec![Vec::new(); 3];
-    for (n, p) in (0..pixels).step_by(stride).enumerate() {
-        if means[n] <= cut {
-            for (c, level) in levels.iter_mut().enumerate() {
-                level.push(data[p * 3 + c] as f64 * scales[c]);
-            }
-        }
-    }
-    means.clear();
-    let sky: Vec<f64> = levels
-        .iter_mut()
-        .map(|v| {
+    let (mid, sigma) = median_and_sigma(boxes.iter().map(|b| b[3]).filter(|v| v.is_finite()));
+    let sky: Vec<&[f64; 4]> = boxes
+        .iter()
+        .filter(|b| {
+            b[3].is_finite()
+                && b[3] >= mid - SKY_BOX_LOW_SIGMA * sigma
+                && b[3] <= mid + SKY_BOX_HIGH_SIGMA * sigma
+        })
+        .collect();
+    let levels: Vec<f64> = (0..3)
+        .map(|c| {
+            let mut v: Vec<f64> = sky.iter().map(|b| b[c]).collect();
             if v.is_empty() {
                 0.0
             } else {
-                median_in_place(v)
+                median_in_place(&mut v)
             }
         })
         .collect();
-    let target = sky.iter().sum::<f64>() / 3.0;
-    sky.iter().map(|s| target - s).collect()
+    let target = levels.iter().sum::<f64>() / 3.0;
+    levels.iter().map(|s| target - s).collect()
+}
+
+/// Median of `values` after a 3-sigma clip about their own median; NaN when
+/// empty.
+fn clipped_median(values: &mut Vec<f64>) -> f64 {
+    if values.is_empty() {
+        return f64::NAN;
+    }
+    let (centre, sigma) = median_and_sigma(values.iter().copied());
+    if sigma > 0.0 {
+        values.retain(|v| (v - centre).abs() <= 3.0 * sigma);
+    }
+    if values.is_empty() {
+        centre
+    } else {
+        median_in_place(values)
+    }
 }
 
 /// Read and range-check one step's payload. `validate_params`, `apply` and

@@ -214,7 +214,7 @@ pub(crate) const OP_DOCS: &[OpDoc] = &[
                 kind: ParamKind::Number,
                 required: false,
                 min: Some(0.0),
-                max: Some(100.0),
+                max: Some(10000.0),
                 length: None,
                 length_range: None,
                 allowed: &[],
@@ -804,6 +804,127 @@ pub(crate) const OP_DOCS: &[OpDoc] = &[
                 independent: true,
                 summary: "How much of the luminance the matched Ha master replaces in HaLRGB.",
             },
+            ParamDoc {
+                name: "flatten",
+                display_name: "Per-master flattening",
+                kind: ParamKind::Object,
+                required: false,
+                min: None,
+                max: None,
+                length: None,
+                length_range: None,
+                allowed: &[],
+                default_json: None,
+                example_json: r#"{"chromaBox": 64}"#,
+                independent: false,
+                summary: "Flattens each master before the channels are combined: its throughput across the field, measured from the stars, and its sky gradient, each a measured polynomial surface, then the sky's color on a lattice of chromaBox-pixel boxes. Absent leaves the masters as registered; surfaces not given are measured.",
+            },
+        ],
+    },
+    OpDoc {
+        id: "scnr",
+        version: 1,
+        stage: "linear",
+        summary: "Removes a green cast by limiting green to a neutral built from red and blue (PixInsight SCNR).",
+        params: &[
+            ParamDoc {
+                name: "amount",
+                display_name: "Amount",
+                kind: ParamKind::Number,
+                required: false,
+                min: Some(0.0),
+                max: Some(1.0),
+                length: None,
+                length_range: None,
+                allowed: &[],
+                default_json: Some("1.0"),
+                example_json: "1.0",
+                independent: true,
+                summary: "How far green moves to the neutral; 0 is the identity.",
+            },
+            ParamDoc {
+                name: "neutral",
+                display_name: "Neutral reference",
+                kind: ParamKind::Enumerated,
+                required: false,
+                min: None,
+                max: None,
+                length: None,
+                length_range: None,
+                allowed: &["average", "maximum"],
+                default_json: Some("\"average\""),
+                example_json: "\"average\"",
+                independent: true,
+                summary: "average limits green to the mean of red and blue; maximum to the larger of them, which removes less.",
+            },
+            ParamDoc {
+                name: "preserveLightness",
+                display_name: "Preserve lightness",
+                kind: ParamKind::Boolean,
+                required: false,
+                min: None,
+                max: None,
+                length: None,
+                length_range: None,
+                allowed: &[],
+                default_json: Some("true"),
+                example_json: "true",
+                independent: true,
+                summary: "Rescales a pixel whose green was lowered so its brightness is unchanged.",
+            },
+        ],
+    },
+    OpDoc {
+        id: "chroma_denoise",
+        version: 1,
+        stage: "linear",
+        summary: "Smooths large-scale color noise in the background, leaving lightness, stars and the target's color untouched.",
+        params: &[
+            ParamDoc {
+                name: "smoothingPx",
+                display_name: "Color smoothing (master pixels)",
+                kind: ParamKind::Number,
+                required: false,
+                min: Some(0.5),
+                max: Some(64.0),
+                length: None,
+                length_range: None,
+                allowed: &[],
+                default_json: Some("6.0"),
+                example_json: "6.0",
+                independent: true,
+                summary: "Gaussian width the background's color is smoothed over.",
+            },
+            ParamDoc {
+                name: "protection",
+                display_name: "Signal protection (sky sigmas)",
+                kind: ParamKind::Number,
+                required: false,
+                min: Some(0.5),
+                max: Some(100.0),
+                length: None,
+                length_range: None,
+                allowed: &[],
+                default_json: Some("8.0"),
+                example_json: "8.0",
+                independent: true,
+                summary: "How far above the sky a pixel must be to keep its own color entirely.",
+            },
+            ParamDoc {
+                name: "amount",
+                display_name: "Amount",
+                kind: ParamKind::Number,
+                required: false,
+                min: Some(0.0),
+                max: Some(1.0),
+                length: None,
+                length_range: None,
+                allowed: &[],
+                default_json: Some("1.0"),
+                example_json: "1.0",
+                independent: true,
+                summary: "How much of the background's color is replaced by its smoothed color; 0 is the identity.",
+            },
         ],
     },
 ];
@@ -944,9 +1065,20 @@ pub(crate) fn draft_for_composite(
     draft(master, recipe_id, base_master_ref, Some(composite))
 }
 
+/// Pyramid level the draft's stretch is measured at: full resolution.
+const STRETCH_MEASURE_LEVEL: u32 = 0;
+
+/// Saturation boost a color draft carries after its stretch. The stretch keeps
+/// the linear color ratios, which on a galaxy's faint arms read as gray; a
+/// gentle boost, protected at both ends of the range, brings out the color the
+/// data measured without pushing star cores apart.
+const DRAFT_SATURATION: f64 = 0.25;
+
 /// Polynomial degrees the draft considers for the background surface, lowest
 /// first. The operation's own default is the first.
 const BACKGROUND_ORDERS: [u32; 3] = [2, 3, 4];
+/// Fewest sky samples per polynomial term a degree's residual is trusted from.
+const BACKGROUND_SAMPLES_PER_TERM: usize = 2;
 /// The lowest degree whose sky residual is within this factor of the best
 /// degree's is drafted: a surface that bends more must earn it.
 const BACKGROUND_ORDER_GAIN: f64 = 0.7;
@@ -980,6 +1112,11 @@ fn draft(
             "outcome": "omitted",
             "reason": "the channel combination already crops to the area every master covers",
         }));
+        notes.push(json!({
+            "opId": "background_extract",
+            "outcome": "omitted",
+            "reason": "the channel combination already flattened each master's sky before combining them, and a second surface over the combined color would only refit what is left of the noise",
+        }));
     } else {
         channels = base.channels();
         match auto_rect(base) {
@@ -1005,36 +1142,60 @@ fn draft(
     // otherwise: a documented default lives in the operation for the life of
     // its version, and writing one into the recipe would freeze today's value
     // into a recipe that should follow it.
-    let background = choose_background_order(
-        master,
-        measure_level,
-        recipe_id,
-        base_master_ref,
-        &steps,
-        sources.as_ref(),
-    );
-    match background {
-        Some((order, reason)) => {
-            let step = if order == BACKGROUND_ORDERS[0] {
-                RecipeStep::new("background_extract", 1)
-            } else {
-                RecipeStep::new("background_extract", 1).with_params(json!({"modelOrder": order}))
-            };
-            steps.push(step);
-            notes.push(
-                json!({"opId": "background_extract", "outcome": "included", "reason": reason}),
-            );
+    if sources.is_none() {
+        let background = choose_background_order(
+            master,
+            measure_level,
+            recipe_id,
+            base_master_ref,
+            &steps,
+            sources.as_ref(),
+        );
+        match background {
+            Some((order, reason)) => {
+                let step = if order == BACKGROUND_ORDERS[0] {
+                    RecipeStep::new("background_extract", 1)
+                } else {
+                    RecipeStep::new("background_extract", 1)
+                        .with_params(json!({"modelOrder": order}))
+                };
+                steps.push(step);
+                notes.push(
+                    json!({"opId": "background_extract", "outcome": "included", "reason": reason}),
+                );
+            }
+            None => steps.push(RecipeStep::new("background_extract", 1)),
         }
-        None => steps.push(RecipeStep::new("background_extract", 1)),
     }
     if channels == 3 {
-        // Colour is calibrated before noise reduction: the denoiser smooths
-        // chroma, which would pull every star's measured colour toward the sky's.
-        steps.push(
-            RecipeStep::new("color_calibrate", 1)
-                .with_params(json!({"neutralizeBackground": true})),
-        );
-        steps.push(RecipeStep::new("denoise", 1));
+        // The PixInsight order: balance and neutralize, smooth the background's
+        // color, remove green, then reduce noise. Colour is calibrated before
+        // any smoothing, which would pull every star's measured colour toward
+        // the sky's; green is removed after the color smoothing, because SCNR's
+        // minimum over a noisy neutral sky takes green below it and tints the
+        // sky magenta. The denoiser leaves chroma to the color smoothing, which
+        // protects stars and the target instead of blurring their color too.
+        // Catalog stars are placed through the plate solve; a master without
+        // one is balanced on its own field's stars instead of left unbalanced.
+        let white_reference = if base.wcs().is_some() {
+            json!({"neutralizeBackground": true})
+        } else {
+            notes.push(json!({
+                "opId": "color_calibrate",
+                "outcome": "included",
+                "reason": "this master carries no plate solve, so catalog stars cannot be placed on it; the balance renders the median color of the field's own isolated, unsaturated stars neutral",
+            }));
+            json!({"neutralizeBackground": true, "whiteReference": "averageStar"})
+        };
+        steps.push(RecipeStep::new("color_calibrate", 1).with_params(white_reference));
+        steps.push(RecipeStep::new("chroma_denoise", 1));
+        steps.push(RecipeStep::new("scnr", 1));
+        steps.push(RecipeStep::new("denoise", 1).with_params(json!({"chromaStrength": 0.0})));
+        notes.push(json!({
+            "opId": "scnr",
+            "outcome": "included",
+            "reason": "nothing in a broadband deep-sky field is green, so green is limited to the average of red and blue at PixInsight's default amount",
+        }));
     } else {
         steps.push(RecipeStep::new("denoise", 1));
         let (count, coverage) = if channels == 1 {
@@ -1051,15 +1212,30 @@ fn draft(
         }));
     }
 
-    let (measured, mut steps) = measure_linear_prefix(
+    // The stretch is measured at full resolution: its black point sits a
+    // number of noise sigmas under the sky and its white point at the brightest
+    // star core, and a coarse level has averaged both down.
+    let (measured, mut steps, measurements) = measure_linear_prefix(
         master,
-        measure_level,
+        STRETCH_MEASURE_LEVEL,
         recipe_id,
         base_master_ref,
         steps,
         &mut notes,
         sources.as_ref(),
     )?;
+    pin_star_balance(&mut steps, &measurements);
+    let measured = match stretch_measure_stop(&steps) {
+        Some(stop) if stop + 1 < steps.len() => render_prefix(
+            master,
+            STRETCH_MEASURE_LEVEL,
+            recipe_id,
+            base_master_ref,
+            &steps[..=stop],
+            sources.as_ref(),
+        )?,
+        _ => measured,
+    };
     let stretch_params = match auto_params(&measured) {
         Ok(params) => {
             let mut payload = params.to_params();
@@ -1069,6 +1245,12 @@ fn draft(
                 payload["colorMode"] = json!("luminance");
             }
             steps.push(RecipeStep::new("stretch", 1).with_params(payload.clone()));
+            if measured.channels() == 3 {
+                steps.push(
+                    RecipeStep::new("saturation", 1)
+                        .with_params(json!({"amount": DRAFT_SATURATION})),
+                );
+            }
             Some(payload)
         }
         Err(reason) => {
@@ -1110,7 +1292,7 @@ fn draft(
         "autoParams": {
             "cropRect": crop_params,
             "stretch": stretch_params,
-            "stretchMeasuredAtLevel": measure_level,
+            "stretchMeasuredAtLevel": STRETCH_MEASURE_LEVEL,
             "defaults": Value::Object(defaults),
         },
     }))
@@ -1154,7 +1336,47 @@ fn pin_combine_fits(
         .ok_or_else(|| "the channel combination reported no flux fits to pin".to_string())?;
     let mut params = step.params.clone();
     params["fits"] = fits;
+    if params.get("flatten").is_some() {
+        let measured = output
+            .report
+            .steps
+            .first()
+            .and_then(|s| s.measurement.as_ref())
+            .and_then(|m| m.get("flatten"))
+            .ok_or_else(|| "the channel combination reported no flattening to pin".to_string())?;
+        params["flatten"] = pinned_flatten(measured);
+    }
     Ok(step.with_params(params))
+}
+
+/// The `flatten` parameter that replays a measured flattening: the chroma box
+/// and every surface's degree and coefficients. A plane the measurement could
+/// not fit is left out, which is how a pinned step applies no surface to it.
+fn pinned_flatten(measured: &Value) -> Value {
+    let surfaces = |name: &str| -> Value {
+        let mut out = Map::new();
+        if let Some(map) = measured.get(name).and_then(Value::as_object) {
+            for (key, fit) in map {
+                if let (Some(degree), Some(coefficients)) =
+                    (fit.get("degree"), fit.get("coefficients"))
+                {
+                    out.insert(
+                        key.clone(),
+                        json!({"degree": degree, "coefficients": coefficients}),
+                    );
+                }
+            }
+        }
+        Value::Object(out)
+    };
+    let mut pinned = json!({
+        "throughput": surfaces("throughput"),
+        "background": surfaces("background"),
+    });
+    if let Some(chroma_box) = measured.get("chromaBox") {
+        pinned["chromaBox"] = chroma_box.clone();
+    }
+    pinned
 }
 
 /// The polynomial degree the background surface is drafted at, and why.
@@ -1220,6 +1442,20 @@ fn choose_background_order(
                     .fold(0.0_f64, f64::max)
             });
         let Some(sigma) = sigma else { continue };
+        // A surface with barely more samples than terms passes through them,
+        // and its residual says nothing about the sky between them.
+        let terms = (order as usize + 1) * (order as usize + 2) / 2;
+        let fewest = output
+            .report
+            .steps
+            .last()
+            .and_then(|s| s.measurement.as_ref())
+            .and_then(|m| m.get("samplesUsed"))
+            .and_then(Value::as_array)
+            .and_then(|values| values.iter().filter_map(Value::as_u64).min());
+        if fewest.is_some_and(|n| (n as usize) < BACKGROUND_SAMPLES_PER_TERM * terms) {
+            continue;
+        }
         residuals.push((order, sigma));
     }
     let best = residuals
@@ -1248,6 +1484,79 @@ fn choose_background_order(
     Some((chosen, reason))
 }
 
+/// Pin the balance a `color_calibrate` step read from the field's own stars at
+/// full resolution, so a preview at a coarse level, which holds too few stars to
+/// measure it again, replays it.
+fn pin_star_balance(steps: &mut [RecipeStep], measurements: &[Option<Value>]) {
+    for (step, measured) in steps.iter_mut().zip(measurements) {
+        if step.op_id != "color_calibrate" {
+            continue;
+        }
+        let Some(measured) = measured else { continue };
+        if measured.get("source").and_then(Value::as_str) != Some("averageStar") {
+            continue;
+        }
+        let mut params = step.params.clone();
+        params["channelScale"] = measured["channelScale"].clone();
+        if let Some(offset) = measured.get("channelOffset") {
+            params["channelOffset"] = offset.clone();
+        }
+        *step = step.clone().with_params(params);
+    }
+}
+
+/// The last step the auto stretch is measured after: the step before noise
+/// reduction when the draft has one, so the black point is placed by the sky's
+/// noise as integrated. Wavelet noise reduction lowers the pixel-to-pixel noise
+/// but not the sky's large-scale mottle, and a black point placed a few of the
+/// reduced sigmas under the sky lifts that mottle into view. `None` when the
+/// whole linear prefix is measured.
+fn stretch_measure_stop(steps: &[RecipeStep]) -> Option<usize> {
+    let denoise = steps.iter().position(|s| s.op_id == "denoise")?;
+    denoise.checked_sub(1)
+}
+
+/// Render `steps` over `master` at `level` and return the image.
+fn render_prefix(
+    master: &LoadedMaster,
+    level: u32,
+    recipe_id: &str,
+    base_master_ref: &str,
+    steps: &[RecipeStep],
+    sources: Option<&Arc<dyn MasterSource>>,
+) -> Result<OpImage, String> {
+    let base = master
+        .pyramid
+        .level(level)
+        .ok_or_else(|| format!("pyramid level {level} is out of range while drafting"))?;
+    let mut ctx = OpContext::new().at_level(level);
+    if let Some(sources) = sources {
+        ctx = ctx.with_sources(Arc::clone(sources));
+    }
+    if let Some(wcs) = base.wcs() {
+        ctx = ctx.with_wcs(wcs);
+    }
+    let mut prefix = Recipe::new(
+        format!("{recipe_id}:stretch-measure"),
+        base_master_ref,
+        RecipeAuthor::Autopilot,
+    );
+    prefix.steps = steps.to_vec();
+    let mut cache = render_cache();
+    render(
+        &prefix,
+        base,
+        registry()?,
+        &mut cache,
+        &ctx,
+        RenderOptions::full()
+            .at_level(level)
+            .over_master(master.identity.as_str()),
+    )
+    .map(|output| output.image.as_ref().clone())
+    .map_err(|e| format!("cannot measure the stretch over the draft's linear stack: {e}"))
+}
+
 /// Render the draft's linear prefix at `level`, so the stretch is measured
 /// against the pixels it will actually see rather than the raw master.
 ///
@@ -1264,7 +1573,7 @@ fn measure_linear_prefix(
     mut steps: Vec<RecipeStep>,
     notes: &mut Vec<Value>,
     sources: Option<&Arc<dyn MasterSource>>,
-) -> Result<(OpImage, Vec<RecipeStep>), String> {
+) -> Result<(OpImage, Vec<RecipeStep>, Vec<Option<Value>>), String> {
     let base = master
         .pyramid
         .level(level)
@@ -1280,7 +1589,7 @@ fn measure_linear_prefix(
 
     loop {
         if steps.is_empty() {
-            return Ok((base.as_ref().clone(), steps));
+            return Ok((base.as_ref().clone(), steps, Vec::new()));
         }
         let mut prefix = Recipe::new(
             format!("{recipe_id}:draft-measure"),
@@ -1302,7 +1611,15 @@ fn measure_linear_prefix(
             )
         };
         match outcome {
-            Ok(output) => return Ok((output.image.as_ref().clone(), steps)),
+            Ok(output) => {
+                let measured = output
+                    .report
+                    .steps
+                    .iter()
+                    .map(|s| s.measurement.clone())
+                    .collect();
+                return Ok((output.image.as_ref().clone(), steps, measured));
+            }
             Err(RecipeError::Step { index, source }) => {
                 if index >= steps.len() {
                     return Err(format!(

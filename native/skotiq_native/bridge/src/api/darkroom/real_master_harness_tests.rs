@@ -175,9 +175,13 @@ fn darkroom_real_composite() {
             .iter()
             .position(|s| s["opId"] == "stretch")
             .expect("a stretch");
+        let measure_stop = steps
+            .iter()
+            .position(|s| s["opId"] == "denoise")
+            .map_or(stretch - 1, |d| d - 1);
         let preview = api_darkroom_render_preview(
             recipe.to_string(),
-            serde_json::json!({"masterPath": master, "maxDimension": 1024, "stopAfter": stretch - 1, "encoding": "screen"})
+            serde_json::json!({"masterPath": master, "level": 0, "stopAfter": measure_stop, "encoding": "screen", "measureOnly": true})
                 .to_string(),
         )
         .expect("remeasure the stretch");
