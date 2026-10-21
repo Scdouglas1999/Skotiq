@@ -75,6 +75,8 @@ pub(crate) use integrate::*;
 mod masters;
 pub(crate) use masters::*;
 #[cfg(test)]
+mod pass_view_capture_tests;
+#[cfg(test)]
 mod real_frame_harness_tests;
 #[cfg(test)]
 mod reference_choice_tests;
