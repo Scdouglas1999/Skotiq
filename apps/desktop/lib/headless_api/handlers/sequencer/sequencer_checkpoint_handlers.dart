@@ -66,7 +66,7 @@ extension _SequencerCheckpoints on SequencerHandlers {
   Future<Response> _handleSequencerResumeFromCheckpoint(Request request) async {
     _logInfo('[API] POST /api/sequencer/checkpoint/resume');
     final payload = await readJsonObjectOrEmpty(request);
-    final startNow = optionalBool(payload, 'start') ?? false;
+    final startNow = optionalBool(payload, 'start') == true;
     // A resume commands the mount exactly like a start does, but neither the
     // executor's resume path nor the native restore runs any pre-flight: the
     // checkpoint is replayed verbatim. A checkpoint written before target
