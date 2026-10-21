@@ -181,7 +181,11 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
     final histogramVisible = ref.watch(previewHistogramVisibleProvider);
     final exposureProgress = ref.watch(exposureProgressProvider);
     final cameraState = ref.watch(cameraStateProvider);
-    final starDetectionResult = ref.watch(starDetectionResultProvider);
+    // Detected only while the overlay is on: one native detection per frame.
+    final starDetectionResult = showStarOverlay
+        ? ref.watch(currentFrameStarsProvider).valueOrNull
+        : null;
+    final frameSolve = ref.watch(currentFrameSolveProvider);
     final scienceSettings = ref.watch(scienceSettingsProvider).valueOrNull;
     final scienceVizPrefs =
         ref.watch(scienceVisualizationPrefsProvider).valueOrNull;
@@ -271,6 +275,7 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
         : _resolveCurrentImageSkySolution(
             wcs: currentFrameWcs,
             annotation: currentAnnotation,
+            frameSolve: frameSolve,
             width: currentImage.width,
             height: currentImage.height,
           );
@@ -535,6 +540,7 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                         imageOffset: imageOffset,
                         imageSize: Size(currentImage.width.toDouble(),
                             currentImage.height.toDouble()),
+                        frameSolve: frameSolve,
                       ),
                     ),
 

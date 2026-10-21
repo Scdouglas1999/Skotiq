@@ -244,29 +244,54 @@ class _SolvedFrameRecorder extends Notifier<(PlateSolveResult, DateTime)?> {
   }
 }
 
-/// The last solve, when it belongs to the frame on screen.
+/// The solve of the frame on screen: its background solve, else an
+/// operator's solve made of it while it was on screen.
 final nightStageSolveProvider = Provider<NightStageSolveVm?>((ref) {
-  final solved = ref.watch(_solvedFrameProvider);
   final image = ref.watch(nightStageImageProvider);
-  if (solved == null || image == null) return null;
+  if (image == null) return null;
+  final target = ref.watch(nightTargetProvider);
+  NightStageSolveVm solveVm({
+    required double ra,
+    required double dec,
+    required double rotation,
+    required double scale,
+  }) =>
+      NightStageSolveVm(
+        frameCapturedAt: image.capturedAt,
+        raDegrees: ra,
+        decDegrees: dec,
+        rotationDeg: rotation,
+        pixelScaleArcsec: scale,
+        offTargetArcmin: target == null
+            ? null
+            : nightSeparationDegrees(
+                  ra,
+                  dec,
+                  target.raHours * 15,
+                  target.decDegrees,
+                ) *
+                60,
+      );
+  final auto = ref.watch(currentFrameSolveProvider);
+  if (auto != null &&
+      auto.isSolved &&
+      auto.frameCapturedAt == image.capturedAt) {
+    return solveVm(
+      ra: auto.raDegrees!,
+      dec: auto.decDegrees!,
+      rotation: auto.rotationDeg!,
+      scale: auto.pixelScaleArcsec!,
+    );
+  }
+  final solved = ref.watch(_solvedFrameProvider);
+  if (solved == null) return null;
   final (result, capturedAt) = solved;
   if (capturedAt != image.capturedAt) return null;
-  final target = ref.watch(nightTargetProvider);
-  return NightStageSolveVm(
-    frameCapturedAt: capturedAt,
-    raDegrees: result.ra,
-    decDegrees: result.dec,
-    rotationDeg: result.rotation,
-    pixelScaleArcsec: result.pixelScale,
-    offTargetArcmin: target == null
-        ? null
-        : nightSeparationDegrees(
-              result.ra,
-              result.dec,
-              target.raHours * 15,
-              target.decDegrees,
-            ) *
-            60,
+  return solveVm(
+    ra: result.ra,
+    dec: result.dec,
+    rotation: result.rotation,
+    scale: result.pixelScale,
   );
 });
 
@@ -380,9 +405,23 @@ class FrameStage extends ConsumerWidget {
                       right: _inset,
                       bottom: _inset,
                       left: _inset,
-                      child: Align(
-                        alignment: Alignment.bottomRight,
-                        child: _ViewButtons(image: image, viewport: viewport),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: <Widget>[
+                          const Flexible(child: _OverlayStatus()),
+                          const SizedBox(width: SkotiqTokens.spaceSm),
+                          Flexible(
+                            flex: 2,
+                            child: Align(
+                              alignment: Alignment.bottomRight,
+                              child: _ViewButtons(
+                                image: image,
+                                viewport: viewport,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                 ],
@@ -431,7 +470,8 @@ class _LiveFrame extends ConsumerWidget {
     final colors = context.skotiqColors;
     final viewer = ref.watch(imagingViewerStateProvider);
     final showStars = viewer.showStarOverlay;
-    final stars = showStars ? ref.watch(starDetectionResultProvider) : null;
+    final stars =
+        showStars ? ref.watch(currentFrameStarsProvider).valueOrNull : null;
     final imageSize = Size(image.width.toDouble(), image.height.toDouble());
     final fitScale =
         previewFitScale(viewportSize: viewport, imageSize: imageSize);
@@ -484,6 +524,7 @@ class _LiveFrame extends ConsumerWidget {
                 zoomLevel: displayScale,
                 imageOffset: imageOffset,
                 imageSize: imageSize,
+                frameSolve: ref.watch(currentFrameSolveProvider),
               ),
           ],
         ),

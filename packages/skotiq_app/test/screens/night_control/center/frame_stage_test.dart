@@ -1,10 +1,15 @@
 // The frame stage: empty states, the frame pill, the activity pill and the
 // strip selection, against the boards.
+import 'dart:async';
+
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/imaging/widgets/overlay_painters.dart';
 import 'package:skotiq_app/screens/night_control/center/frame_stage.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/night_target_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
@@ -13,6 +18,7 @@ import 'center_test_support.dart';
 
 void main() {
   group('exposure', exposureTests);
+  group('view overlays', overlayTests);
 
   testWidgets('before a run with no frame it says nothing is captured yet',
       (tester) async {
@@ -255,5 +261,146 @@ void exposureTests() {
 
     container.read(cameraStateProvider.notifier).setExposing(false);
     expect(container.read(nightStageExposureProvider), isNull);
+  });
+}
+
+const _twoStars = StarDetectionResult(
+  stars: <DetectedStar>[
+    DetectedStar(
+      x: 2,
+      y: 1,
+      flux: 900,
+      hfr: 2.4,
+      fwhm: 5,
+      peak: 300,
+      background: 100,
+      snr: 40,
+    ),
+    DetectedStar(
+      x: 4,
+      y: 3,
+      flux: 700,
+      hfr: 2.2,
+      fwhm: 4.6,
+      peak: 250,
+      background: 100,
+      snr: 30,
+    ),
+  ],
+  starCount: 2,
+  medianHfr: 2.3,
+  medianFwhm: 4.8,
+  medianSnr: 35,
+  background: 100,
+  noise: 5,
+);
+
+void overlayTests() {
+  Finder starCircles() => find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is StarOverlayPainter,
+      );
+
+  testWidgets('Stars circles the stars found and says how many',
+      (tester) async {
+    final image = testFrame();
+    final container = await pumpCenter(
+      tester,
+      <Override>[
+        ...centerOverrides(NightFixtures.running(), image: image),
+        currentFrameStarsProvider.overrideWith((ref) async => _twoStars),
+      ],
+      child: const FrameStage(),
+    );
+    container.read(currentImageProvider.notifier).state = image;
+    await tester.pump();
+    expect(starCircles(), findsNothing);
+    expect(find.textContaining('2 stars'), findsNothing);
+
+    await tester.tap(find.text('Stars'));
+    await tester.pump();
+    await tester.pump();
+    expect(starCircles(), findsOneWidget);
+    expect(find.textContaining('2 stars'), findsOneWidget);
+    expect(find.textContaining('HFR 2.30'), findsOneWidget);
+
+    await tester.tap(find.text('Stars'));
+    await tester.pump();
+    expect(starCircles(), findsNothing);
+    expect(find.textContaining('2 stars'), findsNothing);
+  });
+
+  testWidgets('Stars says when it is still looking', (tester) async {
+    final image = testFrame();
+    final pending = Completer<StarDetectionResult?>();
+    final container = await pumpCenter(
+      tester,
+      <Override>[
+        ...centerOverrides(NightFixtures.running(), image: image),
+        currentFrameStarsProvider.overrideWith((ref) => pending.future),
+      ],
+      child: const FrameStage(),
+    );
+    container.read(imagingViewerStateProvider.notifier).toggleStarOverlay();
+    await tester.pump();
+    expect(find.textContaining('Finding stars'), findsOneWidget);
+    pending.complete(null);
+    await tester.pump();
+    expect(
+        find.textContaining('No saved file to find stars in'), findsOneWidget);
+  });
+
+  testWidgets('Annotate says the frame is being solved, then labels it',
+      (tester) async {
+    final image = testFrame();
+    final solve = StateProvider<FrameSolveVm?>(
+      (ref) => FrameSolveVm(
+        frameCapturedAt: image.capturedAt,
+        status: FrameSolveStatus.solving,
+      ),
+    );
+    final container = await pumpCenter(
+      tester,
+      <Override>[
+        ...centerOverrides(NightFixtures.running(), image: image),
+        currentFrameSolveProvider.overrideWith((ref) => ref.watch(solve)),
+      ],
+      child: const FrameStage(),
+    );
+    await tester.tap(find.text('Annotate'));
+    await tester.pump();
+    expect(find.text('Solving this frame'), findsOneWidget);
+    expect(find.textContaining('solve first'), findsNothing);
+
+    container.read(solve.notifier).state = FrameSolveVm(
+      frameCapturedAt: image.capturedAt,
+      status: FrameSolveStatus.noSolver,
+      message: 'No usable plate solver configured.',
+    );
+    await tester.pump();
+    expect(find.text('No plate solver set up'), findsOneWidget);
+  });
+
+  test('a background solve is the stage solve of its frame', () {
+    final image = testFrame();
+    final container = ProviderContainer(
+      overrides: <Override>[
+        nightStageImageProvider.overrideWithValue(image),
+        nightTargetProvider.overrideWithValue(null),
+        currentFrameSolveProvider.overrideWithValue(
+          FrameSolveVm(
+            frameCapturedAt: image.capturedAt,
+            status: FrameSolveStatus.solved,
+            raDegrees: 24.17,
+            decDegrees: 15.78,
+            rotationDeg: 0.4,
+            pixelScaleArcsec: 1.2,
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final solve = container.read(nightStageSolveProvider)!;
+    expect(solve.raDegrees, 24.17);
+    expect(solve.frameCapturedAt, image.capturedAt);
   });
 }
