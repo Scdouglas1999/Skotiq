@@ -475,6 +475,8 @@ struct RunOutcome {
     state: ExecutorState,
     completions: Vec<(String, DepthGoalCompletion)>,
     warnings: Vec<String>,
+    /// `DitherPerformed` events, by the node each named ("" for a trigger).
+    dithers_reported: Vec<String>,
 }
 
 async fn run(
@@ -516,8 +518,12 @@ async fn run(
 
     let mut completions = Vec::new();
     let mut warnings = Vec::new();
+    let mut dithers_reported = Vec::new();
     while let Ok(event) = events.try_recv() {
         match event {
+            ExecutorEvent::DitherPerformed { node_id } => {
+                dithers_reported.push(node_id.unwrap_or_default())
+            }
             ExecutorEvent::DepthGoalCompleted {
                 filter_name,
                 completion,
@@ -533,6 +539,7 @@ async fn run(
         state,
         completions,
         warnings,
+        dithers_reported,
     }
 }
 
@@ -840,6 +847,7 @@ async fn the_dither_interval_trigger_stands_down_while_the_node_owns_the_cadence
 
     assert_eq!(outcome.state, ExecutorState::Completed);
     assert_eq!(ops.timeline(), "L R L R L dither L L L");
+    assert_eq!(outcome.dithers_reported, vec!["smart".to_string()]);
 }
 
 /// A node that sets no cadence leaves dithering to the trigger, which still
@@ -860,6 +868,8 @@ async fn a_node_without_a_cadence_leaves_dithering_to_the_trigger() {
         .split_whitespace()
         .count();
     assert!(frames_before_dither >= 5, "{timeline}");
+    // The trigger's dither is reported for the run's count like a node's.
+    assert_eq!(outcome.dithers_reported, vec![String::new()]);
 }
 
 fn exposure_node(id: &str, count: u32, dither_every: Option<u32>) -> crate::NodeDefinition {
@@ -905,4 +915,5 @@ async fn a_bursts_own_dithers_restart_the_trigger_count() {
     assert_eq!(outcome.state, ExecutorState::Completed);
     let timeline = ops.timeline().replace("<none>", "F");
     assert_eq!(timeline, "F F F dither F F F dither F F F");
+    assert_eq!(outcome.dithers_reported, vec!["burst".to_string(); 2]);
 }

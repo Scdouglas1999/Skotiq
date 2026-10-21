@@ -947,6 +947,7 @@ pub async fn execute_exposure_with_renderer(
                         state.consecutive_dither_failures = 0;
                         state.mark_dither_performed_in_burst(completed_exposures);
                     }
+                    announce_dither_performed(ctx);
                 }
                 if let Err(e) = dither_result {
                     // An UNGUIDED rig cannot dither, and that is a

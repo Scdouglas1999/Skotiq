@@ -16,6 +16,10 @@ use super::*;
 /// `SequenceExecutor::new()` and never replaced — the loops can only see
 /// `Closed` at process teardown, and the supervisor's restart-on-panic keeps
 /// them alive through anything short of that.
+/// `detail_kind` of the structured-progress event that reports one dither
+/// the run performed (`ExecutorEvent::DitherPerformed`).
+pub(crate) const DITHER_PERFORMED_DETAIL_KIND: &str = "DitherPerformed";
+
 pub(crate) static SEQUENCER_EVENT_BRIDGES_STARTED: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
@@ -218,6 +222,21 @@ pub(crate) async fn run_sequencer_event_loop(
                         confirmation_frames: completion.confirmation_frames,
                         score: completion.score,
                         threshold: completion.threshold,
+                    }),
+                )),
+                // Rides the structured-progress variant under its own kind,
+                // so the run's dither count needs no new wire type. The
+                // Dart executor counts it and does not treat it as node
+                // progress.
+                ExecutorEvent::DitherPerformed { node_id } => Some(create_event_auto_id(
+                    EventSeverity::Info,
+                    EventCategory::Sequencer,
+                    EventPayload::Sequencer(SequencerEvent::InstructionProgressStructured {
+                        node_id: node_id.clone().unwrap_or_default(),
+                        instruction: "Dither".to_string(),
+                        progress_percent: 100.0,
+                        detail_kind: DITHER_PERFORMED_DETAIL_KIND.to_string(),
+                        detail_json: "{}".to_string(),
                     }),
                 )),
                 ExecutorEvent::NodeStarted { id, name } => Some(create_event_auto_id(

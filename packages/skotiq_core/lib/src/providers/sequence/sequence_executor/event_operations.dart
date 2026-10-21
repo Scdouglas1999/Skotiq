@@ -16,15 +16,15 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
       _logger.debug(trace, source: 'SequenceExecutor');
     }
 
-    // A dither that actually settled. This is the only event emitted when the
-    // mount is dithered, and it covers both a Dither node and the far more
-    // common per-burst `dither_every` pulse, which produces no sequencer event
-    // at all — so it is the ONE site that may call
-    // `SequenceRunStats.recordDither()`. Counting the Dither NODE's own
-    // completion as well would double-count every node-driven dither, which
-    // all reach the guider through this same event.
-    if (event.category == EventCategory.guiding &&
-        event.eventType == 'DitherCompleted') {
+    // A dither the run performed. The executor reports each one once,
+    // whoever asked for it: a Dither node, a Smart Exposure plan, a burst's
+    // dither-every, or the Dither Interval trigger. It is the ONE site that
+    // may call `SequenceRunStats.recordDither()`. The guider's own
+    // `DitherCompleted` is not counted: only the built-in guider sends it,
+    // so a PHD2 run counted no dithers at all (rig, 2026-10-20), and counted
+    // as well it would double every dither on the built-in guider. It is a
+    // count, not node progress, so nothing below sees it.
+    if (isRunDitherEvent(event)) {
       _incrementRunStat((stats) => stats.recordDither());
       return;
     }

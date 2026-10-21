@@ -599,6 +599,16 @@ pub enum ExecutorEvent {
         trigger_name: String,
         action: String,
     },
+    /// The run dithered the mount and the guider settled. Sent once per
+    /// dither, whoever asked for it: a Dither node, a Smart Exposure plan's
+    /// cadence, a burst's `dither_every`, or the Dither Interval trigger. The
+    /// run's dither count is counted from this event alone. A dither that was
+    /// skipped (no guider, imaging unguided, the grid's center cell) or that
+    /// failed sends nothing.
+    DitherPerformed {
+        /// The node the dither ran for, or `None` for a trigger's dither.
+        node_id: Option<NodeId>,
+    },
     Error {
         message: String,
     },
