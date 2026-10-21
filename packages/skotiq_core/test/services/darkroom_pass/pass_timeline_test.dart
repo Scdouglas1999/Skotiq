@@ -255,6 +255,35 @@ void main() {
     });
   });
 
+  test('a drafts-only pass lists its drafts and shows the newest one', () {
+    final b = _Log('darkroom-7')
+      ..at(0, PassKinds.passPlanned, {'sessionId': 7, 'lanes': []})
+      ..at(0, PassKinds.stage, {
+        'stage': 'draft',
+        'state': 'started',
+        'total': 2,
+      })
+      ..at(4, PassKinds.stage, {
+        'stage': 'draft',
+        'state': 'step',
+        'name': 'M42 · L',
+        'previewPath': '/p/l.jpg',
+      })
+      ..at(9, PassKinds.stage, {
+        'stage': 'draft',
+        'state': 'step',
+        'name': 'M42 · R',
+      })
+      ..at(9, PassKinds.stage, {'stage': 'draft', 'state': 'done'})
+      ..at(10, PassKinds.passEnded, {'ok': true});
+    final tl = PassTimeline.fromLog(b.log);
+    expect(tl.drafts.map((d) => d.name), ['M42 · L', 'M42 · R']);
+    expect(tl.at(_s(2)).image.$1, isNull);
+    // The second draft has no render, so the first stays on screen.
+    expect(tl.at(_s(9.5)).image.$1, '/p/l.jpg');
+    expect(tl.at(_s(9.5)).image.$2, 'Draft of M42 · L');
+  });
+
   test('passReadableReason states a failed match plainly', () {
     expect(
       passReadableReason(

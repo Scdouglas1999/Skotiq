@@ -251,6 +251,7 @@ class SessionReviewController extends StateNotifier<SessionReviewState> {
         hintRaHours: hintRaHours,
         hintDecDegrees: hintDecDegrees,
         sessionId: _scope.sessionId,
+        passTitle: state.title,
         outputFitsPathBuilder: (filterBucket) {
           final stamp = DateTime.now().millisecondsSinceEpoch;
           final base = _safeName(state.title);

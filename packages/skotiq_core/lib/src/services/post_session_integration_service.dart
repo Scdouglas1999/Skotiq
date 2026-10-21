@@ -118,6 +118,7 @@ class PostSessionIntegrationService {
     int? sessionId,
     int plannedDrafts = 0,
     bool closePass = true,
+    String? passTitle,
   }) async {
     if (subs.isEmpty) {
       throw ArgumentError.value(subs, 'subs', 'must not be empty');
@@ -133,7 +134,7 @@ class PostSessionIntegrationService {
         ? runId
         : 'integrate-${DateTime.now().millisecondsSinceEpoch}';
     reporter?.report(passRunId, PassKinds.passPlanned, <String, dynamic>{
-      'target': ?targetName,
+      'target': ?(targetName ?? passTitle),
       'sessionId': ?sessionId,
       'lanes': <Map<String, dynamic>>[
         for (final entry in groups.entries)

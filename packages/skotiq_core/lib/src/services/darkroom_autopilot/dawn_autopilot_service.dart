@@ -898,15 +898,13 @@ class DawnAutopilotService {
           directory: baseDirectory,
         ),
       );
-      _passReporter?.reportForSession(
-        sessionId,
-        PassKinds.stage,
-        <String, dynamic>{
-          'stage': 'draft',
-          'state': 'step',
-          'name': master.name,
-        },
-      );
+      _passReporter
+          ?.reportForSession(sessionId, PassKinds.stage, <String, dynamic>{
+            'stage': 'draft',
+            'state': 'step',
+            'name': master.name,
+            'previewPath': ?reports.last.draftRenderPath,
+          });
     }
 
     // PER-MASTER ACCOUNTING, IN TWO READINGS. Only the masters whose pixels

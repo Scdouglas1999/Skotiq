@@ -218,6 +218,14 @@ class PassChannelFit {
       dx == null || dy == null ? null : math.sqrt(dx! * dx! + dy! * dy!);
 }
 
+/// One draft the pass rendered.
+class PassDraft {
+  const PassDraft({required this.at, required this.name, this.previewPath});
+  final Duration at;
+  final String name;
+  final String? previewPath;
+}
+
 /// A pass as reported, on one clock that starts at its first report.
 class PassTimeline {
   PassTimeline._(this.runId, this.startedAt);
@@ -236,6 +244,9 @@ class PassTimeline {
   final List<PassChannelFit> channelFits = <PassChannelFit>[];
   String? colorPreviewPath;
   Duration? colorPreviewAt;
+
+  /// Every draft the pass rendered, in order.
+  final List<PassDraft> drafts = <PassDraft>[];
 
   /// Stored seconds per sub (lane stages) or per item (later stages) from an
   /// earlier pass, by [PassStage.key].
@@ -530,6 +541,16 @@ class PassTimeline {
             case 'step':
               s.start ??= at;
               s.ticks.add(at);
+              if (stage == PassStage.draft) {
+                tl.drafts.add(
+                  PassDraft(
+                    at: at,
+                    name:
+                        x['name'] as String? ?? 'Draft ${tl.drafts.length + 1}',
+                    previewPath: x['previewPath'] as String?,
+                  ),
+                );
+              }
             case 'done':
               s.start ??= at;
               s.end = at;
@@ -666,8 +687,17 @@ class PassSnapshot {
         '${lanes.map((l) => l.lane).join(', ')} combined',
       );
     }
+    // Once the lanes are done, the newest draft is the newest image.
+    final lanesDone = lanes.every(written);
+    if (lanesDone) {
+      for (final d in timeline.drafts.reversed) {
+        if (d.at <= elapsed && d.previewPath != null) {
+          return (d.previewPath, 'Draft of ${d.name}');
+        }
+      }
+    }
     final lane = focusLane;
-    if (lane == null) return (null, 'Nothing stacked yet');
+    if (lane == null) return (null, 'Nothing drafted yet');
     if (written(lane) && lane.masterPreviewPath != null) {
       return (
         lane.masterPreviewPath,

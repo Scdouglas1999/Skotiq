@@ -457,9 +457,12 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
             scoreTone: !pass.ended
                 ? colors.primary
                 : (pass.failure == null ? colors.success : colors.error),
-            name: pass.target ?? 'Pass ${pass.runId}',
+            name: pass.target ??
+                'Pass of ${_night(pass.startedAt)} '
+                    '${pass.startedAt.hour.toString().padLeft(2, '0')}:'
+                    '${pass.startedAt.minute.toString().padLeft(2, '0')}',
             detail: [
-              _night(pass.startedAt),
+              if (pass.sessionId != null) 'session ${pass.sessionId}',
               if (!pass.ended) 'running now',
               if (pass.failure != null) pass.failure!,
             ].join(' · '),

@@ -46,6 +46,7 @@ class _ObservingIntegrationService implements PostSessionIntegrationService {
     int? sessionId,
     int plannedDrafts = 0,
     bool closePass = true,
+    String? passTitle,
   }) async {
     markerDuringRun = await readIntegrationMarker(_markerDir);
 

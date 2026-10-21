@@ -63,6 +63,10 @@ class PassView extends StatelessWidget {
 }
 
 String _passNote(PassSnapshot s) {
+  if (s.lanes.isEmpty) {
+    final n = s.timeline.drafts.where((d) => d.at <= s.elapsed).length;
+    return '$n ${n == 1 ? 'draft' : 'drafts'} of the session\'s masters';
+  }
   final subs = s.lanes.fold<int>(0, (n, l) => n + l.subCount);
   final lanes = s.lanes.length;
   final cal = s.lanes.map((l) => l.calibrationNote).whereType<String>().toSet();
@@ -581,6 +585,10 @@ class _Column extends StatelessWidget {
 
 List<Widget> _ledgerSections(PassSnapshot s, {bool compact = false}) {
   final lane = s.focusLane;
+  final drafts = <PassDraft>[
+    for (final d in s.timeline.drafts)
+      if (d.at <= s.elapsed) d,
+  ];
   final pad = compact
       ? const EdgeInsets.symmetric(
           horizontal: SkotiqTokens.spaceMd, vertical: 10)
@@ -600,6 +608,16 @@ List<Widget> _ledgerSections(PassSnapshot s, {bool compact = false}) {
                 rowHeight: compact ? 18 : 19,
                 compact: compact,
               ),
+      ),
+    if (drafts.isNotEmpty || (s.lanes.isEmpty && !s.ended))
+      PassSection(
+        title: 'Drafts',
+        note:
+            compact ? null : 'one per master, background, denoise and stretch',
+        padding: pad,
+        child: drafts.isEmpty
+            ? const _Muted('Each master is drafted in turn.')
+            : _DraftList(s, drafts),
       ),
     if (s.lanes.isNotEmpty)
       PassSection(
@@ -718,6 +736,51 @@ class _SingleColumn extends StatelessWidget {
           ..._timingSections(s),
         ],
       ),
+    );
+  }
+}
+
+/// The drafts rendered so far, with how long each took.
+class _DraftList extends StatelessWidget {
+  const _DraftList(this.s, this.drafts);
+  final PassSnapshot s;
+  final List<PassDraft> drafts;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.skotiqColors;
+    final start = s.timeline.colorSpans[PassStage.draft]?.start;
+    var previous = start;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        for (final d in drafts)
+          Builder(builder: (context) {
+            final took = previous == null ? null : d.at - previous!;
+            previous = d.at;
+            return SizedBox(
+              height: 19,
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      d.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: SkotiqTypography.captionSm
+                          .copyWith(color: colors.textPrimary),
+                    ),
+                  ),
+                  Text(
+                    took == null ? '' : passClock(took),
+                    style: SkotiqTypography.monoXs
+                        .copyWith(color: colors.textSecondary),
+                  ),
+                ],
+              ),
+            );
+          }),
+      ],
     );
   }
 }
