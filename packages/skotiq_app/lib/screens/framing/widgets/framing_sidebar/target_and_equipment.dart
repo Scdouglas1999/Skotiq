@@ -1,8 +1,9 @@
 part of '../framing_sidebar.dart';
 
-/// The pinned search block: SIMBAD-backed name search with its results and
-/// error line, and one row of manual RA / Dec entry. The controllers are owned
-/// by the parent screen so navigating away and back preserves the input.
+/// The pinned search block: name search over the installed catalog (SIMBAD
+/// resolves names it does not hold) with its results and error line, and one
+/// row of manual RA / Dec entry. The controllers are owned by the parent
+/// screen so navigating away and back preserves the input.
 class FramingTargetSearch extends ConsumerWidget {
   final SkotiqColors colors;
   final TargetSearchState searchState;
@@ -11,7 +12,11 @@ class FramingTargetSearch extends ConsumerWidget {
   final TextEditingController raController;
   final TextEditingController decController;
   final ValueChanged<FramingTarget> onTargetSelected;
-  final ValueChanged<String> onResolveByName;
+
+  /// Enter in the search field. The screen decides whether the text names one
+  /// object (select it), several (keep the list open) or none locally (ask
+  /// SIMBAD).
+  final ValueChanged<String> onSubmitSearch;
   final VoidCallback onGoToManualCoordinates;
 
   const FramingTargetSearch({
@@ -23,7 +28,7 @@ class FramingTargetSearch extends ConsumerWidget {
     required this.raController,
     required this.decController,
     required this.onTargetSelected,
-    required this.onResolveByName,
+    required this.onSubmitSearch,
     required this.onGoToManualCoordinates,
   });
 
@@ -94,13 +99,7 @@ class FramingTargetSearch extends ConsumerWidget {
               onChanged: (value) {
                 ref.read(targetSearchProvider.notifier).search(value);
               },
-              onSubmitted: (value) {
-                if (searchState.results.isNotEmpty) {
-                  onTargetSelected(searchState.results.first);
-                } else if (value.isNotEmpty) {
-                  onResolveByName(value);
-                }
-              },
+              onSubmitted: onSubmitSearch,
             ),
             if (searchState.errorMessage != null) ...[
               const SizedBox(height: SkotiqTokens.spaceXs),

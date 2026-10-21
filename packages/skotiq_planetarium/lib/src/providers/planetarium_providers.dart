@@ -9,6 +9,7 @@ import '../coordinate_system.dart';
 import '../catalogs/star_catalog.dart';
 import '../catalogs/constellation_data.dart';
 import '../catalogs/catalog.dart';
+import '../catalogs/target_designation.dart';
 import '../catalogs/spatial_index.dart';
 import '../catalogs/minor_planet_catalog.dart';
 import '../astronomy/astronomy_calculations.dart';

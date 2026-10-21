@@ -256,6 +256,7 @@ export 'src/models/depthlock/depthlock_models.dart';
 export 'src/providers/depthlock_provider.dart';
 export 'src/services/host_mutation_event_hub.dart';
 export 'src/providers/simbad_provider.dart';
+export 'src/services/sesame_name_resolver.dart';
 export 'src/providers/exoplanet_provider.dart';
 export 'src/providers/gaia_provider.dart';
 export 'src/providers/annotation_settings_provider.dart';

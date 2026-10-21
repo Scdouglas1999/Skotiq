@@ -2,10 +2,20 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 import '../models/annotation_data.dart';
+import '../services/sesame_name_resolver.dart';
 
 class SimbadProvider {
   static const String _baseUrl =
       'http://simbad.u-strasbg.fr/simbad/sim-tap/sync';
+  static const String _tapUrl =
+      'https://simbad.cds.unistra.fr/simbad/sim-tap/sync';
+
+  final http.Client? _client;
+  final SesameNameResolver _sesame;
+
+  SimbadProvider({http.Client? client, SesameNameResolver? sesame})
+    : _client = client,
+      _sesame = sesame ?? SesameNameResolver(client: client);
 
   Future<ObjectData?> queryByCoordinates(
     double ra,
@@ -70,16 +80,16 @@ class SimbadProvider {
     return null;
   }
 
-  /// Resolve a name fragment to a list of SIMBAD objects.
+  /// Search SIMBAD for objects matching a typed name, best match first.
   ///
-  /// Hits the public TAP service with a LIKE query against the `ident` table
-  /// so any name SIMBAD knows about (M, NGC, IC, HD, HIP, common names, etc.)
-  /// can resolve. Returns up to [limit] best matches ordered by main_id length
-  /// (shorter == more canonical).
+  /// The exact object the name identifies (resolved through Sesame, the same
+  /// resolver SIMBAD's search box uses) always comes first. Objects with an
+  /// identifier merely containing the text follow, so "M42" lists M 42 and
+  /// only then things like "[SSP2021] M42".
   ///
-  /// Returns an empty list on network failure rather than throwing — the
-  /// caller (planner search) wants a partial result if SIMBAD is down, not
-  /// to crash the search UI. Errors are still logged via developer.log.
+  /// Throws [TargetNameLookupUnavailable] only when SIMBAD could not be
+  /// reached at all, so the planner can say the lookup failed instead of
+  /// claiming SIMBAD has no such object. An empty list is a real answer.
   Future<List<SimbadNameMatch>> searchByName(
     String query, {
     int limit = 25,
@@ -87,70 +97,118 @@ class SimbadProvider {
     final trimmed = query.trim();
     if (trimmed.length < 2) return const <SimbadNameMatch>[];
 
-    // SIMBAD's ident.id stores names with normalized whitespace ("M  31",
-    // "NGC 7635"). To match user typing "m31" / "ngc7635" we wildcard on
-    // BOTH sides AND also try a no-space variant. ADQL doesn't have a
-    // REGEXP_REPLACE that's portable across TAP impls, so we OR two LIKE
-    // patterns instead.
-    final escaped = trimmed.replaceAll("'", "''");
-    final patternA = '%$escaped%';
-    final patternB = '%${escaped.replaceAll(RegExp(r'\s+'), '')}%';
+    final out = <SimbadNameMatch>[];
+    TargetNameLookupUnavailable? exactFailure;
+    try {
+      final exact = await _sesame.resolve(trimmed);
+      if (exact != null) {
+        out.add(
+          SimbadNameMatch(
+            mainId: exact.mainId,
+            raHours: exact.raHours,
+            decDegrees: exact.decDegrees,
+            objectType: exact.objectType,
+            exact: true,
+          ),
+        );
+      }
+    } on TargetNameLookupUnavailable catch (e) {
+      exactFailure = e;
+      developer.log(
+        '[SIMBAD] exact name lookup unavailable: $e',
+        name: 'SimbadProvider',
+        level: 900,
+      );
+    }
 
+    final partial = await _searchIdentifiersContaining(trimmed, limit);
+    if (partial == null) {
+      if (exactFailure != null) throw exactFailure;
+      return out;
+    }
+    final seen = {for (final m in out) _compact(m.mainId)};
+    final queryKey = _compact(trimmed);
+    partial.removeWhere((m) => !seen.add(_compact(m.mainId)));
+    // Why: TAP returns rows in DB-internal order. An identifier that starts
+    // with the query reads as a closer match than one that only contains it,
+    // and shorter main ids are the canonical ones ("M 31" before "LEDA 2557").
+    int rank(SimbadNameMatch m) {
+      final identifier = m.matchedIdentifier;
+      if (identifier == null) return 1;
+      return _compact(identifier).startsWith(queryKey) ? 0 : 1;
+    }
+
+    partial.sort((a, b) {
+      final byRank = rank(a).compareTo(rank(b));
+      if (byRank != 0) return byRank;
+      return a.mainId.length.compareTo(b.mainId.length);
+    });
+    out.addAll(partial);
+    return out.length > limit ? out.sublist(0, limit) : out;
+  }
+
+  /// SIMBAD identifiers containing [text]. ADQL on SIMBAD has no LOWER,
+  /// ILIKE or REPLACE, and identifiers are stored with column padding
+  /// ("M  42", "NGC  891"), so the text is tried as typed and upper-cased.
+  /// Returns null when SIMBAD could not be queried.
+  Future<List<SimbadNameMatch>?> _searchIdentifiersContaining(
+    String text,
+    int limit,
+  ) async {
+    final escaped = text.replaceAll("'", "''");
+    final patterns = <String>{'%$escaped%', '%${escaped.toUpperCase()}%'};
+    final where = patterns.map((p) => "ident.id LIKE '$p'").join(' OR ');
     final adql =
         '''
-      SELECT TOP $limit basic.main_id, basic.ra, basic.dec, basic.otype, flux.V
+      SELECT TOP $limit basic.main_id, basic.ra, basic.dec, basic.otype, ident.id
       FROM basic
-      LEFT JOIN flux ON basic.oid = flux.oidref AND flux.filter = 'V'
       JOIN ident ON basic.oid = ident.oidref
-      WHERE ident.id LIKE '$patternA' OR REPLACE(ident.id, ' ', '') LIKE '$patternB'
+      WHERE $where
     ''';
 
+    final client = _client ?? http.Client();
     try {
-      final response = await http.post(
-        Uri.parse(_baseUrl),
-        body: {
-          'request': 'doQuery',
-          'lang': 'adql',
-          'format': 'json',
-          'query': adql,
-        },
-      );
+      final response = await client
+          .post(
+            Uri.parse(_tapUrl),
+            body: {
+              'request': 'doQuery',
+              'lang': 'adql',
+              'format': 'json',
+              'query': adql,
+            },
+          )
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
         developer.log(
           '[SIMBAD] name search HTTP ${response.statusCode}',
           name: 'SimbadProvider',
           level: 900,
         );
-        return const <SimbadNameMatch>[];
+        return null;
       }
       final json = jsonDecode(response.body);
-      final data = json['data'];
-      if (data is! List) return const <SimbadNameMatch>[];
+      final data = json is Map ? json['data'] : null;
+      if (data is! List) return null;
 
       final out = <SimbadNameMatch>[];
-      final seenIds = <String>{};
       for (final row in data) {
         if (row is! List || row.length < 4) continue;
         final mainId = row[0]?.toString().trim();
         if (mainId == null || mainId.isEmpty) continue;
-        if (!seenIds.add(mainId)) continue;
         final raDeg = _parseDouble(row[1]);
         final decDeg = _parseDouble(row[2]);
         if (raDeg == null || decDeg == null) continue;
         out.add(
           SimbadNameMatch(
-            mainId: mainId,
+            mainId: SesameNameResolver.displayIdentifier(mainId),
             raHours: raDeg / 15.0,
             decDegrees: decDeg,
             objectType: row[3]?.toString(),
-            magnitudeV: row.length > 4 ? _parseDouble(row[4]) : null,
+            matchedIdentifier: row.length > 4 ? row[4]?.toString() : null,
           ),
         );
       }
-      // Why: SIMBAD returns matches in DB-internal order; ranking by main_id
-      // length puts canonical identifiers ("M 31") before catalog crossrefs
-      // ("LEDA 2557").
-      out.sort((a, b) => a.mainId.length.compareTo(b.mainId.length));
       return out;
     } catch (e) {
       developer.log(
@@ -159,9 +217,14 @@ class SimbadProvider {
         level: 900,
         error: e,
       );
-      return const <SimbadNameMatch>[];
+      return null;
+    } finally {
+      if (_client == null) client.close();
     }
   }
+
+  static String _compact(String value) =>
+      value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
 
   SpectralClass? _parseSpectralType(String? spType) {
     if (spType == null || spType.isEmpty) return null;
@@ -207,11 +270,20 @@ class SimbadNameMatch {
   final String? objectType;
   final double? magnitudeV;
 
+  /// True for the object the typed name identifies exactly (Sesame), false
+  /// for objects that only have an identifier containing the text.
+  final bool exact;
+
+  /// The SIMBAD identifier that contained the text, for partial matches.
+  final String? matchedIdentifier;
+
   const SimbadNameMatch({
     required this.mainId,
     required this.raHours,
     required this.decDegrees,
     this.objectType,
     this.magnitudeV,
+    this.exact = false,
+    this.matchedIdentifier,
   });
 }

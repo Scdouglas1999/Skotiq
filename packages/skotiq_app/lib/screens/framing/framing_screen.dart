@@ -323,7 +323,7 @@ class _FramingViewState extends ConsumerState<FramingView> {
       raController: _raController,
       decController: _decController,
       onTargetSelected: _selectTarget,
-      onResolveByName: _resolveAndSelectTarget,
+      onSubmitSearch: _submitSearch,
       onGoToManualCoordinates: _goToManualCoordinates,
     );
 
@@ -421,21 +421,18 @@ class _FramingViewState extends ConsumerState<FramingView> {
     // Alt/Az auto-refreshes on the next build (framingProvider watch triggers it).
   }
 
-  Future<void> _resolveAndSelectTarget(String name) async {
-    final result = await SimbadResolver.resolve(name);
+  Future<void> _submitSearch(String query) async {
+    final outcome = await ref.read(targetSearchProvider.notifier).submit(query);
     if (!mounted) return;
-    if (result == null) {
-      context.showErrorSnackBar('Could not resolve "$name"');
-      return;
+    final target = outcome.target;
+    if (target != null) {
+      _selectTarget(target);
+    } else if (outcome.failure != null) {
+      context.showErrorSnackBar(outcome.failure!);
+    } else if (outcome.showList) {
+      // Keep focus in the field so the list stays open to pick from.
+      _searchFocusNode.requestFocus();
     }
-    final target = FramingTarget(
-      name: result.mainId,
-      catalogId: result.mainId,
-      raHours: result.raHours,
-      decDegrees: result.decDegrees,
-      magnitude: result.magnitude,
-    );
-    _selectTarget(target);
   }
 
   void _goToManualCoordinates() {

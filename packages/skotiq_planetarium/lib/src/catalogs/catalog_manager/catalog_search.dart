@@ -24,7 +24,17 @@ extension CatalogManagerSearch on CatalogManager {
                   (d.messier != null &&
                       _catalogTextEquals(d.messier!, q, normalizedQuery)) ||
                   (d.ngcId != null &&
-                      _catalogTextEquals(d.ngcId!, q, normalizedQuery)),
+                      _catalogTextEquals(d.ngcId!, q, normalizedQuery)) ||
+                  (d.commonNames
+                          ?.split(',')
+                          .any(
+                            (n) => _catalogTextEquals(
+                              n.trim(),
+                              q,
+                              normalizedQuery,
+                            ),
+                          ) ??
+                      false),
             )
             .toList();
 
