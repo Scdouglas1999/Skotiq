@@ -1010,46 +1010,42 @@ class _TemperatureChart extends ConsumerWidget {
               ),
           ]);
 
-    // The note: the last autofocus and its move, else the chart's start.
+    // The note: the last autofocus and its move, else the chart's start;
+    // nothing over an empty chart. Shorter forms follow for a narrow cell.
     final from = vm.from;
-    final String? note;
+    String? note;
     final noteFallbacks = <String>[];
-    if (shift != null) {
+    if (empty) {
+      note = null;
+    } else if (shift != null) {
+      final at = l10n.text(
+        'nightCtrFocusLastAfAt',
+        params: <String, String>{'time': nightClockHm(shift.at)},
+      );
       final steps = shift.steps;
-      if (steps != null) {
+      if (steps == null) {
+        note = at;
+      } else {
+        note = l10n.text(
+          'nightCtrFocusLastAf',
+          params: <String, String>{
+            'time': nightClockHm(shift.at),
+            'steps': signedSteps(steps),
+          },
+        );
         noteFallbacks.addAll(<String>[
           l10n.text(
             'nightCtrFocusLastAfMove',
             params: <String, String>{'steps': signedSteps(steps)},
           ),
-          l10n.text(
-            'nightCtrFocusLastAfAt',
-            params: <String, String>{'time': nightClockHm(shift.at)},
-          ),
+          at,
         ]);
       }
-    }
-    if (shift != null) {
-      final steps = shift.steps;
-      note = steps == null
-          ? l10n.text(
-              'nightCtrFocusLastAfAt',
-              params: <String, String>{'time': nightClockHm(shift.at)},
-            )
-          : l10n.text(
-              'nightCtrFocusLastAf',
-              params: <String, String>{
-                'time': nightClockHm(shift.at),
-                'steps': signedSteps(steps),
-              },
-            );
-    } else {
-      note = from == null
-          ? null
-          : l10n.text(
-              'nightCtrSince',
-              params: <String, String>{'time': nightClockHm(from)},
-            );
+    } else if (from != null) {
+      note = l10n.text(
+        'nightCtrSince',
+        params: <String, String>{'time': nightClockHm(from)},
+      );
     }
 
     SeriesChartLine band(
@@ -1133,7 +1129,9 @@ class _TemperatureChart extends ConsumerWidget {
             'nightCtrFocusTempSince',
             params: <String, String>{'delta': signedCelsius(delta)},
           ),
-          rank: 0,
+          // Goes first: beside a temperature whose number was dropped it
+          // would read as that temperature.
+          rank: 2,
         ),
       if (afRuns.isNotEmpty)
         _LegendEntry(

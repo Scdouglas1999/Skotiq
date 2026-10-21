@@ -406,6 +406,46 @@ void main() {
       expect(text, contains('−0.7 °C since AF'));
     });
 
+    testWidgets('a short legend never leaves the drift beside a bare name',
+        (tester) async {
+      await pumpCenter(
+        tester,
+        centerOverrides(NightFixtures.running()),
+        child: const SessionChartsRow(),
+        size: const Size(744, 120),
+      );
+      final legend = tester
+          .widgetList<RichText>(find.byType(RichText))
+          .map((r) => r.text.toPlainText())
+          .firstWhere((t) => t.contains('position'));
+      // "focuser  −0.7 °C since AF" would read as a −0.7 °C focuser.
+      if (legend.contains('since AF')) {
+        expect(legend, contains('focuser 12.0 °C'));
+      }
+      expect(legend, contains('focuser'));
+    });
+
+    testWidgets('no readings: says so, without an autofocus note over it',
+        (tester) async {
+      final vm = NightSeriesVm(
+        lines: const <SeriesLineVm>[],
+        markers: <SeriesMarker>[
+          SeriesMarker(NightFixtures.at(23, 10), SeriesMarkerKind.autofocus),
+        ],
+      );
+      await pumpCenter(
+        tester,
+        <Override>[
+          ...centerOverrides(NightFixtures.running()),
+          nightTemperatureSeriesProvider.overrideWithValue(vm),
+        ],
+        child: const SessionChartsRow(),
+        size: const Size(1200, 120),
+      );
+      expect(find.text('No readings yet'), findsOneWidget);
+      expect(find.textContaining('AF 23:10'), findsNothing);
+    });
+
     testWidgets('a focuser without a probe uses the sensor temperature',
         (tester) async {
       final base = NightFixtures.temperatureSeries();
