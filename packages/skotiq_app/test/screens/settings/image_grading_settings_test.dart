@@ -65,17 +65,17 @@ void main() {
 
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await _pumpWrites(tester);
-    // 20 px is StarDetectionConfig.hfr_radius — the window the half-flux radius
-    // is measured in. A higher ceiling lets an operator save a threshold no
-    // frame can ever exceed: a silently dead gate.
+    // 10 px is the grader's measurement aperture. A higher ceiling lets an
+    // operator save a threshold no frame can ever exceed: a silently dead
+    // gate.
     expect(
       handle.container
           .read(appSettingsProvider)
           .value!
           .imageGradingHfrThresholdPx,
-      20,
+      10,
     );
-    expect(tester.widget<TextField>(field).controller!.text, '20.00');
+    expect(tester.widget<TextField>(field).controller!.text, '10.00');
   });
 
   testWidgets('required blank input restores the committed value',
