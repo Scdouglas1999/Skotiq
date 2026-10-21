@@ -690,6 +690,25 @@ pub enum ExecutorEvent {
         /// ("Aborted by operator" vs "Exhausted retries").
         aborted_by_user: bool,
     },
+    /// One measured point of an autofocus sweep. `detail` is the sweep's own
+    /// `autofocus_progress` JSON (V-curve so far, star crops), which the
+    /// bridge publishes as the focuser's `AutofocusProgress` property so the
+    /// V-curve draws live for a run's autofocus as it does for one started by
+    /// hand. Kept out of `NodeProgress`: its star crops would otherwise ride
+    /// every progress message and the run's status line.
+    AutofocusProgress {
+        focuser_id: String,
+        detail: String,
+    },
+    /// An autofocus sweep ended. `result_json` is the sequencer's
+    /// `AutofocusResult` when it succeeded, so the focus panel shows the
+    /// best position and fit without a manual run's return value.
+    AutofocusFinished {
+        focuser_id: String,
+        status: NodeStatus,
+        message: Option<String>,
+        result_json: Option<String>,
+    },
     SequenceCompleted,
     SequenceFailed {
         error: String,

@@ -351,6 +351,46 @@ pub async fn execute_autofocus_admitted_with_pause(
     config: &AutofocusConfig,
     ctx: &InstructionContext,
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    guard: AutofocusRunGuard,
+    pause: &crate::node::context::PauseGate,
+) -> InstructionResult {
+    // Every autofocus inside a run (the node, the interval and HFR triggers,
+    // the post-flip and recovery refocus) comes through here, and each
+    // caller's own progress callback keeps only a line of text. The sweep's
+    // points and its outcome also go out on the run's event channel, so the
+    // focus panel follows a run's autofocus live.
+    let Some(event_tx) = ctx.event_tx.clone() else {
+        return run_autofocus_admitted(config, ctx, progress_callback, guard, pause).await;
+    };
+    let focuser_id = ctx.focuser_id.clone().unwrap_or_default();
+    let forwarding = |progress: f64, detail: String| {
+        if detail.contains("\"type\":\"autofocus_progress\"") {
+            let _ = event_tx.send(crate::executor::ExecutorEvent::AutofocusProgress {
+                focuser_id: focuser_id.clone(),
+                detail: detail.clone(),
+            });
+        }
+        if let Some(cb) = progress_callback {
+            cb(progress, detail);
+        }
+    };
+    let result = run_autofocus_admitted(config, ctx, Some(&forwarding), guard, pause).await;
+    let result_json = (result.status == NodeStatus::Success)
+        .then(|| result.data.as_ref().map(|data| data.to_string()))
+        .flatten();
+    let _ = event_tx.send(crate::executor::ExecutorEvent::AutofocusFinished {
+        focuser_id,
+        status: result.status,
+        message: result.message.clone(),
+        result_json,
+    });
+    result
+}
+
+async fn run_autofocus_admitted(
+    config: &AutofocusConfig,
+    ctx: &InstructionContext,
+    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
     _guard: AutofocusRunGuard,
     pause: &crate::node::context::PauseGate,
 ) -> InstructionResult {

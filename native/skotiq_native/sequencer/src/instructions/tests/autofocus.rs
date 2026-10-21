@@ -580,3 +580,61 @@ async fn a_cleanly_failing_sweep_is_retried_exactly_up_to_the_budget() {
         exposures[0]
     );
 }
+
+/// The run's event channel is how a sequence's autofocus reaches the focus
+/// panel: no call returns its outcome to the UI, so a sweep that ends without
+/// an `AutofocusFinished` leaves the panel reading "running" for the night.
+#[tokio::test]
+#[allow(clippy::await_holding_lock)]
+async fn a_run_autofocus_reports_how_it_ended_on_the_event_channel() {
+    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let (tx, mut rx) = tokio::sync::broadcast::channel(64);
+
+    // Stopped before the first point.
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let mut ctx = ctx_with_ops(ops.clone()).await;
+    ctx.focuser_id = Some("foc-1".to_string());
+    ctx.event_tx = Some(tx.clone());
+    ctx.cancellation_token.store(true, Ordering::SeqCst);
+    let guard = try_admit_autofocus_run().expect("test autofocus must admit");
+    let result = execute_autofocus_admitted(&AutofocusConfig::default(), &ctx, None, guard).await;
+    assert_eq!(result.status, NodeStatus::Cancelled);
+
+    // A sweep on starless frames fails.
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let mut ctx = pointing_ctx(ops.clone(), "NGC7380", (22.79, 58.13)).await;
+    ctx.focuser_id = Some("foc-1".to_string());
+    ctx.event_tx = Some(tx.clone());
+    let config = AutofocusConfig {
+        exposure_duration: 0.01,
+        steps_out: 1,
+        exposures_per_point: 1,
+        ..Default::default()
+    };
+    let guard = try_admit_autofocus_run().expect("test autofocus must admit");
+    let failed = execute_autofocus_admitted(&config, &ctx, None, guard).await;
+    assert_eq!(failed.status, NodeStatus::Failure);
+
+    let mut finished = Vec::new();
+    while let Ok(event) = rx.try_recv() {
+        if let crate::executor::ExecutorEvent::AutofocusFinished {
+            focuser_id,
+            status,
+            message,
+            result_json,
+        } = event
+        {
+            assert_eq!(focuser_id, "foc-1");
+            assert!(result_json.is_none(), "only a success carries a result");
+            finished.push((status, message));
+        }
+    }
+    assert_eq!(
+        finished,
+        vec![
+            (NodeStatus::Cancelled, result.message.clone()),
+            (NodeStatus::Failure, failed.message.clone()),
+        ],
+        "each sweep ends with exactly one outcome, carrying its own reason"
+    );
+}

@@ -36,7 +36,8 @@ impl InstructionNode for AutofocusInstruction {
 
         let progress_fn = |progress: f64, detail_str: String| {
             if let Some(cb) = progress_cb {
-                let (step, hfr) = parse_autofocus_detail(&detail_str);
+                let (step, hfr) = parse_autofocus_point(&detail_str)
+                    .unwrap_or_else(|| parse_autofocus_detail(&detail_str));
                 let detail = if step.is_some() || hfr.is_some() {
                     ProgressDetail::Autofocus {
                         step: step.unwrap_or(0),
@@ -89,6 +90,21 @@ impl InstructionNode for AutofocusInstruction {
     }
 }
 
+/// The point number and HFR from the sweep's `autofocus_progress` JSON, which
+/// the text parser below reads as step 0.
+fn parse_autofocus_point(s: &str) -> Option<(Option<u32>, Option<f64>)> {
+    let value: serde_json::Value = serde_json::from_str(s).ok()?;
+    if value.get("type")?.as_str()? != "autofocus_progress" {
+        return None;
+    }
+    let point = value
+        .get("point")
+        .and_then(serde_json::Value::as_u64)
+        .and_then(|p| u32::try_from(p).ok());
+    let hfr = value.get("hfr").and_then(serde_json::Value::as_f64);
+    Some((point, hfr))
+}
+
 /// Parse "step N" and "hfr X.Y" style fragments from the autofocus
 /// instruction's free-form detail string.
 pub(crate) fn parse_autofocus_detail(s: &str) -> (Option<u32>, Option<f64>) {
@@ -131,6 +147,13 @@ mod tests {
         let (s, h) = parse_autofocus_detail("step 3 of 13 HFR 2.45");
         assert_eq!(s, Some(3));
         assert_eq!(h, Some(2.45));
+    }
+
+    #[test]
+    fn reads_the_point_from_the_sweep_json() {
+        let detail = r#"{"type":"autofocus_progress","point":5,"total_points":9,"hfr":3.87}"#;
+        assert_eq!(parse_autofocus_point(detail), Some((Some(5), Some(3.87))));
+        assert_eq!(parse_autofocus_point("step 3 of 13 HFR 2.45"), None);
     }
 
     #[test]

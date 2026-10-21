@@ -176,6 +176,116 @@ void main() {
     },
   );
 
+  group('a sequence autofocus', () {
+    SkotiqEvent finished(String value) => SkotiqEvent(
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      severity: EventSeverity.info,
+      category: EventCategory.equipment,
+      eventType: 'PropertyChanged',
+      data: {
+        'device_type': 'focuser',
+        'device_id': 'native:zwo_eaf:0',
+        'property': 'AutofocusFinished',
+        'value': value,
+      },
+    );
+
+    test(
+      'draws live and settles on the result the native side sends',
+      () async {
+        final container = buildContainer();
+        container.read(autofocusOverlayProvider.notifier);
+        await _pump();
+
+        events.add(_progressEvent(point: 1, totalPoints: 9, hfr: 7.46));
+        await _pump();
+        expect(container.read(autofocusOverlayProvider).isRunning, isTrue);
+        expect(container.read(autofocusOverlayProvider).currentPoint, 1);
+
+        events.add(
+          finished(
+            '{"status":"Success","message":null,"result":{'
+            '"best_position":45359,"best_hfr":3.79,"curve_fit_quality":0.94,'
+            '"method_used":"Hyperbolic","temperature_celsius":8.5,'
+            '"backlash_applied":false,"data_points":['
+            '{"position":45184,"hfr":7.46,"fwhm":null,"star_count":812}]}}',
+          ),
+        );
+        await _pump();
+
+        final state = container.read(autofocusOverlayProvider);
+        expect(state.isRunning, isFalse);
+        expect(state.hasError, isFalse);
+        expect(state.result?.bestPosition, 45359);
+        expect(state.result?.bestHfr, 3.79);
+        expect(state.result?.curveFitQuality, 0.94);
+        expect(state.result?.focusData.single.starCount, 812);
+      },
+    );
+
+    test('a failed sweep reads as failed with its reason', () async {
+      final container = buildContainer();
+      container.read(autofocusOverlayProvider.notifier);
+      await _pump();
+      events.add(_progressEvent(point: 1, totalPoints: 9));
+      await _pump();
+
+      events.add(
+        finished(
+          '{"status":"Failure","message":"curve fit R² 0.41 below 0.70",'
+          '"result":null}',
+        ),
+      );
+      await _pump();
+
+      final state = container.read(autofocusOverlayProvider);
+      expect(state.isRunning, isFalse);
+      expect(state.hasError, isTrue);
+      expect(state.status, contains('R² 0.41'));
+    });
+
+    test('a stopped run reads as cancelled', () async {
+      final container = buildContainer();
+      container.read(autofocusOverlayProvider.notifier);
+      await _pump();
+      events.add(_progressEvent(point: 1, totalPoints: 9));
+      await _pump();
+
+      events.add(finished('{"status":"Cancelled","message":null}'));
+      await _pump();
+
+      final state = container.read(autofocusOverlayProvider);
+      expect(state.isRunning, isFalse);
+      expect(state.hasError, isFalse);
+      expect(state.status, 'Autofocus cancelled');
+    });
+
+    test('an outcome for no running sweep changes nothing', () async {
+      final container = buildContainer();
+      final notifier = container.read(autofocusOverlayProvider.notifier);
+      await _pump();
+      notifier.onAutofocusStarted();
+      notifier.onAutofocusCompleted(
+        const AutofocusResult(
+          bestPosition: 25075,
+          bestHfr: 2.1,
+          focusData: [],
+          method: 'Hyperbolic',
+          timestamp: 0,
+          curveFitQuality: 0.92,
+          backlashApplied: true,
+        ),
+      );
+
+      events.add(finished('{"status":"Failure","message":"late"}'));
+      await _pump();
+
+      final state = container.read(autofocusOverlayProvider);
+      expect(state.hasError, isFalse);
+      expect(state.result?.bestPosition, 25075);
+    });
+  });
+
   test('progress for an untracked run does not invent an operation', () async {
     // Sequencer-driven autofocus emits the same events but registers no
     // OperationType.autofocus record; the push must be a no-op there.
@@ -236,6 +346,13 @@ void main() {
 
       async.elapse(const Duration(seconds: 2));
       expect(container.read(autofocusOverlayProvider).isVisible, isFalse);
+      expect(
+        container.read(autofocusOverlayProvider).result?.bestPosition,
+        25075,
+        reason:
+            'the Tonight Focus tab reads the last result after the '
+            'floating panel closes',
+      );
       container.dispose();
     });
   });

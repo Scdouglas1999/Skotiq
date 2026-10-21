@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/autofocus_progress.dart';
@@ -137,9 +139,12 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
     _eventSubscription = backend.eventStream.listen((event) {
       if (!mounted) return;
       if (generation != _backendGeneration) return;
-      if (event.category == EventCategory.equipment &&
-          event.eventType == 'AutofocusProgress') {
+      if (event.category != EventCategory.equipment) return;
+      if (event.eventType == 'AutofocusProgress') {
         _handleAutofocusProgress(event);
+      } else if (event.eventType == 'PropertyChanged' &&
+          event.data['property'] == 'AutofocusFinished') {
+        _handleAutofocusFinished(event.data['value'] as String?);
       }
     });
   }
@@ -209,6 +214,59 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
               : null,
           currentStep: phase,
         );
+  }
+
+  /// A sequence's autofocus ended. No call returns its result to Dart, so
+  /// the native side publishes the outcome. A manual run reports its own
+  /// outcome when its call returns, so this settles only a sweep still shown
+  /// as running.
+  void _handleAutofocusFinished(String? value) {
+    if (!state.isRunning || value == null) return;
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(value);
+    } on FormatException {
+      return;
+    }
+    if (decoded is! Map<String, dynamic>) return;
+    final message = decoded['message'] as String?;
+    switch (decoded['status']) {
+      case 'Success':
+        final result = _sequenceResult(decoded['result']);
+        if (result == null) {
+          onAutofocusFailed(message ?? 'Autofocus finished without a result');
+        } else {
+          onAutofocusCompleted(result);
+        }
+      case 'Cancelled':
+        onAutofocusCancelled();
+      default:
+        onAutofocusFailed(message ?? 'Autofocus failed');
+    }
+  }
+
+  /// The sequencer's own result shape, which differs from the one-shot
+  /// API's in field names.
+  static AutofocusResult? _sequenceResult(Object? json) {
+    if (json is! Map<String, dynamic>) return null;
+    final position = json['best_position'];
+    final hfr = json['best_hfr'];
+    if (position is! int || hfr is! num) return null;
+    final points = json['data_points'];
+    return AutofocusResult(
+      bestPosition: position,
+      bestHfr: hfr.toDouble(),
+      focusData: [
+        if (points is List)
+          for (final point in points)
+            if (point is Map<String, dynamic>) FocusDataPoint.fromJson(point),
+      ],
+      method: json['method_used']?.toString() ?? '',
+      temperature: (json['temperature_celsius'] as num?)?.toDouble(),
+      timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      curveFitQuality: (json['curve_fit_quality'] as num?)?.toDouble() ?? 0,
+      backlashApplied: json['backlash_applied'] as bool? ?? false,
+    );
   }
 
   /// Called when autofocus starts (from any trigger: focus tab, dashboard, sequencer)
@@ -284,13 +342,12 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
   }
 
   /// Close/dismiss the overlay
+  ///
+  /// Only the floating panel closes. The last result stays, because the
+  /// Tonight Focus tab reads it from here; the next run replaces it.
   void dismiss() {
     _cancelResultDismiss();
-    state = state.copyWith(
-      isVisible: false,
-      isRunning: false,
-      clearResult: true,
-    );
+    state = state.copyWith(isVisible: false, isRunning: false);
   }
 
   void _armResultDismiss() {

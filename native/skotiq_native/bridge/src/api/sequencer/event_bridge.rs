@@ -543,6 +543,47 @@ pub(crate) async fn run_sequencer_event_loop(
                         *aborted_by_user,
                     )),
                 )),
+                // A run's autofocus reaches the focus panel exactly as one
+                // started by hand: the same focuser property, the same
+                // payload. Its outcome rides a sibling property, since no
+                // call returns it to Dart.
+                ExecutorEvent::AutofocusProgress { focuser_id, detail } => {
+                    state.publish_equipment_event(
+                        crate::event::EquipmentEvent::PropertyChanged {
+                            device_type: "focuser".to_string(),
+                            device_id: focuser_id.clone(),
+                            property: "AutofocusProgress".to_string(),
+                            value: detail.clone(),
+                        },
+                        EventSeverity::Info,
+                    );
+                    None
+                }
+                ExecutorEvent::AutofocusFinished {
+                    focuser_id,
+                    status,
+                    message,
+                    result_json,
+                } => {
+                    let result = result_json
+                        .as_deref()
+                        .and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok());
+                    let value = serde_json::json!({
+                        "status": status,
+                        "message": message,
+                        "result": result,
+                    });
+                    state.publish_equipment_event(
+                        crate::event::EquipmentEvent::PropertyChanged {
+                            device_type: "focuser".to_string(),
+                            device_id: focuser_id.clone(),
+                            property: "AutofocusFinished".to_string(),
+                            value: value.to_string(),
+                        },
+                        EventSeverity::Info,
+                    );
+                    None
+                }
                 // translate the Rust executor's plugin-
                 // node request into the typed sequencer event Dart
                 // subscribes to. The Dart `SequenceExecutor` consumes

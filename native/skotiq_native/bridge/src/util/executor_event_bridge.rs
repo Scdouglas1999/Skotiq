@@ -87,6 +87,10 @@ fn forward_event(state: &SharedAppState, event: ExecutorEvent) {
         ExecutorEvent::Error { message } => (EventSeverity::Error, message),
         ExecutorEvent::Warning { message } => (EventSeverity::Warning, message),
         ExecutorEvent::SequenceFailed { error } => (EventSeverity::Error, error),
+        // The one-shot autofocus publishes its own points and returns its
+        // result to the caller; forwarding these too would double the
+        // V-curve and log a line per point.
+        ExecutorEvent::AutofocusProgress { .. } | ExecutorEvent::AutofocusFinished { .. } => return,
         // Other variants currently surface as an informational error-tagged
         // payload because the one-shot bridge sites don't have a richer
         // mapping. If a future caller needs typed routing (e.g. exposure
