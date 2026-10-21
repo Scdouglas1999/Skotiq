@@ -257,11 +257,18 @@ pub async fn execute_warm_camera(
     // is off is never switched on, and one drawing no power (sensor already at
     // ambient) is switched straight off: a ramp would hold either one on at a
     // warm set-point.
-    let cooler_on = ctx
-        .device_ops
-        .camera_get_cooler_on(&camera_id)
-        .await
-        .unwrap_or(None);
+    // An unreadable cooler state is treated as unknown: the power reading
+    // below still decides whether there is anything to warm.
+    let cooler_on = match ctx.device_ops.camera_get_cooler_on(&camera_id).await {
+        Ok(state) => state,
+        Err(e) => {
+            tracing::warn!(
+                "Warm camera: could not read whether the cooler is on: {}",
+                e
+            );
+            None
+        }
+    };
     if cooler_on == Some(false) {
         tracing::info!(
             "Warm camera: the cooler is already off at {:.1}°C, nothing to warm",
@@ -272,11 +279,13 @@ pub async fn execute_warm_camera(
         }
         return InstructionResult::success_with_message("Cooler already off, nothing to warm");
     }
-    let cooler_power = ctx
-        .device_ops
-        .camera_get_cooler_power(&camera_id)
-        .await
-        .ok();
+    let cooler_power = match ctx.device_ops.camera_get_cooler_power(&camera_id).await {
+        Ok(power) => Some(power),
+        Err(e) => {
+            tracing::warn!("Warm camera: could not read the cooler power: {}", e);
+            None
+        }
+    };
     if let Some(power) = cooler_power.filter(|p| *p <= IDLE_COOLER_POWER_PERCENT) {
         tracing::info!(
             "Warm camera: the cooler is idle ({:.0}% power) at {:.1}°C; switching it off \
