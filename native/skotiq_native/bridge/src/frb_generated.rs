@@ -13660,6 +13660,16 @@ impl SseDecode for crate::event::imaging::ImagingEvent {
                 };
             }
             12 => {
+                let mut var_runId = <String>::sse_decode(deserializer);
+                let mut var_kind = <String>::sse_decode(deserializer);
+                let mut var_detailJson = <String>::sse_decode(deserializer);
+                return crate::event::imaging::ImagingEvent::IntegrationTelemetry {
+                    run_id: var_runId,
+                    kind: var_kind,
+                    detail_json: var_detailJson,
+                };
+            }
+            13 => {
                 let mut var_tempCelsius = <f64>::sse_decode(deserializer);
                 let mut var_coolerPower = <f64>::sse_decode(deserializer);
                 return crate::event::imaging::ImagingEvent::TemperatureChanged {
@@ -13667,13 +13677,13 @@ impl SseDecode for crate::event::imaging::ImagingEvent {
                     cooler_power: var_coolerPower,
                 };
             }
-            13 => {
+            14 => {
                 let mut var_success = <bool>::sse_decode(deserializer);
                 return crate::event::imaging::ImagingEvent::ExposureComplete {
                     success: var_success,
                 };
             }
-            14 => {
+            15 => {
                 let mut var_reason = <String>::sse_decode(deserializer);
                 return crate::event::imaging::ImagingEvent::ExposureFailedOld {
                     reason: var_reason,
@@ -19121,20 +19131,31 @@ impl flutter_rust_bridge::IntoDart for crate::event::imaging::ImagingEvent {
                 frames_total.into_into_dart().into_dart(),
             ]
             .into_dart(),
+            crate::event::imaging::ImagingEvent::IntegrationTelemetry {
+                run_id,
+                kind,
+                detail_json,
+            } => [
+                12.into_dart(),
+                run_id.into_into_dart().into_dart(),
+                kind.into_into_dart().into_dart(),
+                detail_json.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             crate::event::imaging::ImagingEvent::TemperatureChanged {
                 temp_celsius,
                 cooler_power,
             } => [
-                12.into_dart(),
+                13.into_dart(),
                 temp_celsius.into_into_dart().into_dart(),
                 cooler_power.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::event::imaging::ImagingEvent::ExposureComplete { success } => {
-                [13.into_dart(), success.into_into_dart().into_dart()].into_dart()
+                [14.into_dart(), success.into_into_dart().into_dart()].into_dart()
             }
             crate::event::imaging::ImagingEvent::ExposureFailedOld { reason } => {
-                [14.into_dart(), reason.into_into_dart().into_dart()].into_dart()
+                [15.into_dart(), reason.into_into_dart().into_dart()].into_dart()
             }
             _ => {
                 unimplemented!("");
@@ -23315,20 +23336,30 @@ impl SseEncode for crate::event::imaging::ImagingEvent {
                 <Option<u32>>::sse_encode(frames_done, serializer);
                 <Option<u32>>::sse_encode(frames_total, serializer);
             }
+            crate::event::imaging::ImagingEvent::IntegrationTelemetry {
+                run_id,
+                kind,
+                detail_json,
+            } => {
+                <i32>::sse_encode(12, serializer);
+                <String>::sse_encode(run_id, serializer);
+                <String>::sse_encode(kind, serializer);
+                <String>::sse_encode(detail_json, serializer);
+            }
             crate::event::imaging::ImagingEvent::TemperatureChanged {
                 temp_celsius,
                 cooler_power,
             } => {
-                <i32>::sse_encode(12, serializer);
+                <i32>::sse_encode(13, serializer);
                 <f64>::sse_encode(temp_celsius, serializer);
                 <f64>::sse_encode(cooler_power, serializer);
             }
             crate::event::imaging::ImagingEvent::ExposureComplete { success } => {
-                <i32>::sse_encode(13, serializer);
+                <i32>::sse_encode(14, serializer);
                 <bool>::sse_encode(success, serializer);
             }
             crate::event::imaging::ImagingEvent::ExposureFailedOld { reason } => {
-                <i32>::sse_encode(14, serializer);
+                <i32>::sse_encode(15, serializer);
                 <String>::sse_encode(reason, serializer);
             }
             _ => {
@@ -27702,19 +27733,27 @@ mod io {
                     }
                 }
                 12 => {
+                    let ans = unsafe { self.kind.IntegrationTelemetry };
+                    crate::event::imaging::ImagingEvent::IntegrationTelemetry {
+                        run_id: ans.run_id.cst_decode(),
+                        kind: ans.kind.cst_decode(),
+                        detail_json: ans.detail_json.cst_decode(),
+                    }
+                }
+                13 => {
                     let ans = unsafe { self.kind.TemperatureChanged };
                     crate::event::imaging::ImagingEvent::TemperatureChanged {
                         temp_celsius: ans.temp_celsius.cst_decode(),
                         cooler_power: ans.cooler_power.cst_decode(),
                     }
                 }
-                13 => {
+                14 => {
                     let ans = unsafe { self.kind.ExposureComplete };
                     crate::event::imaging::ImagingEvent::ExposureComplete {
                         success: ans.success.cst_decode(),
                     }
                 }
-                14 => {
+                15 => {
                     let ans = unsafe { self.kind.ExposureFailedOld };
                     crate::event::imaging::ImagingEvent::ExposureFailedOld {
                         reason: ans.reason.cst_decode(),
@@ -38431,6 +38470,7 @@ mod io {
         ImageReady: wire_cst_ImagingEvent_ImageReady,
         ImageSaved: wire_cst_ImagingEvent_ImageSaved,
         IntegrationProgress: wire_cst_ImagingEvent_IntegrationProgress,
+        IntegrationTelemetry: wire_cst_ImagingEvent_IntegrationTelemetry,
         TemperatureChanged: wire_cst_ImagingEvent_TemperatureChanged,
         ExposureComplete: wire_cst_ImagingEvent_ExposureComplete,
         ExposureFailedOld: wire_cst_ImagingEvent_ExposureFailedOld,
@@ -38494,6 +38534,13 @@ mod io {
         fraction: f32,
         frames_done: *mut u32,
         frames_total: *mut u32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_ImagingEvent_IntegrationTelemetry {
+        run_id: *mut wire_cst_list_prim_u_8_strict,
+        kind: *mut wire_cst_list_prim_u_8_strict,
+        detail_json: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

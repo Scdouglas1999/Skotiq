@@ -43,14 +43,27 @@ fn session_subs(captures: &str, filter: &str, from: &str) -> Vec<(String, f64, S
     subs
 }
 
+/// One integration through the production entry point: its result, its
+/// progress events, its pass telemetry and its wall time in milliseconds.
 fn run(
     out_dir: &str,
     tag: &str,
     subs: &[(String, f64, String)],
-) -> (serde_json::Value, serde_json::Value) {
+    run_id: &str,
+    lane: &str,
+) -> (
+    serde_json::Value,
+    serde_json::Value,
+    Vec<serde_json::Value>,
+    u128,
+) {
     let mut events = get_state().event_bus.subscribe();
+    let preview_dir = std::env::var("PASSVIZ_NO_PREVIEW")
+        .is_err()
+        .then(|| format!("{out_dir}/previews"));
     let request = serde_json::json!({
-        "runId": format!("passviz-{tag}"),
+        "runId": run_id,
+        "telemetry": { "lane": lane, "previewDir": preview_dir },
         "lightPaths": subs.iter().map(|s| s.0.clone()).collect::<Vec<_>>(),
         "reference": "auto",
         "exposuresSec": subs.iter().map(|s| s.1).collect::<Vec<_>>(),
@@ -63,10 +76,27 @@ fn run(
         }
     });
     let started = chrono::Utc::now().timestamp_millis();
+    let clock = std::time::Instant::now();
     let result = api_integrate_session(request.to_string())
         .unwrap_or_else(|e| panic!("[passviz] {tag}: integrate_session failed: {e}"));
+    let wall = clock.elapsed().as_millis();
     let mut log = vec![serde_json::json!({ "phase": "start", "t": started })];
+    let mut telemetry = Vec::new();
     while let Ok(event) = events.try_recv() {
+        if let EventPayload::Imaging(ImagingEvent::IntegrationTelemetry {
+            run_id,
+            kind,
+            detail_json,
+        }) = &event.payload
+        {
+            telemetry.push(serde_json::json!({
+                "t": event.timestamp,
+                "runId": run_id,
+                "kind": kind,
+                "detail": serde_json::from_str::<serde_json::Value>(detail_json).expect("detail"),
+            }));
+            continue;
+        }
         if let EventPayload::Imaging(ImagingEvent::IntegrationProgress {
             phase,
             fraction,
@@ -85,7 +115,7 @@ fn run(
     }
     let mut result: serde_json::Value = serde_json::from_str(&result).expect("result json");
     result["dateObs"] = subs.iter().map(|s| s.2.clone()).collect::<Vec<_>>().into();
-    (result, serde_json::Value::Array(log))
+    (result, serde_json::Value::Array(log), telemetry, wall)
 }
 
 /// An F32 master as U16 over its 0.1..99.99 percentile range. A plain
@@ -123,20 +153,31 @@ fn passviz_capture_real_pass() {
     std::fs::create_dir_all(&out_dir).expect("create output directory");
 
     let filters: Vec<&str> = filters.split(',').map(str::trim).collect();
+    let mut pass_log: Vec<serde_json::Value> = Vec::new();
+    let mut walls = serde_json::Map::new();
     // PASSVIZ_ALIGN_ONLY reuses masters an earlier run wrote.
     let align_only = std::env::var("PASSVIZ_ALIGN_ONLY").is_ok();
     for (index, filter) in filters.iter().enumerate().filter(|_| !align_only) {
         let subs = session_subs(&captures, filter, &from);
         assert!(!subs.is_empty(), "no '{filter}' subs under {captures}");
         eprintln!("[passviz] {filter}: {} subs", subs.len());
-        let (result, log) = run(&out_dir, filter, &subs);
+        let (result, log, telemetry, wall) = run(&out_dir, filter, &subs, "passviz", filter);
+        eprintln!("[passviz] {filter}: {wall} ms");
+        walls.insert(filter.to_string(), wall.to_string().into());
+        pass_log.extend(telemetry);
         write_json(&format!("{out_dir}/{filter}_result.json"), &result);
         write_json(&format!("{out_dir}/{filter}_events.json"), &log);
 
-        if index == 0 {
+        if index == 0 && std::env::var("PASSVIZ_DEPTHS").is_ok() {
             for depth in [2usize, 4, 8] {
                 let tag = format!("{filter}_first{depth}");
-                let (result, _) = run(&out_dir, &tag, &subs[..depth.min(subs.len())]);
+                let (result, ..) = run(
+                    &out_dir,
+                    &tag,
+                    &subs[..depth.min(subs.len())],
+                    &format!("passviz-{tag}"),
+                    filter,
+                );
                 write_json(&format!("{out_dir}/{tag}_result.json"), &result);
             }
         }
@@ -175,7 +216,28 @@ fn passviz_capture_real_pass() {
             Err(e) => serde_json::json!({ "filter": filter, "error": e.to_string() }),
         };
         eprintln!("[passviz] align {filter}: {entry}");
+        // Reported through the pass helper the way the color stage will.
+        let mut events = get_state().event_bus.subscribe();
+        emit_pass_telemetry("passviz", "channel_aligned", entry.clone());
+        if let Ok(event) = events.try_recv() {
+            pass_log.push(serde_json::json!({
+                "t": event.timestamp,
+                "runId": "passviz",
+                "kind": "channel_aligned",
+                "detail": entry,
+            }));
+        }
         fits.push(entry);
+    }
+    if !align_only {
+        write_json(
+            &format!("{out_dir}/pass_telemetry.json"),
+            &serde_json::Value::Array(pass_log),
+        );
+        write_json(
+            &format!("{out_dir}/wall_ms.json"),
+            &serde_json::Value::Object(walls),
+        );
     }
     write_json(
         &format!("{out_dir}/channel_alignment.json"),

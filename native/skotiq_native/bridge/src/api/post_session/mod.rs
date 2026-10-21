@@ -74,6 +74,8 @@ mod integrate;
 pub(crate) use integrate::*;
 mod masters;
 pub(crate) use masters::*;
+mod telemetry;
+pub(crate) use telemetry::*;
 #[cfg(test)]
 mod pass_view_capture_tests;
 #[cfg(test)]

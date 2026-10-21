@@ -1047,6 +1047,26 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
             'frames_total': imagingEvent.framesTotal,
         },
       );
+    } else if (imagingEvent is bridge.ImagingEvent_IntegrationTelemetry) {
+      // A Darkroom pass report. The details arrive as a JSON string so a new
+      // field never needs a bridge regeneration; they are decoded here so
+      // every consumer, local or remote, reads one map.
+      Object? detail;
+      try {
+        detail = jsonDecode(imagingEvent.detailJson);
+      } on FormatException {
+        detail = null;
+      }
+      return (
+        'IntegrationTelemetry',
+        {
+          'run_id': imagingEvent.runId,
+          'kind': imagingEvent.kind,
+          'detail': detail is Map<String, dynamic>
+              ? detail
+              : <String, dynamic>{},
+        },
+      );
     }
     return _unreadEvent(imagingEvent, 'ImagingEvent', 'imaging');
   }

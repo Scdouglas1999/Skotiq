@@ -27,6 +27,7 @@ pub(crate) fn integrate_session(
 
     let cancel = RunCancelToken::register(&args.run_id)?;
     cancel.check("calibrating", None, None)?;
+    let run_id = args.run_id.clone();
 
     // Load calibration masters once (shared across all lights).
     let dark = load_optional_master(&args.calibration.dark, "dark")?;
@@ -36,6 +37,23 @@ pub(crate) fn integrate_session(
     // What the masters above actually are, measured against the group's anchor
     // sub — the same first-sub anchor the Dart matcher selects on.
     let calibration_report = build_calibration_report(&args.light_paths[0], &args.calibration);
+
+    emit_pass_telemetry(
+        &run_id,
+        "run_started",
+        serde_json::json!({
+            "lane": args.telemetry.lane,
+            "subs": args.light_paths.len(),
+            "names": args.light_paths.iter().map(|p| file_name(p)).collect::<Vec<_>>(),
+            "exposures": exposures,
+            "calibration": {
+                "dark": dark.is_some(),
+                "flat": flat.is_some(),
+                "bias": bias.is_some(),
+                "cosmetic": args.calibration.cosmetic_correction,
+            },
+        }),
+    );
 
     // Load + calibrate every light.
     let total_lights = args.light_paths.len() as u32;
@@ -92,6 +110,14 @@ pub(crate) fn integrate_session(
             FRACTION_REGISTER
         };
         emit_integration_progress("calibrating", frac, Some(done), Some(total_lights));
+        emit_pass_telemetry(
+            &run_id,
+            "calibrated",
+            serde_json::json!({
+                "index": done,
+                "dateObs": header_string(&loaded[i].header, "DATE-OBS"),
+            }),
+        );
     }
 
     // Choose the reference frame.
@@ -100,6 +126,8 @@ pub(crate) fn integrate_session(
     cancel.check("reference", None, None)?;
     let reg_cfg = build_registration_config(&args.settings.align)?;
     let q_cfg = FrameQualityConfig::default();
+    emit_pass_telemetry(&run_id, "reference_choosing", serde_json::json!({}));
+    let reference_started = std::time::Instant::now();
     let ref_index = choose_reference(&args.reference, &loaded, &q_cfg, &reg_cfg)?;
     let reference = &loaded[ref_index].image;
     let width = reference.width;
@@ -107,6 +135,16 @@ pub(crate) fn integrate_session(
     let channels = reference.channels;
     let locations = (width as usize) * (height as usize);
     let chan = channels as usize;
+    let mut preview = RunningPreview::new(&args.telemetry, width as usize, height as usize);
+    emit_pass_telemetry(
+        &run_id,
+        "reference_chosen",
+        serde_json::json!({
+            "index": ref_index + 1,
+            "ms": elapsed_ms(reference_started),
+            "path": preview.write_reference(reference),
+        }),
+    );
 
     // Register every light onto the reference.
     // Per-frame outputs, aligned to `loaded`.
@@ -127,6 +165,39 @@ pub(crate) fn integrate_session(
         // un-resampled pixels onto the finer output grid using this transform.
         transform: Option<TransformModel>,
     }
+
+    // One `registered` report per sub, from the record just pushed.
+    let emit_registered = |run_id: &str,
+                           i: usize,
+                           r: Option<&Registered>,
+                           matched: Option<usize>,
+                           inliers: Option<usize>,
+                           started: std::time::Instant| {
+        let Some(r) = r else { return };
+        let q = r.quality;
+        emit_pass_telemetry(
+            run_id,
+            "registered",
+            serde_json::json!({
+                "index": i + 1,
+                "name": file_name(&r.path),
+                "reference": i == ref_index,
+                "accepted": r.accepted,
+                "reason": r.reason,
+                "stars": q.map(|q| q.star_count),
+                "fwhm": q.map(|q| q.fwhm),
+                "eccentricity": q.and_then(|q| q.eccentricity),
+                "background": q.map(|q| q.background),
+                "noise": q.map(|q| q.noise),
+                "snr": q.map(|q| q.snr),
+                "rmsPx": r.rms_residual_px,
+                "transform": r.transform.as_ref().map(transform_to_row_major),
+                "matched": matched,
+                "inliers": inliers,
+                "ms": elapsed_ms(started),
+            }),
+        );
+    };
 
     emit_integration_progress(
         "registering",
@@ -151,6 +222,9 @@ pub(crate) fn integrate_session(
             FRACTION_WEIGHT
         };
         emit_integration_progress("registering", frac, Some(done), Some(total_lights));
+        let registering_started = std::time::Instant::now();
+        let mut matched: Option<usize> = None;
+        let mut inliers: Option<usize> = None;
 
         if i == ref_index {
             // The reference aligns to itself by identity; flatten directly.
@@ -168,11 +242,21 @@ pub(crate) fn integrate_session(
                 reason: None,
                 transform: Some(TransformModel::identity()),
             });
+            emit_registered(
+                &run_id,
+                i,
+                registered.last(),
+                None,
+                None,
+                registering_started,
+            );
             continue;
         }
 
         match register_frame(reference, &light.image, &reg_cfg) {
             Ok(reg) => {
+                matched = Some(reg.stats.correspondence_count);
+                inliers = Some(reg.stats.inlier_count);
                 let pixels = image_to_f64(&reg.aligned);
                 let coverage = CoverageMask::from_zero_fill(
                     &derive_luma_f64(&pixels, locations, chan),
@@ -209,6 +293,14 @@ pub(crate) fn integrate_session(
                 });
             }
         }
+        emit_registered(
+            &run_id,
+            i,
+            registered.last(),
+            matched,
+            inliers,
+            registering_started,
+        );
     }
 
     // Weight the accepted subs.
@@ -236,6 +328,18 @@ pub(crate) fn integrate_session(
     } else {
         vec![1.0; accepted_idx.len()]
     };
+
+    emit_pass_telemetry(
+        &run_id,
+        "weighted",
+        serde_json::json!({
+            "weights": accepted_idx
+                .iter()
+                .zip(weights.iter())
+                .map(|(&i, &w)| serde_json::json!({ "index": i + 1, "weight": w }))
+                .collect::<Vec<_>>(),
+        }),
+    );
 
     // Reference luminance for normalization (the anchor).
     // Use the *registered* reference buffer (already on the grid).
@@ -269,6 +373,16 @@ pub(crate) fn integrate_session(
             emit_integration_progress("normalizing", frac, Some(done), Some(norm_total));
 
             if i == ref_index {
+                report_normalized(
+                    &run_id,
+                    &mut preview,
+                    i,
+                    &registered[i].pixels,
+                    width,
+                    height,
+                    chan,
+                    done == norm_total,
+                );
                 continue;
             }
             let coverage = registered[i].coverage.clone();
@@ -286,6 +400,29 @@ pub(crate) fn integrate_session(
                 apply_normalization(&mut plane, &coeffs, width as usize, height as usize);
                 write_channel(&mut registered[i].pixels, locations, chan, ch, &plane);
             }
+            report_normalized(
+                &run_id,
+                &mut preview,
+                i,
+                &registered[i].pixels,
+                width,
+                height,
+                chan,
+                done == norm_total,
+            );
+        }
+    } else if preview.enabled() {
+        for (pos, &i) in accepted_idx.iter().enumerate() {
+            report_normalized(
+                &run_id,
+                &mut preview,
+                i,
+                &registered[i].pixels,
+                width,
+                height,
+                chan,
+                pos + 1 == accepted_idx.len(),
+            );
         }
     }
     let _ = ref_reg_pos; // reference normalizes to identity; kept for clarity.
@@ -308,9 +445,27 @@ pub(crate) fn integrate_session(
     // honoured cheaply — the combine itself runs to completion once entered.
     cancel.check("integrating", None, None)?;
     emit_integration_progress("integrating", FRACTION_INTEGRATE, None, None);
+    emit_pass_telemetry(
+        &run_id,
+        "integrating",
+        serde_json::json!({ "subs": sub_count, "reject": format!("{:?}", int_cfg.reject) }),
+    );
+    let integrating_started = std::time::Instant::now();
     let output = integrate_frames(&frames, width, height, channels, &int_cfg)
         .map_err(|e| format!("integration failed: {e}"))?;
     emit_integration_progress("integrating", FRACTION_INTEGRATE_DONE, None, None);
+    emit_pass_telemetry(
+        &run_id,
+        "integrated",
+        serde_json::json!({
+            "frames": output.stats.frames_integrated,
+            "totalRejected": output.stats.total_rejected,
+            "rejectedFraction": output.stats.rejection_fraction,
+            "uncovered": output.stats.uncovered_pixels,
+            "noise": master_noise(&output.master),
+            "ms": elapsed_ms(integrating_started),
+        }),
+    );
 
     // Write the master FITS. This is the last cancellation point: past the
     // write the master exists, and a run that reported itself cancelled while a
@@ -406,6 +561,15 @@ pub(crate) fn integrate_session(
     };
     // Final boundary: the master (and optional preview) are on disk.
     emit_integration_progress("preview", FRACTION_DONE, None, None);
+    emit_pass_telemetry(
+        &run_id,
+        "written",
+        serde_json::json!({
+            "masterPath": args.output.master_fits_path,
+            "previewPath": preview_path,
+            "rejectionMapPreviewPath": rejection_map_preview_path,
+        }),
+    );
 
     // Assemble per-frame stats + aggregate residual.
     // Map normalized weights back to the accepted frames by position.

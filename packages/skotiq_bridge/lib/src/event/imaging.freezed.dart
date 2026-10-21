@@ -55,7 +55,7 @@ extension ImagingEventPatterns on ImagingEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( ImagingEvent_ExposureStarted value)?  exposureStarted,TResult Function( ImagingEvent_ExposureStartedWithFrame value)?  exposureStartedWithFrame,TResult Function( ImagingEvent_ExposureProgress value)?  exposureProgress,TResult Function( ImagingEvent_ExposureCompleted value)?  exposureCompleted,TResult Function( ImagingEvent_ExposureCompletedWithFrame value)?  exposureCompletedWithFrame,TResult Function( ImagingEvent_ExposureFailed value)?  exposureFailed,TResult Function( ImagingEvent_ExposureCancelled value)?  exposureCancelled,TResult Function( ImagingEvent_DownloadStarted value)?  downloadStarted,TResult Function( ImagingEvent_DownloadCompleted value)?  downloadCompleted,TResult Function( ImagingEvent_ImageReady value)?  imageReady,TResult Function( ImagingEvent_ImageSaved value)?  imageSaved,TResult Function( ImagingEvent_IntegrationProgress value)?  integrationProgress,TResult Function( ImagingEvent_TemperatureChanged value)?  temperatureChanged,TResult Function( ImagingEvent_ExposureComplete value)?  exposureComplete,TResult Function( ImagingEvent_ExposureFailedOld value)?  exposureFailedOld,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( ImagingEvent_ExposureStarted value)?  exposureStarted,TResult Function( ImagingEvent_ExposureStartedWithFrame value)?  exposureStartedWithFrame,TResult Function( ImagingEvent_ExposureProgress value)?  exposureProgress,TResult Function( ImagingEvent_ExposureCompleted value)?  exposureCompleted,TResult Function( ImagingEvent_ExposureCompletedWithFrame value)?  exposureCompletedWithFrame,TResult Function( ImagingEvent_ExposureFailed value)?  exposureFailed,TResult Function( ImagingEvent_ExposureCancelled value)?  exposureCancelled,TResult Function( ImagingEvent_DownloadStarted value)?  downloadStarted,TResult Function( ImagingEvent_DownloadCompleted value)?  downloadCompleted,TResult Function( ImagingEvent_ImageReady value)?  imageReady,TResult Function( ImagingEvent_ImageSaved value)?  imageSaved,TResult Function( ImagingEvent_IntegrationProgress value)?  integrationProgress,TResult Function( ImagingEvent_IntegrationTelemetry value)?  integrationTelemetry,TResult Function( ImagingEvent_TemperatureChanged value)?  temperatureChanged,TResult Function( ImagingEvent_ExposureComplete value)?  exposureComplete,TResult Function( ImagingEvent_ExposureFailedOld value)?  exposureFailedOld,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case ImagingEvent_ExposureStarted() when exposureStarted != null:
@@ -70,7 +70,8 @@ return downloadStarted(_that);case ImagingEvent_DownloadCompleted() when downloa
 return downloadCompleted(_that);case ImagingEvent_ImageReady() when imageReady != null:
 return imageReady(_that);case ImagingEvent_ImageSaved() when imageSaved != null:
 return imageSaved(_that);case ImagingEvent_IntegrationProgress() when integrationProgress != null:
-return integrationProgress(_that);case ImagingEvent_TemperatureChanged() when temperatureChanged != null:
+return integrationProgress(_that);case ImagingEvent_IntegrationTelemetry() when integrationTelemetry != null:
+return integrationTelemetry(_that);case ImagingEvent_TemperatureChanged() when temperatureChanged != null:
 return temperatureChanged(_that);case ImagingEvent_ExposureComplete() when exposureComplete != null:
 return exposureComplete(_that);case ImagingEvent_ExposureFailedOld() when exposureFailedOld != null:
 return exposureFailedOld(_that);case _:
@@ -91,7 +92,7 @@ return exposureFailedOld(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( ImagingEvent_ExposureStarted value)  exposureStarted,required TResult Function( ImagingEvent_ExposureStartedWithFrame value)  exposureStartedWithFrame,required TResult Function( ImagingEvent_ExposureProgress value)  exposureProgress,required TResult Function( ImagingEvent_ExposureCompleted value)  exposureCompleted,required TResult Function( ImagingEvent_ExposureCompletedWithFrame value)  exposureCompletedWithFrame,required TResult Function( ImagingEvent_ExposureFailed value)  exposureFailed,required TResult Function( ImagingEvent_ExposureCancelled value)  exposureCancelled,required TResult Function( ImagingEvent_DownloadStarted value)  downloadStarted,required TResult Function( ImagingEvent_DownloadCompleted value)  downloadCompleted,required TResult Function( ImagingEvent_ImageReady value)  imageReady,required TResult Function( ImagingEvent_ImageSaved value)  imageSaved,required TResult Function( ImagingEvent_IntegrationProgress value)  integrationProgress,required TResult Function( ImagingEvent_TemperatureChanged value)  temperatureChanged,required TResult Function( ImagingEvent_ExposureComplete value)  exposureComplete,required TResult Function( ImagingEvent_ExposureFailedOld value)  exposureFailedOld,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( ImagingEvent_ExposureStarted value)  exposureStarted,required TResult Function( ImagingEvent_ExposureStartedWithFrame value)  exposureStartedWithFrame,required TResult Function( ImagingEvent_ExposureProgress value)  exposureProgress,required TResult Function( ImagingEvent_ExposureCompleted value)  exposureCompleted,required TResult Function( ImagingEvent_ExposureCompletedWithFrame value)  exposureCompletedWithFrame,required TResult Function( ImagingEvent_ExposureFailed value)  exposureFailed,required TResult Function( ImagingEvent_ExposureCancelled value)  exposureCancelled,required TResult Function( ImagingEvent_DownloadStarted value)  downloadStarted,required TResult Function( ImagingEvent_DownloadCompleted value)  downloadCompleted,required TResult Function( ImagingEvent_ImageReady value)  imageReady,required TResult Function( ImagingEvent_ImageSaved value)  imageSaved,required TResult Function( ImagingEvent_IntegrationProgress value)  integrationProgress,required TResult Function( ImagingEvent_IntegrationTelemetry value)  integrationTelemetry,required TResult Function( ImagingEvent_TemperatureChanged value)  temperatureChanged,required TResult Function( ImagingEvent_ExposureComplete value)  exposureComplete,required TResult Function( ImagingEvent_ExposureFailedOld value)  exposureFailedOld,}){
 final _that = this;
 switch (_that) {
 case ImagingEvent_ExposureStarted():
@@ -106,7 +107,8 @@ return downloadStarted(_that);case ImagingEvent_DownloadCompleted():
 return downloadCompleted(_that);case ImagingEvent_ImageReady():
 return imageReady(_that);case ImagingEvent_ImageSaved():
 return imageSaved(_that);case ImagingEvent_IntegrationProgress():
-return integrationProgress(_that);case ImagingEvent_TemperatureChanged():
+return integrationProgress(_that);case ImagingEvent_IntegrationTelemetry():
+return integrationTelemetry(_that);case ImagingEvent_TemperatureChanged():
 return temperatureChanged(_that);case ImagingEvent_ExposureComplete():
 return exposureComplete(_that);case ImagingEvent_ExposureFailedOld():
 return exposureFailedOld(_that);}
@@ -123,7 +125,7 @@ return exposureFailedOld(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( ImagingEvent_ExposureStarted value)?  exposureStarted,TResult? Function( ImagingEvent_ExposureStartedWithFrame value)?  exposureStartedWithFrame,TResult? Function( ImagingEvent_ExposureProgress value)?  exposureProgress,TResult? Function( ImagingEvent_ExposureCompleted value)?  exposureCompleted,TResult? Function( ImagingEvent_ExposureCompletedWithFrame value)?  exposureCompletedWithFrame,TResult? Function( ImagingEvent_ExposureFailed value)?  exposureFailed,TResult? Function( ImagingEvent_ExposureCancelled value)?  exposureCancelled,TResult? Function( ImagingEvent_DownloadStarted value)?  downloadStarted,TResult? Function( ImagingEvent_DownloadCompleted value)?  downloadCompleted,TResult? Function( ImagingEvent_ImageReady value)?  imageReady,TResult? Function( ImagingEvent_ImageSaved value)?  imageSaved,TResult? Function( ImagingEvent_IntegrationProgress value)?  integrationProgress,TResult? Function( ImagingEvent_TemperatureChanged value)?  temperatureChanged,TResult? Function( ImagingEvent_ExposureComplete value)?  exposureComplete,TResult? Function( ImagingEvent_ExposureFailedOld value)?  exposureFailedOld,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( ImagingEvent_ExposureStarted value)?  exposureStarted,TResult? Function( ImagingEvent_ExposureStartedWithFrame value)?  exposureStartedWithFrame,TResult? Function( ImagingEvent_ExposureProgress value)?  exposureProgress,TResult? Function( ImagingEvent_ExposureCompleted value)?  exposureCompleted,TResult? Function( ImagingEvent_ExposureCompletedWithFrame value)?  exposureCompletedWithFrame,TResult? Function( ImagingEvent_ExposureFailed value)?  exposureFailed,TResult? Function( ImagingEvent_ExposureCancelled value)?  exposureCancelled,TResult? Function( ImagingEvent_DownloadStarted value)?  downloadStarted,TResult? Function( ImagingEvent_DownloadCompleted value)?  downloadCompleted,TResult? Function( ImagingEvent_ImageReady value)?  imageReady,TResult? Function( ImagingEvent_ImageSaved value)?  imageSaved,TResult? Function( ImagingEvent_IntegrationProgress value)?  integrationProgress,TResult? Function( ImagingEvent_IntegrationTelemetry value)?  integrationTelemetry,TResult? Function( ImagingEvent_TemperatureChanged value)?  temperatureChanged,TResult? Function( ImagingEvent_ExposureComplete value)?  exposureComplete,TResult? Function( ImagingEvent_ExposureFailedOld value)?  exposureFailedOld,}){
 final _that = this;
 switch (_that) {
 case ImagingEvent_ExposureStarted() when exposureStarted != null:
@@ -138,7 +140,8 @@ return downloadStarted(_that);case ImagingEvent_DownloadCompleted() when downloa
 return downloadCompleted(_that);case ImagingEvent_ImageReady() when imageReady != null:
 return imageReady(_that);case ImagingEvent_ImageSaved() when imageSaved != null:
 return imageSaved(_that);case ImagingEvent_IntegrationProgress() when integrationProgress != null:
-return integrationProgress(_that);case ImagingEvent_TemperatureChanged() when temperatureChanged != null:
+return integrationProgress(_that);case ImagingEvent_IntegrationTelemetry() when integrationTelemetry != null:
+return integrationTelemetry(_that);case ImagingEvent_TemperatureChanged() when temperatureChanged != null:
 return temperatureChanged(_that);case ImagingEvent_ExposureComplete() when exposureComplete != null:
 return exposureComplete(_that);case ImagingEvent_ExposureFailedOld() when exposureFailedOld != null:
 return exposureFailedOld(_that);case _:
@@ -158,7 +161,7 @@ return exposureFailedOld(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( double durationSecs,  FrameType frameType)?  exposureStarted,TResult Function( double durationSecs,  FrameType frameType,  int frameNumber,  int? totalFrames)?  exposureStartedWithFrame,TResult Function( double progress,  double remainingSecs)?  exposureProgress,TResult Function( String? filePath,  double hfr,  int starsDetected)?  exposureCompleted,TResult Function( int frameNumber,  int? totalFrames,  double hfr,  int starsDetected)?  exposureCompletedWithFrame,TResult Function( String error)?  exposureFailed,TResult Function()?  exposureCancelled,TResult Function()?  downloadStarted,TResult Function()?  downloadCompleted,TResult Function( int width,  int height)?  imageReady,TResult Function( String filePath)?  imageSaved,TResult Function( String phase,  double fraction,  int? framesDone,  int? framesTotal)?  integrationProgress,TResult Function( double tempCelsius,  double coolerPower)?  temperatureChanged,TResult Function( bool success)?  exposureComplete,TResult Function( String reason)?  exposureFailedOld,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( double durationSecs,  FrameType frameType)?  exposureStarted,TResult Function( double durationSecs,  FrameType frameType,  int frameNumber,  int? totalFrames)?  exposureStartedWithFrame,TResult Function( double progress,  double remainingSecs)?  exposureProgress,TResult Function( String? filePath,  double hfr,  int starsDetected)?  exposureCompleted,TResult Function( int frameNumber,  int? totalFrames,  double hfr,  int starsDetected)?  exposureCompletedWithFrame,TResult Function( String error)?  exposureFailed,TResult Function()?  exposureCancelled,TResult Function()?  downloadStarted,TResult Function()?  downloadCompleted,TResult Function( int width,  int height)?  imageReady,TResult Function( String filePath)?  imageSaved,TResult Function( String phase,  double fraction,  int? framesDone,  int? framesTotal)?  integrationProgress,TResult Function( String runId,  String kind,  String detailJson)?  integrationTelemetry,TResult Function( double tempCelsius,  double coolerPower)?  temperatureChanged,TResult Function( bool success)?  exposureComplete,TResult Function( String reason)?  exposureFailedOld,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case ImagingEvent_ExposureStarted() when exposureStarted != null:
 return exposureStarted(_that.durationSecs,_that.frameType);case ImagingEvent_ExposureStartedWithFrame() when exposureStartedWithFrame != null:
@@ -172,7 +175,8 @@ return downloadStarted();case ImagingEvent_DownloadCompleted() when downloadComp
 return downloadCompleted();case ImagingEvent_ImageReady() when imageReady != null:
 return imageReady(_that.width,_that.height);case ImagingEvent_ImageSaved() when imageSaved != null:
 return imageSaved(_that.filePath);case ImagingEvent_IntegrationProgress() when integrationProgress != null:
-return integrationProgress(_that.phase,_that.fraction,_that.framesDone,_that.framesTotal);case ImagingEvent_TemperatureChanged() when temperatureChanged != null:
+return integrationProgress(_that.phase,_that.fraction,_that.framesDone,_that.framesTotal);case ImagingEvent_IntegrationTelemetry() when integrationTelemetry != null:
+return integrationTelemetry(_that.runId,_that.kind,_that.detailJson);case ImagingEvent_TemperatureChanged() when temperatureChanged != null:
 return temperatureChanged(_that.tempCelsius,_that.coolerPower);case ImagingEvent_ExposureComplete() when exposureComplete != null:
 return exposureComplete(_that.success);case ImagingEvent_ExposureFailedOld() when exposureFailedOld != null:
 return exposureFailedOld(_that.reason);case _:
@@ -193,7 +197,7 @@ return exposureFailedOld(_that.reason);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( double durationSecs,  FrameType frameType)  exposureStarted,required TResult Function( double durationSecs,  FrameType frameType,  int frameNumber,  int? totalFrames)  exposureStartedWithFrame,required TResult Function( double progress,  double remainingSecs)  exposureProgress,required TResult Function( String? filePath,  double hfr,  int starsDetected)  exposureCompleted,required TResult Function( int frameNumber,  int? totalFrames,  double hfr,  int starsDetected)  exposureCompletedWithFrame,required TResult Function( String error)  exposureFailed,required TResult Function()  exposureCancelled,required TResult Function()  downloadStarted,required TResult Function()  downloadCompleted,required TResult Function( int width,  int height)  imageReady,required TResult Function( String filePath)  imageSaved,required TResult Function( String phase,  double fraction,  int? framesDone,  int? framesTotal)  integrationProgress,required TResult Function( double tempCelsius,  double coolerPower)  temperatureChanged,required TResult Function( bool success)  exposureComplete,required TResult Function( String reason)  exposureFailedOld,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( double durationSecs,  FrameType frameType)  exposureStarted,required TResult Function( double durationSecs,  FrameType frameType,  int frameNumber,  int? totalFrames)  exposureStartedWithFrame,required TResult Function( double progress,  double remainingSecs)  exposureProgress,required TResult Function( String? filePath,  double hfr,  int starsDetected)  exposureCompleted,required TResult Function( int frameNumber,  int? totalFrames,  double hfr,  int starsDetected)  exposureCompletedWithFrame,required TResult Function( String error)  exposureFailed,required TResult Function()  exposureCancelled,required TResult Function()  downloadStarted,required TResult Function()  downloadCompleted,required TResult Function( int width,  int height)  imageReady,required TResult Function( String filePath)  imageSaved,required TResult Function( String phase,  double fraction,  int? framesDone,  int? framesTotal)  integrationProgress,required TResult Function( String runId,  String kind,  String detailJson)  integrationTelemetry,required TResult Function( double tempCelsius,  double coolerPower)  temperatureChanged,required TResult Function( bool success)  exposureComplete,required TResult Function( String reason)  exposureFailedOld,}) {final _that = this;
 switch (_that) {
 case ImagingEvent_ExposureStarted():
 return exposureStarted(_that.durationSecs,_that.frameType);case ImagingEvent_ExposureStartedWithFrame():
@@ -207,7 +211,8 @@ return downloadStarted();case ImagingEvent_DownloadCompleted():
 return downloadCompleted();case ImagingEvent_ImageReady():
 return imageReady(_that.width,_that.height);case ImagingEvent_ImageSaved():
 return imageSaved(_that.filePath);case ImagingEvent_IntegrationProgress():
-return integrationProgress(_that.phase,_that.fraction,_that.framesDone,_that.framesTotal);case ImagingEvent_TemperatureChanged():
+return integrationProgress(_that.phase,_that.fraction,_that.framesDone,_that.framesTotal);case ImagingEvent_IntegrationTelemetry():
+return integrationTelemetry(_that.runId,_that.kind,_that.detailJson);case ImagingEvent_TemperatureChanged():
 return temperatureChanged(_that.tempCelsius,_that.coolerPower);case ImagingEvent_ExposureComplete():
 return exposureComplete(_that.success);case ImagingEvent_ExposureFailedOld():
 return exposureFailedOld(_that.reason);}
@@ -224,7 +229,7 @@ return exposureFailedOld(_that.reason);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( double durationSecs,  FrameType frameType)?  exposureStarted,TResult? Function( double durationSecs,  FrameType frameType,  int frameNumber,  int? totalFrames)?  exposureStartedWithFrame,TResult? Function( double progress,  double remainingSecs)?  exposureProgress,TResult? Function( String? filePath,  double hfr,  int starsDetected)?  exposureCompleted,TResult? Function( int frameNumber,  int? totalFrames,  double hfr,  int starsDetected)?  exposureCompletedWithFrame,TResult? Function( String error)?  exposureFailed,TResult? Function()?  exposureCancelled,TResult? Function()?  downloadStarted,TResult? Function()?  downloadCompleted,TResult? Function( int width,  int height)?  imageReady,TResult? Function( String filePath)?  imageSaved,TResult? Function( String phase,  double fraction,  int? framesDone,  int? framesTotal)?  integrationProgress,TResult? Function( double tempCelsius,  double coolerPower)?  temperatureChanged,TResult? Function( bool success)?  exposureComplete,TResult? Function( String reason)?  exposureFailedOld,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( double durationSecs,  FrameType frameType)?  exposureStarted,TResult? Function( double durationSecs,  FrameType frameType,  int frameNumber,  int? totalFrames)?  exposureStartedWithFrame,TResult? Function( double progress,  double remainingSecs)?  exposureProgress,TResult? Function( String? filePath,  double hfr,  int starsDetected)?  exposureCompleted,TResult? Function( int frameNumber,  int? totalFrames,  double hfr,  int starsDetected)?  exposureCompletedWithFrame,TResult? Function( String error)?  exposureFailed,TResult? Function()?  exposureCancelled,TResult? Function()?  downloadStarted,TResult? Function()?  downloadCompleted,TResult? Function( int width,  int height)?  imageReady,TResult? Function( String filePath)?  imageSaved,TResult? Function( String phase,  double fraction,  int? framesDone,  int? framesTotal)?  integrationProgress,TResult? Function( String runId,  String kind,  String detailJson)?  integrationTelemetry,TResult? Function( double tempCelsius,  double coolerPower)?  temperatureChanged,TResult? Function( bool success)?  exposureComplete,TResult? Function( String reason)?  exposureFailedOld,}) {final _that = this;
 switch (_that) {
 case ImagingEvent_ExposureStarted() when exposureStarted != null:
 return exposureStarted(_that.durationSecs,_that.frameType);case ImagingEvent_ExposureStartedWithFrame() when exposureStartedWithFrame != null:
@@ -238,7 +243,8 @@ return downloadStarted();case ImagingEvent_DownloadCompleted() when downloadComp
 return downloadCompleted();case ImagingEvent_ImageReady() when imageReady != null:
 return imageReady(_that.width,_that.height);case ImagingEvent_ImageSaved() when imageSaved != null:
 return imageSaved(_that.filePath);case ImagingEvent_IntegrationProgress() when integrationProgress != null:
-return integrationProgress(_that.phase,_that.fraction,_that.framesDone,_that.framesTotal);case ImagingEvent_TemperatureChanged() when temperatureChanged != null:
+return integrationProgress(_that.phase,_that.fraction,_that.framesDone,_that.framesTotal);case ImagingEvent_IntegrationTelemetry() when integrationTelemetry != null:
+return integrationTelemetry(_that.runId,_that.kind,_that.detailJson);case ImagingEvent_TemperatureChanged() when temperatureChanged != null:
 return temperatureChanged(_that.tempCelsius,_that.coolerPower);case ImagingEvent_ExposureComplete() when exposureComplete != null:
 return exposureComplete(_that.success);case ImagingEvent_ExposureFailedOld() when exposureFailedOld != null:
 return exposureFailedOld(_that.reason);case _:
@@ -969,6 +975,76 @@ as String,fraction: null == fraction ? _self.fraction : fraction // ignore: cast
 as double,framesDone: freezed == framesDone ? _self.framesDone : framesDone // ignore: cast_nullable_to_non_nullable
 as int?,framesTotal: freezed == framesTotal ? _self.framesTotal : framesTotal // ignore: cast_nullable_to_non_nullable
 as int?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class ImagingEvent_IntegrationTelemetry extends ImagingEvent {
+  const ImagingEvent_IntegrationTelemetry({required this.runId, required this.kind, required this.detailJson}): super._();
+  
+
+ final  String runId;
+ final  String kind;
+ final  String detailJson;
+
+/// Create a copy of ImagingEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ImagingEvent_IntegrationTelemetryCopyWith<ImagingEvent_IntegrationTelemetry> get copyWith => _$ImagingEvent_IntegrationTelemetryCopyWithImpl<ImagingEvent_IntegrationTelemetry>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ImagingEvent_IntegrationTelemetry&&(identical(other.runId, runId) || other.runId == runId)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.detailJson, detailJson) || other.detailJson == detailJson));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,runId,kind,detailJson);
+
+@override
+String toString() {
+  return 'ImagingEvent.integrationTelemetry(runId: $runId, kind: $kind, detailJson: $detailJson)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ImagingEvent_IntegrationTelemetryCopyWith<$Res> implements $ImagingEventCopyWith<$Res> {
+  factory $ImagingEvent_IntegrationTelemetryCopyWith(ImagingEvent_IntegrationTelemetry value, $Res Function(ImagingEvent_IntegrationTelemetry) _then) = _$ImagingEvent_IntegrationTelemetryCopyWithImpl;
+@useResult
+$Res call({
+ String runId, String kind, String detailJson
+});
+
+
+
+
+}
+/// @nodoc
+class _$ImagingEvent_IntegrationTelemetryCopyWithImpl<$Res>
+    implements $ImagingEvent_IntegrationTelemetryCopyWith<$Res> {
+  _$ImagingEvent_IntegrationTelemetryCopyWithImpl(this._self, this._then);
+
+  final ImagingEvent_IntegrationTelemetry _self;
+  final $Res Function(ImagingEvent_IntegrationTelemetry) _then;
+
+/// Create a copy of ImagingEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? runId = null,Object? kind = null,Object? detailJson = null,}) {
+  return _then(ImagingEvent_IntegrationTelemetry(
+runId: null == runId ? _self.runId : runId // ignore: cast_nullable_to_non_nullable
+as String,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
+as String,detailJson: null == detailJson ? _self.detailJson : detailJson // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 

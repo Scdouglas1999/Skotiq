@@ -113,6 +113,17 @@ pub enum ImagingEvent {
         frames_total: Option<u32>,
     },
 
+    /// One report from a post-session integration pass for the Darkroom pass
+    /// view: the caller's `run_id`, what happened (`kind`, see
+    /// `api::post_session::telemetry`), and its details as a JSON object. The
+    /// details travel as a string so a new field never needs a bridge
+    /// regeneration.
+    IntegrationTelemetry {
+        run_id: String,
+        kind: String,
+        detail_json: String,
+    },
+
     // Temperature events
     TemperatureChanged {
         temp_celsius: f64,
