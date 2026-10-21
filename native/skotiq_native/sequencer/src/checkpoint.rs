@@ -164,12 +164,12 @@ impl TriggerStateSnapshot {
             target_ra: state.target_ra,
             target_dec: state.target_dec,
             mount_is_tracking: state.mount_is_tracking,
-            mount_tracking_expected: state.mount_tracking_expected,
-            mount_tracking_lost: state.mount_tracking_lost,
+            mount_tracking_expected: state.tracking.is_expected(),
+            mount_tracking_lost: state.tracking.is_lost(),
             mount_slewing: state.mount_slewing,
             mount_parked: state.mount_parked,
             mount_status_query_failed: state.mount_status_query_failed,
-            tracking_limit_detected_at: state.tracking_limit_detected_at,
+            tracking_limit_detected_at: state.tracking.limit_detected_at(),
             meridian_trigger_method: state.meridian_trigger_method,
             dome_shutter_status: state.dome_shutter_status.clone(),
             dome_shutter_open_expected: state.dome_shutter_open_expected,
@@ -216,12 +216,14 @@ impl TriggerStateSnapshot {
         state.target_ra = self.target_ra;
         state.target_dec = self.target_dec;
         state.mount_is_tracking = self.mount_is_tracking;
-        state.mount_tracking_expected = self.mount_tracking_expected;
-        state.mount_tracking_lost = self.mount_tracking_lost;
+        state.tracking.restore(
+            self.mount_tracking_expected,
+            self.mount_tracking_lost,
+            self.tracking_limit_detected_at,
+        );
         state.mount_slewing = self.mount_slewing;
         state.mount_parked = self.mount_parked;
         state.mount_status_query_failed = self.mount_status_query_failed;
-        state.tracking_limit_detected_at = self.tracking_limit_detected_at;
         state.meridian_trigger_method = self.meridian_trigger_method;
         state.dome_shutter_status = self.dome_shutter_status.clone();
         state.dome_shutter_open_expected = self.dome_shutter_open_expected;
@@ -1120,7 +1122,7 @@ mod tests {
         original.completed_exposures = 42;
         original.last_autofocus_frame = 30;
         original.last_dither_frame = 41;
-        original.tracking_limit_detected_at = Some(1_700_005_000);
+        original.tracking.set_limit_detected_at(Some(1_700_005_000));
         original.grid_dither_index = 7;
         original.last_applied_filter_offset = 42;
 
@@ -1193,8 +1195,8 @@ mod tests {
         assert_eq!(restored.last_autofocus_frame, original.last_autofocus_frame);
         assert_eq!(restored.last_dither_frame, original.last_dither_frame);
         assert_eq!(
-            restored.tracking_limit_detected_at,
-            original.tracking_limit_detected_at
+            restored.tracking.limit_detected_at(),
+            original.tracking.limit_detected_at()
         );
         assert_eq!(restored.grid_dither_index, original.grid_dither_index);
     }

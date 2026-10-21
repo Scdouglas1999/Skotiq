@@ -1493,14 +1493,14 @@ fn b19_not_yet_tracking_mount_never_self_cancels() {
     // returning whether THIS poll flagged a fresh loss.
     let poll = |state: &mut TriggerState, is_tracking: bool| -> bool {
         let (expected, just_lost) = super::mount_tracking_poll_verdict(
-            state.mount_tracking_expected,
+            state.tracking.is_expected(),
             is_tracking,
             state.mount_is_tracking,
-            state.mount_tracking_lost,
+            state.tracking.is_lost(),
         );
         state.set_mount_tracking_expected(expected);
         if just_lost {
-            state.mount_tracking_lost = true;
+            state.tracking.mark_lost();
         }
         state.mount_is_tracking = Some(is_tracking);
         just_lost
@@ -1513,30 +1513,30 @@ fn b19_not_yet_tracking_mount_never_self_cancels() {
             "not-yet-tracking poll {tick} must not flag a loss"
         );
         assert!(
-            !state.mount_tracking_expected,
+            !state.tracking.is_expected(),
             "baseline must stay disarmed until tracking is observed (poll {tick})"
         );
-        assert!(!state.mount_tracking_lost);
+        assert!(!state.tracking.is_lost());
     }
 
     // Mount begins tracking — baseline arms now, from an observed fact.
     assert!(!poll(&mut state, true), "first Ok(true) is not a loss");
     assert!(
-        state.mount_tracking_expected,
+        state.tracking.is_expected(),
         "baseline must arm once the mount is observed tracking"
     );
-    assert!(!state.mount_tracking_lost);
+    assert!(!state.tracking.is_lost());
 
     // Healthy tracking continues.
     assert!(!poll(&mut state, true));
-    assert!(!state.mount_tracking_lost);
+    assert!(!state.tracking.is_lost());
 
     // Genuine mid-sequence drop: ON -> OFF must fire exactly once.
     assert!(
         poll(&mut state, false),
         "a true -> false transition is a real tracking loss and must fire"
     );
-    assert!(state.mount_tracking_lost);
+    assert!(state.tracking.is_lost());
 
     // Still off on the next poll — already flagged, must not re-fire.
     assert!(

@@ -98,7 +98,7 @@ fn spawn_monitor(
                 s.current_hour_angle = ha;
                 // The monitor's tracking poll.
                 if crate::executor::apply_mount_tracking_poll(&mut s, tracking) {
-                    s.mount_tracking_lost = true;
+                    s.tracking.mark_lost();
                 }
                 s.mount_is_tracking = Some(tracking);
                 // The monitor's guide-star poll.
@@ -347,7 +347,7 @@ fn a_tracking_poll_during_the_hold_is_not_a_loss() {
     assert!(!crate::executor::apply_mount_tracking_poll(
         &mut state, false
     ));
-    assert!(!state.mount_tracking_expected);
+    assert!(!state.tracking.is_expected());
     state.mount_is_tracking = Some(false);
 
     state.run.end_hold();
@@ -355,7 +355,7 @@ fn a_tracking_poll_during_the_hold_is_not_a_loss() {
         &mut state, true
     ));
     assert!(
-        state.mount_tracking_expected,
+        state.tracking.is_expected(),
         "the first tracking reading after the hold arms the baseline again"
     );
     state.mount_is_tracking = Some(true);

@@ -62,7 +62,7 @@ pub struct ImagingTrainHold {
 }
 
 pub(super) fn looks_like_tracking_limit_hit(state: &TriggerState) -> bool {
-    if !state.mount_tracking_expected || !state.mount_tracking_lost {
+    if !state.tracking.expected_and_lost() {
         return false;
     }
 
@@ -294,8 +294,8 @@ pub struct TriggerState {
 
     // Mount tracking
     pub mount_is_tracking: Option<bool>,
-    pub mount_tracking_expected: bool,
-    pub mount_tracking_lost: bool,
+    /// The tracking-loss latch. See [`super::TrackingLossState`].
+    pub tracking: super::TrackingLossState,
     /// Whether the mount is currently slewing (from status polling)
     pub mount_slewing: Option<bool>,
     /// Whether the mount is currently parked (from status polling)
@@ -303,8 +303,6 @@ pub struct TriggerState {
     /// Set to true when the most recent mount status query failed (connection lost / error).
     /// Defaults to false (no failure). The tracking-limit heuristic requires this to be false.
     pub mount_status_query_failed: bool,
-    /// Unix timestamp when tracking limit was first detected (for wait-before-flip)
-    pub tracking_limit_detected_at: Option<i64>,
     /// The active meridian trigger method (so MountTrackingLost can defer to OnTrackingLimitHit)
     pub meridian_trigger_method: Option<crate::MeridianTriggerMethod>,
 
@@ -424,12 +422,10 @@ impl Default for TriggerState {
             target_ra: None,
             target_dec: None,
             mount_is_tracking: None,
-            mount_tracking_expected: false,
-            mount_tracking_lost: false,
+            tracking: super::TrackingLossState::default(),
             mount_slewing: None,
             mount_parked: None,
             mount_status_query_failed: false,
-            tracking_limit_detected_at: None,
             meridian_trigger_method: None,
             dome_shutter_status: None,
             dome_shutter_open_expected: false,
@@ -664,7 +660,7 @@ impl TriggerState {
         self.current_altitude = None;
         self.current_hour_angle = None;
         self.next_meridian_flip_time = None;
-        self.tracking_limit_detected_at = None;
+        self.tracking.forget_limit_detection();
         self.last_plate_solve_ra = None;
         self.last_plate_solve_dec = None;
         self.last_plate_solve_pixel_scale = None;
@@ -909,8 +905,7 @@ impl TriggerState {
 
     /// Set mount tracking expected state
     pub fn set_mount_tracking_expected(&mut self, expected: bool) {
-        self.mount_tracking_expected = expected;
-        self.mount_tracking_lost = false;
+        self.tracking.set_expected(expected);
     }
 
     /// Update dome shutter status
@@ -925,7 +920,7 @@ impl TriggerState {
 
     /// Reset mount tracking lost state
     pub fn reset_mount_tracking_state(&mut self) {
-        self.mount_tracking_lost = false;
+        self.tracking.clear_lost();
     }
 
     /// Get the next grid dither offset (in pixels) for an NxN grid pattern.
@@ -1121,13 +1116,12 @@ impl TriggerState {
         self.meridian.clear();
         self.current_target_name = None;
         self.next_meridian_flip_time = None;
-        self.tracking_limit_detected_at = None;
+        self.tracking.forget_limit_detection();
     }
 
     /// Reset tracking limit detection state (call when tracking resumes or flip completes)
     pub fn reset_tracking_limit_detection(&mut self) {
-        self.tracking_limit_detected_at = None;
-        self.mount_tracking_lost = false;
+        self.tracking.clear_limit_detection();
     }
 
     /// Check if a meridian flip might be needed based on current state

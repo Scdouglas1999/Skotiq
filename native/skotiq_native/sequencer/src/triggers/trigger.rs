@@ -372,7 +372,7 @@ impl Trigger {
                         // glitch (e.g. EQ8 self-recovering from a brief stall)
                         // without forcing a flip; zero means "flip immediately".
                         if config.tracking_limit_wait_minutes > 0.0 {
-                            if let Some(detected_at) = state.tracking_limit_detected_at {
+                            if let Some(detected_at) = state.tracking.limit_detected_at() {
                                 let elapsed_secs = chrono::Utc::now().timestamp() - detected_at;
                                 // Why: tracking_limit_wait_minutes is f64 user-config
                                 // (UI-bounded, typically 0..30). f64 -> i64 saturates
@@ -588,7 +588,7 @@ impl Trigger {
                 }
             }
             TriggerType::MountTrackingLost => {
-                if !state.mount_tracking_expected || !state.mount_tracking_lost {
+                if !state.tracking.expected_and_lost() {
                     return false;
                 }
 

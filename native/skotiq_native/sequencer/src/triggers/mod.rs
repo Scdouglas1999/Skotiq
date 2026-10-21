@@ -14,6 +14,7 @@ mod manual_flip;
 mod meridian_window;
 mod run_mode;
 mod state;
+mod tracking_state;
 mod trigger;
 
 pub use dawn::*;
@@ -23,6 +24,7 @@ pub use manager::*;
 pub use meridian_window::*;
 pub use run_mode::*;
 pub use state::*;
+pub use tracking_state::*;
 pub use trigger::*;
 
 /// Hard upper bound on the FocusDrift rolling-window length.

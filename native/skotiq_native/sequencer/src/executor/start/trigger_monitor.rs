@@ -125,7 +125,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
     // saves keep running while triggers_enabled = false.
 
     // The MountTrackingLost / OnTrackingLimitHit baseline
-    // (`mount_tracking_expected`) is armed lazily in the poll block
+    // (`TrackingLossState::is_expected`) is armed lazily in the poll block
     // below — only once the mount is OBSERVED tracking — rather than
     // assumed here at startup, so a not-yet-tracking mount cannot
     // self-cancel the sequence. See mount_tracking_poll_verdict.
@@ -538,22 +538,15 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                     let tracking_just_lost = apply_mount_tracking_poll(&mut state, *is_tracking);
                     if tracking_just_lost {
                         tracing::warn!("Mount tracking lost during sequence!");
-                        state.mount_tracking_lost = true;
-
-                        // OnTrackingLimitHit waits `tracking_limit_wait_minutes`
-                        // before flipping; we stamp the detection time here so
-                        // the wait period is measured from when the loss was
-                        // first observed, not from when the trigger eventually
-                        // evaluates (which happens on its own cadence).
-                        if state.tracking_limit_detected_at.is_none() {
-                            state.tracking_limit_detected_at = Some(chrono::Utc::now().timestamp());
+                        // The tracking-limit wait runs from the first sighting
+                        // of the loss, not from when the trigger evaluates it.
+                        if state.tracking.record_loss(chrono::Utc::now().timestamp()) {
                             tracing::info!("Tracking limit detection timestamp recorded");
                         }
                     }
-                    // Tracking resumed before the wait elapsed — clear the
-                    // detection timestamp so a future loss starts the wait
-                    // window fresh instead of inheriting stale state.
-                    if *is_tracking && state.tracking_limit_detected_at.is_some() {
+                    // Tracking resumed before the wait elapsed: a future loss
+                    // starts its wait afresh.
+                    if *is_tracking && state.tracking.limit_detected_at().is_some() {
                         tracing::info!("Mount tracking resumed, cancelling tracking limit wait");
                         state.reset_tracking_limit_detection();
                     }

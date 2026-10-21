@@ -1014,15 +1014,16 @@ fn make_limit_hit_state() -> TriggerState {
     // A mount only reaches its tracking limit while tracking a target, and
     // the flip trigger now requires one.
     state.set_target(270.0, 60.0);
-    state.mount_tracking_expected = true;
-    state.mount_tracking_lost = true;
+    state.tracking.restore(true, true, None);
     state.mount_is_tracking = Some(false);
     state.mount_status_query_failed = false;
     state.mount_slewing = Some(false);
     state.mount_parked = Some(false);
     state.current_hour_angle = Some(1.5); // 1.5h past meridian
     state.pier_side = Some(PierSide::West); // Pre-flip side
-    state.tracking_limit_detected_at = Some(chrono::Utc::now().timestamp() - 600); // 10 min ago
+    state
+        .tracking
+        .set_limit_detected_at(Some(chrono::Utc::now().timestamp() - 600)); // 10 min ago
     state
 }
 
@@ -1063,7 +1064,9 @@ async fn test_on_tracking_limit_hit_with_wait_not_elapsed() {
 
     let mut state = make_limit_hit_state();
     // Detected just 1 minute ago - wait hasn't elapsed
-    state.tracking_limit_detected_at = Some(chrono::Utc::now().timestamp() - 60);
+    state
+        .tracking
+        .set_limit_detected_at(Some(chrono::Utc::now().timestamp() - 60));
     assert!(
         !trigger.check(&state).await,
         "Should NOT trigger - wait period not elapsed"
@@ -1086,7 +1089,9 @@ async fn test_on_tracking_limit_hit_with_wait_elapsed() {
 
     let mut state = make_limit_hit_state();
     // Detected 10 minutes ago - well past the 5 min wait
-    state.tracking_limit_detected_at = Some(chrono::Utc::now().timestamp() - 600);
+    state
+        .tracking
+        .set_limit_detected_at(Some(chrono::Utc::now().timestamp() - 600));
     assert!(
         trigger.check(&state).await,
         "Should trigger - wait period elapsed"
@@ -1108,7 +1113,7 @@ async fn test_on_tracking_limit_hit_not_tracking_lost() {
     );
 
     let mut state = make_limit_hit_state();
-    state.mount_tracking_lost = false; // Tracking is fine
+    state.tracking.clear_lost(); // Tracking is fine
     assert!(
         !trigger.check(&state).await,
         "Should NOT trigger - tracking not lost"
@@ -1255,8 +1260,7 @@ async fn test_mount_tracking_lost_fires_when_not_limit_hit() {
     );
 
     let mut state = TriggerState::new();
-    state.mount_tracking_expected = true;
-    state.mount_tracking_lost = true;
+    state.tracking.restore(true, true, None);
     state.meridian_trigger_method = Some(crate::MeridianTriggerMethod::OnTrackingLimitHit);
     // No HA data → heuristic fails → MountTrackingLost should fire
     assert!(
@@ -1376,8 +1380,7 @@ async fn test_on_tracking_limit_hit_uses_limit_time_without_hour_angle() {
 
     let mut state = TriggerState::new();
     state.set_target(270.0, 60.0);
-    state.mount_tracking_expected = true;
-    state.mount_tracking_lost = true;
+    state.tracking.restore(true, true, None);
     state.mount_is_tracking = Some(false);
     state.mount_status_query_failed = false;
     state.mount_slewing = Some(false);
@@ -1390,12 +1393,12 @@ async fn test_on_tracking_limit_hit_uses_limit_time_without_hour_angle() {
 #[tokio::test]
 async fn test_tracking_limit_reset_on_tracking_resume() {
     let mut state = make_limit_hit_state();
-    assert!(state.tracking_limit_detected_at.is_some());
-    assert!(state.mount_tracking_lost);
+    assert!(state.tracking.limit_detected_at().is_some());
+    assert!(state.tracking.is_lost());
 
     state.reset_tracking_limit_detection();
-    assert!(state.tracking_limit_detected_at.is_none());
-    assert!(!state.mount_tracking_lost);
+    assert!(state.tracking.limit_detected_at().is_none());
+    assert!(!state.tracking.is_lost());
 }
 
 /// A trigger that stays due tick after tick is still returned on every tick

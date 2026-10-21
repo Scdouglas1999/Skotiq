@@ -192,7 +192,7 @@ pub(super) fn mount_tracking_just_lost(
 /// reading; the other arguments are the baseline carried in `TriggerState`.
 ///
 /// Returns `(expected, just_lost)`:
-///   * `expected` is the new `mount_tracking_expected` baseline. It is armed
+///   * `expected` is the new tracking-loss baseline. It is armed
 ///     LAZILY — set to `true` only once the mount has been OBSERVED actually
 ///     tracking, never assumed at monitor start. Until the first `Ok(true)`
 ///     reading a not-yet-tracking / still-parked / headless mount keeps it
@@ -235,10 +235,10 @@ pub(crate) fn apply_mount_tracking_poll(
         return false;
     }
     let (expected, just_lost) = mount_tracking_poll_verdict(
-        state.mount_tracking_expected,
+        state.tracking.is_expected(),
         currently_tracking,
         state.mount_is_tracking,
-        state.mount_tracking_lost,
+        state.tracking.is_lost(),
     );
     state.set_mount_tracking_expected(expected);
     just_lost
