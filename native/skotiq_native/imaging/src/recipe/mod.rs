@@ -50,8 +50,8 @@ mod determinism_tests;
 pub use cache::{CacheKey, RenderCache, DEFAULT_CACHE_CAPACITY_BYTES};
 pub use model::{
     canonical_json, fingerprint_hex, wcs_from_header, CatalogError, CatalogStar, DarkroomOp,
-    OpApplied, OpContext, OpError, OpImage, OpStage, PhotometryCatalog, Recipe, RecipeAuthor,
-    RecipeError, RecipeParent, RecipeStep, CANCEL_POLL_PIXELS, RECIPE_SCHEMA_VERSION,
+    MasterSource, OpApplied, OpContext, OpError, OpImage, OpStage, PhotometryCatalog, Recipe,
+    RecipeAuthor, RecipeError, RecipeParent, RecipeStep, CANCEL_POLL_PIXELS, RECIPE_SCHEMA_VERSION,
 };
 pub use params::Params;
 pub use pyramid::{downsample_2x, ImagePyramid, DEFAULT_MIN_PYRAMID_DIMENSION};

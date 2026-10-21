@@ -159,6 +159,7 @@ pub fn builtin_ops() -> Vec<Arc<dyn DarkroomOp>> {
         Arc::new(ops::star_reduce::StarReduceV1),
         Arc::new(ops::saturation::SaturationV1),
         Arc::new(ops::curves::CurvesV1),
+        Arc::new(ops::channel_combine::ChannelCombineV1),
     ]
 }
 

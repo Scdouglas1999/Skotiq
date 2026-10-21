@@ -6,6 +6,7 @@
 //! place the set is assembled.
 
 pub mod background_extract;
+pub mod channel_combine;
 pub mod color_calibrate;
 pub mod crop;
 pub mod curves;
@@ -14,4 +15,4 @@ pub mod saturation;
 pub mod star_reduce;
 pub mod stretch;
 
-mod star_detect;
+pub(crate) mod star_detect;
