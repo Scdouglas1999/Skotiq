@@ -93,6 +93,7 @@ import 'sequence_executor/frame_attribution.dart';
 import 'sequence_executor/eta_smoothing.dart';
 import 'sequence_executor/run_finalization.dart';
 import 'sequence_executor/run_lifecycle.dart';
+import 'sequence_executor/run_stats_ledger.dart';
 import 'sequence_executor/sequence_serializer.dart';
 import 'sequence_executor/stop_confirmation.dart';
 import '../../services/frame_quality_score.dart';
@@ -147,22 +148,12 @@ class SequenceExecutor {
     warn: _surfaceRunWarning,
   );
 
-  /// Emit an operator-facing warning onto both the log and the live run
-  /// stats, so it survives into `sequence_runs.stats_json` and the
-  /// post-session report rather than only existing in a log file.
-  ///
-  /// [persist] = `false` for a warning raised during run START-UP, which is
-  /// already covered by the final `finishRun` write. See [_incrementRunStat];
-  /// the default `true` keeps mid-run warnings crash-durable.
+  /// Log an operator-facing warning and put it on the run record, so it
+  /// reaches `sequence_runs.stats_json` and the post-session report.
+  /// [persist] as in [RunStatsLedger.update].
   void _surfaceRunWarning(String message, {bool persist = true}) {
     _logger.warning(message, source: 'SequenceExecutor');
-    // Route through _incrementRunStat so the warning gets the same copy-to-
-    // notify + stats-seal handling as every other live-stat mutation (it is a
-    // no-op when no run is live or the stats are already sealed for finish).
-    _incrementRunStat(
-      (stats) => stats.recordWarning(message),
-      persist: persist,
-    );
+    _stats.update((stats) => stats.recordWarning(message), persist: persist);
   }
 
   Timer? _progressTimer;
@@ -179,14 +170,15 @@ class SequenceExecutor {
   /// for [terminalCleanupSettledForTest].
   Future<void>? _lastTerminalDrive;
 
-  /// Set when finalization takes the run's stats for the final `finishRun`
-  /// write; no incremental `updateStats` may land after it. Cleared when a new
-  /// run begins.
-  bool _statsSealed = false;
-
-  /// In-flight incremental `updateStats` writes, drained before the final
-  /// `finishRun` so no stale write races the final stats JSON.
-  final Set<Future<void>> _pendingStatWrites = <Future<void>>{};
+  /// The live run stats and their persistence.
+  late final RunStatsLedger _stats = RunStatsLedger(
+    readStats: () => _ref.read(liveSequenceStatsProvider),
+    publishStats: (stats) =>
+        _ref.read(liveSequenceStatsProvider.notifier).state = stats,
+    readRunId: () => _ref.read(currentRunIdProvider),
+    runsDao: () => _ref.read(sequenceRunsDaoProvider),
+    logger: () => _logger,
+  );
 
   /// Guards the periodic checkpoint save against re-entrancy. A slow
   /// `saveCheckpoint()` (large sequence, slow disk) can outlive the 30 s
@@ -1011,8 +1003,7 @@ class SequenceExecutor {
   /// Clear what a previous run left behind so a new run starts clean.
   void _resetPerRunState() {
     _lastTerminalDrive = null;
-    _statsSealed = false;
-    _pendingStatWrites.clear();
+    _stats.reopen();
     // The sequencer screen must see a clean null -> result transition when
     // this run ends, never the previous run's report.
     _ref.read(sequenceTerminalRunResultProvider.notifier).state = null;
@@ -1219,7 +1210,7 @@ class SequenceExecutor {
       // say WHY the run ended, not just that it did. Recorded here, past
       // every duplicate/echo guard, so a swallowed terminal can never stamp
       // a foreign cause onto a run it did not end.
-      _incrementRunStat((stats) => stats.recordWarning(warning));
+      _stats.update((stats) => stats.recordWarning(warning));
     }
 
     if (error != null) {

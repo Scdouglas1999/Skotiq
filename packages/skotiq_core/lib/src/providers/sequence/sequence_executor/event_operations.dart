@@ -18,7 +18,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
     // The one place a dither is counted: native reports each dither once,
     // whoever asked for it. It is a count, not node progress.
     if (event is DitherPerformed) {
-      _incrementRunStat((stats) => stats.recordDither());
+      _stats.update((stats) => stats.recordDither());
       return;
     }
 
@@ -105,7 +105,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
             ? null
             : parentDirectoryOf(rejectPath);
         if (rejectFolder != null) {
-          _incrementRunStat((stats) => stats.recordRejectFolder(rejectFolder));
+          _stats.update((stats) => stats.recordRejectFolder(rejectFolder));
         }
         _registerSequenceFrame(event, grade: 'reject');
       case PluginNodeRequested():
@@ -155,7 +155,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
     // An autofocus is counted by what the node did (its structured progress
     // was an Autofocus detail), never by its operator-editable name.
     if (nodeStatus == NodeStatus.success && _nodeRanAutofocus(nodeId)) {
-      _incrementRunStat((stats) => stats.recordAutofocus());
+      _stats.update((stats) => stats.recordAutofocus());
       _noteAutofocusOutcomeForBacklashOffer();
     }
     // A status Dart has not learned yet reads as a failure; carry the raw
@@ -351,13 +351,13 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
   ) {
     final triggerName = event.triggerName ?? 'Unknown trigger';
     final action = event.action ?? '';
-    _incrementRunStat((stats) => stats.recordTriggerFire());
+    _stats.update((stats) => stats.recordTriggerFire());
     // A target dropped by its own end_when costs the operator a whole target,
     // so it goes on the run record, not only into the trigger feed.
     if (isTargetEndWhenSkip(event.triggerId ?? '')) {
       final warning = targetEndWhenSkipWarning(triggerName);
       _logger.warning(warning, source: 'SequenceExecutor');
-      _incrementRunStat((stats) => stats.recordWarning(warning));
+      _stats.update((stats) => stats.recordWarning(warning));
       progressNotifier.updateProgress(message: warning);
       return;
     }
@@ -1027,7 +1027,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
     required bool accepted,
     String? filter,
   }) {
-    _incrementRunStat((stats) {
+    _stats.update((stats) {
       final resolvedFilter = (filter != null && filter.isNotEmpty)
           ? filter
           : _resolveActiveFilter();
@@ -1043,7 +1043,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
   }
 
   void _recordRunError(String message) {
-    _incrementRunStat((stats) => stats.recordError(message));
+    _stats.update((stats) => stats.recordError(message));
     _noteAutofocusOutcomeForBacklashOffer(failureMessage: message);
   }
 
@@ -1070,7 +1070,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
   /// [_recordRunError]: the terminal reason is a restatement of the mid-run
   /// `Error` this same run already recorded.
   void _recordTerminalRunError(String message) {
-    _incrementRunStat((stats) => stats.recordTerminalError(message));
+    _stats.update((stats) => stats.recordTerminalError(message));
   }
 
   /// Record the verdict of a meridian flip into the live run stats.
@@ -1100,7 +1100,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
 
     switch (outcome) {
       case 'success':
-        _incrementRunStat((stats) => stats.recordMeridianFlip());
+        _stats.update((stats) => stats.recordMeridianFlip());
         if (failedSteps.isEmpty) {
           final message =
               'Meridian flip for "$targetName" completed in '
@@ -1115,7 +1115,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
               '${failedSteps.join("; ")}. Verify framing — the post-flip '
               'recentre needed retries.';
           _logger.warning(message, source: 'SequenceExecutor');
-          _incrementRunStat((stats) => stats.recordWarning(message));
+          _stats.update((stats) => stats.recordWarning(message));
           progressNotifier.updateProgress(message: message);
         }
         break;
@@ -1127,7 +1127,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
             '${error != null ? ": $error" : ""}. The mount was NOT '
             'flipped.';
         _logger.warning(message, source: 'SequenceExecutor');
-        _incrementRunStat((stats) => stats.recordWarning(message));
+        _stats.update((stats) => stats.recordWarning(message));
         progressNotifier.updateProgress(message: message);
         break;
 
@@ -1154,74 +1154,6 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
     }
   }
 
-  /// Mutate the live run stats and (by default) schedule an incremental
-  /// `updateStats` write.
-  ///
-  /// [persist] = `false` records the mutation in memory only. It is for facts
-  /// established at run START that are constant for the whole run (e.g. "this
-  /// rig has no focuser, so refocus is off"). Those are already carried into
-  /// `sequence_runs.stats_json` by the final `finishRun` write, and there is no
-  /// mid-run window in which a crash could lose them but keep the run row — so
-  /// an extra DB round-trip buys nothing, and every such write is one more
-  /// chance to land after the finalization seal.
-  void _incrementRunStat(
-    void Function(SequenceRunStats stats) update, {
-    bool persist = true,
-  }) {
-    // Once finalization has sealed the stats for the final finishRun write, no
-    // further incremental mutation/persist may occur — a late/old-generation
-    // event must not overwrite the final stats JSON.
-    if (_statsSealed) {
-      return;
-    }
-    final stats = _ref.read(liveSequenceStatsProvider);
-    if (stats == null) {
-      return;
-    }
-    update(stats);
-    // Store a fresh COPY so the identity changes: [liveSequenceStatsProvider] is
-    // a StateProvider whose updateShouldNotify is `!identical(prev, next)`, so
-    // re-storing the same mutated instance would notify NO consumer (the live
-    // Session Vitals tile / run dashboard would silently stop updating).
-    _ref.read(liveSequenceStatsProvider.notifier).state = stats.copy();
-    if (persist) _persistLiveRunStats();
-  }
-
-  void _persistLiveRunStats() {
-    // Sealed: the final finishRun write owns the stats now. Skipping here (plus
-    // draining already-submitted writes in [_finalizeRun]) guarantees no stale
-    // updateStats lands after the final stats JSON.
-    if (_statsSealed) {
-      return;
-    }
-    final runId = _ref.read(currentRunIdProvider);
-    final stats = _ref.read(liveSequenceStatsProvider);
-    if (runId == null || stats == null) {
-      return;
-    }
-    // Track the write so [_finalizeRun] can drain it before the final finish.
-    final Future<void> write = _ref
-        .read(sequenceRunsDaoProvider)
-        .updateStats(runId, stats.toJson());
-    _pendingStatWrites.add(write);
-    // The failure has to be handled HERE, not only in [_drainPendingStatWrites]
-    // — that only covers writes still pending when finalization drains, so a
-    // write that failed earlier in the night reached the zone as an unhandled
-    // async error. `whenComplete` forwards the error to its derived future, so
-    // it is not a handler.
-    final logger = _logger;
-    unawaited(
-      write
-          .catchError((Object e) {
-            logger.warning(
-              'Failed to persist live run stats for run $runId: $e',
-              source: 'SequenceExecutor',
-            );
-          })
-          .whenComplete(() => _pendingStatWrites.remove(write)),
-    );
-  }
-
   /// Finalize the run row and fire the once-per-run session-end hooks.
   ///
   /// Awaited by the drive, so the run id is cleared only after `finishRun` has
@@ -1238,30 +1170,13 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
     if (runId == null || stats == null) {
       return;
     }
-    // Seal first so no new incremental write can be submitted, then drain the
-    // ones in flight so none lands after finishRun. Idempotent for a retry.
-    _statsSealed = true;
-    await _drainPendingStatWrites();
+    await _stats.sealAndDrain();
     stats.endTime = DateTime.now();
     await _ref
         .read(sequenceRunsDaoProvider)
         .finishRun(runId, f.runStatus, stats.toJson());
     f.runRecordFinished = true;
     _captureSessionEndHooks();
-  }
-
-  /// Await every incremental `updateStats` write submitted before the stats
-  /// were sealed, so no stale write can race the final `finishRun`. Individual
-  /// write errors are swallowed (they do not block finalization); the snapshot-
-  /// and-clear means new writes (blocked while sealed) cannot re-populate the
-  /// set mid-drain.
-  Future<void> _drainPendingStatWrites() async {
-    if (_pendingStatWrites.isEmpty) {
-      return;
-    }
-    final batch = _pendingStatWrites.toList();
-    _pendingStatWrites.clear();
-    await Future.wait(batch.map((w) => w.catchError((Object _) {})));
   }
 
   // Live-stacking auto-feed.
