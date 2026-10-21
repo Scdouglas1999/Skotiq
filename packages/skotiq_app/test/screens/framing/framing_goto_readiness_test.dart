@@ -6,7 +6,8 @@
 //
 // The readiness predicate consulted only `hasTarget && isMountConnected`, so
 // these pin the two states it ignored: a parked mount (which no driver will
-// GoTo from) and a target under the ground.
+// GoTo from) and a target under the ground. The rail is now the Framing
+// column's Telescope section; its readiness note carries the same states.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -74,7 +75,7 @@ Future<void> pumpRail(
   await pumpAppScreen(
     tester,
     const SingleChildScrollView(
-      child: SizedBox(width: 500, child: FramingActionRail()),
+      child: SizedBox(width: 500, child: FramingTelescopeSection()),
     ),
     size: const Size(700, 1200),
     settle: false,
@@ -99,8 +100,8 @@ bool _slewEnabled(WidgetTester tester) => tester
     .widget<SlewDropdownButton>(find.byKey(FramingTutorialKeys.slewBtn))
     .isEnabled;
 
-/// The GoTo step's own readiness pill — several steps in the rail read
-/// 'Ready', so the assertion has to name this one.
+/// The Telescope section's own readiness note, named by key so the assertion
+/// cannot match a 'Ready' elsewhere on the column.
 Finder _gotoStatus(String value) => find.descendant(
       of: find.byKey(framingGotoStatusKey),
       matching: find.text(value),

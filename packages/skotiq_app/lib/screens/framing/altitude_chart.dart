@@ -25,12 +25,18 @@ class AltitudeChart extends ConsumerStatefulWidget {
   /// timezone rendering, which would skew rise/transit/set math).
   final DateTime Function()? nowOverride;
 
+  /// The Framing column's form: no title or Alt/Airmass chips (the section
+  /// above already reads them out), a shorter plot, and rise/transit/set as
+  /// one row of readouts instead of chips.
+  final bool compact;
+
   const AltitudeChart({
     super.key,
     required this.raHours,
     required this.decDegrees,
     this.targetName,
     this.nowOverride,
+    this.compact = false,
   });
 
   DateTime nowValue() => nowOverride?.call() ?? DateTime.now();
@@ -301,6 +307,8 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
     // forever, which is the defect this replaced.
     _clock = ref.watch(clockProvider);
 
+    if (widget.compact) return _buildCompact(colors);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -357,6 +365,122 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
         // Rise/Transit/Set times
         if (_visibility != null) _buildVisibilityInfo(colors),
       ],
+    );
+  }
+
+  /// [AltitudeChart.compact]: a quiet caption row with the airmass toggle,
+  /// the plot, then rise / transit / set as readouts.
+  Widget _buildCompact(SkotiqColors colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                _showAirmass ? 'AIRMASS TONIGHT' : 'ALTITUDE TONIGHT',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: SkotiqTypography.readoutLabel
+                    .copyWith(color: colors.textMuted),
+              ),
+            ),
+            _airmassToggle(colors),
+          ],
+        ),
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        if (_altitudeData.isEmpty)
+          _buildNoLocationWarning(colors, height: 96)
+        else
+          _buildChart(colors, preferredHeight: 112),
+        if (_visibility != null) ...[
+          const SizedBox(height: SkotiqTokens.spaceSm),
+          _buildVisibilityGrid(colors),
+        ],
+      ],
+    );
+  }
+
+  Widget _airmassToggle(SkotiqColors colors) {
+    return Semantics(
+      button: true,
+      toggled: _showAirmass,
+      label: 'Show airmass',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: () => setState(() => _showAirmass = !_showAirmass),
+        borderRadius: SkotiqTokens.borderRadiusInline4,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: SkotiqTokens.spaceXs,
+            vertical: 2,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _showAirmass ? LucideIcons.checkSquare : LucideIcons.square,
+                size: SkotiqTokens.iconXs,
+                color: _showAirmass ? colors.primary : colors.textMuted,
+              ),
+              const SizedBox(width: SkotiqTokens.spaceXs),
+              Text(
+                'Airmass',
+                style: SkotiqTypography.captionSm.copyWith(
+                  color: _showAirmass ? colors.textPrimary : colors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Rise / Transit / Set / Transit alt as one row of readouts.
+  Widget _buildVisibilityGrid(SkotiqColors colors) {
+    final v = _visibility!;
+    if (v.riseTime == null && v.transitTime == null && v.setTime == null) {
+      final circumpolar = v.transitAltitude != null && v.transitAltitude! > 0;
+      return Text(
+        circumpolar
+            ? 'Circumpolar - always visible'
+            : 'Never rises at this location',
+        style: SkotiqTypography.captionSm.copyWith(
+          color: circumpolar ? colors.success : colors.error,
+        ),
+      );
+    }
+    return Tooltip(
+      // Same wording as the full chart's chip: this is the altitude at
+      // culmination, whenever that falls, not the best altitude in the dark.
+      message: 'Transit alt is the altitude at culmination, whenever that '
+          'falls - including in daylight.',
+      child: MetricGrid(
+        columns: 4,
+        semanticLabel: 'Visibility tonight',
+        items: [
+          MetricGridItem(
+            label: 'Rise',
+            value: v.riseTime == null ? null : _siteHhmm(v.riseTime!),
+          ),
+          MetricGridItem(
+            label: 'Transit',
+            value: v.transitTime == null ? null : _siteHhmm(v.transitTime!),
+          ),
+          MetricGridItem(
+            label: 'Set',
+            value: v.setTime == null ? null : _siteHhmm(v.setTime!),
+          ),
+          MetricGridItem(
+            label: 'Transit alt',
+            value: v.transitAltitude == null
+                ? null
+                : '${v.transitAltitude!.toStringAsFixed(0)}°',
+          ),
+        ],
+      ),
     );
   }
 
@@ -434,9 +558,9 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
     );
   }
 
-  Widget _buildNoLocationWarning(SkotiqColors colors) {
+  Widget _buildNoLocationWarning(SkotiqColors colors, {double height = 120}) {
     return AdaptiveChartContainer.fixed(
-      height: 120,
+      height: height,
       child: Container(
         decoration: BoxDecoration(
           color: colors.well,
@@ -460,217 +584,251 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
     );
   }
 
-  Widget _buildChart(SkotiqColors colors) {
+  /// The hour-label step for a plot [width] px wide: each HH:MM label needs
+  /// about [_minLabelSpacing] px, so a narrow column labels every 3, 4 or 6
+  /// hours instead of printing two-hourly labels on top of each other.
+  static const double _minLabelSpacing = 44;
+
+  static double _timeLabelInterval(double width, double totalMinutes) {
+    for (final minutes in const [120.0, 180.0, 240.0, 360.0]) {
+      final labels = totalMinutes / minutes;
+      if (labels <= 0 || width / labels >= _minLabelSpacing) return minutes;
+    }
+    return 480;
+  }
+
+  Widget _buildChart(SkotiqColors colors, {double preferredHeight = 140}) {
     final siteMinimumAltitude = ref.watch(siteMinimumAltitudeDegProvider);
     final now = widget.nowValue();
     final nowX = now.difference(_startTime).inMinutes.toDouble();
     final totalMinutes = _endTime.difference(_startTime).inMinutes.toDouble();
 
     return AdaptiveChartContainer(
-      preferredHeight: 140,
-      child: LineChart(
-        LineChartData(
-          minX: 0,
-          maxX: totalMinutes,
-          minY: _showAirmass ? 1 : -10,
-          maxY: _showAirmass ? 5 : 90,
-          clipData: const FlClipData.all(),
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: true,
-            horizontalInterval: _showAirmass ? 1 : 30,
-            verticalInterval: 60, // Every hour
-            getDrawingHorizontalLine: (value) {
-              // The site minimum is drawn as an explicit HorizontalLine below
-              // (it is rarely a multiple of the 30° grid step), so the grid
-              // does not imply 30 is special.
-              return FlLine(
-                color: colors.border.withValues(alpha: 0.3),
-                strokeWidth: 0.5,
-              );
-            },
-            getDrawingVerticalLine: (value) {
-              return FlLine(
-                color: colors.border.withValues(alpha: 0.3),
-                strokeWidth: 0.5,
-              );
-            },
+      preferredHeight: preferredHeight,
+      child: LayoutBuilder(
+        builder: (context, constraints) => _lineChart(
+          colors,
+          siteMinimumAltitude: siteMinimumAltitude,
+          nowX: nowX,
+          totalMinutes: totalMinutes,
+          // The left axis reserves 28 px of the width.
+          labelInterval: _timeLabelInterval(
+            constraints.maxWidth - 28,
+            totalMinutes,
           ),
-          titlesData: FlTitlesData(
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 28,
-                interval: _showAirmass ? 1 : 30,
-                getTitlesWidget: (value, meta) {
-                  if (_showAirmass) {
-                    if (value == 1 || value == 2 || value == 3 || value == 4) {
-                      return Text(
-                        value.toInt().toString(),
-                        style: SkotiqTypography.caption
-                            .copyWith(color: colors.textMuted),
-                      );
-                    }
-                  } else {
-                    if (value == 0 ||
-                        value == 30 ||
-                        value == 60 ||
-                        value == 90) {
-                      return Text(
-                        '${value.toInt()}°',
-                        style: SkotiqTypography.caption
-                            .copyWith(color: colors.textMuted),
-                      );
-                    }
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-            ),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 20,
-                interval: 120, // Every 2 hours
-                getTitlesWidget: (value, meta) {
-                  final time = _startTime.add(Duration(minutes: value.toInt()));
-                  return Text(
-                    _siteHhmm(time),
-                    style: SkotiqTypography.caption
-                        .copyWith(color: colors.textMuted),
-                  );
-                },
-              ),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-          ),
-          borderData: FlBorderData(
-            show: true,
-            border: Border.all(color: colors.border.withValues(alpha: 0.5)),
-          ),
-          lineBarsData: [
-            // Altitude curve
-            if (!_showAirmass)
-              LineChartBarData(
-                spots: _altitudeData,
-                isCurved: true,
-                curveSmoothness: 0.2,
-                color: colors.primary,
-                barWidth: 2,
-                isStrokeCapRound: true,
-                dotData: const FlDotData(show: false),
-                belowBarData: BarAreaData(
-                  show: true,
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      colors.primary.withValues(alpha: 0.3),
-                      colors.primary.withValues(alpha: 0.0),
-                    ],
-                  ),
-                ),
-              ),
-            // Airmass curve
-            if (_showAirmass && _airmassData.isNotEmpty)
-              LineChartBarData(
-                spots: _airmassData,
-                isCurved: true,
-                curveSmoothness: 0.2,
-                color: colors.warning,
-                barWidth: 2,
-                isStrokeCapRound: true,
-                dotData: const FlDotData(show: false),
-              ),
-          ],
-          extraLinesData: ExtraLinesData(
-            verticalLines: [
-              // Current time indicator — ONLY when now actually falls inside
-              // the plotted window, which is tonight's sunset→sunrise. Clamping
-              // it to the edge would pin a confident "Now" line at an altitude
-              // the target reaches hours later, contradicting the "Alt:"
-              // readout above it. With no marker the axis times still say what
-              // window is plotted, and the Alt chip remains the truth about now.
-              if (nowX >= 0 && nowX <= totalMinutes)
-                VerticalLine(
-                  x: nowX,
-                  color: colors.error,
-                  strokeWidth: 1,
-                  dashArray: [4, 2],
-                  label: VerticalLineLabel(
-                    show: true,
-                    alignment: Alignment.topRight,
-                    style:
-                        SkotiqTypography.caption.copyWith(color: colors.error),
-                    labelResolver: (_) => 'Now',
-                  ),
-                ),
-              // Twilight markers
-              if (_twilight?.astronomicalDusk != null)
-                _twilightLine(
-                  _twilight!.astronomicalDusk!,
-                  colors.textMuted.withValues(alpha: 0.5),
-                  totalMinutes,
-                ),
-              if (_twilight?.astronomicalDawn != null)
-                _twilightLine(
-                  _twilight!.astronomicalDawn!,
-                  colors.textMuted.withValues(alpha: 0.5),
-                  totalMinutes,
-                ),
-            ],
-            horizontalLines: [
-              // Horizon line
-              if (!_showAirmass)
-                HorizontalLine(
-                  y: 0,
-                  color: colors.error.withValues(alpha: 0.5),
-                  strokeWidth: 1,
-                ),
-              // The SITE's minimum imaging altitude, not a hard-coded 30°.
-              // This chart drew 30 while the scheduler was gating on its own
-              // configured value, so the dashed line the operator reads as
-              // "below this I cannot image" disagreed with the engine that
-              // decides it.
-              if (!_showAirmass)
-                HorizontalLine(
-                  y: siteMinimumAltitude,
-                  color: colors.warning.withValues(alpha: 0.5),
-                  strokeWidth: 1,
-                  dashArray: [4, 4],
-                ),
-            ],
-          ),
-          lineTouchData: LineTouchData(
-            enabled: true,
-            touchTooltipData: LineTouchTooltipData(
-              getTooltipColor: (_) => colors.surface,
-              tooltipBorder: BorderSide(color: colors.border),
-              getTooltipItems: (touchedSpots) {
-                return touchedSpots.map((spot) {
-                  final time =
-                      _startTime.add(Duration(minutes: spot.x.toInt()));
-                  final timeStr = _siteHhmm(time);
-                  if (_showAirmass) {
-                    return LineTooltipItem(
-                      '$timeStr\nAirmass: ${spot.y.toStringAsFixed(2)}',
-                      SkotiqTypography.caption
-                          .copyWith(color: colors.textPrimary),
+        ),
+      ),
+    );
+  }
+
+  Widget _lineChart(
+    SkotiqColors colors, {
+    required double siteMinimumAltitude,
+    required double nowX,
+    required double totalMinutes,
+    required double labelInterval,
+  }) {
+    return LineChart(
+      LineChartData(
+        minX: 0,
+        maxX: totalMinutes,
+        minY: _showAirmass ? 1 : -10,
+        maxY: _showAirmass ? 5 : 90,
+        clipData: const FlClipData.all(),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: true,
+          horizontalInterval: _showAirmass ? 1 : 30,
+          verticalInterval: 60, // Every hour
+          getDrawingHorizontalLine: (value) {
+            // The site minimum is drawn as an explicit HorizontalLine below
+            // (it is rarely a multiple of the 30° grid step), so the grid
+            // does not imply 30 is special.
+            return FlLine(
+              color: colors.border.withValues(alpha: 0.3),
+              strokeWidth: 0.5,
+            );
+          },
+          getDrawingVerticalLine: (value) {
+            return FlLine(
+              color: colors.border.withValues(alpha: 0.3),
+              strokeWidth: 0.5,
+            );
+          },
+        ),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              interval: _showAirmass ? 1 : 30,
+              getTitlesWidget: (value, meta) {
+                if (_showAirmass) {
+                  if (value == 1 || value == 2 || value == 3 || value == 4) {
+                    return Text(
+                      value.toInt().toString(),
+                      style: SkotiqTypography.caption
+                          .copyWith(color: colors.textMuted),
                     );
                   }
+                } else {
+                  if (value == 0 || value == 30 || value == 60 || value == 90) {
+                    return Text(
+                      '${value.toInt()}°',
+                      style: SkotiqTypography.caption
+                          .copyWith(color: colors.textMuted),
+                    );
+                  }
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 20,
+              interval: labelInterval,
+              getTitlesWidget: (value, meta) {
+                // fl_chart also labels the axis ends; an end that is off
+                // the step printed over its neighbour.
+                if (value % labelInterval != 0) {
+                  return const SizedBox.shrink();
+                }
+                final time = _startTime.add(Duration(minutes: value.toInt()));
+                return Text(
+                  _siteHhmm(time),
+                  style: SkotiqTypography.caption
+                      .copyWith(color: colors.textMuted),
+                );
+              },
+            ),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+        ),
+        borderData: FlBorderData(
+          show: true,
+          border: Border.all(color: colors.border.withValues(alpha: 0.5)),
+        ),
+        lineBarsData: [
+          // Altitude curve
+          if (!_showAirmass)
+            LineChartBarData(
+              spots: _altitudeData,
+              isCurved: true,
+              curveSmoothness: 0.2,
+              color: colors.primary,
+              barWidth: 2,
+              isStrokeCapRound: true,
+              dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(
+                show: true,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    colors.primary.withValues(alpha: 0.3),
+                    colors.primary.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          // Airmass curve
+          if (_showAirmass && _airmassData.isNotEmpty)
+            LineChartBarData(
+              spots: _airmassData,
+              isCurved: true,
+              curveSmoothness: 0.2,
+              color: colors.warning,
+              barWidth: 2,
+              isStrokeCapRound: true,
+              dotData: const FlDotData(show: false),
+            ),
+        ],
+        extraLinesData: ExtraLinesData(
+          verticalLines: [
+            // Current time indicator — ONLY when now actually falls inside
+            // the plotted window, which is tonight's sunset→sunrise. Clamping
+            // it to the edge would pin a confident "Now" line at an altitude
+            // the target reaches hours later, contradicting the "Alt:"
+            // readout above it. With no marker the axis times still say what
+            // window is plotted, and the Alt chip remains the truth about now.
+            if (nowX >= 0 && nowX <= totalMinutes)
+              VerticalLine(
+                x: nowX,
+                color: colors.error,
+                strokeWidth: 1,
+                dashArray: [4, 2],
+                label: VerticalLineLabel(
+                  show: true,
+                  alignment: Alignment.topRight,
+                  style: SkotiqTypography.caption.copyWith(color: colors.error),
+                  labelResolver: (_) => 'Now',
+                ),
+              ),
+            // Twilight markers
+            if (_twilight?.astronomicalDusk != null)
+              _twilightLine(
+                _twilight!.astronomicalDusk!,
+                colors.textMuted.withValues(alpha: 0.5),
+                totalMinutes,
+              ),
+            if (_twilight?.astronomicalDawn != null)
+              _twilightLine(
+                _twilight!.astronomicalDawn!,
+                colors.textMuted.withValues(alpha: 0.5),
+                totalMinutes,
+              ),
+          ],
+          horizontalLines: [
+            // Horizon line
+            if (!_showAirmass)
+              HorizontalLine(
+                y: 0,
+                color: colors.error.withValues(alpha: 0.5),
+                strokeWidth: 1,
+              ),
+            // The SITE's minimum imaging altitude, not a hard-coded 30°.
+            // This chart drew 30 while the scheduler was gating on its own
+            // configured value, so the dashed line the operator reads as
+            // "below this I cannot image" disagreed with the engine that
+            // decides it.
+            if (!_showAirmass)
+              HorizontalLine(
+                y: siteMinimumAltitude,
+                color: colors.warning.withValues(alpha: 0.5),
+                strokeWidth: 1,
+                dashArray: [4, 4],
+              ),
+          ],
+        ),
+        lineTouchData: LineTouchData(
+          enabled: true,
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) => colors.surface,
+            tooltipBorder: BorderSide(color: colors.border),
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final time = _startTime.add(Duration(minutes: spot.x.toInt()));
+                final timeStr = _siteHhmm(time);
+                if (_showAirmass) {
                   return LineTooltipItem(
-                    '$timeStr\nAlt: ${spot.y.toStringAsFixed(1)}°',
+                    '$timeStr\nAirmass: ${spot.y.toStringAsFixed(2)}',
                     SkotiqTypography.caption
                         .copyWith(color: colors.textPrimary),
                   );
-                }).toList();
-              },
-            ),
+                }
+                return LineTooltipItem(
+                  '$timeStr\nAlt: ${spot.y.toStringAsFixed(1)}°',
+                  SkotiqTypography.caption.copyWith(color: colors.textPrimary),
+                );
+              }).toList();
+            },
           ),
         ),
       ),

@@ -1,8 +1,9 @@
 // Preview FOV slider, presets and equipment FOV overlay controls.
 part of '../framing_controls.dart';
 
-/// Preview FOV slider with current value, optional equipment-FOV badge, and a
-/// [SegmentedControl] of quick presets (0.5°, 1°, 2°, 5°, equipment).
+/// The preview field of view: the value (and the camera's own field, when a
+/// profile resolves) on the label row, the slider, then quick presets as a
+/// [SegmentedControl] (0.5°, 1°, 2°, 5°, and the camera's field).
 class FramingPreviewFovSlider extends StatelessWidget {
   final SkotiqColors colors;
   final double value;
@@ -21,112 +22,81 @@ class FramingPreviewFovSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SkotiqPanel(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${value.toStringAsFixed(1)}°',
-                  style: SkotiqTypography.readoutMd.copyWith(
-                    color: colors.primary,
-                  ),
-                ),
-                if (hasEquipment && equipmentFov != null)
-                  // Flexible so the equipment badge clips/ellipsizes rather than
-                  // overflowing the row when this slider is hosted in a narrow
-                  // column (the guided framing rail inside the 250-500px sidebar).
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration:
-                          SkotiqDecorations.chip(colors, tone: colors.info),
-                      child: Text(
-                        'Equipment: ${equipmentFov!.toStringAsFixed(2)}°',
-                        overflow: TextOverflow.ellipsis,
-                        style: SkotiqTypography.caption
-                            .copyWith(color: colors.info),
+    final camera = hasEquipment ? equipmentFov : null;
+    final values = <double>[0.5, 1.0, 2.0, 5.0, if (camera != null) camera];
+    final labels = <String>[
+      '0.5°',
+      '1°',
+      '2°',
+      '5°',
+      if (camera != null) 'Camera'
+    ];
+    // When the slider sits between presets nothing is selected, which
+    // SegmentedControl renders for index -1.
+    final selected =
+        values.indexWhere((preset) => (value - preset).abs() < 0.05);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FramingFormRow(
+          label: 'Preview',
+          child: FramingSlider(
+            value: value,
+            min: 0.1,
+            max: 20.0,
+            divisions: 199,
+            semanticLabel: 'Preview field of view',
+            valueLabel: '${value.toStringAsFixed(1)}°',
+            onChanged: onChanged,
+          ),
+        ),
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        // Under the slider, in the control column when there is room for
+        // the presets there; across the full width when there is not.
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final indent = constraints.maxWidth >= 300
+                ? kFramingLabelWidth + FormRow.columnGap
+                : 0.0;
+            return Padding(
+              padding: EdgeInsets.only(left: indent),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // SegmentedControl is a mainAxisSize.min Row with no wrap;
+                  // let the presets scroll rather than overflow.
+                  SizedBox(
+                    height: SegmentedControl.segmentHeight,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SegmentedControl(
+                        segments: labels,
+                        selectedIndex: selected,
+                        onSelected: (index) => onChanged(values[index]),
                       ),
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            SliderTheme(
-              data: SliderThemeData(
-                trackHeight: 4,
-                activeTrackColor: colors.primary,
-                inactiveTrackColor: colors.border,
-                thumbColor: colors.primary,
-                overlayColor: colors.primary.withValues(alpha: 0.1),
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                  if (camera != null) ...[
+                    const SizedBox(height: SkotiqTokens.spaceXs),
+                    FramingNote(
+                      'Camera field ${camera.toStringAsFixed(2)}° wide',
+                    ),
+                  ],
+                ],
               ),
-              child: Slider(
-                value: value,
-                min: 0.1,
-                max: 20.0,
-                divisions: 199,
-                onChanged: onChanged,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('0.1°',
-                    style: SkotiqTypography.caption
-                        .copyWith(color: colors.textMuted)),
-                Text('20°',
-                    style: SkotiqTypography.caption
-                        .copyWith(color: colors.textMuted)),
-              ],
-            ),
-            const SizedBox(height: SkotiqTokens.spaceSm),
-            // Quick presets as the one second-level switch style inside a panel
-            // (05 §5). The equipment FOV joins the row as a last segment when a
-            // profile resolves; when the slider sits between presets nothing is
-            // selected, which SegmentedControl renders for index -1.
-            Builder(builder: (context) {
-              final values = <double>[
-                0.5,
-                1.0,
-                2.0,
-                5.0,
-                if (hasEquipment && equipmentFov != null) equipmentFov!,
-              ];
-              final labels = <String>[
-                '0.5°',
-                '1°',
-                '2°',
-                '5°',
-                if (hasEquipment && equipmentFov != null) 'Equip',
-              ];
-              final selected =
-                  values.indexWhere((preset) => (value - preset).abs() < 0.05);
-              // SegmentedControl is a mainAxisSize.min Row with no wrap, and
-              // this panel is hosted in a 250-500 px column (and a phone
-              // bottom sheet). Let the presets scroll instead of overflowing.
-              return SizedBox(
-                height: SegmentedControl.segmentHeight,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SegmentedControl(
-                    segments: labels,
-                    selectedIndex: selected,
-                    onSelected: (index) => onChanged(values[index]),
-                  ),
-                ),
-              );
-            }),
-          ],
-        ));
+            );
+          },
+        ),
+      ],
+    );
   }
 }
 
+/// The equipment-FOV overlay, offered when the preview is wider than the
+/// camera's field: a switch row and, while it is on, the overlay's opacity.
 class FramingEquipmentFovOverlayControls extends StatelessWidget {
   final SkotiqColors colors;
   final bool showOverlay;
@@ -145,80 +115,33 @@ class FramingEquipmentFovOverlayControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colors.info.withValues(alpha: 0.05),
-        borderRadius: SkotiqTokens.borderRadiusInline8,
-        border: Border.all(color: colors.info.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(SkotiqIcons.frame, size: 14, color: colors.info),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Equipment FOV Overlay',
-                  style: SkotiqTypography.labelStrongSm
-                      .copyWith(color: colors.info),
-                ),
-              ),
-              SkotiqSwitch(
-                value: showOverlay,
-                onChanged: (_) => onToggle(),
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SkotiqSwitchRow(
+          label: 'Camera field overlay',
+          tooltip: 'Draws your camera\'s actual field of view on the wider '
+              'preview',
+          value: showOverlay,
+          compact: true,
+          onChanged: (_) => onToggle(),
+        ),
+        if (showOverlay) ...[
+          const SizedBox(height: SkotiqTokens.spaceXs),
+          FramingFormRow(
+            label: 'Opacity',
+            child: FramingSlider(
+              value: opacity,
+              min: 0.1,
+              max: 0.8,
+              semanticLabel: 'Overlay opacity',
+              valueLabel: '${(opacity * 100).round()}%',
+              onChanged: onOpacityChanged,
+            ),
           ),
-          if (showOverlay) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text(
-                  'Opacity',
-                  style: SkotiqTypography.caption
-                      .copyWith(color: colors.textSecondary),
-                ),
-                Expanded(
-                  child: SliderTheme(
-                    data: SliderThemeData(
-                      trackHeight: 3,
-                      activeTrackColor: colors.info,
-                      inactiveTrackColor: colors.border,
-                      thumbColor: colors.info,
-                      overlayColor: colors.info.withValues(alpha: 0.1),
-                      thumbShape:
-                          const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    ),
-                    child: Slider(
-                      value: opacity,
-                      min: 0.1,
-                      max: 0.8,
-                      onChanged: onOpacityChanged,
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 35,
-                  child: Text(
-                    '${(opacity * 100).round()}%',
-                    style: SkotiqTypography.caption
-                        .copyWith(color: colors.textSecondary),
-                    textAlign: TextAlign.right,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Shows your actual equipment field of view as an overlay',
-              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
-            ),
-          ],
         ],
-      ),
+      ],
     );
   }
 }

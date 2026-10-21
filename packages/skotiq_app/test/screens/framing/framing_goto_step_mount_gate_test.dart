@@ -1,11 +1,13 @@
-// Guided Framing step 4 ("GoTo & Frame") must not claim to be Ready when the
+// The Framing column's Telescope section must not claim to be Ready when the
 // mount is disconnected.
 //
 // [SlewDropdownButton] gates itself on `mountState.connectionState ==
 // connected`, but this step's badge was driven by `hasTarget` alone. With the
 // mount disconnected the step therefore showed a GREEN "Ready" pill over a
 // button that swallowed every click in silence — no toast, no dialog, no log
-// line — so the operator had no way to learn why nothing happened.
+// line — so the operator had no way to learn why nothing happened. (This was
+// step 4 of the old guided rail; the redesigned column carries the same
+// readiness as the Telescope section's note.)
 //
 // Pinned here: the badge tracks the button's own enabling predicate, and the
 // disabled state explains itself in words.
@@ -59,7 +61,7 @@ void main() {
     await pumpAppScreen(
       tester,
       const SingleChildScrollView(
-        child: SizedBox(width: 500, child: FramingActionRail()),
+        child: SizedBox(width: 500, child: FramingTelescopeSection()),
       ),
       size: const Size(700, 1400),
       extraOverrides: [
@@ -79,11 +81,11 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('mount disconnected: step 4 says so instead of "Ready"',
+  testWidgets('mount disconnected: the section says so instead of "Ready"',
       (tester) async {
     await pumpRail(tester, mount: DeviceConnectionState.disconnected);
 
-    expect(find.text('GoTo & Frame'), findsOneWidget);
+    expect(find.text('Telescope'), findsOneWidget);
     // 'No mount', not 'Mount not connected': the longer string overflowed the
     // rail (39 px even in the 254 px desktop sidebar, 82 px on a phone in
     // landscape). The assertion that matters is unchanged — the step names the
@@ -94,12 +96,11 @@ void main() {
       findsOneWidget,
       reason: 'the step must name the reason it cannot run',
     );
-    // Step 3 ("Solve latest camera frame") legitimately reads "Ready", so the
-    // rail carries exactly ONE Ready badge here. Two would mean step 4 is still
-    // claiming readiness over a dead button — the defect.
+    // Any "Ready" here would be the section claiming readiness over a dead
+    // button — the defect.
     expect(
       find.text('Ready'),
-      findsOneWidget,
+      findsNothing,
       reason: 'a green "Ready" over a dead slew button is the defect',
     );
     // And the dead button explains itself.
@@ -109,7 +110,7 @@ void main() {
     );
   });
 
-  testWidgets('mount connected: step 4 is Ready with no excuse text',
+  testWidgets('mount connected: the section is Ready with no excuse text',
       (tester) async {
     await pumpRail(tester, mount: DeviceConnectionState.connected);
 
@@ -118,9 +119,8 @@ void main() {
       find.text('Connect the mount in Equipment to enable slewing.'),
       findsNothing,
     );
-    expect(find.text('Slew to Target'), findsOneWidget);
-    // Both step 3 and step 4 are now legitimately Ready.
-    expect(find.text('Ready'), findsNWidgets(2));
+    expect(find.text('Slew & Center'), findsOneWidget);
+    expect(find.text('Ready'), findsOneWidget);
   });
 
   testWidgets('no target still reports "No target", not the mount',
