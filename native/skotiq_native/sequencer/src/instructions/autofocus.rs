@@ -1150,13 +1150,19 @@ pub(crate) async fn execute_autofocus_once(
                     config.use_brightest_n_stars,
                 ));
             }
-            measurements.sort_by(|a, b| a.hfr.total_cmp(&b.hfr));
+            measurements.sort_by(|a, b| {
+                a.hfr
+                    .unwrap_or(f64::INFINITY)
+                    .total_cmp(&b.hfr.unwrap_or(f64::INFINITY))
+            });
             let measurement = measurements.swap_remove(measurements.len() / 2);
 
             tracing::info!(
-                "Position {} HFR: {:.2}, Stars: {} detected, {} beyond the HFR window",
+                "Position {} HFR: {}, Stars: {} detected, {} without a usable HFR",
                 position,
-                measurement.hfr,
+                measurement
+                    .hfr
+                    .map_or_else(|| "none".to_string(), |h| format!("{h:.2}")),
                 measurement.star_count,
                 measurement.unmeasurable_star_count
             );
@@ -1183,9 +1189,20 @@ pub(crate) async fn execute_autofocus_once(
                 }
             }
 
+            // A point with no measurable star says nothing about focus. It is
+            // left out of the curve rather than given a stand-in HFR, which
+            // would sit below the real HFR of a strongly defocused wing.
+            let Some(point_hfr) = measurement.hfr else {
+                tracing::warn!(
+                    "No star could be measured at position {}; the point is left out of the curve",
+                    position
+                );
+                continue;
+            };
+
             focus_data.push(crate::autofocus::FocusDataPoint {
                 position,
-                hfr: measurement.hfr,
+                hfr: point_hfr,
                 fwhm: None,
                 star_count: measurement.star_count,
             });
@@ -1194,7 +1211,7 @@ pub(crate) async fn execute_autofocus_once(
                 "type": "autofocus_progress",
                 "point": point + 1,
                 "total_points": total_points,
-                "hfr": measurement.hfr,
+                "hfr": point_hfr,
                 "star_count": measurement.star_count,
                 "focus_range": {
                     "min": positions[0],
@@ -1431,7 +1448,7 @@ pub(crate) async fn execute_autofocus_once(
                     // which would read as a landing far worse than the curve
                     // and blame the focuser. It measures nothing, so the
                     // landing goes unverified, as with a failed exposure.
-                    if measurement.star_count < config.min_star_count {
+                    if measurement.star_count < config.min_star_count || measurement.hfr.is_none() {
                         tracing::warn!(
                             "Autofocus could not verify the landing: the frame at best focus \
                              has {} measurable stars, fewer than the {} the sweep required",
@@ -1440,7 +1457,7 @@ pub(crate) async fn execute_autofocus_once(
                         );
                         None
                     } else {
-                        Some(measurement.hfr)
+                        measurement.hfr
                     }
                 }
                 // A failed verification frame is not a failed focus run: the
@@ -1684,7 +1701,9 @@ pub(crate) async fn wait_for_autofocus_settle(
 
 /// Enhanced HFR measurement with star crops for UI display
 pub(crate) struct HfrMeasurementWithCrops {
-    pub(crate) hfr: f64,
+    /// Median half-flux radius of the considered stars, `None` when no star
+    /// in the crop could be measured.
+    pub(crate) hfr: Option<f64>,
     /// Stars detected inside the configured crop, counted BEFORE the
     /// brightest-N cap is applied. Reporting the post-cap length instead
     /// makes every sweep point report the cap itself, which silently
@@ -1692,10 +1711,8 @@ pub(crate) struct HfrMeasurementWithCrops {
     /// true) and leaves the operator reading a constant where the sweep's
     /// most diagnostic number should be.
     pub(crate) star_count: u32,
-    /// Of the stars actually considered for the median, how many had an HFR
-    /// outside the validity window. These are dropped from the median, so a
-    /// heavily defocused point can report the HFR of the few tight stars
-    /// that survived rather than the defocus it really has.
+    /// Of the stars actually considered for the median, how many had no
+    /// usable (finite, positive) HFR and were left out of it.
     pub(crate) unmeasurable_star_count: u32,
     /// Base64-encoded star crops (80x80 grayscale), up to 5 brightest stars
     star_crops: Vec<StarCropInfo>,
@@ -1760,22 +1777,17 @@ pub(crate) fn calculate_hfr_with_crops(
     }
 
     let considered = eligible_stars.len();
+    // No upper bound: the detector measures a defocused donut whole, so a
+    // far wing of a sweep reads 25-30 px and that is its real size. Capping
+    // here would flatten the wing the curve fit relies on.
     let mut hfr_values: Vec<f64> = eligible_stars
         .iter()
         .map(|star| star.hfr)
-        .filter(|hfr| hfr.is_finite() && *hfr > 0.0 && *hfr < 20.0)
+        .filter(|hfr| hfr.is_finite() && *hfr > 0.0)
         .collect();
     let unmeasurable_star_count = considered.saturating_sub(hfr_values.len()) as u32;
     hfr_values.sort_by(f64::total_cmp);
-
-    // 20.0 px is the "no valid focus" sentinel: an HFR this high is far
-    // beyond any realistic well-focused setup, so the V-curve fit will
-    // treat the point as the extreme of the curve (or reject as outlier).
-    let hfr = if hfr_values.is_empty() {
-        20.0
-    } else {
-        hfr_values[hfr_values.len() / 2]
-    };
+    let hfr = (!hfr_values.is_empty()).then(|| hfr_values[hfr_values.len() / 2]);
 
     // 5 crops @ 80 px is the upper bound the autofocus UI displays; more
     // would saturate the operator's view and inflate the JSON payload sent

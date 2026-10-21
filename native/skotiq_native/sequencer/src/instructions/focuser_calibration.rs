@@ -673,16 +673,22 @@ async fn scan_one_direction(
                 config.use_brightest_n_stars,
             ));
         }
-        samples.sort_by(|a, b| a.hfr.total_cmp(&b.hfr));
+        samples.sort_by(|a, b| {
+            a.hfr
+                .unwrap_or(f64::INFINITY)
+                .total_cmp(&b.hfr.unwrap_or(f64::INFINITY))
+        });
         let sample = samples.swap_remove(samples.len() / 2);
 
         tracing::info!(
-            "Backlash calibration {} point {}/{} at {}: HFR {:.2} from {} stars",
+            "Backlash calibration {} point {}/{} at {}: HFR {} from {} stars",
             approach,
             index + 1,
             total_points,
             position,
-            sample.hfr,
+            sample
+                .hfr
+                .map_or_else(|| "none".to_string(), |h| format!("{h:.2}")),
             sample.star_count
         );
 
@@ -701,9 +707,14 @@ async fn scan_one_direction(
             }
         }
 
+        // A point with no measurable star is left out of the fit, as in an
+        // autofocus sweep.
+        let Some(sample_hfr) = sample.hfr else {
+            continue;
+        };
         measured.push(crate::autofocus::FocusDataPoint {
             position,
-            hfr: sample.hfr,
+            hfr: sample_hfr,
             fwhm: None,
             star_count: sample.star_count,
         });
@@ -720,7 +731,7 @@ async fn scan_one_direction(
                     "point": index + 1,
                     "total_points": total_points,
                     "position": position,
-                    "hfr": sample.hfr,
+                    "hfr": sample_hfr,
                     "star_count": sample.star_count,
                     "scan_range": {
                         "min": plan.scan_low_position,
