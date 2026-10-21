@@ -35,6 +35,8 @@ class TargetSearchState {
 class TargetSearchNotifier extends StateNotifier<TargetSearchState> {
   final Ref _ref;
   int _requestRevision = 0;
+  List<RankedTarget> _ranked = const [];
+  String? _rankedQuery;
 
   TargetSearchNotifier(this._ref) : super(const TargetSearchState());
 
@@ -49,116 +51,12 @@ class TargetSearchNotifier extends StateNotifier<TargetSearchState> {
     state = TargetSearchState(query: trimmedQuery, isSearching: true);
 
     try {
-      final results = <FramingTarget>[];
-      final qLower = trimmedQuery.toLowerCase();
-
-      // Normalize query
-      final normalizedQuery = qLower.replaceAll(RegExp(r'\s+'), '');
-
-      // Search DSOs using the planetarium's loaded database
       final loadedDsos = await _ref.read(loadedDsosProvider.future);
       if (revision != _requestRevision || !mounted) return;
 
-      final matchingDsos = loadedDsos
-          .where((o) {
-            final idLower = o.id.toLowerCase();
-            final nameLower = o.name.toLowerCase();
-
-            // Direct matches
-            if (idLower.contains(qLower) || nameLower.contains(qLower)) {
-              return true;
-            }
-            if (o.catalogIds.any((c) => c.toLowerCase().contains(qLower))) {
-              return true;
-            }
-
-            // Normalized matches
-            final normalizedId = idLower.replaceAll(RegExp(r'\s+'), '');
-            if (normalizedId.contains(normalizedQuery)) return true;
-
-            final normalizedName = nameLower.replaceAll(RegExp(r'\s+'), '');
-            if (normalizedName.contains(normalizedQuery)) return true;
-
-            if (o.catalogIds.any((c) {
-              final cNormalized =
-                  c.toLowerCase().replaceAll(RegExp(r'\s+'), '');
-              return cNormalized.contains(normalizedQuery);
-            })) {
-              return true;
-            }
-
-            return false;
-          })
-          .take(50)
-          .toList();
-
-      // Convert to FramingTarget
-      for (final dso in matchingDsos) {
-        TargetType targetType;
-        switch (dso.type) {
-          case DsoType.galaxy:
-          case DsoType.galaxyPair:
-          case DsoType.galaxyTriplet:
-          case DsoType.galaxyGroup:
-            targetType = TargetType.galaxy;
-            break;
-          case DsoType.nebula:
-          case DsoType.emissionNebula:
-          case DsoType.reflectionNebula:
-          case DsoType.planetaryNebula:
-          case DsoType.darkNebula:
-          case DsoType.hiiRegion:
-          case DsoType.supernova:
-            targetType = TargetType.nebula;
-            break;
-          case DsoType.openCluster:
-          case DsoType.globularCluster:
-          case DsoType.clusterWithNebulosity:
-          case DsoType.association:
-          case DsoType.starCloud:
-            targetType = TargetType.cluster;
-            break;
-          case DsoType.star:
-          case DsoType.doubleStar:
-          case DsoType.nova:
-            targetType = TargetType.star;
-            break;
-          default:
-            targetType = TargetType.other;
-        }
-
-        results.add(FramingTarget(
-          name: dso.name,
-          raHours: dso.coordinates.ra,
-          decDegrees: dso.coordinates.dec,
-          catalogId: dso.id,
-          magnitude: dso.magnitude,
-          sizeArcmin: dso.sizeArcMin,
-          type: targetType,
-          objectType: dso.type.displayName,
-        ));
-      }
-
-      // Sort results
-      results.sort((a, b) {
-        // Exact matches first (including normalized)
-        final aName = a.name.toLowerCase();
-        final bName = b.name.toLowerCase();
-        final aId = a.catalogId?.toLowerCase();
-        final bId = b.catalogId?.toLowerCase();
-
-        // Check exact match
-        bool isExact(String val) => val == qLower || val == normalizedQuery;
-
-        final aExact = isExact(aName) || (aId != null && isExact(aId));
-        final bExact = isExact(bName) || (bId != null && isExact(bId));
-
-        if (aExact && !bExact) return -1;
-        if (!aExact && bExact) return 1;
-
-        // Then by magnitude (brighter first)
-        return (a.magnitude ?? 99).compareTo(b.magnitude ?? 99);
-      });
+      _ranked = TargetNameResolver.rank(trimmedQuery, loadedDsos);
+      _rankedQuery = trimmedQuery;
+      final results = [for (final r in _ranked) framingTargetFromDso(r.object)];
 
       state = TargetSearchState(
         query: trimmedQuery,
@@ -183,10 +81,152 @@ class TargetSearchNotifier extends StateNotifier<TargetSearchState> {
 
   Future<void> retry() => search(state.query);
 
+  /// What Enter on [query] should do.
+  ///
+  /// Ranks the query itself rather than reading [state], which can still hold
+  /// the previous keystroke's results (or none, while the catalog loads):
+  /// Enter used to fall through to SIMBAD in that window and take whatever
+  /// substring match came back first.
+  ///
+  /// A single object named exactly by the query is selected. Several exact
+  /// matches, or only partial ones, leave the list open to pick from. With no
+  /// exact local match the name goes to SIMBAD's exact resolver.
+  Future<TargetSubmitOutcome> submit(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return const TargetSubmitOutcome.none();
+    if (_rankedQuery != trimmed || state.isSearching) {
+      await search(trimmed);
+    }
+    // The user kept typing while the catalog was searched: this Enter is stale.
+    if (!mounted || state.query != trimmed) {
+      return const TargetSubmitOutcome.none();
+    }
+    if (state.errorMessage == null && _rankedQuery == trimmed) {
+      switch (TargetNameResolver.decide(_ranked)) {
+        case SelectTarget(:final object):
+          return TargetSubmitOutcome.select(framingTargetFromDso(object));
+        case ChooseTarget():
+          return const TargetSubmitOutcome.choose();
+        case ResolveTargetOnline():
+          break;
+      }
+    }
+
+    final revision = _requestRevision;
+    state = state.copyWith(isSearching: true);
+    try {
+      final resolved =
+          await _ref.read(sesameNameResolverProvider).resolve(trimmed);
+      if (!mounted || revision != _requestRevision) {
+        return const TargetSubmitOutcome.none();
+      }
+      state = state.copyWith(isSearching: false);
+      if (resolved != null) {
+        return TargetSubmitOutcome.select(
+          FramingTarget(
+            name: resolved.mainId,
+            catalogId: resolved.mainId,
+            raHours: resolved.raHours,
+            decDegrees: resolved.decDegrees,
+            objectType: resolved.objectType,
+          ),
+        );
+      }
+      if (state.results.isNotEmpty) return const TargetSubmitOutcome.choose();
+      return TargetSubmitOutcome.failed(
+          'No object named "$trimmed" was found.');
+    } on TargetNameLookupUnavailable catch (error) {
+      if (!mounted || revision != _requestRevision) {
+        return const TargetSubmitOutcome.none();
+      }
+      state = state.copyWith(isSearching: false);
+      _ref.read(loggingServiceProvider).warning(
+            '[Framing] Online name lookup unavailable: ${error.message}',
+            source: 'TargetSearchNotifier',
+          );
+      if (state.results.isNotEmpty) return const TargetSubmitOutcome.choose();
+      return TargetSubmitOutcome.failed(
+        '"$trimmed" is not in the installed catalog and SIMBAD could not be '
+        'reached to look it up.',
+      );
+    }
+  }
+
   void clear() {
     _requestRevision++;
+    _ranked = const [];
+    _rankedQuery = null;
     state = const TargetSearchState();
   }
+}
+
+/// Result of [TargetSearchNotifier.submit].
+class TargetSubmitOutcome {
+  /// The object to frame, when the query named exactly one.
+  final FramingTarget? target;
+
+  /// Why nothing could be selected, for the user.
+  final String? failure;
+
+  /// Leave the result list open so the user can pick.
+  final bool showList;
+
+  const TargetSubmitOutcome.select(FramingTarget this.target)
+      : failure = null,
+        showList = false;
+  const TargetSubmitOutcome.choose()
+      : target = null,
+        failure = null,
+        showList = true;
+  const TargetSubmitOutcome.failed(String this.failure)
+      : target = null,
+        showList = false;
+  const TargetSubmitOutcome.none()
+      : target = null,
+        failure = null,
+        showList = false;
+}
+
+/// A catalog object as a framing target.
+FramingTarget framingTargetFromDso(DeepSkyObject dso) {
+  final TargetType targetType;
+  switch (dso.type) {
+    case DsoType.galaxy:
+    case DsoType.galaxyPair:
+    case DsoType.galaxyTriplet:
+    case DsoType.galaxyGroup:
+      targetType = TargetType.galaxy;
+    case DsoType.nebula:
+    case DsoType.emissionNebula:
+    case DsoType.reflectionNebula:
+    case DsoType.planetaryNebula:
+    case DsoType.darkNebula:
+    case DsoType.hiiRegion:
+    case DsoType.supernova:
+      targetType = TargetType.nebula;
+    case DsoType.openCluster:
+    case DsoType.globularCluster:
+    case DsoType.clusterWithNebulosity:
+    case DsoType.association:
+    case DsoType.starCloud:
+      targetType = TargetType.cluster;
+    case DsoType.star:
+    case DsoType.doubleStar:
+    case DsoType.nova:
+      targetType = TargetType.star;
+    default:
+      targetType = TargetType.other;
+  }
+  return FramingTarget(
+    name: dso.name,
+    raHours: dso.coordinates.ra,
+    decDegrees: dso.coordinates.dec,
+    catalogId: dso.id,
+    magnitude: dso.magnitude,
+    sizeArcmin: dso.sizeArcMin,
+    type: targetType,
+    objectType: dso.type.displayName,
+  );
 }
 
 // autoDispose: search results are page-scoped to the Framing screen. Stale
