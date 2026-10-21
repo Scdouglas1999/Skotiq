@@ -24,6 +24,8 @@ struct RecordingOps {
     current_filter: Mutex<Option<String>>,
     exposures_by_filter: Mutex<HashMap<String, u32>>,
     total_exposures: Arc<AtomicU32>,
+    /// Exposures by filter and dithers, in the order they ran.
+    timeline: Mutex<Vec<String>>,
 }
 
 impl RecordingOps {
@@ -33,7 +35,12 @@ impl RecordingOps {
             current_filter: Mutex::new(None),
             exposures_by_filter: Mutex::new(HashMap::new()),
             total_exposures,
+            timeline: Mutex::new(Vec::new()),
         }
+    }
+
+    fn timeline(&self) -> String {
+        self.timeline.lock().unwrap().join(" ")
     }
 
     fn exposures(&self, filter: &str) -> u32 {
@@ -51,7 +58,7 @@ impl DeviceOps for RecordingOps {
     async fn camera_start_exposure(
         &self,
         camera_id: &str,
-        _duration_secs: f64,
+        duration_secs: f64,
         gain: Option<i32>,
         offset: Option<i32>,
         bin_x: i32,
@@ -63,6 +70,7 @@ impl DeviceOps for RecordingOps {
             .unwrap()
             .clone()
             .unwrap_or_else(|| "<none>".to_string());
+        self.timeline.lock().unwrap().push(filter.clone());
         *self
             .exposures_by_filter
             .lock()
@@ -71,7 +79,7 @@ impl DeviceOps for RecordingOps {
             .or_insert(0) += 1;
         self.total_exposures.fetch_add(1, Ordering::SeqCst);
         self.inner
-            .camera_start_exposure(camera_id, 0.01, gain, offset, bin_x, bin_y)
+            .camera_start_exposure(camera_id, duration_secs, gain, offset, bin_x, bin_y)
             .await
     }
 
@@ -230,6 +238,7 @@ impl DeviceOps for RecordingOps {
         settle_timeout: f64,
         ra_only: bool,
     ) -> DeviceResult<()> {
+        self.timeline.lock().unwrap().push("dither".to_string());
         self.inner
             .guider_dither(pixels, settle_pixels, settle_time, settle_timeout, ra_only)
             .await
@@ -466,6 +475,10 @@ struct RunOutcome {
     state: ExecutorState,
     completions: Vec<(String, DepthGoalCompletion)>,
     warnings: Vec<String>,
+    /// `DitherPerformed` events, by the node each named ("" for a trigger).
+    dithers_reported: Vec<String>,
+    /// Every file the run wrote, relative to its save path, sorted.
+    files: Vec<String>,
 }
 
 async fn run(
@@ -474,6 +487,8 @@ async fn run(
     depth_ops: Option<Arc<ScriptedDepthOps>>,
 ) -> RunOutcome {
     let dir = std::env::temp_dir().join(format!("sk-depthlock-{}", uuid::Uuid::new_v4()));
+    // The run keeps its shipped triggers, the Dither Interval trigger
+    // (every 5 frames) among them.
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(ops);
     executor.set_depth_goal_ops(depth_ops.map(|d| d as crate::depth_goal::SharedDepthGoalOps));
@@ -501,12 +516,17 @@ async fn run(
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }
     executor.stop().await.ok();
+    let files = files_under(&dir);
     let _ = std::fs::remove_dir_all(&dir);
 
     let mut completions = Vec::new();
     let mut warnings = Vec::new();
+    let mut dithers_reported = Vec::new();
     while let Ok(event) = events.try_recv() {
         match event {
+            ExecutorEvent::DitherPerformed { node_id } => {
+                dithers_reported.push(node_id.unwrap_or_default())
+            }
             ExecutorEvent::DepthGoalCompleted {
                 filter_name,
                 completion,
@@ -522,7 +542,29 @@ async fn run(
         state,
         completions,
         warnings,
+        dithers_reported,
+        files,
     }
+}
+
+fn files_under(root: &std::path::Path) -> Vec<String> {
+    fn walk(root: &std::path::Path, dir: &std::path::Path, out: &mut Vec<String>) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                walk(root, &path, out);
+            } else if let Ok(relative) = path.strip_prefix(root) {
+                out.push(relative.to_string_lossy().replace('\\', "/"));
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(root, root, &mut out);
+    out.sort();
+    out
 }
 
 fn binding() -> DepthGoalBinding {
@@ -766,4 +808,287 @@ fn filter_plan_binding_is_optional_on_the_wire() {
     assert!(json.contains(r#""depth_goal":{"goal_id":"goal-l","revision":3}"#));
     let round: FilterPlan = serde_json::from_str(&json).unwrap();
     assert_eq!(round.depth_goal, Some(binding()));
+}
+
+fn dithering_sequence(l_count: u32, r_count: u32, rotate_filters: bool) -> SequenceDefinition {
+    let mut sequence = two_filter_sequence(l_count, r_count, None, rotate_filters);
+    for node in &mut sequence.nodes {
+        if let NodeType::SmartExposure(config) = &mut node.node_type {
+            config.plans[0].dither_every = Some(3);
+        }
+    }
+    sequence
+}
+
+/// Sub-lengths long enough that the trigger monitor (one tick a second)
+/// evaluates between every two frames.
+fn with_sub_length(mut sequence: SequenceDefinition, secs: f64) -> SequenceDefinition {
+    for node in &mut sequence.nodes {
+        if let NodeType::SmartExposure(config) = &mut node.node_type {
+            for plan in &mut config.plans {
+                plan.duration_secs = secs;
+            }
+        }
+    }
+    sequence
+}
+
+/// A plan's dither cadence counts its frames across visits. Rotating one
+/// frame per visit, a burst counting its own frames never reached 3, and a
+/// whole night ran without a dither (rig, 2026-10-20). The cadence that falls
+/// due on L's third frame runs at L's next visit, after the filter move, and
+/// the node's last frame leaves no dither behind.
+#[tokio::test]
+async fn rotation_dithers_every_n_frames_of_the_plan() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let outcome = run(dithering_sequence(6, 2, true), ops.clone(), None).await;
+
+    assert_eq!(outcome.state, ExecutorState::Completed);
+    assert_eq!(ops.timeline(), "L R L R L dither L L L");
+}
+
+/// Draining a plan in one burst still dithers between its frames, and not
+/// after the plan's last one.
+#[tokio::test]
+async fn a_drained_plan_dithers_inside_the_burst() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let outcome = run(dithering_sequence(7, 2, false), ops.clone(), None).await;
+
+    assert_eq!(outcome.state, ExecutorState::Completed);
+    assert_eq!(ops.timeline(), "L L L dither L L L dither L R R");
+}
+
+/// The node's cadence and the run's Dither Interval trigger (every 5 frames)
+/// counted the same frames, so a plan dithering every 3 got a second dither
+/// from the trigger after the run's 5th frame. While the node owns the
+/// cadence the trigger stands down: exactly the node's dithers happen, with
+/// the trigger watching between every two frames.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_dither_interval_trigger_stands_down_while_the_node_owns_the_cadence() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let sequence = with_sub_length(dithering_sequence(6, 2, true), 1.2);
+    let outcome = run(sequence, ops.clone(), None).await;
+
+    assert_eq!(outcome.state, ExecutorState::Completed);
+    assert_eq!(ops.timeline(), "L R L R L dither L L L");
+    assert_eq!(outcome.dithers_reported, vec!["smart".to_string()]);
+}
+
+/// A node that sets no cadence leaves dithering to the trigger, which still
+/// dithers once after the run's 5th frame.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_node_without_a_cadence_leaves_dithering_to_the_trigger() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let sequence = with_sub_length(two_filter_sequence(4, 3, None, true), 1.2);
+    let outcome = run(sequence, ops.clone(), None).await;
+
+    assert_eq!(outcome.state, ExecutorState::Completed);
+    let timeline = ops.timeline();
+    assert_eq!(timeline.matches("dither").count(), 1, "{timeline}");
+    let frames_before_dither = timeline
+        .split(" dither")
+        .next()
+        .unwrap()
+        .split_whitespace()
+        .count();
+    assert!(frames_before_dither >= 5, "{timeline}");
+    // The trigger's dither is reported for the run's count like a node's.
+    assert_eq!(outcome.dithers_reported, vec![String::new()]);
+}
+
+fn exposure_node(id: &str, count: u32, dither_every: Option<u32>) -> crate::NodeDefinition {
+    crate::NodeDefinition {
+        id: id.to_string(),
+        name: id.to_string(),
+        node_type: NodeType::TakeExposure(crate::ExposureConfig {
+            duration_secs: 1.2,
+            count,
+            dither_every,
+            ..Default::default()
+        }),
+        enabled: true,
+        children: vec![],
+    }
+}
+
+/// A burst's own dithers restart the Dither Interval trigger's count. Left
+/// unmarked, the trigger counted a 7-frame burst that dithered after frames
+/// 3 and 6 as 7 undithered frames and dithered again as soon as it ended.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_bursts_own_dithers_restart_the_trigger_count() {
+    let mut sequence = SequenceDefinition::new("Burst dithers".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "root".to_string(),
+        name: "Target".to_string(),
+        node_type: NodeType::TargetHeader(crate::TargetHeaderConfig {
+            target_name: "Faint Nebula".to_string(),
+            ra_hours: 5.5,
+            dec_degrees: 22.0,
+            ..Default::default()
+        }),
+        enabled: true,
+        children: vec!["burst".to_string(), "tail".to_string()],
+    });
+    sequence.nodes.push(exposure_node("burst", 7, Some(3)));
+    sequence.nodes.push(exposure_node("tail", 2, None));
+    sequence.root_node_id = Some("root".to_string());
+
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let outcome = run(sequence, ops.clone(), None).await;
+
+    assert_eq!(outcome.state, ExecutorState::Completed);
+    let timeline = ops.timeline().replace("<none>", "F");
+    assert_eq!(timeline, "F F F dither F F F dither F F F");
+    assert_eq!(outcome.dithers_reported, vec!["burst".to_string(); 2]);
+}
+
+/// A checkpoint from an interrupted run of the two-filter sequence: three L
+/// frames taken, and a temperature baseline of 5 °C.
+fn interrupted_checkpoint(sequence: &SequenceDefinition) -> crate::checkpoint::SessionCheckpoint {
+    let mut checkpoint = crate::checkpoint::SessionCheckpoint::new(sequence.clone());
+    checkpoint.is_active = true;
+    checkpoint.executor_state = ExecutorState::Running;
+    // Keyed by node id, as the streaming checkpoint writes it.
+    checkpoint.smart_exposure_states.insert(
+        "smart".to_string(),
+        crate::SmartExposureCheckpoint {
+            per_filter_completed: HashMap::from([("L".to_string(), 3)]),
+            current_plan_index: 0,
+            completed_integration_secs: 0.03,
+            depth_completed: HashMap::new(),
+        },
+    );
+    let mut trigger_state = crate::triggers::TriggerState::new();
+    trigger_state.baseline_temperature = Some(5.0);
+    trigger_state.current_temperature = Some(5.0);
+    checkpoint.set_trigger_state(crate::checkpoint::TriggerStateSnapshot::from_state(
+        &trigger_state,
+        crate::SafetyFailMode::default(),
+        true,
+        HashMap::new(),
+    ));
+    checkpoint
+}
+
+/// Prepare a resume from `checkpoint`, then either start it or load and start
+/// a fresh copy of the sequence. Returns the run's end state and the
+/// temperature baseline the run's trigger state held when it ended.
+async fn resume_or_fresh(
+    sequence: SequenceDefinition,
+    ops: Arc<RecordingOps>,
+    fresh_after_resume: bool,
+) -> (ExecutorState, Option<f64>) {
+    let dir = std::env::temp_dir().join(format!("sk-fresh-start-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut executor = SequenceExecutor::new();
+    executor.set_checkpoint_dir(dir.join("checkpoint"));
+    crate::checkpoint::CheckpointManager::new(dir.join("checkpoint"))
+        .save(&interrupted_checkpoint(&sequence))
+        .expect("checkpoint saves");
+    executor.set_device_ops(ops);
+    executor
+        .resume_from_checkpoint()
+        .await
+        .expect("resume prepares");
+    if fresh_after_resume {
+        executor.load_sequence(sequence).expect("sequence loads");
+    }
+    executor.set_save_path(Some(dir.clone()));
+    executor.set_devices(
+        Some("cam-1".to_string()),
+        None,
+        None,
+        Some("fw-1".to_string()),
+        None,
+    );
+
+    executor.start().await.expect("run starts");
+    let mut state = executor.get_state().await;
+    for _ in 0..2_000 {
+        state = executor.get_state().await;
+        if matches!(
+            state,
+            ExecutorState::Completed | ExecutorState::Failed | ExecutorState::Cancelled
+        ) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    let baseline = executor
+        .trigger_manager()
+        .read()
+        .await
+        .state()
+        .read()
+        .await
+        .baseline_temperature;
+    executor.stop().await.ok();
+    let _ = std::fs::remove_dir_all(&dir);
+    (state, baseline)
+}
+
+/// A fresh start of a sequence after a resume was prepared (the rig's
+/// load-and-start, 2026-10-20) is a new run: it takes all of its frames and
+/// does not measure temperature against the old run's baseline.
+#[tokio::test]
+async fn a_fresh_start_does_not_inherit_a_prepared_resume() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let (state, baseline) =
+        resume_or_fresh(two_filter_sequence(4, 0, None, false), ops.clone(), true).await;
+
+    assert_eq!(state, ExecutorState::Completed);
+    assert_eq!(
+        ops.exposures("L"),
+        4,
+        "the old run's three L frames are not this run's"
+    );
+    assert_eq!(
+        baseline, None,
+        "the old run's 5 °C baseline is not this run's"
+    );
+}
+
+/// A deliberate resume keeps what the checkpoint says was done, and still
+/// measures the temperature baseline again.
+#[tokio::test]
+async fn a_resume_keeps_its_progress_and_remeasures_the_temperature_baseline() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let (state, baseline) =
+        resume_or_fresh(two_filter_sequence(4, 0, None, false), ops.clone(), false).await;
+
+    assert_eq!(state, ExecutorState::Completed);
+    assert_eq!(
+        ops.exposures("L"),
+        1,
+        "three of the four L frames were already taken"
+    );
+    assert_eq!(baseline, None);
+}
+
+/// Frames go in a folder for their target, and each filter's numbers
+/// continue across the Smart Exposure's one-frame visits. On the rig
+/// (2026-10-20) every visit restarted at 0001 and the files collected
+/// collision suffixes.
+#[tokio::test]
+async fn smart_exposure_visits_number_their_files_in_sequence() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let outcome = run(two_filter_sequence(3, 2, None, true), ops, None).await;
+
+    assert_eq!(outcome.state, ExecutorState::Completed);
+    let fits: Vec<&str> = outcome
+        .files
+        .iter()
+        .map(String::as_str)
+        .filter(|f| f.ends_with(".fits"))
+        .collect();
+    assert_eq!(
+        fits,
+        [
+            "Faint Nebula/Faint Nebula_L_0001.fits",
+            "Faint Nebula/Faint Nebula_L_0002.fits",
+            "Faint Nebula/Faint Nebula_L_0003.fits",
+            "Faint Nebula/Faint Nebula_R_0001.fits",
+            "Faint Nebula/Faint Nebula_R_0002.fits",
+        ]
+    );
 }

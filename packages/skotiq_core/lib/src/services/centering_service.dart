@@ -21,6 +21,16 @@ part 'centering_service/centering_loop.dart';
 part 'centering_service/slew_settle.dart';
 part 'centering_service/centering_geometry.dart';
 
+/// PHD2 app states in which the guider does not move the mount.
+const Set<String> _idleGuiderStates = {
+  'Disconnected',
+  'Connected',
+  'Stopped',
+  'Selected',
+  'Looping',
+  'Paused',
+};
+
 /// Service for automated target centering using plate solving
 class CenteringService {
   final Ref _ref;

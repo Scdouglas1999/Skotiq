@@ -146,9 +146,10 @@ pub struct RuntimeConfig {
     pub default_quality_check: Option<crate::quality::ImageQualityCheck>,
     /// Image Grading: where rejected frames go.
     ///
-    /// `None` => use `<save_path>/Reject/` (created on first reject).
+    /// `None` => a `Reject/` folder beside the frames, by default
+    /// `<save_path>/<target>/Reject/` (created on first reject).
     /// `Some(path)` => use the explicit path (resolves relative to the
-    /// run's save_path; absolute paths are honoured verbatim). When the
+    /// frames' folder; absolute paths are honored verbatim). When the
     /// resolved reject folder equals the save_path, validation flags it
     /// as a warning (mixing accepted + rejected defeats the purpose).
     pub reject_folder_path: Option<String>,
@@ -303,7 +304,7 @@ pub enum ExecutorCommand {
         check: Option<crate::quality::ImageQualityCheck>,
     },
     /// update the reject-folder override. `None` => default
-    /// `<save_path>/Reject/`. Mirrors the Dart `imageGradingRejectFolderPath`
+    /// `<save_path>/<target>/Reject/`. Mirrors the Dart `imageGradingRejectFolderPath`
     /// setting.
     UpdateRejectFolderPath {
         path: Option<String>,
@@ -598,6 +599,16 @@ pub enum ExecutorEvent {
         trigger_id: String,
         trigger_name: String,
         action: String,
+    },
+    /// The run dithered the mount and the guider settled. Sent once per
+    /// dither, whoever asked for it: a Dither node, a Smart Exposure plan's
+    /// cadence, a burst's `dither_every`, or the Dither Interval trigger. The
+    /// run's dither count is counted from this event alone. A dither that was
+    /// skipped (no guider, imaging unguided, the grid's center cell) or that
+    /// failed sends nothing.
+    DitherPerformed {
+        /// The node the dither ran for, or `None` for a trigger's dither.
+        node_id: Option<NodeId>,
     },
     Error {
         message: String,

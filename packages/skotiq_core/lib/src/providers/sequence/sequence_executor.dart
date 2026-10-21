@@ -85,6 +85,7 @@ import 'exposure_progress_vocabulary.dart';
 import 'node_exposure_tally.dart';
 import 'structured_progress_json.dart';
 import 'run_stop_classification.dart';
+import 'run_dither_event.dart';
 import 'target_end_when_notice.dart';
 import 'sequence_validation.dart' as validation;
 import 'sequencer_defaults.dart';

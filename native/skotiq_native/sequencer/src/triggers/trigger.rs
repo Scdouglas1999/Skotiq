@@ -201,6 +201,21 @@ impl Trigger {
         self.last_triggered = None;
     }
 
+    /// Forget everything this trigger learned during a previous run: its
+    /// cooldown, its edge latch, and the frames it was counting. The trigger
+    /// list outlives every run, so a cooldown started last night silenced the
+    /// trigger at the start of tonight's run, and a half-full HFR window
+    /// judged tonight's first frame against last night's.
+    pub fn reset_for_new_run(&mut self) {
+        self.last_triggered = None;
+        self.was_firing = false;
+        self.hfr_bad_frame_count = 0;
+        self.last_hfr_seq = None;
+        self.focus_drift_hfr_window.clear();
+        self.cloud_cover_above_threshold_since = None;
+        self.transparency_below_threshold_since = None;
+    }
+
     /// Check if the trigger is in cooldown
     pub fn is_in_cooldown(&self) -> bool {
         if let (Some(cooldown), Some(last)) = (self.cooldown_secs, self.last_triggered) {
@@ -602,7 +617,10 @@ impl Trigger {
                 }
             }
             TriggerType::DitherInterval { every_n_frames } => {
-                if state.completed_exposures == 0 || *every_n_frames == 0 {
+                if state.completed_exposures == 0
+                    || *every_n_frames == 0
+                    || state.node_owns_dither_cadence()
+                {
                     false
                 } else {
                     let frames_since_dither = state

@@ -385,6 +385,15 @@ pub trait DeviceOps: Send + Sync {
     /// Get guiding status
     async fn guider_get_status(&self) -> DeviceResult<GuidingStatus>;
 
+    /// Whether the guider may move the mount now: guiding, and also
+    /// calibrating, settling, or searching for a star it lost. A move the run
+    /// makes stops such a guider first. `is_guiding` alone answers false for
+    /// a PHD2 in LostLock or settling after a dither, and a guider left in one
+    /// of those states kept sending corrections through a Center.
+    async fn guider_is_active(&self) -> DeviceResult<bool> {
+        Ok(self.guider_get_status().await?.is_guiding)
+    }
+
     /// Get calibration data for the active guider. Returns Err if the driver
     /// cannot report calibration (older Alpaca, etc.) — callers should treat
     /// that as "validation unavailable", not as a calibration failure.

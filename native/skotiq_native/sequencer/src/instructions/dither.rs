@@ -135,6 +135,7 @@ pub async fn execute_dither(
             if let Some(cb) = progress_callback {
                 cb(100.0, "Dither complete".to_string());
             }
+            announce_dither_performed(ctx);
             // A success ends the streak, so "3 in a row" in the warning above
             // means three in a row and not three all night.
             if let Some(trigger_state) = &ctx.trigger_state {
@@ -192,6 +193,15 @@ pub async fn execute_dither(
             }
             InstructionResult::success_with_message(message)
         }
+    }
+}
+
+/// Tell the run a dither moved the mount and settled, so it is counted once
+/// (see [`crate::executor::ExecutorEvent::DitherPerformed`]).
+pub(crate) fn announce_dither_performed(ctx: &InstructionContext) {
+    if let Some(event_tx) = &ctx.event_tx {
+        let node_id = Some(ctx.node_id.clone()).filter(|id| !id.is_empty());
+        let _ = event_tx.send(crate::executor::ExecutorEvent::DitherPerformed { node_id });
     }
 }
 

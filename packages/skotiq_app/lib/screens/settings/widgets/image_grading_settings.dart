@@ -339,10 +339,10 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                   icon: LucideIcons.folderX,
                   title: 'Reject folder path',
                   subtitle:
-                      'Where rejected frames go. Leave blank for the default <save_path>/Reject/. Relative paths resolve against save_path; absolute paths are honoured verbatim.',
+                      'Where rejected frames go. Leave blank for a Reject folder beside the frames, <save_path>/<target>/Reject/. A relative path is taken from the frames\' folder; an absolute path is used as it is.',
                   trailing: SettingsTextInput(
                     controller: _rejectFolderController,
-                    hint: '<save_path>/Reject/',
+                    hint: '<save_path>/<target>/Reject/',
                     onChanged: (value) async {
                       // SettingsTextInput commits on Enter or blur and the
                       // setter trims empty input to null.

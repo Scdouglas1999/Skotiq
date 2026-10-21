@@ -71,6 +71,16 @@ impl TriggerManager {
         true
     }
 
+    /// Start a run with no state left over from the previous one: the shared
+    /// trigger state (see [`TriggerState::reset_for_new_run`]) and every
+    /// trigger's own cooldown and counters.
+    pub async fn reset_for_new_run(&mut self) {
+        self.state.write().await.reset_for_new_run();
+        for trigger in &mut self.triggers {
+            trigger.reset_for_new_run();
+        }
+    }
+
     /// Re-arm a trigger whose firing was dropped because the run is held, so
     /// it fires on the first tick after the hold. See
     /// [`Trigger::rearm_after_hold`].

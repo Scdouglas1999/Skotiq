@@ -215,15 +215,35 @@ impl MeridianFlipExecutor {
     /// and the session report's error list.
     pub async fn execute(&mut self, ctx: &FlipContext) -> FlipResult {
         // The flip is a move the run makes: the guide star leaving the frame
-        // during it is not a lost star. The flip pauses and resumes the guider
-        // itself.
-        if let Some(state) = &ctx.trigger_state {
-            state.write().await.mount_motion_depth += 1;
-        }
+        // during it is not a lost star, and a guider still guiding would
+        // fight the flip slew and the recenter after it. A guider that may
+        // move the mount is stopped first whatever "pause guiding" says, as
+        // for any other move; that setting only names the step. A dry run
+        // commands nothing.
+        let motion = if ctx.simulate {
+            if let Some(state) = &ctx.trigger_state {
+                state.write().await.mount_motion_depth += 1;
+            }
+            None
+        } else {
+            Some(
+                crate::instructions::MountMotion::begin_with(
+                    &self.device_ops,
+                    ctx.trigger_state.clone(),
+                    "meridian flip",
+                )
+                .await,
+            )
+        };
         let result = self.execute_flip(ctx).await;
-        if let Some(state) = &ctx.trigger_state {
-            let mut state = state.write().await;
-            state.mount_motion_depth = state.mount_motion_depth.saturating_sub(1);
+        match motion {
+            Some(motion) => motion.end().await,
+            None => {
+                if let Some(state) = &ctx.trigger_state {
+                    let mut state = state.write().await;
+                    state.mount_motion_depth = state.mount_motion_depth.saturating_sub(1);
+                }
+            }
         }
         self.announce_outcome(ctx, &result);
         result
@@ -800,6 +820,11 @@ impl MeridianFlipExecutor {
         // "Retry 3/4 scheduled in 120 seconds..." — which stalls the whole
         // sequence for minutes over a no-op. Observed live: an unguided run sat
         // on its exposure node while the flip retried.
+        // The flip stopped an active guider before its first step (see
+        // `execute`); a guider that is not active has nothing to pause.
+        if matches!(self.device_ops.guider_is_active().await, Ok(false)) {
+            return Ok(());
+        }
         match self.device_ops.guider_stop().await {
             Ok(()) => Ok(()),
             Err(error) if crate::device_ops::is_no_guider_configured(&error) => {
@@ -1391,6 +1416,16 @@ impl MeridianFlipExecutor {
 
     async fn resume_guider(&self, ctx: &FlipContext) -> Result<(), String> {
         let resumed = self.restart_guider(ctx).await;
+        if resumed.is_ok() && !ctx.simulate {
+            // Guiding the run had started, stopped for the flip, is guiding
+            // again: the light frame after the flip has nothing to resume.
+            if let Some(state) = &ctx.trigger_state {
+                let mut state = state.write().await;
+                if std::mem::take(&mut state.guiding_resume_pending) {
+                    state.set_guiding_enabled(true);
+                }
+            }
+        }
         let imaging_unguided = match &ctx.trigger_state {
             Some(state) => state.read().await.imaging_unguided,
             None => false,
@@ -2115,6 +2150,10 @@ mod tests {
         /// For each guider-stop call, how many slews had been commanded when it
         /// arrived, so a test can tell whether guiding stopped before the flip.
         slews_before_guider_stop: Mutex<Vec<i32>>,
+        /// The guider has been stopped and not started again.
+        guider_stopped: AtomicBool,
+        /// Camera exposures taken while the guider was guiding.
+        exposures_while_guiding: AtomicI32,
         /// Whether the cover is closed.
         cover_state: AtomicI32,
         /// Notifications sent (level, title).
@@ -2269,6 +2308,11 @@ mod tests {
             _bin_x: i32,
             _bin_y: i32,
         ) -> DeviceResult<ImageData> {
+            if !self.state.guider_stopped.load(Ordering::Relaxed) {
+                self.state
+                    .exposures_while_guiding
+                    .fetch_add(1, Ordering::Relaxed);
+            }
             Ok(ImageData {
                 width: 100,
                 height: 100,
@@ -2375,7 +2419,7 @@ mod tests {
 
         async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
             Ok(GuidingStatus {
-                is_guiding: true,
+                is_guiding: !self.state.guider_stopped.load(Ordering::Relaxed),
                 rms_ra: 0.5,
                 rms_dec: 0.4,
                 rms_total: 0.64,
@@ -2394,6 +2438,7 @@ mod tests {
             if self.state.guider_start_fails.load(Ordering::Relaxed) {
                 return Err("simulated guider start failure: no star".to_string());
             }
+            self.state.guider_stopped.store(false, Ordering::Relaxed);
             Ok(())
         }
 
@@ -2412,6 +2457,7 @@ mod tests {
                 .lock()
                 .unwrap()
                 .push(self.state.slew_calls.load(Ordering::Relaxed));
+            self.state.guider_stopped.store(true, Ordering::Relaxed);
             Ok(())
         }
 
@@ -3646,6 +3692,86 @@ mod tests {
             "the guider must be stopped once, before the flip slew"
         );
         assert_eq!(state.slew_calls.load(Ordering::Relaxed), 1);
+    }
+
+    /// With "pause guiding" off, the flip slewed and recentered with the
+    /// guider still guiding: the recenter's frames and correction fought it.
+    /// A guider that may move the mount is stopped before the flip whatever
+    /// that setting says.
+    #[tokio::test]
+    async fn a_flip_stops_a_guiding_guider_even_with_pause_guiding_off() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.pier_sides.lock().unwrap().extend([
+            crate::meridian::PierSide::East,
+            crate::meridian::PierSide::West,
+        ]);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            pause_guiding: false,
+            auto_center: true,
+            refocus_after: false,
+            resume_guiding: false,
+            settle_time: 0.0,
+            max_retries: 0,
+            ..Default::default()
+        };
+
+        let mut executor = MeridianFlipExecutor::new(config, ops);
+        let result = executor.execute(&make_ctx(&state)).await;
+        assert!(
+            matches!(result, FlipResult::Success { .. }),
+            "got {:?}",
+            result
+        );
+
+        assert_eq!(
+            *state.slews_before_guider_stop.lock().unwrap(),
+            vec![0],
+            "the guider is stopped once, before the flip slew"
+        );
+        assert_eq!(state.exposures_while_guiding.load(Ordering::Relaxed), 0);
+    }
+
+    /// Guiding the run had started is stopped for the flip and guiding again
+    /// after it: the next light frame owes no resume, and the guiding
+    /// triggers are armed again.
+    #[tokio::test]
+    async fn a_flip_that_resumes_guiding_leaves_the_runs_guiding_armed() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.pier_sides.lock().unwrap().extend([
+            crate::meridian::PierSide::East,
+            crate::meridian::PierSide::West,
+        ]);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let config = MeridianFlipConfig {
+            pause_guiding: true,
+            auto_center: false,
+            refocus_after: false,
+            resume_guiding: true,
+            settle_time: 0.0,
+            max_retries: 0,
+            ..Default::default()
+        };
+        let mut trigger_state = TriggerState::new();
+        trigger_state.set_guiding_enabled(true);
+        let trigger_state = Arc::new(RwLock::new(trigger_state));
+        let ctx = FlipContext {
+            trigger_state: Some(trigger_state.clone()),
+            ..make_ctx(&state)
+        };
+
+        let mut executor = MeridianFlipExecutor::new(config, ops);
+        let result = executor.execute(&ctx).await;
+        assert!(
+            matches!(result, FlipResult::Success { .. }),
+            "got {:?}",
+            result
+        );
+
+        let trigger_state = trigger_state.read().await;
+        assert!(trigger_state.guiding_enabled);
+        assert!(!trigger_state.guiding_resume_pending);
+        assert_eq!(trigger_state.mount_motion_depth, 0);
     }
 
     /// The post-flip guider settle params are plumbed onto MeridianFlipConfig

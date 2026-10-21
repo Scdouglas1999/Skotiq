@@ -359,7 +359,8 @@ pub struct ExecutionContext {
     /// `quality_check`. None => grading disabled globally.
     pub default_quality_check: Option<crate::quality::ImageQualityCheck>,
     /// Optional reject-folder override, seeded from
-    /// `RuntimeConfig.reject_folder_path`. None => use `<save_path>/Reject/`.
+    /// `RuntimeConfig.reject_folder_path`. None => a `Reject/` folder beside
+    /// the frames (`<save_path>/<target>/Reject/` by default).
     pub reject_folder_path: Option<String>,
     /// pluggable wall-clock used by scheduling code (target
     /// header altitude crossings, target scheduler, integration budget

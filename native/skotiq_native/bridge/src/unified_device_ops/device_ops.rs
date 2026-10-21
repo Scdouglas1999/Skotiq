@@ -1077,6 +1077,16 @@ impl DeviceOps for UnifiedDeviceOps {
         })
     }
 
+    async fn guider_is_active(&self) -> DeviceResult<bool> {
+        let guider_id = get_active_guider_id_for_ops()
+            .await
+            .ok_or_else(|| "No active guider configured".to_string())?;
+        let status = api_guider_get_status(guider_id)
+            .await
+            .map_err(|e| format!("Failed to get guiding status: {}", e))?;
+        Ok(guider_state_may_move_mount(&status.state))
+    }
+
     async fn guider_get_calibration(&self) -> DeviceResult<GuidingCalibration> {
         let guider_id = get_active_guider_id_for_ops()
             .await
@@ -1727,5 +1737,45 @@ mod parked_from_status_tests {
     fn an_unreadable_park_state_is_an_error_not_a_fabricated_false() {
         let err = parked_from_status("m", &unreadable(status(false, false))).unwrap_err();
         assert!(err.to_string().contains("cannot report park state"));
+    }
+}
+
+/// Whether a guider in `state` (PHD2's app state, or the built-in guider's)
+/// may move the mount: anything but connected-and-idle, looping or paused.
+/// PHD2 in LostLock keeps searching and guides again the moment it finds the
+/// star; settling and calibrating move the mount; a state this build does not
+/// know is treated as active.
+pub(crate) fn guider_state_may_move_mount(state: &str) -> bool {
+    !matches!(
+        state,
+        "Disconnected" | "Connected" | "Stopped" | "Selected" | "Looping" | "Paused"
+    )
+}
+
+#[cfg(test)]
+mod guider_state_tests {
+    use super::guider_state_may_move_mount;
+
+    #[test]
+    fn a_guider_that_may_move_the_mount_is_any_but_idle_looping_or_paused() {
+        for state in [
+            "Guiding",
+            "Calibrating",
+            "Settling",
+            "LostLock",
+            "GuidingPaused",
+        ] {
+            assert!(guider_state_may_move_mount(state), "{state}");
+        }
+        for state in [
+            "Disconnected",
+            "Connected",
+            "Stopped",
+            "Selected",
+            "Looping",
+            "Paused",
+        ] {
+            assert!(!guider_state_may_move_mount(state), "{state}");
+        }
     }
 }

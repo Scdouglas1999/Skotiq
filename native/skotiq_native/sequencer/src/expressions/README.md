@@ -9,7 +9,7 @@ This module powers `${...}` template interpolation across the sequencer.
 | `RunScript` | `script_path`, every `arguments[i]` | Interpolated before the child process is spawned. Failures abort the node. |
 | `RunScript` | (env vars) | Every catalog variable is exported as `SKOTIQ_<UPPER_SNAKE>` to the child process. Missing data → variable simply not set. |
 | `Notification` | `title`, `message` | Interpolated before the notification fires. Failures abort the node. |
-| `TakeExposure` | `save_to` | Interpolated per-frame; result is a relative or absolute path (directories created on demand). Default template `${target.name}_${filter}_${frame:04}.fits`. |
+| `TakeExposure` | `save_to` | Interpolated per-frame; result is a relative or absolute path (directories created on demand). Default template `${target.name}/${target.name}_${filter}_${frame:04}.fits`: a folder per target under the save path. In a save path, `${frame}` is the next number not yet on disk for that name (in the folder or its Reject folder), so numbering continues across bursts, Smart Exposure visits and resumed runs. |
 | All nodes | `name` (display label) | Best-effort interpolation for Run Dashboard / tree labels. Failures fall back to the raw template (non-fatal). |
 
 ## Syntax
@@ -43,7 +43,7 @@ Dart mirror: [`interpolation_catalog.dart`](../../../../../packages/skotiq_core/
 | `target.az` | Current azimuth (degrees, 0 = N) | `138.2` |
 | `filter` | Current filter name | `Ha` |
 | `filter.position` | Filter-wheel position (1-based) | `3` |
-| `frame` | Current frame within the burst | `8` |
+| `frame` | Current frame within the burst (in a `save_to` path: the next frame number not yet on disk) | `8` |
 | `frame.total` | Total frames in the burst | `30` |
 | `session.id` | Unique session identifier | `5f9a-…-83b1` |
 | `session.date` | Session UTC date | `2026-01-15` |

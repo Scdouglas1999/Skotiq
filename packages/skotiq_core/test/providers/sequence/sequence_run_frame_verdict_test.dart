@@ -30,7 +30,7 @@ const _cameraId = 'simulator:test-camera-1';
 ///
 ///  1. `framesRejected` counts the frames the grader rejected — the same
 ///     frames that carry `runtime_grade='reject'` in `captured_images`.
-///  2. `ditherCount` counts the dithers that actually settled.
+///  2. `ditherCount` counts the dithers the run performed, each once.
 ///  3. The preview published for a frame is stamped from that frame's own
 ///     capture payload, never from literals: the imaging `ExposureComplete`
 ///     payload carries no capture metadata, so a preview sourced from it
@@ -420,12 +420,19 @@ void main() {
   });
 
   group('the run record counts dithers', () {
-    test('a completed dither is counted', () async {
+    backend_events.SkotiqEvent ditherPerformed({String nodeId = ''}) =>
+        sequencerEvent('InstructionProgressStructured', {
+          'node_id': nodeId,
+          'instruction': 'Dither',
+          'progress_percent': 100.0,
+          'detail_kind': ditherPerformedDetailKind,
+          'detail_json': '{}',
+        });
+
+    test('a dither the run performed is counted', () async {
       final (container, executor) = build(sequence: exposureSequence());
 
-      executor.handleSequencerEventForTest(
-        event(backend_events.EventCategory.guiding, 'DitherCompleted', {}),
-      );
+      executor.handleSequencerEventForTest(ditherPerformed(nodeId: 'smart'));
       await pumpEventQueue();
 
       expect(
@@ -435,18 +442,40 @@ void main() {
       );
     });
 
-    test('two dithers are counted twice', () async {
+    test('a trigger dither counts the same as a node dither', () async {
       final (container, executor) = build(sequence: exposureSequence());
 
-      executor.handleSequencerEventForTest(
-        event(backend_events.EventCategory.guiding, 'DitherCompleted', {}),
-      );
+      executor.handleSequencerEventForTest(ditherPerformed(nodeId: 'smart'));
+      executor.handleSequencerEventForTest(ditherPerformed());
+      await pumpEventQueue();
+
+      expect(container.read(liveSequenceStatsProvider)!.ditherCount, 2);
+    });
+
+    // Only the built-in guider sends DitherCompleted, and every one of its
+    // dithers also arrives as the run's own report. Counting both doubled
+    // them; counting only the guider's left PHD2 runs at zero (rig,
+    // 2026-10-20).
+    test('the guider\'s own dither notice is not counted again', () async {
+      final (container, executor) = build(sequence: exposureSequence());
+
+      executor.handleSequencerEventForTest(ditherPerformed(nodeId: 'smart'));
       executor.handleSequencerEventForTest(
         event(backend_events.EventCategory.guiding, 'DitherCompleted', {}),
       );
       await pumpEventQueue();
 
-      expect(container.read(liveSequenceStatsProvider)!.ditherCount, 2);
+      expect(container.read(liveSequenceStatsProvider)!.ditherCount, 1);
+    });
+
+    test('a performed dither is not shown as node progress', () async {
+      final (container, executor) = build(sequence: exposureSequence());
+      final before = container.read(sequenceProgressProvider).message;
+
+      executor.handleSequencerEventForTest(ditherPerformed());
+      await pumpEventQueue();
+
+      expect(container.read(sequenceProgressProvider).message, before);
     });
   });
 

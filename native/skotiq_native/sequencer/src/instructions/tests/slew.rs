@@ -351,4 +351,85 @@ mod guiding_through_a_move {
             "the run's guiding is armed again"
         );
     }
+
+    fn center_cfg() -> CenterConfig {
+        CenterConfig {
+            use_target_coords: true,
+            max_attempts: 2,
+            exposure_duration: 0.01,
+            ..CenterConfig::default()
+        }
+    }
+
+    /// The plate-solve exposures and the correction slews of a Center all run
+    /// with the guider stopped. Guiding through them, the correction fought
+    /// the guider and the Center converged only to 5.4" (rig, 2026-10-20).
+    #[tokio::test(start_paused = true)]
+    async fn a_center_takes_its_frames_and_corrections_with_the_guider_stopped() {
+        let ops = Arc::new(
+            ScriptedDomeRotatorOps::new()
+                .with_guiding(true)
+                .with_off_target_solves(1)
+                .with_mount_slewing_states(vec![true, false])
+                .with_scripted_mount_coordinates(TARGET.0, TARGET.1),
+        );
+        let ctx = slew_ctx(ops.clone(), false).await;
+
+        let result = execute_center(&center_cfg(), &ctx, None).await;
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+
+        assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 2);
+        assert_eq!(
+            ops.mount_slew_calls.load(Ordering::SeqCst),
+            1,
+            "one correction slew"
+        );
+        assert_eq!(ops.guider_stop_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(ops.exposures_while_guider_active.load(Ordering::SeqCst), 0);
+        assert_eq!(ops.slews_while_guider_active.load(Ordering::SeqCst), 0);
+    }
+
+    /// PHD2 in LostLock reports not guiding, yet guides again the moment it
+    /// finds the star. A move stops it as it stops a guiding one.
+    #[tokio::test(start_paused = true)]
+    async fn a_center_stops_a_guider_that_is_searching_for_a_lost_star() {
+        let ops = Arc::new(
+            ScriptedDomeRotatorOps::new()
+                .with_guider_lost_lock()
+                .with_scripted_mount_coordinates(TARGET.0, TARGET.1),
+        );
+        let ctx = slew_ctx(ops.clone(), false).await;
+
+        let _ = execute_center(&center_cfg(), &ctx, None).await;
+
+        assert_eq!(ops.guider_stop_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(ops.exposures_while_guider_active.load(Ordering::SeqCst), 0);
+    }
+
+    /// A Center with no run around it (no trigger state) still stops the
+    /// guider: the mount moves just the same.
+    #[tokio::test(start_paused = true)]
+    async fn a_center_outside_a_run_stops_the_guider() {
+        let ops = guided_rig();
+        let mut ctx = slew_ctx(ops.clone(), false).await;
+        ctx.trigger_state = None;
+
+        let _ = execute_center(&center_cfg(), &ctx, None).await;
+
+        assert_eq!(ops.guider_stop_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(ops.exposures_while_guider_active.load(Ordering::SeqCst), 0);
+    }
+
+    /// An idle guider is left alone.
+    #[tokio::test(start_paused = true)]
+    async fn a_center_leaves_an_idle_guider_alone() {
+        let ops = Arc::new(
+            ScriptedDomeRotatorOps::new().with_scripted_mount_coordinates(TARGET.0, TARGET.1),
+        );
+        let ctx = slew_ctx(ops.clone(), false).await;
+
+        let _ = execute_center(&center_cfg(), &ctx, None).await;
+
+        assert_eq!(ops.guider_stop_calls.load(Ordering::SeqCst), 0);
+    }
 }

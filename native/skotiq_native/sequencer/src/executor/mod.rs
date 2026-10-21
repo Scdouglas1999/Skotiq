@@ -139,6 +139,10 @@ pub struct SequenceExecutor {
     depth_goal_ops: Option<crate::depth_goal::SharedDepthGoalOps>,
     /// Current checkpoint being updated
     current_checkpoint: Option<crate::checkpoint::SessionCheckpoint>,
+    /// `resume_from_checkpoint` prepared the loaded sequence to resume, and
+    /// the next `start()` is that resume. Loading another sequence cancels
+    /// it; `start()` consumes it.
+    resume_prepared: bool,
     /// Safety fail mode - determines behavior when safety devices fail or are unavailable
     pub safety_fail_mode: SafetyFailMode,
     /// Filter focus offsets from equipment profile (filter_name -> offset_steps)
@@ -237,6 +241,7 @@ impl SequenceExecutor {
             checkpoint_manager: None,
             depth_goal_ops: None,
             current_checkpoint: None,
+            resume_prepared: false,
             safety_fail_mode: SafetyFailMode::default(),
             filter_focus_offsets: std::collections::HashMap::new(),
             runtime_config: Arc::new(StdRwLock::new(RuntimeConfig::default())),

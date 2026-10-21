@@ -365,7 +365,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Star shape thresholds',
     'When on, every captured frame is scored against the thresholds below. Bad frames are moved to the reject folder.',
     'When on, the accepted subs are integrated into an',
-    'Where rejected frames go. Leave blank for the default <save_path>/Reject/. Relative paths resolve against save_path; absolute paths are honoured verbatim.',
+    'Where rejected frames go. Leave blank for a Reject folder beside the frames, <save_path>/<target>/Reject/. A relative path is taken from the frames\' folder; an absolute path is used as it is.',
   ],
   'imaging': [
     'Archive format',
@@ -959,7 +959,7 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Enable image grading',
     'When on, the accepted subs are integrated into an':
         'Auto-integrate at end of run',
-    'Where rejected frames go. Leave blank for the default <save_path>/Reject/. Relative paths resolve against save_path; absolute paths are honoured verbatim.':
+    'Where rejected frames go. Leave blank for a Reject folder beside the frames, <save_path>/<target>/Reject/. A relative path is taken from the frames\' folder; an absolute path is used as it is.':
         'Reject folder path',
   },
   'imaging': {
