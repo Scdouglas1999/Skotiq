@@ -691,7 +691,34 @@ pub(crate) async fn wait_for_meridian_flip_window(
         // running) is still governed by MERIDIAN_GATE_MAX_WAIT and is not cut
         // short by the target drifting further past the meridian while we
         // wait.
+        //
+        // Overdue is not the same as never firing, though. A trigger that can
+        // fire and has not because the run was held (paused, or in a recovery)
+        // fires on the first running tick after the hold, and the frame must
+        // not race it: on the rig (2026-10-21) the run resumed 16 minutes past
+        // a 5-minute threshold, this hatch let a 90 s frame go, and the night
+        // lost its flip. So when the trigger could still fire, it is given its
+        // first running evaluation to do so before the hatch lets the frame go.
         if !announced && fire_in_secs < -OVERDUE_GRACE_SECS {
+            let trigger_can_fire = polled_ha.is_some_and(|published_ha| published_ha > 0.0);
+            if trigger_can_fire {
+                match wait_for_overdue_flip_to_start(ctx, lock).await {
+                    OverdueFlip::Flipped => return None,
+                    OverdueFlip::Cancelled(result) => return Some(result),
+                    OverdueFlip::Starting => {
+                        let message = format!(
+                            "Holding the next {exposure_secs:.0}s exposure for the meridian \
+                             flip, which is {:.0} min overdue and starting now.",
+                            -fire_in_secs / 60.0
+                        );
+                        tracing::info!("{}", message);
+                        control.report(&message);
+                        announced = true;
+                        continue;
+                    }
+                    OverdueFlip::NotComing => {}
+                }
+            }
             let message = format!(
                 "Meridian flip is overdue by {:.0} min and has not fired (hour angle \
                  {:+.2}h, threshold {:.0} min past meridian) — proceeding with the next \
@@ -782,6 +809,72 @@ pub(crate) async fn wait_for_meridian_flip_window(
             _ = sleep(POLL_INTERVAL) => {}
             _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {
                 return Some(InstructionResult::cancelled("Exposure cancelled"));
+            }
+        }
+    }
+}
+
+/// What an overdue flip trigger did with its first running evaluation.
+enum OverdueFlip {
+    /// The flip has already completed for this target.
+    Flipped,
+    /// The trigger fired (or the operator asked) and the flip is on its way.
+    Starting,
+    /// The trigger had a running evaluation and did not fire, or no trigger
+    /// monitor is running at all.
+    NotComing,
+    Cancelled(InstructionResult),
+}
+
+/// Wait for an overdue flip trigger's first running evaluation since the run
+/// was last held, and report what it did.
+///
+/// The trigger monitor publishes, under one lock, whether its last tick was a
+/// running one and whether that tick fired the flip. A running tick that did
+/// not fire the flip means the trigger cannot fire now (it is cooling down
+/// after an earlier flip attempt, say), which is the case the overdue hatch is
+/// for. Bounded so a stalled monitor costs one frame a quarter of a minute,
+/// not the night.
+async fn wait_for_overdue_flip_to_start(
+    ctx: &InstructionContext,
+    lock: &tokio::sync::RwLock<crate::triggers::TriggerState>,
+) -> OverdueFlip {
+    const FIRST_EVALUATION_GRACE: Duration = Duration::from_secs(15);
+    const POLL_INTERVAL: Duration = Duration::from_millis(250);
+    let deadline = tokio::time::Instant::now() + FIRST_EVALUATION_GRACE;
+    loop {
+        if let Some(result) = ctx.check_cancelled() {
+            return OverdueFlip::Cancelled(result);
+        }
+        let verdict = {
+            let state = lock.read().await;
+            if state.has_flipped_this_target {
+                Some(OverdueFlip::Flipped)
+            } else if state.meridian_flip_dispatch_pending
+                || (state.meridian_flip_requested && state.manual_flip_refusal().is_none())
+            {
+                Some(OverdueFlip::Starting)
+            } else if state.last_evaluation_running != Some(false) {
+                Some(OverdueFlip::NotComing)
+            } else {
+                None
+            }
+        };
+        if let Some(verdict) = verdict {
+            return verdict;
+        }
+        if tokio::time::Instant::now() >= deadline {
+            tracing::warn!(
+                "The trigger monitor did not evaluate the meridian flip within {} s of the \
+                 run being held",
+                FIRST_EVALUATION_GRACE.as_secs()
+            );
+            return OverdueFlip::NotComing;
+        }
+        tokio::select! {
+            _ = sleep(POLL_INTERVAL) => {}
+            _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {
+                return OverdueFlip::Cancelled(InstructionResult::cancelled("Exposure cancelled"));
             }
         }
     }

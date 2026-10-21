@@ -836,6 +836,21 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             manager.state()
         };
 
+        // Tell the pre-frame meridian gate what this tick decided: whether the
+        // triggers had a running evaluation, and whether a flip is now on its
+        // way. A frame that starts after a hold must not race the flip the
+        // first running tick fires (see `wait_for_meridian_flip_window`).
+        {
+            let flip_dispatching = fired_with_names.iter().any(|(_, _, fired, _)| {
+                !fired.notify_only
+                    && !fired.end_without_parking
+                    && matches!(fired.action, RecoveryAction::MeridianFlip(_))
+            });
+            let mut state = trigger_state_for_actions.write().await;
+            state.last_evaluation_running = Some(!paused_safety_only);
+            state.meridian_flip_dispatch_pending = flip_dispatching;
+        }
+
         for (trigger_id, trigger_name, fired, cooldown_secs) in fired_with_names {
             // A notify-only trigger tells the operator once per episode: a
             // firing that follows the last one within the trigger's cooldown

@@ -166,6 +166,18 @@ pub struct TriggerState {
     /// when the flip fires. None when no MinutesPastMeridian flip trigger
     /// is enabled (other trigger methods are not predictable in advance).
     pub meridian_flip_minutes_past: Option<f64>,
+    /// Whether the trigger monitor's last evaluation was on a running tick:
+    /// `Some(false)` while the run is held (paused or recovering) and until the
+    /// first evaluation after the hold, `None` before any monitor has evaluated
+    /// anything for a run. The pre-frame meridian gate reads it to tell a flip
+    /// trigger that has not yet had its chance after a hold from one that had
+    /// it and did not fire.
+    pub last_evaluation_running: Option<bool>,
+    /// The meridian flip trigger fired on the monitor's last tick and its
+    /// action is waiting for the imaging train or running. The monitor runs
+    /// the action inline, so the next tick, which clears this, comes only
+    /// after the flip has finished.
+    pub meridian_flip_dispatch_pending: bool,
 
     /// The live exclusive claim on the imaging train, or `None` when it is
     /// free. See [`ImagingTrainClaim`].
@@ -402,6 +414,8 @@ impl Default for TriggerState {
             current_target_name: None,
             next_meridian_flip_time: None,
             meridian_flip_minutes_past: None,
+            last_evaluation_running: None,
+            meridian_flip_dispatch_pending: false,
             imaging_train_claim: None,
             imaging_train_next_token: 0,
             consecutive_dither_failures: 0,
@@ -655,6 +669,9 @@ impl TriggerState {
         self.guiding_rms_history = None;
         self.mount_motion_depth = 0;
         self.guiding_resume_pending = false;
+        // A run is starting and its monitor has not evaluated yet.
+        self.last_evaluation_running = Some(false);
+        self.meridian_flip_dispatch_pending = false;
         if std::mem::take(&mut self.restored_from_checkpoint) {
             // A resumed run carries on the guiding its checkpoint recorded.
             return;

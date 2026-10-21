@@ -425,3 +425,119 @@ fn meridian_gate_applies_to_light_frames_only() {
         );
     }
 }
+
+/// A gate context whose target is about 30 minutes past the meridian, well
+/// past the overdue grace for a 5-minute threshold, as the rig was (16 minutes
+/// past it) when it resumed on 2026-10-21. The margin covers precession: the
+/// gate takes the hour angle against the RA of date.
+/// The mount is tracking on the pre-flip side and the monitor has published
+/// the target's hour angle, so the trigger itself can fire.
+async fn overdue_flip_ctx(
+    last_evaluation_running: Option<bool>,
+) -> (
+    InstructionContext,
+    Arc<tokio::sync::RwLock<crate::triggers::TriggerState>>,
+) {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let mut ec = crate::node::context::ExecutionContext::new_for_test("gate-node".to_string());
+    ec.device_ops = ops;
+    ec.camera_id = Some("camera-1".to_string());
+    ec.mount_id = Some("mount-1".to_string());
+    ec.longitude = Some(42.0);
+    ec.latitude = Some(40.0);
+
+    let lst = crate::meridian::local_sidereal_time(
+        crate::meridian::julian_day(&chrono::Utc::now()),
+        42.0,
+    );
+    let ra = (lst - 30.0 / 60.0).rem_euclid(24.0);
+    let trigger_state = Arc::new(tokio::sync::RwLock::new(
+        crate::triggers::TriggerState::new(),
+    ));
+    {
+        let mut state = trigger_state.write().await;
+        state.meridian_flip_minutes_past = Some(5.0);
+        state.target_ra = Some(ra * 15.0);
+        state.target_dec = Some(40.0);
+        state.current_hour_angle = Some(30.0 / 60.0);
+        state.pier_side = Some(crate::PierSide::West);
+        state.mount_is_tracking = Some(true);
+        state.mount_parked = Some(false);
+        state.last_evaluation_running = last_evaluation_running;
+    }
+    ec.trigger_state = Some(trigger_state.clone());
+    let mut ctx = ec.to_instruction_context("gate-node").await;
+    ctx.target_ra = Some(ra);
+    ctx.target_dec = Some(40.0);
+    (ctx, trigger_state)
+}
+
+/// The rig, 2026-10-21: the run resumed from a pause 16 minutes past a
+/// 5-minute flip threshold, beyond the overdue grace. The flip trigger fires on the first running tick
+/// after the hold, but the overdue hatch let the next 90 s frame go first, and
+/// the frame took the imaging train ahead of the flip. The gate must give the
+/// trigger that first evaluation and then hold the frame for the flip it
+/// started.
+#[tokio::test(start_paused = true)]
+async fn an_overdue_flip_the_first_tick_after_a_hold_fires_still_holds_the_frame() {
+    let (ctx, trigger_state) = overdue_flip_ctx(Some(false)).await;
+
+    let monitor_state = trigger_state.clone();
+    let monitor = tokio::spawn(async move {
+        // The first running tick after the resume fires the flip...
+        sleep(Duration::from_secs(1)).await;
+        {
+            let mut state = monitor_state.write().await;
+            state.last_evaluation_running = Some(true);
+            state.meridian_flip_dispatch_pending = true;
+        }
+        // ...and the flip takes a few minutes.
+        sleep(Duration::from_secs(240)).await;
+        monitor_state.write().await.mark_flip_performed();
+        tokio::time::Instant::now()
+    });
+
+    let gate = wait_for_meridian_flip_window(&ctx, 90.0, &BurstControl::default()).await;
+    let released_at = tokio::time::Instant::now();
+    let flipped_at = monitor.await.expect("monitor task");
+
+    assert!(gate.is_none(), "the gate proceeds once the flip is done");
+    assert!(
+        released_at >= flipped_at,
+        "the frame must wait for the overdue flip the first running tick started"
+    );
+}
+
+/// The case the overdue hatch exists for is kept: the trigger had a running
+/// evaluation since the last hold and did not fire, so it cannot fire now, and
+/// the frame goes ahead at once.
+#[tokio::test(start_paused = true)]
+async fn an_overdue_flip_the_trigger_did_not_fire_on_a_running_tick_does_not_hold() {
+    for last_evaluation_running in [Some(true), None] {
+        let (ctx, _trigger_state) = overdue_flip_ctx(last_evaluation_running).await;
+        let started = tokio::time::Instant::now();
+        let gate = wait_for_meridian_flip_window(&ctx, 90.0, &BurstControl::default()).await;
+        assert!(gate.is_none());
+        assert!(
+            started.elapsed() < Duration::from_secs(1),
+            "held {:?} for a flip the trigger did not fire (last evaluation running: \
+             {last_evaluation_running:?})",
+            started.elapsed()
+        );
+    }
+}
+
+/// A monitor that never gets its running evaluation in costs the frame a
+/// bounded wait, not the gate's 30-minute bound.
+#[tokio::test(start_paused = true)]
+async fn an_overdue_flip_waits_a_bounded_time_for_the_trigger_to_evaluate() {
+    let (ctx, _trigger_state) = overdue_flip_ctx(Some(false)).await;
+    let started = tokio::time::Instant::now();
+    let gate = wait_for_meridian_flip_window(&ctx, 90.0, &BurstControl::default()).await;
+    assert!(gate.is_none());
+    assert!(
+        started.elapsed() <= Duration::from_secs(16),
+        "waited {:?} for a trigger evaluation that never came",
+        started.elapsed()
+    );
+}
