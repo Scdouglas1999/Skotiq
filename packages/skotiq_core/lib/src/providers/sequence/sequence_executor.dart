@@ -17,7 +17,6 @@ import '../../models/settings/app_settings.dart'
     show ObserverLocation, SafetyFailMode;
 import '../../models/weather/weather_settings.dart' show WeatherSettings;
 import '../weather_providers.dart' show weatherSettingsProvider;
-import '../../services/disk_space_guard.dart';
 import '../../services/sequence_file_service.dart';
 import '../../services/sequence_repository.dart'
     show sequenceRepositoryProvider;
@@ -94,6 +93,7 @@ import 'sequence_executor/run_finalization.dart';
 import 'sequence_executor/run_lifecycle.dart';
 import 'sequence_executor/run_stats_ledger.dart';
 import 'sequence_executor/live_stacking_feed.dart';
+import 'sequence_executor/run_timers.dart';
 import 'sequence_executor/sequence_serializer.dart';
 import 'sequence_executor/stop_confirmation.dart';
 import '../../services/frame_quality_score.dart';
@@ -113,7 +113,6 @@ export 'sequence_executor/stop_confirmation.dart'
 part 'sequence_executor/runtime_config_operations.dart';
 part 'sequence_executor/event_operations.dart';
 part 'sequence_executor/session_diagnostics_operations.dart';
-part 'sequence_executor/checkpoint_watchdog_operations.dart';
 
 /// Temperature drift threshold for post-session cooler stability notes.
 ///
@@ -156,11 +155,26 @@ class SequenceExecutor {
     _stats.update((stats) => stats.recordWarning(message), persist: persist);
   }
 
-  Timer? _progressTimer;
-  DateTime? _startTime;
   StreamSubscription? _nativeEventSubscription;
-  StreamSubscription<DiskSpaceWatchdogEvent>? _diskWatchdogSubscription;
-  Timer? _checkpointTimer;
+
+  /// The run's elapsed-time ticker, checkpoint saver and disk watchdog.
+  late final RunTimers _timers = RunTimers(
+    isPaused: () => _lifecycle.isPausedByExecutor,
+    onElapsed: _publishElapsed,
+    isRunning: () =>
+        _ref.read(sequenceExecutionStateProvider) ==
+        SequenceExecutionState.running,
+    saveCheckpoint: () => _backend.saveCheckpoint(),
+    capturePath: () =>
+        _ref.read(appSettingsProvider).valueOrNull?.imageOutputPath ?? '',
+    diskGuard: () => _ref.read(diskSpaceGuardProvider),
+    safeTheRig: (reason) async {
+      await _ref
+          .read(safeRigServiceProvider)
+          .safeTheRig(reason: reason, park: true);
+    },
+    logger: () => _logger,
+  );
 
   /// The run's phase, its one finalization transaction and the start and
   /// pause/resume latches. See [RunLifecycle].
@@ -179,13 +193,6 @@ class SequenceExecutor {
     runsDao: () => _ref.read(sequenceRunsDaoProvider),
     logger: () => _logger,
   );
-
-  /// Guards the periodic checkpoint save against re-entrancy. A slow
-  /// `saveCheckpoint()` (large sequence, slow disk) can outlive the 30 s
-  /// timer cadence; without this flag a second save would be issued while
-  /// the first is still in flight, racing two writers on the same
-  /// checkpoint file. The next tick simply skips while one is running.
-  bool _checkpointSaveInFlight = false;
 
   /// Feeds accepted frames to the live stacker when the sequence asks for it.
   late final LiveStackingFeed _liveStacking = LiveStackingFeed(
@@ -855,43 +862,27 @@ class SequenceExecutor {
     await _seedRuntimeConfigFromSettings(_backend);
   }
 
-  /// Start the periodic work a run owns: the 1 s elapsed/ETA ticker, the
-  /// checkpoint saver and the disk-space watchdog.
-  ///
-  /// Shared by [start] and [resumeFromCheckpoint] — the ticker closure was
-  /// byte-identical in both. The ETA EMA is reset rather than carried: a
-  /// resume's samples start from the checkpoint's mid-run cadence and must not
-  /// be biased by the original session's (different exposure length, focuser,
-  /// filter). It is fed from `ExposureCompleted` events either way, so no
-  /// frame-counter seed is needed.
+  /// Start the periodic work a run owns. The ETA smoother restarts with it:
+  /// a resumed run's cadence must not be biased by the interrupted run's.
   void _startPerRunTimers() {
-    final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
-    _startTime = DateTime.now();
     _eta.reset();
+    _timers.start();
+  }
 
-    // The ETA is projected from [EtaSmoother]'s EMA rather than from the
-    // wall-clock tick, so a single slow download or fast-completing
-    // calibration frame does not yank the estimate around.
-    _progressTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!_lifecycle.isPausedByExecutor && _startTime != null) {
-        final elapsed = DateTime.now()
-            .difference(_startTime!)
-            .inSeconds
-            .toDouble();
-        final progress = _ref.read(sequenceProgressProvider);
-        final eta = _eta.remainingSeconds(
-          completedFrames: progress.completedExposures,
-          totalFrames: progress.totalExposures,
+  /// Publish the elapsed time and the ETA. The ETA is projected from
+  /// [EtaSmoother]'s per-frame average, not the wall clock, so one slow
+  /// download or a fast calibration frame does not yank it around.
+  void _publishElapsed(double elapsedSecs) {
+    final progress = _ref.read(sequenceProgressProvider);
+    _ref
+        .read(sequenceProgressProvider.notifier)
+        .updateProgress(
+          elapsedSecs: elapsedSecs,
+          estimatedRemainingSecs: _eta.remainingSeconds(
+            completedFrames: progress.completedExposures,
+            totalFrames: progress.totalExposures,
+          ),
         );
-        progressNotifier.updateProgress(
-          elapsedSecs: elapsed,
-          estimatedRemainingSecs: eta,
-        );
-      }
-    });
-
-    _startCheckpointTimer();
-    _startDiskSpaceWatchdog();
   }
 
   /// Acquire every run resource and hand off to the native executor as one
@@ -1479,12 +1470,12 @@ class SequenceExecutor {
     void Function(String, Object) secondary,
   ) async {
     try {
-      _resetRunTimers();
+      _timers.stopTimers();
     } catch (e) {
       secondary('reset run timers', e);
     }
     try {
-      _stopDiskSpaceWatchdog();
+      _timers.stopDiskWatchdog();
     } catch (e) {
       secondary('stop disk watchdog', e);
     }
@@ -2282,23 +2273,15 @@ class SequenceExecutor {
     await backend.discardCheckpoint();
   }
 
-  /// Start periodic checkpoint saves (every 30 seconds while running).
+  /// Tear down everything the executor owns. A run retained in stopFailed /
+  /// cleanupFailed never released its per-run resources, so dispose must
+  /// cancel each of them itself.
   void dispose() {
     _disposed = true;
-    _progressTimer?.cancel();
-    _progressTimer = null;
-    _checkpointTimer?.cancel();
-    _checkpointTimer = null;
+    _timers.dispose();
     _nativeEventSubscription?.cancel();
     _nativeEventSubscription = null;
-    // The sky-brightness poll is a per-run resource like the two timers above,
-    // but it was only cancelled on the clean release path
-    // (`_releaseRunResources`). A run that ends in `stopFailed` /
-    // `cleanupFailed` deliberately does NOT release, so the 10-second timer
-    // outlived the executor and kept firing against a torn-down Ref — reading
-    // providers from a disposed container every tick, forever.
     _skyBrightnessPollTimer?.cancel();
     _skyBrightnessPollTimer = null;
-    _stopDiskSpaceWatchdog();
   }
 }
