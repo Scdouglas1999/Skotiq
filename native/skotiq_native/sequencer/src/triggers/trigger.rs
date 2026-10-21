@@ -191,6 +191,16 @@ impl Trigger {
         self
     }
 
+    /// Forget a firing the run did not act on.
+    ///
+    /// [`Trigger::check`] starts the cooldown whenever it fires, whether or
+    /// not anything acts on the firing. A firing the trigger monitor drops
+    /// because the run is held (paused, or in a recovery) must not spend it,
+    /// or the trigger stays silent for up to its cooldown after the hold ends.
+    pub fn rearm_after_hold(&mut self) {
+        self.last_triggered = None;
+    }
+
     /// Check if the trigger is in cooldown
     pub fn is_in_cooldown(&self) -> bool {
         if let (Some(cooldown), Some(last)) = (self.cooldown_secs, self.last_triggered) {

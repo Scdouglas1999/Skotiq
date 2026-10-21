@@ -71,6 +71,15 @@ impl TriggerManager {
         true
     }
 
+    /// Re-arm a trigger whose firing was dropped because the run is held, so
+    /// it fires on the first tick after the hold. See
+    /// [`Trigger::rearm_after_hold`].
+    pub fn rearm_after_hold(&mut self, id: &str) {
+        if let Some(trigger) = self.get_trigger_mut(id) {
+            trigger.rearm_after_hold();
+        }
+    }
+
     /// Enable/disable a trigger
     pub fn set_trigger_enabled(&mut self, id: &str, enabled: bool) {
         if let Some(trigger) = self.triggers.iter_mut().find(|t| t.id == id) {

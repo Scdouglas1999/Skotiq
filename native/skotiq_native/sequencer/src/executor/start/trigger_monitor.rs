@@ -756,9 +756,10 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         let park_policy = runtime_config.read().park_policy;
         let fired_with_names: Vec<(String, String, FiredTriggerAction, Option<u64>)> = {
             let mut manager = trigger_manager.write().await;
+            let mut dropped_under_hold: Vec<String> = Vec::new();
             let fired = manager.check_all().await;
             let stop_on_quality_problems = manager.state().read().await.stop_on_quality_problems;
-            fired
+            let fired_with_names: Vec<_> = fired
                 .into_iter()
                 .filter(|(id, _)| !(explicit_end && id == "dawn_approaching"))
                 // The operator's park and quality settings first, so the hold
@@ -773,9 +774,18 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                 })
                 // While paused, drop everything that is not protecting the rig
                 // itself. Filtering here rather than inside the dispatch keeps
-                // the guarantee in one readable place, and keeps the filtered
-                // trigger's cooldown ticking so it re-fires normally once the
-                // operator resumes.
+                // the guarantee in one readable place.
+                //
+                // A dropped firing is re-armed below. `Trigger::check` starts
+                // the cooldown whenever it returns true, so a firing nobody
+                // acted on used to spend it: on the rig (2026-10-21) the flip
+                // fired at 05:31:57 and 05:41:58 under an operator pause, the
+                // run resumed at 05:47:34 with the flip still cooling down
+                // until 05:51:57, the next frame went ahead, and the night
+                // lost its flip. Re-armed, the trigger fires on the first
+                // running tick after the hold, as if the hold had not been
+                // there. `was_firing` stays set across the hold, so a trigger
+                // that keeps firing under it is still logged once.
                 .filter(|(trigger_id, fired)| {
                     if !paused_safety_only {
                         return true;
@@ -791,6 +801,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                                      not acted on until the run resumes",
                                     trigger_id
                                 );
+                                dropped_under_hold.push(trigger_id.clone());
                             }
                             allowed
                         }
@@ -813,7 +824,11 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                     let cooldown_secs = trigger.and_then(|t| t.cooldown_secs);
                     (trigger_id, trigger_name, fired, cooldown_secs)
                 })
-                .collect()
+                .collect();
+            for trigger_id in &dropped_under_hold {
+                manager.rearm_after_hold(trigger_id);
+            }
+            fired_with_names
         };
 
         let trigger_state_for_actions = {

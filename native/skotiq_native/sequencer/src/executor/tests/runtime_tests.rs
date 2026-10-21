@@ -1958,6 +1958,93 @@ async fn weather_turning_unsafe_during_a_pause_still_fires_the_weather_trigger()
     );
 }
 
+/// A firing dropped because the run is held must not spend the trigger's
+/// cooldown. On the rig (2026-10-21) the meridian flip fired twice under an
+/// operator pause, each dropped by the hold filter, and the run resumed with
+/// the flip still cooling down for another four minutes: the next frame went
+/// ahead and the flip never ran. The trigger here has a ten-minute cooldown, so
+/// only a re-armed trigger can fire within seconds of the resume.
+#[tokio::test]
+async fn a_trigger_dropped_under_a_pause_fires_on_the_first_tick_after_resume() {
+    let mut sequence = SequenceDefinition::new("Paused Run".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "wait".to_string(),
+        name: "Wait".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 120.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("wait".to_string());
+
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(Arc::new(ReacquireGuiderOps::new(false, false)));
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor.trigger_manager.write().await.add_trigger(
+        crate::triggers::Trigger::new(
+            "held_transparency",
+            "Held Transparency",
+            crate::TriggerType::TransparencyDropped {
+                below_threshold: 0.5,
+                duration_secs: 0.0,
+            },
+            crate::RecoveryAction::Continue,
+        )
+        .with_cooldown(600),
+    );
+    let mut events = executor.subscribe();
+    executor.load_sequence(sequence).expect("sequence loads");
+    executor.start().await.expect("run starts");
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while executor.get_state().await != ExecutorState::Running {
+        assert!(std::time::Instant::now() < deadline, "run never started");
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    executor.pause().await.expect("pause accepted");
+    while executor.get_state().await != ExecutorState::Paused {
+        assert!(std::time::Instant::now() < deadline, "run never paused");
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+
+    let trigger_state = executor.trigger_manager.read().await.state();
+    trigger_state.write().await.update_transparency(Some(0.2));
+    // Several monitor ticks under the hold: the trigger fires on each and each
+    // firing is dropped.
+    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+    while let Ok(event) = events.try_recv() {
+        if let ExecutorEvent::TriggerFired { trigger_id, .. } = event {
+            assert_ne!(
+                trigger_id, "held_transparency",
+                "a non-safety trigger acted while the run was paused"
+            );
+        }
+    }
+
+    executor.resume().await.expect("resume accepted");
+    let fired = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            match events.recv().await {
+                Ok(ExecutorEvent::TriggerFired { trigger_id, .. })
+                    if trigger_id == "held_transparency" =>
+                {
+                    return true;
+                }
+                Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                Err(broadcast::error::RecvError::Closed) => return false,
+            }
+        }
+    })
+    .await
+    .unwrap_or(false);
+    executor.stop().await.ok();
+
+    assert!(
+        fired,
+        "a trigger whose firings were dropped under the pause must fire once the run resumes, \
+         not wait out the cooldown those firings started"
+    );
+}
+
 fn guided_delay_sequence(start_guiding: bool) -> SequenceDefinition {
     let mut sequence = SequenceDefinition::new("Guided Run".to_string());
     let mut children = Vec::new();
