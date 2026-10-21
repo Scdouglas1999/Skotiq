@@ -90,14 +90,13 @@ extension _SequenceExecutorCheckpointWatchdogOperations on SequenceExecutor {
   /// terminal event handlers (`SequenceCompleted` / `SequenceStopped` /
   /// `SequenceFailed`) and `stop()` stay in lockstep. A partial teardown that
   /// cancels `_progressTimer` alone leaves `_checkpointTimer` running and
-  /// `_startTime` / `_isPaused` stale, which mis-seeds the next run.
+  /// `_startTime` stale, which mis-seeds the next run.
   void _resetRunTimers() {
     _progressTimer?.cancel();
     _progressTimer = null;
     _checkpointTimer?.cancel();
     _checkpointTimer = null;
     _startTime = null;
-    _isPaused = false;
   }
 
   void _stopDiskSpaceWatchdog() {

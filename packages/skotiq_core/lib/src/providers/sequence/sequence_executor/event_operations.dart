@@ -1222,20 +1222,15 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
     );
   }
 
-  /// Finalize the current run row and fire the once-per-run session-end hooks.
+  /// Finalize the run row and fire the once-per-run session-end hooks.
   ///
-  /// Awaitable (contract: "finalization awaitable; clear IDs only after true
-  /// finish success"): the caller awaits the durable `finishRun` write so the
-  /// run id is only cleared once the finish has actually persisted, and a
-  /// finish failure surfaces to the stop / terminal path instead of being
-  /// swallowed by a fire-and-forget future.
-  ///
-  /// The `_runFinalized` guard is latched only AFTER `finishRun` succeeds — so
-  /// it is an exactly-once guard for the SUCCESS path, never a permanent latch
-  /// that would swallow a retry after a failed finish (a failed cleanup must be
-  /// retryable, so a subsequent Stop can re-run this).
-  Future<void> _finalizeRun(String status) async {
-    if (_runFinalized) {
+  /// Awaited by the drive, so the run id is cleared only after `finishRun` has
+  /// persisted and a failed finish surfaces as `cleanupFailed`.
+  /// [RunFinalization.runRecordFinished] is set only after `finishRun`
+  /// succeeds: it makes the success path exactly-once without swallowing a
+  /// retry after a failed finish.
+  Future<void> _finalizeRun(RunFinalization f) async {
+    if (f.runRecordFinished) {
       return;
     }
     final runId = _ref.read(currentRunIdProvider);
@@ -1243,22 +1238,15 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
     if (runId == null || stats == null) {
       return;
     }
-    // Seal the stats BEFORE the final write so no further incremental
-    // updateStats can be SUBMITTED, then DRAIN the writes already in flight so
-    // none of them lands AFTER finishRun and clobbers the final stats JSON.
-    // Sealing is idempotent, so a Stop retry after a failed finish re-runs this
-    // safely.
+    // Seal first so no new incremental write can be submitted, then drain the
+    // ones in flight so none lands after finishRun. Idempotent for a retry.
     _statsSealed = true;
     await _drainPendingStatWrites();
     stats.endTime = DateTime.now();
-    final statsJson = stats.toJson();
     await _ref
         .read(sequenceRunsDaoProvider)
-        .finishRun(runId, status, statsJson);
-    _runFinalized = true;
-    // Surface post-session diagnostics + clear the NotificationRouter override.
-    // Fires exactly once per run (guarded by the `_runFinalized` latch above,
-    // which is only set once the finish has persisted).
+        .finishRun(runId, f.runStatus, stats.toJson());
+    f.runRecordFinished = true;
     _captureSessionEndHooks();
   }
 

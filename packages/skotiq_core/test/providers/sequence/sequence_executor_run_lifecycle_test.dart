@@ -2304,4 +2304,90 @@ void main() {
       expect(container.read(sequenceTerminalRunResultProvider), isNull);
     });
   });
+
+  group('N. run phases', () {
+    test('a stop pressed while the launch is still acquiring keeps the native '
+        'executor from ever starting, and the run settles once', () async {
+      final container = buildContainer();
+      _stubBackendForStart(backend);
+      when(() => backend.sequencerStart()).thenAnswer((_) async {});
+      // No native run exists yet, so the stop is confirmed from the status
+      // poll rather than a pushed terminal.
+      when(
+        () => backend.sequencerStop(origin: any(named: 'origin')),
+      ).thenAnswer((_) async {});
+      when(
+        () => backend.sequencerGetStatus(),
+      ).thenAnswer((_) async => SequencerStatus(state: 'Idle', progress: 0.0));
+      when(() => backend.discardCheckpoint()).thenAnswer((_) async {});
+      final loadGate = Completer<void>();
+      final loadReached = Completer<void>();
+      when(() => backend.sequencerLoadJson(any())).thenAnswer((_) async {
+        loadReached.complete();
+        await loadGate.future;
+      });
+      container
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(_buildSequence());
+      final executor = container.read(sequenceExecutorProvider);
+
+      final launch = executor.start();
+      await loadReached.future;
+      expect(
+        container.read(sequenceExecutionStateProvider),
+        SequenceExecutionState.running,
+      );
+
+      await executor.stop();
+      expect(executor.runPhaseForTest, isA<RunSettled>());
+      loadGate.complete();
+
+      await expectLater(launch, throwsA(isA<StateError>()));
+      verifyNever(() => backend.sequencerStart());
+      expect(session.endedStatuses, ['stopped']);
+      expect(
+        container.read(sequenceExecutionStateProvider),
+        SequenceExecutionState.idle,
+      );
+      expect(executor.isListeningToNativeEventsForTest, isFalse);
+      expect(executor.runPhaseForTest, isA<RunSettled>());
+    });
+
+    test(
+      'a launch walks Idle -> Launching -> Live, and a terminal settles it',
+      () async {
+        final container = buildContainer();
+        _stubBackendForStart(backend);
+        final executor = container.read(sequenceExecutorProvider);
+        expect(executor.runPhaseForTest, isA<RunIdle>());
+
+        final started = Completer<void>();
+        when(() => backend.sequencerStart()).thenAnswer((_) async {
+          expect(
+            executor.runPhaseForTest,
+            isA<RunLaunching>().having(
+              (p) => p.nativeLaunchAttempted,
+              'nativeLaunchAttempted',
+              isTrue,
+            ),
+          );
+          started.complete();
+        });
+        container
+            .read(currentSequenceProvider.notifier)
+            .loadSequence(_buildSequence());
+        await executor.start();
+        await started.future;
+        expect(executor.runPhaseForTest, isA<RunLive>());
+
+        eventController.add(_sequencerEvent('Completed'));
+        await pumpEvents();
+        await executor.terminalCleanupSettledForTest;
+        expect(
+          executor.runPhaseForTest,
+          isA<RunSettled>().having((p) => p.runStatus, 'status', 'completed'),
+        );
+      },
+    );
+  });
 }

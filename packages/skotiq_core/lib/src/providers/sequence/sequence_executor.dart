@@ -92,6 +92,7 @@ import 'sequencer_defaults.dart';
 import 'sequence_executor/frame_attribution.dart';
 import 'sequence_executor/eta_smoothing.dart';
 import 'sequence_executor/run_finalization.dart';
+import 'sequence_executor/run_lifecycle.dart';
 import 'sequence_executor/sequence_serializer.dart';
 import 'sequence_executor/stop_confirmation.dart';
 import '../../services/frame_quality_score.dart';
@@ -99,6 +100,7 @@ import '../../services/frame_quality_score.dart';
 export 'sequence_executor/eta_smoothing.dart'
     show EtaSmoother, kEtaEmaAlpha, kEtaWindowSize;
 export 'sequence_executor/run_finalization.dart' show RunFinalization;
+export 'sequence_executor/run_lifecycle.dart';
 export 'sequence_executor/sequence_serializer.dart' show SequenceSerializer;
 export 'sequence_executor/stop_confirmation.dart'
     show
@@ -165,88 +167,26 @@ class SequenceExecutor {
 
   Timer? _progressTimer;
   DateTime? _startTime;
-  bool _isPaused = false;
   StreamSubscription? _nativeEventSubscription;
   StreamSubscription<DiskSpaceWatchdogEvent>? _diskWatchdogSubscription;
   Timer? _checkpointTimer;
-  bool _runFinalized = false;
-  bool _pauseResumeInProgress = false;
 
-  /// In-flight start latch. A start (or checkpoint resume) holds this for the
-  /// whole duration of its lifecycle transaction — validation, session/run
-  /// creation, timers, watchdogs, native event subscription and native start.
-  ///
-  /// Chosen concurrency policy (pinned by tests): a second concurrent start is
-  /// **rejected** with a [StateError] rather than joined to the first future.
-  /// This guarantees two rapid Start taps can never create a second session
-  /// row, run row, event subscription, timer set or native start — the second
-  /// caller bounces off the latch before touching any resource. Reset in the
-  /// `finally` of [start] / [resumeFromCheckpoint].
-  bool _startInFlight = false;
+  /// The run's phase, its one finalization transaction and the start and
+  /// pause/resume latches. See [RunLifecycle].
+  final RunLifecycle _lifecycle = RunLifecycle();
 
-  /// The one per-run finalization transaction, or null when no teardown has
-  /// been claimed for the current run. Created by whichever path claims teardown
-  /// FIRST — a natural terminal event, an explicit [stop], or a start/resume
-  /// [_rollbackStart] — and retained across retries (its first-claimed terminal
-  /// intent is immutable; a later racing caller joins it, it does not override
-  /// it). Reset to null when a fresh run acquires its lifecycle, and cleared on
-  /// a fully-successful finalize.
-  RunFinalization? _finalization;
+  /// The finalization drive the most recent natural terminal event spawned,
+  /// for [terminalCleanupSettledForTest].
+  Future<void>? _lastTerminalDrive;
 
-  /// The in-flight finalization drive, or null when no drive is currently
-  /// running. A racing [stop] / duplicate terminal event JOINS this future
-  /// instead of starting a second native stop or a duplicate cleanup, giving
-  /// exactly-once finalize / end-session / report. Cleared when the drive
-  /// settles (success OR a retryable failure), so a later Stop retry from
-  /// stopFailed / cleanupFailed can re-drive the retained [_finalization].
-  Future<void>? _finalizationFuture;
-
-  /// Monotonic per-run terminal id, stamped onto each [RunFinalization] and the
-  /// published [SequenceTerminalRunResult]. It is never reset (unique across
-  /// the whole executor lifetime), so a re-mounted screen cannot mistake an
-  /// earlier result for a new one.
-  int _finalizationGeneration = 0;
-
-  /// The awaitable finalization future spawned by the NATURAL terminal path.
-  /// Tests await [terminalCleanupSettledForTest] on this instead of sleeping a
-  /// wall-clock margin. `null` until the first natural terminal event of a run
-  /// fires.
-  Future<void>? _terminalCleanupFuture;
-
-  /// Set the instant finalization claims the run's stats (inside [_finalizeRun],
-  /// before the final `finishRun` write). Blocks any further incremental
-  /// `updateStats` write so a late / old-generation live-stat write can never
-  /// land after the final stats JSON and clobber it. Reset when a fresh run
-  /// acquires its lifecycle.
+  /// Set when finalization takes the run's stats for the final `finishRun`
+  /// write; no incremental `updateStats` may land after it. Cleared when a new
+  /// run begins.
   bool _statsSealed = false;
-
-  /// The run status a COMPLETED finalization already published for this run, or
-  /// null while no run has settled.
-  ///
-  /// The run's verdict is claimed once and belongs to whoever claimed it first.
-  /// The in-flight guards above cover a terminal that arrives DURING
-  /// finalization; this covers one that arrives after it finished. The native
-  /// emits TWO terminals for a stop-cancelled Slew — a `Stopped` state change
-  /// and the node tree's own `SequenceFailed` — so without this the second
-  /// opens a second finalization and republishes the operator's deliberate
-  /// Stop as `failed`.
-  ///
-  /// Reset when a fresh run acquires its lifecycle.
-  String? _settledRunStatus;
 
   /// In-flight incremental `updateStats` writes, drained before the final
   /// `finishRun` so no stale write races the final stats JSON.
   final Set<Future<void>> _pendingStatWrites = <Future<void>>{};
-
-  /// True once the current start/resume transaction has issued (or is about to
-  /// issue) `backend.sequencerStart()`. A throw at/after that point may mean a
-  /// PARTIAL native launch — the Rust executor may have begun imaging — so
-  /// [_rollbackStart] must best-effort `sequencerStop()` rather than tear down
-  /// blind. Reset to `false` at the top of each acquisition and consumed by
-  /// [_rollbackStart]; a failure BEFORE the native launch (validation, session/
-  /// run creation, loadJson) leaves it `false`, so those rollbacks skip the
-  /// stop and settle cleanly to `failed`.
-  bool _nativeLaunchAttempted = false;
 
   /// Guards the periodic checkpoint save against re-entrancy. A slow
   /// `saveCheckpoint()` (large sequence, slow disk) can outlive the 30 s
@@ -451,7 +391,7 @@ class SequenceExecutor {
   @visibleForTesting
   Future<void> get terminalCleanupSettledForTest async {
     try {
-      await _terminalCleanupFuture;
+      await _lastTerminalDrive;
     } catch (_) {
       // The truthful state (cleanupFailed) is already published; tests assert
       // on it directly.
@@ -490,14 +430,13 @@ class SequenceExecutor {
     // so a rejected concurrent caller leaves the in-flight run — and its
     // Smart Night / mosaic handoff — completely untouched.
     final admissionState = _ref.read(sequenceExecutionStateProvider);
-    if (_startInFlight || !_isStartAdmissible(admissionState)) {
+    if (_lifecycle.launch.isHeld || !_isStartAdmissible(admissionState)) {
       throw StateError(
         'Cannot start: a sequence start is already in flight or the executor '
         'is not in an admissible state (state: ${admissionState.name}).',
       );
     }
-    _startInFlight = true;
-    _ref.read(sequenceLaunchInFlightProvider.notifier).state = true;
+    _acquireLaunchLatch();
     try {
       final sequence = _ref.read(currentSequenceProvider);
       if (sequence == null) {
@@ -564,17 +503,27 @@ class SequenceExecutor {
       // every acquired resource, finalizes the run failed, ends the session,
       // clears the stale run id + transient stats, releases a Smart Night /
       // mosaic handoff, and leaves a truthful non-running state.
-      _resetFinalizationForNewRun();
+      _beginLaunch();
       try {
         await _acquireAndStartRun(sequence, runSettings);
       } catch (e, st) {
         await _rollbackStart(e, st);
         rethrow;
       }
+      _lifecycle.launchSucceeded();
     } finally {
-      _startInFlight = false;
-      _ref.read(sequenceLaunchInFlightProvider.notifier).state = false;
+      _releaseLaunchLatch();
     }
+  }
+
+  void _acquireLaunchLatch() {
+    _lifecycle.launch.acquire();
+    _ref.read(sequenceLaunchInFlightProvider.notifier).state = true;
+  }
+
+  void _releaseLaunchLatch() {
+    _lifecycle.launch.release();
+    _ref.read(sequenceLaunchInFlightProvider.notifier).state = false;
   }
 
   /// Open the `imaging_sessions` row for this run.
@@ -792,7 +741,6 @@ class SequenceExecutor {
         );
     _ref.read(currentRunIdProvider.notifier).state = runId;
     _ref.read(liveSequenceStatsProvider.notifier).state = SequenceRunStats();
-    _runFinalized = false;
     // A fresh run must never inherit the previous run's live stack /
     // reference frame. Arming happens lazily on the first accepted frame.
     _liveStackingArmedForRun = false;
@@ -936,14 +884,13 @@ class SequenceExecutor {
   void _startPerRunTimers() {
     final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
     _startTime = DateTime.now();
-    _isPaused = false;
     _eta.reset();
 
     // The ETA is projected from [EtaSmoother]'s EMA rather than from the
     // wall-clock tick, so a single slow download or fast-completing
     // calibration frame does not yank the estimate around.
     _progressTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!_isPaused && _startTime != null) {
+      if (!_lifecycle.isPausedByExecutor && _startTime != null) {
         final elapsed = DateTime.now()
             .difference(_startTime!)
             .inSeconds
@@ -1042,51 +989,33 @@ class SequenceExecutor {
   /// can never collide with live hardware or a dangling session.
   bool _isStartAdmissible(SequenceExecutionState state) => state.canStart;
 
-  /// Reset all per-run finalization + stats-sealing state so a fresh run starts
-  /// from a clean slate. Called at the top of every start / resume acquisition.
-  void _resetFinalizationForNewRun() {
-    _finalization = null;
-    _finalizationFuture = null;
-    _terminalCleanupFuture = null;
-    _nativeLaunchAttempted = false;
-    _statsSealed = false;
-    _settledRunStatus = null;
-    _pendingStatWrites.clear();
-    // A fresh run has not terminated yet; clear any stale terminal result so the
-    // sequencer screen observes a clean null -> result transition (and never
-    // re-opens the previous run's report) when this run ends.
-    _ref.read(sequenceTerminalRunResultProvider.notifier).state = null;
+  /// Throws when a stop (or a native terminal) claimed the run while it was
+  /// still launching. The launch must then never reach the native start: the
+  /// stop has already torn the run down and published it as stopped.
+  void _ensureStillLaunching() {
+    final phase = _lifecycle.phase;
+    if (phase is! RunLaunching) {
+      throw StateError(
+        'The run was stopped before it started (${phase.name}); the native '
+        'executor was not started.',
+      );
+    }
   }
 
-  /// Release a SETTLED run's terminal latches for a native launch that does not
-  /// come through [start] / [resumeFromCheckpoint].
-  ///
-  /// Those two call [_resetFinalizationForNewRun] as their first acquisition
-  /// step. The headless appliance's canonical flow — `POST /api/sequencer/load`
-  /// -> `POST /api/sequencer/start` — calls neither: it opens the session row
-  /// itself and reaches this executor only through
-  /// [attachHostListenersForNativeRun]. Without this release the first run of
-  /// such a process finalizes normally and leaves [_settledRunStatus] set, and
-  /// the "this run already settled" guard in [_onTerminalEvent] then refuses
-  /// every later run's `Completed`: the second night runs, reaches `completed`
-  /// on the wire and never finalizes — its `imaging_sessions` row stays open,
-  /// no terminal result publishes, and so nothing integrates it and no draft is
-  /// ever made.
-  ///
-  /// A RETAINED transaction is left alone. `stopFailed` / `cleanupFailed` keep
-  /// their [RunFinalization] precisely so a retry — or a late authoritative
-  /// terminal — resumes that exact transaction; discarding it here would strand
-  /// a run whose hardware was never confirmed stopped.
-  void _releaseSettledRunForNextNativeRun() {
-    if (_finalization != null || _finalizationFuture != null) return;
-    if (_settledRunStatus == null) return;
-    _logger.info(
-      'A new native run is starting on an executor whose previous run settled '
-      'as "$_settledRunStatus"; releasing that run\'s terminal state so this '
-      'one can finalize',
-      source: 'SequenceExecutor',
-    );
-    _resetFinalizationForNewRun();
+  /// Enter [RunLaunching] at the top of a start / resume acquisition.
+  void _beginLaunch() {
+    _lifecycle.beginLaunch();
+    _resetPerRunState();
+  }
+
+  /// Clear what a previous run left behind so a new run starts clean.
+  void _resetPerRunState() {
+    _lastTerminalDrive = null;
+    _statsSealed = false;
+    _pendingStatWrites.clear();
+    // The sequencer screen must see a clean null -> result transition when
+    // this run ends, never the previous run's report.
+    _ref.read(sequenceTerminalRunResultProvider.notifier).state = null;
   }
 
   /// Single rollback path for a failed [start] / [resumeFromCheckpoint], routed
@@ -1122,8 +1051,13 @@ class SequenceExecutor {
       // record; the drive's finalizeRun is a no-op in that case anyway.
     }
 
+    final phase = _lifecycle.phase;
+    if (phase is! RunLaunching) {
+      await _yieldToClaimedFinalization(phase);
+      return;
+    }
     final f = RunFinalization(
-      generation: ++_finalizationGeneration,
+      generation: _lifecycle.nextGeneration(),
       runStatus: 'failed',
       finalUiState: SequenceExecutionState.failed,
       runId: _ref.read(currentRunIdProvider),
@@ -1132,7 +1066,7 @@ class SequenceExecutor {
       // A throw at/after sequencerStart() may mean a partial native launch; a
       // throw before it (validation / session-row / loadJson) leaves the flag
       // false so the drive skips the native stop entirely and settles cleanly.
-      nativeStopRequired: _nativeLaunchAttempted,
+      nativeStopRequired: phase.nativeLaunchAttempted,
       nativeStopConfirmed: false,
       // A rejected launch opens no Session Report.
       publishTerminalResult: false,
@@ -1145,14 +1079,39 @@ class SequenceExecutor {
       // own — at 2 a.m. under the autopilot, with nobody at the keyboard.
       stopOrigin: 'rollback',
     );
-    _nativeLaunchAttempted = false;
-    _finalization = f;
+    _lifecycle.claim(f);
     try {
       await _launchDrive(f);
     } catch (_) {
       // The truthful stopFailed / cleanupFailed / failed state is already
       // published inside the drive. Swallow so [start] rethrows the ORIGINAL
       // launch error, not the secondary cleanup error.
+    }
+  }
+
+  /// A launch failed after a stop or a native terminal had already claimed the
+  /// run. That finalization owns the teardown, so the rollback opens no second
+  /// one; once it settles, whatever the launch acquired after its resource
+  /// release ran is released too. A retained (stopFailed / cleanupFailed)
+  /// finalization keeps everything, its native subscription included.
+  Future<void> _yieldToClaimedFinalization(RunPhase phase) async {
+    _logger.warning(
+      'Sequence start failed after the run was already claimed '
+      '(${phase.name}); its finalization owns the teardown',
+      source: 'SequenceExecutor',
+    );
+    try {
+      await _lifecycle.drive;
+    } catch (_) {
+      // Already surfaced through the published state.
+    }
+    if (_lifecycle.phase is RunSettled) {
+      await _releaseRunResources(
+        (step, e) => _logger.warning(
+          'Rollback: $step failed: $e',
+          source: 'SequenceExecutor',
+        ),
+      );
     }
   }
 
@@ -1204,12 +1163,11 @@ class SequenceExecutor {
     String? warning,
   }) {
     final state = _ref.read(sequenceExecutionStateProvider);
+    final pending = _lifecycle.finalization;
 
-    // Confirmation path: an explicit stop (including a retry after stopFailed)
-    // retains its resources until an authoritative terminal event proves the
-    // native exposure abort has completed. The stop API returning only confirms
-    // that the command was accepted; it is not the release boundary.
-    final pending = _finalization;
+    // Confirmation path: an explicit stop (or a retry after stopFailed) holds
+    // its resources until an authoritative terminal proves the native abort
+    // finished. The stop API returning only means the command was accepted.
     if (pending != null &&
         pending.nativeStopRequired &&
         !pending.nativeStopConfirmed) {
@@ -1219,45 +1177,33 @@ class SequenceExecutor {
         confirmation.complete();
       }
       if (error != null) _recordTerminalRunError(error);
-
-      // A terminal arriving while the original drive is waiting wakes that
-      // drive above. If the command call had already failed, resume the same
-      // retained transaction without issuing a second stop.
+      // A drive waiting on the confirmation wakes above. If the stop command
+      // had already failed, resume the retained transaction without a second
+      // native stop.
       if (state == SequenceExecutionState.stopFailed &&
-          _finalizationFuture == null) {
-        _setExecutionState(SequenceExecutionState.finalizing);
-        _terminalCleanupFuture = _launchDrive(pending);
-        _swallowSpawnedFinalizationError(_terminalCleanupFuture!);
+          _lifecycle.drive == null) {
+        _respawnFinalization(pending);
       }
       return;
     }
 
-    // Compatibility path for a retained stop whose command failed before this
-    // confirmation gate was created.
+    // A retained stop whose command failed before the confirmation gate
+    // existed.
     if (state == SequenceExecutionState.stopFailed && pending != null) {
-      final f = _finalization!;
-      f.nativeStopConfirmed = true;
+      pending.nativeStopConfirmed = true;
       if (error != null) _recordTerminalRunError(error);
-      _setExecutionState(SequenceExecutionState.finalizing);
-      _terminalCleanupFuture = _launchDrive(f);
-      _swallowSpawnedFinalizationError(_terminalCleanupFuture!);
+      if (_lifecycle.drive == null) _respawnFinalization(pending);
       return;
     }
 
-    // Exactly-once: any already-claimed finalization (in-flight, succeeded, or
-    // awaiting a persistence retry) swallows duplicate / aliased / echo terminal
-    // events — including the `Stopped` echo emitted by a SUCCESSFUL explicit
-    // stop, whose finalization context is still set.
-    if (_finalization != null || _finalizationFuture != null) return;
+    // Exactly once: a claimed finalization swallows duplicate, aliased and
+    // echo terminals, including the Stopped echo of a successful stop().
+    if (pending != null) return;
 
-    // Exactly-once, part two: this run's verdict has already been published and
-    // its finalization dropped. A terminal arriving now is the SAME run's second
-    // wire event (a stop-cancelled Slew produces both `Stopped` and
-    // `SequenceFailed`), and re-finalizing would republish the operator's Stop
-    // as a failure. Logged with the shared stop-classification tag so a live log
-    // says which producer refused it.
-    final settled = _settledRunStatus;
-    if (settled != null) {
+    // Exactly once, part two: the run already has a verdict, and this is a
+    // second wire event for it (a stop-cancelled Slew sends both Stopped and
+    // SequenceFailed). Re-finalizing would republish a Stop as a failure.
+    if (_lifecycle.phase case RunSettled(runStatus: final settled)) {
       _logger.info(
         '[$kStopClassificationLogTag] sequence_executor: late "$runStatus" '
         'terminal ignored — this run already settled as "$settled"'
@@ -1287,7 +1233,7 @@ class SequenceExecutor {
     // hardware already terminated authoritatively, so no native stop is issued.
     _setExecutionState(SequenceExecutionState.finalizing);
     final f = RunFinalization(
-      generation: ++_finalizationGeneration,
+      generation: _lifecycle.nextGeneration(),
       runStatus: runStatus,
       finalUiState: uiState,
       runId: _ref.read(currentRunIdProvider),
@@ -1299,9 +1245,22 @@ class SequenceExecutor {
       discardCheckpointOnSuccess: false,
       isRollback: false,
     );
-    _finalization = f;
-    _terminalCleanupFuture = _launchDrive(f);
-    _swallowSpawnedFinalizationError(_terminalCleanupFuture!);
+    _lifecycle.claim(f);
+    _spawnTerminalDrive(f);
+  }
+
+  /// Re-enter `finalizing` and resume the retained [f] after a late terminal
+  /// confirmed the native stop.
+  void _respawnFinalization(RunFinalization f) {
+    _setExecutionState(SequenceExecutionState.finalizing);
+    _spawnTerminalDrive(f);
+  }
+
+  /// Launch [f]'s drive from an event handler, which cannot await it.
+  void _spawnTerminalDrive(RunFinalization f) {
+    final drive = _launchDrive(f);
+    _lastTerminalDrive = drive;
+    _swallowSpawnedFinalizationError(drive);
   }
 
   /// Attach a no-op error handler to a spawned (un-awaited) finalization drive
@@ -1327,16 +1286,15 @@ class SequenceExecutor {
     return confirmer.awaitTermination(f, confirmation);
   }
 
-  /// Launch (or relaunch, for a Stop retry) the finalization drive, tracking it
-  /// as the in-flight future that racing callers join, and clearing that latch
-  /// when it settles so a later Stop retry from stopFailed / cleanupFailed can
-  /// re-drive the retained [_finalization].
+  /// Launch (or relaunch, for a Stop retry) the drive of the claimed [f]. The
+  /// lifecycle holds it as the drive racing callers join; a drive that ends
+  /// without settling leaves [f] retained for a Stop retry.
   Future<void> _launchDrive(RunFinalization f) {
     late final Future<void> wrapped;
-    wrapped = _driveFinalization(f).whenComplete(() {
-      if (identical(_finalizationFuture, wrapped)) _finalizationFuture = null;
-    });
-    _finalizationFuture = wrapped;
+    wrapped = _driveFinalization(
+      f,
+    ).whenComplete(() => _lifecycle.driveEnded(f, wrapped));
+    _lifecycle.driveStarted(f, wrapped);
     return wrapped;
   }
 
@@ -1427,19 +1385,16 @@ class SequenceExecutor {
       f.resourcesReleased = true;
     }
 
-    // 3. Persistence: drain live-stat writes + finishRun + hooks.
-    // _finalizeRun seals the stats, drains in-flight incremental writes, does
-    // the final finishRun write and fires the once-only session-end hooks. It
-    // early-returns once _runFinalized is set, so a retry never repeats the
-    // finish or the hooks; the session-end hooks read SessionState.dbSessionId,
-    // so it runs BEFORE endSession clears it.
+    // 3. Persistence: seal and drain the live stats, finishRun, then the
+    // once-only session-end hooks ([RunFinalization.runRecordFinished] keeps a
+    // retry from repeating them). The hooks read SessionState.dbSessionId, so
+    // this runs BEFORE endSession clears it.
     try {
-      await _finalizeRun(f.runStatus);
+      await _finalizeRun(f);
     } catch (e, st) {
       // finishRun FAILED. Do NOT endSession, clear ids, release ownership,
-      // discard the checkpoint, or claim terminal. Retain a retryable
-      // cleanupFailed with enough context (the retained _finalization) to
-      // re-run.
+      // discard the checkpoint, or settle. The retained finalization is the
+      // retry's context.
       secondary('finalize run', e);
       _setExecutionState(SequenceExecutionState.cleanupFailed);
       Error.throwWithStackTrace(e, st);
@@ -1453,8 +1408,9 @@ class SequenceExecutor {
     } catch (e, st) {
       // endSession FAILED after a successful finishRun. Retain a retryable
       // cleanupFailed; a Stop retry re-runs ONLY endSession + the later steps
-      // (finishRun and the hooks are already latched by _runFinalized, and the
-      // native stop is already confirmed).
+      // (finishRun and the hooks are already latched by
+      // [RunFinalization.runRecordFinished], and the native stop is already
+      // confirmed).
       secondary('end session', e);
       _setExecutionState(SequenceExecutionState.cleanupFailed);
       Error.throwWithStackTrace(e, st);
@@ -1496,20 +1452,19 @@ class SequenceExecutor {
       );
     }
 
-    // Remember HOW this run ended, for the autopilot's reconcile: an
-    // explicit stop carries its commander's origin ('operator' when the
-    // stop() caller passed none); a natural 'stopped' terminal that no
-    // stop() commanded is a native-side safety abort. The distinction is
-    // what keeps a weather abort from pausing the autopilot as if a human
-    // had asked it to stand down.
+    // How the run ended, for the autopilot's reconcile: an explicit stop
+    // carries its commander's origin; a natural 'stopped' terminal nobody
+    // commanded is a native safety abort, which must not pause the autopilot
+    // as if a human had asked it to stand down.
+    final String? endOrigin;
     if (f.nativeStopRequired) {
-      _lastRunEndOrigin = f.stopOrigin ?? 'operator';
+      endOrigin = f.stopOrigin ?? 'operator';
     } else if (f.runStatus == 'stopped' ||
         f.runStatus == 'paused-stopped' ||
         f.runStatus == 'aborted') {
-      _lastRunEndOrigin = 'safety';
+      endOrigin = 'safety';
     } else {
-      _lastRunEndOrigin = null;
+      endOrigin = null;
     }
 
     // The run is over: clear the native run-id stamp so a decision emitted
@@ -1523,19 +1478,14 @@ class SequenceExecutor {
       secondary('clear active run id', e);
     }
 
-    // 6. Publish one terminal result, THEN the settled UI state.
+    // 6. The run has its verdict; publish one terminal result, THEN the
+    // settled UI state. Settled before publishing, so a listener reacting to
+    // the published state already sees the verdict and the end origin.
+    _lifecycle.settle(f, endOrigin: endOrigin);
     if (f.publishTerminalResult) {
       _publishTerminalResult(f);
     }
     _setExecutionState(f.finalUiState);
-    // This run now HAS a verdict. Any terminal that arrives from here on is a
-    // second event for a run that is over, not a new outcome (see
-    // [_settledRunStatus]).
-    _settledRunStatus = f.runStatus;
-
-    // Transaction complete — drop the context so the next run starts clean and a
-    // stray late event cannot resume a finished finalization.
-    if (identical(_finalization, f)) _finalization = null;
   }
 
   /// Release every per-run resource: timers, disk watchdog, settings watchers,
@@ -1652,7 +1602,7 @@ class SequenceExecutor {
 
   Future<void> pause() async {
     _ensureBackendAuthority();
-    if (_pauseResumeInProgress) {
+    if (_lifecycle.pauseResume.isHeld) {
       throw Exception('Pause/Resume operation already in progress');
     }
 
@@ -1661,7 +1611,7 @@ class SequenceExecutor {
       throw Exception('Cannot pause: sequence is not running');
     }
 
-    _pauseResumeInProgress = true;
+    _lifecycle.pauseResume.acquire();
 
     try {
       final backend = _backend;
@@ -1680,16 +1630,16 @@ class SequenceExecutor {
             SequenceExecutionState.paused;
       }
 
-      _isPaused = true;
+      _notePausedByExecutor(true);
       await _persistLiveRunStatus('paused');
     } finally {
-      _pauseResumeInProgress = false;
+      _lifecycle.pauseResume.release();
     }
   }
 
   Future<void> resume() async {
     _ensureBackendAuthority();
-    if (_pauseResumeInProgress) {
+    if (_lifecycle.pauseResume.isHeld) {
       throw Exception('Pause/Resume operation already in progress');
     }
 
@@ -1698,7 +1648,7 @@ class SequenceExecutor {
       throw Exception('Cannot resume: sequence is not paused');
     }
 
-    _pauseResumeInProgress = true;
+    _lifecycle.pauseResume.acquire();
 
     try {
       final backend = _backend;
@@ -1717,11 +1667,18 @@ class SequenceExecutor {
             SequenceExecutionState.running;
       }
 
-      _isPaused = false;
+      _notePausedByExecutor(false);
       await _persistLiveRunStatus('running');
     } finally {
-      _pauseResumeInProgress = false;
+      _lifecycle.pauseResume.release();
     }
+  }
+
+  /// Record a confirmed pause or resume on a live run. A run in any other
+  /// phase (still launching, already finalizing, or a native run this executor
+  /// never attached to) has no elapsed-time ticker to hold.
+  void _notePausedByExecutor(bool paused) {
+    if (_lifecycle.phase is RunLive) _lifecycle.setPaused(paused);
   }
 
   /// Publish the run's live state onto its `sequence_runs` row.
@@ -1743,6 +1700,11 @@ class SequenceExecutor {
     }
   }
 
+  /// How the most recently settled run ended: 'operator' / 'scheduler' /
+  /// 'rollback' / 'safety' (native-side abort with no stop() commander) /
+  /// null (completed, failed, or nothing settled yet).
+  String? get lastRunEndOrigin => _lifecycle.lastRunEndOrigin;
+
   /// Stop the sequencer.
   ///
   /// The caller declares checkpoint intent via [preserveCheckpoint]:
@@ -1756,20 +1718,13 @@ class SequenceExecutor {
   ///
   /// The default is destructive, so a bare `stop()` is a deliberate hard stop
   /// (e.g. [reset]).
-
-  /// How the most recently settled run ended: 'operator' / 'scheduler' /
-  /// 'rollback' / 'safety' (native-side abort with no stop() commander) /
-  /// null (completed, failed, or nothing settled yet).
-  String? get lastRunEndOrigin => _lastRunEndOrigin;
-  String? _lastRunEndOrigin;
-
   Future<void> stop({bool preserveCheckpoint = false, String? origin}) {
     _ensureBackendAuthority();
     // Join an in-flight finalization — a natural terminal, another stop(), or a
     // rollback: the caller observes the SAME outcome, and native stop + cleanup
     // happen exactly once. The first caller's terminal intent wins (a stop that
     // lands on an already-completing natural terminal does NOT override it).
-    final inFlight = _finalizationFuture;
+    final inFlight = _lifecycle.drive;
     if (inFlight != null) return inFlight;
 
     final state = _ref.read(sequenceExecutionStateProvider);
@@ -1779,15 +1734,13 @@ class SequenceExecutor {
     // stop against an executor that is not running.
     if (!state.canStop) return Future<void>.value();
 
-    // Retry path: a retained finalization is awaiting a Stop retry. Re-drive it
-    // WITHOUT rebuilding intent (its first-claimed terminal status/UI wins).
-    // From `cleanupFailed` the native stop is already confirmed so the drive
-    // skips it (pure persistence retry -> show `finalizing`); from `stopFailed`
-    // the drive retries the native stop (-> show `stopping`).
-    if (_finalization != null &&
-        (state == SequenceExecutionState.stopFailed ||
-            state == SequenceExecutionState.cleanupFailed)) {
-      final f = _finalization!;
+    // Retry path: a retained finalization (stopFailed / cleanupFailed) is
+    // re-driven WITHOUT rebuilding intent; its first-claimed status wins. With
+    // the native stop already confirmed the drive is a pure persistence retry
+    // (`finalizing`); otherwise it retries the native stop (`stopping`).
+    final retained = _lifecycle.finalization;
+    if (retained != null) {
+      final f = retained;
       // The retry keeps the retained intent — EXCEPT the origin, which
       // upgrades toward the operator: a human re-driving an autopilot's
       // failed stop has genuinely commanded a stop, and that press must be
@@ -1811,9 +1764,12 @@ class SequenceExecutor {
 
     // Fresh explicit stop from a live state (running / paused / recovering).
     // Command the native executor to stop FIRST (inside the drive), before any
-    // teardown or persistence.
+    // teardown or persistence. A settled phase here means the live state
+    // belongs to a native run this executor did not launch; it gets its own
+    // finalization.
+    _lifecycle.releaseSettled();
     final f = RunFinalization(
-      generation: ++_finalizationGeneration,
+      generation: _lifecycle.nextGeneration(),
       runStatus: preserveCheckpoint ? 'paused-stopped' : 'stopped',
       finalUiState: SequenceExecutionState.idle,
       runId: _ref.read(currentRunIdProvider),
@@ -1826,7 +1782,7 @@ class SequenceExecutor {
       isRollback: false,
       stopOrigin: origin,
     );
-    _finalization = f;
+    _lifecycle.claim(f);
     // Enter `stopping` synchronously (before the first await) so the UI is
     // truthful the instant Stop is pressed: not idle until the hardware has
     // actually been commanded to stop.
@@ -1977,7 +1933,7 @@ class SequenceExecutor {
     // settles to stopFailed / cleanupFailed is handled by the canStop retry
     // below; its thrown error was already surfaced via the state, so we swallow
     // it here.
-    final inFlight = _finalizationFuture;
+    final inFlight = _lifecycle.drive;
     if (inFlight != null) {
       try {
         await inFlight;
@@ -2069,19 +2025,17 @@ class SequenceExecutor {
     // a form of start, so it must not overlap an in-flight start/resume or a
     // running/paused/stopping/recovering executor.
     final admissionState = _ref.read(sequenceExecutionStateProvider);
-    if (_startInFlight || !_isStartAdmissible(admissionState)) {
+    if (_lifecycle.launch.isHeld || !_isStartAdmissible(admissionState)) {
       throw StateError(
         'Cannot resume: a sequence start is already in flight or the executor '
         'is not in an admissible state (state: ${admissionState.name}).',
       );
     }
-    _startInFlight = true;
-    _ref.read(sequenceLaunchInFlightProvider.notifier).state = true;
+    _acquireLaunchLatch();
     try {
       await _resumeFromCheckpointInner();
     } finally {
-      _startInFlight = false;
-      _ref.read(sequenceLaunchInFlightProvider.notifier).state = false;
+      _releaseLaunchLatch();
     }
   }
 
@@ -2210,7 +2164,7 @@ class SequenceExecutor {
     // that one rollback transaction, not just the native start — a failure
     // creating the session/run row must not leave a running UI with an active
     // session and no native run.
-    _resetFinalizationForNewRun();
+    _beginLaunch();
     try {
       final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
       progressNotifier.updateState(SequenceExecutionState.running);
@@ -2259,6 +2213,7 @@ class SequenceExecutor {
 
       _startPerRunTimers();
 
+      _ensureStillLaunching();
       await attachHostListenersForNativeRun();
 
       _startSettingsWatchers(backend);
@@ -2268,7 +2223,7 @@ class SequenceExecutor {
       // checkpoint resume real instead of a state-only restore. Mark the
       // native-launch boundary so [_rollbackStart] best-effort stops a partial
       // launch instead of tearing down blind.
-      _nativeLaunchAttempted = true;
+      _lifecycle.markNativeLaunchAttempted();
       await backend.sequencerStart();
     } catch (e, st) {
       // Single rollback path shared with start(): cancels every acquired
@@ -2279,6 +2234,7 @@ class SequenceExecutor {
       await _rollbackStart(e, st);
       rethrow;
     }
+    _lifecycle.launchSucceeded();
   }
 
   /// Subscribe [_handleSequencerEvent] to the backend event stream.
@@ -2300,12 +2256,25 @@ class SequenceExecutor {
   /// run's normal teardown cancels it.
   ///
   /// Because it is the ONE site every native launch passes through, it is also
-  /// where a launch that did not come from [start] gets the previous run's
-  /// terminal latches released — see [_releaseSettledRunForNextNativeRun].
+  /// where a native run that did not come through [start] becomes this
+  /// executor's live run ([RunLifecycle.attachNativeRun]). A settled previous
+  /// run is released first, or its verdict would swallow this run's terminal
+  /// and the second night would never finalize. A retained (stopFailed /
+  /// cleanupFailed) finalization is kept: a retry or a late terminal resumes
+  /// exactly that transaction.
   Future<void> attachHostListenersForNativeRun() async {
     _ensureBackendAuthority();
     final backend = _backend;
-    _releaseSettledRunForNextNativeRun();
+    final settled = _lifecycle.phase;
+    if (!_lifecycle.launch.isHeld && _lifecycle.attachNativeRun()) {
+      _logger.info(
+        'A new native run is starting on an executor whose previous run '
+        'settled as "${(settled as RunSettled).runStatus}"; releasing that '
+        'run\'s terminal state so this one can finalize',
+        source: 'SequenceExecutor',
+      );
+      _resetPerRunState();
+    }
     await _nativeEventSubscription?.cancel();
     _nativeEventSubscription = backend.eventStream.listen(
       _handleSequencerEvent,
@@ -2313,6 +2282,10 @@ class SequenceExecutor {
           _logger.error('Event stream error: $e', source: 'SequenceExecutor'),
     );
   }
+
+  /// The run's current [RunPhase].
+  @visibleForTesting
+  RunPhase get runPhaseForTest => _lifecycle.phase;
 
   /// Whether this executor is currently listening to the native event stream.
   /// The subscription is what turns native frame events into database rows, so

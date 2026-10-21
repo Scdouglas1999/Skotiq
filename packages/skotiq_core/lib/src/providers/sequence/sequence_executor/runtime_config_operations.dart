@@ -194,6 +194,7 @@ extension _SequenceExecutorRuntimeConfigOperations on SequenceExecutor {
     // the spawned executor task sees the freshly-staged map.
     await _seedIntegrationCarryOverFromHandoff(backend, sequence);
 
+    _ensureStillLaunching();
     await attachHostListenersForNativeRun();
 
     _startSettingsWatchers(backend);
@@ -201,7 +202,7 @@ extension _SequenceExecutorRuntimeConfigOperations on SequenceExecutor {
     // Mark the native-launch boundary: a throw from here on may mean a partial
     // launch, so [_rollbackStart] will best-effort sequencerStop rather than
     // tear down blind.
-    _nativeLaunchAttempted = true;
+    _lifecycle.markNativeLaunchAttempted();
     await backend.sequencerStart();
   }
 
