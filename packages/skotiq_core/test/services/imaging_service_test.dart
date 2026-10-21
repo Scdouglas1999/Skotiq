@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +11,7 @@ import 'package:skotiq_core/src/backend/skotiq_exception.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/equipment_profile.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
+import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/services/capture_preview_loader.dart';
@@ -54,6 +56,15 @@ void _stubHostRoots(_MockNetworkBackend backend) {
       parentPath: null,
       directories: [RemoteDirectoryEntry(name: 'Documents', path: '/rig/docs')],
     ),
+  );
+}
+
+/// Host settings as a linked client sees them: a Windows output folder.
+class _HostSettingsNotifier extends AppSettingsNotifier {
+  @override
+  Future<AppSettingsState> build() async => const AppSettingsState(
+    imageOutputPath: r'C:\Users\scdou\Documents\NGC7380',
+    fileNamingPattern: r'$TARGET_$FILTER_$DATE_$SEQ',
   );
 }
 
@@ -859,6 +870,158 @@ void main() {
           headerData: any(named: 'headerData'),
         ),
       ).called(1);
+    });
+
+    test('keeper paths are built in the host path style', () {
+      final windowsHost = hostPathContext(r'C:\Users\scdou\Documents\NGC7380');
+      expect(
+        ImagingService.buildImageFilePath(
+          pattern: r'$TARGET/Light/$TARGET_$SEQ',
+          basePath: r'C:\Users\scdou\Documents\NGC7380',
+          extension: 'fits',
+          substitutions: const {r'$TARGET': 'NGC0891', r'$SEQ': '0001'},
+          pathContext: windowsHost,
+        ),
+        r'C:\Users\scdou\Documents\NGC7380\NGC0891\Light\NGC0891_0001.fits',
+      );
+      expect(
+        () => ImagingService.buildImageFilePath(
+          pattern: r'$TARGET_$SEQ',
+          basePath: 'captures',
+          extension: 'fits',
+          substitutions: const {r'$TARGET': 'M31', r'$SEQ': '0001'},
+          pathContext: hostPathContext('/srv/rig'),
+        ),
+        throwsA(isA<ValidationException>()),
+      );
+    });
+
+    test('uniqueFilePath suffixes in the given path style', () async {
+      final taken = {r'C:\out\a.fits', r'C:\out\a_001.fits'};
+      expect(
+        await ImagingService.uniqueFilePath(
+          r'C:\out\a.fits',
+          hostPathContext(r'C:\out'),
+          (candidate) async => taken.contains(candidate),
+        ),
+        r'C:\out\a_002.fits',
+      );
+    });
+
+    test('a linked client saves keepers under the host output path and numbers '
+        'them from the host records', () async {
+      const hostOutput = r'C:\Users\scdou\Documents\NGC7380';
+      final remoteBackend = _MockNetworkBackend();
+      final remoteEvents = StreamController<SkotiqEvent>.broadcast();
+      addTearDown(remoteEvents.close);
+
+      when(
+        () => remoteBackend.eventStream,
+      ).thenAnswer((_) => remoteEvents.stream);
+      when(
+        () => remoteBackend.getCameraCapabilities(any()),
+      ).thenAnswer((_) async => null);
+      when(
+        () => remoteBackend.cameraStartExposure(
+          deviceId: any(named: 'deviceId'),
+          exposureTime: any(named: 'exposureTime'),
+          frameType: any(named: 'frameType'),
+          gain: any(named: 'gain'),
+          offset: any(named: 'offset'),
+          binX: any(named: 'binX'),
+          binY: any(named: 'binY'),
+        ),
+      ).thenAnswer((_) async {
+        remoteEvents.add(
+          SkotiqEvent(
+            timestamp: DateTime.now().millisecondsSinceEpoch,
+            severity: EventSeverity.info,
+            category: EventCategory.imaging,
+            eventType: 'ExposureComplete',
+            data: const {},
+          ),
+        );
+      });
+      // Stamped now so the numbering probe and the save render the same
+      // `$DATE` folder.
+      when(() => remoteBackend.cameraGetLastImage(any())).thenAnswer(
+        (_) async => makeCapturedImageResult(
+          timestamp: DateTime.now().toUtc().toIso8601String(),
+        ),
+      );
+      when(remoteBackend.getActiveProfile).thenAnswer((_) async => null);
+      final hostRecords = <Map<String, dynamic>>[];
+      when(
+        remoteBackend.getAllImages,
+      ).thenAnswer((_) async => List.of(hostRecords));
+      final sentPaths = <String>[];
+      when(
+        () => remoteBackend.saveFitsFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          filePath: any(named: 'filePath'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer((invocation) async {
+        sentPaths.add(invocation.namedArguments[#filePath] as String);
+      });
+
+      final remoteContainer = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          appSettingsProvider.overrideWith(_HostSettingsNotifier.new),
+          backendProvider.overrideWith(
+            (ref) => TestBackendNotifier(ref, remoteBackend),
+          ),
+          cameraStateProvider.overrideWith((ref) {
+            final notifier = CameraStateNotifier(ref);
+            notifier.setConnecting('native:zwo:1', 'ZWO ASI1600MM-Cool');
+            notifier.setConnected();
+            return notifier;
+          }),
+          capturePreviewPublisherProvider.overrideWithValue(
+            _NoOpCapturePreviewPublisher(),
+          ),
+          scienceProcessingServiceProvider.overrideWith(
+            (ref) => _NoOpScienceProcessingService(ref),
+          ),
+        ],
+      );
+      addTearDown(remoteContainer.dispose);
+      await remoteContainer.read(appSettingsProvider.future);
+      final service = remoteContainer.read(imagingServiceProvider);
+      const exposure = ExposureSettings(exposureTime: 2, gain: 139, offset: 21);
+
+      await service.captureImage(settings: exposure, targetName: 'NGC0891');
+      expect(sentPaths, hasLength(1));
+      final first = sentPaths.single;
+      expect(first, startsWith('$hostOutput\\NGC0891_'));
+      expect(first, endsWith('_0001.fits'));
+      expect(first, isNot(contains('/')));
+
+      // The host recorded the first frame (Windows ignores case); a new
+      // service instance must not hand out 0001 again.
+      hostRecords.add({'filePath': first.toUpperCase()});
+      remoteContainer.invalidate(imagingServiceProvider);
+      await remoteContainer
+          .read(imagingServiceProvider)
+          .captureImage(settings: exposure, targetName: 'NGC0891');
+      expect(sentPaths, hasLength(2));
+      expect(sentPaths.last, first.replaceFirst('_0001.fits', '_0002.fits'));
+
+      // An explicit frame number that is already taken gets a suffix
+      // instead of overwriting the host's file.
+      await remoteContainer
+          .read(imagingServiceProvider)
+          .captureImage(
+            settings: exposure,
+            targetName: 'NGC0891',
+            frameNumber: 1,
+          );
+      expect(sentPaths.last, first.replaceFirst('.fits', '_001.fits'));
+
+      // Nothing of the host path was created on this machine.
+      expect(Directory(hostOutput).existsSync(), isFalse);
+      verifyNever(() => remoteBackend.browseRemoteDirectories());
     });
 
     test('hostScratchFilePath joins in the host path style', () {

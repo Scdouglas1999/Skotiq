@@ -57,12 +57,20 @@ String? hostScratchFilePath(List<RemoteDirectoryEntry> roots, String fileName) {
   final root = roots
       .firstWhere((r) => r.name == 'Documents', orElse: () => roots.first)
       .path;
+  return hostPathContext(root).join(root, 'Skotiq', 'scratch', fileName);
+}
+
+/// The path style of the machine that owns [hostPath]: Windows when it has a
+/// drive letter or a backslash, posix otherwise. A linked client must build
+/// every path the host will write in this style, never its own.
+@visibleForTesting
+path.Context hostPathContext(String hostPath) {
   final isWindowsPath =
-      root.contains(r'\') || RegExp(r'^[A-Za-z]:').hasMatch(root);
-  final hostPaths = path.Context(
+      hostPath.contains(r'\') || RegExp(r'^[A-Za-z]:').hasMatch(hostPath);
+  return path.Context(
     style: isWindowsPath ? path.Style.windows : path.Style.posix,
+    current: isWindowsPath ? r'C:\' : '/',
   );
-  return hostPaths.join(root, 'Skotiq', 'scratch', fileName);
 }
 
 class ImagingService {
@@ -75,6 +83,11 @@ class ImagingService {
   bool _cancelRequested = false;
   bool _retired = false;
   int _frameNumber = 0;
+
+  /// Keeper paths this service has handed out on a linked host, in
+  /// host-path-key form, so two quick saves never pick the same name before
+  /// the host has recorded the first.
+  final Set<String> _hostReservedKeeperPaths = {};
 
   // Pending exposure completer so cancelExposure() can interrupt an
   // in-flight exposure instead of only setting the loop-break flag: resolving
@@ -105,7 +118,7 @@ class ImagingService {
   static const _imageDownloadTimeout = Duration(seconds: 60);
 
   /// How far [_nextKeeperFrameNumber] will walk past an occupied sequence
-  /// number before giving up and letting [_ensureUniqueFilePath] handle the
+  /// number before giving up and letting [uniqueFilePath] handle the
   /// collision. One `stat` per step, so a full night of frames costs well
   /// under a millisecond; the ceiling only exists so a pathological folder
   /// cannot stall a capture.
@@ -228,7 +241,7 @@ class ImagingService {
           // A saving loop is an acquisition run, so its frames continue the
           // session's keeper numbering. Restarting at 1 every run made the
           // second Loop of the night rewrite `..._0001` over the first one's
-          // numbers — survivable only because _ensureUniqueFilePath appends
+          // numbers — survivable only because uniqueFilePath appends
           // `_001`, which is not a sequence number the operator asked for.
           // A live-view run keeps its own 1..N index; it only feeds the
           // progress ring.
@@ -468,6 +481,33 @@ class ImagingService {
   /// segments before the last become subdirectories under [basePath] and the
   /// last segment becomes the filename stem (extension appended).
   ///
+  /// [desiredPath], or the first `<name>_NNN<ext>` beside it that [exists]
+  /// says is free. [paths] is the path style of the machine that owns it.
+  @visibleForTesting
+  static Future<String> uniqueFilePath(
+    String desiredPath,
+    path.Context paths,
+    Future<bool> Function(String candidate) exists,
+  ) async {
+    var candidate = desiredPath;
+    var suffix = 1;
+    final directory = paths.dirname(desiredPath);
+    final baseName = paths.basenameWithoutExtension(desiredPath);
+    final extension = paths.extension(desiredPath);
+    while (await exists(candidate)) {
+      candidate = paths.join(
+        directory,
+        '${baseName}_${suffix.toString().padLeft(3, '0')}$extension',
+      );
+      suffix++;
+    }
+    return candidate;
+  }
+
+  /// [pathContext] is the path style of the machine that writes the file
+  /// (see [hostPathContext]); it defaults to this machine's, and when given
+  /// [basePath] must already be absolute in that style.
+  ///
   /// Exposed for unit testing — no filesystem or provider access happens
   /// inside this function.
   @visibleForTesting
@@ -476,8 +516,11 @@ class ImagingService {
     required String basePath,
     required String extension,
     required Map<String, String> substitutions,
+    path.Context? pathContext,
   }) {
+    final paths = pathContext ?? path.context;
     if (pattern.trim().isEmpty ||
+        paths.isAbsolute(pattern) ||
         path.isAbsolute(pattern) ||
         pattern.startsWith('/') ||
         pattern.startsWith(r'\')) {
@@ -521,11 +564,19 @@ class ImagingService {
     }
     final fileNameStem = segments.removeLast();
     final fileName = '$fileNameStem.$extension';
-    final normalizedBase = path.normalize(path.absolute(basePath));
-    final candidate = path.normalize(
-      path.joinAll([normalizedBase, ...segments, fileName]),
+    // Another machine's base path cannot be resolved against this process's
+    // working directory: a relative one is refused rather than guessed.
+    if (pathContext != null && !paths.isAbsolute(basePath)) {
+      throw ValidationException(
+        message: 'Host image output path is not absolute: "$basePath"',
+        userMessage: 'The imaging host has no usable image output folder',
+      );
+    }
+    final normalizedBase = paths.normalize(paths.absolute(basePath));
+    final candidate = paths.normalize(
+      paths.joinAll([normalizedBase, ...segments, fileName]),
     );
-    if (!path.isWithin(normalizedBase, candidate)) {
+    if (!paths.isWithin(normalizedBase, candidate)) {
       throw ValidationException(
         message: 'Capture path escaped output directory: "$candidate"',
         userMessage: 'The naming pattern points outside the output folder',
