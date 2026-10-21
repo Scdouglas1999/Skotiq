@@ -1,32 +1,17 @@
-// Guided action rail for the survey-backed Framing Wizard (component C7).
+// The Telescope section of the Framing column: where the telescope will
+// point, whether it can go there now, and the two pointing actions.
 //
-// `FramingActionRail` is the in-place "wizard" UX: a vertical
-// `SkotiqCard` of numbered, ordered steps that walks the user from a
-// resolved target all the way to a one-click slew/center/rotate. It is a
-// dedicated widget in its own file so the framing sidebar (owned elsewhere)
-// can mount it without us reaching into shared sidebar code.
+//   * Slew - the one SlewDropdownButton (slew, slew & center, slew, center &
+//     rotate) to the frame center, gated on a connected, unparked mount. A
+//     target below the horizon is flagged but not refused: the operator may
+//     want the mount pre-pointed at something that has not risen yet.
+//   * Solve latest camera frame - plate-solves the newest real camera
+//     exposure against the frame center and reports the offset. A
+//     SolverNotAvailableError shows the PlateSolverRequiredBanner.
 //
-// Each step carries a `StatusPill` that reads `success` once that step's
-// precondition is satisfied, so the rail doubles as a live readiness
-// checklist:
-//   1. Target  — resolved name / RA / Dec (read `framingProvider`), or an
-//                 `EmptyState.compact` prompting the user to pick a target.
-//   2. Frame   — survey-source `SkotiqDropdown` + the (reused, read-only)
-//                 `FramingPreviewFovSlider` so the user can dial the cutout
-//                 they're about to solve and slew to.
-//   3. Solve   — runs `plateSolveServiceProvider.solveWithFallback` on the
-//                 latest real camera frame. A `SolverNotAvailableError`
-//                 surfaces the existing `PlateSolverRequiredBanner`; a
-//                 successful solve reports the RA/Dec delta versus the target
-//                 in a `SkotiqBanner`.
-//   4. GoTo    — embeds the existing `SlewDropdownButton` (the complete
-//                 slew + center + rotate flow), passing the framing rotation as
-//                 the target angle so "Slew, Center & Rotate" lights up when a
-//                 rotator is connected.
-//
-// Errors are surfaced, never swallowed — a solve failure shows
-// the solver's own error message; an IO failure writing the frame to disk shows
-// the failure rather than silently degrading.
+// The readiness note on the title row is driven by the same predicate that
+// enables the slew button, so it can never read "Ready" over a dead button.
+// Errors are surfaced, never swallowed.
 
 import 'dart:math' as math;
 
@@ -40,9 +25,9 @@ import 'package:skotiq_app/widgets/plate_solver_required_banner.dart';
 import 'package:skotiq_app/widgets/slew_dropdown_button.dart';
 import '../../../widgets/tutorial_keys/framing_keys.dart';
 import '../framing_altaz.dart';
-import 'framing_controls.dart' show FramingPreviewFovSlider;
+import 'framing_panel_parts.dart';
 
-/// Identifies the GoTo step's readiness pill (several steps read 'Ready').
+/// The Telescope section's readiness note ('Ready', 'No mount', 'Parked').
 const framingGotoStatusKey = Key('framing.goto.status');
 
 /// Outcome of a "Solve current frame" attempt, rendered inline beneath the
@@ -77,19 +62,21 @@ class _SolveOutcome {
   const _SolveOutcome.noSolver() : this._(solverMissing: true);
 }
 
-/// The guided, numbered action rail for the framing wizard.
+/// The Telescope section: readiness, slew and solve.
 ///
 /// Stateful so it can own the transient solve state (in-flight flag + last
-/// outcome) without pushing it into the shared framing provider — the outcome
-/// is purely presentational and scoped to this rail's lifetime.
-class FramingActionRail extends ConsumerStatefulWidget {
-  const FramingActionRail({super.key});
+/// outcome) without pushing it into the shared framing provider - the outcome
+/// is purely presentational and scoped to this section's lifetime.
+class FramingTelescopeSection extends ConsumerStatefulWidget {
+  const FramingTelescopeSection({super.key});
 
   @override
-  ConsumerState<FramingActionRail> createState() => _FramingActionRailState();
+  ConsumerState<FramingTelescopeSection> createState() =>
+      _FramingTelescopeSectionState();
 }
 
-class _FramingActionRailState extends ConsumerState<FramingActionRail> {
+class _FramingTelescopeSectionState
+    extends ConsumerState<FramingTelescopeSection> {
   bool _isSolving = false;
   _SolveOutcome? _lastSolve;
   int _solveRevision = 0;
@@ -123,19 +110,16 @@ class _FramingActionRailState extends ConsumerState<FramingActionRail> {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final framingState = ref.watch(framingProvider);
-    final equipmentAsync = ref.watch(framingFOVProvider);
     final solverDetection = ref.watch(plateSolverDetectionProvider);
     final solverPreference = ref.watch(plateSolverPreferenceProvider);
 
     final target = framingState.target;
-    // The aim is where the telescope will actually point — the dragged
+    // The aim is where the telescope will actually point - the dragged
     // reticle's coordinates, or the view-center target when the box has not
-    // been dragged. Pointing consumers below (slew, solve hint, the horizon
-    // advisory) read this; the picked `target` itself only feeds display of
-    // the resolved object (step 1) and the slew button's targetName.
+    // been dragged. Slew, the solve hint and the horizon advisory read it; the
+    // picked `target` only names the slew.
     final aimTarget = framingState.effectiveAimTarget;
     final hasTarget = target != null;
-    final hasSurveyImage = framingState.surveyImageBytes != null;
     final latestCameraFrame = ref.watch(currentImageProvider);
     final hasCameraFrame = latestCameraFrame?.filePath != null;
     final detection = solverDetection.valueOrNull;
@@ -144,246 +128,103 @@ class _FramingActionRailState extends ConsumerState<FramingActionRail> {
         preference != null &&
         detection.supports(preference.choice);
 
-    final equipment = equipmentAsync.valueOrNull;
-    final hasEquipment = equipment?.isReady ?? false;
-
-    // Step 4 must be badged from the SAME predicate that enables its button.
-    // [SlewDropdownButton] gates itself on the mount being connected, but this
-    // step's badge was driven by `hasTarget` alone — so with the mount
-    // disconnected it showed a green "Ready" over a button that swallowed every
-    // click in silence.
+    // The readiness note must come from the SAME predicate that enables the
+    // slew button. [SlewDropdownButton] gates itself on the mount being
+    // connected; a note driven by `hasTarget` alone once read a green "Ready"
+    // over a button that swallowed every click in silence.
     final mountState = ref.watch(mountStateProvider);
     final isMountConnected =
         mountState.connectionState == DeviceConnectionState.connected;
-    // A PARKED mount cannot GoTo — every driver refuses, most of them without
-    // an error the UI ever sees, so the rail must not show "Ready" and a filled
-    // primary button over one. `isParked` defaults to true on an unknown mount,
-    // so it is only consulted once the mount is actually connected and
-    // reporting status.
+    // A PARKED mount cannot GoTo - every driver refuses, most of them without
+    // an error the UI ever sees. `isParked` defaults to true on an unknown
+    // mount, so it is only consulted once the mount is connected.
     final isMountParked = isMountConnected && mountState.isParked;
     final canSlew = hasTarget && isMountConnected && !isMountParked;
 
     // Altitude is advisory, not a gate: a target below the horizon now will
-    // rise, and the operator may legitimately want the mount pre-pointed. But
-    // "Ready" over a target 5.7 deg under the ground would be false, so the
-    // badge says which it is. Null means no configured site
-    // (the app cannot know the altitude), in which case we claim nothing.
-    // Measured at the AIM — the slew destination — not the view center.
+    // rise, and the operator may want the mount pre-pointed. But "Ready" over
+    // a target under the ground would be false, so the note says which it is.
+    // Null means no configured site, in which case we claim nothing. Measured
+    // at the AIM - the slew destination - not the view center.
     final targetAltitudeDeg = _targetAltitudeDeg(aimTarget);
     final isBelowHorizon = targetAltitudeDeg != null && targetAltitudeDeg < 0;
 
-    return SkotiqPanel(
-        padding: SkotiqTokens.cardPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SectionHeader(
-              title: 'Guided framing',
-              subtitle: 'Resolve, frame, solve, and slew in order',
-            ),
-            const SizedBox(height: SkotiqTokens.spaceSm),
+    // Terse on purpose: the note shares the title row and must not ellipsize
+    // at the column's 250 px minimum. The line under the button spells it out.
+    final String status;
+    final Color statusColor;
+    if (!hasTarget) {
+      status = 'No target';
+      statusColor = colors.textMuted;
+    } else if (!isMountConnected) {
+      status = 'No mount';
+      statusColor = colors.warning;
+    } else if (isMountParked) {
+      status = 'Parked';
+      statusColor = colors.warning;
+    } else if (isBelowHorizon) {
+      status = 'Below horizon';
+      statusColor = colors.warning;
+    } else {
+      status = 'Ready';
+      statusColor = colors.success;
+    }
 
-            // Step 1: target
-            _StepRow(
-              number: 1,
-              title: 'Target',
-              status: hasTarget
-                  ? StatusPillStatus.success
-                  : StatusPillStatus.inactive,
-              statusValue: hasTarget ? 'Resolved' : 'None',
-              colors: colors,
-              child: hasTarget
-                  ? _TargetSummary(colors: colors, target: aimTarget!)
-                  : const EmptyState.compact(
-                      icon: SkotiqIcons.target,
-                      title: 'No target selected',
-                      body:
-                          'Search for an object or enter coordinates to begin '
-                          'framing.',
-                    ),
-            ),
-
-            _stepDivider(colors),
-
-            // Step 2: frame
-            _StepRow(
-              number: 2,
-              title: 'Frame',
-              status: hasSurveyImage
-                  ? StatusPillStatus.success
-                  : StatusPillStatus.inactive,
-              statusValue: hasSurveyImage ? 'Loaded' : 'Pending',
-              colors: colors,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Survey Source',
-                    style: SkotiqTypography.caption.copyWith(
-                      color: colors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: SkotiqTokens.spaceXs),
-                  SkotiqDropdown(
-                    isExpanded: true,
-                    value: framingState.surveySource.name,
-                    items: SurveySource.values.map((s) => s.name).toList(),
-                    itemLabels:
-                        SurveySource.values.map((s) => s.displayName).toList(),
-                    onChanged: (name) {
-                      if (name == null) return;
-                      final source =
-                          SurveySource.values.firstWhere((s) => s.name == name);
-                      ref
-                          .read(framingProvider.notifier)
-                          .setSurveySource(source);
-                    },
-                  ),
-                  const SizedBox(height: SkotiqTokens.spaceMd),
-                  Text(
-                    'Preview field of view',
-                    style: SkotiqTypography.caption.copyWith(
-                      color: colors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: SkotiqTokens.spaceXs),
-                  FramingPreviewFovSlider(
-                    colors: colors,
-                    value: framingState.previewFovDegrees,
-                    hasEquipment: hasEquipment,
-                    equipmentFov: equipment?.equipment?.fovWidthDeg,
-                    onChanged: (value) {
-                      ref.read(framingProvider.notifier).setPreviewFov(value);
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            _stepDivider(colors),
-
-            // Step 3: solve current frame
-            _StepRow(
-              number: 3,
-              title: 'Solve latest camera frame',
-              status: (_lastSolve?.result?.success ?? false)
-                  ? StatusPillStatus.success
-                  : (_lastSolve?.error != null ||
-                          _lastSolve?.solverMissing == true
-                      ? StatusPillStatus.error
-                      : StatusPillStatus.inactive),
-              statusValue:
-                  (_lastSolve?.result?.success ?? false) ? 'Solved' : 'Ready',
-              colors: colors,
-              child: _SolveStep(
-                colors: colors,
-                isSolving: _isSolving,
-                canSolve:
-                    hasTarget && hasCameraFrame && hasSolver && !_isSolving,
-                hasTarget: hasTarget,
-                hasCameraFrame: hasCameraFrame,
-                hasSolver: hasSolver,
-                outcome: _lastSolve,
-                onSolve: _solveCurrentFrame,
-              ),
-            ),
-
-            _stepDivider(colors),
-
-            // Step 4: GoTo & frame
-            _StepRow(
-              number: 4,
-              statusKey: framingGotoStatusKey,
-              title: 'GoTo & Frame',
-              status: !hasTarget
-                  ? StatusPillStatus.inactive
-                  : (!canSlew || isBelowHorizon
-                      // A target but no usable mount (or a target under the
-                      // ground): the step cannot run as-is, and saying so is the
-                      // point. 'Ready' here was a lie.
-                      ? StatusPillStatus.warning
-                      : StatusPillStatus.active),
-              // Terse on purpose: these read in parallel down the rail and fit
-              // without ellipsizing. The full instruction is not lost — the step
-              // body spells it out directly beneath.
-              statusValue: !hasTarget
-                  ? 'No target'
-                  : !isMountConnected
-                      ? 'No mount'
-                      : isMountParked
-                          ? 'Parked'
-                          : isBelowHorizon
-                              ? 'Below horizon'
-                              : 'Ready',
-              colors: colors,
-              child: hasTarget
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          child: SlewDropdownButton(
-                            key: FramingTutorialKeys.slewBtn,
-                            // Slew to where the reticle was dragged, not the
-                            // view center — this is the payoff of the aim
-                            // model.
-                            ra: aimTarget!.raHours,
-                            dec: aimTarget.decDegrees,
-                            targetName: target.name,
-                            targetRotation: framingState.rotation != 0
-                                ? framingState.rotation
-                                : null,
-                            icon: SkotiqIcons.compass,
-                            label: 'Slew to Target',
-                            // Without this the button stayed live over a parked
-                            // mount and every click was swallowed in silence.
-                            isEnabled: canSlew,
-                          ),
-                        ),
-                        // The disabled button explains itself instead of
-                        // swallowing the click with no feedback at all.
-                        if (!isMountConnected) ...[
-                          const SizedBox(height: SkotiqTokens.spaceXs),
-                          Text(
-                            'Connect the mount in Equipment to enable slewing.',
-                            style: SkotiqTypography.caption.copyWith(
-                              color: colors.warning,
-                            ),
-                          ),
-                        ] else if (isMountParked) ...[
-                          const SizedBox(height: SkotiqTokens.spaceXs),
-                          Text(
-                            'The mount is parked. Unpark it (Imaging → Mount) '
-                            'before slewing.',
-                            style: SkotiqTypography.caption.copyWith(
-                              color: colors.warning,
-                            ),
-                          ),
-                        ],
-                        // Advisory, and shown even when the slew is allowed: the
-                        // mount will happily drive into the ground.
-                        if (isBelowHorizon) ...[
-                          const SizedBox(height: SkotiqTokens.spaceXs),
-                          Text(
-                            '${target.name.isEmpty ? 'The target' : target.name} '
-                            'is ${targetAltitudeDeg.toStringAsFixed(1)}° below '
-                            'the horizon right now.',
-                            style: SkotiqTypography.caption.copyWith(
-                              color: colors.warning,
-                            ),
-                          ),
-                        ],
-                      ],
-                    )
-                  : Text(
-                      'Resolve a target above to enable slewing.',
-                      style: SkotiqTypography.caption.copyWith(
-                        color: colors.textMuted,
-                      ),
-                    ),
-            ),
-          ],
-        ));
+    return FramingPanelSection(
+      title: 'Telescope',
+      note: status,
+      noteColor: statusColor,
+      noteKey: framingGotoStatusKey,
+      children: [
+        if (hasTarget)
+          SlewDropdownButton(
+            key: FramingTutorialKeys.slewBtn,
+            // Slew to where the reticle was dragged, not the view center.
+            ra: aimTarget!.raHours,
+            dec: aimTarget.decDegrees,
+            targetName: target.name,
+            targetRotation: framingState.rotation,
+            defaultMode: SlewMode.slewAndCenter,
+            // Without this the button stayed live over a parked mount and
+            // every click was swallowed in silence.
+            isEnabled: canSlew,
+          ),
+        // The disabled button explains itself instead of swallowing the
+        // click with no feedback at all.
+        if (!hasTarget)
+          const FramingNote('Resolve a target above to enable slewing.')
+        else if (!isMountConnected)
+          FramingNote(
+            'Connect the mount in Equipment to enable slewing.',
+            color: colors.warning,
+          )
+        else if (isMountParked)
+          FramingNote(
+            'The mount is parked. Unpark it (Imaging → Mount) before '
+            'slewing.',
+            color: colors.warning,
+          ),
+        // Advisory, and shown even when the slew is allowed: the mount will
+        // happily drive into the ground.
+        if (hasTarget && isBelowHorizon)
+          FramingNote(
+            '${target.name.isEmpty ? 'The target' : target.name} is '
+            '${targetAltitudeDeg.toStringAsFixed(1)}° below the horizon '
+            'right now.',
+            color: colors.warning,
+          ),
+        _SolveStep(
+          colors: colors,
+          isSolving: _isSolving,
+          canSolve: hasTarget && hasCameraFrame && hasSolver && !_isSolving,
+          hasTarget: hasTarget,
+          hasCameraFrame: hasCameraFrame,
+          hasSolver: hasSolver,
+          outcome: _lastSolve,
+          onSolve: _solveCurrentFrame,
+        ),
+      ],
+    );
   }
 
   /// Current altitude of [target] in degrees, or `null` when the app has no
@@ -406,11 +247,6 @@ class _FramingActionRailState extends ConsumerState<FramingActionRail> {
     );
     return alt;
   }
-
-  Widget _stepDivider(SkotiqColors colors) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceMd),
-        child: Divider(height: 1, color: colors.border),
-      );
 
   /// Solve the latest real camera exposure against the resolved target. Survey
   /// cutouts already have known sky coordinates and are not evidence of where
@@ -510,201 +346,7 @@ class _FramingActionRailState extends ConsumerState<FramingActionRail> {
       identical(ref.read(backendProvider), backend);
 }
 
-/// One numbered step: a leading index badge, a title, a trailing [StatusPill],
-/// and the step's body content.
-class _StepRow extends StatelessWidget {
-  final int number;
-  final String title;
-  final StatusPillStatus status;
-  final String statusValue;
-  final SkotiqColors colors;
-  final Widget child;
-
-  /// Optional key on the readiness pill. Several steps share pill wording
-  /// ('Ready'), so a test that means THIS step's badge needs to be able to say
-  /// so rather than counting matches across the rail.
-  final Key? statusKey;
-
-  const _StepRow({
-    required this.number,
-    required this.title,
-    required this.status,
-    required this.statusValue,
-    required this.colors,
-    required this.child,
-    this.statusKey,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDone = status == StatusPillStatus.success;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            _StepBadge(number: number, isDone: isDone, colors: colors),
-            const SizedBox(width: SkotiqTokens.spaceSm),
-            Expanded(
-              child: Text(
-                title,
-                style: SkotiqTypography.eyebrow.copyWith(
-                  color: colors.textPrimary,
-                ),
-              ),
-            ),
-            // Value-only pill: the step title to the left already names what
-            // this readiness state refers to, so an empty label keeps the pill
-            // reading 'Resolved' / 'Loaded' / 'Ready' rather than repeating the
-            // step name. (StatusPill renders value-only when label is empty.)
-            //
-            // Flexible, because a non-flex child of a Row is given its intrinsic
-            // width and cannot shrink: a longer status value than the rail could
-            // fit overflowed the row (by 82 px on a phone in landscape and still
-            // 39 px in the 254 px DESKTOP sidebar) instead of ellipsizing.
-            // StatusPill already wraps its own text in Flexible + ellipsis, so it
-            // only ever needed a bounded width to do the right thing.
-            Flexible(
-              child: StatusPill(
-                key: statusKey,
-                icon: isDone ? SkotiqIcons.check : SkotiqIcons.circle,
-                label: '',
-                value: statusValue,
-                status: status,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: SkotiqTokens.spaceSm),
-        // Small left inset to set the step body off from the rail edge. Kept
-        // modest (spaceMd) rather than space2xl: a larger inset left the reused
-        // FramingPreviewFovSlider too little room and overflowed the narrow
-        // (250-500px) framing sidebar the rail is mounted in.
-        Padding(
-          padding: const EdgeInsets.only(
-            left: SkotiqTokens.spaceMd,
-          ),
-          child: child,
-        ),
-      ],
-    );
-  }
-}
-
-/// The circular step index, which becomes a filled check once the step is done.
-class _StepBadge extends StatelessWidget {
-  final int number;
-  final bool isDone;
-  final SkotiqColors colors;
-
-  const _StepBadge({
-    required this.number,
-    required this.isDone,
-    required this.colors,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final fill = isDone ? colors.success : colors.surfaceElevated;
-    final fg = isDone ? colors.onPrimary : colors.textSecondary;
-    final borderColor = isDone ? colors.success : colors.border;
-    return Container(
-      width: SkotiqTokens.iconLg,
-      height: SkotiqTokens.iconLg,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: fill,
-        shape: BoxShape.circle,
-        border: Border.all(color: borderColor),
-      ),
-      child: isDone
-          ? Icon(SkotiqIcons.check, size: SkotiqTokens.iconXs, color: fg)
-          : Text(
-              '$number',
-              style: SkotiqTypography.labelSm.copyWith(color: fg),
-            ),
-    );
-  }
-}
-
-/// Step 1 body: resolved target name + monospace RA/Dec readout.
-class _TargetSummary extends StatelessWidget {
-  final SkotiqColors colors;
-  final FramingTarget target;
-
-  const _TargetSummary({required this.colors, required this.target});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          target.name,
-          style: SkotiqTypography.bodyMedium.copyWith(
-            color: colors.textPrimary,
-          ),
-        ),
-        if (target.catalogId != null && target.catalogId != target.name)
-          Padding(
-            padding: const EdgeInsets.only(top: SkotiqTokens.spaceXs),
-            child: Text(
-              target.catalogId!,
-              style: SkotiqTypography.caption.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
-          ),
-        const SizedBox(height: SkotiqTokens.spaceSm),
-        _CoordLine(label: 'RA', value: target.raFormatted, colors: colors),
-        const SizedBox(height: SkotiqTokens.spaceXs),
-        _CoordLine(label: 'Dec', value: target.decFormatted, colors: colors),
-      ],
-    );
-  }
-}
-
-/// A label + monospace value coordinate line (tabular figures so updating
-/// numbers don't shift the layout).
-class _CoordLine extends StatelessWidget {
-  final String label;
-  final String value;
-  final SkotiqColors colors;
-
-  const _CoordLine({
-    required this.label,
-    required this.value,
-    required this.colors,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 32,
-          child: Text(
-            label,
-            style: SkotiqTypography.caption.copyWith(
-              color: colors.textMuted,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: SkotiqTypography.monoSm.copyWith(
-              color: colors.textPrimary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Step 3 body: the solve button, its preconditions, and the inline outcome
-/// (banner / alert).
+/// The solve action, its precondition line and the inline outcome.
 class _SolveStep extends StatelessWidget {
   final SkotiqColors colors;
   final bool isSolving;
@@ -729,40 +371,34 @@ class _SolveStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: SkotiqButton(
-            label: 'Solve latest camera frame',
-            icon: SkotiqIcons.crosshair,
-            variant: ButtonVariant.secondary,
-            isLoading: isSolving,
-            onPressed: canSolve ? onSolve : null,
-          ),
+        SkotiqButton(
+          label: 'Solve latest camera frame',
+          icon: SkotiqIcons.crosshair,
+          variant: ButtonVariant.secondary,
+          size: ButtonSize.small,
+          isLoading: isSolving,
+          onPressed: canSolve ? onSolve : null,
         ),
-        if (!hasTarget || !hasCameraFrame)
-          Padding(
-            padding: const EdgeInsets.only(top: SkotiqTokens.spaceXs),
-            child: Text(
-              !hasTarget
-                  ? 'Resolve a target to solve.'
-                  : 'Capture a camera frame to measure the mount position.',
-              style: SkotiqTypography.caption.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
+        // With no target the section's own line already says what to do.
+        if (hasTarget && !hasCameraFrame) ...[
+          const SizedBox(height: kNightPanelRowGap),
+          const FramingNote(
+            'Capture a camera frame to measure the mount position.',
           ),
+        ],
         if (outcome != null) ...[
-          const SizedBox(height: SkotiqTokens.spaceMd),
+          const SizedBox(height: SkotiqTokens.spaceSm),
           _SolveOutcomeView(colors: colors, outcome: outcome!),
         ] else if (hasTarget && hasCameraFrame && !hasSolver) ...[
-          const SizedBox(height: SkotiqTokens.spaceMd),
+          const SizedBox(height: SkotiqTokens.spaceSm),
           const PlateSolverRequiredBanner(
             contextMessage:
-                'The framing wizard solves the latest camera exposure to '
-                'measure how far the mount is from your target. Set up '
-                'ASTAP (or Astrometry.net) to enable this step.',
+                'Framing solves the latest camera exposure to measure how '
+                'far the mount is from your target. Set up ASTAP (or '
+                'Astrometry.net) to enable this.',
           ),
         ],
       ],

@@ -121,7 +121,7 @@ Future<(_RecordingPlateSolveService, _StagedMountNotifier)> _pumpRail(
   await pumpAppScreen(
     tester,
     const SingleChildScrollView(
-      child: SizedBox(width: 500, child: FramingActionRail()),
+      child: SizedBox(width: 500, child: FramingTelescopeSection()),
     ),
     size: const Size(700, 1200),
     extraOverrides: [

@@ -122,7 +122,6 @@ class _FramingRotationFieldState extends State<FramingRotationField> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = widget.colors;
     final enabled = widget.onChanged != null;
     // The slider domain is [-180, 180); the notifier never holds exactly 180, so
     // clamp defensively rather than letting Slider assert on a stale value.
@@ -130,23 +129,21 @@ class _FramingRotationFieldState extends State<FramingRotationField> {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
+        // The exact angle and the cardinal nudges on one row: the number an
+        // imager dials into a rotator, then the coarse steps beside it.
         Row(
           children: [
-            Expanded(
-              child: Text(
-                'Rotation',
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textSecondary),
-              ),
-            ),
             SizedBox(
-              width: 76,
+              width: 72,
               child: SkotiqTextField(
                 key: const Key('framing_rotation_input'),
                 controller: _controller,
                 focusNode: _focusNode,
                 enabled: enabled,
+                dense: true,
+                mono: true,
                 suffix: '°',
                 textAlign: TextAlign.right,
                 keyboardType: const TextInputType.numberWithOptions(
@@ -160,115 +157,73 @@ class _FramingRotationFieldState extends State<FramingRotationField> {
                 onSubmitted: (_) => _commit(),
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            _RotationStepButton(
-              label: '-90',
-              colors: colors,
-              onTap: enabled ? () => _step(-90) : null,
-            ),
-            _RotationStepButton(
-              label: '-1',
-              colors: colors,
-              onTap: enabled ? () => _step(-1) : null,
-            ),
-            Expanded(
-              child: SliderTheme(
-                data: SliderThemeData(
-                  trackHeight: 4,
-                  activeTrackColor: colors.primary,
-                  inactiveTrackColor: colors.border,
-                  thumbColor: colors.primary,
-                  overlayColor: colors.primary.withValues(alpha: 0.1),
-                  thumbShape:
-                      const RoundSliderThumbShape(enabledThumbRadius: 6),
-                  // 360 divisions would otherwise draw 361 tick marks.
-                  tickMarkShape: SliderTickMarkShape.noTickMark,
-                  showValueIndicator: ShowValueIndicator.onlyForDiscrete,
-                ),
-                child: Slider(
-                  value: sliderValue,
-                  min: -180,
-                  max: 180,
-                  // Whole-degree snapping: makes a drag land on an exact degree
-                  // and gives the focused slider a 1° arrow-key step.
-                  divisions: 360,
-                  label: '${sliderValue.round()}°',
-                  focusNode: _sliderFocusNode,
-                  // Take keyboard focus on ANY track interaction, so the arrow
-                  // keys work straight after a click. This has to be
-                  // onChangeStart, not onChanged: a tap that lands on the
-                  // thumb's current position changes nothing and so never fires
-                  // onChanged, which is exactly the "clicked the track, arrows
-                  // still dead" case.
-                  onChangeStart: enabled
-                      ? (_) {
-                          if (!_sliderFocusNode.hasFocus) {
-                            _sliderFocusNode.requestFocus();
-                          }
-                        }
-                      : null,
-                  onChanged:
-                      enabled ? (value) => widget.onChanged!(value) : null,
+            const SizedBox(width: SkotiqTokens.spaceSm),
+            for (final (label, delta) in const [
+              ('-90', -90.0),
+              ('-1', -1.0),
+              ('+1', 1.0),
+              ('+90', 90.0),
+            ]) ...[
+              if (delta != -90) const SizedBox(width: SkotiqTokens.spaceXs),
+              Expanded(
+                child: _RotationStepButton(
+                  label: label,
+                  onTap: enabled ? () => _step(delta) : null,
                 ),
               ),
-            ),
-            _RotationStepButton(
-              label: '+1',
-              colors: colors,
-              onTap: enabled ? () => _step(1) : null,
-            ),
-            _RotationStepButton(
-              label: '+90',
-              colors: colors,
-              onTap: enabled ? () => _step(90) : null,
-            ),
+            ],
           ],
+        ),
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        FramingSlider(
+          value: sliderValue,
+          min: -180,
+          max: 180,
+          // Whole-degree snapping: makes a drag land on an exact degree
+          // and gives the focused slider a 1° arrow-key step.
+          divisions: 360,
+          valueLabel: null,
+          semanticLabel: 'Rotation',
+          focusNode: _sliderFocusNode,
+          // Take keyboard focus on ANY track interaction, so the arrow
+          // keys work straight after a click. This has to be
+          // onChangeStart, not onChanged: a tap that lands on the
+          // thumb's current position changes nothing and so never fires
+          // onChanged, which is exactly the "clicked the track, arrows
+          // still dead" case.
+          onChangeStart: enabled
+              ? (_) {
+                  if (!_sliderFocusNode.hasFocus) {
+                    _sliderFocusNode.requestFocus();
+                  }
+                }
+              : null,
+          onChanged: enabled ? (value) => widget.onChanged!(value) : null,
         ),
       ],
     );
   }
 }
 
-/// A compact ±step button for [FramingRotationField].
+/// A ±step button for [FramingRotationField]: the panel's 28 px button with
+/// the step in figures.
 class _RotationStepButton extends StatelessWidget {
   final String label;
-  final SkotiqColors colors;
   final VoidCallback? onTap;
 
-  const _RotationStepButton({
-    required this.label,
-    required this.colors,
-    required this.onTap,
-  });
+  const _RotationStepButton({required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final enabled = onTap != null;
+    final semantic = 'Nudge rotation by $label°';
     return Tooltip(
-      message: 'Nudge rotation by $label°',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: SkotiqTokens.borderRadiusInline4,
-        child: Container(
-          width: 30,
-          height: 26,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: colors.well,
-            borderRadius: SkotiqTokens.borderRadiusInline4,
-            border: Border.all(color: colors.border),
-          ),
-          child: Text(
-            label,
-            style: SkotiqTypography.caption.copyWith(
-                color: enabled ? colors.textPrimary : colors.textMuted,
-                fontWeight: FontWeight.w600),
-          ),
-        ),
+      message: semantic,
+      child: NightPanelButton(
+        label: label,
+        mono: true,
+        semanticLabel: semantic,
+        disabledReason: 'Set up equipment to rotate the frame',
+        onPressed: onTap,
       ),
     );
   }

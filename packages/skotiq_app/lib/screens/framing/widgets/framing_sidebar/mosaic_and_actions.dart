@@ -1,8 +1,64 @@
 part of '../framing_sidebar.dart';
 
-/// Mosaic planning panel: enable switch, columns/rows spinners, overlap
-/// slider, capture pattern (serpentine/numbers), start-corner selector, panel
-/// list, and export-to-targets button.
+/// The Sequence section: turn the framed target into imaging work.
+///
+/// Auto-build writes a complete Smart Night sequence for the frame center and
+/// loads it into the Sequencer; Add to sequence inserts a bare target header
+/// (name / RA / Dec / rotation, and the drawn mosaic's panels) into a sequence
+/// the user picks.
+class FramingSequenceSection extends StatelessWidget {
+  final SkotiqColors colors;
+  final FramingState framingState;
+
+  /// Auto-build a complete Smart Night instruction tree for the framed target
+  /// and load it into the sequencer.
+  final VoidCallback onAddToSequence;
+
+  /// Insert a bare target header (no generated instructions) into a sequence
+  /// the user picks, leaving the instruction tree for them to build.
+  final VoidCallback onAddToExistingSequence;
+
+  const FramingSequenceSection({
+    super.key,
+    required this.colors,
+    required this.framingState,
+    required this.onAddToSequence,
+    required this.onAddToExistingSequence,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasTarget = framingState.target != null;
+    final panels =
+        framingState.mosaicEnabled ? framingState.mosaicPanels.length : 0;
+    return FramingPanelSection(
+      title: 'Sequence',
+      note: panels >= 2 ? '$panels mosaic panels' : null,
+      children: [
+        FramingButtonPair(
+          first: SkotiqButton(
+            icon: LucideIcons.wand2,
+            label: 'Auto-build sequence',
+            variant: ButtonVariant.secondary,
+            size: ButtonSize.small,
+            onPressed: hasTarget ? onAddToSequence : null,
+          ),
+          second: SkotiqButton(
+            icon: LucideIcons.listPlus,
+            label: 'Add to sequence',
+            variant: ButtonVariant.secondary,
+            size: ButtonSize.small,
+            onPressed: hasTarget ? onAddToExistingSequence : null,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The Mosaic section: the switch on the title row, then the grid (columns,
+/// rows, overlap), the capture order (serpentine, panel numbers, start
+/// corner), the panel list and the create-project action.
 class FramingMosaicSection extends ConsumerWidget {
   final SkotiqColors colors;
   final FramingState framingState;
@@ -15,239 +71,125 @@ class FramingMosaicSection extends ConsumerWidget {
     required this.equipmentAsync,
   });
 
+  /// Height of one row of the panel list.
+  static const double panelRowExtent = 24;
+
+  /// The panel list shows this many rows before it scrolls.
+  static const int visiblePanels = 6;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final result = equipmentAsync.valueOrNull;
     final hasEquipment = result?.isReady ?? false;
     final config = framingState.mosaicConfig;
     final notifier = ref.read(framingProvider.notifier);
+    final on = framingState.mosaicEnabled && hasEquipment;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return FramingPanelSection(
+      key: FramingTutorialKeys.mosaicBtn,
+      title: 'Mosaic',
+      note: on ? '${config.columns}×${config.rows}' : null,
+      divider: false,
+      actions: [
+        Semantics(
+          label: 'Plan a mosaic',
+          child: SkotiqSwitch(
+            value: framingState.mosaicEnabled,
+            onChanged: hasEquipment ? notifier.setMosaicEnabled : null,
+          ),
+        ),
+      ],
       children: [
-        // Header with toggle
-        Row(
-          key: FramingTutorialKeys.mosaicBtn,
-          children: [
-            Expanded(
-              child: Text(
-                'Mosaic',
-                style: SkotiqTypography.eyebrow
-                    .copyWith(color: colors.textPrimary),
+        if (!hasEquipment)
+          const FramingNote('Set up equipment to plan a mosaic.'),
+        if (on) ...[
+          FramingFormRow(
+            label: 'Grid',
+            // Scales down rather than overflowing in the 250 px column.
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SkotiqStepper(
+                      value: config.columns,
+                      min: 1,
+                      max: 10,
+                      compact: true,
+                      semanticLabel: 'Columns',
+                      onChanged: notifier.setMosaicColumns,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: SkotiqTokens.spaceXs,
+                      ),
+                      child: ExcludeSemantics(
+                        child: Text(
+                          '×',
+                          style: SkotiqTypography.caption
+                              .copyWith(color: colors.textMuted),
+                        ),
+                      ),
+                    ),
+                    SkotiqStepper(
+                      value: config.rows,
+                      min: 1,
+                      max: 10,
+                      compact: true,
+                      semanticLabel: 'Rows',
+                      onChanged: notifier.setMosaicRows,
+                    ),
+                  ],
+                ),
               ),
             ),
-            SkotiqSwitch(
-              value: framingState.mosaicEnabled,
-              onChanged:
-                  hasEquipment ? (v) => notifier.setMosaicEnabled(v) : null,
+          ),
+          FramingFormRow(
+            label: 'Overlap',
+            child: FramingSlider(
+              value: config.overlapPercent,
+              min: 0,
+              max: 50,
+              semanticLabel: 'Panel overlap',
+              valueLabel: '${config.overlapPercent.toInt()}%',
+              onChanged: notifier.setMosaicOverlap,
             ),
-          ],
-        ),
-
-        if (!hasEquipment)
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: colors.well,
-              borderRadius: SkotiqTokens.borderRadiusInline8,
-            ),
-            child: Row(
+          ),
+          FramingFormRow(
+            label: 'Order',
+            child: NightPanelGrid(
+              columns: 2,
               children: [
-                Icon(SkotiqIcons.info, size: 14, color: colors.textMuted),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Configure equipment to enable mosaic planning',
-                    style: SkotiqTypography.caption
-                        .copyWith(color: colors.textMuted),
-                  ),
+                NightPanelButton(
+                  label: 'Serpentine',
+                  selected: config.serpentine,
+                  onPressed: notifier.toggleSerpentine,
+                ),
+                NightPanelButton(
+                  label: 'Numbers',
+                  semanticLabel: 'Show panel numbers',
+                  selected: framingState.showPanelNumbers,
+                  onPressed: notifier.togglePanelNumbers,
                 ),
               ],
             ),
           ),
-
-        if (framingState.mosaicEnabled && hasEquipment) ...[
-          const SizedBox(height: 12),
-
-          // Grid configuration
-          Row(
-            children: [
-              Expanded(
-                child: FramingMosaicSpinner(
-                  label: 'Columns',
-                  value: config.columns,
-                  min: 1,
-                  max: 10,
-                  onChanged: notifier.setMosaicColumns,
-                  colors: colors,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FramingMosaicSpinner(
-                  label: 'Rows',
-                  value: config.rows,
-                  min: 1,
-                  max: 10,
-                  onChanged: notifier.setMosaicRows,
-                  colors: colors,
-                ),
-              ),
-            ],
+          FramingFormRow(
+            label: 'Start',
+            child: FramingStartCornerSelector(
+              selected: config.startCorner,
+              onChanged: notifier.setMosaicStartCorner,
+            ),
           ),
-          const SizedBox(height: 12),
-
-          // Overlap slider
-          FramingSliderField(
-            label: 'Overlap',
-            value: config.overlapPercent,
-            min: 0,
-            max: 50,
-            suffix: '%',
-            colors: colors,
-            onChanged: notifier.setMosaicOverlap,
-          ),
-          const SizedBox(height: 12),
-
-          // Capture pattern options
-          Row(
-            children: [
-              Expanded(
-                child: FramingOptionButton(
-                  icon: LucideIcons.moveHorizontal,
-                  label: 'Serpentine',
-                  isSelected: config.serpentine,
-                  onTap: notifier.toggleSerpentine,
-                  colors: colors,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FramingOptionButton(
-                  icon: LucideIcons.hash,
-                  label: 'Numbers',
-                  isSelected: framingState.showPanelNumbers,
-                  onTap: notifier.togglePanelNumbers,
-                  colors: colors,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Start corner dropdown
-          Text(
-            'Start Corner',
-            style:
-                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
-          ),
-          const SizedBox(height: 6),
-          FramingStartCornerSelector(
-            selected: config.startCorner,
-            onChanged: notifier.setMosaicStartCorner,
-            colors: colors,
-          ),
-          const SizedBox(height: 12),
-
-          // Panel summary
-          SkotiqPanel(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(SkotiqIcons.layoutGrid,
-                          size: 14, color: colors.primary),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${config.totalPanels} Panels',
-                        style: SkotiqTypography.eyebrow
-                            .copyWith(color: colors.textPrimary),
-                      ),
-                    ],
-                  ),
-                  if (framingState.mosaicPanels.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 100,
-                      child: ListView.builder(
-                        // Fixed-height panel rows: 20 box + 4*2 vertical padding = 28.
-                        itemExtent: 28,
-                        itemCount: framingState.mosaicPanels.length,
-                        itemBuilder: (context, index) {
-                          final panel = framingState.mosaicPanels[index];
-                          final isSelected =
-                              index == framingState.selectedPanelIndex;
-                          return InkWell(
-                            onTap: () => notifier.selectPanel(index),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? colors.primary.withValues(alpha: 0.2)
-                                    : Colors.transparent,
-                                borderRadius: SkotiqTokens.borderRadiusInline4,
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 20,
-                                    height: 20,
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? colors.primary
-                                          : colors.surface,
-                                      borderRadius:
-                                          SkotiqTokens.borderRadiusInline4,
-                                      border: Border.all(
-                                        color: isSelected
-                                            ? colors.primary
-                                            : colors.border,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      '${panel.index + 1}',
-                                      style: SkotiqTypography.caption.copyWith(
-                                          color: isSelected
-                                              ? colors.textPrimary
-                                              : colors.textSecondary,
-                                          fontWeight: FontWeight.w600),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      panel.raFormatted,
-                                      style: SkotiqTypography.monoCaption
-                                          .copyWith(
-                                              color: colors.textSecondary),
-                                    ),
-                                  ),
-                                  Text(
-                                    panel.decFormatted,
-                                    style: SkotiqTypography.monoCaption
-                                        .copyWith(color: colors.textSecondary),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ],
-              )),
-
-          // Create durable mosaic project (project + per-panel rows), routes
-          // to /mosaic/:id so the scheduler/sequencer can drive it.
           if (framingState.mosaicPanels.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: SkotiqTokens.spaceXs),
+            _panelList(notifier),
+            const SizedBox(height: SkotiqTokens.spaceXs),
+            // A durable mosaic project (project + per-panel rows), routed to
+            // /mosaic/:id so the scheduler/sequencer can drive it.
             FramingExportMosaicButton(
               colors: colors,
               panels: framingState.mosaicPanels,
@@ -258,161 +200,85 @@ class FramingMosaicSection extends ConsumerWidget {
       ],
     );
   }
-}
 
-/// Actions surface at the bottom of the framing sidebar.
-///
-/// The canonical, guided "resolve → frame → solve → slew" flow lives in
-/// [FramingActionRail], which owns slew; this panel mounts that single rail and
-/// exposes only the supplementary utility actions the rail does not own (add
-/// the framed target to a sequence, save it, cache the survey cutout, and
-/// reload it), so the slew/survey controls are not duplicated across two
-/// surfaces. The survey source and rotation are read from `framingProvider`, so
-/// the rail and the [FramingControlsSection] dropdown stay in lockstep.
-class FramingActionsPanel extends ConsumerWidget {
-  final SkotiqColors colors;
-  final FramingState framingState;
-
-  /// Auto-build a complete Smart Night instruction tree for the framed target
-  /// and load it into the sequencer.
-  final VoidCallback onAddToSequence;
-
-  /// Insert a bare target header (name / RA / Dec / rotation, no generated
-  /// instructions) into a sequence the user picks, leaving the instruction
-  /// tree for them to build manually in the Sequencer.
-  final VoidCallback onAddToExistingSequence;
-  final VoidCallback onSaveTarget;
-  final VoidCallback onCacheImage;
-
-  const FramingActionsPanel({
-    super.key,
-    required this.colors,
-    required this.framingState,
-    required this.onAddToSequence,
-    required this.onAddToExistingSequence,
-    required this.onSaveTarget,
-    required this.onCacheImage,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hasTarget = framingState.target != null;
-    final hasSurveyImage = framingState.surveyImageBytes != null;
-
+  Widget _panelList(FramingNotifier notifier) {
+    final panels = framingState.mosaicPanels;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        if (framingState.effectiveAimTarget case final target?) ...[
-          Text('Frame center · slew destination',
-              style: SkotiqTypography.labelStrongSm
-                  .copyWith(color: colors.textPrimary)),
-          Text('${target.raFormatted}  ${target.decFormatted}',
-              style: SkotiqTypography.monoCaption
-                  .copyWith(color: colors.textSecondary)),
-          const SizedBox(height: SkotiqTokens.spaceSm),
-          SlewDropdownButton(
-            ra: target.raHours,
-            dec: target.decDegrees,
-            targetName: target.name,
-            targetRotation: framingState.rotation,
-            defaultMode: SlewMode.slewAndCenter,
-            isEnabled: !ref.watch(mountStateProvider).isParked,
-          ),
-          const SizedBox(height: SkotiqTokens.spaceSm),
-        ],
-        SizedBox(
-            width: double.infinity,
-            child: SkotiqButton(
-              icon: LucideIcons.wand2,
-              label: 'Auto-build sequence',
-              onPressed: hasTarget ? onAddToSequence : null,
-            )),
-        const SizedBox(height: SkotiqTokens.spaceSm),
-        // Sized like the "Utilities" header below it: Material's default
-        // ExpansionTile title is a 16px body line with 16px gutters, which
-        // wrapped this label onto two lines in a 300px sidebar.
-        Material(
-          type: MaterialType.transparency,
-          child: ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            childrenPadding: EdgeInsets.zero,
-            dense: true,
-            visualDensity: VisualDensity.compact,
-            minTileHeight: SkotiqTokens.minTouchTarget,
-            iconColor: colors.textSecondary,
-            collapsedIconColor: colors.textSecondary,
-            title: Text(
-              'Checks and manual solve',
-              style:
-                  SkotiqTypography.eyebrow.copyWith(color: colors.textPrimary),
-            ),
-            children: const [FramingActionRail()],
-          ),
-        ),
-
-        const SizedBox(height: SkotiqTokens.spaceXl),
-
-        // Supplementary utility actions not covered by the guided rail.
-        Text(
-          'Utilities',
-          style: SkotiqTypography.eyebrow.copyWith(color: colors.textPrimary),
-        ),
-        const SizedBox(height: SkotiqTokens.spaceMd),
-        // Utility actions use the design-system SkotiqButton (outline)
-        // so the whole panel — guided rail + utilities — speaks one button
-        // language (matching the rail's SkotiqButton solve action) rather
-        // than mixing in a bespoke local button with different heights/radii.
-        Row(
+        const Row(
           children: [
-            // Bare-header insert: drops the framed target into a chosen
-            // sequence with no generated instructions — the user builds the
-            // imaging tree under it manually in the Sequencer.
-            Expanded(
-              child: SkotiqButton(
-                icon: LucideIcons.listPlus,
-                label: 'Add to Sequence',
-                variant: ButtonVariant.secondary,
-                size: ButtonSize.small,
-                onPressed: hasTarget ? onAddToExistingSequence : null,
-              ),
-            ),
+            SizedBox(width: 28),
+            Expanded(child: NightPanelLabel('PANEL CENTER · RA')),
+            NightPanelLabel('DEC'),
           ],
         ),
-        const SizedBox(height: SkotiqTokens.spaceSm),
-        Row(
-          children: [
-            Expanded(
-              child: SkotiqButton(
-                icon: LucideIcons.bookmark,
-                label: 'Save target',
-                variant: ButtonVariant.secondary,
-                size: ButtonSize.small,
-                onPressed: hasTarget ? onSaveTarget : null,
-              ),
-            ),
-            const SizedBox(width: SkotiqTokens.spaceSm),
-            Expanded(
-              child: SkotiqButton(
-                icon: SkotiqIcons.download,
-                label: 'Cache image',
-                variant: ButtonVariant.secondary,
-                size: ButtonSize.small,
-                onPressed: hasSurveyImage ? onCacheImage : null,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: SkotiqTokens.spaceSm),
-        SizedBox(
-          width: double.infinity,
-          child: SkotiqButton(
-            icon: SkotiqIcons.refresh,
-            label: 'Reload',
-            variant: ButtonVariant.secondary,
-            size: ButtonSize.small,
-            onPressed: hasTarget
-                ? () => ref.read(framingProvider.notifier).loadSurveyImage()
-                : null,
+        const SizedBox(height: 2),
+        ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxHeight: panelRowExtent * visiblePanels,
+          ),
+          child: ListView.builder(
+            shrinkWrap: true,
+            padding: EdgeInsets.zero,
+            itemExtent: panelRowExtent,
+            itemCount: panels.length,
+            itemBuilder: (context, index) {
+              final panel = panels[index];
+              final isSelected = index == framingState.selectedPanelIndex;
+              final ink =
+                  isSelected ? colors.textPrimary : colors.textSecondary;
+              return Semantics(
+                button: true,
+                selected: isSelected,
+                label: 'Panel ${panel.index + 1}',
+                child: InkWell(
+                  onTap: () => notifier.selectPanel(index),
+                  borderRadius: SkotiqTokens.borderRadiusInline4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: SkotiqTokens.spaceXs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? colors.primary.withValues(
+                              alpha: PanelTabStrip.selectedAlpha,
+                            )
+                          : null,
+                      borderRadius: SkotiqTokens.borderRadiusInline4,
+                    ),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 24,
+                          child: Text(
+                            '${panel.index + 1}',
+                            style: SkotiqTypography.monoXs.copyWith(
+                              color: isSelected
+                                  ? colors.primary
+                                  : colors.textMuted,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            panel.raFormatted,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: SkotiqTypography.monoXs.copyWith(color: ink),
+                          ),
+                        ),
+                        Text(
+                          panel.decFormatted,
+                          style: SkotiqTypography.monoXs.copyWith(color: ink),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],

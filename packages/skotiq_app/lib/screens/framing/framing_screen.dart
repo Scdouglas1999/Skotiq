@@ -13,6 +13,7 @@ import 'framing_search_provider.dart';
 import '../../widgets/tutorial_keys/framing_keys.dart';
 import 'widgets/optical_config_panel.dart';
 import 'widgets/framing_canvas.dart';
+import 'widgets/framing_actions_panel.dart';
 import 'widgets/framing_sidebar.dart';
 
 /// Scaffold-less framing body: composing and framing astrophotography targets
@@ -326,20 +327,20 @@ class _FramingViewState extends ConsumerState<FramingView> {
       onGoToManualCoordinates: _goToManualCoordinates,
     );
 
-    // Phone (device-class) tightens the section rhythm: the controls live in a
-    // short bottom sheet / narrow landscape side panel where the desktop 20 px
-    // gaps + 16 px gutter waste scarce vertical/horizontal space. Tablet/desktop
-    // keep the roomier spacing.
-    final isPhone = Responsive.isPhone(context);
-    final sectionGap = isPhone ? SkotiqTokens.spaceMd : SidePanel.sectionGap;
-    final bodyPadding = isPhone
-        ? const EdgeInsets.all(SkotiqTokens.spaceMd)
-        : SidePanel.contentPadding;
-
+    // One panel, top to bottom: what is framed, the actions on it, then the
+    // framing controls. Sections carry their own insets and hairlines, so the
+    // column has no outer padding or gaps of its own.
     final panels = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        FramingActionsPanel(
+        FramingTargetSection(
+          colors: colors,
+          framingState: framingState,
+          currentAltAz: currentAltAz,
+          onSaveTarget: _saveTarget,
+        ),
+        const FramingTelescopeSection(),
+        FramingSequenceSection(
           colors: colors,
           framingState: framingState,
           // Both add-to-sequence paths capture a POINTING: the emitted target
@@ -354,38 +355,28 @@ class _FramingViewState extends ConsumerState<FramingView> {
             framingState.effectiveAimTarget!,
             framingState.rotation,
           ),
-          onSaveTarget: _saveTarget,
-          onCacheImage: _cacheImage,
         ),
-        SizedBox(height: sectionGap),
         FramingEquipmentSection(
           colors: colors,
           equipmentAsync: equipmentResult,
         ),
-        SizedBox(height: sectionGap),
-        FramingControlsSection(
+        FramingRotationSection(
           colors: colors,
           framingState: framingState,
           equipmentAsync: equipmentResult,
         ),
-        SizedBox(height: sectionGap),
-        FramingCoordinatesPanel(
+        FramingSkyViewSection(
           colors: colors,
           framingState: framingState,
-          currentAltAz: currentAltAz,
+          equipmentAsync: equipmentResult,
+          onCacheImage: _cacheImage,
         ),
-        SizedBox(height: sectionGap),
-        FramingAltitudePanel(
-          colors: colors,
-          framingState: framingState,
-        ),
-        SizedBox(height: sectionGap),
         FramingMosaicSection(
           colors: colors,
           framingState: framingState,
           equipmentAsync: equipmentResult,
         ),
-        SizedBox(height: sectionGap),
+        const SizedBox(height: SkotiqTokens.spaceMd),
       ],
     );
 
@@ -398,10 +389,7 @@ class _FramingViewState extends ConsumerState<FramingView> {
             mainAxisSize: MainAxisSize.min,
             children: [
               search,
-              Padding(
-                padding: bodyPadding,
-                child: panels,
-              ),
+              panels,
             ],
           );
         }
@@ -411,10 +399,7 @@ class _FramingViewState extends ConsumerState<FramingView> {
           children: [
             search,
             Expanded(
-              child: SingleChildScrollView(
-                padding: bodyPadding,
-                child: panels,
-              ),
+              child: SingleChildScrollView(child: panels),
             ),
           ],
         );
