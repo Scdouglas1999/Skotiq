@@ -40,6 +40,7 @@ class NightOverviewTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final beforeRun = nightPanelBeforeRun(ref.watch(nightRunPhaseProvider));
     return NightPanelBody(
+      fill: NightLogSection(entries: ref.watch(nightLogProvider)),
       children: <Widget>[
         if (beforeRun)
           NightChecklistSection(
@@ -52,7 +53,6 @@ class NightOverviewTab extends ConsumerWidget {
         ],
         NightEquipmentSection(rows: ref.watch(nightEquipmentProvider)),
         NightConditionsSection(conditions: ref.watch(nightConditionsProvider)),
-        NightLogSection(entries: ref.watch(nightLogProvider)),
       ],
     );
   }

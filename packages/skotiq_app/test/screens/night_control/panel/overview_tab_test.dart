@@ -5,12 +5,86 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
+import 'package:skotiq_app/screens/night_control/panel/overview/overview_sections.dart';
 import 'package:skotiq_app/screens/night_control/panel/overview/overview_tab.dart';
 
 import '../fixtures/night_fixtures.dart';
 import 'panel_test_support.dart';
 
+/// The log's lines, for the scroll tests to add to.
+final _logLines = StateProvider<List<NightLogEntryVm>>((ref) => const []);
+
+List<NightLogEntryVm> _lines(int from, int count) => <NightLogEntryVm>[
+      // Newest first: line [from + count - 1] down to line [from].
+      for (var i = from + count - 1; i >= from; i--)
+        NightLogEntryVm(
+          at: DateTime(2026, 10, 20, 22).add(Duration(minutes: i)),
+          message: NightText.literal('line $i'),
+        ),
+    ];
+
+Future<ProviderContainer> _pumpLog(WidgetTester tester) async {
+  final container = ProviderContainer(overrides: [
+    _logLines.overrideWith((ref) => _lines(0, 40)),
+  ]);
+  addTearDown(container.dispose);
+  await pumpPanel(
+    tester,
+    container: container,
+    overrides: const [],
+    child: Align(
+      alignment: Alignment.topCenter,
+      child: SizedBox(
+        height: 220,
+        child: Consumer(
+          builder: (context, ref, _) =>
+              NightLogSection(entries: ref.watch(_logLines)),
+        ),
+      ),
+    ),
+  );
+  return container;
+}
+
 void main() {
+  group('log', () {
+    testWidgets('at the top, a new line shows above the last', (tester) async {
+      final container = await _pumpLog(tester);
+      expect(find.text('line 39'), findsOneWidget);
+      container.read(_logLines.notifier).state = [
+        ..._lines(40, 2),
+        ...container.read(_logLines),
+      ];
+      await tester.pump();
+      expect(find.text('line 41'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('line 41')).dy,
+        lessThan(tester.getTopLeft(find.text('line 40')).dy),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('scrolled away to read, the lines being read hold still',
+        (tester) async {
+      final container = await _pumpLog(tester);
+      await tester.drag(find.byType(ListView), const Offset(0, -150));
+      await tester.pumpAndSettle();
+      expect(find.text('line 39'), findsNothing);
+      final reading = find.text('line 25');
+      expect(reading, findsOneWidget);
+      final before = tester.getTopLeft(reading);
+
+      container.read(_logLines.notifier).state = [
+        ..._lines(40, 3),
+        ...container.read(_logLines),
+      ];
+      await tester.pump();
+      expect(tester.getTopLeft(reading), before);
+      expect(find.text('line 42'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   testWidgets('a running night shows the frame, session, gear, sky and log',
       (tester) async {
     await pumpPanel(

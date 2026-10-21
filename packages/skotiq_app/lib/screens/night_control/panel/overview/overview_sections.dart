@@ -11,7 +11,7 @@ import '../../data/session/session_format.dart';
 import '../../night_control_contracts.dart';
 import '../panel_widgets.dart';
 
-/// The most log lines the tab lists.
+/// The most log lines the tab lists where the log cannot scroll on its own.
 const int kNightPanelLogLines = 20;
 
 /// "Last frame · #43", its figures against the night median and the
@@ -324,54 +324,140 @@ class NightConditionsSection extends StatelessWidget {
 }
 
 /// The night's events, newest first.
-class NightLogSection extends StatelessWidget {
+///
+/// Given a bounded height (the panel body's fill) the lines scroll on their
+/// own. At the top the list follows the night, each new line arriving above
+/// the last; scrolled away to read, the lines being read hold still while new
+/// ones arrive above them. Unbounded, it shows the newest
+/// [kNightPanelLogLines].
+class NightLogSection extends StatefulWidget {
   const NightLogSection({super.key, required this.entries});
 
   final List<NightLogEntryVm> entries;
 
   @override
+  State<NightLogSection> createState() => _NightLogSectionState();
+}
+
+class _NightLogSectionState extends State<NightLogSection> {
+  final ScrollController _scroll = ScrollController();
+
+  /// One line's height, title row gap included; set on every build.
+  double _rowExtent = 0;
+
+  /// Scrolled further than this from the newest line, the operator is
+  /// reading and the list stops following.
+  static const double _followSlack = 2;
+
+  @override
+  void didUpdateWidget(NightLogSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_scroll.hasClients || _rowExtent <= 0) return;
+    final previous = oldWidget.entries;
+    if (previous.isEmpty || identical(previous, widget.entries)) return;
+    final offset = _scroll.offset;
+    if (offset <= _followSlack) return;
+    // The lines that arrived sit above the one that was newest; push the
+    // offset down by as many lines so the ones being read stay put.
+    final added = widget.entries.indexOf(previous.first);
+    // Past the old end is fine: the viewport lays out against the new,
+    // longer list before it paints.
+    if (added > 0) _scroll.jumpTo(offset + added * _rowExtent);
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = SkotiqLocalizations.of(context);
     final colors = context.skotiqColors;
-    final shown = entries.take(kNightPanelLogLines);
-    return NightPanelSection(
-      title: l10n.text('nightPanelLog'),
-      divider: false,
-      gap: 3,
-      children: <Widget>[
-        if (entries.isEmpty) NightPanelNote(l10n.text('nightPanelLogEmpty')),
-        for (final entry in shown)
-          MergeSemantics(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: <Widget>[
-                SizedBox(
-                  width: 40,
-                  child: Text(
-                    nightPanelClock(entry.at),
-                    style: SkotiqTypography.monoXs.copyWith(
-                      color: colors.textMuted,
-                    ),
+    final entries = widget.entries;
+    const gap = 3.0;
+    final timeStyle = SkotiqTypography.monoXs.copyWith(color: colors.textMuted);
+    final scaler = MediaQuery.textScalerOf(context);
+    double lineHeight(TextStyle style) {
+      final painter = TextPainter(
+        text: TextSpan(text: 'Hg', style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      final height = painter.height;
+      painter.dispose();
+      return height;
+    }
+
+    _rowExtent = math.max(
+          lineHeight(SkotiqTypography.caption),
+          lineHeight(timeStyle),
+        ) +
+        gap;
+
+    Widget row(NightLogEntryVm entry) => MergeSemantics(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: <Widget>[
+              SizedBox(
+                width: 40,
+                child: Text(nightPanelClock(entry.at), style: timeStyle),
+              ),
+              const SizedBox(width: SkotiqTokens.spaceXs),
+              Expanded(
+                child: Text(
+                  entry.message.resolve(l10n),
+                  style: SkotiqTypography.caption.copyWith(
+                    color: entry.tone == MetricTone.neutral
+                        ? colors.textSecondary
+                        : nightToneColor(entry.tone, colors),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(width: SkotiqTokens.spaceXs),
-                Expanded(
-                  child: Text(
-                    entry.message.resolve(l10n),
-                    style: SkotiqTypography.caption.copyWith(
-                      color: entry.tone == MetricTone.neutral
-                          ? colors.textSecondary
-                          : nightToneColor(entry.tone, colors),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-      ],
+        );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bounded = constraints.hasBoundedHeight;
+        return NightPanelSection(
+          title: l10n.text('nightPanelLog'),
+          divider: false,
+          gap: gap,
+          fillsHeight: bounded && entries.isNotEmpty,
+          children: <Widget>[
+            if (entries.isEmpty)
+              NightPanelNote(l10n.text('nightPanelLogEmpty'))
+            else if (bounded)
+              Scrollbar(
+                controller: _scroll,
+                child: ListView.builder(
+                  controller: _scroll,
+                  primary: false,
+                  padding: EdgeInsets.zero,
+                  itemExtent: _rowExtent,
+                  itemCount: entries.length,
+                  itemBuilder: (context, i) => Align(
+                    alignment: AlignmentDirectional.topStart,
+                    child: row(entries[i]),
+                  ),
+                ),
+              )
+            else
+              for (final entry in entries.take(kNightPanelLogLines))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: gap),
+                  child: row(entry),
+                ),
+          ],
+        );
+      },
     );
   }
 }

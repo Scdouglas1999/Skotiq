@@ -21,22 +21,61 @@ const double kNightPanelRowGap = 6;
 /// A tab body: its sections in a column that scrolls on its own in the
 /// column layouts and sizes to its content in the single column, where the
 /// page scrolls.
+///
+/// [fill], when given, goes last and takes the height the sections leave,
+/// never less than [fillMinHeight]; in the single column it is
+/// [fillMinHeight] tall. It gets a bounded height either way, so it can
+/// scroll on its own (Overview's log).
 class NightPanelBody extends StatelessWidget {
-  const NightPanelBody({super.key, required this.children});
+  const NightPanelBody({
+    super.key,
+    required this.children,
+    this.fill,
+    this.fillMinHeight = 180,
+  });
 
   final List<Widget> children;
+  final Widget? fill;
+  final double fillMinHeight;
 
   @override
   Widget build(BuildContext context) {
+    final fill = this.fill;
+    final scrolls =
+        NightControlDensity.maybeOf(context)?.slotsScrollThemselves ?? true;
     final column = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
-      children: children,
+      children: <Widget>[
+        ...children,
+        if (fill != null && !scrolls)
+          SizedBox(height: fillMinHeight, child: fill),
+      ],
     );
-    final scrolls =
-        NightControlDensity.maybeOf(context)?.slotsScrollThemselves ?? true;
     if (!scrolls) return column;
-    return SingleChildScrollView(primary: false, child: column);
+    if (fill == null) {
+      return SingleChildScrollView(primary: false, child: column);
+    }
+    return CustomScrollView(
+      primary: false,
+      slivers: <Widget>[
+        SliverToBoxAdapter(child: column),
+        SliverLayoutBuilder(
+          // Measured against the sections above, not the scroll position,
+          // so the height holds still while the body scrolls.
+          builder: (context, constraints) {
+            final left = constraints.viewportMainAxisExtent -
+                constraints.precedingScrollExtent;
+            return SliverToBoxAdapter(
+              child: SizedBox(
+                height: left > fillMinHeight ? left : fillMinHeight,
+                child: fill,
+              ),
+            );
+          },
+        ),
+      ],
+    );
   }
 }
 
@@ -52,6 +91,7 @@ class NightPanelSection extends StatelessWidget {
     this.trailingSemantics,
     this.divider = true,
     this.gap = kNightPanelRowGap,
+    this.fillsHeight = false,
   });
 
   final String title;
@@ -69,6 +109,10 @@ class NightPanelSection extends StatelessWidget {
   final bool divider;
   final double gap;
 
+  /// The section takes the height it is given and its last child the part
+  /// of it the title and the other children leave.
+  final bool fillsHeight;
+
   /// The most of the title row the note may take.
   static const double noteShare = 0.6;
 
@@ -85,7 +129,7 @@ class NightPanelSection extends StatelessWidget {
         padding: kNightPanelSectionPadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: fillsHeight ? MainAxisSize.max : MainAxisSize.min,
           children: <Widget>[
             LayoutBuilder(
               // The note takes its own width, up to [noteShare] of the row;
@@ -133,9 +177,12 @@ class NightPanelSection extends StatelessWidget {
                 ],
               ),
             ),
-            for (final child in children) ...<Widget>[
+            for (var i = 0; i < children.length; i++) ...<Widget>[
               SizedBox(height: gap),
-              child,
+              if (fillsHeight && i == children.length - 1)
+                Expanded(child: children[i])
+              else
+                children[i],
             ],
           ],
         ),

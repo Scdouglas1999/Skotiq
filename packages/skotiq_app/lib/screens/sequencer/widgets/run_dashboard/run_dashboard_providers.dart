@@ -924,6 +924,18 @@ bool isUserFacingRunEvent(sk_events.SkotiqEvent event) {
   return true;
 }
 
+/// [events], newest first, as the trigger feed's rows: user-facing events
+/// only, a stop episode folded to one row, a doubled completion to one, and
+/// repeats of one condition collapsed with a count.
+List<RunDashboardEvent> runDashboardFeedRows(
+  Iterable<sk_events.SkotiqEvent> events,
+) =>
+    collapseRepeatedEvents(
+      _foldDuplicateCompletions(
+        _foldStopFamilyRows(events.where(isUserFacingRunEvent)),
+      ),
+    );
+
 /// Last N events (default 5) classified for the trigger feed.
 ///
 /// Built off the existing `eventHistoryProvider` so we don't run a second
@@ -934,11 +946,7 @@ final runDashboardRecentEventsProvider =
   // Collapse BEFORE taking `limit`, so squashing a repeated condition actually
   // frees slots for the different events behind it. Taking first would leave
   // the panel showing one collapsed row and four blanks' worth of lost history.
-  return collapseRepeatedEvents(
-    _foldDuplicateCompletions(
-      _foldStopFamilyRows(history.where(isUserFacingRunEvent)),
-    ),
-  ).take(limit).toList(growable: false);
+  return runDashboardFeedRows(history).take(limit).toList(growable: false);
 });
 
 // Critical event escalation

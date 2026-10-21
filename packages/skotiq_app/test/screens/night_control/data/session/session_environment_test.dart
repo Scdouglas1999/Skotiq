@@ -11,6 +11,7 @@ import 'package:skotiq_app/screens/night_control/data/session/session_stats_prov
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_core/skotiq_core.dart'
     hide EquipmentStatus, TwilightTimes;
+import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
 
 import 'session_test_support.dart';
 
@@ -475,6 +476,65 @@ void main() {
   });
 
   group('log', () {
+    // Live, the camera reports progress five times a second while a frame
+    // exposes, and the in-memory history keeps 100 events: read from it,
+    // a dither vanished from the log within a minute while older autofocus
+    // and frame rows stayed above it.
+    test('a feed row outlives the event history it came through', () async {
+      final h = await sessionHarness();
+      final keep = h.container.listen(nightLogProvider, (_, __) {});
+      addTearDown(keep.close);
+      final history = h.container.read(eventHistoryProvider.notifier);
+      var ms = kNight.millisecondsSinceEpoch;
+      sk_events.SkotiqEvent event(sk_events.EventPayload payload,
+              sk_events.EventCategory category) =>
+          sk_events.SkotiqEvent(
+            eventId: BigInt.from(ms),
+            timestamp: ms += 200,
+            severity: sk_events.EventSeverity.info,
+            category: category,
+            payload: payload,
+          );
+      history.addEvent(event(
+        const sk_events.EventPayload.guiding(
+          sk_events.GuidingEvent.ditherStarted(pixels: 1.5),
+        ),
+        sk_events.EventCategory.guiding,
+      ));
+      for (var i = 0; i < 150; i++) {
+        history.addEvent(event(
+          const sk_events.EventPayload.imaging(
+            sk_events.ImagingEvent.exposureProgress(
+              progress: 0.5,
+              remainingSecs: 45,
+            ),
+          ),
+          sk_events.EventCategory.imaging,
+        ));
+      }
+      expect(
+        h.read(eventHistoryProvider).any(
+              (e) => e.payload is sk_events.EventPayload_Guiding,
+            ),
+        isFalse,
+        reason: 'the history has moved on',
+      );
+      final log = h.read(nightLogProvider);
+      expect(log, hasLength(1), reason: 'progress ticks are not log lines');
+      expect(log.single.message.literal, startsWith('Dither'));
+    });
+
+    test('past the cap the oldest lines go, the newest stay', () async {
+      final h = await sessionHarness();
+      for (var i = 0; i < kNightLogMaxEntries + 5; i++) {
+        await h.addFrame(minutes: i, hfr: 2.0);
+      }
+      final log = await h.settle(nightLogProvider);
+      expect(log, hasLength(kNightLogMaxEntries));
+      expect(log.first.message.params['n'], '${kNightLogMaxEntries + 5}');
+      expect(log.last.message.params['n'], '6');
+    });
+
     test('frames carry their number, filter, verdict and HFR', () async {
       final h = await sessionHarness();
       await h.addFrame(minutes: 0, hfr: 2.10);
