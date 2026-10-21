@@ -621,10 +621,9 @@ impl Trigger {
                     }
             }
             TriggerType::GuideStarLost => {
-                // `guiding_enabled` gate prevents the trigger from firing while
-                // the guider is idle between sequences (e.g. during slews or
-                // before a StartGuiding node has run).
-                state.guiding_enabled && state.guide_star_lost
+                // Only guiding this run started is armed, so an idle guider
+                // between sequences or before StartGuiding never fires it.
+                state.guiding.armed_and_lost()
             }
             TriggerType::FocusDrift {
                 window_size,

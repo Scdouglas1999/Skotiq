@@ -171,7 +171,7 @@ async fn start_guiding_with(
         decisions.push(decision.summary);
     }
     let fresh_star_selections = ops.fresh_star_selections.lock().unwrap().clone();
-    let imaging_unguided = trigger_state.read().await.imaging_unguided;
+    let imaging_unguided = trigger_state.read().await.guiding.is_unguided();
     GuidingQualityRun {
         result,
         still_guiding: ops.guiding.load(Ordering::SeqCst),
@@ -317,7 +317,7 @@ mod while_imaging_unguided {
         let mut ec = crate::node::context::ExecutionContext::new_for_test("guide".to_string());
         ec.device_ops = ops;
         let mut state = crate::triggers::TriggerState::new();
-        state.imaging_unguided = true;
+        state.guiding.set_unguided(true);
         ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
         let (event_tx, events) = tokio::sync::broadcast::channel(64);
         ec.event_tx = Some(event_tx);
@@ -350,7 +350,8 @@ mod while_imaging_unguided {
                 .unwrap()
                 .read()
                 .await
-                .imaging_unguided,
+                .guiding
+                .is_unguided(),
             warnings,
             decisions: summaries,
         }

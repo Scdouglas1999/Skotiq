@@ -3,7 +3,7 @@
 //! recovery action to completion before the next poll.
 
 use super::*;
-use crate::triggers::RunMode;
+use crate::triggers::{GuiderObservation, RunMode};
 
 /// Everything the poll loop reads from the run it belongs to.
 pub(super) struct TriggerMonitorArgs {
@@ -311,8 +311,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             // given up on reports whatever RMS it last had; judging either
             // would have the guiding triggers act on a guider that is not
             // guiding. A move the run is making is not guiding either.
-            let judge_rms =
-                state.guiding_enabled && !state.imaging_unguided && state.mount_motion_depth == 0;
+            let judge_rms = state.guiding.judges_rms();
             if let Some(rms) = guiding_rms.filter(|_| judge_rms) {
                 state.update_guiding_rms(rms);
                 tracing::trace!("Updated guiding RMS: {:.2}", rms);
@@ -679,47 +678,14 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             let manager = trigger_manager.read().await;
             let trigger_state = manager.state();
             let mut tstate = trigger_state.write().await;
-            match guide_status {
-                // The run is moving the mount itself (slew, center, sync,
-                // flip): the guide star leaving the guide frame is what a move
-                // does, not a lost star.
-                _ if tstate.mount_motion_depth > 0 => {
-                    tstate.set_guide_star_lost(false);
-                }
-                Ok(status) => {
-                    if status.is_guiding {
-                        // A guider seen guiding does NOT arm the star-lost
-                        // trigger by itself: only guiding this run started
-                        // does (see `set_guiding_enabled`). A guider left
-                        // guiding by the previous run or by the operator armed
-                        // it here, and the first slew then "lost" that star.
-                        tstate.set_guide_star_lost(false);
-                        // The run went on unguided after the guide-star
-                        // recovery ran out; the guider is guiding again (the
-                        // operator restarted it, or it found a star), so the
-                        // steps that need it get it back, and this run's
-                        // guiding is armed again.
-                        if std::mem::take(&mut tstate.imaging_unguided) {
-                            tstate.set_guiding_enabled(true);
-                            tracing::info!(
-                                "[GUIDING] The guider is guiding again; dithers and guiding \
-                                 checks resume"
-                            );
-                        }
-                    } else if tstate.guiding_enabled {
-                        // Guiding was active and is now not -> star lost.
-                        tstate.set_guide_star_lost(true);
-                    } else {
-                        // Idle guider before any guiding has started: not lost.
-                        tstate.set_guide_star_lost(false);
-                    }
-                }
-                Err(_) => {
-                    // If we can't reach the guider, treat as lost when guiding expected
-                    if tstate.guiding_enabled {
-                        tstate.set_guide_star_lost(true);
-                    }
-                }
+            let poll = guide_status
+                .as_ref()
+                .map(|status| status.is_guiding)
+                .map_err(|_| ());
+            if tstate.guiding.observe_guider(poll) == GuiderObservation::GuidingAgain {
+                tracing::info!(
+                    "[GUIDING] The guider is guiding again; dithers and guiding checks resume"
+                );
             }
         }
 

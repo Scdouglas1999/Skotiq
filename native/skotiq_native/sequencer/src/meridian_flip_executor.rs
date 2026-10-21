@@ -222,7 +222,7 @@ impl MeridianFlipExecutor {
         // commands nothing.
         let motion = if ctx.simulate {
             if let Some(state) = &ctx.trigger_state {
-                state.write().await.mount_motion_depth += 1;
+                let _ = state.write().await.guiding.begin_motion();
             }
             None
         } else {
@@ -240,8 +240,7 @@ impl MeridianFlipExecutor {
             Some(motion) => motion.end().await,
             None => {
                 if let Some(state) = &ctx.trigger_state {
-                    let mut state = state.write().await;
-                    state.mount_motion_depth = state.mount_motion_depth.saturating_sub(1);
+                    state.write().await.guiding.end_motion();
                 }
             }
         }
@@ -1421,13 +1420,13 @@ impl MeridianFlipExecutor {
             // again: the light frame after the flip has nothing to resume.
             if let Some(state) = &ctx.trigger_state {
                 let mut state = state.write().await;
-                if std::mem::take(&mut state.guiding_resume_pending) {
+                if state.guiding.take_resume_pending() {
                     state.set_guiding_enabled(true);
                 }
             }
         }
         let imaging_unguided = match &ctx.trigger_state {
-            Some(state) => state.read().await.imaging_unguided,
+            Some(state) => state.read().await.guiding.is_unguided(),
             None => false,
         };
         match resumed {
@@ -3769,9 +3768,9 @@ mod tests {
         );
 
         let trigger_state = trigger_state.read().await;
-        assert!(trigger_state.guiding_enabled);
-        assert!(!trigger_state.guiding_resume_pending);
-        assert_eq!(trigger_state.mount_motion_depth, 0);
+        assert!(trigger_state.guiding.is_enabled());
+        assert!(!trigger_state.guiding.resume_pending());
+        assert_eq!(trigger_state.guiding.motion_depth(), 0);
     }
 
     /// The post-flip guider settle params are plumbed onto MeridianFlipConfig
@@ -4107,7 +4106,7 @@ mod tests {
             let mut executor =
                 MeridianFlipExecutor::new(config, ops).with_executor_event_tx(event_tx);
             let mut trigger_state = TriggerState::new();
-            trigger_state.imaging_unguided = imaging_unguided;
+            trigger_state.guiding.set_unguided(imaging_unguided);
             let ctx = FlipContext {
                 trigger_state: Some(Arc::new(RwLock::new(trigger_state))),
                 ..make_ctx(&state)

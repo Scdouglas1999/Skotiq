@@ -122,22 +122,18 @@ impl MountMotion {
         trigger_state: Option<Arc<tokio::sync::RwLock<crate::triggers::TriggerState>>>,
         what: &str,
     ) -> Self {
-        let (outermost, run_was_guiding) = match &trigger_state {
-            Some(state) => {
-                let mut state = state.write().await;
-                state.mount_motion_depth += 1;
-                (state.mount_motion_depth == 1, state.guiding_enabled)
-            }
-            None => (true, false),
+        let start = match &trigger_state {
+            Some(state) => state.write().await.guiding.begin_motion(),
+            None => crate::triggers::MotionStart {
+                outermost: true,
+                run_was_guiding: false,
+            },
         };
-        if outermost {
+        if start.outermost {
             stop_an_active_guider(device_ops, what).await;
-            if run_was_guiding {
+            if start.run_was_guiding {
                 if let Some(state) = &trigger_state {
-                    let mut state = state.write().await;
-                    state.set_guiding_enabled(false);
-                    state.set_guide_star_lost(false);
-                    state.guiding_resume_pending = true;
+                    state.write().await.guiding.guiding_stopped_by_motion();
                 }
             }
         }
@@ -146,8 +142,7 @@ impl MountMotion {
 
     pub(crate) async fn end(mut self) {
         if let Some(trigger_state) = self.trigger_state.take() {
-            let mut state = trigger_state.write().await;
-            state.mount_motion_depth = state.mount_motion_depth.saturating_sub(1);
+            trigger_state.write().await.guiding.end_motion();
         }
     }
 }
@@ -187,8 +182,7 @@ impl Drop for MountMotion {
         };
         if let Ok(handle) = tokio::runtime::Handle::try_current() {
             let _end = handle.spawn(async move {
-                let mut state = trigger_state.write().await;
-                state.mount_motion_depth = state.mount_motion_depth.saturating_sub(1);
+                trigger_state.write().await.guiding.end_motion();
             });
         }
     }
@@ -207,7 +201,7 @@ pub(crate) async fn resume_guiding_after_motion(
     ctx: &InstructionContext,
 ) -> Option<InstructionResult> {
     let trigger_state = ctx.trigger_state.as_ref()?;
-    if !std::mem::take(&mut trigger_state.write().await.guiding_resume_pending) {
+    if !trigger_state.write().await.guiding.take_resume_pending() {
         return None;
     }
     let defaults = StartGuidingConfig::default();
@@ -247,7 +241,7 @@ pub(crate) async fn resume_guiding_after_motion(
     if ctx.stops_on_quality_problems().await {
         return Some(InstructionResult::failure(problem));
     }
-    trigger_state.write().await.imaging_unguided = true;
+    trigger_state.write().await.guiding.set_unguided(true);
     ctx.notify_quality_problem_continuing(
         "Resume guiding",
         &format!("{problem}. Imaging continues unguided."),
@@ -276,7 +270,11 @@ pub async fn execute_start_guiding(
     // This node starts guiding itself; the next light frame has nothing to
     // resume.
     if let Some(trigger_state) = &ctx.trigger_state {
-        trigger_state.write().await.guiding_resume_pending = false;
+        trigger_state
+            .write()
+            .await
+            .guiding
+            .set_resume_pending(false);
     }
     let result = start_guiding(config, ctx, progress_callback).await;
     // No guide star in the frame is the sky's judgment (cloud, a sparse
@@ -287,7 +285,7 @@ pub async fn execute_start_guiding(
         && !ctx.stops_on_quality_problems().await;
     if no_star_continues {
         if let Some(trigger_state) = &ctx.trigger_state {
-            trigger_state.write().await.imaging_unguided = true;
+            trigger_state.write().await.guiding.set_unguided(true);
         }
     } else if !ctx.imaging_unguided().await {
         return result;
@@ -296,7 +294,7 @@ pub async fn execute_start_guiding(
         NodeStatus::Success => {
             // Guiding is back: the steps that need it get it again.
             if let Some(trigger_state) = &ctx.trigger_state {
-                trigger_state.write().await.imaging_unguided = false;
+                trigger_state.write().await.guiding.set_unguided(false);
             }
             result
         }
@@ -655,7 +653,7 @@ pub async fn execute_stop_guiding(
                 let mut tstate = trigger_state_lock.write().await;
                 tstate.set_guiding_enabled(false);
                 tstate.set_guide_star_lost(false);
-                tstate.guiding_resume_pending = false;
+                tstate.guiding.set_resume_pending(false);
             }
             if let Some(cb) = progress_callback {
                 cb(100.0, "Guiding stopped".to_string());

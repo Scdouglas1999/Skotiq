@@ -2507,7 +2507,14 @@ async fn zero_camera_retries_fails_the_run_on_the_first_failed_download() {
 
 async fn set_mount_motion_depth(executor: &super::SequenceExecutor, depth: u32) {
     let manager = executor.trigger_manager.read().await;
-    manager.state().write().await.mount_motion_depth = depth;
+    let state = manager.state();
+    let mut state = state.write().await;
+    while state.guiding.motion_depth() < depth {
+        let _ = state.guiding.begin_motion();
+    }
+    while state.guiding.motion_depth() > depth {
+        state.guiding.end_motion();
+    }
 }
 
 /// Wait up to `within` for the guide-star-lost trigger.

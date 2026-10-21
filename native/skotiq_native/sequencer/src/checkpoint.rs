@@ -142,8 +142,8 @@ impl TriggerStateSnapshot {
             has_flipped_this_target: state.meridian.has_flipped(),
             current_target_name: state.current_target_name.clone(),
             next_meridian_flip_time: state.next_meridian_flip_time,
-            guiding_enabled: state.guiding_enabled,
-            guide_star_lost: state.guide_star_lost,
+            guiding_enabled: state.guiding.is_enabled(),
+            guide_star_lost: state.guiding.star_lost(),
             current_humidity: state.current_humidity,
             current_altitude: state.current_altitude,
             weather_safe: state.weather_safe,
@@ -193,8 +193,9 @@ impl TriggerStateSnapshot {
         state.meridian.restore_flipped(self.has_flipped_this_target);
         state.current_target_name = self.current_target_name.clone();
         state.next_meridian_flip_time = self.next_meridian_flip_time;
-        state.guiding_enabled = self.guiding_enabled;
-        state.guide_star_lost = self.guide_star_lost;
+        state
+            .guiding
+            .restore(self.guiding_enabled, self.guide_star_lost);
         state.current_humidity = self.current_humidity;
         state.current_altitude = self.current_altitude;
         state.weather_safe = self.weather_safe;
@@ -1104,8 +1105,7 @@ mod tests {
         original.mount_tracking_limit_time = Some(1_700_000_000);
         original.meridian.mark_performed(None);
         original.current_target_name = Some("M31".into());
-        original.guiding_enabled = true;
-        original.guide_star_lost = false;
+        original.guiding.restore(true, false);
         original.current_humidity = Some(63.0);
         original.current_altitude = Some(58.4);
         original.weather_safe = true;
@@ -1169,8 +1169,8 @@ mod tests {
             original.meridian.has_flipped()
         );
         assert_eq!(restored.current_target_name, original.current_target_name);
-        assert_eq!(restored.guiding_enabled, original.guiding_enabled);
-        assert_eq!(restored.guide_star_lost, original.guide_star_lost);
+        assert_eq!(restored.guiding.is_enabled(), original.guiding.is_enabled());
+        assert_eq!(restored.guiding.star_lost(), original.guiding.star_lost());
         assert_eq!(restored.current_humidity, original.current_humidity);
         assert_eq!(restored.current_altitude, original.current_altitude);
         assert_eq!(restored.weather_safe, original.weather_safe);

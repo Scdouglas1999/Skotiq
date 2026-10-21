@@ -2085,7 +2085,7 @@ async fn guider_flags(executor: &SequenceExecutor) -> (bool, bool) {
     let manager = executor.trigger_manager.read().await;
     let state = manager.state();
     let guard = state.read().await;
-    (guard.guiding_enabled, guard.guide_star_lost)
+    (guard.guiding.is_enabled(), guard.guiding.star_lost())
 }
 
 async fn guiding_rms_samples(executor: &SequenceExecutor) -> usize {
@@ -3356,7 +3356,7 @@ async fn while_imaging_unguided_guiding_rms_is_not_judged_and_guiding_coming_bac
     let state_lock = executor.trigger_manager.read().await.state();
     {
         let mut state = state_lock.write().await;
-        state.imaging_unguided = true;
+        state.guiding.set_unguided(true);
         state.guiding_rms_history = None;
     }
 
@@ -3372,7 +3372,7 @@ async fn while_imaging_unguided_guiding_rms_is_not_judged_and_guiding_coming_bac
     })
     .await;
     assert!(fired.is_empty(), "{fired:?}");
-    assert!(state_lock.read().await.imaging_unguided);
+    assert!(state_lock.read().await.guiding.is_unguided());
 
     // The operator restarts guiding.
     ops.guiding.store(true, std::sync::atomic::Ordering::SeqCst);
@@ -3380,7 +3380,7 @@ async fn while_imaging_unguided_guiding_rms_is_not_judged_and_guiding_coming_bac
         loop {
             {
                 let state = state_lock.read().await;
-                if !state.imaging_unguided && state.guiding_enabled {
+                if !state.guiding.is_unguided() && state.guiding.is_enabled() {
                     return;
                 }
             }
@@ -3401,7 +3401,7 @@ async fn a_guiding_rms_exposure_trigger_does_not_act_while_imaging_unguided() {
     {
         let mut state = context.trigger_state.as_ref().unwrap().write().await;
         state.update_guiding_rms(9.0);
-        state.imaging_unguided = true;
+        state.guiding.set_unguided(true);
     }
     let config = crate::ExposureConfig {
         triggers: vec![crate::ExposureTrigger {

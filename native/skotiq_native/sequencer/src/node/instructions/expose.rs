@@ -875,7 +875,7 @@ pub(crate) async fn check_exposure_triggers(
         trigger_state
             .guiding_rms_history
             .as_ref()
-            .filter(|_| !trigger_state.imaging_unguided)
+            .filter(|_| !trigger_state.guiding.is_unguided())
             .and_then(|history| history.last())
             .map(|(_, rms)| *rms)
         // Read lock released before the trigger loop — DriftAbove re-acquires

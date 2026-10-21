@@ -485,7 +485,7 @@ async fn a_burst_while_imaging_unguided_skips_its_dithers() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_dither_failing("Not guiding"));
     let ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
     if let Some(state) = &ctx.trigger_state {
-        state.write().await.imaging_unguided = true;
+        state.write().await.guiding.set_unguided(true);
     }
     let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
     let ctx = InstructionContext {

@@ -191,27 +191,9 @@ pub struct TriggerState {
 
     // Guiding
     pub guiding_rms_history: Option<Vec<(Instant, f64)>>,
-    pub guiding_enabled: bool,
-    /// Whether the guide star has been lost (guider reports no star / lost lock)
-    pub guide_star_lost: bool,
-    /// The guide-star recovery ran out without getting a star back and the
-    /// run carries on unguided (owner decision 2026-10-06: a lost guide star
-    /// is not a reason to end the night unless the operator turned on "Stop
-    /// the run for quality problems"). While set, dithers are skipped, a guider
-    /// that cannot start does not fail the step that asked for it, and the
-    /// guiding RMS is not judged. Cleared when the guider is seen guiding
-    /// again.
-    pub imaging_unguided: bool,
-    /// How many mount moves the run itself is making (slew, center, sync,
-    /// flip). While non-zero the guide star leaving the guide frame is what a
-    /// move does, so the guiding triggers neither see a lost star nor take RMS
-    /// samples, and the recovery leaves tracking alone. A count, because a
-    /// Center slews inside its own move.
-    pub mount_motion_depth: u32,
-    /// A move stopped the guiding this run had started. The next light frame
-    /// starts it again on a fresh star first; a StartGuiding or StopGuiding
-    /// before then settles it instead.
-    pub guiding_resume_pending: bool,
+    /// This run's guiding and the moves that interrupt it. See
+    /// [`super::GuidingState`].
+    pub guiding: super::GuidingState,
     /// Filter focus offset (steps) currently embodied in the focuser position,
     /// relative to the reference filter. Filter offsets are reference-relative
     /// deltas; a filter change moves the focuser by
@@ -410,11 +392,7 @@ impl Default for TriggerState {
             consecutive_dither_failures: 0,
             dither_cadence_owners: 0,
             guiding_rms_history: None,
-            guiding_enabled: false,
-            guide_star_lost: false,
-            imaging_unguided: false,
-            mount_motion_depth: 0,
-            guiding_resume_pending: false,
+            guiding: super::GuidingState::default(),
             last_applied_filter_offset: 0,
             // 300s preserves the previous hardcoded retention so
             // un-configured triggers behave exactly as before.
@@ -477,7 +455,6 @@ impl TriggerState {
     pub fn new() -> Self {
         Self {
             weather_safe: false,
-            guiding_enabled: false,
             ..Default::default()
         }
     }
@@ -648,15 +625,10 @@ impl TriggerState {
         self.last_dither_frame = 0;
         self.consecutive_dither_failures = 0;
         self.dither_cadence_owners = 0;
-        self.imaging_unguided = false;
         // The guide-star latch and RMS history describe guiding the previous
-        // run started. Carried over, run 2 on the rig (2026-10-07) fired Guide
-        // Star Lost 1.6 s after Start on a PHD2 that was only looping, and the
-        // recovery stopped mount tracking mid-slew.
-        self.guide_star_lost = false;
+        // run started; carried over, they fire Guide Star Lost on a guider the
+        // new run never started.
         self.guiding_rms_history = None;
-        self.mount_motion_depth = 0;
-        self.guiding_resume_pending = false;
         // The temperature the Temperature Shift trigger and the temperature
         // compensation measure from is taken again by this run, resumed or
         // not. Carried over, a load-and-start on the rig (2026-10-20) fired a
@@ -667,11 +639,13 @@ impl TriggerState {
         self.current_temperature = None;
         self.baseline_focuser_position = None;
         self.run.reset_for_new_run();
-        if std::mem::take(&mut self.restored_from_checkpoint) {
-            // A resumed run carries on the guiding its checkpoint recorded.
+        // A resumed run carries on the guiding and target its checkpoint
+        // recorded.
+        let resumed = std::mem::take(&mut self.restored_from_checkpoint);
+        self.guiding.reset_for_new_run(resumed);
+        if resumed {
             return;
         }
-        self.guiding_enabled = false;
         self.clear_target_state();
     }
 
@@ -782,29 +756,13 @@ impl TriggerState {
 
     /// Update guide star lost state
     pub fn set_guide_star_lost(&mut self, lost: bool) {
-        if lost && !self.guide_star_lost {
-            tracing::warn!("Guide star lost detected");
-        }
-        self.guide_star_lost = lost;
+        self.guiding.set_star_lost(lost);
     }
 
-    /// Arm or disarm the `GuideStarLost` trigger.
-    ///
-    /// `guiding_enabled` gates `GuideStarLost` (see `check`) so the trigger
-    /// cannot fire while the guider is idle between sequences. It MUST be set
-    /// `true` once guiding is active, otherwise the star-lost safety net is
-    /// dead and the sequence silently keeps exposing unguided after a star
-    /// loss. It is set `true` only when this run starts or resumes guiding
-    /// (StartGuiding, the guide-star recovery, the post-autofocus and
-    /// post-flip resumes, a restored checkpoint); a guider that was already
-    /// guiding for someone else when the run started does not arm it. It is
-    /// cleared on an explicit stop so an intentional stop does not masquerade
-    /// as a lost star, and at the start of every run.
+    /// Arm or disarm the `GuideStarLost` trigger; see
+    /// [`super::GuidingState::set_enabled`].
     pub fn set_guiding_enabled(&mut self, enabled: bool) {
-        if self.guiding_enabled != enabled {
-            tracing::debug!("Guiding-enabled (star-lost trigger arm) -> {}", enabled);
-        }
-        self.guiding_enabled = enabled;
+        self.guiding.set_enabled(enabled);
     }
 
     /// Record the filter focus offset (steps, reference-relative) now embodied

@@ -209,7 +209,7 @@ pub(crate) async fn pick_up_guiding_after_hold(
     ctx: &InstructionContext,
 ) -> Option<InstructionResult> {
     let trigger_state = ctx.trigger_state.as_ref()?;
-    if !trigger_state.read().await.guiding_resume_pending {
+    if !trigger_state.read().await.guiding.resume_pending() {
         return None;
     }
     let guiding_now = ctx
@@ -219,7 +219,7 @@ pub(crate) async fn pick_up_guiding_after_hold(
         .is_ok_and(|status| status.is_guiding);
     if guiding_now {
         let mut state = trigger_state.write().await;
-        state.guiding_resume_pending = false;
+        state.guiding.set_resume_pending(false);
         state.set_guiding_enabled(true);
         return None;
     }

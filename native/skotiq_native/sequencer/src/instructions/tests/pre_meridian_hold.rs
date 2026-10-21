@@ -102,9 +102,9 @@ fn spawn_monitor(
                 }
                 s.mount_is_tracking = Some(tracking);
                 // The monitor's guide-star poll.
-                if s.mount_motion_depth > 0 || guiding {
+                if s.guiding.motion_depth() > 0 || guiding {
                     s.set_guide_star_lost(false);
-                } else if s.guiding_enabled {
+                } else if s.guiding.is_enabled() {
                     s.set_guide_star_lost(true);
                 }
                 s.run.is_held_by_run()
@@ -199,9 +199,9 @@ async fn a_frame_ending_inside_the_window_holds_with_tracking_off_until_the_flip
 
     let state = trigger_state.read().await;
     assert!(!state.run.is_held_by_run());
-    assert_eq!(state.mount_motion_depth, 0, "the hold's move ended");
+    assert_eq!(state.guiding.motion_depth(), 0, "the hold's move ended");
     assert!(
-        state.guiding_enabled && ops.guiding.load(Ordering::SeqCst),
+        state.guiding.is_enabled() && ops.guiding.load(Ordering::SeqCst),
         "guiding the run had started is running and armed again"
     );
     drop(state);
@@ -324,7 +324,7 @@ async fn a_run_cancelled_during_the_hold_ends_it_cleanly() {
     assert_eq!(*ops.tracking_commands.lock().unwrap(), vec![false]);
     let state = trigger_state.read().await;
     assert!(!state.run.is_held_by_run());
-    assert_eq!(state.mount_motion_depth, 0);
+    assert_eq!(state.guiding.motion_depth(), 0);
     drop(state);
     assert!(messages
         .lock()
