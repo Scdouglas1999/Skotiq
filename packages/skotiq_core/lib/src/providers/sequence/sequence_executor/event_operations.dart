@@ -1,593 +1,391 @@
 part of '../sequence_executor.dart';
 
 extension _SequenceExecutorEventOperations on SequenceExecutor {
-  void _handleSequencerEvent(SkotiqEvent event) {
-    // Unconditional, this line runs once per backend event: at ~5 events/s it
-    // fills LoggingService's whole 1000-entry ring in about three minutes and
-    // Settings ▸ Advanced ▸ Logs shows nothing else. Rate-limited PER EVENT
-    // TYPE so a chatty type (InstructionProgress) collapses while a rare one
-    // (Stopped, Error) is still traced the moment it arrives, and the
-    // suppressed count rides along on the next admitted line.
+  void _handleSequencerEvent(SkotiqEvent raw) {
+    // Rate-limited per event type, so a chatty type collapses while a rare one
+    // is still traced the moment it arrives.
     final trace = _eventTraceLimiter.admit(
-      '${event.category.name}/${event.eventType}',
-      'Received event: type=${event.eventType}, category=${event.category}',
+      '${raw.category.name}/${raw.eventType}',
+      'Received event: type=${raw.eventType}, category=${raw.category}',
     );
     if (trace != null) {
       _logger.debug(trace, source: 'SequenceExecutor');
     }
 
-    // A dither the run performed. The executor reports each one once,
-    // whoever asked for it: a Dither node, a Smart Exposure plan, a burst's
-    // dither-every, or the Dither Interval trigger. It is the ONE site that
-    // may call `SequenceRunStats.recordDither()`. The guider's own
-    // `DitherCompleted` is not counted: only the built-in guider sends it,
-    // so a PHD2 run counted no dithers at all (rig, 2026-10-20), and counted
-    // as well it would double every dither on the built-in guider. It is a
-    // count, not node progress, so nothing below sees it.
-    if (isRunDitherEvent(event)) {
+    final event = SequencerRunEvent.fromSkotiqEvent(raw);
+    if (event == null) return;
+
+    // The one place a dither is counted: native reports each dither once,
+    // whoever asked for it. It is a count, not node progress.
+    if (event is DitherPerformed) {
       _incrementRunStat((stats) => stats.recordDither());
       return;
     }
 
-    // Only process sequencer events for progress tracking
-    if (event.category != EventCategory.sequencer) return;
-
-    final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
-
-    // The frames a node captured live in their own slot, which no other
-    // instruction reporting against the same node can overwrite — see
-    // [applySequencerEventToNodeExposureTally]. The display strings below are
-    // still written, but the card counts with the tally, not with them.
-    applySequencerEventToNodeExposureTally(
+    applyRunEventToNodeExposureTally(
       _ref.read(nodeExposureTallyProvider.notifier),
       event,
     );
+    // Authorship rows precede the cause-neutral cancel notice, so they are
+    // folded as they arrive.
+    recordRunEventStopEvidence(_ref.read, event);
 
-    // WHO is ending this run, kept as it arrives. The cancel notice this
-    // handler reclassifies below names no author, and the rows that do — the
-    // operator's manual-intervention decision, the autopilot's, a subsystem's,
-    // the trigger monitor's ParkAndAbort — all precede it.
-    recordSequenceStopEvidence(_ref.read, event);
-
-    switch (event.eventType) {
-      case 'NodeStarted':
-        final nodeId =
-            event.data['node_id'] as String? ?? event.data['nodeId'] as String?;
-        final nodeName =
-            event.data['node_type'] as String? ??
-            event.data['nodeName'] as String?;
-        if (nodeId != null) {
-          progressNotifier.updateProgress(
-            currentNodeId: nodeId,
-            currentNodeName: nodeName,
-            currentNodeStatus: NodeStatus.running,
-          );
-          progressNotifier.updateNodeStatus(nodeId, NodeStatus.running);
-        }
-        // Frame indices restart at 1 for every node, so a verdict the previous
-        // node never had an `ExposureCompleted` for (an aborted burst) must not
-        // survive into this one's frame 1.
-        _gradedFrames.clear();
-        break;
-
-      case 'NodeCompleted':
-        final nodeId =
-            event.data['node_id'] as String? ?? event.data['nodeId'] as String?;
-        final statusStr = event.data['status'] as String? ?? 'failed';
-        final nodeStatus = switch (statusStr) {
-          'success' => NodeStatus.success,
-          'skipped' => NodeStatus.skipped,
-          'cancelled' => NodeStatus.skipped,
-          _ => NodeStatus.failure,
-        };
-        if (nodeId != null) {
-          progressNotifier.updateNodeStatus(nodeId, nodeStatus);
-          // Count the autofocus that actually ran.
-          //
-          // `SequenceRunStats.recordAutofocus()` had ZERO production call
-          // sites: the counter was declared, serialised into
-          // `sequence_runs.stats_json`, mirrored onto
-          // `imaging_sessions.autofocus_count` and rendered by the Session
-          // Report's Mount & focus block — and nothing anywhere incremented
-          // it. Verified on a live run: the Autofocus node swept 9 points,
-          // logged "completed with status: Success" and moved the focuser
-          // 25000 -> 25070, and the run still persisted `"autofocusRuns":0`.
-          //
-          // Read BEFORE the status write above would have been equivalent —
-          // `updateNodeStatus` does not touch the structured-detail map — but
-          // the evidence itself is what matters: the node's own last
-          // structured progress payload. `ProgressDetail::Autofocus` is
-          // emitted by the autofocus instruction and by nothing else, so it
-          // identifies the sweep by what the node DID, keyed on node id. The
-          // node's display name is not usable here: it is operator-editable
-          // and the same string reaches us for a renamed Wait node.
-          if (nodeStatus == NodeStatus.success && _nodeRanAutofocus(nodeId)) {
-            _incrementRunStat((stats) => stats.recordAutofocus());
-            _noteAutofocusOutcomeForBacklashOffer();
-          }
-          // An unrecognised status string maps to failure (above), but a
-          // bare red node with no explanation trains users to ignore the
-          // tree. Carry the raw status as a diagnostic and log it so a new
-          // backend status that Dart hasn't learned yet is visible instead
-          // of silently swallowed.
-          if (statusStr != 'success' &&
-              statusStr != 'skipped' &&
-              statusStr != 'cancelled' &&
-              statusStr != 'failed' &&
-              statusStr != 'failure') {
-            _logger.warning(
-              'NodeCompleted with unknown status "$statusStr" for node '
-              '$nodeId; treating as failure.',
-              source: 'SequenceExecutor',
-            );
-            progressNotifier.updateNodeProgress(
-              nodeId,
-              0.0,
-              'Unknown node status: "$statusStr"',
-            );
-          }
-        }
-        break;
-
-      case 'ExposureStarted':
-        final frame = event.data['frame'] as int? ?? 0;
-        final total = event.data['total'] as int? ?? 0;
-        final filter = event.data['filter'] as String?;
-        // One vocabulary for the two wordings this node's progress line can
-        // take — see [exposure_progress_vocabulary.dart].
-        final exposureDetail = formatExposureStartedDetail(
-          frame,
-          total,
-          filter,
-        );
+    final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
+    switch (event) {
+      case NodeStarted():
+        _onNodeStarted(event, progressNotifier);
+      case NodeCompleted():
+        _onNodeCompleted(event, progressNotifier);
+      case ExposureStarted():
+        _onExposureStarted(event, progressNotifier);
+      case ExposureCompleted():
+        _onExposureCompleted(event, progressNotifier);
+      case ExposureCountProgress(:final current, :final total):
         progressNotifier.updateProgress(
-          message: 'Exposing $exposureDetail',
-          currentFilter: filter,
+          completedExposures: current ?? 0,
+          message: 'Progress: ${current ?? 0}/${total ?? 0} exposures',
         );
-        final exposureNodeId = _ref
-            .read(sequenceProgressProvider)
-            .currentNodeId;
-        if (exposureNodeId != null && total > 0) {
-          // frame-1 because exposure just started
-          final exposurePercent = (frame - 1) / total * 100.0;
-          progressNotifier.updateNodeProgress(
-            exposureNodeId,
-            exposurePercent,
-            exposureDetail,
-          );
-        }
-        break;
-
-      case 'ExposureCompleted':
-        final frame = event.data['frame'] as int? ?? 0;
-        final total = event.data['total'] as int? ?? 1;
-        final durationSecs =
-            (event.data['duration_secs'] as num?)?.toDouble() ?? 0.0;
-        // The grader emits before the completion, so an entry here means this
-        // frame is already counted (see [_gradedFrames]) and only its capture
-        // truth is still wanted, for the preview stamp below. A frame that
-        // reaches here with no entry was never graded — a run with no save path
-        // emits no grader event at all — and still completed, so it is counted
-        // here as accepted rather than dropped.
-        final graded = _gradedFrames.remove(frame);
-        if (graded == null) {
-          _recordRunFrame(
-            exposureSecs: durationSecs,
-            filter: event.data['filter'] as String?,
-            accepted: true,
-          );
-        }
-        // Feed the ETA smoother from the event's real exposure duration plus
-        // a fixed per-frame download overhead. This is robust to AF/flip
-        // gaps because it measures shutter-open time, not wall-clock between
-        // ticks (which would fold AF/dither/slew stalls into the per-frame
-        // estimate and yank the ETA around). Sub-second-capable double, so
-        // short subs are no longer floored to integer-second deltas.
-        if (durationSecs > 0) {
-          final defaults = _ref.read(sequencerDefaultsProvider);
-          _eta.recordFrame(durationSecs + defaults.frameDownloadOverheadSecs);
-        }
-        progressNotifier.updateProgress(completedExposures: frame);
-        // Idempotent, keyed on the ORIGINATING EVENT: this handler and the
-        // DeviceService-driven pump in `sequence_progress.dart` both see every
-        // ExposureCompleted, so whichever subscriber gets there first wins and
-        // the other is a no-op. An unkeyed read-modify-write counts each
-        // frame's shutter time twice.
-        progressNotifier.recordCompletedFrameIntegration(
-          eventKey: '${event.timestamp}:$frame',
-          durationSecs: durationSecs,
-        );
-        final completedNodeId = _ref
-            .read(sequenceProgressProvider)
-            .currentNodeId;
-        if (completedNodeId != null) {
-          final completedPercent = total > 0 ? (frame / total * 100.0) : 100.0;
-          progressNotifier.updateNodeProgress(
-            completedNodeId,
-            completedPercent,
-            formatExposureCompletedDetail(frame, total),
-          );
-        }
-
-        // A graded frame was put on screen when its verdict arrived.
-        if (graded == null) {
-          _fetchAndDisplaySequenceImage(
-            _previewSettingsForFrame(null, durationSecs),
-          );
-        }
-        break;
-
-      case 'Progress':
-        final current = event.data['current'] as int? ?? 0;
-        final total = event.data['total'] as int? ?? 0;
+      case TargetChanged(:final targetName, :final ra, :final dec):
         progressNotifier.updateProgress(
-          completedExposures: current,
-          message: 'Progress: $current/$total exposures',
+          currentTarget: targetName,
+          message: targetName != null ? 'Started target: $targetName' : null,
         );
-        break;
-
-      case 'TargetStarted':
-      case 'TargetChanged':
-        final name =
-            event.data['target_name'] as String? ??
-            event.data['name'] as String?;
-        final ra = (event.data['ra'] as num?)?.toDouble();
-        final dec = (event.data['dec'] as num?)?.toDouble();
-        progressNotifier.updateProgress(
-          currentTarget: name,
-          message: name != null ? 'Started target: $name' : null,
-        );
-        if (name != null && ra != null && dec != null) {
+        if (targetName != null && ra != null && dec != null) {
           _logger.debug(
-            'Target changed: $name (RA=${ra.toStringAsFixed(4)}h, Dec=${dec.toStringAsFixed(4)}°)',
+            'Target changed: $targetName (RA=${ra.toStringAsFixed(4)}h, '
+            'Dec=${dec.toStringAsFixed(4)}°)',
             source: 'SequenceExecutor',
           );
-          final sessionNotifier = _ref.read(sessionStateProvider.notifier);
-          sessionNotifier.updateTargetCoordinates(ra: ra, dec: dec);
+          _ref
+              .read(sessionStateProvider.notifier)
+              .updateTargetCoordinates(ra: ra, dec: dec);
         }
-        break;
-
-      case 'TargetCompleted':
-        final name =
-            event.data['target_name'] as String? ??
-            event.data['name'] as String?;
+      case TargetCompleted(:final targetName):
         progressNotifier.updateProgress(
-          message: 'Completed target: ${name ?? 'unknown'}',
+          message: 'Completed target: ${targetName ?? 'unknown'}',
         );
-        break;
-
-      case 'Error':
-        final message = event.data['message'] as String? ?? 'Unknown error';
-        // An ADVISORY, not a fault. The executor has one payload for both and
-        // separates them by severity (`ExecutorEvent::Warning` ->
-        // `EventSeverity.warning` in `api/sequencer/event_bridge.rs`), so the
-        // severity is what decides here. Treated as an error, the preflight
-        // notice "the meridian-flip trigger is set to re-centre … but no plate
-        // solver was found" painted the running node red, pushed a healthy run
-        // into `recovering`, and put itself in the run's errorMessages — which
-        // is how a darks run that finished Completed 3/3 showed a red Errors
-        // section in its Session Report.
-        if (event.severity == EventSeverity.warning) {
-          _surfaceRunWarning(message);
-          progressNotifier.updateProgress(message: message);
-          break;
-        }
-        // Older native executors acknowledged an accepted SkipToNode command
-        // through the generic Error event. It is an informational success: the
-        // current instruction finishes, then preceding nodes are reported as
-        // skipped. Do not poison run stats, paint the current node red, or move
-        // Running -> Recovering for this compatibility event.
-        if (message.startsWith('SkipToNode request accepted:')) {
-          progressNotifier.updateProgress(message: message);
-          break;
-        }
-        // PRODUCER 2 of the stop pipeline (the Sequencer target rollup, which
-        // rendered a red "Error: Sequence cancelled", the red node badge, and
-        // the run's persisted error list — the Session Report then had to
-        // filter that entry back out).
-        //
-        // A cancelled run ends with `Error { message: "Sequence cancelled" }`
-        // from the native executor. It is a lifecycle notice, not a fault: it
-        // must not poison run stats, paint a node red, or push a stopping run
-        // into `recovering` as if something were being salvaged.
-        if (isSequenceCancelledNotice(message)) {
-          // The cause comes from the run's authorship rows, not from the
-          // notice — every cancellation path emits the same notice, so
-          // reading it as the operator's Stop invents a human for a
-          // trigger-driven park nobody was present for.
-          final stopped = sequenceStoppedMessage(
-            _ref.read(sequenceStopEvidenceProvider),
-          );
-          _logger.info(
-            '[$kStopClassificationLogTag] sequence_executor: cancellation '
-            'notice treated as a stop, not an error ($stopped)',
-            source: 'SequenceExecutor',
-          );
-          progressNotifier.updateProgress(message: stopped);
-          break;
-        }
-        _recordRunError(message);
-        progressNotifier.updateProgress(message: 'Error: $message');
-        final errorNodeId = _ref.read(sequenceProgressProvider).currentNodeId;
-        if (errorNodeId != null) {
-          progressNotifier.updateNodeProgress(
-            errorNodeId,
-            0.0,
-            'Error: $message',
-          );
-        }
-        // A mid-run Error is NOT necessarily terminal — a RecoveryNode or
-        // the backend's own retry logic may still salvage the run, and the
-        // authoritative terminal verdict arrives later as SequenceFailed /
-        // SequenceCompleted. But leaving the state at `running` makes the UI
-        // claim a healthy run while an error is being worked through. Escalate
-        // to `recovering` only when we're currently `running` so the
-        // dashboard surfaces the needs-attention state; the subsequent
-        // terminal event flips it to failed/completed. We never downgrade
-        // paused/stopping/terminal states here.
-        if (_ref.read(sequenceExecutionStateProvider) ==
-            SequenceExecutionState.running) {
-          progressNotifier.updateState(SequenceExecutionState.recovering);
-          _ref.read(sequenceExecutionStateProvider.notifier).state =
-              SequenceExecutionState.recovering;
-        }
-        break;
-
-      case 'InstructionProgressStructured':
-        final nodeId = event.data['node_id'] as String?;
-        final instruction = event.data['instruction'] as String? ?? '';
-        final progressPercent =
-            (event.data['progress_percent'] as num?)?.toDouble() ?? 0.0;
-        final detailKind = event.data['detail_kind'] as String? ?? 'Unknown';
-        final detailJson = decodeStructuredProgressJson(
-          event.data['detail_json'],
-        );
-        final detail = InstructionProgressDetail.fromStructuredData(
-          detailKind: detailKind,
-          detailJson: detailJson,
-        );
-
-        // A Change Filter node is the ONLY place the running filter is named
-        // on the wire. `SequencerEvent.ExposureStarted.filter` carries the
-        // filter configured on the exposure node itself, which is null
-        // whenever the operator selects the filter with a separate Change
-        // Filter instruction — the normal way to author an LRGB/SHO plan. So
-        // `currentFilter` stayed null for the whole run, and everything
-        // downstream inherited the blank: the Run Dashboard's filter field,
-        // and `captured_images.filter`, which `_registerSequenceFrame` reads
-        // from here.
-        //
-        // Verified on the live rig: a run whose frames were written as
-        // `untargeted_Filter 2_0001.fits` with `FILTER = 'Filter 2'` in the
-        // FITS header produced `captured_images.filter = ''` and a run-watch
-        // snapshot of `"currentFilter": null`. The app's own database
-        // contradicted the file it had just written.
-        if (detailKind == 'Filter' && detailJson is Map) {
-          final filterName = detailJson['name'];
-          if (filterName is String && filterName.isNotEmpty) {
-            progressNotifier.updateProgress(currentFilter: filterName);
-          }
-        }
-
-        final targetNodeId =
-            nodeId ?? _ref.read(sequenceProgressProvider).currentNodeId;
-        if (targetNodeId != null) {
-          progressNotifier.updateNodeStructuredProgress(
-            targetNodeId,
-            progressPercent,
-            detail,
-          );
-          progressNotifier.updateProgress(message: '$instruction: $detailKind');
-        }
-        break;
-
-      case 'InstructionProgress':
-        final nodeId = event.data['node_id'] as String?;
-        final instruction = event.data['instruction'] as String? ?? '';
-        final progressPercent =
-            (event.data['progress_percent'] as num?)?.toDouble() ?? 0.0;
-        final detail = event.data['detail'] as String? ?? '';
-
-        _logger.debug(
-          'InstructionProgress: nodeId=$nodeId, instruction=$instruction, progress=$progressPercent%, detail=$detail',
-          source: 'SequenceExecutor',
-        );
-
-        // Use node_id from event, fallback to currentNodeId for backwards compatibility
-        final targetNodeId =
-            nodeId ?? _ref.read(sequenceProgressProvider).currentNodeId;
-        _logger.debug(
-          'Updating node progress for: $targetNodeId',
-          source: 'SequenceExecutor',
-        );
-        if (targetNodeId != null) {
-          progressNotifier.updateNodeProgress(
-            targetNodeId,
-            progressPercent,
-            detail,
-          );
-          progressNotifier.updateProgress(message: '$instruction: $detail');
-        }
-        break;
-
-      case 'MeridianFlipOutcome':
+      case SequencerError():
+        _onSequencerError(event, progressNotifier);
+      case StructuredInstructionProgress():
+        _onStructuredProgress(event, progressNotifier);
+      case InstructionProgress():
+        _onInstructionProgress(event, progressNotifier);
+      case MeridianFlipOutcome():
         _handleMeridianFlipOutcome(event);
-        break;
-
-      case 'TriggerFired':
-        final triggerId = event.data['trigger_id'] as String? ?? '';
-        final triggerName =
-            event.data['trigger_name'] as String? ?? 'Unknown trigger';
-        final action = event.data['action'] as String? ?? '';
-        _incrementRunStat((stats) => stats.recordTriggerFire());
-        // A target dropped by its own end_when is the one trigger fire that
-        // costs the operator a whole target, so it goes on the run record
-        // rather than only into the trigger feed — see
-        // [targetEndWhenSkipWarning]. `recordWarning` collapses an exact
-        // repeat of the previous entry, so a loop re-entering the same
-        // already-closed target does not fill the list with copies.
-        if (isTargetEndWhenSkip(triggerId)) {
-          final warning = targetEndWhenSkipWarning(triggerName);
-          _logger.warning(warning, source: 'SequenceExecutor');
-          _incrementRunStat((stats) => stats.recordWarning(warning));
-          progressNotifier.updateProgress(message: warning);
-          break;
-        }
-        _logger.info(
-          'Trigger fired: $triggerName -> $action',
-          source: 'SequenceExecutor',
-        );
-        progressNotifier.updateProgress(
-          message: 'Trigger "$triggerName" fired: $action',
-        );
-        break;
-
-      case 'Started':
-        // A new run answers for itself: the previous run's ParkAndAbort must
-        // not be read as the cause of this one's stop.
+      case TriggerFired():
+        _onTriggerFired(event, progressNotifier);
+      case RunStarted():
+        // A new run answers for itself: the previous run's stop cause must not
+        // be read as this one's.
         _ref.read(sequenceStopEvidenceProvider.notifier).state = null;
-        progressNotifier.updateState(SequenceExecutionState.running);
-        _ref.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.running;
-        break;
-
-      case 'Paused':
-        progressNotifier.updateState(SequenceExecutionState.paused);
-        _ref.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.paused;
-        break;
-
-      case 'Resumed':
-        progressNotifier.updateState(SequenceExecutionState.running);
-        _ref.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.running;
-        break;
-
-      case 'Completed':
-      case 'SequenceCompleted':
-        // Natural completion. Exactly-once teardown that ALSO ends the durable
-        // session as completed. A duplicate/aliased Completed is ignored by
-        // the guard in [_onTerminalEvent].
+        _setExecutionState(SequenceExecutionState.running);
+      case RunPaused():
+        _setExecutionState(SequenceExecutionState.paused);
+      case RunResumed():
+        _setExecutionState(SequenceExecutionState.running);
+      case RunCompleted():
         _onTerminalEvent(SequenceExecutionState.completed, 'completed');
-        break;
-
-      case 'SequenceFailed':
-        final error = event.data['error'] as String? ?? 'Unknown error';
-        _onTerminalEvent(SequenceExecutionState.failed, 'failed', error: error);
-        break;
-
-      case 'Stopped':
-      case 'SequenceStopped':
-        // A native Stopped echoed after an explicit stop() is suppressed by
-        // the terminal-cleanup guard (stop() claims teardown before issuing
-        // sequencerStop). A native-initiated stop with no operator stop drives
-        // the same exactly-once teardown here.
-        //
-        // A terminal this arm actually claims was therefore NOT commanded by
-        // this executor's stop(): it came from the native side — a trigger's
-        // ParkAndAbort, a watchdog, a safety abort. Filing it 'stopped'
-        // recorded it byte-identically with the operator's own press, which
-        // is what left three dawn-terminated runs claiming "you stopped it"
-        // in `sequence_runs.status` (L52). The durable 'aborted' status —
-        // "a safety rule or a trigger ended it", already rendered by every
-        // history surface — separates them. The one exception: the wire may
-        // still name the operator, which is how a remote/headless Stop lands
-        // here without a local stop() drive. Its decision row keeps it
-        // 'stopped'.
-        final stopEvidence = _ref.read(sequenceStopEvidenceProvider);
-        final operatorStopped =
-            stopEvidence?.author == SequenceStopAuthor.operatorPress;
+      case RunFailed(:final error):
         _onTerminalEvent(
-          SequenceExecutionState.idle,
-          operatorStopped ? 'stopped' : 'aborted',
-          warning: operatorStopped || stopEvidence == null
-              ? null
-              : sequenceStoppedMessage(stopEvidence),
+          SequenceExecutionState.failed,
+          'failed',
+          error: error ?? 'Unknown error',
         );
-        break;
-
-      case 'FrameAccepted':
-        _recordGradedFrame(event, accepted: true);
-        // The Rust grader now ships `save_path` for
-        // accepted frames as well (it already did for rejected
-        // frames). The thumbnail strip uses the on-disk path to load
-        // an inline preview the same way it does for rejected frames
-        // via `reject_path`.
-        _registerSequenceFrame(event: event, isAccepted: true, grade: 'pass');
-        // 2026-06-04 follow-up — auto-feed live stacking. When the
-        // running sequence contains an enabled LiveStackingNode, every
-        // accepted frame is fed into the live stacker + LAN broadcast
-        // (the first becomes the reference automatically). Manual mode
-        // still requires a hand-picked reference; this is the
-        // unattended-run path.
+      case RunStopped():
+        _onNativeStopped();
+      case FrameAccepted():
+        _recordGradedFrame(event);
+        _registerSequenceFrame(event, grade: 'pass');
         _maybeFeedLiveStacking(event);
-        break;
-
-      case 'FrameRejected':
-        _recordGradedFrame(event, accepted: false);
-        // The folder the rejects are piling up in is the first thing an
-        // operator opens when a run dies on a reject storm, and the run record
-        // is where he looks for it. Recorded from the grader's own
-        // `reject_path` so it names the directory the files are actually in.
-        final rejectPath = event.data['reject_path'] as String?;
+      case FrameRejected(:final rejectPath):
+        _recordGradedFrame(event);
+        // The folder rejects pile up in is what an operator opens after a
+        // reject storm, so the run record names the grader's own directory.
         final rejectFolder = rejectPath == null
             ? null
             : parentDirectoryOf(rejectPath);
         if (rejectFolder != null) {
           _incrementRunStat((stats) => stats.recordRejectFolder(rejectFolder));
         }
-        // Thumbnail — same as FrameAccepted, but with the
-        // reject_path the Rust grader already ships so the strip can
-        // surface a "REJECTED" tile that opens the actual file when
-        // tapped.
-        _registerSequenceFrame(
-          event: event,
-          isAccepted: false,
-          grade: 'reject',
-        );
-        break;
-
-      case 'PluginNodeRequested':
-        // The Rust executor reached a
-        // `NodeType::PluginNode` and is waiting for us to run the
-        // plugin and reply with the verdict. Route through the
-        // dispatcher provider (overridden by the app layer to plug in
-        // the real `PluginNodeExecutor`); the default stub fails
-        // loudly so an un-wired environment surfaces immediately
-        // instead of hanging until Rust's 10-minute timeout.
+        _registerSequenceFrame(event, grade: 'reject');
+      case PluginNodeRequested():
         _dispatchPluginNode(event);
-        break;
-
-      case 'PluginNodeProgress':
-        // Informational; plugin-authored intermediate
-        // progress payload. The run dashboard's plugin-node panel
-        // listens via its own provider; the sequence executor just
-        // logs it so the timeline has the breadcrumb.
-        final pluginId = event.data['plugin_id'] as String? ?? '';
-        final nodeTypeId = event.data['node_type_id'] as String? ?? '';
-        final detailJson = event.data['detail_json'] as String? ?? '';
+      case PluginNodeProgress(:final pluginId, :final nodeTypeId):
         _logger.debug(
-          'PluginNodeProgress: $pluginId/$nodeTypeId $detailJson',
+          'PluginNodeProgress: ${pluginId ?? ''}/${nodeTypeId ?? ''} '
+          '${event.detailJson ?? ''}',
           source: 'SequenceExecutor',
         );
-        break;
-
-      case 'DepthGoalCompleted':
-        // A Smart Exposure plan that stopped on its depth goal rather than on
-        // its frame count. Recorded as a durable decision row so the Session
-        // Report can explain why the plan is short of its nominal count
-        // without holding the goal store open — the score, the threshold it
-        // cleared and the exposures behind it are the whole justification.
+      case DepthGoalCompleted():
         _persistDepthGoalDecision(event);
-        break;
-
-      case 'DecisionLogged':
-        // Replay Debug — persist the structured decision into
-        // the `sequence_decisions` Drift table so the Replay screen
-        // can scrub through the run later.
+      case DecisionLogged():
         _persistReplayDecision(event);
+      case DitherPerformed() || RunCancelled() || UnrecognizedSequencerEvent():
         break;
     }
+  }
+
+  void _onNodeStarted(
+    NodeStarted event,
+    SequenceProgressNotifier progressNotifier,
+  ) {
+    final nodeId = event.nodeId;
+    if (nodeId != null) {
+      progressNotifier.updateProgress(
+        currentNodeId: nodeId,
+        currentNodeName: event.nodeType,
+        currentNodeStatus: NodeStatus.running,
+      );
+      progressNotifier.updateNodeStatus(nodeId, NodeStatus.running);
+    }
+    // Frame indices restart at 1 for every node, so a verdict an aborted burst
+    // never completed must not survive into this node's frame 1.
+    _gradedFrames.clear();
+  }
+
+  void _onNodeCompleted(
+    NodeCompleted event,
+    SequenceProgressNotifier progressNotifier,
+  ) {
+    final nodeId = event.nodeId;
+    if (nodeId == null) return;
+    final status = event.status ?? 'failed';
+    final nodeStatus = event.nodeStatus ?? NodeStatus.failure;
+    progressNotifier.updateNodeStatus(nodeId, nodeStatus);
+    // An autofocus is counted by what the node did (its structured progress
+    // was an Autofocus detail), never by its operator-editable name.
+    if (nodeStatus == NodeStatus.success && _nodeRanAutofocus(nodeId)) {
+      _incrementRunStat((stats) => stats.recordAutofocus());
+      _noteAutofocusOutcomeForBacklashOffer();
+    }
+    // A status Dart has not learned yet reads as a failure; carry the raw
+    // string so the red node explains itself.
+    if (!NodeCompleted.knownStatuses.contains(status)) {
+      _logger.warning(
+        'NodeCompleted with unknown status "$status" for node '
+        '$nodeId; treating as failure.',
+        source: 'SequenceExecutor',
+      );
+      progressNotifier.updateNodeProgress(
+        nodeId,
+        0.0,
+        'Unknown node status: "$status"',
+      );
+    }
+  }
+
+  void _onExposureStarted(
+    ExposureStarted event,
+    SequenceProgressNotifier progressNotifier,
+  ) {
+    final frame = event.frame ?? 0;
+    final total = event.total ?? 0;
+    final exposureDetail = formatExposureStartedDetail(
+      frame,
+      total,
+      event.filter,
+    );
+    progressNotifier.updateProgress(
+      message: 'Exposing $exposureDetail',
+      currentFilter: event.filter,
+    );
+    final nodeId = _ref.read(sequenceProgressProvider).currentNodeId;
+    if (nodeId != null && total > 0) {
+      // frame - 1: this frame has only just started.
+      progressNotifier.updateNodeProgress(
+        nodeId,
+        (frame - 1) / total * 100.0,
+        exposureDetail,
+      );
+    }
+  }
+
+  void _onExposureCompleted(
+    ExposureCompleted event,
+    SequenceProgressNotifier progressNotifier,
+  ) {
+    final frame = event.frame ?? 0;
+    final total = event.total ?? 1;
+    final durationSecs = event.durationSecs ?? 0.0;
+    // A graded frame was already counted and shown when its verdict arrived
+    // (see [_gradedFrames]); an ungraded one (no save path, so no grader) is
+    // counted here as accepted.
+    final graded = _gradedFrames.remove(frame);
+    if (graded == null) {
+      _recordRunFrame(
+        exposureSecs: durationSecs,
+        filter: event.filter,
+        accepted: true,
+      );
+    }
+    // The ETA is fed shutter-open time plus a fixed download overhead, not the
+    // wall clock between frames, so autofocus and slew stalls do not skew it.
+    if (durationSecs > 0) {
+      final defaults = _ref.read(sequencerDefaultsProvider);
+      _eta.recordFrame(durationSecs + defaults.frameDownloadOverheadSecs);
+    }
+    progressNotifier.updateProgress(completedExposures: frame);
+    // Keyed on the originating event: the DeviceService pump sees the same
+    // event, and only one of the two may add its shutter time.
+    progressNotifier.recordCompletedFrameIntegration(
+      eventKey: '${event.timestamp}:$frame',
+      durationSecs: durationSecs,
+    );
+    final nodeId = _ref.read(sequenceProgressProvider).currentNodeId;
+    if (nodeId != null) {
+      progressNotifier.updateNodeProgress(
+        nodeId,
+        total > 0 ? (frame / total * 100.0) : 100.0,
+        formatExposureCompletedDetail(frame, total),
+      );
+    }
+    if (graded == null) {
+      _fetchAndDisplaySequenceImage(
+        _previewSettingsForFrame(null, durationSecs),
+      );
+    }
+  }
+
+  void _onSequencerError(
+    SequencerError event,
+    SequenceProgressNotifier progressNotifier,
+  ) {
+    final message = event.message ?? 'Unknown error';
+    // An advisory shares the Error payload; it is a warning on the run, never
+    // a fault on a node.
+    if (event.isAdvisory) {
+      _surfaceRunWarning(message);
+      progressNotifier.updateProgress(message: message);
+      return;
+    }
+    // Older native executors acknowledged SkipToNode through Error. It is an
+    // informational success.
+    if (message.startsWith('SkipToNode request accepted:')) {
+      progressNotifier.updateProgress(message: message);
+      return;
+    }
+    // Every cancellation path emits the same notice, so it is a stop whose
+    // cause comes from the run's authorship rows, not an error.
+    if (isSequenceCancelledNotice(message)) {
+      final stopped = sequenceStoppedMessage(
+        _ref.read(sequenceStopEvidenceProvider),
+      );
+      _logger.info(
+        '[$kStopClassificationLogTag] sequence_executor: cancellation '
+        'notice treated as a stop, not an error ($stopped)',
+        source: 'SequenceExecutor',
+      );
+      progressNotifier.updateProgress(message: stopped);
+      return;
+    }
+    _recordRunError(message);
+    progressNotifier.updateProgress(message: 'Error: $message');
+    final nodeId = _ref.read(sequenceProgressProvider).currentNodeId;
+    if (nodeId != null) {
+      progressNotifier.updateNodeProgress(nodeId, 0.0, 'Error: $message');
+    }
+    _escalateRunningToRecovering();
+  }
+
+  /// A mid-run fault is not terminal (recovery may still salvage the run), but
+  /// a healthy `running` would be a lie, so `running` alone moves to
+  /// `recovering`; the terminal event settles it later.
+  void _escalateRunningToRecovering() {
+    if (_ref.read(sequenceExecutionStateProvider) ==
+        SequenceExecutionState.running) {
+      _setExecutionState(SequenceExecutionState.recovering);
+    }
+  }
+
+  void _onStructuredProgress(
+    StructuredInstructionProgress event,
+    SequenceProgressNotifier progressNotifier,
+  ) {
+    // A Change Filter instruction is the only place the running filter is
+    // named when the exposure node itself has none.
+    final filterName = event.changedFilterName;
+    if (filterName != null) {
+      progressNotifier.updateProgress(currentFilter: filterName);
+    }
+    final nodeId =
+        event.nodeId ?? _ref.read(sequenceProgressProvider).currentNodeId;
+    if (nodeId != null) {
+      progressNotifier.updateNodeStructuredProgress(
+        nodeId,
+        event.progressPercent ?? 0.0,
+        event.detail,
+      );
+      progressNotifier.updateProgress(
+        message: '${event.instruction ?? ''}: ${event.detailKind}',
+      );
+    }
+  }
+
+  void _onInstructionProgress(
+    InstructionProgress event,
+    SequenceProgressNotifier progressNotifier,
+  ) {
+    final instruction = event.instruction ?? '';
+    final percent = event.progressPercent ?? 0.0;
+    final detail = event.detail ?? '';
+    _logger.debug(
+      'InstructionProgress: nodeId=${event.nodeId}, instruction=$instruction, '
+      'progress=$percent%, detail=$detail',
+      source: 'SequenceExecutor',
+    );
+    final nodeId =
+        event.nodeId ?? _ref.read(sequenceProgressProvider).currentNodeId;
+    _logger.debug(
+      'Updating node progress for: $nodeId',
+      source: 'SequenceExecutor',
+    );
+    if (nodeId != null) {
+      progressNotifier.updateNodeProgress(nodeId, percent, detail);
+      progressNotifier.updateProgress(message: '$instruction: $detail');
+    }
+  }
+
+  void _onTriggerFired(
+    TriggerFired event,
+    SequenceProgressNotifier progressNotifier,
+  ) {
+    final triggerName = event.triggerName ?? 'Unknown trigger';
+    final action = event.action ?? '';
+    _incrementRunStat((stats) => stats.recordTriggerFire());
+    // A target dropped by its own end_when costs the operator a whole target,
+    // so it goes on the run record, not only into the trigger feed.
+    if (isTargetEndWhenSkip(event.triggerId ?? '')) {
+      final warning = targetEndWhenSkipWarning(triggerName);
+      _logger.warning(warning, source: 'SequenceExecutor');
+      _incrementRunStat((stats) => stats.recordWarning(warning));
+      progressNotifier.updateProgress(message: warning);
+      return;
+    }
+    _logger.info(
+      'Trigger fired: $triggerName -> $action',
+      source: 'SequenceExecutor',
+    );
+    progressNotifier.updateProgress(
+      message: 'Trigger "$triggerName" fired: $action',
+    );
+  }
+
+  /// A native `Stopped` this executor did not command came from the native
+  /// side (a trigger's park, a watchdog, a safety abort) and is filed
+  /// `aborted`; only a stop the wire attributes to the operator stays
+  /// `stopped`. The echo of this executor's own stop() is swallowed by the
+  /// finalization it already claimed.
+  void _onNativeStopped() {
+    final stopEvidence = _ref.read(sequenceStopEvidenceProvider);
+    final operatorStopped =
+        stopEvidence?.author == SequenceStopAuthor.operatorPress;
+    _onTerminalEvent(
+      SequenceExecutionState.idle,
+      operatorStopped ? 'stopped' : 'aborted',
+      warning: operatorStopped || stopEvidence == null
+          ? null
+          : sequenceStoppedMessage(stopEvidence),
+    );
   }
 
   /// Persist a `DepthGoalCompleted` payload as a `budget_met` decision row.
@@ -597,23 +395,21 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
   /// bucket as "the plan stopped because it had enough". Fire-and-forget for
   /// the same reason as [_persistReplayDecision] — the executor's event loop
   /// must keep pumping.
-  void _persistDepthGoalDecision(SkotiqEvent event) {
+  void _persistDepthGoalDecision(DepthGoalCompleted event) {
     final runId = _ref.read(currentRunIdProvider);
     if (runId == null) {
       _logger.debug(
         'DepthGoalCompleted dropped: no active sequence_run_id '
-        '(goal ${event.data['goal_id']})',
+        '(goal ${event.goalId})',
         source: 'SequenceExecutor',
       );
       return;
     }
-    final filterName = event.data['filter_name'] as String? ?? '';
-    final score = (event.data['score'] as num?)?.toDouble() ?? 0;
-    final threshold = (event.data['threshold'] as num?)?.toDouble() ?? 0;
-    final evidenceFrames =
-        (event.data['evidence_frames'] as num?)?.toInt() ?? 0;
-    final confirmationFrames =
-        (event.data['confirmation_frames'] as num?)?.toInt() ?? 0;
+    final filterName = event.filterName ?? '';
+    final score = event.score ?? 0;
+    final threshold = event.threshold ?? 0;
+    final evidenceFrames = event.evidenceFrames ?? 0;
+    final confirmationFrames = event.confirmationFrames ?? 0;
     final summary = depthGoalCompletedDetail(
       filterName: filterName,
       score: score,
@@ -632,15 +428,15 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
             categoryWireKey: DecisionCategory.budgetMet.wireKey,
             summary: summary,
             detailsJson: jsonEncode({
-              'goal_id': event.data['goal_id'],
-              'revision': event.data['revision'],
+              'goal_id': event.goalId,
+              'revision': event.revision,
               'filter_name': filterName,
               'score': score,
               'threshold': threshold,
               'evidence_frames': evidenceFrames,
               'confirmation_frames': confirmationFrames,
             }),
-            nodeId: event.data['node_id'] as String?,
+            nodeId: event.nodeId,
             sequenceRunId: runId,
           )
           .catchError((Object e, StackTrace st) {
@@ -659,13 +455,13 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
   /// the service handles its own change-notification, and a write
   /// failure is logged at warn-level (loud-fail policy without
   /// taking the executor down).
-  void _persistReplayDecision(SkotiqEvent event) {
-    final timestampIso = event.data['timestamp_iso'] as String? ?? '';
-    final category = event.data['category'] as String? ?? '';
-    final summary = event.data['summary'] as String? ?? '';
-    final detailsJson = event.data['details_json'] as String? ?? '{}';
-    final nodeId = event.data['node_id'] as String?;
-    final rustRunId = event.data['sequence_run_id'] as int?;
+  void _persistReplayDecision(DecisionLogged event) {
+    final timestampIso = event.timestampIso ?? '';
+    final category = event.category ?? '';
+    final summary = event.summary ?? '';
+    final detailsJson = event.detailsJson ?? '{}';
+    final nodeId = event.nodeId;
+    final rustRunId = event.sequenceRunId;
     final effectiveRunId = rustRunId ?? _ref.read(currentRunIdProvider);
     if (effectiveRunId == null) {
       // No active run id — the very first lifecycle "Sequence started"
@@ -714,13 +510,13 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
   ///     as every other sequencer command.
   ///   * We fire-and-forget; the caller (`_handleSequencerEvent`)
   ///     returns immediately so other events keep flowing.
-  void _dispatchPluginNode(SkotiqEvent event) {
-    final nodeId = event.data['node_id'] as String? ?? '';
-    final pluginId = event.data['plugin_id'] as String? ?? '';
-    final nodeTypeId = event.data['node_type_id'] as String? ?? '';
-    final configJson = event.data['config_json'] as String? ?? '';
-    final displayName = event.data['display_name'] as String?;
-    final timeoutSecs = event.data['timeout_secs'] as int? ?? 600;
+  void _dispatchPluginNode(PluginNodeRequested event) {
+    final nodeId = event.nodeId ?? '';
+    final pluginId = event.pluginId ?? '';
+    final nodeTypeId = event.nodeTypeId ?? '';
+    final configJson = event.configJson ?? '';
+    final displayName = event.displayName;
+    final timeoutSecs = event.timeoutSecs ?? 600;
 
     if (nodeId.isEmpty) {
       _logger.warning(
@@ -805,21 +601,18 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
   /// event into a captured_images row tagged with the producing node id.
   /// Fire-and-forget; failures are logged so the strip can show them, but they
   /// never block the run.
-  void _registerSequenceFrame({
-    required SkotiqEvent event,
-    required bool isAccepted,
-    required String grade,
-  }) {
-    final nodeId = event.data['node_id'] as String?;
+  void _registerSequenceFrame(FrameGraded event, {required String grade}) {
+    final isAccepted = event.accepted;
+    final nodeId = event.nodeId;
     if (nodeId == null || nodeId.isEmpty) {
       // No producing node — typically a wizard-driven capture (flat
       // wizard, polar-align). Nothing for the sequence-tree strip to
       // hang the row off of, so we skip.
       return;
     }
-    final hfr = (event.data['hfr'] as num?)?.toDouble();
-    final eccentricity = (event.data['eccentricity'] as num?)?.toDouble();
-    final starCount = event.data['star_count'] as int?;
+    final hfr = event.hfr;
+    final eccentricity = event.eccentricity;
+    final starCount = event.starCount;
     // The frame event carries no background/noise, so the score is the
     // HFR + star-count components renormalised; NaN when the frame reported
     // neither, which stores as NULL and lets the assessment service's own
@@ -835,7 +628,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
     // rotator simply absent — is what makes the row and the file agree. Adding
     // more fields to `resolveFrameAttribution` instead would have kept two
     // sources of truth for one exposure, which is the defect itself.
-    final capture = FrameCapture.fromEventData(event.data);
+    final capture = event.capture;
     // Accepted frames now carry the on-disk save_path
     // alongside the existing rejected-frame reject_path. The thumbnail
     // strip uses whichever field is populated to load the inline
@@ -843,13 +636,12 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
     // sites that did not thread the path through; defaulting to empty
     // string keeps the "no thumbnail yet" colour-bordered tile rather
     // than skipping the row entirely.
-    final filePath = isAccepted
-        ? (event.data['save_path'] as String? ?? '')
-        : (event.data['reject_path'] as String? ?? '');
+    final filePath = event.filePath ?? '';
     final fileName = filePath.isEmpty ? '' : p.basename(filePath);
-    final rejectionReason = isAccepted
-        ? null
-        : (event.data['reason'] as String?);
+    final rejectionReason = switch (event) {
+      FrameRejected(:final reason) => reason,
+      FrameAccepted() => null,
+    };
     // One resolver, shared with the run-stats bucket — see
     // [_resolveActiveFilter] for why the two must not diverge. A frame
     // recorded with no filter is unusable for calibration matching later.
@@ -1172,25 +964,23 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
   /// `ExposureCompleted`, and that was the only thing that fetched the preview,
   /// so the Imaging tab and Tonight kept showing an old frame for a whole run
   /// (rig, 2026-10-20).
-  void _recordGradedFrame(SkotiqEvent event, {required bool accepted}) {
-    final capture = FrameCapture.fromEventData(event.data);
+  void _recordGradedFrame(FrameGraded event) {
+    final capture = event.capture;
     _recordRunFrame(
       exposureSecs: capture.exposureSecs ?? 0.0,
-      filter: event.data['filter'] as String?,
-      accepted: accepted,
+      filter: event.filter,
+      accepted: event.accepted,
     );
     // The saved file travels with the preview, so what is worked out from
     // the file (the background plate solve, the star overlay) can find it.
-    final path = accepted
-        ? event.data['save_path'] as String?
-        : event.data['reject_path'] as String?;
+    final path = event.filePath;
     _fetchAndDisplaySequenceImage(
       _previewSettingsForFrame(capture, capture.exposureSecs ?? 0.0),
       filePath: path == null || path.isEmpty ? null : path,
     );
-    final frame = (event.data['frame'] as num?)?.toInt();
+    final frame = event.frame;
     if (frame == null) return;
-    _gradedFrames[frame] = (accepted: accepted, capture: capture);
+    _gradedFrames[frame] = (accepted: event.accepted, capture: capture);
   }
 
   /// The capture settings to stamp on the preview published for the frame that
@@ -1298,19 +1088,15 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
   ///    framing should be eyeballed before trusting the sub-frames;
   ///  * failed / aborted -> do NOT count it (no flip happened) and record an
   ///    error/warning so the session report cannot claim a clean night.
-  void _handleMeridianFlipOutcome(SkotiqEvent event) {
+  void _handleMeridianFlipOutcome(MeridianFlipOutcome event) {
     final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
-    final outcome = event.data['outcome'] as String? ?? 'unknown';
-    final targetName = event.data['target_name'] as String? ?? 'target';
-    final attempts = (event.data['attempts'] as num?)?.toInt() ?? 0;
-    final durationSecs = (event.data['duration_secs'] as num?)?.toDouble() ?? 0;
-    final error = event.data['error'] as String?;
-    final actionTaken = event.data['action_taken'] as String?;
-    final failedSteps =
-        (event.data['failed_steps'] as List<dynamic>?)
-            ?.map((e) => e.toString())
-            .toList() ??
-        const <String>[];
+    final outcome = event.outcome ?? 'unknown';
+    final targetName = event.targetName ?? 'target';
+    final attempts = event.attempts ?? 0;
+    final durationSecs = event.durationSecs ?? 0;
+    final error = event.error;
+    final actionTaken = event.actionTaken;
+    final failedSteps = event.failedSteps;
 
     switch (outcome) {
       case 'success':
@@ -1529,11 +1315,11 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
   /// sequence runs. Serialises feeds onto [_liveStackingFeedChain] so a
   /// fast cadence cannot interleave the reference-frame start with a later
   /// add (which would corrupt the stack's coordinate system).
-  void _maybeFeedLiveStacking(SkotiqEvent event) {
+  void _maybeFeedLiveStacking(FrameAccepted event) {
     final node = _findActiveLiveStackingNode();
     if (node == null) return; // Sequence has no live stacking — nothing to do.
 
-    final savePath = event.data['save_path'] as String?;
+    final savePath = event.savePath;
     if (savePath == null || savePath.isEmpty) {
       // An accepted frame with no on-disk path cannot be fed. This is a
       // real wiring problem (the Rust grader is expected to ship
@@ -1541,7 +1327,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
       // silently dropping the frame from the live stack.
       _logger.error(
         'Live-stacking auto-feed: accepted frame from node '
-        '${event.data['node_id']} carried no save_path; cannot add it to the '
+        '${event.nodeId} carried no save_path; cannot add it to the '
         'live stack. The broadcast stack will be missing this frame.',
         source: 'SequenceExecutor',
       );
@@ -1563,8 +1349,8 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
   /// broadcast's integration counter is accurate. Prefers the producing
   /// node's attribution (the same source the captured-images row uses);
   /// falls back to the event's `duration_secs` payload.
-  double _resolveLiveStackExposureSecs(SkotiqEvent event) {
-    final nodeId = event.data['node_id'] as String?;
+  double _resolveLiveStackExposureSecs(FrameAccepted event) {
+    final nodeId = event.nodeId;
     final loadedSequence = _ref.read(currentSequenceProvider);
     if (nodeId != null && loadedSequence != null) {
       final attribution = resolveFrameAttribution(
@@ -1576,7 +1362,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
         return attribution.exposureSecs!;
       }
     }
-    return (event.data['duration_secs'] as num?)?.toDouble() ?? 0.0;
+    return event.durationSecs ?? 0.0;
   }
 
   /// Add one accepted frame to the live stack and publish the rendered

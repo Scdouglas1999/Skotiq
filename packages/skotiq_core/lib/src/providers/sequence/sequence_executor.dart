@@ -54,10 +54,11 @@ import '../profiles_provider.dart';
 import '../sequence_provider.dart'
     show
         currentSequenceProvider,
-        recordSequenceStopEvidence,
+        recordRunEventStopEvidence,
         sequenceExecutionStateProvider,
         sequenceLaunchInFlightProvider,
         sequenceProgressProvider,
+        SequenceProgressNotifier,
         sequenceStopEvidenceProvider;
 import '../sequence_stats_provider.dart';
 import '../session_handoff_provider.dart'
@@ -83,9 +84,8 @@ import '../science_provider.dart'
 import '../usb_disconnect_log_provider.dart';
 import 'exposure_progress_vocabulary.dart';
 import 'node_exposure_tally.dart';
-import 'structured_progress_json.dart';
+import 'sequencer_run_event.dart';
 import 'run_stop_classification.dart';
-import 'run_dither_event.dart';
 import 'target_end_when_notice.dart';
 import 'sequence_validation.dart' as validation;
 import 'sequencer_defaults.dart';

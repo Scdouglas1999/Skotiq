@@ -181,7 +181,7 @@ void main() {
       final source = File(path).readAsStringSync();
       expect(
         source,
-        contains("case 'Error':"),
+        contains('case SequencerError('),
         reason:
             '$path no longer handles the sequencer Error event — if the '
             'handler moved, move this pin with it.',

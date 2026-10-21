@@ -89,7 +89,7 @@ void main() {
     ).readAsStringSync();
     final handler = source.substring(
       source.indexOf('void _handleSequencerEvent'),
-      source.indexOf("if (event.category != EventCategory.sequencer) return;"),
+      source.indexOf('SequencerRunEvent.fromSkotiqEvent('),
     );
     expect(handler, contains('_eventTraceLimiter.admit('));
     expect(
