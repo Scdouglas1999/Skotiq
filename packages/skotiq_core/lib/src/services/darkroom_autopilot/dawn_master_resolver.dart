@@ -15,7 +15,9 @@ library;
 
 import '../../database/daos/images_dao.dart';
 import '../../database/daos/integrated_masters_dao.dart';
+import '../../database/daos/recipes_dao.dart';
 import '../../models/imaging/integrated_master.dart';
+import 'dawn_draft_builder.dart' show isCompositeStepsJson;
 
 /// One linear master this job can draft over.
 class DawnMaster {
@@ -122,11 +124,17 @@ class DawnMasterResolver {
   final ImagesDao _images;
   final IntegratedMastersDao _masters;
 
+  /// When given, a master whose newest recipe is a color composite is listed
+  /// first, so a night whose filters were combined opens on its color draft.
+  final RecipesDao? _recipes;
+
   const DawnMasterResolver({
     required ImagesDao images,
     required IntegratedMastersDao masters,
+    RecipesDao? recipes,
   }) : _images = images,
-       _masters = masters;
+       _masters = masters,
+       _recipes = recipes;
 
   /// Every master any of [sessionId]'s frames was folded into.
   ///
@@ -181,6 +189,19 @@ class DawnMasterResolver {
           totalIntegrationSeconds: master.totalIntegrationSeconds,
         ),
       );
+    }
+
+    final recipes = _recipes;
+    if (recipes != null) {
+      // The same database read the masters just came from: it completes or
+      // throws like them, and nothing else waits on it.
+      for (var i = 0; i < drafted.length; i++) {
+        final newest = await recipes.listForMaster(drafted[i].masterFitsPath);
+        if (newest.isNotEmpty && isCompositeStepsJson(newest.first.stepsJson)) {
+          drafted.insert(0, drafted.removeAt(i));
+          break;
+        }
+      }
     }
 
     return DawnMasterSet(

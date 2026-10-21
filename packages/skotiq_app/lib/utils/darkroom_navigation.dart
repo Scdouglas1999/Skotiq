@@ -157,7 +157,6 @@ Future<DarkroomSessionTarget> resolveDarkroomTargetForSession(
   return _resolveDarkroomTarget(
     refusal: darkroomHostOnlyRefusal(ref),
     resolver: ref.read(dawnMasterResolverProvider),
-    holdsColorComposite: ref.read(darkroomHoldsColorCompositeProvider),
     sessionId: sessionId,
   );
 }
@@ -174,7 +173,6 @@ final darkroomSessionTargetProvider = FutureProvider.autoDispose
     refusal:
         ref.watch(isRemoteClientProvider) ? kDarkroomHostOnlyRefusal : null,
     resolver: ref.watch(dawnMasterResolverProvider),
-    holdsColorComposite: ref.watch(darkroomHoldsColorCompositeProvider),
     sessionId: sessionId,
   );
 });
@@ -208,23 +206,6 @@ String? watchDarkroomSessionRefusal(WidgetRef ref, int sessionId) {
   };
 }
 
-/// Whether the newest recipe over the master at a path is a color composite,
-/// the recipe a night whose filters were combined should open on.
-///
-/// A recipe read that fails answers false, which opens the night's first
-/// master as before; the Darkroom then lists the composite among the branches.
-final darkroomHoldsColorCompositeProvider =
-    Provider<Future<bool> Function(String masterPath)>((ref) {
-  return (path) async {
-    try {
-      final newest = await ref.read(recipesDaoProvider).listForMaster(path);
-      return newest.isNotEmpty && isCompositeStepsJson(newest.first.stepsJson);
-    } catch (_) {
-      return false;
-    }
-  };
-});
-
 /// What a session-scoped Darkroom control reads while its masters are being
 /// read.
 const String kDarkroomMastersReadingReason =
@@ -238,7 +219,6 @@ const String kDarkroomMastersReadingReason =
 Future<DarkroomSessionTarget> _resolveDarkroomTarget({
   required String? refusal,
   required DawnMasterResolver resolver,
-  required Future<bool> Function(String masterPath) holdsColorComposite,
   required int sessionId,
 }) async {
   if (refusal != null) {
@@ -255,13 +235,8 @@ Future<DarkroomSessionTarget> _resolveDarkroomTarget({
   }
 
   if (set.masters.isNotEmpty) {
-    // A night whose filters were combined opens on the color composite: its
-    // recipe is the newest one over the reference master it renders over.
-    for (final master in set.masters) {
-      if (await holdsColorComposite(master.masterFitsPath)) {
-        return DarkroomSessionTarget.master(master.masterId);
-      }
-    }
+    // The resolver lists a master holding a color composite first, so a
+    // night whose filters were combined opens on its color draft.
     return DarkroomSessionTarget.master(set.masters.first.masterId);
   }
 
