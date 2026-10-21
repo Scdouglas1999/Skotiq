@@ -5,14 +5,15 @@ import '../backend/network_backend.dart';
 import 'backend_provider.dart';
 import '../services/import/astrobin_importer.dart';
 import '../services/import/sequence_importer.dart';
+import '../services/sesame_name_resolver.dart';
 
 /// Provides the singleton [SequenceImporter] used by the UI.
 final sequenceImporterProvider = Provider<SequenceImporter>((ref) {
   final backend = ref.watch(backendProvider);
-  return SequenceImporter(
-    astrobin: AstrobinImporter(
-      catalog: CatalogSearchLookup((designation) async {
-        if (backend is NetworkBackend) {
+  // Astrobin subjects resolve by exact designation or name only, against the
+  // installed catalog (the host's, on a remote client), then SIMBAD.
+  final CatalogLookup primary = backend is NetworkBackend
+      ? CatalogSearchLookup((designation) async {
           final response = await backend.planetariumCatalogSearch(designation);
           final rawResults = response['results'];
           if (rawResults is! List) {
@@ -51,24 +52,14 @@ final sequenceImporterProvider = Provider<SequenceImporter>((ref) {
                 );
               })
               .toList(growable: false);
-        }
-
-        final manager = CatalogManager.instance;
-        if (!manager.isInitialized) return const <CatalogLookupResult>[];
-        final results = await manager.search(designation);
-        return results
-            .map(
-              (result) => CatalogLookupResult(
-                canonicalName: result.name.isNotEmpty
-                    ? result.name
-                    : result.catalogId,
-                raHours: result.ra / 15.0,
-                decDegrees: result.dec,
-                identifiers: [result.catalogId, result.name],
-              ),
-            )
-            .toList(growable: false);
-      }),
+        })
+      : ResolverCatalogLookup(() => ref.read(loadedDsosProvider.future));
+  return SequenceImporter(
+    astrobin: AstrobinImporter(
+      catalog: OnlineFallbackLookup(
+        primary: primary,
+        online: ref.watch(sesameNameResolverProvider),
+      ),
     ),
   );
 });

@@ -6,6 +6,12 @@ import '../harness/in_memory_database.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
+/// SIMBAD stand-in: these tests must never reach the network.
+class _NoSimbad extends SesameNameResolver {
+  @override
+  Future<ResolvedTargetName?> resolve(String name) async => null;
+}
+
 class _FixedBackendNotifier extends BackendNotifier {
   _FixedBackendNotifier(super.ref, SkotiqBackend backend) : super() {
     state = backend;
@@ -37,6 +43,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           inMemoryDatabaseOverride(),
+          sesameNameResolverProvider.overrideWithValue(_NoSimbad()),
           backendProvider.overrideWith(
             (ref) => _FixedBackendNotifier(ref, backend),
           ),
@@ -75,6 +82,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           inMemoryDatabaseOverride(),
+          sesameNameResolverProvider.overrideWithValue(_NoSimbad()),
           backendProvider.overrideWith(
             (ref) => _FixedBackendNotifier(ref, backend),
           ),

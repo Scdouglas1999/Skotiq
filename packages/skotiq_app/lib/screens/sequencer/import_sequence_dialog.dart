@@ -459,11 +459,8 @@ class ImportSequenceFlow {
         sequenceName: defaultName,
       );
       if (summary.unresolved.isNotEmpty && context.mounted) {
-        final n = summary.unresolved.length;
-        final word = n == 1 ? 'designation' : 'designations';
-        context.showSuccessSnackBar(
-          'Astrobin: ${summary.resolvedRows} resolved, $n $word need '
-          'manual coordinates (placeholders inserted).',
+        context.showWarningSnackBar(
+          astrobinUnresolvedMessage(summary.resolvedRows, summary.unresolved),
         );
       }
       return summary.importResult;
@@ -759,4 +756,25 @@ class ImportSequenceFlow {
       ),
     );
   }
+}
+
+/// Names the Astrobin subjects left without coordinates and why, so a
+/// target imported at RA 0 / Dec 0 is never mistaken for a resolved one.
+@visibleForTesting
+String astrobinUnresolvedMessage(
+  int resolvedRows,
+  List<UnresolvedTarget> unresolved,
+) {
+  const shown = 3;
+  final listed = unresolved
+      .take(shown)
+      .map((u) => '"${u.designation}" ${u.reason}')
+      .join('; ');
+  final more = unresolved.length > shown
+      ? '; and ${unresolved.length - shown} more'
+      : '';
+  final n = unresolved.length;
+  return 'Astrobin: $resolvedRows resolved. $n left without '
+      'coordinates (placeholders at RA 0 / Dec 0, enter them before '
+      'running): $listed$more.';
 }

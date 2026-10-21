@@ -5,6 +5,26 @@ import 'package:skotiq_core/src/models/import/import_result.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/services/import/astrobin_importer.dart';
 import 'package:skotiq_core/src/services/import/canonical_node_mapper.dart';
+import 'package:skotiq_core/src/services/sesame_name_resolver.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show CelestialCoordinate, DeepSkyObject, DsoType;
+
+class _FakeSesame extends SesameNameResolver {
+  _FakeSesame(this.answers, {this.unavailable = false});
+
+  final Map<String, ResolvedTargetName> answers;
+  final bool unavailable;
+  final asked = <String>[];
+
+  @override
+  Future<ResolvedTargetName?> resolve(String name) async {
+    asked.add(name);
+    if (unavailable) {
+      throw const TargetNameLookupUnavailable('no network');
+    }
+    return answers[name];
+  }
+}
 
 void main() {
   // Minimal in-memory catalog covering the M-objects in the fixture.
@@ -117,7 +137,7 @@ void main() {
       },
     );
 
-    test('rejects invalid catalog coordinates before fallback', () async {
+    test('skips a candidate with invalid coordinates', () async {
       final lookup = CatalogSearchLookup(
         (_) async => const [
           CatalogLookupResult(
@@ -130,12 +150,146 @@ void main() {
             canonicalName: 'Andromeda Galaxy',
             raHours: 0.7122,
             decDegrees: 41.269,
+            identifiers: ['M 31'],
           ),
         ],
       );
 
       expect((await lookup.resolve('M31'))?.canonicalName, 'Andromeda Galaxy');
     });
+
+    test('never takes a search hit that only contains the text', () async {
+      final lookup = CatalogSearchLookup(
+        (_) async => const [
+          CatalogLookupResult(
+            canonicalName: 'Cl* NGC 2516 HTR M42',
+            raHours: 7.968,
+            decDegrees: -60.753,
+            identifiers: ['Cl* NGC 2516 HTR M42'],
+          ),
+        ],
+      );
+
+      expect(await lookup.resolve('M42'), isNull);
+      expect(await lookup.resolve('Orion M42'), isNull);
+    });
+
+    test('Messier 42 and M 42 name the same object', () async {
+      final lookup = CatalogSearchLookup(
+        (_) async => const [
+          CatalogLookupResult(
+            canonicalName: 'Orion Nebula',
+            raHours: 5.5881,
+            decDegrees: -5.391,
+            identifiers: ['NGC1976', 'M42'],
+          ),
+        ],
+      );
+
+      expect(
+        (await lookup.resolve('Messier 42'))?.canonicalName,
+        'Orion Nebula',
+      );
+      expect((await lookup.resolve('M 42'))?.canonicalName, 'Orion Nebula');
+    });
+
+    test(
+      'two different objects named exactly are reported, not picked',
+      () async {
+        final lookup = CatalogSearchLookup(
+          (_) async => const [
+            CatalogLookupResult(
+              canonicalName: 'Twin',
+              raHours: 1,
+              decDegrees: 10,
+            ),
+            CatalogLookupResult(
+              canonicalName: 'Twin',
+              raHours: 13,
+              decDegrees: -20,
+            ),
+          ],
+        );
+
+        expect(
+          () => lookup.resolve('Twin'),
+          throwsA(isA<CatalogLookupFailure>()),
+        );
+      },
+    );
+  });
+
+  group('ResolverCatalogLookup', () {
+    const ngc1976 = DeepSkyObject(
+      id: 'NGC1976',
+      name: 'M42',
+      coordinates: CelestialCoordinate(ra: 5.587911, dec: -5.389667),
+      type: DsoType.clusterWithNebulosity,
+      magnitude: 4.0,
+      catalogIds: ['M42'],
+      commonNames: 'Great Orion Nebula,Orion Nebula',
+    );
+    const trap = DeepSkyObject(
+      id: 'NGC9998',
+      name: 'NGC9998',
+      coordinates: CelestialCoordinate(ra: 7.968, dec: -60.753),
+      type: DsoType.openCluster,
+      magnitude: 3.8,
+      catalogIds: ['Cl* NGC 2516 HTR M42'],
+    );
+    final lookup = ResolverCatalogLookup(() async => const [trap, ngc1976]);
+
+    test('takes the object a designation or name names', () async {
+      final byDesignation = await lookup.resolve('m 42');
+      expect(byDesignation?.canonicalName, 'M42');
+      expect(byDesignation?.raHours, closeTo(5.587911, 1e-6));
+      expect((await lookup.resolve('Orion Nebula'))?.canonicalName, 'M42');
+    });
+
+    test('leaves a partial match unresolved', () async {
+      expect(await lookup.resolve('HTR'), isNull);
+    });
+  });
+
+  group('OnlineFallbackLookup', () {
+    test('asks SIMBAD only for what the catalog does not know', () async {
+      final sesame = _FakeSesame({
+        'Sh2-129': const ResolvedTargetName(
+          mainId: 'SH 2-129',
+          raHours: 21.196667,
+          decDegrees: 59.95,
+        ),
+      });
+      final lookup = OnlineFallbackLookup(primary: catalog, online: sesame);
+
+      expect(
+        (await lookup.resolve('M42'))?.canonicalName,
+        'M42 (Orion Nebula)',
+      );
+      expect(sesame.asked, isEmpty);
+      expect((await lookup.resolve('Sh2-129'))?.canonicalName, 'SH 2-129');
+      expect(await lookup.resolve('Nothing 9'), isNull);
+      expect(sesame.asked, ['Sh2-129', 'Nothing 9']);
+    });
+
+    test(
+      'an unreachable SIMBAD leaves the row unresolved with the reason',
+      () async {
+        final lookup = OnlineFallbackLookup(
+          primary: catalog,
+          online: _FakeSesame(const {}, unavailable: true),
+        );
+        const csv =
+            'Title,Subject,Integration\n'
+            '"A","M42","2.0"\n'
+            '"B","Sh2-129","1.0"\n';
+        final summary = await AstrobinImporter(catalog: lookup).parse(csv);
+
+        expect(summary.resolvedRows, 1);
+        expect(summary.unresolved.single.designation, 'Sh2-129');
+        expect(summary.unresolved.single.reason, contains('SIMBAD'));
+      },
+    );
   });
 
   group('AstrobinImporter parse', () {
