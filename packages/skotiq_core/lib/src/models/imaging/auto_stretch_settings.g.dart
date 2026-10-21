@@ -8,7 +8,7 @@ part of 'auto_stretch_settings.dart';
 
 _AutoStretchSettings _$AutoStretchSettingsFromJson(Map<String, dynamic> json) =>
     _AutoStretchSettings(
-      enabled: json['enabled'] as bool? ?? false,
+      enabled: json['enabled'] as bool? ?? true,
       method:
           $enumDecodeNullable(_$AutoStretchMethodEnumMap, json['method']) ??
           AutoStretchMethod.stf,

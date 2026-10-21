@@ -48,8 +48,13 @@ abstract class AutoStretchSettings with _$AutoStretchSettings {
   const AutoStretchSettings._();
 
   const factory AutoStretchSettings({
-    /// Whether auto-stretch is enabled for image display.
-    @Default(false) bool enabled,
+    /// Whether the frame is shown stretched; off shows it linear.
+    ///
+    /// Every frame arrives with the default screen stretch already applied,
+    /// so on with the default STF parameters shows exactly that, and off
+    /// shows the raw values scaled linearly from the frame's darkest to its
+    /// brightest pixel.
+    @Default(true) bool enabled,
 
     /// The stretch method to use.
     @Default(AutoStretchMethod.stf) AutoStretchMethod method,
@@ -82,7 +87,7 @@ abstract class AutoStretchSettings with _$AutoStretchSettings {
 
   /// Creates settings with sensible defaults for general astrophotography.
   factory AutoStretchSettings.defaults() => const AutoStretchSettings(
-    enabled: false,
+    enabled: true,
     method: AutoStretchMethod.stf,
     shadowClip: -2.8,
     highlightClip: -0.5,

@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AutoStretchSettings {
 
-/// Whether auto-stretch is enabled for image display.
+/// Whether the frame is shown stretched; off shows it linear.
  bool get enabled;/// The stretch method to use.
  AutoStretchMethod get method;/// Shadow clipping parameter (in standard deviations from median).
 /// Lower (more negative) values clip more shadows.
@@ -232,10 +232,10 @@ return $default(_that.enabled,_that.method,_that.shadowClip,_that.highlightClip,
 @JsonSerializable()
 
 class _AutoStretchSettings extends AutoStretchSettings {
-  const _AutoStretchSettings({this.enabled = false, this.method = AutoStretchMethod.stf, this.shadowClip = -2.8, this.highlightClip = -0.5, this.targetMedian = 0.25, this.linkedChannels = true, this.gammaValue = 2.2}): super._();
+  const _AutoStretchSettings({this.enabled = true, this.method = AutoStretchMethod.stf, this.shadowClip = -2.8, this.highlightClip = -0.5, this.targetMedian = 0.25, this.linkedChannels = true, this.gammaValue = 2.2}): super._();
   factory _AutoStretchSettings.fromJson(Map<String, dynamic> json) => _$AutoStretchSettingsFromJson(json);
 
-/// Whether auto-stretch is enabled for image display.
+/// Whether the frame is shown stretched; off shows it linear.
 @override@JsonKey() final  bool enabled;
 /// The stretch method to use.
 @override@JsonKey() final  AutoStretchMethod method;

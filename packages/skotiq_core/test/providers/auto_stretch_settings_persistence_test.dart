@@ -75,7 +75,7 @@ void main() {
     );
     addTearDown(container.dispose);
     final notifier = container.read(autoStretchSettingsProvider.notifier);
-    final requested = AutoStretchSettings.defaults().copyWith(enabled: true);
+    final requested = AutoStretchSettings.defaults().copyWith(enabled: false);
 
     final save = notifier.update(requested);
     dao.readResult.complete(
