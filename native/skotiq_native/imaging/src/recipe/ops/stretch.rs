@@ -178,7 +178,12 @@ impl DarkroomOp for StretchV1 {
                 }
                 let source_row = &source[y * row_len..y * row_len + row_len];
                 if by_luminance {
-                    for (pixel, sample) in row.chunks_exact_mut(3).zip(source_row.chunks_exact(3)) {
+                    for (pixel, sample) in row
+                        .as_chunks_mut::<3>()
+                        .0
+                        .iter_mut()
+                        .zip(source_row.as_chunks::<3>().0)
+                    {
                         let x = [0, 1, 2]
                             .map(|c| ((sample[c] as f64 - black) * inverse_range).max(0.0));
                         let mean = (x[0] + x[1] + x[2]) / 3.0;

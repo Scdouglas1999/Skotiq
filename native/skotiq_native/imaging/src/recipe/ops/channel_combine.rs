@@ -646,10 +646,8 @@ impl DarkroomOp for ChannelCombineV1 {
         ctx.check_cancel()?;
 
         let mut out = vec![0.0_f32; width * height * 3];
-        for (i, pixel) in out.chunks_exact_mut(3).enumerate() {
-            pixel[0] = red[i];
-            pixel[1] = green[i];
-            pixel[2] = blue[i];
+        for (i, pixel) in out.as_chunks_mut::<3>().0.iter_mut().enumerate() {
+            *pixel = [red[i], green[i], blue[i]];
         }
         let mut combined = image.with_geometry(crop.width, crop.height, 3, out)?;
         combined.translate_reference_pixel(crop.x as f64, crop.y as f64);

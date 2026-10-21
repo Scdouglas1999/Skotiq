@@ -225,6 +225,9 @@ const AFFINE_GAIN: f64 = 0.8;
 /// Fewest pairs a refined fit is accepted from.
 const REFINE_MIN_PAIRS: usize = 8;
 
+/// A star in the frame being registered and the same star in the reference.
+type StarPair = ((f64, f64), (f64, f64));
+
 /// A refined geometry and what it was fitted from.
 struct Refined {
     transform: Affine2,
@@ -503,7 +506,7 @@ fn refine(
     let mut transform = initial;
     let mut result = None;
     for (round, radius) in [2.0, 1.0, 0.75, 0.75].into_iter().enumerate() {
-        let mut pairs: Vec<((f64, f64), (f64, f64))> = Vec::new();
+        let mut pairs: Vec<StarPair> = Vec::new();
         let mut taken = vec![false; refs.len()];
         for &(fx, fy) in frames {
             let (mx, my) = transform.apply(fx, fy);
@@ -562,7 +565,7 @@ fn refine(
 
 /// Least-squares rotation + uniform scale + translation taking each pair's
 /// first point onto its second.
-fn fit_similarity_ls(pairs: &[((f64, f64), (f64, f64))]) -> Option<Affine2> {
+fn fit_similarity_ls(pairs: &[StarPair]) -> Option<Affine2> {
     let n = pairs.len() as f64;
     let (pmx, pmy) = pairs
         .iter()
@@ -595,7 +598,7 @@ fn fit_similarity_ls(pairs: &[((f64, f64), (f64, f64))]) -> Option<Affine2> {
 
 /// Least-squares six-parameter affine map taking each pair's first point onto
 /// its second.
-fn fit_affine_ls(pairs: &[((f64, f64), (f64, f64))]) -> Option<Affine2> {
+fn fit_affine_ls(pairs: &[StarPair]) -> Option<Affine2> {
     let mut ata = [[0.0f64; 3]; 3];
     let mut atx = [0.0f64; 3];
     let mut aty = [0.0f64; 3];
