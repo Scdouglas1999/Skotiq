@@ -417,7 +417,7 @@ class QuickStartDialog extends ConsumerWidget {
               const SizedBox(width: SkotiqTokens.spaceMd),
               Expanded(
                 child: SkotiqButton(
-                  label: 'Resume progress',
+                  label: 'Restore progress',
                   icon: LucideIcons.play,
                   variant: ButtonVariant.primary,
                   size: ButtonSize.large,

@@ -32,16 +32,16 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     if (_checkpointAction != null) return;
     setState(() => _checkpointAction = 'resume');
     try {
-      // Route through the SequenceExecutor provider — it re-seeds the
-      // runtime config from current settings and issues the
-      // sequencerStart() that actually begins execution. Calling the
-      // backend's resumeFromCheckpoint() directly only prepares the
-      // native tree and leaves the executor idle.
-      await ref.read(sequenceExecutorProvider).resumeFromCheckpoint();
+      // Restore through the SequenceExecutor so the editor, progress and
+      // native tree agree; the mosaic continues when the operator presses
+      // Start.
+      await ref.read(sequenceExecutorProvider).restoreFromCheckpoint();
       if (mounted) {
         setState(() => _checkpointAction = null);
         Navigator.of(context).pop();
-        context.showSuccessSnackBar('Resuming mosaic from checkpoint…');
+        context.showSuccessSnackBar(
+          'Mosaic restored from its checkpoint. Press Start to continue.',
+        );
       }
     } catch (e) {
       if (mounted) {

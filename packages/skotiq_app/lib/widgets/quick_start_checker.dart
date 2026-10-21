@@ -396,18 +396,18 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
             source: 'QuickStart');
       }
 
-      // The executor restores the checkpointed sequence, runtime state, and
-      // device mapping, then starts execution. Merely loading the editor copy
-      // would leave the backend idle while the UI claimed a resume occurred.
-      await executor.resumeFromCheckpoint();
+      // The executor restores the checkpointed sequence, its progress, runtime
+      // state and device mapping, and the run waits for Start. Nothing moves
+      // from this dialog.
+      await executor.restoreFromCheckpoint();
       if (!_isCurrentAuthority(authority)) return;
 
       final uiContext = _uiContext;
       if (mounted && uiContext != null && uiContext.mounted) {
         final colors = SkotiqColors.of(uiContext);
         final message =
-            'Resuming session for ${context.targetName ?? "previous target"} '
-            'from frame ${context.completedFrames}';
+            'Restored ${context.targetName ?? "the previous run"} at frame '
+            '${context.completedFrames}. Nothing moves until you press Start.';
         ScaffoldMessenger.of(uiContext).showSnackBar(
           SnackBar(
             content: Text(message),

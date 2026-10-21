@@ -4,13 +4,14 @@
 // The dialog probes the backend for an interrupted mosaic on open. If
 // the active checkpoint's sequence name starts with "Mosaic " and is
 // resumable, a banner appears at the top of the dialog offering
-// "Resume" and "Start Over" buttons. This test pins:
+// "Restore" and "Start Over" buttons. This test pins:
 //
 //   * the banner appears when the backend reports a resumable mosaic,
 //   * the banner does NOT appear when the checkpoint is for a
 //     non-mosaic sequence (those go through the global app-shell
 //     resume dialog instead),
-//   * "Resume" delegates to backend.resumeFromCheckpoint(),
+//   * "Restore" delegates to the executor's restoreFromCheckpoint(), which
+//     loads the run without starting it,
 //   * "Start Over" delegates to backend.discardCheckpoint() and hides
 //     the banner.
 //
@@ -126,7 +127,7 @@ void main() {
         findsOneWidget,
         reason: 'banner must appear for a resumable mosaic checkpoint',
       );
-      expect(find.text('Resume previous mosaic?'), findsOneWidget);
+      expect(find.text('Restore previous mosaic?'), findsOneWidget);
       // The banner text mentions the sequence name and frame count so
       // the user can tell which mosaic they're resuming.
       expect(
@@ -134,7 +135,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.textContaining('40 frames'), findsOneWidget);
-      expect(find.widgetWithText(SkotiqButton, 'Resume'), findsOneWidget);
+      expect(find.widgetWithText(SkotiqButton, 'Restore'), findsOneWidget);
       expect(find.widgetWithText(SkotiqButton, 'Start over'), findsOneWidget);
     });
 
@@ -195,14 +196,14 @@ void main() {
       );
     });
 
-    testWidgets('Resume button invokes the sequence executor resume lifecycle',
+    testWidgets('Restore button restores the mosaic without starting it',
         (tester) async {
       final backend = mockBackend();
       final executor = _MockSequenceExecutor();
       when(() => backend.hasCheckpoint()).thenAnswer((_) async => true);
       when(() => backend.getCheckpointInfo())
           .thenAnswer((_) async => _mosaicCheckpoint());
-      when(executor.resumeFromCheckpoint).thenAnswer((_) async {});
+      when(executor.restoreFromCheckpoint).thenAnswer((_) async {});
 
       await _pumpMosaicWizard(
         tester,
@@ -210,10 +211,12 @@ void main() {
         executor: executor,
       );
 
-      await tester.tap(find.widgetWithText(SkotiqButton, 'Resume'));
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Restore'));
       await tester.pumpAndSettle();
 
-      verify(executor.resumeFromCheckpoint).called(1);
+      verify(executor.restoreFromCheckpoint).called(1);
+      verifyNever(executor.resumeFromCheckpoint);
+      verifyNever(executor.start);
     });
 
     testWidgets(

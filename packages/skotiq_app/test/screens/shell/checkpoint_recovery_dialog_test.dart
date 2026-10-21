@@ -82,13 +82,30 @@ void main() {
   ) async {
     await showRecoveryDialog(tester, failure: null);
 
-    expect(find.text('Resume'), findsOneWidget);
+    expect(find.text('Restore'), findsOneWidget);
     expect(find.text('Discard'), findsOneWidget);
     expect(
       find.text('Not now'),
       findsNothing,
       reason: 'an interrupted run is decided up front; the escape exists only '
           'for a recovery that has already failed',
+    );
+  });
+
+  // Restoring loads the run and waits for Start; the text says so, so a
+  // daytime press cannot be mistaken for starting the night again.
+  testWidgets('the prompt says that restoring does not start the run', (
+    tester,
+  ) async {
+    await showRecoveryDialog(tester, failure: null);
+
+    expect(
+      find.textContaining('Restore loads its sequence and progress'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Nothing moves until you press Start'),
+      findsOneWidget,
     );
   });
 
@@ -106,8 +123,11 @@ void main() {
     );
 
     expect(find.textContaining('A sequence on 192.168.1.100'), findsOneWidget);
-    expect(find.textContaining('move the mount'), findsOneWidget);
-    expect(find.text('Resume'), findsOneWidget);
+    expect(
+      find.textContaining('Nothing moves until you press Start'),
+      findsOneWidget,
+    );
+    expect(find.text('Restore'), findsOneWidget);
     expect(find.text('Discard'), findsOneWidget);
 
     await tester.tap(find.text('Leave it'));
@@ -143,7 +163,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Retry Resume'), findsOneWidget);
+    expect(find.text('Retry restore'), findsOneWidget);
     expect(find.textContaining('Recovery did not complete'), findsOneWidget);
 
     final escape = find.text('Not now');
@@ -181,11 +201,11 @@ void main() {
           'test exists for',
     );
     expect(
-      find.textContaining('This checkpoint can no longer be resumed'),
+      find.textContaining('This checkpoint can no longer be restored'),
       findsOneWidget,
     );
     expect(
-      find.text('Retry Resume'),
+      find.text('Retry restore'),
       findsNothing,
       reason: 'a retry against an unusable checkpoint can only fail again',
     );
