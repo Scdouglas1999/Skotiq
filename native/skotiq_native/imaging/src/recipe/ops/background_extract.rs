@@ -135,24 +135,24 @@ const PEDESTAL_LATTICE: usize = 65;
 pub struct BackgroundExtractV1;
 
 /// One step's validated parameters.
-struct Settings {
-    /// Distance between sample-box centres, in pixels at the render level.
-    sample_spacing: f64,
+pub(crate) struct Settings {
+    /// Distance between sample-box centres, in full-resolution pixels.
+    pub(crate) sample_spacing: f64,
     /// Quantile of the preliminary-fit residual distribution above which a box
     /// is dropped as object-contaminated.
-    exclusion_percentile: f64,
+    pub(crate) exclusion_percentile: f64,
     /// Degree of the fitted polynomial surface.
-    model_order: usize,
+    pub(crate) model_order: usize,
 }
 
 /// A detected star's masked disk, in pixels at the render level.
-struct StarDisk {
+pub(crate) struct StarDisk {
     /// Centre, x.
-    x: f64,
+    pub(crate) x: f64,
     /// Centre, y.
-    y: f64,
+    pub(crate) y: f64,
     /// Masked radius.
-    radius: f64,
+    pub(crate) radius: f64,
 }
 
 impl DarkroomOp for BackgroundExtractV1 {
@@ -190,12 +190,7 @@ impl DarkroomOp for BackgroundExtractV1 {
         let channels = image.channels() as usize;
 
         let terms = poly_terms(settings.model_order);
-        let n_terms = terms.len();
-        let spacing = (settings.sample_spacing * ctx.scale()).max(1.0);
-        let grid = grid_for(width, height, spacing);
-        let half_box = sample_box_half(spacing);
-
-        let stars = self.star_mask(image, ctx)?;
+        let stars = star_disks(image, ctx)?;
 
         let mut coefficients = Vec::with_capacity(channels);
         let mut pedestals = Vec::with_capacity(channels);
@@ -204,61 +199,24 @@ impl DarkroomOp for BackgroundExtractV1 {
         for channel in 0..channels {
             ctx.check_cancel()?;
             let plane = channel_plane(image, channel);
-            let mut samples = collect_samples(&plane, width, height, grid, half_box, ctx)?;
-            retain_unmasked_samples(&mut samples, &stars, half_box);
-            let star_free = samples.clone();
-            self.require_enough(
-                &samples,
-                n_terms,
-                settings.model_order,
-                channel,
-                "star masking",
-            )?;
-
-            let preliminary = solve_poly_fit(&samples, width, height, settings.model_order, n_terms)
-                .ok_or_else(|| OpError::Failed {
-                    op_id: self.id(),
-                    op_version: self.version(),
-                    reason: format!(
-                        "channel {channel} background samples are degenerate, so no degree-{} surface is determined",
-                        settings.model_order
-                    ),
-                })?;
-            retain_low_residual_samples(
-                &mut samples,
-                &preliminary,
-                &terms,
+            let fit = fit_plane(
+                &plane,
                 width,
                 height,
-                settings.exclusion_percentile,
-            );
-            self.require_enough(
-                &samples,
-                n_terms,
-                settings.model_order,
-                channel,
-                "the exclusion cut",
-            )?;
-
-            let coeffs = iterative_residual_fit(
-                &mut samples,
-                width,
-                height,
-                settings.model_order,
-                n_terms,
-                RESIDUAL_CLIP_SIGMA_LOW,
-                RESIDUAL_CLIP_SIGMA_HIGH,
-                channel,
-            )
-            .map_err(|source| OpError::Failed {
+                &settings,
+                &stars,
+                &format!("channel {channel}"),
+                ctx,
+            )?
+            .map_err(|reason| OpError::Failed {
                 op_id: self.id(),
                 op_version: self.version(),
-                reason: source.to_string(),
+                reason,
             })?;
-            pedestals.push(surface_median(&coeffs, &terms, width, height));
-            residual_sigmas.push(residual_sigma(&star_free, &coeffs, &terms, width, height));
-            sample_counts.push(samples.len());
-            coefficients.push(coeffs);
+            pedestals.push(fit.pedestal);
+            residual_sigmas.push(fit.residual_sigma);
+            sample_counts.push(fit.samples_used);
+            coefficients.push(fit.coefficients);
         }
 
         let row_len = width * channels;
@@ -316,117 +274,202 @@ impl BackgroundExtractV1 {
             )? as usize,
         })
     }
+}
 
-    /// Reject a sample set too small to determine the surface, rather than
-    /// fitting one the data does not support.
-    ///
-    /// `after` names the rejection stage that emptied the set, and the message
-    /// names the two parameters that widen it: a denser lattice puts more boxes
-    /// between the stars, and a lower degree needs fewer of them.
-    fn require_enough(
-        &self,
-        samples: &[Sample],
-        n_terms: usize,
-        model_order: usize,
-        channel: usize,
-        after: &str,
-    ) -> Result<(), OpError> {
-        if samples.len() >= n_terms {
-            return Ok(());
-        }
-        Err(OpError::Failed {
-            op_id: self.id(),
-            op_version: self.version(),
-            reason: format!(
-                "channel {channel} kept {} clean background sample{} after {after} but a degree-{model_order} surface needs {n_terms}; lower modelOrder or sampleSpacing",
-                samples.len(),
-                if samples.len() == 1 { "" } else { "s" }
+/// Detected stars in `image` as masked disks, in pixels at the render level.
+///
+/// Detection runs over a peak-across-channels luminance plane quantised to
+/// 16 bits between the plane's own [`LUMINANCE_LOW_QUANTILE`] and
+/// [`LUMINANCE_HIGH_QUANTILE`] levels, because the detector reads `U16` and
+/// a linear master's ADU scale is not known in advance.
+pub(crate) fn star_disks(image: &OpImage, ctx: &OpContext) -> Result<Vec<StarDisk>, OpError> {
+    let width = image.width() as usize;
+    let height = image.height() as usize;
+    let channels = image.channels() as usize;
+    let pixels = width * height;
+
+    let source = image.data();
+    let mut luminance = vec![0.0_f64; pixels];
+    luminance
+        .par_chunks_exact_mut(width)
+        .enumerate()
+        .for_each(|(y, row)| {
+            if ctx.cancel_requested() {
+                return;
+            }
+            let base = y * width * channels;
+            for (x, slot) in row.iter_mut().enumerate() {
+                let pixel = base + x * channels;
+                let mut peak = f64::NEG_INFINITY;
+                for channel in 0..channels {
+                    let value = source[pixel + channel] as f64;
+                    if value > peak {
+                        peak = value;
+                    }
+                }
+                *slot = peak;
+            }
+        });
+    ctx.check_cancel()?;
+
+    let stride = (pixels / LUMINANCE_SAMPLE_BUDGET).max(1);
+    let mut quantile_samples: Vec<f64> = luminance.iter().step_by(stride).copied().collect();
+    quantile_samples.sort_unstable_by(f64::total_cmp);
+    let low = percentile_nearest_rank(&quantile_samples, LUMINANCE_LOW_QUANTILE);
+    let high = percentile_nearest_rank(&quantile_samples, LUMINANCE_HIGH_QUANTILE);
+    if !low.is_finite() || !high.is_finite() || high <= low {
+        // A luminance plane with no measurable range carries no detectable
+        // star, so nothing is masked and every box stays in the fit.
+        return Ok(Vec::new());
+    }
+
+    let span = high - low;
+    let quantised: Vec<u16> = luminance
+        .iter()
+        .map(|&value| {
+            (((value - low) / span) * LUMINANCE_FULL_SCALE).clamp(0.0, u16::MAX as f64) as u16
+        })
+        .collect();
+    ctx.check_cancel()?;
+
+    let frame = ImageData::from_u16(width as u32, height as u32, 1, &quantised);
+    // Masking, not photometry: a compact star must still be masked, so the
+    // sharpness ceiling is open and the area/HFR floors are low; the SNR
+    // floor stays high enough that faint nebulosity is not called a star,
+    // because nebulosity is signal the fit must step around, not mask.
+    let config = StarDetectionConfig {
+        max_sharpness: 1.0,
+        min_area: 3,
+        min_hfr: 0.5,
+        min_snr: 3.0,
+        ..StarDetectionConfig::default()
+    };
+    let radius_ceiling = width.min(height) as f64 * STAR_MASK_RADIUS_FRACTION;
+    Ok(detect_stars(&frame, &config)
+        .into_iter()
+        .map(|star| StarDisk {
+            x: star.x,
+            y: star.y,
+            radius: (STAR_MASK_RADIUS_FACTOR * star.hfr).clamp(
+                STAR_MASK_RADIUS_MIN,
+                STAR_MASK_RADIUS_MIN.max(radius_ceiling),
             ),
         })
+        .collect())
+}
+
+/// A smooth surface fitted to one plane's sky.
+pub(crate) struct PlaneFit {
+    /// Polynomial coefficients over normalised coordinates, in
+    /// [`poly_terms`] order.
+    pub(crate) coefficients: Vec<f64>,
+    /// The surface's median over the frame, which the subtraction keeps.
+    pub(crate) pedestal: f64,
+    /// Robust spread of every star-free sample about the surface.
+    pub(crate) residual_sigma: f64,
+    /// Samples the final fit used.
+    pub(crate) samples_used: usize,
+}
+
+/// Fit the sky surface of one `width x height` plane: the sample lattice,
+/// star masking, the residual exclusion cut and the clipped least-squares fit
+/// described in the module documentation.
+///
+/// The outer `Result` is cancellation; the inner one is a sample set that cannot
+/// determine the surface, with the reason naming `label`.
+pub(crate) fn fit_plane(
+    plane: &[f64],
+    width: usize,
+    height: usize,
+    settings: &Settings,
+    stars: &[StarDisk],
+    label: &str,
+    ctx: &OpContext,
+) -> Result<Result<PlaneFit, String>, OpError> {
+    let terms = poly_terms(settings.model_order);
+    let n_terms = terms.len();
+    let spacing = (settings.sample_spacing * ctx.scale()).max(1.0);
+    let grid = grid_for(width, height, spacing);
+    let half_box = sample_box_half(spacing);
+
+    let mut samples = collect_samples(plane, width, height, grid, half_box, ctx)?;
+    retain_unmasked_samples(&mut samples, stars, half_box);
+    let star_free = samples.clone();
+    if let Err(reason) = require_enough(
+        &samples,
+        n_terms,
+        settings.model_order,
+        label,
+        "star masking",
+    ) {
+        return Ok(Err(reason));
     }
-
-    /// Detected stars as masked disks, in pixels at the render level.
-    ///
-    /// Detection runs over a peak-across-channels luminance plane quantised to
-    /// 16 bits between the plane's own [`LUMINANCE_LOW_QUANTILE`] and
-    /// [`LUMINANCE_HIGH_QUANTILE`] levels, because the detector reads `U16` and
-    /// a linear master's ADU scale is not known in advance. Quantiles rather
-    /// than the extremes, so one cosmic ray cannot compress the whole plane.
-    fn star_mask(&self, image: &OpImage, ctx: &OpContext) -> Result<Vec<StarDisk>, OpError> {
-        let width = image.width() as usize;
-        let height = image.height() as usize;
-        let channels = image.channels() as usize;
-        let pixels = width * height;
-
-        let source = image.data();
-        let mut luminance = vec![0.0_f64; pixels];
-        luminance
-            .par_chunks_exact_mut(width)
-            .enumerate()
-            .for_each(|(y, row)| {
-                if ctx.cancel_requested() {
-                    return;
-                }
-                let base = y * width * channels;
-                for (x, slot) in row.iter_mut().enumerate() {
-                    let pixel = base + x * channels;
-                    let mut peak = f64::NEG_INFINITY;
-                    for channel in 0..channels {
-                        let value = source[pixel + channel] as f64;
-                        if value > peak {
-                            peak = value;
-                        }
-                    }
-                    *slot = peak;
-                }
-            });
-        ctx.check_cancel()?;
-
-        let stride = (pixels / LUMINANCE_SAMPLE_BUDGET).max(1);
-        let mut quantile_samples: Vec<f64> = luminance.iter().step_by(stride).copied().collect();
-        quantile_samples.sort_unstable_by(f64::total_cmp);
-        let low = percentile_nearest_rank(&quantile_samples, LUMINANCE_LOW_QUANTILE);
-        let high = percentile_nearest_rank(&quantile_samples, LUMINANCE_HIGH_QUANTILE);
-        if !low.is_finite() || !high.is_finite() || high <= low {
-            // A luminance plane with no measurable range carries no detectable
-            // star, so nothing is masked and every box stays in the fit.
-            return Ok(Vec::new());
-        }
-
-        let span = high - low;
-        let quantised: Vec<u16> = luminance
-            .iter()
-            .map(|&value| {
-                (((value - low) / span) * LUMINANCE_FULL_SCALE).clamp(0.0, u16::MAX as f64) as u16
-            })
-            .collect();
-        ctx.check_cancel()?;
-
-        let frame = ImageData::from_u16(width as u32, height as u32, 1, &quantised);
-        // Masking, not photometry: a compact star must still be masked, so the
-        // sharpness ceiling is open and the area/HFR floors are low; the SNR
-        // floor stays high enough that faint nebulosity is not called a star,
-        // because nebulosity is signal the fit must step around, not mask.
-        let config = StarDetectionConfig {
-            max_sharpness: 1.0,
-            min_area: 3,
-            min_hfr: 0.5,
-            min_snr: 3.0,
-            ..StarDetectionConfig::default()
-        };
-        let radius_ceiling = width.min(height) as f64 * STAR_MASK_RADIUS_FRACTION;
-        Ok(detect_stars(&frame, &config)
-            .into_iter()
-            .map(|star| StarDisk {
-                x: star.x,
-                y: star.y,
-                radius: (STAR_MASK_RADIUS_FACTOR * star.hfr).clamp(
-                    STAR_MASK_RADIUS_MIN,
-                    STAR_MASK_RADIUS_MIN.max(radius_ceiling),
-                ),
-            })
-            .collect())
+    let Some(preliminary) = solve_poly_fit(&samples, width, height, settings.model_order, n_terms)
+    else {
+        return Ok(Err(format!(
+            "{label} background samples are degenerate, so no degree-{} surface is determined",
+            settings.model_order
+        )));
+    };
+    retain_low_residual_samples(
+        &mut samples,
+        &preliminary,
+        &terms,
+        width,
+        height,
+        settings.exclusion_percentile,
+    );
+    if let Err(reason) = require_enough(
+        &samples,
+        n_terms,
+        settings.model_order,
+        label,
+        "the exclusion cut",
+    ) {
+        return Ok(Err(reason));
     }
+    let coefficients = match iterative_residual_fit(
+        &mut samples,
+        width,
+        height,
+        settings.model_order,
+        n_terms,
+        RESIDUAL_CLIP_SIGMA_LOW,
+        RESIDUAL_CLIP_SIGMA_HIGH,
+        0,
+    ) {
+        Ok(coefficients) => coefficients,
+        Err(source) => return Ok(Err(source.to_string())),
+    };
+    Ok(Ok(PlaneFit {
+        pedestal: surface_median(&coefficients, &terms, width, height),
+        residual_sigma: residual_sigma(&star_free, &coefficients, &terms, width, height),
+        samples_used: samples.len(),
+        coefficients,
+    }))
+}
+
+/// Reject a sample set too small to determine the surface, rather than
+/// fitting one the data does not support.
+///
+/// `after` names the rejection stage that emptied the set, and the message
+/// names the two parameters that widen it: a denser lattice puts more boxes
+/// between the stars, and a lower degree needs fewer of them.
+fn require_enough(
+    samples: &[Sample],
+    n_terms: usize,
+    model_order: usize,
+    label: &str,
+    after: &str,
+) -> Result<(), String> {
+    if samples.len() >= n_terms {
+        return Ok(());
+    }
+    Err(format!(
+        "{label} kept {} clean background sample{} after {after} but a degree-{model_order} surface needs {n_terms}; lower modelOrder or sampleSpacing",
+        samples.len(),
+        if samples.len() == 1 { "" } else { "s" }
+    ))
 }
 
 /// The robust spread of `samples` about the fitted surface: `1.4826 · MAD` of
@@ -467,6 +510,11 @@ fn grid_for(width: usize, height: usize, spacing: f64) -> usize {
     let shortest = width.min(height).max(1);
     let count = (shortest as f64 / spacing).round() as i64;
     (count.clamp(GRID_MIN as i64, GRID_MAX as i64) as usize).min(shortest)
+}
+
+/// Side of a sample box, in pixels, for a spacing in render-level pixels.
+pub(crate) fn sample_box_side(spacing: f64) -> usize {
+    sample_box_half(spacing) * 2 + 1
 }
 
 /// Half-width of a sample box for a spacing in render-level pixels.
@@ -623,7 +671,12 @@ fn retain_low_residual_samples(
 /// Read from a regular [`PEDESTAL_LATTICE`]-per-axis lattice spanning the whole
 /// frame, so it describes the sky the frame covers rather than wherever the
 /// surviving samples happened to concentrate.
-fn surface_median(coeffs: &[f64], terms: &[(u32, u32)], width: usize, height: usize) -> f64 {
+pub(crate) fn surface_median(
+    coeffs: &[f64],
+    terms: &[(u32, u32)],
+    width: usize,
+    height: usize,
+) -> f64 {
     let last = PEDESTAL_LATTICE as f64 - 1.0;
     let mut levels = Vec::with_capacity(PEDESTAL_LATTICE * PEDESTAL_LATTICE);
     for row in 0..PEDESTAL_LATTICE {
