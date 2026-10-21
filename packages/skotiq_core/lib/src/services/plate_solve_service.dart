@@ -125,6 +125,9 @@ class PlateSolveService {
   Completer<void>? _solveFinished;
   bool _retired = false;
 
+  /// The background solve running now, if any (see [solveInBackground]).
+  Future<PlateSolveResult>? _backgroundSolve;
+
   PlateSolveService(this._ref, {SkotiqBackend? backend})
     : _backend = backend ?? _ref.read(backendProvider),
       _stateController = _ref.read(plateSolveStateProvider.notifier);
@@ -158,6 +161,16 @@ class PlateSolveService {
     String imagePath,
     Future<PlateSolveResult> Function() operation,
   ) async {
+    // A background solve of the frame on screen never turns an operator's
+    // solve away: the operator's waits for it to finish, which is one solve
+    // at most because the background queue keeps only the newest frame.
+    while (_backgroundSolve != null) {
+      try {
+        await _backgroundSolve;
+      } catch (_) {
+        // Its outcome is its own caller's to report.
+      }
+    }
     if (_solveInFlight) {
       return _failureResult(
         'Another plate solve is already running. Wait for it to finish before '
@@ -359,13 +372,16 @@ class PlateSolveService {
     _ref.read(plateSolveStateProvider.notifier).state = _ref
         .read(plateSolveStateProvider)
         .copyWith(isSolving: false, lastResult: result);
+    _logSolveResult(result);
+  }
 
+  void _logSolveResult(PlateSolveResult result, {String prefix = ''}) {
     final logging = _ref.read(loggingServiceProvider);
     if (result.success) {
       // `PlateSolveResult.ra` is in DEGREES across every solve path (FFI,
       // network host, and the local fallback parsers), so log it as degrees.
       logging.info(
-        'Plate solve succeeded: RA ${result.ra.toStringAsFixed(4)}° '
+        '${prefix}Plate solve succeeded: RA ${result.ra.toStringAsFixed(4)}° '
         'Dec ${result.dec.toStringAsFixed(4)}° · '
         'scale ${result.pixelScale.toStringAsFixed(2)}"/px · '
         'rot ${result.rotation.toStringAsFixed(1)}° · '
@@ -374,7 +390,7 @@ class PlateSolveService {
       );
     } else {
       logging.warning(
-        'Plate solve failed: ${result.error ?? 'unknown error'}',
+        '${prefix}Plate solve failed: ${result.error ?? 'unknown error'}',
         source: 'PlateSolveService',
       );
     }
@@ -740,6 +756,51 @@ class PlateSolveService {
       hintRaHours: hintRaHours,
       hintDecDegrees: hintDecDegrees,
     );
+  }
+
+  /// Solve the frame on screen in the background, so its overlays and its
+  /// "Solved" readout need no button press.
+  ///
+  /// Unlike [solve] it neither shows as the operator's solve in
+  /// [plateSolveStateProvider] nor competes with one: it waits while an
+  /// operator's solve runs, and an operator's solve that arrives while it
+  /// runs waits for it (see [_runExclusiveSolve]). The solver itself runs out
+  /// of process (ASTAP or astrometry.net, under the native solve gate), so
+  /// nothing here blocks the UI isolate. Returns null when [isCurrent] says
+  /// the frame was replaced before the solve could start.
+  ///
+  /// Throws [SolverNotAvailableError] when no solver is set up.
+  Future<PlateSolveResult?> solveInBackground({
+    required String imagePath,
+    required bool Function() isCurrent,
+    double? hintRaHours,
+    double? hintDecDegrees,
+  }) async {
+    while (_solveInFlight || _backgroundSolve != null) {
+      final waitFor = _solveInFlight
+          ? _solveFinished?.future
+          : _backgroundSolve;
+      try {
+        await waitFor;
+      } catch (_) {
+        // Another caller's failure; this solve still runs.
+      }
+      if (!_hasAuthority || !isCurrent()) return null;
+    }
+    if (!_hasAuthority || !isCurrent()) return null;
+    final run = _solveWithFallbackInternal(
+      imagePath: imagePath,
+      hintRaHours: hintRaHours,
+      hintDecDegrees: hintDecDegrees,
+    );
+    _backgroundSolve = run;
+    try {
+      final result = await run;
+      if (_hasAuthority) _logSolveResult(result, prefix: 'Background ');
+      return result;
+    } finally {
+      if (identical(_backgroundSolve, run)) _backgroundSolve = null;
+    }
   }
 
   /// Solve `imagePath` honouring the user's `PlateSolverChoice`.
