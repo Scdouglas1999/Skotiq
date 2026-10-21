@@ -78,6 +78,7 @@ final dawnMasterResolverProvider = Provider<DawnMasterResolver>((ref) {
   return DawnMasterResolver(
     images: ImagesDao(db),
     masters: IntegratedMastersDao(db),
+    recipes: RecipesDao(db),
   );
 });
 

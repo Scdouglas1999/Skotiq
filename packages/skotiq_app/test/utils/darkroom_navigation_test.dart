@@ -77,9 +77,6 @@ void main() {
         backendProvider.overrideWith(
           (ref) => _PinnedBackend(ref, DisconnectedBackend()),
         ),
-        darkroomHoldsColorCompositeProvider.overrideWithValue(
-          (_) async => false,
-        ),
         dawnMasterResolverProvider.overrideWithValue(
           _ScriptedResolver(
             DawnMasterSet(
@@ -97,48 +94,6 @@ void main() {
     expect(target.unavailableReason, isNull);
   });
 
-  testWidgets(
-      'a night whose filters were combined opens on the color '
-      'composite', (tester) async {
-    final target = await withRef(
-      tester,
-      [
-        backendProvider.overrideWith(
-          (ref) => _PinnedBackend(ref, DisconnectedBackend()),
-        ),
-        darkroomHoldsColorCompositeProvider.overrideWithValue(
-          (path) async => path == '/masters/m31_l.fits',
-        ),
-        dawnMasterResolverProvider.overrideWithValue(
-          _ScriptedResolver(
-            DawnMasterSet(
-              sessionId: 3,
-              masters: [
-                _master(11),
-                const DawnMaster(
-                  masterId: 12,
-                  targetId: 1,
-                  name: 'M31 L',
-                  filter: 'L',
-                  masterFitsPath: '/masters/m31_l.fits',
-                  channels: 1,
-                  width: 4000,
-                  height: 3000,
-                  frameCount: 40,
-                  totalIntegrationSeconds: 12000,
-                ),
-              ],
-              withoutFile: const [],
-            ),
-          ),
-        ),
-      ],
-      (ref) => resolveDarkroomTargetForSession(ref, 3),
-    );
-
-    expect(target.masterId, 12);
-  });
-
   testWidgets('a remote client is told where the Darkroom lives', (
     tester,
   ) async {
@@ -147,9 +102,6 @@ void main() {
       [
         backendProvider.overrideWith(
           (ref) => _PinnedBackend(ref, _MockNetworkBackend()),
-        ),
-        darkroomHoldsColorCompositeProvider.overrideWithValue(
-          (_) async => false,
         ),
         dawnMasterResolverProvider.overrideWithValue(
           _ScriptedResolver(
@@ -184,9 +136,6 @@ void main() {
           backendProvider.overrideWith(
             (ref) => _PinnedBackend(ref, DisconnectedBackend()),
           ),
-          darkroomHoldsColorCompositeProvider.overrideWithValue(
-            (_) async => false,
-          ),
           dawnMasterResolverProvider.overrideWithValue(
             _ScriptedResolver(
               DawnMasterSet(
@@ -211,9 +160,6 @@ void main() {
       [
         backendProvider.overrideWith(
           (ref) => _PinnedBackend(ref, DisconnectedBackend()),
-        ),
-        darkroomHoldsColorCompositeProvider.overrideWithValue(
-          (_) async => false,
         ),
         dawnMasterResolverProvider.overrideWithValue(
           _ScriptedResolver(
@@ -240,9 +186,6 @@ void main() {
       [
         backendProvider.overrideWith(
           (ref) => _PinnedBackend(ref, DisconnectedBackend()),
-        ),
-        darkroomHoldsColorCompositeProvider.overrideWithValue(
-          (_) async => false,
         ),
         dawnMasterResolverProvider.overrideWithValue(
           _ScriptedResolver(
@@ -386,9 +329,6 @@ void main() {
           remoteClientLaunchProvider.overrideWithValue(true),
           backendProvider.overrideWith(
             (ref) => _PinnedBackend(ref, DisconnectedBackend()),
-          ),
-          darkroomHoldsColorCompositeProvider.overrideWithValue(
-            (_) async => false,
           ),
           dawnMasterResolverProvider.overrideWithValue(
             _ScriptedResolver(

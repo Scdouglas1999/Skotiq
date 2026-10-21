@@ -1018,6 +1018,44 @@ void main() {
     expect(again, hasLength(2));
   });
 
+  test('the resolver lists the master holding a color composite first, and '
+      'leaves the order alone without one', () async {
+    final sessionId = await insertSession();
+    final paths = <String>[];
+    for (final filter in ['R', 'L']) {
+      final imageId = await insertSub(sessionId: sessionId);
+      final path = '${workspace.path}/order_$filter.fits';
+      paths.add(path);
+      await insertMaster(imageIds: [imageId], filter: filter, path: path);
+    }
+    final resolver = DawnMasterResolver(
+      images: ImagesDao(db),
+      masters: IntegratedMastersDao(db),
+      recipes: RecipesDao(db),
+    );
+    final before = await resolver.resolve(sessionId);
+    final order = [for (final m in before.masters) m.masterFitsPath];
+    expect(order, hasLength(2));
+
+    final last = before.masters.last;
+    await RecipesDao(db).create(
+      targetId: null,
+      sessionId: sessionId,
+      masterId: last.masterId,
+      baseMasterPath: last.masterFitsPath,
+      name: 'color',
+      stepsJson:
+          '[{"opId":"channel_combine","opVersion":1,"params":{},'
+          '"enabled":true}]',
+      createdBy: RecipeAuthor.autopilot,
+      schemaVersion: 1,
+      createdAt: DateTime.utc(2026, 10, 21),
+    );
+    final after = await resolver.resolve(sessionId);
+    expect(after.masters.first.masterId, last.masterId);
+    expect(after.masters, hasLength(2));
+  });
+
   test('a background extraction the registry dropped is retried once at half '
       'the sample spacing', () async {
     darkroom.draftSteps = [
