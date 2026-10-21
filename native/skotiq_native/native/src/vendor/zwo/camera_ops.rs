@@ -259,18 +259,26 @@ impl NativeCamera for ZwoCamera {
             None
         };
 
-        // Trust the SDK's COOLER_ON readback when it succeeds; otherwise fall back to
-        // the value last written via set_cooler. Locked-state poisoning is recovered
-        // (we own the data, not a foreign invariant), since refusing to report status
-        // because of a poisoned lock would be a worse failure mode than reading a
-        // last-known-good copy. Cameras without a cooler always report `false`.
+        // Report what the camera reads back for both the cooler switch and its
+        // set-point; the value last written via set_cooler is only the fallback
+        // when a read fails. Locked-state poisoning is recovered (we own the
+        // data, not a foreign invariant), since refusing to report status
+        // because of a poisoned lock would be a worse failure mode than reading
+        // a last-known-good copy. Cameras without a cooler always report `false`.
         let (cooler_on, target_temp) = if supports_cooler {
             let local = *self.cooler_state.lock().unwrap_or_else(|e| e.into_inner());
             let sdk_enabled = self
                 .get_control(ASIControlType::ASI_COOLER_ON)
                 .ok()
                 .map(|v| v != 0);
-            (sdk_enabled.unwrap_or(local.enabled), Some(local.target_c))
+            let sdk_target = self
+                .get_control(ASIControlType::ASI_TARGET_TEMP)
+                .ok()
+                .map(|v| v as f64);
+            (
+                sdk_enabled.unwrap_or(local.enabled),
+                Some(sdk_target.unwrap_or(local.target_c)),
+            )
         } else {
             (false, None)
         };
@@ -595,6 +603,10 @@ impl NativeCamera for ZwoCamera {
         // setpoint. Writing it unconditionally meant a plain "cooler off"
         // command first drove the TEC target somewhere the operator never
         // asked for.
+        // ASI_TARGET_TEMP takes whole degrees; the set-point is rounded to the
+        // nearest one and that is what is recorded, so the reported target is the
+        // one the camera holds (a cast would truncate toward zero: -10.7 to -10).
+        let target_temp = target_temp.map(zwo_target_degrees);
         if let Some(target) = target_temp {
             // Use async versions with mutex protection
             self.set_control_async(ASIControlType::ASI_TARGET_TEMP, target as c_long, false)

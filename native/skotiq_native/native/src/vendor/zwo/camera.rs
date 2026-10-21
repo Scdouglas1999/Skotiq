@@ -27,6 +27,13 @@ impl Default for CoolerState {
     }
 }
 
+/// The cooler set-point a ZWO camera can hold for a requested `target_c`:
+/// `ASI_TARGET_TEMP` is whole degrees Celsius, so the request rounds to the
+/// nearest one.
+pub(crate) fn zwo_target_degrees(target_c: f64) -> f64 {
+    target_c.round()
+}
+
 /// Full-scale ADU of the delivered pixel container for a ZWO sensor of
 /// `bit_depth` bits read out as [`ASIImgType::Raw16`].
 ///
