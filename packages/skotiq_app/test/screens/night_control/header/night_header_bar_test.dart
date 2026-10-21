@@ -83,6 +83,30 @@ void main() {
       expect(find.textContaining('dark in 1 h 12 m'), findsOneWidget);
     });
 
+    testWidgets('a restored run says it waits for Start', (tester) async {
+      final base = headerFor(NightRunPhase.ready);
+      await _pumpHeader(
+        tester,
+        NightRunPhase.ready,
+        header: NightHeaderVm(
+          phase: base.phase,
+          planName: base.planName,
+          targetCount: base.targetCount,
+          stepCount: base.stepCount,
+          restoredFrames: 37,
+          startNow: base.startNow,
+          startAtDark: base.startAtDark,
+        ),
+      );
+      expect(
+        find.textContaining(
+          'restored at 37 frames, nothing moves until you press Start',
+        ),
+        findsOneWidget,
+      );
+      expect(_enabled(tester, 'Start now'), isTrue);
+    });
+
     testWidgets('armed: the start time with Cancel and the keep-open note',
         (tester) async {
       final harness = await _pumpHeader(tester, NightRunPhase.armed);
