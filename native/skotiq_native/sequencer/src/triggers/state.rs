@@ -568,10 +568,17 @@ impl TriggerState {
     }
 
     /// Mark that autofocus was just performed
+    ///
+    /// The temperature shift is measured from here too. Nothing else moved
+    /// the baseline, so once the tube had cooled past the threshold the
+    /// Temperature Shift trigger stayed true and refocused at every cooldown
+    /// for the rest of the night (rig, 2026-10-20: every 10 min after
+    /// 2 °C).
     pub fn mark_autofocus_performed(&mut self) {
         self.last_autofocus_frame = self.completed_exposures;
         self.autofocus_invalidated = false;
         self.autofocus_invalidation_reason = None;
+        self.reset_baseline_temperature();
     }
 
     /// Mark that autofocus was ATTEMPTED at this frame and did not converge.
@@ -586,10 +593,13 @@ impl TriggerState {
     ///
     /// The stale-focus latch is dropped for the same reason it is dropped when
     /// the action is impossible: the HFR trigger force-fires on it every
-    /// evaluation tick otherwise.
+    /// evaluation tick otherwise. The temperature baseline moves for the same
+    /// reason as the cadence anchor: left behind, the Temperature Shift
+    /// trigger re-fires the failing sweep at every cooldown.
     pub fn mark_autofocus_attempted(&mut self) {
         self.last_autofocus_frame = self.completed_exposures;
         self.clear_autofocus_invalidation();
+        self.reset_baseline_temperature();
     }
 
     /// Drop a pending "autofocus is stale" latch WITHOUT claiming an autofocus

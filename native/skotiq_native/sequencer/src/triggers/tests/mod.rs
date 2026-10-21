@@ -775,6 +775,36 @@ async fn test_temperature_shift_trigger() {
     assert!(trigger.check(&state).await);
 }
 
+/// The shift is measured from the last autofocus, successful or not. A
+/// baseline left at the run's first reading kept the trigger true once the
+/// tube had cooled past the threshold, and it refocused at every cooldown.
+#[tokio::test]
+async fn temperature_shift_measures_from_the_last_autofocus() {
+    let mut trigger = Trigger::new(
+        "test",
+        "Test Temperature Shift",
+        TriggerType::TemperatureShift { degrees: 2.0 },
+        RecoveryAction::Autofocus,
+    );
+    let mut state = TriggerState::new();
+    state.update_temperature(16.3);
+    state.update_temperature(14.0);
+    assert!(trigger.check(&state).await, "2.3 °C since the run began");
+
+    state.mark_autofocus_performed();
+    assert!(!trigger.check(&state).await, "a refocus re-bases the shift");
+    state.update_temperature(12.5);
+    assert!(!trigger.check(&state).await, "1.5 °C since the refocus");
+    state.update_temperature(11.9);
+    assert!(trigger.check(&state).await, "2.1 °C since the refocus");
+
+    state.mark_autofocus_attempted();
+    assert!(
+        !trigger.check(&state).await,
+        "a failed sweep waits for the next 2 °C, not the next cooldown"
+    );
+}
+
 #[tokio::test]
 async fn test_temperature_shift_needs_a_drifting_source() {
     // The temperature trigger is fed from the FOCUSER probe, not the
