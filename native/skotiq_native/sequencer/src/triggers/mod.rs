@@ -3,19 +3,23 @@
 //! Split by concern: [`trigger`] holds the [`Trigger`] record and its
 //! condition evaluation, [`state`] the observed-condition snapshot the
 //! evaluation reads, [`manager`] the collection that ticks them all,
-//! [`meridian_window`] the shared flip-window test, and [`dawn`] the twilight
-//! helper. This module is declarations and shared constants only.
+//! [`meridian_window`] the shared flip-window test, [`run_mode`] what a fired
+//! trigger may do in the run's current mode, and [`dawn`] the twilight helper. This module is declarations and shared constants only.
 
 mod dawn;
+mod flip_state;
 mod manager;
 mod manual_flip;
 mod meridian_window;
+mod run_mode;
 mod state;
 mod trigger;
 
 pub use dawn::*;
+pub use flip_state::*;
 pub use manager::*;
 pub use meridian_window::*;
+pub use run_mode::*;
 pub use state::*;
 pub use trigger::*;
 

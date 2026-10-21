@@ -5,6 +5,30 @@ use crate::{RecoveryAction, TriggerType};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+/// A trigger whose condition held on one evaluation.
+///
+/// Its cooldown starts only when the firing is handed to
+/// [`TriggerManager::dispatch`]; a firing that is dropped instead leaves the
+/// trigger armed, so it fires again on the next tick.
+#[derive(Debug, Clone)]
+#[must_use = "a firing that is neither dispatched nor deliberately dropped is lost"]
+pub struct Firing {
+    trigger_id: String,
+    action: RecoveryAction,
+}
+
+impl Firing {
+    pub fn trigger_id(&self) -> &str {
+        &self.trigger_id
+    }
+
+    /// The trigger's configured action, before the operator's park and
+    /// quality settings are applied.
+    pub fn action(&self) -> &RecoveryAction {
+        &self.action
+    }
+}
+
 /// Manager for all active triggers
 pub struct TriggerManager {
     triggers: Vec<Trigger>,
@@ -81,13 +105,12 @@ impl TriggerManager {
         }
     }
 
-    /// Re-arm a trigger whose firing was dropped because the run is held, so
-    /// it fires on the first tick after the hold. See
-    /// [`Trigger::rearm_after_hold`].
-    pub fn rearm_after_hold(&mut self, id: &str) {
-        if let Some(trigger) = self.get_trigger_mut(id) {
-            trigger.rearm_after_hold();
-        }
+    /// Dispatch a firing: start its trigger's cooldown and return the
+    /// trigger, or `None` when it was removed since the evaluation.
+    pub fn dispatch(&mut self, firing: Firing) -> Option<&Trigger> {
+        let trigger = self.get_trigger_mut(&firing.trigger_id)?;
+        trigger.start_cooldown();
+        Some(trigger)
     }
 
     /// Enable/disable a trigger
@@ -138,8 +161,9 @@ impl TriggerManager {
         &self.triggers
     }
 
-    /// Check all triggers and return any that fired
-    pub async fn check_all(&mut self) -> Vec<(String, RecoveryAction)> {
+    /// Evaluate every trigger and return the ones that fired. Nothing here
+    /// starts a cooldown; see [`Firing`].
+    pub async fn check_all(&mut self) -> Vec<Firing> {
         if !self.enabled {
             return Vec::new();
         }
@@ -160,12 +184,9 @@ impl TriggerManager {
             let newly_firing = firing && !trigger.was_firing;
             trigger.was_firing = firing;
             if firing {
-                // A level-type trigger with no cooldown (Dither Interval,
-                // Autofocus Interval) stays due until its action runs, and
-                // while the run is held for the operator its action never
-                // does: the soak logged "Trigger fired: Dither Interval" once a
-                // second, 5,596 times over a 94-minute hold. Warn on the edge;
-                // the dispatcher logs every firing it acts on.
+                // A level-type trigger with no cooldown stays due until its
+                // action runs, which under a hold it never does. Warn on the
+                // edge only; the dispatcher logs every firing it acts on.
                 if newly_firing {
                     tracing::warn!("Trigger fired: {} ({})", trigger.name, trigger.id);
                 } else {
@@ -174,28 +195,16 @@ impl TriggerManager {
                 if matches!(trigger.trigger_type, TriggerType::FilterChange) {
                     filter_change_fired = true;
                 }
-                fired.push((trigger.id.clone(), trigger.recovery_action.clone()));
+                fired.push(Firing {
+                    trigger_id: trigger.id.clone(),
+                    action: trigger.recovery_action.clone(),
+                });
             }
         }
 
-        // `filter_changed` is an EDGE ("a filter change just happened"), but it
-        // is stored as a level and nothing in production ever called
-        // `clear_filter_changed()`. Combined with the standard FilterChange
-        // trigger's zero cooldown, one filter change therefore re-fired the
-        // trigger on every ~1Hz evaluation tick for the remainder of the run.
-        //
-        // Observed on the live rig: a sequence containing a single Change
-        // Filter node logged
-        //   04:49:09  WARN Trigger fired: Filter Change (filter_change)
-        //   04:49:10  WARN Trigger fired: Filter Change (filter_change)
-        //   04:49:11  WARN Trigger fired: Filter Change (filter_change)
-        //   04:49:12  WARN Trigger fired: Filter Change (filter_change)
-        // and `/api/sequencer/status` reported `"triggerFires": 4` for that one
-        // change — a count that would have reached ~28,000 over an eight-hour
-        // night, with a duplicate decision-log row behind every one of them.
-        //
-        // Consume the edge once it has been delivered. Done after the loop so
-        // every trigger in this pass sees the same state snapshot.
+        // `filter_changed` is an edge stored as a level: consume it once it has
+        // been delivered, or a zero-cooldown FilterChange trigger re-fires on
+        // every tick. After the loop, so every trigger saw the same snapshot.
         if filter_change_fired {
             self.state.write().await.clear_filter_changed();
         }

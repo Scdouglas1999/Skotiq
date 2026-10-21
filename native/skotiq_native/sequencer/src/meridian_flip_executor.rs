@@ -2875,10 +2875,10 @@ mod tests {
         assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");
 
         let mut ts = trigger_state.write().await;
-        assert_eq!(ts.flip_origin_pier_side, Some(PierSide::West));
+        assert_eq!(ts.meridian.flip_origin(), Some(PierSide::West));
         ts.update_pier_side(PierSide::East);
         assert!(
-            ts.has_flipped_this_target,
+            ts.meridian.has_flipped(),
             "reading the post-flip side back must not clear the flipped flag"
         );
     }

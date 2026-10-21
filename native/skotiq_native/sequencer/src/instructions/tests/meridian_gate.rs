@@ -433,7 +433,7 @@ fn meridian_gate_applies_to_light_frames_only() {
 /// The mount is tracking on the pre-flip side and the monitor has published
 /// the target's hour angle, so the trigger itself can fire.
 async fn overdue_flip_ctx(
-    last_evaluation_running: Option<bool>,
+    last_evaluation: crate::triggers::TriggerEvaluation,
 ) -> (
     InstructionContext,
     Arc<tokio::sync::RwLock<crate::triggers::TriggerState>>,
@@ -463,7 +463,16 @@ async fn overdue_flip_ctx(
         state.pier_side = Some(crate::PierSide::West);
         state.mount_is_tracking = Some(true);
         state.mount_parked = Some(false);
-        state.last_evaluation_running = last_evaluation_running;
+        match last_evaluation {
+            crate::triggers::TriggerEvaluation::NoMonitor => {}
+            crate::triggers::TriggerEvaluation::AwaitingRunningTick => {
+                state.run.reset_for_new_run()
+            }
+            crate::triggers::TriggerEvaluation::Running => state
+                .run
+                .record_evaluation(crate::triggers::RunMode::Running),
+        }
+        assert_eq!(state.run.last_evaluation(), last_evaluation);
     }
     ec.trigger_state = Some(trigger_state.clone());
     let mut ctx = ec.to_instruction_context("gate-node").await;
@@ -480,7 +489,8 @@ async fn overdue_flip_ctx(
 /// started.
 #[tokio::test(start_paused = true)]
 async fn an_overdue_flip_the_first_tick_after_a_hold_fires_still_holds_the_frame() {
-    let (ctx, trigger_state) = overdue_flip_ctx(Some(false)).await;
+    let (ctx, trigger_state) =
+        overdue_flip_ctx(crate::triggers::TriggerEvaluation::AwaitingRunningTick).await;
 
     let monitor_state = trigger_state.clone();
     let monitor = tokio::spawn(async move {
@@ -488,8 +498,7 @@ async fn an_overdue_flip_the_first_tick_after_a_hold_fires_still_holds_the_frame
         sleep(Duration::from_secs(1)).await;
         {
             let mut state = monitor_state.write().await;
-            state.last_evaluation_running = Some(true);
-            state.meridian_flip_dispatch_pending = true;
+            state.record_evaluation(crate::triggers::RunMode::Running, true);
         }
         // ...and the flip takes a few minutes.
         sleep(Duration::from_secs(240)).await;
@@ -513,15 +522,18 @@ async fn an_overdue_flip_the_first_tick_after_a_hold_fires_still_holds_the_frame
 /// the frame goes ahead at once.
 #[tokio::test(start_paused = true)]
 async fn an_overdue_flip_the_trigger_did_not_fire_on_a_running_tick_does_not_hold() {
-    for last_evaluation_running in [Some(true), None] {
-        let (ctx, _trigger_state) = overdue_flip_ctx(last_evaluation_running).await;
+    for last_evaluation in [
+        crate::triggers::TriggerEvaluation::Running,
+        crate::triggers::TriggerEvaluation::NoMonitor,
+    ] {
+        let (ctx, _trigger_state) = overdue_flip_ctx(last_evaluation).await;
         let started = tokio::time::Instant::now();
         let gate = wait_for_meridian_flip_window(&ctx, 90.0, &BurstControl::default()).await;
         assert!(gate.is_none());
         assert!(
             started.elapsed() < Duration::from_secs(1),
             "held {:?} for a flip the trigger did not fire (last evaluation running: \
-             {last_evaluation_running:?})",
+             {last_evaluation:?})",
             started.elapsed()
         );
     }
@@ -531,7 +543,8 @@ async fn an_overdue_flip_the_trigger_did_not_fire_on_a_running_tick_does_not_hol
 /// bounded wait, not the gate's 30-minute bound.
 #[tokio::test(start_paused = true)]
 async fn an_overdue_flip_waits_a_bounded_time_for_the_trigger_to_evaluate() {
-    let (ctx, _trigger_state) = overdue_flip_ctx(Some(false)).await;
+    let (ctx, _trigger_state) =
+        overdue_flip_ctx(crate::triggers::TriggerEvaluation::AwaitingRunningTick).await;
     let started = tokio::time::Instant::now();
     let gate = wait_for_meridian_flip_window(&ctx, 90.0, &BurstControl::default()).await;
     assert!(gate.is_none());

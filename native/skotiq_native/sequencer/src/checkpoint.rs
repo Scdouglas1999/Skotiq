@@ -139,7 +139,7 @@ impl TriggerStateSnapshot {
             current_hour_angle: state.current_hour_angle,
             pier_side: state.pier_side,
             mount_tracking_limit_time: state.mount_tracking_limit_time,
-            has_flipped_this_target: state.has_flipped_this_target,
+            has_flipped_this_target: state.meridian.has_flipped(),
             current_target_name: state.current_target_name.clone(),
             next_meridian_flip_time: state.next_meridian_flip_time,
             guiding_enabled: state.guiding_enabled,
@@ -190,7 +190,7 @@ impl TriggerStateSnapshot {
         state.current_hour_angle = self.current_hour_angle;
         state.pier_side = self.pier_side;
         state.mount_tracking_limit_time = self.mount_tracking_limit_time;
-        state.has_flipped_this_target = self.has_flipped_this_target;
+        state.meridian.restore_flipped(self.has_flipped_this_target);
         state.current_target_name = self.current_target_name.clone();
         state.next_meridian_flip_time = self.next_meridian_flip_time;
         state.guiding_enabled = self.guiding_enabled;
@@ -1102,7 +1102,7 @@ mod tests {
         original.current_hour_angle = Some(0.75);
         original.pier_side = Some(PierSide::West);
         original.mount_tracking_limit_time = Some(1_700_000_000);
-        original.has_flipped_this_target = true;
+        original.meridian.mark_performed(None);
         original.current_target_name = Some("M31".into());
         original.guiding_enabled = true;
         original.guide_star_lost = false;
@@ -1165,8 +1165,8 @@ mod tests {
             original.mount_tracking_limit_time
         );
         assert_eq!(
-            restored.has_flipped_this_target,
-            original.has_flipped_this_target
+            restored.meridian.has_flipped(),
+            original.meridian.has_flipped()
         );
         assert_eq!(restored.current_target_name, original.current_target_name);
         assert_eq!(restored.guiding_enabled, original.guiding_enabled);
@@ -1205,7 +1205,7 @@ mod tests {
         let manager = CheckpointManager::new(&dir);
 
         let mut state = TriggerState::new();
-        state.has_flipped_this_target = true;
+        state.meridian.mark_performed(None);
         state.current_target_name = Some("NGC7000".into());
         state.completed_exposures = 17;
         state.last_autofocus_frame = 10;

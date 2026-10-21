@@ -230,7 +230,7 @@ pub(crate) fn apply_mount_tracking_poll(
     state: &mut TriggerState,
     currently_tracking: bool,
 ) -> bool {
-    if state.mount_tracking_held_by_run {
+    if state.run.is_held_by_run() {
         state.set_mount_tracking_expected(false);
         return false;
     }
@@ -274,74 +274,6 @@ pub fn trigger_recovery_cause(trigger_id: &str) -> Option<crate::recovery::Recov
         "focus_drift" => Some(crate::recovery::RecoveryCause::FocusDriftCritical),
         _ => None,
     }
-}
-
-/// Whether a trigger protects the RIG rather than the run's image quality, and
-/// so must keep evaluating while the run is paused.
-///
-/// A paused run used to have no trigger evaluation at all: the monitor loop
-/// returned early on any non-`Running` state, so weather, dawn, altitude and
-/// dome-shutter conditions went unwatched for as long as the pause lasted. That
-/// gap is what made a passive hold look unsafe, and it is why a reject storm on
-/// a supposedly unattended rig parked the mount instead of waiting.
-///
-/// The split is by consequence, not by severity:
-///   * Safety class — the sky, the Sun or the enclosure has turned against the
-///     rig. True whether or not a frame is being taken, and the operator's
-///     configured action (usually `ParkAndAbort`) is a decision they already
-///     made in advance about exactly this situation.
-///   * Everything else — focus drift, HFR, dither cadence, meridian flips,
-///     drift recentring, filter changes. All of these only mean something while
-///     frames are being taken, and firing them into a paused run would move the
-///     focuser or slew the mount under a hold placed for a human to inspect.
-pub fn is_safety_class_trigger(trigger_type: &TriggerType) -> bool {
-    match trigger_type {
-        TriggerType::WeatherUnsafe
-        | TriggerType::HumidityThreshold { .. }
-        | TriggerType::DomeShutterNotOpen
-        | TriggerType::DawnApproaching { .. }
-        | TriggerType::AltitudeLimit { .. }
-        | TriggerType::MountTrackingLost
-        | TriggerType::CloudArrivingIn { .. }
-        | TriggerType::CloudCoverThreshold { .. } => true,
-        // Deliberately NOT safety class. Named exhaustively rather than caught
-        // by a wildcard so a new trigger type has to be classified on purpose:
-        // a `_ => false` would silently leave a future roof/rain trigger
-        // unwatched during a hold, and a `_ => true` would let a future
-        // autofocus-ish trigger drive hardware under one.
-        TriggerType::HfrDegraded { .. }
-        | TriggerType::MeridianFlip { .. }
-        | TriggerType::GuidingFailed { .. }
-        | TriggerType::TemperatureShift { .. }
-        | TriggerType::FilterChange
-        | TriggerType::AutofocusInterval { .. }
-        | TriggerType::DitherInterval { .. }
-        | TriggerType::GuideStarLost
-        | TriggerType::FocusDrift { .. }
-        | TriggerType::DriftLimit { .. }
-        // A cloud OPENING is an invitation to resume, not a danger; the
-        // cloud-aware recovery layer auto-resumes from its own
-        // `PauseAndWaitForClear`, and it must not override a hold placed for a
-        // human to look at the rig.
-        | TriggerType::CloudOpeningIn { .. }
-        | TriggerType::TransparencyDropped { .. } => false,
-    }
-}
-
-/// Whether a safety-class trigger's configured action may run while the run
-/// is held.
-///
-/// The type of trigger decides whether it is watched during a hold; the action
-/// decides what it may do there. Only the operator's advance decision to park
-/// and close protects the rig without lifting the hold. Every other action
-/// either resumes the run or drives hardware under it: `Pause` and `Retry`
-/// hand the run to the recovery driver, which re-enables tracking and sets the
-/// run back to Running when it succeeds; `PauseAndWaitForClear` resumes on a
-/// clear sky; `SlewToGapAndContinue`, autofocus, flips and recentres move
-/// hardware. Measured: a `mount_tracking_lost` firing under an operator hold
-/// re-enabled tracking and resumed the run.
-pub fn may_act_during_hold(action: &RecoveryAction) -> bool {
-    matches!(action, RecoveryAction::ParkAndAbort)
 }
 
 /// What a fired trigger does once the operator's park settings are applied.

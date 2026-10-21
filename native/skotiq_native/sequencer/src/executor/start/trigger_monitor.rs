@@ -3,6 +3,7 @@
 //! recovery action to completion before the next poll.
 
 use super::*;
+use crate::triggers::RunMode;
 
 /// Everything the poll loop reads from the run it belongs to.
 pub(super) struct TriggerMonitorArgs {
@@ -137,33 +138,14 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         heartbeat = heartbeat.wrapping_add(1);
         let _ = heartbeat_tx.send(heartbeat);
 
-        // A PAUSED run still has a telescope under the open sky.
-        //
-        // This gate used to `continue` on every non-`Running` state, which meant
-        // a pause switched off weather, dawn, altitude and dome-shutter
-        // evaluation for as long as it lasted. That is why the recovery
-        // escalation refused to leave a run paused and parked the mount
-        // instead — it was choosing between two defects. So: while Paused the
-        // monitor keeps polling and keeps evaluating, but only safety-class
-        // triggers may act (see `is_safety_class_trigger`), and only by
-        // parking (see `may_act_during_hold`); an autofocus, dither, flip,
-        // recentre or recovery ladder must never drive hardware under a hold a
-        // human placed to inspect the rig, nor lift it.
-        //
-        // `Recovering` is held the same way. It used to be skipped on the
-        // grounds that the recovery driver owns the hardware for its ladder,
-        // but that ladder runs for up to 90 minutes, and a lost guide star is
-        // most often cloud: rain arriving mid-ladder went unwatched, with no
-        // weather, dawn or shutter evaluation at all. Only a park-and-abort may
-        // act there, which ends the ladder with the run. Stopping / Failed /
-        // Completed / Idle are skipped as before — nothing there to protect or
-        // to conflict with.
-        let current_state = *state_clone.read().await;
-        let paused_safety_only = match current_state {
-            ExecutorState::Running => false,
-            ExecutorState::Paused | ExecutorState::Recovering => true,
-            _ => continue,
-        };
+        // A held run still has a telescope under the open sky, so the monitor
+        // keeps polling and evaluating while the run is paused or recovering;
+        // what a firing may then do is decided by `RunMode::may_act`. Idle,
+        // stopping and finished runs have nothing to watch.
+        let executor_state = *state_clone.read().await;
+        if RunMode::new(executor_state, None).is_none() {
+            continue;
+        }
 
         if is_cancelled_clone.load(Ordering::Relaxed) {
             break;
@@ -539,16 +521,11 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             // on a transient driver glitch — actual loss is reported as
             // Ok(false), which the branch below handles distinctly.
             match &tracking_result {
-                // Under a hold the tracking-loss edge is left for the first
-                // poll after the operator resumes. Nothing may act on it here
-                // (see `may_act_during_hold`), and taking the reading now
-                // would consume the edge: the latch clears on the next poll,
-                // so a run resumed on a mount the operator left untracked
-                // would expose with nothing restoring tracking.
-                // A mount the run stopped itself for the pre-meridian hold is
-                // read under a pause as well: nothing acts on it, and the hold
-                // needs no edge kept for the resume.
-                Ok(_) if paused_safety_only && !state.mount_tracking_held_by_run => {
+                // See `RunMode::reads_tracking_edge`.
+                Ok(_)
+                    if !RunMode::new(executor_state, state.run.hold())
+                        .is_some_and(RunMode::reads_tracking_edge) =>
+                {
                     state.mount_status_query_failed = false;
                 }
                 Ok(is_tracking) => {
@@ -748,96 +725,27 @@ pub(super) async fn run_trigger_monitor_poll_loop(
 
         // Recovery actions below take their own write locks on trigger_state;
         // holding the trigger_manager lock during them would deadlock the
-        // trigger evaluators that share the same Arc. Snapshot the fired
-        // triggers into an owned Vec and drop the lock before dispatching.
+        // trigger evaluators that share the same Arc. Snapshot the dispatches
+        // into an owned Vec and drop the lock before running them.
         let park_policy = runtime_config.read().park_policy;
-        // The pre-meridian hold holds the run as a pause does: the mount is
-        // standing still, so an autofocus, dither or recenter fired now would
-        // work on trailed frames.
-        let held_for_meridian = trigger_manager
-            .read()
-            .await
-            .state()
-            .read()
-            .await
-            .mount_tracking_held_by_run;
-        let actions_held = paused_safety_only || held_for_meridian;
+        let run_hold = trigger_manager.read().await.state().read().await.run.hold();
+        let Some(mode) = RunMode::new(executor_state, run_hold) else {
+            continue;
+        };
         let fired_with_names: Vec<(String, String, FiredTriggerAction, Option<u64>)> = {
             let mut manager = trigger_manager.write().await;
-            let mut dropped_under_hold: Vec<String> = Vec::new();
             let fired = manager.check_all().await;
             let stop_on_quality_problems = manager.state().read().await.stop_on_quality_problems;
-            let fired_with_names: Vec<_> = fired
-                .into_iter()
-                .filter(|(id, _)| !(explicit_end && id == "dawn_approaching"))
-                // The operator's park and quality settings first, so the hold
-                // filter below judges what the trigger will actually do.
-                .map(|(trigger_id, action)| {
-                    let fired = apply_quality_policy(
-                        &trigger_id,
-                        apply_park_policy(&trigger_id, action, park_policy),
-                        stop_on_quality_problems,
-                    );
-                    (trigger_id, fired)
-                })
-                // While the run is held (paused, recovering, or standing still
-                // for the pre-meridian hold), drop everything that is not
-                // protecting the rig itself. Filtering here rather than inside the dispatch keeps
-                // the guarantee in one readable place.
-                //
-                // A dropped firing is re-armed below. `Trigger::check` starts
-                // the cooldown whenever it returns true, so a firing nobody
-                // acted on used to spend it: on the rig (2026-10-21) the flip
-                // fired at 05:31:57 and 05:41:58 under an operator pause, the
-                // run resumed at 05:47:34 with the flip still cooling down
-                // until 05:51:57, the next frame went ahead, and the night
-                // lost its flip. Re-armed, the trigger fires on the first
-                // running tick after the hold, as if the hold had not been
-                // there. `was_firing` stays set across the hold, so a trigger
-                // that keeps firing under it is still logged once.
-                .filter(|(trigger_id, fired)| {
-                    if !actions_held {
-                        return true;
-                    }
-                    match manager.get_trigger(trigger_id) {
-                        Some(trigger) => {
-                            let allowed = is_safety_class_trigger(&trigger.trigger_type)
-                                && may_act_during_hold(&fired.action);
-                            if !allowed {
-                                tracing::debug!(
-                                    "Trigger '{}' fired while the run is held; it is not a \
-                                     safety-class trigger with a protective action, so it is \
-                                     not acted on until the run resumes",
-                                    trigger_id
-                                );
-                                dropped_under_hold.push(trigger_id.clone());
-                            }
-                            allowed
-                        }
-                        // A trigger that fired and was removed in the same tick
-                        // cannot be classified, and an unclassifiable trigger
-                        // must not drive hardware under a hold.
-                        None => false,
-                    }
-                })
-                .map(|(trigger_id, fired)| {
-                    let trigger = manager.get_trigger(&trigger_id);
-                    let trigger_name = trigger
-                        .map(|t| t.name.clone())
-                        // Why: `get_trigger` returns Option;
-                        // None would only occur if a trigger fired and was
-                        // simultaneously removed via the same manager — race
-                        // tolerated for diagnostic naming. Using the id as the
-                        // display name preserves traceability.
-                        .unwrap_or_else(|| trigger_id.clone());
-                    let cooldown_secs = trigger.and_then(|t| t.cooldown_secs);
-                    (trigger_id, trigger_name, fired, cooldown_secs)
-                })
-                .collect();
-            for trigger_id in &dropped_under_hold {
-                manager.rearm_after_hold(trigger_id);
-            }
-            fired_with_names
+            select_dispatches(
+                &mut manager,
+                fired,
+                mode,
+                DispatchPolicy {
+                    explicit_end,
+                    park_policy,
+                    stop_on_quality_problems,
+                },
+            )
         };
 
         let trigger_state_for_actions = {
@@ -856,8 +764,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                     && matches!(fired.action, RecoveryAction::MeridianFlip(_))
             });
             let mut state = trigger_state_for_actions.write().await;
-            state.last_evaluation_running = Some(!actions_held);
-            state.meridian_flip_dispatch_pending = flip_dispatching;
+            state.record_evaluation(mode, flip_dispatching);
         }
 
         for (trigger_id, trigger_name, fired, cooldown_secs) in fired_with_names {
@@ -1486,8 +1393,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                                     // about who is standing at the telescope.
                                     //
                                     // Safety-class triggers keep evaluating while
-                                    // Paused (see `paused_safety_only` in the
-                                    // monitor's state gate), so this hold is safe
+                                    // Paused (see `RunMode::may_act`), so this hold is safe
                                     // to leave in place unattended without the
                                     // run parking on its own initiative.
                                     //
@@ -1734,12 +1640,11 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                 RecoveryAction::MeridianFlip(config) => {
                     // An operator's request is consumed here whatever happens
                     // next: it asked for this flip, not for every later one.
-                    let requested = std::mem::take(
-                        &mut trigger_state_for_actions
-                            .write()
-                            .await
-                            .meridian_flip_requested,
-                    );
+                    let requested = trigger_state_for_actions
+                        .write()
+                        .await
+                        .meridian
+                        .take_request();
                     // The flip waited for the imaging train, and the mount may
                     // have moved meanwhile -- a target change fires this on the
                     // new target's hour angle against the old pointing's pier
@@ -2764,4 +2669,59 @@ pub(super) async fn run_trigger_monitor_poll_loop(
     }
 
     fired_triggers
+}
+
+/// The operator settings that turn a firing into what is dispatched.
+struct DispatchPolicy {
+    /// The sequence ends itself at dawn, so the Dawn Approaching trigger
+    /// stands down.
+    explicit_end: bool,
+    park_policy: ParkPolicy,
+    stop_on_quality_problems: bool,
+}
+
+/// Turn this tick's firings into dispatches: apply the operator's park and
+/// quality settings, then drop what `mode` does not allow. Only a firing that
+/// is kept is dispatched, which is what starts its cooldown; a dropped one
+/// fires again on the first tick its mode allows.
+fn select_dispatches(
+    manager: &mut TriggerManager,
+    fired: Vec<crate::triggers::Firing>,
+    mode: RunMode,
+    policy: DispatchPolicy,
+) -> Vec<(String, String, FiredTriggerAction, Option<u64>)> {
+    let mut dispatches = Vec::new();
+    for firing in fired {
+        let trigger_id = firing.trigger_id().to_string();
+        if policy.explicit_end && trigger_id == "dawn_approaching" {
+            continue;
+        }
+        // Park and quality settings first, so the mode judges what the
+        // trigger will actually do.
+        let action = apply_quality_policy(
+            &trigger_id,
+            apply_park_policy(&trigger_id, firing.action().clone(), policy.park_policy),
+            policy.stop_on_quality_problems,
+        );
+        // A trigger removed since the evaluation cannot be classified, and an
+        // unclassified trigger must not act under a hold.
+        let may_act = match manager.get_trigger(&trigger_id) {
+            Some(trigger) => mode.may_act(&trigger.trigger_type, &action.action),
+            None => mode.is_running(),
+        };
+        if !may_act {
+            tracing::debug!(
+                "Trigger '{}' fired while the run is held; it is not a safety-class trigger \
+                 with a protective action, so it is not acted on until the run resumes",
+                trigger_id
+            );
+            continue;
+        }
+        let (trigger_name, cooldown_secs) = match manager.dispatch(firing) {
+            Some(trigger) => (trigger.name.clone(), trigger.cooldown_secs),
+            None => (trigger_id.clone(), None),
+        };
+        dispatches.push((trigger_id, trigger_name, action, cooldown_secs));
+    }
+    dispatches
 }

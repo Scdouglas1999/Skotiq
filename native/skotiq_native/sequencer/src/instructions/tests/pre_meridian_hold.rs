@@ -107,10 +107,11 @@ fn spawn_monitor(
                 } else if s.guiding_enabled {
                     s.set_guide_star_lost(true);
                 }
-                s.mount_tracking_held_by_run
+                s.run.is_held_by_run()
             };
             let ha_min = ha.unwrap_or(f64::NAN) * 60.0;
-            for (id, _action) in manager.check_all().await {
+            for firing in manager.check_all().await {
+                let id = firing.trigger_id().to_string();
                 firings.push((id.clone(), ha_min, held));
                 if id == "meridian_flip" && !held {
                     sleep(Duration::from_secs(60)).await;
@@ -197,7 +198,7 @@ async fn a_frame_ending_inside_the_window_holds_with_tracking_off_until_the_flip
     );
 
     let state = trigger_state.read().await;
-    assert!(!state.mount_tracking_held_by_run);
+    assert!(!state.run.is_held_by_run());
     assert_eq!(state.mount_motion_depth, 0, "the hold's move ended");
     assert!(
         state.guiding_enabled && ops.guiding.load(Ordering::SeqCst),
@@ -322,7 +323,7 @@ async fn a_run_cancelled_during_the_hold_ends_it_cleanly() {
     assert_eq!(result.status, NodeStatus::Cancelled);
     assert_eq!(*ops.tracking_commands.lock().unwrap(), vec![false]);
     let state = trigger_state.read().await;
-    assert!(!state.mount_tracking_held_by_run);
+    assert!(!state.run.is_held_by_run());
     assert_eq!(state.mount_motion_depth, 0);
     drop(state);
     assert!(messages
@@ -341,7 +342,7 @@ fn a_tracking_poll_during_the_hold_is_not_a_loss() {
     let mut state = crate::triggers::TriggerState::new();
     state.set_mount_tracking_expected(true);
     state.mount_is_tracking = Some(true);
-    state.mount_tracking_held_by_run = true;
+    state.run.begin_hold(crate::triggers::RunHold::PreMeridian);
 
     assert!(!crate::executor::apply_mount_tracking_poll(
         &mut state, false
@@ -349,7 +350,7 @@ fn a_tracking_poll_during_the_hold_is_not_a_loss() {
     assert!(!state.mount_tracking_expected);
     state.mount_is_tracking = Some(false);
 
-    state.mount_tracking_held_by_run = false;
+    state.run.end_hold();
     assert!(!crate::executor::apply_mount_tracking_poll(
         &mut state, true
     ));

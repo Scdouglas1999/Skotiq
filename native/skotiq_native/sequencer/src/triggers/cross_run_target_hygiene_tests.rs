@@ -442,7 +442,9 @@ async fn a_new_run_starts_with_no_trigger_in_cooldown() {
         state.update_temperature(10.0);
         state.current_temperature = Some(13.0);
     }
-    assert_eq!(manager.check_all().await.len(), 1);
+    let mut fired = manager.check_all().await;
+    assert_eq!(fired.len(), 1);
+    assert!(manager.dispatch(fired.remove(0)).is_some());
     assert!(manager
         .get_trigger("temperature_shift")
         .unwrap()

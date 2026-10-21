@@ -865,8 +865,9 @@ async fn test_trigger_cooldown() {
     state.baseline_hfr = Some(2.0);
     state.current_hfr = Some(2.5);
 
-    // First check - should trigger
+    // First check - should trigger, and its action is dispatched
     assert!(trigger.check(&state).await);
+    trigger.start_cooldown();
 
     // Immediate second check - should not trigger (cooldown)
     assert!(!trigger.check(&state).await);
@@ -876,6 +877,43 @@ async fn test_trigger_cooldown() {
 
     // Should trigger again
     assert!(trigger.check(&state).await);
+}
+
+/// Evaluating a trigger never starts its cooldown; only a dispatch does. A
+/// firing that is dropped (the run is held) leaves the trigger armed.
+#[tokio::test]
+async fn a_firing_that_is_not_dispatched_does_not_start_the_cooldown() {
+    let mut manager = TriggerManager::new();
+    manager.add_trigger(
+        Trigger::new(
+            "hfr",
+            "HFR",
+            TriggerType::HfrDegraded {
+                threshold_percent: 20.0,
+                absolute_threshold: 0.0,
+                consecutive_frames: 1,
+            },
+            RecoveryAction::Autofocus,
+        )
+        .with_cooldown(600),
+    );
+    {
+        let state = manager.state();
+        let mut state = state.write().await;
+        state.baseline_hfr = Some(2.0);
+        state.update_hfr(2.5);
+    }
+
+    for tick in 0..3 {
+        let fired = manager.check_all().await;
+        assert_eq!(fired.len(), 1, "tick {tick}: a dropped firing fires again");
+        assert!(!manager.get_trigger("hfr").unwrap().is_in_cooldown());
+    }
+
+    let firing = manager.check_all().await.pop().expect("still firing");
+    assert!(manager.dispatch(firing).is_some());
+    assert!(manager.get_trigger("hfr").unwrap().is_in_cooldown());
+    assert!(manager.check_all().await.is_empty());
 }
 
 #[tokio::test]
@@ -915,8 +953,8 @@ async fn test_trigger_manager() {
 
     // Both triggers should have fired
     assert_eq!(fired.len(), 2);
-    assert!(fired.iter().any(|(id, _)| id == "hfr"));
-    assert!(fired.iter().any(|(id, _)| id == "altitude"));
+    assert!(fired.iter().any(|f| f.trigger_id() == "hfr"));
+    assert!(fired.iter().any(|f| f.trigger_id() == "altitude"));
 }
 
 #[tokio::test]
@@ -1180,7 +1218,7 @@ async fn test_on_tracking_limit_hit_already_flipped() {
     );
 
     let mut state = make_limit_hit_state();
-    state.has_flipped_this_target = true; // Already flipped
+    state.meridian.mark_performed(None); // Already flipped
     assert!(
         !trigger.check(&state).await,
         "Should NOT trigger - already flipped for target"
@@ -1381,7 +1419,7 @@ async fn a_trigger_that_stays_due_is_marked_as_already_firing() {
     for tick in 0..3 {
         let fired = manager.check_all().await;
         assert!(
-            fired.iter().any(|(id, _)| id == "dither_every_2"),
+            fired.iter().any(|f| f.trigger_id() == "dither_every_2"),
             "tick {tick}"
         );
         let trigger = manager.get_trigger("dither_every_2").unwrap();

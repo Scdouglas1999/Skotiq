@@ -1,4 +1,5 @@
 use super::*;
+use crate::triggers::is_safety_class_trigger;
 
 fn build_smart_exposure_sequence(
     plans: Vec<crate::FilterPlan>,

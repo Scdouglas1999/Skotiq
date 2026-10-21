@@ -148,13 +148,8 @@ pub struct TriggerState {
     pub pier_side: Option<PierSide>,
     /// Unix timestamp when mount will hit its tracking limit (if reported by mount)
     pub mount_tracking_limit_time: Option<i64>,
-    /// Whether we've already flipped for the current target (prevents double-flip)
-    pub has_flipped_this_target: bool,
-    /// The operator asked the running sequence to flip now rather than wait
-    /// for the configured window. The meridian trigger fires on the next tick
-    /// while [`TriggerState::manual_flip_refusal`] has no objection, and the
-    /// flip action clears it when its turn comes. See `manual_flip.rs`.
-    pub meridian_flip_requested: bool,
+    /// Flip bookkeeping for the current target. See [`super::MeridianFlipState`].
+    pub meridian: super::MeridianFlipState,
     /// Target name for the current meridian flip tracking
     pub current_target_name: Option<String>,
     /// Legacy field - Unix timestamp for flip (deprecated, use current_hour_angle instead)
@@ -170,25 +165,9 @@ pub struct TriggerState {
     /// stops tracking and holds the run until the flip, propagated like
     /// [`Self::meridian_flip_minutes_past`]. None when the hold is off.
     pub meridian_pause_before_minutes: Option<f64>,
-    /// The run itself stopped tracking for the pre-meridian hold. While set,
-    /// the tracking poll records the mount's state without arming the
-    /// tracking-lost baseline, and the trigger monitor treats the run as held:
-    /// only rig-protecting triggers act, so nothing autofocuses or dithers on
-    /// a mount that is standing still.
-    pub mount_tracking_held_by_run: bool,
-    /// Whether the trigger monitor's last evaluation was on a running tick:
-    /// `Some(false)` while the run is held (paused or recovering) and until the
-    /// first evaluation after the hold, `None` before any monitor has evaluated
-    /// anything for a run. The pre-frame meridian gate reads it to tell a flip
-    /// trigger that has not yet had its chance after a hold from one that had
-    /// it and did not fire.
-    pub last_evaluation_running: Option<bool>,
-    /// The meridian flip trigger fired on the monitor's last tick and its
-    /// action is waiting for the imaging train or running. The monitor runs
-    /// the action inline, so the next tick, which clears this, comes only
-    /// after the flip has finished.
-    pub meridian_flip_dispatch_pending: bool,
-
+    /// The run's own hold and the monitor's last evaluation. See
+    /// [`super::RunState`].
+    pub run: super::RunState,
     /// The live exclusive claim on the imaging train, or `None` when it is
     /// free. See [`ImagingTrainClaim`].
     pub imaging_train_claim: Option<ImagingTrainClaim>,
@@ -247,12 +226,6 @@ pub struct TriggerState {
     /// honoured. Defaults to 300s (5 minutes), matching the previous
     /// hardcoded behaviour.
     pub guiding_rms_retention_secs: u64,
-    /// pier side recorded at the moment a flip was marked
-    /// performed, so a subsequent observable return to that side can clear
-    /// `has_flipped_this_target`. `None` means no flip has been recorded yet
-    /// for the current target.
-    pub flip_origin_pier_side: Option<PierSide>,
-
     // Humidity
     /// Current humidity percentage (0-100)
     pub current_humidity: Option<f64>,
@@ -426,15 +399,12 @@ impl Default for TriggerState {
             current_hour_angle: None,
             pier_side: None,
             mount_tracking_limit_time: None,
-            has_flipped_this_target: false,
-            meridian_flip_requested: false,
+            meridian: super::MeridianFlipState::default(),
             current_target_name: None,
             next_meridian_flip_time: None,
             meridian_flip_minutes_past: None,
             meridian_pause_before_minutes: None,
-            mount_tracking_held_by_run: false,
-            last_evaluation_running: None,
-            meridian_flip_dispatch_pending: false,
+            run: super::RunState::default(),
             imaging_train_claim: None,
             imaging_train_next_token: 0,
             consecutive_dither_failures: 0,
@@ -449,7 +419,6 @@ impl Default for TriggerState {
             // 300s preserves the previous hardcoded retention so
             // un-configured triggers behave exactly as before.
             guiding_rms_retention_secs: 300,
-            flip_origin_pier_side: None,
             current_humidity: None,
             current_altitude: None,
             weather_safe: false,
@@ -672,9 +641,7 @@ impl TriggerState {
         self.autofocus_invalidation_reason = None;
         self.filter_changed = false;
         self.current_filter = None;
-        self.has_flipped_this_target = false;
-        self.meridian_flip_requested = false;
-        self.flip_origin_pier_side = None;
+        self.meridian.reset_for_new_run();
         self.last_applied_filter_offset = 0;
         self.completed_exposures = 0;
         self.last_autofocus_frame = 0;
@@ -690,7 +657,6 @@ impl TriggerState {
         self.guiding_rms_history = None;
         self.mount_motion_depth = 0;
         self.guiding_resume_pending = false;
-        self.mount_tracking_held_by_run = false;
         // The temperature the Temperature Shift trigger and the temperature
         // compensation measure from is taken again by this run, resumed or
         // not. Carried over, a load-and-start on the rig (2026-10-20) fired a
@@ -700,9 +666,7 @@ impl TriggerState {
         self.baseline_temperature = None;
         self.current_temperature = None;
         self.baseline_focuser_position = None;
-        // A run is starting and its monitor has not evaluated yet.
-        self.last_evaluation_running = Some(false);
-        self.meridian_flip_dispatch_pending = false;
+        self.run.reset_for_new_run();
         if std::mem::take(&mut self.restored_from_checkpoint) {
             // A resumed run carries on the guiding its checkpoint recorded.
             return;
@@ -1134,46 +1098,23 @@ impl TriggerState {
         })
     }
 
-    /// Update the current pier side and clear `has_flipped_this_target` if
-    /// the mount has returned to the side it was on before the recorded flip.
-    /// Observing the original pier side is authoritative evidence that the mount
-    /// is back on the pre-flip side and a fresh flip is again required — a long
-    /// single-target session that crosses two meridians (high latitude,
-    /// pause-resume, mosaic with a shared name) never changes target name, so
-    /// that alone cannot clear the flag.
+    /// Record the mount's pier side. Seeing the side a recorded flip left is
+    /// what allows a second flip on a target that crosses the meridian again
+    /// without changing name.
     pub fn update_pier_side(&mut self, pier_side: PierSide) {
         self.pier_side = Some(pier_side);
         self.on_pier_side_observed(pier_side);
     }
 
-    /// invariant check. Called from `update_pier_side` (and any
-    /// other code path that observes mount pier-side telemetry); clears
-    /// `has_flipped_this_target` when the observed side matches the
-    /// pre-flip side recorded by `mark_flip_performed`. Public so external
-    /// observers (e.g., bridge layer reading mount state on a different
-    /// cadence) can apply the same invariant without going through
-    /// `update_pier_side`.
+    /// Clear the recorded flip when `side` is the side it left. See
+    /// [`super::MeridianFlipState::on_pier_side_observed`].
     pub fn on_pier_side_observed(&mut self, side: PierSide) {
-        if !self.has_flipped_this_target {
-            return;
-        }
-        let Some(origin) = self.flip_origin_pier_side else {
-            // Why: without an origin we cannot reason about a return-to-pre-flip
-            // event. Clearing on every observation reopens the double-flip
-            // bug, so we leave the flag set until the user changes target.
-            return;
-        };
-        // Unknown is non-actionable — wait for a real reading.
-        if matches!(side, PierSide::Unknown) {
-            return;
-        }
-        if side == origin {
+        let origin = self.meridian.flip_origin();
+        if self.meridian.on_pier_side_observed(side) {
             tracing::info!(
                 "[MERIDIAN] Pier side returned to pre-flip side ({:?}); clearing has_flipped_this_target so a second flip can be triggered for the same target",
                 origin
             );
-            self.has_flipped_this_target = false;
-            self.flip_origin_pier_side = None;
         }
     }
 
@@ -1181,8 +1122,7 @@ impl TriggerState {
     /// at natural target-boundaries (sequence reset, target group entry)
     /// where a double-flip on the new target is impossible by construction.
     pub fn clear_flipped_state(&mut self) {
-        self.has_flipped_this_target = false;
-        self.flip_origin_pier_side = None;
+        self.meridian.clear_flipped();
     }
 
     /// Update mount tracking limit time (if mount reports it)
@@ -1190,19 +1130,13 @@ impl TriggerState {
         self.mount_tracking_limit_time = Some(limit_time);
     }
 
-    /// Set the current target for meridian flip tracking
-    /// This also resets the has_flipped flag for the new target
+    /// Set the current target for meridian flip tracking. A new target starts
+    /// with no flip and no request recorded.
     pub fn set_meridian_target(&mut self, target_name: String) {
         if self.current_target_name.as_ref() != Some(&target_name) {
             let previous = self.current_target_name.clone();
             self.current_target_name = Some(target_name);
-            // a target change is a natural boundary; reset both
-            // the flag and the recorded origin so flip bookkeeping starts
-            // fresh.
-            self.has_flipped_this_target = false;
-            // A flip asked for on the previous target is not one for this one.
-            self.meridian_flip_requested = false;
-            self.flip_origin_pier_side = None;
+            self.meridian.target_changed();
             if let Some(previous) = previous {
                 self.invalidate_autofocus(format!("target changed from {}", previous));
             }
@@ -1210,29 +1144,14 @@ impl TriggerState {
     }
 
     /// Mark that a meridian flip has been performed for the current target.
-    /// also records the pier side that was active *before* the
-    /// flip (in `flip_origin_pier_side`) so `on_pier_side_observed` can
-    /// detect the mount returning to that side and clear the flag, allowing
-    /// a second flip on the same long-running target.
     pub fn mark_flip_performed(&mut self) {
-        self.has_flipped_this_target = true;
-        self.meridian_flip_requested = false;
-        // The pier side was updated immediately after the flip, so it now
-        // reflects the *post-flip* side. The origin (pre-flip) side is the
-        // opposite of the current side. East <-> West; Unknown stays Unknown
-        // and prevents future return-detection until telemetry recovers.
-        self.flip_origin_pier_side = match self.pier_side {
-            Some(PierSide::East) => Some(PierSide::West),
-            Some(PierSide::West) => Some(PierSide::East),
-            // Why: if telemetry is unavailable we cannot compute the origin
-            // safely; leaving it None keeps the flag latched until target
-            // change, which is the safe default.
-            _ => None,
-        };
+        // The pier side was updated right after the flip, so it is the
+        // post-flip side; the origin is its opposite.
+        self.meridian.mark_performed(self.pier_side);
         tracing::info!(
             "[MERIDIAN] Flip marked as completed for target: {:?} (origin pier side: {:?})",
             self.current_target_name,
-            self.flip_origin_pier_side
+            self.meridian.flip_origin()
         );
     }
 
@@ -1241,9 +1160,7 @@ impl TriggerState {
         self.current_hour_angle = None;
         self.pier_side = None;
         self.mount_tracking_limit_time = None;
-        self.has_flipped_this_target = false;
-        self.meridian_flip_requested = false;
-        self.flip_origin_pier_side = None; //
+        self.meridian.clear();
         self.current_target_name = None;
         self.next_meridian_flip_time = None;
         self.tracking_limit_detected_at = None;
@@ -1258,7 +1175,7 @@ impl TriggerState {
     /// Check if a meridian flip might be needed based on current state
     /// Returns (needs_flip, minutes_past_meridian) for diagnostic purposes
     pub fn meridian_flip_status(&self) -> (bool, Option<f64>) {
-        if self.has_flipped_this_target {
+        if self.meridian.has_flipped() {
             return (false, None);
         }
 
