@@ -298,6 +298,14 @@ pub trait DeviceOps: Send + Sync {
     /// Get cooler power percentage
     async fn camera_get_cooler_power(&self, camera_id: &str) -> DeviceResult<f64>;
 
+    /// Whether the camera's cooler is switched on, as the driver reports it.
+    ///
+    /// `Ok(None)` means the driver gives no reading. Defaulted so test doubles
+    /// and the null ops need not answer; the bridge implementation overrides it.
+    async fn camera_get_cooler_on(&self, _camera_id: &str) -> DeviceResult<Option<bool>> {
+        Ok(None)
+    }
+
     /// The camera's UNBINNED pixel pitch in microns, as `(x, y)`.
     ///
     /// `Ok(None)` means the driver does not report one, and the FITS writer

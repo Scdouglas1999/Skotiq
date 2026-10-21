@@ -823,6 +823,13 @@ impl DeviceOps for UnifiedDeviceOps {
             .ok_or_else(|| "Cooler power not available".to_string())
     }
 
+    async fn camera_get_cooler_on(&self, camera_id: &str) -> DeviceResult<Option<bool>> {
+        let status = api_get_camera_status(camera_id.to_string())
+            .await
+            .map_err(|e| format!("Failed to get camera status: {}", e))?;
+        Ok(Some(status.cooler_on))
+    }
+
     async fn camera_get_pixel_size_um(&self, camera_id: &str) -> DeviceResult<Option<(f64, f64)>> {
         let status = api_get_camera_status(camera_id.to_string())
             .await
