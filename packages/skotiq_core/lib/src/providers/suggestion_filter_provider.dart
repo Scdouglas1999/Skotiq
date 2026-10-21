@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
 import '../models/planning/target_suggestion.dart';
+import '../services/sesame_name_resolver.dart';
 import 'simbad_provider.dart';
 import 'target_suggestion_provider.dart';
 
@@ -447,8 +448,8 @@ final plannerFilterExclusionProvider =
 
 /// External-catalog (SIMBAD) name-search results for the planner search bar.
 ///
-/// Watches the planner search query, debounces ~350 ms, then asks SIMBAD's
-/// TAP service to resolve the name. Empty when query has fewer than 3
+/// Watches the planner search query, debounces ~350 ms, then asks SIMBAD to
+/// resolve the name (exact object first, then identifiers containing it). Empty when query has fewer than 3
 /// characters. Failure returns an empty list (logged) so the planner search
 /// keeps working when SIMBAD is unreachable.
 ///
@@ -480,7 +481,9 @@ final plannerSimbadResultsProvider = FutureProvider.autoDispose
       await completer.future;
       if (cancelled) return const <SimbadNameMatch>[];
 
-      final results = await SimbadProvider().searchByName(trimmed);
+      final results = await SimbadProvider(
+        sesame: ref.read(sesameNameResolverProvider),
+      ).searchByName(trimmed);
       if (cancelled) return const <SimbadNameMatch>[];
       return results;
     });
