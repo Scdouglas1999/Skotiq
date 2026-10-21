@@ -2,10 +2,29 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/plan_progress_provider.dart';
+import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
 
 import 'plan_test_support.dart';
+
+/// A session row: [filter], [secs] long, kept or rejected.
+DbCapturedImage _row(int id, String filter, double secs, {bool kept = true}) =>
+    DbCapturedImage(
+      id: id,
+      filePath: '/tmp/$id.fits',
+      fileName: '$id.fits',
+      fileFormat: 'fits',
+      frameType: 'light',
+      filter: filter,
+      exposureDuration: secs,
+      binX: 1,
+      binY: 1,
+      capturedAt: DateTime(2026, 10, 19, 20),
+      createdAt: DateTime(2026, 10, 19, 20),
+      isAccepted: kept,
+      isPlateSolved: false,
+    );
 
 void main() {
   final evening = DateTime(2026, 10, 19, 20, 10);
@@ -57,11 +76,19 @@ void main() {
         lightFrame('4', 'Ha', DateTime(2026, 10, 19, 19, 58)),
       ],
       totals: const RunDashboardFilterTotals(
-        integrationSecs: {'L': 120, 'Ha': 120},
-        totalAcquiredSecs: {'L': 180, 'Ha': 120},
+        integrationSecs: {},
+        totalAcquiredSecs: {},
         goalSecs: {'L': 180, 'Ha': 240},
         inFlightFilter: 'Ha',
       ),
+      extra: [
+        nightSessionLightRowsProvider.overrideWithValue([
+          _row(1, 'L', 60),
+          _row(2, 'L', 60, kept: false),
+          _row(3, 'L', 60),
+          _row(4, 'Ha', 120),
+        ]),
+      ],
     );
     addTearDown(container.dispose);
 
@@ -167,11 +194,18 @@ void main() {
         lightFrame('3', 'L', DateTime(2026, 10, 19, 19, 56)),
       ],
       totals: const RunDashboardFilterTotals(
-        integrationSecs: {'L': 180, 'R': 90},
-        totalAcquiredSecs: {'L': 180, 'R': 90},
+        integrationSecs: {},
+        totalAcquiredSecs: {},
         goalSecs: {'L': 2700, 'R': 900},
         inFlightFilter: 'R',
       ),
+      extra: [
+        nightSessionLightRowsProvider.overrideWithValue([
+          _row(1, 'L', 90),
+          _row(2, 'R', 90),
+          _row(3, 'L', 90),
+        ]),
+      ],
     );
     addTearDown(container.dispose);
 

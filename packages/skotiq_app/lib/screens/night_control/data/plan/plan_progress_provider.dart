@@ -1,8 +1,11 @@
 // The Plan section: one row per filter with frames and integration, the
 // plan's estimated length and when it should end.
 //
-// Integration is the run dashboard's accepted total per filter
-// (`runDashboardFilterTotalsProvider`), so the two screens cannot disagree.
+// Integration is the accepted light frames' exposure per filter, summed the
+// way the run dashboard's filter totals sum it, but from the session's rows
+// as they arrive: the dashboard's per-session total is read once and only
+// re-read on the dashboard's own refresh, so on Tonight it stayed at the
+// value from the run's start.
 // Frame counts are this session's light frames; planned counts come from the
 // plan's exposure steps, loops included.
 
@@ -11,6 +14,7 @@ import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
 
 import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import '../../night_control_contracts.dart';
+import '../session/session_frames_provider.dart';
 import 'night_plan_inputs.dart';
 import 'night_run_phase_provider.dart';
 
@@ -73,9 +77,21 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
 
   Duration secs(double s) => Duration(milliseconds: (s * 1000).round());
 
+  final acceptedSecs = <String, double>{};
+  if (phase.isRunLive || phase == NightRunPhase.finished) {
+    for (final row in ref.watch(nightSessionLightRowsProvider)) {
+      if (!row.isAccepted) continue;
+      acceptedSecs.update(
+        _filterKey(row.filter),
+        (sum) => sum + row.exposureDuration,
+        ifAbsent: () => row.exposureDuration,
+      );
+    }
+  }
+
   // A filter with no accepted frame yet has integrated nothing.
   Duration accepted(String key) {
-    final s = totals.integrationSecs[key];
+    final s = acceptedSecs[key];
     return s == null ? Duration.zero : secs(s);
   }
 
