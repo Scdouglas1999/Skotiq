@@ -13,10 +13,6 @@ import '../../models/sequence/active_plan_owner.dart';
 import '../../models/sequence/instruction_progress_detail.dart';
 import '../../models/replay_decision.dart' show DecisionCategory;
 import '../../models/sequence/sequence_models.dart';
-import '../../models/settings/app_settings.dart'
-    show ObserverLocation, SafetyFailMode;
-import '../../models/weather/weather_settings.dart' show WeatherSettings;
-import '../weather_providers.dart' show weatherSettingsProvider;
 import '../../services/sequence_file_service.dart';
 import '../../services/sequence_repository.dart'
     show sequenceRepositoryProvider;
@@ -31,7 +27,6 @@ import '../thumbnail_sidecar_provider.dart';
 import '../backend_provider.dart';
 import '../database_provider.dart'
     show guideRmsHistoryDaoProvider, imagesDaoProvider, targetsDaoProvider;
-import '../defect_map_provider.dart' show seedDefectMapRuntimeForSequence;
 import '../../database/daos/campaigns_dao.dart' show campaignsDaoProvider;
 import '../../database/daos/targets_dao.dart' show TargetsDao;
 import '../disk_space_provider.dart';
@@ -59,13 +54,6 @@ import '../sequence_provider.dart'
         SequenceProgressNotifier,
         sequenceStopEvidenceProvider;
 import '../sequence_stats_provider.dart';
-import '../session_handoff_provider.dart'
-    show
-        sessionCarryOverProvider,
-        sessionHandoffDecisionProvider,
-        sessionHandoffIgnoreUnavailableOnceProvider;
-import '../../services/session_handoff_service.dart'
-    show SessionCarryOver, SessionHandoffDecision;
 import '../session_provider.dart';
 import '../settings_provider.dart';
 // Session-lifecycle hooks: optical-train baseline capture,
@@ -94,6 +82,7 @@ import 'sequence_executor/run_lifecycle.dart';
 import 'sequence_executor/run_stats_ledger.dart';
 import 'sequence_executor/live_stacking_feed.dart';
 import 'sequence_executor/run_timers.dart';
+import 'sequence_executor/runtime_config_sync.dart';
 import 'sequence_executor/sequence_serializer.dart';
 import 'sequence_executor/stop_confirmation.dart';
 import '../../services/frame_quality_score.dart';
@@ -110,7 +99,6 @@ export 'sequence_executor/stop_confirmation.dart'
         kNativeStopConfirmationTimeout,
         kNativeTerminalStates;
 
-part 'sequence_executor/runtime_config_operations.dart';
 part 'sequence_executor/event_operations.dart';
 part 'sequence_executor/session_diagnostics_operations.dart';
 
@@ -251,23 +239,19 @@ class SequenceExecutor {
   // NOT final: set to true in [dispose].
   bool _disposed = false;
 
-  /// Periodic poller that reads the latest sky brightness
-  /// from `skyBrightnessTrackerProvider` and pushes it to the executor.
-  /// The cadence is intentionally generous (10s) because sky brightness
-  /// changes slowly; running it faster would just add CPU noise for no
-  /// adaptive-exposure benefit.
-  Timer? _skyBrightnessPollTimer;
-
-  /// Last value pushed to the executor; we suppress redundant pushes
-  /// so the runtime config event stream is quiet when conditions are
-  /// stable.
-  double? _lastPushedSkyMag;
-
   /// Per-frame cadence smoother backing the run's ETA.
   final EtaSmoother _eta = EtaSmoother();
 
-  /// Subscriptions for propagating settings changes to the backend mid-sequence
-  final List<ProviderSubscription> _settingsSubscriptions = [];
+  /// Pushes the operator's settings into the native runtime config, before
+  /// launch and while the run is live.
+  late final RuntimeConfigSync _runtimeConfig = RuntimeConfigSync(
+    ref: _ref,
+    backend: _backend,
+    serializer: _serializer,
+    logger: () => _logger,
+    warn: _surfaceRunWarning,
+    isDisposed: () => _disposed,
+  );
 
   /// Sequence id of the currently running sequence. Held so
   /// the post-session diagnostics summary and the NotificationRouter
@@ -391,15 +375,11 @@ class SequenceExecutor {
     }
   }
 
-  /// Test entry point for the session-handoff carry-over
-  /// seed. Lets tests exercise the `Resume` / `Restart` / `ContinueNew`
-  /// branches against a mock backend without driving a full sequence
-  /// start (which requires Rust, validation, and live settings).
+  /// Test entry point for the session-handoff carry-over seed, without
+  /// driving a whole start.
   @visibleForTesting
-  Future<void> seedIntegrationCarryOverFromHandoffForTest(
-    SkotiqBackend backend,
-    Sequence sequence,
-  ) => _seedIntegrationCarryOverFromHandoff(backend, sequence);
+  Future<void> seedIntegrationCarryOverFromHandoffForTest(Sequence sequence) =>
+      _runtimeConfig.seedIntegrationCarryOver(sequence);
 
   /// Convert Dart sequence to JSON for native executor
   ///
@@ -859,7 +839,7 @@ class SequenceExecutor {
   /// start that refuses and says why.
   Future<void> seedRuntimeConfigForNativeStart() async {
     _ensureBackendAuthority();
-    await _seedRuntimeConfigFromSettings(_backend);
+    await _runtimeConfig.seedFromSettings();
   }
 
   /// Start the periodic work a run owns. The ETA smoother restarts with it:
@@ -953,6 +933,42 @@ class SequenceExecutor {
     // subscription + settings watchers and issues sequencerStart(). A throw
     // anywhere in the transaction (including here) is rolled back by [start].
     await _startNativeExecution(sequence, runSettings);
+  }
+
+  /// Configure the native executor, load the run's tree and start it: the
+  /// last acquisition step of [start]. From the native launch boundary on, a
+  /// failure may have left a partial launch, so [_rollbackStart] stops the
+  /// native executor before tearing down.
+  Future<void> _startNativeExecution(
+    Sequence sequence,
+    AppSettingsState settings,
+  ) async {
+    await _runtimeConfig.pushLaunchConfig(settings, isResume: false);
+
+    // Both values below are serialized into the tree from providers that
+    // hold defaults until their loads finish; a start that outran the loads
+    // would bake factory values into the run.
+    await _ref.read(globalMeridianFlipSettingsProvider.notifier).ensureLoaded();
+    await _ref.read(savedFocuserBacklashProvider.future);
+
+    await _backend.sequencerLoadJson(_serializer.sequenceToJson(sequence));
+
+    // The runtime config is seeded before start, so the trigger monitor's
+    // first poll already runs on the operator's values; the settings watchers
+    // only fire on a later change. Through the public entry point the headless
+    // `load -> start` path shares.
+    await seedRuntimeConfigForNativeStart();
+
+    // After the runtime seed, so the carry-over overrides any default it
+    // re-stamps, and before start, so the executor consumes it.
+    await _runtimeConfig.seedIntegrationCarryOver(sequence);
+
+    _ensureStillLaunching();
+    await attachHostListenersForNativeRun();
+    _runtimeConfig.startWatchers();
+
+    _lifecycle.markNativeLaunchAttempted();
+    await _backend.sequencerStart();
   }
 
   /// Admissible starting states: idle, completed, failed (see
@@ -1480,7 +1496,7 @@ class SequenceExecutor {
       secondary('stop disk watchdog', e);
     }
     try {
-      _stopSettingsWatchers();
+      _runtimeConfig.stopWatchers();
     } catch (e) {
       secondary('stop settings watchers', e);
     }
@@ -2112,7 +2128,7 @@ class SequenceExecutor {
 
     // The same ordered launch push the start path makes, with the two
     // resume-specific differences expressed inside it (see [_pushLaunchConfig]).
-    await _pushLaunchConfig(backend, settings, isResume: true);
+    await _runtimeConfig.pushLaunchConfig(settings, isResume: true);
     await seedRuntimeConfigForNativeStart();
 
     // Recover the sequence TREE from the interrupted run's stored snapshot,
@@ -2189,7 +2205,7 @@ class SequenceExecutor {
       _ensureStillLaunching();
       await attachHostListenersForNativeRun();
 
-      _startSettingsWatchers(backend);
+      _runtimeConfig.startWatchers();
 
       // Actually begin execution: start() walks the restored tree and
       // short-circuits already-completed nodes — that is what makes the
@@ -2281,7 +2297,6 @@ class SequenceExecutor {
     _timers.dispose();
     _nativeEventSubscription?.cancel();
     _nativeEventSubscription = null;
-    _skyBrightnessPollTimer?.cancel();
-    _skyBrightnessPollTimer = null;
+    _runtimeConfig.dispose();
   }
 }
