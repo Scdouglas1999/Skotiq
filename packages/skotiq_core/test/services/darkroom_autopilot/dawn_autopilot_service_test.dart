@@ -809,7 +809,8 @@ void main() {
     final remeasure = darkroom.previewContexts.last;
     expect(remeasure['encoding'], 'screen');
     expect(remeasure['stopAfter'], 1);
-    expect(remeasure['maxDimension'], kDraftMeasureMaxDimension);
+    expect(remeasure['level'], kStretchMeasureLevel);
+    expect(remeasure['measureOnly'], isTrue);
     expect(
       jsonDecode(darkroom.previewRecipes.last),
       containsPair(
@@ -1095,7 +1096,8 @@ void main() {
     final remeasure = darkroom.previewContexts.last;
     expect(remeasure['encoding'], 'screen');
     expect(remeasure['stopAfter'], 0);
-    expect(remeasure['maxDimension'], kDraftMeasureMaxDimension);
+    expect(remeasure['level'], kStretchMeasureLevel);
+    expect(remeasure['measureOnly'], isTrue);
 
     final draft = outcome.report!.masters.single.draft!;
     final stretch = draft.steps[draft.indexOfOp('stretch')];
@@ -1109,6 +1111,56 @@ void main() {
     final note = draft.notes.firstWhere((n) => n.opId == 'stretch');
     expect(note.outcome, 'remeasured');
     expect(note.reason, contains('denser lattice'));
+  });
+
+  test('the stretch is measured below noise reduction, over the sky noise as '
+      'integrated', () async {
+    darkroom.draftSteps = [
+      {
+        'opId': 'denoise',
+        'opVersion': 1,
+        'params': {'chromaStrength': 0.0},
+        'enabled': true,
+      },
+      {
+        'opId': 'stretch',
+        'opVersion': 1,
+        'params': {'blackPoint': 0.0, 'whitePoint': 1.0},
+        'enabled': true,
+      },
+    ];
+    darkroom.draftNotes = [
+      {
+        'opId': 'background_extract',
+        'outcome': 'omitted',
+        'reason': 'too few background samples survived the star mask',
+      },
+    ];
+    darkroom.screenTransfer = {
+      'blackPoint': 96.5,
+      'whitePoint': 1850.0,
+      'd': 3.5,
+      'b': 1.0,
+      'symmetryPoint': 0.0,
+    };
+    final sessionId = await insertSession();
+    final imageId = await insertSub(sessionId: sessionId);
+    await insertMaster(imageIds: [imageId]);
+
+    final outcome = await buildService().runDawnForSession(sessionId);
+
+    final draft = outcome.report!.masters.single.draft!;
+    expect(draft.steps.map((s) => s['opId']), [
+      'background_extract',
+      'denoise',
+      'stretch',
+    ]);
+    final remeasure = darkroom.previewContexts.last;
+    expect(remeasure['encoding'], 'screen');
+    // Background extraction is step 0; the measurement stops there, below the
+    // denoise at step 1.
+    expect(remeasure['stopAfter'], 0);
+    expect(remeasure['level'], kStretchMeasureLevel);
   });
 
   test('a stretch re-measurement that fails keeps the measured parameters and '
@@ -1201,42 +1253,74 @@ void main() {
     );
   });
 
-  test('saturation and curves never enter the draft', () async {
-    darkroom.draftSteps = [
-      {
-        'opId': 'stretch',
-        'opVersion': 1,
-        'params': {'blackPoint': 0.0, 'whitePoint': 1.0},
-        'enabled': true,
-      },
-      {
-        'opId': 'saturation',
-        'opVersion': 1,
-        'params': <String, dynamic>{},
-        'enabled': true,
-      },
-      {
-        'opId': 'curves',
-        'opVersion': 1,
-        'params': <String, dynamic>{},
-        'enabled': true,
-      },
-    ];
-    final sessionId = await insertSession();
-    final imageId = await insertSub(sessionId: sessionId);
-    await insertMaster(imageIds: [imageId]);
+  test(
+    'saturation and curves at their defaults never enter the draft',
+    () async {
+      darkroom.draftSteps = [
+        {
+          'opId': 'stretch',
+          'opVersion': 1,
+          'params': {'blackPoint': 0.0, 'whitePoint': 1.0},
+          'enabled': true,
+        },
+        {
+          'opId': 'saturation',
+          'opVersion': 1,
+          'params': <String, dynamic>{},
+          'enabled': true,
+        },
+        {
+          'opId': 'curves',
+          'opVersion': 1,
+          'params': <String, dynamic>{},
+          'enabled': true,
+        },
+      ];
+      final sessionId = await insertSession();
+      final imageId = await insertSub(sessionId: sessionId);
+      await insertMaster(imageIds: [imageId]);
 
-    final outcome = await buildService().runDawnForSession(sessionId);
+      final outcome = await buildService().runDawnForSession(sessionId);
 
-    final draft = outcome.report!.masters.single.draft!;
-    expect(draft.steps.map((s) => s['opId']), ['stretch']);
-    for (final opId in ['saturation', 'curves']) {
-      expect(
-        draft.notes.firstWhere((n) => n.opId == opId).reason,
-        contains('identity transform'),
-      );
-    }
-  });
+      final draft = outcome.report!.masters.single.draft!;
+      expect(draft.steps.map((s) => s['opId']), ['stretch']);
+      for (final opId in ['saturation', 'curves']) {
+        expect(
+          draft.notes.firstWhere((n) => n.opId == opId).reason,
+          contains('identity transform'),
+        );
+      }
+    },
+  );
+
+  test(
+    'a saturation step the registry drafted with an amount is kept',
+    () async {
+      darkroom.draftSteps = [
+        {
+          'opId': 'stretch',
+          'opVersion': 1,
+          'params': {'blackPoint': 0.0, 'whitePoint': 1.0},
+          'enabled': true,
+        },
+        {
+          'opId': 'saturation',
+          'opVersion': 1,
+          'params': {'amount': 0.25},
+          'enabled': true,
+        },
+      ];
+      final sessionId = await insertSession();
+      final imageId = await insertSub(sessionId: sessionId);
+      await insertMaster(imageIds: [imageId]);
+
+      final outcome = await buildService().runDawnForSession(sessionId);
+
+      final draft = outcome.report!.masters.single.draft!;
+      expect(draft.steps.map((s) => s['opId']), ['stretch', 'saturation']);
+      expect(draft.steps.last['params'], {'amount': 0.25});
+    },
+  );
 
   test('cancellation mid-pipeline stops before the next master', () async {
     final sessionId = await insertSession();

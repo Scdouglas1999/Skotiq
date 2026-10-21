@@ -171,20 +171,45 @@ fn an_lrgb_set_drafts_a_registered_color_composite() {
         steps,
         [
             "channel_combine",
-            "background_extract",
             "color_calibrate",
+            "chroma_denoise",
+            "scnr",
             "denoise",
-            "stretch"
+            "stretch",
+            "saturation"
         ]
     );
     let combine = &reply["draft"]["recipe"]["steps"][0]["params"];
     assert!(combine["fits"]["luminanceToRgb"]["scale"].as_f64().unwrap() > 0.0);
-    let stretch = &reply["draft"]["recipe"]["steps"][4]["params"];
+    // Every master's surfaces were measured at full resolution and pinned, so a
+    // preview replays them instead of fitting a coarse level.
+    // This small scene leaves some planes too few clean sky boxes for a
+    // surface, and those are left out rather than fitted to noise.
+    let flatten = &combine["flatten"];
+    assert!(
+        flatten["background"]["luminance"]["coefficients"].is_array(),
+        "{flatten}"
+    );
+    for (_, surface) in flatten["background"].as_object().unwrap() {
+        assert!(surface["degree"].is_u64(), "{flatten}");
+    }
+    assert!(flatten["throughput"].is_object(), "{flatten}");
+    assert_eq!(flatten["chromaBox"], 64.0);
+    let stretch = &reply["draft"]["recipe"]["steps"][5]["params"];
     assert_eq!(stretch["colorMode"], "luminance");
+    assert_eq!(stretch["b"], 1.0);
     assert_eq!(
-        reply["draft"]["recipe"]["steps"][2]["params"]["neutralizeBackground"],
+        reply["draft"]["recipe"]["steps"][1]["params"]["neutralizeBackground"],
         true
     );
+    assert_eq!(
+        reply["draft"]["recipe"]["steps"][4]["params"]["chromaStrength"],
+        0.0
+    );
+    let notes = reply["draft"]["notes"].as_array().unwrap();
+    assert!(notes
+        .iter()
+        .any(|n| n["opId"] == "background_extract" && n["outcome"] == "omitted"));
 }
 
 #[test]
@@ -318,25 +343,30 @@ fn a_set_missing_a_primary_is_not_combined_and_says_why() {
 }
 
 /// A mono master whose sky is `sky(x, y)` under the scene's stars.
+///
+/// The frame is twice the scene's size on each axis, so the default sample
+/// lattice holds enough sky boxes to tell a degree-4 surface from noise.
 fn write_sky(dir: &Path, name: &str, sky: impl Fn(f64, f64) -> f64) -> PathBuf {
+    const SW: u32 = 2 * W;
+    const SH: u32 = 2 * H;
     let stars = field();
     let mut rng = Lcg(77);
-    let mut data: Vec<f32> = (0..W * H)
-        .map(|i| (sky((i % W) as f64, (i / W) as f64) + 8.0 * rng.normal()) as f32)
+    let mut data: Vec<f32> = (0..SW * SH)
+        .map(|i| (sky((i % SW) as f64, (i / SW) as f64) + 8.0 * rng.normal()) as f32)
         .collect();
     for star in &stars {
         let norm = star.rgb[1] / (2.0 * std::f64::consts::PI * 2.56);
         for y in (star.y as i64 - 7)..=(star.y as i64 + 7) {
             for x in (star.x as i64 - 7)..=(star.x as i64 + 7) {
                 let r2 = (x as f64 - star.x).powi(2) + (y as f64 - star.y).powi(2);
-                data[(y as u32 * W + x as u32) as usize] += (norm * (-r2 / 5.12).exp()) as f32;
+                data[(y as u32 * SW + x as u32) as usize] += (norm * (-r2 / 5.12).exp()) as f32;
             }
         }
     }
     let mut header = FitsHeader::new();
     header.set_string("FILTER", "L");
     let path = dir.join(name);
-    write_fits(&path, &ImageData::from_f32(W, H, 1, &data), &header).expect("write master");
+    write_fits(&path, &ImageData::from_f32(SW, SH, 1, &data), &header).expect("write master");
     path
 }
 
@@ -368,9 +398,10 @@ fn vignetting_earns_a_higher_background_degree_and_a_tilt_does_not() {
     let dir = tempfile::tempdir().expect("temp dir");
     // Uncorrected vignetting: a cos^4-like falloff to 60% at the corners.
     let vignetted = write_sky(dir.path(), "vignetted.fits", |x, y| {
-        let r2 = ((x - W as f64 / 2.0).powi(2) + (y - H as f64 / 2.0).powi(2))
-            / ((W as f64 / 2.0).powi(2) + (H as f64 / 2.0).powi(2));
-        3000.0 * (1.0 + 0.6 * r2).powi(-2).max(0.0) + 300.0 * (x / W as f64)
+        let (w, h) = (2.0 * W as f64, 2.0 * H as f64);
+        let r2 = ((x - w / 2.0).powi(2) + (y - h / 2.0).powi(2))
+            / ((w / 2.0).powi(2) + (h / 2.0).powi(2));
+        3000.0 * (1.0 + 0.6 * r2).powi(-2).max(0.0) + 300.0 * (x / w)
     });
     let (params, note) = drafted_background(&vignetted);
     let order = params["modelOrder"]
@@ -380,9 +411,9 @@ fn vignetting_earns_a_higher_background_degree_and_a_tilt_does_not() {
     assert!(note.contains("not the default 2"), "{note}");
 
     let tilted = write_sky(dir.path(), "tilted.fits", |x, y| {
-        2000.0 + 0.5 * x + 0.25 * y
+        2000.0 + 0.25 * x + 0.125 * y
     });
     let (params, note) = drafted_background(&tilted);
-    assert!(params.get("modelOrder").is_none(), "{params}");
+    assert!(params.get("modelOrder").is_none(), "{params} {note}");
     assert!(note.contains("stays at its default degree 2"), "{note}");
 }

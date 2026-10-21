@@ -50,6 +50,13 @@ const int kRecipeSchemaVersion = 1;
 /// master's own pixels.
 const int kColorProofLevel = 0;
 
+/// The pyramid level the draft's stretch is measured at again. Level 0 is the
+/// master's own pixels: the stretch's black point sits a number of noise sigmas
+/// under the sky and its white point at the brightest star core, and a coarse
+/// level has averaged both down, so a stretch measured there clips the sky and
+/// the star cores of the full-resolution image it is rendered over.
+const int kStretchMeasureLevel = 0;
+
 /// Longest edge, in pixels, of the level the background retry is probed at.
 ///
 /// It matches the registry's own draft-measurement dimension, so a retry that
@@ -95,7 +102,9 @@ const List<String> kStretchMeasuredParams = [
 ];
 
 /// Operations whose defaults are the identity transform, so a draft that
-/// carried them would list a step that changes nothing.
+/// carried them AT THOSE DEFAULTS would list a step that changes nothing. A
+/// step the registry drafted with parameters of its own — a color draft's
+/// saturation boost — is a decision, not the identity, and is kept.
 ///
 /// `crop` is not here because its parameters are MEASURED rather than
 /// defaulted: whether it is the identity depends on the rectangle the registry
@@ -162,6 +171,8 @@ const List<String> kDraftStepOrder = [
   'crop',
   'background_extract',
   'color_calibrate',
+  'chroma_denoise',
+  'scnr',
   'denoise',
   'star_reduce',
   'stretch',
@@ -541,7 +552,9 @@ class DawnDraftBuilder {
     final kept = <Map<String, dynamic>>[];
     for (final step in steps) {
       final opId = step['opId'];
-      if (opId is String && kIdentityAtDefaults.contains(opId)) {
+      final params = step['params'];
+      final atDefaults = params == null || (params is Map && params.isEmpty);
+      if (opId is String && kIdentityAtDefaults.contains(opId) && atDefaults) {
         notes.add(
           DawnDraftNote(
             opId: opId,
@@ -707,8 +720,13 @@ class DawnDraftBuilder {
     }
     // Without catalog photometry the balance is read from the field's own
     // stars instead of being left out: an uncalibrated color draft is the
-    // raw filter throughput, which is not a color anyone wants.
-    final byCatalog = photometry.hasStars;
+    // raw filter throughput, which is not a color anyone wants. The registry
+    // already drafts the field's own stars for a master with no plate solve,
+    // where catalog stars cannot be placed, and that choice is kept.
+    final params = steps[index]['params'];
+    final registryChoseStars =
+        params is Map && params['whiteReference'] == 'averageStar';
+    final byCatalog = photometry.hasStars && !registryChoseStars;
     var proved = steps;
     if (!byCatalog) {
       proved = _withParams(steps, index, {'whiteReference': 'averageStar'});
@@ -878,8 +896,9 @@ class DawnDraftBuilder {
   /// The measurement is the engine's own: asking a render for the `screen`
   /// encoding runs `stretch@1`'s auto measurement over the pixels that render
   /// produced and names the parameters it used in the reply — the same function,
-  /// over the same prefix, at the same level the registry measured the first
-  /// draft at. The reply's `screenTransferAffectsRecipe` says the render did not
+  /// over the same prefix, at the full resolution the registry measured the
+  /// first draft at. `measureOnly` asks for the measurement without the
+  /// frame-sized pixel buffer. The reply's `screenTransferAffectsRecipe` says the render did not
   /// touch the stored recipe, which is true; adopting the numbers is this
   /// composition's own decision, taken here because the prefix moved under them.
   ///
@@ -902,6 +921,11 @@ class DawnDraftBuilder {
       return steps;
     }
     final because = causes.join(' and ');
+    // Measured below noise reduction when the draft has it: the black point is
+    // placed a few noise sigmas under the sky, and the denoised sigma would
+    // place it so close that the sky's large-scale mottle is lifted into view.
+    final denoise = steps.indexWhere((step) => step['opId'] == 'denoise');
+    final stopAfter = denoise > 0 && denoise < index ? denoise - 1 : index - 1;
 
     final DarkroomRenderedPreview preview;
     try {
@@ -909,10 +933,11 @@ class DawnDraftBuilder {
         recipeJson: _envelope(recipeId, master.path, steps),
         context: {
           'masterPath': master.path,
-          'maxDimension': kDraftMeasureMaxDimension,
-          'stopAfter': index - 1,
+          'level': kStretchMeasureLevel,
+          'stopAfter': stopAfter,
           'renderId': renderId,
           'encoding': 'screen',
+          'measureOnly': true,
           'catalogStars': photometry.stars,
         },
       );

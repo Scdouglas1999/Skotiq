@@ -245,7 +245,7 @@ pub fn api_darkroom_render_preview(
     }
 
     let output = run_render(&recipe, &base, &ctx, options, &token)?;
-    let encoded = encode_preview(&output, encoding, &ctx, &token)?;
+    let encoded = encode_preview(&output, encoding, &ctx, &token, context.measure_only)?;
 
     let cache_state = {
         let cache = render_cache();

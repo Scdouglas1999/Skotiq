@@ -303,6 +303,9 @@ pub(crate) fn plan(args: &CompositeArgs) -> Result<CompositeOutcome, String> {
     if palette.uses_luminance() && !sigmas.is_empty() {
         params["starSigma"] = Value::Object(sigmas);
     }
+    // Every master is flattened before the channels meet: its surfaces are
+    // measured when the draft pins the step's fits.
+    params["flatten"] = json!({});
     let worst_check = checks
         .iter()
         .filter_map(|c| c["medianOffsetPx"].as_f64())

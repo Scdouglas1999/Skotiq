@@ -62,6 +62,8 @@ const Map<String, String> kDarkroomThreeChannelOps = {
   kDarkroomColorCalibrateOpId:
       'a colour master with 3 channels; combine a per-filter mono master first',
   'saturation': 'a colour master with 3 channels',
+  'scnr': 'a color image with 3 channels',
+  'chroma_denoise': 'a color image with 3 channels',
 };
 
 /// Wire schema version of the recipe envelope this build writes. It matches the

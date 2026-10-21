@@ -56,6 +56,10 @@ pub(crate) struct DarkroomContextArgs {
     /// the operation reports itself explicitly skipped instead of fitting
     /// against nothing.
     pub(crate) catalog_stars: Vec<CatalogStarArgs>,
+    /// Measure without returning pixels: a `screen` render reports the auto
+    /// stretch it would apply and returns no RGBA. A full-resolution
+    /// measurement then costs the render, not a frame-sized buffer.
+    pub(crate) measure_only: bool,
 }
 
 /// Which stage of the stack an export materialises.
