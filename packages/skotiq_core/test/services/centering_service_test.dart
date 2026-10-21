@@ -2151,6 +2151,71 @@ void main() {
           ),
         );
       });
+
+      // A guider left guiding fights every correction slew and trails the
+      // solve frames: on the rig (2026-10-20) a Slew & Center with PHD2
+      // guiding converged only to 5.4" and timed out.
+      group('a guider that is guiding', () {
+        void connectGuider({required bool guiding}) {
+          final guider = container.read(guiderStateProvider.notifier);
+          guider.setConnecting('phd2', 'PHD2');
+          guider.setConnected();
+          guider.setGuiding(guiding);
+        }
+
+        Future<CenteringResult> center() {
+          when(
+            mockImagingService.captureUtilityFrame(
+              settings: anyNamed('settings'),
+              targetName: anyNamed('targetName'),
+            ),
+          ).thenAnswer((_) async => _centeringImage());
+          stubSolve(10.0, 45.0);
+          return container
+              .read(centeringServiceProvider)
+              .centerOnTarget(
+                targetRa: 10.0,
+                targetDec: 45.0,
+                solverConfig: solverConfig,
+              );
+        }
+
+        test('is stopped before the first centering frame', () async {
+          connectGuider(guiding: true);
+          when(mockDeviceService.stopGuiding()).thenAnswer((_) async {});
+
+          final result = await center();
+
+          expect(result.success, isTrue);
+          verifyInOrder([
+            mockDeviceService.stopGuiding(),
+            mockImagingService.captureUtilityFrame(
+              settings: anyNamed('settings'),
+              targetName: anyNamed('targetName'),
+            ),
+          ]);
+        });
+
+        test('an idle guider is left alone', () async {
+          connectGuider(guiding: false);
+
+          final result = await center();
+
+          expect(result.success, isTrue);
+          verifyNever(mockDeviceService.stopGuiding());
+        });
+
+        test('a guider that will not stop does not stop centering', () async {
+          connectGuider(guiding: true);
+          when(
+            mockDeviceService.stopGuiding(),
+          ).thenThrow(Exception('PHD2 did not answer'));
+
+          final result = await center();
+
+          expect(result.success, isTrue);
+        });
+      });
     });
   });
 }

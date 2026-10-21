@@ -109,38 +109,39 @@ pub(crate) struct MountMotion {
 
 impl MountMotion {
     pub(crate) async fn begin(ctx: &InstructionContext, what: &str) -> Self {
-        let Some(trigger_state) = ctx.trigger_state.clone() else {
-            return Self {
-                trigger_state: None,
-            };
-        };
-        let (outermost, run_was_guiding) = {
-            let mut state = trigger_state.write().await;
-            state.mount_motion_depth += 1;
-            (state.mount_motion_depth == 1, state.guiding_enabled)
+        Self::begin_with(&ctx.device_ops, ctx.trigger_state.clone(), what).await
+    }
+
+    /// [`Self::begin`] for a caller with no instruction context (the
+    /// meridian flip).
+    ///
+    /// A guider is stopped whether or not the run keeps trigger state: a
+    /// Center run outside a sequence moves the mount just the same.
+    pub(crate) async fn begin_with(
+        device_ops: &SharedDeviceOps,
+        trigger_state: Option<Arc<tokio::sync::RwLock<crate::triggers::TriggerState>>>,
+        what: &str,
+    ) -> Self {
+        let (outermost, run_was_guiding) = match &trigger_state {
+            Some(state) => {
+                let mut state = state.write().await;
+                state.mount_motion_depth += 1;
+                (state.mount_motion_depth == 1, state.guiding_enabled)
+            }
+            None => (true, false),
         };
         if outermost {
-            if let Ok(status) = ctx.device_ops.guider_get_status().await {
-                if status.is_guiding {
-                    tracing::info!(
-                        "[GUIDING] Stopping the guider for the {what}: it cannot guide while \
-                         the mount moves"
-                    );
-                    if let Err(error) = ctx.device_ops.guider_stop().await {
-                        tracing::warn!("[GUIDING] The guider did not stop for the {what}: {error}");
-                    }
+            stop_an_active_guider(device_ops, what).await;
+            if run_was_guiding {
+                if let Some(state) = &trigger_state {
+                    let mut state = state.write().await;
+                    state.set_guiding_enabled(false);
+                    state.set_guide_star_lost(false);
+                    state.guiding_resume_pending = true;
                 }
             }
-            if run_was_guiding {
-                let mut state = trigger_state.write().await;
-                state.set_guiding_enabled(false);
-                state.set_guide_star_lost(false);
-                state.guiding_resume_pending = true;
-            }
         }
-        Self {
-            trigger_state: Some(trigger_state),
-        }
+        Self { trigger_state }
     }
 
     pub(crate) async fn end(mut self) {
@@ -148,6 +149,34 @@ impl MountMotion {
             let mut state = trigger_state.write().await;
             state.mount_motion_depth = state.mount_motion_depth.saturating_sub(1);
         }
+    }
+}
+
+/// Stop the guider before the mount moves if it may move the mount itself
+/// (see [`crate::device_ops::DeviceOps::guider_is_active`]). A guider whose
+/// state cannot be read is stopped too: guiding through a move is the worse
+/// mistake, and stopping an idle guider costs nothing. A rig with no guider
+/// has nothing to stop.
+pub(crate) async fn stop_an_active_guider(device_ops: &SharedDeviceOps, what: &str) {
+    let active = match device_ops.guider_is_active().await {
+        Ok(active) => active,
+        Err(error) if crate::device_ops::is_no_guider_configured(&error) => false,
+        Err(error) => {
+            tracing::warn!(
+                "[GUIDING] Could not read the guider's state before the {what} ({error}); \
+                 stopping it so it cannot guide while the mount moves"
+            );
+            true
+        }
+    };
+    if !active {
+        return;
+    }
+    tracing::info!(
+        "[GUIDING] Stopping the guider for the {what}: it cannot guide while the mount moves"
+    );
+    if let Err(error) = device_ops.guider_stop().await {
+        tracing::warn!("[GUIDING] The guider did not stop for the {what}: {error}");
     }
 }
 

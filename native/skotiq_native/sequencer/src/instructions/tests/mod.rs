@@ -100,6 +100,16 @@ struct ScriptedDomeRotatorOps {
     tracking_commands: Mutex<Vec<bool>>,
     guider_stop_calls: AtomicU32,
     guider_start_calls: AtomicU32,
+    /// The guider lost its star and is searching for it (PHD2's LostLock):
+    /// not guiding, but it guides again the moment it finds the star.
+    guider_lost_lock: AtomicBool,
+    /// Camera exposures and slews commanded while the guider could move the
+    /// mount.
+    exposures_while_guider_active: AtomicU32,
+    slews_while_guider_active: AtomicU32,
+    /// Plate solves still to come that find the mount 0.01° off target in
+    /// Dec, so a Center has to correct.
+    off_target_solves: AtomicU32,
     /// For each `guider_select_fresh_star`, how many `guider_start` calls had
     /// been made when it was issued, so a test can tell it came first.
     fresh_star_selections: Mutex<Vec<u32>>,
@@ -221,6 +231,10 @@ impl ScriptedDomeRotatorOps {
             guiding: AtomicBool::new(false),
             tracking_commands: Mutex::new(Vec::new()),
             guider_stop_calls: AtomicU32::new(0),
+            guider_lost_lock: AtomicBool::new(false),
+            exposures_while_guider_active: AtomicU32::new(0),
+            slews_while_guider_active: AtomicU32::new(0),
+            off_target_solves: AtomicU32::new(0),
             guider_start_calls: AtomicU32::new(0),
             fresh_star_selections: Mutex::new(Vec::new()),
             no_guide_star: false,
@@ -422,6 +436,20 @@ impl ScriptedDomeRotatorOps {
         self
     }
 
+    fn with_off_target_solves(self, solves: u32) -> Self {
+        self.off_target_solves.store(solves, Ordering::SeqCst);
+        self
+    }
+
+    fn with_guider_lost_lock(self) -> Self {
+        self.guider_lost_lock.store(true, Ordering::SeqCst);
+        self
+    }
+
+    fn guider_active(&self) -> bool {
+        self.guiding.load(Ordering::SeqCst) || self.guider_lost_lock.load(Ordering::SeqCst)
+    }
+
     fn with_mount_slewing_states(mut self, states: Vec<bool>) -> Self {
         self.mount_slewing_states = Mutex::new(states);
         self
@@ -506,6 +534,10 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     // Delegating methods
     async fn mount_slew_to_coordinates(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
         self.mount_slew_calls.fetch_add(1, Ordering::SeqCst);
+        if self.guider_active() {
+            self.slews_while_guider_active
+                .fetch_add(1, Ordering::SeqCst);
+        }
         self.inner.mount_slew_to_coordinates(id, ra, dec).await
     }
     async fn mount_abort_slew(&self, id: &str) -> DeviceResult<()> {
@@ -587,6 +619,10 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         by: i32,
     ) -> DeviceResult<ImageData> {
         let call = self.camera_exposure_calls.fetch_add(1, Ordering::SeqCst) + 1;
+        if self.guider_active() {
+            self.exposures_while_guider_active
+                .fetch_add(1, Ordering::SeqCst);
+        }
         if call == 1 {
             if let Some(flag) = &self.pause_flag_after_first_exposure {
                 flag.store(true, Ordering::SeqCst);
@@ -783,7 +819,11 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     async fn guider_stop(&self) -> DeviceResult<()> {
         self.guider_stop_calls.fetch_add(1, Ordering::SeqCst);
         self.guiding.store(false, Ordering::SeqCst);
+        self.guider_lost_lock.store(false, Ordering::SeqCst);
         Ok(())
+    }
+    async fn guider_is_active(&self) -> DeviceResult<bool> {
+        Ok(self.guider_active())
     }
     async fn plate_solve(
         &self,
@@ -795,7 +835,15 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         if self.plate_solve_fails {
             return Err("no solution: too few stars".to_string());
         }
-        self.inner.plate_solve(d, ra, dec, s).await
+        let mut result = self.inner.plate_solve(d, ra, dec, s).await?;
+        if self
+            .off_target_solves
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+            .is_ok()
+        {
+            result.dec_degrees += 0.01;
+        }
+        Ok(result)
     }
     async fn save_fits(
         &self,
