@@ -437,14 +437,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
           } else {
             // No output path configured - save to temp directory for annotation/plate solving
             // This ensures live annotation can still work even without a configured save location
-            final tempDir = Directory.systemTemp;
-            final skotiqTemp = Directory(
-              path.join(tempDir.path, 'skotiq_captures'),
-            );
-            if (!await skotiqTemp.exists()) {
-              await skotiqTemp.create(recursive: true);
-            }
-            if (!_hasBackendAuthority(backend)) return null;
+            final String scratchName;
             if (!persistFrame) {
               // A live-view frame. It still has to reach the disk so "solve the
               // latest camera frame", annotation and the preview loader keep
@@ -452,10 +445,8 @@ extension _ImagingServiceCapturePipeline on ImagingService {
               // of accumulating: looping 5 s subs at ~23 MB a frame is
               // ~27 GB/hour of the operator's LIGHT folder, each indexed as a
               // light frame.
-              savedFilePath = path.join(
-                skotiqTemp.path,
-                'liveview_${ImagingService._scratchKey(deviceId)}.fits',
-              );
+              scratchName =
+                  'liveview_${ImagingService._scratchKey(deviceId)}.fits';
             } else {
               // Epoch millis of the real instant. `now()` renders a zone and
               // is not an instant, so its `millisecondsSinceEpoch` is a
@@ -465,10 +456,30 @@ extension _ImagingServiceCapturePipeline on ImagingService {
                   .read(clockProvider)
                   .nowUtc()
                   .millisecondsSinceEpoch;
-              savedFilePath = path.join(
-                skotiqTemp.path,
-                'capture_$timestamp.fits',
+              scratchName = 'capture_$timestamp.fits';
+            }
+            if (backend is NetworkBackend) {
+              // The host writes the file, so the path has to be one of its own.
+              final roots = await backend.browseRemoteDirectories();
+              if (!_hasBackendAuthority(backend)) return null;
+              savedFilePath = hostScratchFilePath(
+                roots.directories,
+                scratchName,
               );
+              if (savedFilePath == null) {
+                throw StateError(
+                  'the imaging host lists no folder it will write to',
+                );
+              }
+            } else {
+              final skotiqTemp = Directory(
+                path.join(Directory.systemTemp.path, 'skotiq_captures'),
+              );
+              if (!await skotiqTemp.exists()) {
+                await skotiqTemp.create(recursive: true);
+              }
+              if (!_hasBackendAuthority(backend)) return null;
+              savedFilePath = path.join(skotiqTemp.path, scratchName);
             }
             isTempFile = true;
             _logger.debug(
