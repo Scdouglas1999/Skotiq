@@ -2,6 +2,8 @@
 
 import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show AstronomyCalculations;
 import '../models/sequence/sequence_models.dart';
 import 'scheduler/sky_calculations.dart';
 
@@ -76,6 +78,11 @@ class SchedulerService {
 
   /// Calculate both altitude and azimuth for a celestial object at a given time.
   /// Returns (altitude, azimuth) in degrees.
+  ///
+  /// [raHours]/[decDegrees] are J2000, as every catalog and target row stores
+  /// them; they are precessed to the equinox of [time] before the hour angle
+  /// is formed, so this agrees with [AstronomyCalculations.objectAltAz] (the
+  /// Framing and Planner altitude) instead of drifting ~0.3 degrees from it.
   (double altitude, double azimuth) calculateAltAz({
     required double raHours,
     required double decDegrees,
@@ -83,12 +90,28 @@ class SchedulerService {
     required double latitudeDegrees,
     required double longitudeDegrees,
   }) {
+    final (ra, dec) = _ofDate(raHours, decDegrees, time);
     return SkyCalculations.altAzDegrees(
-      raHours: raHours,
-      decDegrees: decDegrees,
+      raHours: ra,
+      decDegrees: dec,
       latitudeDegrees: latitudeDegrees,
       lstHours: _calculateLST(time, longitudeDegrees),
     );
+  }
+
+  /// J2000 [raHours]/[decDegrees] referred to the equator and equinox of
+  /// [time], in hours and degrees.
+  static (double raHours, double decDegrees) _ofDate(
+    double raHours,
+    double decDegrees,
+    DateTime time,
+  ) {
+    final (raDeg, decDeg) = AstronomyCalculations.precessFromJ2000ToDate(
+      raDeg: raHours * 15.0,
+      decDeg: decDegrees,
+      dt: time,
+    );
+    return (raDeg / 15.0, decDeg);
   }
 
   /// Calculate Local Sidereal Time in hours.
@@ -136,7 +159,9 @@ class SchedulerService {
     required double longitudeDegrees,
     double horizonDeg = 0.0,
   }) {
-    final dec = decDegrees * math.pi / 180.0;
+    // The hour angle below is measured from the equinox of date.
+    final (raOfDate, decOfDate) = _ofDate(raHours, decDegrees, now);
+    final dec = decOfDate * math.pi / 180.0;
     final lat = latitudeDegrees * math.pi / 180.0;
     final alt = horizonDeg * math.pi / 180.0;
 
@@ -168,7 +193,7 @@ class SchedulerService {
 
     // Current hour angle (sidereal hours, normalised to [-12, +12]).
     final lst = _calculateLST(now, longitudeDegrees);
-    var haHours = lst - raHours;
+    var haHours = lst - raOfDate;
     while (haHours > 12.0) {
       haHours -= 24.0;
     }
@@ -205,6 +230,7 @@ class SchedulerService {
   /// Calculate transit time for a target
   DateTime calculateTransitTime({
     required double raHours,
+    required double decDegrees,
     required DateTime date,
     required double longitudeDegrees,
   }) {
@@ -217,8 +243,10 @@ class SchedulerService {
     // Calculate LST at midnight
     final lstMidnight = _calculateLST(midnight, longitudeDegrees);
 
-    // Time until transit in sidereal hours
-    double hoursUntilTransit = raHours - lstMidnight;
+    // Time until transit in sidereal hours, against the J2000 RA precessed to
+    // the equinox of date.
+    final (raOfDate, _) = _ofDate(raHours, decDegrees, midnight);
+    double hoursUntilTransit = raOfDate - lstMidnight;
     if (hoursUntilTransit < 0) hoursUntilTransit += 24.0;
     if (hoursUntilTransit > 24) hoursUntilTransit -= 24.0;
 
@@ -266,6 +294,7 @@ class SchedulerService {
 
       final transitTime = calculateTransitTime(
         raHours: target.raHours,
+        decDegrees: target.decDegrees,
         date: observationTime,
         longitudeDegrees: longitudeDegrees,
       );

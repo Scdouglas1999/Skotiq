@@ -1,4 +1,16 @@
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show
+        CatalogDesignation,
+        DeepSkyObject,
+        TargetNameResolver,
+        SelectTarget,
+        ChooseTarget,
+        ResolveTargetOnline,
+        kWellKnownDsoNames,
+        normalizeTargetName;
+
 import '../../models/import/canonical_sequence_node.dart';
+import '../sesame_name_resolver.dart';
 import '../../models/import/import_result.dart';
 import 'csv_parser.dart';
 
@@ -30,12 +42,25 @@ class CatalogLookupResult {
   });
 }
 
-/// Adapts Skotiq's local/remote catalog search surfaces to the importer's
-/// single-result lookup contract.
+/// A designation could not be resolved to one object, for a reason the user
+/// should see: several objects carry the name, or the lookup service could
+/// not be reached. A plain "no such object" is a null result instead.
+class CatalogLookupFailure implements Exception {
+  final String reason;
+  const CatalogLookupFailure(this.reason);
+
+  @override
+  String toString() => 'CatalogLookupFailure: $reason';
+}
+
+/// Adapts a catalog search surface (the host's catalog over the wire) to the
+/// importer's single-result lookup contract.
 ///
-/// Exact normalized name/id matches win. CatalogManager already ranks exact
-/// matches first, so the first valid candidate is the fallback for common-name
-/// searches whose alias is not included in the wire row.
+/// Only a candidate the designation names exactly is accepted: the same
+/// catalog designation however it is spelled (`M42`, `M 42`, `Messier 42`),
+/// or the same name. A search hit that merely contains the text is never
+/// taken, so an unmatched designation stays unresolved rather than landing on
+/// a different object.
 class CatalogSearchLookup implements CatalogLookup {
   final Future<List<CatalogLookupResult>> Function(String designation) _search;
 
@@ -43,20 +68,32 @@ class CatalogSearchLookup implements CatalogLookup {
 
   @override
   Future<CatalogLookupResult?> resolve(String designation) async {
-    final candidates = (await _search(
-      designation,
-    )).where(_hasValidCoordinates).toList(growable: false);
-    if (candidates.isEmpty) return null;
-
-    final query = _normalizeCatalogIdentifier(designation);
-    for (final candidate in candidates) {
-      final names = [candidate.canonicalName, ...candidate.identifiers];
-      if (names.any((name) => _normalizeCatalogIdentifier(name) == query)) {
-        return candidate;
+    final query = _IdentifierKeys.of([designation], aliases: true);
+    if (query.isEmpty) return null;
+    final exact = <String, CatalogLookupResult>{};
+    for (final candidate in await _search(designation)) {
+      if (!_hasValidCoordinates(candidate)) continue;
+      final keys = _IdentifierKeys.of([
+        candidate.canonicalName,
+        ...candidate.identifiers,
+      ], aliases: true);
+      if (keys.any(query.contains)) {
+        exact.putIfAbsent(_identity(candidate), () => candidate);
       }
     }
-    return candidates.first;
+    if (exact.isEmpty) return null;
+    if (exact.length > 1) {
+      throw CatalogLookupFailure(
+        'several catalog objects are named "$designation" '
+        '(${exact.values.map((c) => c.canonicalName).join(', ')})',
+      );
+    }
+    return exact.values.single;
   }
+
+  /// Rows for one object can repeat across catalogs; their positions agree.
+  static String _identity(CatalogLookupResult c) =>
+      '${c.raHours.toStringAsFixed(3)}/${c.decDegrees.toStringAsFixed(2)}';
 
   static bool _hasValidCoordinates(CatalogLookupResult candidate) =>
       candidate.raHours.isFinite &&
@@ -67,8 +104,92 @@ class CatalogSearchLookup implements CatalogLookup {
       candidate.decDegrees <= 90;
 }
 
-String _normalizeCatalogIdentifier(String value) =>
-    value.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+/// Exact-match keys of a set of identifiers: each one's catalog designation
+/// key when it parses as one, and its normalized name. With [aliases], the
+/// designations a well-known common name stands for are added too
+/// (`Andromeda` -> `M 31`), so a wire row that carries only a common name
+/// still matches the designation it stands for.
+class _IdentifierKeys {
+  static Set<String> of(Iterable<String> identifiers, {bool aliases = false}) {
+    final keys = <String>{};
+    for (final raw in identifiers) {
+      if (raw.trim().isEmpty) continue;
+      final designation = CatalogDesignation.parse(raw);
+      if (designation != null) keys.add('d:${designation.key}');
+      final name = normalizeTargetName(raw);
+      if (name.isNotEmpty) keys.add('n:$name');
+      if (aliases) {
+        for (final id in kWellKnownDsoNames[name] ?? const <String>[]) {
+          final alias = CatalogDesignation.parse(id);
+          if (alias != null) keys.add('d:${alias.key}');
+        }
+      }
+    }
+    return keys;
+  }
+}
+
+/// Resolves designations against the installed deep-sky catalog with
+/// [TargetNameResolver], the resolver the Framing search uses: one object
+/// named exactly is taken, several are reported as ambiguous, and partial
+/// matches are never taken.
+class ResolverCatalogLookup implements CatalogLookup {
+  final Future<List<DeepSkyObject>> Function() _catalog;
+
+  const ResolverCatalogLookup(this._catalog);
+
+  @override
+  Future<CatalogLookupResult?> resolve(String designation) async {
+    final ranked = TargetNameResolver.rank(designation, await _catalog());
+    switch (TargetNameResolver.decide(ranked)) {
+      case SelectTarget(:final object):
+        return CatalogLookupResult(
+          canonicalName: object.name,
+          raHours: object.coordinates.ra,
+          decDegrees: object.coordinates.dec,
+          identifiers: [object.id, ...object.catalogIds],
+        );
+      case ChooseTarget(:final candidates):
+        throw CatalogLookupFailure(
+          'several catalog objects are named "$designation" '
+          '(${candidates.map((c) => c.object.name).join(', ')})',
+        );
+      case ResolveTargetOnline():
+        return null;
+    }
+  }
+}
+
+/// Tries [primary] first and asks SIMBAD's exact name resolver only for a
+/// designation [primary] knows nothing about. An ambiguous primary result is
+/// reported as such, never resolved online behind the user's back.
+class OnlineFallbackLookup implements CatalogLookup {
+  final CatalogLookup primary;
+  final SesameNameResolver online;
+
+  const OnlineFallbackLookup({required this.primary, required this.online});
+
+  @override
+  Future<CatalogLookupResult?> resolve(String designation) async {
+    final local = await primary.resolve(designation);
+    if (local != null) return local;
+    try {
+      final resolved = await online.resolve(designation);
+      if (resolved == null) return null;
+      return CatalogLookupResult(
+        canonicalName: resolved.mainId,
+        raHours: resolved.raHours,
+        decDegrees: resolved.decDegrees,
+        identifiers: [resolved.mainId],
+      );
+    } on TargetNameLookupUnavailable catch (e) {
+      throw CatalogLookupFailure(
+        'not in the installed catalog, and SIMBAD could not be reached '
+        '(${e.message})',
+      );
+    }
+  }
+}
 
 /// A no-op catalog lookup. Used as the default when no catalog source has
 /// been configured — every resolve returns `null` and the importer surfaces
@@ -144,11 +265,15 @@ class UnresolvedTarget {
   final double? integrationHours;
   final String? notes;
 
+  /// Why it was left unresolved, phrased to follow the designation.
+  final String reason;
+
   const UnresolvedTarget({
     required this.designation,
     required this.rowNum,
     this.integrationHours,
     this.notes,
+    this.reason = 'matches no catalog object by name',
   });
 }
 
@@ -254,7 +379,13 @@ class AstrobinImporter {
     var resolvedRows = 0;
     for (final key in ordering) {
       final agg = aggregated[key]!;
-      final resolved = await _catalog.resolve(agg.subject);
+      CatalogLookupResult? resolved;
+      String? failure;
+      try {
+        resolved = await _catalog.resolve(agg.subject);
+      } on CatalogLookupFailure catch (e) {
+        failure = e.reason;
+      }
       final notes = _buildNotes(agg);
       if (resolved == null) {
         unresolved.add(
@@ -263,6 +394,7 @@ class AstrobinImporter {
             rowNum: agg.rowNum,
             integrationHours: agg.integrationHours,
             notes: notes,
+            reason: failure ?? 'matches no catalog object by name',
           ),
         );
         // We still emit a TargetHeaderNode with RA=0/Dec=0 so the user sees
@@ -280,6 +412,8 @@ class AstrobinImporter {
               'decDegrees': 0.0,
               'notes': notes,
               '_unresolved': true,
+              'unresolvedReason':
+                  failure ?? 'matches no catalog object by name',
               if (agg.integrationHours != null)
                 'astrobinIntegrationHours': agg.integrationHours,
             },

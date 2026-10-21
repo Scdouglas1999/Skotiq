@@ -93,6 +93,7 @@ final runDashboardSkyStatsProvider = Provider<RunDashboardSkyStats?>((ref) {
 
   final transit = scheduler.calculateTransitTime(
     raHours: target.raHours,
+    decDegrees: target.decDegrees,
     date: now.toUtc(),
     longitudeDegrees: location.longitude,
   );

@@ -6,6 +6,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show
+        DeepSkyObject,
+        DsoTypeExtension,
+        RankedTarget,
+        TargetNameResolver,
+        loadedDsosProvider,
+        normalizeTargetName;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:uuid/uuid.dart';
 
@@ -112,6 +120,74 @@ extension _ExposurePresetLabel on _ExposurePreset {
 
 // WIZARD DIALOG
 
+/// Where a target suggestion in step 1 came from.
+enum _TargetSource { catalog, library, simbad }
+
+/// One row of the step 1 target search: an installed-catalog object, a saved
+/// library target, or an object SIMBAD resolved by exact name.
+class _TargetCandidate {
+  final String name;
+  final String? catalogId;
+
+  /// Right ascension in hours and declination in degrees, J2000.
+  final double ra;
+  final double dec;
+  final double? magnitude;
+  final String? objectType;
+  final _TargetSource source;
+
+  /// The query names this object outright (a designation or a name), rather
+  /// than only appearing inside one of its identifiers.
+  final bool exact;
+
+  const _TargetCandidate({
+    required this.name,
+    required this.ra,
+    required this.dec,
+    required this.source,
+    required this.exact,
+    this.catalogId,
+    this.magnitude,
+    this.objectType,
+  });
+
+  factory _TargetCandidate.fromCatalog(RankedTarget ranked) {
+    final DeepSkyObject object = ranked.object;
+    return _TargetCandidate(
+      name: object.name,
+      catalogId: object.id == object.name ? null : object.id,
+      ra: object.coordinates.ra,
+      dec: object.coordinates.dec,
+      magnitude: object.magnitude,
+      objectType: object.type.displayName,
+      source: _TargetSource.catalog,
+      exact: ranked.quality.isExact,
+    );
+  }
+
+  factory _TargetCandidate.fromLibrary(DbTarget target, String query) {
+    final key = normalizeTargetName(query);
+    return _TargetCandidate(
+      name: target.name,
+      catalogId: target.catalogId,
+      ra: target.ra,
+      dec: target.dec,
+      magnitude: target.magnitude,
+      objectType: target.objectType,
+      source: _TargetSource.library,
+      exact: normalizeTargetName(target.name) == key ||
+          (target.catalogId != null &&
+              normalizeTargetName(target.catalogId!) == key),
+    );
+  }
+
+  String get sourceLabel => switch (source) {
+        _TargetSource.catalog => 'Catalog',
+        _TargetSource.library => 'Saved',
+        _TargetSource.simbad => 'SIMBAD',
+      };
+}
+
 class QuickStartWizardDialog extends ConsumerStatefulWidget {
   const QuickStartWizardDialog({super.key});
 
@@ -129,19 +205,22 @@ class _QuickStartWizardDialogState
   final _targetNameController = TextEditingController();
   final _raController = TextEditingController();
   final _decController = TextEditingController();
-  List<DbTarget> _searchResults = [];
+  List<_TargetCandidate> _searchResults = [];
   Timer? _searchDebounce;
   bool _isSearching = false;
-  DbTarget? _selectedTarget;
+  _TargetCandidate? _selectedTarget;
 
-  // These carry the outcome so step 1 can say which of "your library has no
-  // such target", "your library is empty" and "the lookup itself failed"
-  // happened. Without them a finished search that found nothing renders as
-  // silence: no list, no message, empty RA/Dec.
+  /// Bumped by every keystroke and submit, so a slower lookup that finishes
+  /// after a newer one never overwrites its results.
+  int _searchRevision = 0;
+
+  // These carry the outcome so step 1 can say what a search that found
+  // nothing means: the lookup failed, nothing local matches (and SIMBAD has
+  // not been asked yet), or SIMBAD was asked and does not know the name.
   String _lastSearchQuery = '';
   bool _searchCompleted = false;
   Object? _searchError;
-  bool _libraryIsEmpty = false;
+  String? _onlineLookupMessage;
 
   // Step 2: Filters & Exposures
   List<_FilterExposureConfig> _filterConfigs = [];

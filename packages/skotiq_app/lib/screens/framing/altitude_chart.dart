@@ -832,6 +832,10 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
           ),
         ),
       ),
+      // No swap animation: fl_chart's default 150 ms morph paints the previous
+      // target's curve first, and the plot must match the rise/transit/set
+      // readouts beside it on every frame.
+      duration: Duration.zero,
     );
   }
 
