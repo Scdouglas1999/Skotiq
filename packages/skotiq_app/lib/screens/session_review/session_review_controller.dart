@@ -250,6 +250,7 @@ class SessionReviewController extends StateNotifier<SessionReviewState> {
         targetName: state.targetName,
         hintRaHours: hintRaHours,
         hintDecDegrees: hintDecDegrees,
+        sessionId: _scope.sessionId,
         outputFitsPathBuilder: (filterBucket) {
           final stamp = DateTime.now().millisecondsSinceEpoch;
           final base = _safeName(state.title);
@@ -302,6 +303,9 @@ class SessionReviewController extends StateNotifier<SessionReviewState> {
     state = state.copyWith(loadingSmartData: true);
 
     final report = await _loadNightReport(forceRecompute: recomputeNightReport);
+    // The load runs unawaited after an integration, so the review may have
+    // closed while the report was read.
+    if (!mounted) return;
     final master = state.reviewedMaster;
     final (curve, population) = master != null
         ? await _loadImprovementCurve(master.id)
