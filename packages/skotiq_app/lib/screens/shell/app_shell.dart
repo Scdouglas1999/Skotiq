@@ -278,6 +278,8 @@ class _AppShellState extends ConsumerState<AppShell> {
                     context: dialogContext,
                     info: info,
                     failure: lastFailure,
+                    remoteHost:
+                        backend is NetworkBackend ? backend.serverHost : null,
                   ),
                 );
               },

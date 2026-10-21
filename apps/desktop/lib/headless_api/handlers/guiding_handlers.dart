@@ -646,10 +646,21 @@ class GuidingHandlers {
         50;
 
     final backend = container.read(guidingBackendProvider);
-    final image = await backend.guiderGetStarImage(
-      deviceId: deviceId,
-      size: size,
-    );
+    final Phd2StarImage image;
+    try {
+      image = await backend.guiderGetStarImage(deviceId: deviceId, size: size);
+    } catch (error) {
+      // Looping with no star selected is a normal state, answered the same
+      // way as GET /api/phd2/star-image rather than as a server failure.
+      if (_isPhd2NoStarSelected(error)) {
+        return jsonError(
+          code: 'no_star_selected',
+          message: 'PHD2 has no guide star selected.',
+          statusCode: 409,
+        );
+      }
+      rethrow;
+    }
 
     return jsonOk({
       "frame": image.frame,

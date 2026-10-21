@@ -31,8 +31,12 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
     hydrationPending = false;
   }
 
-  late final void Function(NetworkBackend backend) requestHydration;
-  requestHydration = (backend) {
+  late final void Function(NetworkBackend backend, {bool periodic})
+  requestHydration;
+  // A periodic request never downgrades a pending full one: a reconnect that
+  // lands while a poll is in flight must still refresh the current frame.
+  var pendingIsPeriodic = true;
+  requestHydration = (backend, {bool periodic = false}) {
     if (!identical(ref.read(backendProvider), backend)) return;
     // Terminal backend state (auth rejected, version/identity mismatch):
     // every request in the hydration fan-out can only fail — and for a
@@ -42,18 +46,22 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
     // the other terminal modes.
     if (backend.connectionState == BackendConnectionState.error) return;
     if (hydrationInFlight) {
+      if (!hydrationPending) pendingIsPeriodic = periodic;
+      if (!periodic) pendingIsPeriodic = false;
       hydrationPending = true;
       return;
     }
     final requestGeneration = generation;
     hydrationInFlight = true;
     unawaited(
-      _hydrate(ref, backend).whenComplete(() {
+      _hydrate(ref, backend, refreshCurrentFrame: !periodic).whenComplete(() {
         if (requestGeneration != generation) return;
         hydrationInFlight = false;
         if (hydrationPending) {
           hydrationPending = false;
-          requestHydration(backend);
+          final nextIsPeriodic = pendingIsPeriodic;
+          pendingIsPeriodic = true;
+          requestHydration(backend, periodic: nextIsPeriodic);
         }
       }),
     );
@@ -78,16 +86,24 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
     });
 
     pollTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      requestHydration(next);
+      requestHydration(next, periodic: true);
     });
   }, fireImmediately: true);
 });
 
-Future<void> _hydrate(Ref ref, NetworkBackend backend) async {
+Future<void> _hydrate(
+  Ref ref,
+  NetworkBackend backend, {
+  required bool refreshCurrentFrame,
+}) async {
   final logger = ref.read(loggingServiceProvider);
 
   try {
-    await hydrateRemoteSessionState(ref, backend);
+    await hydrateRemoteSessionState(
+      ref,
+      backend,
+      refreshCurrentFrame: refreshCurrentFrame,
+    );
     if (!identical(ref.read(backendProvider), backend)) return;
     logger.info('Hydrated remote session from host', source: _logSource);
   } catch (e, stackTrace) {

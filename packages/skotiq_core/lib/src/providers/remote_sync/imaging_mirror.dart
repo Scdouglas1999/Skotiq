@@ -146,6 +146,17 @@ Future<void> _publishRemoteCurrentFrame(
       previewSource: CapturePreviewSource.remote,
     );
 
+    // A frame already on screen is not published again: that would clear its
+    // raw pixels and download them a second time to redraw the same image.
+    final shown = _read(reader, currentImageProvider);
+    if (shown != null &&
+        shown.previewSource == CapturePreviewSource.remote &&
+        shown.capturedAt == imageData.capturedAt &&
+        shown.width == imageData.width &&
+        shown.height == imageData.height) {
+      return;
+    }
+
     // Publish through the shared publisher: it tags the source from the live
     // backend, schedules the background raw-pixel load, and writes both
     // `currentImageProvider` and `lastImageStatsProvider`.

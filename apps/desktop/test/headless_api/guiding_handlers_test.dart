@@ -482,6 +482,26 @@ void main() {
       expect(body['code'], 'no_star_selected');
       expect(body['error'], 'PHD2 has no guide star selected.');
     });
+
+    test(
+      'guider star-image with no selected star is the same conflict',
+      () async {
+        final response = await translateHandlerErrors(
+          handlers.handleGuiderGetStarImage(
+            Request(
+              'GET',
+              Uri.parse(
+                'http://localhost/api/guider/star-image?deviceId=phd2_guider',
+              ),
+            ),
+          ),
+        );
+
+        expect(response.statusCode, HttpStatus.conflict);
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body['code'], 'no_star_selected');
+      },
+    );
   });
 }
 
@@ -555,6 +575,16 @@ class _NoPHD2SelectionBackend extends DisconnectedBackend {
 
   @override
   Future<Phd2StarImage> phd2GetStarImage({int size = 50}) {
+    throw const bridge.SkotiqError.operationFailed(
+      'Failed to get star image: PHD2 error: no star selected',
+    );
+  }
+
+  @override
+  Future<Phd2StarImage> guiderGetStarImage({
+    required String deviceId,
+    int size = 50,
+  }) {
     throw const bridge.SkotiqError.operationFailed(
       'Failed to get star image: PHD2 error: no star selected',
     );

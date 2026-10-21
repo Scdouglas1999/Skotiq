@@ -63,6 +63,7 @@ void main() {
   for (final outcome in [
     AppStartupCheckpointOutcome.noRecovery,
     AppStartupCheckpointOutcome.discarded,
+    AppStartupCheckpointOutcome.deferred,
   ]) {
     test('catalog setup waits for checkpoint outcome $outcome', () async {
       final checkpoint = Completer<AppStartupCheckpointOutcome>();

@@ -131,4 +131,72 @@ void main() {
       expect(container.read(deviceHeartbeatHealthProvider), isEmpty);
     });
   });
+
+  group('slave periodic re-hydration', () {
+    test(
+      'a device the host still reports never passes through disconnected',
+      () async {
+        final backend = _MockNetworkBackend();
+        when(() => backend.sequencerGetStatus()).thenAnswer(
+          (_) async => const SequencerStatus(state: 'Idle', progress: 0),
+        );
+        when(() => backend.getConnectedDevices()).thenAnswer(
+          (_) async => const [
+            DeviceInfo(
+              id: 'foc',
+              name: 'EAF',
+              deviceType: DeviceType.focuser,
+              driverType: DriverType.native,
+              description: '',
+              driverVersion: '1.0',
+            ),
+          ],
+        );
+
+        final container = ProviderContainer(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            backendProvider.overrideWith(
+              (ref) => _FixedBackendNotifier(ref, backend),
+            ),
+            loggingServiceProvider.overrideWithValue(LoggingService()),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        connectEverything(container);
+        final seen = <DeviceConnectionState>[];
+        container.listen<FocuserState>(
+          focuserStateProvider,
+          (_, next) => seen.add(next.connectionState),
+        );
+
+        try {
+          await hydrateRemoteSessionState(
+            container,
+            backend,
+            refreshCurrentFrame: false,
+          );
+        } catch (_) {
+          // Later hydration steps are not stubbed; the device pass runs first.
+        }
+
+        expect(seen, isNot(contains(DeviceConnectionState.disconnected)));
+        expect(
+          container.read(focuserStateProvider).connectionState,
+          DeviceConnectionState.connected,
+        );
+        expect(
+          container.read(cameraStateProvider).connectionState,
+          DeviceConnectionState.disconnected,
+          reason: 'the camera is no longer reported, so its card is dropped',
+        );
+        expect(
+          container.read(guiderStateProvider).connectionState,
+          DeviceConnectionState.connected,
+          reason: 'the guider is hydrated from phd2/status, not this list',
+        );
+      },
+    );
+  });
 }

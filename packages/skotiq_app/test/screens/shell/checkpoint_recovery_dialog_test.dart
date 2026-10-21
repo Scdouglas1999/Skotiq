@@ -39,6 +39,8 @@ final _info = CheckpointInfo(
 Future<Object?> showRecoveryDialog(
   WidgetTester tester, {
   required CheckpointAttemptFailure? failure,
+  String? remoteHost,
+  void Function(Object?)? onPopped,
 }) async {
   Object? popped;
   var settled = false;
@@ -56,9 +58,11 @@ Future<Object?> showRecoveryDialog(
                 context: dialogContext,
                 info: _info,
                 failure: failure,
+                remoteHost: remoteHost,
               ),
             );
             settled = true;
+            onPopped?.call(popped);
           },
           child: const Text('open'),
         ),
@@ -86,6 +90,46 @@ void main() {
       reason: 'an interrupted run is decided up front; the escape exists only '
           'for a recovery that has already failed',
     );
+  });
+
+  // A linked client sees the host's checkpoint, so it can always leave it, and
+  // the text says whose run it is.
+  testWidgets('a remote client can leave the host checkpoint untouched', (
+    tester,
+  ) async {
+    Object? choice = #unset;
+    await showRecoveryDialog(
+      tester,
+      failure: null,
+      remoteHost: '192.168.1.100',
+      onPopped: (value) => choice = value,
+    );
+
+    expect(find.textContaining('A sequence on 192.168.1.100'), findsOneWidget);
+    expect(find.textContaining('move the mount'), findsOneWidget);
+    expect(find.text('Resume'), findsOneWidget);
+    expect(find.text('Discard'), findsOneWidget);
+
+    await tester.tap(find.text('Leave it'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recover Sequence?'), findsNothing);
+    expect(choice, AppCheckpointRecoveryChoice.later);
+  });
+
+  test('leaving a remote checkpoint neither resumes nor discards', () async {
+    var resumed = false;
+    var discarded = false;
+    final outcome = await runAppCheckpointRecovery(
+      choose: (_) async => AppCheckpointRecoveryChoice.later,
+      resume: () async => resumed = true,
+      discard: () async => discarded = true,
+      checkpointStillResumable: () async => true,
+    );
+
+    expect(outcome, AppStartupCheckpointOutcome.deferred);
+    expect(resumed, isFalse);
+    expect(discarded, isFalse);
   });
 
   testWidgets('after a failed attempt the operator can leave the modal', (

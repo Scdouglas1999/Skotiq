@@ -10,10 +10,16 @@ part of '../remote_sync_handler.dart';
 /// intact — one slow device on a high-latency link can neither stall nor wipe
 /// the others. Connection state is applied first so cards exist before live
 /// values land.
+///
+/// [refreshCurrentFrame] is false for the periodic re-hydrate. The host's last
+/// frame is a full-resolution JPEG plus its raw pixels (tens of MB), and new
+/// frames arrive through ImageReady events, so only first connect and
+/// BackendReconnected, after which frames may have been missed, fetch it.
 Future<void> hydrateRemoteSessionState(
   Object reader,
-  NetworkBackend backend,
-) async {
+  NetworkBackend backend, {
+  bool refreshCurrentFrame = true,
+}) async {
   if (!_isCurrentRemoteBackend(reader, backend)) return;
   final status = await backend.sequencerGetStatus();
   if (!_isCurrentRemoteBackend(reader, backend)) return;
@@ -21,9 +27,7 @@ Future<void> hydrateRemoteSessionState(
 
   final devices = await backend.getConnectedDevices();
   if (!_isCurrentRemoteBackend(reader, backend)) return;
-  // PHD2 is not always listed in getConnectedDevices(); avoid clearing the
-  // guider chip before we re-hydrate from phd2/status.
-  resetAllEquipmentStateNotifiers(reader, includeGuider: false);
+  _dropDevicesTheHostNoLongerReports(reader, devices);
   for (final device in devices) {
     _applyConnectedDevice(reader, device);
   }
@@ -41,7 +45,8 @@ Future<void> hydrateRemoteSessionState(
   // from the (now-hydrated) camera state and no-ops if none is connected or no
   // frame is cached host-side, so the guard mirrors the live-event path.
   final cameraState = _read(reader, cameraStateProvider);
-  if (cameraState.connectionState == DeviceConnectionState.connected) {
+  if (refreshCurrentFrame &&
+      cameraState.connectionState == DeviceConnectionState.connected) {
     unawaited(_publishRemoteCurrentFrame(reader, backend));
   }
 
@@ -111,6 +116,55 @@ Future<void> hydrateRemoteSessionState(
   // family keyed by the open list, so it re-polls when first watched.)
   _invalidate(reader, observingListsProvider);
   _invalidate(reader, listedCatalogIdsProvider);
+}
+
+/// Device types whose cards mirror the host's connected-device list. The
+/// guider is left out: PHD2 is not always listed by getConnectedDevices, and its
+/// card is hydrated from phd2/status instead.
+const _hostListedDeviceTypes = <DeviceType>[
+  DeviceType.camera,
+  DeviceType.mount,
+  DeviceType.focuser,
+  DeviceType.filterWheel,
+  DeviceType.rotator,
+  DeviceType.dome,
+  DeviceType.weather,
+  DeviceType.safetyMonitor,
+  DeviceType.switch_,
+  DeviceType.coverCalibrator,
+];
+
+/// Disconnect only the cards whose device the host no longer reports. A card
+/// whose device is still connected keeps its state and telemetry; resetting
+/// every card on each re-hydrate blanked readouts until the status fetches
+/// landed.
+void _dropDevicesTheHostNoLongerReports(
+  Object reader,
+  List<DeviceInfo> devices,
+) {
+  for (final type in _hostListedDeviceTypes) {
+    final notifier = readDeviceConnectionNotifier(reader, type);
+    final deviceId = notifier.deviceId;
+    if (deviceId == null &&
+        notifier.connectionState == DeviceConnectionState.disconnected) {
+      continue;
+    }
+    final stillReported = devices.any(
+      (d) => d.deviceType == type && d.id == deviceId,
+    );
+    if (stillReported) continue;
+    notifier.setDisconnected();
+    if (deviceId != null) {
+      try {
+        _read(
+          reader,
+          deviceHeartbeatHealthProvider.notifier,
+        ).clearDevice(deviceId);
+      } on Object {
+        // The heartbeat provider may be mid-disposal during shutdown.
+      }
+    }
+  }
 }
 
 /// Buffer-then-apply per-device live status for the connected equipment that

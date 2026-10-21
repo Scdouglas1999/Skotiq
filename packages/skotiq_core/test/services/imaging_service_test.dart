@@ -46,6 +46,17 @@ class _NoOpScienceProcessingService extends ScienceProcessingService {
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
+/// A host that lists one root, so remote scratch frames have a host path.
+void _stubHostRoots(_MockNetworkBackend backend) {
+  when(() => backend.browseRemoteDirectories()).thenAnswer(
+    (_) async => const RemoteDirectoryListing(
+      currentPath: null,
+      parentPath: null,
+      directories: [RemoteDirectoryEntry(name: 'Documents', path: '/rig/docs')],
+    ),
+  );
+}
+
 class _NoOpCapturePreviewPublisher extends CapturePreviewPublisher {
   @override
   void publish(dynamic ref, CapturedImageData preview, String deviceId) {}
@@ -539,6 +550,7 @@ void main() {
         final remoteEvents = StreamController<SkotiqEvent>.broadcast();
         addTearDown(remoteEvents.close);
         final activeProfile = Completer<EquipmentProfile?>();
+        _stubHostRoots(remoteBackend);
 
         when(
           () => remoteBackend.eventStream,
@@ -647,6 +659,7 @@ void main() {
 
     test('remote FITS header uses the imaging host active profile', () async {
       final remoteBackend = _MockNetworkBackend();
+      _stubHostRoots(remoteBackend);
       final remoteEvents = StreamController<SkotiqEvent>.broadcast();
       addTearDown(remoteEvents.close);
 
@@ -742,6 +755,120 @@ void main() {
       expect(header.telescope, 'Remote RC10');
       expect(header.focalLength, 2000);
       expect(header.aperture, 250);
+    });
+
+    test('a linked client writes scratch frames inside a host root', () async {
+      final remoteBackend = _MockNetworkBackend();
+      final remoteEvents = StreamController<SkotiqEvent>.broadcast();
+      addTearDown(remoteEvents.close);
+
+      when(
+        () => remoteBackend.eventStream,
+      ).thenAnswer((_) => remoteEvents.stream);
+      when(
+        () => remoteBackend.getCameraCapabilities(any()),
+      ).thenAnswer((_) async => null);
+      when(
+        () => remoteBackend.cameraStartExposure(
+          deviceId: any(named: 'deviceId'),
+          exposureTime: any(named: 'exposureTime'),
+          frameType: any(named: 'frameType'),
+          gain: any(named: 'gain'),
+          offset: any(named: 'offset'),
+          binX: any(named: 'binX'),
+          binY: any(named: 'binY'),
+        ),
+      ).thenAnswer((_) async {
+        remoteEvents.add(
+          SkotiqEvent(
+            timestamp: DateTime.now().millisecondsSinceEpoch,
+            severity: EventSeverity.info,
+            category: EventCategory.imaging,
+            eventType: 'ExposureComplete',
+            data: const {},
+          ),
+        );
+      });
+      when(
+        () => remoteBackend.cameraGetLastImage(any()),
+      ).thenAnswer((_) async => makeCapturedImageResult());
+      when(remoteBackend.getActiveProfile).thenAnswer((_) async => null);
+      when(() => remoteBackend.browseRemoteDirectories()).thenAnswer(
+        (_) async => const RemoteDirectoryListing(
+          currentPath: null,
+          parentPath: null,
+          directories: [
+            RemoteDirectoryEntry(
+              name: 'Documents',
+              path: r'C:\Users\scdou\Documents',
+            ),
+            RemoteDirectoryEntry(
+              name: 'Image Output',
+              path: r'C:\Users\scdou\Documents\NGC7380',
+            ),
+          ],
+        ),
+      );
+      when(
+        () => remoteBackend.saveFitsFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          filePath: any(named: 'filePath'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final remoteContainer = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => TestBackendNotifier(ref, remoteBackend),
+          ),
+          cameraStateProvider.overrideWith((ref) {
+            final notifier = CameraStateNotifier(ref);
+            notifier.setConnecting('native:zwo:1', 'ZWO ASI1600MM-Cool');
+            notifier.setConnected();
+            return notifier;
+          }),
+          capturePreviewPublisherProvider.overrideWithValue(
+            _NoOpCapturePreviewPublisher(),
+          ),
+          scienceProcessingServiceProvider.overrideWith(
+            (ref) => _NoOpScienceProcessingService(ref),
+          ),
+        ],
+      );
+      addTearDown(remoteContainer.dispose);
+
+      final result = await remoteContainer
+          .read(imagingServiceProvider)
+          .captureUtilityFrame(
+            settings: const ExposureSettings(
+              exposureTime: 2,
+              gain: 139,
+              offset: 21,
+            ),
+          );
+
+      const hostPath =
+          r'C:\Users\scdou\Documents\Skotiq\scratch\liveview_native_zwo_1.fits';
+      expect(result?.filePath, hostPath);
+      verify(
+        () => remoteBackend.saveFitsFromLastCapture(
+          deviceId: 'native:zwo:1',
+          filePath: hostPath,
+          headerData: any(named: 'headerData'),
+        ),
+      ).called(1);
+    });
+
+    test('hostScratchFilePath joins in the host path style', () {
+      expect(
+        hostScratchFilePath(const [
+          RemoteDirectoryEntry(name: 'Home', path: '/home/rig'),
+        ], 'a.fits'),
+        '/home/rig/Skotiq/scratch/a.fits',
+      );
+      expect(hostScratchFilePath(const [], 'a.fits'), isNull);
     });
 
     test('captureImage throws when already capturing', () async {
