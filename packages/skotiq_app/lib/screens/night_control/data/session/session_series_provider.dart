@@ -7,6 +7,7 @@
 // otherwise. There is no ambient series: a weather device reports only its
 // current value, so the chart leaves ambient out rather than invent a line.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
@@ -118,12 +119,18 @@ final nightFrameSeriesProvider = Provider<NightSeriesVm>((ref) {
   );
 });
 
-/// Focuser temperature, focuser position (stepped, right axis) and sensor
-/// temperature over the session.
+/// Focuser temperature, focuser position (stepped) and sensor temperature
+/// over the session, with the session's autofocus runs as marks. The chart
+/// draws position and one temperature in separate bands (the focuser's
+/// probe, which follows the air the optics sit in, or the sensor when there
+/// is no probe); see [nightLastFocusShift] for what the last run changed.
 final nightTemperatureSeriesProvider = Provider<NightSeriesVm>((ref) {
   final rows = ref.watch(nightSessionLightRowsProvider);
   final range = ref.watch(nightSessionRangeProvider);
   final cooler = ref.watch(temperatureLongHistoryProvider);
+  final autofocus = ref.watch(
+    nightSessionEventsProvider.select((events) => events.autofocusRuns),
+  );
 
   final focuserTemp = <SeriesPoint>[
     for (final row in rows) SeriesPoint(row.capturedAt, row.focuserTemp),
@@ -180,6 +187,12 @@ final nightTemperatureSeriesProvider = Provider<NightSeriesVm>((ref) {
         tone: SeriesTone.secondary,
         dashed: true,
       ),
+    ],
+    markers: <SeriesMarker>[
+      for (final run in autofocus)
+        if (range == null ||
+            (!run.at.isBefore(range.from) && !run.at.isAfter(range.to)))
+          SeriesMarker(run.at, SeriesMarkerKind.autofocus),
     ],
     from: range?.from,
     to: range?.to,
@@ -254,3 +267,76 @@ final nightCoolerHistoryProvider = Provider<NightSeriesVm>((ref) {
     sampleCount: history.length,
   );
 });
+
+/// What the latest autofocus run on a temperature · focus chart changed.
+@immutable
+class NightFocusShift {
+  const NightFocusShift({required this.at, this.steps, this.tempSince});
+
+  /// When the run finished.
+  final DateTime at;
+
+  /// The focuser's move: the first position read after the run less the
+  /// last one before it. Null until a frame on each side has a position.
+  final int? steps;
+
+  /// The newest temperature less the one read at the run (the last reading
+  /// at or before it, else the first after). Null without readings.
+  final double? tempSince;
+}
+
+/// The latest autofocus mark on [vm] and what it changed, or null when the
+/// session has no autofocus run. [temperature] picks the line the change in
+/// temperature is read from.
+NightFocusShift? nightLastFocusShift(
+  NightSeriesVm vm, {
+  NightSeriesId temperature = NightSeriesId.focuserTemp,
+}) {
+  DateTime? at;
+  for (final marker in vm.markers) {
+    if (marker.kind != SeriesMarkerKind.autofocus) continue;
+    if (at == null || marker.t.isAfter(at)) at = marker.t;
+  }
+  if (at == null) return null;
+
+  List<SeriesPoint> pointsOf(NightSeriesId id) {
+    for (final line in vm.lines) {
+      if (line.id == id) {
+        return <SeriesPoint>[
+          for (final p in line.points)
+            if (p.y != null && p.y!.isFinite) p,
+        ];
+      }
+    }
+    return const <SeriesPoint>[];
+  }
+
+  SeriesPoint? lastBefore(List<SeriesPoint> points, DateTime t) {
+    SeriesPoint? found;
+    for (final p in points) {
+      if (p.t.isAfter(t)) break;
+      found = p;
+    }
+    return found;
+  }
+
+  SeriesPoint? firstAfter(List<SeriesPoint> points, DateTime t) {
+    for (final p in points) {
+      if (p.t.isAfter(t)) return p;
+    }
+    return null;
+  }
+
+  final position = pointsOf(NightSeriesId.focuserPosition);
+  final before = lastBefore(position, at);
+  final after = firstAfter(position, at);
+  final steps =
+      before == null || after == null ? null : (after.y! - before.y!).round();
+
+  final temps = pointsOf(temperature);
+  final atRun = lastBefore(temps, at) ?? firstAfter(temps, at);
+  final tempSince =
+      atRun == null || temps.isEmpty ? null : temps.last.y! - atRun.y!;
+
+  return NightFocusShift(at: at, steps: steps, tempSince: tempSince);
+}

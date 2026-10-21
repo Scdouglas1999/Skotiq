@@ -135,6 +135,31 @@ void main() {
       );
     });
 
+    testWidgets('dense segments are short enough for a chart title line', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          SegmentedControl(
+            dense: true,
+            semanticLabel: 'Span',
+            segments: const <String>['2 min', '5 min'],
+            selectedIndex: 1,
+            onSelected: (_) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final segment = find
+          .ancestor(of: find.text('5 min'), matching: find.byType(AnimatedContainer))
+          .first;
+      expect(
+        tester.getSize(segment).height,
+        SegmentedControl.denseSegmentHeight,
+      );
+      expect(find.bySemanticsLabel('Span'), findsOneWidget);
+    });
+
     testWidgets('tapping reports the index', (tester) async {
       var picked = -1;
       await tester.pumpWidget(

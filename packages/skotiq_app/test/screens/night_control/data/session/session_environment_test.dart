@@ -195,7 +195,7 @@ void main() {
               m.label.key == 'nightSessionGuideSnr'),
           isTrue);
       final total =
-          vm.legend.firstWhere((m) => m.label.key == 'nightSessionGuideTotal');
+          vm.legend.firstWhere((m) => m.label.key == 'nightSessionGuideRms');
       expect(total.value, '0.50 px');
       // No PHD2 frame reported yet: no SNR, rather than SNR 0.
       expect(
@@ -240,7 +240,7 @@ void main() {
       final ra = vm.lines.firstWhere((l) => l.id == NightSeriesId.guideRa);
       expect(ra.points.map((p) => p.y), <double>[0.6, -0.6]);
       final total =
-          vm.legend.firstWhere((m) => m.label.key == 'nightSessionGuideTotal');
+          vm.legend.firstWhere((m) => m.label.key == 'nightSessionGuideRms');
       expect(total.value, '1.00″');
       expect(vm.legend.any((m) => m.value!.contains('px')), isFalse);
     });

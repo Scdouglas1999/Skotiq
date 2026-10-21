@@ -528,7 +528,7 @@ abstract final class NightFixtures {
       // The board's 0.31" / 0.28" / 0.42" at 1.34"/px, in the pixels the
       // provider reports until PHD2's pixel scale reaches it.
       legend: const <MetricVm>[
-        MetricVm(label: NightText('nightSessionGuideTotal'), value: '0.31 px'),
+        MetricVm(label: NightText('nightSessionGuideRms'), value: '0.31 px'),
         MetricVm(label: NightText('nightSessionGuideRa'), value: '0.23 px'),
         MetricVm(label: NightText('nightSessionGuideDec'), value: '0.21 px'),
         MetricVm(label: NightText('nightSessionGuidePeak'), value: '0.66 px'),
@@ -583,6 +583,12 @@ abstract final class NightFixtures {
           tone: SeriesTone.secondary,
           dashed: true,
         ),
+      ],
+      // The autofocus runs the position steps after.
+      markers: <SeriesMarker>[
+        SeriesMarker(at(19, 57), SeriesMarkerKind.autofocus),
+        SeriesMarker(at(21, 40), SeriesMarkerKind.autofocus),
+        SeriesMarker(at(23, 10), SeriesMarkerKind.autofocus),
       ],
       from: start,
       to: at(23, 52),

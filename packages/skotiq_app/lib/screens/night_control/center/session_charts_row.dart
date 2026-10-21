@@ -121,78 +121,143 @@ class _Cell extends StatelessWidget {
     required this.title,
     required this.body,
     this.note,
+    this.noteFallbacks = const <String>[],
     this.noteColor,
+    this.trailing,
     this.legend,
   });
 
   final String title;
   final String? note;
+
+  /// Shorter forms of [note], longest first, used when it does not fit
+  /// beside the title; the last one shortens with an ellipsis.
+  final List<String> noteFallbacks;
+
+  /// In place of [note]: a control on the title line, such as the guide
+  /// chart's span.
+  final Widget? trailing;
   final Color? noteColor;
   final Widget body;
 
   /// One line under the chart; text in it gets the legend style.
   final Widget? legend;
 
+  static double _textWidth(BuildContext context, String text, TextStyle style) {
+    final tp = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textScaler: MediaQuery.textScalerOf(context),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    final width = tp.width;
+    tp.dispose();
+    return width;
+  }
+
+  double _titleWidth(BuildContext context, TextStyle style, double max) =>
+      math.min(_textWidth(context, title, style), max);
+
+  /// [note], or the first of [noteFallbacks] that fits [room].
+  String _fittedNote(BuildContext context, double room) {
+    final candidates = <String>[note!, ...noteFallbacks];
+    for (final candidate in candidates) {
+      if (_textWidth(context, candidate, SkotiqTypography.captionSm) <= room) {
+        return candidate;
+      }
+    }
+    return candidates.last;
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
+    final titleStyle = SkotiqTypography.labelStrongSm.copyWith(
+      color: colors.textPrimary,
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(10, 7, 10, 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          // The title keeps its words; the note shortens first.
-          LayoutBuilder(
-            builder: (context, constraints) => Row(
+      child: LayoutBuilder(builder: (context, constraints) {
+        final titleMax = constraints.maxWidth * 0.7;
+        final column = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            // The title keeps its words; the note shortens first.
+            Row(
               children: <Widget>[
                 ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: constraints.maxWidth * 0.7,
-                  ),
+                  constraints: BoxConstraints(maxWidth: titleMax),
                   child: Semantics(
                     header: true,
                     child: Text(
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: SkotiqTypography.labelStrongSm.copyWith(
-                        color: colors.textPrimary,
-                      ),
+                      style: titleStyle,
                     ),
                   ),
                 ),
                 const SizedBox(width: SkotiqTokens.spaceSm),
                 Expanded(
-                  child: note == null
-                      ? const SizedBox.shrink()
-                      : Text(
-                          note!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.end,
-                          style: SkotiqTypography.captionSm.copyWith(
-                            color: noteColor ?? colors.textMuted,
-                          ),
-                        ),
+                  child: trailing != null
+                      // Room for the control, which is laid over the line
+                      // below so its touch area can reach into the chart.
+                      ? const SizedBox(
+                          height: SegmentedControl.denseSegmentHeight,
+                        )
+                      : note == null
+                          ? const SizedBox.shrink()
+                          : Text(
+                              _fittedNote(
+                                context,
+                                constraints.maxWidth -
+                                    _titleWidth(context, titleStyle, titleMax) -
+                                    SkotiqTokens.spaceSm,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.end,
+                              style: SkotiqTypography.captionSm.copyWith(
+                                color: noteColor ?? colors.textMuted,
+                              ),
+                            ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 4),
-          Expanded(child: body),
-          if (legend != null) ...<Widget>[
-            const SizedBox(height: 3),
-            DefaultTextStyle(
-              style: SkotiqTypography.captionSm.copyWith(
-                color: colors.textMuted,
+            const SizedBox(height: 4),
+            Expanded(child: body),
+            if (legend != null) ...<Widget>[
+              const SizedBox(height: 3),
+              DefaultTextStyle(
+                style: SkotiqTypography.captionSm.copyWith(
+                  color: colors.textMuted,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                child: legend!,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              child: legend!,
+            ],
+          ],
+        );
+        final control = trailing;
+        if (control == null) return column;
+        final titleWidth = _titleWidth(context, titleStyle, titleMax);
+        return Stack(
+          clipBehavior: Clip.none,
+          children: <Widget>[
+            column,
+            Positioned(
+              top: 0,
+              right: 0,
+              width: math.max(
+                0,
+                constraints.maxWidth - titleWidth - SkotiqTokens.spaceSm,
+              ),
+              child: Align(alignment: Alignment.topRight, child: control),
             ),
           ],
-        ],
-      ),
+        );
+      }),
     );
   }
 }
@@ -332,7 +397,8 @@ const Map<String, NightSeriesId> _legendLine = <String, NightSeriesId>{
 Widget _legend(
   BuildContext context,
   NightSeriesVm vm, {
-  List<(String, SeriesChartTone)> marks = const <(String, SeriesChartTone)>[],
+  List<_Mark> marks = const <_Mark>[],
+  Set<String> keep = const <String>{},
 }) {
   final colors = context.skotiqColors;
   final l10n = context.l10n;
@@ -352,24 +418,37 @@ Widget _legend(
         swatchColor: line == null
             ? null
             : SeriesChart.colorFor(_tone(line.tone), colors),
-        rank: line == null ? 2 : 0,
+        rank: line == null && !keep.contains(item.label.key) ? 2 : 0,
       ),
     );
   }
-  for (final (label, tone) in marks) {
-    final dot = tone == SeriesChartTone.error;
-    final color = SeriesChart.colorFor(tone, colors);
+  for (final mark in marks) {
+    final color = SeriesChart.colorFor(mark.tone, colors);
     entries.add(
       _LegendEntry(
-        text: label,
-        swatch: dot ? _SwatchKind.dot : _SwatchKind.marker,
+        text: mark.label,
+        swatch: mark.dot ? _SwatchKind.dot : _SwatchKind.marker,
         swatchColor: color,
-        textColor: dot ? color : null,
-        rank: 1,
+        textColor: mark.dot ? color : null,
+        rank: mark.rank,
       ),
     );
   }
   return _FitLegend(entries: entries);
+}
+
+/// A legend key for something marked on a chart rather than a line: a
+/// vertical (autofocus, dither) or a dot (rejected, off scale).
+@immutable
+class _Mark {
+  const _Mark(this.label, this.tone, {this.dot = false, this.rank = 1});
+
+  final String label;
+  final SeriesChartTone tone;
+  final bool dot;
+
+  /// As [_LegendEntry.rank]: 2 gives the key up before the lines' numbers.
+  final int rank;
 }
 
 @immutable
@@ -438,8 +517,9 @@ class _FitLegend extends StatelessWidget {
       final withValue = List<bool>.filled(entries.length, true);
       double width(int i) {
         final swatch = entries[i].swatch;
+        // Text.rich scales a WidgetSpan with the text, so the swatch does too.
         return measure(label(entries[i], withValue[i])) +
-            (swatch == null ? 0 : _swatchWidth(swatch) + 4);
+            (swatch == null ? 0 : scaler.scale(_swatchWidth(swatch) + 4));
       }
 
       double total() {
@@ -600,11 +680,15 @@ class _HfrChart extends ConsumerWidget {
           : _legend(
               context,
               vm,
-              marks: <(String, SeriesChartTone)>[
+              marks: <_Mark>[
                 if (afTimes.isNotEmpty)
-                  (l10n.text('nightCtrMarkAf'), SeriesChartTone.muted),
+                  _Mark(l10n.text('nightCtrMarkAf'), SeriesChartTone.muted),
                 if (rejected.isNotEmpty)
-                  (l10n.text('nightCtrMarkRejected'), SeriesChartTone.error),
+                  _Mark(
+                    l10n.text('nightCtrMarkRejected'),
+                    SeriesChartTone.error,
+                    dot: true,
+                  ),
               ],
             ),
     );
@@ -618,6 +702,7 @@ class _GuideChart extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final vm = ref.watch(nightGuideSeriesProvider);
+    final window = ref.watch(nightGuideWindowProvider);
     // Arcseconds only when the guider reports its pixel scale.
     final arcsec = ref.watch(nightGuideScaleProvider) != null;
     String unit(String key) => arcsec ? '${key}Arcsec' : key;
@@ -626,12 +711,10 @@ class _GuideChart extends ConsumerWidget {
     final dec = _values(_lineOf(vm, NightSeriesId.guideDec));
     final dithers =
         vm.markers.where((m) => m.kind == SeriesMarkerKind.dither).length;
-    // RA and Dec share one scale, centered on zero error.
-    final peak = <double>[...ra, ...dec].fold<double>(
-      0,
-      (worst, v) => math.max(worst, v.abs()),
-    );
-    final span = math.max(peak, 0.5);
+    // RA and Dec share one scale, centered on zero error, sized to the
+    // usual error rather than the worst step; see nightGuideSpan.
+    final span = nightGuideSpan(<double>[...ra, ...dec]);
+    final scale = nightGuideChartLines(vm, span);
 
     double rms(List<double> values) => values.isEmpty
         ? 0
@@ -649,7 +732,11 @@ class _GuideChart extends ConsumerWidget {
         : _join(<String>[
             if (minutes != null)
               l10n.text(
-                unit('nightCtrSemGuide'),
+                unit(
+                  window == NightGuideWindow.night
+                      ? 'nightCtrSemGuideNight'
+                      : 'nightCtrSemGuide',
+                ),
                 params: <String, String>{'minutes': '$minutes'},
               )
             else
@@ -675,19 +762,23 @@ class _GuideChart extends ConsumerWidget {
                 'nightCtrSemDithers',
                 params: <String, String>{'count': '$dithers'},
               ),
+            if (scale.offScale > 0)
+              l10n.text(
+                'nightCtrSemOffScale',
+                params: <String, String>{'count': '${scale.offScale}'},
+              ),
           ]);
 
     return _Cell(
       title: title,
-      note: l10n.text(unit('nightCtrChartGuideNote')),
+      trailing: const _GuideWindowPicker(),
       body: _ChartBody(
         leftUnit: arcsec ? '″' : ' px',
         semanticLabel: semantic,
         empty: vm.isEmpty ? l10n.text('nightCtrChartNoGuiding') : null,
-        lines: <SeriesChartLine>[
-          for (final line in vm.lines) _line(line, minY: -span, maxY: span),
-        ],
+        lines: scale.lines,
         markers: _markers(vm),
+        highlights: scale.offScaleMarks,
         from: from,
         to: to,
         zeroLineY: 0,
@@ -697,73 +788,378 @@ class _GuideChart extends ConsumerWidget {
           : _legend(
               context,
               vm,
-              marks: <(String, SeriesChartTone)>[
+              keep: const <String>{'nightSessionGuideRms'},
+              marks: <_Mark>[
                 if (dithers > 0)
-                  (l10n.text('nightCtrMarkDither'), SeriesChartTone.secondary),
+                  // The dashed verticals read without a key; the numbers
+                  // do not.
+                  _Mark(
+                    l10n.text('nightCtrMarkDither'),
+                    SeriesChartTone.secondary,
+                    rank: 2,
+                  ),
+                if (scale.offScale > 0)
+                  _Mark(
+                    l10n.text('nightCtrMarkOffScale'),
+                    SeriesChartTone.warning,
+                    dot: true,
+                  ),
               ],
             ),
     );
   }
 }
 
+/// The guide chart's lines on a scale of plus and minus [span]: thinned to
+/// what the chart can draw, broken where guiding paused, and with every
+/// point beyond the scale held at its edge and marked there, so a dither or
+/// a lost star reads as off scale instead of flattening the trace.
+@visibleForTesting
+({
+  List<SeriesChartLine> lines,
+  List<SeriesChartHighlight> offScaleMarks,
+  int offScale,
+}) nightGuideChartLines(NightSeriesVm vm, double span) {
+  final lines = <SeriesChartLine>[];
+  final marks = <SeriesChartHighlight>[];
+  var offScale = 0;
+  for (final line in vm.lines) {
+    final points = <(DateTime, double?)>[];
+    for (final point in nightGuideTrace(line.points)) {
+      final y = point.y;
+      if (y != null && y.abs() > span) {
+        final edge = y.sign * span;
+        points.add((point.t, edge));
+        marks.add(
+          SeriesChartHighlight(point.t, edge, tone: SeriesChartTone.warning),
+        );
+      } else {
+        points.add((point.t, y));
+      }
+    }
+    for (final point in line.points) {
+      final y = point.y;
+      if (y != null && y.abs() > span) offScale++;
+    }
+    lines.add(
+      SeriesChartLine(
+        points: points,
+        tone: _tone(line.tone),
+        minY: -span,
+        maxY: span,
+      ),
+    );
+  }
+  return (lines: lines, offScaleMarks: marks, offScale: offScale);
+}
+
+/// 2 min · 5 min · 15 min · Night on the guide chart's title line; the short
+/// labels when the long ones do not fit.
+class _GuideWindowPicker extends ConsumerWidget {
+  const _GuideWindowPicker();
+
+  static const List<(NightGuideWindow, String, String)> _items =
+      <(NightGuideWindow, String, String)>[
+    (
+      NightGuideWindow.twoMinutes,
+      'nightCtrGuideWindow2',
+      'nightCtrGuideWindow2Short'
+    ),
+    (
+      NightGuideWindow.fiveMinutes,
+      'nightCtrGuideWindow5',
+      'nightCtrGuideWindow5Short'
+    ),
+    (
+      NightGuideWindow.fifteenMinutes,
+      'nightCtrGuideWindow15',
+      'nightCtrGuideWindow15Short'
+    ),
+    (
+      NightGuideWindow.night,
+      'nightCtrGuideWindowNight',
+      'nightCtrGuideWindowNightShort'
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final window = ref.watch(nightGuideWindowProvider);
+    final selected = _items.indexWhere((item) => item.$1 == window);
+    final scaler = MediaQuery.textScalerOf(context);
+    return LayoutBuilder(builder: (context, constraints) {
+      double width(List<String> labels) {
+        var total = SegmentedControl.gap * (labels.length - 1);
+        for (final label in labels) {
+          final tp = TextPainter(
+            text: TextSpan(text: label, style: SkotiqTypography.labelStrongSm),
+            textScaler: scaler,
+            textDirection: TextDirection.ltr,
+            maxLines: 1,
+          )..layout();
+          total += tp.width + 2 * SegmentedControl.denseSegmentPadding;
+          tp.dispose();
+        }
+        return total;
+      }
+
+      final long = <String>[for (final item in _items) l10n.text(item.$2)];
+      final labels = width(long) <= constraints.maxWidth
+          ? long
+          : <String>[for (final item in _items) l10n.text(item.$3)];
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: SegmentedControl(
+          dense: true,
+          semanticLabel: l10n.text('nightCtrGuideWindow'),
+          segments: labels,
+          selectedIndex: selected,
+          onSelected: (i) =>
+              ref.read(nightGuideWindowProvider.notifier).state = _items[i].$1,
+        ),
+      );
+    });
+  }
+}
+
+/// Focus · temperature, as two bands on one clock: the focuser position in
+/// steps above the temperature in °C, autofocus runs marked through both.
+/// The title line says when the last run was and how far it moved the
+/// focuser; the legend says how far the temperature has moved since.
 class _TemperatureChart extends ConsumerWidget {
   const _TemperatureChart();
+
+  /// The narrowest position scale, in steps, so a focuser that holds still
+  /// is a flat line rather than noise blown up to the full band.
+  static const double minPositionSpan = 20;
+
+  /// The narrowest temperature scale, in °C.
+  static const double minTempSpan = 2;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final vm = ref.watch(nightTemperatureSeriesProvider);
     final title = l10n.text('nightCtrChartTemp');
-    final focuserTemp = _values(_lineOf(vm, NightSeriesId.focuserTemp));
-    final position = _values(_lineOf(vm, NightSeriesId.focuserPosition));
-    final sensor = _values(_lineOf(vm, NightSeriesId.sensorTemp));
+    final position = _lineOf(vm, NightSeriesId.focuserPosition);
+    final focuserTemp = _lineOf(vm, NightSeriesId.focuserTemp);
+    final sensorTemp = _lineOf(vm, NightSeriesId.sensorTemp);
+    // The focuser's probe follows the air around the optics; the sensor is
+    // the stand-in when there is no probe.
+    final useFocuserTemp = _values(focuserTemp).isNotEmpty;
+    final temp = useFocuserTemp ? focuserTemp : sensorTemp;
+    final tempId =
+        useFocuserTemp ? NightSeriesId.focuserTemp : NightSeriesId.sensorTemp;
+    final tempValues = _values(temp);
+    final positionValues = _values(position);
+    final afRuns = <SeriesMarker>[
+      for (final marker in vm.markers)
+        if (marker.kind == SeriesMarkerKind.autofocus) marker,
+    ];
+    final shift = nightLastFocusShift(vm, temperature: tempId);
+    final empty = tempValues.isEmpty && positionValues.isEmpty;
 
-    String range(
-            String nameKey, List<double> values, String Function(double) f) =>
-        l10n.text(
-          'nightCtrSemRange',
-          params: <String, String>{
-            'name': l10n.text(nameKey),
-            'from': f(values.first),
-            'to': f(values.last),
-          },
-        );
+    String signedSteps(int steps) =>
+        steps == 0 ? '0' : nightSignedDelta(steps.toDouble(), 0);
+    String signedCelsius(double delta) => '${nightSignedDelta(delta, 1)} °C';
 
-    final semantic = vm.isEmpty
+    final semantic = empty
         ? l10n.text('nightCtrSemNoData', params: {'title': title})
         : _join(<String>[
-            if (focuserTemp.isNotEmpty)
-              range('nightCtrSemFocuserTemp', focuserTemp, nightCelsius),
-            if (position.isNotEmpty)
-              range(
-                'nightCtrSemFocuserPos',
-                position,
-                (v) => nightGrouped(v.round()),
+            if (positionValues.isNotEmpty)
+              l10n.text(
+                'nightCtrSemRange',
+                params: <String, String>{
+                  'name': l10n.text('nightCtrSemFocuserPos'),
+                  'from': nightGrouped(positionValues.first.round()),
+                  'to': nightGrouped(positionValues.last.round()),
+                },
               ),
-            if (sensor.isNotEmpty)
-              range('nightCtrSemSensor', sensor, nightCelsius),
+            if (tempValues.isNotEmpty)
+              l10n.text(
+                'nightCtrSemRange',
+                params: <String, String>{
+                  'name': l10n.text(
+                    useFocuserTemp
+                        ? 'nightCtrSemFocuserTemp'
+                        : 'nightCtrSemSensor',
+                  ),
+                  'from': nightCelsius(tempValues.first),
+                  'to': nightCelsius(tempValues.last),
+                },
+              ),
+            if (afRuns.isNotEmpty)
+              l10n.text(
+                'nightCtrSemAfCount',
+                params: <String, String>{'count': '${afRuns.length}'},
+              ),
+            if (shift?.steps case final steps?)
+              l10n.text(
+                'nightCtrSemAfShift',
+                params: <String, String>{
+                  'time': nightClockHm(shift!.at),
+                  'steps': signedSteps(steps),
+                },
+              ),
+            if (shift?.tempSince case final delta?)
+              l10n.text(
+                'nightCtrSemTempSinceAf',
+                params: <String, String>{'delta': signedCelsius(delta)},
+              ),
           ]);
+
+    // The note: the last autofocus and its move, else the chart's start;
+    // nothing over an empty chart. Shorter forms follow for a narrow cell.
     final from = vm.from;
+    String? note;
+    final noteFallbacks = <String>[];
+    if (empty) {
+      note = null;
+    } else if (shift != null) {
+      final at = l10n.text(
+        'nightCtrFocusLastAfAt',
+        params: <String, String>{'time': nightClockHm(shift.at)},
+      );
+      final steps = shift.steps;
+      if (steps == null) {
+        note = at;
+      } else {
+        note = l10n.text(
+          'nightCtrFocusLastAf',
+          params: <String, String>{
+            'time': nightClockHm(shift.at),
+            'steps': signedSteps(steps),
+          },
+        );
+        noteFallbacks.addAll(<String>[
+          l10n.text(
+            'nightCtrFocusLastAfMove',
+            params: <String, String>{'steps': signedSteps(steps)},
+          ),
+          at,
+        ]);
+      }
+    } else if (from != null) {
+      note = l10n.text(
+        'nightCtrSince',
+        params: <String, String>{'time': nightClockHm(from)},
+      );
+    }
+
+    SeriesChartLine band(
+      SeriesLineVm line,
+      List<double> values,
+      double minSpan,
+      SeriesChartTone tone,
+    ) {
+      double? lo;
+      double? hi;
+      if (values.isNotEmpty) {
+        final low = values.reduce(math.min);
+        final high = values.reduce(math.max);
+        if (high - low < minSpan) {
+          final mid = (low + high) / 2;
+          lo = mid - minSpan / 2;
+          hi = mid + minSpan / 2;
+        }
+      }
+      return SeriesChartLine(
+        points: <(DateTime, double?)>[
+          for (final point in line.points) (point.t, point.y),
+        ],
+        tone: tone,
+        stepped: line.stepped,
+        minY: lo,
+        maxY: hi,
+      );
+    }
+
+    final strips = <NightChartStrip>[
+      if (position != null && positionValues.isNotEmpty)
+        NightChartStrip(
+          lines: <SeriesChartLine>[
+            band(position, positionValues, minPositionSpan,
+                SeriesChartTone.primary),
+          ],
+          unit: l10n.text('nightCtrAxisSteps'),
+          unitTone: SeriesChartTone.primary,
+          grouped: true,
+        ),
+      if (temp != null && tempValues.isNotEmpty)
+        NightChartStrip(
+          lines: <SeriesChartLine>[
+            band(temp, tempValues, minTempSpan, SeriesChartTone.tertiary),
+          ],
+          unit: l10n.text('nightCtrAxisCelsius'),
+          unitTone: SeriesChartTone.tertiary,
+        ),
+    ];
+    final markers = <SeriesChartMarker>[
+      for (final run in afRuns)
+        SeriesChartMarker(run.t, tone: SeriesChartTone.muted),
+    ];
+
+    final colors = context.skotiqColors;
+    final entries = <_LegendEntry>[
+      if (positionValues.isNotEmpty)
+        _LegendEntry(
+          text: l10n.text('nightSessionFocuserPosition'),
+          value: nightGrouped(positionValues.last.round()),
+          swatch: _SwatchKind.line,
+          swatchColor: SeriesChart.colorFor(SeriesChartTone.primary, colors),
+          rank: 0,
+        ),
+      if (tempValues.isNotEmpty)
+        _LegendEntry(
+          text: l10n.text(
+            useFocuserTemp
+                ? 'nightSessionFocuserTemp'
+                : 'nightSessionSensorTemp',
+          ),
+          value: nightCelsius(tempValues.last),
+          swatch: _SwatchKind.line,
+          swatchColor: SeriesChart.colorFor(SeriesChartTone.tertiary, colors),
+          rank: 0,
+        ),
+      if (shift?.tempSince case final delta?)
+        _LegendEntry(
+          text: l10n.text(
+            'nightCtrFocusTempSince',
+            params: <String, String>{'delta': signedCelsius(delta)},
+          ),
+          // Goes first: beside a temperature whose number was dropped it
+          // would read as that temperature.
+          rank: 2,
+        ),
+      if (afRuns.isNotEmpty)
+        _LegendEntry(
+          text: l10n.text('nightCtrMarkAf'),
+          swatch: _SwatchKind.marker,
+          swatchColor: SeriesChart.colorFor(SeriesChartTone.muted, colors),
+          rank: 1,
+        ),
+    ];
 
     return _Cell(
       title: title,
-      note: from == null
-          ? null
-          : l10n.text(
-              'nightCtrSince',
-              params: <String, String>{'time': nightClockHm(from)},
+      note: note,
+      noteFallbacks: noteFallbacks,
+      body: empty
+          ? _ChartBody(
+              semanticLabel: semantic,
+              lines: const <SeriesChartLine>[],
+              empty: l10n.text('nightCtrChartNoTemps'),
+            )
+          : NightChartStrips(
+              strips: strips,
+              markers: markers,
+              from: vm.from,
+              to: vm.to,
+              semanticLabel: semantic,
             ),
-      body: _ChartBody(
-        leftUnit: ' °C',
-        rightGrouped: true,
-        semanticLabel: semantic,
-        empty: vm.isEmpty ? l10n.text('nightCtrChartNoTemps') : null,
-        lines: <SeriesChartLine>[for (final line in vm.lines) _line(line)],
-        markers: _markers(vm),
-        from: vm.from,
-        to: vm.to,
-      ),
-      legend: vm.isEmpty ? null : _legend(context, vm),
+      legend: empty ? null : _FitLegend(entries: entries),
     );
   }
 }

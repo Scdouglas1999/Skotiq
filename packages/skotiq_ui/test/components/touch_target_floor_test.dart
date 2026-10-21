@@ -40,6 +40,15 @@ void main() {
       ),
       SegmentedControl.segmentHeight,
     ),
+    'SegmentedControl (dense)': (
+      SegmentedControl(
+        dense: true,
+        segments: const <String>['2 min', '5 min'],
+        selectedIndex: 0,
+        onSelected: (_) {},
+      ),
+      SegmentedControl.denseSegmentHeight,
+    ),
     'InstrumentPill': (
       InstrumentPill(value: 'Guiding', onTap: () {}),
       InstrumentPill.height,
@@ -102,5 +111,27 @@ void main() {
           'a status label is not a tap target, and padding it to 48 would '
           'space out every status row on a phone for nothing',
     );
+  });
+
+  testWidgets('a dense segment takes a finger below its painted face', (
+    tester,
+  ) async {
+    var picked = -1;
+    await tester.pumpWidget(
+      host(
+        SegmentedControl(
+          dense: true,
+          segments: const <String>['2 min', '5 min'],
+          selectedIndex: 0,
+          onSelected: (i) => picked = i,
+        ),
+        platform: TargetPlatform.android,
+      ),
+    );
+    final face = tester.getRect(find.text('5 min'));
+    // 20 px under the label: outside the 18 px face, inside the 48 px box,
+    // which grows downward so the face stays on its title line.
+    await tester.tapAt(Offset(face.center.dx, face.bottom + 20));
+    expect(picked, 1);
   });
 }

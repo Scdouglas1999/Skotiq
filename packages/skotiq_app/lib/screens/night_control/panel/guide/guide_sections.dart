@@ -32,7 +32,7 @@ class NightGuideStarSection extends ConsumerWidget {
     final state = ref.watch(phd2StateProvider);
     final stats = ref.watch(guideStatsProvider);
     final image = ref.watch(starImageProvider);
-    final samples = ref.watch(nightGuideSamplesProvider);
+    final samples = ref.watch(nightGuideRecentSamplesProvider);
     final rms = ref.watch(nightGuideRmsProvider);
     final scale = ref.watch(nightGuideScaleProvider);
     final lost = ref.watch(

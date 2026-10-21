@@ -123,8 +123,9 @@ void main() {
         // A value scale with its unit on each chart.
         expect(text, contains(' px'), reason: 'HFR and guide units');
         expect(text, contains('°C'), reason: 'temperature unit');
-        // The focuser position on the right of the temperature chart.
+        // The focuser position in its own band, with its unit.
         expect(text, contains(nightGrouped(45600)));
+        expect(text, contains('steps'));
         // Clock labels under the charts.
         expect(text, contains('22:00'));
         expect(text, contains('23:50'));
@@ -136,7 +137,6 @@ void main() {
           'Dec',
           'focuser',
           'position',
-          'sensor',
         ]) {
           expect(text, contains(key), reason: '$why: the $key key');
         }
