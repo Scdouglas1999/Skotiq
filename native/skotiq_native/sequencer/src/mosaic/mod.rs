@@ -324,6 +324,7 @@ mod resume_tests {
             last_plate_solve: Arc::new(tokio::sync::RwLock::new(None)),
             hfr_baseline: Arc::new(tokio::sync::RwLock::new(None)),
             hfr_baseline_samples: Arc::new(tokio::sync::RwLock::new(Vec::new())),
+            star_count_baselines: Default::default(),
             consecutive_rejects: Arc::new(std::sync::atomic::AtomicU32::new(0)),
             frames_accepted: Arc::new(std::sync::atomic::AtomicU32::new(0)),
             frames_rejected: Arc::new(std::sync::atomic::AtomicU32::new(0)),

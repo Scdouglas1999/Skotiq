@@ -373,6 +373,7 @@ fn rig_quality_check() -> ImageQualityCheck {
         hfr_baseline_percent: Some(50.0),
         eccentricity_threshold: Some(0.7),
         star_count_min: Some(10),
+        star_count_drop_percent: None,
         max_consecutive_rejects: 3,
     }
 }

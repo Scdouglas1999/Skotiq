@@ -205,6 +205,7 @@ pub(super) fn build_trigger_autofocus_context(
         last_plate_solve: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         hfr_baseline: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         hfr_baseline_samples: std::sync::Arc::new(tokio::sync::RwLock::new(Vec::new())),
+        star_count_baselines: Default::default(),
         consecutive_rejects: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
         frames_accepted: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
         frames_rejected: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),

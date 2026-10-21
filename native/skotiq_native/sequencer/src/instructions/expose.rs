@@ -272,6 +272,7 @@ pub async fn execute_exposure_with_renderer(
     // dashboard sees consistent totals across instruction boundaries.
     let frame_baseline_handle = ctx.hfr_baseline.clone();
     let frame_baseline_samples_handle = ctx.hfr_baseline_samples.clone();
+    let star_count_baselines_handle = ctx.star_count_baselines.clone();
     let consecutive_rejects_handle = ctx.consecutive_rejects.clone();
     let frames_accepted_handle = ctx.frames_accepted.clone();
     let frames_rejected_handle = ctx.frames_rejected.clone();
@@ -680,12 +681,26 @@ pub async fn execute_exposure_with_renderer(
                 None
             };
             let (grade, save_dir, was_graded) = if let Some(qc) = active_check {
-                // Read baseline (None until the warmup window fills).
+                // Read baselines (None until each warmup window fills).
                 let baseline = { *frame_baseline_handle.read().await };
-                let g = crate::quality::grade_frame(qc, &metrics, baseline);
+                let star_key = crate::quality::star_count_baseline_key(
+                    ctx.target_name.as_deref(),
+                    frame_filter_name.as_deref(),
+                );
+                let star_baseline = star_count_baselines_handle
+                    .read()
+                    .await
+                    .get(&star_key)
+                    .and_then(crate::quality::StarCountBaseline::baseline);
+                let g = crate::quality::grade_frame_with_baselines(
+                    qc,
+                    &metrics,
+                    baseline,
+                    star_baseline,
+                );
                 match g {
                     crate::quality::FrameGrade::Pass => {
-                        // Update the rolling baseline with this accepted HFR.
+                        // Update the baselines with this accepted frame.
                         {
                             let mut baseline_guard = frame_baseline_handle.write().await;
                             let mut samples_guard = frame_baseline_samples_handle.write().await;
@@ -695,6 +710,12 @@ pub async fn execute_exposure_with_renderer(
                                 measured_hfr,
                             );
                         }
+                        star_count_baselines_handle
+                            .write()
+                            .await
+                            .entry(star_key)
+                            .or_default()
+                            .record(measured_star_count);
                         (g, base_path.clone(), true)
                     }
                     crate::quality::FrameGrade::Reject { .. } => {

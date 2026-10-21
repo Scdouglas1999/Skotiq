@@ -28,6 +28,7 @@ fn rig_check() -> ImageQualityCheck {
         hfr_baseline_percent: Some(50.0),
         eccentricity_threshold: Some(0.7),
         star_count_min: Some(10),
+        star_count_drop_percent: None,
         max_consecutive_rejects: 3,
     }
 }
@@ -146,6 +147,7 @@ async fn the_shipped_eccentricity_limit_passes_focus_and_rejects_trails() {
         hfr_baseline_percent: None,
         eccentricity_threshold: Some(skotiq_sequencer::quality::DEFAULT_ECCENTRICITY_THRESHOLD),
         star_count_min: None,
+        star_count_drop_percent: None,
         max_consecutive_rejects: 3,
     };
     let dir = fixtures();
@@ -204,5 +206,145 @@ async fn the_full_frames_of_the_night_grade_as_they_should() {
     ] {
         let (metrics, grade) = graded(&dir.join(file)).await;
         assert!(grade.is_reject(), "{file}: {metrics:?}");
+    }
+}
+
+/// The owner's subs of 2026-10-21 and 2026-01-02, when the dust-study corpus
+/// is on this machine (`SKOTIQ_DUST_DATA`, else `~/.cache/ns-dust/data/laptop`).
+fn dust_data() -> Option<PathBuf> {
+    let root = std::env::var_os("SKOTIQ_DUST_DATA")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME").map(|h| Path::new(&h).join(".cache/ns-dust/data/laptop"))
+        })?;
+    root.is_dir().then_some(root)
+}
+
+/// What a profile left at the app's defaults grades with: the absolute HFR,
+/// HFR baseline, eccentricity and star-count floor the settings ship, with
+/// the star-count drop the floor arms.
+fn shipped_check() -> ImageQualityCheck {
+    ImageQualityCheck {
+        hfr_threshold: Some(3.5),
+        hfr_baseline_percent: Some(50.0),
+        eccentricity_threshold: Some(skotiq_sequencer::quality::DEFAULT_ECCENTRICITY_THRESHOLD),
+        star_count_min: Some(10),
+        star_count_drop_percent: Some(skotiq_sequencer::quality::DEFAULT_STAR_COUNT_DROP_PERCENT),
+        max_consecutive_rejects: 3,
+    }
+}
+
+/// Grades frames in capture order the way `run_exposure_loop` does: the HFR
+/// baseline over the run, the star-count baseline per filter, both fed only
+/// by accepted frames.
+struct Run {
+    hfr_baseline: Option<f64>,
+    hfr_samples: Vec<f64>,
+    star_baselines: std::collections::HashMap<String, skotiq_sequencer::quality::StarCountBaseline>,
+}
+
+impl Run {
+    fn new() -> Self {
+        Self {
+            hfr_baseline: None,
+            hfr_samples: Vec::new(),
+            star_baselines: std::collections::HashMap::new(),
+        }
+    }
+
+    async fn grade(&mut self, path: &Path, filter: &str) -> (FrameMetrics, FrameGrade) {
+        let metrics = metrics(path).await;
+        let baseline = self.star_baselines.entry(filter.to_string()).or_default();
+        let grade = skotiq_sequencer::quality::grade_frame_with_baselines(
+            &shipped_check(),
+            &metrics,
+            self.hfr_baseline,
+            baseline.baseline(),
+        );
+        if grade.is_pass() {
+            skotiq_sequencer::quality::update_hfr_baseline(
+                &mut self.hfr_baseline,
+                &mut self.hfr_samples,
+                metrics.hfr,
+            );
+            baseline.record(metrics.star_count);
+        }
+        println!("{}: {metrics:?} -> {grade:?}", path.display());
+        (metrics, grade)
+    }
+}
+
+/// The NGC 891 run of 2026-10-21 (L 90 s, RGB 120 s, interleaved one frame
+/// per filter): the first six rounds of subs pass, and the three trailed subs
+/// that ended the night are rejected, on eccentricity and on star count.
+#[tokio::test]
+async fn the_ngc891_run_keeps_its_subs_and_rejects_its_trailed_frames() {
+    let Some(root) = dust_data() else {
+        eprintln!("SKIPPED: the dust-study corpus is not on this machine");
+        return;
+    };
+    let dir = root.join("NGC7380");
+    let mut run = Run::new();
+    for round in 1..=6 {
+        for filter in ["L", "R", "G", "B"] {
+            let (metrics, grade) = run
+                .grade(
+                    &dir.join(format!("NGC0891_{filter}_0001_{round:03}.fits")),
+                    filter,
+                )
+                .await;
+            assert!(
+                grade.is_pass(),
+                "{filter} {round}: {metrics:?} -> {grade:?}"
+            );
+        }
+    }
+    assert!(run.star_baselines.values().all(|b| b.baseline().is_some()));
+    for filter in ["R", "G", "B"] {
+        let (metrics, grade) = run
+            .grade(
+                &dir.join(format!("Reject/NGC0891_{filter}_0001.fits")),
+                filter,
+            )
+            .await;
+        assert!(grade.is_reject(), "trailed {filter}: {metrics:?}");
+        // Each would be rejected on its star count alone.
+        let baseline = run.star_baselines[filter].baseline().expect("baseline");
+        let count = f64::from(metrics.star_count.expect("counted"));
+        assert!(
+            count < 0.5 * baseline,
+            "trailed {filter}: {count} stars against a baseline of {baseline}"
+        );
+    }
+}
+
+/// A night that clouded over (Caldwell 7, 2026-01-02, L 120 s): the frames
+/// before the cloud pass, and the cloud frames are rejected, including one
+/// that still shows 253 stars too saturated by the sky to measure.
+#[tokio::test]
+async fn a_night_that_clouds_over_rejects_the_cloud_frames() {
+    let Some(root) = dust_data() else {
+        eprintln!("SKIPPED: the dust-study corpus is not on this machine");
+        return;
+    };
+    let dir = root.join("N.I.N.A/2026-01-02/LIGHT");
+    let mut run = Run::new();
+    for name in [
+        "2026-01-02_19-44-37_L_-15.10_120.00s_0000",
+        "2026-01-02_19-53-12_L_-14.80_120.00s_0001",
+        "2026-01-02_20-01-42_L_-14.80_120.00s_0002",
+        "2026-01-02_20-10-30_L_-15.00_120.00s_0003",
+        "2026-01-02_20-19-03_L_-15.00_120.00s_0004",
+    ] {
+        let (metrics, grade) = run.grade(&dir.join(format!("{name}.fits")), "L").await;
+        assert!(grade.is_pass(), "{name}: {metrics:?} -> {grade:?}");
+    }
+    for name in [
+        "2026-01-03_00-39-56_L_-15.00_120.00s_0034",
+        "2026-01-03_01-05-18_L_-15.00_120.00s_0036",
+        "2026-01-03_01-14-25_L_-15.00_120.00s_0037",
+    ] {
+        let (metrics, grade) = run.grade(&dir.join(format!("{name}.fits")), "L").await;
+        assert!(grade.is_reject(), "{name}: {metrics:?}");
     }
 }

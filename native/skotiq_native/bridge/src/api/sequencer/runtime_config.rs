@@ -316,6 +316,10 @@ pub async fn api_sequencer_update_autofocus_config(config_json: String) -> Resul
 /// is NOT constructed (grading disabled globally — per-node `quality_check`
 /// on TakeExposure still wins). The Dart `enableImageGrading` toggle on
 /// app settings drives this directly.
+///
+/// A star-count floor also arms the star-count drop check at
+/// [`skotiq_sequencer::quality::DEFAULT_STAR_COUNT_DROP_PERCENT`]: both grade
+/// the same count, and the drop is the one that scales to the field.
 pub async fn api_sequencer_update_default_quality_check(
     hfr_threshold: Option<f64>,
     hfr_baseline_percent: Option<f64>,
@@ -331,6 +335,8 @@ pub async fn api_sequencer_update_default_quality_check(
             hfr_baseline_percent,
             eccentricity_threshold,
             star_count_min,
+            star_count_drop_percent: star_count_min
+                .map(|_| skotiq_sequencer::quality::DEFAULT_STAR_COUNT_DROP_PERCENT),
             max_consecutive_rejects,
         })
     } else {
