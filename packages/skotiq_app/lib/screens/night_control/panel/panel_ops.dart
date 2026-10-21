@@ -53,7 +53,7 @@ class ServiceNightPanelOps implements NightPanelOps {
 
   @override
   Future<void> coolerOff() async {
-    _devices.cancelWarmCamera();
+    _devices.cancelWarmCamera(restorePriorSetting: false);
     await _devices.setCameraCooling(enabled: false);
   }
 

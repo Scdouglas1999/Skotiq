@@ -362,7 +362,7 @@ class ServiceNightRigOps implements NightRigOps {
   @override
   Future<void> setCooler({required bool enabled, double? targetTemp}) async {
     final devices = _devices;
-    if (enabled) devices.cancelWarmCamera();
+    if (enabled) devices.cancelWarmCamera(restorePriorSetting: false);
     await devices.setCameraCooling(enabled: enabled, targetTemp: targetTemp);
     final camera = _ref.read(cameraStateProvider.notifier);
     if (camera.mounted) camera.setCooling(enabled);

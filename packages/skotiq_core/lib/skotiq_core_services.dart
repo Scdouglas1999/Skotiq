@@ -13,6 +13,7 @@ export 'src/services/target_library_service.dart'
 
 // Services
 export 'src/services/device_service.dart';
+export 'src/services/camera_warmup_controller.dart' show CameraWarmupOutcome;
 export 'src/services/device_exceptions.dart';
 export 'src/utils/device_id.dart' show isValidDeviceIdFormat;
 // Single source of truth for device-identity logic: parsing, canonicalization,

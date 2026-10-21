@@ -66,7 +66,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     final deviceService = ref.read(deviceServiceProvider);
     final deviceId = ref.read(cameraStateProvider).deviceId;
     // Cancel any in-progress warm-up before cooling
-    deviceService.cancelWarmCamera();
+    deviceService.cancelWarmCamera(restorePriorSetting: false);
     try {
       await deviceService.setCameraCooling(
           enabled: true, targetTemp: targetTemp);
@@ -137,7 +137,8 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
                           final deviceService = ref.read(deviceServiceProvider);
                           // Cancel any in-progress warm-up before cooling, then
                           // drive the cooler to the requested setpoint.
-                          deviceService.cancelWarmCamera();
+                          deviceService.cancelWarmCamera(
+                              restorePriorSetting: false);
                           await deviceService.setCameraCooling(
                               enabled: true, targetTemp: temp);
                           if (!context.mounted) return;
@@ -210,10 +211,11 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     final deviceService = ref.read(deviceServiceProvider);
     final deviceId = ref.read(cameraStateProvider).deviceId;
     try {
-      await deviceService.warmCamera();
+      final outcome = await deviceService.warmCamera();
       if (mounted &&
           _hasCurrentDeviceAuthority(backend, deviceService, deviceId)) {
-        context.showSuccessSnackBar('Gradually warming camera (2°C/min)');
+        final message = warmupOutcomeMessage(outcome);
+        if (message != null) context.showSuccessSnackBar(message);
       }
     } catch (e) {
       if (mounted &&
@@ -229,7 +231,8 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     final deviceService = ref.read(deviceServiceProvider);
     deviceService.cancelWarmCamera();
     if (mounted) {
-      context.showSuccessSnackBar('Warm-up cancelled');
+      context.showSuccessSnackBar(
+          'Warm-up canceled; the cooler goes back to its previous set-point');
     }
   }
 

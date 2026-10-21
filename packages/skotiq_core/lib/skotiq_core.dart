@@ -123,6 +123,7 @@ export 'src/models/autofocus_progress.dart';
 export 'src/models/focuser_backlash_calibration.dart';
 export 'src/models/focuser_backlash_progress.dart';
 export 'src/services/focuser_backlash/effective_focuser_backlash.dart';
+export 'src/services/camera_warmup_controller.dart' show CameraWarmupOutcome;
 export 'src/models/meridian_flip_settings.dart';
 export 'src/models/meridian_flip_event.dart';
 export 'src/models/flat_wizard/flat_capture_config.dart';

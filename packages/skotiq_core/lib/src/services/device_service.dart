@@ -328,7 +328,7 @@ class DeviceService {
   /// backend swap disposes this service instance.
   Future<void> prepareForBackendSwap() async {
     _reconnectCoordinator.prepareForBackendSwap();
-    cancelWarmCamera();
+    cancelWarmCamera(restorePriorSetting: false);
     _temperaturePoller.stop();
     _environmentPollTimer?.cancel();
     _environmentPollTimer = null;
@@ -406,9 +406,13 @@ class DeviceService {
       _applyRecommendedCameraSettings(rec);
   Future<void> setCameraCooling({required bool enabled, double? targetTemp}) =>
       _setCameraCooling(enabled: enabled, targetTemp: targetTemp);
-  Future<void> warmCamera({double ratePerMin = 2.0}) =>
+  Future<CameraWarmupOutcome> warmCamera({double ratePerMin = 2.0}) =>
       _warmCamera(ratePerMin: ratePerMin);
-  void cancelWarmCamera() => _cancelWarmCamera();
+
+  /// See [CameraWarmupController.cancel]. Pass `restorePriorSetting: false`
+  /// when a cooler command of your own follows immediately.
+  void cancelWarmCamera({bool restorePriorSetting = true}) =>
+      _cancelWarmCamera(restorePriorSetting: restorePriorSetting);
   Future<void> disconnectCamera() => _disconnectCamera();
   Future<void> connectMount(String deviceId) => _connectMount(deviceId);
   Future<void> disconnectMount() => _disconnectMount();

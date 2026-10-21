@@ -297,6 +297,30 @@ void main() {
         targetTemp: any(named: 'targetTemp'),
       ),
     ).thenAnswer((_) async {});
+    // A working cooler holding a cold sensor: the only kind there is
+    // anything to warm.
+    when(() => backend.getCameraStatus(_kDeviceId)).thenAnswer(
+      (_) async => const CameraStatus(
+        connected: true,
+        state: CameraState.idle,
+        sensorTemp: -5,
+        coolerPower: 40,
+        targetTemp: -10,
+        coolerOn: true,
+        gain: 0,
+        offset: 0,
+        binX: 1,
+        binY: 1,
+        sensorWidth: 100,
+        sensorHeight: 100,
+        pixelSizeX: 3.76,
+        pixelSizeY: 3.76,
+        maxAdu: 65535,
+        canCool: true,
+        canSetGain: true,
+        canSetOffset: true,
+      ),
+    );
 
     final handle = await pumpAppScreen(
       tester,
@@ -310,6 +334,7 @@ void main() {
     }
 
     await tester.tap(find.text('Warm up'));
+    await tester.pump();
     await tester.pump();
 
     verify(
@@ -331,6 +356,68 @@ void main() {
 
     handle.container.read(deviceServiceProvider).cancelWarmCamera();
     await tester.pump();
+  });
+
+  testWidgets('Warm up on a camera whose cooler is off sends nothing',
+      (tester) async {
+    final backend = mockBackend();
+    when(
+      () => backend.cameraSetCooling(
+        deviceId: any(named: 'deviceId'),
+        enabled: any(named: 'enabled'),
+        targetTemp: any(named: 'targetTemp'),
+      ),
+    ).thenAnswer((_) async {});
+    when(() => backend.getCameraStatus(_kDeviceId)).thenAnswer(
+      (_) async => const CameraStatus(
+        connected: true,
+        state: CameraState.idle,
+        sensorTemp: 11.1,
+        coolerPower: 0,
+        targetTemp: 20,
+        coolerOn: false,
+        gain: 0,
+        offset: 0,
+        binX: 1,
+        binY: 1,
+        sensorWidth: 100,
+        sensorHeight: 100,
+        pixelSizeX: 3.76,
+        pixelSizeY: 3.76,
+        maxAdu: 65535,
+        canCool: true,
+        canSetGain: true,
+        canSetOffset: true,
+      ),
+    );
+
+    final handle = await pumpAppScreen(
+      tester,
+      const CameraPanel(colors: SkotiqColors.dark),
+      backend: backend,
+      extraOverrides: _overrides(_caps()),
+      settle: false,
+    );
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 25));
+    }
+
+    await tester.tap(find.text('Warm up'));
+    await tester.pump();
+    await tester.pump();
+
+    verifyNever(
+      () => backend.cameraSetCooling(
+        deviceId: any(named: 'deviceId'),
+        enabled: any(named: 'enabled'),
+        targetTemp: any(named: 'targetTemp'),
+      ),
+    );
+    expect(handle.container.read(cameraStateProvider).isWarming, isFalse);
+    expect(
+      find.text('The cooler is already off; there is nothing to warm.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('late cooling result from the old host is discarded',
