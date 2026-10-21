@@ -163,6 +163,11 @@ extension _SequencerLifecycle on SequencerHandlers {
     // sequences are validated by handleSequencerLoad before entering the native
     // executor, so this branch may start the already-loaded tree directly.
     final hasInEditorSequence = container.read(currentSequenceProvider) != null;
+    // A restored checkpoint is continued by the executor even when no tree
+    // could be recovered into the editor: the native executor holds it.
+    final continuesRestore = container
+        .read(sequenceExecutorProvider)
+        .hasRestoredCheckpoint;
     // Set immediately before the native `sequencerStart()` await and nowhere
     // else, so the catch below can tell a refusal raised BY the native
     // pre-flight from a failure in the setup calls that precede it. Only the
@@ -181,7 +186,7 @@ extension _SequencerLifecycle on SequencerHandlers {
     // a refused start must not leave a run in the history that never began.
     int? openedRunForThisStart;
     try {
-      if (hasInEditorSequence) {
+      if (hasInEditorSequence || continuesRestore) {
         final executor = container.read(sequenceExecutorProvider);
         await executor.start();
       } else {
