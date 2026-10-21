@@ -123,6 +123,13 @@ abstract class MeridianFlipSettings with _$MeridianFlipSettings {
     /// Only used with onTrackingLimitHit trigger method.
     @Default(0.0) double trackingLimitWaitMinutes,
 
+    /// Minutes before the meridian to stop tracking and stop taking frames
+    /// (0 = off). The run then waits, with tracking off, until the target is
+    /// [minutesPastMeridian] past the meridian, and flips. For a rig that
+    /// cannot track through the meridian, such as one whose tube hits the
+    /// tripod there. Only used with the minutesPastMeridian trigger method.
+    @Default(0.0) double pauseBeforeMeridianMinutes,
+
     // Flip sequence options
     /// Pause guider before flip
     @Default(true) bool pauseGuidingBeforeFlip,
@@ -227,6 +234,13 @@ abstract class MeridianFlipSettings with _$MeridianFlipSettings {
     }
     if (hourAngleThreshold > 6) {
       errors.add('Hour angle threshold should not exceed 6 hours');
+    }
+
+    if (pauseBeforeMeridianMinutes < 0) {
+      errors.add('Stop tracking before meridian cannot be negative');
+    }
+    if (pauseBeforeMeridianMinutes > 120) {
+      errors.add('Stop tracking before meridian should not exceed 120 minutes');
     }
 
     if (trackingLimitWaitMinutes < 0) {

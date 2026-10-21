@@ -262,6 +262,11 @@ class GlobalMeridianFlipSettingsNotifier
     await updateSettings(state.copyWith(hourAngleThreshold: hours));
   }
 
+  /// Update how many minutes before the meridian tracking stops (0 = off)
+  Future<void> setPauseBeforeMeridianMinutes(double minutes) async {
+    await updateSettings(state.copyWith(pauseBeforeMeridianMinutes: minutes));
+  }
+
   /// Update tracking limit wait minutes
   Future<void> setTrackingLimitWaitMinutes(double minutes) async {
     await updateSettings(state.copyWith(trackingLimitWaitMinutes: minutes));

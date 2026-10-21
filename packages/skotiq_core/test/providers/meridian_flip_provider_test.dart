@@ -231,6 +231,38 @@ void main() {
     );
 
     test(
+      'the stop-tracking-before-meridian minutes reach the native flip config',
+      () async {
+        final notifier = container.read(
+          globalMeridianFlipSettingsProvider.notifier,
+        );
+        expect(
+          container
+              .read(globalMeridianFlipSettingsProvider)
+              .pauseBeforeMeridianMinutes,
+          0.0,
+          reason: 'the hold is off unless the operator sets it',
+        );
+        await notifier.setMinutesPastMeridian(20);
+        await notifier.setPauseBeforeMeridianMinutes(20);
+
+        final serializer = Provider(
+          (ref) => SequenceSerializer(ref: ref, warn: (_) {}),
+        );
+        final config = container
+            .read(serializer)
+            .buildGlobalMeridianFlipConfigJson();
+        expect(config['minutes_past_meridian'], 20.0);
+        expect(config['pause_before_meridian_minutes'], 20.0);
+
+        await expectLater(
+          notifier.setPauseBeforeMeridianMinutes(-1),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
+
+    test(
       'unsupported standalone trigger atomically disables monitoring',
       () async {
         final notifier = container.read(

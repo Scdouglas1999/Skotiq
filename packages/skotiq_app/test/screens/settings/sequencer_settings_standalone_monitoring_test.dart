@@ -41,4 +41,36 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+      'stop tracking before meridian is offered only with minutes past meridian',
+      (tester) async {
+    final handle = await pumpAppScreen(
+      tester,
+      const SequencerSettings(),
+      size: const Size(1400, 1000),
+    );
+    final notifier =
+        handle.container.read(globalMeridianFlipSettingsProvider.notifier);
+    await notifier.updateSettings(
+      const MeridianFlipSettings(
+        minutesPastMeridian: 20,
+        pauseBeforeMeridianMinutes: 20,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Stop tracking before meridian'), findsOneWidget);
+    expect(
+      find.text(
+        '0 = off. Tracking stops this many minutes before the meridian and '
+        'the flip runs at Minutes Past Meridian.',
+      ),
+      findsOneWidget,
+    );
+
+    await notifier.setTriggerMethod(MeridianTriggerMethod.hourAngleThreshold);
+    await tester.pumpAndSettle();
+    expect(find.text('Stop tracking before meridian'), findsNothing);
+  });
 }

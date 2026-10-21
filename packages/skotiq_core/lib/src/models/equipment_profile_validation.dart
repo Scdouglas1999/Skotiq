@@ -540,6 +540,7 @@ class ProfileValidator {
         settings.minutesBeforeLimit,
         settings.hourAngleThreshold,
         settings.trackingLimitWaitMinutes,
+        settings.pauseBeforeMeridianMinutes,
         settings.settleTimeSeconds,
         ...settings.retryDelaysSeconds,
       ];

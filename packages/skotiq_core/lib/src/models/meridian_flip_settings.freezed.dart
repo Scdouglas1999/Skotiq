@@ -24,7 +24,12 @@ mixin _$MeridianFlipSettings {
  double get minutesBeforeLimit;/// Hour angle threshold in hours to trigger flip (default: 0.5 = 30 min)
  double get hourAngleThreshold;/// Minutes to wait after tracking limit hit before flipping (0 = immediate).
 /// Only used with onTrackingLimitHit trigger method.
- double get trackingLimitWaitMinutes;// Flip sequence options
+ double get trackingLimitWaitMinutes;/// Minutes before the meridian to stop tracking and stop taking frames
+/// (0 = off). The run then waits, with tracking off, until the target is
+/// [minutesPastMeridian] past the meridian, and flips. For a rig that
+/// cannot track through the meridian, such as one whose tube hits the
+/// tripod there. Only used with the minutesPastMeridian trigger method.
+ double get pauseBeforeMeridianMinutes;// Flip sequence options
 /// Pause guider before flip
  bool get pauseGuidingBeforeFlip;/// Plate solve and re-center after flip
  bool get recenterAfterFlip;/// Run autofocus after flip
@@ -50,16 +55,16 @@ $MeridianFlipSettingsCopyWith<MeridianFlipSettings> get copyWith => _$MeridianFl
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is MeridianFlipSettings&&(identical(other.standaloneMonitoringEnabled, standaloneMonitoringEnabled) || other.standaloneMonitoringEnabled == standaloneMonitoringEnabled)&&(identical(other.triggerMethod, triggerMethod) || other.triggerMethod == triggerMethod)&&(identical(other.minutesPastMeridian, minutesPastMeridian) || other.minutesPastMeridian == minutesPastMeridian)&&(identical(other.minutesBeforeLimit, minutesBeforeLimit) || other.minutesBeforeLimit == minutesBeforeLimit)&&(identical(other.hourAngleThreshold, hourAngleThreshold) || other.hourAngleThreshold == hourAngleThreshold)&&(identical(other.trackingLimitWaitMinutes, trackingLimitWaitMinutes) || other.trackingLimitWaitMinutes == trackingLimitWaitMinutes)&&(identical(other.pauseGuidingBeforeFlip, pauseGuidingBeforeFlip) || other.pauseGuidingBeforeFlip == pauseGuidingBeforeFlip)&&(identical(other.recenterAfterFlip, recenterAfterFlip) || other.recenterAfterFlip == recenterAfterFlip)&&(identical(other.refocusAfterFlip, refocusAfterFlip) || other.refocusAfterFlip == refocusAfterFlip)&&(identical(other.settleTimeSeconds, settleTimeSeconds) || other.settleTimeSeconds == settleTimeSeconds)&&(identical(other.resumeGuidingAfterFlip, resumeGuidingAfterFlip) || other.resumeGuidingAfterFlip == resumeGuidingAfterFlip)&&(identical(other.maxRetries, maxRetries) || other.maxRetries == maxRetries)&&const DeepCollectionEquality().equals(other.retryDelaysSeconds, retryDelaysSeconds)&&(identical(other.failureAction, failureAction) || other.failureAction == failureAction)&&(identical(other.soundAlertOnFlip, soundAlertOnFlip) || other.soundAlertOnFlip == soundAlertOnFlip)&&(identical(other.pushNotificationOnFlip, pushNotificationOnFlip) || other.pushNotificationOnFlip == pushNotificationOnFlip));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MeridianFlipSettings&&(identical(other.standaloneMonitoringEnabled, standaloneMonitoringEnabled) || other.standaloneMonitoringEnabled == standaloneMonitoringEnabled)&&(identical(other.triggerMethod, triggerMethod) || other.triggerMethod == triggerMethod)&&(identical(other.minutesPastMeridian, minutesPastMeridian) || other.minutesPastMeridian == minutesPastMeridian)&&(identical(other.minutesBeforeLimit, minutesBeforeLimit) || other.minutesBeforeLimit == minutesBeforeLimit)&&(identical(other.hourAngleThreshold, hourAngleThreshold) || other.hourAngleThreshold == hourAngleThreshold)&&(identical(other.trackingLimitWaitMinutes, trackingLimitWaitMinutes) || other.trackingLimitWaitMinutes == trackingLimitWaitMinutes)&&(identical(other.pauseBeforeMeridianMinutes, pauseBeforeMeridianMinutes) || other.pauseBeforeMeridianMinutes == pauseBeforeMeridianMinutes)&&(identical(other.pauseGuidingBeforeFlip, pauseGuidingBeforeFlip) || other.pauseGuidingBeforeFlip == pauseGuidingBeforeFlip)&&(identical(other.recenterAfterFlip, recenterAfterFlip) || other.recenterAfterFlip == recenterAfterFlip)&&(identical(other.refocusAfterFlip, refocusAfterFlip) || other.refocusAfterFlip == refocusAfterFlip)&&(identical(other.settleTimeSeconds, settleTimeSeconds) || other.settleTimeSeconds == settleTimeSeconds)&&(identical(other.resumeGuidingAfterFlip, resumeGuidingAfterFlip) || other.resumeGuidingAfterFlip == resumeGuidingAfterFlip)&&(identical(other.maxRetries, maxRetries) || other.maxRetries == maxRetries)&&const DeepCollectionEquality().equals(other.retryDelaysSeconds, retryDelaysSeconds)&&(identical(other.failureAction, failureAction) || other.failureAction == failureAction)&&(identical(other.soundAlertOnFlip, soundAlertOnFlip) || other.soundAlertOnFlip == soundAlertOnFlip)&&(identical(other.pushNotificationOnFlip, pushNotificationOnFlip) || other.pushNotificationOnFlip == pushNotificationOnFlip));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,standaloneMonitoringEnabled,triggerMethod,minutesPastMeridian,minutesBeforeLimit,hourAngleThreshold,trackingLimitWaitMinutes,pauseGuidingBeforeFlip,recenterAfterFlip,refocusAfterFlip,settleTimeSeconds,resumeGuidingAfterFlip,maxRetries,const DeepCollectionEquality().hash(retryDelaysSeconds),failureAction,soundAlertOnFlip,pushNotificationOnFlip);
+int get hashCode => Object.hash(runtimeType,standaloneMonitoringEnabled,triggerMethod,minutesPastMeridian,minutesBeforeLimit,hourAngleThreshold,trackingLimitWaitMinutes,pauseBeforeMeridianMinutes,pauseGuidingBeforeFlip,recenterAfterFlip,refocusAfterFlip,settleTimeSeconds,resumeGuidingAfterFlip,maxRetries,const DeepCollectionEquality().hash(retryDelaysSeconds),failureAction,soundAlertOnFlip,pushNotificationOnFlip);
 
 @override
 String toString() {
-  return 'MeridianFlipSettings(standaloneMonitoringEnabled: $standaloneMonitoringEnabled, triggerMethod: $triggerMethod, minutesPastMeridian: $minutesPastMeridian, minutesBeforeLimit: $minutesBeforeLimit, hourAngleThreshold: $hourAngleThreshold, trackingLimitWaitMinutes: $trackingLimitWaitMinutes, pauseGuidingBeforeFlip: $pauseGuidingBeforeFlip, recenterAfterFlip: $recenterAfterFlip, refocusAfterFlip: $refocusAfterFlip, settleTimeSeconds: $settleTimeSeconds, resumeGuidingAfterFlip: $resumeGuidingAfterFlip, maxRetries: $maxRetries, retryDelaysSeconds: $retryDelaysSeconds, failureAction: $failureAction, soundAlertOnFlip: $soundAlertOnFlip, pushNotificationOnFlip: $pushNotificationOnFlip)';
+  return 'MeridianFlipSettings(standaloneMonitoringEnabled: $standaloneMonitoringEnabled, triggerMethod: $triggerMethod, minutesPastMeridian: $minutesPastMeridian, minutesBeforeLimit: $minutesBeforeLimit, hourAngleThreshold: $hourAngleThreshold, trackingLimitWaitMinutes: $trackingLimitWaitMinutes, pauseBeforeMeridianMinutes: $pauseBeforeMeridianMinutes, pauseGuidingBeforeFlip: $pauseGuidingBeforeFlip, recenterAfterFlip: $recenterAfterFlip, refocusAfterFlip: $refocusAfterFlip, settleTimeSeconds: $settleTimeSeconds, resumeGuidingAfterFlip: $resumeGuidingAfterFlip, maxRetries: $maxRetries, retryDelaysSeconds: $retryDelaysSeconds, failureAction: $failureAction, soundAlertOnFlip: $soundAlertOnFlip, pushNotificationOnFlip: $pushNotificationOnFlip)';
 }
 
 
@@ -70,7 +75,7 @@ abstract mixin class $MeridianFlipSettingsCopyWith<$Res>  {
   factory $MeridianFlipSettingsCopyWith(MeridianFlipSettings value, $Res Function(MeridianFlipSettings) _then) = _$MeridianFlipSettingsCopyWithImpl;
 @useResult
 $Res call({
- bool standaloneMonitoringEnabled, MeridianTriggerMethod triggerMethod, double minutesPastMeridian, double minutesBeforeLimit, double hourAngleThreshold, double trackingLimitWaitMinutes, bool pauseGuidingBeforeFlip, bool recenterAfterFlip, bool refocusAfterFlip, double settleTimeSeconds, bool resumeGuidingAfterFlip, int maxRetries, List<double> retryDelaysSeconds, FlipFailureAction failureAction, bool soundAlertOnFlip, bool pushNotificationOnFlip
+ bool standaloneMonitoringEnabled, MeridianTriggerMethod triggerMethod, double minutesPastMeridian, double minutesBeforeLimit, double hourAngleThreshold, double trackingLimitWaitMinutes, double pauseBeforeMeridianMinutes, bool pauseGuidingBeforeFlip, bool recenterAfterFlip, bool refocusAfterFlip, double settleTimeSeconds, bool resumeGuidingAfterFlip, int maxRetries, List<double> retryDelaysSeconds, FlipFailureAction failureAction, bool soundAlertOnFlip, bool pushNotificationOnFlip
 });
 
 
@@ -87,7 +92,7 @@ class _$MeridianFlipSettingsCopyWithImpl<$Res>
 
 /// Create a copy of MeridianFlipSettings
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? standaloneMonitoringEnabled = null,Object? triggerMethod = null,Object? minutesPastMeridian = null,Object? minutesBeforeLimit = null,Object? hourAngleThreshold = null,Object? trackingLimitWaitMinutes = null,Object? pauseGuidingBeforeFlip = null,Object? recenterAfterFlip = null,Object? refocusAfterFlip = null,Object? settleTimeSeconds = null,Object? resumeGuidingAfterFlip = null,Object? maxRetries = null,Object? retryDelaysSeconds = null,Object? failureAction = null,Object? soundAlertOnFlip = null,Object? pushNotificationOnFlip = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? standaloneMonitoringEnabled = null,Object? triggerMethod = null,Object? minutesPastMeridian = null,Object? minutesBeforeLimit = null,Object? hourAngleThreshold = null,Object? trackingLimitWaitMinutes = null,Object? pauseBeforeMeridianMinutes = null,Object? pauseGuidingBeforeFlip = null,Object? recenterAfterFlip = null,Object? refocusAfterFlip = null,Object? settleTimeSeconds = null,Object? resumeGuidingAfterFlip = null,Object? maxRetries = null,Object? retryDelaysSeconds = null,Object? failureAction = null,Object? soundAlertOnFlip = null,Object? pushNotificationOnFlip = null,}) {
   return _then(_self.copyWith(
 standaloneMonitoringEnabled: null == standaloneMonitoringEnabled ? _self.standaloneMonitoringEnabled : standaloneMonitoringEnabled // ignore: cast_nullable_to_non_nullable
 as bool,triggerMethod: null == triggerMethod ? _self.triggerMethod : triggerMethod // ignore: cast_nullable_to_non_nullable
@@ -95,6 +100,7 @@ as MeridianTriggerMethod,minutesPastMeridian: null == minutesPastMeridian ? _sel
 as double,minutesBeforeLimit: null == minutesBeforeLimit ? _self.minutesBeforeLimit : minutesBeforeLimit // ignore: cast_nullable_to_non_nullable
 as double,hourAngleThreshold: null == hourAngleThreshold ? _self.hourAngleThreshold : hourAngleThreshold // ignore: cast_nullable_to_non_nullable
 as double,trackingLimitWaitMinutes: null == trackingLimitWaitMinutes ? _self.trackingLimitWaitMinutes : trackingLimitWaitMinutes // ignore: cast_nullable_to_non_nullable
+as double,pauseBeforeMeridianMinutes: null == pauseBeforeMeridianMinutes ? _self.pauseBeforeMeridianMinutes : pauseBeforeMeridianMinutes // ignore: cast_nullable_to_non_nullable
 as double,pauseGuidingBeforeFlip: null == pauseGuidingBeforeFlip ? _self.pauseGuidingBeforeFlip : pauseGuidingBeforeFlip // ignore: cast_nullable_to_non_nullable
 as bool,recenterAfterFlip: null == recenterAfterFlip ? _self.recenterAfterFlip : recenterAfterFlip // ignore: cast_nullable_to_non_nullable
 as bool,refocusAfterFlip: null == refocusAfterFlip ? _self.refocusAfterFlip : refocusAfterFlip // ignore: cast_nullable_to_non_nullable
@@ -190,10 +196,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool standaloneMonitoringEnabled,  MeridianTriggerMethod triggerMethod,  double minutesPastMeridian,  double minutesBeforeLimit,  double hourAngleThreshold,  double trackingLimitWaitMinutes,  bool pauseGuidingBeforeFlip,  bool recenterAfterFlip,  bool refocusAfterFlip,  double settleTimeSeconds,  bool resumeGuidingAfterFlip,  int maxRetries,  List<double> retryDelaysSeconds,  FlipFailureAction failureAction,  bool soundAlertOnFlip,  bool pushNotificationOnFlip)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool standaloneMonitoringEnabled,  MeridianTriggerMethod triggerMethod,  double minutesPastMeridian,  double minutesBeforeLimit,  double hourAngleThreshold,  double trackingLimitWaitMinutes,  double pauseBeforeMeridianMinutes,  bool pauseGuidingBeforeFlip,  bool recenterAfterFlip,  bool refocusAfterFlip,  double settleTimeSeconds,  bool resumeGuidingAfterFlip,  int maxRetries,  List<double> retryDelaysSeconds,  FlipFailureAction failureAction,  bool soundAlertOnFlip,  bool pushNotificationOnFlip)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _MeridianFlipSettings() when $default != null:
-return $default(_that.standaloneMonitoringEnabled,_that.triggerMethod,_that.minutesPastMeridian,_that.minutesBeforeLimit,_that.hourAngleThreshold,_that.trackingLimitWaitMinutes,_that.pauseGuidingBeforeFlip,_that.recenterAfterFlip,_that.refocusAfterFlip,_that.settleTimeSeconds,_that.resumeGuidingAfterFlip,_that.maxRetries,_that.retryDelaysSeconds,_that.failureAction,_that.soundAlertOnFlip,_that.pushNotificationOnFlip);case _:
+return $default(_that.standaloneMonitoringEnabled,_that.triggerMethod,_that.minutesPastMeridian,_that.minutesBeforeLimit,_that.hourAngleThreshold,_that.trackingLimitWaitMinutes,_that.pauseBeforeMeridianMinutes,_that.pauseGuidingBeforeFlip,_that.recenterAfterFlip,_that.refocusAfterFlip,_that.settleTimeSeconds,_that.resumeGuidingAfterFlip,_that.maxRetries,_that.retryDelaysSeconds,_that.failureAction,_that.soundAlertOnFlip,_that.pushNotificationOnFlip);case _:
   return orElse();
 
 }
@@ -211,10 +217,10 @@ return $default(_that.standaloneMonitoringEnabled,_that.triggerMethod,_that.minu
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool standaloneMonitoringEnabled,  MeridianTriggerMethod triggerMethod,  double minutesPastMeridian,  double minutesBeforeLimit,  double hourAngleThreshold,  double trackingLimitWaitMinutes,  bool pauseGuidingBeforeFlip,  bool recenterAfterFlip,  bool refocusAfterFlip,  double settleTimeSeconds,  bool resumeGuidingAfterFlip,  int maxRetries,  List<double> retryDelaysSeconds,  FlipFailureAction failureAction,  bool soundAlertOnFlip,  bool pushNotificationOnFlip)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool standaloneMonitoringEnabled,  MeridianTriggerMethod triggerMethod,  double minutesPastMeridian,  double minutesBeforeLimit,  double hourAngleThreshold,  double trackingLimitWaitMinutes,  double pauseBeforeMeridianMinutes,  bool pauseGuidingBeforeFlip,  bool recenterAfterFlip,  bool refocusAfterFlip,  double settleTimeSeconds,  bool resumeGuidingAfterFlip,  int maxRetries,  List<double> retryDelaysSeconds,  FlipFailureAction failureAction,  bool soundAlertOnFlip,  bool pushNotificationOnFlip)  $default,) {final _that = this;
 switch (_that) {
 case _MeridianFlipSettings():
-return $default(_that.standaloneMonitoringEnabled,_that.triggerMethod,_that.minutesPastMeridian,_that.minutesBeforeLimit,_that.hourAngleThreshold,_that.trackingLimitWaitMinutes,_that.pauseGuidingBeforeFlip,_that.recenterAfterFlip,_that.refocusAfterFlip,_that.settleTimeSeconds,_that.resumeGuidingAfterFlip,_that.maxRetries,_that.retryDelaysSeconds,_that.failureAction,_that.soundAlertOnFlip,_that.pushNotificationOnFlip);case _:
+return $default(_that.standaloneMonitoringEnabled,_that.triggerMethod,_that.minutesPastMeridian,_that.minutesBeforeLimit,_that.hourAngleThreshold,_that.trackingLimitWaitMinutes,_that.pauseBeforeMeridianMinutes,_that.pauseGuidingBeforeFlip,_that.recenterAfterFlip,_that.refocusAfterFlip,_that.settleTimeSeconds,_that.resumeGuidingAfterFlip,_that.maxRetries,_that.retryDelaysSeconds,_that.failureAction,_that.soundAlertOnFlip,_that.pushNotificationOnFlip);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -231,10 +237,10 @@ return $default(_that.standaloneMonitoringEnabled,_that.triggerMethod,_that.minu
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool standaloneMonitoringEnabled,  MeridianTriggerMethod triggerMethod,  double minutesPastMeridian,  double minutesBeforeLimit,  double hourAngleThreshold,  double trackingLimitWaitMinutes,  bool pauseGuidingBeforeFlip,  bool recenterAfterFlip,  bool refocusAfterFlip,  double settleTimeSeconds,  bool resumeGuidingAfterFlip,  int maxRetries,  List<double> retryDelaysSeconds,  FlipFailureAction failureAction,  bool soundAlertOnFlip,  bool pushNotificationOnFlip)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool standaloneMonitoringEnabled,  MeridianTriggerMethod triggerMethod,  double minutesPastMeridian,  double minutesBeforeLimit,  double hourAngleThreshold,  double trackingLimitWaitMinutes,  double pauseBeforeMeridianMinutes,  bool pauseGuidingBeforeFlip,  bool recenterAfterFlip,  bool refocusAfterFlip,  double settleTimeSeconds,  bool resumeGuidingAfterFlip,  int maxRetries,  List<double> retryDelaysSeconds,  FlipFailureAction failureAction,  bool soundAlertOnFlip,  bool pushNotificationOnFlip)?  $default,) {final _that = this;
 switch (_that) {
 case _MeridianFlipSettings() when $default != null:
-return $default(_that.standaloneMonitoringEnabled,_that.triggerMethod,_that.minutesPastMeridian,_that.minutesBeforeLimit,_that.hourAngleThreshold,_that.trackingLimitWaitMinutes,_that.pauseGuidingBeforeFlip,_that.recenterAfterFlip,_that.refocusAfterFlip,_that.settleTimeSeconds,_that.resumeGuidingAfterFlip,_that.maxRetries,_that.retryDelaysSeconds,_that.failureAction,_that.soundAlertOnFlip,_that.pushNotificationOnFlip);case _:
+return $default(_that.standaloneMonitoringEnabled,_that.triggerMethod,_that.minutesPastMeridian,_that.minutesBeforeLimit,_that.hourAngleThreshold,_that.trackingLimitWaitMinutes,_that.pauseBeforeMeridianMinutes,_that.pauseGuidingBeforeFlip,_that.recenterAfterFlip,_that.refocusAfterFlip,_that.settleTimeSeconds,_that.resumeGuidingAfterFlip,_that.maxRetries,_that.retryDelaysSeconds,_that.failureAction,_that.soundAlertOnFlip,_that.pushNotificationOnFlip);case _:
   return null;
 
 }
@@ -246,7 +252,7 @@ return $default(_that.standaloneMonitoringEnabled,_that.triggerMethod,_that.minu
 @JsonSerializable()
 
 class _MeridianFlipSettings extends MeridianFlipSettings {
-  const _MeridianFlipSettings({this.standaloneMonitoringEnabled = false, this.triggerMethod = MeridianTriggerMethod.minutesPastMeridian, this.minutesPastMeridian = 5.0, this.minutesBeforeLimit = 10.0, this.hourAngleThreshold = 0.5, this.trackingLimitWaitMinutes = 0.0, this.pauseGuidingBeforeFlip = true, this.recenterAfterFlip = true, this.refocusAfterFlip = false, this.settleTimeSeconds = 10.0, this.resumeGuidingAfterFlip = true, this.maxRetries = 3, final  List<double> retryDelaysSeconds = const [30.0, 60.0, 120.0], this.failureAction = FlipFailureAction.pauseAndAlert, this.soundAlertOnFlip = false, this.pushNotificationOnFlip = true}): _retryDelaysSeconds = retryDelaysSeconds,super._();
+  const _MeridianFlipSettings({this.standaloneMonitoringEnabled = false, this.triggerMethod = MeridianTriggerMethod.minutesPastMeridian, this.minutesPastMeridian = 5.0, this.minutesBeforeLimit = 10.0, this.hourAngleThreshold = 0.5, this.trackingLimitWaitMinutes = 0.0, this.pauseBeforeMeridianMinutes = 0.0, this.pauseGuidingBeforeFlip = true, this.recenterAfterFlip = true, this.refocusAfterFlip = false, this.settleTimeSeconds = 10.0, this.resumeGuidingAfterFlip = true, this.maxRetries = 3, final  List<double> retryDelaysSeconds = const [30.0, 60.0, 120.0], this.failureAction = FlipFailureAction.pauseAndAlert, this.soundAlertOnFlip = false, this.pushNotificationOnFlip = true}): _retryDelaysSeconds = retryDelaysSeconds,super._();
   factory _MeridianFlipSettings.fromJson(Map<String, dynamic> json) => _$MeridianFlipSettingsFromJson(json);
 
 // Mode control
@@ -264,6 +270,12 @@ class _MeridianFlipSettings extends MeridianFlipSettings {
 /// Minutes to wait after tracking limit hit before flipping (0 = immediate).
 /// Only used with onTrackingLimitHit trigger method.
 @override@JsonKey() final  double trackingLimitWaitMinutes;
+/// Minutes before the meridian to stop tracking and stop taking frames
+/// (0 = off). The run then waits, with tracking off, until the target is
+/// [minutesPastMeridian] past the meridian, and flips. For a rig that
+/// cannot track through the meridian, such as one whose tube hits the
+/// tripod there. Only used with the minutesPastMeridian trigger method.
+@override@JsonKey() final  double pauseBeforeMeridianMinutes;
 // Flip sequence options
 /// Pause guider before flip
 @override@JsonKey() final  bool pauseGuidingBeforeFlip;
@@ -308,16 +320,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MeridianFlipSettings&&(identical(other.standaloneMonitoringEnabled, standaloneMonitoringEnabled) || other.standaloneMonitoringEnabled == standaloneMonitoringEnabled)&&(identical(other.triggerMethod, triggerMethod) || other.triggerMethod == triggerMethod)&&(identical(other.minutesPastMeridian, minutesPastMeridian) || other.minutesPastMeridian == minutesPastMeridian)&&(identical(other.minutesBeforeLimit, minutesBeforeLimit) || other.minutesBeforeLimit == minutesBeforeLimit)&&(identical(other.hourAngleThreshold, hourAngleThreshold) || other.hourAngleThreshold == hourAngleThreshold)&&(identical(other.trackingLimitWaitMinutes, trackingLimitWaitMinutes) || other.trackingLimitWaitMinutes == trackingLimitWaitMinutes)&&(identical(other.pauseGuidingBeforeFlip, pauseGuidingBeforeFlip) || other.pauseGuidingBeforeFlip == pauseGuidingBeforeFlip)&&(identical(other.recenterAfterFlip, recenterAfterFlip) || other.recenterAfterFlip == recenterAfterFlip)&&(identical(other.refocusAfterFlip, refocusAfterFlip) || other.refocusAfterFlip == refocusAfterFlip)&&(identical(other.settleTimeSeconds, settleTimeSeconds) || other.settleTimeSeconds == settleTimeSeconds)&&(identical(other.resumeGuidingAfterFlip, resumeGuidingAfterFlip) || other.resumeGuidingAfterFlip == resumeGuidingAfterFlip)&&(identical(other.maxRetries, maxRetries) || other.maxRetries == maxRetries)&&const DeepCollectionEquality().equals(other._retryDelaysSeconds, _retryDelaysSeconds)&&(identical(other.failureAction, failureAction) || other.failureAction == failureAction)&&(identical(other.soundAlertOnFlip, soundAlertOnFlip) || other.soundAlertOnFlip == soundAlertOnFlip)&&(identical(other.pushNotificationOnFlip, pushNotificationOnFlip) || other.pushNotificationOnFlip == pushNotificationOnFlip));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MeridianFlipSettings&&(identical(other.standaloneMonitoringEnabled, standaloneMonitoringEnabled) || other.standaloneMonitoringEnabled == standaloneMonitoringEnabled)&&(identical(other.triggerMethod, triggerMethod) || other.triggerMethod == triggerMethod)&&(identical(other.minutesPastMeridian, minutesPastMeridian) || other.minutesPastMeridian == minutesPastMeridian)&&(identical(other.minutesBeforeLimit, minutesBeforeLimit) || other.minutesBeforeLimit == minutesBeforeLimit)&&(identical(other.hourAngleThreshold, hourAngleThreshold) || other.hourAngleThreshold == hourAngleThreshold)&&(identical(other.trackingLimitWaitMinutes, trackingLimitWaitMinutes) || other.trackingLimitWaitMinutes == trackingLimitWaitMinutes)&&(identical(other.pauseBeforeMeridianMinutes, pauseBeforeMeridianMinutes) || other.pauseBeforeMeridianMinutes == pauseBeforeMeridianMinutes)&&(identical(other.pauseGuidingBeforeFlip, pauseGuidingBeforeFlip) || other.pauseGuidingBeforeFlip == pauseGuidingBeforeFlip)&&(identical(other.recenterAfterFlip, recenterAfterFlip) || other.recenterAfterFlip == recenterAfterFlip)&&(identical(other.refocusAfterFlip, refocusAfterFlip) || other.refocusAfterFlip == refocusAfterFlip)&&(identical(other.settleTimeSeconds, settleTimeSeconds) || other.settleTimeSeconds == settleTimeSeconds)&&(identical(other.resumeGuidingAfterFlip, resumeGuidingAfterFlip) || other.resumeGuidingAfterFlip == resumeGuidingAfterFlip)&&(identical(other.maxRetries, maxRetries) || other.maxRetries == maxRetries)&&const DeepCollectionEquality().equals(other._retryDelaysSeconds, _retryDelaysSeconds)&&(identical(other.failureAction, failureAction) || other.failureAction == failureAction)&&(identical(other.soundAlertOnFlip, soundAlertOnFlip) || other.soundAlertOnFlip == soundAlertOnFlip)&&(identical(other.pushNotificationOnFlip, pushNotificationOnFlip) || other.pushNotificationOnFlip == pushNotificationOnFlip));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,standaloneMonitoringEnabled,triggerMethod,minutesPastMeridian,minutesBeforeLimit,hourAngleThreshold,trackingLimitWaitMinutes,pauseGuidingBeforeFlip,recenterAfterFlip,refocusAfterFlip,settleTimeSeconds,resumeGuidingAfterFlip,maxRetries,const DeepCollectionEquality().hash(_retryDelaysSeconds),failureAction,soundAlertOnFlip,pushNotificationOnFlip);
+int get hashCode => Object.hash(runtimeType,standaloneMonitoringEnabled,triggerMethod,minutesPastMeridian,minutesBeforeLimit,hourAngleThreshold,trackingLimitWaitMinutes,pauseBeforeMeridianMinutes,pauseGuidingBeforeFlip,recenterAfterFlip,refocusAfterFlip,settleTimeSeconds,resumeGuidingAfterFlip,maxRetries,const DeepCollectionEquality().hash(_retryDelaysSeconds),failureAction,soundAlertOnFlip,pushNotificationOnFlip);
 
 @override
 String toString() {
-  return 'MeridianFlipSettings(standaloneMonitoringEnabled: $standaloneMonitoringEnabled, triggerMethod: $triggerMethod, minutesPastMeridian: $minutesPastMeridian, minutesBeforeLimit: $minutesBeforeLimit, hourAngleThreshold: $hourAngleThreshold, trackingLimitWaitMinutes: $trackingLimitWaitMinutes, pauseGuidingBeforeFlip: $pauseGuidingBeforeFlip, recenterAfterFlip: $recenterAfterFlip, refocusAfterFlip: $refocusAfterFlip, settleTimeSeconds: $settleTimeSeconds, resumeGuidingAfterFlip: $resumeGuidingAfterFlip, maxRetries: $maxRetries, retryDelaysSeconds: $retryDelaysSeconds, failureAction: $failureAction, soundAlertOnFlip: $soundAlertOnFlip, pushNotificationOnFlip: $pushNotificationOnFlip)';
+  return 'MeridianFlipSettings(standaloneMonitoringEnabled: $standaloneMonitoringEnabled, triggerMethod: $triggerMethod, minutesPastMeridian: $minutesPastMeridian, minutesBeforeLimit: $minutesBeforeLimit, hourAngleThreshold: $hourAngleThreshold, trackingLimitWaitMinutes: $trackingLimitWaitMinutes, pauseBeforeMeridianMinutes: $pauseBeforeMeridianMinutes, pauseGuidingBeforeFlip: $pauseGuidingBeforeFlip, recenterAfterFlip: $recenterAfterFlip, refocusAfterFlip: $refocusAfterFlip, settleTimeSeconds: $settleTimeSeconds, resumeGuidingAfterFlip: $resumeGuidingAfterFlip, maxRetries: $maxRetries, retryDelaysSeconds: $retryDelaysSeconds, failureAction: $failureAction, soundAlertOnFlip: $soundAlertOnFlip, pushNotificationOnFlip: $pushNotificationOnFlip)';
 }
 
 
@@ -328,7 +340,7 @@ abstract mixin class _$MeridianFlipSettingsCopyWith<$Res> implements $MeridianFl
   factory _$MeridianFlipSettingsCopyWith(_MeridianFlipSettings value, $Res Function(_MeridianFlipSettings) _then) = __$MeridianFlipSettingsCopyWithImpl;
 @override @useResult
 $Res call({
- bool standaloneMonitoringEnabled, MeridianTriggerMethod triggerMethod, double minutesPastMeridian, double minutesBeforeLimit, double hourAngleThreshold, double trackingLimitWaitMinutes, bool pauseGuidingBeforeFlip, bool recenterAfterFlip, bool refocusAfterFlip, double settleTimeSeconds, bool resumeGuidingAfterFlip, int maxRetries, List<double> retryDelaysSeconds, FlipFailureAction failureAction, bool soundAlertOnFlip, bool pushNotificationOnFlip
+ bool standaloneMonitoringEnabled, MeridianTriggerMethod triggerMethod, double minutesPastMeridian, double minutesBeforeLimit, double hourAngleThreshold, double trackingLimitWaitMinutes, double pauseBeforeMeridianMinutes, bool pauseGuidingBeforeFlip, bool recenterAfterFlip, bool refocusAfterFlip, double settleTimeSeconds, bool resumeGuidingAfterFlip, int maxRetries, List<double> retryDelaysSeconds, FlipFailureAction failureAction, bool soundAlertOnFlip, bool pushNotificationOnFlip
 });
 
 
@@ -345,7 +357,7 @@ class __$MeridianFlipSettingsCopyWithImpl<$Res>
 
 /// Create a copy of MeridianFlipSettings
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? standaloneMonitoringEnabled = null,Object? triggerMethod = null,Object? minutesPastMeridian = null,Object? minutesBeforeLimit = null,Object? hourAngleThreshold = null,Object? trackingLimitWaitMinutes = null,Object? pauseGuidingBeforeFlip = null,Object? recenterAfterFlip = null,Object? refocusAfterFlip = null,Object? settleTimeSeconds = null,Object? resumeGuidingAfterFlip = null,Object? maxRetries = null,Object? retryDelaysSeconds = null,Object? failureAction = null,Object? soundAlertOnFlip = null,Object? pushNotificationOnFlip = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? standaloneMonitoringEnabled = null,Object? triggerMethod = null,Object? minutesPastMeridian = null,Object? minutesBeforeLimit = null,Object? hourAngleThreshold = null,Object? trackingLimitWaitMinutes = null,Object? pauseBeforeMeridianMinutes = null,Object? pauseGuidingBeforeFlip = null,Object? recenterAfterFlip = null,Object? refocusAfterFlip = null,Object? settleTimeSeconds = null,Object? resumeGuidingAfterFlip = null,Object? maxRetries = null,Object? retryDelaysSeconds = null,Object? failureAction = null,Object? soundAlertOnFlip = null,Object? pushNotificationOnFlip = null,}) {
   return _then(_MeridianFlipSettings(
 standaloneMonitoringEnabled: null == standaloneMonitoringEnabled ? _self.standaloneMonitoringEnabled : standaloneMonitoringEnabled // ignore: cast_nullable_to_non_nullable
 as bool,triggerMethod: null == triggerMethod ? _self.triggerMethod : triggerMethod // ignore: cast_nullable_to_non_nullable
@@ -353,6 +365,7 @@ as MeridianTriggerMethod,minutesPastMeridian: null == minutesPastMeridian ? _sel
 as double,minutesBeforeLimit: null == minutesBeforeLimit ? _self.minutesBeforeLimit : minutesBeforeLimit // ignore: cast_nullable_to_non_nullable
 as double,hourAngleThreshold: null == hourAngleThreshold ? _self.hourAngleThreshold : hourAngleThreshold // ignore: cast_nullable_to_non_nullable
 as double,trackingLimitWaitMinutes: null == trackingLimitWaitMinutes ? _self.trackingLimitWaitMinutes : trackingLimitWaitMinutes // ignore: cast_nullable_to_non_nullable
+as double,pauseBeforeMeridianMinutes: null == pauseBeforeMeridianMinutes ? _self.pauseBeforeMeridianMinutes : pauseBeforeMeridianMinutes // ignore: cast_nullable_to_non_nullable
 as double,pauseGuidingBeforeFlip: null == pauseGuidingBeforeFlip ? _self.pauseGuidingBeforeFlip : pauseGuidingBeforeFlip // ignore: cast_nullable_to_non_nullable
 as bool,recenterAfterFlip: null == recenterAfterFlip ? _self.recenterAfterFlip : recenterAfterFlip // ignore: cast_nullable_to_non_nullable
 as bool,refocusAfterFlip: null == refocusAfterFlip ? _self.refocusAfterFlip : refocusAfterFlip // ignore: cast_nullable_to_non_nullable

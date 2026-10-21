@@ -144,6 +144,29 @@ void main() {
       );
     });
 
+    test(
+      'PauseTimeBeforeMeridian is never read as the flip threshold',
+      () async {
+        // N.I.N.A. stops tracking PauseTimeBeforeMeridian minutes BEFORE the
+        // meridian; reading it as "minutes past" moved the flip to the wrong
+        // side of the meridian for any trigger that set it.
+        final content =
+            (await File(
+              'test/services/import/fixtures/nina_advanced.json',
+            ).readAsString()).replaceFirst(
+              '"MinutesAfterMeridian": 7.0',
+              '"PauseTimeBeforeMeridian": 20.0',
+            );
+        final result = SequenceImporter().importFromString(
+          content,
+          forceUnsupported: false,
+          sequenceName: 'fidelity',
+        );
+        final flip = _onlyOf<MeridianFlipNode>(result);
+        expect(flip.minutesPastMeridian, 5.0);
+      },
+    );
+
     test('parent-target loop count from Conditions[].Iterations folds onto '
         'targetHeader siblings (basic fixture, 10 iterations)', () async {
       // The legacy nina_basic.json fixture places a LoopCondition with

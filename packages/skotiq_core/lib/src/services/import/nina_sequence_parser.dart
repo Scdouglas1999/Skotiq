@@ -397,9 +397,11 @@ class NinaSequenceParser {
         out['pixels'] = _readDouble(json['Pixels'] ?? json['DitherPixels']);
         break;
       case CanonicalKind.meridianFlip:
-        out['minutesPastMeridian'] = _readDouble(
-          json['MinutesAfterMeridian'] ?? json['PauseTimeBeforeMeridian'],
-        );
+        // `PauseTimeBeforeMeridian` is how long before the meridian N.I.N.A.
+        // stops tracking, not when it flips, so it is never read as the flip
+        // threshold. Skotiq keeps that hold in Settings -> Meridian Flip
+        // ("Stop tracking before meridian"), which a flip node does not carry.
+        out['minutesPastMeridian'] = _readDouble(json['MinutesAfterMeridian']);
         break;
       case CanonicalKind.coolCamera:
         out['targetTemperature'] = _readDouble(

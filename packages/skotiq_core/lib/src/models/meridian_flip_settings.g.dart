@@ -22,6 +22,8 @@ _MeridianFlipSettings _$MeridianFlipSettingsFromJson(
   hourAngleThreshold: (json['hourAngleThreshold'] as num?)?.toDouble() ?? 0.5,
   trackingLimitWaitMinutes:
       (json['trackingLimitWaitMinutes'] as num?)?.toDouble() ?? 0.0,
+  pauseBeforeMeridianMinutes:
+      (json['pauseBeforeMeridianMinutes'] as num?)?.toDouble() ?? 0.0,
   pauseGuidingBeforeFlip: json['pauseGuidingBeforeFlip'] as bool? ?? true,
   recenterAfterFlip: json['recenterAfterFlip'] as bool? ?? true,
   refocusAfterFlip: json['refocusAfterFlip'] as bool? ?? false,
@@ -49,6 +51,7 @@ Map<String, dynamic> _$MeridianFlipSettingsToJson(
   'minutesBeforeLimit': instance.minutesBeforeLimit,
   'hourAngleThreshold': instance.hourAngleThreshold,
   'trackingLimitWaitMinutes': instance.trackingLimitWaitMinutes,
+  'pauseBeforeMeridianMinutes': instance.pauseBeforeMeridianMinutes,
   'pauseGuidingBeforeFlip': instance.pauseGuidingBeforeFlip,
   'recenterAfterFlip': instance.recenterAfterFlip,
   'refocusAfterFlip': instance.refocusAfterFlip,

@@ -831,6 +831,10 @@ class SequenceSerializer {
       // retry delays — the per-node fields never existed. These are required
       // by MeridianFlipConfig regardless of useGlobalDefaults.
       'tracking_limit_wait_minutes': global.trackingLimitWaitMinutes,
+      // The pre-meridian hold is the trigger's, not a flip node's: the node
+      // runs its flip where it sits in the tree, so only the global settings
+      // carry it.
+      'pause_before_meridian_minutes': global.pauseBeforeMeridianMinutes,
       'pause_guiding': pauseGuiding,
       'auto_center': autoCenter,
       'refocus_after': refocusAfter,

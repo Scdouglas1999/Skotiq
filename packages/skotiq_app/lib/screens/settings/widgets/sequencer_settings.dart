@@ -48,6 +48,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
   final _minutesBeforeLimitController = TextEditingController();
   final _hourAngleThresholdController = TextEditingController();
   final _trackingLimitWaitController = TextEditingController();
+  final _pauseBeforeMeridianController = TextEditingController();
   final _settleTimeController = TextEditingController();
   final _maxRetriesController = TextEditingController();
 
@@ -66,6 +67,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
     _minutesBeforeLimitController.dispose();
     _hourAngleThresholdController.dispose();
     _trackingLimitWaitController.dispose();
+    _pauseBeforeMeridianController.dispose();
     _settleTimeController.dispose();
     _maxRetriesController.dispose();
     _broadcastPortController.dispose();
@@ -268,6 +270,26 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
               decimals: 1,
               onChanged: (value) {
                 return notifier.setMinutesPastMeridian(value);
+              },
+            ),
+          ),
+        if (flipSettings.triggerMethod ==
+            MeridianTriggerMethod.minutesPastMeridian)
+          SettingRow(
+            icon: LucideIcons.pause,
+            title: 'Stop tracking before meridian',
+            subtitle: '0 = off. Tracking stops this many minutes before the '
+                'meridian and the flip runs at Minutes Past Meridian.',
+            trailing: SettingsNumberInput(
+              controller: _pauseBeforeMeridianController,
+              authoritativeValue: flipSettings.pauseBeforeMeridianMinutes,
+              authorityKey: authority,
+              suffix: 'min',
+              min: 0,
+              max: 120,
+              decimals: 1,
+              onChanged: (value) {
+                return notifier.setPauseBeforeMeridianMinutes(value);
               },
             ),
           ),
