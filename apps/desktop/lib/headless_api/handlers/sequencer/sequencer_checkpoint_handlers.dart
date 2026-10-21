@@ -57,8 +57,16 @@ extension _SequencerCheckpoints on SequencerHandlers {
     return jsonOk({'info': info?.toJson()});
   }
 
+  /// POST /api/sequencer/checkpoint/resume.
+  ///
+  /// Restores the interrupted run (sequence, progress, devices) and leaves it
+  /// ready: nothing moves, and the answer is `status: restored`. A later
+  /// `POST /api/sequencer/start` continues it from the checkpoint. A body of
+  /// `{"start": true}` restores and starts at once (`status: resumed`).
   Future<Response> _handleSequencerResumeFromCheckpoint(Request request) async {
     _logInfo('[API] POST /api/sequencer/checkpoint/resume');
+    final payload = await readJsonObjectOrEmpty(request);
+    final startNow = optionalBool(payload, 'start') ?? false;
     // A resume commands the mount exactly like a start does, but neither the
     // executor's resume path nor the native restore runs any pre-flight: the
     // checkpoint is replayed verbatim. A checkpoint written before target
@@ -67,12 +75,16 @@ extension _SequencerCheckpoints on SequencerHandlers {
     // actually execute first.
     final rejection = await _rejectUnpointableCheckpoint();
     if (rejection != null) return rejection;
-    // Route through the SequenceExecutor provider — it re-seeds the runtime
-    // config from current settings and issues the sequencerStart() that
-    // actually begins execution. The raw backend resumeFromCheckpoint()
-    // only prepares the native tree and leaves the executor idle.
-    await container.read(sequenceExecutorProvider).resumeFromCheckpoint();
-    return jsonOk({'status': 'resumed'});
+    // Route through the SequenceExecutor provider so the editor tree, the
+    // progress and the native prepared resume agree, and so a later start
+    // continues the checkpoint instead of reloading the sequence.
+    final executor = container.read(sequenceExecutorProvider);
+    if (startNow) {
+      await executor.resumeFromCheckpoint();
+      return jsonOk({'status': 'resumed'});
+    }
+    await executor.restoreFromCheckpoint();
+    return jsonOk({'status': 'restored'});
   }
 
   /// Reject a checkpoint resume whose sequence still carries an unset target

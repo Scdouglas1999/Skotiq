@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/backend/event_types.dart';
+import '../../models/backend/sequencer_status.dart' show CheckpointInfo;
 import '../../models/sequence/instruction_progress_detail.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../backend_provider.dart';
@@ -42,6 +43,13 @@ final executorSimulationModeProvider = FutureProvider<bool>((ref) async {
 /// idle while settings and preflight validation are awaited, so backend swaps
 /// must consult this latch as well as [sequenceExecutionStateProvider].
 final sequenceLaunchInFlightProvider = StateProvider<bool>((ref) => false);
+
+/// The checkpoint `SequenceExecutor.restoreFromCheckpoint` restored and the
+/// next Start will continue, or null. While set, the run is loaded and ready
+/// but nothing has executed.
+final restoredCheckpointProvider = StateProvider<CheckpointInfo?>(
+  (ref) => null,
+);
 
 /// Current sequence progress
 final sequenceProgressProvider =
