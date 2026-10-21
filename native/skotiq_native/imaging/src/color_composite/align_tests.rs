@@ -153,3 +153,29 @@ fn clamped_lanczos_does_not_ring_past_a_step() {
     let hi = out.iter().copied().fold(f32::NEG_INFINITY, f32::max);
     assert!(lo >= 100.0 && hi <= 10_000.0, "range {lo}..{hi}");
 }
+
+#[test]
+fn star_profiles_are_measured_from_the_flux() {
+    let field = stars(W, H, 120, 3);
+    let image = mono(
+        W,
+        H,
+        render_master(
+            W,
+            H,
+            &field,
+            [0.3, 0.4, 0.3],
+            &Affine2::IDENTITY,
+            1000.0,
+            3.0,
+            1,
+        ),
+        "L",
+    );
+    let sigma = star_sigma(&image, &OpContext::new())
+        .expect("measures")
+        .expect("enough stars");
+    // The scene renders every star as a Gaussian of sigma 1.6 px; the pixel
+    // sampling of the half-flux radius biases it by a few hundredths.
+    assert!((sigma - 1.6).abs() < 0.15, "{sigma}");
+}

@@ -119,7 +119,7 @@ impl Affine2 {
 pub struct Alignment {
     /// Master → reference, level 0.
     pub transform: Affine2,
-    /// `similarity` or `affine`: the model that fitted.
+    /// `similarity` or `affine`: the model kept after refinement.
     pub model: &'static str,
     /// Stars detected in the reference.
     pub reference_stars: usize,
@@ -134,8 +134,10 @@ pub struct Alignment {
 /// Solve the geometry of `frame` onto `reference` from their stars.
 ///
 /// A similarity is tried first because it is the model two masters from one
-/// optical train actually differ by; an affine fit is the fallback for a pair
-/// whose plate scale differs per axis. The error text is the registration's
+/// optical train mostly differ by; an affine triangle fit is the fallback when
+/// no similarity is consistent. The fit is then refined by least squares over
+/// every shared isolated star, and an affine refinement replaces a similarity
+/// when it cuts the residual by a fifth. The error text is the registration's
 /// own reason, for the report.
 pub fn register_onto(
     reference: &OpImage,
@@ -178,12 +180,26 @@ pub fn register_onto(
                 let frame_stars = precise_stars(frame, &frame_plane, REFINE_MAX_STARS);
                 let fit_affine = kind == TransformKind::Affine
                     || affine.m[0] * affine.m[4] - affine.m[1] * affine.m[3] < 0.0;
-                let Some(refined) = refine(affine, fit_affine, &reference_stars, &frame_stars)
+                let Some(mut refined) = refine(affine, fit_affine, &reference_stars, &frame_stars)
                 else {
                     last_error =
                         "too few stars are shared once the geometry is refined".to_string();
                     continue;
                 };
+                let mut model = model;
+                // Two masters of one train taken hours apart can differ by more
+                // than a similarity — differential refraction stretches one axis —
+                // so the six-parameter fit is kept when it earns its extra terms.
+                if !fit_affine {
+                    if let Some(general) =
+                        refine(refined.transform, true, &reference_stars, &frame_stars)
+                    {
+                        if general.rms_px < AFFINE_GAIN * refined.rms_px {
+                            refined = general;
+                            model = "affine";
+                        }
+                    }
+                }
                 return Ok(Alignment {
                     transform: refined.transform,
                     model,
@@ -202,6 +218,10 @@ pub fn register_onto(
 /// Stars closer than this to another star are left out of the refinement and
 /// the check: a blend's centroid is not either star's position.
 const ISOLATION_PX: f64 = 6.0;
+/// An affine refinement replaces the similarity only when it leaves less than
+/// this fraction of the similarity's residual.
+const AFFINE_GAIN: f64 = 0.8;
+
 /// Fewest pairs a refined fit is accepted from.
 const REFINE_MIN_PAIRS: usize = 8;
 
