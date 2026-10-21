@@ -25,8 +25,14 @@ impl SequenceExecutor {
         // frames and no terminal event, on a rig whose focuser was simply not
         // connected.
         {
-            let manager = self.trigger_manager.write().await;
-            manager.state().write().await.reset_for_new_run();
+            let mut manager = self.trigger_manager.write().await;
+            if !self.resume_prepared {
+                // A run that is not the resume `resume_from_checkpoint`
+                // prepared is a fresh start, whatever the trigger state was
+                // restored from earlier in this launch.
+                manager.state().write().await.restored_from_checkpoint = false;
+            }
+            manager.reset_for_new_run().await;
         }
         if self.focuser_id.is_none() {
             let disarmed = {

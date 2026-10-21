@@ -691,6 +691,15 @@ impl TriggerState {
         self.mount_motion_depth = 0;
         self.guiding_resume_pending = false;
         self.mount_tracking_held_by_run = false;
+        // The temperature the Temperature Shift trigger and the temperature
+        // compensation measure from is taken again by this run, resumed or
+        // not. Carried over, a load-and-start on the rig (2026-10-20) fired a
+        // Temperature Shift autofocus one second into a new run, against the
+        // previous run's baseline. The first reading of this run becomes the
+        // baseline (see `update_temperature`).
+        self.baseline_temperature = None;
+        self.current_temperature = None;
+        self.baseline_focuser_position = None;
         // A run is starting and its monitor has not evaluated yet.
         self.last_evaluation_running = Some(false);
         self.meridian_flip_dispatch_pending = false;

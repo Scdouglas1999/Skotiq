@@ -917,3 +917,126 @@ async fn a_bursts_own_dithers_restart_the_trigger_count() {
     assert_eq!(timeline, "F F F dither F F F dither F F F");
     assert_eq!(outcome.dithers_reported, vec!["burst".to_string(); 2]);
 }
+
+/// A checkpoint from an interrupted run of the two-filter sequence: three L
+/// frames taken, and a temperature baseline of 5 °C.
+fn interrupted_checkpoint(sequence: &SequenceDefinition) -> crate::checkpoint::SessionCheckpoint {
+    let mut checkpoint = crate::checkpoint::SessionCheckpoint::new(sequence.clone());
+    checkpoint.is_active = true;
+    checkpoint.executor_state = ExecutorState::Running;
+    // Keyed by node id, as the streaming checkpoint writes it.
+    checkpoint.smart_exposure_states.insert(
+        "smart".to_string(),
+        crate::SmartExposureCheckpoint {
+            per_filter_completed: HashMap::from([("L".to_string(), 3)]),
+            current_plan_index: 0,
+            completed_integration_secs: 0.03,
+            depth_completed: HashMap::new(),
+        },
+    );
+    let mut trigger_state = crate::triggers::TriggerState::new();
+    trigger_state.baseline_temperature = Some(5.0);
+    trigger_state.current_temperature = Some(5.0);
+    checkpoint.set_trigger_state(crate::checkpoint::TriggerStateSnapshot::from_state(
+        &trigger_state,
+        crate::SafetyFailMode::default(),
+        true,
+        HashMap::new(),
+    ));
+    checkpoint
+}
+
+/// Prepare a resume from `checkpoint`, then either start it or load and start
+/// a fresh copy of the sequence. Returns the run's end state and the
+/// temperature baseline the run's trigger state held when it ended.
+async fn resume_or_fresh(
+    sequence: SequenceDefinition,
+    ops: Arc<RecordingOps>,
+    fresh_after_resume: bool,
+) -> (ExecutorState, Option<f64>) {
+    let dir = std::env::temp_dir().join(format!("sk-fresh-start-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut executor = SequenceExecutor::new();
+    executor.set_checkpoint_dir(dir.join("checkpoint"));
+    crate::checkpoint::CheckpointManager::new(dir.join("checkpoint"))
+        .save(&interrupted_checkpoint(&sequence))
+        .expect("checkpoint saves");
+    executor.set_device_ops(ops);
+    executor
+        .resume_from_checkpoint()
+        .await
+        .expect("resume prepares");
+    if fresh_after_resume {
+        executor.load_sequence(sequence).expect("sequence loads");
+    }
+    executor.set_save_path(Some(dir.clone()));
+    executor.set_devices(
+        Some("cam-1".to_string()),
+        None,
+        None,
+        Some("fw-1".to_string()),
+        None,
+    );
+
+    executor.start().await.expect("run starts");
+    let mut state = executor.get_state().await;
+    for _ in 0..2_000 {
+        state = executor.get_state().await;
+        if matches!(
+            state,
+            ExecutorState::Completed | ExecutorState::Failed | ExecutorState::Cancelled
+        ) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    let baseline = executor
+        .trigger_manager()
+        .read()
+        .await
+        .state()
+        .read()
+        .await
+        .baseline_temperature;
+    executor.stop().await.ok();
+    let _ = std::fs::remove_dir_all(&dir);
+    (state, baseline)
+}
+
+/// A fresh start of a sequence after a resume was prepared (the rig's
+/// load-and-start, 2026-10-20) is a new run: it takes all of its frames and
+/// does not measure temperature against the old run's baseline.
+#[tokio::test]
+async fn a_fresh_start_does_not_inherit_a_prepared_resume() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let (state, baseline) =
+        resume_or_fresh(two_filter_sequence(4, 0, None, false), ops.clone(), true).await;
+
+    assert_eq!(state, ExecutorState::Completed);
+    assert_eq!(
+        ops.exposures("L"),
+        4,
+        "the old run's three L frames are not this run's"
+    );
+    assert_eq!(
+        baseline, None,
+        "the old run's 5 °C baseline is not this run's"
+    );
+}
+
+/// A deliberate resume keeps what the checkpoint says was done, and still
+/// measures the temperature baseline again.
+#[tokio::test]
+async fn a_resume_keeps_its_progress_and_remeasures_the_temperature_baseline() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let (state, baseline) =
+        resume_or_fresh(two_filter_sequence(4, 0, None, false), ops.clone(), false).await;
+
+    assert_eq!(state, ExecutorState::Completed);
+    assert_eq!(
+        ops.exposures("L"),
+        1,
+        "three of the four L frames were already taken"
+    );
+    assert_eq!(baseline, None);
+}

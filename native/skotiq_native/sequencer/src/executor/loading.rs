@@ -80,6 +80,11 @@ impl SequenceExecutor {
 
         self.sequence = Some(sequence);
         self.root_node = Some(root_node);
+        // A newly loaded sequence is a fresh run; a resume prepared before it
+        // is abandoned (`resume_from_checkpoint` re-arms it after its own
+        // load).
+        self.resume_prepared = false;
+        self.current_checkpoint = None;
 
         Ok(())
     }

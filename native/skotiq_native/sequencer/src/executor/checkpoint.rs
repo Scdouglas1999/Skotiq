@@ -269,6 +269,8 @@ impl SequenceExecutor {
         }
 
         self.load_sequence(checkpoint.sequence.clone())?;
+        self.current_checkpoint = Some(checkpoint.clone());
+        self.resume_prepared = true;
 
         {
             let mut progress = self.progress.write();

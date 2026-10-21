@@ -377,3 +377,80 @@ async fn altitude_limit_still_judges_the_target_not_the_mount() {
         "an unknown altitude is not a low altitude"
     );
 }
+
+/// The temperature the Temperature Shift trigger measures from belongs to the
+/// run that took it. Carried into a new run, the first temperature reading
+/// differed from the old baseline by more than the threshold and an
+/// autofocus fired one second after start (rig, 2026-10-20).
+#[tokio::test]
+async fn a_new_run_measures_temperature_from_its_own_first_reading() {
+    let mut manager = TriggerManager::new();
+    manager.add_trigger(Trigger::new(
+        "temperature_shift",
+        "Temperature Shift",
+        TriggerType::TemperatureShift { degrees: 2.0 },
+        RecoveryAction::Autofocus,
+    ));
+    {
+        let state = manager.state();
+        let mut state = state.write().await;
+        state.update_temperature(10.0);
+        state.baseline_focuser_position = Some(25_000);
+    }
+
+    manager.reset_for_new_run().await;
+    manager.state().write().await.update_temperature(13.0);
+
+    assert!(manager.check_all().await.is_empty());
+    let state = manager.state();
+    let state = state.read().await;
+    assert_eq!(state.baseline_temperature, Some(13.0));
+    assert_eq!(state.baseline_focuser_position, None);
+}
+
+/// A resume re-measures the temperature baseline too: the checkpoint's
+/// reading is hours old.
+#[test]
+fn a_resumed_run_remeasures_the_temperature_baseline() {
+    let mut state = TriggerState::new();
+    state.update_temperature(10.0);
+    state.restored_from_checkpoint = true;
+
+    state.reset_for_new_run();
+
+    assert_eq!(state.baseline_temperature, None);
+    assert_eq!(state.current_temperature, None);
+}
+
+/// A cooldown started in the previous run does not silence the trigger in
+/// the next one.
+#[tokio::test]
+async fn a_new_run_starts_with_no_trigger_in_cooldown() {
+    let mut manager = TriggerManager::new();
+    manager.add_trigger(
+        Trigger::new(
+            "temperature_shift",
+            "Temperature Shift",
+            TriggerType::TemperatureShift { degrees: 2.0 },
+            RecoveryAction::Autofocus,
+        )
+        .with_cooldown(600),
+    );
+    {
+        let state = manager.state();
+        let mut state = state.write().await;
+        state.update_temperature(10.0);
+        state.current_temperature = Some(13.0);
+    }
+    assert_eq!(manager.check_all().await.len(), 1);
+    assert!(manager
+        .get_trigger("temperature_shift")
+        .unwrap()
+        .is_in_cooldown());
+
+    manager.reset_for_new_run().await;
+
+    let trigger = manager.get_trigger("temperature_shift").unwrap();
+    assert!(!trigger.is_in_cooldown());
+    assert!(!trigger.was_firing);
+}

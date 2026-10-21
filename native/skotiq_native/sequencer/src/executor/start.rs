@@ -70,6 +70,16 @@ impl SequenceExecutor {
         self.set_state(ExecutorState::Running).await;
 
         self.prepare_run_triggers().await;
+        // The checkpoint's node states (Smart Exposure counts, budgets) belong
+        // to the resume `resume_from_checkpoint` prepared, and to no other run.
+        // Kept for the life of the process, every later fresh start restored
+        // them from an old checkpoint.
+        let checkpoint_to_restore = if std::mem::take(&mut self.resume_prepared) {
+            self.current_checkpoint.take()
+        } else {
+            self.current_checkpoint = None;
+            None
+        };
 
         let state = self.state.clone();
         let progress = self.progress.clone();
@@ -310,8 +320,7 @@ impl SequenceExecutor {
         // loaded checkpoint (if any) so the spawned task can apply it
         // after constructing the ExecutionContext. Cloning a snapshot is
         // cheap (it's just Vec<BudgetState>).
-        let budget_snapshot_to_restore = self
-            .current_checkpoint
+        let budget_snapshot_to_restore = checkpoint_to_restore
             .as_ref()
             .map(|cp| cp.budget_states.clone());
 
@@ -321,8 +330,7 @@ impl SequenceExecutor {
         // current_plan_index so a crashed mid-rotation run resumes on the
         // correct filter at the correct frame index. An empty / missing
         // map is a no-op (fresh run).
-        let smart_exposure_snapshot_to_restore = self
-            .current_checkpoint
+        let smart_exposure_snapshot_to_restore = checkpoint_to_restore
             .as_ref()
             .map(|cp| cp.smart_exposure_states.clone());
 
