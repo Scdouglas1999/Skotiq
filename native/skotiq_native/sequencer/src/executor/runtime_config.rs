@@ -556,7 +556,7 @@ impl SequenceExecutor {
 
     /// update the reject-folder override.
     ///
-    /// `None` => default `<save_path>/Reject/`. The image-grading code
+    /// `None` => default `<save_path>/<target>/Reject/`. The image-grading code
     /// path consults this on each reject; mid-flight changes take
     /// effect at the next rejected frame.
     pub async fn update_reject_folder_path(&mut self, path: Option<String>) {

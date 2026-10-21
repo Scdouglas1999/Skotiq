@@ -382,17 +382,35 @@ fn calibration_target_label(frame_type: &str) -> Option<String> {
     }
 }
 
+/// The save path a burst uses when its node sets no `save_to`: a folder per
+/// target under the run's save path, as the imaging screen's naming pattern
+/// does (`$TARGET/...`). Without the folder every target landed in one
+/// directory, and the run wrote into whatever folder the save path named.
+pub(crate) const DEFAULT_SAVE_TO_TEMPLATE: &str =
+    "${target.name}/${target.name}_${filter}_${frame:04}.fits";
+
+/// Highest frame number the save-path renderer probes for. Far beyond any
+/// night; a folder past it gets suffixed names rather than a scan without end.
+const SAVE_PATH_FRAME_NUMBER_CEILING: u32 = 1 << 20;
+
 /// build the per-burst save-path renderer.
 ///
 /// `save_to` semantics:
-/// * `None`: render the default template `${target.name}_${filter}_${frame:04}.fits`
-///   into the context's base `save_path` directory. Backwards-compatible
-///   with all pre-Wave-4 sequences.
+/// * `None`: render [`DEFAULT_SAVE_TO_TEMPLATE`] under the context's base
+///   `save_path`.
 /// * `Some(template)`: interpolate `template` and treat the result as a
 ///   relative path under the context's base `save_path` (or as absolute
 ///   when the user typed an absolute path). The final component is the
 ///   filename; any leading path segments are sub-directories that the
 ///   FITS-save code creates on demand.
+///
+/// `${frame}` in a save path is the next frame number not yet on disk for
+/// that name, in the frame's folder or its Reject folder, not the frame's
+/// place in this burst. A burst counting its own frames named the first frame
+/// of every Smart Exposure visit `..._0001` and the files collected collision
+/// suffixes (`NGC0891_L_0001_025.fits`, rig 2026-10-20); counted from the
+/// disk, the number continues across visits, bursts, and a run restarted from
+/// its checkpoint.
 ///
 /// Returns `Err` when the burst has no resolvable destination — no base
 /// `save_path` and no absolute `save_to`. The caller turns that into a node
@@ -405,11 +423,9 @@ pub(crate) fn build_save_path_renderer(
     let base_path = context.save_path.clone();
     let template = config.save_to.clone();
 
-    // Default template matches the legacy hardcoded filename so existing
-    // sequences see no behavioural change.
     let effective_template = template
         .filter(|t| !t.trim().is_empty())
-        .unwrap_or_else(|| "${target.name}_${filter}_${frame:04}.fits".to_string());
+        .unwrap_or_else(|| DEFAULT_SAVE_TO_TEMPLATE.to_string());
 
     // With no base path the only complete destination is an absolute template.
     // Anything else has nowhere to write, so the burst is refused rather than
@@ -429,6 +445,7 @@ pub(crate) fn build_save_path_renderer(
     let exposure_offset = config.offset;
     let exposure_binning = config.binning.as_str().to_string();
     let filter_index = config.filter_index;
+    let reject_folder_override = context.reject_folder_path.clone();
     // ExecutionContext is cheaply Clone-able (every field is `Arc`/`Copy`).
     let mut ctx_snapshot = context.clone();
     // A calibration frame has no target BY NATURE — the shutter is closed or the
@@ -448,54 +465,41 @@ pub(crate) fn build_save_path_renderer(
         }
     }
 
-    Ok(Box::new(move |frame: u32, total: u32| {
-        let eval = EvaluationFrame {
-            frame: Some(frame),
-            frame_total: Some(total),
-            exposure_duration_secs: Some(duration_secs),
-            exposure_gain,
-            exposure_offset,
-            exposure_binning: Some(exposure_binning.clone()),
-            filter_position: filter_index,
-            session_start: None,
-            now_override: None,
-            moon_phase: None,
-            weather_temp_c: None,
-            weather_humidity: None,
-            sqm: None,
+    Ok(Box::new(move |_frame_in_burst: u32, total: u32| {
+        let render = |frame_number: u32| -> Result<(PathBuf, String), String> {
+            let eval = EvaluationFrame {
+                frame: Some(frame_number),
+                frame_total: Some(total),
+                exposure_duration_secs: Some(duration_secs),
+                exposure_gain,
+                exposure_offset,
+                exposure_binning: Some(exposure_binning.clone()),
+                filter_position: filter_index,
+                session_start: None,
+                now_override: None,
+                moon_phase: None,
+                weather_temp_c: None,
+                weather_humidity: None,
+                sqm: None,
+            };
+            let rendered = interpolate(&effective_template, &ctx_snapshot, &eval)
+                .map_err(|e| e.to_string())?;
+            split_rendered_save_path(&rendered, base_path.as_ref())
         };
-        let rendered =
-            interpolate(&effective_template, &ctx_snapshot, &eval).map_err(|e| e.to_string())?;
+        let taken = |frame_number: u32| -> Result<bool, String> {
+            let (dir, name) = render(frame_number)?;
+            let reject_dir =
+                crate::instructions::resolve_reject_dir(&dir, reject_folder_override.as_deref());
+            Ok(dir.join(&name).exists() || reject_dir.join(&name).exists())
+        };
 
-        // Split rendered template into directory + filename. We accept
-        // both `/` and `\` separators (a Windows user may type either).
-        let rendered_path = std::path::PathBuf::from(&rendered);
-        let (rel_dir, filename) = match rendered_path.file_name() {
-            Some(name) => {
-                let parent = rendered_path
-                    .parent()
-                    .map(std::path::Path::to_path_buf)
-                    .unwrap_or_default();
-                (parent, name.to_string_lossy().into_owned())
-            }
-            None => {
-                return Err(format!(
-                    "rendered save path `{rendered}` has no filename component"
-                ));
-            }
-        };
-        // Resolve relative to base path; absolute templates are honoured
-        // verbatim (a user explicitly typed `/mnt/captures/...`).
-        let final_dir: PathBuf = if rel_dir.is_absolute() {
-            rel_dir
-        } else if let Some(base) = base_path.as_ref() {
-            if rel_dir.as_os_str().is_empty() {
-                base.clone()
-            } else {
-                base.join(rel_dir)
-            }
+        let first = render(1)?;
+        // A template that renders no frame number names every frame the
+        // same; there the FITS writer's collision suffix keeps them apart.
+        let (final_dir, filename) = if render(2)? == first {
+            first
         } else {
-            rel_dir
+            render(first_free_frame_number(taken)?)?
         };
         // Pre-create the directory so the FITS writer downstream finds it.
         // A failure here is fatal (the caller turns the Err into a hard
@@ -508,6 +512,68 @@ pub(crate) fn build_save_path_renderer(
         })?;
         Ok((final_dir, filename))
     }))
+}
+
+/// Split a rendered save path into its directory and filename, resolving a
+/// relative directory against the run's base save path. We accept both `/`
+/// and `\` separators (a Windows user may type either); absolute templates are
+/// honoured verbatim (a user explicitly typed `/mnt/captures/...`).
+fn split_rendered_save_path(
+    rendered: &str,
+    base_path: Option<&PathBuf>,
+) -> Result<(PathBuf, String), String> {
+    let rendered_path = std::path::PathBuf::from(rendered);
+    let Some(name) = rendered_path.file_name() else {
+        return Err(format!(
+            "rendered save path `{rendered}` has no filename component"
+        ));
+    };
+    let filename = name.to_string_lossy().into_owned();
+    let rel_dir = rendered_path
+        .parent()
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or_default();
+    let final_dir = if rel_dir.is_absolute() {
+        rel_dir
+    } else if let Some(base) = base_path {
+        if rel_dir.as_os_str().is_empty() {
+            base.clone()
+        } else {
+            base.join(rel_dir)
+        }
+    } else {
+        rel_dir
+    };
+    Ok((final_dir, filename))
+}
+
+/// The lowest frame number from 1 up that `taken` reports free, assuming the
+/// numbers in use run from 1 without gaps (they do, written by this
+/// renderer). Doubling then bisecting keeps a folder of a thousand frames to
+/// about twenty probes. A gap left by a deleted file may be reused, which
+/// overwrites nothing.
+fn first_free_frame_number(taken: impl Fn(u32) -> Result<bool, String>) -> Result<u32, String> {
+    if !taken(1)? {
+        return Ok(1);
+    }
+    let mut used = 1;
+    let mut free = 2;
+    while taken(free)? {
+        used = free;
+        if free >= SAVE_PATH_FRAME_NUMBER_CEILING {
+            return Ok(free.saturating_add(1));
+        }
+        free = free.saturating_mul(2).min(SAVE_PATH_FRAME_NUMBER_CEILING);
+    }
+    while free - used > 1 {
+        let mid = used + (free - used) / 2;
+        if taken(mid)? {
+            used = mid;
+        } else {
+            free = mid;
+        }
+    }
+    Ok(free)
 }
 
 /// emit a structured `ExposureAdjusted` progress event
@@ -1243,6 +1309,120 @@ mod tests {
                 assert_eq!(reason, "unavailable");
             }
             other => panic!("unexpected detail: {:?}", other),
+        }
+    }
+
+    fn renderer_context(root: &std::path::Path) -> ExecutionContext {
+        let mut ctx = ExecutionContext::new_for_test("expose-names".to_string());
+        ctx.save_path = Some(root.to_path_buf());
+        ctx.target_name = Some("NGC0891".to_string());
+        ctx.current_filter = Some("L".to_string());
+        ctx
+    }
+
+    fn light_burst(count: u32) -> crate::ExposureConfig {
+        crate::ExposureConfig {
+            count,
+            duration_secs: 1.0,
+            ..Default::default()
+        }
+    }
+
+    fn scratch_root() -> std::path::PathBuf {
+        let root = std::env::temp_dir().join(format!("sk-names-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    /// Frames for a target land in a folder named for it under the save
+    /// path, not in whatever folder the save path itself names.
+    #[test]
+    fn the_default_save_path_is_a_folder_for_the_target() {
+        let root = scratch_root();
+        let ctx = renderer_context(&root);
+        let render = build_save_path_renderer(&ctx, &light_burst(1), 1.0).unwrap();
+
+        let (dir, name) = render(1, 1).unwrap();
+
+        assert_eq!(dir, root.join("NGC0891"));
+        assert_eq!(name, "NGC0891_L_0001.fits");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A Smart Exposure visit is a burst of one, and every burst counted its
+    /// frames from 1, so the files came out `NGC0891_L_0001_025.fits` (rig,
+    /// 2026-10-20). The number continues from what is on disk.
+    #[test]
+    fn frame_numbers_continue_across_bursts() {
+        let root = scratch_root();
+        let ctx = renderer_context(&root);
+        let mut names = Vec::new();
+        for _visit in 0..3 {
+            let render = build_save_path_renderer(&ctx, &light_burst(1), 1.0).unwrap();
+            let (dir, name) = render(1, 1).unwrap();
+            std::fs::write(dir.join(&name), b"").unwrap();
+            names.push(name);
+        }
+
+        assert_eq!(
+            names,
+            [
+                "NGC0891_L_0001.fits",
+                "NGC0891_L_0002.fits",
+                "NGC0891_L_0003.fits"
+            ]
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A rejected frame keeps its number: the next frame does not reuse it.
+    #[test]
+    fn a_number_in_the_reject_folder_is_taken() {
+        let root = scratch_root();
+        let ctx = renderer_context(&root);
+        let target_dir = root.join("NGC0891");
+        std::fs::create_dir_all(target_dir.join("Reject")).unwrap();
+        std::fs::write(target_dir.join("NGC0891_L_0001.fits"), b"").unwrap();
+        std::fs::write(target_dir.join("Reject").join("NGC0891_L_0002.fits"), b"").unwrap();
+        let render = build_save_path_renderer(&ctx, &light_burst(1), 1.0).unwrap();
+
+        let (_, name) = render(1, 1).unwrap();
+
+        assert_eq!(name, "NGC0891_L_0003.fits");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// Each filter counts its own frames.
+    #[test]
+    fn each_filter_numbers_its_own_frames() {
+        let root = scratch_root();
+        let mut ctx = renderer_context(&root);
+        std::fs::create_dir_all(root.join("NGC0891")).unwrap();
+        std::fs::write(root.join("NGC0891").join("NGC0891_L_0001.fits"), b"").unwrap();
+        ctx.current_filter = Some("R".to_string());
+        let render = build_save_path_renderer(&ctx, &light_burst(1), 1.0).unwrap();
+
+        let (_, name) = render(1, 1).unwrap();
+
+        assert_eq!(name, "NGC0891_R_0001.fits");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn the_first_free_frame_number_is_found_by_doubling_and_bisecting() {
+        for used in [0_u32, 1, 2, 3, 7, 8, 9, 500, 1023, 1024] {
+            let probes = std::cell::Cell::new(0);
+            let free = first_free_frame_number(|n| {
+                probes.set(probes.get() + 1);
+                Ok(n <= used)
+            })
+            .unwrap();
+            assert_eq!(free, used + 1, "{used} frames on disk");
+            assert!(
+                probes.get() <= 24,
+                "{used} frames took {} probes",
+                probes.get()
+            );
         }
     }
 

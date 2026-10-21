@@ -477,6 +477,8 @@ struct RunOutcome {
     warnings: Vec<String>,
     /// `DitherPerformed` events, by the node each named ("" for a trigger).
     dithers_reported: Vec<String>,
+    /// Every file the run wrote, relative to its save path, sorted.
+    files: Vec<String>,
 }
 
 async fn run(
@@ -514,6 +516,7 @@ async fn run(
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }
     executor.stop().await.ok();
+    let files = files_under(&dir);
     let _ = std::fs::remove_dir_all(&dir);
 
     let mut completions = Vec::new();
@@ -540,7 +543,28 @@ async fn run(
         completions,
         warnings,
         dithers_reported,
+        files,
     }
+}
+
+fn files_under(root: &std::path::Path) -> Vec<String> {
+    fn walk(root: &std::path::Path, dir: &std::path::Path, out: &mut Vec<String>) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                walk(root, &path, out);
+            } else if let Ok(relative) = path.strip_prefix(root) {
+                out.push(relative.to_string_lossy().replace('\\', "/"));
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(root, root, &mut out);
+    out.sort();
+    out
 }
 
 fn binding() -> DepthGoalBinding {
@@ -1039,4 +1063,32 @@ async fn a_resume_keeps_its_progress_and_remeasures_the_temperature_baseline() {
         "three of the four L frames were already taken"
     );
     assert_eq!(baseline, None);
+}
+
+/// Frames go in a folder for their target, and each filter's numbers
+/// continue across the Smart Exposure's one-frame visits. On the rig
+/// (2026-10-20) every visit restarted at 0001 and the files collected
+/// collision suffixes.
+#[tokio::test]
+async fn smart_exposure_visits_number_their_files_in_sequence() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let outcome = run(two_filter_sequence(3, 2, None, true), ops, None).await;
+
+    assert_eq!(outcome.state, ExecutorState::Completed);
+    let fits: Vec<&str> = outcome
+        .files
+        .iter()
+        .map(String::as_str)
+        .filter(|f| f.ends_with(".fits"))
+        .collect();
+    assert_eq!(
+        fits,
+        [
+            "Faint Nebula/Faint Nebula_L_0001.fits",
+            "Faint Nebula/Faint Nebula_L_0002.fits",
+            "Faint Nebula/Faint Nebula_L_0003.fits",
+            "Faint Nebula/Faint Nebula_R_0001.fits",
+            "Faint Nebula/Faint Nebula_R_0002.fits",
+        ]
+    );
 }
