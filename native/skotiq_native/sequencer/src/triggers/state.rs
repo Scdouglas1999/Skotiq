@@ -203,6 +203,13 @@ pub struct TriggerState {
     /// though it does not justify ending the night.
     pub consecutive_dither_failures: u32,
 
+    /// Nodes running now that set their own dither cadence. While any does,
+    /// the Dither Interval trigger stands down: the node's per-plan "dither
+    /// every N" is the more specific instruction, and the two counting the
+    /// same frames on different cadences dithered twice in a row. A node with
+    /// no cadence of its own leaves dithering to the trigger.
+    pub dither_cadence_owners: u32,
+
     // Guiding
     pub guiding_rms_history: Option<Vec<(Instant, f64)>>,
     pub guiding_enabled: bool,
@@ -431,6 +438,7 @@ impl Default for TriggerState {
             imaging_train_claim: None,
             imaging_train_next_token: 0,
             consecutive_dither_failures: 0,
+            dither_cadence_owners: 0,
             guiding_rms_history: None,
             guiding_enabled: false,
             guide_star_lost: false,
@@ -672,6 +680,7 @@ impl TriggerState {
         self.last_autofocus_frame = 0;
         self.last_dither_frame = 0;
         self.consecutive_dither_failures = 0;
+        self.dither_cadence_owners = 0;
         self.imaging_unguided = false;
         // The guide-star latch and RMS history describe guiding the previous
         // run started. Carried over, run 2 on the rig (2026-10-07) fired Guide
@@ -717,6 +726,30 @@ impl TriggerState {
     /// Mark that dither was just performed
     pub fn mark_dither_performed(&mut self) {
         self.last_dither_frame = self.completed_exposures;
+    }
+
+    /// Mark a dither performed inside an exposure burst, after
+    /// `frames_into_burst` of its frames. The burst adds its frames to
+    /// `completed_exposures` only when it ends, so the dither's place in the
+    /// run's count is ahead of the counter by that many frames.
+    pub fn mark_dither_performed_in_burst(&mut self, frames_into_burst: u32) {
+        self.last_dither_frame = self.completed_exposures.saturating_add(frames_into_burst);
+    }
+
+    /// A node that dithers on its own cadence has started.
+    pub fn claim_dither_cadence(&mut self) {
+        self.dither_cadence_owners = self.dither_cadence_owners.saturating_add(1);
+    }
+
+    /// The node that claimed the dither cadence has finished.
+    pub fn release_dither_cadence(&mut self) {
+        self.dither_cadence_owners = self.dither_cadence_owners.saturating_sub(1);
+    }
+
+    /// Whether a running node owns the dither cadence, so the Dither
+    /// Interval trigger must not dither on its own count.
+    pub fn node_owns_dither_cadence(&self) -> bool {
+        self.dither_cadence_owners > 0
     }
 
     /// Reset exposure counters (for new sequence)

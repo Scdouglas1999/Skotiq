@@ -938,9 +938,14 @@ pub async fn execute_exposure_with_renderer(
                 .await;
                 if dither_result.is_ok() {
                     // A dither that settled ends a failure streak, as the
-                    // standalone Dither node counts it.
+                    // standalone Dither node counts it. It also restarts the
+                    // Dither Interval trigger's count: left unmarked, the
+                    // trigger counted the whole burst as undithered and
+                    // dithered again the moment the burst ended.
                     if let Some(trigger_state) = &ctx.trigger_state {
-                        trigger_state.write().await.consecutive_dither_failures = 0;
+                        let mut state = trigger_state.write().await;
+                        state.consecutive_dither_failures = 0;
+                        state.mark_dither_performed_in_burst(completed_exposures);
                     }
                 }
                 if let Err(e) = dither_result {

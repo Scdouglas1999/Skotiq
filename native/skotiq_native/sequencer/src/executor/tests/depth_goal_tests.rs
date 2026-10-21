@@ -24,6 +24,8 @@ struct RecordingOps {
     current_filter: Mutex<Option<String>>,
     exposures_by_filter: Mutex<HashMap<String, u32>>,
     total_exposures: Arc<AtomicU32>,
+    /// Exposures by filter and dithers, in the order they ran.
+    timeline: Mutex<Vec<String>>,
 }
 
 impl RecordingOps {
@@ -33,7 +35,12 @@ impl RecordingOps {
             current_filter: Mutex::new(None),
             exposures_by_filter: Mutex::new(HashMap::new()),
             total_exposures,
+            timeline: Mutex::new(Vec::new()),
         }
+    }
+
+    fn timeline(&self) -> String {
+        self.timeline.lock().unwrap().join(" ")
     }
 
     fn exposures(&self, filter: &str) -> u32 {
@@ -51,7 +58,7 @@ impl DeviceOps for RecordingOps {
     async fn camera_start_exposure(
         &self,
         camera_id: &str,
-        _duration_secs: f64,
+        duration_secs: f64,
         gain: Option<i32>,
         offset: Option<i32>,
         bin_x: i32,
@@ -63,6 +70,7 @@ impl DeviceOps for RecordingOps {
             .unwrap()
             .clone()
             .unwrap_or_else(|| "<none>".to_string());
+        self.timeline.lock().unwrap().push(filter.clone());
         *self
             .exposures_by_filter
             .lock()
@@ -71,7 +79,7 @@ impl DeviceOps for RecordingOps {
             .or_insert(0) += 1;
         self.total_exposures.fetch_add(1, Ordering::SeqCst);
         self.inner
-            .camera_start_exposure(camera_id, 0.01, gain, offset, bin_x, bin_y)
+            .camera_start_exposure(camera_id, duration_secs, gain, offset, bin_x, bin_y)
             .await
     }
 
@@ -230,6 +238,7 @@ impl DeviceOps for RecordingOps {
         settle_timeout: f64,
         ra_only: bool,
     ) -> DeviceResult<()> {
+        self.timeline.lock().unwrap().push("dither".to_string());
         self.inner
             .guider_dither(pixels, settle_pixels, settle_time, settle_timeout, ra_only)
             .await
@@ -474,6 +483,8 @@ async fn run(
     depth_ops: Option<Arc<ScriptedDepthOps>>,
 ) -> RunOutcome {
     let dir = std::env::temp_dir().join(format!("sk-depthlock-{}", uuid::Uuid::new_v4()));
+    // The run keeps its shipped triggers, the Dither Interval trigger
+    // (every 5 frames) among them.
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(ops);
     executor.set_depth_goal_ops(depth_ops.map(|d| d as crate::depth_goal::SharedDepthGoalOps));
@@ -766,4 +777,132 @@ fn filter_plan_binding_is_optional_on_the_wire() {
     assert!(json.contains(r#""depth_goal":{"goal_id":"goal-l","revision":3}"#));
     let round: FilterPlan = serde_json::from_str(&json).unwrap();
     assert_eq!(round.depth_goal, Some(binding()));
+}
+
+fn dithering_sequence(l_count: u32, r_count: u32, rotate_filters: bool) -> SequenceDefinition {
+    let mut sequence = two_filter_sequence(l_count, r_count, None, rotate_filters);
+    for node in &mut sequence.nodes {
+        if let NodeType::SmartExposure(config) = &mut node.node_type {
+            config.plans[0].dither_every = Some(3);
+        }
+    }
+    sequence
+}
+
+/// Sub-lengths long enough that the trigger monitor (one tick a second)
+/// evaluates between every two frames.
+fn with_sub_length(mut sequence: SequenceDefinition, secs: f64) -> SequenceDefinition {
+    for node in &mut sequence.nodes {
+        if let NodeType::SmartExposure(config) = &mut node.node_type {
+            for plan in &mut config.plans {
+                plan.duration_secs = secs;
+            }
+        }
+    }
+    sequence
+}
+
+/// A plan's dither cadence counts its frames across visits. Rotating one
+/// frame per visit, a burst counting its own frames never reached 3, and a
+/// whole night ran without a dither (rig, 2026-10-20). The cadence that falls
+/// due on L's third frame runs at L's next visit, after the filter move, and
+/// the node's last frame leaves no dither behind.
+#[tokio::test]
+async fn rotation_dithers_every_n_frames_of_the_plan() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let outcome = run(dithering_sequence(6, 2, true), ops.clone(), None).await;
+
+    assert_eq!(outcome.state, ExecutorState::Completed);
+    assert_eq!(ops.timeline(), "L R L R L dither L L L");
+}
+
+/// Draining a plan in one burst still dithers between its frames, and not
+/// after the plan's last one.
+#[tokio::test]
+async fn a_drained_plan_dithers_inside_the_burst() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let outcome = run(dithering_sequence(7, 2, false), ops.clone(), None).await;
+
+    assert_eq!(outcome.state, ExecutorState::Completed);
+    assert_eq!(ops.timeline(), "L L L dither L L L dither L R R");
+}
+
+/// The node's cadence and the run's Dither Interval trigger (every 5 frames)
+/// counted the same frames, so a plan dithering every 3 got a second dither
+/// from the trigger after the run's 5th frame. While the node owns the
+/// cadence the trigger stands down: exactly the node's dithers happen, with
+/// the trigger watching between every two frames.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_dither_interval_trigger_stands_down_while_the_node_owns_the_cadence() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let sequence = with_sub_length(dithering_sequence(6, 2, true), 1.2);
+    let outcome = run(sequence, ops.clone(), None).await;
+
+    assert_eq!(outcome.state, ExecutorState::Completed);
+    assert_eq!(ops.timeline(), "L R L R L dither L L L");
+}
+
+/// A node that sets no cadence leaves dithering to the trigger, which still
+/// dithers once after the run's 5th frame.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_node_without_a_cadence_leaves_dithering_to_the_trigger() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let sequence = with_sub_length(two_filter_sequence(4, 3, None, true), 1.2);
+    let outcome = run(sequence, ops.clone(), None).await;
+
+    assert_eq!(outcome.state, ExecutorState::Completed);
+    let timeline = ops.timeline();
+    assert_eq!(timeline.matches("dither").count(), 1, "{timeline}");
+    let frames_before_dither = timeline
+        .split(" dither")
+        .next()
+        .unwrap()
+        .split_whitespace()
+        .count();
+    assert!(frames_before_dither >= 5, "{timeline}");
+}
+
+fn exposure_node(id: &str, count: u32, dither_every: Option<u32>) -> crate::NodeDefinition {
+    crate::NodeDefinition {
+        id: id.to_string(),
+        name: id.to_string(),
+        node_type: NodeType::TakeExposure(crate::ExposureConfig {
+            duration_secs: 1.2,
+            count,
+            dither_every,
+            ..Default::default()
+        }),
+        enabled: true,
+        children: vec![],
+    }
+}
+
+/// A burst's own dithers restart the Dither Interval trigger's count. Left
+/// unmarked, the trigger counted a 7-frame burst that dithered after frames
+/// 3 and 6 as 7 undithered frames and dithered again as soon as it ended.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_bursts_own_dithers_restart_the_trigger_count() {
+    let mut sequence = SequenceDefinition::new("Burst dithers".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "root".to_string(),
+        name: "Target".to_string(),
+        node_type: NodeType::TargetHeader(crate::TargetHeaderConfig {
+            target_name: "Faint Nebula".to_string(),
+            ra_hours: 5.5,
+            dec_degrees: 22.0,
+            ..Default::default()
+        }),
+        enabled: true,
+        children: vec!["burst".to_string(), "tail".to_string()],
+    });
+    sequence.nodes.push(exposure_node("burst", 7, Some(3)));
+    sequence.nodes.push(exposure_node("tail", 2, None));
+    sequence.root_node_id = Some("root".to_string());
+
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
+    let outcome = run(sequence, ops.clone(), None).await;
+
+    assert_eq!(outcome.state, ExecutorState::Completed);
+    let timeline = ops.timeline().replace("<none>", "F");
+    assert_eq!(timeline, "F F F dither F F F dither F F F");
 }

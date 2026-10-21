@@ -79,295 +79,334 @@ impl InstructionNode for SmartExposureInstruction {
             return NodeStatus::Failure;
         };
 
-        // when a surrounding TargetScheduler has installed a
-        // multi-filter cycle override, apply it for this dispatch. The
-        // override forces `rotate_filters=true` and clamps `batch_size` to
-        // the scheduler-supplied `frames_per_burst`. We construct an
-        // effective config locally rather than mutating the persisted
-        // SmartExposureConfig so the user's authored settings are not
-        // clobbered when the dispatch returns. The override never widens
-        // batch_size beyond the user's authored value below 1; instead it
-        // SETS the value, because the scheduler's intent ("rotate every N
-        // frames") wins over the node's authored "drain mode" when the
-        // user explicitly enabled round-robin at the scheduler level.
-        let config = match context.scheduler_filter_cycle_override() {
-            Some(crate::FilterCycleMode::RoundRobin { frames_per_burst }) => {
-                let effective_batch = frames_per_burst.max(1);
-                tracing::info!(
-                    "SmartExposure '{}' applying scheduler cycle override: rotate_filters=true, batch_size={}",
-                    node_id,
-                    effective_batch,
-                );
-                std::borrow::Cow::Owned(SmartExposureConfig {
-                    rotate_filters: true,
-                    batch_size: effective_batch,
-                    ..config.clone()
-                })
-            }
-            // SingleFilter mode (or no override) — use the authored config
-            // verbatim. We wrap in `Cow::Borrowed` so the common path
-            // (override absent) does not clone the plan vector.
-            _ => std::borrow::Cow::Borrowed(config),
-        };
+        // A node whose plans set "dither every N" owns the dither cadence for
+        // as long as it runs, and the run's Dither Interval trigger stands
+        // down: the plan's own setting is what the operator wrote for these
+        // frames, as with N.I.N.A.'s Smart Exposure and its own dither
+        // trigger. Both counting the same frames dithered twice in a row. A
+        // plan left at "off" inside such a node takes no cadence dithers; a
+        // node with no cadence on any plan leaves dithering to the trigger.
+        let owns_dither_cadence = config
+            .plans
+            .iter()
+            .any(|plan| plan.dither_every.is_some_and(|every| every > 0));
+        let cadence_state = context
+            .trigger_state
+            .clone()
+            .filter(|_| owns_dither_cadence);
+        if let Some(state) = &cadence_state {
+            state.write().await.claim_dither_cadence();
+        }
+        let status = execute_smart_exposure(node_id, config, context).await;
+        if let Some(state) = &cadence_state {
+            state.write().await.release_dither_cadence();
+        }
+        status
+    }
+}
 
-        // "Loop until stopped" forcing. The mode IS "1 sub per filter,
-        // round-robin, forever (until time/window)", so we coerce
-        // `batch_size=1` and `rotate_filters=true` here regardless of their
-        // stored values. We only clone when a coercion is actually needed so
-        // the common (loop-mode-off) path keeps the borrow.
-        let config =
-            if config.loop_until_stopped && (!config.rotate_filters || config.batch_size != 1) {
-                std::borrow::Cow::Owned(SmartExposureConfig {
-                    rotate_filters: true,
-                    batch_size: 1,
-                    ..config.into_owned()
-                })
-            } else {
-                config
-            };
-        let config = config.as_ref();
-
-        // Errors-are-a-feature: refuse to enter an unbounded infinite loop.
-        // `loop_until_stopped` deliberately ignores per-plan counts, so the
-        // ONLY things that can end the node are (a) the integration budget,
-        // (b) the surrounding target's `end_when` window, or (c) an explicit
-        // sequence stop / skip-to-next-target. (c) is always available at
-        // runtime, but it requires a human to press Stop — it is NOT an
-        // automatic bound for an unattended dawn run. So we require at least
-        // one *automatic* bound: a positive budget, OR a detectable target
-        // end trigger. If neither is present we fail closed rather than spin
-        // forever and silently never finish.
-        if config.loop_until_stopped
-            && config.integration_budget_secs <= 0.0
-            && context.active_target_end_trigger().is_none()
-        {
-            tracing::error!(
-                "SmartExposure '{}' is in loop-until-stopped mode but has no integration \
-                 budget and no surrounding target window (end_when) to bound it; refusing to \
-                 loop forever. Set an integration budget or place this node under a target \
-                 with an end condition.",
-                node_id
+async fn execute_smart_exposure(
+    node_id: &str,
+    config: &SmartExposureConfig,
+    context: &mut ExecutionContext,
+) -> NodeStatus {
+    // when a surrounding TargetScheduler has installed a
+    // multi-filter cycle override, apply it for this dispatch. The
+    // override forces `rotate_filters=true` and clamps `batch_size` to
+    // the scheduler-supplied `frames_per_burst`. We construct an
+    // effective config locally rather than mutating the persisted
+    // SmartExposureConfig so the user's authored settings are not
+    // clobbered when the dispatch returns. The override never widens
+    // batch_size beyond the user's authored value below 1; instead it
+    // SETS the value, because the scheduler's intent ("rotate every N
+    // frames") wins over the node's authored "drain mode" when the
+    // user explicitly enabled round-robin at the scheduler level.
+    let config = match context.scheduler_filter_cycle_override() {
+        Some(crate::FilterCycleMode::RoundRobin { frames_per_burst }) => {
+            let effective_batch = frames_per_burst.max(1);
+            tracing::info!(
+                "SmartExposure '{}' applying scheduler cycle override: rotate_filters=true, batch_size={}",
+                node_id,
+                effective_batch,
             );
-            return NodeStatus::Failure;
+            std::borrow::Cow::Owned(SmartExposureConfig {
+                rotate_filters: true,
+                batch_size: effective_batch,
+                ..config.clone()
+            })
+        }
+        // SingleFilter mode (or no override) — use the authored config
+        // verbatim. We wrap in `Cow::Borrowed` so the common path
+        // (override absent) does not clone the plan vector.
+        _ => std::borrow::Cow::Borrowed(config),
+    };
+
+    // "Loop until stopped" forcing. The mode IS "1 sub per filter,
+    // round-robin, forever (until time/window)", so we coerce
+    // `batch_size=1` and `rotate_filters=true` here regardless of their
+    // stored values. We only clone when a coercion is actually needed so
+    // the common (loop-mode-off) path keeps the borrow.
+    let config = if config.loop_until_stopped && (!config.rotate_filters || config.batch_size != 1)
+    {
+        std::borrow::Cow::Owned(SmartExposureConfig {
+            rotate_filters: true,
+            batch_size: 1,
+            ..config.into_owned()
+        })
+    } else {
+        config
+    };
+    let config = config.as_ref();
+
+    // Errors-are-a-feature: refuse to enter an unbounded infinite loop.
+    // `loop_until_stopped` deliberately ignores per-plan counts, so the
+    // ONLY things that can end the node are (a) the integration budget,
+    // (b) the surrounding target's `end_when` window, or (c) an explicit
+    // sequence stop / skip-to-next-target. (c) is always available at
+    // runtime, but it requires a human to press Stop — it is NOT an
+    // automatic bound for an unattended dawn run. So we require at least
+    // one *automatic* bound: a positive budget, OR a detectable target
+    // end trigger. If neither is present we fail closed rather than spin
+    // forever and silently never finish.
+    if config.loop_until_stopped
+        && config.integration_budget_secs <= 0.0
+        && context.active_target_end_trigger().is_none()
+    {
+        tracing::error!(
+            "SmartExposure '{}' is in loop-until-stopped mode but has no integration \
+             budget and no surrounding target window (end_when) to bound it; refusing to \
+             loop forever. Set an integration budget or place this node under a target \
+             with an end condition.",
+            node_id
+        );
+        return NodeStatus::Failure;
+    }
+
+    // Empty plans is an empty success — matches `Loop(0)` semantics and
+    // keeps the executor from getting stuck on an empty body. The
+    // validation rule [`SmartExposureEmptyPlansRule`] flags this at
+    // sequence-edit time as an error; reaching execution with empty
+    // plans is the corrupt-file path.
+    if config.plans.is_empty() {
+        tracing::warn!(
+            "SmartExposure node '{}' has no plans; nothing to do (success)",
+            node_id
+        );
+        return NodeStatus::Success;
+    }
+
+    // Resume from any in-memory checkpoint slot. The slot is populated
+    // by the previous run of this same node id (in the same process),
+    // OR — when the executor plumbs `CheckpointManager` through (future
+    // work) — restored from disk on session reload.
+    let mut state = load_or_init_checkpoint(node_id, context).await;
+
+    // Defensive clamp: if config has changed (plans removed) since the
+    // checkpoint was written, the persisted plan_index might point past
+    // the end of the new `plans`. Wrap it back to 0.
+    if state.current_plan_index >= config.plans.len() {
+        state.current_plan_index = 0;
+    }
+
+    tracing::info!(
+        "SmartExposure '{}' starting: {} plans, rotate={}, budget={:.0}s, batch_size={}, resume from plan {}",
+        node_id,
+        config.plans.len(),
+        config.rotate_filters,
+        config.integration_budget_secs,
+        config.batch_size,
+        state.current_plan_index,
+    );
+
+    let total_plans = config.plans.len();
+    let mut current_filter: Option<String> = context.current_filter.clone();
+    // A dither that fell due. A plan's cadence coming due on the last frame
+    // of a visit runs at the start of the next visit, after any filter move,
+    // so the node's final frame never leaves the mount dithered off target
+    // and a filter change with a dither due costs one dither, not two.
+    let mut dither_due = false;
+    // Plans whose binding could not be honored this run; each is warned
+    // about once, then treated as count-bounded.
+    let mut depth_unavailable_warned: HashSet<usize> = HashSet::new();
+
+    // The outer loop drives "rounds" when rotate_filters is true; with
+    // rotate_filters off, this loop body still runs once per plan but
+    // the inner `take_batch` consumes the full remaining count for that
+    // plan in one go.
+    loop {
+        // Cancellation / pause / skip checks at every step — same
+        // pattern as Loop / TargetHeader. We honour cancellation
+        // promptly so a "Stop" button doesn't have to wait for the
+        // next filter change.
+        if context.is_cancelled().await {
+            save_checkpoint(node_id, context, &state).await;
+            return NodeStatus::Cancelled;
+        }
+        if context.is_skip_to_next_target_requested() {
+            save_checkpoint(node_id, context, &state).await;
+            return NodeStatus::Skipped;
         }
 
-        // Empty plans is an empty success — matches `Loop(0)` semantics and
-        // keeps the executor from getting stuck on an empty body. The
-        // validation rule [`SmartExposureEmptyPlansRule`] flags this at
-        // sequence-edit time as an error; reaching execution with empty
-        // plans is the corrupt-file path.
-        if config.plans.is_empty() {
-            tracing::warn!(
-                "SmartExposure node '{}' has no plans; nothing to do (success)",
-                node_id
+        // Loop-until-stopped: the surrounding target's `end_when` window
+        // is the primary automatic bound. The parent TargetHeader only
+        // probes `end_when` at child boundaries, but this node never
+        // returns to the parent while it loops — so we poll the installed
+        // trigger ourselves here, between batches, and finish Success when
+        // the window closes (e.g. the target drops below the configured
+        // altitude at dawn). `None` (no trigger / unevaluable) falls
+        // through to the budget bound, which the entry guard guarantees
+        // exists when no trigger does.
+        if config.loop_until_stopped {
+            if let Some(true) = context.active_target_end_trigger_satisfied() {
+                tracing::info!(
+                    "SmartExposure '{}' loop-until-stopped: target window closed; finishing",
+                    node_id
+                );
+                save_checkpoint(node_id, context, &state).await;
+                return NodeStatus::Success;
+            }
+        }
+
+        // DepthLock: retire any bound plan whose goal is achieved. This
+        // runs before the pick so an achieved plan is skipped rather
+        // than started, and only between batches so the exposure that
+        // produced the deciding frame was never interrupted.
+        refresh_depth_completions(
+            node_id,
+            config,
+            &mut state,
+            &mut depth_unavailable_warned,
+            context,
+        );
+
+        // Budget short-circuit. We check before each batch so a small
+        // overshoot is bounded by one batch's worth of exposure time.
+        if integration_budget_exceeded(config, &state) {
+            tracing::info!(
+                "SmartExposure '{}' hit integration budget cap ({:.1}s >= {:.1}s); finishing",
+                node_id,
+                state.completed_integration_secs,
+                config.integration_budget_secs,
             );
+            save_checkpoint(node_id, context, &state).await;
             return NodeStatus::Success;
         }
 
-        // Resume from any in-memory checkpoint slot. The slot is populated
-        // by the previous run of this same node id (in the same process),
-        // OR — when the executor plumbs `CheckpointManager` through (future
-        // work) — restored from disk on session reload.
-        let mut state = load_or_init_checkpoint(node_id, context).await;
+        // Pick the next plan that still has remaining work. If we've
+        // exhausted every plan, we're done. In loop-until-stopped mode
+        // counts are ignored, so `next_plan` always returns the next row
+        // in rotation and this `else` is never taken — the only exits in
+        // loop mode are the budget/window/cancellation checks above.
+        let Some(plan_index) = next_plan(config, &state) else {
+            tracing::info!(
+                "SmartExposure '{}' all plans complete ({} filters)",
+                node_id,
+                total_plans
+            );
+            clear_checkpoint(node_id, context).await;
+            return NodeStatus::Success;
+        };
 
-        // Defensive clamp: if config has changed (plans removed) since the
-        // checkpoint was written, the persisted plan_index might point past
-        // the end of the new `plans`. Wrap it back to 0.
-        if state.current_plan_index >= config.plans.len() {
-            state.current_plan_index = 0;
+        // Persist the chosen index so a crash before the first frame of
+        // this plan still resumes on the same row.
+        state.current_plan_index = plan_index;
+        let plan = &config.plans[plan_index];
+        let completed_for_plan = state
+            .per_filter_completed
+            .get(&plan.filter_name)
+            .copied()
+            .unwrap_or(0);
+        // In loop-until-stopped mode the per-plan count is irrelevant —
+        // we always have exactly one sub of "remaining" work for the
+        // chosen filter (batch_size is forced to 1 above). Otherwise it's
+        // the un-completed slice of the authored count.
+        let remaining = if config.loop_until_stopped {
+            1
+        } else {
+            plan.count.saturating_sub(completed_for_plan)
+        };
+        if remaining == 0 {
+            // The next_plan() above already filtered exhausted plans, so
+            // this branch should not be reachable. Treat it defensively
+            // and continue.
+            tracing::debug!(
+                "SmartExposure '{}' plan {} has 0 remaining after pick; advancing",
+                node_id,
+                plan_index
+            );
+            continue;
         }
 
-        tracing::info!(
-            "SmartExposure '{}' starting: {} plans, rotate={}, budget={:.0}s, batch_size={}, resume from plan {}",
-            node_id,
-            config.plans.len(),
-            config.rotate_filters,
-            config.integration_budget_secs,
-            config.batch_size,
-            state.current_plan_index,
-        );
+        // The batch size is the smaller of:
+        //   * the remaining work for this plan
+        //   * the user-configured per-visit batch size (always >= 1)
+        // When `rotate_filters` is false we want to drain the plan
+        // entirely before moving on — so we ignore `batch_size` in that
+        // mode. Loop-until-stopped always takes exactly one sub (forced
+        // batch_size=1 and remaining=1 above).
+        //
+        // A plan bound to a DepthLock goal is the exception to draining:
+        // its verdict is only consulted between batches, so a single
+        // burst of the whole remaining count would make "complete at the
+        // next safe boundary" mean "after the last frame". It keeps the
+        // drain order (sequential `next_plan` re-picks it until done)
+        // but in `batch_size` steps.
+        let batch_size = if config.rotate_filters || plan.depth_goal.is_some() {
+            config.batch_size.max(1).min(remaining)
+        } else {
+            remaining
+        };
 
-        let total_plans = config.plans.len();
-        let mut current_filter: Option<String> = context.current_filter.clone();
-        // Plans whose binding could not be honored this run; each is warned
-        // about once, then treated as count-bounded.
-        let mut depth_unavailable_warned: HashSet<usize> = HashSet::new();
-
-        // The outer loop drives "rounds" when rotate_filters is true; with
-        // rotate_filters off, this loop body still runs once per plan but
-        // the inner `take_batch` consumes the full remaining count for that
-        // plan in one go.
-        loop {
-            // Cancellation / pause / skip checks at every step — same
-            // pattern as Loop / TargetHeader. We honour cancellation
-            // promptly so a "Stop" button doesn't have to wait for the
-            // next filter change.
-            if context.is_cancelled().await {
-                save_checkpoint(node_id, context, &state).await;
-                return NodeStatus::Cancelled;
-            }
-            if context.is_skip_to_next_target_requested() {
-                save_checkpoint(node_id, context, &state).await;
-                return NodeStatus::Skipped;
-            }
-
-            // Loop-until-stopped: the surrounding target's `end_when` window
-            // is the primary automatic bound. The parent TargetHeader only
-            // probes `end_when` at child boundaries, but this node never
-            // returns to the parent while it loops — so we poll the installed
-            // trigger ourselves here, between batches, and finish Success when
-            // the window closes (e.g. the target drops below the configured
-            // altitude at dawn). `None` (no trigger / unevaluable) falls
-            // through to the budget bound, which the entry guard guarantees
-            // exists when no trigger does.
-            if config.loop_until_stopped {
-                if let Some(true) = context.active_target_end_trigger_satisfied() {
-                    tracing::info!(
-                        "SmartExposure '{}' loop-until-stopped: target window closed; finishing",
-                        node_id
-                    );
-                    save_checkpoint(node_id, context, &state).await;
-                    return NodeStatus::Success;
-                }
-            }
-
-            // DepthLock: retire any bound plan whose goal is achieved. This
-            // runs before the pick so an achieved plan is skipped rather
-            // than started, and only between batches so the exposure that
-            // produced the deciding frame was never interrupted.
-            refresh_depth_completions(
+        // Filter change
+        // Skip when the wheel is already on this plan's filter — avoids
+        // wasted FW moves when the user authored two consecutive plans
+        // on the same filter (legal: e.g. tighter & wider exposures for
+        // the same band).
+        let need_filter_change = current_filter.as_deref() != Some(plan.filter_name.as_str());
+        if need_filter_change {
+            tracing::info!(
+                "SmartExposure '{}' changing filter to '{}' (plan {}/{})",
                 node_id,
-                config,
-                &mut state,
-                &mut depth_unavailable_warned,
-                context,
+                plan.filter_name,
+                plan_index + 1,
+                total_plans
             );
-
-            // Budget short-circuit. We check before each batch so a small
-            // overshoot is bounded by one batch's worth of exposure time.
-            if integration_budget_exceeded(config, &state) {
-                tracing::info!(
-                    "SmartExposure '{}' hit integration budget cap ({:.1}s >= {:.1}s); finishing",
-                    node_id,
-                    state.completed_integration_secs,
-                    config.integration_budget_secs,
-                );
-                save_checkpoint(node_id, context, &state).await;
-                return NodeStatus::Success;
-            }
-
-            // Pick the next plan that still has remaining work. If we've
-            // exhausted every plan, we're done. In loop-until-stopped mode
-            // counts are ignored, so `next_plan` always returns the next row
-            // in rotation and this `else` is never taken — the only exits in
-            // loop mode are the budget/window/cancellation checks above.
-            let Some(plan_index) = next_plan(config, &state) else {
-                tracing::info!(
-                    "SmartExposure '{}' all plans complete ({} filters)",
-                    node_id,
-                    total_plans
-                );
-                clear_checkpoint(node_id, context).await;
-                return NodeStatus::Success;
-            };
-
-            // Persist the chosen index so a crash before the first frame of
-            // this plan still resumes on the same row.
-            state.current_plan_index = plan_index;
-            let plan = &config.plans[plan_index];
-            let completed_for_plan = state
-                .per_filter_completed
-                .get(&plan.filter_name)
-                .copied()
-                .unwrap_or(0);
-            // In loop-until-stopped mode the per-plan count is irrelevant —
-            // we always have exactly one sub of "remaining" work for the
-            // chosen filter (batch_size is forced to 1 above). Otherwise it's
-            // the un-completed slice of the authored count.
-            let remaining = if config.loop_until_stopped {
-                1
-            } else {
-                plan.count.saturating_sub(completed_for_plan)
-            };
-            if remaining == 0 {
-                // The next_plan() above already filtered exhausted plans, so
-                // this branch should not be reachable. Treat it defensively
-                // and continue.
-                tracing::debug!(
-                    "SmartExposure '{}' plan {} has 0 remaining after pick; advancing",
-                    node_id,
-                    plan_index
-                );
-                continue;
-            }
-
-            // The batch size is the smaller of:
-            //   * the remaining work for this plan
-            //   * the user-configured per-visit batch size (always >= 1)
-            // When `rotate_filters` is false we want to drain the plan
-            // entirely before moving on — so we ignore `batch_size` in that
-            // mode. Loop-until-stopped always takes exactly one sub (forced
-            // batch_size=1 and remaining=1 above).
-            //
-            // A plan bound to a DepthLock goal is the exception to draining:
-            // its verdict is only consulted between batches, so a single
-            // burst of the whole remaining count would make "complete at the
-            // next safe boundary" mean "after the last frame". It keeps the
-            // drain order (sequential `next_plan` re-picks it until done)
-            // but in `batch_size` steps.
-            let batch_size = if config.rotate_filters || plan.depth_goal.is_some() {
-                config.batch_size.max(1).min(remaining)
-            } else {
-                remaining
-            };
-
-            // Filter change
-            // Skip when the wheel is already on this plan's filter — avoids
-            // wasted FW moves when the user authored two consecutive plans
-            // on the same filter (legal: e.g. tighter & wider exposures for
-            // the same band).
-            let need_filter_change = current_filter.as_deref() != Some(plan.filter_name.as_str());
-            if need_filter_change {
-                tracing::info!(
-                    "SmartExposure '{}' changing filter to '{}' (plan {}/{})",
+            let filter_status = run_filter_change(node_id, plan, context).await;
+            if !matches!(filter_status, NodeStatus::Success) {
+                tracing::error!(
+                    "SmartExposure '{}' filter change to '{}' failed with {:?}",
                     node_id,
                     plan.filter_name,
-                    plan_index + 1,
-                    total_plans
+                    filter_status
                 );
-                let filter_status = run_filter_change(node_id, plan, context).await;
-                if !matches!(filter_status, NodeStatus::Success) {
-                    tracing::error!(
-                        "SmartExposure '{}' filter change to '{}' failed with {:?}",
-                        node_id,
-                        plan.filter_name,
-                        filter_status
-                    );
-                    save_checkpoint(node_id, context, &state).await;
-                    return filter_status;
-                }
-                current_filter = Some(plan.filter_name.clone());
-
-                // Optional dither on filter change. This runs AFTER the
-                // filter move so the field is on the new filter when we
-                // dither (otherwise we'd dither, then move, defeating the
-                // small-shift purpose).
-                if config.dither_on_filter_change {
-                    let dither_status = run_dither(node_id, plan, context).await;
-                    if !matches!(dither_status, NodeStatus::Success) {
-                        tracing::warn!(
-                            "SmartExposure '{}' post-filter-change dither returned {:?}; continuing",
-                            node_id,
-                            dither_status
-                        );
-                        // A failed dither does not abort the sequence — it's
-                        // a hygiene step. Log and move on.
-                    }
-                }
+                save_checkpoint(node_id, context, &state).await;
+                return filter_status;
             }
+            current_filter = Some(plan.filter_name.clone());
+            // Dither on filter change runs AFTER the filter move so the
+            // field is on the new filter when we dither (otherwise we'd
+            // dither, then move, defeating the small-shift purpose).
+            if config.dither_on_filter_change {
+                dither_due = true;
+            }
+        }
+        if std::mem::take(&mut dither_due) {
+            run_smart_dither(node_id, plan, context).await;
+        }
 
-            // Exposure burst
-            let burst_status = run_exposure_burst(node_id, plan, batch_size, context).await;
+        // Exposure burst, split at this plan's dither boundaries. The
+        // cadence counts the plan's frames across visits: with rotation a
+        // visit is often a single frame, so a burst counting its own
+        // frames never reached `dither_every` and the run never dithered.
+        let cadence = plan.dither_every.filter(|every| *every > 0);
+        let mut taken = 0;
+        while taken < batch_size {
+            let done = completed_for_plan.saturating_add(taken);
+            let chunk = match cadence {
+                Some(every) => (batch_size - taken).min(every - done % every),
+                None => batch_size - taken,
+            };
+            let burst_status = run_exposure_burst(node_id, plan, chunk, context).await;
             if matches!(burst_status, NodeStatus::Cancelled) {
                 save_checkpoint(node_id, context, &state).await;
                 return NodeStatus::Cancelled;
@@ -393,44 +432,50 @@ impl InstructionNode for SmartExposureInstruction {
             // We additionally track a SmartExposure-LOCAL slice here so the
             // per-node `integration_budget_secs` cap is independent of any
             // other node's contributions.
-            let frames_just_taken = batch_size;
             // Why: u32 -> f64 widens losslessly; same for the duration_secs
             // arithmetic.
-            let secs_just_added = plan.duration_secs * f64::from(frames_just_taken);
-            state.completed_integration_secs += secs_just_added;
-            let new_completed = completed_for_plan.saturating_add(frames_just_taken);
+            state.completed_integration_secs += plan.duration_secs * f64::from(chunk);
+            taken += chunk;
             state
                 .per_filter_completed
-                .insert(plan.filter_name.clone(), new_completed);
+                .insert(plan.filter_name.clone(), done.saturating_add(chunk));
 
-            // Emit a structured progress event so the Run Dashboard's
-            // filter-integration panel can show "L 30/60 (plan 1/4)"
-            // without parsing free-form strings.
-            emit_progress(node_id, config, &state, plan, plan_index, context);
-
-            // advance `current_plan_index` in rotation mode
-            // so the next iteration's `next_plan()` starts looking AT the
-            // next plan, not the one we just finished a batch on.
-            //
-            // Without this advance, `next_plan` re-picks `plan_index` every
-            // iteration as long as the current plan still has remaining > 0
-            // (its scan starts at `current_plan_index` and accepts the first
-            // hit), so rotation never rotates — the node drains the first
-            // plan exactly as if `rotate_filters` were false. Asserting
-            // `next_plan` in isolation with a pre-advanced index does not
-            // cover this; the advance has to be exercised through execute().
-            //
-            // Sequential mode is left alone: the scan from `current_plan_index`
-            // forward already does the right "drain in order" thing because
-            // `next_plan` skips exhausted plans linearly.
-            if config.rotate_filters && total_plans > 0 {
-                state.current_plan_index = (plan_index + 1) % total_plans;
+            if cadence.is_some_and(|every| (done + chunk) % every == 0) {
+                if taken < batch_size {
+                    run_smart_dither(node_id, plan, context).await;
+                } else {
+                    dither_due = true;
+                }
             }
-
-            // Save the checkpoint after each batch so a process crash
-            // between batches loses at most `batch_size` frames of progress.
-            save_checkpoint(node_id, context, &state).await;
         }
+
+        // Emit a structured progress event so the Run Dashboard's
+        // filter-integration panel can show "L 30/60 (plan 1/4)"
+        // without parsing free-form strings.
+        emit_progress(node_id, config, &state, plan, plan_index, context);
+
+        // advance `current_plan_index` in rotation mode
+        // so the next iteration's `next_plan()` starts looking AT the
+        // next plan, not the one we just finished a batch on.
+        //
+        // Without this advance, `next_plan` re-picks `plan_index` every
+        // iteration as long as the current plan still has remaining > 0
+        // (its scan starts at `current_plan_index` and accepts the first
+        // hit), so rotation never rotates — the node drains the first
+        // plan exactly as if `rotate_filters` were false. Asserting
+        // `next_plan` in isolation with a pre-advanced index does not
+        // cover this; the advance has to be exercised through execute().
+        //
+        // Sequential mode is left alone: the scan from `current_plan_index`
+        // forward already does the right "drain in order" thing because
+        // `next_plan` skips exhausted plans linearly.
+        if config.rotate_filters && total_plans > 0 {
+            state.current_plan_index = (plan_index + 1) % total_plans;
+        }
+
+        // Save the checkpoint after each batch so a process crash
+        // between batches loses at most `batch_size` frames of progress.
+        save_checkpoint(node_id, context, &state).await;
     }
 }
 
@@ -682,6 +727,19 @@ async fn run_filter_change(
         .await
 }
 
+/// A dither the node runs between frames. A failed dither does not abort the
+/// sequence: it's a hygiene step, so it is logged and the run moves on.
+async fn run_smart_dither(node_id: &str, plan: &FilterPlan, context: &mut ExecutionContext) {
+    let dither_status = run_dither(node_id, plan, context).await;
+    if !matches!(dither_status, NodeStatus::Success) {
+        tracing::warn!(
+            "SmartExposure '{}' dither returned {:?}; continuing",
+            node_id,
+            dither_status
+        );
+    }
+}
+
 async fn run_dither(
     node_id: &str,
     _plan: &FilterPlan,
@@ -738,9 +796,9 @@ fn build_exposure_config(plan: &FilterPlan, batch_size: u32) -> ExposureConfig {
         gain: plan.gain,
         offset: plan.offset,
         binning: plan.binning,
-        dither_every: plan.dither_every,
-        // Reuse ExposureConfig defaults for dither-settle parameters; same
-        // rationale as `run_dither` above.
+        // The node owns the plan's dither cadence (see `execute`); a burst
+        // counting its own frames would dither on the wrong frames.
+        dither_every: None,
         ..ExposureConfig::default()
     }
 }
@@ -970,7 +1028,9 @@ mod tests {
         assert_eq!(cfg.gain, Some(120));
         assert_eq!(cfg.offset, Some(30));
         assert_eq!(cfg.binning, Binning::Two);
-        assert_eq!(cfg.dither_every, Some(2));
+        // The node owns the dither cadence across visits; the burst must not
+        // count its own frames.
+        assert_eq!(cfg.dither_every, None);
     }
 
     #[test]

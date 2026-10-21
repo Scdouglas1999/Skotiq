@@ -602,7 +602,10 @@ impl Trigger {
                 }
             }
             TriggerType::DitherInterval { every_n_frames } => {
-                if state.completed_exposures == 0 || *every_n_frames == 0 {
+                if state.completed_exposures == 0
+                    || *every_n_frames == 0
+                    || state.node_owns_dither_cadence()
+                {
                     false
                 } else {
                     let frames_since_dither = state
