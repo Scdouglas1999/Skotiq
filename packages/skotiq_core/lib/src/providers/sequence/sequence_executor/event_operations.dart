@@ -209,9 +209,12 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
           );
         }
 
-        _fetchAndDisplaySequenceImage(
-          _previewSettingsForFrame(graded?.capture, durationSecs),
-        );
+        // A graded frame was put on screen when its verdict arrived.
+        if (graded == null) {
+          _fetchAndDisplaySequenceImage(
+            _previewSettingsForFrame(null, durationSecs),
+          );
+        }
         break;
 
       case 'Progress':
@@ -1164,12 +1167,20 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
   /// the `captured_images` row were written from. `ExposureCompleted`'s
   /// `duration_secs` is the executor's restatement of it and does not reach
   /// every producer.
+  ///
+  /// The frame goes on screen here too. A Smart Exposure frame never gets an
+  /// `ExposureCompleted`, and that was the only thing that fetched the preview,
+  /// so the Imaging tab and Tonight kept showing an old frame for a whole run
+  /// (rig, 2026-10-20).
   void _recordGradedFrame(SkotiqEvent event, {required bool accepted}) {
     final capture = FrameCapture.fromEventData(event.data);
     _recordRunFrame(
       exposureSecs: capture.exposureSecs ?? 0.0,
       filter: event.data['filter'] as String?,
       accepted: accepted,
+    );
+    _fetchAndDisplaySequenceImage(
+      _previewSettingsForFrame(capture, capture.exposureSecs ?? 0.0),
     );
     final frame = (event.data['frame'] as num?)?.toInt();
     if (frame == null) return;

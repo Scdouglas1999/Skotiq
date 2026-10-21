@@ -497,6 +497,45 @@ void main() {
       verify(() => backend.cameraGetLastImage(_cameraId)).called(1);
     });
 
+    // A Smart Exposure frame gets a verdict but never an ExposureCompleted;
+    // the preview hung on that event, so a whole run on the rig showed the
+    // pre-run snapshot (2026-10-20).
+    test('a frame with only a verdict still goes on screen', () async {
+      final (_, executor) = build(sequence: exposureSequence());
+
+      executor.handleSequencerEventForTest(
+        sequencerEvent('FrameAccepted', {
+          ...frameData(frame: 1),
+          'save_path': '/tmp/light_0001.fits',
+        }),
+      );
+      executor.handleSequencerEventForTest(
+        sequencerEvent('FrameRejected', {
+          ...frameData(frame: 1),
+          'reason': 'HFR',
+          'reject_path': '/tmp/rejects/light_0002.fits',
+        }),
+      );
+      await pumpEventQueue();
+
+      verify(() => backend.cameraGetLastImage(_cameraId)).called(2);
+    });
+
+    test('an ungraded frame goes on screen at its completion', () async {
+      final (_, executor) = build(sequence: exposureSequence());
+
+      executor.handleSequencerEventForTest(
+        sequencerEvent('ExposureCompleted', {
+          'frame': 1,
+          'total': 4,
+          'duration_secs': 300.0,
+        }),
+      );
+      await pumpEventQueue();
+
+      verify(() => backend.cameraGetLastImage(_cameraId)).called(1);
+    });
+
     test('the published preview carries the frame it was taken with', () async {
       when(() => backend.cameraGetLastImage(any())).thenAnswer(
         (_) async => CapturedImageResult(
