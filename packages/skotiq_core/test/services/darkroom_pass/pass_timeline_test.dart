@@ -153,14 +153,33 @@ void main() {
       expect(tl.at(_s(17)).image.$1, '/p/L_master.png');
     });
 
+    test('picking the reference is its own stage, not the first sub', () {
+      final tl = PassTimeline.fromLog(_twoLanes().log);
+      expect(tl.at(_s(5)).activeSpan!.$2.stage, PassStage.reference);
+      final l = tl.lanes.first;
+      expect(l.span(PassStage.reference).end, _s(6));
+      expect(l.span(PassStage.register).start, _s(6));
+    });
+
+    test(
+      'a lane with nothing stacked shows the master an earlier lane wrote',
+      () {
+        final s = PassTimeline.fromLog(_twoLanes().log).at(_s(19.5));
+        expect(s.focusLane!.lane, 'R');
+        expect(s.image.$1, '/p/L_master.png');
+        expect(s.image.$2, contains('until R'));
+      },
+    );
+
     test('a later lane is timed from the first lane\'s measured rates', () {
       final tl = PassTimeline.fromLog(_twoLanes().log);
       final s = tl.at(_s(19.5));
       final reg = s.schedule.firstWhere(
         (x) => x.lane == 'R' && x.stage == PassStage.register,
       );
-      // L registered 4 subs in 6 s (4..10), so R's 4 subs take 6 s too.
-      expect(reg.end! - reg.start, _s(6));
+      // L registered 4 subs in 4 s (6..10, after its reference was picked),
+      // so R's 4 subs take 4 s too.
+      expect(reg.end! - reg.start, _s(4));
       expect(reg.estimated, isFalse);
     });
 
@@ -205,7 +224,8 @@ void main() {
         PassStepState.notRun,
       );
       final rates = tl.stageRates();
-      expect(rates['register'], closeTo(6 / 4, 1e-9));
+      expect(rates['register'], closeTo(4 / 4, 1e-9));
+      expect(rates['reference'], closeTo(2 / 4, 1e-9));
       expect(rates.containsKey('draft'), isFalse);
     });
 

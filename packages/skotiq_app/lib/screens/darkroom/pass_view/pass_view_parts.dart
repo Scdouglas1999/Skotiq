@@ -139,10 +139,11 @@ String passStatusSentence(PassSnapshot s) {
     case PassStage.calibrate:
       final note = lane.calibrationNote;
       return note == null ? head : '$head · $note';
+    case PassStage.reference:
+      return 'Picking the ${lane.lane} reference · measuring stars on '
+          '${lane.subCount} subs to find the best one';
     case PassStage.register:
-      if (done == 0) {
-        return '${span.stage.verb} ${lane.lane} · picking the reference sub';
-      }
+      if (done == 0) return head;
       final f = lane.frames[done - 1];
       if (!f.accepted) {
         return '$head · sub ${f.index} rejected: '

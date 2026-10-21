@@ -15,6 +15,7 @@ import 'pass_log.dart';
 /// The stages of a pass, in the order they run.
 enum PassStage {
   calibrate,
+  reference,
   register,
   normalize,
   integrate,
@@ -26,6 +27,7 @@ enum PassStage {
 
   String get label => switch (this) {
     PassStage.calibrate => 'Calibrate',
+    PassStage.reference => 'Pick reference',
     PassStage.register => 'Register',
     PassStage.normalize => 'Normalize',
     PassStage.integrate => 'Integrate',
@@ -39,6 +41,7 @@ enum PassStage {
   /// The present-tense verb for the status line.
   String get verb => switch (this) {
     PassStage.calibrate => 'Calibrating',
+    PassStage.reference => 'Picking the reference for',
     PassStage.register => 'Registering',
     PassStage.normalize => 'Normalizing',
     PassStage.integrate => 'Integrating',
@@ -348,10 +351,16 @@ class PassTimeline {
           final lane = current;
           if (lane == null) break;
           lane.span(PassStage.calibrate).end ??= at;
-          lane.span(PassStage.register).start ??= at;
+          lane.span(PassStage.reference)
+            ..start ??= at
+            ..total = lane.subCount;
         case PassKinds.referenceChosen:
           final lane = current;
           if (lane == null) break;
+          lane.span(PassStage.reference)
+            ..start ??= at
+            ..end = at;
+          lane.span(PassStage.register).start ??= at;
           lane
             ..referencePath = x['path'] as String?
             ..referenceAt = at;
@@ -362,6 +371,9 @@ class PassTimeline {
           if (lane == null) break;
           final reg = lane.span(PassStage.register);
           lane.span(PassStage.calibrate).end ??= at;
+          final pick = lane.span(PassStage.reference);
+          pick.start ??= lane.span(PassStage.calibrate).end;
+          pick.end ??= at;
           reg.start ??= at;
           reg.ticks.add(at);
           final f = frame(lane, i(x['index']) ?? reg.ticks.length);
@@ -680,6 +692,17 @@ class PassSnapshot {
         '${lane.lane} reference${ref == null ? '' : ', sub ${ref.index}'}'
             '${exp == null ? '' : ' · one ${exp.round()} s exposure'}',
       );
+    }
+    // A lane that has not stacked anything yet shows the newest master an
+    // earlier lane wrote, rather than an empty well.
+    for (final earlier in lanes.reversed) {
+      if (earlier == lane) continue;
+      if (written(earlier) && earlier.masterPreviewPath != null) {
+        return (
+          earlier.masterPreviewPath,
+          '${earlier.lane} master, until ${lane.lane} has subs stacked',
+        );
+      }
     }
     return (null, 'Nothing stacked yet');
   }

@@ -275,7 +275,8 @@ class _GanttPainter extends CustomPainter {
       }
     }
 
-    // Now.
+    // Now; a finished record has no now.
+    if (snapshot.ended) return;
     final nx = x(snapshot.elapsed);
     final now = Paint()
       ..color = colors.primary

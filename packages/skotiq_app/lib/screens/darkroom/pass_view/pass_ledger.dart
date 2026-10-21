@@ -106,10 +106,24 @@ class PassLedger extends StatelessWidget {
     _Col('Weight', 64),
   ];
 
+  /// The wide set without capture time, eccentricity and noise, for a column
+  /// too narrow to keep a readable status beside all ten.
+  static final List<_Col> _medium = <_Col>[
+    for (final c in _wide)
+      if (c.label != 'Taken' && c.label != 'Ecc.' && c.label != 'Noise') c,
+  ];
+
   @override
   Widget build(BuildContext context) {
+    if (compact) return _build(context, _narrow);
+    return LayoutBuilder(
+      builder: (context, c) =>
+          _build(context, c.maxWidth < 660 ? _medium : _wide),
+    );
+  }
+
+  Widget _build(BuildContext context, List<_Col> cols) {
     final colors = context.skotiqColors;
-    final cols = compact ? _narrow : _wide;
     final head = SkotiqTypography.captionSm.copyWith(color: colors.textMuted);
     final mono =
         SkotiqTypography.monoXs.copyWith(color: colors.textPrimary, height: 1);
