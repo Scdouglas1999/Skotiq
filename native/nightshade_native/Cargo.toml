@@ -46,7 +46,7 @@ chrono = { version = "0.4", features = ["serde"] }
 async-stream = "0.3"
 
 # HTTP client (for Alpaca)
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.13", features = ["json"] }
 
 # XML parsing
 quick-xml = "0.31"
