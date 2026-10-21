@@ -28,6 +28,7 @@ import 'dawn_draft_builder.dart';
 import 'dawn_master_resolver.dart';
 import 'dawn_morning_notifier.dart';
 import 'dawn_photometry.dart';
+import '../darkroom_pass/pass_providers.dart' show passReporterProvider;
 
 /// No directory is configured to write the night's drafts and report into.
 ///
@@ -104,6 +105,7 @@ final dawnAutopilotServiceProvider = Provider<DawnAutopilotService>((ref) {
     notifier: ref.watch(dawnMorningNotifierProvider),
     outputDirectory: () => _resolveOutputDirectory(SettingsDao(db)),
     logger: ref.watch(loggingServiceProvider),
+    passReporter: ref.watch(passReporterProvider),
   );
 });
 

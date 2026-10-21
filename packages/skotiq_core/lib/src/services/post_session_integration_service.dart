@@ -14,6 +14,8 @@ import '../models/imaging/integration_curve.dart';
 import '../models/imaging/integration_settings.dart';
 import '../models/calibration/calibration_library_models.dart';
 import 'calibration_library_service.dart';
+import 'darkroom_pass/pass_log.dart';
+import 'darkroom_pass/pass_providers.dart' show passReporterProvider;
 import 'color_calibration_service.dart';
 import 'plate_solve_service.dart';
 import 'post_session_seam.dart';
@@ -52,13 +54,19 @@ class PostSessionIntegrationService {
     required PostSessionSeam seam,
     MasterPlateSolver? plateSolver,
     MasterColorCalibrator? colorCalibrator,
-  }) : _mastersDao = mastersDao,
+    PassReporter? passReporter,
+  }) : _passReporter = passReporter,
+       _mastersDao = mastersDao,
        _calibrationLibrary = calibrationLibrary,
        _seam = seam,
        _plateSolver = plateSolver,
        _colorCalibrator = colorCalibrator;
 
   final IntegratedMastersDao _mastersDao;
+
+  /// Where the pass this integration belongs to is reported, for the
+  /// Darkroom pass view. Null reports nothing.
+  final PassReporter? _passReporter;
   final PostSessionSeam _seam;
 
   /// The single matcher for un-pinned masters: its transparent scoring drives
@@ -107,6 +115,10 @@ class PostSessionIntegrationService {
     double? hintRaHours,
     double? hintDecDegrees,
     String? runId,
+    int? sessionId,
+    int plannedDrafts = 0,
+    bool closePass = true,
+    String? passTitle,
   }) async {
     if (subs.isEmpty) {
       throw ArgumentError.value(subs, 'subs', 'must not be empty');
@@ -115,124 +127,203 @@ class PostSessionIntegrationService {
     final groups = _groupByFilter(subs);
     final outcomes = <PostSessionIntegrationOutcome>[];
 
-    for (final entry in groups.entries) {
-      final filterBucket = entry.key;
-      final groupSubs = entry.value;
-      final filterValue = filterBucket == noFilterBucket ? null : filterBucket;
+    // The pass view groups every report of this call under one run id, so a
+    // call without one gets its own.
+    final reporter = _passReporter;
+    final passRunId = (runId != null && runId.isNotEmpty)
+        ? runId
+        : 'integrate-${DateTime.now().millisecondsSinceEpoch}';
+    reporter?.report(passRunId, PassKinds.passPlanned, <String, dynamic>{
+      'target': ?(targetName ?? passTitle),
+      'sessionId': ?sessionId,
+      'lanes': <Map<String, dynamic>>[
+        for (final entry in groups.entries)
+          <String, dynamic>{
+            'lane': entry.key,
+            'subs': entry.value.length,
+            'exposure': entry.value.isEmpty
+                ? null
+                : entry.value.first.exposureDuration,
+          },
+      ],
+      'finishing': true,
+      'drafts': plannedDrafts,
+    });
+    final previewDir = reporter == null
+        ? null
+        : await reporter.previewDir(passRunId);
 
-      // A user-pinned calibration set bypasses auto-matching entirely (it is
-      // applied verbatim to every filter group); otherwise the Calibration
-      // Library / legacy DAOs pick the masters.
-      final calibration =
-          pinnedCalibration ??
-          await _resolveCalibration(
-            subs: groupSubs,
+    try {
+      for (final entry in groups.entries) {
+        outcomes.add(
+          await _integrateLane(
+            entry: entry,
+            settings: settings,
+            outputFitsPathBuilder: outputFitsPathBuilder,
+            targetId: targetId,
+            targetName: targetName,
             biasPath: biasPath,
-            cosmeticCorrection: settings.cosmeticCorrection,
-          );
-
-      final masterFitsPath = outputFitsPathBuilder(filterBucket);
-      final previewPath = generatePreview
-          ? _swapExtension(masterFitsPath, '.png')
-          : null;
-      final rejectionMapPath = settings.generateRejectionMap
-          ? _suffixBeforeExtension(masterFitsPath, '_rejmap')
-          : null;
-      final rejectionMapPreviewPath = rejectionMapPath == null
-          ? null
-          : _swapExtension(rejectionMapPath, '.png');
-
-      final reference = _chooseReferencePath(groupSubs);
-      final exposures = groupSubs
-          .map((s) => s.exposureDuration)
-          .toList(growable: false);
-
-      final args = <String, dynamic>{
-        'lightPaths': groupSubs.map((s) => s.filePath).toList(),
-        if (reference != null) 'reference': reference,
-        'exposuresSec': exposures,
-        'calibration': calibration.toBridgeJson(),
-        'settings': settings.toBridgeSettings(),
-        // A run started without a run id is not cancellable, and the native
-        // side says so rather than pretending. With one,
-        // `api_post_session_cancel` stops it at the next stage boundary and no
-        // master is written. Every filter group of one call shares the id, so
-        // one cancellation ends the night's integration rather than one group
-        // of it.
-        if (runId != null && runId.isNotEmpty) 'runId': runId,
-        'output': {
-          'masterFitsPath': masterFitsPath,
-          if (previewPath != null) 'previewPngPath': previewPath,
-          if (rejectionMapPath != null) 'rejectionMapPath': rejectionMapPath,
-          if (rejectionMapPreviewPath != null)
-            'rejectionMapPreviewPath': rejectionMapPreviewPath,
-        },
-      };
-
-      var result = await _seam.integrateSession(args);
-
-      final masterId = await _persist(
-        targetId: targetId,
-        targetName: targetName,
-        filter: filterValue,
-        settings: settings,
-        result: result,
-        subs: groupSubs,
-        calibrationWarnings: calibration.warnings,
-      );
-
-      // Smart Morning Report extensions: the marginal-SNR improvement curve and
-      // the optional catalog/finishing passes. Both are best-effort and never
-      // abort the (already-committed) master persist — a curve/finishing
-      // failure leaves a perfectly good master row, just without the extras.
-      await _analyzeAndStoreCurve(
-        masterId: masterId,
-        result: result,
-        settings: settings,
-      );
-      // Drizzle branch: when enabled, re-deposit each accepted sub's raw pixels
-      // onto a finer output grid using its source→reference registration
-      // transform (surfaced per-frame above), then swap the drizzled FITS in as
-      // the persisted master so everything downstream (hero, overlay, WCS solve,
-      // finishing) sees the drizzled result. Fail-soft — a drizzle failure
-      // leaves the already-committed standard master untouched. May rewrite
-      // `result` so the WCS solve + finishing target the drizzled FITS + its
-      // scaled dimensions.
-      result = await _runDrizzle(
-        masterId: masterId,
-        result: result,
-        settings: settings,
-        calibration: calibration,
-      );
-      // Plate-solve the finished (possibly drizzled) master FITS and persist its
-      // WCS. Fail-soft: a missing solver / failed solve leaves the master
-      // un-annotatable (annotation + colour calibration stay skipped) but never
-      // aborts the already-committed persist. Solve BEFORE the optional finishing
-      // passes so the colour-calibration gate has the WCS the catalog match needs.
-      final wcs = await _solveAndStoreWcs(
-        masterId: masterId,
-        result: result,
-        hintRaHours: hintRaHours,
-        hintDecDegrees: hintDecDegrees,
-      );
-      await _runOptionalFinishing(
-        masterId: masterId,
-        result: result,
-        settings: settings,
-        wcs: wcs,
-      );
-
-      outcomes.add(
-        PostSessionIntegrationOutcome(
-          masterId: masterId,
-          filter: filterValue,
-          result: result,
-          calibrationWarnings: calibration.warnings,
-        ),
-      );
+            pinnedCalibration: pinnedCalibration,
+            generatePreview: generatePreview,
+            hintRaHours: hintRaHours,
+            hintDecDegrees: hintDecDegrees,
+            passRunId: passRunId,
+            previewDir: previewDir,
+          ),
+        );
+      }
+    } catch (error) {
+      reporter?.report(passRunId, PassKinds.passEnded, <String, dynamic>{
+        'ok': false,
+        'error': '$error'.split('\n').first,
+      });
+      rethrow;
     }
-
+    if (closePass) {
+      reporter?.report(passRunId, PassKinds.passEnded, <String, dynamic>{
+        'ok': true,
+      });
+    }
     return outcomes;
+  }
+
+  /// One filter group of [integrate]: integrate, persist, then the
+  /// best-effort extras, reporting the lane to the pass view.
+  Future<PostSessionIntegrationOutcome> _integrateLane({
+    required MapEntry<String, List<CapturedImage>> entry,
+    required IntegrationSettings settings,
+    required String Function(String filterBucket) outputFitsPathBuilder,
+    required int? targetId,
+    required String? targetName,
+    required String? biasPath,
+    required ResolvedCalibration? pinnedCalibration,
+    required bool generatePreview,
+    required double? hintRaHours,
+    required double? hintDecDegrees,
+    required String passRunId,
+    required String? previewDir,
+  }) async {
+    final reporter = _passReporter;
+    final filterBucket = entry.key;
+    final groupSubs = entry.value;
+    final filterValue = filterBucket == noFilterBucket ? null : filterBucket;
+
+    // A user-pinned calibration set bypasses auto-matching entirely (it is
+    // applied verbatim to every filter group); otherwise the Calibration
+    // Library / legacy DAOs pick the masters.
+    final calibration =
+        pinnedCalibration ??
+        await _resolveCalibration(
+          subs: groupSubs,
+          biasPath: biasPath,
+          cosmeticCorrection: settings.cosmeticCorrection,
+        );
+
+    final masterFitsPath = outputFitsPathBuilder(filterBucket);
+    final previewPath = generatePreview
+        ? _swapExtension(masterFitsPath, '.png')
+        : null;
+    final rejectionMapPath = settings.generateRejectionMap
+        ? _suffixBeforeExtension(masterFitsPath, '_rejmap')
+        : null;
+    final rejectionMapPreviewPath = rejectionMapPath == null
+        ? null
+        : _swapExtension(rejectionMapPath, '.png');
+
+    final reference = _chooseReferencePath(groupSubs);
+    final exposures = groupSubs
+        .map((s) => s.exposureDuration)
+        .toList(growable: false);
+
+    final args = <String, dynamic>{
+      'lightPaths': groupSubs.map((s) => s.filePath).toList(),
+      if (reference != null) 'reference': reference,
+      'exposuresSec': exposures,
+      'calibration': calibration.toBridgeJson(),
+      'settings': settings.toBridgeSettings(),
+      // A run started without a run id is not cancellable, and the native
+      // side says so rather than pretending. With one,
+      // `api_post_session_cancel` stops it at the next stage boundary and no
+      // master is written. Every filter group of one call shares the id, so
+      // one cancellation ends the night's integration rather than one group
+      // of it.
+      'runId': passRunId,
+      'telemetry': {'lane': filterBucket, 'previewDir': ?previewDir},
+      'output': {
+        'masterFitsPath': masterFitsPath,
+        if (previewPath != null) 'previewPngPath': previewPath,
+        if (rejectionMapPath != null) 'rejectionMapPath': rejectionMapPath,
+        if (rejectionMapPreviewPath != null)
+          'rejectionMapPreviewPath': rejectionMapPreviewPath,
+      },
+    };
+
+    var result = await _seam.integrateSession(args);
+    reporter?.report(passRunId, PassKinds.laneFinishing, <String, dynamic>{
+      'lane': filterBucket,
+    });
+
+    final masterId = await _persist(
+      targetId: targetId,
+      targetName: targetName,
+      filter: filterValue,
+      settings: settings,
+      result: result,
+      subs: groupSubs,
+      calibrationWarnings: calibration.warnings,
+    );
+
+    // Smart Morning Report extensions: the marginal-SNR improvement curve and
+    // the optional catalog/finishing passes. Both are best-effort and never
+    // abort the (already-committed) master persist — a curve/finishing
+    // failure leaves a perfectly good master row, just without the extras.
+    await _analyzeAndStoreCurve(
+      masterId: masterId,
+      result: result,
+      settings: settings,
+    );
+    // Drizzle branch: when enabled, re-deposit each accepted sub's raw pixels
+    // onto a finer output grid using its source→reference registration
+    // transform (surfaced per-frame above), then swap the drizzled FITS in as
+    // the persisted master so everything downstream (hero, overlay, WCS solve,
+    // finishing) sees the drizzled result. Fail-soft — a drizzle failure
+    // leaves the already-committed standard master untouched. May rewrite
+    // `result` so the WCS solve + finishing target the drizzled FITS + its
+    // scaled dimensions.
+    result = await _runDrizzle(
+      masterId: masterId,
+      result: result,
+      settings: settings,
+      calibration: calibration,
+    );
+    // Plate-solve the finished (possibly drizzled) master FITS and persist its
+    // WCS. Fail-soft: a missing solver / failed solve leaves the master
+    // un-annotatable (annotation + colour calibration stay skipped) but never
+    // aborts the already-committed persist. Solve BEFORE the optional finishing
+    // passes so the colour-calibration gate has the WCS the catalog match needs.
+    final wcs = await _solveAndStoreWcs(
+      masterId: masterId,
+      result: result,
+      hintRaHours: hintRaHours,
+      hintDecDegrees: hintDecDegrees,
+    );
+    await _runOptionalFinishing(
+      masterId: masterId,
+      result: result,
+      settings: settings,
+      wcs: wcs,
+    );
+
+    reporter?.report(passRunId, PassKinds.laneFinished, <String, dynamic>{
+      'lane': filterBucket,
+      'ok': true,
+    });
+    return PostSessionIntegrationOutcome(
+      masterId: masterId,
+      filter: filterValue,
+      result: result,
+      calibrationWarnings: calibration.warnings,
+    );
   }
 
   /// Run a **throwaway, non-persisting** integration of the accepted light
@@ -317,6 +408,7 @@ final postSessionIntegrationServiceProvider = Provider<PostSessionIntegrationSer
   ref,
 ) {
   return PostSessionIntegrationService(
+    passReporter: ref.watch(passReporterProvider),
     mastersDao: ref.watch(integratedMastersDaoProvider),
     seam: ref.watch(postSessionSeamProvider),
     // Calibration Library Manager: routes un-pinned master selection through

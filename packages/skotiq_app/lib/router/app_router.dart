@@ -298,6 +298,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (context, state) {
               final recipeParam = state.uri.queryParameters['recipe'];
               final masterParam = state.uri.queryParameters['master'];
+              final passParam = state.uri.queryParameters['pass'];
               final recipeId =
                   recipeParam == null ? null : int.tryParse(recipeParam);
               final masterId =
@@ -308,7 +309,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       ? DarkroomScope.recipe(recipeId)
                       : (masterId != null
                           ? DarkroomScope.master(masterId)
-                          : const DarkroomScope.empty()),
+                          : (passParam != null && passParam.isNotEmpty
+                              ? DarkroomScope.pass(passParam)
+                              : const DarkroomScope.empty())),
                 ),
                 transitionsBuilder: PageTransitions.slideFadeTransition,
                 transitionDuration: const Duration(milliseconds: 300),

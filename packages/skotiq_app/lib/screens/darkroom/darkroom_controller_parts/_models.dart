@@ -14,7 +14,13 @@ class DarkroomScope {
   /// `integrated_masters.id` whose recipes are offered, or null.
   final int? masterId;
 
-  const DarkroomScope({this.recipeId, this.masterId});
+  /// The run id of a pass to show, or null.
+  final String? passRunId;
+
+  const DarkroomScope({this.recipeId, this.masterId, this.passRunId});
+
+  /// A pass, live or recorded.
+  const DarkroomScope.pass(String runId) : this(passRunId: runId);
 
   /// A recipe opened by row id.
   const DarkroomScope.recipe(int id) : this(recipeId: id);
@@ -27,20 +33,22 @@ class DarkroomScope {
   const DarkroomScope.empty() : this();
 
   /// True when neither id was supplied.
-  bool get isEmpty => recipeId == null && masterId == null;
+  bool get isEmpty => recipeId == null && masterId == null && passRunId == null;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is DarkroomScope &&
           other.recipeId == recipeId &&
-          other.masterId == masterId;
+          other.masterId == masterId &&
+          other.passRunId == passRunId;
 
   @override
-  int get hashCode => Object.hash(recipeId, masterId);
+  int get hashCode => Object.hash(recipeId, masterId, passRunId);
 
   @override
-  String toString() => 'DarkroomScope(recipe=$recipeId, master=$masterId)';
+  String toString() =>
+      'DarkroomScope(recipe=$recipeId, master=$masterId, pass=$passRunId)';
 }
 
 /// One operation invocation in the edited recipe.

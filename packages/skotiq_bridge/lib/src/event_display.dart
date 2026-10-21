@@ -267,6 +267,7 @@ String _imagingTitle(ImagingEvent v) {
     ImagingEvent_ImageReady() => 'Image ready',
     ImagingEvent_ImageSaved() => 'Image saved',
     ImagingEvent_IntegrationProgress() => 'Integration progress',
+    ImagingEvent_IntegrationTelemetry() => 'Integration report',
     ImagingEvent_TemperatureChanged() => 'Camera temperature',
     ImagingEvent_ExposureComplete() => 'Exposure complete',
     ImagingEvent_ExposureFailedOld() => 'Exposure failed',
@@ -305,6 +306,7 @@ String _imagingDetail(ImagingEvent v) {
     ImagingEvent_DownloadCompleted() => '',
     ImagingEvent_ImageReady(width: final w, height: final h) => '$w × $h',
     ImagingEvent_ImageSaved(filePath: final p) => p,
+    ImagingEvent_IntegrationTelemetry(kind: final kind) => kind,
     ImagingEvent_IntegrationProgress(
       phase: final phase,
       fraction: final f,

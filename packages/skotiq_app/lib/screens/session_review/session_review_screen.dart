@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../utils/darkroom_navigation.dart';
 import 'auto_integration_service.dart';
 import 'narrative_view.dart';
 import 'session_review_controller.dart';
@@ -413,7 +415,14 @@ class _SessionReviewScreenState extends ConsumerState<SessionReviewScreen> {
             // long-running run is reporting progress.
             if (progress != null)
               _ProgressStrip(
-                  phase: progress.phase, fraction: progress.fraction),
+                phase: progress.phase,
+                fraction: progress.fraction,
+                passRunId: widget.scope.sessionId == null
+                    ? null
+                    : ref
+                        .read(darkroomPassRecorderProvider)
+                        .runningForSession(widget.scope.sessionId!),
+              ),
             Expanded(
               child: state.loading
                   ? const Center(
@@ -438,7 +447,14 @@ class _ProgressStrip extends StatelessWidget {
   final String phase;
   final double fraction;
 
-  const _ProgressStrip({required this.phase, required this.fraction});
+  /// The pass this run reports to, opened by Watch; null hides it.
+  final String? passRunId;
+
+  const _ProgressStrip({
+    required this.phase,
+    required this.fraction,
+    this.passRunId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -453,12 +469,28 @@ class _ProgressStrip extends StatelessWidget {
         horizontal: SkotiqTokens.spaceLg,
         vertical: SkotiqTokens.spaceMd,
       ),
-      child: SkotiqProgressBar(
-        value: fraction.clamp(0.0, 1.0),
-        style: SkotiqProgressStyle.standard,
-        state: SkotiqProgressState.normal,
-        label: _phaseLabel(phase),
-        showPercentage: true,
+      child: Row(
+        children: [
+          Expanded(
+            child: SkotiqProgressBar(
+              value: fraction.clamp(0.0, 1.0),
+              style: SkotiqProgressStyle.standard,
+              state: SkotiqProgressState.normal,
+              label: _phaseLabel(phase),
+              showPercentage: true,
+            ),
+          ),
+          if (passRunId != null) ...[
+            const SizedBox(width: SkotiqTokens.spaceMd),
+            SkotiqButton(
+              label: 'Watch in the Darkroom',
+              icon: SkotiqIcons.aperture,
+              variant: ButtonVariant.secondary,
+              size: ButtonSize.small,
+              onPressed: () => context.push(darkroomPassLocation(passRunId!)),
+            ),
+          ],
+        ],
       ),
     );
   }

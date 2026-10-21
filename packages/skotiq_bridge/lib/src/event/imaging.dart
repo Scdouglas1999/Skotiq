@@ -75,6 +75,17 @@ sealed class ImagingEvent with _$ImagingEvent {
     /// Total frames in the current phase (`None` when N/A).
     int? framesTotal,
   }) = ImagingEvent_IntegrationProgress;
+
+  /// One report from a post-session integration pass for the Darkroom pass
+  /// view: the caller's `run_id`, what happened (`kind`, see
+  /// `api::post_session::telemetry`), and its details as a JSON object. The
+  /// details travel as a string so a new field never needs a bridge
+  /// regeneration.
+  const factory ImagingEvent.integrationTelemetry({
+    required String runId,
+    required String kind,
+    required String detailJson,
+  }) = ImagingEvent_IntegrationTelemetry;
   const factory ImagingEvent.temperatureChanged({
     required double tempCelsius,
     required double coolerPower,

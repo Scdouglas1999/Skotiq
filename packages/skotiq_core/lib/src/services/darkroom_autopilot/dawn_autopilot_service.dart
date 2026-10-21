@@ -54,6 +54,7 @@ import 'dawn_job_report.dart';
 import 'dawn_master_resolver.dart';
 import 'dawn_morning_notifier.dart';
 import 'dawn_photometry.dart';
+import '../darkroom_pass/pass_log.dart';
 
 /// What one dawn job did.
 class DawnJobOutcome {
@@ -151,6 +152,10 @@ class DawnAutopilotService {
   final DawnMorningNotifier _notifier;
   final Future<String> Function() _outputDirectory;
   final LoggingService? _logger;
+
+  /// Where the drafts stage of a session's pass is reported, for the
+  /// Darkroom pass view.
+  final PassReporter? _passReporter;
   final DateTime Function() _clock;
 
   /// Job ids the operator has asked to stop. Membership outlives any one
@@ -217,6 +222,7 @@ class DawnAutopilotService {
     required DawnMorningNotifier notifier,
     required Future<String> Function() outputDirectory,
     LoggingService? logger,
+    PassReporter? passReporter,
     DateTime Function()? clock,
   }) : _jobs = jobs,
        _recipes = recipes,
@@ -230,6 +236,7 @@ class DawnAutopilotService {
        _notifier = notifier,
        _outputDirectory = outputDirectory,
        _logger = logger,
+       _passReporter = passReporter,
        _clock = clock ?? DateTime.now;
 
   /// The cancellation handle the native side knows [jobId] by.
@@ -648,83 +655,108 @@ class DawnAutopilotService {
       );
     }
 
-    try {
-      return await _drive(
-        jobId: jobId,
-        kind: job.kind,
-        sessionId: sessionId,
-        startedAt: startedAt,
-        pass: running.attempts,
-      );
-    } on _DawnCancelled catch (stop) {
-      final cancelled = await _jobs.markCancelled(
-        jobId,
-        reason: 'Stopped on request during ${stop.where}',
-        now: _clock(),
-      );
-      return DawnJobOutcome(
-        jobId: jobId,
-        state: cancelled.state,
-        report: null,
-        reportPath: null,
-        failure: cancelled.errorText,
-      );
-    } on DarkroomCancelledOutcome catch (stop) {
-      final cancelled = await _jobs.markCancelled(
-        jobId,
-        reason: 'Stopped on request during the ${stop.phase} phase',
-        now: _clock(),
-      );
-      return DawnJobOutcome(
-        jobId: jobId,
-        state: cancelled.state,
-        report: null,
-        reportPath: null,
-        failure: cancelled.errorText,
-      );
-    } on DarkroomJobNotRunningException catch (lost) {
-      // Something else moved the row out from under this executor. Report it;
-      // do not write over whatever decided the job's fate.
-      _logger?.warning(
-        'The dawn job left this executor before it finished',
-        source: 'DawnAutopilotService',
-        fields: {'jobId': jobId, 'state': lost.state.wire},
-      );
-      return DawnJobOutcome(
-        jobId: jobId,
-        state: lost.state,
-        report: null,
-        reportPath: null,
-        failure: '$lost',
-      );
-    } catch (error, stack) {
-      final stage = _stage[jobId] ?? 'running the dawn pass';
-      // The exception, its type and its stack go here — the log is where a
-      // `SqliteException` with its causing statement belongs. The row gets the
-      // sentence below, which names the stage that stopped.
-      _logger?.error(
-        'The dawn job failed while $stage',
-        source: 'DawnAutopilotService',
-        fields: {
-          'jobId': jobId,
-          'stage': stage,
-          'errorType': error.runtimeType.toString(),
-          'error': '$error',
-          'stack': '$stack',
-        },
-      );
-      final failed = await _markFailed(jobId, _failureSentence(stage, error));
-      return DawnJobOutcome(
-        jobId: jobId,
-        state: failed.state,
-        report: null,
-        reportPath: null,
-        failure: failed.errorText,
-      );
-    } finally {
-      _cancelRequested.remove(jobId);
-      _stage.remove(jobId);
+    // The drafts are a stage of the session's pass in the Darkroom pass view;
+    // a pass this job had to start for itself is also ended by it.
+    final reporter = _passReporter;
+    final ownsPass =
+        reporter != null && reporter.runningForSession(sessionId) == null;
+    Future<DawnJobOutcome> guarded() async {
+      try {
+        return await _drive(
+          jobId: jobId,
+          kind: job.kind,
+          sessionId: sessionId,
+          startedAt: startedAt,
+          pass: running.attempts,
+        );
+      } on _DawnCancelled catch (stop) {
+        final cancelled = await _jobs.markCancelled(
+          jobId,
+          reason: 'Stopped on request during ${stop.where}',
+          now: _clock(),
+        );
+        return DawnJobOutcome(
+          jobId: jobId,
+          state: cancelled.state,
+          report: null,
+          reportPath: null,
+          failure: cancelled.errorText,
+        );
+      } on DarkroomCancelledOutcome catch (stop) {
+        final cancelled = await _jobs.markCancelled(
+          jobId,
+          reason: 'Stopped on request during the ${stop.phase} phase',
+          now: _clock(),
+        );
+        return DawnJobOutcome(
+          jobId: jobId,
+          state: cancelled.state,
+          report: null,
+          reportPath: null,
+          failure: cancelled.errorText,
+        );
+      } on DarkroomJobNotRunningException catch (lost) {
+        // Something else moved the row out from under this executor. Report it;
+        // do not write over whatever decided the job's fate.
+        _logger?.warning(
+          'The dawn job left this executor before it finished',
+          source: 'DawnAutopilotService',
+          fields: {'jobId': jobId, 'state': lost.state.wire},
+        );
+        return DawnJobOutcome(
+          jobId: jobId,
+          state: lost.state,
+          report: null,
+          reportPath: null,
+          failure: '$lost',
+        );
+      } catch (error, stack) {
+        final stage = _stage[jobId] ?? 'running the dawn pass';
+        // The exception, its type and its stack go here — the log is where a
+        // `SqliteException` with its causing statement belongs. The row gets the
+        // sentence below, which names the stage that stopped.
+        _logger?.error(
+          'The dawn job failed while $stage',
+          source: 'DawnAutopilotService',
+          fields: {
+            'jobId': jobId,
+            'stage': stage,
+            'errorType': error.runtimeType.toString(),
+            'error': '$error',
+            'stack': '$stack',
+          },
+        );
+        final failed = await _markFailed(jobId, _failureSentence(stage, error));
+        return DawnJobOutcome(
+          jobId: jobId,
+          state: failed.state,
+          report: null,
+          reportPath: null,
+          failure: failed.errorText,
+        );
+      } finally {
+        _cancelRequested.remove(jobId);
+        _stage.remove(jobId);
+      }
     }
+
+    final outcome = await guarded();
+    if (reporter != null) {
+      final ok = outcome.failure == null;
+      reporter.reportForSession(sessionId, PassKinds.stage, <String, dynamic>{
+        'stage': 'draft',
+        'state': ok ? 'done' : 'failed',
+        'error': ?outcome.failure,
+      });
+      if (ownsPass) {
+        reporter.reportForSession(
+          sessionId,
+          PassKinds.passEnded,
+          <String, dynamic>{'ok': ok, 'error': ?outcome.failure},
+        );
+      }
+    }
+    return outcome;
   }
 
   /// The operator-facing sentence for a stopped job: the stage that stopped,
@@ -838,6 +870,15 @@ class DawnAutopilotService {
 
     var reports = <DawnMasterReport>[];
 
+    _passReporter?.reportForSession(
+      sessionId,
+      PassKinds.stage,
+      <String, dynamic>{
+        'stage': 'draft',
+        'state': 'started',
+        'total': set.masters.length,
+      },
+    );
     for (var index = 0; index < set.masters.length; index++) {
       _stopIfCancelled(jobId, 'master ${index + 1} of ${set.masters.length}');
       final master = set.masters[index];
@@ -857,6 +898,13 @@ class DawnAutopilotService {
           directory: baseDirectory,
         ),
       );
+      _passReporter
+          ?.reportForSession(sessionId, PassKinds.stage, <String, dynamic>{
+            'stage': 'draft',
+            'state': 'step',
+            'name': master.name,
+            'previewPath': ?reports.last.draftRenderPath,
+          });
     }
 
     // PER-MASTER ACCOUNTING, IN TWO READINGS. Only the masters whose pixels

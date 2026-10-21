@@ -19,7 +19,19 @@ use super::*;
 pub fn api_integrate_session(args_json: String) -> Result<String, String> {
     let args: IntegrateSessionArgs =
         serde_json::from_str(&args_json).map_err(|e| format!("invalid integrate args: {e}"))?;
-    let result = integrate_session(args)?;
+    let run_id = args.run_id.clone();
+    let lane = args.telemetry.lane.clone();
+    let result = integrate_session(args);
+    emit_pass_telemetry(
+        &run_id,
+        "run_ended",
+        serde_json::json!({
+            "lane": lane,
+            "ok": result.is_ok(),
+            "error": result.as_ref().err(),
+        }),
+    );
+    let result = result?;
     serde_json::to_string(&result).map_err(|e| format!("failed to encode result: {e}"))
 }
 

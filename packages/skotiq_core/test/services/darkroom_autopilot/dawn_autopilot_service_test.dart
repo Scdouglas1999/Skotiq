@@ -458,9 +458,11 @@ void main() {
     List<Star> catalog = const [],
     DarkroomJobsDao? jobs,
     LoggingService? logger,
+    PassReporter? passReporter,
   }) {
     return DawnAutopilotService(
       logger: logger,
+      passReporter: passReporter,
       jobs: jobs ?? DarkroomJobsDao(db),
       recipes: RecipesDao(db),
       masters: IntegratedMastersDao(db),
@@ -497,6 +499,31 @@ void main() {
   tearDown(() async {
     await db.close();
     if (workspace.existsSync()) workspace.deleteSync(recursive: true);
+  });
+
+  test('the drafts report as a stage of the session\'s pass, which a job '
+      'with no pass running starts and ends itself', () async {
+    final sessionId = await insertSession();
+    final targetId = await insertTarget('M42');
+    final imageId = await insertSub(sessionId: sessionId, targetId: targetId);
+    await insertMaster(imageIds: [imageId], targetId: targetId);
+    final recorder = DarkroomPassRecorder(
+      events: const Stream<SkotiqEvent>.empty(),
+      baseDirectory: () async => workspace.path,
+    );
+    addTearDown(recorder.dispose);
+
+    await buildService(passReporter: recorder).runDawnForSession(sessionId);
+
+    final records = await recorder.records();
+    final log = recorder.live(records.single.runId)!;
+    final stages = <String>[
+      for (final e in log.entries)
+        if (e.kind == PassKinds.stage) '${e.detail['state']}',
+    ];
+    expect(stages, ['started', 'step', 'done']);
+    expect(log.ended, isTrue);
+    expect(log.plan!['sessionId'], sessionId);
   });
 
   test(

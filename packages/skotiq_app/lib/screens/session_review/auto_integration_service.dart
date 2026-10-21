@@ -414,6 +414,16 @@ class AutoIntegrationService {
                   targetId: targetId,
                   targetName: targetName,
                   runId: integrationRunIdFor(sessionId),
+                  sessionId: sessionId,
+                  // The drafts that follow belong to the same pass, which the
+                  // Darkroom pass below ends.
+                  plannedDrafts: autoDraft
+                      ? batchSubs
+                          .map((sub) => _filterBucketOf(sub.filter))
+                          .toSet()
+                          .length
+                      : 0,
+                  closePass: !autoDraft,
                   outputFitsPathBuilder: (filterBucket) => _masterPath(
                     outDir: outDir,
                     targetName: targetName,
@@ -478,6 +488,17 @@ class AutoIntegrationService {
     // separate "master ready" push minutes earlier would be the same night
     // announced twice.
     final darkroom = await _runDarkroom(sessionId, autoDraft: autoDraft);
+    if (autoDraft && batchMasters > 0) {
+      final failure = darkroom.outcome?.failure ?? darkroom.skippedReason;
+      _ref.read(passReporterProvider).reportForSession(
+        sessionId,
+        PassKinds.passEnded,
+        <String, dynamic>{
+          'ok': failure == null,
+          if (failure != null) 'error': failure,
+        },
+      );
+    }
 
     await _afterSuccess(
       sessionId: sessionId,

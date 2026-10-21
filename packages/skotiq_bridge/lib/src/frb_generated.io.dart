@@ -5669,23 +5669,33 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       wireObj.kind.IntegrationProgress.frames_total = pre_frames_total;
       return;
     }
+    if (apiObj is ImagingEvent_IntegrationTelemetry) {
+      var pre_run_id = cst_encode_String(apiObj.runId);
+      var pre_kind = cst_encode_String(apiObj.kind);
+      var pre_detail_json = cst_encode_String(apiObj.detailJson);
+      wireObj.tag = 12;
+      wireObj.kind.IntegrationTelemetry.run_id = pre_run_id;
+      wireObj.kind.IntegrationTelemetry.kind = pre_kind;
+      wireObj.kind.IntegrationTelemetry.detail_json = pre_detail_json;
+      return;
+    }
     if (apiObj is ImagingEvent_TemperatureChanged) {
       var pre_temp_celsius = cst_encode_f_64(apiObj.tempCelsius);
       var pre_cooler_power = cst_encode_f_64(apiObj.coolerPower);
-      wireObj.tag = 12;
+      wireObj.tag = 13;
       wireObj.kind.TemperatureChanged.temp_celsius = pre_temp_celsius;
       wireObj.kind.TemperatureChanged.cooler_power = pre_cooler_power;
       return;
     }
     if (apiObj is ImagingEvent_ExposureComplete) {
       var pre_success = cst_encode_bool(apiObj.success);
-      wireObj.tag = 13;
+      wireObj.tag = 14;
       wireObj.kind.ExposureComplete.success = pre_success;
       return;
     }
     if (apiObj is ImagingEvent_ExposureFailedOld) {
       var pre_reason = cst_encode_String(apiObj.reason);
-      wireObj.tag = 14;
+      wireObj.tag = 15;
       wireObj.kind.ExposureFailedOld.reason = pre_reason;
       return;
     }
@@ -24202,6 +24212,14 @@ final class wire_cst_ImagingEvent_IntegrationProgress extends ffi.Struct {
   external ffi.Pointer<ffi.Uint32> frames_total;
 }
 
+final class wire_cst_ImagingEvent_IntegrationTelemetry extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> run_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> detail_json;
+}
+
 final class wire_cst_ImagingEvent_TemperatureChanged extends ffi.Struct {
   @ffi.Double()
   external double temp_celsius;
@@ -24239,6 +24257,8 @@ final class ImagingEventKind extends ffi.Union {
   external wire_cst_ImagingEvent_ImageSaved ImageSaved;
 
   external wire_cst_ImagingEvent_IntegrationProgress IntegrationProgress;
+
+  external wire_cst_ImagingEvent_IntegrationTelemetry IntegrationTelemetry;
 
   external wire_cst_ImagingEvent_TemperatureChanged TemperatureChanged;
 

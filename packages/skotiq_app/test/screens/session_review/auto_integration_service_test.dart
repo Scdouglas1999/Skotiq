@@ -78,6 +78,10 @@ class _FakeIntegrationService implements PostSessionIntegrationService {
     double? hintRaHours,
     double? hintDecDegrees,
     String? runId,
+    int? sessionId,
+    int plannedDrafts = 0,
+    bool closePass = true,
+    String? passTitle,
   }) async {
     calls.add(subs);
     runIds.add(runId);

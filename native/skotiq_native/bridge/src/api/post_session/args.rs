@@ -211,6 +211,8 @@ pub(crate) struct IntegrateSessionArgs {
     pub(crate) calibration: CalibrationArgs,
     pub(crate) settings: IntegrationSettingsArgs,
     pub(crate) output: OutputArgs,
+    /// What the run reports to the Darkroom pass view.
+    pub(crate) telemetry: TelemetryArgs,
 }
 
 /// Per-frame record returned to Dart for the cull UI.

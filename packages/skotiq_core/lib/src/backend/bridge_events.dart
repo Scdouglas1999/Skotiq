@@ -114,6 +114,7 @@ export 'package:skotiq_bridge/skotiq_bridge.dart'
         ImagingEvent_ImageReady,
         ImagingEvent_ImageSaved,
         ImagingEvent_IntegrationProgress,
+        ImagingEvent_IntegrationTelemetry,
         ImagingEvent_TemperatureChanged,
         ImagingEvent_ExposureComplete,
         ImagingEvent_ExposureFailedOld,

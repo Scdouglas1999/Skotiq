@@ -18493,13 +18493,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           framesTotal: dco_decode_opt_box_autoadd_u_32(raw[4]),
         );
       case 12:
+        return ImagingEvent_IntegrationTelemetry(
+          runId: dco_decode_String(raw[1]),
+          kind: dco_decode_String(raw[2]),
+          detailJson: dco_decode_String(raw[3]),
+        );
+      case 13:
         return ImagingEvent_TemperatureChanged(
           tempCelsius: dco_decode_f_64(raw[1]),
           coolerPower: dco_decode_f_64(raw[2]),
         );
-      case 13:
-        return ImagingEvent_ExposureComplete(success: dco_decode_bool(raw[1]));
       case 14:
+        return ImagingEvent_ExposureComplete(success: dco_decode_bool(raw[1]));
+      case 15:
         return ImagingEvent_ExposureFailedOld(
           reason: dco_decode_String(raw[1]),
         );
@@ -23274,16 +23280,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           framesTotal: var_framesTotal,
         );
       case 12:
+        var var_runId = sse_decode_String(deserializer);
+        var var_kind = sse_decode_String(deserializer);
+        var var_detailJson = sse_decode_String(deserializer);
+        return ImagingEvent_IntegrationTelemetry(
+          runId: var_runId,
+          kind: var_kind,
+          detailJson: var_detailJson,
+        );
+      case 13:
         var var_tempCelsius = sse_decode_f_64(deserializer);
         var var_coolerPower = sse_decode_f_64(deserializer);
         return ImagingEvent_TemperatureChanged(
           tempCelsius: var_tempCelsius,
           coolerPower: var_coolerPower,
         );
-      case 13:
+      case 14:
         var var_success = sse_decode_bool(deserializer);
         return ImagingEvent_ExposureComplete(success: var_success);
-      case 14:
+      case 15:
         var var_reason = sse_decode_String(deserializer);
         return ImagingEvent_ExposureFailedOld(reason: var_reason);
       default:
@@ -28587,18 +28602,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_f_32(fraction, serializer);
         sse_encode_opt_box_autoadd_u_32(framesDone, serializer);
         sse_encode_opt_box_autoadd_u_32(framesTotal, serializer);
+      case ImagingEvent_IntegrationTelemetry(
+        runId: final runId,
+        kind: final kind,
+        detailJson: final detailJson,
+      ):
+        sse_encode_i_32(12, serializer);
+        sse_encode_String(runId, serializer);
+        sse_encode_String(kind, serializer);
+        sse_encode_String(detailJson, serializer);
       case ImagingEvent_TemperatureChanged(
         tempCelsius: final tempCelsius,
         coolerPower: final coolerPower,
       ):
-        sse_encode_i_32(12, serializer);
+        sse_encode_i_32(13, serializer);
         sse_encode_f_64(tempCelsius, serializer);
         sse_encode_f_64(coolerPower, serializer);
       case ImagingEvent_ExposureComplete(success: final success):
-        sse_encode_i_32(13, serializer);
+        sse_encode_i_32(14, serializer);
         sse_encode_bool(success, serializer);
       case ImagingEvent_ExposureFailedOld(reason: final reason):
-        sse_encode_i_32(14, serializer);
+        sse_encode_i_32(15, serializer);
         sse_encode_String(reason, serializer);
     }
   }

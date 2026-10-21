@@ -923,6 +923,12 @@ typedef struct wire_cst_ImagingEvent_IntegrationProgress {
   uint32_t *frames_total;
 } wire_cst_ImagingEvent_IntegrationProgress;
 
+typedef struct wire_cst_ImagingEvent_IntegrationTelemetry {
+  struct wire_cst_list_prim_u_8_strict *run_id;
+  struct wire_cst_list_prim_u_8_strict *kind;
+  struct wire_cst_list_prim_u_8_strict *detail_json;
+} wire_cst_ImagingEvent_IntegrationTelemetry;
+
 typedef struct wire_cst_ImagingEvent_TemperatureChanged {
   double temp_celsius;
   double cooler_power;
@@ -946,6 +952,7 @@ typedef union ImagingEventKind {
   struct wire_cst_ImagingEvent_ImageReady ImageReady;
   struct wire_cst_ImagingEvent_ImageSaved ImageSaved;
   struct wire_cst_ImagingEvent_IntegrationProgress IntegrationProgress;
+  struct wire_cst_ImagingEvent_IntegrationTelemetry IntegrationTelemetry;
   struct wire_cst_ImagingEvent_TemperatureChanged TemperatureChanged;
   struct wire_cst_ImagingEvent_ExposureComplete ExposureComplete;
   struct wire_cst_ImagingEvent_ExposureFailedOld ExposureFailedOld;

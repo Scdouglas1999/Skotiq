@@ -9,12 +9,14 @@ part of '../darkroom_screen.dart';
 enum _DarkroomLandingTab {
   recipes,
   sessions,
-  masters;
+  masters,
+  passes;
 
   String get label => switch (this) {
         _DarkroomLandingTab.recipes => 'Recipes',
         _DarkroomLandingTab.sessions => 'Sessions',
         _DarkroomLandingTab.masters => 'Masters',
+        _DarkroomLandingTab.passes => 'Passes',
       };
 }
 
@@ -43,7 +45,19 @@ class _DarkroomLandingData {
   final List<_DarkroomLandingEntry> entries;
   final List<ImagingSession> sessions;
 
-  const _DarkroomLandingData({required this.entries, required this.sessions});
+  /// Every recorded pass, newest first: what calibrated, registered and
+  /// integrated a night, live while it runs.
+  final List<PassRecordSummary> passes;
+
+  const _DarkroomLandingData({
+    required this.entries,
+    required this.sessions,
+    this.passes = const <PassRecordSummary>[],
+  });
+
+  _DarkroomLandingData withPasses(List<PassRecordSummary> passes) =>
+      _DarkroomLandingData(
+          entries: entries, sessions: sessions, passes: passes);
 
   /// Every recipe over every master, newest first.
   List<(_DarkroomLandingEntry, DarkroomRecipe)> get recipes {
@@ -116,6 +130,10 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
     final chosen = _chosen;
     if (chosen != null) return chosen;
     if (data == null) return _DarkroomLandingTab.recipes;
+    // A pass running now is what a visit is most likely here to watch.
+    if (data.passes.any((pass) => !pass.ended)) {
+      return _DarkroomLandingTab.passes;
+    }
     return _DarkroomLandingTab.values.firstWhere(
       (tab) => _countOf(tab, data) > 0,
       orElse: () => _DarkroomLandingTab.recipes,
@@ -126,7 +144,13 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
 
   @override
   Widget build(BuildContext context) {
-    final data = ref.watch(_darkroomLandingProvider);
+    // The pass records are read on their own, so a slow read of the record
+    // folder never holds up the lists.
+    final passes = ref.watch(darkroomPassRecordsProvider).valueOrNull ??
+        const <PassRecordSummary>[];
+    final data = ref
+        .watch(_darkroomLandingProvider)
+        .whenData((value) => value.withPasses(passes));
     final tab = _tabFor(data.valueOrNull);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -178,6 +202,7 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
         _DarkroomLandingTab.recipes => data.recipes.length,
         _DarkroomLandingTab.sessions => data.sessions.length,
         _DarkroomLandingTab.masters => data.entries.length,
+        _DarkroomLandingTab.passes => data.passes.length,
       };
 
   Widget _body(
@@ -207,6 +232,7 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
         _DarkroomLandingTab.recipes => _recipes(value),
         _DarkroomLandingTab.sessions => _sessions(value),
         _DarkroomLandingTab.masters => _masters(value),
+        _DarkroomLandingTab.passes => _passes(value),
       },
     );
   }
@@ -400,6 +426,60 @@ class _DarkroomLandingViewState extends ConsumerState<_DarkroomLandingView> {
               onPressed: () => context.go(sessionReviewLocation(session.id)),
             ),
             onTap: () => context.go(sessionReviewLocation(session.id)),
+          ),
+      ],
+    );
+  }
+
+  Widget _passes(_DarkroomLandingData data) {
+    final passes = data.passes;
+    if (passes.isEmpty) {
+      return const Center(
+        child: EmptyState(
+          icon: SkotiqIcons.history,
+          title: 'No passes recorded yet',
+          body: 'A pass is the Darkroom calibrating, registering and '
+              'integrating a night into masters. Each one is recorded here '
+              'as it runs.',
+        ),
+      );
+    }
+    final colors = SkotiqColors.of(context);
+    return _list(
+      key: const ValueKey('darkroom_landing_passes'),
+      children: [
+        for (final pass in passes)
+          Candidate(
+            key: ValueKey('darkroom_landing_pass_${pass.runId}'),
+            score: pass.ended
+                ? (pass.failure == null ? 'Done' : 'Stopped')
+                : 'Live',
+            scoreTone: !pass.ended
+                ? colors.primary
+                : (pass.failure == null ? colors.success : colors.error),
+            name: pass.target ??
+                'Pass of ${_night(pass.startedAt)} '
+                    '${pass.startedAt.hour.toString().padLeft(2, '0')}:'
+                    '${pass.startedAt.minute.toString().padLeft(2, '0')}',
+            detail: [
+              if (pass.sessionId != null) 'session ${pass.sessionId}',
+              if (!pass.ended) 'running now',
+              if (pass.failure != null) pass.failure!,
+            ].join(' · '),
+            readouts: [
+              Readout(
+                value: _relative(pass.startedAt),
+                label: 'Started',
+                size: ReadoutSize.sm,
+              ),
+            ],
+            action: SkotiqButton(
+              label: pass.ended ? 'Open' : 'Watch',
+              variant: ButtonVariant.secondary,
+              size: ButtonSize.small,
+              onPressed: () => context.go(darkroomPassLocation(pass.runId)),
+            ),
+            onTap: () => context.go(darkroomPassLocation(pass.runId)),
           ),
       ],
     );
