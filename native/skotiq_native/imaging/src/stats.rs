@@ -119,8 +119,8 @@ pub struct DetectedStar {
     pub snr: f64,
     /// Eccentricity: 0 = perfect circle, 1 = line (elongated)
     pub eccentricity: f64,
-    /// Sharpness: ratio of peak to spread - hot pixels have high sharpness, real stars lower
-    /// Typical real stars: 0.1-0.5, hot pixels: > 0.8
+    /// Fraction of the star's flux in its brightest pixel: 0.02-0.3 for real
+    /// stars, near 1 for a hot pixel.
     pub sharpness: f64,
 }
 
@@ -184,11 +184,13 @@ pub const SELECTION_MAX_ECCENTRICITY: f64 = 0.7;
 /// Star detection configuration
 #[derive(Debug, Clone)]
 pub struct StarDetectionConfig {
-    /// Detection threshold in sigma above background
+    /// Detection threshold, in sigmas of the noise of the matched-filtered
+    /// frame. At 5 a 16 MP frame of pure noise yields well under one false
+    /// detection.
     pub detection_sigma: f64,
-    /// Minimum star area in pixels
+    /// Minimum footprint (pixels above the threshold in the filtered frame).
     pub min_area: u32,
-    /// Maximum star area in pixels
+    /// Maximum footprint of a single star.
     pub max_area: u32,
     /// Maximum eccentricity for a source to count as a star at all
     /// (0 = circle, 1 = line). See [`DETECTION_MAX_ECCENTRICITY`] for why this
@@ -198,16 +200,17 @@ pub struct StarDetectionConfig {
     /// [`SELECTION_MAX_ECCENTRICITY`], applied by
     /// [`detect_stars_for_selection`] and [`detect_stars_with_stats`].
     pub max_eccentricity: f64,
-    /// Saturation threshold (0-65535)
+    /// Stars whose brightest pixel exceeds this (0-65535) are not reported.
     pub saturation_limit: u16,
-    /// Search radius for HFR calculation
+    /// Measurement apertures, which otherwise cover each star's whole
+    /// footprint, are capped at four times this radius in pixels.
     pub hfr_radius: u32,
-    /// Minimum HFR to be considered a real star (filters hot pixels)
-    /// Hot pixels typically have HFR < 1.0, real stars > 1.2
+    /// Minimum half-flux radius of a reported star, in pixels.
     pub min_hfr: f64,
     /// Minimum SNR to be considered a valid detection
     pub min_snr: f64,
-    /// Maximum sharpness (filters hot pixels which have very high sharpness)
+    /// Maximum fraction of a star's flux in its brightest pixel. Lone hot
+    /// pixels and cosmic-ray hits are removed before detection regardless.
     pub max_sharpness: f64,
     /// Camera noise model for the electron-domain CCD-equation SNR.
     ///
@@ -223,17 +226,17 @@ pub struct StarDetectionConfig {
 impl Default for StarDetectionConfig {
     fn default() -> Self {
         Self {
-            detection_sigma: 5.0, // Increased from 3.0 - more conservative
-            min_area: 9,          // Increased from 5 - hot pixels rarely exceed this
+            detection_sigma: 5.0,
+            min_area: 9,
             max_area: 10000,
             // Culls streaks (cosmic rays, satellites), NOT trailed stars —
             // see DETECTION_MAX_ECCENTRICITY.
             max_eccentricity: DETECTION_MAX_ECCENTRICITY,
             saturation_limit: 60000,
             hfr_radius: 20,
-            min_hfr: 1.0,        // Real stars have HFR > ~1.0; hot pixels < 0.8
-            min_snr: 5.0,        // Modest SNR threshold - real stars in short subs can be faint
-            max_sharpness: 0.95, // Only reject extreme hot pixels (sharpness ~1.0); real stars spread flux
+            min_hfr: 1.0,
+            min_snr: 5.0,
+            max_sharpness: 0.95,
             // Why: callers without camera metadata fall back to the ADU-domain
             // CCD-equation approximation (documented in `compute_snr`). Callers
             // with profile metadata should set this explicitly.
@@ -254,165 +257,11 @@ impl Default for StarDetectionConfig {
 /// Callers that need stars to *work with* rather than to *count* — guide-star
 /// picking, autofocus HFR, plate-solve centroids, star masking — want
 /// [`detect_stars_for_selection`] instead.
+///
+/// The method (background mesh, matched filter, prominence deblending,
+/// whole-footprint apertures) is described in the `star_detect` module.
 pub fn detect_stars(image: &ImageData, config: &StarDetectionConfig) -> Vec<DetectedStar> {
-    let width = image.width as usize;
-    let height = image.height as usize;
-
-    if width == 0 || height == 0 || image.data.len() < width * height * 2 {
-        return Vec::new();
-    }
-
-    // Parallel convert to f64 array
-    let pixels: Vec<f64> = image
-        .data
-        .par_chunks_exact(2)
-        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]) as f64)
-        .collect();
-
-    // Estimate background using sigma-clipped median (partially parallelized)
-    let (background, noise) = estimate_background(&pixels, width, height);
-
-    // Detection threshold
-    let threshold = background + config.detection_sigma * noise;
-
-    // Find candidate pixels above threshold
-    // Note: Full star detection is hard to parallelize due to 'visited' state
-    // We keep the main loop sequential for correctness but use the parallelized setup
-    let mut visited = vec![false; pixels.len()];
-    let mut stars = Vec::new();
-
-    for y in 2..height - 2 {
-        for x in 2..width - 2 {
-            let idx = y * width + x;
-
-            if visited[idx] || pixels[idx] < threshold {
-                continue;
-            }
-
-            // Check if this is a local maximum (8-connected)
-            let val = pixels[idx];
-            let is_max = val >= pixels[idx - 1]
-                && val >= pixels[idx + 1]
-                && val >= pixels[idx - width]
-                && val >= pixels[idx + width]
-                && val >= pixels[idx - width - 1]
-                && val >= pixels[idx - width + 1]
-                && val >= pixels[idx + width - 1]
-                && val >= pixels[idx + width + 1];
-
-            if !is_max {
-                continue;
-            }
-
-            // Skip saturated stars
-            if val > config.saturation_limit as f64 {
-                continue;
-            }
-
-            // Extract star region and measure
-            let mut ctx = StarMeasurementContext {
-                pixels: &pixels,
-                width,
-                height,
-                background,
-                noise,
-                config,
-                visited: &mut visited,
-            };
-            if let Some(star) = measure_star(&mut ctx, x, y) {
-                // Comprehensive star validation to filter hot pixels and noise
-                // Track rejection reasons for diagnostics (only log first few)
-                static LOGGED_REJECTIONS: std::sync::atomic::AtomicU32 =
-                    std::sync::atomic::AtomicU32::new(0);
-                let should_log = LOGGED_REJECTIONS.load(std::sync::atomic::Ordering::Relaxed) < 5;
-
-                // 1. HFR check - hot pixels have very small HFR
-                if star.hfr < config.min_hfr {
-                    if should_log {
-                        tracing::debug!(
-                            "Star rejected: HFR {:.2} < min {:.2} (pos: {:.1},{:.1})",
-                            star.hfr,
-                            config.min_hfr,
-                            star.x,
-                            star.y
-                        );
-                        LOGGED_REJECTIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    }
-                    continue;
-                }
-
-                // 2. SNR check - require good signal-to-noise
-                if star.snr < config.min_snr {
-                    if should_log {
-                        tracing::debug!(
-                            "Star rejected: SNR {:.2} < min {:.2} (pos: {:.1},{:.1}, HFR: {:.2})",
-                            star.snr,
-                            config.min_snr,
-                            star.x,
-                            star.y,
-                            star.hfr
-                        );
-                        LOGGED_REJECTIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    }
-                    continue;
-                }
-
-                // 3. Eccentricity check - reject elongated objects (cosmic rays, tracking errors)
-                if star.eccentricity > config.max_eccentricity {
-                    if should_log {
-                        tracing::debug!(
-                            "Star rejected: eccentricity {:.2} > max {:.2} (pos: {:.1},{:.1})",
-                            star.eccentricity,
-                            config.max_eccentricity,
-                            star.x,
-                            star.y
-                        );
-                        LOGGED_REJECTIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    }
-                    continue;
-                }
-
-                // 4. Sharpness check - hot pixels have very high sharpness
-                if star.sharpness > config.max_sharpness {
-                    if should_log {
-                        tracing::debug!(
-                            "Star rejected: sharpness {:.2} > max {:.2} (pos: {:.1},{:.1})",
-                            star.sharpness,
-                            config.max_sharpness,
-                            star.x,
-                            star.y
-                        );
-                        LOGGED_REJECTIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    }
-                    continue;
-                }
-
-                // 5. Area check (approximate from flux distribution)
-                let area = star.flux / (star.peak - background).max(1.0);
-                if area < config.min_area as f64 || area > config.max_area as f64 {
-                    if should_log {
-                        tracing::debug!(
-                            "Star rejected: area {:.1} outside range [{}, {}] (pos: {:.1},{:.1})",
-                            area,
-                            config.min_area,
-                            config.max_area,
-                            star.x,
-                            star.y
-                        );
-                        LOGGED_REJECTIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    }
-                    continue;
-                }
-
-                stars.push(star);
-            }
-        }
-    }
-
-    // Sort by flux (brightest first)
-    stars.sort_by(|a, b| b.flux.total_cmp(&a.flux));
-
-    stars
+    crate::star_detect::detect(image, config).stars
 }
 
 /// The eccentricity a star must beat to be *usable* under `config`.
@@ -473,395 +322,6 @@ pub fn detect_stars_for_selection(
     stars
 }
 
-/// Estimate background level and noise using sigma clipping
-fn estimate_background(pixels: &[f64], _width: usize, _height: usize) -> (f64, f64) {
-    // Sample every 4th pixel for speed
-    // Parallelize sampling
-    let mut samples: Vec<f64> = pixels.par_iter().step_by(4).copied().collect();
-
-    if samples.is_empty() {
-        return (0.0, 1.0);
-    }
-
-    // Sigma clipping iterations
-    for _ in 0..3 {
-        samples.par_sort_unstable_by(|a, b| a.total_cmp(b));
-        let median = samples[samples.len() / 2];
-
-        // Parallel MAD calculation
-        let mad: f64 =
-            samples.par_iter().map(|&v| (v - median).abs()).sum::<f64>() / samples.len() as f64;
-        let sigma = mad * 1.4826;
-
-        let lower = median - 3.0 * sigma;
-        let upper = median + 3.0 * sigma;
-
-        // Parallel retain is not available directly on Vec, but we can filter and collect
-        // However, retain is in-place and might be faster than allocating new vec
-        // Keep sequential retain as it iterates an already reduced set.
-        samples.retain(|&v| v >= lower && v <= upper);
-
-        if samples.is_empty() {
-            return (median, sigma);
-        }
-    }
-
-    samples.par_sort_unstable_by(|a, b| a.total_cmp(b));
-    let background = samples[samples.len() / 2];
-
-    // Estimate noise from remaining samples
-    let variance: f64 = samples
-        .par_iter()
-        .map(|&v| (v - background).powi(2))
-        .sum::<f64>()
-        / samples.len() as f64;
-    let noise = variance.sqrt();
-
-    (background, noise.max(1.0))
-}
-
-/// Context for star measurement to reduce parameter count
-struct StarMeasurementContext<'a> {
-    pixels: &'a [f64],
-    width: usize,
-    height: usize,
-    background: f64,
-    noise: f64,
-    config: &'a StarDetectionConfig,
-    visited: &'a mut [bool],
-}
-
-/// Measure a star's properties including eccentricity and sharpness
-fn measure_star(ctx: &mut StarMeasurementContext, cx: usize, cy: usize) -> Option<DetectedStar> {
-    // Why: hfr_radius is u32 (UI-bounded, typically <=50). TryFrom surfaces a
-    // pathological value as i32::MAX instead of wrapping negative; the bounds
-    // checks below then cap the loop range to in-image pixels.
-    let radius = i32::try_from(ctx.config.hfr_radius).unwrap_or(i32::MAX);
-
-    // First pass: Calculate centroid using intensity-weighted center.
-    //
-    // Why visited is not marked here: stamping the whole
-    // `(2·hfr_radius+1)²` search window is a 41×41 forbidden zone after each
-    // detection at the default `hfr_radius=20`, so in dense fields (M13, M11
-    // cores, Pleiades) the second of two stars ~40 px apart is masked out
-    // before its centroid is ever computed. Marking is deferred until HFR is
-    // known and then stamps only the star aperture, an HFR-derived disk. See
-    // the stamp at the bottom of this function.
-    let mut sum_x = 0.0;
-    let mut sum_y = 0.0;
-    let mut sum_flux = 0.0;
-    let mut peak = 0.0_f64;
-    let mut pixel_count = 0u32;
-
-    for dy in -radius..=radius {
-        for dx in -radius..=radius {
-            let x = cx as i32 + dx;
-            let y = cy as i32 + dy;
-
-            if x < 0 || y < 0 || x >= ctx.width as i32 || y >= ctx.height as i32 {
-                continue;
-            }
-
-            let idx = y as usize * ctx.width + x as usize;
-            let val = ctx.pixels[idx] - ctx.background;
-
-            if val > 0.0 {
-                sum_x += x as f64 * val;
-                sum_y += y as f64 * val;
-                sum_flux += val;
-                peak = peak.max(ctx.pixels[idx]);
-                pixel_count += 1;
-            }
-        }
-    }
-
-    if sum_flux <= 0.0 || pixel_count == 0 {
-        // Centroid failed (no positive pixels in the search window). Stamp
-        // a tiny disk around the seed so the outer loop doesn't re-trigger
-        // on the same local maximum. Keep this disk small enough that real
-        // neighbouring stars are not excluded.
-        stamp_visited_disk(ctx, cx as f64, cy as f64, fallback_visited_radius(radius));
-        return None;
-    }
-
-    let centroid_x = sum_x / sum_flux;
-    let centroid_y = sum_y / sum_flux;
-
-    // Second pass: Calculate second moments for eccentricity
-    // Mxx = Σ(x - cx)² * I / Σ I
-    // Myy = Σ(y - cy)² * I / Σ I
-    // Mxy = Σ(x - cx)(y - cy) * I / Σ I
-    let mut mxx = 0.0;
-    let mut myy = 0.0;
-    let mut mxy = 0.0;
-
-    for dy in -radius..=radius {
-        for dx in -radius..=radius {
-            let x = cx as i32 + dx;
-            let y = cy as i32 + dy;
-
-            if x < 0 || y < 0 || x >= ctx.width as i32 || y >= ctx.height as i32 {
-                continue;
-            }
-
-            let idx = y as usize * ctx.width + x as usize;
-            let val = ctx.pixels[idx] - ctx.background;
-
-            if val > 0.0 {
-                let dx_c = x as f64 - centroid_x;
-                let dy_c = y as f64 - centroid_y;
-                mxx += dx_c * dx_c * val;
-                myy += dy_c * dy_c * val;
-                mxy += dx_c * dy_c * val;
-            }
-        }
-    }
-
-    mxx /= sum_flux;
-    myy /= sum_flux;
-    mxy /= sum_flux;
-
-    // Calculate eccentricity from second moments
-    // Using eigenvalues of the covariance matrix
-    let trace = mxx + myy;
-    let det = mxx * myy - mxy * mxy;
-    let discriminant = (trace * trace - 4.0 * det).max(0.0).sqrt();
-
-    let lambda1 = (trace + discriminant) / 2.0;
-    let lambda2 = (trace - discriminant) / 2.0;
-
-    // Eccentricity: 0 = circle, 1 = line
-    let eccentricity = if lambda1 > 1e-10 && lambda2 >= 0.0 {
-        (1.0 - lambda2 / lambda1).max(0.0).sqrt()
-    } else {
-        0.0
-    };
-
-    // Calculate HFR (true encircled-energy 50% radius).
-    let hfr = calculate_hfr_at_point(
-        ctx.pixels,
-        ctx.width,
-        ctx.height,
-        centroid_x,
-        centroid_y,
-        ctx.background,
-        radius,
-    );
-
-    // Why: with the encircled-energy 50% HFR (matching NINA / SGP / PixInsight),
-    // FWHM = 2.0 × HFR for a Gaussian PSF (HFR_true = σ·√(2 ln 2),
-    // FWHM = 2σ·√(2 ln 2)). The previous 2.3548 constant assumed HFR ≈ σ,
-    // which is wrong: HFR_true ≈ 1.177σ.
-    const FWHM_TO_HFR_RATIO: f64 = 2.0;
-    let fwhm = hfr * FWHM_TO_HFR_RATIO;
-
-    // SNR via the standard CCD equation. `pixel_count` is the
-    // actual aperture pixel count `n_pix` derived from the detection mask.
-    let snr = compute_snr(
-        sum_flux,
-        pixel_count as f64,
-        ctx.noise,
-        ctx.config.noise_model.as_ref(),
-    );
-
-    let peak_above_bg = peak - ctx.background;
-
-    // Sharpness: the FRACTION of the source's flux sitting in its brightest
-    // pixel. A hot pixel puts nearly all of it there (→ ~1.0); a real star
-    // spreads it over its PSF (→ 0.1-0.5, as the field's docs state).
-    //
-    // This divided by the MEAN flux per pixel instead of the TOTAL, which
-    // inverts the discriminator: peak/mean exceeds 1 for ANY peaked source, so
-    // `.min(1.0)` pinned every real star at exactly 1.0 — above the 0.95
-    // default — while a single hot pixel (peak == mean over a 1-pixel footprint)
-    // scored 1.0 too. With `StarDetectionConfig::default()` the filter therefore
-    // rejected EVERYTHING: autofocus reported "Insufficient stars detected. Only
-    // 0 stars found (minimum: 10)", HFR-based grading and the HFR /
-    // focus-drift triggers had nothing to measure, and every frame logged "no
-    // stars detected for HFR calculation". Found while making the simulator emit
-    // a detectable star field: a clean 45-star Gaussian frame scored 0 stars
-    // under the default config and 40 under `max_sharpness: 1.1`.
-    //
-    // Dividing by total flux is bounded to (0, 1] by construction, so the clamp
-    // is now only a guard against floating-point overshoot.
-    let sharpness = if sum_flux > 0.0 {
-        (peak_above_bg / sum_flux).clamp(0.0, 1.0)
-    } else {
-        1.0 // Default to high sharpness (reject) if it cannot be calculated
-    };
-
-    // Stamp the visited mask as the actual star aperture (audit IMG-).
-    //
-    // Why `2·HFR`: for a Gaussian PSF the encircled-energy radius at 95%
-    // of total flux is r_95 ≈ 2.45σ ≈ 2.08·HFR (HFR = σ·√(2 ln 2) ≈
-    // 1.177σ). Using `2·HFR` therefore covers ~94–95% of the star's
-    // flux — comfortably past the radius at which one star's wings
-    // overlap a neighbour's centroid contribution while staying well
-    // inside the search window for tightly packed fields.
-    //
-    // Why the `hfr_radius` cap: a saturated or blooming core can produce
-    // a pathologically large encircled-energy radius (the wings carry as
-    // much area as the core). Capping the visited disk at `hfr_radius`
-    // (the same bound the search window already uses) prevents one
-    // saturated detection from blanking an entire region.
-    //
-    // The disk uses the sub-pixel centroid so the mask is centred on the
-    // true star, not the (possibly off-centre) seed local maximum.
-    let radius_f = radius as f64;
-    let visited_radius = (2.0 * hfr).min(radius_f).max(1.0);
-    stamp_visited_disk(ctx, centroid_x, centroid_y, visited_radius);
-
-    Some(DetectedStar {
-        x: centroid_x,
-        y: centroid_y,
-        flux: sum_flux,
-        hfr,
-        fwhm,
-        peak,
-        background: ctx.background,
-        snr,
-        eccentricity,
-        sharpness,
-    })
-}
-
-/// Fallback visited radius when centroid computation fails.
-///
-/// Why `hfr_radius / 4` (min 1): we only need to prevent the outer
-/// detection loop from re-triggering on the same seed pixel and its
-/// immediate hot-pixel neighbourhood. A radius smaller than this risks
-/// duplicate detections from the 8-connected local-max test; larger
-/// would excuse the visited-mask bug we're fixing.
-fn fallback_visited_radius(hfr_radius: i32) -> f64 {
-    ((hfr_radius / 4).max(1)) as f64
-}
-
-/// Mark a disk of pixels as visited.
-///
-/// Why a disk and not a square: stars are circular (or near-circular)
-/// in well-tracked frames, so a disk mask matches the actual star
-/// aperture. The check `dx² + dy² ≤ r²` is the same `O(r²)` cost as
-/// the previous full-square stamp — the inner loop body is cheaper
-/// (one fused-multiply-add comparison vs an unconditional store) so
-/// total work is the same order or less.
-fn stamp_visited_disk(ctx: &mut StarMeasurementContext, cx: f64, cy: f64, radius: f64) {
-    if radius <= 0.0 {
-        return;
-    }
-    let r_ceil = radius.ceil() as i32;
-    let r_sq = radius * radius;
-    let cx_round = cx.round() as i32;
-    let cy_round = cy.round() as i32;
-
-    for dy in -r_ceil..=r_ceil {
-        let y = cy_round + dy;
-        if y < 0 || y >= ctx.height as i32 {
-            continue;
-        }
-        let y_us = y as usize;
-        // Tight x-bound per row from the disk equation: |dx| ≤ √(r² − dy²).
-        let dy_sq = (dy * dy) as f64;
-        if dy_sq > r_sq {
-            continue;
-        }
-        let dx_max = (r_sq - dy_sq).sqrt().floor() as i32;
-        let x_start = (cx_round - dx_max).max(0);
-        let x_end = (cx_round + dx_max).min(ctx.width as i32 - 1);
-        if x_start > x_end {
-            continue;
-        }
-        let row = y_us * ctx.width;
-        for x in x_start..=x_end {
-            ctx.visited[row + x as usize] = true;
-        }
-    }
-}
-
-/// Compute the true encircled-energy 50% half-flux radius (HFR).
-///
-/// Why: we sort the aperture pixels by distance from the
-/// centroid, integrate background-subtracted flux in increasing-radius
-/// order, and return the radius at which cumulative flux first crosses
-/// 50% of the total. Sub-pixel accuracy is achieved by linearly
-/// interpolating the radius between the two pixels that bracket the
-/// 50% point.
-///
-/// This matches the NINA / SGP / PixInsight HFR convention. The
-/// flux-weighted *mean* radius ⟨r⟩ is a different quantity — it
-/// over-states FWHM by ~25% for a Gaussian PSF.
-fn calculate_hfr_at_point(
-    pixels: &[f64],
-    width: usize,
-    height: usize,
-    cx: f64,
-    cy: f64,
-    background: f64,
-    radius: i32,
-) -> f64 {
-    // Use the sub-pixel centroid as the reference for radial distances so
-    // that the returned HFR has sub-pixel accuracy.
-    let mut samples: Vec<(f64, f64)> =
-        Vec::with_capacity(((2 * radius + 1) * (2 * radius + 1)) as usize);
-
-    for dy in -radius..=radius {
-        for dx in -radius..=radius {
-            let xi = cx.round() as i32 + dx;
-            let yi = cy.round() as i32 + dy;
-            if xi < 0 || yi < 0 || xi >= width as i32 || yi >= height as i32 {
-                continue;
-            }
-            let val = (pixels[yi as usize * width + xi as usize] - background).max(0.0);
-            if val <= 0.0 {
-                continue;
-            }
-            let dxr = xi as f64 - cx;
-            let dyr = yi as f64 - cy;
-            let dist = (dxr * dxr + dyr * dyr).sqrt();
-            samples.push((dist, val));
-        }
-    }
-
-    if samples.is_empty() {
-        return 0.0;
-    }
-
-    // Sort by radial distance ascending.
-    samples.sort_by(|a, b| a.0.total_cmp(&b.0));
-
-    let total_flux: f64 = samples.iter().map(|s| s.1).sum();
-    if total_flux <= 0.0 {
-        return 0.0;
-    }
-    let half_flux = 0.5 * total_flux;
-
-    let mut cum = 0.0;
-    let mut prev_r = 0.0;
-    let mut prev_cum = 0.0;
-    for &(r, v) in &samples {
-        let next_cum = cum + v;
-        if next_cum >= half_flux {
-            // Linearly interpolate between the previous (r, cum) and (r, next_cum).
-            // Why: cumulative flux is piecewise-linear in r if we treat each
-            // pixel contribution as an instantaneous step at its radius; using
-            // a linear interpolation between the bracketing samples gives the
-            // best sub-pixel estimate available without re-sampling the PSF.
-            let denom = next_cum - prev_cum;
-            if denom <= 0.0 {
-                return r;
-            }
-            let frac = (half_flux - prev_cum) / denom;
-            return prev_r + frac * (r - prev_r);
-        }
-        prev_cum = next_cum;
-        prev_r = r;
-        cum = next_cum;
-    }
-
-    // Fallback: should not happen because cum reaches total_flux >= half_flux
-    // at the last sample, but keep the outermost radius if it does.
-    prev_r
-}
-
 /// Compute SNR via the standard CCD equation.
 ///
 /// Why: the previous formula
@@ -890,7 +350,7 @@ fn calculate_hfr_at_point(
 /// branch under-counts only the source-shot-noise term that depends on
 /// gain (it is treated as if gain = 1 e/ADU); this is documented and
 /// callers that have profile metadata should populate `noise_model`.
-fn compute_snr(
+pub(crate) fn compute_snr(
     signal_adu: f64,
     n_pix: f64,
     bg_noise_adu: f64,
@@ -1150,50 +610,6 @@ pub fn detect_stars_with_stats(
     image: &ImageData,
     config: &StarDetectionConfig,
 ) -> StarDetectionResult {
-    let width = image.width as usize;
-    let height = image.height as usize;
-
-    // Estimate background first
-    // Parallel conversion
-    let pixels: Vec<f64> = image
-        .data
-        .par_chunks_exact(2)
-        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]) as f64)
-        .collect();
-
-    let (background, noise) = if !pixels.is_empty() {
-        estimate_background(&pixels, width, height)
-    } else {
-        (0.0, 1.0)
-    };
-
-    // Log detection parameters for diagnostics
-    let threshold = background + config.detection_sigma * noise;
-    let pixel_stats: (f64, f64, f64) = if !pixels.is_empty() {
-        let min = pixels.iter().copied().fold(f64::INFINITY, f64::min);
-        let max = pixels.iter().copied().fold(f64::NEG_INFINITY, f64::max);
-        let sum: f64 = pixels.iter().sum();
-        let avg = sum / pixels.len() as f64;
-        (min, max, avg)
-    } else {
-        (0.0, 0.0, 0.0)
-    };
-    tracing::info!(
-        "[STAR_DETECT] Image {}x{}, pixel range: {:.0}-{:.0}, avg: {:.1}",
-        width,
-        height,
-        pixel_stats.0,
-        pixel_stats.1,
-        pixel_stats.2
-    );
-    tracing::info!(
-        "[STAR_DETECT] Background: {:.1}, Noise: {:.1}, Threshold: {:.1} (sigma={})",
-        background,
-        noise,
-        threshold,
-        config.detection_sigma
-    );
-
     // Three populations, three questions, one detection pass. `detected`
     // answers "what is in this frame" and is what the shape statistics must be
     // measured from. `stars` answers "what can I work with" and is what the
@@ -1206,8 +622,20 @@ pub fn detect_stars_with_stats(
         max_eccentricity: measurement_eccentricity_ceiling(config),
         ..config.clone()
     };
-    let detected = detect_stars(image, &measurement_config);
+    let crate::star_detect::Detection {
+        stars: detected,
+        background,
+        noise,
+    } = crate::star_detect::detect(image, &measurement_config);
     let detected_star_count = detected.len() as u32;
+    tracing::info!(
+        "[STAR_DETECT] Image {}x{}, background {:.1}, noise {:.1}, threshold {} sigma of the filtered frame",
+        image.width,
+        image.height,
+        background,
+        noise,
+        config.detection_sigma
+    );
 
     let median_eccentricity = frame_eccentricity(&detected);
 
@@ -2333,107 +1761,6 @@ mod tests {
             stars.len(),
             stars.iter().map(|s| (s.x, s.y)).collect::<Vec<_>>()
         );
-    }
-
-    /// A saturated PSF whose encircled-energy HFR exceeds the search
-    /// window must NOT mask the entire frame: the visited disk is
-    /// capped at `hfr_radius`, so a faint star just outside that cap
-    /// remains detectable.
-    ///
-    /// We directly exercise `stamp_visited_disk` plus the cap formula
-    /// rather than running `detect_stars` end-to-end. End-to-end is
-    /// the wrong test surface here: a saturated PSF wide enough to
-    /// report `HFR > hfr_radius` also dominates global background
-    /// estimation, which interferes with detection thresholds and
-    /// muddies the unit-test signal. The post-HFR cap behaviour is
-    /// what matters — and it is a pure function of the formula.
-    #[test]
-    fn saturated_psf_visited_disk_is_capped_at_hfr_radius() {
-        let width = 200usize;
-        let height = 100usize;
-        let mut visited = vec![false; width * height];
-        let pixels = vec![0.0; width * height];
-        let config = StarDetectionConfig {
-            hfr_radius: 20,
-            ..StarDetectionConfig::default()
-        };
-        let mut ctx = StarMeasurementContext {
-            pixels: &pixels,
-            width,
-            height,
-            background: 0.0,
-            noise: 1.0,
-            config: &config,
-            visited: &mut visited,
-        };
-
-        // Simulate a saturated/extended detection: HFR = 100 px (way
-        // larger than hfr_radius = 20). The cap formula is
-        // `min(2·HFR, hfr_radius).max(1)` = `min(200, 20)` = 20.
-        let hfr: f64 = 100.0;
-        let radius_f = config.hfr_radius as f64;
-        let visited_radius = (2.0 * hfr).min(radius_f).max(1.0);
-        assert_eq!(
-            visited_radius, 20.0,
-            "cap formula must yield hfr_radius, not 2·HFR, when HFR is huge"
-        );
-
-        let centre = (50.0, 50.0);
-        stamp_visited_disk(&mut ctx, centre.0, centre.1, visited_radius);
-
-        // Inside the cap (≤ 20 px from centre): marked.
-        assert!(visited[50 * width + 50], "centre must be marked");
-        assert!(visited[50 * width + 70], "(70, 50) at r=20 must be marked");
-
-        // Just outside the cap (> 20 px from centre): NOT marked. This
-        // is the property under test: a saturated detection with
-        // unbounded HFR still leaves the rest of the frame available
-        // for further star detection.
-        let far_point_idx = 50 * width + 75; // (75, 50): 25 px from centre
-        assert!(
-            !visited[far_point_idx],
-            "(75, 50) at r=25 (>cap) must NOT be marked — the cap protects far-field stars"
-        );
-        // A pixel at the opposite end of the wide image: well outside.
-        assert!(!visited[50 * width + 180]);
-        // And a corner-ish pixel.
-        assert!(!visited[10 * width + 100]);
-    }
-
-    /// `stamp_visited_disk` marks pixels inside the disk and leaves
-    /// pixels outside untouched.
-    #[test]
-    fn stamp_visited_disk_marks_disk_pixels_only() {
-        let width = 21usize;
-        let height = 21usize;
-        let mut visited = vec![false; width * height];
-        let pixels = vec![0.0; width * height];
-        let config = StarDetectionConfig::default();
-        let mut ctx = StarMeasurementContext {
-            pixels: &pixels,
-            width,
-            height,
-            background: 0.0,
-            noise: 1.0,
-            config: &config,
-            visited: &mut visited,
-        };
-
-        let cx = 10.0_f64;
-        let cy = 10.0_f64;
-        let r = 4.0_f64;
-        stamp_visited_disk(&mut ctx, cx, cy, r);
-
-        // Inside-the-disk pixel: (10, 10) — the centre.
-        assert!(visited[10 * width + 10]);
-        // Inside-the-disk pixel at r=4 exactly (10+4, 10).
-        assert!(visited[10 * width + 14]);
-        // Outside-the-disk pixel: (10+5, 10) — distance 5 > 4.
-        assert!(!visited[10 * width + 15]);
-        // Outside-the-disk corner: (10+4, 10+4) — distance √32 ≈ 5.66 > 4.
-        assert!(!visited[14 * width + 14]);
-        // Inside on the diagonal: (10+2, 10+2) — distance √8 ≈ 2.83 < 4.
-        assert!(visited[12 * width + 12]);
     }
 
     /// The sharpness filter must discriminate stars from hot pixels, not

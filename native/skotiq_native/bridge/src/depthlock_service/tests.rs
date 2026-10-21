@@ -524,12 +524,18 @@ async fn a_synthetic_night_reaches_achieved_and_survives_restart() {
     assert!(report.score.unwrap() > report.conservative_score.unwrap());
     assert!(report.conservative_score.unwrap() >= 5.0);
     assert!((report.coverage - 1.0).abs() < 1e-9);
-    // The candidate froze the frames that were pooled when the threshold
-    // was first crossed: everything stored up to then minus any set aside.
+    // The candidate froze the frames that were pooled when the threshold was
+    // crossed for the run of confirmations that reached Achieved (a score
+    // hovering at the threshold may dip back once and re-cross, which draws a
+    // new candidate): everything stored up to then minus any set aside.
+    let confirmed_from = states[..achieved]
+        .iter()
+        .rposition(|s| *s != DepthState::ConfirmationPending)
+        .map_or(provisional, |i| i + 1);
     let candidate_frames = record.candidate.as_ref().unwrap().frame_ids.len();
     assert!(
-        candidate_frames <= provisional + 1 && candidate_frames + 2 > provisional + 1,
-        "candidate {candidate_frames} vs provisional index {provisional}"
+        candidate_frames <= confirmed_from + 1 && candidate_frames + 2 > confirmed_from + 1,
+        "candidate {candidate_frames} vs the confirmation run from index {confirmed_from}"
     );
 
     // Advisory by default: the executor is told to continue.

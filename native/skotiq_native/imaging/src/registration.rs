@@ -9,10 +9,9 @@
 //!
 //! Pipeline (PixInsight StarAlignment / astrometry.net lineage):
 //!
-//! 1. **Star detection** — reuse [`crate::detect_stars`], which already does
-//!    PSF-weighted sub-pixel centroiding in [`crate::stats::measure_star`].
-//!    We additionally re-centroid in this module is *not* required because the
-//!    detector's centroid is already flux-weighted to sub-pixel precision.
+//! 1. **Star detection** — reuse [`crate::detect_stars`], whose centroids are
+//!    flux-weighted over each star's footprint to sub-pixel precision, so this
+//!    module does not re-centroid.
 //!
 //! 2. **Geometric matching** — descriptors built from triangles of stars.
 //!    A triangle's two side-length *ratios* (longest-normalised) are invariant

@@ -36,7 +36,9 @@ impl Lcg {
 }
 
 /// A synthetic linear master: a pedestal, Gaussian-ish noise and a lattice of
-/// round stars, in `F32` ADU, carrying a complete CD-only WCS.
+/// round stars, in `F32` ADU, carrying a complete CD-only WCS. The lattice
+/// leaves star-free sky between stars at a preview's half resolution, as a
+/// real field does, so background extraction has boxes to sample.
 fn write_master(dir: &Path, name: &str, width: u32, height: u32, channels: u32) -> PathBuf {
     write_master_seeded(dir, name, width, height, channels, 0x51ED_2701_C0FF_EE01)
 }
@@ -58,8 +60,8 @@ fn write_master_seeded(
         let noise = (rng.next_unit() + rng.next_unit() + rng.next_unit() - 1.5) * 60.0;
         *sample = pedestal + noise as f32;
     }
-    for star_y in (8..height).step_by(19) {
-        for star_x in (8..width).step_by(23) {
+    for star_y in (8..height).step_by(38) {
+        for star_x in (8..width).step_by(46) {
             for dy in -3i32..=3 {
                 for dx in -3i32..=3 {
                     let x = star_x as i32 + dx;

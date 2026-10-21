@@ -107,7 +107,7 @@ fn a_render_is_byte_identical_at_every_thread_count() {
     // The fit reaches star detection, a per-box median lattice and a per-row
     // subtraction, all of which run under rayon. A reduction whose split tree
     // followed the pool size would show up here as a last-bit difference.
-    let base = synthetic_star_field(96, 96, 3, 1301);
+    let base = synthetic_star_field(128, 128, 3, 1301);
     let params = json!({ "modelOrder": 2 });
     let reference = rayon::ThreadPoolBuilder::new()
         .num_threads(1)

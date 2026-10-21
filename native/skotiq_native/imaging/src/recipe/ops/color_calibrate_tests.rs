@@ -652,22 +652,34 @@ fn a_carried_balance_replays_without_a_catalog_or_a_plate_solve() {
 
 #[test]
 fn a_solve_writes_a_payload_that_replays_it_at_a_preview_level() {
-    // A downsampled level carries fewer measurable stars than the fit needs, so
-    // re-measuring there fails on a master that calibrates at full resolution.
-    // The carried balance is what makes the preview show the full render.
+    // A preview level must show the full render's balance, not a re-measured
+    // one: a downsampled level carries undersampled, blended stars whose
+    // photometry may fit differently or not at all. Re-measuring there, when it
+    // succeeds, must agree with the full solve; the carried balance is what the
+    // preview applies either way.
     let scene = scene(400, 400, 0x4444);
     let ctx = OpContext::new().with_catalog(Arc::clone(&scene.catalog));
     let solved = solve(&scene.image, &json!({}), &ctx).expect("the full render solves");
 
     let half = crate::recipe::downsample_2x(&scene.image).expect("the level-1 image builds");
     let preview = ctx.clone().at_level(1);
-    assert!(
-        matches!(
-            solve(&half, &json!({}), &preview),
-            Err(OpError::Failed { .. })
-        ),
-        "re-measuring at level 1 must report rather than invent a balance"
-    );
+    match solve(&half, &json!({}), &preview) {
+        Err(OpError::Failed { .. }) => {}
+        Ok(remeasured) => {
+            for (channel, (found, full)) in remeasured
+                .channel_scale
+                .iter()
+                .zip(solved.channel_scale.iter())
+                .enumerate()
+            {
+                assert!(
+                    (found / full - 1.0).abs() < 0.05,
+                    "channel {channel}: level 1 measured {found} where the full render solved {full}"
+                );
+            }
+        }
+        Err(other) => panic!("re-measuring at level 1 failed unexpectedly: {other}"),
+    }
 
     let params = solved.to_params();
     ColorCalibrateV1

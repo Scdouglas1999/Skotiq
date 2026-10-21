@@ -3,22 +3,11 @@
 //!
 //! # Why this exists
 //!
-//! [`detect_stars`] measures every source inside a fixed `(2·hfr_radius+1)²`
-//! box against the frame's global background, keeping only the pixels above
-//! it. On a real frame that is not a star measurement. Clipping the noise at
-//! zero adds a positive pedestal of about `0.4·σ` per pixel across the whole
-//! 41×41 box, so a faint star's half-flux radius is the box's, not the
-//! star's; and any error in the global background (nebulosity, gradients)
-//! does the same thing to bright ones.
-//!
-//! Measured on the owner's frames from 2026-09-14 (ASI1600MM, 995 mm): an
-//! in-focus 2 s luminance frame whose stars an elliptical-Gaussian fit puts at
-//! FWHM 3.35 px (HFR ≈ 1.8 px) returned 2,427 detections with a MEAN HFR of
-//! 13.22 px, because most of them sit near 15–16 px. That mean was the
-//! image-grading HFR, so every frame of the night graded 13–16 px against a
-//! 3.50 px threshold — good frames and bad alike — and the run accepted none.
-//! The detector's eccentricity is diluted the same way: three trailed 180 s
-//! frames whose stars fit at 0.83–0.98 read 0.52–0.74.
+//! [`detect_stars`] reports every star it can find, blends and faint stars
+//! included, with a shape from its footprint's moments. A frame-grading value
+//! needs fewer, better stars and the core shape a PSF fit reports: footprint
+//! moments include the round seeing halo and under-read a trailed star's
+//! elongation.
 //!
 //! # What it measures
 //!
