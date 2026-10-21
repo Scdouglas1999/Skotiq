@@ -27,9 +27,7 @@ Future<void> hydrateRemoteSessionState(
 
   final devices = await backend.getConnectedDevices();
   if (!_isCurrentRemoteBackend(reader, backend)) return;
-  // PHD2 is not always listed in getConnectedDevices(); avoid clearing the
-  // guider chip before we re-hydrate from phd2/status.
-  resetAllEquipmentStateNotifiers(reader, includeGuider: false);
+  _dropDevicesTheHostNoLongerReports(reader, devices);
   for (final device in devices) {
     _applyConnectedDevice(reader, device);
   }
@@ -118,6 +116,55 @@ Future<void> hydrateRemoteSessionState(
   // family keyed by the open list, so it re-polls when first watched.)
   _invalidate(reader, observingListsProvider);
   _invalidate(reader, listedCatalogIdsProvider);
+}
+
+/// Device types whose cards mirror the host's connected-device list. The
+/// guider is left out: PHD2 is not always listed by getConnectedDevices, and its
+/// card is hydrated from phd2/status instead.
+const _hostListedDeviceTypes = <DeviceType>[
+  DeviceType.camera,
+  DeviceType.mount,
+  DeviceType.focuser,
+  DeviceType.filterWheel,
+  DeviceType.rotator,
+  DeviceType.dome,
+  DeviceType.weather,
+  DeviceType.safetyMonitor,
+  DeviceType.switch_,
+  DeviceType.coverCalibrator,
+];
+
+/// Disconnect only the cards whose device the host no longer reports. A card
+/// whose device is still connected keeps its state and telemetry; resetting
+/// every card on each re-hydrate blanked readouts until the status fetches
+/// landed.
+void _dropDevicesTheHostNoLongerReports(
+  Object reader,
+  List<DeviceInfo> devices,
+) {
+  for (final type in _hostListedDeviceTypes) {
+    final notifier = readDeviceConnectionNotifier(reader, type);
+    final deviceId = notifier.deviceId;
+    if (deviceId == null &&
+        notifier.connectionState == DeviceConnectionState.disconnected) {
+      continue;
+    }
+    final stillReported = devices.any(
+      (d) => d.deviceType == type && d.id == deviceId,
+    );
+    if (stillReported) continue;
+    notifier.setDisconnected();
+    if (deviceId != null) {
+      try {
+        _read(
+          reader,
+          deviceHeartbeatHealthProvider.notifier,
+        ).clearDevice(deviceId);
+      } on Object {
+        // The heartbeat provider may be mid-disposal during shutdown.
+      }
+    }
+  }
 }
 
 /// Buffer-then-apply per-device live status for the connected equipment that

@@ -26,6 +26,7 @@ import '../utils/utc_timestamp.dart';
 import 'database_provider.dart';
 import 'backend_provider.dart';
 import 'equipment_provider.dart';
+import 'device_heartbeat_health_provider.dart';
 import 'equipment/device_type_registry.dart';
 import 'framing_provider.dart';
 import 'imaging_provider.dart' show exposureSettingsProvider;
