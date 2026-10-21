@@ -537,10 +537,48 @@ pub(crate) async fn apply_center_rotation(
 /// warning after [`MERIDIAN_GATE_MAX_WAIT`] so a failed or disabled flip can
 /// never deadlock the night — the post-crossing trigger remains the backstop
 /// exactly as before this gate existed.
+///
+/// With a pre-meridian hold configured, a frame that would still be exposing
+/// when tracking is due to stop holds instead, with tracking off, until the
+/// target reaches the flip threshold; see [`hold_before_meridian`].
 pub(crate) async fn wait_for_meridian_flip_window(
     ctx: &InstructionContext,
     exposure_secs: f64,
     control: &BurstControl<'_>,
+) -> Option<InstructionResult> {
+    let hour_angle = || current_target_hour_angle(ctx);
+    wait_for_meridian_flip_window_at(ctx, exposure_secs, control, &hour_angle).await
+}
+
+/// [`wait_for_meridian_flip_window`] with the target's hour angle supplied by
+/// `hour_angle`, so tests can run the pre-meridian hold on a paused clock.
+pub(crate) async fn wait_for_meridian_flip_window_at(
+    ctx: &InstructionContext,
+    exposure_secs: f64,
+    control: &BurstControl<'_>,
+    hour_angle: &(dyn Fn() -> Option<f64> + Send + Sync),
+) -> Option<InstructionResult> {
+    let hold = match hold_before_meridian(ctx, exposure_secs, control, hour_angle).await {
+        Ok(hold) => hold,
+        Err(result) => return Some(result),
+    };
+    let result = wait_for_flip(ctx, exposure_secs, control, hour_angle).await;
+    if let Some(motion) = hold {
+        motion.end().await;
+        if result.is_none() {
+            if let Some(failure) = pick_up_guiding_after_hold(ctx).await {
+                return Some(failure);
+            }
+        }
+    }
+    result
+}
+
+async fn wait_for_flip(
+    ctx: &InstructionContext,
+    exposure_secs: f64,
+    control: &BurstControl<'_>,
+    hour_angle: &(dyn Fn() -> Option<f64> + Send + Sync),
 ) -> Option<InstructionResult> {
     /// Margin between predicted frame end and predicted trigger fire.
     const SAFETY_MARGIN_SECS: f64 = 30.0;
@@ -653,7 +691,7 @@ pub(crate) async fn wait_for_meridian_flip_window(
             control.report(&message);
             return None;
         }
-        let ha = current_target_hour_angle(ctx).or(polled_ha)?;
+        let ha = hour_angle().or(polled_ha)?;
         // The trigger's own pre-flip-side test, called rather than re-derived:
         // a target east of the meridian has no flip to be interrupted by, and
         // pier East is the post-flip side where the trigger can no longer fire.

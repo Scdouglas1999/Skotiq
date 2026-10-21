@@ -203,6 +203,7 @@ impl TriggerManager {
         let mut retention: Option<u64> = None;
         let mut meridian_method: Option<crate::MeridianTriggerMethod> = None;
         let mut meridian_minutes: Option<f64> = None;
+        let mut meridian_pause_before: Option<f64> = None;
         for trigger in &self.triggers {
             if !trigger.enabled {
                 continue;
@@ -225,6 +226,8 @@ impl TriggerManager {
                     meridian_method = Some(config.trigger_method);
                     if config.trigger_method == crate::MeridianTriggerMethod::MinutesPastMeridian {
                         meridian_minutes = Some(config.minutes_past_meridian);
+                        meridian_pause_before = Some(config.pause_before_meridian_minutes)
+                            .filter(|minutes| minutes.is_finite() && *minutes > 0.0);
                     }
                 }
             }
@@ -247,6 +250,9 @@ impl TriggerManager {
             }
             if state.meridian_flip_minutes_past != meridian_minutes {
                 state.meridian_flip_minutes_past = meridian_minutes;
+            }
+            if state.meridian_pause_before_minutes != meridian_pause_before {
+                state.meridian_pause_before_minutes = meridian_pause_before;
             }
         }
     }

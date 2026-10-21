@@ -333,10 +333,11 @@ impl SequenceExecutor {
     pub async fn update_meridian_flip_config(&mut self, config: crate::MeridianFlipConfig) {
         tracing::info!(
             "Updating meridian-flip trigger config: method={:?}, minutes_past={:.1}, \
-             auto_center={}, refocus={}, pause_guiding={}, resume_guiding={}, \
-             max_retries={}, failure_action={:?}",
+             pause_before_meridian={:.1}, auto_center={}, refocus={}, pause_guiding={}, \
+             resume_guiding={}, max_retries={}, failure_action={:?}",
             config.trigger_method,
             config.minutes_past_meridian,
+            config.pause_before_meridian_minutes,
             config.auto_center,
             config.refocus_after,
             config.pause_guiding,

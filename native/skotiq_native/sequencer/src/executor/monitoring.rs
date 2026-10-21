@@ -217,6 +217,33 @@ pub(super) fn mount_tracking_poll_verdict(
     (expected, just_lost)
 }
 
+/// Apply one mount tracking poll to the trigger state's loss baseline and
+/// return whether it is a genuine loss (see [`mount_tracking_poll_verdict`]).
+/// The caller records the reading in `mount_is_tracking` afterwards.
+///
+/// While the run itself has tracking off for the pre-meridian hold (see
+/// `instructions::pre_meridian_hold`) nothing is a loss: the baseline stays
+/// disarmed and the first `true` after the hold arms it again. Without this the
+/// hold's own stop read as "Mount tracking lost during sequence!", the run went
+/// into a recovery, and the recovery restarted tracking towards the tripod.
+pub(crate) fn apply_mount_tracking_poll(
+    state: &mut TriggerState,
+    currently_tracking: bool,
+) -> bool {
+    if state.mount_tracking_held_by_run {
+        state.set_mount_tracking_expected(false);
+        return false;
+    }
+    let (expected, just_lost) = mount_tracking_poll_verdict(
+        state.mount_tracking_expected,
+        currently_tracking,
+        state.mount_is_tracking,
+        state.mount_tracking_lost,
+    );
+    state.set_mount_tracking_expected(expected);
+    just_lost
+}
+
 /// The first-class [`crate::recovery::RecoveryCause`] a standard trigger maps
 /// to, or `None` for a trigger with no automatic recovery semantic (an
 /// operator-defined watchdog, FilterChange, and the rest).

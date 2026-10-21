@@ -96,6 +96,8 @@ struct ScriptedDomeRotatorOps {
     filter_names: Vec<String>,
     filter_moves: Mutex<Vec<i32>>,
     guiding: AtomicBool,
+    /// Every `mount_set_tracking` the run commanded, in order.
+    tracking_commands: Mutex<Vec<bool>>,
     guider_stop_calls: AtomicU32,
     guider_start_calls: AtomicU32,
     /// For each `guider_select_fresh_star`, how many `guider_start` calls had
@@ -217,6 +219,7 @@ impl ScriptedDomeRotatorOps {
             filter_names: vec!["L".to_string(), "R".to_string()],
             filter_moves: Mutex::new(Vec::new()),
             guiding: AtomicBool::new(false),
+            tracking_commands: Mutex::new(Vec::new()),
             guider_stop_calls: AtomicU32::new(0),
             guider_start_calls: AtomicU32::new(0),
             fresh_star_selections: Mutex::new(Vec::new()),
@@ -571,6 +574,7 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         self.inner.mount_is_tracking(id).await
     }
     async fn mount_set_tracking(&self, id: &str, enabled: bool) -> DeviceResult<()> {
+        self.tracking_commands.lock().unwrap().push(enabled);
         self.inner.mount_set_tracking(id, enabled).await
     }
     async fn camera_start_exposure(
@@ -1216,6 +1220,7 @@ mod guiding;
 mod meridian_gate;
 mod park;
 mod pointing_gate;
+mod pre_meridian_hold;
 mod rotator;
 mod save_path;
 // Every test in `script` spawns a real /bin/sh, so the whole file is

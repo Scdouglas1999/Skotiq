@@ -545,7 +545,10 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                 // would consume the edge: the latch clears on the next poll,
                 // so a run resumed on a mount the operator left untracked
                 // would expose with nothing restoring tracking.
-                Ok(_) if paused_safety_only => {
+                // A mount the run stopped itself for the pre-meridian hold is
+                // read under a pause as well: nothing acts on it, and the hold
+                // needs no edge kept for the resume.
+                Ok(_) if paused_safety_only && !state.mount_tracking_held_by_run => {
                     state.mount_status_query_failed = false;
                 }
                 Ok(is_tracking) => {
@@ -556,13 +559,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                     // true → false loss against it. `state.mount_is_tracking`
                     // still holds the PREVIOUS poll's reading here — it is
                     // updated below, after this check.
-                    let (mount_tracking_expected, tracking_just_lost) = mount_tracking_poll_verdict(
-                        state.mount_tracking_expected,
-                        *is_tracking,
-                        state.mount_is_tracking,
-                        state.mount_tracking_lost,
-                    );
-                    state.set_mount_tracking_expected(mount_tracking_expected);
+                    let tracking_just_lost = apply_mount_tracking_poll(&mut state, *is_tracking);
                     if tracking_just_lost {
                         tracing::warn!("Mount tracking lost during sequence!");
                         state.mount_tracking_lost = true;
@@ -754,6 +751,17 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         // trigger evaluators that share the same Arc. Snapshot the fired
         // triggers into an owned Vec and drop the lock before dispatching.
         let park_policy = runtime_config.read().park_policy;
+        // The pre-meridian hold holds the run as a pause does: the mount is
+        // standing still, so an autofocus, dither or recenter fired now would
+        // work on trailed frames.
+        let held_for_meridian = trigger_manager
+            .read()
+            .await
+            .state()
+            .read()
+            .await
+            .mount_tracking_held_by_run;
+        let actions_held = paused_safety_only || held_for_meridian;
         let fired_with_names: Vec<(String, String, FiredTriggerAction, Option<u64>)> = {
             let mut manager = trigger_manager.write().await;
             let mut dropped_under_hold: Vec<String> = Vec::new();
@@ -772,8 +780,9 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                     );
                     (trigger_id, fired)
                 })
-                // While paused, drop everything that is not protecting the rig
-                // itself. Filtering here rather than inside the dispatch keeps
+                // While the run is held (paused, recovering, or standing still
+                // for the pre-meridian hold), drop everything that is not
+                // protecting the rig itself. Filtering here rather than inside the dispatch keeps
                 // the guarantee in one readable place.
                 //
                 // A dropped firing is re-armed below. `Trigger::check` starts
@@ -787,7 +796,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                 // there. `was_firing` stays set across the hold, so a trigger
                 // that keeps firing under it is still logged once.
                 .filter(|(trigger_id, fired)| {
-                    if !paused_safety_only {
+                    if !actions_held {
                         return true;
                     }
                     match manager.get_trigger(trigger_id) {
@@ -796,7 +805,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                                 && may_act_during_hold(&fired.action);
                             if !allowed {
                                 tracing::debug!(
-                                    "Trigger '{}' fired while the run is paused; it is not a \
+                                    "Trigger '{}' fired while the run is held; it is not a \
                                      safety-class trigger with a protective action, so it is \
                                      not acted on until the run resumes",
                                     trigger_id
@@ -847,7 +856,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                     && matches!(fired.action, RecoveryAction::MeridianFlip(_))
             });
             let mut state = trigger_state_for_actions.write().await;
-            state.last_evaluation_running = Some(!paused_safety_only);
+            state.last_evaluation_running = Some(!actions_held);
             state.meridian_flip_dispatch_pending = flip_dispatching;
         }
 

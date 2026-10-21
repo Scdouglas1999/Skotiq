@@ -2498,6 +2498,13 @@ pub struct MeridianFlipConfig {
     /// Only used with OnTrackingLimitHit trigger method.
     #[serde(default)]
     pub tracking_limit_wait_minutes: f64,
+    /// Stop tracking this many minutes before the target reaches the meridian
+    /// and take no frames until the flip at `minutes_past_meridian` (N.I.N.A.'s
+    /// "pause before meridian"), for a rig whose tube hits the tripod near the
+    /// meridian. 0 is off. Only used with the MinutesPastMeridian method; see
+    /// `instructions::pre_meridian_hold`.
+    #[serde(default)]
+    pub pause_before_meridian_minutes: f64,
 
     // Flip sequence options
     pub pause_guiding: bool,
@@ -2604,6 +2611,7 @@ impl Default for MeridianFlipConfig {
             minutes_before_limit: 10.0,
             hour_angle_threshold: 0.5,
             tracking_limit_wait_minutes: 0.0,
+            pause_before_meridian_minutes: 0.0,
             pause_guiding: true,
             auto_center: true,
             refocus_after: false,

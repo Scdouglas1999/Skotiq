@@ -166,6 +166,16 @@ pub struct TriggerState {
     /// when the flip fires. None when no MinutesPastMeridian flip trigger
     /// is enabled (other trigger methods are not predictable in advance).
     pub meridian_flip_minutes_past: Option<f64>,
+    /// Minutes before the meridian the active MinutesPastMeridian flip trigger
+    /// stops tracking and holds the run until the flip, propagated like
+    /// [`Self::meridian_flip_minutes_past`]. None when the hold is off.
+    pub meridian_pause_before_minutes: Option<f64>,
+    /// The run itself stopped tracking for the pre-meridian hold. While set,
+    /// the tracking poll records the mount's state without arming the
+    /// tracking-lost baseline, and the trigger monitor treats the run as held:
+    /// only rig-protecting triggers act, so nothing autofocuses or dithers on
+    /// a mount that is standing still.
+    pub mount_tracking_held_by_run: bool,
     /// Whether the trigger monitor's last evaluation was on a running tick:
     /// `Some(false)` while the run is held (paused or recovering) and until the
     /// first evaluation after the hold, `None` before any monitor has evaluated
@@ -414,6 +424,8 @@ impl Default for TriggerState {
             current_target_name: None,
             next_meridian_flip_time: None,
             meridian_flip_minutes_past: None,
+            meridian_pause_before_minutes: None,
+            mount_tracking_held_by_run: false,
             last_evaluation_running: None,
             meridian_flip_dispatch_pending: false,
             imaging_train_claim: None,
@@ -669,6 +681,7 @@ impl TriggerState {
         self.guiding_rms_history = None;
         self.mount_motion_depth = 0;
         self.guiding_resume_pending = false;
+        self.mount_tracking_held_by_run = false;
         // A run is starting and its monitor has not evaluated yet.
         self.last_evaluation_running = Some(false);
         self.meridian_flip_dispatch_pending = false;
