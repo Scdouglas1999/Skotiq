@@ -7,7 +7,6 @@ import 'package:path/path.dart' as p;
 import '../../backend/bridge_events.dart' show depthGoalCompletedDetail;
 import '../../backend/frame_capture_metadata.dart';
 import '../../backend/skotiq_backend.dart';
-import '../../models/equipment/equipment_models.dart';
 import '../../models/imaging/imaging_models.dart';
 import '../../models/sequence/active_plan_owner.dart';
 import '../../models/sequence/instruction_progress_detail.dart';
@@ -18,15 +17,13 @@ import '../../services/sequence_repository.dart'
     show sequenceRepositoryProvider;
 import '../../services/live_stacking_broadcast_service.dart';
 import '../../services/safe_rig_service.dart';
-import '../../services/smart_night/guide_rms_collector.dart';
 import '../../services/capture_preview_loader.dart';
 import '../../services/logging_service.dart';
 import '../../utils/remote_path.dart';
 import 'log_rate_limiter.dart';
 import '../thumbnail_sidecar_provider.dart';
 import '../backend_provider.dart';
-import '../database_provider.dart'
-    show guideRmsHistoryDaoProvider, imagesDaoProvider, targetsDaoProvider;
+import '../database_provider.dart' show imagesDaoProvider, targetsDaoProvider;
 import '../../database/daos/campaigns_dao.dart' show campaignsDaoProvider;
 import '../../database/daos/targets_dao.dart' show TargetsDao;
 import '../disk_space_provider.dart';
@@ -36,7 +33,6 @@ import '../focuser_backlash_provider.dart'
 // Sky-brightness poll reads the tracker via this
 // provider (defined in flat_wizard_provider since the tracker is
 // shared between flat-wizard and adaptive-exposure paths).
-import '../flat_wizard_provider.dart' show skyBrightnessTrackerProvider;
 import '../imaging_provider.dart';
 import '../live_stacking_provider.dart';
 import '../meridian_flip_provider.dart';
@@ -59,15 +55,6 @@ import '../settings_provider.dart';
 // Session-lifecycle hooks: optical-train baseline capture,
 // post-session diagnostics summary, NotificationRouter active-sequence
 // tracking, USB disconnect aggregation.
-import '../../services/optical_train_diagnostics_service.dart'
-    show OpticalTrainDiagnostics;
-import '../notification_router_provider.dart';
-import '../optical_train_diagnostics_provider.dart';
-import '../preflight_providers.dart';
-import '../recovery_provider.dart' show recoveryHistoryProvider;
-import '../science_provider.dart'
-    show sessionPsfTilesProvider, sessionResidualVectorsProvider;
-import '../usb_disconnect_log_provider.dart';
 import 'exposure_progress_vocabulary.dart';
 import 'node_exposure_tally.dart';
 import 'sequencer_run_event.dart';
@@ -83,6 +70,7 @@ import 'sequence_executor/run_stats_ledger.dart';
 import 'sequence_executor/live_stacking_feed.dart';
 import 'sequence_executor/run_timers.dart';
 import 'sequence_executor/runtime_config_sync.dart';
+import 'sequence_executor/session_diagnostics.dart';
 import 'sequence_executor/sequence_serializer.dart';
 import 'sequence_executor/stop_confirmation.dart';
 import '../../services/frame_quality_score.dart';
@@ -91,6 +79,8 @@ export 'sequence_executor/eta_smoothing.dart'
     show EtaSmoother, kEtaEmaAlpha, kEtaWindowSize;
 export 'sequence_executor/run_finalization.dart' show RunFinalization;
 export 'sequence_executor/run_lifecycle.dart';
+export 'sequence_executor/session_diagnostics.dart'
+    show kCoolerSetpointBandDegC;
 export 'sequence_executor/sequence_serializer.dart' show SequenceSerializer;
 export 'sequence_executor/stop_confirmation.dart'
     show
@@ -100,13 +90,6 @@ export 'sequence_executor/stop_confirmation.dart'
         kNativeTerminalStates;
 
 part 'sequence_executor/event_operations.dart';
-part 'sequence_executor/session_diagnostics_operations.dart';
-
-/// Temperature drift threshold for post-session cooler stability notes.
-///
-/// A one-degree band is tight enough to catch a cooler that is cycling or
-/// saturated, while avoiding noise from normal sub-degree sensor wobble.
-const double kCoolerSetpointBandDegC = 1.0;
 
 /// Sequence executor that manages execution.
 ///
@@ -253,26 +236,12 @@ class SequenceExecutor {
     isDisposed: () => _disposed,
   );
 
-  /// Sequence id of the currently running sequence. Held so
-  /// the post-session diagnostics summary and the NotificationRouter
-  /// override know which sequence just finished even after
-  /// `currentSequenceProvider` has been cleared by the UI.
-  String? _activeSequenceId;
+  /// Session-start and session-end diagnostics.
+  late final SessionDiagnostics _diagnostics = SessionDiagnostics(
+    ref: _ref,
+    logger: () => _logger,
+  );
 
-  /// Wall-clock start time of the current run. Used to
-  /// compute the per-session USB disconnect count when building the
-  /// post-session diagnostics summary. Distinct from `_startTime`
-  /// (which is reset on pause/resume); this one survives until the
-  /// post-session hooks have run.
-  DateTime? _sessionStartedAt;
-
-  /// Pre-session optical-train snapshot captured at
-  /// `start()`. Persists across the run so the post-session finalizer
-  /// can publish the baseline alongside the post-session diagnostics
-  /// (so the dialog can render "pre" and "post" side by side, even
-  /// after the in-memory baseline provider has been overwritten by the
-  /// next run).
-  OpticalTrainBaseline? _sessionStartBaseline;
   LoggingService get _logger => _ref.read(loggingServiceProvider);
 
   /// Rate limiter for the per-event debug trace in `_handleSequencerEvent`.
@@ -301,18 +270,14 @@ class SequenceExecutor {
   String sequenceToJsonForTest(Sequence sequence) =>
       _serializer.sequenceToJson(sequence);
 
-  /// Test entry point for the session-start hooks. Lets
-  /// integration tests exercise the optical-train baseline capture +
-  /// NotificationRouter override + sessionStart timestamp without
-  /// spinning up the full `start()` pipeline (which requires a current
-  /// sequence, settings, validation, native backend, …).
+  /// Test entry point for the session-start hooks, without a whole start.
   @visibleForTesting
   void captureSessionStartHooksForTest(String sequenceId) =>
-      _captureSessionStartHooks(sequenceId);
+      _diagnostics.captureStart(sequenceId);
 
   /// Test entry point for the session-end hooks.
   @visibleForTesting
-  void captureSessionEndHooksForTest() => _captureSessionEndHooks();
+  void captureSessionEndHooksForTest() => _diagnostics.captureEnd();
 
   /// Test entry point that pumps a synthesised
   /// `SkotiqEvent` through the same handler the live native event
@@ -924,7 +889,7 @@ class SequenceExecutor {
     // already in "running" state. Each hook is independent — a failure
     // in one is logged but does not abort the start path. The Rust
     // executor must still start even if diagnostics are unavailable.
-    _captureSessionStartHooks(sequence.id);
+    _diagnostics.captureStart(sequence.id);
 
     _startPerRunTimers();
 

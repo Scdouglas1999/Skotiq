@@ -1,7 +1,67 @@
-part of '../sequence_executor.dart';
+import 'dart:async';
+import 'dart:convert';
 
-extension _SequenceExecutorSessionDiagnosticsOperations on SequenceExecutor {
-  void _captureSessionStartHooks(String sequenceId) {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../models/equipment/equipment_models.dart';
+import '../../../services/logging_service.dart';
+import '../../../services/optical_train_diagnostics_service.dart'
+    show OpticalTrainDiagnostics;
+import '../../../services/smart_night/guide_rms_collector.dart';
+import '../../database_provider.dart'
+    show guideRmsHistoryDaoProvider, imagesDaoProvider;
+import '../../equipment_provider.dart';
+import '../../flat_wizard_provider.dart' show skyBrightnessTrackerProvider;
+import '../../notification_router_provider.dart';
+import '../../imaging_provider.dart' show temperatureHistoryProvider;
+import '../../optical_train_diagnostics_provider.dart';
+import '../../preflight_providers.dart';
+import '../../profiles_provider.dart';
+import '../../recovery_provider.dart' show recoveryHistoryProvider;
+import '../../science_provider.dart'
+    show sessionPsfTilesProvider, sessionResidualVectorsProvider;
+import '../../sequence_stats_provider.dart';
+import '../../session_provider.dart';
+import '../../usb_disconnect_log_provider.dart';
+
+/// Temperature drift threshold for post-session cooler stability notes.
+///
+/// A one-degree band is tight enough to catch a cooler that is cycling or
+/// saturated, while avoiding noise from normal sub-degree sensor wobble.
+const double kCoolerSetpointBandDegC = 1.0;
+
+/// The diagnostics a run captures at its start and publishes at its end:
+/// the notification router's active-sequence override, the optical-train
+/// baseline and drift, the post-session health summary, the per-session
+/// diagnostics row and the Smart Night guide-RMS history.
+///
+/// It holds the run's identity between the two hooks, so the end hook still
+/// knows which run finished after the UI has cleared the loaded sequence.
+class SessionDiagnostics {
+  SessionDiagnostics({
+    required Ref ref,
+    required LoggingService Function() logger,
+  }) : _ref = ref,
+       _loggerFn = logger;
+
+  final Ref _ref;
+  final LoggingService Function() _loggerFn;
+  LoggingService get _logger => _loggerFn();
+
+  String? _activeSequenceId;
+
+  /// Wall-clock start of the run, which scopes the disconnect and cooler
+  /// counts in the summary.
+  DateTime? _sessionStartedAt;
+
+  /// The optical-train snapshot taken at the start, published beside the
+  /// post-session one.
+  OpticalTrainBaseline? _sessionStartBaseline;
+
+  /// Record the run's identity, register it with the notification router and
+  /// capture the optical-train baseline. Each hook is independent, and none
+  /// may block imaging.
+  void captureStart(String sequenceId) {
     _activeSequenceId = sequenceId;
     _sessionStartedAt = DateTime.now();
 
@@ -57,13 +117,10 @@ extension _SequenceExecutorSessionDiagnosticsOperations on SequenceExecutor {
     }
   }
 
-  /// Finalize post-session diagnostics + clear the notification router
-  /// override at session end.
-  ///
-  /// Called exactly once per run via `_finalizeRun`. Safe to call when no
-  /// session hook fired (e.g. start failed mid-way): the `_activeSequenceId`
-  /// guard short-circuits cleanly.
-  void _captureSessionEndHooks() {
+  /// Publish the post-session diagnostics and clear the notification router
+  /// override. Called once per run by finalization; a no-op when the start
+  /// hooks never ran (a launch that failed before them).
+  void captureEnd() {
     final sequenceId = _activeSequenceId;
     final sessionStart = _sessionStartedAt;
 
@@ -96,17 +153,9 @@ extension _SequenceExecutorSessionDiagnosticsOperations on SequenceExecutor {
     // Optical-train post-session snapshot + drift.
     OpticalTrainBaseline? postSnapshot;
     try {
-      // Keep the FULL analysis, not just the snapshot it collapses into.
-      // Rebuilding an `OpticalTrainDiagnostics` from an `OpticalTrainBaseline`
-      // drops the `tiltMeasured` / `collimationMeasured` flags onto their
-      // fail-OPEN constructor defaults, which turns "never measured" into
-      // "measured at 0", i.e. the best possible reading.
-      //
-      // Those defaults stay fail-open on purpose: the analyzer is the only
-      // caller entitled to omit them, because it alone knows what it looked
-      // at. So nothing is reconstructed here — the real analysis is carried
-      // forward — rather than flipping a default that would then silently
-      // downgrade the analyzer's own honest readings.
+      // The full analysis is carried, not rebuilt from the snapshot: a
+      // rebuilt one would default the `tiltMeasured` / `collimationMeasured`
+      // flags open and turn "never measured" into "measured at 0".
       final postDiagnostics = _analyzeOpticalTrain();
       postSnapshot = postDiagnostics == null
           ? null
@@ -114,16 +163,11 @@ extension _SequenceExecutorSessionDiagnosticsOperations on SequenceExecutor {
       if (postSnapshot != null && postDiagnostics != null) {
         _ref.read(opticalTrainCurrentSnapshotProvider.notifier).state =
             postSnapshot;
-        // Promote the post-session snapshot to the new baseline for
-        // the NEXT session's pre-flight comparison. Without this the
-        // baseline would keep pointing at the start of the just-
-        // finished run, so the second session would see no drift.
+        // The post-session snapshot is the next session's baseline.
         _ref.read(opticalTrainBaselineProvider.notifier).state = postSnapshot;
         if (_sessionStartBaseline != null) {
-          // Drift is a subtraction of two penalty scores. An axis that was
-          // never measured contributes a 0 that is a placeholder, not a
-          // reading, so half of the blend below would be arithmetic rather
-          // than measurement — state what is missing instead of a number.
+          // An unmeasured axis scores a placeholder 0, so drift is quoted
+          // only when both axes were measured.
           if (postDiagnostics.tiltMeasured &&
               postDiagnostics.collimationMeasured) {
             final drift = _sessionStartBaseline!.driftAgainst(postDiagnostics);
@@ -154,10 +198,8 @@ extension _SequenceExecutorSessionDiagnosticsOperations on SequenceExecutor {
           source: 'SequenceExecutor',
         );
       } else {
-        // No live PSF/residual data at session end — fall back to the
-        // start-of-session baseline (if we captured one) so the
-        // dashboard's current snapshot at least shows the entry
-        // state instead of stale data from a previous run.
+        // No data at the end: show the start baseline rather than a
+        // previous run's snapshot.
         if (_sessionStartBaseline != null) {
           _ref.read(opticalTrainCurrentSnapshotProvider.notifier).state =
               _sessionStartBaseline;
@@ -207,11 +249,9 @@ extension _SequenceExecutorSessionDiagnosticsOperations on SequenceExecutor {
       );
     }
 
-    // Per-session diagnostics persistence.
-    // Recovery history + optical-train baseline/current live only in
-    // volatile in-memory providers, which the NEXT run overwrites. Persist
-    // them keyed to this session so a historical run report can reload THAT
-    // session's recoveries and drift comparison instead of the live values.
+    // Recovery history and the optical-train snapshots live in providers the
+    // next run overwrites; persisting them per session lets a historical
+    // report reload this session's values.
     try {
       final dbSessionId = _ref.read(sessionStateProvider).dbSessionId;
       if (dbSessionId != null) {
@@ -225,11 +265,8 @@ extension _SequenceExecutorSessionDiagnosticsOperations on SequenceExecutor {
         final currentJson = postSnapshot == null
             ? null
             : jsonEncode(postSnapshot.toJson());
-        // Resolve the logger synchronously, while the container is still
-        // alive. The deferred catchError below runs after this method has
-        // returned, by which point `_ref` may already be disposed (e.g. on
-        // app shutdown right after a session ends) — re-reading a provider
-        // from a disposed container would throw inside the async zone.
+        // Captured now: the deferred catchError can run after the container
+        // is disposed.
         final logger = _logger;
         unawaited(
           _ref
@@ -271,8 +308,7 @@ extension _SequenceExecutorSessionDiagnosticsOperations on SequenceExecutor {
           imagesDao: _ref.read(imagesDaoProvider),
           guideRmsHistoryDao: _ref.read(guideRmsHistoryDaoProvider),
         );
-        // Resolve the logger synchronously (see note above): the deferred
-        // catchError must not re-read from a possibly-disposed `_ref`.
+        // Captured now, as above.
         final logger = _logger;
         unawaited(
           collector
@@ -297,8 +333,7 @@ extension _SequenceExecutorSessionDiagnosticsOperations on SequenceExecutor {
       );
     }
 
-    // Reset for the next run. Don't clear `_sessionStartBaseline`
-    // until here so the post-session hook above could reference it.
+    // Reset for the next run, now that the hooks above have used them.
     _activeSequenceId = null;
     _sessionStartedAt = null;
     _sessionStartBaseline = null;
@@ -422,61 +457,5 @@ extension _SequenceExecutorSessionDiagnosticsOperations on SequenceExecutor {
         ? samples[mid]
         : (samples[mid - 1] + samples[mid]) / 2.0;
     return (min: samples.first, max: samples.last, median: median);
-  }
-
-  /// Fetch the last captured image and update the UI providers so the Imaging
-  /// tab and Dashboard show sequence frames as they complete.
-  ///
-  /// [settings] describes the exposure that produced the frame (see
-  /// [_previewSettingsForFrame]). It is a parameter rather than something built
-  /// here because only the caller holds the frame event this preview belongs
-  /// to; building it here is what left every sequence preview labelled with
-  /// literals.
-  ///
-  /// [filePath] is the frame's saved file when the caller knows it.
-  void _fetchAndDisplaySequenceImage(
-    ExposureSettings settings, {
-    String? filePath,
-  }) {
-    // Fire-and-forget; image display is non-critical for sequence correctness.
-    Future(() async {
-      try {
-        final cameraState = _ref.read(cameraStateProvider);
-        final cameraDeviceId = cameraState.deviceId;
-        if (cameraDeviceId == null || cameraDeviceId.isEmpty) {
-          _logger.debug(
-            'No camera device ID available, skipping image fetch',
-            source: 'SequenceExecutor',
-          );
-          return;
-        }
-        final backend = _backend;
-        final capturedImage = await backend.cameraGetLastImage(cameraDeviceId);
-        if (capturedImage == null) {
-          _logger.debug(
-            'No image data available from camera',
-            source: 'SequenceExecutor',
-          );
-          return;
-        }
-
-        final imageData = capturedImageDataFromResult(
-          capturedImage: capturedImage,
-          capturedAt: DateTime.now(),
-          settings: settings,
-          filePath: filePath,
-        );
-
-        _ref
-            .read(capturePreviewPublisherProvider)
-            .publish(_ref, imageData, cameraDeviceId);
-      } catch (e) {
-        // Image display is non-critical; log only.
-        _logger.warning(
-          'Failed to fetch sequence image for display: $e',
-          source: 'SequenceExecutor',
-        );
-      }
-    });
   }
 }

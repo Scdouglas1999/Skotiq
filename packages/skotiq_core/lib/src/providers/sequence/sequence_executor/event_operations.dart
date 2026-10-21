@@ -1176,6 +1176,62 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
         .read(sequenceRunsDaoProvider)
         .finishRun(runId, f.runStatus, stats.toJson());
     f.runRecordFinished = true;
-    _captureSessionEndHooks();
+    _diagnostics.captureEnd();
+  }
+
+  /// Fetch the last captured image and update the UI providers so the Imaging
+  /// tab and Dashboard show sequence frames as they complete.
+  ///
+  /// [settings] describes the exposure that produced the frame (see
+  /// [_previewSettingsForFrame]). It is a parameter rather than something built
+  /// here because only the caller holds the frame event this preview belongs
+  /// to; building it here is what left every sequence preview labelled with
+  /// literals.
+  ///
+  /// [filePath] is the frame's saved file when the caller knows it.
+  void _fetchAndDisplaySequenceImage(
+    ExposureSettings settings, {
+    String? filePath,
+  }) {
+    // Fire-and-forget; image display is non-critical for sequence correctness.
+    Future(() async {
+      try {
+        final cameraState = _ref.read(cameraStateProvider);
+        final cameraDeviceId = cameraState.deviceId;
+        if (cameraDeviceId == null || cameraDeviceId.isEmpty) {
+          _logger.debug(
+            'No camera device ID available, skipping image fetch',
+            source: 'SequenceExecutor',
+          );
+          return;
+        }
+        final backend = _backend;
+        final capturedImage = await backend.cameraGetLastImage(cameraDeviceId);
+        if (capturedImage == null) {
+          _logger.debug(
+            'No image data available from camera',
+            source: 'SequenceExecutor',
+          );
+          return;
+        }
+
+        final imageData = capturedImageDataFromResult(
+          capturedImage: capturedImage,
+          capturedAt: DateTime.now(),
+          settings: settings,
+          filePath: filePath,
+        );
+
+        _ref
+            .read(capturePreviewPublisherProvider)
+            .publish(_ref, imageData, cameraDeviceId);
+      } catch (e) {
+        // Image display is non-critical; log only.
+        _logger.warning(
+          'Failed to fetch sequence image for display: $e',
+          source: 'SequenceExecutor',
+        );
+      }
+    });
   }
 }
