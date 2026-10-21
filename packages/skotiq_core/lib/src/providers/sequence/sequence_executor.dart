@@ -22,7 +22,6 @@ import '../../services/sequence_file_service.dart';
 import '../../services/sequence_repository.dart'
     show sequenceRepositoryProvider;
 import '../../services/live_stacking_broadcast_service.dart';
-import '../../services/live_stacking_service.dart' show LiveStackingConfig;
 import '../../services/safe_rig_service.dart';
 import '../../services/smart_night/guide_rms_collector.dart';
 import '../../services/capture_preview_loader.dart';
@@ -94,6 +93,7 @@ import 'sequence_executor/eta_smoothing.dart';
 import 'sequence_executor/run_finalization.dart';
 import 'sequence_executor/run_lifecycle.dart';
 import 'sequence_executor/run_stats_ledger.dart';
+import 'sequence_executor/live_stacking_feed.dart';
 import 'sequence_executor/sequence_serializer.dart';
 import 'sequence_executor/stop_confirmation.dart';
 import '../../services/frame_quality_score.dart';
@@ -187,21 +187,15 @@ class SequenceExecutor {
   /// checkpoint file. The next tick simply skips while one is running.
   bool _checkpointSaveInFlight = false;
 
-  /// Live-stacking auto-feed: whether the live stacker + LAN broadcast have
-  /// been armed for the *current* run yet.
-  /// The first accepted frame of a run that contains an enabled
-  /// `LiveStackingNode` arms both (the frame becomes the stack
-  /// reference); every later accepted frame is added to the existing
-  /// stack. Reset to `false` in `start()` and torn down in `stop()` so a
-  /// new run never inherits the previous run's reference frame.
-  bool _liveStackingArmedForRun = false;
-
-  /// Guards against concurrent re-entrant accepted-frame feeds. FFI
-  /// stacking calls are async; without this a fast exposure cadence could
-  /// interleave an `addFrameFromFile` with the initial `startFromFile`
-  /// and corrupt the reference. We serialise feeds by chaining onto this
-  /// future. `null` when no feed is in flight.
-  Future<void>? _liveStackingFeedChain;
+  /// Feeds accepted frames to the live stacker when the sequence asks for it.
+  late final LiveStackingFeed _liveStacking = LiveStackingFeed(
+    sequence: () => _ref.read(currentSequenceProvider),
+    progress: () => _ref.read(sequenceProgressProvider),
+    broadcast: () => _ref.read(liveStackingBroadcastServiceProvider),
+    stacker: () => _ref.read(liveStackingProvider.notifier),
+    stackState: () => _ref.read(liveStackingProvider),
+    logger: () => _logger,
+  );
 
   /// In-flight fire-and-forget frame-persistence futures from
   /// [_registerSequenceFrame]. Tracked so (a) tests can await quiescence
@@ -357,7 +351,7 @@ class SequenceExecutor {
     // await (e.g. the reference start queued an add), and frame
     // persistence runs on its own futures outside the chain.
     while (true) {
-      final tail = _liveStackingFeedChain;
+      final tail = _liveStacking.pending;
       final registrations = List.of(_inFlightFrameRegistrations);
       if (tail == null && registrations.isEmpty) return;
       try {
@@ -366,7 +360,7 @@ class SequenceExecutor {
         // Feed errors are logged and surfaced by the feed itself; this
         // waiter only cares about quiescence.
       }
-      if (identical(tail, _liveStackingFeedChain) &&
+      if (identical(tail, _liveStacking.pending) &&
           _inFlightFrameRegistrations.isEmpty) {
         return;
       }
@@ -733,10 +727,7 @@ class SequenceExecutor {
         );
     _ref.read(currentRunIdProvider.notifier).state = runId;
     _ref.read(liveSequenceStatsProvider.notifier).state = SequenceRunStats();
-    // A fresh run must never inherit the previous run's live stack /
-    // reference frame. Arming happens lazily on the first accepted frame.
-    _liveStackingArmedForRun = false;
-    _liveStackingFeedChain = null;
+    _liveStacking.resetForRun();
     _gradedFrames.clear();
 
     // Replay Debug — stamp the active sequence_runs.id onto the
@@ -1520,7 +1511,7 @@ class SequenceExecutor {
       }
     }
     try {
-      await _teardownLiveStacking();
+      await _liveStacking.teardown();
     } catch (e) {
       secondary('teardown live stacking', e);
     }
