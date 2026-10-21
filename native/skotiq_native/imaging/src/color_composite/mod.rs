@@ -9,6 +9,7 @@
 
 pub mod align;
 pub mod filters;
+pub mod flatten;
 pub mod mix;
 
 #[cfg(test)]

@@ -15,17 +15,24 @@
 //!    clamped Lanczos-3 (see [`crate::color_composite::align`]).
 //! 2. Several masters of one filter (several sessions) are scaled onto the
 //!    first of them and averaged by inverse noise variance.
-//! 3. The palette maps the filters onto red, green and blue, in linear space and
+//! 3. With `flatten`, every plane is flattened before any channel meets
+//!    another (see [`crate::color_composite::flatten`]): its throughput across
+//!    the field, read from the stars against the luminance plane, is divided
+//!    out; its sky surface is subtracted; and after the palette has made red,
+//!    green and blue, their sky's color is flattened on a box lattice. This is
+//!    the per-channel background extraction a PixInsight user runs on each
+//!    linear master before ChannelCombination.
+//! 4. The palette maps the filters onto red, green and blue, in linear space and
 //!    without any normalization of its own — the channel balance is
-//!    `color_calibrate`'s job, after `background_extract` has flattened each
-//!    channel, as PixInsight's ChannelCombination leaves it.
+//!    `color_calibrate`'s job, after each channel has been flattened, as
+//!    PixInsight's ChannelCombination leaves it.
 //!    * `rgb` / `lrgb`: R, G and B as recorded.
 //!    * `haRgb` / `haLrgb`: Ha, scaled onto red so stars match, blended into red
 //!      by `haRedWeight` (and into the luminance by `haLuminanceWeight`).
 //!    * `sho`: SII → red, Ha → green, OIII → blue; `hoo`: Ha → red, OIII → green
 //!      and blue. OIII and SII are scaled onto Ha so stars come out neutral.
 //!    * `osc`: one-shot-color masters averaged.
-//! 4. For `lrgb` and `haLrgb` the luminance master, fitted onto the RGB's own
+//! 5. For `lrgb` and `haLrgb` the luminance master, fitted onto the RGB's own
 //!    luminance, sets each pixel's lightness and the RGB its chromaticity
 //!    ([`crate::color_composite::mix::apply_luminance`]).
 //!
@@ -42,16 +49,26 @@
 //!
 //! # Pinned measurements
 //!
+//! The throughput and sky surfaces are measured when `flatten` carries none,
+//! and a draft pins them the way it pins the fits; the chroma lattice is
+//! measured at every render, at the scale the render sees.
+//!
 //! The flux fits are value-domain measurements. A step without `fits` measures
 //! them from the image it is handed and reports them; a draft measures at full
 //! resolution and pins the answer, so every preview level renders the same
 //! balance.
+
+use std::collections::BTreeMap;
 
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 
 use crate::color_composite::align::{warp_window, Affine2, Rect};
 use crate::color_composite::filters::{FilterRole, Palette};
+use crate::color_composite::flatten::{
+    apply_background, apply_throughput, flatten_chroma, measure_background, measure_throughput,
+    FieldStars, Surface, CHROMA_BOX_DEFAULT,
+};
 use crate::color_composite::mix::{
     apply_luminance, blend, psf_match_sigmas, robust_fit, weighted_mean, LinearFit,
 };
@@ -122,6 +139,8 @@ struct RawParams {
     ha_red_weight: Option<f64>,
     #[serde(default)]
     ha_luminance_weight: Option<f64>,
+    #[serde(default)]
+    flatten: Option<Value>,
 }
 
 /// One input, validated.
@@ -146,6 +165,87 @@ struct Settings {
     star_sigma: std::collections::BTreeMap<String, f64>,
     ha_red_weight: f64,
     ha_luminance_weight: f64,
+    flatten: Option<FlattenSpec>,
+}
+
+/// The `flatten` parameter: what is pinned, and the chroma lattice's box.
+struct FlattenSpec {
+    /// Chroma lattice box side, in full-resolution pixels; `0` turns it off.
+    chroma_box: f64,
+    /// Pinned throughput surfaces by plane key; `None` measures them.
+    throughput: Option<BTreeMap<String, Surface>>,
+    /// Pinned sky surfaces by plane key; `None` measures them.
+    background: Option<BTreeMap<String, Surface>>,
+}
+
+/// Largest chroma lattice box accepted, in full-resolution pixels.
+const CHROMA_BOX_MAX: f64 = 1024.0;
+
+fn read_flatten(value: &Value) -> Result<FlattenSpec, OpError> {
+    let object = value
+        .as_object()
+        .ok_or_else(|| invalid("flatten must be an object"))?;
+    if let Some(key) = object
+        .keys()
+        .find(|k| !["chromaBox", "throughput", "background"].contains(&k.as_str()))
+    {
+        return Err(invalid(format!("flatten has no setting named '{key}'")));
+    }
+    let surfaces = |name: &str| -> Result<Option<BTreeMap<String, Surface>>, OpError> {
+        let Some(map) = object.get(name) else {
+            return Ok(None);
+        };
+        let map = map
+            .as_object()
+            .ok_or_else(|| invalid(format!("flatten.{name} must map plane names to surfaces")))?;
+        let mut out = BTreeMap::new();
+        for (key, surface) in map {
+            if plane_role(key).is_none() {
+                return Err(invalid(format!(
+                    "flatten.{name} names an unknown plane '{key}'"
+                )));
+            }
+            let surface = Surface::from_json(surface)
+                .map_err(|e| invalid(format!("flatten.{name}.{key}: {e}")))?;
+            out.insert(key.clone(), surface);
+        }
+        Ok(Some(out))
+    };
+    let chroma_box = match object.get("chromaBox") {
+        None => CHROMA_BOX_DEFAULT,
+        Some(v) => range(
+            "flatten.chromaBox",
+            v.as_f64().unwrap_or(f64::NAN),
+            0.0,
+            CHROMA_BOX_MAX,
+        )?,
+    };
+    Ok(FlattenSpec {
+        chroma_box,
+        throughput: surfaces("throughput")?,
+        background: surfaces("background")?,
+    })
+}
+
+/// The role a flatten plane key belongs to: a role's wire name, or a
+/// multi-channel role's name followed by its channel index.
+fn plane_role(key: &str) -> Option<FilterRole> {
+    FilterRole::from_wire(key).or_else(|| {
+        let digits = key.trim_start_matches(|c: char| !c.is_ascii_digit());
+        let name = &key[..key.len() - digits.len()];
+        (!digits.is_empty() && digits.parse::<u32>().is_ok())
+            .then(|| FilterRole::from_wire(name))
+            .flatten()
+    })
+}
+
+/// The flatten key of channel `channel` of a role with `channels` planes.
+fn plane_key(role: &FilterRole, channel: usize, channels: usize) -> String {
+    if channels == 1 {
+        role.as_wire().to_string()
+    } else {
+        format!("{}{channel}", role.as_wire())
+    }
 }
 
 fn invalid(reason: impl Into<String>) -> OpError {
@@ -371,6 +471,7 @@ fn read_settings(params: &Value) -> Result<Settings, OpError> {
             0.0,
             1.0,
         )?,
+        flatten: raw.flatten.as_ref().map(read_flatten).transpose()?,
     })
 }
 
@@ -571,6 +672,11 @@ impl DarkroomOp for ChannelCombineV1 {
         drop(planes);
         ctx.check_cancel()?;
 
+        let mut flatten_report = Map::new();
+        if let Some(spec) = &settings.flatten {
+            flatten_report = flatten_planes(&mut by_role, spec, image, width, height, ctx)?;
+        }
+
         let take =
             |role: FilterRole| -> Vec<Vec<f32>> { by_role.get(&role).cloned().unwrap_or_default() };
         let rgb_from = |by_role: &std::collections::BTreeMap<FilterRole, Vec<Vec<f32>>>| -> Option<[Vec<f32>; 3]> {
@@ -627,6 +733,19 @@ impl DarkroomOp for ChannelCombineV1 {
         }
         ctx.check_cancel()?;
 
+        if let Some(spec) = &settings.flatten {
+            let box_px = (spec.chroma_box * ctx.scale()).round() as usize;
+            if box_px > 0 {
+                let chroma =
+                    flatten_chroma([&mut red, &mut green, &mut blue], width, height, box_px);
+                flatten_report.insert(
+                    "chroma".to_string(),
+                    chroma.map_or(Value::Null, |c| c.report()),
+                );
+            }
+            flatten_report.insert("chromaBox".to_string(), json!(spec.chroma_box));
+        }
+
         if settings.palette.uses_luminance() {
             let l =
                 luminance.ok_or_else(|| invalid("the palette's luminance master is missing"))?;
@@ -675,8 +794,108 @@ impl DarkroomOp for ChannelCombineV1 {
             "fits": Value::Object(fit_json),
             "fitsPinned": settings.fits.as_ref().is_some_and(|f| !f.is_empty()),
         });
+        let mut measurement = measurement;
+        if settings.flatten.is_some() {
+            measurement["flatten"] = Value::Object(flatten_report);
+        }
         Ok(OpApplied::measured(combined, measurement))
     }
+}
+
+/// Flatten every registered plane: divide out its throughput relative to the
+/// reference plane, then subtract its sky surface. Pinned surfaces apply as
+/// given; a surface not pinned is measured from the field, and a plane the
+/// measurement cannot support is left as it is and reported so.
+///
+/// The reference is the luminance plane when there is one, otherwise the mean
+/// of every plane; it gets no throughput of its own.
+fn flatten_planes(
+    by_role: &mut BTreeMap<FilterRole, Vec<Vec<f32>>>,
+    spec: &FlattenSpec,
+    template: &OpImage,
+    width: usize,
+    height: usize,
+    ctx: &OpContext,
+) -> Result<Map<String, Value>, OpError> {
+    let reference: Vec<f32> = match by_role.get(&FilterRole::Luminance) {
+        Some(l) => l[0].clone(),
+        None => {
+            let planes: Vec<&Vec<f32>> = by_role.values().flatten().collect();
+            let n = planes.len() as f64;
+            (0..width * height)
+                .map(|i| (planes.iter().map(|p| p[i] as f64).sum::<f64>() / n) as f32)
+                .collect()
+        }
+    };
+    let stars = if spec.throughput.is_none() || spec.background.is_none() {
+        let image = template.with_geometry(width as u32, height as u32, 1, reference.clone())?;
+        Some(FieldStars::detect(&image, ctx)?)
+    } else {
+        None
+    };
+    let mut throughput = Map::new();
+    let mut background = Map::new();
+    for (role, planes) in by_role.iter_mut() {
+        let count = planes.len();
+        for (channel, plane) in planes.iter_mut().enumerate() {
+            ctx.check_cancel()?;
+            let key = plane_key(role, channel, count);
+            if *role != FilterRole::Luminance {
+                let surface = match (&spec.throughput, &stars) {
+                    (Some(pinned), _) => pinned.get(&key).cloned(),
+                    (None, Some(stars)) => {
+                        let fit = measure_throughput(plane, &reference, width, height, stars);
+                        throughput.insert(
+                            key.clone(),
+                            fit.as_ref().map_or(Value::Null, |f| f.report()),
+                        );
+                        fit.map(|f| f.surface)
+                    }
+                    (None, None) => None,
+                };
+                if let Some(surface) = &surface {
+                    apply_throughput(plane, width, height, surface);
+                }
+            }
+            let surface = match (&spec.background, &stars) {
+                (Some(pinned), _) => pinned.get(&key).cloned(),
+                (None, Some(stars)) => {
+                    let fit = measure_background(plane, width, height, stars, ctx)?;
+                    background.insert(
+                        key.clone(),
+                        fit.as_ref().map_or(Value::Null, |f| f.report()),
+                    );
+                    fit.map(|f| f.surface)
+                }
+                (None, None) => None,
+            };
+            if let Some(surface) = &surface {
+                apply_background(plane, width, height, surface);
+            }
+        }
+    }
+    let mut report = Map::new();
+    report.insert(
+        "throughputPinned".to_string(),
+        json!(spec.throughput.is_some()),
+    );
+    report.insert(
+        "backgroundPinned".to_string(),
+        json!(spec.background.is_some()),
+    );
+    if spec.throughput.is_none() {
+        report.insert("throughput".to_string(), Value::Object(throughput));
+    }
+    if spec.background.is_none() {
+        report.insert("background".to_string(), Value::Object(background));
+    }
+    if let Some(stars) = &stars {
+        report.insert(
+            "photometryStars".to_string(),
+            json!(stars.photometry_count()),
+        );
+    }
+    Ok(report)
 }
 
 /// The chromaticity blur of each color channel, in full-resolution pixels:
