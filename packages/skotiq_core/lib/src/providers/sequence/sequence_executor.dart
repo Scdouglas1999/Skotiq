@@ -25,7 +25,6 @@ import '../thumbnail_sidecar_provider.dart';
 import '../backend_provider.dart';
 import '../database_provider.dart' show imagesDaoProvider, targetsDaoProvider;
 import '../../database/daos/campaigns_dao.dart' show campaignsDaoProvider;
-import '../../database/daos/targets_dao.dart' show TargetsDao;
 import '../disk_space_provider.dart';
 import '../equipment_provider.dart';
 import '../focuser_backlash_provider.dart'
@@ -71,6 +70,7 @@ import 'sequence_executor/live_stacking_feed.dart';
 import 'sequence_executor/run_timers.dart';
 import 'sequence_executor/runtime_config_sync.dart';
 import 'sequence_executor/session_diagnostics.dart';
+import 'sequence_executor/run_target_binding.dart';
 import 'sequence_executor/sequence_serializer.dart';
 import 'sequence_executor/stop_confirmation.dart';
 import '../../services/frame_quality_score.dart';
@@ -292,7 +292,7 @@ class SequenceExecutor {
   /// the `targets` rows hold afterwards without driving a whole run.
   @visibleForTesting
   Future<void> bindCatalogTargetsForTest(Sequence sequence) =>
-      _bindCatalogTargets(sequence);
+      _targets.bind(sequence);
 
   /// Completes when every live-stacking feed AND fire-and-forget frame
   /// persistence queued SO FAR has finished (the feed chain serialises
@@ -544,117 +544,11 @@ class SequenceExecutor {
     }
   }
 
-  /// `targets.id` for each of the running sequence's Target nodes, keyed by
-  /// node id. Rebuilt at every start by [_bindCatalogTargets].
-  final Map<String, int> _runCatalogTargetIds = <String, int>{};
-
-  /// Give every Target node in [sequence] a `targets` row so the frames it
-  /// produces can be attributed to it.
-  ///
-  /// `TargetHeaderNode.catalogTargetId` is only populated for sequences
-  /// generated from a library/catalog target (planner, scheduler, mosaic). A
-  /// target the operator typed into the builder had none, so every frame it
-  /// captured was persisted with `captured_images.target_id` NULL: the Session
-  /// Report filed the night under "Untargeted", per-target integration goals
-  /// could never complete, and project tracking counted nothing — for frames
-  /// whose own FITS `OBJECT` card and filename named the target.
-  ///
-  /// The row is created lazily HERE, at the moment the target is actually
-  /// imaged, rather than when a Target node is added to a draft sequence, so
-  /// editing the builder does not litter the target library.
-  Future<void> _bindCatalogTargets(Sequence sequence) async {
-    _runCatalogTargetIds.clear();
-    final dao = _ref.read(targetsDaoProvider);
-    for (final header in sequence.targetHeaders) {
-      final existing = header.catalogTargetId;
-      if (existing != null) {
-        _runCatalogTargetIds[header.id] = existing;
-        // A node bound to a library row can be re-pointed in the builder just
-        // like a hand-typed one — skipping the refresh here left the scheduler
-        // evaluating the library's original position for exactly the targets
-        // the operator picked FROM the library.
-        try {
-          await _refreshCatalogCoordinates(dao, existing, header);
-        } catch (e) {
-          _logger.warning(
-            'Could not update the catalog coordinates for '
-            '"${header.targetName}": $e',
-            source: 'SequenceExecutor',
-          );
-        }
-        continue;
-      }
-      final name = header.targetName.trim();
-      // An unnamed target cannot be identified later; NULL stays the honest
-      // answer rather than inventing a library entry called "".
-      if (name.isEmpty) continue;
-      try {
-        final targetId = await dao.findOrCreateByName(
-          name: name,
-          raHours: header.raHours,
-          decDegrees: header.decDegrees,
-        );
-        _runCatalogTargetIds[header.id] = targetId;
-        await _refreshCatalogCoordinates(dao, targetId, header);
-      } catch (e) {
-        _logger.warning(
-          'Could not bind target "$name" to a targets row; its frames will be '
-          'recorded without a target id: $e',
-          source: 'SequenceExecutor',
-        );
-      }
-    }
-  }
-
-  /// Bring the catalog row's coordinates up to date with the target the run is
-  /// actually imaging.
-  ///
-  /// `findOrCreateByName` matches on the name alone, so re-pointing a target in
-  /// the builder and running it again returned the same row with its ORIGINAL
-  /// RA/Dec. That row is the only thing the autopilot reads, so the scheduler
-  /// went on rejecting a target at the zenith as "below horizon" — quoting the
-  /// altitude of coordinates the operator had replaced half an hour earlier.
-  ///
-  /// Only the coordinates move, and only for a node carrying real ones: an
-  /// unset (0, 0) target must never blank a stored position, and the rest of
-  /// the row (priority, altitude floor, goals, notes) belongs to the library.
-  Future<void> _refreshCatalogCoordinates(
-    TargetsDao dao,
-    int targetId,
-    TargetHeaderNode header,
-  ) async {
-    if (header.raHours == 0.0 && header.decDegrees == 0.0) return;
-    final row = await dao.getTargetById(targetId);
-    if (row == null) return;
-    // One arcsecond in each axis — below it the difference is float noise from
-    // a round trip, not an operator re-pointing the telescope.
-    const raEpsilonHours = 1.0 / 54000.0;
-    const decEpsilonDegrees = 1.0 / 3600.0;
-    if ((row.ra - header.raHours).abs() < raEpsilonHours &&
-        (row.dec - header.decDegrees).abs() < decEpsilonDegrees) {
-      return;
-    }
-    await dao.updateTarget(
-      row.copyWith(
-        ra: header.raHours,
-        dec: header.decDegrees,
-        updatedAt: DateTime.now(),
-      ),
-    );
-    _logger.info(
-      'Target "${row.name}" re-pointed to RA ${header.raHours}h / '
-      'Dec ${header.decDegrees}°; the scheduler now evaluates it there.',
-      source: 'SequenceExecutor',
-    );
-  }
-
-  /// `targets.id` for the frame produced by [nodeId], from the binding made at
-  /// run start. Null when the node sits outside any target.
-  int? _runTargetIdFor(Sequence sequence, String nodeId) {
-    final header = enclosingTargetHeader(sequence, nodeId);
-    if (header == null) return null;
-    return header.catalogTargetId ?? _runCatalogTargetIds[header.id];
-  }
+  /// The running sequence's Target nodes bound to their `targets` rows.
+  late final RunTargetBinding _targets = RunTargetBinding(
+    targetsDao: () => _ref.read(targetsDaoProvider),
+    logger: () => _logger,
+  );
 
   /// Open the durable records a run owns and stamp its id onto the executor.
   ///
@@ -867,7 +761,7 @@ class SequenceExecutor {
     _ref.read(sequenceExecutionStateProvider.notifier).state =
         SequenceExecutionState.running;
 
-    await _bindCatalogTargets(sequence);
+    await _targets.bind(sequence);
     await _startSessionRow(sequence);
     // Persist the exact sequence JSON used for this run so the run-history
     // "diff vs previous run" view compares real snapshots rather than the
@@ -2151,7 +2045,7 @@ class SequenceExecutor {
         // Same binding a fresh start makes: without it every frame captured
         // after the resume registers with target_id NULL, so one night's
         // frames split between the target and "Untargeted".
-        await _bindCatalogTargets(resumedSequence);
+        await _targets.bind(resumedSequence);
       }
       final sessionNotifier = _ref.read(sessionStateProvider.notifier);
       await sessionNotifier.startSession(

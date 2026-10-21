@@ -696,14 +696,14 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
     // `targets.id` this frame belongs to. `attribution` reads the node's own
     // `catalogTargetId`, which only sequences generated from a library target
     // carry; for a Target the operator typed into the builder the id comes
-    // from the row bound at run start (see [_bindCatalogTargets]). Before that
+    // from the row bound at run start (see [RunTargetBinding]). Before that
     // binding existed every builder-authored night was persisted with
     // `target_id` NULL and reported as "Untargeted".
     final targetId =
         attribution.targetId ??
         (loadedSequence == null
             ? null
-            : _runTargetIdFor(loadedSequence, nodeId));
+            : _targets.targetIdFor(loadedSequence, nodeId));
     // The exposure the shutter actually ran for, as the camera reported it —
     // already bounded against the commanded duration native-side, so a driver
     // that misreports cannot inflate this column's integration totals.
