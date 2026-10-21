@@ -42,6 +42,9 @@ class NightControlScreen extends ConsumerWidget {
     // Critical run events become toasts, sounds and phone pushes only while
     // this bridge is watched.
     ref.watch(runDashboardCriticalEventsBridgeProvider);
+    // Snapshot and Loop on the Camera tab use the manual exposure settings,
+    // which follow the active profile only while this sync is watched.
+    ref.watch(syncExposureFromProfileProvider);
 
     return const Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
