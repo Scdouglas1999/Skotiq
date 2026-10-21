@@ -249,6 +249,68 @@ fn stars_outside_the_hfr_window_are_counted_not_just_dropped() {
     );
 }
 
+fn star_detect_fixture(name: &str) -> ImageData {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../test-fixtures/star-detect-2026-10-21")
+        .join(name);
+    let (image, _) =
+        skotiq_imaging::read_fits(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    ImageData {
+        width: image.width,
+        height: image.height,
+        data: image.as_u16().expect("16-bit frame"),
+        bits_per_pixel: 16,
+        exposure_secs: 90.0,
+        gain: None,
+        offset: None,
+        temperature: None,
+        filter: Some("L".to_string()),
+        timestamp: 0,
+        sensor_type: Some("Monochrome".to_string()),
+        bayer_offset: None,
+    }
+}
+
+/// An autofocus sweep over a real star field, sharp to a 20 px donut: the
+/// measured HFR is the whole donut's (SEP's half-flux radius, recorded in the
+/// fixture manifest) and grows with defocus, and the star count falls as
+/// faint stars spread below the noise instead of staying flat.
+#[test]
+fn autofocus_hfr_tracks_defocus_on_a_real_field() {
+    let sweep = [
+        ("focused_L.fits", 2.454),
+        ("defocus_R06.fits", 5.38),
+        ("defocus_R12.fits", 10.022),
+        ("defocus_R20.fits", 16.68),
+    ];
+    let mut previous: Option<(f64, u32)> = None;
+    for (file, sep_hfr) in sweep {
+        let m = calculate_hfr_with_crops(&star_detect_fixture(file), 1.0, 0.0, 10);
+        assert!(
+            (m.hfr / sep_hfr - 1.0).abs() < 0.12,
+            "{file}: autofocus HFR {:.2} against SEP {sep_hfr:.2}",
+            m.hfr
+        );
+        if let Some((hfr, count)) = previous {
+            assert!(m.hfr > hfr, "{file}: HFR {:.2} after {hfr:.2}", m.hfr);
+            assert!(
+                m.star_count <= count,
+                "{file}: {} stars after {count} on a sharper frame",
+                m.star_count
+            );
+        }
+        previous = Some((m.hfr, m.star_count));
+    }
+}
+
+#[test]
+fn autofocus_counts_no_stars_on_a_dark_or_a_starless_frame() {
+    for file in ["dark_240s.fits", "no_stars_L.fits"] {
+        let m = calculate_hfr_with_crops(&star_detect_fixture(file), 1.0, 0.0, 10);
+        assert_eq!(m.star_count, 0, "{file}: {} stars counted", m.star_count);
+    }
+}
+
 // The guider-resume cleanup failure. Verbatim from the owner's
 // skotiq.log.2026-09-15, 02:58:40:
 //
