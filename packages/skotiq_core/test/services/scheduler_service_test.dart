@@ -140,6 +140,7 @@ void main() {
 
         final transitTime = scheduler.calculateTransitTime(
           raHours: ra,
+          decDegrees: dec,
           date: testDate,
           longitudeDegrees: lon,
         );
@@ -183,6 +184,7 @@ void main() {
 
         final transitTime = scheduler.calculateTransitTime(
           raHours: ra,
+          decDegrees: dec,
           date: testDate,
           longitudeDegrees: lon,
         );

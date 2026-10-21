@@ -66,7 +66,7 @@ final _nightSkyCurvesProvider = Provider<_SkyCurves?>((ref) {
   return _SkyCurves(target: targetCurve, moon: moonCurve);
 });
 
-/// The meridian transit of [raHours] nearest [instant].
+/// The meridian transit of [raHours] (equinox of date) nearest [instant].
 DateTime _transitNear(DateTime instant, double raHours, double longitude) {
   final lst = computeLocalSiderealTimeHours(instant.toUtc(), longitude);
   final hourAngle = computeHourAngleHours(raHours, lst);
@@ -126,8 +126,16 @@ final nightTargetProvider = Provider<NightTargetVm?>((ref) {
     latitudeDegrees: site.latitude,
     longitudeDegrees: site.longitude,
   );
+  // Hour angle and transit are measured from the equinox of date; the target's
+  // coordinates are J2000.
+  final (raOfDateDeg, _) = AstronomyCalculations.precessFromJ2000ToDate(
+    raDeg: target.raHours * 15.0,
+    decDeg: target.decDegrees,
+    dt: now,
+  );
+  final raOfDateHours = raOfDateDeg / 15.0;
   final hourAngle = computeHourAngleHours(
-    target.raHours,
+    raOfDateHours,
     computeLocalSiderealTimeHours(now, site.longitude),
   );
 
@@ -142,7 +150,7 @@ final nightTargetProvider = Provider<NightTargetVm?>((ref) {
   final midNight = sunset == null || sunrise == null
       ? now
       : sunset.add(sunrise.difference(sunset) ~/ 2);
-  final transit = _transitNear(midNight, target.raHours, site.longitude);
+  final transit = _transitNear(midNight, raOfDateHours, site.longitude);
   final transitTonight = tonight(transit) ? transit : null;
   final transitAltitude = transitTonight == null
       ? null
