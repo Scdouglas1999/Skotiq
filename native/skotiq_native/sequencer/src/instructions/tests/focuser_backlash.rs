@@ -1331,7 +1331,8 @@ async fn the_rig_autofocus_lands_from_below_and_reports_the_frame_it_measured() 
         config.inner_crop_ratio,
         config.use_brightest_n_stars,
     )
-    .hfr;
+    .hfr
+    .expect("measured");
     assert_eq!(
         result.hfr_values,
         vec![measured],
@@ -1356,6 +1357,7 @@ fn the_default_autofocus_star_selection_reads_an_in_focus_frame_as_in_focus() {
             stars,
         )
         .hfr
+        .expect("measured")
     };
     let every_star = measured(0);
     let default = measured(config.use_brightest_n_stars);

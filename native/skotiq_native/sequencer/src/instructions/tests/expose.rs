@@ -386,6 +386,64 @@ mod light_frame_grading {
         .await
         .expect("a calibration frame has no stars to grade");
     }
+
+    /// Accepted frames set the star-count baseline of their target and filter
+    /// and a later frame that keeps too few of those stars is rejected.
+    #[tokio::test]
+    async fn a_frame_that_lost_most_of_the_baseline_stars_is_rejected() {
+        let scratch = scratch_dir("star-count-baseline");
+        let grading = check(|c| {
+            c.star_count_min = Some(10);
+            c.star_count_drop_percent = Some(crate::quality::DEFAULT_STAR_COUNT_DROP_PERCENT);
+        });
+        let run = |stars: usize, count: u32, baselines: crate::quality::StarCountBaselines| {
+            let scratch = scratch.0.clone();
+            let grading = grading.clone();
+            async move {
+                let ops = Arc::new(
+                    ScriptedDomeRotatorOps::new().with_scripted_frame_metrics(2.5, stars, 0.4),
+                );
+                let (event_tx, mut event_rx) = tokio::sync::broadcast::channel(64);
+                let mut ctx = saving_expose_ctx(ops, scratch, event_tx).await;
+                ctx.star_count_baselines = baselines;
+                let mut ts = crate::triggers::TriggerState::new();
+                ts.set_max_sun_altitude_degrees(live_sun_alt() + 5.0);
+                ctx.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+                let config = ExposureConfig {
+                    duration_secs: 0.01,
+                    count,
+                    frame_type: "Light".to_string(),
+                    quality_check: Some(grading),
+                    ..ExposureConfig::default()
+                };
+                let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+                assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+                let mut rejects = Vec::new();
+                while let Ok(event) = event_rx.try_recv() {
+                    if let crate::executor::ExecutorEvent::NodeProgress {
+                        structured_detail: Some(detail),
+                        ..
+                    } = event
+                    {
+                        if let crate::node::ProgressDetail::FrameRejected { reason, .. } = *detail {
+                            rejects.push(reason);
+                        }
+                    }
+                }
+                rejects
+            }
+        };
+
+        let baselines = crate::quality::StarCountBaselines::default();
+        assert!(run(2000, 3, baselines.clone()).await.is_empty());
+        let rejects = run(400, 1, baselines.clone()).await;
+        assert_eq!(rejects.len(), 1, "{rejects:?}");
+        assert!(
+            rejects[0].starts_with("star count 400 is 20%"),
+            "{rejects:?}"
+        );
+        assert!(run(1500, 1, baselines).await.is_empty());
+    }
 }
 
 /// A dither between frames that does not settle is a judgment about guiding,

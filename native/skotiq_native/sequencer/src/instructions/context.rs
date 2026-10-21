@@ -249,6 +249,8 @@ pub struct InstructionContext {
     // the entire sequence.
     pub hfr_baseline: Arc<tokio::sync::RwLock<Option<f64>>>,
     pub hfr_baseline_samples: Arc<tokio::sync::RwLock<Vec<f64>>>,
+    /// Image Grading: star-count baselines, one per target and filter.
+    pub star_count_baselines: crate::quality::StarCountBaselines,
     pub consecutive_rejects: Arc<std::sync::atomic::AtomicU32>,
     pub frames_accepted: Arc<std::sync::atomic::AtomicU32>,
     pub frames_rejected: Arc<std::sync::atomic::AtomicU32>,

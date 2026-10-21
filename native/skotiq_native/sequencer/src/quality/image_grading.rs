@@ -34,12 +34,28 @@
 //!   other metric is then `None` by construction, so every configured gate
 //!   would be skipped and a clouded-out or badly trailed frame would pass on
 //!   the strength of having been unmeasurable. See `grade_frame`.
+//! * **Star count against the frame's own baseline.** The count a sky gives
+//!   depends on the field, filter and exposure, so a fixed floor either never
+//!   fires or rejects a sparse field. The baseline is the median count of the
+//!   first accepted frames of the same target and filter; a frame that keeps
+//!   too small a fraction of it lost its stars to cloud, trailing or a missed
+//!   slew.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Default number of accepted frames blended into the baseline before the
 /// `hfr_baseline_percent` check becomes active.
 pub const DEFAULT_HFR_BASELINE_WINDOW: usize = 5;
+
+/// Accepted frames of one target and filter whose median star count becomes
+/// that pair's baseline. Kept short because filters are often interleaved one
+/// frame at a time, so each pair fills slowly.
+pub const STAR_COUNT_BASELINE_WINDOW: usize = 3;
+
+/// The star-count drop the app grades with whenever a star-count floor is
+/// set: a frame keeping less than half of its baseline count is rejected.
+pub const DEFAULT_STAR_COUNT_DROP_PERCENT: f64 = 50.0;
 
 /// The eccentricity limit the app ships with: the default of the Dart
 /// setting `imageGradingEccentricityThreshold`, which is what reaches
@@ -80,6 +96,11 @@ pub struct ImageQualityCheck {
     /// Reject if star count drops below this floor. Trips when clouds
     /// roll in or the dome slit drifts off-target.
     pub star_count_min: Option<u32>,
+    /// Reject if the star count falls more than this percent below the
+    /// baseline of the same target and filter (50 = fewer than half the
+    /// baseline's stars). See [`StarCountBaseline`].
+    #[serde(default)]
+    pub star_count_drop_percent: Option<f64>,
     /// Notify the operator once when this many frames in a row have been
     /// rejected. The run carries on. Counter resets to 0 on each accepted
     /// frame, so a later streak is notified again.
@@ -93,6 +114,7 @@ impl Default for ImageQualityCheck {
             hfr_baseline_percent: None,
             eccentricity_threshold: None,
             star_count_min: None,
+            star_count_drop_percent: None,
             max_consecutive_rejects: 3,
         }
     }
@@ -107,6 +129,7 @@ impl ImageQualityCheck {
             || self.hfr_baseline_percent.is_some()
             || self.eccentricity_threshold.is_some()
             || self.star_count_min.is_some()
+            || self.star_count_drop_percent.is_some()
     }
 }
 
@@ -173,6 +196,18 @@ pub fn grade_frame(
     check: &ImageQualityCheck,
     metrics: &FrameMetrics,
     hfr_baseline: Option<f64>,
+) -> FrameGrade {
+    grade_frame_with_baselines(check, metrics, hfr_baseline, None)
+}
+
+/// [`grade_frame`] with the star-count baseline of the frame's target and
+/// filter as well. `star_count_baseline` is `None` until that pair has one,
+/// and the star-count drop check is then skipped.
+pub fn grade_frame_with_baselines(
+    check: &ImageQualityCheck,
+    metrics: &FrameMetrics,
+    hfr_baseline: Option<f64>,
+    star_count_baseline: Option<f64>,
 ) -> FrameGrade {
     if !check.is_active() {
         return FrameGrade::Pass;
@@ -266,7 +301,75 @@ pub fn grade_frame(
         }
     }
 
+    // Star count against this target and filter's baseline.
+    if let (Some(pct), Some(count), Some(baseline)) = (
+        check.star_count_drop_percent,
+        metrics.star_count,
+        star_count_baseline,
+    ) {
+        let limit = baseline * (1.0 - pct / 100.0);
+        if baseline > 0.0 && f64::from(count) < limit {
+            return FrameGrade::Reject {
+                reason: format!(
+                    "star count {} is {:.0}% of this filter's baseline {:.0} (limit {:.0}%; \
+                     likely cloud, trailing or an off-target frame)",
+                    count,
+                    100.0 * f64::from(count) / baseline,
+                    baseline,
+                    100.0 - pct
+                ),
+                hfr: metrics.hfr,
+                eccentricity: metrics.eccentricity,
+                star_count: Some(count),
+            };
+        }
+    }
+
     FrameGrade::Pass
+}
+
+/// The star-count baseline of one target and filter: the median count of its
+/// first [`STAR_COUNT_BASELINE_WINDOW`] accepted frames, fixed from then on.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct StarCountBaseline {
+    samples: Vec<u32>,
+    baseline: Option<f64>,
+}
+
+impl StarCountBaseline {
+    pub fn baseline(&self) -> Option<f64> {
+        self.baseline
+    }
+
+    /// Add an accepted frame's star count. Zero counts are not samples.
+    pub fn record(&mut self, count: Option<u32>) {
+        if self.baseline.is_some() {
+            return;
+        }
+        let Some(count) = count.filter(|&c| c > 0) else {
+            return;
+        };
+        self.samples.push(count);
+        if self.samples.len() >= STAR_COUNT_BASELINE_WINDOW {
+            let mut sorted = self.samples.clone();
+            sorted.sort_unstable();
+            let mid = sorted.len() / 2;
+            self.baseline = Some(if sorted.len() % 2 == 1 {
+                f64::from(sorted[mid])
+            } else {
+                (f64::from(sorted[mid - 1]) + f64::from(sorted[mid])) / 2.0
+            });
+        }
+    }
+}
+
+/// Star-count baselines of a run, one per target and filter.
+pub type StarCountBaselines =
+    std::sync::Arc<tokio::sync::RwLock<HashMap<String, StarCountBaseline>>>;
+
+/// Key of a frame's star-count baseline.
+pub fn star_count_baseline_key(target: Option<&str>, filter: Option<&str>) -> String {
+    format!("{}\u{1f}{}", target.unwrap_or(""), filter.unwrap_or(""))
 }
 
 /// Update the rolling HFR baseline with a newly-accepted frame.
@@ -736,6 +839,84 @@ mod tests {
             update_hfr_baseline(&mut baseline, &mut samples, Some(hfr));
         }
         assert_eq!(baseline, Some(3.0));
+    }
+
+    #[test]
+    fn a_frame_that_lost_most_of_its_baseline_stars_is_rejected() {
+        let check = ImageQualityCheck {
+            star_count_min: Some(10),
+            star_count_drop_percent: Some(DEFAULT_STAR_COUNT_DROP_PERCENT),
+            ..Default::default()
+        };
+        let frame = |count| FrameMetrics {
+            hfr: Some(2.5),
+            eccentricity: Some(0.5),
+            star_count: Some(count),
+        };
+        // A trailed sub of the NGC 891 run against its filter's ~2,100.
+        match grade_frame_with_baselines(&check, &frame(351), Some(2100.0), Some(2100.0)) {
+            FrameGrade::Reject {
+                reason, star_count, ..
+            } => {
+                assert!(reason.starts_with("star count 351"), "reason: {reason}");
+                assert!(reason.contains("17%"), "reason: {reason}");
+                assert_eq!(star_count, Some(351));
+            }
+            other => panic!("expected Reject, got {other:?}"),
+        }
+        assert!(grade_frame_with_baselines(&check, &frame(1050), None, Some(2100.0)).is_pass());
+        assert!(grade_frame_with_baselines(&check, &frame(1049), None, Some(2100.0)).is_reject());
+    }
+
+    #[test]
+    fn the_star_count_drop_waits_for_a_baseline() {
+        let check = ImageQualityCheck {
+            star_count_drop_percent: Some(50.0),
+            ..Default::default()
+        };
+        let metrics = FrameMetrics {
+            star_count: Some(3),
+            ..Default::default()
+        };
+        assert!(grade_frame_with_baselines(&check, &metrics, None, None).is_pass());
+        assert!(grade_frame(&check, &metrics, None).is_pass());
+    }
+
+    #[test]
+    fn a_star_count_baseline_is_the_median_of_the_first_frames_and_then_fixed() {
+        let mut baseline = StarCountBaseline::default();
+        baseline.record(Some(2183));
+        baseline.record(Some(0));
+        baseline.record(None);
+        baseline.record(Some(2301));
+        assert_eq!(baseline.baseline(), None);
+        baseline.record(Some(2222));
+        assert_eq!(baseline.baseline(), Some(2222.0));
+        baseline.record(Some(10));
+        assert_eq!(baseline.baseline(), Some(2222.0));
+    }
+
+    #[test]
+    fn star_count_baselines_are_kept_per_target_and_filter() {
+        assert_ne!(
+            star_count_baseline_key(Some("NGC 891"), Some("L")),
+            star_count_baseline_key(Some("NGC 891"), Some("R"))
+        );
+        assert_ne!(
+            star_count_baseline_key(Some("NGC 891"), Some("L")),
+            star_count_baseline_key(Some("M 31"), Some("L"))
+        );
+    }
+
+    /// A per-node check saved before the star-count drop existed still loads,
+    /// with the drop check off.
+    #[test]
+    fn a_check_without_the_drop_field_deserializes_with_it_off() {
+        let check: ImageQualityCheck = serde_json::from_str(
+            r#"{"hfr_threshold":3.5,"hfr_baseline_percent":null,"eccentricity_threshold":0.8,"star_count_min":10,"max_consecutive_rejects":3}"#,
+        )
+        .expect("old JSON loads");
+        assert_eq!(check.star_count_drop_percent, None);
     }
 
     /// A frame exactly at a limit is accepted: the limits are maxima and

@@ -28,14 +28,14 @@ import 'settings_widgets.dart';
 // `_hfrInertNote` / `_eccentricityInertNote` call out values persisted before
 // the bounds existed, which load unclamped.
 
-/// `StarDetectionConfig.min_hfr` — the detector discards any source under
-/// 1.0 px as a hot pixel, so the mean `calculate_image_hfr` returns is never
-/// below it and a threshold under it rejects every frame that has stars.
+/// `frame_shape::MIN_HFR` — the grader leaves out any star under 1.0 px as a
+/// hot pixel, so the median HFR it grades is never below it and a threshold
+/// under it rejects every frame that has stars.
 const double _hfrFloorPx = 1.0;
 
-/// `StarDetectionConfig.hfr_radius` — the half-flux radius is measured inside
-/// a 20 px window, so no frame reports an HFR past it.
-const double _hfrCeilingPx = 20.0;
+/// `frame_shape::APERTURE_RADIUS` — the grader measures each star's half-flux
+/// radius inside a 10 px aperture, so no frame grades at an HFR past it.
+const double _hfrCeilingPx = 10.0;
 
 /// `skotiq_imaging::DETECTION_MAX_ECCENTRICITY` — `detect_stars` drops
 /// anything more elongated as a streak, so the median `frame_eccentricity`
@@ -197,7 +197,7 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                   icon: LucideIcons.crosshair,
                   title: 'HFR absolute (pixels)',
                   subtitle: _withNote(
-                    'Reject if measured HFR exceeds this absolute value. Leave blank to disable.',
+                    'Reject if the median HFR exceeds this many pixels. The right value depends on your pixel scale and seeing: a sharp frame at 0.8 arcsec/px measures about 2.5 px. The baseline check below adapts to your own frames. Leave blank to disable.',
                     _hfrInertNote(settings.imageGradingHfrThresholdPx),
                   ),
                   trailing: _OptionalNumberInput(
@@ -221,7 +221,7 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                   icon: LucideIcons.trendingUp,
                   title: 'HFR baseline percent',
                   subtitle:
-                      'Reject if HFR > baseline × (1 + percent/100). The baseline is the median of the first 5 accepted frames of each target.',
+                      'Reject if HFR is more than this percent above the baseline, the median of the first 5 accepted frames of the run.',
                   trailing: _OptionalNumberInput(
                     fieldKey:
                         const ValueKey('image-grading-hfr-baseline-percent'),
@@ -272,7 +272,7 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                   icon: LucideIcons.star,
                   title: 'Star count min',
                   subtitle:
-                      'Reject if detected star count drops below this value. Trips when clouds roll in or the dome slit drifts off-target. Leave blank to disable.',
+                      'Reject if fewer stars than this are detected, or fewer than half the stars of the first 3 accepted frames of the same target and filter. Trips when clouds roll in, stars trail, or the slew misses the target. Leave blank to disable both.',
                   trailing: _OptionalIntInput(
                     fieldKey:
                         const ValueKey('image-grading-star-count-minimum'),

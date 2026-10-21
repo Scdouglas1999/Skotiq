@@ -338,6 +338,8 @@ pub struct ExecutionContext {
     /// Image Grading: HFR samples being averaged into the baseline.
     /// Discarded once the baseline becomes Some.
     pub hfr_baseline_samples: Arc<RwLock<Vec<f64>>>,
+    /// Image Grading: star-count baselines, one per target and filter.
+    pub star_count_baselines: crate::quality::StarCountBaselines,
     /// Image Grading: running count of how many consecutive frames
     /// have been rejected. Reset to 0 every time an accepted frame lands.
     /// Used to detect "something is systematically wrong" — focus has
@@ -702,6 +704,7 @@ impl ExecutionContext {
             last_plate_solve: Arc::new(RwLock::new(None)),
             hfr_baseline: Arc::new(RwLock::new(None)),
             hfr_baseline_samples: Arc::new(RwLock::new(Vec::new())),
+            star_count_baselines: Default::default(),
             consecutive_rejects: Arc::new(std::sync::atomic::AtomicU32::new(0)),
             exposure_trigger_episodes: Arc::default(),
             frames_accepted: Arc::new(std::sync::atomic::AtomicU32::new(0)),
@@ -1277,6 +1280,7 @@ impl ExecutionContext {
             last_plate_solve: self.last_plate_solve.clone(),
             hfr_baseline: self.hfr_baseline.clone(),
             hfr_baseline_samples: self.hfr_baseline_samples.clone(),
+            star_count_baselines: self.star_count_baselines.clone(),
             consecutive_rejects: self.consecutive_rejects.clone(),
             frames_accepted: self.frames_accepted.clone(),
             frames_rejected: self.frames_rejected.clone(),

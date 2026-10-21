@@ -217,6 +217,7 @@ fn star_count_reports_detection_not_the_brightest_n_cap() {
     let image = synthetic_star_field(512, 512, 25, 1.6);
 
     let uncapped = calculate_hfr_with_crops(&image, 1.0, 0.0, 0);
+    let uncapped_hfr = uncapped.hfr.expect("measured");
     assert!(
         uncapped.star_count >= 20,
         "fixture must give the detector a real population to count, got {}",
@@ -227,15 +228,16 @@ fn star_count_reports_detection_not_the_brightest_n_cap() {
     // the frame had. Reporting the cap makes every sweep point read the same
     // number and disarms `min_star_count`, which defaults to the same 10.
     let capped = calculate_hfr_with_crops(&image, 1.0, 0.0, 5);
+    let capped_hfr = capped.hfr.expect("measured");
     assert_eq!(
         capped.star_count, uncapped.star_count,
         "brightest-N must not change the reported star count"
     );
     assert!(
-        (capped.hfr - uncapped.hfr).abs() < 5.0,
+        (capped_hfr - uncapped_hfr).abs() < 5.0,
         "capped median should still be a sane HFR (got {} vs {})",
-        capped.hfr,
-        uncapped.hfr
+        capped_hfr,
+        uncapped_hfr
     );
 }
 
@@ -286,20 +288,144 @@ fn autofocus_hfr_tracks_defocus_on_a_real_field() {
     let mut previous: Option<(f64, u32)> = None;
     for (file, sep_hfr) in sweep {
         let m = calculate_hfr_with_crops(&star_detect_fixture(file), 1.0, 0.0, 10);
+        let m_hfr = m.hfr.expect("measured");
         assert!(
-            (m.hfr / sep_hfr - 1.0).abs() < 0.12,
+            (m_hfr / sep_hfr - 1.0).abs() < 0.12,
             "{file}: autofocus HFR {:.2} against SEP {sep_hfr:.2}",
-            m.hfr
+            m_hfr
         );
         if let Some((hfr, count)) = previous {
-            assert!(m.hfr > hfr, "{file}: HFR {:.2} after {hfr:.2}", m.hfr);
+            assert!(m_hfr > hfr, "{file}: HFR {m_hfr:.2} after {hfr:.2}");
             assert!(
                 m.star_count <= count,
                 "{file}: {} stars after {count} on a sharper frame",
                 m.star_count
             );
         }
-        previous = Some((m.hfr, m.star_count));
+        previous = Some((m_hfr, m.star_count));
+    }
+}
+
+/// A field of defocused stars: annuli of outer radius `radius` px with a 0.6
+/// central obstruction (a Gaussian of sigma 1.5 px at `radius == 0`), equal
+/// flux, on a noisy sky.
+fn donut_field(radius: f64) -> ImageData {
+    const SIZE: u32 = 640;
+    const FLUX: f64 = 3.0e5;
+    let mut state = 0x9e37_79b9_7f4a_7c15u64;
+    let mut noise = move || {
+        let mut acc = 0.0;
+        for _ in 0..4 {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            acc += (state >> 11) as f64 / (1u64 << 53) as f64;
+        }
+        (acc - 2.0) * 1.732
+    };
+    let mut px: Vec<f64> = (0..SIZE * SIZE).map(|_| 800.0 + 20.0 * noise()).collect();
+    let inner = 0.6 * radius;
+    let area = std::f64::consts::PI * (radius * radius - inner * inner);
+    for row in 0..4 {
+        for col in 0..4 {
+            let cx = 80.0 + col as f64 * 160.0 + 0.3;
+            let cy = 80.0 + row as f64 * 160.0 + 0.7;
+            for y in (cy as i64 - 60)..(cy as i64 + 60) {
+                for x in (cx as i64 - 60)..(cx as i64 + 60) {
+                    let d = (x as f64 - cx).hypot(y as f64 - cy);
+                    let v = if radius <= 0.0 {
+                        FLUX / (2.0 * std::f64::consts::PI * 2.25) * (-d * d / 4.5).exp()
+                    } else if (inner..=radius).contains(&d) {
+                        FLUX / area
+                    } else {
+                        0.0
+                    };
+                    px[(y as u32 * SIZE + x as u32) as usize] += v;
+                }
+            }
+        }
+    }
+    ImageData {
+        width: SIZE,
+        height: SIZE,
+        data: px.iter().map(|v| v.clamp(0.0, 65535.0) as u16).collect(),
+        bits_per_pixel: 16,
+        exposure_secs: 3.0,
+        gain: None,
+        offset: None,
+        temperature: None,
+        filter: Some("L".to_string()),
+        timestamp: 0,
+        sensor_type: Some("Monochrome".to_string()),
+        bayer_offset: None,
+    }
+}
+
+/// A sweep whose wings are defocused past 20 px HFR, sampled lopsidedly
+/// around focus: every point is measured at its real size (a uniform annulus
+/// with a 0.6 obstruction has an HFR of 0.82 of its outer radius), and every
+/// fit method puts best focus at the focus position.
+#[test]
+fn a_sweep_with_wings_past_20_px_finds_focus() {
+    const FOCUS: i32 = 6600;
+    const STEP: i32 = 100;
+    const PX_PER_STEP: f64 = 7.5;
+    let config = AutofocusConfig::default();
+    let mut points = Vec::new();
+    for i in -3..=5 {
+        let position = FOCUS + i * STEP;
+        let radius = f64::from(i.abs()) * PX_PER_STEP;
+        let m = calculate_hfr_with_crops(
+            &donut_field(radius),
+            config.outer_crop_ratio,
+            config.inner_crop_ratio,
+            config.use_brightest_n_stars,
+        );
+        let hfr = m
+            .hfr
+            .unwrap_or_else(|| panic!("R {radius}: no HFR measured"));
+        if radius > 0.0 {
+            assert!(
+                (hfr / (0.8246 * radius) - 1.0).abs() < 0.1,
+                "R {radius}: HFR {hfr:.2}, expected {:.2}",
+                0.8246 * radius
+            );
+        }
+        points.push(crate::autofocus::FocusDataPoint {
+            position,
+            hfr,
+            fwhm: None,
+            star_count: m.star_count,
+        });
+    }
+    assert!(
+        points.last().unwrap().hfr > 28.0,
+        "the far wing must read its real size: {:?}",
+        points.last()
+    );
+    for method in [
+        crate::autofocus::AutofocusMethod::VCurve,
+        crate::autofocus::AutofocusMethod::Quadratic,
+        crate::autofocus::AutofocusMethod::Hyperbolic,
+    ] {
+        let engine = crate::autofocus::VCurveAutofocus::new(crate::autofocus::AutofocusConfig {
+            method,
+            step_size: STEP,
+            ..Default::default()
+        });
+        let result = engine
+            .find_best_focus(points.clone())
+            .unwrap_or_else(|e| panic!("{method:?}: {e}"));
+        assert!(
+            (result.best_position - FOCUS).abs() <= STEP / 4,
+            "{method:?}: best focus {} for true focus {FOCUS} (R2 {:.3}) from {:?}",
+            result.best_position,
+            result.curve_fit_quality,
+            points
+                .iter()
+                .map(|p| (p.position, p.hfr))
+                .collect::<Vec<_>>()
+        );
     }
 }
 

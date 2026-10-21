@@ -114,7 +114,10 @@ extension ImageGradingSettingsSection on AppSettingsNotifier {
     );
   }
 
-  /// Reject if star count drops below this value. Pass `null` to disable.
+  /// Reject if star count drops below this value. A set floor also arms the
+  /// native grader's drop check against the median count of the first
+  /// accepted frames of the same target and filter. Pass `null` to disable
+  /// both.
   Future<void> setImageGradingStarCountMin(int? value) async {
     final validated = _validateOptionalImageGradingInt(
       'minimum star count',
