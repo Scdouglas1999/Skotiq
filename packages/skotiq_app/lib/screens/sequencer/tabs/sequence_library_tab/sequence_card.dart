@@ -669,20 +669,8 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
     );
   }
 
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-
-    if (diff.inDays == 0) {
-      return 'Today ${DateFormat.jm().format(date)}';
-    } else if (diff.inDays == 1) {
-      return 'Yesterday';
-    } else if (diff.inDays < 7) {
-      return '${diff.inDays} days ago';
-    } else {
-      return DateFormat.yMd().format(date);
-    }
-  }
+  String _formatDate(DateTime date) =>
+      sequenceCardDateLabel(date, DateTime.now());
 
   Future<void> _loadSequence(BuildContext context) async {
     final authority = ref.read(backendProvider);
@@ -887,4 +875,18 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
       ),
     );
   }
+}
+
+/// "Today" and "Yesterday" are calendar days in local time, not 24-hour
+/// windows: a run that ended at 10:37 PM is "Yesterday" at 8 AM.
+@visibleForTesting
+String sequenceCardDateLabel(DateTime date, DateTime now) {
+  final local = date.toLocal();
+  final today = DateTime(now.year, now.month, now.day);
+  final day = DateTime(local.year, local.month, local.day);
+  final days = today.difference(day).inHours ~/ 24;
+  if (days <= 0) return 'Today ${DateFormat.jm().format(local)}';
+  if (days == 1) return 'Yesterday ${DateFormat.jm().format(local)}';
+  if (days < 7) return '$days days ago';
+  return DateFormat.yMd().format(local);
 }
