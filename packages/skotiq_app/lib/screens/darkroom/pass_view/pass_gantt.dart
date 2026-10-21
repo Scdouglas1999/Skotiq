@@ -5,10 +5,10 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'pass_view_charts.dart';
-import 'pass_view_model.dart';
 
 class PassGantt extends StatelessWidget {
   const PassGantt({
@@ -26,7 +26,9 @@ class PassGantt extends StatelessWidget {
   final double labelWidth;
   final bool showStageLabels;
 
-  int get _rows => snapshot.lanes.length + 1;
+  bool get _afterRow => snapshot.timeline.colorSpans.isNotEmpty;
+
+  int get _rows => snapshot.lanes.length + (_afterRow ? 1 : 0);
 
   double get height => _rows * rowHeight + (_rows - 1) * rowGap + 30;
 
@@ -114,13 +116,16 @@ class _GanttPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final axis = passAxisStyle(colors);
+    final after = snapshot.timeline.colorSpans;
+    final rowCount = snapshot.lanes.length + (after.isEmpty ? 0 : 1);
+    if (rowCount == 0) return;
     var knownEnd = snapshot.elapsed;
     for (final s in schedule) {
       if (s.drawnEnd > knownEnd) knownEnd = s.drawnEnd;
     }
     final spanMs = math.max(1, knownEnd.inMilliseconds).toDouble();
-    final plot = Rect.fromLTRB(labelWidth, topPad, size.width - 2,
-        topPad + _rowsHeight(snapshot.lanes.length + 1));
+    final plot = Rect.fromLTRB(
+        labelWidth, topPad, size.width - 2, topPad + _rowsHeight(rowCount));
     double x(Duration d) => plot.left + d.inMilliseconds / spanMs * plot.width;
 
     // Clock scale and gridlines.
@@ -141,11 +146,18 @@ class _GanttPainter extends CustomPainter {
     _text(canvas, 'm:ss', Offset(0, plot.bottom + 5), axis);
 
     // Row labels.
-    final rows = <String?>[for (final l in snapshot.lanes) l.filter, null];
+    final rows = <String?>[
+      for (final l in snapshot.lanes) l.lane,
+      if (after.isNotEmpty) null,
+    ];
+    final afterLabel = after.containsKey(PassStage.align) ||
+            after.containsKey(PassStage.combine)
+        ? 'Color'
+        : 'Drafts';
     for (var i = 0; i < rows.length; i++) {
       final top = plot.top + i * (rowHeight + rowGap);
       final f = rows[i];
-      final label = f ?? 'Color';
+      final label = f ?? afterLabel;
       final color =
           f == null ? colors.textSecondary : passFilterColor(f, colors);
       canvas.drawRect(Rect.fromLTWH(0, top + rowHeight / 2 - 4, 8, 8),
@@ -156,6 +168,7 @@ class _GanttPainter extends CustomPainter {
         Offset(13, top + rowHeight / 2 - 6.5),
         SkotiqTypography.monoXs.copyWith(
             color: colors.textPrimary, fontWeight: FontWeight.w600, height: 1),
+        maxWidth: labelWidth - 15,
       );
     }
 
@@ -163,12 +176,16 @@ class _GanttPainter extends CustomPainter {
     final ink = SkotiqTypography.monoXs.copyWith(fontSize: 9.5, height: 1);
     var stageIndex = <String?, int>{};
     for (final s in schedule) {
-      final row = s.filter == null ? rows.length - 1 : rows.indexOf(s.filter);
+      if (s.state == PassStepState.notRun) continue;
+      final row = s.lane == null ? rows.length - 1 : rows.indexOf(s.lane);
+      if (row < 0) continue;
       final top = plot.top + row * (rowHeight + rowGap);
-      final n = stageIndex[s.filter] = (stageIndex[s.filter] ?? -1) + 1;
-      final base = s.filter == null
-          ? colors.textSecondary
-          : passFilterColor(s.filter!, colors);
+      final n = stageIndex[s.lane] = (stageIndex[s.lane] ?? -1) + 1;
+      final base = s.failed
+          ? colors.error
+          : (s.lane == null
+              ? colors.textSecondary
+              : passFilterColor(s.lane!, colors));
       // Adjacent stages alternate two strengths of the lane color.
       final fill = base.withValues(alpha: n.isEven ? 0.92 : 0.62);
       final left = x(s.start);
@@ -180,7 +197,7 @@ class _GanttPainter extends CustomPainter {
       final filledTo = switch (s.state) {
         PassStepState.done => rect.right,
         PassStepState.running => math.min(rect.right, x(snapshot.elapsed)),
-        PassStepState.waiting => rect.left,
+        PassStepState.waiting || PassStepState.notRun => rect.left,
       };
       if (filledTo > rect.left) {
         canvas.drawRect(

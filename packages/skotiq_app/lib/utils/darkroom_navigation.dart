@@ -27,6 +27,10 @@ String darkroomRecipeLocation(int recipeId) => '/darkroom?recipe=$recipeId';
 /// recipe, or offers to compose one when the master has none.
 String darkroomMasterLocation(int masterId) => '/darkroom?master=$masterId';
 
+/// The Darkroom location for a pass, live while it runs and its record after.
+String darkroomPassLocation(String runId) =>
+    '/darkroom?pass=${Uri.encodeQueryComponent(runId)}';
+
 /// The one sentence every Darkroom entry point refuses a remote client with.
 ///
 /// Shared rather than repeated so two controls cannot answer the same question

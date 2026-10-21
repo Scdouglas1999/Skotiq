@@ -39,6 +39,7 @@ import '../stack_result/stack_and_share_dialog.dart'
     show describeStackShareFailure;
 import 'darkroom_branch_controller.dart';
 import 'darkroom_controller.dart';
+import 'pass_view/darkroom_pass_page.dart';
 
 part 'darkroom_screen_parts/_landing.dart';
 part 'darkroom_screen_parts/_image_surface.dart';
@@ -150,6 +151,18 @@ class _DarkroomScreenState extends ConsumerState<DarkroomScreen> {
       return Scaffold(
         backgroundColor: colors.background,
         body: const SafeArea(bottom: false, child: _DarkroomLandingView()),
+      );
+    }
+
+    final passRunId = widget.scope.passRunId;
+    if (passRunId != null) {
+      // A pass has no recipe and no controller: it is the record of a night
+      // being calibrated, registered and integrated, live while it runs.
+      return _shell(
+        colors: colors,
+        context: 'Pass',
+        actions: [_backControl(savePending: false)],
+        body: DarkroomPassPage(runId: passRunId),
       );
     }
 
