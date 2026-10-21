@@ -137,6 +137,18 @@ fn darkroom_real_composite() {
         .unwrap(),
     )
     .expect("write reply");
+    assert_eq!(
+        reply["composite"]["combined"], true,
+        "{}",
+        reply["composite"]
+    );
+    let worst = reply["composite"]["worstMedianOffsetPx"]
+        .as_f64()
+        .expect("a registration check");
+    assert!(
+        worst < 0.3,
+        "star centroids differ by {worst} px between channels"
+    );
     let master = reply["masterPath"]
         .as_str()
         .expect("a reference master")
@@ -214,4 +226,32 @@ fn darkroom_real_composite() {
     let reply =
         api_darkroom_render_export(recipe.to_string(), args.to_string()).expect("export final");
     eprintln!("[darkroom_real] final export: {reply}");
+    let (image, _) =
+        skotiq_imaging::read_fits(std::path::Path::new(&final_fits)).expect("read final");
+    assert_eq!(image.channels, 3);
+    let pixels = image.as_f32().expect("float pixels");
+    let n = pixels.len() / 3;
+    let clipped = pixels.iter().filter(|v| **v >= 1.0).count() as f64 / pixels.len() as f64;
+    assert!(clipped < 0.01, "{:.3}% of samples clipped", clipped * 100.0);
+    // The darker half of the frame is sky; its channels agree within 10%.
+    let mut means: Vec<(f32, usize)> = (0..n)
+        .map(|i| {
+            (
+                (pixels[i * 3] + pixels[i * 3 + 1] + pixels[i * 3 + 2]) / 3.0,
+                i,
+            )
+        })
+        .collect();
+    means.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let sky = &means[..n / 2];
+    let level = |c: usize| {
+        let mut v: Vec<f32> = sky.iter().map(|(_, i)| pixels[i * 3 + c]).collect();
+        v.sort_by(f32::total_cmp);
+        v[v.len() / 2]
+    };
+    let (r, g, b) = (level(0), level(1), level(2));
+    eprintln!("[darkroom_real] sky median r {r:.4} g {g:.4} b {b:.4}, clipped {clipped:.5}");
+    for (name, v) in [("red", r), ("blue", b)] {
+        assert!((v / g - 1.0).abs() < 0.1, "sky {name}/green = {}", v / g);
+    }
 }
