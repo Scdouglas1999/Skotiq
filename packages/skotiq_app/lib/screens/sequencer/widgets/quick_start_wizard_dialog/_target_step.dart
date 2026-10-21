@@ -52,7 +52,9 @@ extension _TargetStep on _QuickStartWizardDialogState {
             labelStyle: TextStyle(color: colors.textSecondary),
             hintStyle: TextStyle(color: colors.textMuted),
           ),
+          textInputAction: TextInputAction.search,
           onChanged: _onTargetSearch,
+          onSubmitted: _submitTargetSearch,
         ),
 
         // Search results
@@ -84,7 +86,16 @@ extension _TargetStep on _QuickStartWizardDialogState {
                           fontSize: SkotiqTypography.fontSize13),
                     ),
                     subtitle: Text(
-                      '${target.catalogId ?? ""} | RA: ${_formatRa(target.ra)} Dec: ${_formatDec(target.dec)}',
+                      [
+                        target.sourceLabel,
+                        if (target.catalogId case final id?
+                            when id.isNotEmpty && id != target.name)
+                          id,
+                        'RA ${_formatRa(target.ra)}',
+                        'Dec ${_formatDec(target.dec)}',
+                      ].join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           color: colors.textMuted,
                           fontSize: SkotiqTypography.fontSize11),
@@ -104,9 +115,16 @@ extension _TargetStep on _QuickStartWizardDialogState {
             ),
           ),
 
-        // A finished search with nothing to show has to say so, or "is this
-        // broken or is my library empty?" is unanswerable.
-        if (_searchResults.isEmpty && _searchCompleted && !_isSearching)
+        // A finished search with nothing to show has to say so and offer the
+        // online lookup; a SIMBAD miss is reported even over a partial list.
+        if (_onlineLookupMessage != null && !_isSearching)
+          _buildTargetSearchNote(
+            colors,
+            LucideIcons.searchX,
+            colors.warning,
+            _onlineLookupMessage!,
+          )
+        else if (_searchResults.isEmpty && _searchCompleted && !_isSearching)
           _buildTargetSearchEmptyState(colors),
 
         const SizedBox(height: 20),
@@ -207,57 +225,75 @@ extension _TargetStep on _QuickStartWizardDialogState {
     );
   }
 
-  /// Says which of the three things actually happened when the results list
-  /// is empty: the lookup errored, the target library is empty, or the
-  /// library simply holds no match. Every branch points at the manual RA/Dec
-  /// fields directly below, which always work.
+  /// Says why the results list is empty: the lookup failed, or nothing in
+  /// the installed catalog or the saved library matches. The second case
+  /// offers SIMBAD's exact name lookup; the manual RA/Dec fields below always
+  /// work.
   Widget _buildTargetSearchEmptyState(SkotiqColors colors) {
-    final (IconData icon, Color tint, String message) = switch (_searchError) {
-      final Object err => (
-          LucideIcons.alertTriangle,
-          colors.error,
-          'Target lookup failed: $err. Enter RA/Dec below instead.',
-        ),
-      _ when _libraryIsEmpty => (
-          LucideIcons.bookMarked,
-          colors.warning,
-          // Name a destination that exists. "Sky" and "Planner" are not
-          // labels in this build; the rail reads "Plan tonight", and adding
-          // a target to one of its projects is what writes the library row
-          // this search reads.
-          'Your target library is empty, so there is nothing to search. '
-              'Add one from Plan tonight ▸ Projects, or enter RA/Dec below.',
-        ),
-      _ => (
-          LucideIcons.searchX,
-          colors.textMuted,
-          'No saved target matches "$_lastSearchQuery". '
-              'Enter RA/Dec below to use it anyway.',
-        ),
-    };
+    final error = _searchError;
+    if (error != null) {
+      return _buildTargetSearchNote(
+        colors,
+        LucideIcons.alertTriangle,
+        colors.error,
+        'Target lookup failed: $error. Enter RA/Dec below instead.',
+      );
+    }
+    final query = _lastSearchQuery;
+    return _buildTargetSearchNote(
+      colors,
+      LucideIcons.searchX,
+      colors.textMuted,
+      'Nothing in the installed catalog or your saved targets matches '
+      '"$query". Look it up on SIMBAD, or enter RA/Dec below.',
+      action: SkotiqButton(
+        label: 'Look up on SIMBAD',
+        icon: LucideIcons.globe,
+        size: ButtonSize.small,
+        variant: ButtonVariant.secondary,
+        onPressed: () => _lookUpTargetOnline(query),
+      ),
+    );
+  }
 
+  Widget _buildTargetSearchNote(
+    SkotiqColors colors,
+    IconData icon,
+    Color tint,
+    String message, {
+    Widget? action,
+  }) {
     return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(top: SkotiqTokens.spaceSm),
+      padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
       decoration: BoxDecoration(
-        color: colors.surfaceAlt,
+        color: colors.well,
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
         border: Border.all(color: colors.border),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: tint),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                color: colors.textSecondary,
-                fontSize: SkotiqTypography.fontSize12,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: SkotiqTokens.iconSm, color: tint),
+              const SizedBox(width: SkotiqTokens.spaceSm),
+              Expanded(
+                child: Text(
+                  message,
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: SkotiqTypography.fontSize12,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
+          if (action != null) ...[
+            const SizedBox(height: SkotiqTokens.spaceSm),
+            Align(alignment: Alignment.centerRight, child: action),
+          ],
         ],
       ),
     );

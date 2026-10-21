@@ -23,6 +23,8 @@ import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_column
 import 'package:skotiq_app/screens/sequencer/widgets/quick_start_wizard_dialog.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/snippet_palette.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show CelestialCoordinate, DeepSkyObject, DsoType, loadedDsosProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
@@ -375,6 +377,20 @@ void main() {
         const QuickStartWizardDialog(),
         size: const Size(1200, 1000),
         settle: false,
+        extraOverrides: [
+          loadedDsosProvider.overrideWith(
+            (ref) async => const [
+              DeepSkyObject(
+                id: 'NGC224',
+                name: 'M31',
+                coordinates: CelestialCoordinate(ra: 0.712, dec: 41.269),
+                type: DsoType.galaxy,
+                magnitude: 3.4,
+                catalogIds: ['M31'],
+              ),
+            ],
+          ),
+        ],
       );
       await tester.pump(const Duration(milliseconds: 400));
       return handle;
@@ -391,19 +407,17 @@ void main() {
       await tester.pump();
     }
 
-    testWidgets('an empty library says so instead of showing nothing',
+    testWidgets('an empty library still finds the catalog object',
         (tester) async {
       await openWizard(tester);
       await search(tester, 'M31');
 
-      expect(
-        find.textContaining('Your target library is empty'),
-        findsOneWidget,
-        reason: 'a finished search that found nothing must say why',
-      );
+      expect(find.text('M31'), findsWidgets);
+      expect(find.textContaining('Nothing in the installed catalog'),
+          findsNothing);
     });
 
-    testWidgets('a populated library reports no match for the typed name',
+    testWidgets('a search that matches nothing says so and offers SIMBAD',
         (tester) async {
       final handle = await openWizard(tester);
       await handle.database.targetsDao.createTarget(
@@ -413,9 +427,15 @@ void main() {
 
       await search(tester, 'zzqq');
 
-      expect(find.textContaining('No saved target matches "zzqq"'),
-          findsOneWidget);
-      expect(find.textContaining('Your target library is empty'), findsNothing);
+      expect(
+        find.textContaining(
+          'Nothing in the installed catalog or your saved targets matches '
+          '"zzqq"',
+        ),
+        findsOneWidget,
+        reason: 'a finished search that found nothing must say why',
+      );
+      expect(find.text('Look up on SIMBAD'), findsOneWidget);
     });
 
     testWidgets('a hit still renders the results list, not a message',
@@ -428,8 +448,8 @@ void main() {
 
       await search(tester, 'M42');
 
-      expect(find.textContaining('No saved target matches'), findsNothing);
-      expect(find.textContaining('Your target library is empty'), findsNothing);
+      expect(find.textContaining('Nothing in the installed catalog'),
+          findsNothing);
       expect(find.text('M42'), findsWidgets);
     });
   });

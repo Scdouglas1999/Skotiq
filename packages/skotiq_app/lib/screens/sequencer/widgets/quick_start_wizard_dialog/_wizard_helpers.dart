@@ -189,13 +189,22 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
 
   void _onTargetSearch(String query) {
     _searchDebounce?.cancel();
-    if (query.length < 2) {
+    final revision = ++_searchRevision;
+    final trimmed = query.trim();
+    // Typing a different name drops the previous pick, so its coordinates are
+    // never saved under a name that does not describe them.
+    final keepSelection = _selectedTarget != null &&
+        normalizeTargetName(_selectedTarget!.name) ==
+            normalizeTargetName(trimmed);
+    if (!keepSelection) _dropSelectedTarget();
+    if (trimmed.length < 2) {
       setState(() {
         _searchResults = [];
         _isSearching = false;
         _searchCompleted = false;
         _searchError = null;
-        _lastSearchQuery = query;
+        _onlineLookupMessage = null;
+        _lastSearchQuery = trimmed;
       });
       return;
     }
@@ -204,67 +213,173 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
       _isSearching = true;
       _searchCompleted = false;
       _searchError = null;
-      _lastSearchQuery = query;
+      _onlineLookupMessage = null;
+      _lastSearchQuery = trimmed;
     });
 
-    _searchDebounce = Timer(const Duration(milliseconds: 300), () async {
-      final authority = ref.read(backendProvider);
-      final generation = _authorityGeneration;
-      try {
-        // On a remote-client slave the local targets table is never populated
-        // (targets only arrive over the wire), so a direct DAO search returns
-        // empty. Route the search to the host's `/api/targets/search` and map
-        // the rows back into DbTarget; keep the local DAO path on the host.
-        final backend = ref.read(backendProvider);
-        final List<DbTarget> results;
-        if (backend is NetworkBackend) {
-          final rows = await backend.searchTargets(query);
-          results = rows.map(DbTarget.fromJson).toList();
-        } else {
-          final dao = ref.read(targetsDaoProvider);
-          results = await dao.searchTargets(query);
-        }
-        // Only when a search comes back empty is it worth asking whether the
-        // library has anything in it at all — that is what separates "no
-        // match for M31" from "you have not saved any targets yet".
-        bool libraryEmpty = false;
-        if (results.isEmpty) {
-          final all = await ref.read(allDbTargetsProvider.future);
-          libraryEmpty = all.isEmpty;
-        }
-        if (_isCurrentAuthority(authority, generation)) {
-          setState(() {
-            _searchResults = results;
-            _isSearching = false;
-            _searchCompleted = true;
-            _searchError = null;
-            _libraryIsEmpty = libraryEmpty;
-          });
-        }
-      } catch (e) {
-        if (_isCurrentAuthority(authority, generation)) {
-          setState(() {
-            _searchResults = [];
-            _isSearching = false;
-            _searchCompleted = true;
-            _searchError = e;
-          });
-        }
-      }
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      _runTargetSearch(trimmed, revision);
     });
   }
 
-  void _selectTarget(DbTarget target) {
+  /// Ranks [query] against the installed catalog and the saved target library
+  /// and shows the result. Returns the candidates, or null when a newer search
+  /// or an authority change made this one stale.
+  Future<List<_TargetCandidate>?> _runTargetSearch(
+    String query,
+    int revision,
+  ) async {
+    final authority = ref.read(backendProvider);
+    final generation = _authorityGeneration;
+    bool current() =>
+        revision == _searchRevision &&
+        _isCurrentAuthority(authority, generation);
+
+    Object? failure;
+    var catalog = const <RankedTarget>[];
+    try {
+      final dsos = await ref.read(loadedDsosProvider.future);
+      catalog = TargetNameResolver.rank(query, dsos, limit: 20);
+    } catch (e) {
+      failure = e;
+    }
+
+    var library = const <DbTarget>[];
+    try {
+      // On a remote-client slave the local targets table is never populated
+      // (targets only arrive over the wire), so the search goes to the host's
+      // `/api/targets/search`; the host searches its own DAO.
+      final backend = ref.read(backendProvider);
+      if (backend is NetworkBackend) {
+        final rows = await backend.searchTargets(query);
+        library = rows.map(DbTarget.fromJson).toList();
+      } else {
+        library = await ref.read(targetsDaoProvider).searchTargets(query);
+      }
+    } catch (e) {
+      failure ??= e;
+    }
+    if (!current()) return null;
+
+    // Objects the query names outright come first, then saved targets, then
+    // catalog objects that only contain the text.
+    final catalogCandidates = catalog.map(_TargetCandidate.fromCatalog);
+    final results = <_TargetCandidate>[
+      ...catalogCandidates.where((c) => c.exact),
+      ...library.map((t) => _TargetCandidate.fromLibrary(t, query)),
+      ...catalogCandidates.where((c) => !c.exact),
+    ];
+    setState(() {
+      _searchResults = results;
+      _isSearching = false;
+      _searchCompleted = true;
+      // A failure only matters when it left nothing to show.
+      _searchError = results.isEmpty ? failure : null;
+    });
+    return results;
+  }
+
+  /// Enter in the target field: select the one object the text names, keep
+  /// the list open when several do, and ask SIMBAD when nothing local does.
+  Future<void> _submitTargetSearch(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+    _searchDebounce?.cancel();
+    final revision = ++_searchRevision;
+    setState(() {
+      _isSearching = true;
+      _onlineLookupMessage = null;
+      _lastSearchQuery = trimmed;
+    });
+    final results = await _runTargetSearch(trimmed, revision);
+    if (results == null || !mounted) return;
+
+    final exact = results.where((c) => c.exact).toList();
+    if (exact.length == 1) {
+      _selectTarget(exact.single);
+      return;
+    }
+    if (exact.length > 1) return;
+    await _lookUpTargetOnline(trimmed);
+  }
+
+  /// Resolves [query] through SIMBAD's exact name resolver. Never takes an
+  /// object that merely contains the text in one of its identifiers.
+  Future<void> _lookUpTargetOnline(String query) async {
+    final revision = ++_searchRevision;
+    final authority = ref.read(backendProvider);
+    final generation = _authorityGeneration;
+    setState(() {
+      _isSearching = true;
+      _onlineLookupMessage = null;
+    });
+    String? message;
+    _TargetCandidate? found;
+    try {
+      final resolved = await ref.read(sesameNameResolverProvider).resolve(
+            query,
+          );
+      if (resolved == null) {
+        message = 'SIMBAD has no object named "$query". Check the spelling, '
+            'or enter RA/Dec below.';
+      } else {
+        found = _TargetCandidate(
+          name: resolved.mainId,
+          ra: resolved.raHours,
+          dec: resolved.decDegrees,
+          objectType: resolved.objectType,
+          source: _TargetSource.simbad,
+          exact: true,
+        );
+      }
+    } on TargetNameLookupUnavailable catch (e) {
+      message = '"$query" is not in the installed catalog or your library, '
+          'and SIMBAD could not be reached to look it up (${e.message}). '
+          'Enter RA/Dec below instead.';
+    }
+    if (revision != _searchRevision ||
+        !_isCurrentAuthority(authority, generation)) {
+      return;
+    }
+    if (found != null) {
+      _selectTarget(found);
+      return;
+    }
+    setState(() {
+      _isSearching = false;
+      _searchCompleted = true;
+      _onlineLookupMessage = message;
+    });
+  }
+
+  /// Forgets the picked target, and its coordinates too while the RA/Dec
+  /// fields still hold them unedited; coordinates the user typed stay.
+  void _dropSelectedTarget() {
+    final dropped = _selectedTarget;
+    if (dropped == null) return;
+    _selectedTarget = null;
+    if (_raController.text == _formatRa(dropped.ra) &&
+        _decController.text == _formatDec(dropped.dec)) {
+      _raController.clear();
+      _decController.clear();
+    }
+  }
+
+  void _selectTarget(_TargetCandidate target) {
+    _searchDebounce?.cancel();
+    _searchRevision++;
     setState(() {
       _selectedTarget = target;
       _targetNameController.text = target.name;
       _raController.text = _formatRa(target.ra);
       _decController.text = _formatDec(target.dec);
       _searchResults = [];
+      _isSearching = false;
       // The list is collapsing because the user picked something, not
       // because the search failed — do not raise the empty-state message.
       _searchCompleted = false;
       _searchError = null;
+      _onlineLookupMessage = null;
     });
   }
 
