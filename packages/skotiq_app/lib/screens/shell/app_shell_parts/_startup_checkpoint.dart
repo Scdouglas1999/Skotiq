@@ -5,12 +5,21 @@ enum AppStartupCheckpointOutcome {
   noRecovery,
   resumed,
   discarded,
+
+  /// A remote client left the host's checkpoint untouched.
+  deferred,
   failed,
 }
 
 enum AppCheckpointRecoveryChoice {
   resume,
   discard,
+
+  /// Leave the checkpoint where it is. Offered up front only to a remote
+  /// client, because the checkpoint belongs to the host: linking in must not
+  /// force a choice between restarting the host's run and deleting its
+  /// recovery state.
+  later,
 }
 
 /// What a failed recovery attempt actually left behind.
@@ -140,12 +149,18 @@ bool catalogSetupWasSkipped(String? persistedValue) =>
 /// dialog forever with no way out. "Not now" appears only after an attempt has
 /// actually failed, leaves the checkpoint on disk, and lets the operator into
 /// the app to fix the cause.
+///
+/// [remoteHost] is set when this app is a linked client of a remote rig. The
+/// checkpoint is then the host's: the modal names the host, says that Resume
+/// restarts the run there, and always offers "Leave it".
 @visibleForTesting
 Widget buildCheckpointRecoveryDialog({
   required BuildContext context,
   required CheckpointInfo info,
   required CheckpointAttemptFailure? failure,
+  String? remoteHost,
 }) {
+  final isRemote = remoteHost != null;
   final canRetry = failure == null || failure.checkpointStillResumable;
   final aftermath = canRetry
       ? 'The checkpoint is still on disk. Retry, or discard it to start fresh.'
@@ -188,7 +203,11 @@ Widget buildCheckpointRecoveryDialog({
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'A previous sequence was interrupted and can be resumed.',
+            isRemote
+                ? 'A sequence on $remoteHost was interrupted and can be '
+                    'resumed there. Resume restarts the run on the rig, which '
+                    'can move the mount right away. Leave it to decide later.'
+                : 'A previous sequence was interrupted and can be resumed.',
             style: TextStyle(
               color: colors.textSecondary,
               fontSize: SkotiqTypography.fontSize13,
@@ -228,7 +247,15 @@ Widget buildCheckpointRecoveryDialog({
       ),
     ),
     actions: [
-      if (failure != null)
+      if (isRemote)
+        SkotiqButton(
+          onPressed: () => Navigator.of(context).pop(
+            AppCheckpointRecoveryChoice.later,
+          ),
+          label: 'Leave it',
+          variant: ButtonVariant.ghost,
+        )
+      else if (failure != null)
         SkotiqButton(
           onPressed: () => Navigator.of(context).pop(),
           label: 'Not now',
@@ -298,6 +325,8 @@ Future<AppStartupCheckpointOutcome> runAppCheckpointRecovery({
         case AppCheckpointRecoveryChoice.discard:
           await discard();
           return AppStartupCheckpointOutcome.discarded;
+        case AppCheckpointRecoveryChoice.later:
+          return AppStartupCheckpointOutcome.deferred;
       }
     } catch (error) {
       // Ask the backend what survived the attempt instead of assuming. A
@@ -325,7 +354,8 @@ Future<void> runAppStartupChecks({
 }) async {
   final checkpointOutcome = await checkCheckpoint();
   if (checkpointOutcome == AppStartupCheckpointOutcome.noRecovery ||
-      checkpointOutcome == AppStartupCheckpointOutcome.discarded) {
+      checkpointOutcome == AppStartupCheckpointOutcome.discarded ||
+      checkpointOutcome == AppStartupCheckpointOutcome.deferred) {
     await checkCatalogs();
   }
 }
