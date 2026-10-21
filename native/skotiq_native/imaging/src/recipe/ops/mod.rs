@@ -7,11 +7,13 @@
 
 pub mod background_extract;
 pub mod channel_combine;
+pub mod chroma_denoise;
 pub mod color_calibrate;
 pub mod crop;
 pub mod curves;
 pub mod denoise;
 pub mod saturation;
+pub mod scnr;
 pub mod star_reduce;
 pub mod stretch;
 
