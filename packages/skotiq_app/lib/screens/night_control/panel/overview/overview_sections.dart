@@ -342,7 +342,7 @@ class NightLogSection extends StatefulWidget {
 class _NightLogSectionState extends State<NightLogSection> {
   final ScrollController _scroll = ScrollController();
 
-  /// One line's height, title row gap included; set on every build.
+  /// One line's height, the gap under it included; set on every build.
   double _rowExtent = 0;
 
   /// Scrolled further than this from the newest line, the operator is
