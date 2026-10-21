@@ -422,10 +422,6 @@ class FramingTargetSection extends StatelessWidget {
             color: colors.warning,
             icon: SkotiqIcons.warning,
           ),
-        if (altAz == null)
-          const FramingNote(
-            'Set your observing site in Settings to see altitude.',
-          ),
         const SizedBox(height: SkotiqTokens.spaceXs),
         AltitudeChart(
           key: FramingTutorialKeys.altitudeChart,
