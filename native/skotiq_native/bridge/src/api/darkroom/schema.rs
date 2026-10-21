@@ -947,8 +947,8 @@ pub(crate) fn draft_for_composite(
 /// Polynomial degrees the draft considers for the background surface, lowest
 /// first. The operation's own default is the first.
 const BACKGROUND_ORDERS: [u32; 3] = [2, 3, 4];
-/// A higher degree is drafted only when it leaves less than this fraction of
-/// the lower degree's sky residual: a surface that bends more must earn it.
+/// The lowest degree whose sky residual is within this factor of the best
+/// degree's is drafted: a surface that bends more must earn it.
 const BACKGROUND_ORDER_GAIN: f64 = 0.7;
 
 fn draft(
@@ -1159,10 +1159,11 @@ fn pin_combine_fits(
 
 /// The polynomial degree the background surface is drafted at, and why.
 ///
-/// The degrees in [`BACKGROUND_ORDERS`] are tried in turn over the draft's
-/// prefix at the measurement level, reading the operation's own sky residual;
-/// a higher degree replaces a lower one only when it removes a large share of
-/// what the lower one left ([`BACKGROUND_ORDER_GAIN`]). A master with no flat
+/// Every degree in [`BACKGROUND_ORDERS`] is rendered over the draft's prefix
+/// at the measurement level, reading the operation's own sky residual, and the
+/// lowest degree within [`BACKGROUND_ORDER_GAIN`] of the best residual is kept.
+/// Every degree is tried, not only the next: symmetric vignetting gains
+/// nothing from the odd terms of degree 3 and everything from degree 4. A master with no flat
 /// field carries vignetting a quadratic cannot follow; a gentle gradient stays
 /// at the quadratic default. `None` when the default cannot be measured, which
 /// leaves the step at its defaults for the prefix measurement to judge.
@@ -1204,7 +1205,7 @@ fn choose_background_order(
                     .over_master(master.identity.as_str()),
             )
         };
-        let Ok(output) = output else { break };
+        let Ok(output) = output else { continue };
         let sigma = output
             .report
             .steps
@@ -1218,18 +1219,16 @@ fn choose_background_order(
                     .filter_map(Value::as_f64)
                     .fold(0.0_f64, f64::max)
             });
-        let Some(sigma) = sigma else { break };
+        let Some(sigma) = sigma else { continue };
         residuals.push((order, sigma));
     }
-    let (&(mut chosen, mut chosen_sigma), rest) = residuals.split_first()?;
-    for &(order, sigma) in rest {
-        if sigma < BACKGROUND_ORDER_GAIN * chosen_sigma {
-            chosen = order;
-            chosen_sigma = sigma;
-        } else {
-            break;
-        }
-    }
+    let best = residuals
+        .iter()
+        .map(|(_, sigma)| *sigma)
+        .fold(f64::INFINITY, f64::min);
+    let (chosen, _) = *residuals
+        .iter()
+        .find(|(_, sigma)| BACKGROUND_ORDER_GAIN * sigma <= best)?;
     let listing = residuals
         .iter()
         .map(|(order, sigma)| format!("degree {order}: {sigma:.3}"))
@@ -1237,13 +1236,13 @@ fn choose_background_order(
         .join(", ");
     let reason = if chosen == BACKGROUND_ORDERS[0] {
         format!(
-            "the background surface stays at its default degree {chosen}: no higher degree removed enough of the sky residual to earn the extra bend ({listing})"
+            "the background surface stays at its default degree {chosen}: no higher degree removed enough of the sky residual to earn the extra bend (sky residual by degree: {listing})"
         )
     } else {
         format!(
-            "the background surface is fitted at degree {chosen}, not the default {}: the default left a sky residual the higher degree cut by more than {:.0}% ({listing}), the shape vignetting leaves on a master with no flat field",
+            "the background surface is fitted at degree {chosen}, not the default {}: it is the lowest degree whose sky residual comes within {:.0}% of the best, and the default left far more, the shape vignetting leaves on a master with no flat field (sky residual by degree: {listing})",
             BACKGROUND_ORDERS[0],
-            (1.0 - BACKGROUND_ORDER_GAIN) * 100.0
+            (1.0 / BACKGROUND_ORDER_GAIN - 1.0) * 100.0
         )
     };
     Some((chosen, reason))
