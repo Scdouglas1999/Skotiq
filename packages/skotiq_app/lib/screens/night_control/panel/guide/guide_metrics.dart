@@ -30,7 +30,7 @@ class NightGuideRms {
 }
 
 final nightGuideRmsProvider = Provider<NightGuideRms>((ref) {
-  final samples = ref.watch(nightGuideSamplesProvider);
+  final samples = ref.watch(nightGuideRecentSamplesProvider);
   if (samples.isEmpty) return const NightGuideRms();
   double rms(Iterable<double> values) {
     var sum = 0.0;
