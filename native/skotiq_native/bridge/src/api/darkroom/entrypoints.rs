@@ -154,6 +154,16 @@ fn geometry_findings(recipe: &Recipe, base_width: u32, base_height: u32) -> Vec<
     let mut findings = Vec::new();
     let (mut width, mut height) = (base_width, base_height);
     for (index, step) in recipe.steps.iter().enumerate() {
+        if step.enabled && step.op_id == "channel_combine" && step.op_version == 1 {
+            // The combination crops to the area every master covers.
+            if let Some((w, h)) =
+                skotiq_imaging::recipe::ops::channel_combine::output_size(&step.params)
+            {
+                width = w;
+                height = h;
+            }
+            continue;
+        }
         if !step.enabled || step.op_id != "crop" || step.op_version != 1 {
             continue;
         }
@@ -225,7 +235,8 @@ pub fn api_darkroom_render_preview(
         .ok_or_else(|| format!("pyramid level {level} is out of range for this master"))?
         .clone();
 
-    let (ctx, catalog_stars) = build_context(&base, level, &token, &context.catalog_stars);
+    let (ctx, catalog_stars) =
+        build_context(&recipe, &base, level, &token, &context.catalog_stars)?;
     let mut options = RenderOptions::full()
         .at_level(level)
         .over_master(master.identity.as_str());
@@ -319,6 +330,39 @@ pub fn api_darkroom_registry(args_json: String) -> Result<String, String> {
             "baseMasterBytes": BASE_CACHE_CAPACITY_BYTES,
         },
     });
+
+    if let Some(composite) = &args.composite {
+        match super::composite::plan(composite)? {
+            super::composite::CompositeOutcome::NotCombined(report) => {
+                reply["composite"] = report;
+            }
+            super::composite::CompositeOutcome::Planned(planned) => {
+                let planned = *planned;
+                let base_master_ref = if args.base_master_ref.trim().is_empty() {
+                    planned.reference_path.clone()
+                } else {
+                    args.base_master_ref.clone()
+                };
+                reply["draft"] = super::schema::draft_for_composite(
+                    &planned.reference,
+                    &args.recipe_id,
+                    &base_master_ref,
+                    super::schema::CompositePrefix {
+                        step: planned.step,
+                        sources: planned.sources,
+                    },
+                )?;
+                reply["base"] = level_json(
+                    &planned.reference.pyramid,
+                    0,
+                    planned.reference.pyramid.base(),
+                );
+                reply["masterPath"] = json!(planned.reference_path);
+                reply["composite"] = planned.report;
+            }
+        }
+        return serde_json::to_string(&reply).map_err(|e| format!("failed to encode result: {e}"));
+    }
 
     if !args.master_path.trim().is_empty() {
         let token = RenderCancelToken::register("")?;

@@ -140,12 +140,16 @@ pub(crate) fn resolve_level(
 /// differently and the boundaries computed under the previous list stay
 /// reachable for the next request that supplies it.
 pub(crate) fn build_context(
+    recipe: &Recipe,
     base: &OpImage,
     level: u32,
     token: &RenderCancelToken,
     catalog_stars: &[CatalogStarArgs],
-) -> (OpContext, usize) {
+) -> Result<(OpContext, usize), String> {
     let mut ctx = OpContext::new().with_cancel(token.flag()).at_level(level);
+    if let Some(sources) = super::composite::sources_for(recipe)? {
+        ctx = ctx.with_sources(sources);
+    }
     if let Some(wcs) = base.wcs() {
         ctx = ctx.with_wcs(wcs);
     }
@@ -154,7 +158,7 @@ pub(crate) fn build_context(
         star_count = catalog.len();
         ctx = ctx.with_catalog(catalog.into_handle());
     }
-    (ctx, star_count)
+    Ok((ctx, star_count))
 }
 
 /// Replay `recipe` over `base`, mapping a cancelled render to the typed

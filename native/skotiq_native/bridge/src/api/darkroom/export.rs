@@ -172,7 +172,7 @@ pub(crate) fn run_export(recipe_json: &str, args: DarkroomExportArgs) -> Result<
     let token = RenderCancelToken::register(&args.render_id)?;
     let master = load_pyramid(&args.master_path, &token)?;
     let base = Arc::clone(master.pyramid.base());
-    let (ctx, catalog_stars) = build_context(&base, 0, &token, &args.catalog_stars);
+    let (ctx, catalog_stars) = build_context(&recipe, &base, 0, &token, &args.catalog_stars)?;
 
     let (image, report, report_value) = match stage {
         // No `validate` here: the linear stage writes the master's own pixels
