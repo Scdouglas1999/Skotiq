@@ -127,4 +127,95 @@ void main() {
       20,
     );
   });
+
+  // The owner's run: a saved sequence whose only exposures are one Smart
+  // Exposure node read "No plan loaded" while it ran.
+  test('a Smart Exposure plans one row per filter', () {
+    final smart = SmartExposureNode(
+      id: 'smart',
+      parentId: 't',
+      plans: const [
+        FilterPlan(filterName: 'L', count: 30, durationSecs: 90),
+        FilterPlan(filterName: 'R', count: 10, durationSecs: 90),
+      ],
+    );
+    final target = TargetHeaderNode(
+      id: 't',
+      parentId: 'root',
+      targetName: 'NGC 891',
+      raHours: 2.376,
+      decDegrees: 42.35,
+      childIds: const ['smart'],
+    );
+    final root = InstructionSetNode(id: 'root', childIds: const ['t']);
+    final sequence = Sequence.create(
+      name: 'NGC 891',
+      rootNodeId: 'root',
+      nodes: {root.id: root, target.id: target, smart.id: smart},
+    );
+    final container = planContainer(
+      now: evening,
+      sequence: sequence,
+      execution: SequenceExecutionState.running,
+      session: SessionState(
+        isActive: true,
+        startTime: DateTime(2026, 10, 19, 19, 50),
+      ),
+      sessionFrames: [
+        lightFrame('1', 'L', DateTime(2026, 10, 19, 19, 52)),
+        lightFrame('2', 'R', DateTime(2026, 10, 19, 19, 54)),
+        lightFrame('3', 'L', DateTime(2026, 10, 19, 19, 56)),
+      ],
+      totals: const RunDashboardFilterTotals(
+        integrationSecs: {'L': 180, 'R': 90},
+        totalAcquiredSecs: {'L': 180, 'R': 90},
+        goalSecs: {'L': 2700, 'R': 900},
+        inFlightFilter: 'R',
+      ),
+    );
+    addTearDown(container.dispose);
+
+    final plan = container.read(nightPlanProgressProvider)!;
+    expect(plan.rows.map((r) => r.filter), ['L', 'R']);
+    expect(plan.rows.map((r) => r.framesPlanned), [30, 10]);
+    expect(plan.rows.map((r) => r.framesDone), [2, 1]);
+    expect(plan.rows[1].isCurrent, isTrue);
+    expect(plan.integrated, const Duration(seconds: 270));
+  });
+
+  test('"Loop until stopped" leaves the Smart Exposure rows open', () {
+    final smart = SmartExposureNode(
+      id: 'smart',
+      parentId: 'root',
+      loopUntilStopped: true,
+      plans: const [FilterPlan(filterName: 'Ha', count: 5)],
+    );
+    final root = InstructionSetNode(id: 'root', childIds: const ['smart']);
+    final sequence = Sequence.create(
+      name: 'Until stopped',
+      rootNodeId: 'root',
+      nodes: {root.id: root, smart.id: smart},
+    );
+    final container = planContainer(now: evening, sequence: sequence);
+    addTearDown(container.dispose);
+
+    expect(
+      container.read(nightPlanProgressProvider)!.rows.single.framesPlanned,
+      isNull,
+    );
+  });
+
+  test('a plan with no exposures is still a plan, with no rows', () {
+    final slew = SlewNode(id: 'slew', parentId: 'root');
+    final root = InstructionSetNode(id: 'root', childIds: const ['slew']);
+    final sequence = Sequence.create(
+      name: 'Slew only',
+      rootNodeId: 'root',
+      nodes: {root.id: root, slew.id: slew},
+    );
+    final container = planContainer(now: evening, sequence: sequence);
+    addTearDown(container.dispose);
+
+    expect(container.read(nightPlanProgressProvider)!.rows, isEmpty);
+  });
 }

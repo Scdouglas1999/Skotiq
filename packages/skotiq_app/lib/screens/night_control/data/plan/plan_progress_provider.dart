@@ -28,15 +28,34 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
   // A filter with any exposure under an open-ended loop has no planned count.
   final planned = <String, int>{};
   final openEnded = <String>{};
-  for (final entry in tree.entries) {
-    final node = entry.node;
-    if (node is! ExposureNode || node.frameType != FrameType.light) continue;
-    final key = _filterKey(node.filter);
-    final frames = node.count * entry.multiplier;
+  void plan(String? filter, int count, int multiplier, bool open) {
+    final key = _filterKey(filter);
+    final frames = count * multiplier;
     planned.update(key, (sum) => sum + frames, ifAbsent: () => frames);
-    if (entry.openEnded) openEnded.add(key);
+    if (open) openEnded.add(key);
   }
-  if (planned.isEmpty) return null;
+
+  for (final entry in tree.entries) {
+    switch (entry.node) {
+      case final ExposureNode node when node.frameType == FrameType.light:
+        plan(node.filter, node.count, entry.multiplier, entry.openEnded);
+      // A Smart Exposure plans one row per filter. "Loop until stopped"
+      // ignores the counts and runs until the target's window closes.
+      case final SmartExposureNode node:
+        for (final filterPlan in node.plans) {
+          plan(
+            filterPlan.filterName,
+            filterPlan.count,
+            entry.multiplier,
+            entry.openEnded || node.loopUntilStopped,
+          );
+        }
+      case final SciencePhotometryNode node:
+        plan(node.filter, node.count, entry.multiplier, entry.openEnded);
+      default:
+        break;
+    }
+  }
 
   final phase = ref.watch(nightRunPhaseProvider);
   final totals = ref.watch(runDashboardFilterTotalsProvider);
