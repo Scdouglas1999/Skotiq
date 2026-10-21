@@ -16,7 +16,8 @@ import '../models/imaging/imaging_models.dart'
     show CapturePreviewSource, ExposureSettings;
 import '../services/capture_preview_loader.dart'
     show capturePreviewPublisherProvider, capturedImageDataFromResult;
-import '../services/imaging_service.dart' show exposureProgressProvider;
+import '../services/imaging_service.dart'
+    show currentImageProvider, exposureProgressProvider;
 import '../services/logging_service.dart' show loggingServiceProvider;
 import '../services/phd2_status_poll.dart';
 import '../services/sequence_file_service.dart'

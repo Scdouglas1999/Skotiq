@@ -10,10 +10,16 @@ part of '../remote_sync_handler.dart';
 /// intact — one slow device on a high-latency link can neither stall nor wipe
 /// the others. Connection state is applied first so cards exist before live
 /// values land.
+///
+/// [refreshCurrentFrame] is false for the periodic re-hydrate. The host's last
+/// frame is a full-resolution JPEG plus its raw pixels (tens of MB), and new
+/// frames arrive through ImageReady events, so only first connect and
+/// BackendReconnected, after which frames may have been missed, fetch it.
 Future<void> hydrateRemoteSessionState(
   Object reader,
-  NetworkBackend backend,
-) async {
+  NetworkBackend backend, {
+  bool refreshCurrentFrame = true,
+}) async {
   if (!_isCurrentRemoteBackend(reader, backend)) return;
   final status = await backend.sequencerGetStatus();
   if (!_isCurrentRemoteBackend(reader, backend)) return;
@@ -41,7 +47,8 @@ Future<void> hydrateRemoteSessionState(
   // from the (now-hydrated) camera state and no-ops if none is connected or no
   // frame is cached host-side, so the guard mirrors the live-event path.
   final cameraState = _read(reader, cameraStateProvider);
-  if (cameraState.connectionState == DeviceConnectionState.connected) {
+  if (refreshCurrentFrame &&
+      cameraState.connectionState == DeviceConnectionState.connected) {
     unawaited(_publishRemoteCurrentFrame(reader, backend));
   }
 
