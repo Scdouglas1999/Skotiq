@@ -175,7 +175,7 @@ void main() {
   test('every sequencer-Error handler consults the shared predicate', () {
     const handlers = <String>[
       'lib/src/providers/sequence/sequence_progress.dart',
-      'lib/src/providers/sequence/sequence_executor/event_operations.dart',
+      'lib/src/providers/sequence/sequence_executor/run_event_handler.dart',
     ];
     for (final path in handlers) {
       final source = File(path).readAsStringSync();

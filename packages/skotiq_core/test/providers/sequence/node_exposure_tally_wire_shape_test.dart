@@ -8,7 +8,7 @@
 //   event/sequencer.rs:118             `detail_json: String`
 //   ffi_backend/event_mapping.dart:534 'detail_json': sequencerEvent.detailJson
 //
-// — so every consumer must decode it first (event_operations.dart's
+// — so every consumer must decode it first (sequencer_run_event.dart's
 // `decodeStructuredProgressJson`). A consumer that reads it as a Map sees `{}`
 // and counts nothing.
 //

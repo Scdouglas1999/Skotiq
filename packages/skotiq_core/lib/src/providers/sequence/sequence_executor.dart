@@ -2,66 +2,42 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 
-import '../../backend/bridge_events.dart' show depthGoalCompletedDetail;
-import '../../backend/frame_capture_metadata.dart';
 import '../../backend/skotiq_backend.dart';
-import '../../models/imaging/imaging_models.dart';
 import '../../models/sequence/active_plan_owner.dart';
-import '../../models/sequence/instruction_progress_detail.dart';
-import '../../models/replay_decision.dart' show DecisionCategory;
 import '../../models/sequence/sequence_models.dart';
 import '../../services/sequence_file_service.dart';
 import '../../services/sequence_repository.dart'
     show sequenceRepositoryProvider;
 import '../../services/live_stacking_broadcast_service.dart';
 import '../../services/safe_rig_service.dart';
-import '../../services/capture_preview_loader.dart';
 import '../../services/logging_service.dart';
-import '../../utils/remote_path.dart';
-import 'log_rate_limiter.dart';
-import '../thumbnail_sidecar_provider.dart';
 import '../backend_provider.dart';
-import '../database_provider.dart' show imagesDaoProvider, targetsDaoProvider;
-import '../../database/daos/campaigns_dao.dart' show campaignsDaoProvider;
+import '../database_provider.dart' show targetsDaoProvider;
 import '../disk_space_provider.dart';
-import '../equipment_provider.dart';
-import '../focuser_backlash_provider.dart'
-    show focuserBacklashOfferSessionProvider, savedFocuserBacklashProvider;
+import '../focuser_backlash_provider.dart' show savedFocuserBacklashProvider;
 // Sky-brightness poll reads the tracker via this
 // provider (defined in flat_wizard_provider since the tracker is
 // shared between flat-wizard and adaptive-exposure paths).
-import '../imaging_provider.dart';
 import '../live_stacking_provider.dart';
 import '../meridian_flip_provider.dart';
 // Plugin-node dispatcher abstraction.
-import '../plugin_node_dispatcher.dart';
-import '../replay_debug_provider.dart';
 import '../profiles_provider.dart';
 import '../sequence_provider.dart'
     show
         currentSequenceProvider,
-        recordRunEventStopEvidence,
         sequenceExecutionStateProvider,
         sequenceLaunchInFlightProvider,
-        sequenceProgressProvider,
-        SequenceProgressNotifier,
-        sequenceStopEvidenceProvider;
+        sequenceProgressProvider;
 import '../sequence_stats_provider.dart';
 import '../session_provider.dart';
 import '../settings_provider.dart';
 // Session-lifecycle hooks: optical-train baseline capture,
 // post-session diagnostics summary, NotificationRouter active-sequence
 // tracking, USB disconnect aggregation.
-import 'exposure_progress_vocabulary.dart';
 import 'node_exposure_tally.dart';
-import 'sequencer_run_event.dart';
 import 'run_stop_classification.dart';
-import 'target_end_when_notice.dart';
 import 'sequence_validation.dart' as validation;
-import 'sequencer_defaults.dart';
-import 'sequence_executor/frame_attribution.dart';
 import 'sequence_executor/eta_smoothing.dart';
 import 'sequence_executor/run_finalization.dart';
 import 'sequence_executor/run_lifecycle.dart';
@@ -71,9 +47,10 @@ import 'sequence_executor/run_timers.dart';
 import 'sequence_executor/runtime_config_sync.dart';
 import 'sequence_executor/session_diagnostics.dart';
 import 'sequence_executor/run_target_binding.dart';
+import 'sequence_executor/run_frame_recorder.dart';
+import 'sequence_executor/run_event_handler.dart';
 import 'sequence_executor/sequence_serializer.dart';
 import 'sequence_executor/stop_confirmation.dart';
-import '../../services/frame_quality_score.dart';
 
 export 'sequence_executor/eta_smoothing.dart'
     show EtaSmoother, kEtaEmaAlpha, kEtaWindowSize;
@@ -88,8 +65,6 @@ export 'sequence_executor/stop_confirmation.dart'
         kNativeStopConfirmationPollInterval,
         kNativeStopConfirmationTimeout,
         kNativeTerminalStates;
-
-part 'sequence_executor/event_operations.dart';
 
 /// Sequence executor that manages execution.
 ///
@@ -175,44 +150,30 @@ class SequenceExecutor {
     logger: () => _logger,
   );
 
-  /// In-flight fire-and-forget frame-persistence futures from
-  /// [_registerSequenceFrame]. Tracked so (a) tests can await quiescence
-  /// instead of sleeping a wall-clock margin and (b) the disposed guard
-  /// below has a defined set of stragglers it is protecting against.
-  final Set<Future<void>> _inFlightFrameRegistrations = <Future<void>>{};
+  /// The run's frame counters, `captured_images` rows and live preview.
+  late final RunFrameRecorder _frames = RunFrameRecorder(
+    ref: _ref,
+    backend: _backend,
+    stats: _stats,
+    targets: _targets,
+    logger: () => _logger,
+    isDisposed: () => _disposed,
+  );
 
-  /// Frames the grader has already ruled on — and that the run record has
-  /// therefore already counted — whose `ExposureCompleted` has not arrived yet,
-  /// keyed by the frame index all three events carry.
-  ///
-  /// `FrameAccepted` / `FrameRejected` are the only events that know whether a
-  /// frame was kept, the only ones carrying the capture truth the FITS header
-  /// was written from, and the only ones EVERY producer emits: native emits one
-  /// per frame it saves, from the exposure instruction, whether that instruction
-  /// was reached through a TakeExposure node or a Smart Exposure one. They are
-  /// consequently where the run's frame counters are incremented (see
-  /// `_recordGradedFrame`).
-  ///
-  /// `ExposureCompleted` cannot carry that job. The executor synthesises it in
-  /// `native/skotiq_native/sequencer/src/executor/start/progress_callback.rs`
-  /// only for nodes present in `exposure_node_metadata`, which
-  /// `executor/start.rs` builds from `NodeType::TakeExposure` alone, and only
-  /// when the node's frame index ADVANCES. A Smart Exposure node satisfies
-  /// neither condition — it is absent from the map, and its delegated
-  /// single-frame bursts report frame 1 of 1 over and over — so a whole night
-  /// on the owner's rig emitted not one `ExposureCompleted`, and
-  /// `GET /api/sequencer/status` answered `framesCaptured: 0, framesRejected: 0`
-  /// for ten minutes while the grader was writing its third reject to disk.
-  ///
-  /// An entry here therefore means "already counted": the `ExposureCompleted`
-  /// that follows consumes it for the preview stamp and adds nothing to the
-  /// counters, while a frame that reaches `ExposureCompleted` with NO entry was
-  /// never graded (a run with no save path emits no grader event at all) and is
-  /// counted there instead. Entries are cleared whenever a new node starts, so
-  /// a frame whose `ExposureCompleted` never arrives cannot strand a verdict on
-  /// a later frame of a later node.
-  final Map<int, ({bool accepted, FrameCapture capture})> _gradedFrames =
-      <int, ({bool accepted, FrameCapture capture})>{};
+  /// Applies native sequencer events to the run; terminal events come back
+  /// to [_onTerminalEvent].
+  late final RunEventHandler _events = RunEventHandler(
+    ref: _ref,
+    backend: _backend,
+    stats: _stats,
+    frames: _frames,
+    liveStacking: _liveStacking,
+    eta: _eta,
+    logger: () => _logger,
+    warn: _surfaceRunWarning,
+    setExecutionState: _setExecutionState,
+    onTerminal: _onTerminalEvent,
+  );
 
   /// True once [dispose] has run. Late completions of fire-and-forget
   /// work (frame persistence, campaign credit) must not read providers
@@ -243,13 +204,6 @@ class SequenceExecutor {
   );
 
   LoggingService get _logger => _ref.read(loggingServiceProvider);
-
-  /// Rate limiter for the per-event debug trace in `_handleSequencerEvent`.
-  /// Unlimited, a per-event line consumes the whole in-app log ring — see
-  /// `log_rate_limiter.dart`.
-  final LogRateLimiter _eventTraceLimiter = LogRateLimiter(
-    window: const Duration(seconds: 5),
-  );
 
   SequenceExecutor(this._ref, {SkotiqBackend? backend})
     : _backend = backend ?? _ref.read(backendProvider);
@@ -285,8 +239,7 @@ class SequenceExecutor {
   /// FrameRejected / PluginNodeRequested handlers without spinning up
   /// the full Rust backend.
   @visibleForTesting
-  void handleSequencerEventForTest(SkotiqEvent event) =>
-      _handleSequencerEvent(event);
+  void handleSequencerEventForTest(SkotiqEvent event) => _events.handle(event);
 
   /// Runs the start-time catalog binding on its own, so a test can assert what
   /// the `targets` rows hold afterwards without driving a whole run.
@@ -308,7 +261,7 @@ class SequenceExecutor {
     // persistence runs on its own futures outside the chain.
     while (true) {
       final tail = _liveStacking.pending;
-      final registrations = List.of(_inFlightFrameRegistrations);
+      final registrations = _frames.inFlightRegistrations;
       if (tail == null && registrations.isEmpty) return;
       try {
         await Future.wait<void>([if (tail != null) tail, ...registrations]);
@@ -317,7 +270,7 @@ class SequenceExecutor {
         // waiter only cares about quiescence.
       }
       if (identical(tail, _liveStacking.pending) &&
-          _inFlightFrameRegistrations.isEmpty) {
+          _frames.inFlightRegistrations.isEmpty) {
         return;
       }
     }
@@ -574,7 +527,7 @@ class SequenceExecutor {
     _ref.read(currentRunIdProvider.notifier).state = runId;
     _ref.read(liveSequenceStatsProvider.notifier).state = SequenceRunStats();
     _liveStacking.resetForRun();
-    _gradedFrames.clear();
+    _frames.clearVerdicts();
 
     // Replay Debug — stamp the active sequence_runs.id onto the
     // Rust executor so every subsequent emitted DecisionEvent carries
@@ -893,7 +846,7 @@ class SequenceExecutor {
     // failed run row + report carry the cause. Done before the drive seals the
     // stats for the final finishRun write.
     try {
-      _recordRunError('Failed to start sequence execution: $startError');
+      _events.recordRunError('Failed to start sequence execution: $startError');
     } catch (_) {
       // Absent live stats (failure before the run row existed) — nothing to
       // record; the drive's finalizeRun is a no-op in that case anyway.
@@ -1334,6 +1287,34 @@ class SequenceExecutor {
       _publishTerminalResult(f);
     }
     _setExecutionState(f.finalUiState);
+  }
+
+  /// Finalize the run row and fire the once-per-run session-end hooks.
+  ///
+  /// Awaited by the drive, so the run id is cleared only after `finishRun` has
+  /// persisted and a failed finish surfaces as `cleanupFailed`.
+  /// [RunFinalization.runRecordFinished] is set only after `finishRun`
+  /// succeeds: it makes the success path exactly-once without swallowing a
+  /// retry after a failed finish.
+  Future<void> _finalizeRun(RunFinalization f) async {
+    if (f.runRecordFinished) return;
+    final runId = _ref.read(currentRunIdProvider);
+    final stats = _ref.read(liveSequenceStatsProvider);
+    if (runId == null || stats == null) return;
+    await _stats.sealAndDrain();
+    stats.endTime = DateTime.now();
+    await _ref
+        .read(sequenceRunsDaoProvider)
+        .finishRun(runId, f.runStatus, stats.toJson());
+    f.runRecordFinished = true;
+    _diagnostics.captureEnd();
+  }
+
+  /// Record a terminal event's reason. Not a run error: it restates the
+  /// mid-run `Error` the run already recorded (see
+  /// [SequenceRunStats.recordTerminalError]).
+  void _recordTerminalRunError(String message) {
+    _stats.update((stats) => stats.recordTerminalError(message));
   }
 
   /// Release every per-run resource: timers, disk watchdog, settings watchers,
@@ -2085,7 +2066,7 @@ class SequenceExecutor {
     _lifecycle.launchSucceeded();
   }
 
-  /// Subscribe [_handleSequencerEvent] to the backend event stream.
+  /// Subscribe the event handler to the backend event stream.
   ///
   /// The ONE subscribe site. A Dart-orchestrated [start] and a checkpoint
   /// [resumeFromCheckpoint] both route through here as part of their launch,
@@ -2125,7 +2106,7 @@ class SequenceExecutor {
     }
     await _nativeEventSubscription?.cancel();
     _nativeEventSubscription = backend.eventStream.listen(
-      _handleSequencerEvent,
+      _events.handle,
       onError: (e) =>
           _logger.error('Event stream error: $e', source: 'SequenceExecutor'),
     );

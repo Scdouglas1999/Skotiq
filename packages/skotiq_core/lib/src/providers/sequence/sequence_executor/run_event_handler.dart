@@ -1,7 +1,97 @@
-part of '../sequence_executor.dart';
+import 'dart:async';
+import 'dart:convert';
 
-extension _SequenceExecutorEventOperations on SequenceExecutor {
-  void _handleSequencerEvent(SkotiqEvent raw) {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../backend/bridge_events.dart' show depthGoalCompletedDetail;
+import '../../../backend/skotiq_backend.dart';
+import '../../../models/replay_decision.dart' show DecisionCategory;
+import '../../../models/sequence/instruction_progress_detail.dart';
+import '../../../models/sequence/sequence_models.dart';
+import '../../../services/logging_service.dart';
+import '../../../utils/remote_path.dart';
+import '../../equipment_provider.dart';
+import '../../focuser_backlash_provider.dart'
+    show focuserBacklashOfferSessionProvider;
+import '../../plugin_node_dispatcher.dart';
+import '../../replay_debug_provider.dart';
+import '../../sequence_provider.dart'
+    show
+        recordRunEventStopEvidence,
+        sequenceExecutionStateProvider,
+        sequenceProgressProvider,
+        SequenceProgressNotifier,
+        sequenceStopEvidenceProvider;
+import '../../sequence_stats_provider.dart';
+import '../../session_provider.dart';
+import '../exposure_progress_vocabulary.dart';
+import '../log_rate_limiter.dart';
+import '../node_exposure_tally.dart';
+import '../run_stop_classification.dart';
+import '../sequencer_defaults.dart';
+import '../sequencer_run_event.dart';
+import '../target_end_when_notice.dart';
+import 'eta_smoothing.dart';
+import 'live_stacking_feed.dart';
+import 'run_frame_recorder.dart';
+import 'run_stats_ledger.dart';
+
+/// Receives a terminal event's verdict; the executor's finalization claim.
+typedef RunTerminalSink =
+    void Function(
+      SequenceExecutionState uiState,
+      String runStatus, {
+      String? error,
+      String? warning,
+    });
+
+/// Applies each native sequencer event to the run: progress and node state,
+/// run stats, frames, decisions, plugin dispatch. Events are decoded once
+/// ([SequencerRunEvent]) and switched over by type. The run's lifecycle is not
+/// decided here: lifecycle events go to [setExecutionState] and terminal
+/// events to the executor's finalization through [onTerminal].
+class RunEventHandler {
+  RunEventHandler({
+    required Ref ref,
+    required SkotiqBackend backend,
+    required RunStatsLedger stats,
+    required RunFrameRecorder frames,
+    required LiveStackingFeed liveStacking,
+    required EtaSmoother eta,
+    required LoggingService Function() logger,
+    required void Function(String message, {bool persist}) warn,
+    required void Function(SequenceExecutionState state) setExecutionState,
+    required RunTerminalSink onTerminal,
+  }) : _ref = ref,
+       _backend = backend,
+       _stats = stats,
+       _frames = frames,
+       _liveStacking = liveStacking,
+       _eta = eta,
+       _loggerFn = logger,
+       _warn = warn,
+       _setExecutionState = setExecutionState,
+       _onTerminal = onTerminal;
+
+  final Ref _ref;
+  final SkotiqBackend _backend;
+  final RunStatsLedger _stats;
+  final RunFrameRecorder _frames;
+  final LiveStackingFeed _liveStacking;
+  final EtaSmoother _eta;
+  final LoggingService Function() _loggerFn;
+  final void Function(String message, {bool persist}) _warn;
+  final void Function(SequenceExecutionState state) _setExecutionState;
+  final RunTerminalSink _onTerminal;
+  LoggingService get _logger => _loggerFn();
+
+  /// Per-event-type rate limit on the debug trace, so a chatty type cannot
+  /// fill the in-app log ring.
+  final LogRateLimiter _eventTraceLimiter = LogRateLimiter(
+    window: const Duration(seconds: 5),
+  );
+
+  void handle(SkotiqEvent raw) {
     // Rate-limited per event type, so a chatty type collapses while a rare one
     // is still traced the moment it arrives.
     final trace = _eventTraceLimiter.admit(
@@ -84,9 +174,9 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
       case RunResumed():
         _setExecutionState(SequenceExecutionState.running);
       case RunCompleted():
-        _onTerminalEvent(SequenceExecutionState.completed, 'completed');
+        _onTerminal(SequenceExecutionState.completed, 'completed');
       case RunFailed(:final error):
-        _onTerminalEvent(
+        _onTerminal(
           SequenceExecutionState.failed,
           'failed',
           error: error ?? 'Unknown error',
@@ -94,11 +184,11 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
       case RunStopped():
         _onNativeStopped();
       case FrameAccepted():
-        _recordGradedFrame(event);
-        _registerSequenceFrame(event, grade: 'pass');
+        _frames.recordGraded(event);
+        _frames.register(event, grade: 'pass');
         _liveStacking.feed(event);
       case FrameRejected(:final rejectPath):
-        _recordGradedFrame(event);
+        _frames.recordGraded(event);
         // The folder rejects pile up in is what an operator opens after a
         // reject storm, so the run record names the grader's own directory.
         final rejectFolder = rejectPath == null
@@ -107,7 +197,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
         if (rejectFolder != null) {
           _stats.update((stats) => stats.recordRejectFolder(rejectFolder));
         }
-        _registerSequenceFrame(event, grade: 'reject');
+        _frames.register(event, grade: 'reject');
       case PluginNodeRequested():
         _dispatchPluginNode(event);
       case PluginNodeProgress(:final pluginId, :final nodeTypeId):
@@ -140,7 +230,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
     }
     // Frame indices restart at 1 for every node, so a verdict an aborted burst
     // never completed must not survive into this node's frame 1.
-    _gradedFrames.clear();
+    _frames.clearVerdicts();
   }
 
   void _onNodeCompleted(
@@ -208,11 +298,11 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
     final total = event.total ?? 1;
     final durationSecs = event.durationSecs ?? 0.0;
     // A graded frame was already counted and shown when its verdict arrived
-    // (see [_gradedFrames]); an ungraded one (no save path, so no grader) is
+    // (see [RunFrameRecorder]); an ungraded one (no save path, so no grader) is
     // counted here as accepted.
-    final graded = _gradedFrames.remove(frame);
-    if (graded == null) {
-      _recordRunFrame(
+    final graded = _frames.takeVerdict(frame);
+    if (!graded) {
+      _frames.recordRunFrame(
         exposureSecs: durationSecs,
         filter: event.filter,
         accepted: true,
@@ -239,10 +329,8 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
         formatExposureCompletedDetail(frame, total),
       );
     }
-    if (graded == null) {
-      _fetchAndDisplaySequenceImage(
-        _previewSettingsForFrame(null, durationSecs),
-      );
+    if (!graded) {
+      _frames.showPreview(_frames.previewSettingsFor(null, durationSecs));
     }
   }
 
@@ -254,7 +342,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
     // An advisory shares the Error payload; it is a warning on the run, never
     // a fault on a node.
     if (event.isAdvisory) {
-      _surfaceRunWarning(message);
+      _warn(message);
       progressNotifier.updateProgress(message: message);
       return;
     }
@@ -278,7 +366,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
       progressNotifier.updateProgress(message: stopped);
       return;
     }
-    _recordRunError(message);
+    recordRunError(message);
     progressNotifier.updateProgress(message: 'Error: $message');
     final nodeId = _ref.read(sequenceProgressProvider).currentNodeId;
     if (nodeId != null) {
@@ -379,7 +467,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
     final stopEvidence = _ref.read(sequenceStopEvidenceProvider);
     final operatorStopped =
         stopEvidence?.author == SequenceStopAuthor.operatorPress;
-    _onTerminalEvent(
+    _onTerminal(
       SequenceExecutionState.idle,
       operatorStopped ? 'stopped' : 'aborted',
       warning: operatorStopped || stopEvidence == null
@@ -508,7 +596,7 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
   ///   * The verdict is posted via
   ///     `backend.sequencerPluginNodeFinished` — same channel pattern
   ///     as every other sequencer command.
-  ///   * We fire-and-forget; the caller (`_handleSequencerEvent`)
+  ///   * We fire-and-forget; the caller ([handle])
   ///     returns immediately so other events keep flowing.
   void _dispatchPluginNode(PluginNodeRequested event) {
     final nodeId = event.nodeId ?? '';
@@ -597,300 +685,6 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
     }());
   }
 
-  /// Thumbnail — translate a typed FrameAccepted / FrameRejected
-  /// event into a captured_images row tagged with the producing node id.
-  /// Fire-and-forget; failures are logged so the strip can show them, but they
-  /// never block the run.
-  void _registerSequenceFrame(FrameGraded event, {required String grade}) {
-    final isAccepted = event.accepted;
-    final nodeId = event.nodeId;
-    if (nodeId == null || nodeId.isEmpty) {
-      // No producing node — typically a wizard-driven capture (flat
-      // wizard, polar-align). Nothing for the sequence-tree strip to
-      // hang the row off of, so we skip.
-      return;
-    }
-    final hfr = event.hfr;
-    final eccentricity = event.eccentricity;
-    final starCount = event.starCount;
-    // The frame event carries no background/noise, so the score is the
-    // HFR + star-count components renormalised; NaN when the frame reported
-    // neither, which stores as NULL and lets the assessment service's own
-    // fallback apply to a frame that genuinely was not measured.
-    final rawQualityScore = computeFrameQualityScore(
-      hfr: hfr,
-      starCount: starCount,
-    );
-    final qualityScore = rawQualityScore.isNaN ? null : rawQualityScore;
-    // The capture truth the FITS writer used for THIS frame, carried on the
-    // event. Reading it here — rather than re-deriving gain/offset/binning
-    // from the sequence tree, and leaving temperature, pointing, focuser and
-    // rotator simply absent — is what makes the row and the file agree. Adding
-    // more fields to `resolveFrameAttribution` instead would have kept two
-    // sources of truth for one exposure, which is the defect itself.
-    final capture = event.capture;
-    // Accepted frames now carry the on-disk save_path
-    // alongside the existing rejected-frame reject_path. The thumbnail
-    // strip uses whichever field is populated to load the inline
-    // preview. `save_path` may legitimately be null on legacy emit
-    // sites that did not thread the path through; defaulting to empty
-    // string keeps the "no thumbnail yet" colour-bordered tile rather
-    // than skipping the row entirely.
-    final filePath = event.filePath ?? '';
-    final fileName = filePath.isEmpty ? '' : p.basename(filePath);
-    final rejectionReason = switch (event) {
-      FrameRejected(:final reason) => reason,
-      FrameAccepted() => null,
-    };
-    // One resolver, shared with the run-stats bucket — see
-    // [_resolveActiveFilter] for why the two must not diverge. A frame
-    // recorded with no filter is unusable for calibration matching later.
-    final filter = _resolveActiveFilter();
-    final runId = _ref.read(currentRunIdProvider);
-    final runIdString = runId?.toString();
-    // `dbSessionId` is 0/absent when no session row is open (a bare
-    // start-without-session), in which case the column stays NULL rather than
-    // pointing at a session that does not exist.
-    final dbSessionId = _ref.read(sessionStateProvider).dbSessionId;
-    final sessionId = (dbSessionId != null && dbSessionId > 0)
-        ? dbSessionId
-        : null;
-    final dao = _ref.read(imagesDaoProvider);
-    final sidecarService = _ref.read(thumbnailSidecarServiceProvider);
-
-    // Attribute this frame to its catalog target row and real exposure length
-    // by walking the loaded sequence tree from the producing node. Replaces
-    // the former hardcoded target_id=NULL + exposureDuration=1.0, which broke
-    // per-target integration-goal completion (the scheduler imaged one target
-    // all night) and corrupted every integration-time total. Computed
-    // synchronously here so it reflects the sequence as it was when the frame
-    // was produced, not whatever is loaded by the time the async insert runs.
-    //
-    // Scope of the `capture.X ?? attribution.X` fallbacks below: they exist for
-    // ONE case, a paired client talking to an appliance older than the frame
-    // capture payload (a phone that auto-updated against a Pi that did not).
-    // That host's frame event carries none of the capture keys, so the tree
-    // walk is all there is.
-    //
-    // On the FFI path they are dead by construction and must stay that way.
-    // Native fills `FrameContext.gain` from `image_data.gain.or(config.gain)`,
-    // and `config.gain` IS the producing node's configured gain — the exact
-    // value `resolveFrameAttribution` reads out of the tree. So a null capture
-    // gain implies a null node gain, and the fallback has nothing to add. It is
-    // also the WEAKER source: for a SmartExposure burst the tree walk picks a
-    // plan by matching the filter name, which can select the wrong plan, while
-    // the native value came off the exposure that actually ran.
-    //
-    // `targetId` is not one of these fallbacks. It is resolved Dart-side only
-    // (see below), because it is a `targets.id` primary key; the event's own
-    // `target_id` is the sequencer's TargetHeader NODE id, a different
-    // identifier entirely.
-    final loadedSequence = _ref.read(currentSequenceProvider);
-    final attribution = loadedSequence == null
-        ? const FrameAttribution()
-        : resolveFrameAttribution(
-            loadedSequence,
-            nodeId,
-            currentFilter: filter,
-          );
-    // `targets.id` this frame belongs to. `attribution` reads the node's own
-    // `catalogTargetId`, which only sequences generated from a library target
-    // carry; for a Target the operator typed into the builder the id comes
-    // from the row bound at run start (see [RunTargetBinding]). Before that
-    // binding existed every builder-authored night was persisted with
-    // `target_id` NULL and reported as "Untargeted".
-    final targetId =
-        attribution.targetId ??
-        (loadedSequence == null
-            ? null
-            : _targets.targetIdFor(loadedSequence, nodeId));
-    // The exposure the shutter actually ran for, as the camera reported it —
-    // already bounded against the commanded duration native-side, so a driver
-    // that misreports cannot inflate this column's integration totals.
-    final exposureSecs = capture.exposureSecs ?? attribution.exposureSecs;
-    if (exposureSecs == null) {
-      _logger.warning(
-        'Sequence frame from node $nodeId has no resolvable exposure duration '
-        '(producing node is not an ExposureNode); recording 0s rather than a '
-        'fabricated value.',
-        source: 'SequenceExecutor',
-      );
-    }
-
-    // Advance the imaging-session counters for this frame.
-    //
-    // Without this, a sequenced night wrote captured_images rows stamped with
-    // `session_id` while the owning `imaging_sessions` row kept
-    // totalExposures/successfulExposures/totalIntegrationSecs at 0 — the
-    // session claiming nothing was captured while its own frames pointed back
-    // at it. `recordExposureComplete` was only ever called from the ad-hoc
-    // capture surfaces (imaging screen, dashboard quick actions), never from
-    // the sequencer, so every unattended run reported an empty session.
-    //
-    // Recorded synchronously (not inside the persistence closure below)
-    // because the frame really was captured — it is on disk — whether or not
-    // our own DB insert then succeeds. `recordExposureComplete` fans out to
-    // SessionService, which checkpoints the aggregate onto the session row;
-    // it self-guards when no session is open, so a bare
-    // start-without-session stays a no-op.
-    //
-    // A rejected frame still counts as a completed capture (the shutter did
-    // open) but is kept out of the integration budget and the HFR average —
-    // that accept/reject split is `recordExposureComplete`'s own contract.
-    _ref
-        .read(sessionStateProvider.notifier)
-        .recordExposureComplete(
-          exposureTime: exposureSecs ?? 0.0,
-          hfr: hfr,
-          accepted: isAccepted,
-        );
-
-    // Capture the logger NOW (it is a provider read): the persistence
-    // future below outlives the event handler, and reading providers
-    // through _ref after the container is disposed throws out of an
-    // unhandled async error. Post-await provider reads inside the closure
-    // are additionally guarded on _disposed (a captured logger stays
-    // usable, but a DAO read is not).
-    final logger = _logger;
-    final registration = () async {
-      try {
-        final rowId = await dao.insertSequenceFrame(
-          filePath: filePath,
-          fileName: fileName,
-          fileFormat: filePath.toLowerCase().endsWith('.xisf')
-              ? 'xisf'
-              : 'fits',
-          // Real exposure length (see `exposureSecs` above; column is NOT
-          // NULL).
-          exposureDuration: exposureSecs ?? 0.0,
-          targetId: targetId,
-          capturedAt: DateTime.now(),
-          isAccepted: isAccepted,
-          producingNodeId: nodeId,
-          producingRunId: runIdString,
-          runtimeGrade: grade,
-          rejectionReason: rejectionReason,
-          filter: filter,
-          // Frame type as captured (FITS `IMAGETYP`), lowercased to the images
-          // DB's spelling. Falls back to the tree walk for a host that does
-          // not send the capture payload.
-          frameType: capture.frameType?.toLowerCase() ?? attribution.frameType,
-          // Capture settings as the camera actually reported them for this
-          // exposure — the same values stamped into the FITS header. The node
-          // config only says what the sequence ASKED for, so a camera that
-          // clamps or ignores a requested gain leaves the row and the file
-          // disagreeing about the same frame.
-          gain: capture.gain ?? attribution.gain,
-          offset: capture.offset ?? attribution.offset,
-          binX: capture.binX ?? attribution.binX,
-          binY: capture.binY ?? attribution.binY,
-          // Live equipment state at the moment of capture. These columns have
-          // existed since v18 and no sequencer frame has ever populated one:
-          // the row carried no temperature, no pointing, no focuser or rotator
-          // position, while the FITS file written microseconds earlier from the
-          // same exposure carried all of them.
-          sensorTemp: capture.sensorTempC,
-          coolerPower: capture.coolerPowerPercent,
-          mountRa: capture.mountRaHours,
-          mountDec: capture.mountDecDegrees,
-          mountAltitude: capture.mountAltitudeDeg,
-          mountAzimuth: capture.mountAzimuthDeg,
-          pierSide: capture.pierSide,
-          focuserPosition: capture.focuserPosition,
-          focuserTemp: capture.focuserTemperatureC,
-          rotatorAngle: capture.rotatorAngleDeg,
-          // Tie the frame to the active imaging session, the same way the
-          // ad-hoc capture path does (`persistence.dart` reads
-          // `sessionState.dbSessionId`). Without it every session-scoped
-          // query — session summary, post-session report — saw zero frames
-          // for a sequenced night.
-          sessionId: sessionId,
-          hfr: hfr,
-          starCount: starCount,
-          eccentricity: eccentricity,
-          // Stamp the composite score the gallery and every quality-ranked
-          // consumer read. Without it the column stayed NULL for every
-          // sequencer frame and `FrameQualityAssessmentService` assessed the
-          // `?? 75.0` fallback instead of the frame — see
-          // [computeFrameQualityScore] for what that cost.
-          qualityScore: qualityScore,
-          logger: logger,
-          sidecarService: sidecarService,
-        );
-        // Surface the frame on the live session surfaces. On the host,
-        // `recentSessionFramesProvider` is exactly the in-memory
-        // `sessionImagesProvider` list, which only the ad-hoc capture loop was
-        // appending to — so the Dashboard's Recent Frames tile read "No frames
-        // captured this session yet" for an entire sequenced night while frames
-        // were landing on disk and in the DB. Re-reading the row we just wrote
-        // (rather than rebuilding a CapturedImage by hand) keeps the strip
-        // showing exactly what was persisted.
-        //
-        // Accepted frames only: a rejected frame rendered in a plain "recent
-        // frames" strip has no affordance marking it as rejected, so it would
-        // read as a good frame. The sequencer's own thumbnail strip is the
-        // surface that shows rejects, with a colour-coded border.
-        if (isAccepted && !_disposed) {
-          try {
-            final row = await dao.getImageById(rowId);
-            if (row != null && !_disposed) {
-              _ref
-                  .read(sessionImagesProvider.notifier)
-                  .addImage(capturedImageFromDbRow(row));
-            }
-          } catch (e) {
-            logger.warning(
-              'Registered sequence frame $rowId but could not add it to the '
-              'live session list: $e',
-              source: 'SequenceExecutor',
-            );
-          }
-        }
-        // Phase B (v43) — ADDITIVE durable-campaign bookkeeping. When an
-        // accepted light frame attributes to a catalog target and a filter,
-        // credit one accepted frame to the durable NINA-style `campaigns`
-        // counter and stamp its last-capture date. This is a denormalized
-        // companion to the live `integration_goals` derivation the scheduler
-        // reads — it never feeds the engine's goals-complete reject and never
-        // touches frame attribution; rejected frames (`isAccepted == false`)
-        // are skipped so the counter only advances on acceptance.
-        if (isAccepted &&
-            targetId != null &&
-            filter != null &&
-            filter.isNotEmpty) {
-          if (_disposed) return;
-          try {
-            await _ref
-                .read(campaignsDaoProvider)
-                .recordAccepted(
-                  targetId: targetId,
-                  filter: filter,
-                  capturedAt: DateTime.now(),
-                );
-          } catch (e) {
-            logger.warning(
-              'Phase B: failed to credit campaign for target '
-              '$targetId filter $filter: $e',
-              source: 'SequenceExecutor',
-            );
-          }
-        }
-      } catch (e) {
-        logger.warning(
-          'Thumbnail: failed to register sequence frame for '
-          'node $nodeId ($grade): $e',
-          source: 'SequenceExecutor',
-        );
-      }
-    }();
-    _inFlightFrameRegistrations.add(registration);
-    unawaited(
-      registration.whenComplete(
-        () => _inFlightFrameRegistrations.remove(registration),
-      ),
-    );
-  }
-
   /// Whether the node identified by [nodeId] ran an autofocus sweep, judged by
   /// its most recent structured progress payload.
   ///
@@ -908,141 +702,9 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
         detail.kind == 'Autofocus';
   }
 
-  /// The filter this run is exposing through, resolved once from the two
-  /// sources that can know it.
-  ///
-  /// The progress provider learns the filter from the Change Filter
-  /// instruction event; the wheel state learns it from the `FilterChanged`
-  /// equipment event. Either alone leaves a hole — an operator who parks the
-  /// wheel outside the sequence, or a frame that lands before the instruction
-  /// event is processed.
-  ///
-  /// ONE filter resolution, shared with [_registerSequenceFrame]: registration
-  /// and the run-stats bucket both persist the filter for the same frame, so a
-  /// second resolution chain gives one frame two recorded answers.
-  String? _resolveActiveFilter() =>
-      _ref.read(sequenceProgressProvider).currentFilter ??
-      _ref.read(filterWheelStateProvider).currentFilterName;
-
-  /// The target the run is currently imaging, for the run-stats bucket.
-  ///
-  /// The progress provider only learns a target name from a native
-  /// `TargetStarted` / `TargetChanged` event. A plain builder sequence never
-  /// produces one, so this fell straight through to the SEQUENCE name and
-  /// `stats_json.targetBreakdown` filed four frames of "New Target" under the
-  /// key "New Sequence". The sequence tree knows the answer without any event:
-  /// walk up from the node that is executing to its enclosing target header.
-  String _resolveActiveTargetName() {
-    final progress = _ref.read(sequenceProgressProvider);
-    final fromEvent = progress.currentTarget;
-    if (fromEvent != null && fromEvent.isNotEmpty) return fromEvent;
-
-    final sequence = _ref.read(currentSequenceProvider);
-    final nodeId = progress.currentNodeId;
-    if (sequence != null && nodeId != null) {
-      final header = enclosingTargetHeader(sequence, nodeId);
-      final name = header?.targetName;
-      if (name != null && name.isNotEmpty) return name;
-    }
-    // No target header at all (a bare calibration or quick-capture sequence):
-    // the sequence's own name is the most specific true label left.
-    return sequence?.name ?? 'Sequence';
-  }
-
-  /// Count a frame the grader ruled on into the run's vitals, and hold its
-  /// verdict and capture truth until the `ExposureCompleted` for the same frame
-  /// arrives. See [_gradedFrames] for why this — not `ExposureCompleted` — is
-  /// where the counters move.
-  ///
-  /// The exposure length credited is the one the camera REPORTED for this frame,
-  /// off the event's own capture payload: the same number the FITS header and
-  /// the `captured_images` row were written from. `ExposureCompleted`'s
-  /// `duration_secs` is the executor's restatement of it and does not reach
-  /// every producer.
-  ///
-  /// The frame goes on screen here too. A Smart Exposure frame never gets an
-  /// `ExposureCompleted`, and that was the only thing that fetched the preview,
-  /// so the Imaging tab and Tonight kept showing an old frame for a whole run
-  /// (rig, 2026-10-20).
-  void _recordGradedFrame(FrameGraded event) {
-    final capture = event.capture;
-    _recordRunFrame(
-      exposureSecs: capture.exposureSecs ?? 0.0,
-      filter: event.filter,
-      accepted: event.accepted,
-    );
-    // The saved file travels with the preview, so what is worked out from
-    // the file (the background plate solve, the star overlay) can find it.
-    final path = event.filePath;
-    _fetchAndDisplaySequenceImage(
-      _previewSettingsForFrame(capture, capture.exposureSecs ?? 0.0),
-      filePath: path == null || path.isEmpty ? null : path,
-    );
-    final frame = event.frame;
-    if (frame == null) return;
-    _gradedFrames[frame] = (accepted: event.accepted, capture: capture);
-  }
-
-  /// The capture settings to stamp on the preview published for the frame that
-  /// just completed.
-  ///
-  /// [capture] is the truth the camera reported for THIS exposure — the same
-  /// values the FITS header and the `captured_images` row were written from —
-  /// and the producing node's configuration is the fallback for a host that
-  /// sends no capture payload. The preview is stamped with the values the FITS
-  /// header and the DB row were written from — never with literals, which is
-  /// how the Imaging tab comes to label a 300 s sub "2 s, gain 0, bin 1".
-  ExposureSettings _previewSettingsForFrame(
-    FrameCapture? capture,
-    double durationSecs,
-  ) {
-    final filter = _resolveActiveFilter();
-    final sequence = _ref.read(currentSequenceProvider);
-    final nodeId = _ref.read(sequenceProgressProvider).currentNodeId;
-    final attribution = (sequence == null || nodeId == null)
-        ? const FrameAttribution()
-        : resolveFrameAttribution(sequence, nodeId, currentFilter: filter);
-    return ExposureSettings(
-      exposureTime:
-          capture?.exposureSecs ?? attribution.exposureSecs ?? durationSecs,
-      gain: capture?.gain ?? attribution.gain ?? 0,
-      offset: capture?.offset ?? attribution.offset ?? 0,
-      binningX: capture?.binX ?? attribution.binX,
-      binningY: capture?.binY ?? attribution.binY,
-      filter: filter,
-      frameType: switch (capture?.frameType?.toLowerCase() ??
-          attribution.frameType) {
-        'dark' => FrameType.dark,
-        'flat' => FrameType.flat,
-        'bias' => FrameType.bias,
-        'darkflat' => FrameType.darkFlat,
-        'snapshot' => FrameType.snapshot,
-        _ => FrameType.light,
-      },
-    );
-  }
-
-  void _recordRunFrame({
-    required double exposureSecs,
-    required bool accepted,
-    String? filter,
-  }) {
-    _stats.update((stats) {
-      final resolvedFilter = (filter != null && filter.isNotEmpty)
-          ? filter
-          : _resolveActiveFilter();
-      stats.recordFrame(
-        target: _resolveActiveTargetName(),
-        filter: (resolvedFilter != null && resolvedFilter.isNotEmpty)
-            ? resolvedFilter
-            : 'Unknown',
-        exposureSecs: exposureSecs,
-        accepted: accepted,
-      );
-    });
-  }
-
-  void _recordRunError(String message) {
+  /// Put a mid-run fault on the run record and offer backlash calibration
+  /// when it is an autofocus landing failure.
+  void recordRunError(String message) {
     _stats.update((stats) => stats.recordError(message));
     _noteAutofocusOutcomeForBacklashOffer(failureMessage: message);
   }
@@ -1063,14 +725,6 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
           focuserId: focuserId,
           failureMessage: failureMessage,
         );
-  }
-
-  /// Record the reason carried by a terminal event. See
-  /// [SequenceRunStats.recordTerminalError] for why this is not
-  /// [_recordRunError]: the terminal reason is a restatement of the mid-run
-  /// `Error` this same run already recorded.
-  void _recordTerminalRunError(String message) {
-    _stats.update((stats) => stats.recordTerminalError(message));
   }
 
   /// Record the verdict of a meridian flip into the live run stats.
@@ -1138,100 +792,14 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
             '${actionTaken != null ? " (action: $actionTaken)" : ""}. '
             'Frames captured after this point may be mis-framed.';
         _logger.error(message, source: 'SequenceExecutor');
-        _recordRunError(message);
+        recordRunError(message);
         progressNotifier.updateProgress(message: message);
         // Same escalation the generic Error handler performs: a failed flip
         // may have left the rig mis-framed or slewing, so the run must not go
         // on claiming a healthy `running` state — the dashboard shows
         // needs-attention until the authoritative terminal event lands.
-        if (_ref.read(sequenceExecutionStateProvider) ==
-            SequenceExecutionState.running) {
-          progressNotifier.updateState(SequenceExecutionState.recovering);
-          _ref.read(sequenceExecutionStateProvider.notifier).state =
-              SequenceExecutionState.recovering;
-        }
+        _escalateRunningToRecovering();
         break;
     }
-  }
-
-  /// Finalize the run row and fire the once-per-run session-end hooks.
-  ///
-  /// Awaited by the drive, so the run id is cleared only after `finishRun` has
-  /// persisted and a failed finish surfaces as `cleanupFailed`.
-  /// [RunFinalization.runRecordFinished] is set only after `finishRun`
-  /// succeeds: it makes the success path exactly-once without swallowing a
-  /// retry after a failed finish.
-  Future<void> _finalizeRun(RunFinalization f) async {
-    if (f.runRecordFinished) {
-      return;
-    }
-    final runId = _ref.read(currentRunIdProvider);
-    final stats = _ref.read(liveSequenceStatsProvider);
-    if (runId == null || stats == null) {
-      return;
-    }
-    await _stats.sealAndDrain();
-    stats.endTime = DateTime.now();
-    await _ref
-        .read(sequenceRunsDaoProvider)
-        .finishRun(runId, f.runStatus, stats.toJson());
-    f.runRecordFinished = true;
-    _diagnostics.captureEnd();
-  }
-
-  /// Fetch the last captured image and update the UI providers so the Imaging
-  /// tab and Dashboard show sequence frames as they complete.
-  ///
-  /// [settings] describes the exposure that produced the frame (see
-  /// [_previewSettingsForFrame]). It is a parameter rather than something built
-  /// here because only the caller holds the frame event this preview belongs
-  /// to; building it here is what left every sequence preview labelled with
-  /// literals.
-  ///
-  /// [filePath] is the frame's saved file when the caller knows it.
-  void _fetchAndDisplaySequenceImage(
-    ExposureSettings settings, {
-    String? filePath,
-  }) {
-    // Fire-and-forget; image display is non-critical for sequence correctness.
-    Future(() async {
-      try {
-        final cameraState = _ref.read(cameraStateProvider);
-        final cameraDeviceId = cameraState.deviceId;
-        if (cameraDeviceId == null || cameraDeviceId.isEmpty) {
-          _logger.debug(
-            'No camera device ID available, skipping image fetch',
-            source: 'SequenceExecutor',
-          );
-          return;
-        }
-        final backend = _backend;
-        final capturedImage = await backend.cameraGetLastImage(cameraDeviceId);
-        if (capturedImage == null) {
-          _logger.debug(
-            'No image data available from camera',
-            source: 'SequenceExecutor',
-          );
-          return;
-        }
-
-        final imageData = capturedImageDataFromResult(
-          capturedImage: capturedImage,
-          capturedAt: DateTime.now(),
-          settings: settings,
-          filePath: filePath,
-        );
-
-        _ref
-            .read(capturePreviewPublisherProvider)
-            .publish(_ref, imageData, cameraDeviceId);
-      } catch (e) {
-        // Image display is non-critical; log only.
-        _logger.warning(
-          'Failed to fetch sequence image for display: $e',
-          source: 'SequenceExecutor',
-        );
-      }
-    });
   }
 }
