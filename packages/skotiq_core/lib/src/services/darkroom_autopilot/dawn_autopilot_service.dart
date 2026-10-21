@@ -907,6 +907,17 @@ class DawnAutopilotService {
           });
     }
 
+    _stopIfCancelled(jobId, 'the color composite');
+    await _reportProgress(jobId, 0.78, 'Combining the filters into color');
+    _stage[jobId] = 'combining the filters into color';
+    final composites = await _draftComposites(
+      jobId: jobId,
+      sessionId: sessionId,
+      reports: reports,
+      renderId: renderId,
+      directory: baseDirectory,
+    );
+
     // PER-MASTER ACCOUNTING, IN TWO READINGS. Only the masters whose pixels
     // this pass actually read go to a destination; a truncated or vanished FITS
     // is excluded and named in the report, because copying it out would put a
@@ -926,10 +937,15 @@ class DawnAutopilotService {
     reports = staging.reports;
 
     final linearMasters = <String>[
+      for (final composite in composites)
+        if (composite.linearCompositePath != null)
+          composite.linearCompositePath!,
       for (final master in reports)
         if (master.deliverable) master.master.masterFitsPath,
     ];
     final draftRenders = <String>[
+      for (final composite in composites)
+        if (composite.draftRenderPath != null) composite.draftRenderPath!,
       for (final master in reports)
         if (master.draftRenderPath != null) master.draftRenderPath!,
     ];
@@ -967,6 +983,7 @@ class DawnAutopilotService {
       finishedAt: _clock(),
       state: DawnJobReport.deliveringState,
       masters: reports,
+      composites: composites,
       withoutFile: set.withoutFile,
       delivery: null,
       deliveryProblems: excluded,
@@ -1015,6 +1032,7 @@ class DawnAutopilotService {
         finishedAt: _clock(),
         state: DarkroomJobState.cancelled.wire,
         masters: reports,
+        composites: composites,
         withoutFile: set.withoutFile,
         delivery: delivered.report,
         deliveryProblems: [...excluded, ...delivered.problems],
@@ -1048,6 +1066,7 @@ class DawnAutopilotService {
       finishedAt: _clock(),
       state: DarkroomJobState.done.wire,
       masters: reports,
+      composites: composites,
       withoutFile: set.withoutFile,
       delivery: delivered.report,
       deliveryProblems: [...excluded, ...delivered.problems],
@@ -1098,6 +1117,7 @@ class DawnAutopilotService {
           ? DarkroomJobState.done.wire
           : DarkroomJobState.failed.wire,
       masters: reports,
+      composites: composites,
       withoutFile: set.withoutFile,
       delivery: delivered.report,
       deliveryProblems: [...excluded, ...delivered.problems],
@@ -1396,6 +1416,7 @@ class DawnAutopilotService {
     required String name,
     required String stepsJson,
     required List<DawnDraftNote> draftNotes,
+    bool composite = false,
   }) async {
     final now = _clock();
     for (final existing in await _recipes.listForMaster(
@@ -1406,6 +1427,9 @@ class DawnAutopilotService {
       if (existing.createdBy != RecipeAuthor.autopilot) continue;
       if (existing.sessionId != sessionId) continue;
       if (existing.parentRecipeId != null) continue;
+      // The color composite and the reference master's own draft share a
+      // base master; each supersedes only its own kind.
+      if (isCompositeStepsJson(existing.stepsJson) != composite) continue;
       if ((await _recipes.childrenOf(id)).isNotEmpty) continue;
       await _recipes.updateSteps(
         id,
@@ -1428,6 +1452,218 @@ class DawnAutopilotService {
       draftNotes: _recipeNotes(draftNotes),
       schemaVersion: kRecipeSchemaVersion,
       createdAt: now,
+    );
+  }
+
+  /// Draft one color composite per target whose masters combine.
+  ///
+  /// The masters are grouped by target; a group of one has nothing to combine
+  /// with and is left to its own draft. A group the engine does not combine
+  /// still gets a report entry with the engine's reason, so a night of L, R
+  /// and G says that it has no blue rather than saying nothing.
+  ///
+  /// The composite's recipe is written after the per-filter drafts, over the
+  /// reference master, so it is the newest recipe on that master and the one a
+  /// session opens to. Its draft and the linear composite (the combination
+  /// step's output) are delivered ahead of the per-filter files.
+  Future<List<DawnCompositeReport>> _draftComposites({
+    required int jobId,
+    required int sessionId,
+    required List<DawnMasterReport> reports,
+    required String renderId,
+    required String directory,
+  }) async {
+    final groups = <int?, List<DawnMasterReport>>{};
+    for (final report in reports) {
+      if (!report.pixelsWereRead) continue;
+      groups.putIfAbsent(report.master.targetId, () => []).add(report);
+    }
+    final out = <DawnCompositeReport>[];
+    for (final group in groups.values) {
+      if (group.length < 2) continue;
+      _stopIfCancelled(jobId, 'the color composite');
+      out.add(
+        await _draftOneComposite(
+          jobId: jobId,
+          sessionId: sessionId,
+          group: group,
+          renderId: renderId,
+          directory: directory,
+        ),
+      );
+    }
+    return out;
+  }
+
+  Future<DawnCompositeReport> _draftOneComposite({
+    required int jobId,
+    required int sessionId,
+    required List<DawnMasterReport> group,
+    required String renderId,
+    required String directory,
+  }) async {
+    final masters = [for (final report in group) report.master];
+    final targetName = group.first.targetName;
+    final photometry = <String, DawnPhotometry>{};
+    for (final master in masters) {
+      photometry[master.masterFitsPath] = await _photometryFor(master);
+    }
+    DawnCompositeReport failed(Map<String, dynamic> plan, String reason) =>
+        DawnCompositeReport(
+          targetName: targetName,
+          masters: masters,
+          plan: plan,
+          recipeId: null,
+          draftRenderPath: null,
+          linearCompositePath: null,
+          draftSteps: const [],
+          draftNotes: const [],
+          failure: reason,
+        );
+
+    final DawnCompositeDraft composite;
+    try {
+      composite = await _drafts.buildComposite(
+        masters: masters,
+        recipeId: 'job-$jobId-composite-${masters.first.targetId ?? 'session'}',
+        photometry: (path) =>
+            photometry[path] ??
+            const DawnPhotometry.unavailable(
+              'the reference master has no photometry entry',
+            ),
+        renderId: renderId,
+      );
+    } on DawnDraftException catch (error) {
+      return failed(const {}, error.message);
+    } on DarkroomSeamException catch (error) {
+      return failed(const {}, error.message);
+    }
+    final draft = composite.draft;
+    final reference = composite.reference;
+    if (draft == null || reference == null) {
+      return failed(
+        composite.plan,
+        '${composite.plan['reason'] ?? 'the masters do not combine'}',
+      );
+    }
+    final notes = [for (final note in draft.notes) note.toJson()];
+    if (draft.isEmpty) {
+      return failed(
+        composite.plan,
+        'no operation could be measured from the combined pixels',
+      );
+    }
+
+    final palette = '${composite.plan['paletteName'] ?? 'color'}';
+    final recipeId = await _persistDraftRecipe(
+      sessionId: sessionId,
+      master: reference,
+      name: '${targetName ?? 'Night'} $palette draft',
+      stepsJson: draft.encodeStepsJson(),
+      draftNotes: draft.notes,
+      composite: true,
+    );
+    final stem =
+        'job_${jobId}_master_${reference.masterId}_${_fileToken(palette)}';
+    final draftPath = p.join(directory, '${stem}_draft.jpg');
+    final linearPath = p.join(directory, '${stem}_linear.fits');
+    final recipeJson = draft.encodeRecipeJson('$recipeId');
+    final stars = photometry[reference.masterFitsPath]?.stars ?? const [];
+    try {
+      await _darkroom.renderExport(
+        recipeJson: recipeJson,
+        args: {
+          'masterPath': reference.masterFitsPath,
+          'renderId': renderId,
+          'stage': {'kind': 'final'},
+          'outputs': [
+            {'format': 'jpeg', 'path': draftPath, 'quality': 92},
+          ],
+          'sidecarPath': '$draftPath.skrecipe',
+          'writeSidecar': true,
+          'screenTransfer': true,
+          'catalogStars': stars,
+        },
+      );
+    } on DarkroomSeamException catch (error) {
+      return DawnCompositeReport(
+        targetName: targetName,
+        masters: masters,
+        plan: composite.plan,
+        recipeId: recipeId,
+        draftRenderPath: null,
+        linearCompositePath: null,
+        draftSteps: draft.steps,
+        draftNotes: notes,
+        failure:
+            'the recipe was saved but the color draft could not be rendered: '
+            '${error.message}',
+      );
+    }
+    String? linear;
+    try {
+      await _darkroom.renderExport(
+        recipeJson: recipeJson,
+        args: {
+          'masterPath': reference.masterFitsPath,
+          'renderId': renderId,
+          'stage': {'kind': 'afterStep', 'index': 0},
+          'outputs': [
+            {'format': 'fits', 'path': linearPath},
+          ],
+          'sidecarPath': '$linearPath.skrecipe',
+          'writeSidecar': true,
+        },
+      );
+      linear = linearPath;
+    } on DarkroomSeamException catch (error) {
+      _logger?.warning(
+        'The linear color composite could not be written; the color draft '
+        'stands without it',
+        source: 'DawnAutopilotService',
+        fields: {'jobId': jobId, 'path': linearPath, 'error': error.message},
+      );
+    }
+    return DawnCompositeReport(
+      targetName: targetName,
+      masters: masters,
+      plan: composite.plan,
+      recipeId: recipeId,
+      draftRenderPath: draftPath,
+      linearCompositePath: linear,
+      draftSteps: draft.steps,
+      draftNotes: notes,
+      failure: null,
+    );
+  }
+
+  /// A palette name as a file-name token: `LRGB` → `lrgb`,
+  /// `SHO (Hubble palette)` → `sho_hubble_palette`.
+  static String _fileToken(String name) => name
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+      .replaceAll(RegExp(r'^_+|_+$'), '');
+
+  /// The catalog stars for [master]'s field, or the reason there are none.
+  Future<DawnPhotometry> _photometryFor(DawnMaster master) async {
+    final row = await _masters.getById(master.masterId);
+    if (row == null) {
+      return const DawnPhotometry.unavailable(
+        'the master library row is gone, so its astrometry cannot be read',
+      );
+    }
+    return _photometry.resolve(
+      master: master,
+      wcs: overlayFromMasterWcs(
+        crval1: row.wcsCrval1,
+        crval2: row.wcsCrval2,
+        crpix1: row.wcsCrpix1,
+        crpix2: row.wcsCrpix2,
+        cd11: row.wcsCd1_1,
+        cd12: row.wcsCd1_2,
+        cd21: row.wcsCd2_1,
+        cd22: row.wcsCd2_2,
+      ),
     );
   }
 

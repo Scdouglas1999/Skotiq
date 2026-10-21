@@ -46,6 +46,7 @@
 
 mod args;
 mod catalog;
+mod composite;
 pub mod entrypoints;
 mod export;
 mod render;
@@ -56,3 +57,9 @@ pub use entrypoints::*;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod composite_tests;
+
+#[cfg(test)]
+mod real_master_harness_tests;

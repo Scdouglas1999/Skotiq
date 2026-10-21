@@ -931,8 +931,24 @@ pub trait PhotometryCatalog: Send + Sync {
 pub struct OpContext {
     cancel: Arc<AtomicBool>,
     catalog: Option<Arc<dyn PhotometryCatalog>>,
+    sources: Option<Arc<dyn MasterSource>>,
     wcs: Option<SipWcs>,
     level: u32,
+}
+
+/// Masters other than the base that a render may read, by path.
+///
+/// `channel_combine@1` combines a target's per-filter masters; the base is one
+/// of them and the rest come from here. The caller loads them before the render
+/// starts, so an operation never touches the file system mid-render.
+pub trait MasterSource: Send + Sync {
+    /// The master at `path`, at pyramid level `level`.
+    fn level(&self, path: &str, level: u32) -> Result<Arc<OpImage>, String>;
+
+    /// The identity of every master this source holds — paths and the bytes
+    /// behind them — as one stable string. The step-boundary key carries it, so
+    /// a rewritten master never serves boundaries computed from its old bytes.
+    fn identity(&self) -> String;
 }
 
 impl Default for OpContext {
@@ -946,6 +962,7 @@ impl fmt::Debug for OpContext {
         f.debug_struct("OpContext")
             .field("cancel_requested", &self.cancel_requested())
             .field("catalog", &self.catalog.is_some())
+            .field("sources", &self.sources.is_some())
             .field("wcs", &self.wcs.is_some())
             .field("level", &self.level)
             .finish()
@@ -959,6 +976,7 @@ impl OpContext {
         Self {
             cancel: Arc::new(AtomicBool::new(false)),
             catalog: None,
+            sources: None,
             wcs: None,
             level: 0,
         }
@@ -977,6 +995,17 @@ impl OpContext {
     pub fn with_catalog(mut self, catalog: Arc<dyn PhotometryCatalog>) -> Self {
         self.catalog = Some(catalog);
         self
+    }
+
+    /// Attach the masters beyond the base that this render may read.
+    pub fn with_sources(mut self, sources: Arc<dyn MasterSource>) -> Self {
+        self.sources = Some(sources);
+        self
+    }
+
+    /// The masters beyond the base, if any were attached.
+    pub fn sources(&self) -> Option<&Arc<dyn MasterSource>> {
+        self.sources.as_ref()
     }
 
     /// Attach the base master's plate solve. Absent when the master carries no
@@ -1054,6 +1083,12 @@ impl OpContext {
             None => format!("L{}|cat:0", self.level),
             Some(catalog) => format!("L{}|cat:1:{}", self.level, catalog.identity()),
         };
+        if let Some(sources) = &self.sources {
+            out.push_str(&format!(
+                "|src:{}",
+                fingerprint_hex(sources.identity().as_bytes())
+            ));
+        }
         match &self.wcs {
             None => out.push_str("|wcs:0"),
             Some(w) => {

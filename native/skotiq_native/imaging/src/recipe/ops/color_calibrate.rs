@@ -58,6 +58,22 @@
 //! pixel frame the photometry was measured in. A master with no plate solve
 //! cannot be cross-matched at all and reports [`OpError::Failed`].
 //!
+//! # Without a plate solve: the average star
+//!
+//! `whiteReference: "averageStar"` balances the channels so the median color
+//! of the field's own unsaturated stars comes out neutral, PixInsight
+//! ColorCalibration's star-based white reference. The average field star sits
+//! near the Sun's color, so this approximates a G2V white without astrometry
+//! or a catalog; it is reported as `averageStar`, never as photometric.
+//!
+//! # Background neutralization
+//!
+//! `neutralizeBackground: true` adds, after the scales, a per-channel offset
+//! that brings every channel's sky level to their common mean (PixInsight's
+//! BackgroundNeutralization). The sky level is the median of the pixels whose
+//! channel mean sits in the darker half of the frame. Like the scales, the
+//! offsets are reported and can be pinned as `channelOffset`.
+//!
 //! # Preview scale
 //!
 //! `matchRadiusPx` is in pixels at full resolution and is multiplied by
@@ -155,11 +171,35 @@ const SOURCE_PINNED: &str = "pinned";
 /// Applies a per-channel white balance solved from catalogue colours.
 pub struct ColorCalibrateV1;
 
+/// Report token for scales balanced on the field's average star.
+const SOURCE_AVERAGE_STAR: &str = "averageStar";
+
+/// Fewest stars an average-star balance is read from.
+const AVERAGE_STAR_MIN_STARS: usize = 20;
+
+/// Widest offset a payload may carry, in the image's own units.
+const OFFSET_BOUND: f64 = 1e9;
+
+/// What the balance renders neutral.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WhiteReference {
+    /// A catalog star of color `whiteRefBv`.
+    Catalog,
+    /// The median color of the field's own stars.
+    AverageStar,
+}
+
 /// One step's validated parameters.
 struct Settings {
     /// A white balance already carried by the recipe — pinned mode. `None`
     /// means the step measures one from the image it is handed.
     channel_scale: Option<Vec<f64>>,
+    /// What an unpinned balance renders neutral.
+    white_reference: WhiteReference,
+    /// Whether the sky is made neutral after the scales.
+    neutralize_background: bool,
+    /// Per-channel offsets already carried by the recipe.
+    channel_offset: Option<Vec<f64>>,
     /// Colour index rendered neutral by the solved scales.
     white_ref_bv: f64,
     /// Faintest catalogue V magnitude queried.
@@ -183,6 +223,9 @@ pub struct ColorSolve {
     pub matched: usize,
     /// Robust RMS of the per-channel fit residuals, in log₁₀-flux units.
     pub residual: f64,
+    /// How the scales were arrived at: `solved` from the catalog, or
+    /// `averageStar`.
+    pub source: &'static str,
 }
 
 impl ColorSolve {
@@ -192,10 +235,11 @@ impl ColorSolve {
     /// the same pixels at every level and on an install whose catalogue has
     /// since changed.
     pub fn to_params(&self) -> Value {
-        json!({
-            "channelScale": self.channel_scale,
-            "whiteRefBv": self.white_ref_bv,
-        })
+        let mut out = json!({"channelScale": self.channel_scale});
+        if self.white_ref_bv.is_finite() {
+            out["whiteRefBv"] = json!(self.white_ref_bv);
+        }
+        out
     }
 
     /// The render report's detail for a step that solved this balance: the
@@ -204,13 +248,16 @@ impl ColorSolve {
     /// `source` names how the scales were arrived at, so a reader never has to
     /// infer it from which fields are present.
     pub fn to_measurement(&self) -> Value {
-        json!({
-            "source": SOURCE_SOLVED,
+        let mut out = json!({
+            "source": self.source,
             "channelScale": self.channel_scale,
-            "whiteRefBv": self.white_ref_bv,
             "matchedStars": self.matched,
             "residual": self.residual,
-        })
+        });
+        if self.white_ref_bv.is_finite() {
+            out["whiteRefBv"] = json!(self.white_ref_bv);
+        }
+        out
     }
 }
 
@@ -256,10 +303,15 @@ impl DarkroomOp for ColorCalibrateV1 {
     ) -> Result<OpApplied, OpError> {
         let settings = read_settings(params)?;
         require_three_channels(image)?;
-        let (scales, measurement) = match settings.channel_scale {
+        let (scales, mut measurement) = match &settings.channel_scale {
             Some(scales) => {
-                let measurement = pinned_measurement(&scales);
-                (scales, measurement)
+                let measurement = pinned_measurement(scales);
+                (scales.clone(), measurement)
+            }
+            None if settings.white_reference == WhiteReference::AverageStar => {
+                let solved = solve_average_star(image, ctx)?;
+                let measurement = solved.to_measurement();
+                (solved.channel_scale, measurement)
             }
             None => {
                 let solved = solve(image, params, ctx)?;
@@ -268,6 +320,14 @@ impl DarkroomOp for ColorCalibrateV1 {
             }
         };
         ctx.check_cancel()?;
+        let offsets = match &settings.channel_offset {
+            Some(offsets) => Some(offsets.clone()),
+            None if settings.neutralize_background => Some(neutral_offsets(image, &scales)),
+            None => None,
+        };
+        if let Some(offsets) = &offsets {
+            measurement["channelOffset"] = json!(offsets);
+        }
 
         let channels = image.channels() as usize;
         let row_len = image.width() as usize * channels;
@@ -285,10 +345,14 @@ impl DarkroomOp for ColorCalibrateV1 {
                     let scale = scales[index % channels];
                     // A channel the fit left at unit scale keeps its exact
                     // samples; green is pinned to 1.0 by the normalisation.
-                    *slot = if scale == 1.0 {
+                    let scaled = if scale == 1.0 {
                         *sample
                     } else {
                         (*sample as f64 * scale) as f32
+                    };
+                    *slot = match &offsets {
+                        Some(offsets) => (scaled as f64 + offsets[index % channels]) as f32,
+                        None => scaled,
                     };
                 }
             });
@@ -420,7 +484,99 @@ pub fn solve(image: &OpImage, params: &Value, ctx: &OpContext) -> Result<ColorSo
         white_ref_bv: calibration.white_ref_bv,
         matched: calibration.matched,
         residual: calibration.residual,
+        source: SOURCE_SOLVED,
     })
+}
+
+/// Balance the channels on the median color of the field's own stars.
+///
+/// Every detected star whose aperture photometry is positive in all three
+/// channels contributes its red/green and blue/green flux ratios; the medians
+/// of those ratios are the color that is rendered neutral.
+fn solve_average_star(image: &OpImage, ctx: &OpContext) -> Result<ColorSolve, OpError> {
+    let detected = star_detect::detect(image, &StarDetectionConfig::default(), ctx)?;
+    let mut red = Vec::new();
+    let mut blue = Vec::new();
+    for star in &detected {
+        let Some(flux) = aperture_flux(image, star) else {
+            continue;
+        };
+        if flux.iter().all(|f| *f > 0.0 && f.is_finite()) {
+            red.push(flux[0] / flux[1]);
+            blue.push(flux[2] / flux[1]);
+        }
+    }
+    if red.len() < AVERAGE_STAR_MIN_STARS {
+        return Err(failed(&format!(
+            "{} star{} could be measured in all three channels and the average-star balance needs {AVERAGE_STAR_MIN_STARS}",
+            red.len(),
+            if red.len() == 1 { "" } else { "s" }
+        )));
+    }
+    let matched = red.len();
+    let log_spread = |ratios: &[f64], centre: f64| {
+        let mut deviations: Vec<f64> = ratios
+            .iter()
+            .map(|r| (r.log10() - centre.log10()).abs())
+            .collect();
+        median_in_place(&mut deviations) * crate::robust_stats::MAD_TO_SIGMA
+    };
+    let red_mid = median_in_place(&mut red);
+    let blue_mid = median_in_place(&mut blue);
+    if !(red_mid > 0.0 && blue_mid > 0.0) {
+        return Err(failed("the field's stars carry no measurable color"));
+    }
+    let residual = log_spread(&red, red_mid).max(log_spread(&blue, blue_mid));
+    Ok(ColorSolve {
+        channel_scale: vec![1.0 / red_mid, 1.0, 1.0 / blue_mid],
+        white_ref_bv: f64::NAN,
+        matched,
+        residual,
+        source: SOURCE_AVERAGE_STAR,
+    })
+}
+
+/// Offsets that bring every channel's sky, after `scales`, to their mean.
+///
+/// The sky is read as each channel's median over the pixels whose channel mean
+/// lies below the frame's median channel mean: the darker half of the frame,
+/// which on a deep-sky master is background.
+fn neutral_offsets(image: &OpImage, scales: &[f64]) -> Vec<f64> {
+    let data = image.data();
+    let pixels = image.pixel_count();
+    let stride = (pixels / (1 << 20)).max(1);
+    let mut means: Vec<f64> = (0..pixels)
+        .step_by(stride)
+        .map(|p| {
+            (0..3)
+                .map(|c| data[p * 3 + c] as f64 * scales[c])
+                .sum::<f64>()
+                / 3.0
+        })
+        .collect();
+    let mut sorted = means.clone();
+    let cut = median_in_place(&mut sorted);
+    let mut levels = vec![Vec::new(); 3];
+    for (n, p) in (0..pixels).step_by(stride).enumerate() {
+        if means[n] <= cut {
+            for (c, level) in levels.iter_mut().enumerate() {
+                level.push(data[p * 3 + c] as f64 * scales[c]);
+            }
+        }
+    }
+    means.clear();
+    let sky: Vec<f64> = levels
+        .iter_mut()
+        .map(|v| {
+            if v.is_empty() {
+                0.0
+            } else {
+                median_in_place(v)
+            }
+        })
+        .collect();
+    let target = sky.iter().sum::<f64>() / 3.0;
+    sky.iter().map(|s| target - s).collect()
 }
 
 /// Read and range-check one step's payload. `validate_params`, `apply` and
@@ -433,7 +589,25 @@ fn read_settings(params: &Value) -> Result<Settings, OpError> {
         "magLimit",
         "matchRadiusPx",
         "minStars",
+        "whiteReference",
+        "neutralizeBackground",
+        "channelOffset",
     ])?;
+    let white_reference =
+        match p.enum_or("whiteReference", &["catalog", "averageStar"], "catalog")? {
+            "averageStar" => WhiteReference::AverageStar,
+            _ => WhiteReference::Catalog,
+        };
+    let channel_offset = if p.has("channelOffset") {
+        Some(p.f64_array_or(
+            "channelOffset",
+            REQUIRED_CHANNELS as usize,
+            -OFFSET_BOUND..=OFFSET_BOUND,
+            &[],
+        )?)
+    } else {
+        None
+    };
     let channel_scale = if p.has("channelScale") {
         Some(p.f64_array_or(
             "channelScale",
@@ -446,6 +620,9 @@ fn read_settings(params: &Value) -> Result<Settings, OpError> {
     };
     Ok(Settings {
         channel_scale,
+        white_reference,
+        neutralize_background: p.bool_or("neutralizeBackground", false)?,
+        channel_offset,
         white_ref_bv: p.f64_or(
             "whiteRefBv",
             WHITE_REF_BV_MIN..=WHITE_REF_BV_MAX,

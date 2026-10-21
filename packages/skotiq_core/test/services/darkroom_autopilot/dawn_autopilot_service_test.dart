@@ -95,10 +95,18 @@ class _ScriptedDarkroom implements DarkroomSeam {
   final List<Map<String, dynamic>> exportArgs = [];
   final List<Map<String, dynamic>> cancelArgs = [];
 
+  /// The engine's answer to a composite request; null answers it like a
+  /// single-master request.
+  Map<String, dynamic>? Function(Map<String, dynamic> args)? compositeReply;
+
   @override
   Future<Map<String, dynamic>> registry(Map<String, dynamic> args) async {
     await beforeRegistry?.call();
     registryCalls.add(args);
+    if (args['composite'] != null) {
+      final reply = compositeReply?.call(args);
+      if (reply != null) return reply;
+    }
     final scripted = registryErrors[args['masterPath']];
     if (scripted != null) throw scripted;
     if (!registryAnswers) return {'schemaVersion': 1, 'ops': <dynamic>[]};
@@ -878,8 +886,8 @@ void main() {
     },
   );
 
-  test('an RGB master with no colour-indexed catalogue star drops the colour '
-      'step before rendering anything', () async {
+  test('an RGB master with no colour-indexed catalogue star balances on its '
+      'own stars and pins that balance', () async {
     darkroom.draftSteps = [
       {
         'opId': 'color_calibrate',
@@ -894,6 +902,7 @@ void main() {
         'enabled': true,
       },
     ];
+    darkroom.channelScales[0] = [0.8, 1.0, 0.6];
     final sessionId = await insertSession();
     final imageId = await insertSub(sessionId: sessionId);
     await insertMaster(imageIds: [imageId], channels: 3);
@@ -901,12 +910,111 @@ void main() {
     final outcome = await buildService().runDawnForSession(sessionId);
 
     final draft = outcome.report!.masters.single.draft!;
-    expect(draft.indexOfOp('color_calibrate'), -1);
-    expect(darkroom.previewContexts, isEmpty);
+    final index = draft.indexOfOp('color_calibrate');
+    expect(index, 0);
+    final params = draft.steps[index]['params'] as Map;
+    expect(params['whiteReference'], 'averageStar');
+    expect(params['channelScale'], [0.8, 1.0, 0.6]);
+    final proof = darkroom.previewContexts.first;
+    expect(proof['level'], kColorProofLevel);
+    expect(proof.containsKey('catalogStars'), isFalse);
+    final note = draft.notes.firstWhere((n) => n.opId == 'color_calibrate');
+    expect(note.outcome, 'included');
+    expect(note.reason, contains('no solved astrometry'));
+    expect(note.reason, contains("median color of the field's own stars"));
+  });
+
+  test('a target imaged through several filters gets a color draft, written '
+      'last over the reference master and linked first', () async {
+    final targetId = await insertTarget('NGC 891');
+    final sessionId = await insertSession();
+    final paths = <String, String>{};
+    for (final filter in ['L', 'R', 'G', 'B']) {
+      final imageId = await insertSub(sessionId: sessionId, targetId: targetId);
+      paths[filter] = '${workspace.path}/NGC891_$filter.fits';
+      await insertMaster(
+        imageIds: [imageId],
+        targetId: targetId,
+        filter: filter,
+        path: paths[filter],
+      );
+    }
+    darkroom.compositeReply = (args) => {
+      'masterPath': paths['L'],
+      'base': {'width': 100, 'height': 80, 'channels': 1},
+      'composite': {
+        'combined': true,
+        'palette': 'lrgb',
+        'paletteName': 'LRGB',
+        'reason': 'LRGB from L, R, G and B',
+        'reference': {'filter': 'L', 'path': paths['L']},
+        'worstMedianOffsetPx': 0.18,
+      },
+      'draft': {
+        'recipe': {
+          'id': args['recipeId'],
+          'schemaVersion': 1,
+          'baseMasterRef': paths['L'],
+          'createdBy': 'autopilot',
+          'steps': [
+            {
+              'opId': 'channel_combine',
+              'opVersion': 1,
+              'params': {'palette': 'lrgb'},
+              'enabled': true,
+            },
+            {
+              'opId': 'stretch',
+              'opVersion': 1,
+              'params': {
+                'blackPoint': 0.0,
+                'whitePoint': 1.0,
+                'colorMode': 'luminance',
+              },
+              'enabled': true,
+            },
+          ],
+        },
+        'notes': <dynamic>[],
+      },
+    };
+
+    final outcome = await buildService().runDawnForSession(sessionId);
+    final report = outcome.report!;
+
+    final composite = report.composites.single;
+    expect(composite.failure, isNull);
+    expect(composite.hasDraft, isTrue);
+    expect(composite.draftRenderPath, endsWith('_lrgb_draft.jpg'));
+    expect(composite.linearCompositePath, endsWith('_lrgb_linear.fits'));
+    final request =
+        darkroom.registryCalls.firstWhere(
+              (c) => c['composite'] != null,
+            )['composite']
+            as Map;
     expect(
-      draft.notes.firstWhere((n) => n.opId == 'color_calibrate').reason,
-      contains('no solved astrometry'),
+      (request['inputs'] as List).map((i) => (i as Map)['filter']),
+      containsAll(['L', 'R', 'G', 'B']),
     );
+
+    // The color recipe is the newest over the L master, beside L's own draft.
+    final overL = await RecipesDao(db).listForMaster(paths['L']!);
+    expect(overL, hasLength(2));
+    expect(overL.first.id, composite.recipeId);
+    expect(isCompositeStepsJson(overL.first.stepsJson), isTrue);
+    expect(isCompositeStepsJson(overL.last.stepsJson), isFalse);
+
+    final linear = darkroom.exportArgs.firstWhere(
+      (a) => (a['stage'] as Map)['kind'] == 'afterStep',
+    );
+    expect((linear['stage'] as Map)['index'], 0);
+    expect(draftDeepLinkFor(report), endsWith(':${composite.recipeId}'));
+    expect(report.headline, contains('LRGB color draft'));
+
+    // A second pass supersedes the color draft instead of adding another.
+    await buildService().processSessionNow(sessionId);
+    final again = await RecipesDao(db).listForMaster(paths['L']!);
+    expect(again, hasLength(2));
   });
 
   test('a background extraction the registry dropped is retried once at half '

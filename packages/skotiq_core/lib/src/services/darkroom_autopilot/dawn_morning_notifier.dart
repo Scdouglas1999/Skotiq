@@ -33,7 +33,9 @@ const String kDarkroomDraftPayloadType = 'darkroom_draft';
 
 /// The tap payload for [report]'s draft, or null when the night produced none.
 ///
-/// Names the FIRST master that saved a recipe AND rendered a draft from it.
+/// A color composite's draft comes first: it is the night's primary result.
+/// Otherwise it names the FIRST master that saved a recipe AND rendered a
+/// draft from it.
 /// "First" is the order the resolver produced the masters in, which is the same
 /// order the report's own headline counts them in — a multi-filter night opens
 /// on the filter the report leads with, and the Darkroom's own branch list
@@ -43,6 +45,12 @@ const String kDarkroomDraftPayloadType = 'darkroom_draft';
 /// engine refused those pixels, and the recipe would open onto the same
 /// refusal.
 String? draftDeepLinkFor(DawnJobReport report) {
+  for (final composite in report.composites) {
+    final recipeId = composite.recipeId;
+    if (recipeId != null && composite.hasDraft) {
+      return '$kDarkroomDraftPayloadType:$recipeId';
+    }
+  }
   for (final master in report.masters) {
     final recipeId = master.recipeId;
     if (recipeId != null && master.hasDraft) {

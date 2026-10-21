@@ -123,6 +123,10 @@ pub(crate) struct DarkroomRegistryArgs {
     pub(crate) base_master_ref: String,
     /// Id the drafted recipe carries. Empty uses `"draft"`.
     pub(crate) recipe_id: String,
+    /// A target's per-filter masters to draft as one colour composite, in
+    /// place of `masterPath`. The reply names the reference master the
+    /// composite's recipe renders over as `masterPath`.
+    pub(crate) composite: Option<super::composite::CompositeArgs>,
 }
 
 /// Request for [`super::api_darkroom_cancel`].

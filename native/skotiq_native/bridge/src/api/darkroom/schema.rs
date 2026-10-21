@@ -18,11 +18,14 @@
 //! registered operation has a row. A range that moves in an operation without
 //! moving here fails those tests rather than misleading the editor.
 
+use std::sync::Arc;
+
 use serde_json::{json, Map, Value};
 use skotiq_imaging::recipe::ops::crop::auto_rect;
 use skotiq_imaging::recipe::ops::stretch::auto_params;
 use skotiq_imaging::recipe::{
-    render, OpContext, OpImage, Recipe, RecipeAuthor, RecipeError, RecipeStep, RenderOptions,
+    render, MasterSource, OpContext, OpImage, Recipe, RecipeAuthor, RecipeError, RecipeStep,
+    RenderOptions,
 };
 
 use super::state::{registry, render_cache, LoadedMaster};
@@ -40,6 +43,10 @@ pub(crate) enum ParamKind {
     NumberArray,
     /// A variable-length array of finite floats.
     NumberList,
+    /// `true` or `false`.
+    Boolean,
+    /// A structured value the draft measures and the editor shows read-only.
+    Object,
 }
 
 impl ParamKind {
@@ -51,6 +58,8 @@ impl ParamKind {
             Self::Enumerated => "enum",
             Self::NumberArray => "numberArray",
             Self::NumberList => "numberList",
+            Self::Boolean => "boolean",
+            Self::Object => "object",
         }
     }
 }
@@ -244,6 +253,21 @@ pub(crate) const OP_DOCS: &[OpDoc] = &[
                 independent: true,
                 summary: "Normalised position the curve is symmetric about.",
             },
+            ParamDoc {
+                name: "colorMode",
+                display_name: "Color handling",
+                kind: ParamKind::Enumerated,
+                required: false,
+                min: None,
+                max: None,
+                length: None,
+                length_range: None,
+                allowed: &["linked", "luminance"],
+                default_json: Some(r#""linked""#),
+                example_json: r#""linked""#,
+                independent: true,
+                summary: "linked applies the curve to each channel, which washes bright color toward white; luminance stretches each pixel's channel mean and keeps its channel ratios, so hue and saturation survive the stretch.",
+            },
         ],
     },
     OpDoc {
@@ -394,6 +418,51 @@ pub(crate) const OP_DOCS: &[OpDoc] = &[
                 example_json: "8",
                 independent: true,
                 summary: "Fewest matched stars the fit accepts.",
+            },
+            ParamDoc {
+                name: "whiteReference",
+                display_name: "White reference",
+                kind: ParamKind::Enumerated,
+                required: false,
+                min: None,
+                max: None,
+                length: None,
+                length_range: None,
+                allowed: &["catalog", "averageStar"],
+                default_json: Some(r#""catalog""#),
+                example_json: r#""catalog""#,
+                independent: true,
+                summary: "catalog fits the balance to catalog B-V colors through the plate solve; averageStar renders the median color of the field's own stars neutral, for a master with no plate solve.",
+            },
+            ParamDoc {
+                name: "neutralizeBackground",
+                display_name: "Neutralize the background",
+                kind: ParamKind::Boolean,
+                required: false,
+                min: None,
+                max: None,
+                length: None,
+                length_range: None,
+                allowed: &[],
+                default_json: Some("false"),
+                example_json: "false",
+                independent: true,
+                summary: "Offsets each channel after the scales so the sky has the same level in all three.",
+            },
+            ParamDoc {
+                name: "channelOffset",
+                display_name: "Per-channel offsets",
+                kind: ParamKind::NumberArray,
+                required: false,
+                min: Some(-1e9),
+                max: Some(1e9),
+                length: Some(3),
+                length_range: None,
+                allowed: &[],
+                default_json: None,
+                example_json: "[0.0, 0.0, 0.0]",
+                independent: true,
+                summary: "Explicit per-channel offsets added after the scales. Absent measures them when neutralizeBackground is set.",
             },
         ],
     },
@@ -609,6 +678,134 @@ pub(crate) const OP_DOCS: &[OpDoc] = &[
             },
         ],
     },
+    OpDoc {
+        id: "channel_combine",
+        version: 1,
+        stage: "linear",
+        summary: "Combines a target's per-filter masters, registered onto the base master, into one color image: RGB, LRGB (luminance over RGB color), HaRGB, SHO, HOO or one-shot color.",
+        params: &[
+            ParamDoc {
+                name: "palette",
+                display_name: "Combination",
+                kind: ParamKind::Enumerated,
+                required: true,
+                min: None,
+                max: None,
+                length: None,
+                length_range: None,
+                allowed: &["lrgb", "rgb", "haRgb", "haLrgb", "sho", "hoo", "osc"],
+                default_json: None,
+                example_json: r#""rgb""#,
+                independent: false,
+                summary: "Which filters go to which color channel.",
+            },
+            ParamDoc {
+                name: "inputs",
+                display_name: "Masters and registration",
+                kind: ParamKind::Object,
+                required: true,
+                min: None,
+                max: None,
+                length: None,
+                length_range: None,
+                allowed: &[],
+                default_json: None,
+                example_json: r#"[{"role": "red", "path": "r.fits", "width": 16, "height": 16, "reference": true}, {"role": "green", "path": "g.fits", "width": 16, "height": 16, "transform": [1, 0, 0, 0, 1, 0]}, {"role": "blue", "path": "b.fits", "width": 16, "height": 16, "transform": [1, 0, 0, 0, 1, 0]}]"#,
+                independent: false,
+                summary: "Each master's filter role, path, size and its measured registration onto the base master.",
+            },
+            ParamDoc {
+                name: "crop",
+                display_name: "Common area (master pixels)",
+                kind: ParamKind::Object,
+                required: true,
+                min: None,
+                max: None,
+                length: None,
+                length_range: None,
+                allowed: &[],
+                default_json: None,
+                example_json: r#"{"x": 0, "y": 0, "width": 16, "height": 16}"#,
+                independent: false,
+                summary: "The rectangle every master covers, in base-master pixels.",
+            },
+            ParamDoc {
+                name: "fits",
+                display_name: "Flux matching",
+                kind: ParamKind::Object,
+                required: false,
+                min: None,
+                max: None,
+                length: None,
+                length_range: None,
+                allowed: &[],
+                default_json: None,
+                example_json: r#"{}"#,
+                independent: false,
+                summary: "Measured scale and offset matching one master onto another. Absent measures them from the image.",
+            },
+            ParamDoc {
+                name: "chromaSmoothing",
+                display_name: "Color smoothing (master pixels)",
+                kind: ParamKind::Number,
+                required: false,
+                min: Some(0.0),
+                max: Some(8.0),
+                length: None,
+                length_range: None,
+                allowed: &[],
+                default_json: Some("1.0"),
+                example_json: "1.0",
+                independent: true,
+                summary: "Blur applied to the color, not the luminance, when a luminance master is laid over RGB.",
+            },
+            ParamDoc {
+                name: "starSigma",
+                display_name: "Star profile per channel (master pixels)",
+                kind: ParamKind::Object,
+                required: false,
+                min: None,
+                max: None,
+                length: None,
+                length_range: None,
+                allowed: &[],
+                default_json: None,
+                example_json: r#"{"red": 1.2, "green": 1.1, "blue": 1.1}"#,
+                independent: false,
+                summary: "Measured Gaussian sigma of each color master's stars. With a luminance master, the color of the sharper channels is blurred to the widest profile so star cores and wings take one color.",
+            },
+            ParamDoc {
+                name: "haRedWeight",
+                display_name: "Ha share of red",
+                kind: ParamKind::Number,
+                required: false,
+                min: Some(0.0),
+                max: Some(1.0),
+                length: None,
+                length_range: None,
+                allowed: &[],
+                default_json: Some("0.5"),
+                example_json: "0.5",
+                independent: true,
+                summary: "How much of the red channel the matched Ha master replaces in HaRGB.",
+            },
+            ParamDoc {
+                name: "haLuminanceWeight",
+                display_name: "Ha share of luminance",
+                kind: ParamKind::Number,
+                required: false,
+                min: Some(0.0),
+                max: Some(1.0),
+                length: None,
+                length_range: None,
+                allowed: &[],
+                default_json: Some("0.3"),
+                example_json: "0.3",
+                independent: true,
+                summary: "How much of the luminance the matched Ha master replaces in HaLRGB.",
+            },
+        ],
+    },
 ];
 
 /// Parse one JSON constant from the table.
@@ -724,37 +921,122 @@ pub(crate) fn draft_for_master(
     recipe_id: &str,
     base_master_ref: &str,
 ) -> Result<Value, String> {
+    draft(master, recipe_id, base_master_ref, None)
+}
+
+/// A colour composite's first step and the masters it reads beyond the base.
+pub(crate) struct CompositePrefix {
+    pub(crate) step: RecipeStep,
+    pub(crate) sources: Arc<dyn MasterSource>,
+}
+
+/// A first-draft recipe whose first step combines a target's per-filter
+/// masters over `master`, the reference they were registered onto.
+///
+/// The combination's flux fits are measured at full resolution here and pinned
+/// into the step, so every preview level renders the same balance.
+pub(crate) fn draft_for_composite(
+    master: &LoadedMaster,
+    recipe_id: &str,
+    base_master_ref: &str,
+    composite: CompositePrefix,
+) -> Result<Value, String> {
+    draft(master, recipe_id, base_master_ref, Some(composite))
+}
+
+/// Polynomial degrees the draft considers for the background surface, lowest
+/// first. The operation's own default is the first.
+const BACKGROUND_ORDERS: [u32; 3] = [2, 3, 4];
+/// The lowest degree whose sky residual is within this factor of the best
+/// degree's is drafted: a surface that bends more must earn it.
+const BACKGROUND_ORDER_GAIN: f64 = 0.7;
+
+fn draft(
+    master: &LoadedMaster,
+    recipe_id: &str,
+    base_master_ref: &str,
+    composite: Option<CompositePrefix>,
+) -> Result<Value, String> {
     let base = master.pyramid.base();
     let mut notes: Vec<Value> = Vec::new();
     let mut steps: Vec<RecipeStep> = Vec::new();
+    let mut sources: Option<Arc<dyn MasterSource>> = None;
+    let mut crop_params = None;
+    let channels;
 
-    let crop_rect = auto_rect(base);
-    let crop_params = match crop_rect {
-        Some(rect) => {
-            steps.push(RecipeStep::new("crop", 1).with_params(rect.to_params()));
-            Some(rect.to_params())
+    if let Some(composite) = composite {
+        let pinned = pin_combine_fits(
+            master,
+            recipe_id,
+            base_master_ref,
+            composite.step,
+            &composite.sources,
+        )?;
+        steps.push(pinned);
+        sources = Some(composite.sources);
+        channels = 3;
+        notes.push(json!({
+            "opId": "crop",
+            "outcome": "omitted",
+            "reason": "the channel combination already crops to the area every master covers",
+        }));
+    } else {
+        channels = base.channels();
+        match auto_rect(base) {
+            Some(rect) => {
+                steps.push(RecipeStep::new("crop", 1).with_params(rect.to_params()));
+                crop_params = Some(rect.to_params());
+            }
+            None => {
+                notes.push(json!({
+                    "opId": "crop",
+                    "outcome": "omitted",
+                    "reason": "no fully covered rectangle survives in this master, so no crop is proposed",
+                }));
+            }
         }
-        None => {
-            notes.push(json!({
-                "opId": "crop",
-                "outcome": "omitted",
-                "reason": "no fully covered rectangle survives in this master, so no crop is proposed",
-            }));
-            None
-        }
-    };
-
-    for id in ["background_extract", "denoise"] {
-        // The stored step carries an empty payload: a documented default lives
-        // in the operation for the life of its version, and writing one into the
-        // recipe would freeze today's value into a recipe that should follow it.
-        steps.push(RecipeStep::new(id, 1));
     }
 
-    if base.channels() == 3 {
-        steps.push(RecipeStep::new("color_calibrate", 1));
+    let measure_level = master
+        .pyramid
+        .level_for_max_dimension(DRAFT_MEASURE_MAX_DIMENSION);
+
+    // The stored step carries an empty payload unless a measurement says
+    // otherwise: a documented default lives in the operation for the life of
+    // its version, and writing one into the recipe would freeze today's value
+    // into a recipe that should follow it.
+    let background = choose_background_order(
+        master,
+        measure_level,
+        recipe_id,
+        base_master_ref,
+        &steps,
+        sources.as_ref(),
+    );
+    match background {
+        Some((order, reason)) => {
+            let step = if order == BACKGROUND_ORDERS[0] {
+                RecipeStep::new("background_extract", 1)
+            } else {
+                RecipeStep::new("background_extract", 1).with_params(json!({"modelOrder": order}))
+            };
+            steps.push(step);
+            notes.push(
+                json!({"opId": "background_extract", "outcome": "included", "reason": reason}),
+            );
+        }
+        None => steps.push(RecipeStep::new("background_extract", 1)),
+    }
+    if channels == 3 {
+        // Colour is calibrated before noise reduction: the denoiser smooths
+        // chroma, which would pull every star's measured colour toward the sky's.
+        steps.push(
+            RecipeStep::new("color_calibrate", 1)
+                .with_params(json!({"neutralizeBackground": true})),
+        );
+        steps.push(RecipeStep::new("denoise", 1));
     } else {
-        let channels = base.channels();
+        steps.push(RecipeStep::new("denoise", 1));
         let (count, coverage) = if channels == 1 {
             ("1 channel".to_string(), "the one channel it was given")
         } else {
@@ -764,14 +1046,11 @@ pub(crate) fn draft_for_master(
             "opId": "color_calibrate",
             "outcome": "omitted",
             "reason": format!(
-                "this master has {count} and the colour fit needs three, so this draft covers {coverage}; to calibrate colour, combine the per-filter masters into a single three-channel master and draft that composite",
+                "this master has {count} and the colour fit needs three, so this draft covers {coverage}; the color composite of this target's per-filter masters is drafted separately",
             ),
         }));
     }
 
-    let measure_level = master
-        .pyramid
-        .level_for_max_dimension(DRAFT_MEASURE_MAX_DIMENSION);
     let (measured, mut steps) = measure_linear_prefix(
         master,
         measure_level,
@@ -779,10 +1058,16 @@ pub(crate) fn draft_for_master(
         base_master_ref,
         steps,
         &mut notes,
+        sources.as_ref(),
     )?;
     let stretch_params = match auto_params(&measured) {
         Ok(params) => {
-            let payload = params.to_params();
+            let mut payload = params.to_params();
+            if measured.channels() == 3 {
+                // Colour is stretched through each pixel's channel mean, so the
+                // stretch keeps the hue and saturation the linear image has.
+                payload["colorMode"] = json!("luminance");
+            }
             steps.push(RecipeStep::new("stretch", 1).with_params(payload.clone()));
             Some(payload)
         }
@@ -831,6 +1116,138 @@ pub(crate) fn draft_for_master(
     }))
 }
 
+/// Render the combination once at full resolution and write the flux fits it
+/// measured into the step.
+fn pin_combine_fits(
+    master: &LoadedMaster,
+    recipe_id: &str,
+    base_master_ref: &str,
+    step: RecipeStep,
+    sources: &Arc<dyn MasterSource>,
+) -> Result<RecipeStep, String> {
+    let mut probe = Recipe::new(
+        format!("{recipe_id}:combine-measure"),
+        base_master_ref,
+        RecipeAuthor::Autopilot,
+    );
+    probe.steps = vec![step.clone()];
+    let ctx = OpContext::new().with_sources(Arc::clone(sources));
+    let output = {
+        let mut cache = render_cache();
+        render(
+            &probe,
+            master.pyramid.base(),
+            registry()?,
+            &mut cache,
+            &ctx,
+            RenderOptions::full().over_master(master.identity.as_str()),
+        )
+        .map_err(|e| format!("the per-filter masters could not be combined: {e}"))?
+    };
+    let fits = output
+        .report
+        .steps
+        .first()
+        .and_then(|s| s.measurement.as_ref())
+        .and_then(|m| m.get("fits"))
+        .cloned()
+        .ok_or_else(|| "the channel combination reported no flux fits to pin".to_string())?;
+    let mut params = step.params.clone();
+    params["fits"] = fits;
+    Ok(step.with_params(params))
+}
+
+/// The polynomial degree the background surface is drafted at, and why.
+///
+/// Every degree in [`BACKGROUND_ORDERS`] is rendered over the draft's prefix
+/// at the measurement level, reading the operation's own sky residual, and the
+/// lowest degree within [`BACKGROUND_ORDER_GAIN`] of the best residual is kept.
+/// Every degree is tried, not only the next: symmetric vignetting gains
+/// nothing from the odd terms of degree 3 and everything from degree 4. A master with no flat
+/// field carries vignetting a quadratic cannot follow; a gentle gradient stays
+/// at the quadratic default. `None` when the default cannot be measured, which
+/// leaves the step at its defaults for the prefix measurement to judge.
+fn choose_background_order(
+    master: &LoadedMaster,
+    level: u32,
+    recipe_id: &str,
+    base_master_ref: &str,
+    prefix: &[RecipeStep],
+    sources: Option<&Arc<dyn MasterSource>>,
+) -> Option<(u32, String)> {
+    let base = master.pyramid.level(level)?;
+    let ops = registry().ok()?;
+    let mut ctx = OpContext::new().at_level(level);
+    if let Some(sources) = sources {
+        ctx = ctx.with_sources(Arc::clone(sources));
+    }
+    let mut residuals: Vec<(u32, f64)> = Vec::new();
+    for order in BACKGROUND_ORDERS {
+        let mut probe = Recipe::new(
+            format!("{recipe_id}:background-order"),
+            base_master_ref,
+            RecipeAuthor::Autopilot,
+        );
+        probe.steps = prefix.to_vec();
+        probe.steps.push(
+            RecipeStep::new("background_extract", 1).with_params(json!({"modelOrder": order})),
+        );
+        let output = {
+            let mut cache = render_cache();
+            render(
+                &probe,
+                base,
+                ops,
+                &mut cache,
+                &ctx,
+                RenderOptions::full()
+                    .at_level(level)
+                    .over_master(master.identity.as_str()),
+            )
+        };
+        let Ok(output) = output else { continue };
+        let sigma = output
+            .report
+            .steps
+            .last()
+            .and_then(|s| s.measurement.as_ref())
+            .and_then(|m| m.get("residualSigma"))
+            .and_then(Value::as_array)
+            .map(|values| {
+                values
+                    .iter()
+                    .filter_map(Value::as_f64)
+                    .fold(0.0_f64, f64::max)
+            });
+        let Some(sigma) = sigma else { continue };
+        residuals.push((order, sigma));
+    }
+    let best = residuals
+        .iter()
+        .map(|(_, sigma)| *sigma)
+        .fold(f64::INFINITY, f64::min);
+    let (chosen, _) = *residuals
+        .iter()
+        .find(|(_, sigma)| BACKGROUND_ORDER_GAIN * sigma <= best)?;
+    let listing = residuals
+        .iter()
+        .map(|(order, sigma)| format!("degree {order}: {sigma:.3}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let reason = if chosen == BACKGROUND_ORDERS[0] {
+        format!(
+            "the background surface stays at its default degree {chosen}: no higher degree removed enough of the sky residual to earn the extra bend (sky residual by degree: {listing})"
+        )
+    } else {
+        format!(
+            "the background surface is fitted at degree {chosen}, not the default {}: it is the lowest degree whose sky residual comes within {:.0}% of the best, and the default left far more, the shape vignetting leaves on a master with no flat field (sky residual by degree: {listing})",
+            BACKGROUND_ORDERS[0],
+            (1.0 / BACKGROUND_ORDER_GAIN - 1.0) * 100.0
+        )
+    };
+    Some((chosen, reason))
+}
+
 /// Render the draft's linear prefix at `level`, so the stretch is measured
 /// against the pixels it will actually see rather than the raw master.
 ///
@@ -846,6 +1263,7 @@ fn measure_linear_prefix(
     base_master_ref: &str,
     mut steps: Vec<RecipeStep>,
     notes: &mut Vec<Value>,
+    sources: Option<&Arc<dyn MasterSource>>,
 ) -> Result<(OpImage, Vec<RecipeStep>), String> {
     let base = master
         .pyramid
@@ -853,6 +1271,9 @@ fn measure_linear_prefix(
         .ok_or_else(|| format!("pyramid level {level} is out of range while drafting"))?;
     let ops = registry()?;
     let mut ctx = OpContext::new().at_level(level);
+    if let Some(sources) = sources {
+        ctx = ctx.with_sources(Arc::clone(sources));
+    }
     if let Some(wcs) = base.wcs() {
         ctx = ctx.with_wcs(wcs);
     }

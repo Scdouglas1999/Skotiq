@@ -267,6 +267,13 @@ enum DarkroomParamKind {
   /// A variable-length array of finite floats.
   numberList,
 
+  /// `true` or `false`.
+  boolean,
+
+  /// A structured value the draft measured, such as a color composite's
+  /// registration. Shown as a summary and left alone.
+  object,
+
   /// The registry named a type this build's editor draws no control for. The
   /// value is shown as its JSON text and left alone, which is the only honest
   /// rendering: inventing a control for an unknown type would write values the
@@ -285,6 +292,10 @@ enum DarkroomParamKind {
         return DarkroomParamKind.numberArray;
       case 'numberList':
         return DarkroomParamKind.numberList;
+      case 'boolean':
+        return DarkroomParamKind.boolean;
+      case 'object':
+        return DarkroomParamKind.object;
       default:
         return DarkroomParamKind.unrepresented;
     }

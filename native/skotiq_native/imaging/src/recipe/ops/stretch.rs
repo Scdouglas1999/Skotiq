@@ -45,8 +45,21 @@
 //!
 //! # Channels
 //!
-//! One transfer for every channel (a *linked* stretch), so a colour master's
-//! channel ratios survive the stretch and colour calibration is not undone here.
+//! By default one transfer for every channel (a *linked* stretch): the
+//! channels keep their order, but a non-linear curve compresses the brighter
+//! channel more than the dimmer one, so color washes toward white as it
+//! brightens.
+//!
+//! `colorMode: "luminance"` stretches color without that loss. Each pixel's
+//! channel mean `I` is mapped through the curve and all three channels are
+//! scaled by the same factor `Y(I) / I`, so the channel ratios — hue and
+//! saturation — are exactly those of the linear image. A pixel the common
+//! factor would push past `1` in its brightest channel is scaled back until that
+//! channel is `1`, which keeps its hue rather than clipping it white. Pixels
+//! whose channel mean approaches the white point fade to white: they are the
+//! clipped cores of bright stars, where one master saturated before another and
+//! the channel ratio is an artifact rather than a color. A mono image is
+//! stretched the same way in either mode.
 
 use rayon::prelude::*;
 use serde_json::{json, Value};
@@ -104,6 +117,10 @@ const AUTO_SAMPLE_BUDGET: usize = 262_144;
 /// an elapsed-time bound.
 const AUTO_BISECTION_STEPS: u32 = 64;
 
+/// Channel mean, in black-to-white units, at which `luminance` mode starts
+/// fading a pixel's color to white; it is white at the white point.
+const HIGHLIGHT_FADE_START: f64 = 0.85;
+
 /// Applies a generalised hyperbolic stretch, leaving the linear stage.
 pub struct StretchV1;
 
@@ -119,6 +136,8 @@ struct Settings {
     b: f64,
     /// Normalised position the curve is symmetric about.
     symmetry_point: f64,
+    /// Whether a color pixel is stretched through its channel mean.
+    luminance_mode: bool,
 }
 
 impl DarkroomOp for StretchV1 {
@@ -146,9 +165,11 @@ impl DarkroomOp for StretchV1 {
         let black = settings.black_point;
         let inverse_range = 1.0 / (settings.white_point - settings.black_point);
 
-        let row_len = image.width() as usize * image.channels() as usize;
+        let channels = image.channels() as usize;
+        let row_len = image.width() as usize * channels;
         let source = image.data();
         let mut out = vec![0.0_f32; image.len()];
+        let by_luminance = settings.luminance_mode && channels == 3;
         out.par_chunks_exact_mut(row_len)
             .enumerate()
             .for_each(|(y, row)| {
@@ -156,9 +177,37 @@ impl DarkroomOp for StretchV1 {
                     return;
                 }
                 let source_row = &source[y * row_len..y * row_len + row_len];
-                for (slot, sample) in row.iter_mut().zip(source_row.iter()) {
-                    let x = ((*sample as f64 - black) * inverse_range).clamp(0.0, 1.0);
-                    *slot = curve.eval(x) as f32;
+                if by_luminance {
+                    for (pixel, sample) in row
+                        .as_chunks_mut::<3>()
+                        .0
+                        .iter_mut()
+                        .zip(source_row.as_chunks::<3>().0)
+                    {
+                        let x = [0, 1, 2]
+                            .map(|c| ((sample[c] as f64 - black) * inverse_range).max(0.0));
+                        let mean = (x[0] + x[1] + x[2]) / 3.0;
+                        if mean <= 0.0 {
+                            pixel.fill(0.0);
+                            continue;
+                        }
+                        let factor = curve.eval(mean.min(1.0)) / mean;
+                        let peak = x[0].max(x[1]).max(x[2]) * factor;
+                        let factor = if peak > 1.0 { factor / peak } else { factor };
+                        // Above the white point the masters are clipped, so the
+                        // channel ratio there is no color: fade it to white.
+                        let white = ((mean - HIGHLIGHT_FADE_START) / (1.0 - HIGHLIGHT_FADE_START))
+                            .clamp(0.0, 1.0);
+                        for c in 0..3 {
+                            let colored = (x[c] * factor).clamp(0.0, 1.0);
+                            pixel[c] = (colored + white * (1.0 - colored)) as f32;
+                        }
+                    }
+                } else {
+                    for (slot, sample) in row.iter_mut().zip(source_row.iter()) {
+                        let x = ((*sample as f64 - black) * inverse_range).clamp(0.0, 1.0);
+                        *slot = curve.eval(x) as f32;
+                    }
                 }
             });
         ctx.check_cancel()?;
@@ -172,7 +221,14 @@ impl StretchV1 {
     /// share this, so the two can never disagree about a default.
     fn read_settings(&self, params: &Value) -> Result<Settings, OpError> {
         let p = Params::new(self, params)?;
-        p.allow(&["blackPoint", "whitePoint", "d", "b", "symmetryPoint"])?;
+        p.allow(&[
+            "blackPoint",
+            "whitePoint",
+            "d",
+            "b",
+            "symmetryPoint",
+            "colorMode",
+        ])?;
         let black_point = p.f64_required("blackPoint", -POINT_BOUND..=POINT_BOUND)?;
         let white_point = p.f64_required("whitePoint", -POINT_BOUND..=POINT_BOUND)?;
         if white_point <= black_point {
@@ -194,6 +250,8 @@ impl StretchV1 {
                 SYMMETRY_MIN..=SYMMETRY_MAX,
                 SYMMETRY_DEFAULT,
             )?,
+            luminance_mode: p.enum_or("colorMode", &["linked", "luminance"], "linked")?
+                == "luminance",
         })
     }
 }

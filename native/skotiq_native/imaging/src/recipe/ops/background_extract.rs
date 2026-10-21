@@ -49,12 +49,12 @@
 //! clone of its input.
 
 use rayon::prelude::*;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::background_extraction::{
     eval_poly, iterative_residual_fit, normalise_xy, poly_terms, solve_poly_fit, Sample,
 };
-use crate::recipe::{DarkroomOp, OpContext, OpError, OpImage, OpStage, Params};
+use crate::recipe::{DarkroomOp, OpApplied, OpContext, OpError, OpImage, OpStage, Params};
 use crate::robust_stats::{median_in_place, percentile_nearest_rank, MAD_TO_SIGMA};
 use crate::{detect_stars, ImageData, StarDetectionConfig};
 
@@ -173,6 +173,15 @@ impl DarkroomOp for BackgroundExtractV1 {
     }
 
     fn apply(&self, image: &OpImage, params: &Value, ctx: &OpContext) -> Result<OpImage, OpError> {
+        Ok(self.apply_measured(image, params, ctx)?.image)
+    }
+
+    fn apply_measured(
+        &self,
+        image: &OpImage,
+        params: &Value,
+        ctx: &OpContext,
+    ) -> Result<OpApplied, OpError> {
         let settings = self.read_settings(params)?;
         ctx.check_cancel()?;
 
@@ -190,11 +199,14 @@ impl DarkroomOp for BackgroundExtractV1 {
 
         let mut coefficients = Vec::with_capacity(channels);
         let mut pedestals = Vec::with_capacity(channels);
+        let mut residual_sigmas = Vec::with_capacity(channels);
+        let mut sample_counts = Vec::with_capacity(channels);
         for channel in 0..channels {
             ctx.check_cancel()?;
             let plane = channel_plane(image, channel);
             let mut samples = collect_samples(&plane, width, height, grid, half_box, ctx)?;
             retain_unmasked_samples(&mut samples, &stars, half_box);
+            let star_free = samples.clone();
             self.require_enough(
                 &samples,
                 n_terms,
@@ -244,6 +256,8 @@ impl DarkroomOp for BackgroundExtractV1 {
                 reason: source.to_string(),
             })?;
             pedestals.push(surface_median(&coeffs, &terms, width, height));
+            residual_sigmas.push(residual_sigma(&star_free, &coeffs, &terms, width, height));
+            sample_counts.push(samples.len());
             coefficients.push(coeffs);
         }
 
@@ -269,7 +283,12 @@ impl DarkroomOp for BackgroundExtractV1 {
             });
         ctx.check_cancel()?;
 
-        image.with_data(out)
+        let measurement = json!({
+            "modelOrder": settings.model_order,
+            "residualSigma": residual_sigmas,
+            "samplesUsed": sample_counts,
+        });
+        Ok(OpApplied::measured(image.with_data(out)?, measurement))
     }
 }
 
@@ -408,6 +427,35 @@ impl BackgroundExtractV1 {
             })
             .collect())
     }
+}
+
+/// The robust spread of `samples` about the fitted surface: `1.4826 · MAD` of
+/// their residuals, in the image's own units.
+///
+/// It is read over every star-free sample, the ones the exclusion cut and the
+/// residual clip removed included, so a surface too stiff to follow the sky
+/// shows up as a wider spread instead of being clipped out of its own measure.
+fn residual_sigma(
+    samples: &[Sample],
+    coeffs: &[f64],
+    terms: &[(u32, u32)],
+    width: usize,
+    height: usize,
+) -> f64 {
+    let mut residuals: Vec<f64> = samples
+        .iter()
+        .map(|sample| {
+            let (nx, ny) = normalise_xy(sample.x, sample.y, width as u32, height as u32);
+            sample.value - eval_poly(coeffs, terms, nx, ny)
+        })
+        .filter(|r| r.is_finite())
+        .collect();
+    if residuals.is_empty() {
+        return 0.0;
+    }
+    let centre = median_in_place(&mut residuals);
+    let mut deviations: Vec<f64> = residuals.iter().map(|r| (r - centre).abs()).collect();
+    median_in_place(&mut deviations) * MAD_TO_SIGMA
 }
 
 /// Sample boxes per axis for a spacing in render-level pixels.

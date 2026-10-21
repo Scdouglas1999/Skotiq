@@ -62,6 +62,23 @@ const int kDraftMeasureMaxDimension = 1024;
 /// sample boxes and is the smallest change that can rescue a dense field.
 const double kBackgroundRetrySampleSpacing = 32.0;
 
+/// The operation that combines a target's per-filter masters into color.
+const String kCompositeOpId = 'channel_combine';
+
+/// Whether a stored step list opens with a channel combination, which makes
+/// its recipe a color composite of several masters.
+bool isCompositeStepsJson(String stepsJson) {
+  try {
+    final steps = jsonDecode(stepsJson);
+    return steps is List &&
+        steps.isNotEmpty &&
+        steps.first is Map &&
+        (steps.first as Map)['opId'] == kCompositeOpId;
+  } on FormatException {
+    return false;
+  }
+}
+
 /// Channels `color_calibrate@1` balances, and the length of the `channelScale`
 /// payload it accepts.
 const int kColorChannelCount = 3;
@@ -141,10 +158,11 @@ int? _asPixels(Object? value) {
 /// re-inserted by a retry takes its place from this list rather than from
 /// wherever the retry happened to run.
 const List<String> kDraftStepOrder = [
+  'channel_combine',
   'crop',
   'background_extract',
-  'denoise',
   'color_calibrate',
+  'denoise',
   'star_reduce',
   'stretch',
   'saturation',
@@ -235,6 +253,43 @@ class _DraftStage {
   const _DraftStage({required this.steps, required this.movedThePrefix});
 }
 
+/// The pixels a draft is composed over: a master, or the reference master of a
+/// color composite, whose first step makes it three channels.
+class _DraftBase {
+  final String path;
+  final int width;
+  final int height;
+  final int channels;
+
+  const _DraftBase({
+    required this.path,
+    required this.width,
+    required this.height,
+    required this.channels,
+  });
+
+  bool get isColor => channels == 3;
+}
+
+/// A color composite's plan and, when the masters combine, its draft.
+class DawnCompositeDraft {
+  /// The engine's account of the plan, as `api_darkroom_registry` returned it.
+  final Map<String, dynamic> plan;
+
+  /// The master the composite's recipe renders over, or null when nothing
+  /// was combined.
+  final DawnMaster? reference;
+
+  /// The drafted recipe, or null when nothing was combined.
+  final DawnDraft? draft;
+
+  const DawnCompositeDraft({
+    required this.plan,
+    required this.reference,
+    required this.draft,
+  });
+}
+
 /// The draft could not be composed at all.
 class DawnDraftException implements Exception {
   final String message;
@@ -272,11 +327,101 @@ class DawnDraftBuilder {
       'baseMasterRef': master.masterFitsPath,
       'recipeId': recipeId,
     });
+    return _compose(
+      reply: reply,
+      base: _DraftBase(
+        path: master.masterFitsPath,
+        width: master.width,
+        height: master.height,
+        channels: master.channels,
+      ),
+      recipeId: recipeId,
+      photometry: photometry,
+      renderId: renderId,
+    );
+  }
 
+  /// Plan and draft the color composite of one target's [masters].
+  ///
+  /// The engine chooses the combination from the filters, registers every
+  /// master onto the reference and drafts a recipe whose first step combines
+  /// them over the reference master; the policies of [build] then apply to the
+  /// composite as they do to a single master. [photometry] belongs to the
+  /// reference master's field.
+  ///
+  /// The plan comes back whether or not the masters combine, so a night whose
+  /// filters have no color combination is told why. [DawnCompositeDraft.draft]
+  /// is null exactly then.
+  Future<DawnCompositeDraft> buildComposite({
+    required List<DawnMaster> masters,
+    required String recipeId,
+    required DawnPhotometry Function(String referencePath) photometry,
+    required String renderId,
+  }) async {
+    final reply = await _darkroom.registry({
+      'recipeId': recipeId,
+      'composite': {
+        'inputs': [
+          for (final master in masters)
+            {
+              'path': master.masterFitsPath,
+              if (master.filter != null) 'filter': master.filter,
+              'integrationSeconds': master.totalIntegrationSeconds,
+            },
+        ],
+      },
+    });
+    final plan = reply['composite'];
+    if (plan is! Map<String, dynamic>) {
+      throw const DawnDraftException(
+        'the registry answered the composite request without a plan',
+      );
+    }
+    if (plan['combined'] != true) {
+      return DawnCompositeDraft(plan: plan, reference: null, draft: null);
+    }
+    final referencePath = reply['masterPath'];
+    final base = reply['base'];
+    if (referencePath is! String || base is! Map<String, dynamic>) {
+      throw const DawnDraftException(
+        'the registry planned a composite but named no reference master to '
+        'render it over',
+      );
+    }
+    final reference = masters.firstWhere(
+      (m) => m.masterFitsPath == referencePath,
+      orElse: () => throw DawnDraftException(
+        'the registry chose $referencePath as the reference, which is not one '
+        'of the masters offered',
+      ),
+    );
+    final draft = await _compose(
+      reply: reply,
+      base: _DraftBase(
+        path: referencePath,
+        width: (base['width'] as num?)?.toInt() ?? reference.width,
+        height: (base['height'] as num?)?.toInt() ?? reference.height,
+        channels: 3,
+      ),
+      recipeId: recipeId,
+      photometry: photometry(referencePath),
+      renderId: renderId,
+    );
+    return DawnCompositeDraft(plan: plan, reference: reference, draft: draft);
+  }
+
+  Future<DawnDraft> _compose({
+    required Map<String, dynamic> reply,
+    required _DraftBase base,
+    required String recipeId,
+    required DawnPhotometry photometry,
+    required String renderId,
+  }) async {
+    final master = base;
     final draft = reply['draft'];
     if (draft is! Map<String, dynamic>) {
       throw DawnDraftException(
-        'the registry answered for ${master.masterFitsPath} without a draft, '
+        'the registry answered for ${master.path} without a draft, '
         'so there are no measured parameters to build one from',
       );
     }
@@ -354,7 +499,7 @@ class DawnDraftBuilder {
     }
 
     return DawnDraft(
-      baseMasterRef: master.masterFitsPath,
+      baseMasterRef: master.path,
       steps: List.unmodifiable(steps),
       notes: List.unmodifiable(notes),
     );
@@ -391,7 +536,7 @@ class DawnDraftBuilder {
   static List<Map<String, dynamic>> _dropIdentitySteps(
     List<Map<String, dynamic>> steps,
     List<DawnDraftNote> notes,
-    DawnMaster master,
+    _DraftBase master,
   ) {
     final kept = <Map<String, dynamic>>[];
     for (final step in steps) {
@@ -439,7 +584,7 @@ class DawnDraftBuilder {
   /// `movedThePrefix` is true only when the step was actually restored: the
   /// pixels under the stretch changed, and the stretch is measured again.
   Future<_DraftStage> _retryBackgroundExtract({
-    required DawnMaster master,
+    required _DraftBase master,
     required String recipeId,
     required List<Map<String, dynamic>> steps,
     required List<DawnDraftNote> notes,
@@ -465,9 +610,9 @@ class DawnDraftBuilder {
     final String? failure;
     try {
       final preview = await _darkroom.renderPreview(
-        recipeJson: _envelope(recipeId, master.masterFitsPath, probed),
+        recipeJson: _envelope(recipeId, master.path, probed),
         context: {
-          'masterPath': master.masterFitsPath,
+          'masterPath': master.path,
           'maxDimension': kDraftMeasureMaxDimension,
           'stopAfter': index,
           'renderId': renderId,
@@ -538,7 +683,7 @@ class DawnDraftBuilder {
   /// pinned, it applies, and the pixels under the stretch are no longer the ones
   /// the stretch was measured over.
   Future<_DraftStage> _proveColorCalibrate({
-    required DawnMaster master,
+    required _DraftBase master,
     required String recipeId,
     required List<Map<String, dynamic>> steps,
     required List<DawnDraftNote> notes,
@@ -560,30 +705,33 @@ class DawnDraftBuilder {
         'three, so the per-filter masters are combined before it can run',
       );
     }
-    if (!photometry.hasStars) {
-      final reason = photometry.unavailableReason;
-      return _dropAt(
-        steps,
-        index,
-        notes,
-        opId,
-        reason ??
-            'no catalogue star was resolved for this field, so the colour '
-                'fit has nothing to regress against',
-      );
+    // Without catalog photometry the balance is read from the field's own
+    // stars instead of being left out: an uncalibrated color draft is the
+    // raw filter throughput, which is not a color anyone wants.
+    final byCatalog = photometry.hasStars;
+    var proved = steps;
+    if (!byCatalog) {
+      proved = _withParams(steps, index, {'whiteReference': 'averageStar'});
     }
+    final how = byCatalog
+        ? 'the colour fit applied at full resolution against '
+              '${photometry.stars.length} catalogue stars'
+        : 'no catalogue photometry was available '
+              '(${photometry.unavailableReason ?? 'no catalogue star was resolved for this field'}), '
+              'so the balance renders the median color of the field\'s own '
+              'stars neutral instead, measured at full resolution';
 
     final DarkroomRenderedPreview preview;
     try {
       preview = await _darkroom.renderPreview(
-        recipeJson: _envelope(recipeId, master.masterFitsPath, steps),
+        recipeJson: _envelope(recipeId, master.path, proved),
         context: {
-          'masterPath': master.masterFitsPath,
+          'masterPath': master.path,
           'level': kColorProofLevel,
           'stopAfter': index,
           'renderId': renderId,
           'encoding': 'unit',
-          'catalogStars': photometry.stars,
+          if (byCatalog) 'catalogStars': photometry.stars,
         },
       );
     } on DarkroomSeamException catch (error) {
@@ -602,58 +750,80 @@ class DawnDraftBuilder {
           opId: opId,
           outcome: 'included',
           reason:
-              'the colour fit applied at full resolution against '
-              '${photometry.stars.length} catalogue stars, but the render '
-              'reported no fitted channel scales to write into the step, so it '
-              'solves the balance again on every render: a preview at a reduced '
-              'level can detect too few stars and record the step as skipped '
-              'with that reason.',
+              '$how, but the render reported no fitted channel scales to write '
+              'into the step, so it solves the balance again on every render: '
+              'a preview at a reduced level can detect too few stars and '
+              'record the step as skipped with that reason.',
         ),
       );
-      return _DraftStage(steps: steps, movedThePrefix: false);
+      return _DraftStage(steps: proved, movedThePrefix: false);
     }
+    final offsets = _channelVectorFrom(preview.report, index, 'channelOffset');
 
     notes.add(
       DawnDraftNote(
         opId: opId,
         outcome: 'included',
         reason:
-            'the colour fit applied at full resolution against '
-            '${photometry.stars.length} catalogue stars, and the draft carries '
-            'the balance it fitted '
-            '(${scales.map((s) => s.toStringAsFixed(4)).join(', ')}). Every '
-            'later render replays those scales, so a preview at a reduced level '
+            '$how, and the draft carries the balance it fitted '
+            '(${scales.map((s) => s.toStringAsFixed(4)).join(', ')})'
+            '${offsets == null ? '' : ' and the background neutralization it measured'}. Every '
+            'later render replays those numbers, so a preview at a reduced level '
             'shows the same colour as the full-resolution proof instead of '
             're-measuring a level that holds too few stars.',
       ),
     );
     return _DraftStage(
-      steps: _withPinnedChannelScale(steps, index, scales),
+      steps: _withParams(proved, index, {
+        'channelScale': scales,
+        if (offsets != null) 'channelOffset': offsets,
+      }),
       movedThePrefix: true,
     );
   }
 
-  /// The same steps with the colour step at [index] carrying [scales].
-  ///
-  /// Only `channelScale` is written. The reference colour the fit was evaluated
-  /// at is in the note, not in the payload: a pinned step reads no `whiteRefBv`,
-  /// and a parameter the render ignores would offer the editor a control that
-  /// changes nothing.
-  static List<Map<String, dynamic>> _withPinnedChannelScale(
+  /// The same steps with [extra] merged into the parameters of the step at
+  /// [index].
+  static List<Map<String, dynamic>> _withParams(
     List<Map<String, dynamic>> steps,
     int index,
-    List<double> scales,
+    Map<String, dynamic> extra,
   ) {
     final out = List<Map<String, dynamic>>.from(steps);
     final step = Map<String, dynamic>.from(out[index]);
     final params = step['params'];
-    final pinned = params is Map<String, dynamic>
+    final merged = params is Map<String, dynamic>
         ? Map<String, dynamic>.from(params)
         : <String, dynamic>{};
-    pinned['channelScale'] = scales;
-    step['params'] = pinned;
+    merged.addAll(extra);
+    step['params'] = merged;
     out[index] = step;
     return out;
+  }
+
+  /// The three finite numbers the render reported as [key] for step [index],
+  /// or null.
+  static List<double>? _channelVectorFrom(
+    Map<String, dynamic> report,
+    int index,
+    String key,
+  ) {
+    final inner = report['report'];
+    final steps = inner is Map<String, dynamic> ? inner['steps'] : null;
+    if (steps is! List) return null;
+    for (final entry in steps) {
+      if (entry is! Map<String, dynamic> || entry['index'] != index) continue;
+      final measured = entry['measured'];
+      final raw = measured is Map<String, dynamic> ? measured[key] : null;
+      if (raw is! List || raw.length != kColorChannelCount) return null;
+      final out = <double>[];
+      for (final value in raw) {
+        if (value is! num || !value.isFinite) return null;
+        out.add(value.toDouble());
+      }
+      return out;
+    }
+    return null;
   }
 
   /// The per-channel scales the render reported for step [index], or null when
@@ -717,7 +887,7 @@ class DawnDraftBuilder {
   /// place and says so: a starting point measured over the wrong prefix is
   /// still a starting point, while a fabricated one is not.
   Future<List<Map<String, dynamic>>> _remeasureStretch({
-    required DawnMaster master,
+    required _DraftBase master,
     required String recipeId,
     required List<Map<String, dynamic>> steps,
     required List<DawnDraftNote> notes,
@@ -736,9 +906,9 @@ class DawnDraftBuilder {
     final DarkroomRenderedPreview preview;
     try {
       preview = await _darkroom.renderPreview(
-        recipeJson: _envelope(recipeId, master.masterFitsPath, steps),
+        recipeJson: _envelope(recipeId, master.path, steps),
         context: {
-          'masterPath': master.masterFitsPath,
+          'masterPath': master.path,
           'maxDimension': kDraftMeasureMaxDimension,
           'stopAfter': index - 1,
           'renderId': renderId,
@@ -777,10 +947,9 @@ class DawnDraftBuilder {
       return steps;
     }
 
-    final out = List<Map<String, dynamic>>.from(steps);
-    final step = Map<String, dynamic>.from(out[index]);
-    step['params'] = measured;
-    out[index] = step;
+    // The measured points replace the old ones; a parameter the measurement
+    // does not cover, such as a color stretch's colorMode, is kept.
+    final out = _withParams(steps, index, measured);
     notes.add(
       DawnDraftNote(
         opId: opId,

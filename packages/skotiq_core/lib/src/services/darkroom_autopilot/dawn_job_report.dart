@@ -487,6 +487,93 @@ class DawnMasterReport {
 /// So that copy states the gap rather than leaving it to be read out of two
 /// nulls: [blocks] names the report keys it has no outcome for, and [note] is
 /// the sentence the operator reads.
+/// The color composite of one target's per-filter masters: what was
+/// combined, how, and the draft rendered from it.
+///
+/// It is the night's primary result when there is one. The per-filter
+/// masters and their own drafts stay in [DawnJobReport.masters] beside it.
+class DawnCompositeReport {
+  /// The target the masters were integrated for, or null when they carry
+  /// no target row.
+  final String? targetName;
+
+  /// The masters offered to the composite.
+  final List<DawnMaster> masters;
+
+  /// The engine's account of the plan, as `api_darkroom_registry` returned
+  /// it: `combined`, `palette`, `paletteName`, `reason`, `alternatives`,
+  /// `excluded`, `reference`, per-input registration and its check, `crop`.
+  final Map<String, dynamic> plan;
+
+  /// The persisted recipe, or null when none was written.
+  final int? recipeId;
+
+  /// The draft's JPEG, or null when it was not rendered.
+  final String? draftRenderPath;
+
+  /// The linear color composite written for delivery, or null.
+  final String? linearCompositePath;
+
+  /// The steps the draft carries.
+  final List<Map<String, dynamic>> draftSteps;
+
+  /// The draft's account of its own composition.
+  final List<Map<String, dynamic>> draftNotes;
+
+  /// Why no color draft exists, or null when one does.
+  final String? failure;
+
+  const DawnCompositeReport({
+    required this.targetName,
+    required this.masters,
+    required this.plan,
+    required this.recipeId,
+    required this.draftRenderPath,
+    required this.linearCompositePath,
+    required this.draftSteps,
+    required this.draftNotes,
+    required this.failure,
+  });
+
+  /// True when the masters were combined and the draft was rendered.
+  bool get hasDraft => draftRenderPath != null;
+
+  /// The palette's display name, such as `LRGB`, or null when nothing was
+  /// combined.
+  String? get paletteName =>
+      plan['combined'] == true ? plan['paletteName'] as String? : null;
+
+  /// The worst per-channel median star offset after registration, in pixels.
+  double? get worstOffsetPx =>
+      (plan['worstMedianOffsetPx'] as num?)?.toDouble();
+
+  /// The one line the notification body carries for this composite.
+  String get sentence {
+    final target = targetName == null ? '' : '$targetName ';
+    if (hasDraft) {
+      final reference = (plan['reference'] as Map?)?['filter'];
+      final offset = worstOffsetPx;
+      return '${target}color draft: ${plan['reason']}. Registered onto '
+          '${reference ?? 'the reference'}'
+          '${offset == null ? '' : ', stars within ${offset.toStringAsFixed(2)} px'}.';
+    }
+    return '${target}no color draft: ${failure ?? plan['reason']}.';
+  }
+
+  Map<String, dynamic> toJson() => {
+    'targetName': targetName,
+    'masterIds': [for (final m in masters) m.masterId],
+    'filters': [for (final m in masters) m.filter],
+    'plan': plan,
+    'recipeId': recipeId,
+    'draftRenderPath': draftRenderPath,
+    'linearCompositePath': linearCompositePath,
+    'draftSteps': draftSteps,
+    'draftNotes': draftNotes,
+    'failure': failure,
+  };
+}
+
 class DawnReportPending {
   /// The report's own top-level keys this copy has no outcome for.
   final List<String> blocks;
@@ -550,6 +637,10 @@ class DawnJobReport {
   /// One entry per master with a linear FITS.
   final List<DawnMasterReport> masters;
 
+  /// One color composite per target whose masters combine, first in the
+  /// report because it is the night's primary result.
+  final List<DawnCompositeReport> composites;
+
   /// Masters the night touched that have no file to draft over.
   final List<DawnMasterWithoutFile> withoutFile;
 
@@ -582,8 +673,12 @@ class DawnJobReport {
     required this.deliveryProblems,
     required this.notification,
     required this.failure,
+    this.composites = const [],
     this.pending,
   });
+
+  /// Color drafts rendered by this job.
+  int get colorDraftsRendered => composites.where((c) => c.hasDraft).length;
 
   /// The [state] a copy written while delivery was still running carries.
   ///
@@ -683,6 +778,7 @@ class DawnJobReport {
         deliveryProblems: deliveryProblems,
         notification: notification,
         failure: failure ?? this.failure,
+        composites: composites,
         pending: pending,
       );
 
@@ -705,11 +801,20 @@ class DawnJobReport {
           '${formatDawnIntegration(integrationSeconds)} integrated';
     }
     final time = formatDawnIntegration(draftedIntegrationSeconds);
+    final color = composites
+        .where((c) => c.hasDraft)
+        .map((c) => c.paletteName)
+        .whereType<String>()
+        .toList();
+    final colorClause = color.isEmpty
+        ? ''
+        : ', ${color.join(' and ')} color draft';
     final lead = target == null
         ? (draftsRendered == 1
-              ? 'Your draft is ready — $time integrated'
-              : 'Your $draftsRendered drafts are ready — $time integrated')
-        : '$target — $time integrated';
+              ? 'Your draft is ready — $time integrated$colorClause'
+              : 'Your $draftsRendered drafts are ready — $time integrated'
+                    '$colorClause')
+        : '$target — $time integrated$colorClause';
     return '$lead$_undraftedClause';
   }
 
@@ -739,10 +844,16 @@ class DawnJobReport {
       '$framesUsed frame${framesUsed == 1 ? '' : 's'} used, '
       '$framesRejected rejected.',
     );
+    for (final composite in composites) {
+      lines.add(_capitalized(composite.sentence));
+    }
     if (draftsRendered > 0) {
       lines.add(
-        '$draftsRendered draft${draftsRendered == 1 ? '' : 's'} ready to open '
-        'in the Darkroom.',
+        colorDraftsRendered > 0
+            ? '$draftsRendered per-filter draft${draftsRendered == 1 ? '' : 's'} '
+                  'ready beside the color draft in the Darkroom.'
+            : '$draftsRendered draft${draftsRendered == 1 ? '' : 's'} ready to '
+                  'open in the Darkroom.',
       );
     } else {
       lines.add('No draft was rendered; the report says why.');
@@ -796,6 +907,10 @@ class DawnJobReport {
     'calibrationWarned': calibrationWarned,
     'headline': headline,
     'body': body,
+    'colorDraftsRendered': colorDraftsRendered,
+    // The color composite comes first: it is the night's primary result, and
+    // the per-filter masters below are the material it was made from.
+    'composites': [for (final composite in composites) composite.toJson()],
     'masters': [for (final master in masters) master.toJson()],
     'mastersWithoutFile': [
       for (final missing in withoutFile)
@@ -836,6 +951,9 @@ class DawnJobReport {
     'pending': pending?.toJson(),
   };
 }
+
+String _capitalized(String text) =>
+    text.isEmpty ? text : '${text[0].toUpperCase()}${text.substring(1)}';
 
 /// Format integration seconds as `3h 12m`, `42m`, `24 s`, or `0m`.
 ///

@@ -391,6 +391,15 @@ class DarkroomState {
   bool get hasColorCalibrateStep =>
       steps.any((step) => step.opId == kDarkroomColorCalibrateOpId);
 
+  /// Whether a color step in the stack reads the catalogue: one that neither
+  /// carries pinned channel scales nor balances on the field's own stars.
+  bool get colorCalibrateReadsCatalog => steps.any(
+        (step) =>
+            step.opId == kDarkroomColorCalibrateOpId &&
+            !step.params.containsKey('channelScale') &&
+            step.params['whiteReference'] != 'averageStar',
+      );
+
   /// Where a step for [op] goes so the stack keeps the engine's stage order, or
   /// null when this build cannot place it.
   ///

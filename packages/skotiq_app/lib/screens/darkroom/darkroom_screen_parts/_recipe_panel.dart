@@ -338,6 +338,10 @@ class _DarkroomRecipePanelState extends State<_DarkroomRecipePanel> {
                         // inferable from the stack.
                         ..._provenance(),
                         _renderStatus(colors),
+                        if (state.preview case final preview?) ...[
+                          const SizedBox(height: SkotiqTokens.spaceLg),
+                          _DarkroomHistogramCard(preview: preview),
+                        ],
                         // Both halves of the photometry account — the stars
                         // there are, and the reason there are none — belong to
                         // one step. A stack that does not carry that step is
@@ -694,13 +698,14 @@ class _DarkroomRecipePanelState extends State<_DarkroomRecipePanel> {
       // the last render did, and every row it sits below is a row that can
       // push it past the fold of a fixed-height panel.
       //
-      // It is stated only when the stack carries the step it is about. The
+      // It is stated only when the stack carries a step that reads it — one
+      // with no pinned scales that does not balance on the field's stars. The
       // catalogue is lent to `color_calibrate` and to nothing else, so on a
       // stack without that step — an autopilot draft of a mono master, a recipe
       // with no steps at all — this alert reports the absence of something no
       // step was going to use, in the panel's most prominent slot.
       final photometryNote = state.photometryNote;
-      if (photometryNote != null && state.hasColorCalibrateStep) {
+      if (photometryNote != null && state.colorCalibrateReadsCatalog) {
         children
           ..add(const SizedBox(height: SkotiqTokens.spaceSm))
           ..add(

@@ -18,6 +18,7 @@ pub mod calibration;
 pub mod calibration_masters; // NEW: Master-flat build + cosmetic (hot/cold) correction
 pub mod channel_combine; // NEW: Narrowband/LRGB channel combination
 pub mod color_calibration; // NEW: Photometric color calibration (per-channel white balance)
+pub mod color_composite;
 pub mod deconvolution; // NEW: PSF estimation + Richardson-Lucy deconvolution
 pub mod defect_map;
 pub mod depthlock;

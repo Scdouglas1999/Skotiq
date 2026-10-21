@@ -44,6 +44,18 @@ pub(super) fn detect(
     config: &StarDetectionConfig,
     ctx: &OpContext,
 ) -> Result<Vec<DetectedStar>, OpError> {
+    Ok(match detection_frame(image, ctx)? {
+        Some(frame) => detect_stars(&frame, config),
+        None => Vec::new(),
+    })
+}
+
+/// The `U16` plane [`detect`] runs the detector over, or `None` when the image
+/// carries no measurable range.
+pub(crate) fn detection_frame(
+    image: &OpImage,
+    ctx: &OpContext,
+) -> Result<Option<ImageData>, OpError> {
     let width = image.width() as usize;
     let height = image.height() as usize;
     let channels = image.channels() as usize;
@@ -81,7 +93,7 @@ pub(super) fn detect(
         .filter(|value| value.is_finite())
         .collect();
     if samples.is_empty() {
-        return Ok(Vec::new());
+        return Ok(None);
     }
     samples.sort_unstable_by(f64::total_cmp);
     let low = percentile_nearest_rank(&samples, LUMINANCE_LOW_QUANTILE);
@@ -91,7 +103,7 @@ pub(super) fn detect(
         .filter(|value| value.is_finite())
         .fold(f64::NEG_INFINITY, f64::max);
     if !low.is_finite() || !high.is_finite() || high <= low {
-        return Ok(Vec::new());
+        return Ok(None);
     }
 
     let span = high - low;
@@ -108,6 +120,10 @@ pub(super) fn detect(
         .collect();
     ctx.check_cancel()?;
 
-    let frame = ImageData::from_u16(width as u32, height as u32, 1, &quantised);
-    Ok(detect_stars(&frame, config))
+    Ok(Some(ImageData::from_u16(
+        width as u32,
+        height as u32,
+        1,
+        &quantised,
+    )))
 }
