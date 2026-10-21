@@ -2316,9 +2316,9 @@ void main() {
       when(
         () => backend.sequencerStop(origin: any(named: 'origin')),
       ).thenAnswer((_) async {});
-      when(
-        () => backend.sequencerGetStatus(),
-      ).thenAnswer((_) async => SequencerStatus(state: 'Idle', progress: 0.0));
+      when(() => backend.sequencerGetStatus()).thenAnswer(
+        (_) async => const SequencerStatus(state: 'Idle', progress: 0.0),
+      );
       when(() => backend.discardCheckpoint()).thenAnswer((_) async {});
       final loadGate = Completer<void>();
       final loadReached = Completer<void>();
