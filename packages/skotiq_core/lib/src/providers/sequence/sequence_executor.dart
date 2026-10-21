@@ -451,20 +451,11 @@ class SequenceExecutor {
 
   /// Give the sequence about to run a `sequences` row if it has never had one.
   ///
-  /// A tree built in the sequencer and started without a trip through Save
-  /// carries `databaseId == null`, which writes `sequence_id` NULL onto both
-  /// its `sequence_runs` row and its `imaging_sessions` row. Three surfaces key
-  /// off that column: the Continue Session handoff dialog (to name and reload
-  /// what it offers), run history's per-sequence grouping, and the run-diff
-  /// view.
-  ///
-  /// A sequence the operator actually ran is worth keeping, so it is persisted
-  /// here — once: the editor adopts the new id, so the next run of the same
-  /// document updates that row instead of adding another.
-  ///
-  /// A failure is logged and the run proceeds with the id still null: refusing
-  /// to image because a library row could not be written would be far worse
-  /// than a night filed without one.
+  /// An unsaved tree would file its run and session with `sequence_id` NULL,
+  /// which the Continue Session dialog, run history grouping and run diff all
+  /// key on. It is saved once; the editor adopts the id, so the next run
+  /// updates the same row. A failure is logged and the run proceeds: a night
+  /// filed without a sequence id beats refusing to image.
   Future<Sequence> _ensureSequencePersisted(Sequence sequence) async {
     if (sequence.databaseId != null) return sequence;
     // Operator-authored plans only. Autopilot, Smart Night and mosaic generate
@@ -552,25 +543,14 @@ class SequenceExecutor {
   /// through [start] / [resumeFromCheckpoint]: the headless
   /// `POST /api/sequencer/load` -> `POST /api/sequencer/start` path.
   ///
-  /// That path re-implements a subset of [start] against the already-loaded
-  /// native tree, and the `sequence_runs` row was the piece it never opened. A
-  /// full successful night therefore left `sequence_runs` EMPTY — the durable
-  /// run history `GET /api/sequence-runs` serves, and the record the D1 runbook
-  /// points an operator at, showed nothing for a run that had just written
-  /// twelve frames and four masters. The same omission also silenced
-  /// finalization: `_finalizeRun` needs the run id and the live stats this
-  /// opens, so pause/resume status, the run's stats JSON and its end status had
-  /// nowhere to land either.
+  /// Without the row the run has no history entry and finalization has
+  /// nowhere to write its status and stats.
   ///
-  /// No `sequenceSnapshotJson`: the snapshot column holds the Dart editor's
-  /// sequence map, and the wire JSON the native executor was loaded with is a
-  /// different shape. A null snapshot means "no run diff for this run", which
-  /// is true; writing the wire JSON there would make the diff view compare
-  /// incomparable documents.
+  /// No snapshot: the column holds the editor's sequence map, and the native
+  /// wire JSON is a different document the run diff cannot compare.
   ///
-  /// Refuses to open a second row over a live one — a run id already set means
-  /// a run is under way, and stamping a new one would orphan it mid-flight in
-  /// the `running` state. Returns the run id now in force.
+  /// A run id already set means a run is under way; it is kept rather than
+  /// orphaned in `running`. Returns the run id in force.
   Future<int> openRunRecordsForNativeStart({
     required String sequenceName,
     int? sequenceDatabaseId,
@@ -584,18 +564,8 @@ class SequenceExecutor {
       );
       return existing;
     }
-    // Clear the PREVIOUS run's progress, the last piece of [_acquireAndStartRun]
-    // this path did not mirror.
-    //
-    // Every producer writes `completedExposures` as the event's ABSOLUTE frame
-    // index, so the frame count re-zeroed itself on the second run and made the
-    // omission look harmless. `completedIntegrationSecs` accumulates, and
-    // nothing on this path cleared it: measured against a scratch database,
-    // four 3-and-4-frame runs in one process reported 12.0, then 24.0, then
-    // 140.0, then 156.0 seconds — the whole process's integration, next to a
-    // frame count covering only the run in front of the operator ("FRAMES 4 / 4"
-    // beside "INTEGRATION 2m 36s" on the run-watch page for 4 x 4.0 s). The
-    // per-node badges leaked the same way. A run's integration is the run's.
+    // Clear the previous run's progress, as [_acquireAndStartRun] does: the
+    // integration total and the per-node badges accumulate otherwise.
     _ref.read(sequenceProgressProvider.notifier).reset();
     _ref.read(nodeExposureTallyProvider.notifier).reset();
     return _openRunRecords(
@@ -633,22 +603,11 @@ class SequenceExecutor {
   /// [resumeFromCheckpoint]: the headless `POST /api/sequencer/load` ->
   /// `POST /api/sequencer/start` path.
   ///
-  /// The ONE seed site both launch paths share. [_startNativeExecution] calls
-  /// this same method rather than the extension directly, so the seed cannot
-  /// be extended for the editor path and silently skipped for the headless
-  /// one — which is exactly what happened: the bare path hand-mirrored the
-  /// simulation mode, the safety fail mode, the device ids and the save path
-  /// and never gained the runtime-config push, so image grading, the reject
-  /// folder, the autofocus cadence and the autofocus tuning all ran on the
-  /// Rust defaults. Proven on the appliance: `image_grading_enabled=true` with
-  /// `image_grading_star_count_min=100000` persisted and read back through
-  /// `GET /api/settings`, and a 43-star simulated frame still graded `pass` —
-  /// twelve of twelve accepted, nothing in `Reject/`, and no
-  /// `Updating sequencer default_quality_check` line anywhere in the run.
+  /// The one seed site every launch path shares ([_startNativeExecution]
+  /// calls it too), so no path can run on the Rust defaults.
   ///
-  /// Throws on a failed push for the same reason [start] does: a night that
-  /// runs with grading the operator switched on silently inert is worse than a
-  /// start that refuses and says why.
+  /// Throws on a failed push, as [start] does: a start that refuses and says
+  /// why beats a night with the operator's grading silently inert.
   Future<void> seedRuntimeConfigForNativeStart() async {
     _ensureBackendAuthority();
     await _runtimeConfig.seedFromSettings();
@@ -689,17 +648,8 @@ class SequenceExecutor {
     // adopted database id lands on a document that still accepts it.
     sequence = await _ensureSequencePersisted(sequence);
     final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
-    // Clear the PREVIOUS run's progress before seeding this one's.
-    //
-    // `completedExposures` self-corrected because both writers assign the
-    // event's absolute frame index, which masked the fact that nothing reset
-    // this provider at run start. The accumulating fields did not self-correct:
-    // measured on the live rig, two identical back-to-back runs of the same
-    // 8.0 s sequence reported `completedIntegrationSecs` 8.0 then 16.0, while
-    // both runs' own vitals and both `imaging_sessions` rows correctly said
-    // 8.0. The per-node status/progress maps leaked the same way, leaving the
-    // previous run's node badges on the canvas for a run that had not reached
-    // those nodes yet.
+    // Clear the previous run's progress before seeding this one's: the
+    // integration total and the per-node maps accumulate otherwise.
     progressNotifier.reset();
     // The per-node frame tally is deliberately NOT cleared when a run ENDS:
     // clearing it there erases the frames the finished run captured before any
@@ -1133,28 +1083,15 @@ class SequenceExecutor {
       final confirmation = f.nativeStopConfirmation ??= Completer<void>();
       try {
         await _backend.sequencerStop(origin: f.stopOrigin);
-        // BOUNDED wait for the authoritative terminal. The stop command
-        // returning only means it was accepted; tearing down while the camera
-        // may still be exposing is what this gate prevents. The bound is
-        // required because the terminal can legitimately never arrive: the
-        // native event channel is a `tokio::sync::broadcast` whose receiver
-        // handles `RecvError::Lagged` by SKIPPING events
-        // (bridge/src/api/sequencer.rs), and the headless
-        // `POST /api/sequencer/load` -> `/api/sequencer/start` path starts on
-        // the native executor without ever calling [start], so this executor
-        // installs no `_nativeEventSubscription` at all.
-        //
-        // Confirmation therefore accepts EITHER authoritative source: the
-        // pushed terminal event, or the native executor's own reported state.
-        // The status poll is the same executor answering "are you still
-        // running?", pulled instead of pushed — not a weaker guess.
-        //
-        // On expiry, fall through to the same handling as a stop command that
-        // failed: settle to the controllable `stopFailed` (Stop re-enabled for
-        // a retry, Start blocked, checkpoint kept) with the native
-        // subscription still live, so a late terminal resumes THIS
-        // finalization through `_onTerminalEvent`. Nothing is torn down on a
-        // guess.
+        // A BOUNDED wait for the authoritative terminal: the command returning
+        // only means it was accepted, and the camera may still be exposing.
+        // The terminal can legitimately never arrive (the broadcast receiver
+        // skips events when it lags, and a headless run may have no
+        // subscription), so either the pushed terminal or the native
+        // executor's own reported state confirms it. On expiry this is
+        // handled like a failed stop command: a controllable stopFailed with
+        // the subscription still live, so a late terminal resumes THIS
+        // finalization. Nothing is torn down on a guess.
         await _awaitNativeStopConfirmation(f, confirmation);
       } catch (e, st) {
         // The authoritative terminal may race a transport-level error from the
@@ -1570,16 +1507,10 @@ class SequenceExecutor {
     final retained = _lifecycle.finalization;
     if (retained != null) {
       final f = retained;
-      // The retry keeps the retained intent — EXCEPT the origin, which
-      // upgrades toward the operator: a human re-driving an autopilot's
-      // failed stop has genuinely commanded a stop, and that press must be
-      // recorded ("only a stop you command yourself is always recorded").
-      // The reverse never downgrades: once an operator pressed, the episode
-      // stays theirs whoever retries it. Scope: the upgrade reaches the
-      // native record only on the stopFailed half (the drive re-issues the
-      // native stop there); a cleanupFailed retry is a pure persistence
-      // re-drive — no native stop is sent, so the press advances the
-      // recovery but adds no decision row.
+      // The retry keeps the retained intent except the origin, which only
+      // upgrades toward the operator: a human retrying a system stop has
+      // commanded one, and an operator's episode stays theirs. Only the
+      // stopFailed half re-sends the native stop and so records the press.
       if (origin == null || origin == 'operator') {
         f.stopOrigin = origin;
       }
@@ -1646,31 +1577,11 @@ class SequenceExecutor {
 
   /// Abandon the rest of the current target and advance to the next one.
   ///
-  /// "Skip target" on the run dashboard: stop spending the night on the
-  /// target currently imaging (it clouded over, drifted behind a tree, the
-  /// user changed their mind) and jump straight to the next
-  /// [TargetHeaderNode] in the sequence. Any remaining nodes inside the
-  /// current target's subtree — further exposures, dithers, autofocus, the
-  /// post-target waits — are skipped; execution resumes at the top of the
-  /// next target.
-  ///
-  /// Only meaningful while [SequenceExecutionState.running] or
-  /// [SequenceExecutionState.paused]; the UI must gate the action on those
-  /// states. Throws [StateError] otherwise so the caller can surface a
-  /// snackbar, matching the contract the native skip-to-node primitive
-  /// already enforces.
-  ///
-  /// Implementation: the native executor has no dedicated skip-to-target
-  /// primitive, so this is built on top of [sequencerSkipToNode]. We resolve
-  /// the next target header in canonical (`orderIndex`) order from the
-  /// in-memory sequence, then issue a single jump to that header's node id.
-  /// The Rust side's `next_jump_target` walk fast-forwards through every
-  /// instruction between here and the target header — i.e. the whole
-  /// remainder of the current target's subtree — exactly as a manual
-  /// "skip to here" on the next target would, so no per-node skip storm is
-  /// needed. When there is no next target the run is finished cleanly via
-  /// [stop] (graceful, checkpoint discarded), which drives the dashboard to
-  /// idle the same way a natural end-of-sequence does.
+  /// The rest of the current target's subtree is skipped and execution resumes
+  /// at the next [TargetHeaderNode] in canonical order, through one native
+  /// skip-to-node jump. With no next target the run is finished with [stop],
+  /// as a natural end would. Throws [StateError] unless the run is running or
+  /// paused.
   ///
   /// Returns the [TargetHeaderNode.id] we jumped to, or `null` when there was
   /// no next target and the run was finished instead.
@@ -1971,17 +1882,10 @@ class SequenceExecutor {
     await _runtimeConfig.pushLaunchConfig(settings, isResume: true);
     await seedRuntimeConfigForNativeStart();
 
-    // Recover the sequence TREE from the interrupted run's stored snapshot,
-    // BEFORE the running-state flip below. The editor refuses edits once the
-    // executor reports running (`_ensureEditable` throws SequenceLockedException),
-    // so recovering any later silently fails and leaves the resumed run with no
-    // tree at all. This step touches no run resource, so it also belongs outside
-    // the acquisition transaction: a failure here needs no rollback.
-    //
-    // Without the tree, everything that reads it degrades silently: frames
-    // register with exposure_duration 0.0 and no gain/offset/binning/target
-    // (see `resolveFrameAttribution`), the Dashboard reads "no sequence loaded"
-    // while the run is imaging, and the run's history entry has no tree.
+    // Recover the tree from the interrupted run's snapshot BEFORE the
+    // running-state flip, after which the editor refuses edits. Frame
+    // attribution, the dashboard and the run history all read the tree. It
+    // acquires no run resource, so a failure needs no rollback.
     final recoveredSnapshotJson = await _recoverResumedSequence(
       info.sequenceName,
     );
@@ -2074,10 +1978,8 @@ class SequenceExecutor {
   /// `POST /api/sequencer/load` -> `POST /api/sequencer/start`, which never
   /// calls [start].
   ///
-  /// The listener is what turns a native `FrameCaptured` into a
-  /// `captured_images` row, advances the session counters, feeds progress and
-  /// the run vitals, and drives auto-grading. Without it a night's frames land
-  /// on disk and the database never hears about them.
+  /// Without the subscription a night's frames land on disk and the database
+  /// never hears about them.
   ///
   /// Idempotent (it cancels any existing subscription first) and safe to call
   /// before every native start: a run that ended in `stopFailed` /

@@ -584,20 +584,10 @@ class RunEventHandler {
     );
   }
 
-  /// Route a `PluginNodeRequested` event into the
-  /// configured dispatcher and post the verdict back through the
-  /// bridge.
-  ///
-  /// Implementation contract:
-  ///   * The dispatcher MUST not throw. If it does (e.g. provider
-  ///     overrides went wrong), we still post a failure verdict so
-  ///     the executor unblocks instead of timing out at the 10-minute
-  ///     default.
-  ///   * The verdict is posted via
-  ///     `backend.sequencerPluginNodeFinished` — same channel pattern
-  ///     as every other sequencer command.
-  ///   * We fire-and-forget; the caller ([handle])
-  ///     returns immediately so other events keep flowing.
+  /// Run a `PluginNodeRequested` through the configured dispatcher and post
+  /// the verdict back. A dispatcher that throws still yields a failure
+  /// verdict, so the native node unblocks instead of waiting out its timeout.
+  /// Fire-and-forget, so other events keep flowing.
   void _dispatchPluginNode(PluginNodeRequested event) {
     final nodeId = event.nodeId ?? '';
     final pluginId = event.pluginId ?? '';
@@ -727,15 +717,7 @@ class RunEventHandler {
         );
   }
 
-  /// Record the verdict of a meridian flip into the live run stats.
-  ///
-  /// The flip is the most dangerous unattended operation the app performs, so
-  /// the run record has to carry its verdict: unrecorded, a trigger-driven flip
-  /// that slewed the mount across the pier finishes the night with
-  /// `meridianFlips: 0`, and a flip whose post-flip recenter FAILED finishes
-  /// with `errorMessages: []` on a run reported as `completed`.
-  ///
-  /// The three outcomes map to three different truths:
+  /// Record a meridian flip's verdict on the run record:
   ///  * clean success (one attempt, no failed steps) -> count it, nothing more;
   ///  * degraded success (the retry ladder ran but the flip eventually worked)
   ///    -> count it AND warn, because a recenter that needed retries means the
