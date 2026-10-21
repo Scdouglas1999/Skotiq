@@ -1,0 +1,29 @@
+{
+  "description": "Star-detection regression frames. Real frames are crops copied pixel-for-pixel from the owner's subs of 2026-10-21 UTC (ASI1600MM, 0.79 arcsec/px) and an older 240 s dark; NSCROPX0/NSCROPY0 in each header give the crop origin. The defocused frames are the focused crop, background-subtracted, convolved with an annular pupil (outer radius R px, central obstruction 0.6 of the radius) and given back the sky noise the convolution removed, then quantized to the camera's 16-ADU steps.",
+  "independent_measurement": "SEP 1.4 (Source Extractor in Python): 64 px background mesh, matched filter, 5 sigma, minarea 5, deblend_cont 0.005. HFR is sep.flux_radius at 0.5 over the background-subtracted frame, median over the brightest sources. focused_L_deep_stack_sources.csv lists the sources SEP finds at 3 or 5 sigma in a median stack of the twelve L subs 001-012 (integer-registered), in crop coordinates: the sources that are certainly real.",
+  "frames": [
+    {
+      "file": "focused_L.fits",
+      "source": "NGC7380/NGC0891_L_0001_001.fits (L, 90 s)",
+      "independent": { "sep_5sigma_count": 38, "sep_hfr_px": 2.454, "deep_stack_sources": 67 }
+    },
+    { "file": "defocus_R06.fits", "annulus_outer_radius_px": 6, "independent": { "sep_hfr_px": 5.38 } },
+    { "file": "defocus_R12.fits", "annulus_outer_radius_px": 12, "independent": { "sep_hfr_px": 10.022 } },
+    { "file": "defocus_R20.fits", "annulus_outer_radius_px": 20, "independent": { "sep_hfr_px": 16.68 } },
+    {
+      "file": "dark_240s.fits",
+      "source": "N.I.N.A/2026-01-21/DARK/2026-01-21_17-43-00_DARK_-15.00_240.00s_0000.fits",
+      "independent": { "stars": 0 }
+    },
+    {
+      "file": "no_stars_L.fits",
+      "source": "NGC7380/Unknown_L_2026-10-17_0003.fits (1 s, no stars in the frame: vignetting and dust shadows only)",
+      "independent": { "stars": 0 }
+    },
+    {
+      "file": "trailed_R.fits",
+      "source": "NGC7380/Reject/NGC0891_R_0001.fits (120 s with the mount moving: every source is a trail)",
+      "independent": { "round_stars": 0 }
+    }
+  ]
+}
