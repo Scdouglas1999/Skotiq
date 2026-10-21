@@ -12,6 +12,7 @@
 // The backend must get null until there is a site, and the site once there is.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/services/location_sync_service.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
@@ -40,14 +41,27 @@ class _RecordingBackend implements ProfileSettingsBackend {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _MockNetworkBackend extends Mock implements NetworkBackend {}
+
+class _FixedBackendNotifier extends BackendNotifier {
+  _FixedBackendNotifier(super.ref, SkotiqBackend backend) : super() {
+    state = backend;
+  }
+}
+
 Future<List<ObserverLocation?>> _backendPushesFor(
-  AppSettingsState settings,
-) async {
+  AppSettingsState settings, {
+  SkotiqBackend? activeBackend,
+}) async {
   final backend = _RecordingBackend();
   final container = ProviderContainer(
     overrides: [
       appSettingsProvider.overrideWith(() => _FixedSettings(settings)),
       profileSettingsBackendProvider.overrideWithValue(backend),
+      if (activeBackend != null)
+        backendProvider.overrideWith(
+          (ref) => _FixedBackendNotifier(ref, activeBackend),
+        ),
     ],
   );
   addTearDown(container.dispose);
@@ -109,5 +123,21 @@ void main() {
     final pushes = await _backendPushesFor(elevationOnly);
 
     expect(pushes.single, isNull);
+  });
+
+  // A linked client's settings are the host's, mirrored; the host owns its
+  // site.
+  test('a linked client never pushes the site back to the host', () async {
+    const mirrored = AppSettingsState(
+      latitude: 39.9719,
+      longitude: -75.3576,
+    );
+
+    final pushes = await _backendPushesFor(
+      mirrored,
+      activeBackend: _MockNetworkBackend(),
+    );
+
+    expect(pushes, isEmpty);
   });
 }

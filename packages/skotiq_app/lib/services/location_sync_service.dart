@@ -94,7 +94,13 @@ final locationSyncProvider = Provider<void>((ref) {
 ///
 /// [site] is null when the operator has not set one, and null is what the
 /// backend must be told: it has no coordinate that means "unset".
+///
+/// Skipped for a linked client: its settings are the host's, mirrored, and the
+/// host owns its site. Pushing them back would rewrite the host's settings and
+/// could restore a site the host has since changed. A location edited on the
+/// client reaches the host through the settings save.
 Future<void> _syncLocationToBackend(Ref ref, ObserverLocation? site) async {
+  if (ref.read(backendProvider) is NetworkBackend) return;
   try {
     final backend = ref.read(profileSettingsBackendProvider);
     developer.log(
