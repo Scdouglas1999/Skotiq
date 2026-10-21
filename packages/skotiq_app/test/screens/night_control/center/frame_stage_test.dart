@@ -55,7 +55,7 @@ void main() {
     expect(find.textContaining('Accepted'), findsOneWidget);
     // The next frame of the run is exposing.
     expect(find.textContaining('#44 exposing'), findsOneWidget);
-    expect(find.textContaining('72 / 180 s'), findsOneWidget);
+    expect(find.textContaining('108 s left'), findsOneWidget);
     expect(
       find.bySemanticsLabel(RegExp(r'^Latest frame: #43 · Ha 180 s')),
       findsOneWidget,
@@ -80,7 +80,7 @@ void main() {
       child: const FrameStage(),
     );
     expect(find.textContaining('#44 exposing'), findsOneWidget);
-    expect(find.textContaining('60 / 180 s'), findsOneWidget);
+    expect(find.textContaining('120 s left'), findsOneWidget);
     await tester.pump(const Duration(seconds: 1));
   });
 

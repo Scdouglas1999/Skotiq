@@ -29,6 +29,7 @@ import '../actions/night_action_controller.dart';
 import '../data/plan/night_header_provider.dart';
 import '../data/plan/night_run_phase_provider.dart';
 import '../data/plan/night_target_provider.dart';
+import '../data/session/camera_exposure_provider.dart';
 import '../data/session/session_frames_provider.dart';
 import '../night_control_contracts.dart';
 import 'center_format.dart';
@@ -126,7 +127,20 @@ class _ExposureStartRecorder extends Notifier<DateTime?> {
 }
 
 /// The camera's exposure in flight; null when it is idle.
+///
+/// The camera's own events say when every exposure starts, how long it is
+/// and when it ends, a run's frames included. The imaging service's progress
+/// is the fallback for a capture whose start this app did not see.
 final nightStageExposureProvider = Provider<NightExposureVm?>((ref) {
+  final camera = ref.watch(nightCameraExposureProvider);
+  if (camera != null) {
+    return NightExposureVm(
+      startedAt: camera.endsAt.subtract(
+        Duration(milliseconds: (camera.total * 1000).round()),
+      ),
+      total: camera.total,
+    );
+  }
   // Watched first so the recorder is alive before the next exposure starts;
   // one that started before Tonight opened has no known start.
   final startedAt = ref.watch(_exposureStartProvider);

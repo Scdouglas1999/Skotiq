@@ -165,10 +165,12 @@ class _TopPills extends ConsumerWidget {
       // The frame number is the run's next light frame; only the run's own
       // exposures get one.
       int? next;
+      String? filter;
       if (phase == NightRunPhase.running) {
         final frames = ref.watch(nightSessionFramesProvider);
         next =
             frames.isEmpty ? 1 : (frames.last.frameNumber ?? frames.length) + 1;
+        filter = ref.watch(nightHeaderProvider.select((h) => h.currentFilter));
       }
       return _PillText(
         title: next == null
@@ -177,7 +179,8 @@ class _TopPills extends ConsumerWidget {
                 'nightCtrExposingFrame',
                 params: <String, String>{'frame': '$next'},
               ),
-        mono: _exposureClock(exposure, nowUtc),
+        time: nightFilterExposure(filter, exposure.total),
+        mono: _exposureClock(l10n, exposure, nowUtc),
       );
     }
     if (nightIsBeforeRun(phase) && image != null) {
@@ -218,13 +221,22 @@ class _TopPills extends ConsumerWidget {
   }
 }
 
-/// `72 / 180 s`, `72 s`, or null when the elapsed time is unknown.
-String? _exposureClock(NightExposureVm exposure, DateTime nowUtc) {
+/// `108 s left`, `72 s` when the length is unknown, or null when the
+/// elapsed time is unknown. The length itself sits beside it in the pill.
+String? _exposureClock(
+  SkotiqLocalizations l10n,
+  NightExposureVm exposure,
+  DateTime nowUtc,
+) {
   final done = exposure.elapsedAt(nowUtc);
   final total = exposure.total;
-  if (done == null) return total == null ? null : nightExposure(total);
+  if (done == null) return null;
   if (total == null) return '${done.floor()} s';
-  return '${done.floor()} / ${nightExposure(total)}';
+  final left = (total - done).clamp(0.0, total).ceil();
+  return l10n.text(
+    'nightCtrSecondsLeft',
+    params: <String, String>{'seconds': '$left'},
+  );
 }
 
 class _Pill extends StatelessWidget {
