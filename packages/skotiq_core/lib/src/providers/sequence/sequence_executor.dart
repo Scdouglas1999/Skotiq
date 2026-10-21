@@ -2302,12 +2302,24 @@ class SequenceExecutor {
         // frames split between the target and "Untargeted".
         await _bindCatalogTargets(resumedSequence);
       }
-      final sessionNotifier = _ref.read(sessionStateProvider.notifier);
-      await sessionNotifier.startSession(
-        targetName: info.sequenceName,
-        profileId: _ref.read(activeEquipmentProfileProvider)?.id,
-        sequenceId: resumedSequence?.databaseId,
-      );
+      // The interrupted night's session may already be open again (the
+      // operator recovered it from the incomplete-sessions prompt); the
+      // continued run belongs to it rather than to a second session.
+      if (_ref.read(sessionStateProvider).isActive) {
+        _logger.info(
+          'Continuing "${info.sequenceName}" in the session that is already '
+          'open',
+          source: 'SequenceExecutor',
+        );
+      } else {
+        await _ref
+            .read(sessionStateProvider.notifier)
+            .startSession(
+              targetName: info.sequenceName,
+              profileId: _ref.read(activeEquipmentProfileProvider)?.id,
+              sequenceId: resumedSequence?.databaseId,
+            );
+      }
       await _openRunRecords(
         sequenceName: info.sequenceName,
         sequenceDatabaseId: resumedSequence?.databaseId,

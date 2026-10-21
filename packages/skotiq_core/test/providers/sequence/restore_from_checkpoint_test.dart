@@ -202,6 +202,37 @@ void main() {
     expect(executor.hasRestoredCheckpoint, isFalse);
   });
 
+  test(
+    'Start after a restore continues in a session already reopened',
+    () async {
+      final profileId = await EquipmentProfilesDao(
+        db,
+      ).createProfile(EquipmentProfilesCompanion.insert(name: 'Backyard Rig'));
+      final sequenceRowId = await SequencesDao(
+        db,
+      ).createSequence(SequencesCompanion.insert(name: 'M31 LRGB'));
+      final c = buildContainer(profileId: profileId);
+      c
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(_builderSequence(sequenceRowId));
+      final executor = c.read(sequenceExecutorProvider);
+      await executor.restoreFromCheckpoint();
+      // The interrupted night's session, reopened from the incomplete-sessions
+      // prompt before Start.
+      await c
+          .read(sessionStateProvider.notifier)
+          .startSession(targetName: 'M31 LRGB', profileId: profileId);
+
+      await executor.start();
+
+      expect(
+        c.read(sequenceExecutionStateProvider),
+        SequenceExecutionState.running,
+      );
+      expect(await sessionsDao.getActiveSessions(), hasLength(1));
+    },
+  );
+
   test('Start after editing the restored sequence starts it fresh', () async {
     final profileId = await EquipmentProfilesDao(
       db,
