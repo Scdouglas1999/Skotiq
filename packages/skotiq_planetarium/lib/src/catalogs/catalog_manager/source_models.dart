@@ -110,6 +110,10 @@ Future<http.StreamedResponse> _sendCatalogRequest(
 }
 
 String _normalizeCatalogSearchText(String value) {
+  // "Messier 42", "M 42" and "m042" are one designation; so are "Caldwell 49"
+  // and "C 049", "SH 2-129" and "Sh2-129".
+  final designation = CatalogDesignation.parse(value);
+  if (designation != null) return designation.key;
   final compact = value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
   return compact.replaceFirstMapped(
     RegExp(r'^(m|ngc|ic|hip|hd|hyg)0*(\d+)$'),

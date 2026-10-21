@@ -13,6 +13,8 @@ export 'src/catalogs/constellation_data.dart';
 export 'src/catalogs/constellation_names.dart';
 export 'src/catalogs/constellation_art.dart';
 export 'src/catalogs/catalog_manager.dart';
+export 'src/catalogs/target_designation.dart';
+export 'src/catalogs/target_name_resolver.dart';
 export 'src/catalogs/catalog_region_scan.dart';
 export 'src/catalogs/hyperleda_catalog.dart';
 export 'src/catalogs/glade_plus_catalog.dart';

@@ -10,6 +10,7 @@ import 'package:path/path.dart' as path;
 
 import '../astronomy/astronomy_calculations.dart';
 import 'hyg_depth.dart';
+import 'target_designation.dart';
 
 part 'catalog_manager/source_models.dart';
 part 'catalog_manager/manager.dart';

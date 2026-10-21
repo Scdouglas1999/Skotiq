@@ -185,12 +185,17 @@ const int _exactDesignationScore = -1;
 const Set<String> _bareNumberCatalogs = {'m', 'ngc', 'ic'};
 
 /// Split a catalogue designation into its prefix and number, e.g.
-/// `NGC 6720` -> `('ngc', 6720)`, `IC0059` -> `('ic', 59)`, `6720` -> `('', 6720)`.
+/// `NGC 6720` -> `('ngc', 6720)`, `Messier 42` -> `('m', 42)`,
+/// `Sh2-129` -> `('sh2', 129)`, `IC0059` -> `('ic', 59)`, `6720` -> `('', 6720)`.
 ///
 /// Returns null for anything that is not a single prefix + number, which keeps
 /// survey identifiers like `2MASX J21422663+1234093` or `ESO 287-052` out of
 /// designation matching entirely.
 ({String prefix, int number})? _splitDesignation(String value) {
+  final known = CatalogDesignation.parse(value);
+  if (known != null && known.suffix.isEmpty) {
+    return (prefix: known.catalog.toLowerCase(), number: known.number);
+  }
   final normalized = value.toLowerCase().replaceAll(RegExp(r'[\s_]+'), '');
   final match = RegExp(r'^([a-z]*)0*(\d+)$').firstMatch(normalized);
   if (match == null) return null;
@@ -212,77 +217,6 @@ bool _isExactDesignation(
   if (query.prefix.isEmpty) return _bareNumberCatalogs.contains(parsed.prefix);
   return parsed.prefix == query.prefix;
 }
-
-/// Map of well-known DSO common names to their catalog IDs
-/// Used as a supplemental lookup for objects whose common names
-/// may not be in the catalog data
-const Map<String, List<String>> _wellKnownDsoNames = {
-  'andromeda galaxy': ['M31', 'NGC224'],
-  'orion nebula': ['M42', 'NGC1976'],
-  'great orion nebula': ['M42', 'NGC1976'],
-  'ring nebula': ['M57', 'NGC6720'],
-  'crab nebula': ['M1', 'NGC1952'],
-  'whirlpool galaxy': ['M51', 'NGC5194'],
-  'sombrero galaxy': ['M104', 'NGC4594'],
-  'pinwheel galaxy': ['M101', 'NGC5457'],
-  'triangulum galaxy': ['M33', 'NGC598'],
-  'lagoon nebula': ['M8', 'NGC6523'],
-  'eagle nebula': ['M16', 'NGC6611'],
-  'pillars of creation': ['M16', 'NGC6611'],
-  'omega nebula': ['M17', 'NGC6618'],
-  'swan nebula': ['M17', 'NGC6618'],
-  'trifid nebula': ['M20', 'NGC6514'],
-  'dumbbell nebula': ['M27', 'NGC6853'],
-  'hercules cluster': ['M13', 'NGC6205'],
-  'great hercules cluster': ['M13', 'NGC6205'],
-  'wild duck cluster': ['M11', 'NGC6705'],
-  'pleiades': ['M45'],
-  'seven sisters': ['M45'],
-  'beehive cluster': ['M44', 'NGC2632'],
-  'praesepe': ['M44', 'NGC2632'],
-  'horsehead nebula': ['IC434'],
-  'flame nebula': ['NGC2024'],
-  'rosette nebula': ['NGC2237'],
-  'north america nebula': ['NGC7000'],
-  'pelican nebula': ['IC5070'],
-  'veil nebula': ['NGC6960', 'NGC6992'],
-  'owl nebula': ['M97', 'NGC3587'],
-  'cat eye nebula': ['NGC6543'],
-  'helix nebula': ['NGC7293'],
-  'double cluster': ['NGC869', 'NGC884'],
-  'bode galaxy': ['M81', 'NGC3031'],
-  'cigar galaxy': ['M82', 'NGC3034'],
-  'sunflower galaxy': ['M63', 'NGC5055'],
-  'black eye galaxy': ['M64', 'NGC4826'],
-  'sculptor galaxy': ['NGC253'],
-  'centaurus a': ['NGC5128'],
-  'southern pinwheel': ['M83', 'NGC5236'],
-  'antennae galaxies': ['NGC4038', 'NGC4039'],
-  'leo triplet': ['M65', 'M66', 'NGC3628'],
-  'hamburger galaxy': ['NGC3628'],
-  'needle galaxy': ['NGC4565'],
-  'cocoon nebula': ['IC5146'],
-  'bubble nebula': ['NGC7635'],
-  'elephant trunk nebula': ['IC1396'],
-  'barnard loop': ['Sh2-276'],
-  'soul nebula': ['IC1848'],
-  'heart nebula': ['IC1805'],
-  'running man nebula': ['NGC1977'],
-  'california nebula': ['NGC1499'],
-  'pacman nebula': ['NGC281'],
-  'flaming star nebula': ['IC405'],
-  'cone nebula': ['NGC2264'],
-  'christmas tree cluster': ['NGC2264'],
-  'blinking planetary': ['NGC6826'],
-  'blue snowball': ['NGC7662'],
-  'saturn nebula': ['NGC7009'],
-  'eskimo nebula': ['NGC2392'],
-  'little dumbbell': ['M76', 'NGC650'],
-  'phantom galaxy': ['M74', 'NGC628'],
-  'butterfly cluster': ['M6', 'NGC6405'],
-  'ptolemy cluster': ['M7', 'NGC6475'],
-  'starfish cluster': ['M38', 'NGC1912'],
-};
 
 /// Map of well-known star proper names to their common designations
 const Map<String, String> _wellKnownStarNames = {
@@ -377,7 +311,7 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
 
       // Check well-known name mappings first for DSO names
       final wellKnownIds = <String>{};
-      for (final entry in _wellKnownDsoNames.entries) {
+      for (final entry in kWellKnownDsoNames.entries) {
         final score = _scoreMatch(qLower, entry.key);
         if (score != null) {
           wellKnownIds.addAll(
@@ -488,8 +422,14 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
           filters.typeFilter != SearchObjectTypeFilter.stars) {
         try {
           final loadedDsos = await _ref.read(loadedDsosProvider.future);
+          final catalogIds = {for (final d in loadedDsos) d.id};
 
-          for (final dso in loadedDsos) {
+          for (final dso in [
+            ...loadedDsos,
+            // The Pleiades, M40 and a few Caldwell objects are not in the
+            // downloaded OpenNGC file; search them too.
+            ...kSupplementalDsos.where((d) => !catalogIds.contains(d.id)),
+          ]) {
             // Apply type filter
             if (!_passesDsoTypeFilter(dso, filters.typeFilter)) continue;
             if (!_passesFilters(dso, filters)) continue;
