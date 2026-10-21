@@ -314,7 +314,7 @@ fn a_parameter_of_the_wrong_type_is_rejected() {
 #[test]
 fn a_parameter_outside_its_range_is_rejected() {
     assert!(matches!(
-        StretchV1.validate_params(&json!({ "blackPoint": 0.0, "whitePoint": 1.0, "d": 101.0 })),
+        StretchV1.validate_params(&json!({ "blackPoint": 0.0, "whitePoint": 1.0, "d": 10_001.0 })),
         Err(OpError::ParamRange { key, .. }) if key == "d"
     ));
     assert!(matches!(
@@ -357,7 +357,7 @@ fn a_payload_that_is_not_an_object_is_rejected() {
 fn auto_parameters_lift_the_measured_background_to_the_target() {
     let base = synthetic_star_field(96, 96, 1, 55);
     let auto = auto_params(&base).expect("the frame has a measurable background");
-    assert_eq!(auto.b, 0.0);
+    assert_eq!(auto.b, 1.0);
     assert_eq!(auto.symmetry_point, 0.0);
     assert!(auto.white_point > auto.black_point);
     assert!(auto.d > 0.0);
@@ -374,6 +374,36 @@ fn auto_parameters_lift_the_measured_background_to_the_target() {
         (background - AUTO_TARGET_BACKGROUND).abs() < 1e-3,
         "the background lands on the target: {background}"
     );
+    // The white point is the brightest sample, so no star core is clipped.
+    let brightest = base.data().iter().copied().fold(f32::MIN, f32::max);
+    assert_eq!(auto.white_point, brightest as f64);
+    assert!(out.data().iter().all(|v| *v <= 1.0));
+}
+
+#[test]
+fn auto_parameters_measure_a_color_image_through_its_channel_mean() {
+    let mono = synthetic_star_field(96, 96, 1, 55);
+    let data: Vec<f32> = mono
+        .data()
+        .iter()
+        .flat_map(|v| [*v * 1.2, *v, *v * 0.8])
+        .collect();
+    let color = mono.with_geometry(96, 96, 3, data).expect("color image");
+    let from_mono = auto_params(&mono).expect("mono");
+    let from_color = auto_params(&color).expect("color");
+    assert!((from_color.black_point - from_mono.black_point).abs() < 1e-3);
+    assert!((from_color.d - from_mono.d).abs() / from_mono.d < 1e-6);
+}
+
+#[test]
+fn a_deep_background_is_lifted_with_an_intensity_beyond_the_old_ceiling() {
+    // A background 0.1% of the range above black needs D far above 100.
+    let d = solve_intensity(0.001, AUTO_TARGET_BACKGROUND, 1.0);
+    assert!(d > 100.0, "{d}");
+    let y = Curve::new(d, 1.0, 0.0).eval(0.001);
+    assert!((y - AUTO_TARGET_BACKGROUND).abs() < 1e-6, "{y}");
+    // At b = 1 the curve is the midtones transfer function x(1+D)/(1+Dx).
+    assert!((y - 0.001 * (1.0 + d) / (1.0 + d * 0.001)).abs() < 1e-9);
 }
 
 #[test]
