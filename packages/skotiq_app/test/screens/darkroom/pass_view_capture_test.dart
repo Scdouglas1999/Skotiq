@@ -116,7 +116,18 @@ void main() {
   ) async {
     final log = _readLog(logPath!);
     await tester.runAsync(() => _decodeAll(log));
-    final timeline = PassTimeline.fromLog(log);
+    // PASSVIZ_RATES names a stored rates.json: the stage timings an earlier
+    // pass left, as the app reads them to estimate stages not yet run.
+    final ratesPath = Platform.environment['PASSVIZ_RATES'];
+    final history = ratesPath == null
+        ? const <String, double>{}
+        : <String, double>{
+            for (final e in (jsonDecode(File(ratesPath).readAsStringSync())
+                    as Map<String, dynamic>)
+                .entries)
+              e.key: (e.value as num).toDouble(),
+          };
+    final timeline = PassTimeline.fromLog(log, history: history);
     final lead = timeline.lanes.first;
     final reg = lead.span(PassStage.register);
     final norm = lead.span(PassStage.normalize);
