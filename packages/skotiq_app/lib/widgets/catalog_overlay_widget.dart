@@ -50,6 +50,10 @@ class CatalogOverlayWidget extends ConsumerWidget {
   /// true — the mission requires errors to surface rather than hide.
   final bool showFallbackBanner;
 
+  /// The frame's background solve, which says why [wcs] is missing: still
+  /// solving, failed, or no solver set up.
+  final FrameSolveVm? frameSolve;
+
   const CatalogOverlayWidget({
     super.key,
     required this.wcs,
@@ -57,6 +61,7 @@ class CatalogOverlayWidget extends ConsumerWidget {
     required this.imageOffset,
     required this.imageSize,
     this.showFallbackBanner = true,
+    this.frameSolve,
   });
 
   @override
@@ -67,11 +72,7 @@ class CatalogOverlayWidget extends ConsumerWidget {
     final w = wcs;
     if (w == null || !w.isValid) {
       if (!showFallbackBanner) return const SizedBox.shrink();
-      return const CatalogOverlayBanner(
-        icon: LucideIcons.alertTriangle,
-        title: 'Catalog overlay unavailable',
-        message: 'Solve this frame to project catalog objects.',
-      );
+      return unsolvedFrameBanner(frameSolve);
     }
 
     final magnitudeLimit = ref.watch(catalogOverlayMagnitudeLimitProvider);
@@ -152,6 +153,42 @@ class CatalogOverlayWidget extends ConsumerWidget {
       return 'Install the HYG star catalog in Settings > Catalogs.';
     }
     return 'Install the selected catalog in Settings > Catalogs.';
+  }
+}
+
+/// Why a frame has no catalog labels yet, from its background solve.
+@visibleForTesting
+CatalogOverlayBanner unsolvedFrameBanner(FrameSolveVm? solve) {
+  switch (solve?.status) {
+    case FrameSolveStatus.waiting:
+    case FrameSolveStatus.solving:
+      return const CatalogOverlayBanner(
+        icon: LucideIcons.loader,
+        title: 'Solving this frame',
+        message: 'Catalog labels appear when the plate solve finishes.',
+      );
+    case FrameSolveStatus.failed:
+      return CatalogOverlayBanner(
+        icon: LucideIcons.alertTriangle,
+        title: 'This frame did not solve',
+        message: solve?.message ?? 'The plate solver found no solution.',
+        tone: CatalogOverlayBannerTone.error,
+      );
+    case FrameSolveStatus.noSolver:
+      return const CatalogOverlayBanner(
+        icon: LucideIcons.settings,
+        title: 'No plate solver set up',
+        message: 'Set up ASTAP or astrometry.net in Settings > Plate Solving '
+            'to label frames.',
+      );
+    case FrameSolveStatus.solved:
+    case null:
+      return const CatalogOverlayBanner(
+        icon: LucideIcons.alertTriangle,
+        title: 'Catalog overlay unavailable',
+        message: 'Only light frames saved to disk are plate solved for '
+            'labels.',
+      );
   }
 }
 

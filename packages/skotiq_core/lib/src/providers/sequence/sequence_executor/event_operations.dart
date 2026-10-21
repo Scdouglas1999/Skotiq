@@ -1179,8 +1179,14 @@ extension _SequenceExecutorEventOperations on SequenceExecutor {
       filter: event.data['filter'] as String?,
       accepted: accepted,
     );
+    // The saved file travels with the preview, so what is worked out from
+    // the file (the background plate solve, the star overlay) can find it.
+    final path = accepted
+        ? event.data['save_path'] as String?
+        : event.data['reject_path'] as String?;
     _fetchAndDisplaySequenceImage(
       _previewSettingsForFrame(capture, capture.exposureSecs ?? 0.0),
+      filePath: path == null || path.isEmpty ? null : path,
     );
     final frame = (event.data['frame'] as num?)?.toInt();
     if (frame == null) return;

@@ -582,6 +582,12 @@ void main() {
       expect(settings.offset, 30);
       expect(settings.binningX, 2);
       expect(settings.binningY, 2);
+      // The background plate solve and the star overlay read the frame's
+      // file; a run frame published without it was never solved.
+      expect(
+        container.read(currentImageProvider)!.filePath,
+        '/tmp/light_0001.fits',
+      );
     });
   });
 }

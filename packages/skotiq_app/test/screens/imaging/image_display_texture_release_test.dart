@@ -109,4 +109,61 @@ void main() {
       reason: 'the texture outlived the widget that owned it',
     );
   });
+
+  testWidgets('follows the stretch off to linear and back on', (tester) async {
+    final data = frame(4);
+    final linear = Uint8List(4 * 4 * 4)..[0] = 99;
+    final rendering = StateProvider<Uint8List?>((ref) => null);
+    final container = ProviderContainer(
+      overrides: [
+        stretchedImageProvider.overrideWith(
+          (ref) async => ref.watch(rendering),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(currentImageProvider.notifier).state = data;
+
+    Future<void> settle() async {
+      await tester.runAsync(() async {
+        await tester.pump();
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pump();
+    }
+
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: ImageDisplayWidget(
+              imageData: data,
+              zoomLevel: 1,
+              panOffset: Offset.zero,
+            ),
+          ),
+        ),
+      );
+    });
+    await settle();
+    final state = tester.state<State<ImageDisplayWidget>>(
+      find.byType(ImageDisplayWidget),
+    );
+    Uint8List? shown() => (state as dynamic).debugDecodedPixels as Uint8List?;
+    expect(identical(shown(), data.displayData), isTrue);
+
+    // Stretch off: the linear rendering replaces the display data.
+    container.read(rendering.notifier).state = linear;
+    await settle();
+    await settle();
+    expect(identical(shown(), linear), isTrue);
+
+    // Back on: the frame's own (stretched) display data comes back. This is
+    // the step that used to leave the last rendering on screen.
+    container.read(rendering.notifier).state = null;
+    await settle();
+    await settle();
+    expect(identical(shown(), data.displayData), isTrue);
+  });
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:typed_data';
 import 'dart:math' as math;
@@ -17,17 +18,25 @@ import 'imaging_provider.dart';
 
 // Stretched image provider
 
-/// Provider that applies auto-stretch to the current captured image.
+/// Provider that renders the current captured image for the screen.
 ///
-/// The result is PREVIEW ONLY — the original data is never modified — and the
-/// stretch runs in an isolate so it cannot block the UI thread.
+/// The result is PREVIEW ONLY: the original data is never modified. Null means
+/// "show the frame's own display data", which already carries the default
+/// screen stretch (the native STF applied when the frame was read out). So:
+///
+/// * stretch on with the default STF parameters: null, nothing to compute;
+/// * stretch on with another method or tuned parameters: that stretch of the
+///   raw pixels;
+/// * stretch off: the raw pixels scaled linearly, darkest to brightest.
+///
+/// The linear and Dart stretches run in an isolate so they cannot block the
+/// UI thread.
 final stretchedImageProvider = FutureProvider.autoDispose<Uint8List?>((
   ref,
 ) async {
   final settings = ref.watch(autoStretchSettingsProvider);
 
-  // If auto-stretch is disabled, return null (UI should show original display data)
-  if (!settings.enabled) {
+  if (settings.enabled && isDefaultScreenStretch(settings)) {
     return null;
   }
 
@@ -40,26 +49,35 @@ final stretchedImageProvider = FutureProvider.autoDispose<Uint8List?>((
   final backend = ref.watch(deviceBackendProvider);
   final cameraDeviceId = ref.read(connectedCameraIdProvider);
 
-  if (cameraDeviceId == null) {
-    // No camera connected - fall back to display data
-    return imageData.displayData;
-  }
-
   try {
-    Uint16List? rawData = imageData.rawU16;
+    Uint16List? rawData = imageData.hasRawReady ? imageData.rawU16 : null;
 
-    if (rawData == null || !imageData.hasRawReady) {
-      if (imageData.rawLoadStatus == RawLoadStatus.loading ||
-          imageData.rawLoadStatus == RawLoadStatus.failed) {
-        // Progressive preview: JPEG is visible; raw loads in background or failed.
-        return imageData.displayData;
+    if (rawData == null) {
+      if (imageData.rawLoadStatus == RawLoadStatus.loading) {
+        // The frame is published again when its raw pixels land, which runs
+        // this again. Until then stay loading, so the screen keeps what it
+        // shows instead of flashing the stretched display data in between.
+        return Completer<Uint8List?>().future;
+      }
+      if (cameraDeviceId == null) {
+        // No raw pixels to be had: the display data stays up.
+        return null;
       }
 
-      final rawDataList = await backend.getLastRawImageData(cameraDeviceId);
-      if (rawDataList.isEmpty) {
-        return imageData.displayData;
+      rawData = rawPixelsFromBackend(
+        await backend.getLastRawImageData(cameraDeviceId),
+        pixelCount: imageData.width * imageData.height,
+      );
+      if (rawData == null) {
+        return null;
       }
-      rawData = Uint16List.fromList(rawDataList);
+    }
+
+    if (!settings.enabled) {
+      return compute(
+        linearDisplayRgba,
+        LinearDisplayParams(rawData, imageData.width, imageData.height),
+      );
     }
 
     // Apply stretch based on method
@@ -71,16 +89,95 @@ final stretchedImageProvider = FutureProvider.autoDispose<Uint8List?>((
       settings: settings,
     );
   } catch (e) {
-    // On error, return the original display data (which is already stretched)
+    // On error, fall back to the original display data (already stretched)
     developer.log(
       '[AutoStretch] Error applying stretch: $e',
       name: 'AutoStretch',
       level: 1000,
       error: e,
     );
-    return imageData.displayData;
+    return null;
   }
 });
+
+/// The camera's last raw frame as 16-bit samples: one per pixel (mono or a
+/// colour sensor's mosaic) or three (debayered RGB). The local bridge hands
+/// back one value per sample and a remote host the little-endian bytes; null
+/// when the length fits neither for [pixelCount] pixels (another frame's, or
+/// none).
+Uint16List? rawPixelsFromBackend(List<int> raw, {required int pixelCount}) {
+  if (raw.isEmpty || pixelCount <= 0) return null;
+  if (raw.length == pixelCount || raw.length == pixelCount * 3) {
+    return raw is Uint16List ? raw : Uint16List.fromList(raw);
+  }
+  if (raw.length == pixelCount * 2 || raw.length == pixelCount * 6) {
+    return Uint16List.view(Uint8List.fromList(raw).buffer);
+  }
+  return null;
+}
+
+/// Whether [settings] ask for exactly the stretch every frame already
+/// carries: STF with its default parameters. Channel linking is left out
+/// because the native preview stretch has no unlinked form for mono frames
+/// and links colour ones the same way.
+bool isDefaultScreenStretch(AutoStretchSettings settings) {
+  final defaults = AutoStretchSettings.defaults();
+  return settings.method == AutoStretchMethod.stf &&
+      settings.shadowClip == defaults.shadowClip &&
+      settings.highlightClip == defaults.highlightClip &&
+      settings.targetMedian == defaults.targetMedian;
+}
+
+/// Input to [linearDisplayRgba].
+class LinearDisplayParams {
+  const LinearDisplayParams(this.raw, this.width, this.height);
+
+  final Uint16List raw;
+  final int width;
+  final int height;
+}
+
+/// The raw frame scaled linearly to 8 bits, the frame's darkest pixel black
+/// and its brightest white, as RGBA. No curve: this is the frame as recorded,
+/// which on a deep-sky frame is mostly dark with the brighter stars showing.
+///
+/// A mono frame has width * height samples; a colour one width * height * 3
+/// interleaved RGB samples. Any other length is refused.
+Uint8List linearDisplayRgba(LinearDisplayParams params) {
+  final raw = params.raw;
+  final pixels = params.width * params.height;
+  final channels = raw.length == pixels * 3 ? 3 : 1;
+  if (raw.length != pixels * channels) {
+    throw ArgumentError(
+      'Raw length ${raw.length} fits neither ${params.width}x${params.height} '
+      'mono nor RGB',
+    );
+  }
+  var lo = 65535;
+  var hi = 0;
+  for (final v in raw) {
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  final span = hi > lo ? hi - lo : 1;
+  final out = Uint8List(pixels * 4);
+  for (var i = 0; i < pixels; i++) {
+    final o = i * 4;
+    if (channels == 3) {
+      final s = i * 3;
+      out[o] = ((raw[s] - lo) * 255 ~/ span).clamp(0, 255);
+      out[o + 1] = ((raw[s + 1] - lo) * 255 ~/ span).clamp(0, 255);
+      out[o + 2] = ((raw[s + 2] - lo) * 255 ~/ span).clamp(0, 255);
+    } else {
+      final g = ((raw[i] - lo) * 255 ~/ span).clamp(0, 255);
+      out[o] = g;
+      out[o + 1] = g;
+      out[o + 2] = g;
+    }
+    out[o + 3] = 255;
+  }
+  return out;
+}
 
 /// Provider for the connected camera device ID.
 ///

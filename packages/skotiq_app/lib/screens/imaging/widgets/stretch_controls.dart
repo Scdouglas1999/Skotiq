@@ -121,7 +121,8 @@ class _CompactStretchControls extends StatelessWidget {
         SkotiqTooltip(
           message: rawLoading
               ? 'Loading HQ raw — stretch will apply when ready'
-              : 'Enable auto-stretch to enhance faint details in linear data',
+              : 'On: the frame stretched to show faint detail. Off: linear, '
+                  'as recorded.',
           position: SkotiqTooltipPosition.bottom,
           child: SkotiqSwitchRow(
             label: rawLoading ? 'Stretch (HQ…)' : 'Stretch',

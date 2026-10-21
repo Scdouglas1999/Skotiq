@@ -1463,16 +1463,25 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrBackToLatest': 'Back to latest',
     'nightCtrViewStretch': 'Stretch',
     'nightCtrViewStretchTip':
-        'Auto-stretch the frame on screen. The saved file does not change.',
+        'On: the frame stretched to show faint detail. Off: linear, as '
+            'recorded. The saved file does not change.',
     'nightCtrViewStars': 'Stars',
-    'nightCtrViewStarsTip': 'Mark the stars found in this frame',
+    'nightCtrViewStarsTip':
+        'Circle the stars found in this frame, sized by their HFR',
     'nightCtrViewAnnotate': 'Annotate',
     'nightCtrViewAnnotateTip':
-        'Label catalog objects. The frame must be plate solved.',
+        'Label catalog objects. Each light frame is plate solved in the '
+            'background.',
     'nightCtrViewZoom': 'Zoom 1:1',
     'nightCtrViewZoomTip': 'One image pixel per screen pixel',
     'nightCtrViewFit': 'Fit',
     'nightCtrViewFitTip': 'Fit the whole frame in the view',
+    'nightCtrStarsFinding': 'Finding stars…',
+    'nightCtrStarsFound': '{count} stars',
+    'nightCtrStarsFoundOne': '1 star',
+    'nightCtrStarsNone': 'No stars found',
+    'nightCtrStarsFailed': 'Star detection failed',
+    'nightCtrStarsNoFile': 'No saved file to find stars in',
     'nightCtrActionsLabel': 'Manual actions',
     'nightCtrHintIdle': 'Nothing is running · actions run right away',
     'nightCtrStripLabel': 'Frames this session',
@@ -3030,16 +3039,26 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrBackToLatest': 'Volver a la última',
     'nightCtrViewStretch': 'Estirar',
     'nightCtrViewStretchTip':
-        'Estira automáticamente la toma en pantalla. El archivo guardado no cambia.',
+        'Activado: la toma estirada para mostrar el detalle débil. '
+            'Desactivado: lineal, tal como se grabó. El archivo guardado no '
+            'cambia.',
     'nightCtrViewStars': 'Estrellas',
-    'nightCtrViewStarsTip': 'Marca las estrellas encontradas en esta toma',
+    'nightCtrViewStarsTip':
+        'Marca con un círculo las estrellas de esta toma, según su HFR',
     'nightCtrViewAnnotate': 'Anotar',
     'nightCtrViewAnnotateTip':
-        'Etiqueta objetos del catálogo. La toma debe estar resuelta.',
+        'Etiqueta objetos del catálogo. Cada toma de luz se resuelve en '
+            'segundo plano.',
     'nightCtrViewZoom': 'Zoom 1:1',
     'nightCtrViewZoomTip': 'Un píxel de imagen por píxel de pantalla',
     'nightCtrViewFit': 'Ajustar',
     'nightCtrViewFitTip': 'Ajusta la toma completa a la vista',
+    'nightCtrStarsFinding': 'Buscando estrellas…',
+    'nightCtrStarsFound': '{count} estrellas',
+    'nightCtrStarsFoundOne': '1 estrella',
+    'nightCtrStarsNone': 'No se encontraron estrellas',
+    'nightCtrStarsFailed': 'Falló la detección de estrellas',
+    'nightCtrStarsNoFile': 'No hay archivo guardado donde buscar estrellas',
     'nightCtrActionsLabel': 'Acciones manuales',
     'nightCtrHintIdle':
         'No hay nada en marcha · las acciones se ejecutan al momento',

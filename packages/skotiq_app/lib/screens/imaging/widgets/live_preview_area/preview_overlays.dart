@@ -203,6 +203,7 @@ _CurrentImageSkySolution _resolveCurrentImageSkySolution({
   required ImageAnnotation? annotation,
   required int width,
   required int height,
+  FrameSolveVm? frameSolve,
 }) {
   final catalogWcs = _solvedWcsFromImage(
     wcs: wcs,
@@ -220,6 +221,16 @@ _CurrentImageSkySolution _resolveCurrentImageSkySolution({
   final annotationWcs = annotationSolve == null
       ? null
       : _solvedWcsFromPlateSolve(annotationSolve);
+  // The frame's background solve, when nothing saved or annotated covers it.
+  final autoWcs = annotationWcs == null
+      ? frameSolve?.wcsFor(width: width, height: height)
+      : null;
+  if (autoWcs != null) {
+    return _CurrentImageSkySolution(
+      catalogWcs: autoWcs,
+      plateSolve: _plateSolveFromSolvedWcs(autoWcs),
+    );
+  }
   return _CurrentImageSkySolution(
     catalogWcs: annotationWcs,
     plateSolve: annotationSolve,

@@ -421,6 +421,7 @@ export 'src/services/wcs/wcs_sip_codec.dart';
 export 'src/services/hips/healpix_nested.dart';
 export 'src/services/catalog_overlay_service.dart';
 export 'src/providers/catalog_overlay_provider.dart';
+export 'src/providers/current_frame_analysis_provider.dart';
 export 'src/services/annotation_service.dart';
 export 'src/services/scheduler_service.dart';
 export 'src/services/scheduler/scheduler_engine.dart';

@@ -318,6 +318,61 @@ class _Pill extends StatelessWidget {
   }
 }
 
+/// What the star overlay found on the frame on screen, beside the view
+/// buttons; nothing while the overlay is off.
+class _OverlayStatus extends ConsumerWidget {
+  const _OverlayStatus();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    if (!ref.watch(
+      imagingViewerStateProvider.select((v) => v.showStarOverlay),
+    )) {
+      return const SizedBox.shrink();
+    }
+    final stars = ref.watch(currentFrameStarsProvider);
+    final _PillText text = stars.when(
+      loading: () => _PillText(
+        title: l10n.text('nightCtrStarsFinding'),
+        dot: _PillTone.active,
+      ),
+      error: (_, __) => _PillText(
+        title: l10n.text('nightCtrStarsFailed'),
+        dot: _PillTone.bad,
+      ),
+      data: (result) {
+        if (result == null) {
+          return _PillText(title: l10n.text('nightCtrStarsNoFile'));
+        }
+        if (result.stars.isEmpty) {
+          return _PillText(title: l10n.text('nightCtrStarsNone'));
+        }
+        final hfr = result.medianHfr;
+        return _PillText(
+          title: result.stars.length == 1
+              ? l10n.text('nightCtrStarsFoundOne')
+              : l10n.text(
+                  'nightCtrStarsFound',
+                  params: <String, String>{'count': '${result.stars.length}'},
+                ),
+          dot: _PillTone.good,
+          mono: hfr > 0 && hfr.isFinite
+              ? l10n.text(
+                  'nightCtrHfrValue',
+                  params: <String, String>{'hfr': hfr.toStringAsFixed(2)},
+                )
+              : null,
+        );
+      },
+    );
+    return Align(
+      alignment: Alignment.bottomLeft,
+      child: _Pill(text: text, liveRegion: true),
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Buttons over the frame
 // ---------------------------------------------------------------------------
@@ -430,10 +485,23 @@ class _StageButton extends StatelessWidget {
         color: on
             ? colors.primary.withValues(alpha: SkotiqTokens.opacityStrong)
             : colors.surface.withValues(alpha: 0.86),
-        borderRadius: SkotiqTokens.borderRadiusLg,
+        // An on toggle keeps its outline under the pointer: the hover wash
+        // alone read as off right after the click that turned it on.
+        shape: RoundedRectangleBorder(
+          borderRadius: SkotiqTokens.borderRadiusLg,
+          side: on
+              ? BorderSide(
+                  color: colors.primary.withValues(
+                    alpha: SkotiqTokens.opacitySelectedRing,
+                  ),
+                )
+              : BorderSide.none,
+        ),
         child: InkWell(
           onTap: onPressed,
           borderRadius: SkotiqTokens.borderRadiusLg,
+          hoverColor:
+              colors.textPrimary.withValues(alpha: SkotiqTokens.opacitySubtle),
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 26),
             child: Padding(

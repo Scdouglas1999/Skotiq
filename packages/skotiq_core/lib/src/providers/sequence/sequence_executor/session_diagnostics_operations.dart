@@ -432,7 +432,12 @@ extension _SequenceExecutorSessionDiagnosticsOperations on SequenceExecutor {
   /// here because only the caller holds the frame event this preview belongs
   /// to; building it here is what left every sequence preview labelled with
   /// literals.
-  void _fetchAndDisplaySequenceImage(ExposureSettings settings) {
+  ///
+  /// [filePath] is the frame's saved file when the caller knows it.
+  void _fetchAndDisplaySequenceImage(
+    ExposureSettings settings, {
+    String? filePath,
+  }) {
     // Fire-and-forget; image display is non-critical for sequence correctness.
     Future(() async {
       try {
@@ -459,6 +464,7 @@ extension _SequenceExecutorSessionDiagnosticsOperations on SequenceExecutor {
           capturedImage: capturedImage,
           capturedAt: DateTime.now(),
           settings: settings,
+          filePath: filePath,
         );
 
         _ref
