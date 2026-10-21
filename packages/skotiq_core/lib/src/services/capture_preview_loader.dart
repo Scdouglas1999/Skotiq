@@ -100,11 +100,13 @@ class CapturePreviewPublisher {
         return;
       }
 
+      // getLastRawImageData returns u16 samples, one per pixel, from both the
+      // native bridge and the network backend.
       final expectedPixels = expectedWidth * expectedHeight;
-      if (rawList.length != expectedPixels * 2) {
+      if (rawList.length != expectedPixels) {
         developer.log(
-          '[CapturePreview] Raw byte length ${rawList.length} does not match '
-          '${expectedWidth}x$expectedHeight u16 ($expectedPixels pixels)',
+          '[CapturePreview] Raw sample count ${rawList.length} does not match '
+          '${expectedWidth}x$expectedHeight ($expectedPixels pixels)',
           name: 'CapturePreview',
           level: 900,
         );
@@ -114,7 +116,9 @@ class CapturePreviewPublisher {
         return;
       }
 
-      final rawU16 = Uint16List.view(Uint8List.fromList(rawList).buffer);
+      final rawU16 = rawList is Uint16List
+          ? rawList
+          : Uint16List.fromList(rawList);
 
       _read(ref, currentImageProvider.notifier).state = current.copyWith(
         rawU16: rawU16,

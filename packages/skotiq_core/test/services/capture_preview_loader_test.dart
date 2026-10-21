@@ -59,14 +59,14 @@ void main() {
   }
 
   test('publish shows JPEG immediately then merges raw when ready', () async {
-    final rawBytes = Uint8List(4 * 2 * 2);
-    for (var i = 0; i < rawBytes.length; i++) {
-      rawBytes[i] = i % 256;
-    }
+    // u16 samples, one per pixel: what both real backends return.
+    final rawSamples = Uint16List.fromList(
+      List<int>.generate(4 * 2, (i) => 1000 + i),
+    );
 
     when(
       () => mockBackend.getLastRawImageData(any()),
-    ).thenAnswer((_) async => rawBytes);
+    ).thenAnswer((_) async => rawSamples);
 
     final publisher = container.read(capturePreviewPublisherProvider);
     final preview = samplePreview();
@@ -86,6 +86,8 @@ void main() {
     expect(merged!.rawLoadStatus, RawLoadStatus.ready);
     expect(merged.rawU16, isNotNull);
     expect(merged.rawU16!.length, 4 * 2);
+    expect(merged.rawU16!.first, 1000);
+    expect(merged.hasRawReady, isTrue);
     expect(merged.displayData, preview.displayData);
   });
 
@@ -113,7 +115,7 @@ void main() {
       if (fetchCount == 1) {
         await Future<void>.delayed(const Duration(milliseconds: 200));
       }
-      return Uint8List(4 * 2 * 2);
+      return Uint16List(4 * 2);
     });
 
     final publisher = container.read(capturePreviewPublisherProvider);
@@ -151,7 +153,7 @@ void main() {
       backendNotifier.replaceBackend(replacementBackend);
       container.read(currentImageProvider.notifier).state = null;
 
-      rawResult.complete(Uint8List(4 * 2 * 2));
+      rawResult.complete(Uint16List(4 * 2));
       await pumpEventQueue(times: 5);
 
       expect(container.read(currentImageProvider), isNull);
