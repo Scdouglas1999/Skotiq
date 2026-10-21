@@ -347,3 +347,13 @@ async fn zwo_cooler_temp_range_requires_connection() {
         Err(NativeError::NotConnected)
     ));
 }
+
+/// `ASI_TARGET_TEMP` holds whole degrees: a set-point rounds to the nearest one
+/// instead of truncating toward zero, so a cold request is not made warmer.
+#[test]
+fn zwo_cooler_set_point_rounds_to_whole_degrees() {
+    assert_eq!(zwo_target_degrees(11.538), 12.0);
+    assert_eq!(zwo_target_degrees(11.1), 11.0);
+    assert_eq!(zwo_target_degrees(-10.7), -11.0);
+    assert_eq!(zwo_target_degrees(-10.2), -10.0);
+}

@@ -17,6 +17,7 @@ import 'package:skotiq_core/src/services/device_service.dart' as _i9;
 import 'package:skotiq_core/src/services/imaging_service.dart' as _i6;
 import 'package:skotiq_core/src/services/mount_home_watcher.dart' as _i12;
 import 'package:skotiq_core/src/services/plate_solve_service.dart' as _i8;
+import 'package:skotiq_core/src/services/camera_warmup_controller.dart' as _i13;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -499,19 +500,27 @@ class MockDeviceService extends _i1.Mock implements _i9.DeviceService {
           as _i7.Future<void>);
 
   @override
-  _i7.Future<void> warmCamera({double? ratePerMin = 2.0}) =>
+  _i7.Future<_i13.CameraWarmupOutcome> warmCamera({double? ratePerMin = 2.0}) =>
       (super.noSuchMethod(
             Invocation.method(#warmCamera, [], {#ratePerMin: ratePerMin}),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
+            returnValue: _i7.Future<_i13.CameraWarmupOutcome>.value(
+              _i13.CameraWarmupOutcome.started,
+            ),
+            returnValueForMissingStub:
+                _i7.Future<_i13.CameraWarmupOutcome>.value(
+                  _i13.CameraWarmupOutcome.started,
+                ),
           )
-          as _i7.Future<void>);
+          as _i7.Future<_i13.CameraWarmupOutcome>);
 
   @override
-  void cancelWarmCamera() => super.noSuchMethod(
-    Invocation.method(#cancelWarmCamera, []),
-    returnValueForMissingStub: null,
-  );
+  void cancelWarmCamera({bool? restorePriorSetting = true}) =>
+      super.noSuchMethod(
+        Invocation.method(#cancelWarmCamera, [], {
+          #restorePriorSetting: restorePriorSetting,
+        }),
+        returnValueForMissingStub: null,
+      );
 
   @override
   _i7.Future<void> disconnectCamera() =>

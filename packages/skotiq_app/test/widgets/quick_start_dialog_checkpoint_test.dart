@@ -39,7 +39,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Load Previous Setup'), findsOneWidget);
-    expect(find.text('Resume progress'), findsNothing);
+    expect(find.text('Restore progress'), findsNothing);
     expect(find.text('Start fresh'), findsNothing);
   });
 
@@ -49,7 +49,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Start fresh'), findsOneWidget);
-    expect(find.text('Resume progress'), findsOneWidget);
+    expect(find.text('Restore progress'), findsOneWidget);
     expect(find.text('Load Previous Setup'), findsNothing);
   });
 }

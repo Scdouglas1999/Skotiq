@@ -48,6 +48,99 @@ async fn warm_camera_reports_failure_when_the_cooler_will_not_switch_off() {
     );
 }
 
+/// Run a default WarmCamera (2 °C/min to 20 °C) on `ops` and return what it
+/// reported with every cooler command it issued.
+async fn warm_with(ops: Arc<ScriptedDomeRotatorOps>) -> (InstructionResult, Vec<(bool, f64)>) {
+    let ctx = ctx_with_ops(ops.clone()).await;
+    let result = execute_warm_camera(
+        &WarmConfig {
+            rate_per_min: 2.0,
+            target_temp: None,
+        },
+        &ctx,
+        None,
+    )
+    .await;
+    let commands = ops.cooler_commands.lock().unwrap().clone();
+    (result, commands)
+}
+
+/// A camera whose cooler is off has nothing to warm. Warming it must not
+/// switch the cooler on at the current sensor temperature.
+#[tokio::test(start_paused = true)]
+async fn warming_a_camera_whose_cooler_is_off_does_nothing() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_camera_temperatures(&[11.2])
+            .with_cooler(Some(false), 0.0),
+    );
+    let (result, commands) = warm_with(ops).await;
+
+    assert_eq!(result.status, NodeStatus::Success);
+    assert!(
+        commands.is_empty(),
+        "no cooler command may be sent to a cooler that is off, got {commands:?}"
+    );
+    assert_eq!(
+        result.message.as_deref(),
+        Some("Cooler already off, nothing to warm")
+    );
+}
+
+/// A cooler that is on but idle (sensor at ambient, ~0 % power) is switched
+/// off at once: a ramp would only hold it on at a warm set-point.
+#[tokio::test(start_paused = true)]
+async fn warming_an_idle_cooler_switches_it_off_without_a_ramp() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_camera_temperatures(&[11.2])
+            .with_cooler(Some(true), 0.0),
+    );
+    let (result, commands) = warm_with(ops).await;
+
+    assert_eq!(result.status, NodeStatus::Success);
+    assert_eq!(
+        commands.len(),
+        1,
+        "one cooler-off command, got {commands:?}"
+    );
+    assert!(!commands[0].0, "the one command switches the cooler off");
+}
+
+/// A driver with no on/off reading still never ramps a cooler drawing no
+/// power: that is a sensor already at ambient.
+#[tokio::test(start_paused = true)]
+async fn warming_with_no_cooler_reading_and_no_power_switches_off() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_camera_temperatures(&[11.2])
+            .with_cooler(None, 0.0),
+    );
+    let (result, commands) = warm_with(ops).await;
+
+    assert_eq!(result.status, NodeStatus::Success);
+    assert!(
+        commands.iter().all(|(enabled, _)| !*enabled),
+        "the cooler must never be switched on, got {commands:?}"
+    );
+}
+
+/// A cooler actively holding a cold sensor still gets the gradual ramp.
+#[tokio::test(start_paused = true)]
+async fn warming_a_working_cooler_ramps_then_switches_off() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_camera_temperatures(&[-10.0])
+            .with_cooler(Some(true), 45.0),
+    );
+    let (result, commands) = warm_with(ops).await;
+
+    assert_eq!(result.status, NodeStatus::Success);
+    assert!(commands.len() > 2, "a ramp of set-points, got {commands:?}");
+    assert!(commands[..commands.len() - 1].iter().all(|(on, _)| *on));
+    assert!(!commands.last().unwrap().0, "ends with the cooler off");
+}
+
 /// What a CoolCamera node did: its status, the set-point later frames record,
 /// and what the operator was told.
 struct CoolRun {

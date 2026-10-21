@@ -287,11 +287,10 @@ class _AppShellState extends ConsumerState<AppShell> {
                 final current = await backend.getCheckpointInfo();
                 return current?.canResume ?? false;
               },
-              // Route through the SequenceExecutor provider — it re-seeds the
-              // runtime config and starts the restored native tree. The raw backend
-              // resume only prepares that tree and would leave execution idle.
+              // Restore only: the run is loaded with its progress and waits
+              // for the operator's Start. Nothing executes from this dialog.
               resume: () =>
-                  ref.read(sequenceExecutorProvider).resumeFromCheckpoint(),
+                  ref.read(sequenceExecutorProvider).restoreFromCheckpoint(),
               discard: backend.discardCheckpoint,
             ),
           );

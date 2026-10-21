@@ -150,9 +150,12 @@ bool catalogSetupWasSkipped(String? persistedValue) =>
 /// actually failed, leaves the checkpoint on disk, and lets the operator into
 /// the app to fix the cause.
 ///
+/// Restore loads the interrupted run's sequence and progress and leaves it
+/// ready; nothing moves until the operator presses Start.
+///
 /// [remoteHost] is set when this app is a linked client of a remote rig. The
-/// checkpoint is then the host's: the modal names the host, says that Resume
-/// restarts the run there, and always offers "Leave it".
+/// checkpoint is then the host's: the modal names the host and always offers
+/// "Leave it".
 @visibleForTesting
 Widget buildCheckpointRecoveryDialog({
   required BuildContext context,
@@ -164,7 +167,7 @@ Widget buildCheckpointRecoveryDialog({
   final canRetry = failure == null || failure.checkpointStillResumable;
   final aftermath = canRetry
       ? 'The checkpoint is still on disk. Retry, or discard it to start fresh.'
-      : 'This checkpoint can no longer be resumed. Discard it to clear the '
+      : 'This checkpoint can no longer be restored. Discard it to clear the '
           'prompt.';
   final colors = SkotiqColors.of(context);
   final ageMinutes = info.ageSeconds ~/ 60;
@@ -204,10 +207,12 @@ Widget buildCheckpointRecoveryDialog({
         children: [
           Text(
             isRemote
-                ? 'A sequence on $remoteHost was interrupted and can be '
-                    'resumed there. Resume restarts the run on the rig, which '
-                    'can move the mount right away. Leave it to decide later.'
-                : 'A previous sequence was interrupted and can be resumed.',
+                ? 'A sequence on $remoteHost was interrupted. Restore loads '
+                    'its sequence and progress on the rig. Nothing moves until '
+                    'you press Start. Leave it to decide later.'
+                : 'A previous sequence was interrupted. Restore loads its '
+                    'sequence and progress. Nothing moves until you press '
+                    'Start.',
             style: TextStyle(
               color: colors.textSecondary,
               fontSize: SkotiqTypography.fontSize13,
@@ -268,15 +273,15 @@ Widget buildCheckpointRecoveryDialog({
         label: 'Discard',
         variant: ButtonVariant.destructive,
       ),
-      // Offering "Retry Resume" for a checkpoint the backend has just reported
-      // as no longer resumable gives a button that can only fail again.
-      // Discard (and "Not now") remain.
+      // Offering "Retry restore" for a checkpoint the backend has just
+      // reported as no longer resumable gives a button that can only fail
+      // again. Discard (and "Not now") remain.
       if (canRetry)
         SkotiqButton(
           onPressed: () => Navigator.of(context).pop(
             AppCheckpointRecoveryChoice.resume,
           ),
-          label: failure == null ? 'Resume' : 'Retry Resume',
+          label: failure == null ? 'Restore' : 'Retry restore',
         ),
     ],
   );

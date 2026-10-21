@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import '../../../utils/cooled_camera_guard.dart' show warmupOutcomeMessage;
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/help/field_help_copy.dart';
 import 'panel_widgets.dart';
@@ -326,7 +327,13 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                             // the cooler off immediately here contradicts
                             // the label and can cause condensation or
                             // thermal shock.
-                            await service.warmCamera();
+                            final outcome = await service.warmCamera();
+                            final message = warmupOutcomeMessage(outcome);
+                            if (message != null &&
+                                context.mounted &&
+                                _isCurrentAuthority(authority)) {
+                              context.showSuccessSnackBar(message);
+                            }
                           } catch (e) {
                             if (context.mounted &&
                                 _isCurrentAuthority(authority)) {

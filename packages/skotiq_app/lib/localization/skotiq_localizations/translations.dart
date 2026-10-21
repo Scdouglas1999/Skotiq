@@ -1144,6 +1144,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtlCountSteps': '{count} steps',
     'nightCtlPlanned': '{duration} planned',
     'nightCtlDarkIn': 'dark in {duration}',
+    'nightCtlRestored':
+        'restored at {frames} frames, nothing moves until you press Start',
     'nightCtlHm': '{h} h {m} m',
     'nightCtlH': '{h} h',
     'nightCtlM': '{m} m',
@@ -1570,7 +1572,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrGuideWindow5Short': '5m',
     'nightCtrGuideWindow15Short': '15m',
     'nightCtrGuideWindowNightShort': 'All',
-    'nightCtrSemGuideNight': 'Guide error in pixels over the night, {minutes} min',
+    'nightCtrSemGuideNight':
+        'Guide error in pixels over the night, {minutes} min',
     'nightCtrSemGuideNightArcsec':
         'Guide error in arcseconds over the night, {minutes} min',
     'nightCtrMarkOffScale': 'off scale',
@@ -2727,6 +2730,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtlCountSteps': '{count} pasos',
     'nightCtlPlanned': '{duration} previstas',
     'nightCtlDarkIn': 'oscuro en {duration}',
+    'nightCtlRestored':
+        'restaurado con {frames} tomas, nada se mueve hasta pulsar Iniciar',
     'nightCtlHm': '{h} h {m} min',
     'nightCtlH': '{h} h',
     'nightCtlM': '{m} min',

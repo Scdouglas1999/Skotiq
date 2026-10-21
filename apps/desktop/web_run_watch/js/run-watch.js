@@ -2444,7 +2444,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const btnCpResume = $('btn-checkpoint-resume');
   if (btnCpResume) {
     btnCpResume.addEventListener('click', () =>
-      sequencerAction('/api/sequencer/checkpoint/resume', 'Resume checkpoint'));
+      sequencerAction('/api/sequencer/checkpoint/resume', 'Restore checkpoint'));
   }
   const btnCpDiscard = $('btn-checkpoint-discard');
   if (btnCpDiscard) {

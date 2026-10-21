@@ -281,6 +281,7 @@ void main() {
       backend = _MockSequencerBackend();
       executor = _MockSequenceExecutor();
       when(() => executor.resumeFromCheckpoint()).thenAnswer((_) async {});
+      when(() => executor.restoreFromCheckpoint()).thenAnswer((_) async {});
       when(() => backend.getCheckpointInfo()).thenAnswer(
         (_) async => CheckpointInfo(
           sequenceName: 'Interrupted run',
@@ -304,15 +305,18 @@ void main() {
       return container;
     }
 
-    Future<Response> postResume(SequencerHandlers handlers) =>
-        translateHandlerErrors(
-          handlers.handleSequencerResumeFromCheckpoint(
-            Request(
-              'POST',
-              Uri.parse('http://localhost/api/sequencer/checkpoint/resume'),
-            ),
-          ),
-        );
+    Future<Response> postResume(
+      SequencerHandlers handlers, {
+      Map<String, Object?>? body,
+    }) => translateHandlerErrors(
+      handlers.handleSequencerResumeFromCheckpoint(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/sequencer/checkpoint/resume'),
+          body: body == null ? null : jsonEncode(body),
+        ),
+      ),
+    );
 
     test(
       'refuses to resume a stored checkpoint whose target has no coordinates',
@@ -341,10 +345,11 @@ void main() {
           containsPair('code', 'target_coordinates_unset'),
         );
         verifyNever(() => executor.resumeFromCheckpoint());
+        verifyNever(() => executor.restoreFromCheckpoint());
       },
     );
 
-    test('resumes a checkpoint whose target is pointed somewhere', () async {
+    test('restores a checkpoint whose target is pointed somewhere', () async {
       final container = containerFor();
       final good = placeholderTargetSequence().copyWith(
         nodes: {
@@ -368,20 +373,45 @@ void main() {
       final response = await postResume(SequencerHandlers(container));
 
       expect(response.statusCode, HttpStatus.ok);
-      verify(() => executor.resumeFromCheckpoint()).called(1);
+      verify(() => executor.restoreFromCheckpoint()).called(1);
     });
 
     test(
-      'resumes when no snapshot survives — never blocks on bookkeeping',
+      'restores when no snapshot survives — never blocks on bookkeeping',
       () async {
         final container = containerFor();
 
         final response = await postResume(SequencerHandlers(container));
 
         expect(response.statusCode, HttpStatus.ok);
-        verify(() => executor.resumeFromCheckpoint()).called(1);
+        verify(() => executor.restoreFromCheckpoint()).called(1);
       },
     );
+
+    // A restore at any hour must not move the rig: the run waits for an
+    // explicit start, which a client asks for in the body.
+    test('restores without starting unless the body asks to start', () async {
+      final container = containerFor();
+
+      final restored = await postResume(SequencerHandlers(container));
+      expect(
+        jsonDecode(await restored.readAsString()),
+        containsPair('status', 'restored'),
+      );
+      verify(() => executor.restoreFromCheckpoint()).called(1);
+      verifyNever(() => executor.resumeFromCheckpoint());
+      verifyNever(() => executor.start());
+
+      final started = await postResume(
+        SequencerHandlers(container),
+        body: {'start': true},
+      );
+      expect(
+        jsonDecode(await started.readAsString()),
+        containsPair('status', 'resumed'),
+      );
+      verify(() => executor.resumeFromCheckpoint()).called(1);
+    });
   });
 
   group('SmartExposure depth-goal binding', () {

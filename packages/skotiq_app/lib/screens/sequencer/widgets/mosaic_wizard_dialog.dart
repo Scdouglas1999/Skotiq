@@ -576,7 +576,7 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Resume previous mosaic?',
+                  'Restore previous mosaic?',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         color: colors.textPrimary,
                         fontWeight: FontWeight.bold,
@@ -589,7 +589,9 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog> {
           Text(
             '"${info.sequenceName}" was interrupted $ageStr. '
             '${info.completedExposures} frames captured (${integrationMins}m '
-            'integration). Resuming picks up at the next unfinished panel.',
+            'integration). Restore loads it with its progress; nothing moves '
+            'until you press Start, which picks up at the next unfinished '
+            'panel.',
             style: TextStyle(
                 color: colors.textSecondary,
                 fontSize: SkotiqTypography.fontSize13),
@@ -603,7 +605,7 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog> {
                 onPressed:
                     _checkpointAction == null ? _resumeInterruptedMosaic : null,
                 icon: SkotiqIcons.play,
-                label: 'Resume',
+                label: 'Restore',
                 isLoading: _checkpointAction == 'resume',
                 variant: ButtonVariant.primary,
                 size: ButtonSize.small,

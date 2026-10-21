@@ -547,6 +547,11 @@ class _InfoRow extends StatelessWidget {
       }
     } else {
       if (header.planName == null) return null;
+      if (header.restoredFrames case final frames?) {
+        parts.add(
+          l10n.text('nightCtlRestored', params: {'frames': '$frames'}),
+        );
+      }
       if (header.targetCount case final count?) {
         parts.add(
           count == 1

@@ -201,18 +201,18 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
   ///
   /// Delegates to [CameraWarmupController] — see that class for the full
   /// algorithm and rationale.
-  Future<void> _warmCamera({double ratePerMin = 2.0}) =>
+  Future<CameraWarmupOutcome> _warmCamera({double ratePerMin = 2.0}) =>
       _warmupController.start(ratePerMin: ratePerMin);
 
-  /// Cancel an in-progress gradual warm-up.
-  /// The cooler remains in whatever state it was in at the time of cancellation.
-  void _cancelWarmCamera() => _warmupController.cancel();
+  /// Cancel an in-progress gradual warm-up. See [CameraWarmupController.cancel].
+  void _cancelWarmCamera({bool restorePriorSetting = true}) =>
+      _warmupController.cancel(restorePriorSetting: restorePriorSetting);
 
   /// Disconnect camera
   Future<void> _disconnectCamera() {
     return _trackInFlight(() async {
-      // Cancel any warming in progress
-      _cancelWarmCamera();
+      // Cancel any warming in progress; the disconnect decides the cooler.
+      _cancelWarmCamera(restorePriorSetting: false);
       // Stop temperature polling first
       _temperaturePoller.stop();
 

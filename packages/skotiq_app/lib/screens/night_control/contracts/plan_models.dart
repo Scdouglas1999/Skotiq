@@ -55,6 +55,7 @@ class NightHeaderVm {
     this.framesDone,
     this.framesTotal,
     this.plannedDuration,
+    this.restoredFrames,
     this.pauseResume,
     this.skipStep,
     this.stop,
@@ -94,6 +95,10 @@ class NightHeaderVm {
   /// The estimator's total for the plan. An estimate: render with "≈".
   final Duration? plannedDuration;
 
+  /// Frames already taken by a run restored from its checkpoint and waiting
+  /// for Start; null when nothing is restored.
+  final int? restoredFrames;
+
   /// Null when the control does not apply to [phase].
   final NightControlVm? pauseResume;
   final NightControlVm? skipStep;
@@ -118,6 +123,7 @@ class NightHeaderVm {
       other.framesDone == framesDone &&
       other.framesTotal == framesTotal &&
       other.plannedDuration == plannedDuration &&
+      other.restoredFrames == restoredFrames &&
       other.pauseResume == pauseResume &&
       other.skipStep == skipStep &&
       other.stop == stop &&
@@ -140,6 +146,7 @@ class NightHeaderVm {
         framesDone,
         framesTotal,
         plannedDuration,
+        restoredFrames,
         pauseResume,
         skipStep,
         stop,

@@ -221,6 +221,10 @@ pub async fn execute_cool_camera(
 /// ±0.3°C read jitter of TEC cameras with room to spare.
 const COOLER_FAULT_MARGIN_C: f64 = 1.0;
 
+/// Cooler power, in percent, at or below which a cooler is doing no work: the
+/// sensor sits at ambient and there is nothing left to warm.
+const IDLE_COOLER_POWER_PERCENT: f64 = 2.0;
+
 /// Whether a sensor ended up further from its set-point than it started, past
 /// read noise: the cooler is heating it instead of cooling it.
 fn cooler_is_faulting(start_temp: f64, current_temp: f64, target_temp: f64) -> bool {
@@ -242,14 +246,74 @@ pub async fn execute_warm_camera(
         Err(e) => return e,
     };
 
-    tracing::info!("Warming camera at {}°C/min", config.rate_per_min);
-
     let start_temp = match ctx.device_ops.camera_get_temperature(&camera_id).await {
         Ok(value) => value,
         Err(e) => {
             return InstructionResult::failure(format!("Failed to read camera temperature: {}", e))
         }
     };
+
+    // Only a cooler that is on and working has anything to warm. A cooler that
+    // is off is never switched on, and one drawing no power (sensor already at
+    // ambient) is switched straight off: a ramp would hold either one on at a
+    // warm set-point.
+    // An unreadable cooler state is treated as unknown: the power reading
+    // below still decides whether there is anything to warm.
+    let cooler_on = match ctx.device_ops.camera_get_cooler_on(&camera_id).await {
+        Ok(state) => state,
+        Err(e) => {
+            tracing::warn!(
+                "Warm camera: could not read whether the cooler is on: {}",
+                e
+            );
+            None
+        }
+    };
+    if cooler_on == Some(false) {
+        tracing::info!(
+            "Warm camera: the cooler is already off at {:.1}°C, nothing to warm",
+            start_temp
+        );
+        if let Some(cb) = progress_callback {
+            cb(100.0, "Cooler already off, nothing to warm".to_string());
+        }
+        return InstructionResult::success_with_message("Cooler already off, nothing to warm");
+    }
+    let cooler_power = match ctx.device_ops.camera_get_cooler_power(&camera_id).await {
+        Ok(power) => Some(power),
+        Err(e) => {
+            tracing::warn!("Warm camera: could not read the cooler power: {}", e);
+            None
+        }
+    };
+    if let Some(power) = cooler_power.filter(|p| *p <= IDLE_COOLER_POWER_PERCENT) {
+        tracing::info!(
+            "Warm camera: the cooler is idle ({:.0}% power) at {:.1}°C; switching it off \
+             without a ramp",
+            power,
+            start_temp
+        );
+        if let Err(e) = ctx
+            .device_ops
+            .camera_set_cooler(&camera_id, false, 20.0)
+            .await
+        {
+            return InstructionResult::failure(format!(
+                "The cooler is idle but could not be switched off: {}",
+                e
+            ));
+        }
+        if let Some(cb) = progress_callback {
+            cb(100.0, "Cooler was idle; switched off".to_string());
+        }
+        return InstructionResult::success_with_message("Cooler was idle; switched off");
+    }
+
+    tracing::info!(
+        "Warming camera from {:.1}°C at {}°C/min",
+        start_temp,
+        config.rate_per_min
+    );
     // Why: `target_temp: Option<f64>` is a user-override on the
     // WarmCamera instruction; None means "use the conventional ambient-warming default
     // of 20°C", which is the safe shutdown-prep temperature for every cooled-sensor

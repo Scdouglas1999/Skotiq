@@ -164,6 +164,8 @@ struct ScriptedDomeRotatorOps {
     scripted_frame_metrics: Option<(f64, usize, f64)>,
     scripted_pier_side: Option<crate::meridian::PierSide>,
     scripted_cooler_power: Option<f64>,
+    /// What `camera_get_cooler_on` reports. `None`: the driver gives no reading.
+    scripted_cooler_on: Option<bool>,
     /// Sensor temperatures `camera_get_temperature` reports, one per read; the
     /// last one repeats. Empty: the inner ops answer.
     scripted_camera_temps: Mutex<std::collections::VecDeque<f64>>,
@@ -251,6 +253,7 @@ impl ScriptedDomeRotatorOps {
             scripted_frame_metrics: None,
             scripted_pier_side: None,
             scripted_cooler_power: None,
+            scripted_cooler_on: None,
             scripted_camera_temps: Mutex::new(std::collections::VecDeque::new()),
             scripted_focuser_position: None,
             scripted_focuser_temperature: None,
@@ -466,6 +469,13 @@ impl ScriptedDomeRotatorOps {
             .lock()
             .unwrap()
             .extend(temps.iter().copied());
+        self
+    }
+
+    /// A cooler the driver reports as switched `on` (or off), drawing `power` %.
+    fn with_cooler(mut self, on: Option<bool>, power: f64) -> Self {
+        self.scripted_cooler_on = on;
+        self.scripted_cooler_power = Some(power);
         self
     }
 
@@ -693,6 +703,9 @@ impl DeviceOps for ScriptedDomeRotatorOps {
             Some(power) => Ok(power),
             None => self.inner.camera_get_cooler_power(id).await,
         }
+    }
+    async fn camera_get_cooler_on(&self, _id: &str) -> DeviceResult<Option<bool>> {
+        Ok(self.scripted_cooler_on)
     }
     async fn camera_get_pixel_size_um(&self, id: &str) -> DeviceResult<Option<(f64, f64)>> {
         match self.scripted_pixel_size_um {

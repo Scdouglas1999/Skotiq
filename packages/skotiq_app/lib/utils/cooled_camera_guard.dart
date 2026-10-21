@@ -40,3 +40,14 @@ Future<bool> confirmDisconnectCooledCamera(
     isDestructive: true,
   );
 }
+
+/// What to tell the operator after a Warm up press, or null when there is
+/// nothing to add.
+String? warmupOutcomeMessage(CameraWarmupOutcome outcome) => switch (outcome) {
+      CameraWarmupOutcome.started => 'Gradually warming camera (2°C/min)',
+      CameraWarmupOutcome.coolerAlreadyOff =>
+        'The cooler is already off; there is nothing to warm.',
+      CameraWarmupOutcome.idleCoolerSwitchedOff =>
+        'The cooler was doing no work, so it was switched off.',
+      CameraWarmupOutcome.canceled => null,
+    };

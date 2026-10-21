@@ -5446,9 +5446,9 @@
       const resumeBtn = document.createElement('button');
       resumeBtn.type = 'button';
       resumeBtn.className = 'btn btn-sm btn-success';
-      resumeBtn.textContent = 'Resume';
+      resumeBtn.textContent = 'Restore';
       resumeBtn.setAttribute('aria-label',
-        'Resume sequencer from checkpoint');
+        'Restore the run from its checkpoint; nothing moves until Start');
       resumeBtn.addEventListener('click', () => handleOpsCheckpointResume());
       actions.appendChild(resumeBtn);
       const discardBtn = document.createElement('button');
@@ -5468,14 +5468,13 @@
   async function handleOpsCheckpointResume() {
     try {
       await api.sequencerResumeCheckpoint();
-      addLogEntry('sequencer', 'Resumed from checkpoint');
-      showToast('Resumed from checkpoint');
-      state.ops.sequenceStartedAt = Date.now();
+      addLogEntry('sequencer', 'Restored from checkpoint; waiting for Start');
+      showToast('Restored. Nothing moves until you press Start.');
       fetchOpsCheckpoints();
       fetchSequencerStatus();
     } catch (e) {
-      addLogEntry('error', describeApiError(e, 'Checkpoint resume'));
-      showToast('Resume failed: ' + e.message, 'error');
+      addLogEntry('error', describeApiError(e, 'Checkpoint restore'));
+      showToast('Restore failed: ' + e.message, 'error');
     }
   }
 

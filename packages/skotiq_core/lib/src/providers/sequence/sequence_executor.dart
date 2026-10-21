@@ -55,6 +55,7 @@ import '../sequence_provider.dart'
     show
         currentSequenceProvider,
         recordSequenceStopEvidence,
+        restoredCheckpointProvider,
         sequenceExecutionStateProvider,
         sequenceLaunchInFlightProvider,
         sequenceProgressProvider,
@@ -183,6 +184,10 @@ class SequenceExecutor {
   /// caller bounces off the latch before touching any resource. Reset in the
   /// `finally` of [start] / [resumeFromCheckpoint].
   bool _startInFlight = false;
+
+  /// The checkpoint [restoreFromCheckpoint] prepared, which the next [start]
+  /// continues. Null when nothing is restored.
+  _RestoredCheckpoint? _restored;
 
   /// The one per-run finalization transaction, or null when no teardown has
   /// been claimed for the current run. Created by whichever path claims teardown
@@ -500,6 +505,19 @@ class SequenceExecutor {
     _ref.read(sequenceLaunchInFlightProvider.notifier).state = true;
     try {
       final sequence = _ref.read(currentSequenceProvider);
+      final restored = _restored;
+      if (restored != null) {
+        if (restored.matches(sequence)) {
+          await _continueRestoredRun(restored);
+          return;
+        }
+        _logger.info(
+          'The loaded sequence is no longer the one restored from the '
+          'checkpoint of "${restored.info.sequenceName}"; starting it fresh.',
+          source: 'SequenceExecutor',
+        );
+        _clearRestored();
+      }
       if (sequence == null) {
         // Validation rejection BEFORE any run resource exists: do not flash
         // running or create/finalize fake rows. The one permitted ownership
@@ -2054,35 +2072,52 @@ class SequenceExecutor {
     return await backend.getCheckpointInfo();
   }
 
-  /// Resume sequence from checkpoint
+  /// Restore the interrupted run from its checkpoint WITHOUT starting it.
   ///
-  /// The native `resumeFromCheckpoint()` only PREPARES the executor: it
-  /// loads the checkpointed sequence, marks already-completed nodes, and
-  /// restores trigger state / devices / save path / location from the
-  /// snapshot. Execution only begins on the subsequent `sequencerStart()`,
-  /// which walks the restored tree and short-circuits the marked nodes.
-  /// Skipping that start call leaves the executor Idle while the UI says
-  /// "running" — a resumed night that silently never images.
-  Future<void> resumeFromCheckpoint() async {
+  /// Prepares the native executor from the checkpoint (sequence, completed
+  /// nodes, loop counts, trigger state, devices, save path, location), puts the
+  /// sequence tree back into the editor and the checkpoint's frame counts into
+  /// the progress, and leaves the run ready: nothing executes (no slew, no
+  /// cooler command, no exposure, no end steps) until [start] is called, which
+  /// then continues from the checkpoint. A restore can happen at any hour; only
+  /// the operator decides when the run goes on.
+  Future<void> restoreFromCheckpoint() async {
     _ensureBackendAuthority();
-    // Same start serialization + admissible-state gate as [start]: a resume is
-    // a form of start, so it must not overlap an in-flight start/resume or a
-    // running/paused/stopping/recovering executor.
     final admissionState = _ref.read(sequenceExecutionStateProvider);
     if (_startInFlight || !_isStartAdmissible(admissionState)) {
       throw StateError(
-        'Cannot resume: a sequence start is already in flight or the executor '
-        'is not in an admissible state (state: ${admissionState.name}).',
+        'Cannot restore: a sequence start is already in flight or the '
+        'executor is not in an admissible state '
+        '(state: ${admissionState.name}).',
       );
     }
     _startInFlight = true;
     _ref.read(sequenceLaunchInFlightProvider.notifier).state = true;
     try {
-      await _resumeFromCheckpointInner();
+      await _restoreFromCheckpointInner();
     } finally {
       _startInFlight = false;
       _ref.read(sequenceLaunchInFlightProvider.notifier).state = false;
     }
+  }
+
+  /// Restore the interrupted run from its checkpoint and start it at once.
+  ///
+  /// [restoreFromCheckpoint] followed by [start]. Only for a caller that has
+  /// explicitly asked for the run to go on now (the headless API's
+  /// `checkpoint/resume` with `start: true`); every operator-facing Resume
+  /// restores and waits for Start.
+  Future<void> resumeFromCheckpoint() async {
+    await restoreFromCheckpoint();
+    await start();
+  }
+
+  /// Whether a checkpoint restore is waiting for [start].
+  bool get hasRestoredCheckpoint => _restored != null;
+
+  void _clearRestored() {
+    _restored = null;
+    _ref.read(restoredCheckpointProvider.notifier).state = null;
   }
 
   /// Rehydrate [currentSequenceProvider] for a resumed run from the snapshot
@@ -2164,11 +2199,7 @@ class SequenceExecutor {
     }
   }
 
-  Future<void> _resumeFromCheckpointInner() async {
-    // Resolve launch-authoritative settings before restoring or mutating the
-    // native checkpoint. A failed settings store must leave the checkpoint
-    // untouched instead of resuming it with fabricated defaults.
-    final settings = await _ref.read(appSettingsProvider.future);
+  Future<void> _restoreFromCheckpointInner() async {
     final backend = _backend;
 
     final info = await backend.getCheckpointInfo();
@@ -2176,32 +2207,58 @@ class SequenceExecutor {
       throw Exception('No valid checkpoint to resume from');
     }
 
-    // Prepare the native executor from the snapshot first, so the
-    // re-seeding below overrides snapshot values rather than being
-    // overwritten by the restore. This preparation phase acquires no Dart-side
-    // run resource (no session/run row/timers), so a failure here needs no
-    // rollback — it just propagates.
+    // Prepare the native executor from the snapshot. This only rebuilds and
+    // marks the tree; nothing runs until `sequencerStart()`. The launch
+    // re-seeding that must override snapshot values happens at [start].
     await backend.resumeFromCheckpoint();
+
+    // Recover the sequence TREE from the interrupted run's stored snapshot so
+    // the editor shows what will run, and so the run, once started, has the
+    // tree its frames are attributed from.
+    final recoveredSnapshotJson = await _recoverResumedSequence(
+      info.sequenceName,
+    );
+
+    final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
+    progressNotifier.updateProgress(
+      completedExposures: info.completedExposures,
+      completedIntegrationSecs: info.completedIntegrationSecs,
+      message:
+          'Restored from checkpoint: ${info.completedExposures} frames done. '
+          'Nothing moves until you press Start.',
+    );
+
+    _restored = _RestoredCheckpoint(
+      info: info,
+      snapshotJson: recoveredSnapshotJson,
+      sequence: _ref.read(currentSequenceProvider),
+    );
+    _ref.read(restoredCheckpointProvider.notifier).state = info;
+    _logger.info(
+      'Restored "${info.sequenceName}" from its checkpoint '
+      '(${info.completedExposures} frames, '
+      '${(info.completedIntegrationSecs / 60).toStringAsFixed(1)} min); '
+      'the run waits for Start.',
+      source: 'SequenceExecutor',
+    );
+  }
+
+  /// Start the run [restoreFromCheckpoint] prepared, continuing from its
+  /// checkpoint. Called by [start] under its latch.
+  Future<void> _continueRestoredRun(_RestoredCheckpoint restored) async {
+    // Resolve launch-authoritative settings before touching the prepared
+    // executor. A failed settings store must leave the restore in place
+    // instead of continuing it with fabricated defaults.
+    final settings = await _ref.read(appSettingsProvider.future);
+    final backend = _backend;
+    final info = restored.info;
 
     // The same ordered launch push the start path makes, with the two
     // resume-specific differences expressed inside it (see [_pushLaunchConfig]).
     await _pushLaunchConfig(backend, settings, isResume: true);
     await seedRuntimeConfigForNativeStart();
 
-    // Recover the sequence TREE from the interrupted run's stored snapshot,
-    // BEFORE the running-state flip below. The editor refuses edits once the
-    // executor reports running (`_ensureEditable` throws SequenceLockedException),
-    // so recovering any later silently fails and leaves the resumed run with no
-    // tree at all. This step touches no run resource, so it also belongs outside
-    // the acquisition transaction: a failure here needs no rollback.
-    //
-    // Without the tree, everything that reads it degrades silently: frames
-    // register with exposure_duration 0.0 and no gain/offset/binning/target
-    // (see `resolveFrameAttribution`), the Dashboard reads "no sequence loaded"
-    // while the run is imaging, and the run's history entry has no tree.
-    final recoveredSnapshotJson = await _recoverResumedSequence(
-      info.sequenceName,
-    );
+    final recoveredSnapshotJson = restored.snapshotJson;
 
     // Acquisition transaction.
     // From the UI running-state flip onward every resource is part of one
@@ -2245,12 +2302,24 @@ class SequenceExecutor {
         // frames split between the target and "Untargeted".
         await _bindCatalogTargets(resumedSequence);
       }
-      final sessionNotifier = _ref.read(sessionStateProvider.notifier);
-      await sessionNotifier.startSession(
-        targetName: info.sequenceName,
-        profileId: _ref.read(activeEquipmentProfileProvider)?.id,
-        sequenceId: resumedSequence?.databaseId,
-      );
+      // The interrupted night's session may already be open again (the
+      // operator recovered it from the incomplete-sessions prompt); the
+      // continued run belongs to it rather than to a second session.
+      if (_ref.read(sessionStateProvider).isActive) {
+        _logger.info(
+          'Continuing "${info.sequenceName}" in the session that is already '
+          'open',
+          source: 'SequenceExecutor',
+        );
+      } else {
+        await _ref
+            .read(sessionStateProvider.notifier)
+            .startSession(
+              targetName: info.sequenceName,
+              profileId: _ref.read(activeEquipmentProfileProvider)?.id,
+              sequenceId: resumedSequence?.databaseId,
+            );
+      }
       await _openRunRecords(
         sequenceName: info.sequenceName,
         sequenceDatabaseId: resumedSequence?.databaseId,
@@ -2269,6 +2338,7 @@ class SequenceExecutor {
       // native-launch boundary so [_rollbackStart] best-effort stops a partial
       // launch instead of tearing down blind.
       _nativeLaunchAttempted = true;
+      _clearRestored();
       await backend.sequencerStart();
     } catch (e, st) {
       // Single rollback path shared with start(): cancels every acquired
@@ -2345,5 +2415,35 @@ class SequenceExecutor {
     _skyBrightnessPollTimer?.cancel();
     _skyBrightnessPollTimer = null;
     _stopDiskSpaceWatchdog();
+  }
+}
+
+/// A checkpoint restored by [SequenceExecutor.restoreFromCheckpoint] and not
+/// yet started.
+class _RestoredCheckpoint {
+  _RestoredCheckpoint({
+    required this.info,
+    required this.snapshotJson,
+    required this.sequence,
+  });
+
+  final CheckpointInfo info;
+  final String? snapshotJson;
+
+  /// The editor's sequence as the restore left it; null when none could be
+  /// recovered.
+  final Sequence? sequence;
+
+  /// Whether [current] is still the restored tree. A save that only gives the
+  /// sequence a database row keeps it the same tree; any edit to its nodes, or
+  /// loading another sequence, does not.
+  bool matches(Sequence? current) {
+    final restored = sequence;
+    if (restored == null || current == null) {
+      return identical(restored, current);
+    }
+    return restored.id == current.id &&
+        restored.rootNodeId == current.rootNodeId &&
+        mapEquals(restored.nodes, current.nodes);
   }
 }
