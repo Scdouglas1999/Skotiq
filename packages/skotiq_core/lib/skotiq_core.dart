@@ -699,6 +699,7 @@ export 'src/services/darkroom_delivery/darkroom_delivery.dart';
 // Dawn autopilot (Phase B): the durable job that drafts, renders, reports and
 // delivers the night after the integration half has produced its masters.
 export 'src/services/darkroom_autopilot/darkroom_autopilot.dart';
+export 'src/services/darkroom_pass/darkroom_pass.dart';
 export 'src/services/project_tracking_service.dart';
 export 'src/services/calibration/defect_map_service.dart';
 // Calibration Library Manager (v46): unified browse / tag / auto-match over

@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' show Value, Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/daos/calibration_tags_dao.dart';
+import 'package:skotiq_core/src/services/darkroom_pass/pass_log.dart';
 import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
 import 'package:skotiq_core/src/database/daos/flat_library_dao.dart';
 import 'package:skotiq_core/src/database/daos/images_dao.dart';
@@ -512,6 +513,75 @@ void main() {
     expect(byFilter['Ha']!.result.framesIntegrated, 2);
     expect(byFilter['OIII']!.result.framesIntegrated, 1);
     expect(seam.integrateCalls, hasLength(2));
+  });
+
+  test(
+    'a pass is planned, tagged per lane and ended for the pass view',
+    () async {
+      final reporter = _RecordingReporter();
+      final reported = PostSessionIntegrationService(
+        mastersDao: mastersDao,
+        calibrationLibrary: calibrationLibrary,
+        seam: seam,
+        passReporter: reporter,
+      );
+      final subs = [
+        await insertSub(path: '/l/a.fits', filter: 'L'),
+        await insertSub(path: '/l/b.fits', filter: 'R'),
+        await insertSub(path: '/l/c.fits', filter: 'L'),
+      ];
+      await reported.integrate(
+        subs: subs,
+        settings: IntegrationSettings.defaults,
+        outputFitsPathBuilder: (bucket) => '/out/$bucket.fits',
+        runId: 'post-session-9',
+        sessionId: 9,
+        targetName: 'M31',
+      );
+
+      final kinds = reporter.reports.map((r) => r.$2).toList();
+      expect(kinds.first, PassKinds.passPlanned);
+      expect(kinds.last, PassKinds.passEnded);
+      expect(kinds.where((k) => k == PassKinds.laneFinished), hasLength(2));
+      final plan = reporter.reports.first.$3;
+      expect(plan['sessionId'], 9);
+      expect(plan['target'], 'M31');
+      expect((plan['lanes'] as List).map((l) => (l as Map)['lane']), [
+        'L',
+        'R',
+      ]);
+      expect(reporter.reports.every((r) => r.$1 == 'post-session-9'), isTrue);
+
+      final args = seam.integrateCalls.first;
+      expect(args['runId'], 'post-session-9');
+      expect(args['telemetry'], {
+        'lane': 'L',
+        'previewDir': '/previews/post-session-9',
+      });
+    },
+  );
+
+  test('a pass the caller keeps open is not ended, and a call without a run '
+      'id still reports under one of its own', () async {
+    final reporter = _RecordingReporter();
+    final reported = PostSessionIntegrationService(
+      mastersDao: mastersDao,
+      calibrationLibrary: calibrationLibrary,
+      seam: seam,
+      passReporter: reporter,
+    );
+    await reported.integrate(
+      subs: [await insertSub(path: '/l/a.fits', filter: 'L')],
+      settings: IntegrationSettings.defaults,
+      outputFitsPathBuilder: (bucket) => '/out/$bucket.fits',
+      closePass: false,
+    );
+    expect(
+      reporter.reports.map((r) => r.$2),
+      isNot(contains(PassKinds.passEnded)),
+    );
+    expect(reporter.reports.first.$1, startsWith('integrate-'));
+    expect(seam.integrateCalls.single['runId'], reporter.reports.first.$1);
   });
 
   test(
@@ -1527,4 +1597,29 @@ extension on DarkLibraryService {
       ),
     );
   }
+}
+
+class _RecordingReporter implements PassReporter {
+  final List<(String, String, Map<String, dynamic>)> reports = [];
+
+  @override
+  void report(String runId, String kind, [Map<String, dynamic>? detail]) =>
+      reports.add((runId, kind, detail ?? const <String, dynamic>{}));
+
+  @override
+  void reportForSession(
+    int sessionId,
+    String kind, [
+    Map<String, dynamic>? detail,
+  ]) => reports.add((
+    'session-$sessionId',
+    kind,
+    detail ?? const <String, dynamic>{},
+  ));
+
+  @override
+  String? runningForSession(int sessionId) => null;
+
+  @override
+  Future<String?> previewDir(String runId) async => '/previews/$runId';
 }

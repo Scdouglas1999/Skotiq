@@ -43,6 +43,9 @@ class _ObservingIntegrationService implements PostSessionIntegrationService {
     double? hintRaHours,
     double? hintDecDegrees,
     String? runId,
+    int? sessionId,
+    int plannedDrafts = 0,
+    bool closePass = true,
   }) async {
     markerDuringRun = await readIntegrationMarker(_markerDir);
 
