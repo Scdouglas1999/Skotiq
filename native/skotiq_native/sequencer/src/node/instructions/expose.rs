@@ -338,9 +338,12 @@ impl InstructionNode for ExposeInstruction {
                     tracing::debug!("Updated trigger state HFR: {:.2}", median_hfr);
                 }
                 // AutofocusInterval / DitherInterval triggers fire every N
-                // frames; bump per actual frame.
-                for _ in 0..total_count {
-                    trigger_state.increment_exposure_count();
+                // star-field frames; a dark or bias burst neither blurs focus
+                // nor builds walking noise, so it does not advance them.
+                if counts_toward_frame_cadence(&config.frame_type) {
+                    for _ in 0..total_count {
+                        trigger_state.increment_exposure_count();
+                    }
                 }
                 tracing::debug!(
                     "Updated trigger state exposure count: {}",
@@ -367,6 +370,12 @@ impl InstructionNode for ExposeInstruction {
 
         result.log_and_get_status_with_context("Exposure", &ctx)
     }
+}
+
+/// Whether a frame of this type advances the frame-count triggers (dither and
+/// autofocus intervals): only star-field frames do.
+fn counts_toward_frame_cadence(frame_type: &str) -> bool {
+    frame_type.eq_ignore_ascii_case("light") || frame_type.eq_ignore_ascii_case("snapshot")
 }
 
 /// Stand-in target name for a target-less calibration frame, or `None` for a
@@ -1485,6 +1494,53 @@ mod tests {
             1,
             "the absolute template is a complete destination; the frame must land there"
         );
+    }
+
+    /// The dither and autofocus interval triggers count star-field frames
+    /// only; a dark burst between light bursts must not bring either due.
+    #[tokio::test]
+    async fn calibration_frames_do_not_advance_the_frame_cadence() {
+        let dir = std::env::temp_dir().join(format!("sk-expose-cadence-{}", uuid::Uuid::new_v4()));
+        let mut ctx = ExecutionContext::new_for_test("expose-cadence".to_string());
+        ctx.camera_id = Some("sim_camera_1".to_string());
+        ctx.save_path = Some(dir.clone());
+        let trigger_state = std::sync::Arc::new(tokio::sync::RwLock::new(
+            crate::triggers::TriggerState::default(),
+        ));
+        ctx.trigger_state = Some(trigger_state.clone());
+
+        let burst = |frame_type: &str, count: u32| {
+            NodeType::TakeExposure(crate::ExposureConfig {
+                count,
+                duration_secs: 0.01,
+                frame_type: frame_type.to_string(),
+                dither_every: Some(0),
+                ..Default::default()
+            })
+        };
+        let dark = ExposeInstruction
+            .execute("expose-dark", &burst("dark", 3), &mut ctx)
+            .await;
+        let bias = ExposeInstruction
+            .execute("expose-bias", &burst("bias", 2), &mut ctx)
+            .await;
+        let after_calibration = trigger_state.read().await.completed_exposures;
+        let light = ExposeInstruction
+            .execute("expose-light", &burst("light", 2), &mut ctx)
+            .await;
+        let after_light = trigger_state.read().await.completed_exposures;
+        let _ = std::fs::remove_dir_all(&dir);
+
+        assert_eq!(
+            (dark, bias, light),
+            (
+                NodeStatus::Success,
+                NodeStatus::Success,
+                NodeStatus::Success
+            )
+        );
+        assert_eq!(after_calibration, 0);
+        assert_eq!(after_light, 2);
     }
 
     /// Two `Parallel` branches exposing on the SAME camera must not overlap.

@@ -4,6 +4,7 @@
 
 use super::*;
 
+mod calibration_run;
 mod checkpoint_stream;
 mod command_handler;
 mod explicit_end;

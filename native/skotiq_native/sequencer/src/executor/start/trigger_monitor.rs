@@ -78,6 +78,15 @@ pub(super) async fn run_trigger_monitor_poll_loop(
     let explicit_end = sequence_for_custom_recovery_triggers
         .as_ref()
         .is_some_and(super::explicit_end::owns_dawn_end);
+    let calibration_run = sequence_for_custom_recovery_triggers
+        .as_ref()
+        .is_some_and(super::calibration_run::is_calibration_only);
+    if calibration_run {
+        tracing::info!(
+            "Calibration-only run: the standard triggers (dither, autofocus, meridian, \
+             guiding, recenter, dawn and weather park) stand down for its frames"
+        );
+    }
 
     let mut check_interval = tokio::time::interval(std::time::Duration::from_secs(1));
     let mut fired_triggers: Vec<(String, RecoveryAction)> = Vec::new();
@@ -794,6 +803,9 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             let fired_with_names: Vec<_> = fired
                 .into_iter()
                 .filter(|(id, _)| !(explicit_end && id == "dawn_approaching"))
+                .filter(|(id, _)| {
+                    !calibration_run || super::calibration_run::acts_in_calibration_run(id)
+                })
                 // The operator's park and quality settings first, so the hold
                 // filter below judges what the trigger will actually do.
                 .map(|(trigger_id, action)| {
