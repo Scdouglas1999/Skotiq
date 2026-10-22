@@ -360,6 +360,12 @@ void main(List<String> args) async {
     }
     container.invalidate(appSettingsProvider);
     container.invalidate(equipmentProfilesProvider);
+    // The host's run, target, flip and device events become this window's
+    // in-app banners, as they do on the host. The router is in-app only on a
+    // NetworkBackend (external delivery stays with the host), and listening
+    // rather than reading keeps it re-attached when the connection is
+    // replaced.
+    container.listen(notificationRouterProvider, (_, _) {});
   }
 
   // In remote-client mode this GUI is a consumer of a remote rig, not a host,
