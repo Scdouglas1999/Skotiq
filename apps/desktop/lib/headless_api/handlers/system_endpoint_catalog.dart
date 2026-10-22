@@ -219,6 +219,8 @@ List<String> availableHeadlessEndpoints() {
     'POST /api/sequencer/meridian-flip',
     'POST /api/sequencer/request-meridian-flip',
     'POST /api/sequencer/update-weather-verdict',
+    'POST /api/sequencer/weather-operator-clear',
+    'POST /api/sequencer/weather-resume-after',
     // Secondary rig (dual-rig dither coordination)
     'GET /api/sequencer/secondary-rig',
     'POST /api/sequencer/secondary-rig/start',

@@ -296,13 +296,33 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> sequencerUpdateWeatherVerdict({bool? unsafeOverride}) async {
-    // Full-night audit 2026-06-04 (defense-in-depth) — push the Dart-side
-    // weather-safety verdict into the Rust trigger state so the in-sequencer
-    // WeatherUnsafe trigger reacts even on rigs without a hardware safety
-    // device. Folded OR-of-unsafe with the hardware reading (never less safe).
+  Future<void> sequencerUpdateWeatherVerdict({
+    bool? unsafeOverride,
+    bool advisory = false,
+  }) async {
+    // The in-sequencer WeatherUnsafe trigger folds this OR-of-unsafe with the
+    // hardware reading, so a rig without a safety device still reacts.
     await bridge_api.apiSequencerUpdateWeatherVerdict(
       unsafeOverride: unsafeOverride,
+      advisory: advisory,
+    );
+  }
+
+  @override
+  Future<void> sequencerSetWeatherOperatorClear({
+    required int durationSecs,
+    required String reason,
+  }) async {
+    await bridge_api.apiSequencerSetWeatherOperatorClear(
+      durationSecs: durationSecs,
+      reason: reason,
+    );
+  }
+
+  @override
+  Future<void> sequencerSetWeatherResumeAfterSafeSecs(int seconds) async {
+    await bridge_api.apiSequencerSetWeatherResumeAfterSafeSecs(
+      seconds: seconds,
     );
   }
 

@@ -109,7 +109,25 @@ class SafetyMonitorHandlers {
         'shouldCloseDome': safety.actions.shouldCloseDome,
         'reason': safety.actions.reason,
         'resumeCheckTime': safety.actions.resumeCheckTime?.toIso8601String(),
+        'advisoryOnly': safety.actions.advisoryOnly,
       },
+      // Which input decides, and what the run's own frames say: a forecast
+      // only warns or holds; a sensor at the site may park.
+      'decisionSource': safety.decisionSource.name,
+      'advisoryOnly': safety.advisoryOnly,
+      'forecastUnsafe': safety.forecastUnsafe,
+      'forecastHoldsRun': safety.forecastHoldsRun,
+      'starEvidenceOverridesForecast': safety.starEvidenceOverridesForecast,
+      'starEvidence': switch (safety.starEvidence) {
+        final evidence? => {
+          'latestStars': evidence.latestStars,
+          'typicalStars': evidence.typicalStars,
+          'latestAt': evidence.latestAt.toUtc().toIso8601String(),
+          'clear': evidence.clear,
+        },
+        null => null,
+      },
+      'snoozeReason': safety.snoozeReason,
       'failModeWarning': safety.failModeWarning,
       'lastEvaluation': safety.lastEvaluation?.toIso8601String(),
       'snoozeUntil': safety.snoozeUntil?.toIso8601String(),
@@ -352,7 +370,7 @@ class SafetyMonitorHandlers {
 
     container
         .read(weatherSafetyProvider.notifier)
-        .snooze(Duration(minutes: durationMinutes));
+        .snooze(Duration(minutes: durationMinutes), reason: reason);
 
     _logInfo('Safety conditions acknowledged for ${durationMinutes}m: $reason');
 

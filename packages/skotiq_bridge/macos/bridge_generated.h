@@ -3679,6 +3679,13 @@ void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_seque
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems(int64_t port_,
                                                                                                                   bool stop_on_quality_problems);
 
+void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clear(int64_t port_,
+                                                                                                                uint32_t duration_secs,
+                                                                                                                struct wire_cst_list_prim_u_8_strict *reason);
+
+void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs(int64_t port_,
+                                                                                                                        uint32_t seconds);
+
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_skip(int64_t port_);
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_skip_to_node(int64_t port_,
@@ -3777,7 +3784,8 @@ void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_seque
                                                                                                            double *mag);
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_verdict(int64_t port_,
-                                                                                                            bool *unsafe_override);
+                                                                                                            bool *unsafe_override,
+                                                                                                            bool advisory);
 
 void frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_set_camera_binning(int64_t port_,
                                                                                     struct wire_cst_list_prim_u_8_strict *device_id,
@@ -4845,6 +4853,8 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_save_path);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_simulation_mode);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clear);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_config);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_interval);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_cloud_motion);

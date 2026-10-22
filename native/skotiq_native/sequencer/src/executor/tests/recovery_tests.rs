@@ -325,8 +325,8 @@ fn run_recovery_attempt_weather_unsafe_blocked_by_dart_verdict() {
     match outcome {
         crate::recovery::AttemptOutcome::Failed { message } => {
             assert!(
-                message.contains("Dart verdict"),
-                "expected the Dart-verdict block message, got: {}",
+                message.contains("weather check still reports unsafe"),
+                "expected the app-verdict block message, got: {}",
                 message
             );
         }

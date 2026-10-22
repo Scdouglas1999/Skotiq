@@ -46,7 +46,61 @@ extension _SequencerConditions on SequencerHandlers {
     final backend = container.read(sequencerBackendProvider);
     await backend.sequencerUpdateWeatherVerdict(
       unsafeOverride: optionalBool(payload, 'unsafeOverride'),
+      advisory: optionalBool(payload, 'advisory') ?? false,
     );
+    return jsonOk({'status': 'ok'});
+  }
+
+  /// POST /api/sequencer/weather-operator-clear — the operator says the sky
+  /// is clear. Body: `{"durationSecs": 1800, "reason": "..."}`; `0` ends it.
+  /// Goes through the host's weather safety so its snooze, its verdict push
+  /// and the executor all agree.
+  Future<Response> _handleSequencerWeatherOperatorClear(Request request) async {
+    _logInfo('[API] POST /api/sequencer/weather-operator-clear');
+    final payload = await readJsonObject(request);
+    final seconds = optionalInt(
+      payload,
+      'durationSecs',
+      min: 0,
+      max: 24 * 3600,
+    );
+    if (seconds == null) {
+      throw BadRequestError(
+        field: 'durationSecs',
+        expected: 'integer',
+        message: 'durationSecs is required',
+      );
+    }
+    final reason =
+        optionalString(payload, 'reason') ?? 'Operator says the sky is clear';
+    final safety = container.read(weatherSafetyProvider.notifier);
+    if (seconds == 0) {
+      safety.cancelSnooze();
+    } else {
+      safety.snooze(Duration(seconds: seconds), reason: reason);
+    }
+    return jsonOk({'status': 'ok'});
+  }
+
+  /// POST /api/sequencer/weather-resume-after — `{"seconds": 300}`.
+  Future<Response> _handleSequencerWeatherResumeAfter(Request request) async {
+    _logInfo('[API] POST /api/sequencer/weather-resume-after');
+    final payload = await readJsonObject(request);
+    final seconds = optionalInt(payload, 'seconds', min: 0, max: 24 * 3600);
+    if (seconds == null) {
+      throw BadRequestError(
+        field: 'seconds',
+        expected: 'integer',
+        message: 'seconds is required',
+      );
+    }
+    await container
+        .read(safetyConfigStoreProvider)
+        .setRequiredSafeDurationSeconds(seconds);
+    await container
+        .read(sequencerBackendProvider)
+        .sequencerSetWeatherResumeAfterSafeSecs(seconds);
+    container.invalidate(weatherDecisionPolicyProvider);
     return jsonOk({'status': 'ok'});
   }
 

@@ -337,7 +337,7 @@ class DesktopLastGasp {
     try {
       await _safeRig().timeout(_safingTimeout);
       _write((_current ?? _blank()).copyWith(rigSafed: true, at: _now()));
-      _onInfo?.call('Rig safed during desktop shutdown');
+      _onInfo?.call('Shutdown safing finished');
     } catch (e) {
       _write(
         (_current ?? _blank()).copyWith(

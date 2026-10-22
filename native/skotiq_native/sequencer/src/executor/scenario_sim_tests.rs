@@ -99,6 +99,9 @@ pub(crate) struct ScriptedDeviceOps {
     saved_frames: Arc<Mutex<Vec<String>>>,
     /// When true, every plate solve finds no solution (a clouded frame).
     pub(crate) plate_solve_fails: Arc<AtomicBool>,
+    /// When true, `safety_is_safe` answers as a rig with no safety monitor or
+    /// weather device does: an error, resolved through the fail mode.
+    pub(crate) safety_absent: Arc<AtomicBool>,
 }
 
 impl ScriptedDeviceOps {
@@ -124,6 +127,7 @@ impl ScriptedDeviceOps {
             exposure_calls: Arc::new(AtomicU32::new(0)),
             saved_frames: Arc::new(Mutex::new(Vec::new())),
             plate_solve_fails: Arc::new(AtomicBool::new(false)),
+            safety_absent: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -186,6 +190,13 @@ impl DeviceOps for ScriptedDeviceOps {
     }
 
     async fn safety_is_safe(&self, _safety_id: Option<&str>) -> DeviceResult<bool> {
+        if self.safety_absent.load(Ordering::SeqCst) {
+            self.record("safety_is_safe->absent");
+            return Err(
+                "No safety monitor or weather device configured for sequencer safety checks"
+                    .to_string(),
+            );
+        }
         let safe = self.weather_safe.load(Ordering::SeqCst);
         self.record(format!("safety_is_safe->{safe}"));
         Ok(safe)
@@ -1955,16 +1966,15 @@ async fn a_pause_placed_during_recovery_survives_the_recovery() {
 }
 
 /// When recovery runs out under the default hold-for-operator policy, what it
-/// tells the operator must match what it did to the rig. The ladder switched
-/// tracking off before its first attempt and nothing switches it back on for a
-/// run that has ended, so the give-up message must say tracking is off, not
-/// leave him believing the mount is as he left it.
+/// tells the operator must match what it did to the rig. A lost guide star
+/// never switches tracking off (it is mostly cloud, and the mount must stay on
+/// the target), so the give-up message must not say tracking was left off.
 ///
 /// A lost guide star ends the run when recovery runs out only for the operator
 /// who turned on "Stop the run for quality problems"; by default the run
 /// images on unguided (owner decision 2026-10-06), so this test turns it on.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn a_recovery_give_up_says_that_tracking_was_left_off() {
+async fn a_guide_star_give_up_leaves_tracking_on_and_says_nothing_about_it() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     ops.guider_start_fails.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
@@ -2002,29 +2012,25 @@ async fn a_recovery_give_up_says_that_tracking_was_left_off() {
     }
     assert_eq!(state, super::ExecutorState::Failed, "calls={calls:?}");
     assert!(
-        calls
+        !calls
             .iter()
             .any(|c| c == "mount_set_tracking:mount-1:false"),
-        "the ladder never stopped tracking, so this test proves nothing; calls={calls:?}"
+        "a lost guide star must not stop tracking; calls={calls:?}"
     );
-    assert!(
-        !ops.mount_tracking.load(Ordering::SeqCst),
-        "tracking came back on; the message question does not arise"
-    );
+    assert!(ops.mount_tracking.load(Ordering::SeqCst));
     let give_up = messages
         .iter()
         .find(|m| m.contains("Recovery could not fix"))
         .unwrap_or_else(|| panic!("no give-up message; messages={messages:?}"));
     assert!(
-        give_up.to_lowercase().contains("tracking"),
-        "the give-up message does not say that tracking was left off: {give_up}"
+        !give_up.to_lowercase().contains("tracking"),
+        "the give-up message claims something about tracking it did not do: {give_up}"
     );
 }
 
 /// The default ending of the same night: the guide star never comes back, the
-/// run images on unguided (owner decision 2026-10-06), and the tracking the
-/// ladder switched off is switched back on, or every frame after it trails
-/// for a second reason.
+/// run images on unguided (owner decision 2026-10-06), and tracking was never
+/// switched off, so no frame after it trails for a second reason.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_guide_star_never_reacquired_images_on_with_tracking_back_on() {
     let ops = Arc::new(ScriptedDeviceOps::new());
@@ -2069,10 +2075,10 @@ async fn a_guide_star_never_reacquired_images_on_with_tracking_back_on() {
     assert!(recovered, "the run must not give up; calls={calls:?}");
     assert_eq!(state, super::ExecutorState::Running, "calls={calls:?}");
     assert!(
-        calls
+        !calls
             .iter()
             .any(|c| c == "mount_set_tracking:mount-1:false"),
-        "the ladder never stopped tracking, so this test proves nothing; calls={calls:?}"
+        "a lost guide star must not stop tracking; calls={calls:?}"
     );
     assert!(
         ops.mount_tracking.load(Ordering::SeqCst),
@@ -2596,5 +2602,287 @@ async fn recovery_leaves_tracking_on_while_the_mount_slews() {
             .iter()
             .any(|c| c == "mount_set_tracking:mount-1:false"),
         "tracking was stopped under a slewing mount: {calls:?}"
+    );
+}
+
+/// A long run on a rig with no safety monitor, fail open, as the owner's rig
+/// is set up. The sky must read safe for `resume_after_secs` before a hold
+/// ends.
+async fn start_weather_run(
+    ops: Arc<ScriptedDeviceOps>,
+    policy: Option<super::ParkPolicy>,
+    resume_after_secs: u64,
+) -> super::SequenceExecutor {
+    ops.safety_absent.store(true, Ordering::SeqCst);
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_safety_fail_mode(crate::SafetyFailMode::FailOpen);
+    if let Some(policy) = policy {
+        executor.set_park_policy(policy);
+    }
+    executor.set_weather_resume_after_safe_secs(resume_after_secs);
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor.set_dome(Some("dome-1".to_string()));
+    executor.set_cover_calibrator(Some("cover-1".to_string()));
+    let executor = start_long_run(executor, ops.clone()).await;
+    wait_for_monitor(&ops).await;
+    executor
+}
+
+/// A rig with no safety monitor, fail open, "Park on unsafe weather" off: an
+/// unsafe app verdict holds the run, and once the verdict clears the run goes
+/// back to imaging on its own. The hold leaves tracking on.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn weather_hold_without_a_safety_monitor_resumes_when_the_verdict_clears() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_weather_run(ops.clone(), Some(WEATHER_OFF), 0).await;
+
+    executor.update_weather_verdict(Some(true)).await;
+    let held = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
+        s == super::ExecutorState::Recovering
+    })
+    .await;
+    executor.update_weather_verdict(None).await;
+    let after = wait_for_state(&executor, std::time::Duration::from_secs(30), |s| {
+        s == super::ExecutorState::Running
+    })
+    .await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    assert_eq!(held, super::ExecutorState::Recovering);
+    assert_eq!(after, super::ExecutorState::Running, "calls={calls:?}");
+    assert!(
+        !calls
+            .iter()
+            .any(|c| c == "mount_set_tracking:mount-1:false"),
+        "a weather hold keeps the mount tracking; calls={calls:?}"
+    );
+}
+
+/// A forecast says cloudy with the shipped settings (park on unsafe weather
+/// on): the run is held, nothing is parked or closed, the run is not ended,
+/// and it resumes by itself once the forecast clears.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_forecast_cloud_holds_and_resumes_and_never_parks() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_weather_run(ops.clone(), None, 0).await;
+    let mut events = executor.subscribe();
+
+    executor.update_weather_verdict_from(Some(true), true).await;
+    let held = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
+        s != super::ExecutorState::Running
+    })
+    .await;
+    // Long enough for the hold to have been re-judged many times.
+    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+    let still_held = executor.get_state().await;
+    executor.update_weather_verdict_from(None, false).await;
+    let after = wait_for_state(&executor, std::time::Duration::from_secs(30), |s| {
+        s == super::ExecutorState::Running
+    })
+    .await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    let (fired, _) = drain_fired_and_errors(&mut events);
+
+    assert_eq!(held, super::ExecutorState::Recovering, "fired={fired:?}");
+    assert_eq!(still_held, super::ExecutorState::Recovering);
+    assert!(
+        !parked_or_closed(&calls),
+        "a forecast must never park or close; calls={calls:?}"
+    );
+    assert!(
+        fired
+            .iter()
+            .all(|(id, action)| id != "weather_unsafe" || action == "Pause"),
+        "fired={fired:?}"
+    );
+    assert_eq!(after, super::ExecutorState::Running, "calls={calls:?}");
+}
+
+/// The same verdict from a sensor at the site keeps the configured park.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_sensor_verdict_still_parks_when_parking_is_on() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_weather_run(ops.clone(), None, 0).await;
+    executor
+        .update_weather_verdict_from(Some(true), false)
+        .await;
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    while ops.call_count("mount_park") == 0 && tokio::time::Instant::now() < deadline {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    assert!(
+        calls.iter().any(|c| c == "mount_park:mount-1"),
+        "calls={calls:?}"
+    );
+}
+
+/// A weather hold has no budget: a recovery config that would give any other
+/// cause up in seconds leaves a weather hold holding, never `Failed`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_weather_hold_never_runs_out_and_fails_the_run() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.safety_absent.store(true, Ordering::SeqCst);
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_safety_fail_mode(crate::SafetyFailMode::FailOpen);
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    executor
+        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
+            retry_interval_secs: 1.0,
+            max_duration_secs: 2.0,
+            ..crate::recovery::RecoveryRuntimeConfig::default()
+        })
+        .await;
+    let mut executor = start_long_run(executor, ops.clone()).await;
+    wait_for_monitor(&ops).await;
+
+    executor.update_weather_verdict_from(Some(true), true).await;
+    let held = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
+        s == super::ExecutorState::Recovering
+    })
+    .await;
+    tokio::time::sleep(std::time::Duration::from_secs(6)).await;
+    let later = executor.get_state().await;
+    let _ = executor.stop().await;
+    assert_eq!(held, super::ExecutorState::Recovering);
+    assert_eq!(later, super::ExecutorState::Recovering);
+}
+
+/// The operator's "the sky is clear" resumes a held run at once, while the
+/// forecast still says cloudy and the safe period has not passed.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_operator_clear_sky_override_resumes_a_held_run_now() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_weather_run(ops.clone(), None, 300).await;
+
+    executor.update_weather_verdict_from(Some(true), true).await;
+    let held = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
+        s == super::ExecutorState::Recovering
+    })
+    .await;
+    executor
+        .set_weather_operator_clear(1800, "stars in the guide camera")
+        .await;
+    let after = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
+        s == super::ExecutorState::Running
+    })
+    .await;
+    // The verdict is still UNSAFE; the override keeps it from re-holding.
+    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+    let later = executor.get_state().await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    assert_eq!(held, super::ExecutorState::Recovering);
+    assert_eq!(after, super::ExecutorState::Running, "calls={calls:?}");
+    assert_eq!(later, super::ExecutorState::Running);
+    assert!(!parked_or_closed(&calls), "calls={calls:?}");
+}
+
+/// A verdict nobody refreshes is missing data. Under fail open it is set aside
+/// and the held run carries on, with a warning; under fail closed it holds.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_stale_unsafe_verdict_is_set_aside_under_fail_open() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_weather_run(ops.clone(), Some(WEATHER_OFF), 0).await;
+    executor
+        .runtime_config
+        .write()
+        .weather_verdict_staleness_secs = 30;
+    let mut events = executor.subscribe();
+
+    executor.update_weather_verdict_from(Some(true), true).await;
+    let held = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
+        s == super::ExecutorState::Recovering
+    })
+    .await;
+    // No further pushes: the verdict goes stale after 30 s.
+    let after = wait_for_state(&executor, std::time::Duration::from_secs(60), |s| {
+        s == super::ExecutorState::Running
+    })
+    .await;
+    let _ = executor.stop().await;
+    let mut warnings = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let super::ExecutorEvent::Warning { message } = event {
+            warnings.push(message);
+        }
+    }
+    assert_eq!(held, super::ExecutorState::Recovering);
+    assert_eq!(after, super::ExecutorState::Running);
+    assert!(
+        warnings.iter().any(|w| w.contains("set aside")),
+        "warnings={warnings:?}"
+    );
+}
+
+#[test]
+fn only_fail_closed_keeps_holding_on_a_stale_verdict() {
+    use crate::SafetyFailMode;
+    assert!(super::stale_unsafe_verdict_holds(
+        SafetyFailMode::FailClosed
+    ));
+    assert!(!super::stale_unsafe_verdict_holds(SafetyFailMode::FailOpen));
+    assert!(!super::stale_unsafe_verdict_holds(SafetyFailMode::WarnOnly));
+}
+
+/// A passing cloud: the guide star is lost, the run holds with the mount still
+/// tracking and nothing reads the hold as lost tracking, and once the stars are
+/// back the guider holds a star again and the run resumes by itself.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_cloud_that_loses_the_guide_star_holds_tracking_and_resumes_when_stars_return() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = super::SequenceExecutor::new();
+    let mut events = executor.subscribe();
+    executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+    // The shipped interval is 10 min; the hold looks for the star at least
+    // every GUIDE_STAR_RECHECK_SECS. A short interval keeps the test short.
+    executor
+        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
+            retry_interval_secs: 3.0,
+            max_duration_secs: 600.0,
+            // Even an operator who asked for tracking to stop during
+            // recovery keeps it for a lost guide star.
+            stop_tracking_during_recovery: true,
+            ..crate::recovery::RecoveryRuntimeConfig::default()
+        })
+        .await;
+    let mut executor = start_long_run(executor, ops.clone()).await;
+    wait_for_monitor(&ops).await;
+
+    // Cloud: no guide star, no star to pick.
+    ops.no_guide_star.store(true, Ordering::SeqCst);
+    ops.guiding.store(false, Ordering::SeqCst);
+    let held = wait_for_state(&executor, std::time::Duration::from_secs(15), |s| {
+        s == super::ExecutorState::Recovering
+    })
+    .await;
+    tokio::time::sleep(std::time::Duration::from_secs(6)).await;
+    let during = executor.get_state().await;
+
+    // The cloud passes: PHD2 holds a star again.
+    ops.no_guide_star.store(false, Ordering::SeqCst);
+    ops.guiding.store(true, Ordering::SeqCst);
+    let after = wait_for_state(&executor, std::time::Duration::from_secs(20), |s| {
+        s == super::ExecutorState::Running
+    })
+    .await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    let (fired, _) = drain_fired_and_errors(&mut events);
+
+    assert_eq!(held, super::ExecutorState::Recovering, "fired={fired:?}");
+    assert_eq!(during, super::ExecutorState::Recovering);
+    assert_eq!(after, super::ExecutorState::Running, "calls={calls:?}");
+    assert!(
+        !calls
+            .iter()
+            .any(|c| c == "mount_set_tracking:mount-1:false"),
+        "a lost guide star must not stop tracking; calls={calls:?}"
+    );
+    assert!(
+        !fired.iter().any(|(id, _)| id == "mount_tracking_lost"),
+        "fired={fired:?}"
     );
 }

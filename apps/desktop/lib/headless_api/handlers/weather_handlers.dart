@@ -230,19 +230,32 @@ class WeatherHandlers {
     'maxCloudCoverPercent',
     'autoParkEnabled',
     'autoResumeEnabled',
+    'forecastHoldsRun',
+    'starEvidenceOverridesForecast',
   };
 
   /// Keys the GET echoes that are not settings. A client posting the GET
   /// document back sends `id`; it changes nothing and is not a misspelling.
-  static const Set<String> _readOnlySettings = {'id'};
+  static const Set<String> _readOnlySettings = {
+    'id',
+    'requiredSafeDurationSeconds',
+  };
+
+  static Map<String, dynamic> _policyJson(WeatherDecisionPolicy policy) => {
+    'forecastHoldsRun': policy.forecastHoldsRun,
+    'starEvidenceOverridesForecast': policy.starEvidenceOverridesForecast,
+    'requiredSafeDurationSeconds': policy.requiredSafeDurationSeconds,
+  };
 
   Future<Response> handleGetSettings(Request request) async {
     _logInfo('[API] GET /api/weather/settings');
     final database = container.read(databaseProvider);
     final settings = await database.weatherSettingsDao.getOrCreateSettings();
+    final policy = await SafetyConfigStore(database).loadDecisionPolicy();
 
     return jsonOk({
       "settings": {
+        ..._policyJson(policy),
         "id": settings.id,
         "preferredProvider": settings.preferredProvider,
         "refreshIntervalSeconds": settings.refreshIntervalSeconds,
@@ -287,6 +300,16 @@ class WeatherHandlers {
         expected: 'radar_provider',
         message: 'Unknown weather provider',
       );
+    }
+
+    final policyStore = SafetyConfigStore(database);
+    final forecastHoldsRun = optionalBool(body, 'forecastHoldsRun');
+    if (forecastHoldsRun != null) {
+      await policyStore.setForecastHoldsRun(forecastHoldsRun);
+    }
+    final starEvidence = optionalBool(body, 'starEvidenceOverridesForecast');
+    if (starEvidence != null) {
+      await policyStore.setStarEvidenceOverridesForecast(starEvidence);
     }
 
     await database.weatherSettingsDao.updateSettings(
@@ -339,6 +362,7 @@ class WeatherHandlers {
     // previous decision.
     final backend = container.read(backendProvider);
     if (backend is! DisconnectedBackend) {
+      container.invalidate(weatherDecisionPolicyProvider);
       container.invalidate(weatherSettingsDataProvider);
       await container.read(weatherSettingsDataProvider.future);
       await container.read(weatherSafetyProvider.notifier).evaluateNow();
@@ -350,6 +374,7 @@ class WeatherHandlers {
     // request actually stored; `ignored` names the rest, so a misspelling is
     // visible without a second GET.
     final stored = await database.weatherSettingsDao.getOrCreateSettings();
+    final storedPolicy = await policyStore.loadDecisionPolicy();
     final ignored =
         body.keys
             .where(
@@ -370,6 +395,7 @@ class WeatherHandlers {
             '${(_writableSettings.toList()..sort()).join(', ')}.',
       },
       "settings": {
+        ..._policyJson(storedPolicy),
         "id": stored.id,
         "preferredProvider": stored.preferredProvider,
         "refreshIntervalSeconds": stored.refreshIntervalSeconds,

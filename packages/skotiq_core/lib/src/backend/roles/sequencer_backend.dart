@@ -310,8 +310,26 @@ abstract class SequencerBackend implements AdaptiveSwapBackend {
   ///
   /// `unsafeOverride == true` => Dart computed UNSAFE; `false` => Dart
   /// computed SAFE; `null` => Dart abstains (provider disabled / no data) and
-  /// this layer stays inert.
-  Future<void> sequencerUpdateWeatherVerdict({bool? unsafeOverride});
+  /// this layer stays inert. [advisory] marks an UNSAFE verdict that rests
+  /// only on a forecast or cloud model: it holds the run until the sky clears
+  /// and never parks the mount or ends the run.
+  Future<void> sequencerUpdateWeatherVerdict({
+    bool? unsafeOverride,
+    bool advisory = false,
+  });
+
+  /// The operator says the sky is clear: for [durationSecs] the app's weather
+  /// verdict is not acted on and a run held for weather resumes at once. `0`
+  /// ends the override. A hardware safety monitor that reads unsafe still
+  /// holds the run. [reason] is recorded with the operator action.
+  Future<void> sequencerSetWeatherOperatorClear({
+    required int durationSecs,
+    required String reason,
+  });
+
+  /// How long the sky must read safe before a run held for weather images
+  /// again (the "required safe duration").
+  Future<void> sequencerSetWeatherResumeAfterSafeSecs(int seconds);
 
   /// JSON-serialised snapshot of the latest cloud-motion
   /// reading for the run dashboard. Returns `null` until the first push

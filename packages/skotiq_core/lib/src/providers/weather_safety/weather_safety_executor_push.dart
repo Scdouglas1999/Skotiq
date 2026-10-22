@@ -45,91 +45,167 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
     });
   }
 
-  /// Compute the verdict pushed to the Rust executor's `WeatherUnsafe` trigger.
+  /// Compute the verdict sent to the sequencer's `WeatherUnsafe` trigger.
   ///
-  /// Returns:
-  ///   * `null` (ABSTAIN) when the operator has effectively opted out of
-  ///     weather-driven aborts — safety disabled, currently snoozed, or the
-  ///     no-data fail-mode is permissive (failOpen / warnOnly). Abstaining
-  ///     leaves the Rust trigger to rely solely on its own hardware poll; it
-  ///     can never suppress a hardware-unsafe abort.
-  ///   * `Some(true)` (UNSAFE) when the NON-HARDWARE Dart sources — API alert,
-  ///     hardware-weather thresholds (humidity/wind/rain/cloud), or
-  ///     park-before-dawn — say unsafe, OR the fail-closed no-data path is
-  ///     active. The hardware **safety-monitor** component is deliberately
-  ///     EXCLUDED: Rust already polls `safety_is_safe` and ORs it in, so folding
-  ///     it here too would double-count the same device.
-  ///   * `Some(false)` (SAFE) when none of the above non-hardware sources are
-  ///     unsafe and the operator has NOT opted out.
+  /// `unsafe`:
+  ///   * `null` (abstain) when the operator has opted out of weather acting on
+  ///     the run — safety disabled, the clear-sky override in force, or a
+  ///     permissive fail mode with no data — and when only a forecast says
+  ///     cloudy and forecasts only warn. Abstaining never suppresses a
+  ///     hardware safety monitor, which the sequencer polls itself.
+  ///   * `true` when a weather device at the site is outside its limits,
+  ///     dawn is near, the fail-closed no-data path is active, or the forecast
+  ///     says cloudy and the operator chose to have forecasts hold the run.
+  ///   * `false` otherwise.
   ///
-  /// This is strictly safety-monotone: it only ever ADDS an unsafe assertion or
-  /// ABSTAINS — it never asserts SAFE while a non-hardware source says
-  /// UNSAFE.
-  bool? _computePushedVerdict({
+  /// `advisory` is true when the UNSAFE verdict rests only on the forecast:
+  /// the sequencer then holds the run and never parks it or ends it.
+  ({bool? unsafe, bool advisory}) _computePushedVerdict({
     required WeatherSettings weatherSettings,
     required WeatherSafetyStatus finalStatus,
     required SafetyFailMode failMode,
     required bool useFailMode,
-    required bool apiWeatherSafe,
     required bool hardwareWeatherSafe,
+    required bool forecastActs,
+    required bool forecastHoldsRun,
     required bool dawnParkDue,
   }) {
-    // Opt-out cases ABSTAIN. `finalStatus == snoozed` covers an active snooze;
-    // we also abstain for an explicit just-issued snooze that has not yet been
-    // re-evaluated (the snooze() setter pushes status to snoozed directly).
     if (!weatherSettings.weatherSafetyEnabled ||
         finalStatus == WeatherSafetyStatus.snoozed) {
-      return null;
+      return (unsafe: null, advisory: false);
     }
 
-    // No-data fail-mode: resolved through the SINGLE cross-language truth table
-    // ([noDataFailModeResolution], mirrored by the Rust
-    // `safety_fail_mode_no_data_resolution`). `unsafe` asserts UNSAFE (matches
-    // finalStatus); the permissive resolutions (`safe` / `preserve`) ABSTAIN
-    // rather than assert SAFE, so a permissive fail-mode can never suppress a
-    // hardware-unsafe abort.
+    // No-data fail mode, resolved through the single cross-language truth
+    // table. The permissive resolutions abstain rather than assert SAFE.
     if (useFailMode) {
       switch (noDataFailModeResolution(failMode)) {
         case NoDataResolution.unsafe:
-          return true;
+          return (unsafe: true, advisory: false);
         case NoDataResolution.safe:
         case NoDataResolution.preserve:
-          return null;
+          return (unsafe: null, advisory: false);
       }
     }
 
-    // Normal path: fold the non-hardware sources. The safety monitor is
-    // intentionally absent (Rust evaluates it once). `dawnParkDue` is folded so
-    // the park-before-dawn abort also reaches the in-sequencer trigger.
-    final nonHardwareUnsafe =
-        !apiWeatherSafe || !hardwareWeatherSafe || dawnParkDue;
-    return nonHardwareUnsafe;
+    // The safety monitor is left out: the sequencer polls it itself.
+    if (!hardwareWeatherSafe || dawnParkDue) {
+      return (unsafe: true, advisory: false);
+    }
+    if (forecastActs) {
+      return forecastHoldsRun
+          ? (unsafe: true, advisory: true)
+          : (unsafe: null, advisory: false);
+    }
+    return (unsafe: false, advisory: false);
   }
 
-  /// Defense-in-depth (full-night audit 2026-06-04): forward the
-  /// weather-safety verdict to the Rust executor's `WeatherUnsafe` trigger.
+  /// Send the weather verdict to the sequencer's `WeatherUnsafe` trigger.
   ///
-  /// Pushed on every evaluation so the in-sequencer trigger has a current
-  /// verdict on its next tick, regardless of whether a hardware safety device
-  /// is connected. Best-effort like the cloud-motion push: the backend may be
-  /// disconnected (DisconnectedBackend throws), in which case there is no live
-  /// executor to inform and we swallow the error.
-  ///
-  /// `verdict` is `null` (abstain), `true` (unsafe) or `false` (safe) — see
-  /// [_computePushedVerdict]. The Rust side ORs `Some(true)` as an additional
-  /// unsafe source and treats `Some(false)` / `None` as non-asserting, so this
-  /// channel can only ever add-unsafe or abstain — it never weakens the
-  /// hardware gate.
-  Future<void> _pushWeatherVerdict(bool? verdict) async {
+  /// Sent on every evaluation and re-sent on every heartbeat. Best-effort: with
+  /// no live executor (a disconnected backend throws) there is nothing to
+  /// inform, and the next send carries the verdict.
+  Future<void> _pushWeatherVerdict(
+    bool? verdict, {
+    bool advisory = false,
+  }) async {
     if (!mounted) return;
+    _lastVerdict = (unsafe: verdict, advisory: advisory);
     try {
       final backend = _ref.read(backendProvider);
-      await backend.sequencerUpdateWeatherVerdict(unsafeOverride: verdict);
+      await backend.sequencerUpdateWeatherVerdict(
+        unsafeOverride: verdict,
+        advisory: advisory,
+      );
     } catch (_) {
-      // No live executor to inform (e.g. backend disconnected). The verdict is
-      // re-pushed on the next evaluation; the Dart SafeRig path remains the
-      // primary enforcement layer.
+      // No live executor to inform; the next send carries the verdict.
     }
+  }
+
+  /// Every minute: re-send the last verdict and the safe period to the
+  /// sequencer, and refresh a forecast that has gone quiet. The sequencer
+  /// treats a verdict nobody refreshes as missing data, so the app keeps it
+  /// fresh whether or not anything changed.
+  void _startVerdictHeartbeat() {
+    _verdictHeartbeatTimer?.cancel();
+    _verdictHeartbeatTimer = Timer.periodic(
+      WeatherSafetyNotifier._verdictHeartbeatInterval,
+      (_) {
+        if (!mounted) return;
+        unawaited(_verdictHeartbeat());
+      },
+    );
+  }
+
+  Future<void> _verdictHeartbeat() async {
+    _watchDecisionPolicy();
+    final last = _lastVerdict;
+    if (last != null) {
+      await _pushWeatherVerdict(last.unsafe, advisory: last.advisory);
+    }
+    final resumeAfter = _lastResumeAfterSecs;
+    if (resumeAfter != null && mounted) {
+      try {
+        await _ref
+            .read(backendProvider)
+            .sequencerSetWeatherResumeAfterSafeSecs(resumeAfter);
+      } catch (_) {
+        // No live executor; sent again next minute.
+      }
+    }
+    if (!mounted) return;
+    final settings = _ref.read(weatherSettingsDataProvider).valueOrNull;
+    final alert = _ref.read(weatherAlertServiceProvider).currentAlert;
+    if (settings == null || !settings.weatherSafetyEnabled) return;
+    final refreshAfter = Duration(seconds: settings.refreshIntervalSeconds);
+    if (alert == null ||
+        _clock().difference(alert.generatedAt) > refreshAfter) {
+      _requestForecastRefresh();
+    }
+  }
+
+  /// Fetch the forecast again and re-evaluate. The forecast alert is only
+  /// produced while something listens to the evaluation provider, which is a
+  /// weather widget on screen; without this, a forecast taken under a passing
+  /// cloud stayed the verdict for the rest of the night.
+  ///
+  /// At most one attempt a minute: a forecast that cannot be fetched must not
+  /// turn every evaluation into another fetch.
+  void _requestForecastRefresh() {
+    if (_forecastRefreshInFlight || !mounted) return;
+    final last = _lastForecastRefreshAt;
+    final now = _clock();
+    if (last != null &&
+        now.difference(last) <
+            WeatherSafetyNotifier._verdictHeartbeatInterval) {
+      return;
+    }
+    _lastForecastRefreshAt = now;
+    _forecastRefreshInFlight = true;
+    unawaited(() async {
+      ProviderSubscription<AsyncValue<WeatherAlert>>? subscription;
+      try {
+        _ref.invalidate(cloudCoverPercentageProvider);
+        _cloudCoverFetchedAt = _clock();
+        subscription = _ref.listen<AsyncValue<WeatherAlert>>(
+          evaluateWeatherConditionsProvider,
+          (_, __) {},
+        );
+        _ref.invalidate(evaluateWeatherConditionsProvider);
+        await _ref
+            .read(evaluateWeatherConditionsProvider.future)
+            .timeout(const Duration(seconds: 60));
+      } catch (error) {
+        developer.log(
+          'weather: forecast refresh failed: $error',
+          name: 'WeatherSafety',
+          level: 800,
+        );
+      } finally {
+        subscription?.close();
+        _forecastRefreshInFlight = false;
+        if (mounted) _evaluateAllSources();
+      }
+    }());
   }
 
   /// Read the current cloud cover, re-fetching when the cached sample is

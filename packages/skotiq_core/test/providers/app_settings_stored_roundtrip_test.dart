@@ -151,7 +151,7 @@ void main() {
       // Recovery
       recoveryDefaultRetryIntervalMins: 15.0,
       recoveryDefaultMaxDurationMins: 120.0,
-      recoveryStopTrackingDuringRecovery: false,
+      recoveryStopTrackingDuringRecovery: true,
       recoveryAbortOnMeridian: false,
       recoveryAudibleAlertWhenEntered: false,
       // Autofocus
@@ -286,4 +286,42 @@ void main() {
       expect(remote.toJson(), isNot(contains('smartNightAutoPromptEnabled')));
     },
   );
+
+  // Tracking now stays on through a recovery unless the operator chooses
+  // otherwise. The old key held the old default (`true`) on nearly every
+  // install, so it is no longer read; only a choice made since counts.
+  test('recovery stop-tracking ignores the old key and defaults off', () async {
+    final backend = _MockNetworkBackend();
+    when(() => backend.eventStream).thenAnswer((_) => const Stream.empty());
+    when(
+      () => backend.getSettings(),
+    ).thenAnswer((_) async => const models.AppSettings());
+    final container = ProviderContainer(
+      overrides: [
+        backendProvider.overrideWith(
+          (ref) => _FixedBackendNotifier(ref, backend),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container.read(appSettingsProvider.future);
+    final notifier = container.read(appSettingsProvider.notifier);
+
+    expect(
+      const AppSettingsState().recoveryStopTrackingDuringRecovery,
+      isFalse,
+    );
+    expect(
+      notifier.debugSettingsFromStoredMap({
+        'recovery_stop_tracking_during_recovery': 'true',
+      }).recoveryStopTrackingDuringRecovery,
+      isFalse,
+    );
+    expect(
+      notifier.debugSettingsFromStoredMap({
+        'recovery_stop_tracking_during_recovery_v2': 'true',
+      }).recoveryStopTrackingDuringRecovery,
+      isTrue,
+    );
+  });
 }

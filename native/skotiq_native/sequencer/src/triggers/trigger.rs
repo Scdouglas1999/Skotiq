@@ -552,7 +552,7 @@ impl Trigger {
                 // abstaining verdict (`None`) or a `Some(false)` SAFE verdict never
                 // suppresses a hardware-unsafe reading.
                 let hardware_unsafe = !state.weather_safe;
-                let verdict_unsafe = state.weather_verdict_unsafe == Some(true);
+                let verdict_unsafe = state.weather_verdict_counts_unsafe();
                 if hardware_unsafe || verdict_unsafe {
                     // Name the deciding input: this trigger's action is ParkAndAbort, so
                     // firing ends the night and "Sequence cancelled" alone leaves the cause

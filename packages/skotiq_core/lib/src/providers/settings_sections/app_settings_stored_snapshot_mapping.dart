@@ -219,9 +219,11 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
         allSettings['recovery_default_max_duration_mins'],
         90.0,
       ).clamp(1.0, 1440.0),
+      // Stored under a new key: the old one held `true`, the old default,
+      // on nearly every install, and tracking now stays on unless chosen.
       recoveryStopTrackingDuringRecovery: _parseBool(
-        allSettings['recovery_stop_tracking_during_recovery'],
-        true,
+        allSettings['recovery_stop_tracking_during_recovery_v2'],
+        false,
       ),
       recoveryAbortOnMeridian: _parseBool(
         allSettings['recovery_abort_on_meridian'],
@@ -636,7 +638,7 @@ extension _AppSettingsStoredSnapshotMapping on AppSettingsNotifier {
           .toString(),
       'recovery_default_max_duration_mins': s.recoveryDefaultMaxDurationMins
           .toString(),
-      'recovery_stop_tracking_during_recovery': s
+      'recovery_stop_tracking_during_recovery_v2': s
           .recoveryStopTrackingDuringRecovery
           .toString(),
       'recovery_abort_on_meridian': s.recoveryAbortOnMeridian.toString(),

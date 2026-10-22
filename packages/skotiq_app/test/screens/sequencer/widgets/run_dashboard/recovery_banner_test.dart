@@ -45,14 +45,32 @@ class _StubBackendNotifier extends BackendNotifier {
   }
 }
 
+class _SpyWeatherSafety extends WeatherSafetyNotifier {
+  _SpyWeatherSafety(super.ref);
+
+  final snoozes = <(Duration, String?)>[];
+
+  @override
+  void snooze(Duration duration, {String? reason}) {
+    snoozes.add((duration, reason));
+  }
+}
+
 Widget _harness({
   required Widget child,
   required _SpyBackend backend,
   RecoveryStatus? recovery,
   SequenceExecutionState? execState,
+  void Function(_SpyWeatherSafety)? onWeather,
 }) {
   return ProviderScope(
     overrides: [
+      if (onWeather != null)
+        weatherSafetyProvider.overrideWith((ref) {
+          final spy = _SpyWeatherSafety(ref);
+          onWeather(spy);
+          return spy;
+        }),
       backendProvider.overrideWith((ref) => _StubBackendNotifier(ref, backend)),
       currentRecoveryProvider.overrideWith((ref) {
         final notifier = RecoveryNotifier();
@@ -112,6 +130,44 @@ void main() {
       );
       // The countdown text is "next retry in <…>" — match the prefix.
       expect(find.textContaining('next retry in'), findsOneWidget);
+    });
+
+    testWidgets(
+        'a weather hold reads as waiting, offers the sky-clear '
+        'override, and has no attempts or node to skip', (tester) async {
+      final backend = _SpyBackend();
+      _SpyWeatherSafety? weather;
+      final hold = RecoveryStatus(
+        startedAt: DateTime.now().toUtc().subtract(const Duration(minutes: 12)),
+        cause: RecoveryCause.weatherUnsafe(),
+        lastAttemptAt: DateTime.now().toUtc(),
+        attemptCount: 48,
+        maxAttempts: 2880,
+        retryIntervalSecs: 15,
+        maxDurationSecs: 43200,
+        phase: RecoveryPhase.waiting,
+        lastError: 'The weather forecast still reports clouds',
+      );
+      await tester.pumpWidget(_harness(
+        backend: backend,
+        recovery: hold,
+        onWeather: (spy) => weather = spy,
+        child: const RunDashboardRecoveryBanner(),
+      ));
+      await tester.pump();
+
+      expect(find.text('WEATHER HOLD'), findsOneWidget);
+      expect(find.text('Waiting for a clear sky'), findsOneWidget);
+      expect(find.textContaining('Exposures held, mount tracking'),
+          findsOneWidget);
+      expect(find.text('The weather forecast still reports clouds'),
+          findsOneWidget);
+      expect(find.textContaining('Attempt'), findsNothing);
+      expect(find.byKey(const Key('recovery_skip_node')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('recovery_sky_clear')));
+      await tester.pump();
+      expect(weather!.snoozes.single.$1, const Duration(minutes: 30));
     });
 
     testWidgets('hides itself when no recovery is in flight', (tester) async {

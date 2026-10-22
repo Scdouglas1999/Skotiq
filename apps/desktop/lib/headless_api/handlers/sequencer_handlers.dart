@@ -161,6 +161,12 @@ class SequencerHandlers {
       _handleSequencerUpdateCloudMotion(request);
   Future<Response> handleSequencerUpdateWeatherVerdict(Request request) =>
       _handleSequencerUpdateWeatherVerdict(request);
+
+  Future<Response> handleSequencerWeatherOperatorClear(Request request) =>
+      _handleSequencerWeatherOperatorClear(request);
+
+  Future<Response> handleSequencerWeatherResumeAfter(Request request) =>
+      _handleSequencerWeatherResumeAfter(request);
   Future<Response> handleSequencerGetCloudMotion(Request request) =>
       _handleSequencerGetCloudMotion(request);
   Future<Response> handleSequencerUpdateConditionsScore(Request request) =>

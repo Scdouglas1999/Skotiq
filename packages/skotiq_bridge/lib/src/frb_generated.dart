@@ -126,7 +126,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1703080;
+  int get rustContentHash => 1452936108;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1495,6 +1495,17 @@ abstract class RustLibApi extends BaseApi {
     required bool stopOnQualityProblems,
   });
 
+  Future<void>
+  crateApiSequencerRuntimeConfigApiSequencerSetWeatherOperatorClear({
+    required int durationSecs,
+    required String reason,
+  });
+
+  Future<void>
+  crateApiSequencerRuntimeConfigApiSequencerSetWeatherResumeAfterSafeSecs({
+    required int seconds,
+  });
+
   Future<void> crateApiSequencerLifecycleApiSequencerSkip();
 
   Future<void> crateApiSequencerLifecycleApiSequencerSkipToNode({
@@ -1615,6 +1626,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiSequencerRuntimeConfigApiSequencerUpdateWeatherVerdict({
     bool? unsafeOverride,
+    required bool advisory,
   });
 
   Future<void> crateApiDevicesCameraApiSetCameraBinning({
@@ -12128,6 +12140,77 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void>
+  crateApiSequencerRuntimeConfigApiSequencerSetWeatherOperatorClear({
+    required int durationSecs,
+    required String reason,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_u_32(durationSecs);
+          var arg1 = cst_encode_String(reason);
+          return wire
+              .wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clear(
+                port_,
+                arg0,
+                arg1,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta:
+            kCrateApiSequencerRuntimeConfigApiSequencerSetWeatherOperatorClearConstMeta,
+        argValues: [durationSecs, reason],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSequencerRuntimeConfigApiSequencerSetWeatherOperatorClearConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_sequencer_set_weather_operator_clear",
+        argNames: ["durationSecs", "reason"],
+      );
+
+  @override
+  Future<void>
+  crateApiSequencerRuntimeConfigApiSequencerSetWeatherResumeAfterSafeSecs({
+    required int seconds,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_u_32(seconds);
+          return wire
+              .wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta:
+            kCrateApiSequencerRuntimeConfigApiSequencerSetWeatherResumeAfterSafeSecsConstMeta,
+        argValues: [seconds],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSequencerRuntimeConfigApiSequencerSetWeatherResumeAfterSafeSecsConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_sequencer_set_weather_resume_after_safe_secs",
+        argNames: ["seconds"],
+      );
+
+  @override
   Future<void> crateApiSequencerLifecycleApiSequencerSkip() {
     return handler.executeNormal(
       NormalTask(
@@ -12987,15 +13070,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   Future<void> crateApiSequencerRuntimeConfigApiSequencerUpdateWeatherVerdict({
     bool? unsafeOverride,
+    required bool advisory,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_opt_box_autoadd_bool(unsafeOverride);
+          var arg1 = cst_encode_bool(advisory);
           return wire
               .wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_verdict(
                 port_,
                 arg0,
+                arg1,
               );
         },
         codec: DcoCodec(
@@ -13004,7 +13090,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiSequencerRuntimeConfigApiSequencerUpdateWeatherVerdictConstMeta,
-        argValues: [unsafeOverride],
+        argValues: [unsafeOverride, advisory],
         apiImpl: this,
       ),
     );
@@ -13014,7 +13100,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiSequencerRuntimeConfigApiSequencerUpdateWeatherVerdictConstMeta =>
       const TaskConstMeta(
         debugName: "api_sequencer_update_weather_verdict",
-        argNames: ["unsafeOverride"],
+        argNames: ["unsafeOverride", "advisory"],
       );
 
   @override

@@ -384,6 +384,8 @@ class NightConditionsVm {
     required this.source,
     this.safe,
     this.metrics = const <MetricVm>[],
+    this.notes = const <NightText>[],
+    this.skyOverride = NightSkyOverride.none,
   });
 
   final ConditionsSource source;
@@ -394,15 +396,43 @@ class NightConditionsVm {
   /// Seeing and SQM appear only when a device reports them.
   final List<MetricVm> metrics;
 
+  /// What decides the verdict and what the run's own frames say, one line
+  /// each.
+  final List<NightText> notes;
+
+  /// Whether the operator's "the sky is clear" override is offered or in
+  /// force.
+  final NightSkyOverride skyOverride;
+
   @override
   bool operator ==(Object other) =>
       other is NightConditionsVm &&
       other.source == source &&
       other.safe == safe &&
-      listEquals(other.metrics, metrics);
+      listEquals(other.metrics, metrics) &&
+      listEquals(other.notes, notes) &&
+      other.skyOverride == skyOverride;
 
   @override
-  int get hashCode => Object.hash(source, safe, Object.hashAll(metrics));
+  int get hashCode => Object.hash(
+        source,
+        safe,
+        Object.hashAll(metrics),
+        Object.hashAll(notes),
+        skyOverride,
+      );
+}
+
+/// The operator's "the sky is clear" override on the Conditions block.
+enum NightSkyOverride {
+  /// Nothing to set aside.
+  none,
+
+  /// The weather verdict holds or warns and may be set aside.
+  offer,
+
+  /// The verdict is set aside; the override can be ended.
+  active,
 }
 
 /// One Log line ("23:49  #43 Ha accepted · HFR 2.13").

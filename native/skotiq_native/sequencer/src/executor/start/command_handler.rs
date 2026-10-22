@@ -527,7 +527,10 @@ pub(super) async fn run_command_handler(args: CommandHandlerArgs) {
                     what: "conditions_score".to_string(),
                 });
             }
-            ExecutorCommand::UpdateWeatherVerdict { unsafe_override } => {
+            ExecutorCommand::UpdateWeatherVerdict {
+                unsafe_override,
+                advisory,
+            } => {
                 // Full-night audit 2026-06-04 (defense-in-depth) —
                 // fold the Dart-side weather-safety verdict into the
                 // trigger state so the in-sequencer `WeatherUnsafe`
@@ -538,11 +541,12 @@ pub(super) async fn run_command_handler(args: CommandHandlerArgs) {
                     let manager = trigger_manager.read().await;
                     let state_lock = manager.state();
                     let mut state = state_lock.write().await;
-                    state.update_weather_verdict(unsafe_override);
+                    state.update_weather_verdict_from(unsafe_override, advisory);
                 }
                 tracing::debug!(
-                    "Runtime weather verdict updated: unsafe_override={:?}",
-                    unsafe_override
+                    "Runtime weather verdict updated: unsafe_override={:?} advisory={}",
+                    unsafe_override,
+                    advisory
                 );
                 let _ = event_tx.send(ExecutorEvent::RuntimeConfigUpdated {
                     what: "weather_verdict".to_string(),

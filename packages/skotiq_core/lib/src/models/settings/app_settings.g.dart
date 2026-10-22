@@ -110,7 +110,7 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
   recoveryDefaultMaxDurationMins:
       (json['recoveryDefaultMaxDurationMins'] as num?)?.toDouble() ?? 90.0,
   recoveryStopTrackingDuringRecovery:
-      json['recoveryStopTrackingDuringRecovery'] as bool? ?? true,
+      json['recoveryStopTrackingDuringRecovery'] as bool? ?? false,
   recoveryAbortOnMeridian: json['recoveryAbortOnMeridian'] as bool? ?? true,
   recoveryAudibleAlertWhenEntered:
       json['recoveryAudibleAlertWhenEntered'] as bool? ?? true,

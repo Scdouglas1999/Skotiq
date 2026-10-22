@@ -40,12 +40,12 @@ extension RecoverySettingsSection on AppSettingsNotifier {
     _patchState((s) => s.copyWith(recoveryDefaultMaxDurationMins: clamped));
   }
 
-  /// Whether the mount should stop tracking on recovery entry. Defaults
-  /// to true because most recoverable failures benefit from a stationary
-  /// rig (guide-star loss, dew, weather, drift).
+  /// Whether the mount stops tracking on recovery entry. Off by default, and
+  /// never applied to a lost guide star or a weather hold: those are mostly
+  /// cloud, and a tracking mount is still on the target when it passes.
   Future<void> setRecoveryStopTrackingDuringRecovery(bool value) async {
     await _saveSetting(
-      'recovery_stop_tracking_during_recovery',
+      'recovery_stop_tracking_during_recovery_v2',
       value.toString(),
     );
     _patchState((s) => s.copyWith(recoveryStopTrackingDuringRecovery: value));

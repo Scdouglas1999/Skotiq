@@ -71,11 +71,30 @@ pub const AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY: &str =
 pub const AUTOFOCUS_TRIGGER_UNGUIDED_HOLD_SUMMARY: &str =
     "Autofocus left the guider stopped — run held, no unguided frames";
 
-/// Default staleness window for the Dart weather verdict (Subsystem 2 step 3).
-/// The Dart side pushes the verdict on every 5-minute periodic evaluation plus
-/// on every alert/snooze change; 6 minutes gives the periodic push a full cycle
-/// of slack before a missed push is treated as a dead feed.
+/// Default staleness window for the Dart weather verdict. The app re-sends its
+/// verdict every minute and on every change, so six minutes is several missed
+/// sends, not one late one.
 const DEFAULT_WEATHER_VERDICT_STALENESS_SECS: u64 = 360;
+
+/// Default for how long the sky must read safe before a weather hold ends: the
+/// app's "required safe duration" until it pushes its own.
+pub const DEFAULT_WEATHER_RESUME_AFTER_SAFE_SECS: u64 = 300;
+
+/// How often a weather hold checks the sky.
+pub const WEATHER_HOLD_CHECK_SECS: f64 = 15.0;
+
+/// How often a guide-star hold looks for the star again, at most: soon enough
+/// that the run resumes shortly after a cloud passes.
+pub const GUIDE_STAR_RECHECK_SECS: f64 = 60.0;
+
+/// The span a weather hold reports as its budget. A hold has no budget and
+/// never runs out; this only keeps the attempt counters the recovery events
+/// carry finite.
+pub const WEATHER_HOLD_NOMINAL_SPAN_SECS: f64 = 12.0 * 3600.0;
+
+/// A weather hold at least this long recenters on the target before imaging
+/// again: guided or not, an unguided mount drifts over that time.
+pub const WEATHER_HOLD_RECENTER_AFTER_SECS: f64 = 15.0 * 60.0;
 
 mod failure_cause;
 mod flip_request;

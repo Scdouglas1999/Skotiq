@@ -387,18 +387,27 @@ impl FiredTriggerAction {
 /// Matched on the standard trigger ids only. A Recovery node the operator put
 /// in the sequence with Park and Abort is their explicit choice for that
 /// sequence and is left alone.
+///
+/// `weather_advisory_only` is true when the unsafe weather rests only on a
+/// forecast or cloud model (see
+/// [`crate::triggers::TriggerState::weather_unsafe_is_advisory_only`]). A
+/// forecast never parks the mount or ends the run, whatever the park setting:
+/// it holds the run, which resumes on its own when the sky clears.
 pub(crate) fn apply_park_policy(
     trigger_id: &str,
     action: RecoveryAction,
     policy: ParkPolicy,
+    weather_advisory_only: bool,
 ) -> FiredTriggerAction {
     let parks = matches!(action, RecoveryAction::ParkAndAbort);
     match trigger_id {
-        "weather_unsafe" if parks && !policy.park_on_unsafe_weather => FiredTriggerAction {
-            action: RecoveryAction::Pause,
-            end_without_parking: false,
-            notify_only: false,
-        },
+        "weather_unsafe" if parks && (weather_advisory_only || !policy.park_on_unsafe_weather) => {
+            FiredTriggerAction {
+                action: RecoveryAction::Pause,
+                end_without_parking: false,
+                notify_only: false,
+            }
+        }
         "dawn_approaching" if parks && !policy.park_before_dawn => FiredTriggerAction {
             action,
             end_without_parking: true,
@@ -954,6 +963,30 @@ pub(super) fn weather_verdict_stale_warning(
         *already_warned = false;
         None
     }
+}
+
+/// Whether an UNSAFE app verdict that has gone stale keeps holding the run.
+///
+/// A stale verdict is missing data, so the fail mode decides: fail closed keeps
+/// the hold; fail open and warn only set the verdict aside and let the run go
+/// on, with a warning. A verdict that holds forever because nothing refreshes
+/// it is the defect this exists to prevent.
+pub(super) fn stale_unsafe_verdict_holds(mode: SafetyFailMode) -> bool {
+    safety_fail_mode_no_data_resolution(mode) == NoDataResolution::Unsafe
+}
+
+/// The warning for an UNSAFE verdict set aside because it went stale under a
+/// permissive fail mode.
+pub(super) fn stale_verdict_dropped_message(staleness_secs: u64, mode: SafetyFailMode) -> String {
+    let mode = match mode {
+        SafetyFailMode::WarnOnly => "warn only",
+        _ => "fail open",
+    };
+    format!(
+        "The app's weather verdict has not been refreshed for {staleness_secs} s. The safety \
+         fail mode is {mode}, so its last UNSAFE reading is set aside and the run carries on. \
+         It holds again as soon as a fresh verdict says unsafe."
+    )
 }
 
 /// How a [`SafetyFailMode`] resolves the "no usable safety/weather data"

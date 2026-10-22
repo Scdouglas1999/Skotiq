@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:skotiq_core/skotiq_core.dart' show weatherSafetyProvider;
 
 import '../../data/plan/night_run_phase_provider.dart';
 import '../../data/session/before_you_start_provider.dart';
@@ -52,7 +53,15 @@ class NightOverviewTab extends ConsumerWidget {
           NightSessionSection(session: ref.watch(nightSessionStatsProvider)),
         ],
         NightEquipmentSection(rows: ref.watch(nightEquipmentProvider)),
-        NightConditionsSection(conditions: ref.watch(nightConditionsProvider)),
+        NightConditionsSection(
+          conditions: ref.watch(nightConditionsProvider),
+          onSkyClear: () => ref.read(weatherSafetyProvider.notifier).snooze(
+                nightSkyClearOverride,
+                reason: 'Operator on Tonight: the sky is clear',
+              ),
+          onEndOverride: () =>
+              ref.read(weatherSafetyProvider.notifier).cancelSnooze(),
+        ),
       ],
     );
   }

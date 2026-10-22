@@ -192,10 +192,10 @@ class AppSettingsState {
   /// Total minutes before the recovery loop gives up. SGP default: 90.
   final double recoveryDefaultMaxDurationMins;
 
-  /// When true, the executor commands the mount to stop tracking on
-  /// recovery entry. Default on — most failure modes (guide star, dew,
-  /// weather, drift) are improved by parking tracking so the rig doesn't
-  /// keep sliding while the operator is asleep.
+  /// When true, the executor stops the mount tracking on recovery entry.
+  /// Default off, and never applied to a lost guide star or a weather hold,
+  /// which are mostly cloud: a tracking mount is still on the target when the
+  /// stars come back.
   final bool recoveryStopTrackingDuringRecovery;
 
   /// When true, an imminent meridian crossing inside the recovery window
@@ -584,7 +584,7 @@ class AppSettingsState {
     // Recovery Mode — SGP-matching defaults.
     this.recoveryDefaultRetryIntervalMins = 10.0,
     this.recoveryDefaultMaxDurationMins = 90.0,
-    this.recoveryStopTrackingDuringRecovery = true,
+    this.recoveryStopTrackingDuringRecovery = false,
     this.recoveryAbortOnMeridian = true,
     this.recoveryAudibleAlertWhenEntered = true,
 

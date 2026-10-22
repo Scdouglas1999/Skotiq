@@ -17591,6 +17591,56 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problemsPtr
           .asFunction<void Function(int, bool)>();
 
+  void
+  wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clear(
+    int port_,
+    int duration_secs,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> reason,
+  ) {
+    return _wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clear(
+      port_,
+      duration_secs,
+      reason,
+    );
+  }
+
+  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clearPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Uint32,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clear',
+      );
+  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clear =
+      _wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clearPtr
+          .asFunction<
+            void Function(int, int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void
+  wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs(
+    int port_,
+    int seconds,
+  ) {
+    return _wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs(
+      port_,
+      seconds,
+    );
+  }
+
+  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Uint32)>>(
+        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs',
+      );
+  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs =
+      _wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secsPtr
+          .asFunction<void Function(int, int)>();
+
   void wire__crate__api__sequencer__lifecycle__api_sequencer_skip(int port_) {
     return _wire__crate__api__sequencer__lifecycle__api_sequencer_skip(port_);
   }
@@ -18269,22 +18319,26 @@ class RustLibWire implements BaseWire {
   wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_verdict(
     int port_,
     ffi.Pointer<ffi.Bool> unsafe_override,
+    bool advisory,
   ) {
     return _wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_verdict(
       port_,
       unsafe_override,
+      advisory,
     );
   }
 
   late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_verdictPtr =
       _lookup<
-        ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Pointer<ffi.Bool>)>
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.Int64, ffi.Pointer<ffi.Bool>, ffi.Bool)
+        >
       >(
         'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_verdict',
       );
   late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_verdict =
       _wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_verdictPtr
-          .asFunction<void Function(int, ffi.Pointer<ffi.Bool>)>();
+          .asFunction<void Function(int, ffi.Pointer<ffi.Bool>, bool)>();
 
   void wire__crate__api__devices__camera__api_set_camera_binning(
     int port_,

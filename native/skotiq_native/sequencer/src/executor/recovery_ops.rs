@@ -198,6 +198,88 @@ pub(crate) async fn recover_guide_star(
     }
 }
 
+/// Whether the sky reads safe right now for a weather hold: the app's verdict
+/// is not acted on as UNSAFE and the hardware safety reading is safe. `Err`
+/// carries what still reads unsafe.
+///
+/// A rig with no safety monitor answers the hardware poll with an error, which
+/// is resolved through the fail mode exactly as the trigger monitor resolves
+/// it; treating that error as "still unsafe" kept a run on a rig without a
+/// monitor held for good once its verdict had cleared.
+pub(crate) async fn weather_sky_check(
+    device_ops: &SharedDeviceOps,
+    trigger_manager: &Arc<RwLock<TriggerManager>>,
+) -> Result<(), String> {
+    let state = trigger_manager.read().await.state();
+    let (verdict_unsafe, advisory, hardware_safe_before, fail_mode) = {
+        let guard = state.read().await;
+        (
+            guard.weather_verdict_counts_unsafe(),
+            guard.weather_verdict_advisory,
+            guard.weather_safe,
+            guard.safety_fail_mode,
+        )
+    };
+    if verdict_unsafe {
+        return Err(if advisory {
+            "The weather forecast still reports clouds".to_string()
+        } else {
+            "The app's weather check still reports unsafe".to_string()
+        });
+    }
+    let hardware_safe = match device_ops.safety_is_safe(None).await {
+        Ok(safe) => safe,
+        Err(error) => match safety_fail_mode_no_data_resolution(fail_mode) {
+            NoDataResolution::Safe => true,
+            NoDataResolution::Preserve => hardware_safe_before,
+            NoDataResolution::Unsafe => {
+                return Err(format!("Weather poll failed: {error}"));
+            }
+        },
+    };
+    if hardware_safe {
+        Ok(())
+    } else {
+        Err("The safety monitor still reports unsafe".to_string())
+    }
+}
+
+/// One check of a weather hold: the sky must have read safe without a break
+/// for `resume_after_secs` before the hold ends, unless the operator has said
+/// the sky is clear. `safe_since` carries the start of the current safe
+/// stretch between checks.
+pub(crate) async fn weather_hold_attempt(
+    device_ops: &SharedDeviceOps,
+    trigger_manager: &Arc<RwLock<TriggerManager>>,
+    safe_since: &mut Option<std::time::Instant>,
+    resume_after_secs: u64,
+) -> crate::recovery::AttemptOutcome {
+    use crate::recovery::AttemptOutcome;
+    if let Err(message) = weather_sky_check(device_ops, trigger_manager).await {
+        *safe_since = None;
+        return AttemptOutcome::Failed { message };
+    }
+    let operator_clear = {
+        let state = trigger_manager.read().await.state();
+        let active = state.read().await.weather_operator_clear_active();
+        active
+    };
+    let since = *safe_since.get_or_insert_with(std::time::Instant::now);
+    let safe_for = since.elapsed().as_secs();
+    if operator_clear || safe_for >= resume_after_secs {
+        AttemptOutcome::Succeeded
+    } else {
+        AttemptOutcome::Failed {
+            message: format!(
+                "The sky reads safe; imaging resumes after it has stayed safe for {} min \
+                 ({} s to go)",
+                resume_after_secs.div_ceil(60).max(1),
+                resume_after_secs - safe_for
+            ),
+        }
+    }
+}
+
 /// Recovery Mode — execute a single recovery attempt for the given
 /// cause and report the outcome. Stays out of the executor methods so the
 /// recovery driver task can call it without holding the executor lock.
@@ -273,34 +355,9 @@ pub(crate) async fn run_recovery_attempt(
             },
         },
         RecoveryCause::WeatherUnsafe => {
-            // Fail-closed recovery gate. A weather abort can be tripped by EITHER the
-            // hardware safety device (`safety_is_safe`) OR the Dart-side verdict (API
-            // alert / configured threshold / park-before-dawn), so resuming requires
-            // BOTH to be clear: the hardware poll must read safe AND the Dart verdict
-            // must not be `Some(true)`. Re-checking the hardware boolean alone declares
-            // a Dart-threshold-only abort "recovered" the instant the hardware reads
-            // safe, resuming into API-unsafe weather. `Some(false)` (Dart explicitly
-            // safe) and `None` (Dart abstains) both permit resume — they cannot pin the
-            // sequence paused, so this only ever adds an unsafe source.
-            let verdict_unsafe = {
-                let state = trigger_manager.read().await.state();
-                let guard = state.read().await;
-                guard.weather_verdict_unsafe == Some(true)
-            };
-            if verdict_unsafe {
-                AttemptOutcome::Failed {
-                    message: "Weather still unsafe (Dart verdict reports unsafe)".to_string(),
-                }
-            } else {
-                match device_ops.safety_is_safe(None).await {
-                    Ok(true) => AttemptOutcome::Succeeded,
-                    Ok(false) => AttemptOutcome::Failed {
-                        message: "Weather still unsafe".to_string(),
-                    },
-                    Err(e) => AttemptOutcome::Failed {
-                        message: format!("Weather poll failed: {}", e),
-                    },
-                }
+            match weather_sky_check(device_ops, trigger_manager).await {
+                Ok(()) => AttemptOutcome::Succeeded,
+                Err(message) => AttemptOutcome::Failed { message },
             }
         }
         RecoveryCause::FocusDriftCritical => {

@@ -38,7 +38,8 @@
 //!
 //! - `recoveryDefaultRetryIntervalMins` (default 10) — wait between attempts.
 //! - `recoveryDefaultMaxDurationMins`   (default 90) — total time budget.
-//! - `recoveryStopTrackingDuringRecovery` (default true) — pause tracking.
+//! - `recoveryStopTrackingDuringRecovery` (default false) — stop tracking,
+//!   never for a lost guide star or a weather hold.
 //! - `recoveryAbortOnMeridian`          (default true) — bail if flip due.
 //! - `recoveryAudibleAlertWhenEntered`  (default true) — bell on entry.
 
@@ -242,10 +243,11 @@ pub struct RecoveryRuntimeConfig {
     pub retry_interval_secs: f64,
     /// Total seconds before giving up on the loop.
     pub max_duration_secs: f64,
-    /// When true, the executor commands the mount to stop tracking on
-    /// recovery entry. Most failure modes (lost guide star, weather, drift)
-    /// are improved by parking tracking so the rig doesn't keep moving
-    /// while the operator is asleep.
+    /// When true, the executor stops the mount tracking on recovery entry.
+    /// Off by default and never applied to a lost guide star or a weather
+    /// hold: those are most often cloud, and a mount that keeps tracking is
+    /// still on the target when the stars come back, so the run can resume
+    /// without a slew or a recenter.
     pub stop_tracking_during_recovery: bool,
     /// When true, an imminent meridian crossing (within
     /// `recoveryAbortOnMeridianMinutes`) immediately aborts the recovery
@@ -289,7 +291,7 @@ impl Default for RecoveryRuntimeConfig {
         Self {
             retry_interval_secs: 10.0 * 60.0,
             max_duration_secs: 90.0 * 60.0,
-            stop_tracking_during_recovery: true,
+            stop_tracking_during_recovery: false,
             abort_on_meridian: true,
             audible_alert_when_entered: true,
             park_and_close_when_recovery_gives_up: false,
@@ -620,15 +622,14 @@ mod tests {
         assert!(ctx.is_exhausted(Utc::now()));
     }
 
-    /// Defaults match SGP's documented behaviour: 10 min between attempts,
-    /// 90 min total, stop tracking during recovery, abort on imminent
-    /// meridian, audible alert on entry.
+    /// Defaults: 10 min between attempts, 90 min total, tracking left on,
+    /// abort on imminent meridian, audible alert on entry.
     #[test]
     fn recovery_runtime_config_defaults_match_sgp() {
         let cfg = RecoveryRuntimeConfig::default();
         assert!((cfg.retry_interval_secs - 600.0).abs() < f64::EPSILON);
         assert!((cfg.max_duration_secs - 5400.0).abs() < f64::EPSILON);
-        assert!(cfg.stop_tracking_during_recovery);
+        assert!(!cfg.stop_tracking_during_recovery);
         assert!(cfg.abort_on_meridian);
         assert!(cfg.audible_alert_when_entered);
     }
