@@ -2471,7 +2471,7 @@ mod tests {
             let should_fail = self
                 .state
                 .plate_solve_failures_remaining
-                .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |remaining| {
+                .try_update(Ordering::Relaxed, Ordering::Relaxed, |remaining| {
                     (remaining > 0).then_some(remaining - 1)
                 })
                 .is_ok();

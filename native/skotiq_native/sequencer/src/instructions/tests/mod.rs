@@ -748,7 +748,7 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         }
         let stalled = self
             .filter_stalled_moves
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
             .is_ok();
         if !stalled {
             self.filter_position.store(p, Ordering::SeqCst);
@@ -851,7 +851,7 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         let mut result = self.inner.plate_solve(d, ra, dec, s).await?;
         if self
             .off_target_solves
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
             .is_ok()
         {
             result.dec_degrees += 0.01;
