@@ -2582,6 +2582,9 @@ WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__sequencer__mosaic__a
 
 WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__sequencer__mosaic__api_broadcast_get_active(void);
 
+void frbgen_skotiq_bridge_wire__crate__api__post_session__entrypoints__api_build_calibration_master(int64_t port_,
+                                                                                                    struct wire_cst_list_prim_u_8_strict *args_json);
+
 void frbgen_skotiq_bridge_wire__crate__api__post_session__entrypoints__api_build_master_flat(int64_t port_,
                                                                                              struct wire_cst_list_prim_u_8_strict *args_json);
 
@@ -4779,6 +4782,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__polar_alignment__entrypoints__api_start_all_sky_polar_alignment);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__polar_alignment__entrypoints__api_stop_polar_alignment);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__polar_alignment__run_loop__api_start_polar_alignment);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__post_session__entrypoints__api_build_calibration_master);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__post_session__entrypoints__api_build_master_flat);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__post_session__entrypoints__api_integrate_session);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__post_session__entrypoints__api_master_accumulate);

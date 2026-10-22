@@ -885,7 +885,7 @@ class SequenceExecutor {
   /// Release a Smart Night / mosaic editor handoff, restoring the operator's
   /// stashed manual sequence (and its dirty flag). Idempotent and guarded:
   ///
-  ///  * Only fires for Smart Night / mosaic owners. Autopilot is deliberately
+  ///  * Only fires for Smart Night / mosaic / calibration owners. Autopilot is deliberately
   ///    left alone — SchedulerEngine owns the autopilot lifecycle and
   ///    re-dispatches on SequenceCompleted, so releasing here would race and
   ///    destroy a freshly dispatched target (contract E). Manual is a no-op
@@ -902,7 +902,8 @@ class SequenceExecutor {
       final notifier = _ref.read(currentSequenceProvider.notifier);
       final owner = notifier.activeOwner;
       if (owner == ActivePlanOwner.smartNight ||
-          owner == ActivePlanOwner.mosaic) {
+          owner == ActivePlanOwner.mosaic ||
+          owner == ActivePlanOwner.calibration) {
         notifier.releaseOwnership();
       }
     } catch (e) {

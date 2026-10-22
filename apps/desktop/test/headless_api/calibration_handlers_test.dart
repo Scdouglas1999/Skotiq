@@ -33,8 +33,10 @@ void main() {
     late _MockDefectMapService defectMapService;
     late Directory tempDir;
     late Directory calibrationDir;
+    late List<CalibrationMasterBuildRequest> builtRequests;
 
     setUp(() async {
+      builtRequests = [];
       db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       tempDir = await Directory.systemTemp.createTemp(
         'sk_calibration_handlers_test_',
@@ -47,6 +49,30 @@ void main() {
         overrides: [
           databaseProvider.overrideWithValue(db),
           defectMapServiceProvider.overrideWithValue(defectMapService),
+          calibrationMasterBuildProvider.overrideWithValue((request) async {
+            builtRequests.add(request);
+            await File(request.outputPath).writeAsBytes(const [0]);
+            return CalibrationMasterBuildResult(
+              outputPath: request.outputPath,
+              kind: request.kind,
+              width: 4656,
+              height: 3520,
+              frameCount: request.framePaths.length,
+              leakingFrames: const [],
+              frameLevels: const [],
+              leakBaseline: 233,
+              leakThreshold: 5,
+              masterMean: 233.4,
+              rejectionFraction: 0.0017,
+              exposureSecs: 90,
+              gain: 76,
+              offset: 15,
+              binX: 1,
+              binY: 1,
+              ccdTempMean: -9.9,
+              setTemp: -10,
+            );
+          }),
         ],
       );
       handlers = CalibrationHandlers(
@@ -536,6 +562,78 @@ void main() {
       expect(await presentB.exists(), isFalse);
       expect(await db.darkLibraryDao.getAllEntries(), isEmpty);
     });
+
+    test(
+      'create-master builds from explicit frame paths without registering them',
+      () async {
+        final a = await writeDarkFile('Dark_DARK_0001.fits');
+        final b = await writeDarkFile('Dark_DARK_0002.fits');
+        final output = '${tempDir.path}/Masters/MasterDark_90s.fits';
+        await Directory('${tempDir.path}/Masters').create();
+        final response = await translateHandlerErrors(
+          handlers.handleCreateMasterDark(
+            Request(
+              'POST',
+              Uri.parse('http://localhost/api/calibration/darks/create-master'),
+              body: jsonEncode({
+                'exposureTime': 90,
+                'gain': 76,
+                'offset': 15,
+                'binX': 1,
+                'binY': 1,
+                'frameType': 'dark',
+                'outputPath': output,
+                'framePaths': [a.path, b.path],
+              }),
+            ),
+          ),
+        );
+
+        expect(response.statusCode, HttpStatus.ok);
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body['frameCount'], 2);
+        expect(builtRequests.single.framePaths, [a.path, b.path]);
+        expect(builtRequests.single.kind, 'dark');
+        final rows = await db.darkLibraryDao.getAllEntries();
+        expect(rows, hasLength(1));
+        expect(rows.single.masterDarkPath, output);
+        expect(rows.single.masterFrameCount, 2);
+        expect(rows.single.gain, 76);
+        expect(rows.single.offset, 15);
+        expect(rows.single.exposureTime, 90);
+        expect(rows.single.temperature, closeTo(-9.9, 1e-9));
+      },
+    );
+
+    test(
+      'create-master from a library group uses the native builder',
+      () async {
+        final a = await writeDarkFile('a.fits');
+        final b = await writeDarkFile('b.fits');
+        await insertDark(a);
+        await insertDark(b);
+        final output = '${tempDir.path}/MasterDark_60s.fits';
+        final response = await translateHandlerErrors(
+          handlers.handleCreateMasterDark(
+            Request(
+              'POST',
+              Uri.parse('http://localhost/api/calibration/darks/create-master'),
+              body: jsonEncode({
+                'exposureTime': 60,
+                'gain': 100,
+                'offset': 10,
+                'binX': 1,
+                'binY': 1,
+                'frameType': 'dark',
+                'outputPath': output,
+              }),
+            ),
+          ),
+        );
+        expect(response.statusCode, HttpStatus.ok);
+        expect(builtRequests.single.framePaths.toSet(), {a.path, b.path});
+      },
+    );
 
     test('create-master rejects client-relative host paths', () async {
       final response = await translateHandlerErrors(

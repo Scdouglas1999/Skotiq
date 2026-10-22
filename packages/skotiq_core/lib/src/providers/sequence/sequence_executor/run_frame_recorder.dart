@@ -10,6 +10,7 @@ import '../../../models/imaging/imaging_models.dart';
 import '../../../services/capture_preview_loader.dart';
 import '../../../services/frame_quality_score.dart';
 import '../../../services/logging_service.dart';
+import '../../dark_library_provider.dart' show darkLibraryServiceProvider;
 import '../../database_provider.dart' show imagesDaoProvider;
 import '../../equipment_provider.dart';
 import '../../imaging_provider.dart';
@@ -300,6 +301,10 @@ class RunFrameRecorder {
     // Captured before the await: the insert outlives the handler, and reading
     // a provider from a disposed container throws.
     final logger = _logger;
+    final frameType = capture.frameType?.toLowerCase() ?? attribution.frameType;
+    final darkLibrary = frameType == 'dark' || frameType == 'bias'
+        ? _ref.read(darkLibraryServiceProvider)
+        : null;
     final registration = () async {
       try {
         final rowId = await dao.insertSequenceFrame(
@@ -318,7 +323,7 @@ class RunFrameRecorder {
           rejectionReason: rejectionReason,
           filter: filter,
           // FITS IMAGETYP, in the images DB's lowercase spelling.
-          frameType: capture.frameType?.toLowerCase() ?? attribution.frameType,
+          frameType: frameType,
           gain: capture.gain ?? attribution.gain,
           offset: capture.offset ?? attribution.offset,
           binX: capture.binX ?? attribution.binX,
@@ -343,6 +348,26 @@ class RunFrameRecorder {
         );
         // The live "recent frames" list shows the row as persisted. Accepted
         // frames only: that strip has no way to mark a reject.
+        if (darkLibrary != null) {
+          try {
+            await darkLibrary.addDarkFrame(
+              filePath: filePath,
+              exposureTime: exposureSecs ?? 0.0,
+              frameType: frameType,
+              temperature: capture.sensorTempC,
+              gain: capture.gain ?? attribution.gain ?? 0,
+              offset: capture.offset ?? attribution.offset ?? 0,
+              binX: capture.binX ?? attribution.binX,
+              binY: capture.binY ?? attribution.binY,
+            );
+          } catch (e) {
+            logger.warning(
+              'Recorded $frameType frame $filePath but could not add it to the '
+              'dark library: $e',
+              source: 'SequenceExecutor',
+            );
+          }
+        }
         if (isAccepted && !_isDisposed()) {
           try {
             final row = await dao.getImageById(rowId);

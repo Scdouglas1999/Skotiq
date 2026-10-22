@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1452936108;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 310948540;
 
 // Section: executor
 
@@ -176,6 +176,30 @@ fn wire__crate__api__sequencer__mosaic__api_broadcast_get_active_impl(
                     Result::<_, ()>::Ok(crate::api::sequencer::mosaic::api_broadcast_get_active())?;
                 Ok(output_ok)
             })())
+        },
+    )
+}
+fn wire__crate__api__post_session__entrypoints__api_build_calibration_master_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    args_json: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_build_calibration_master",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_args_json = args_json.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, String>((move || {
+                    let output_ok =
+                        crate::api::post_session::entrypoints::api_build_calibration_master(
+                            api_args_json,
+                        )?;
+                    Ok(output_ok)
+                })())
+            }
         },
     )
 }
@@ -32083,6 +32107,16 @@ mod io {
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__mosaic__api_broadcast_get_active(
     ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
         wire__crate__api__sequencer__mosaic__api_broadcast_get_active_impl()
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__post_session__entrypoints__api_build_calibration_master(
+        port_: i64,
+        args_json: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__post_session__entrypoints__api_build_calibration_master_impl(
+            port_, args_json,
+        )
     }
 
     #[unsafe(no_mangle)]

@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import '../database/database.dart';
 import '../database/daos/dark_library_dao.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
+import 'calibration_master_builder.dart';
 
 /// Service for managing dark frame library operations.
 ///
@@ -17,7 +18,13 @@ import '../models/calibration/dark_library_match_tolerances.dart';
 class DarkLibraryService {
   final DarkLibraryDao _dao;
 
-  DarkLibraryService(this._dao);
+  /// Native master builder. When set, [createMasterDark] streams the frames
+  /// from disk a band at a time; without it the frames are combined in Dart,
+  /// which holds every frame in memory at once.
+  final CalibrationMasterBuild? _buildMaster;
+
+  DarkLibraryService(this._dao, {CalibrationMasterBuild? buildMaster})
+    : _buildMaster = buildMaster;
 
   // Registration
 
@@ -135,6 +142,18 @@ class DarkLibraryService {
       }
     }
 
+    final buildMaster = _buildMaster;
+    if (buildMaster != null) {
+      final built = await buildMaster(
+        CalibrationMasterBuildRequest(
+          kind: first.frameType == 'bias' ? 'bias' : 'dark',
+          framePaths: [for (final f in frames) f.filePath],
+          outputPath: outputPath,
+        ),
+      );
+      return registerMaster(built, frameType: first.frameType);
+    }
+
     // Read raw pixel data from each FITS file and median-combine
     final pixelSets = <Uint16List>[];
     int? imgWidth;
@@ -196,6 +215,33 @@ class DarkLibraryService {
         height: Value(imgHeight),
         masterDarkPath: Value(outputPath),
         masterFrameCount: Value(frames.length),
+      ),
+    );
+  }
+
+  /// Register a master the native builder wrote as a library master row.
+  ///
+  /// Exposure, gain, offset and binning come from the master's own header, so
+  /// the row and the file cannot disagree; the temperature is the mean sensor
+  /// temperature of the frames it combined.
+  Future<int> registerMaster(
+    CalibrationMasterBuildResult built, {
+    required String frameType,
+  }) {
+    return _dao.addEntry(
+      DarkLibraryCompanion.insert(
+        filePath: built.outputPath,
+        exposureTime: built.exposureSecs ?? 0,
+        frameType: Value(frameType),
+        temperature: Value(built.ccdTempMean ?? built.setTemp),
+        gain: Value(built.gain ?? 0),
+        offset: Value(built.offset ?? 0),
+        binX: Value(built.binX ?? 1),
+        binY: Value(built.binY ?? 1),
+        width: Value(built.width),
+        height: Value(built.height),
+        masterDarkPath: Value(built.outputPath),
+        masterFrameCount: Value(built.frameCount),
       ),
     );
   }

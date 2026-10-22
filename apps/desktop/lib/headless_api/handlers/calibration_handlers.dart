@@ -49,6 +49,7 @@ import '../validation.dart';
 part 'calibration_handlers/dark_library_handlers.dart';
 part 'calibration_handlers/flat_history_handlers.dart';
 part 'calibration_handlers/defect_map_handlers.dart';
+part 'calibration_handlers/end_of_night_handlers.dart';
 
 /// calibration library handlers.
 class CalibrationHandlers {

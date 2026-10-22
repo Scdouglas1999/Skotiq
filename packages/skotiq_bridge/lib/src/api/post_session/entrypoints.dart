@@ -57,6 +57,21 @@ Future<String> apiBuildMasterFlat({required String argsJson}) => RustLib
     .api
     .crateApiPostSessionEntrypointsApiBuildMasterFlat(argsJson: argsJson);
 
+/// Build a dark or bias master from raw frames on disk: a winsorized
+/// sigma-clipped mean written as unsigned 16-bit FITS with the acquisition
+/// keys, reading one band of rows at a time so memory does not grow with the
+/// frame count. Frames that read brighter than the group's first frames (a
+/// light leak) are left out and reported.
+///
+/// `args_json` is a [`BuildCalibrationMasterArgs`]; the result is a
+/// [`BuildCalibrationMasterResult`].
+Future<String> apiBuildCalibrationMaster({required String argsJson}) => RustLib
+    .instance
+    .api
+    .crateApiPostSessionEntrypointsApiBuildCalibrationMaster(
+      argsJson: argsJson,
+    );
+
 /// Re-export an in-memory pixel buffer as a 16-bit or float FITS master with
 /// provenance. The integration paths already write the FITS natively, so this
 /// is for re-export from Dart-held buffers.

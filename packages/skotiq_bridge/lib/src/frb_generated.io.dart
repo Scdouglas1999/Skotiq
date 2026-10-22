@@ -9449,6 +9449,34 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sequencer__mosaic__api_broadcast_get_activePtr
           .asFunction<WireSyncRust2DartDco Function()>();
 
+  void
+  wire__crate__api__post_session__entrypoints__api_build_calibration_master(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
+  ) {
+    return _wire__crate__api__post_session__entrypoints__api_build_calibration_master(
+      port_,
+      args_json,
+    );
+  }
+
+  late final _wire__crate__api__post_session__entrypoints__api_build_calibration_masterPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__post_session__entrypoints__api_build_calibration_master',
+      );
+  late final _wire__crate__api__post_session__entrypoints__api_build_calibration_master =
+      _wire__crate__api__post_session__entrypoints__api_build_calibration_masterPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__post_session__entrypoints__api_build_master_flat(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,

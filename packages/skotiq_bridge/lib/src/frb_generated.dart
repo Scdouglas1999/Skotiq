@@ -126,7 +126,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1452936108;
+  int get rustContentHash => 310948540;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -161,6 +161,10 @@ abstract class RustLibApi extends BaseApi {
   void crateApiSequencerMosaicApiBroadcastDeactivate();
 
   LiveStackingBroadcastSnapshot? crateApiSequencerMosaicApiBroadcastGetActive();
+
+  Future<String> crateApiPostSessionEntrypointsApiBuildCalibrationMaster({
+    required String argsJson,
+  });
 
   Future<String> crateApiPostSessionEntrypointsApiBuildMasterFlat({
     required String argsJson,
@@ -2283,6 +2287,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSequencerMosaicApiBroadcastGetActiveConstMeta =>
       const TaskConstMeta(debugName: "api_broadcast_get_active", argNames: []);
+
+  @override
+  Future<String> crateApiPostSessionEntrypointsApiBuildCalibrationMaster({
+    required String argsJson,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(argsJson);
+          return wire
+              .wire__crate__api__post_session__entrypoints__api_build_calibration_master(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_String,
+        ),
+        constMeta:
+            kCrateApiPostSessionEntrypointsApiBuildCalibrationMasterConstMeta,
+        argValues: [argsJson],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiPostSessionEntrypointsApiBuildCalibrationMasterConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_build_calibration_master",
+        argNames: ["argsJson"],
+      );
 
   @override
   Future<String> crateApiPostSessionEntrypointsApiBuildMasterFlat({

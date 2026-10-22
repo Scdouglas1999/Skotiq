@@ -21,7 +21,10 @@ enum ActivePlanOwner {
   smartNight,
 
   /// A mosaic project controller launched the generated panel sequence.
-  mosaic;
+  mosaic,
+
+  /// The end-of-night calibration step launched its darks and bias run.
+  calibration;
 
   /// Whether this owner is an automated planner (i.e. NOT the human operator).
   /// Automated owners stash/restore the manual sequence on take-over/release.
@@ -39,6 +42,8 @@ enum ActivePlanOwner {
         return 'smartNight';
       case ActivePlanOwner.mosaic:
         return 'mosaic';
+      case ActivePlanOwner.calibration:
+        return 'calibration';
     }
   }
 }
@@ -56,6 +61,8 @@ extension ActivePlanOwnerWire on ActivePlanOwner {
         return ActivePlanOwner.smartNight;
       case 'mosaic':
         return ActivePlanOwner.mosaic;
+      case 'calibration':
+        return ActivePlanOwner.calibration;
       case 'manual':
       default:
         return ActivePlanOwner.manual;

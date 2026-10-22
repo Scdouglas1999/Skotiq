@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_core/skotiq_core.dart'
+    show endOfNightCalibrationCoordinatorProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../screens/session_review/auto_integration_service.dart';
 import '../utils/startup_ui_context.dart';
 
-/// Keeps host-side post-session integration alive independently of navigation
-/// and surfaces its result through the app-wide toast overlay.
+/// Keeps host-side post-session integration and the end-of-night calibration
+/// step alive independently of navigation, and surfaces the integration result
+/// through the app-wide toast overlay.
 class AutoIntegrationLauncher extends ConsumerStatefulWidget {
   const AutoIntegrationLauncher({required this.child, super.key});
 
@@ -23,6 +26,7 @@ class _AutoIntegrationLauncherState
   void initState() {
     super.initState();
     ref.read(autoIntegrationCoordinatorProvider);
+    ref.read(endOfNightCalibrationCoordinatorProvider);
     ref.listenManual<AutoIntegrationCompletion?>(
       autoIntegrationCompletionProvider,
       (previous, next) {

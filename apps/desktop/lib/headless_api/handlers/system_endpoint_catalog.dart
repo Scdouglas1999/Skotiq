@@ -465,6 +465,12 @@ List<String> availableHeadlessEndpoints() {
     'GET /api/calibration/settings',
     'POST /api/calibration/settings',
     'POST /api/calibration/match-dark',
+    'GET /api/calibration/end-of-night',
+    'POST /api/calibration/end-of-night/settings',
+    'POST /api/calibration/end-of-night/start',
+    'POST /api/calibration/end-of-night/imaging-ended',
+    'POST /api/calibration/end-of-night/confirm-capped',
+    'POST /api/calibration/end-of-night/cancel',
     'POST /api/calibration/defect-maps/build',
     'POST /api/calibration/defect-maps/apply',
     // Weather

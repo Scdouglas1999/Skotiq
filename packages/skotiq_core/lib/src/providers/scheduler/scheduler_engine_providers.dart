@@ -179,6 +179,9 @@ class _ExecutorSequenceSink
       closeDome: false,
       closeCover: false,
     );
+    await _ref
+        .read(endOfNightCalibrationCoordinatorProvider)
+        .imagingEnded(EonEndReason.schedulerEndOfNight);
   }
 }
 

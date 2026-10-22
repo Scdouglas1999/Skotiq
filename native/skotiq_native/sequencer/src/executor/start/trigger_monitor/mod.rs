@@ -68,6 +68,8 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         .sequence_for_custom_recovery_triggers
         .as_ref()
         .is_some_and(super::explicit_end::owns_dawn_end);
+    let calibration_run = args.sequence_for_custom_recovery_triggers.as_ref()
+        .is_some_and(super::calibration_run::is_calibration_only);
     let executor_state = args.state_clone.clone();
     let is_cancelled = args.is_cancelled_clone.clone();
     let heartbeat_tx = args.heartbeat_tx.clone();
@@ -126,6 +128,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                 mode,
                 DispatchPolicy {
                     explicit_end,
+                    calibration_run,
                     park_policy,
                     stop_on_quality_problems,
                     weather_advisory_only,

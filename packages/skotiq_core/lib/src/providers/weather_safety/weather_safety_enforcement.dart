@@ -33,6 +33,13 @@ extension _WeatherSafetyEnforcement on WeatherSafetyNotifier {
       return false;
     }
     if (_enforceInFlight) return false;
+    // Dawn cannot spoil a run that only takes darks and bias, and the mount
+    // was sent out of the way before it started, so dawn neither pauses nor
+    // parks it. A weather verdict still safes the rig as for any run.
+    if (state.decisionSource == WeatherDecisionSource.dawn &&
+        _ref.read(calibrationOnlyRunActiveProvider)) {
+      return true;
+    }
     _enforceInFlight = true;
     final executionBefore = _ref.read(sequenceExecutionStateProvider);
     final mountBefore = _ref.read(mountStateProvider);

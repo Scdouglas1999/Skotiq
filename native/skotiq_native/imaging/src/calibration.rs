@@ -267,6 +267,15 @@ pub fn calibrate_frame(
     }
     validate_buffer_length(light, "light frame")?;
 
+    // Dark and bias masters are additive and in ADU, so a float master (the
+    // usual output of PixInsight, Siril or a sigma-clipped combine) is brought
+    // to the light's sample type here. A flat is not: its scale is arbitrary
+    // (unit mean for a float flat), so a type mismatch there stays an error.
+    let conformed_dark = dark.map(|d| conform_additive_master(d, light.pixel_type));
+    let conformed_bias = bias.map(|b| conform_additive_master(b, light.pixel_type));
+    let dark = conformed_dark.as_deref();
+    let bias = conformed_bias.as_deref();
+
     // Validate all provided frames against the light
     if let Some(d) = dark {
         validate_frames(light, d, "dark frame")?;
@@ -317,6 +326,78 @@ pub fn calibrate_frame(
     }
 
     Ok(result)
+}
+
+/// `master` re-encoded as `target` samples, or borrowed unchanged when it
+/// already is. Integer targets round and clamp to their range; NaN becomes 0.
+fn conform_additive_master(
+    master: &ImageData,
+    target: PixelType,
+) -> std::borrow::Cow<'_, ImageData> {
+    if master.pixel_type == target || master.is_empty() {
+        return std::borrow::Cow::Borrowed(master);
+    }
+    let values: Vec<f64> = match master.pixel_type {
+        PixelType::U8 => master.data.iter().map(|&v| f64::from(v)).collect(),
+        PixelType::U16 => master
+            .data
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|c| f64::from(u16::from_le_bytes(*c)))
+            .collect(),
+        PixelType::U32 => master
+            .data
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|c| f64::from(u32::from_le_bytes(*c)))
+            .collect(),
+        PixelType::F32 => master
+            .data
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|c| f64::from(f32::from_le_bytes(*c)))
+            .collect(),
+        PixelType::F64 => master
+            .data
+            .as_chunks::<8>()
+            .0
+            .iter()
+            .map(|c| f64::from_le_bytes(*c))
+            .collect(),
+    };
+    let clean = |v: f64| if v.is_nan() { 0.0 } else { v };
+    let data: Vec<u8> = match target {
+        PixelType::U8 => values
+            .iter()
+            .map(|&v| clean(v).round().clamp(0.0, 255.0) as u8)
+            .collect(),
+        PixelType::U16 => values
+            .iter()
+            .flat_map(|&v| (clean(v).round().clamp(0.0, 65535.0) as u16).to_le_bytes())
+            .collect(),
+        PixelType::U32 => values
+            .iter()
+            .flat_map(|&v| (clean(v).round().clamp(0.0, f64::from(u32::MAX)) as u32).to_le_bytes())
+            .collect(),
+        PixelType::F32 => values
+            .iter()
+            .flat_map(|&v| (clean(v) as f32).to_le_bytes())
+            .collect(),
+        PixelType::F64 => values
+            .iter()
+            .flat_map(|&v| clean(v).to_le_bytes())
+            .collect(),
+    };
+    std::borrow::Cow::Owned(ImageData {
+        width: master.width,
+        height: master.height,
+        channels: master.channels,
+        pixel_type: target,
+        data,
+    })
 }
 
 /// Per-channel mean of interleaved samples, where `values[i]` belongs to
@@ -907,5 +988,30 @@ mod tests {
         let dark = make_u16_image(2, 2, &[0; 4]);
         let result = subtract_dark(&light, &dark);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn a_float_dark_master_calibrates_a_u16_light() {
+        let light = ImageData::from_u16(2, 2, 1, &[1000, 1200, 900, 65535]);
+        let dark = ImageData::from_f32(2, 2, 1, &[100.4, 200.6, 950.0, f32::NAN]);
+        let out = calibrate_frame(&light, Some(&dark), None, None).expect("calibrated");
+        assert_eq!(out.pixel_type, PixelType::U16);
+        assert_eq!(out.as_u16().unwrap(), vec![900, 999, 0, 65535]);
+    }
+
+    #[test]
+    fn a_float_bias_master_calibrates_a_u16_light() {
+        let light = ImageData::from_u16(1, 2, 1, &[500, 600]);
+        let bias = ImageData::from_f32(1, 2, 1, &[99.6, 100.2]);
+        let out = calibrate_frame(&light, None, None, Some(&bias)).expect("calibrated");
+        assert_eq!(out.as_u16().unwrap(), vec![400, 500]);
+    }
+
+    #[test]
+    fn a_float_flat_for_a_u16_light_is_still_refused() {
+        let light = ImageData::from_u16(1, 2, 1, &[500, 600]);
+        let flat = ImageData::from_f32(1, 2, 1, &[1.0, 1.0]);
+        let err = calibrate_frame(&light, None, Some(&flat), None).unwrap_err();
+        assert!(matches!(err, CalibrationError::PixelTypeMismatch { .. }));
     }
 }

@@ -10,6 +10,7 @@ import '../database/daos/settings_dao.dart';
 import '../database/database.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
 import '../models/calibration/remote_calibration_models.dart';
+import '../services/calibration_master_builder.dart';
 import '../services/calibration_service.dart';
 import '../services/dark_library_service.dart';
 import '../utils/resilient_poll_stream.dart';
@@ -23,7 +24,10 @@ final darkLibraryDaoProvider = Provider<DarkLibraryDao>((ref) {
 
 /// Service provider for DarkLibraryService.
 final darkLibraryServiceProvider = Provider<DarkLibraryService>((ref) {
-  return DarkLibraryService(ref.watch(darkLibraryDaoProvider));
+  return DarkLibraryService(
+    ref.watch(darkLibraryDaoProvider),
+    buildMaster: ref.watch(calibrationMasterBuildProvider),
+  );
 });
 
 /// Reactive stream of all dark library entries (newest first).

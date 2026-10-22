@@ -8,6 +8,7 @@ pub(super) struct DispatchPolicy {
     /// The sequence ends itself at dawn, so the Dawn Approaching trigger
     /// stands down.
     pub explicit_end: bool,
+    pub calibration_run: bool,
     pub park_policy: ParkPolicy,
     pub stop_on_quality_problems: bool,
     pub weather_advisory_only: bool,
@@ -35,6 +36,9 @@ pub(super) fn select_dispatches(
     for firing in fired {
         let trigger_id = firing.trigger_id().to_string();
         if policy.explicit_end && trigger_id == "dawn_approaching" {
+            continue;
+        }
+        if policy.calibration_run && !super::super::calibration_run::acts_in_calibration_run(&trigger_id) {
             continue;
         }
         // Park and quality settings first, so the mode judges what the

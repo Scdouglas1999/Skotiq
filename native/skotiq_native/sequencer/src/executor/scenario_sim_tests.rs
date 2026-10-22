@@ -2893,3 +2893,96 @@ async fn a_cloud_that_loses_the_guide_star_holds_tracking_and_resumes_when_stars
         "fired={fired:?}"
     );
 }
+
+// =============================================================================
+// Calibration-only runs: the standard triggers stand down.
+// =============================================================================
+
+/// A darks run with a mount assigned, dawn ten minutes away, an unsafe weather
+/// verdict and this run's guiding armed: none of the standard triggers may act
+/// on it. Before the exemption, Dawn Approaching ended such a run at 0 frames
+/// and the dither and autofocus triggers drove the mount and focuser.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_calibration_run_is_not_parked_dithered_or_ended_by_the_standard_triggers() {
+    use crate::{
+        ExposureConfig, LoopCondition, LoopConfig, NodeDefinition, NodeType, SequenceDefinition,
+    };
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let dir = std::env::temp_dir().join(format!("sk-cal-run-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let mut executor = super::SequenceExecutor::new();
+    let mut events = executor.subscribe();
+    executor.set_devices(
+        Some("cam-1".to_string()),
+        Some("mount-1".to_string()),
+        Some("focuser-1".to_string()),
+        None,
+        None,
+    );
+    executor.set_save_path(Some(dir.clone()));
+    executor.set_device_ops(ops.clone() as SharedDeviceOps);
+    let mut sequence = SequenceDefinition::new("End of night calibration".to_string());
+    sequence.nodes = vec![
+        NodeDefinition {
+            id: "root".to_string(),
+            name: "Calibration".to_string(),
+            node_type: NodeType::Loop(LoopConfig {
+                iterations: Some(1),
+                condition: LoopCondition::Count,
+                ..Default::default()
+            }),
+            enabled: true,
+            children: vec!["darks".to_string(), "wait".to_string()],
+        },
+        NodeDefinition {
+            id: "darks".to_string(),
+            name: "Darks".to_string(),
+            node_type: NodeType::TakeExposure(ExposureConfig {
+                count: 6,
+                duration_secs: 0.0,
+                frame_type: "dark".to_string(),
+                dither_every: Some(1),
+                ..ExposureConfig::default()
+            }),
+            enabled: true,
+            children: vec![],
+        },
+        NodeDefinition {
+            id: "wait".to_string(),
+            name: "Long wait".to_string(),
+            node_type: NodeType::Delay(crate::DelayConfig { seconds: 600.0 }),
+            enabled: true,
+            children: vec![],
+        },
+    ];
+    sequence.root_node_id = Some("root".to_string());
+    executor.load_sequence(sequence).expect("sequence loads");
+    executor.start().await.expect("executor starts");
+    arm_run_guiding(&executor).await;
+    wait_for_monitor(&ops).await;
+    bring_dawn_near(&executor).await;
+    executor.update_weather_verdict(Some(true)).await;
+    executor
+        .update_trigger_state(|ts| {
+            ts.completed_exposures = 50;
+            ts.set_guide_star_lost(true);
+        })
+        .await;
+    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+
+    let state = executor.get_state().await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    let _ = std::fs::remove_dir_all(&dir);
+    let (fired, _) = drain_fired_and_errors(&mut events);
+
+    assert_eq!(state, super::ExecutorState::Running, "fired={fired:?}");
+    assert!(fired.is_empty(), "fired={fired:?}");
+    assert!(!parked_or_closed(&calls), "calls={calls:?}");
+    assert!(
+        !calls
+            .iter()
+            .any(|c| c.starts_with("focuser_move") || c.starts_with("mount_slew")),
+        "calls={calls:?}"
+    );
+}

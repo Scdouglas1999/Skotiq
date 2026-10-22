@@ -15,6 +15,7 @@
 pub mod background_extraction; // NEW: DBE/ABE-style background gradient extraction
 pub mod buffer_pool;
 pub mod calibration;
+pub mod calibration_master_stream; // Memory-bounded dark/bias masters straight from FITS files
 pub mod calibration_masters; // NEW: Master-flat build + cosmetic (hot/cold) correction
 pub mod channel_combine; // NEW: Narrowband/LRGB channel combination
 pub mod color_calibration; // NEW: Photometric color calibration (per-channel white balance)

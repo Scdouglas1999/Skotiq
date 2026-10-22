@@ -353,6 +353,9 @@ void main(List<String> args) async {
     // host-only run-completion coordinator used by the GUI. Without this,
     // `post_session.auto_integrate` is silently inert on the appliance.
     container.read(autoIntegrationCoordinatorProvider);
+    // Likewise the end-of-night calibration step, which starts when the
+    // night's imaging ends.
+    container.read(endOfNightCalibrationCoordinatorProvider);
 
     // Darkroom: drain the dawn jobs a previous run left queued (the DB open
     // re-queues rows a dead process abandoned mid-render), then catch up the
