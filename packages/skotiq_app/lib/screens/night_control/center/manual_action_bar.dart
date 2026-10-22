@@ -7,13 +7,27 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_core/skotiq_core.dart' show linkedManualActionProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
+import '../actions/manual_action_gating.dart' show manualActionKey;
 import '../actions/night_action_controller.dart';
 import '../data/plan/night_run_phase_provider.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
+
+/// The action the window at the other end of the link is running, while it
+/// is current; null when there is none.
+ManualActionId? _linkedAction(WidgetRef ref) {
+  final linked = ref.watch(linkedManualActionProvider);
+  if (linked == null || !linked.isCurrent(DateTime.now())) {
+    return null;
+  }
+  return ManualActionId.values
+      .where((id) => id.name == linked.action)
+      .firstOrNull;
+}
 
 /// The run phases in which a manual action pauses the run first.
 bool _runLoaded(NightRunPhase phase) =>
@@ -37,9 +51,11 @@ class ManualActionBar extends ConsumerWidget {
     final hideSubs = density?.hideActionSubLabels == true;
     final collapseHint = density?.collapseActionHint == true;
 
-    final hint = l10n.text(
-      _runLoaded(phase) ? 'nightActHint' : 'nightCtrHintIdle',
-    );
+    final linked = state.isBusy ? null : _linkedAction(ref);
+    final hint = linked != null
+        ? '${l10n.text(manualActionKey('nightActBusy', linked))} · '
+            '${l10n.text('nightActOtherWindow')}'
+        : l10n.text(_runLoaded(phase) ? 'nightActHint' : 'nightCtrHintIdle');
     final error = state.error?.resolve(l10n);
 
     return Semantics(
@@ -86,7 +102,7 @@ class ManualActionBar extends ConsumerWidget {
               _HintIcon(
                 message: hint,
                 icon: LucideIcons.info,
-                color: colors.textMuted,
+                color: linked != null ? colors.warning : colors.textMuted,
                 collapsed: collapseHint,
               ),
           ],

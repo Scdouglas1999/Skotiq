@@ -262,6 +262,7 @@ export 'src/providers/runtime_mirror/channels/cooler_reading_channel.dart';
 export 'src/providers/runtime_mirror/channels/current_frame_channel.dart';
 export 'src/providers/runtime_mirror/channels/environment_channel.dart';
 export 'src/providers/runtime_mirror/channels/frame_solve_channel.dart';
+export 'src/providers/runtime_mirror/channels/manual_action_channel.dart';
 export 'src/providers/runtime_mirror/channels/meridian_flip_channel.dart';
 export 'src/providers/runtime_mirror/channels/plate_solve_channel.dart';
 export 'src/providers/runtime_mirror/channels/sequence_run_channel.dart';

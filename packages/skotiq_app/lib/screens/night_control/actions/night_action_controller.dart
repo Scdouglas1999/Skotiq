@@ -154,6 +154,12 @@ class NightActionController extends Notifier<ManualActionState>
     // Keep the frame-pointing recorder alive so Solve & sync can tell
     // whether the frame on screen is at the current pointing.
     ref.listen(nightFramePointingProvider, (_, __) {});
+    // Shared with the window at the other end of a link, whose action bar
+    // then says what is running here.
+    listenSelf((_, next) {
+      ref.read(localManualActionProvider.notifier).state =
+          next.isBusy ? next.active?.name : null;
+    });
     return ManualActionState.idle;
   }
 

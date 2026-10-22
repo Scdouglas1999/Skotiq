@@ -801,4 +801,27 @@ void main() {
     );
     verifyNever(() => backend.getLastRawImageData(any()));
   });
+
+  test('each end of the link learns which action the other is running', () {
+    final host = _host();
+    addTearDown(host.container.dispose);
+    host.container.read(localManualActionProvider.notifier).state = 'autofocus';
+    final backend = _clientBackend();
+    final client = _client(backend);
+    addTearDown(client.dispose);
+    for (final update in _updates(host.sent, 'manualAction')) {
+      applyHostRuntimeUpdate(client, update, networkBackend: backend);
+    }
+    expect(client.read(linkedManualActionProvider)?.action, 'autofocus');
+
+    applyClientRuntimeReport(
+      host.container,
+      channel: 'manualAction',
+      value: const {'action': 'center'},
+      origin: 'linux-client',
+    );
+    expect(host.container.read(linkedManualActionProvider)?.action, 'center');
+    // The host's own action is unchanged by the report.
+    expect(host.container.read(localManualActionProvider), 'autofocus');
+  });
 }
