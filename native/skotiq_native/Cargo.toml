@@ -49,7 +49,7 @@ async-stream = "0.3"
 reqwest = { version = "0.11", features = ["json"] }
 
 # XML parsing
-quick-xml = "0.31"
+quick-xml = "0.42"
 
 # Image processing
 image = "0.24"
