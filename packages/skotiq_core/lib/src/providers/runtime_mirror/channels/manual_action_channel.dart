@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../runtime_mirror_channel.dart';
+import '../runtime_mirror_codec.dart';
 
 /// The manual action (snapshot, autofocus, centering, ...) this window is
 /// running, by its action name; null when none is. Written by the window's

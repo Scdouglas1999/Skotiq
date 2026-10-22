@@ -1,6 +1,7 @@
 import '../../../models/backend/autofocus_result.dart';
 import '../../equipment/focuser_state_provider.dart';
 import '../runtime_mirror_channel.dart';
+import '../runtime_mirror_codec.dart';
 
 /// The last completed autofocus run. It is recorded by the process whose
 /// operator started the run (the host's REST autofocus endpoint drives the

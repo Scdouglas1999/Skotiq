@@ -6,6 +6,7 @@ import '../../sequence/sequence_progress.dart';
 import '../../sequence_stats_provider.dart' show currentRunIdProvider;
 import '../../session_provider.dart';
 import '../runtime_mirror_channel.dart';
+import '../runtime_mirror_codec.dart';
 
 typedef SequenceRunSnapshot = ({
   SequenceProgress progress,

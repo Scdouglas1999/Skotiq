@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../services/imaging_service.dart' show currentImageProvider;
 import '../../current_frame_analysis_provider.dart';
 import '../runtime_mirror_channel.dart';
+import '../runtime_mirror_codec.dart';
 
 typedef FrameSolveOnScreen = ({String? path, FrameSolveVm? solve});
 

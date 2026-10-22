@@ -4,6 +4,7 @@ import '../../../services/imaging_service.dart' show currentImageProvider;
 import '../../remote_sync_handler.dart'
     show HostFrameHint, requestHostCurrentFrame;
 import '../runtime_mirror_channel.dart';
+import '../runtime_mirror_codec.dart';
 
 /// The frame on the host's screen, as metadata only.
 ///

@@ -1,6 +1,7 @@
 import '../../../models/backend/autofocus_result.dart';
 import '../../autofocus_progress_provider.dart';
 import '../runtime_mirror_channel.dart';
+import '../runtime_mirror_codec.dart';
 import 'autofocus_result_channel.dart';
 
 /// How an autofocus run shown on screen ended.

@@ -1,6 +1,7 @@
 import '../../imaging_provider.dart'
     show TemperaturePoint, temperatureHistoryProvider;
 import '../runtime_mirror_channel.dart';
+import '../runtime_mirror_codec.dart';
 
 /// The newest cooler reading of the host's camera poller.
 ///

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../../../backend/skotiq_backend.dart' show PlateSolveResult;
 import '../../../services/plate_solve_service.dart';
 import '../runtime_mirror_channel.dart';
+import '../runtime_mirror_codec.dart';
 
 /// The host's plate-solve state: whether a solve is running and the last
 /// result, which the Tonight Solve tab, the frame stage and the recent-solves

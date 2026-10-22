@@ -5,6 +5,7 @@ import '../../equipment/dome_state_provider.dart';
 import '../../equipment/safety_monitor_state_provider.dart';
 import '../../equipment/weather_state_provider.dart';
 import '../runtime_mirror_channel.dart';
+import '../runtime_mirror_codec.dart';
 
 typedef EnvironmentReadings = ({
   WeatherState weather,
