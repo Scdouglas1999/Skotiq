@@ -25,6 +25,7 @@ import '../services/phd2_status_poll.dart';
 import '../services/sequence_file_service.dart'
     show sequenceFileServiceProvider;
 import '../utils/utc_timestamp.dart';
+import 'current_frame_analysis_provider.dart' show hostFrameSolvesProvider;
 import 'database_provider.dart';
 import 'backend_provider.dart';
 import 'equipment_provider.dart';

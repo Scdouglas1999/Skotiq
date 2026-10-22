@@ -187,6 +187,12 @@ Future<void> _publishRemoteCurrentFrame(
     // backend, schedules the background raw-pixel load, and writes both
     // `currentImageProvider` and `lastImageStatsProvider`.
     if (!_isCurrentRemoteBackend(reader, backend)) return;
+    // A frame the host announced is the host's to solve; marked before the
+    // publish, whose listeners decide whether to solve it here.
+    if (hinted) {
+      _read(reader, hostFrameSolvesProvider).mirroredFrame =
+          imageData.capturedAt;
+    }
     _read(
       reader,
       capturePreviewPublisherProvider,

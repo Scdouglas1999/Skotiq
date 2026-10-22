@@ -78,6 +78,18 @@ class FrameSolveVm {
 
   bool get isSolved => status == FrameSolveStatus.solved;
 
+  /// The same solve, recorded against another window's copy of the frame.
+  FrameSolveVm forFrame(DateTime key) => FrameSolveVm(
+    frameCapturedAt: key,
+    status: status,
+    raDegrees: raDegrees,
+    decDegrees: decDegrees,
+    rotationDeg: rotationDeg,
+    pixelScaleArcsec: pixelScaleArcsec,
+    message: message,
+    fromSavedSolution: fromSavedSolution,
+  );
+
   /// The solution as the catalog overlay takes it; null unless solved.
   SolvedWcs? wcsFor({required int width, required int height}) {
     final ra = raDegrees;
@@ -200,6 +212,22 @@ const int _rememberedSolves = 12;
 /// backlog: only the newest frame is ever solved next. Results are kept per
 /// frame in memory; they are not written to the frame's database row, which
 /// would fold every frame into the sky atlas as a side effect.
+/// The frame on screen that a linked client fetched because the imaging host
+/// showed it, and the background solve the host made of it, by host path.
+///
+/// The host solves every frame on its own screen. A client that solved the
+/// same frame again sent the host a second solve per frame, which doubled the
+/// solver load on the imaging machine and the traffic on its link; the client
+/// takes the host's solve instead.
+class HostFrameSolves {
+  DateTime? mirroredFrame;
+  final Map<String, FrameSolveVm> byPath = {};
+}
+
+final hostFrameSolvesProvider = Provider<HostFrameSolves>(
+  (ref) => HostFrameSolves(),
+);
+
 final frameAutoSolveProvider =
     NotifierProvider<FrameAutoSolver, Map<DateTime, FrameSolveVm>>(
       FrameAutoSolver.new,
@@ -240,6 +268,20 @@ class FrameAutoSolver extends Notifier<Map<DateTime, FrameSolveVm>> {
     if (path == null || path.isEmpty) return;
     final key = image.capturedAt;
     if (state.containsKey(key)) return;
+    final host = ref.read(hostFrameSolvesProvider);
+    if (host.mirroredFrame == key) {
+      // The host is solving this frame; its result arrives on its own.
+      final solved = host.byPath[path];
+      _put(
+        solved == null
+            ? FrameSolveVm(
+                frameCapturedAt: key,
+                status: FrameSolveStatus.waiting,
+              )
+            : solved.forFrame(key),
+      );
+      return;
+    }
     _put(FrameSolveVm(frameCapturedAt: key, status: FrameSolveStatus.waiting));
     if (_inFlight != null) {
       final replaced = _queued;
@@ -342,6 +384,15 @@ class FrameAutoSolver extends Notifier<Map<DateTime, FrameSolveVm>> {
         }
       }
     }
+  }
+
+  /// Record the imaging host's solve of the frame at [hostPath], for the
+  /// frame on screen when it is that frame.
+  void adoptHostSolve(String hostPath, FrameSolveVm solve) {
+    final image = ref.read(currentImageProvider);
+    if (image == null || image.filePath != hostPath) return;
+    if (_inFlight == image.capturedAt) return;
+    _put(solve.forFrame(image.capturedAt));
   }
 
   Future<SavedFrameSolution?> _savedSolution(String path) async {

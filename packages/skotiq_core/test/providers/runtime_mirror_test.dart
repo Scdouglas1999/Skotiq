@@ -686,4 +686,75 @@ void main() {
     expect(history.first.timestamp.toInt(), 2000);
     verify(() => backend.getHostRecentEvents()).called(1);
   });
+
+  test('a frame the host announced is not solved again here; the host '
+      'solve is adopted', () async {
+    final backend = _clientBackend();
+    var solves = 0;
+    final client = ProviderContainer(
+      overrides: [
+        backendProvider.overrideWith(
+          (ref) => _FixedBackendNotifier(ref, backend),
+        ),
+        backgroundFrameSolverProvider.overrideWithValue(({
+          required String imagePath,
+          required bool Function() isCurrent,
+          double? hintRaHours,
+          double? hintDecDegrees,
+        }) async {
+          solves++;
+          return null;
+        }),
+      ],
+    );
+    addTearDown(client.dispose);
+    client.read(frameAutoSolveProvider);
+    final at = DateTime.utc(2026, 10, 21, 22, 49);
+    const path = '/data/Zenith_R_0008.fits';
+    client.read(hostFrameSolvesProvider).mirroredFrame = at;
+    client.read(currentImageProvider.notifier).state = CapturedImageData(
+      width: 10,
+      height: 8,
+      displayData: Uint8List(320),
+      histogram: const [],
+      stats: const ImageStats(min: 0, max: 0, mean: 0, median: 0, stdDev: 0),
+      capturedAt: at,
+      settings: const ExposureSettings(
+        exposureTime: 2,
+        gain: 100,
+        offset: 50,
+        binningX: 1,
+        binningY: 1,
+        frameType: FrameType.light,
+      ),
+      filePath: path,
+    );
+    await pumpEventQueue();
+    expect(
+      client.read(currentFrameSolveProvider)?.status,
+      FrameSolveStatus.waiting,
+    );
+
+    applyHostRuntimeUpdate(
+      client,
+      const HostRuntimeUpdate(
+        channel: 'frameSolve',
+        revision: 1,
+        value: {
+          'path': path,
+          'status': 'solved',
+          'ra': 339.0,
+          'dec': 40.0,
+          'rotation': 0.0,
+          'scale': 1.5,
+        },
+      ),
+      networkBackend: backend,
+    );
+
+    final solve = client.read(currentFrameSolveProvider);
+    expect(solve?.status, FrameSolveStatus.solved);
+    expect(solve?.raDegrees, 339.0);
+    expect(solves, 0);
+  });
 }

@@ -6,6 +6,7 @@ import 'channels/centering_channels.dart';
 import 'channels/cooler_reading_channel.dart';
 import 'channels/current_frame_channel.dart';
 import 'channels/environment_channel.dart';
+import 'channels/frame_solve_channel.dart';
 import 'channels/meridian_flip_channel.dart';
 import 'channels/plate_solve_channel.dart';
 import 'channels/sequence_run_channel.dart';
@@ -22,6 +23,7 @@ final runtimeMirrorChannelsProvider =
         AutofocusResultChannel(),
         AutofocusRunChannel(),
         CurrentFrameChannel(),
+        FrameSolveChannel(),
         EnvironmentChannel(),
         CoolerReadingChannel(),
         SequenceRunChannel(),
