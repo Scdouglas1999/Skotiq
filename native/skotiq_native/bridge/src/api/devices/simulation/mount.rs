@@ -66,6 +66,38 @@ pub(crate) fn get_sim_mount() -> &'static Arc<RwLock<SimulatedMount>> {
 /// wait-for-motion path in the app then completes before the mount has moved.
 pub(crate) const SIM_SLEW_DEG_PER_SEC: f64 = 180.0;
 
+/// The simulated slew rate in degrees per second: [`SIM_SLEW_DEG_PER_SEC`]
+/// unless `SKOTIQ_SIM_SLEW_DEG_PER_SEC` names a positive rate. A live drive
+/// sets a hardware-like rate (3-6 °/s) to watch a slew take real time.
+pub(crate) fn sim_slew_deg_per_sec() -> f64 {
+    static RATE: OnceLock<f64> = OnceLock::new();
+    *RATE.get_or_init(|| {
+        std::env::var("SKOTIQ_SIM_SLEW_DEG_PER_SEC")
+            .ok()
+            .and_then(|raw| raw.trim().parse::<f64>().ok())
+            .filter(|rate| rate.is_finite() && *rate > 0.0)
+            .unwrap_or(SIM_SLEW_DEG_PER_SEC)
+    })
+}
+
+/// How long the simulated mount keeps reporting `slewing == false`, without
+/// moving, after it accepts a slew: zero unless `SKOTIQ_SIM_SLEW_START_LAG_MS`
+/// names a delay.
+///
+/// ASCOM drivers return from `SlewToCoordinatesAsync` before their `Slewing`
+/// property turns true. A caller that reads `Slewing` once right after the
+/// command sees an idle mount and must not take that as an arrival.
+pub(crate) fn sim_slew_start_lag_secs() -> f64 {
+    static LAG: OnceLock<f64> = OnceLock::new();
+    *LAG.get_or_init(|| {
+        std::env::var("SKOTIQ_SIM_SLEW_START_LAG_MS")
+            .ok()
+            .and_then(|raw| raw.trim().parse::<f64>().ok())
+            .filter(|ms| ms.is_finite() && *ms > 0.0)
+            .map_or(0.0, |ms| ms / 1000.0)
+    })
+}
+
 /// Floor on how long any commanded slew takes.
 ///
 /// A meridian flip re-slews to the SAME coordinates, so a pure
@@ -105,6 +137,9 @@ pub(crate) const SIM_FLIP_TRAVERSE_DEG: f64 = 180.0;
 pub(crate) struct SimSlew {
     pub(crate) start: std::time::Instant,
     pub(crate) duration_secs: f64,
+    /// Time after the command during which the mount has not started moving
+    /// and reports `slewing == false` (see [`sim_slew_start_lag_secs`]).
+    pub(crate) start_lag_secs: f64,
     pub(crate) from: (f64, f64),
     pub(crate) to: (f64, f64),
     pub(crate) to_pier: PierSide,
@@ -137,7 +172,7 @@ pub(crate) fn sim_slew_duration_secs(separation_deg: f64, crosses_pier: bool) ->
         } else {
             0.0
         };
-    (arc / SIM_SLEW_DEG_PER_SEC).max(SIM_MIN_SLEW_SECS)
+    (arc / sim_slew_deg_per_sec()).max(SIM_MIN_SLEW_SECS)
 }
 
 /// Interpolate right ascension the short way around the 24h wrap, so a slew
@@ -205,16 +240,18 @@ pub(crate) async fn begin_sim_slew(ra: f64, dec: f64, now: chrono::DateTime<chro
         to_pier != current_pier && current_pier != PierSide::Unknown,
     );
 
+    let start_lag_secs = sim_slew_start_lag_secs();
     *sim_slew().write().await = Some(SimSlew {
         start: std::time::Instant::now(),
         duration_secs,
+        start_lag_secs,
         from,
         to: (ra, dec),
         to_pier,
         homing: false,
     });
     let mut mount = get_sim_mount().write().await;
-    mount.status.slewing = true;
+    mount.status.slewing = start_lag_secs <= 0.0;
     mount.status.parked = false;
     mount.status.at_home = Some(false);
 }
@@ -245,6 +282,7 @@ pub(crate) async fn begin_sim_home() {
     *sim_slew().write().await = Some(SimSlew {
         start: std::time::Instant::now(),
         duration_secs,
+        start_lag_secs: 0.0,
         from,
         to,
         to_pier: current_pier,
@@ -265,7 +303,12 @@ pub(crate) async fn advance_sim_slew() {
     let Some(slew) = *sim_slew().read().await else {
         return;
     };
-    let elapsed_secs = slew.start.elapsed().as_secs_f64();
+    let since_command_secs = slew.start.elapsed().as_secs_f64();
+    if since_command_secs < slew.start_lag_secs {
+        get_sim_mount().write().await.status.slewing = false;
+        return;
+    }
+    let elapsed_secs = since_command_secs - slew.start_lag_secs;
     let fraction = if slew.duration_secs > 0.0 {
         (elapsed_secs / slew.duration_secs).clamp(0.0, 1.0)
     } else {
