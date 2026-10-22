@@ -114,6 +114,10 @@ pub fn api_is_phd2_running() -> bool {
 /// `kPhd2CanonicalId` (`packages/skotiq_core/lib/src/utils/device_id.dart`).
 pub(crate) const PHD2_DEVICE_ID: &str = "phd2_guider";
 
+/// The state `api_phd2_get_status` reports for a connected PHD2 that did not
+/// answer in time.
+pub(crate) const PHD2_NOT_RESPONDING: &str = "NotResponding";
+
 /// Static PHD2 client storage
 pub(crate) static PHD2_CLIENT: OnceLock<Arc<RwLock<Option<skotiq_imaging::Phd2Client>>>> =
     OnceLock::new();
@@ -493,9 +497,23 @@ pub async fn api_phd2_dither(
 pub async fn api_phd2_get_status() -> Result<Phd2Status, SkotiqError> {
     let mut client = phd2_client().await?;
 
-    let state = client
-        .get_app_state()
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to get PHD2 state: {}", e)))?;
+    // A PHD2 that is slow to answer (busy with a capture under cloud) is not a
+    // disconnected PHD2. The status says it did not answer, and keeps the
+    // socket's own connection state, rather than failing; a failed status read
+    // was turned into "Disconnected" upstream while PHD2 was guiding.
+    let state = match client.get_app_state() {
+        Ok(state) => state,
+        Err(e) if client.is_connected() => {
+            tracing::warn!("PHD2 did not answer get_app_state: {}", e);
+            skotiq_imaging::Phd2State::Unknown(PHD2_NOT_RESPONDING.to_string())
+        }
+        Err(e) => {
+            return Err(SkotiqError::OperationFailed(format!(
+                "Failed to get PHD2 state: {}",
+                e
+            )))
+        }
+    };
 
     let pixel_scale = known_pixel_scale(client.get_pixel_scale());
 
@@ -864,9 +882,18 @@ pub async fn select_fresh_guide_star(device_id: &str) -> Result<(f64, f64), Skot
     }
     let exposure = {
         let mut client = phd2_client().await?;
-        client.stop_capture().map_err(|e| {
-            SkotiqError::OperationFailed(format!("Failed to stop PHD2 capture: {}", e))
-        })?;
+        // PHD2 can take longer than one request timeout to stop a capture it
+        // is waiting on (a long guide exposure under cloud). One more try
+        // before calling it a failure.
+        if let Err(first) = client.stop_capture() {
+            tracing::warn!(
+                "PHD2 stop_capture did not complete ({}); trying again",
+                first
+            );
+            client.stop_capture().map_err(|e| {
+                SkotiqError::OperationFailed(format!("Failed to stop PHD2 capture: {}", e))
+            })?;
+        }
         client.loop_exposures().map_err(|e| {
             SkotiqError::OperationFailed(format!("Failed to start PHD2 looping: {}", e))
         })?;
