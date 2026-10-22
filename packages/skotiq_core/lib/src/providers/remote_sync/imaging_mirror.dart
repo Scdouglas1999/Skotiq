@@ -70,6 +70,24 @@ void _applyExposureMirror(
 class _RemoteFrameFetchState {
   bool inFlight = false;
   NetworkBackend? pendingBackend;
+  HostFrameHint? hint;
+}
+
+/// What the host said about the frame on its screen.
+class HostFrameHint {
+  const HostFrameHint({
+    required this.width,
+    required this.height,
+    this.filePath,
+    this.targetName,
+    this.settings,
+  });
+
+  final int width;
+  final int height;
+  final String? filePath;
+  final String? targetName;
+  final ExposureSettings? settings;
 }
 
 final Expando<_RemoteFrameFetchState> _remoteFrameFetchStates =
@@ -139,10 +157,17 @@ Future<void> _publishRemoteCurrentFrame(
       readoutModeIndex: baseSettings.readoutModeIndex,
     );
 
+    final hint = fetchState.hint;
+    final hinted =
+        hint != null &&
+        hint.width == result.width &&
+        hint.height == result.height;
     final imageData = capturedImageDataFromResult(
       capturedImage: result,
-      settings: settings,
+      settings: hinted && hint.settings != null ? hint.settings! : settings,
       capturedAt: capturedAt,
+      targetName: hinted ? hint.targetName : null,
+      filePath: hinted ? hint.filePath : null,
       previewSource: CapturePreviewSource.remote,
     );
 
@@ -153,7 +178,8 @@ Future<void> _publishRemoteCurrentFrame(
         shown.previewSource == CapturePreviewSource.remote &&
         shown.capturedAt == imageData.capturedAt &&
         shown.width == imageData.width &&
-        shown.height == imageData.height) {
+        shown.height == imageData.height &&
+        (imageData.filePath == null || shown.filePath == imageData.filePath)) {
       return;
     }
 

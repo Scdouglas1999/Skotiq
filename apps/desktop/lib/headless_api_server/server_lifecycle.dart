@@ -45,6 +45,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
       ...buildAtlasRoutes(_atlasHandlers),
       ...buildBackupRoutes(_backupHandlers),
       ...buildSyncRoutes(_syncHandlers),
+      ...buildRuntimeStateRoutes(_runtimeStateHandlers),
       ...buildFramingRoutes(_framingHandlers),
       ...buildPlanetariumRoutes(_planetariumHandlers),
       ...buildDomeRoutes(_domeHandlers),
@@ -312,6 +313,8 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     _subscribeToBackendEvents();
     _subscribeToSequenceCatalogUpdates();
     _subscribeToHostMutationEvents();
+    // Start publishing runtime channels; a headless host has no GUI to do it.
+    container.read(hostRuntimeMirrorProvider);
     _subscribeToCatalogManagerEvents();
     _collaborationSubscription = _collaborationManager.stream.listen(
       _broadcastCollaborationState,

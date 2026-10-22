@@ -61,6 +61,16 @@ Future<void> hydrateRemoteSessionState(
   await _hydratePhd2GuiderState(reader, backend);
   if (!_isCurrentRemoteBackend(reader, backend)) return;
 
+  // Runtime results only the host's GUI computes (plate solve, centering,
+  // autofocus, the frame on screen). Live changes arrive as HostRuntimeState
+  // events; this fills a client that connected or reconnected after them.
+  try {
+    await hydrateHostRuntimeState(reader, backend);
+  } catch (_) {
+    // An unreachable endpoint leaves the values the events already applied.
+  }
+  if (!_isCurrentRemoteBackend(reader, backend)) return;
+
   // Active-profile + populated cards parity at first connect: refetch the
   // profile providers from the (now SQLite-backed) host /api/profiles so the
   // slave's equipment screen reflects the master's real active profile

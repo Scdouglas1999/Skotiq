@@ -1,0 +1,427 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+
+class _MockFfiBackend extends Mock implements FfiBackend {}
+
+class _MockNetworkBackend extends Mock implements NetworkBackend {}
+
+class _FixedBackendNotifier extends BackendNotifier {
+  _FixedBackendNotifier(super.ref, SkotiqBackend backend) : super() {
+    state = backend;
+  }
+}
+
+PlateSolveResult _solve({double ra = 83.82, double dec = -5.39}) =>
+    PlateSolveResult(
+      success: true,
+      ra: ra,
+      dec: dec,
+      pixelScale: 1.52,
+      rotation: 12.5,
+      fieldWidth: 1.2,
+      fieldHeight: 0.8,
+      solveTimeSecs: 2.4,
+      cd11: -0.0004,
+      cd12: 0.00001,
+      cd21: 0.00001,
+      cd22: 0.0004,
+      sipAOrder: 2,
+      sipBOrder: 2,
+      sipACoeffs: Float64List.fromList([0.1, 0.2]),
+      sipBCoeffs: Float64List.fromList([0.3]),
+      sipApOrder: 0,
+      sipBpOrder: 0,
+      sipApCoeffs: Float64List(0),
+      sipBpCoeffs: Float64List(0),
+    );
+
+/// A host container: an FfiBackend that owns the hardware, with the WebSocket
+/// broadcast captured.
+({ProviderContainer container, List<SkotiqEvent> sent}) _host() {
+  final backend = _MockFfiBackend();
+  when(
+    () => backend.eventStream,
+  ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+  final container = ProviderContainer(
+    overrides: [
+      backendProvider.overrideWith(
+        (ref) => _FixedBackendNotifier(ref, backend),
+      ),
+    ],
+  );
+  final sent = <SkotiqEvent>[];
+  container.read(hostMutationEventHubProvider).wsBroadcast = sent.add;
+  container.read(hostRuntimeMirrorProvider);
+  return (container: container, sent: sent);
+}
+
+_MockNetworkBackend _clientBackend() {
+  final backend = _MockNetworkBackend();
+  when(
+    () => backend.connectionState,
+  ).thenReturn(BackendConnectionState.connected);
+  when(() => backend.isAuthTokenRejected).thenReturn(false);
+  when(
+    () => backend.eventStream,
+  ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+  return backend;
+}
+
+ProviderContainer _client(_MockNetworkBackend backend) => ProviderContainer(
+  overrides: [
+    backendProvider.overrideWith((ref) => _FixedBackendNotifier(ref, backend)),
+  ],
+);
+
+/// What a client receives on `/events`: the event as JSON and back.
+SkotiqEvent _overWire(SkotiqEvent event) =>
+    SkotiqEvent.fromWireJson(jsonDecode(jsonEncode(event.toJson())));
+
+Iterable<HostRuntimeUpdate> _updates(List<SkotiqEvent> sent, String channel) =>
+    sent
+        .where((e) => e.eventType == hostRuntimeStateEventType)
+        .map((e) => HostRuntimeUpdate.fromJson(e.data)!)
+        .where((u) => u.channel == channel && u.value != null);
+
+void main() {
+  setUpAll(() {
+    registerFallbackValue(const Stream<SkotiqEvent>.empty());
+  });
+
+  group('host publishes', () {
+    test('a plate solve on the host reaches a linked client', () async {
+      final host = _host();
+      addTearDown(host.container.dispose);
+
+      host.container.read(plateSolveStateProvider.notifier).state =
+          PlateSolveState(lastResult: _solve());
+
+      final updates = _updates(host.sent, 'plateSolve').toList();
+      expect(updates, hasLength(1));
+
+      final backend = _clientBackend();
+      final client = _client(backend);
+      addTearDown(client.dispose);
+
+      await applyRemoteSyncEvent(
+        client,
+        _overWire(updates.single.toEvent()),
+        networkBackend: backend,
+      );
+
+      final mirrored = client.read(plateSolveStateProvider).lastResult;
+      expect(mirrored, isNotNull);
+      expect(samePlateSolveOutcome(mirrored!, _solve()), isTrue);
+      expect(mirrored.cd11, -0.0004);
+      expect(mirrored.sipACoeffs, [0.1, 0.2]);
+    });
+
+    test('an unchanged value is not broadcast twice', () {
+      final host = _host();
+      addTearDown(host.container.dispose);
+      final controller = host.container.read(plateSolveStateProvider.notifier);
+
+      controller.state = PlateSolveState(lastResult: _solve());
+      controller.state = PlateSolveState(lastResult: _solve());
+
+      expect(_updates(host.sent, 'plateSolve'), hasLength(1));
+    });
+
+    test('the store serves the latest value of every channel', () {
+      final host = _host();
+      addTearDown(host.container.dispose);
+
+      host.container
+          .read(autofocusResultProvider.notifier)
+          .state = const AutofocusResult(
+        bestPosition: 6620,
+        bestHfr: 2.94,
+        focusData: [
+          FocusDataPoint(position: 6500, hfr: 3.4, starCount: 40),
+          FocusDataPoint(position: 6620, hfr: 2.94, starCount: 52),
+        ],
+        method: 'Hyperbolic',
+        timestamp: 1,
+        curveFitQuality: 0.97,
+        backlashApplied: true,
+      );
+
+      final snapshot = host.container
+          .read(hostRuntimeStateStoreProvider)
+          .snapshot();
+      final af = snapshot.singleWhere((u) => u.channel == 'autofocusResult');
+      expect(af.value?['bestPosition'], 6620);
+      expect(af.value?['focusData'], hasLength(2));
+    });
+
+    test('a host that does not own the hardware publishes nothing', () {
+      final backend = _clientBackend();
+      final client = _client(backend);
+      addTearDown(client.dispose);
+      final sent = <SkotiqEvent>[];
+      client.read(hostMutationEventHubProvider).wsBroadcast = sent.add;
+      client.read(hostRuntimeMirrorProvider);
+
+      client.read(plateSolveStateProvider.notifier).state = PlateSolveState(
+        lastResult: _solve(),
+      );
+
+      expect(sent, isEmpty);
+    });
+  });
+
+  group('client applies', () {
+    test('an older revision than the one applied is dropped', () async {
+      final backend = _clientBackend();
+      final client = _client(backend);
+      addTearDown(client.dispose);
+
+      HostRuntimeUpdate update(int revision, double ra) => HostRuntimeUpdate(
+        channel: 'plateSolve',
+        revision: revision,
+        value: const PlateSolveChannel().encode(
+          PlateSolveState(lastResult: _solve(ra: ra)),
+        ),
+      );
+
+      applyHostRuntimeUpdate(client, update(20, 10), networkBackend: backend);
+      applyHostRuntimeUpdate(client, update(10, 99), networkBackend: backend);
+
+      expect(client.read(plateSolveStateProvider).lastResult?.ra, 10);
+    });
+
+    test('a value this client reported is not applied again', () {
+      final backend = _clientBackend();
+      final client = _client(backend);
+      addTearDown(client.dispose);
+
+      applyHostRuntimeUpdate(
+        client,
+        HostRuntimeUpdate(
+          channel: 'centeringResult',
+          revision: 1,
+          origin: runtimeMirrorOrigin,
+          value: const {
+            'success': true,
+            'iterations': 2,
+            'finalOffsetArcsec': 8.0,
+          },
+        ),
+        networkBackend: backend,
+      );
+
+      expect(client.read(lastCenteringResultProvider), isNull);
+    });
+
+    test('the same solve outcome keeps the result object already held', () {
+      final backend = _clientBackend();
+      final client = _client(backend);
+      addTearDown(client.dispose);
+      final own = _solve();
+      client.read(plateSolveStateProvider.notifier).state = PlateSolveState(
+        lastResult: own,
+      );
+
+      applyHostRuntimeUpdate(
+        client,
+        HostRuntimeUpdate(
+          channel: 'plateSolve',
+          revision: 5,
+          value: const PlateSolveChannel().encode(
+            PlateSolveState(lastResult: _solve()),
+          ),
+        ),
+        networkBackend: backend,
+      );
+
+      expect(
+        identical(client.read(plateSolveStateProvider).lastResult, own),
+        isTrue,
+      );
+    });
+
+    test('hydration fills every channel from the host', () async {
+      final backend = _clientBackend();
+      when(() => backend.getHostRuntimeState()).thenAnswer(
+        (_) async => [
+          HostRuntimeUpdate(
+            channel: 'centeringStatus',
+            revision: 3,
+            value: const CenteringStatusChannel().encode(
+              const CenteringStatus(
+                state: CenteringState.slewing,
+                currentIteration: 2,
+                maxIterations: 5,
+                currentOffsetArcsec: 95.5,
+                iterationHistory: [],
+              ),
+            ),
+          ),
+        ],
+      );
+      final client = _client(backend);
+      addTearDown(client.dispose);
+
+      await hydrateHostRuntimeState(client, backend);
+
+      final status = client.read(centeringStatusProvider);
+      expect(status.state, CenteringState.slewing);
+      expect(status.currentIteration, 2);
+      expect(status.currentOffsetArcsec, 95.5);
+    });
+
+    test('a new frame on the host fetches it; the frame already shown does '
+        'not', () async {
+      final backend = _clientBackend();
+      when(
+        () => backend.cameraGetLastImage(any()),
+      ).thenAnswer((_) async => null);
+      final client = _client(backend);
+      addTearDown(client.dispose);
+      client.read(cameraStateProvider.notifier)
+        ..setConnecting('sim_camera_1', 'Simulated Camera')
+        ..setConnected();
+
+      applyHostRuntimeUpdate(
+        client,
+        const HostRuntimeUpdate(
+          channel: 'currentFrame',
+          revision: 1,
+          value: {
+            'capturedAt': 1000,
+            'width': 100,
+            'height': 80,
+            'filePath': r'C:\data\L_001.fits',
+          },
+        ),
+        networkBackend: backend,
+      );
+      await pumpEventQueue();
+
+      verify(() => backend.cameraGetLastImage('sim_camera_1')).called(1);
+    });
+  });
+
+  group('client reports', () {
+    test('a centering result computed here is sent to the host', () async {
+      final backend = _clientBackend();
+      when(
+        () => backend.reportRuntimeState(
+          channel: any(named: 'channel'),
+          value: any(named: 'value'),
+          origin: any(named: 'origin'),
+        ),
+      ).thenAnswer((_) async {});
+      final client = _client(backend);
+      addTearDown(client.dispose);
+      client.read(clientRuntimeReporterProvider);
+
+      client
+          .read(lastCenteringResultProvider.notifier)
+          .state = CenteringResult.success(
+        finalOffsetArcsec: 12.0,
+        iterations: 3,
+        iterationHistory: const [],
+      );
+      await pumpEventQueue();
+
+      final captured = verify(
+        () => backend.reportRuntimeState(
+          channel: 'centeringResult',
+          value: captureAny(named: 'value'),
+          origin: runtimeMirrorOrigin,
+        ),
+      ).captured;
+      expect((captured.single as Map)['finalOffsetArcsec'], 12.0);
+    });
+
+    test('a value that came from the host is not reported back', () async {
+      final backend = _clientBackend();
+      when(
+        () => backend.reportRuntimeState(
+          channel: any(named: 'channel'),
+          value: any(named: 'value'),
+          origin: any(named: 'origin'),
+        ),
+      ).thenAnswer((_) async {});
+      final client = _client(backend);
+      addTearDown(client.dispose);
+      client.read(clientRuntimeReporterProvider);
+
+      applyHostRuntimeUpdate(
+        client,
+        const HostRuntimeUpdate(
+          channel: 'centeringResult',
+          revision: 1,
+          value: {'success': true, 'iterations': 1, 'finalOffsetArcsec': 4.0},
+        ),
+        networkBackend: backend,
+      );
+      await pumpEventQueue();
+
+      expect(client.read(lastCenteringResultProvider)?.finalOffsetArcsec, 4.0);
+      verifyNever(
+        () => backend.reportRuntimeState(
+          channel: any(named: 'channel'),
+          value: any(named: 'value'),
+          origin: any(named: 'origin'),
+        ),
+      );
+    });
+
+    test('the host applies a report and rebroadcasts it under its origin', () {
+      final host = _host();
+      addTearDown(host.container.dispose);
+
+      final applied = applyClientRuntimeReport(
+        host.container,
+        channel: 'autofocusResult',
+        value: const {
+          'bestPosition': 2506,
+          'bestHfr': 2.1,
+          'focusData': [],
+          'method': 'Hyperbolic',
+          'timestamp': 5,
+          'curveFitQuality': 0.95,
+          'backlashApplied': false,
+        },
+        origin: 'client-a',
+      );
+
+      expect(applied, isTrue);
+      expect(host.container.read(autofocusResultProvider)?.bestPosition, 2506);
+      final update = _updates(host.sent, 'autofocusResult').last;
+      expect(update.origin, 'client-a');
+    });
+
+    test('the host refuses reports for a host-only channel', () {
+      final host = _host();
+      addTearDown(host.container.dispose);
+
+      final applied = applyClientRuntimeReport(
+        host.container,
+        channel: 'plateSolve',
+        value: const {'isSolving': true},
+        origin: 'client-a',
+      );
+
+      expect(applied, isFalse);
+      expect(host.container.read(plateSolveStateProvider).isSolving, isFalse);
+    });
+  });
+
+  test('runtime envelopes stay out of the typed event stream', () {
+    expect(
+      isHostSyncEnvelope(
+        const HostRuntimeUpdate(channel: 'plateSolve', revision: 1).toEvent(),
+      ),
+      isTrue,
+    );
+  });
+}

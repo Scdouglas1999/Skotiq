@@ -382,6 +382,7 @@ class HeadlessApiServer {
   late final BackupHandlers _backupHandlers;
   // Cloud backup/sync — status + push-now (config lives in desktop settings).
   late final SyncHandlers _syncHandlers;
+  late final RuntimeStateHandlers _runtimeStateHandlers;
   late final FramingHandlers _framingHandlers;
   late final FileSystemHandlers _fileSystemHandlers;
   late final ScienceHandlers _scienceHandlers;

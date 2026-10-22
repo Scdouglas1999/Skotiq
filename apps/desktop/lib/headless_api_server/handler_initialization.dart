@@ -135,6 +135,7 @@ extension _HeadlessApiServerHandlerInitialization on HeadlessApiServer {
     _atlasHandlers = AtlasHandlers(container);
     _backupHandlers = BackupHandlers(container);
     _syncHandlers = SyncHandlers(container);
+    _runtimeStateHandlers = RuntimeStateHandlers(container);
     _framingHandlers = FramingHandlers(container, jobManager: _jobManager);
     _fileSystemHandlers = FileSystemHandlers(container);
     _scienceHandlers = ScienceHandlers(container);

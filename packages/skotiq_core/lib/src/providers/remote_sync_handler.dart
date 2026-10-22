@@ -12,6 +12,7 @@ import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/sequence/active_plan_owner.dart';
 import '../models/sequence/sequence_models.dart';
 import '../models/backend/host_mutation_event.dart';
+import '../models/backend/host_runtime_update.dart';
 import '../models/imaging/imaging_models.dart'
     show CapturePreviewSource, ExposureSettings;
 import '../services/capture_preview_loader.dart'
@@ -35,6 +36,7 @@ import 'observing_list_provider.dart'
 import 'profiles_provider.dart';
 import 'provider_reader.dart';
 import 'remote_sync_events.dart';
+import 'runtime_mirror/client_runtime_mirror.dart';
 import 'planning_provider.dart' show projectListProvider;
 import 'scheduler_provider.dart'
     show
@@ -149,6 +151,13 @@ Future<void> _applySystemSyncEvent(
     _applyHostMutation(reader, event.data);
     return;
   }
+  if (event.eventType == hostRuntimeStateEventType) {
+    final update = HostRuntimeUpdate.fromJson(event.data);
+    if (networkBackend != null && update != null) {
+      applyHostRuntimeUpdate(reader, update, networkBackend: networkBackend);
+    }
+    return;
+  }
 
   switch (event.eventType) {
     case RemoteSyncEventTypes.sequenceUpdated:
@@ -175,4 +184,21 @@ Future<void> _applySystemSyncEvent(
       _applyDeviceDisconnectedFromSyncPayload(reader, event.data);
       break;
   }
+}
+
+/// Fetch the host's newest frame into this client's current image, as a frame
+/// event from the host would. Coalesces with a fetch already running.
+///
+/// [hint] describes the frame the host announced; when the fetched frame has
+/// its dimensions, it takes the host's saved path, target and capture settings,
+/// which the last-frame endpoint does not carry.
+void requestHostCurrentFrame(
+  Object reader,
+  NetworkBackend backend, {
+  HostFrameHint? hint,
+}) {
+  final fetchState = _remoteFrameFetchStates[reader] ??=
+      _RemoteFrameFetchState();
+  fetchState.hint = hint;
+  unawaited(_publishRemoteCurrentFrame(reader, backend));
 }

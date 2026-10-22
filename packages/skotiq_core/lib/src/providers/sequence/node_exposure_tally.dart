@@ -105,6 +105,12 @@ class NodeExposureTallyNotifier
       );
   }
 
+  /// Show the imaging host's tally on a linked client that does not own the
+  /// run.
+  void mirrorHostTally(Map<String, NodeExposureTally> hostTally) {
+    state = Map<String, NodeExposureTally>.unmodifiable(hostTally);
+  }
+
   void reset() {
     if (state.isEmpty) return;
     state = const {};

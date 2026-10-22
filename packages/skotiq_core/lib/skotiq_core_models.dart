@@ -124,6 +124,7 @@ export 'src/models/import/import_result.dart';
 
 // Host mutation event surface.
 export 'src/models/backend/host_mutation_event.dart';
+export 'src/models/backend/host_runtime_update.dart';
 
 // Per-target / per-run notes journal value type.
 export 'src/models/notes/journal_note.dart';
