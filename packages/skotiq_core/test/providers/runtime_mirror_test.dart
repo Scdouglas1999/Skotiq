@@ -853,4 +853,41 @@ void main() {
       isTrue,
     );
   });
+
+  test('a client that goes idle tells the host, even when the host was idle '
+      'too', () async {
+    final backend = _clientBackend();
+    when(
+      () => backend.reportRuntimeState(
+        channel: any(named: 'channel'),
+        value: any(named: 'value'),
+        origin: any(named: 'origin'),
+      ),
+    ).thenAnswer((_) async {});
+    final client = _client(backend);
+    addTearDown(client.dispose);
+    client.read(clientRuntimeReporterProvider);
+    applyHostRuntimeUpdate(
+      client,
+      const HostRuntimeUpdate(channel: 'manualAction', revision: 1),
+      networkBackend: backend,
+    );
+
+    client.read(localManualActionProvider.notifier).state = 'autofocus';
+    await pumpEventQueue();
+    client.read(localManualActionProvider.notifier).state = null;
+    await pumpEventQueue();
+
+    final sent = verify(
+      () => backend.reportRuntimeState(
+        channel: 'manualAction',
+        value: captureAny(named: 'value'),
+        origin: any(named: 'origin'),
+      ),
+    ).captured;
+    expect(sent, [
+      {'action': 'autofocus'},
+      null,
+    ]);
+  });
 }

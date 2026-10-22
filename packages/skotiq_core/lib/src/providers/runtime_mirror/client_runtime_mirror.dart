@@ -170,9 +170,16 @@ final clientRuntimeReporterProvider = Provider<void>((ref) {
       if (!channel.clientReports) continue;
       subscriptions.add(
         channel.listen(ref, (next) {
+          // A value just applied from the host is the host's, not news. Only
+          // an object can be told apart by identity: a null, string, number or
+          // flag the host sent is identical to the same one produced here.
+          final applied = mirrorState.appliedValue(channel.key);
           if (mirrorState.isApplying(channel.key) ||
-              (mirrorState.hasApplied(channel.key) &&
-                  identical(next, mirrorState.appliedValue(channel.key)))) {
+              (applied != null &&
+                  applied is! String &&
+                  applied is! num &&
+                  applied is! bool &&
+                  identical(next, applied))) {
             return;
           }
           if (channel.minInterval == Duration.zero) {
