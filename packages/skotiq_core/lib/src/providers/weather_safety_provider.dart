@@ -31,6 +31,8 @@ import 'settings_provider.dart';
 import 'ui_notification_provider.dart';
 import 'backend_provider.dart';
 import 'sequence_provider.dart';
+import '../services/end_of_night_calibration/eon_providers.dart'
+    show calibrationOnlyRunActiveProvider;
 
 part 'weather_safety/weather_safety_models.dart';
 part 'weather_safety/weather_safety_sources.dart';

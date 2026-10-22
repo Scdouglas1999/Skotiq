@@ -59,6 +59,8 @@ import 'settings_provider.dart' hide HorizonProfile;
 // generates EventPayload_Guiding / EventPayload_Equipment as part-of-library
 // classes, so a plain import surfaces them here).
 import 'package:skotiq_bridge/skotiq_bridge.dart';
+import '../services/end_of_night_calibration/eon_trigger.dart'
+    show EonEndReason, endOfNightCalibrationCoordinatorProvider;
 
 part 'scheduler/scheduler_engine_providers.dart';
 part 'scheduler/scheduler_candidate_loader.dart';

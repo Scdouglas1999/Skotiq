@@ -25,6 +25,38 @@ List<HeadlessRoute> buildCalibrationRoutes(
     h.handleUpdateCalibrationSettings,
   ),
 
+  // End-of-night calibration: darks and bias after the night's imaging.
+  HeadlessRoute(
+    HttpMethod.get,
+    '/api/calibration/end-of-night',
+    h.handleGetEndOfNight,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
+    '/api/calibration/end-of-night/settings',
+    h.handleUpdateEndOfNightSettings,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
+    '/api/calibration/end-of-night/start',
+    h.handleStartEndOfNight,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
+    '/api/calibration/end-of-night/imaging-ended',
+    h.handleEndOfNightImagingEnded,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
+    '/api/calibration/end-of-night/confirm-capped',
+    h.handleConfirmEndOfNightCapped,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
+    '/api/calibration/end-of-night/cancel',
+    h.handleCancelEndOfNight,
+  ),
+
   // Remote dark-library auto-match for frame calibration. A remote client
   // can't run the matcher locally (the library lives on the host), so it
   // posts the light frame's capture params here and gets back the matched

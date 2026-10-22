@@ -646,6 +646,11 @@ export 'src/services/science/science_camera_auto_config.dart';
 export 'src/services/science/photometric_catalog_service.dart';
 export 'src/services/calibration_master_builder.dart';
 export 'src/services/dark_library_service.dart';
+export 'src/services/end_of_night_calibration/eon_plan.dart';
+export 'src/services/end_of_night_calibration/eon_providers.dart';
+export 'src/services/end_of_night_calibration/eon_service.dart';
+export 'src/services/end_of_night_calibration/eon_settings.dart';
+export 'src/services/end_of_night_calibration/eon_trigger.dart';
 export 'src/services/dark_library_coverage_service.dart';
 export 'src/services/live_stacking_service.dart';
 // Broadcast endpoint for EAA / outreach live-stack viewing.

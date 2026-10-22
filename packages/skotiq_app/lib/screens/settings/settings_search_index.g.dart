@@ -271,6 +271,25 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Rig name in delivered files',
     'User',
   ],
+  'end-of-night-calibration': [
+    'Bias frames',
+    'Blocking the light',
+    'Darks per light setting',
+    'Frames',
+    'Guiding is stopped first. A mount the night already',
+    'How long to wait for you to confirm the telescope is',
+    'Mount before the darks',
+    'One set for each exposure, gain, offset, binning and',
+    'One set for each gain, offset and binning.',
+    'Raises the set-point gradually once the frames are',
+    'Starts when a run that took light frames completes, is',
+    'Take darks and bias when imaging ends',
+    'The frames are taken through a wheel slot named Dark,',
+    'Wait for the cap',
+    'Warm the camera up afterwards',
+    'When imaging ends',
+    'Without a dark slot in the filter wheel',
+  ],
   'equipment-profiles': [
     'Camera defaults',
     'Device assignments',
@@ -357,8 +376,8 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Post-session integration',
     'Reject folder',
     'Reject folder path',
-    'Reject if detected star count drops below this value. Trips when clouds roll in or the dome slit drifts off-target. Leave blank to disable.',
-    'Reject if HFR > baseline × (1 + percent/100). The baseline is the median of the first 5 accepted frames of each target.',
+    'Reject if fewer stars than this are detected, or fewer than half the stars of the first 3 accepted frames of the same target and filter. Trips when clouds roll in, stars trail, or the slew misses the target. Leave blank to disable both.',
+    'Reject if HFR is more than this percent above the baseline, the median of the first 5 accepted frames of the run.',
     'Reject streaks',
     'Send one notification when this many frames in a row are rejected: something is probably wrong (drifted focus, clouds, dome misalignment). The run keeps going and every frame is kept; rejects go to the Reject folder.',
     'Star count min',
@@ -701,6 +720,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Your TNS reporting_group_id.',
   ],
   'sequencer': [
+    '0 = off. Tracking stops this many minutes before the',
     'Append per-filter flats when the active',
     'Auto focus',
     'Auto focus every N frames',
@@ -776,6 +796,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Sound alert',
     'Standalone monitoring',
     'Stop the run for quality problems',
+    'Stop tracking before meridian',
     'Temporarily stop autoguider during flip',
     'Times a failed exposure or image download is',
     'Times a failed filter change, or one where the',
@@ -794,6 +815,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Auto-park mount',
     'Auto-resume after clear',
     'Enable weather safety',
+    'Forecast clouds hold the run',
     'Generate radar alerts within this distance of your site',
     'Hardware Thresholds',
     'Lead time',
@@ -807,6 +829,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Safety Actions',
     'Safety fail mode',
     'Safety sources',
+    'Trust stars over the forecast',
     'Warn this many minutes before weather reaches the site',
     'Weather safety',
   ],
@@ -924,6 +947,20 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
     'When on, each master the night produced gets a first-draft':
         'Draft, deliver and report at dawn',
   },
+  'end-of-night-calibration': {
+    'Guiding is stopped first. A mount the night already':
+        'Mount before the darks',
+    'How long to wait for you to confirm the telescope is': 'Wait for the cap',
+    'One set for each exposure, gain, offset, binning and':
+        'Darks per light setting',
+    'One set for each gain, offset and binning.': 'Bias frames',
+    'Raises the set-point gradually once the frames are':
+        'Warm the camera up afterwards',
+    'Starts when a run that took light frames completes, is':
+        'Take darks and bias when imaging ends',
+    'The frames are taken through a wheel slot named Dark,':
+        'Without a dark slot in the filter wheel',
+  },
   'files-storage': {
     'Automatic backup scheduling is stored and executed on':
         'Configure on the host',
@@ -949,9 +986,9 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Re-run equipment setup',
   },
   'image-grading': {
-    'Reject if detected star count drops below this value. Trips when clouds roll in or the dome slit drifts off-target. Leave blank to disable.':
+    'Reject if fewer stars than this are detected, or fewer than half the stars of the first 3 accepted frames of the same target and filter. Trips when clouds roll in, stars trail, or the slew misses the target. Leave blank to disable both.':
         'Star count min',
-    'Reject if HFR > baseline × (1 + percent/100). The baseline is the median of the first 5 accepted frames of each target.':
+    'Reject if HFR is more than this percent above the baseline, the median of the first 5 accepted frames of the run.':
         'HFR baseline percent',
     'Send one notification when this many frames in a row are rejected: something is probably wrong (drifted focus, clouds, dome misalignment). The run keeps going and every frame is kept; rejects go to the Reject folder.':
         'Notify after consecutive rejects',
@@ -1099,6 +1136,8 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
     'Your TNS reporting_group_id.': 'Reporting group id',
   },
   'sequencer': {
+    '0 = off. Tracking stops this many minutes before the':
+        'Stop tracking before meridian',
     'Append per-filter flats when the active': 'Include flats at end',
     'Average is fastest; Median + Rejection and Sigma': 'Default stack method',
     'Default per-target imaging budget the wizard uses.':

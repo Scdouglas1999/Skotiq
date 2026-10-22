@@ -10,9 +10,12 @@ import 'package:skotiq_core/src/models/weather/weather_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/mount_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/weather_state_provider.dart';
+import 'package:skotiq_core/src/providers/sequence/sequence_editor.dart';
+import 'package:skotiq_core/src/providers/sequence/sequence_selection.dart';
 import 'package:skotiq_core/src/providers/sequence_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/providers/weather_providers.dart';
+import 'package:skotiq_core/src/services/end_of_night_calibration/eon_plan.dart';
 import 'package:skotiq_core/src/services/safe_rig_service.dart';
 import 'package:skotiq_core/src/services/scheduler/sky_calculations.dart';
 
@@ -102,6 +105,7 @@ void main() {
     DateTime now, {
     double latitude = _latitude,
     double longitude = _longitude,
+    Sequence? running,
   }) async {
     _RecordingSafeRigService? safeRig;
     final provider =
@@ -136,6 +140,13 @@ void main() {
         safeRigServiceProvider.overrideWith(
           (ref) => safeRig = _RecordingSafeRigService(ref),
         ),
+        if (running != null)
+          currentSequenceProvider.overrideWith((ref) {
+            final notifier = CurrentSequenceNotifier();
+            // ignore: invalid_use_of_protected_member
+            notifier.state = running;
+            return notifier;
+          }),
       ],
     );
     addTearDown(container.dispose);
@@ -220,6 +231,36 @@ void main() {
     final result = await evaluateAt(evening);
 
     expect(result.state.status, WeatherSafetyStatus.safe);
+    expect(result.safeRigReasons, isEmpty);
+  });
+
+  test('dawn neither pauses nor parks a run that only takes darks', () async {
+    final darks = buildCalibrationSequence(
+      needs: const EonFrameNeeds(
+        darks: [
+          EonDarkGroup(
+            exposureSecs: 90,
+            gain: 76,
+            offset: 15,
+            binX: 1,
+            binY: 1,
+            setPointC: -10,
+            lightCount: 40,
+          ),
+        ],
+        bias: [],
+      ),
+      darkCount: 20,
+      biasCount: 50,
+      biasExposureSecs: 0.001,
+      cameraCanCool: true,
+    );
+    final result = await evaluateAt(
+      _dawn().subtract(const Duration(minutes: 20)),
+      running: darks,
+    );
+
+    expect(result.state.status, WeatherSafetyStatus.unsafe);
     expect(result.safeRigReasons, isEmpty);
   });
 }

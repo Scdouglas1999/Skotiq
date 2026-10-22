@@ -22,6 +22,7 @@ import 'widgets/calibration_settings.dart';
 import 'widgets/connection_settings.dart';
 import 'widgets/dark_library_settings.dart';
 import 'widgets/darkroom_autopilot_settings.dart';
+import 'widgets/end_of_night_calibration_settings.dart';
 import 'widgets/general_settings.dart';
 import 'widgets/help_tutorials_settings.dart';
 import 'widgets/image_grading_settings.dart';
@@ -481,6 +482,27 @@ List<SettingsGroupDef> buildSettingsGroups(BuildContext context) {
           ],
           build: (isMobile) => AdaptiveConditionsSettings(isMobile: isMobile),
         ),
+        // The darks and bias the night's lights need, taken when imaging
+        // ends. Before the Darkroom because its masters feed that pass.
+        SettingsSectionDef(
+          key: 'end-of-night-calibration',
+          label: 'End-of-night calibration',
+          icon: LucideIcons.moonStar,
+          keywords: const [
+            'darks',
+            'bias',
+            'calibration',
+            'dark library',
+            'master dark',
+            'end of night',
+            'dawn',
+            'cap',
+            'warm up',
+            'unattended',
+          ],
+          build: (isMobile) =>
+              EndOfNightCalibrationSettings(isMobile: isMobile),
+        ),
         // What happens to the night after its masters exist. Beside Delivery
         // because they are two links of one chain — this one composes the
         // drafts and the report, Delivery carries them off the rig — and the
@@ -851,6 +873,7 @@ const List<List<String>> _structuralGroups = [
     'preflight',
     'weather-safety',
     'adaptive-conditions',
+    'end-of-night-calibration',
     'darkroom',
     'delivery',
   ],
