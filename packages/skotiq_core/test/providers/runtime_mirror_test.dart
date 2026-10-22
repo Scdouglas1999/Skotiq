@@ -424,4 +424,229 @@ void main() {
       isTrue,
     );
   });
+
+  group('channels', () {
+    /// Host value -> JSON -> client provider.
+    Future<ProviderContainer> roundTrip(
+      void Function(ProviderContainer host) produce,
+      String channel, {
+      void Function(ProviderContainer client)? prepareClient,
+    }) async {
+      final host = _host();
+      addTearDown(host.container.dispose);
+      produce(host.container);
+      // Throttled channels publish the newest value when their gap ends.
+      await Future<void>.delayed(const Duration(milliseconds: 2100));
+      final backend = _clientBackend();
+      when(
+        () => backend.cameraGetLastImage(any()),
+      ).thenAnswer((_) async => null);
+      final client = _client(backend);
+      addTearDown(client.dispose);
+      prepareClient?.call(client);
+      for (final update in _updates(host.sent, channel)) {
+        await applyRemoteSyncEvent(
+          client,
+          _overWire(update.toEvent()),
+          networkBackend: backend,
+        );
+      }
+      return client;
+    }
+
+    test(
+      'weather readings land on the client card of the same device',
+      () async {
+        final client = await roundTrip(
+          (host) {
+            final notifier = host.read(weatherStateProvider.notifier);
+            notifier
+              ..setConnecting('sim_weather_1')
+              ..setConnected()
+              ..updateConditions(cloudCover: 5, humidity: 45, temperature: 10);
+          },
+          'environment',
+          prepareClient: (client) {
+            final notifier = client.read(weatherStateProvider.notifier);
+            notifier
+              ..setConnecting('sim_weather_1')
+              ..setConnected();
+          },
+        );
+        final weather = client.read(weatherStateProvider);
+        expect(weather.cloudCover, 5);
+        expect(weather.humidity, 45);
+        expect(weather.temperature, 10);
+      },
+    );
+
+    test('a reading for another device is not applied', () async {
+      final client = await roundTrip(
+        (host) {
+          final notifier = host.read(weatherStateProvider.notifier);
+          notifier
+            ..setConnecting('sim_weather_1')
+            ..setConnected()
+            ..updateConditions(cloudCover: 5);
+        },
+        'environment',
+        prepareClient: (client) {
+          final notifier = client.read(weatherStateProvider.notifier);
+          notifier
+            ..setConnecting('other_station')
+            ..setConnected();
+        },
+      );
+      expect(client.read(weatherStateProvider).cloudCover, isNull);
+    });
+
+    test('each host cooler reading is added once with the host time', () async {
+      final at = DateTime.utc(2026, 10, 21, 22, 1);
+      final client = await roundTrip(
+        (host) => host
+            .read(temperatureHistoryProvider.notifier)
+            .addPoint(-9.5, targetTemp: -10, coolerPower: 40, at: at),
+        'coolerReading',
+      );
+      final history = client.read(temperatureHistoryProvider);
+      expect(history, hasLength(1));
+      expect(history.single.temperature, -9.5);
+      expect(history.single.coolerPower, 40);
+      expect(history.single.time.toUtc(), at);
+    });
+
+    test('a client watching the host run gets its step statuses and session '
+        'counters', () async {
+      final client = await roundTrip((host) {
+        host.read(sequenceProgressProvider.notifier)
+          ..updateNodeStatus('unpark', NodeStatus.success)
+          ..updateNodeStatus('exp-l', NodeStatus.running)
+          ..updateNodeProgress('exp-l', 50, 'Frame 1 of 2');
+        host
+            .read(sessionStateProvider.notifier)
+            .mirrorHostSession(
+              const SessionState(
+                isActive: true,
+                completedExposures: 4,
+                dbSessionId: 12,
+              ),
+            );
+      }, 'sequenceRun');
+
+      final progress = client.read(sequenceProgressProvider);
+      expect(progress.nodeStatuses['unpark'], NodeStatus.success);
+      expect(progress.nodeStatuses['exp-l'], NodeStatus.running);
+      expect(progress.nodeProgressDetail['exp-l'], 'Frame 1 of 2');
+      final session = client.read(sessionStateProvider);
+      expect(session.completedExposures, 4);
+      expect(session.dbSessionId, 12);
+    });
+
+    test('a client that started the run keeps its own step statuses', () async {
+      final client = await roundTrip(
+        (host) => host
+            .read(sequenceProgressProvider.notifier)
+            .updateNodeStatus('unpark', NodeStatus.failure),
+        'sequenceRun',
+        prepareClient: (client) {
+          client.read(currentRunIdProvider.notifier).state = 7;
+          client
+              .read(sequenceProgressProvider.notifier)
+              .updateNodeStatus('unpark', NodeStatus.success);
+        },
+      );
+      expect(
+        client.read(sequenceProgressProvider).nodeStatuses['unpark'],
+        NodeStatus.success,
+      );
+    });
+
+    test('a flip on the host shows on the client', () async {
+      final client = await roundTrip((host) {
+        host.read(flipExecutionStateProvider.notifier).state =
+            FlipExecutionState.executing;
+        host.read(flipCurrentStepProvider.notifier).state =
+            FlipStep.slewingToTarget;
+        host.read(flipProgressProvider.notifier).state = 40;
+      }, 'meridianFlip');
+      expect(
+        client.read(flipExecutionStateProvider),
+        FlipExecutionState.executing,
+      );
+      expect(client.read(flipCurrentStepProvider), FlipStep.slewingToTarget);
+      expect(client.read(flipProgressProvider), 40);
+    });
+
+    test('an autofocus run that ended in the other window ends here', () async {
+      const result = AutofocusResult(
+        bestPosition: 25070,
+        bestHfr: 2.11,
+        focusData: [],
+        method: 'Hyperbolic',
+        timestamp: 1,
+        curveFitQuality: 0.95,
+        backlashApplied: false,
+      );
+      final client = await roundTrip(
+        (host) {
+          final notifier = host.read(autofocusOverlayProvider.notifier);
+          notifier
+            ..onAutofocusStarted()
+            ..onAutofocusCompleted(result);
+        },
+        'autofocusRun',
+        prepareClient: (client) =>
+            client.read(autofocusOverlayProvider.notifier).onAutofocusStarted(),
+      );
+      final overlay = client.read(autofocusOverlayProvider);
+      expect(overlay.isRunning, isFalse);
+      expect(overlay.result?.bestPosition, 25070);
+    });
+
+    test('a frame saved on the host after it was shown takes its path '
+        'without a second download', () async {
+      final shownAt = DateTime.utc(2026, 10, 21, 22, 2);
+      final backend = _clientBackend();
+      final client = _client(backend);
+      addTearDown(client.dispose);
+      client.read(currentImageProvider.notifier).state = CapturedImageData(
+        width: 10,
+        height: 8,
+        displayData: Uint8List(320),
+        histogram: const [],
+        stats: const ImageStats(min: 0, max: 0, mean: 0, median: 0, stdDev: 0),
+        capturedAt: shownAt,
+        settings: const ExposureSettings(
+          exposureTime: 5,
+          gain: 100,
+          offset: 50,
+          binningX: 1,
+          binningY: 1,
+          frameType: FrameType.light,
+        ),
+      );
+
+      applyHostRuntimeUpdate(
+        client,
+        HostRuntimeUpdate(
+          channel: 'currentFrame',
+          revision: 1,
+          value: {
+            'capturedAt': shownAt.millisecondsSinceEpoch,
+            'width': 10,
+            'height': 8,
+            'filePath': r'C:\data\L_001.fits',
+          },
+        ),
+        networkBackend: backend,
+      );
+      await pumpEventQueue();
+
+      expect(
+        client.read(currentImageProvider)?.filePath,
+        r'C:\data\L_001.fits',
+      );
+      verifyNever(() => backend.cameraGetLastImage(any()));
+    });
+  });
 }
