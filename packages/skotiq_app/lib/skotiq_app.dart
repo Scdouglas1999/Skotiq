@@ -26,6 +26,7 @@ export 'screens/settings/settings_screen.dart';
 export 'screens/settings/catalog_settings_screen.dart';
 export 'screens/settings/equipment_profiles_screen.dart';
 export 'screens/shell/app_shell.dart';
+export 'screens/shell/shell_chrome.dart' show ShellChrome;
 export 'screens/shell/shell_exit_recorder.dart';
 export 'screens/shell/widgets/window_chrome.dart'
     show WindowResizeEdges, WindowChromeState;

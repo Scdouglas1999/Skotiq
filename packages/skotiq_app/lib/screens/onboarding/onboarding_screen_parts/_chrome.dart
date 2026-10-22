@@ -571,3 +571,24 @@ class _Footer extends StatelessWidget {
     );
   }
 }
+
+/// The wizard's header as window chrome on a desktop window.
+///
+/// The wizard is routed outside the AppShell, so on a frameless desktop window
+/// its header is the only place to drag, maximize or close the window from.
+class _WizardWindowChrome extends StatelessWidget {
+  const _WizardWindowChrome({required this.child});
+
+  final Widget child;
+
+  /// macOS keeps its native traffic lights; every other desktop window needs
+  /// the app's own caption buttons.
+  static bool get showsWindowControls =>
+      ShellChrome.isDesktopWindow && !kIsWebLike && !Platform.isMacOS;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!ShellChrome.isDesktopWindow) return child;
+    return WindowDragArea(child: child);
+  }
+}

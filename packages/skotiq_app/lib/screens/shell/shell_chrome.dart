@@ -27,10 +27,31 @@ abstract final class ShellChrome {
   /// a property of the platform, never of the layout — a narrow desktop window
   /// switching to [useBottomNavigation] must still render them or the operator
   /// is left with no mouse-reachable way to close, minimize or move the app.
+  /// False when [usesSystemDecorations] hands the frame to the desktop.
   static bool get isDesktopWindow {
     if (kIsWeb) return false;
+    if (usesSystemDecorations) return false;
     return Platform.isWindows || Platform.isLinux || Platform.isMacOS;
   }
+
+  /// True when the Linux desktop draws the window frame instead of the app.
+  ///
+  /// `SKOTIQ_SYSTEM_DECORATIONS=1` is the escape hatch for desktops where the
+  /// frameless window misbehaves; the GTK runner reads the same variable and
+  /// leaves the window decorated.
+  static bool get usesSystemDecorations {
+    if (kIsWeb) return false;
+    return usesSystemDecorationsFor(
+      isLinux: Platform.isLinux,
+      environment: Platform.environment,
+    );
+  }
+
+  /// [usesSystemDecorations] for a given platform and environment.
+  static bool usesSystemDecorationsFor({
+    required bool isLinux,
+    required Map<String, String> environment,
+  }) => isLinux && environment['SKOTIQ_SYSTEM_DECORATIONS'] == '1';
 
   /// Whether the shell should render [SkotiqBottomNavigation].
   static bool useBottomNavigation(double width) {

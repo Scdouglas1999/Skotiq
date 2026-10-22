@@ -188,4 +188,19 @@ void main() {
     // The compact phone progress bar is NOT used on the wide layout.
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
+  testWidgets(
+      'on a desktop window the wizard header carries the window controls',
+      (tester) async {
+    // The wizard is routed outside the AppShell, so on a frameless desktop
+    // window its header is the only chrome that can minimize, maximize or
+    // close the window. Test hosts are desktop platforms.
+    final db = _newDb();
+    addTearDown(db.close);
+    await _pumpWizard(tester, db: db, size: const Size(1600, 900));
+
+    expect(find.byTooltip('Minimize window'), findsOneWidget);
+    expect(find.byTooltip('Maximize window'), findsOneWidget);
+    expect(find.byTooltip('Close window'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

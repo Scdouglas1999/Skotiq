@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/utils/confirm_dialog.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+
+import '../shell/shell_chrome.dart';
+import '../shell/widgets/window_chrome.dart';
 
 import 'steps/camera_defaults_step.dart';
 import 'steps/camera_step.dart';
@@ -522,18 +526,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            PageHeader(
-              icon: SkotiqIcons.sparkle,
-              title: 'Set up your rig',
-              // The step rail names the current step on the wide layout; the
-              // phone column has no rail, so the header qualifies the title
-              // instead of repeating it.
-              actions: [
-                _SkipOnboardingAction(
-                  onExit: busy ? null : _onExitWizard,
-                  compact: isPhone,
-                ),
-              ],
+            _WizardWindowChrome(
+              child: PageHeader(
+                icon: SkotiqIcons.sparkle,
+                title: 'Set up your rig',
+                // The step rail names the current step on the wide layout;
+                // the phone column has no rail, so the header qualifies the
+                // title instead of repeating it.
+                actions: [
+                  _SkipOnboardingAction(
+                    onExit: busy ? null : _onExitWizard,
+                    compact: isPhone,
+                  ),
+                  if (_WizardWindowChrome.showsWindowControls) ...[
+                    const SizedBox(width: SkotiqTokens.spaceSm),
+                    WindowControls(colors: SkotiqColors.of(context)),
+                  ],
+                ],
+              ),
             ),
             Expanded(
               child: isPhone
