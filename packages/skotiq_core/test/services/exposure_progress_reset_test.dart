@@ -8,13 +8,16 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
+import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/clock_provider.dart';
+import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/capture_preview_loader.dart';
@@ -149,14 +152,16 @@ void main() {
     });
   });
 
-  tearDown(() {
-    events.close();
+  tearDown(() async {
+    await events.close();
     if (outputDir.existsSync()) outputDir.deleteSync(recursive: true);
   });
 
   Future<ProviderContainer> buildContainer(Clock clock) async {
+    final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
     final container = ProviderContainer(
       overrides: [
+        databaseProvider.overrideWithValue(database),
         backendProvider.overrideWith(
           (ref) => _TestBackendNotifier(ref, backend),
         ),
@@ -180,7 +185,10 @@ void main() {
         ),
       ],
     );
-    addTearDown(container.dispose);
+    addTearDown(() async {
+      container.dispose();
+      await database.close();
+    });
     await container.read(appSettingsProvider.future);
     return container;
   }
