@@ -2106,6 +2106,8 @@ mod tests {
         let mut child = std::process::Command::new("true").spawn().expect("spawn");
         let mut status = 0;
         // What the Dart VM does with `waitpid(-1)`: collect the child first.
+        // SAFETY: child.id() names our spawned child, and status points to a
+        // live, writable integer for the duration of this synchronous call.
         let reaped = unsafe { waitpid(child.id() as i32, &mut status, 0) };
         assert_eq!(reaped, child.id() as i32);
 

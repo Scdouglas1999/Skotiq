@@ -17,7 +17,7 @@
 
 [**Download 8.0.0**](https://github.com/Scdouglas1999/Skotiq/releases/latest) · [Documentation](docs/index.md) · [Release notes](docs/release/v8.0.0.md) · [Known limitations](docs/known-limitations.md) · [Patreon](https://www.patreon.com/cw/SeanDouglas)
 
-<img src="assets/screenshots/desktop-dashboard.png" width="900" alt="Skotiq Tonight on a real imaging laptop, with the NGC 891 plan staged for the night: the target's altitude curve against the Moon at 85%, each step's clock time through the meridian flip and camera warm-up, and a before-you-start checklist showing the camera cooling, mount unparked and guider connected">
+<img src="assets/screenshots/desktop-dashboard.png" width="900" alt="Skotiq Tonight on a real imaging laptop, with the NGC 891 plan staged for the night: the target's altitude curve against the Moon at 85%, each step's clock time through the meridian flip and camera warm-up, and a before-you-start checklist showing the camera connected, mount unparked and guider connected">
 
 <sub>Tonight, on a real imaging laptop the morning after a night's imaging: the target, the plan with its clock times, the gear's live state, and the checklist before you start — one screen.</sub>
 
