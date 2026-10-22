@@ -4,6 +4,9 @@
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
+#ifdef GDK_WINDOWING_WAYLAND
+#include <gdk/gdkwayland.h>
+#endif
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -21,6 +24,31 @@ G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 static void first_frame_cb(MyApplication* self, FlView *view)
 {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+}
+
+// SKOTIQ_SYSTEM_DECORATIONS=1 hands the frame back to the desktop: the
+// compositor or GTK draws its own title bar and borders, and the Dart shell
+// (ShellChrome.usesSystemDecorations) stops drawing window controls and
+// resize grips. For desktops where the app-drawn frame misbehaves.
+static gboolean use_system_decorations() {
+  return g_strcmp0(g_getenv("SKOTIQ_SYSTEM_DECORATIONS"), "1") == 0;
+}
+
+// GTK announces "server-side decorations, please" to the compositor for any
+// undecorated window that has no GTK header bar of its own. KWin honors that
+// request through org_kde_kwin_server_decoration and draws its title bar and
+// frame around the app's own chrome. The app draws every pixel of its frame,
+// so it tells the compositor it is client-decorated. Runs after GTK's own
+// realize handler, which makes the opposite announcement; compositors without
+// that protocol (Mutter) ignore both.
+static void announce_client_decorations_cb(GtkWidget* window,
+                                           gpointer user_data) {
+#ifdef GDK_WINDOWING_WAYLAND
+  GdkWindow* gdk_window = gtk_widget_get_window(window);
+  if (gdk_window != nullptr && GDK_IS_WAYLAND_WINDOW(gdk_window)) {
+    gdk_wayland_window_announce_csd(gdk_window);
+  }
+#endif
 }
 
 // Answers the window-chrome questions Dart cannot answer itself — the one
@@ -61,8 +89,15 @@ static void my_application_activate(GApplication* application) {
   // GTK header bar is installed on ANY environment, and an undecorated window
   // gets no decorations or CSD shadow margins from the toolkit — square
   // corners come free. Opaque, not transparent: a transparent toplevel pays
-  // for every frame in pacing.
-  gtk_window_set_decorated(window, FALSE);
+  // for every frame in pacing. On Wayland the compositor must also be told
+  // not to decorate it (announce_client_decorations_cb).
+  if (use_system_decorations()) {
+    gtk_window_set_decorated(window, TRUE);
+  } else {
+    gtk_window_set_decorated(window, FALSE);
+    g_signal_connect_after(window, "realize",
+                           G_CALLBACK(announce_client_decorations_cb), nullptr);
+  }
   gtk_window_set_title(window, "Skotiq");
 
   // Must match WindowOptions.size in lib/main.dart. When they disagree, Dart's

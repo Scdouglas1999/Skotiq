@@ -172,7 +172,9 @@ void main(List<String> args) async {
     // Flutter frame is delayed. Match SkotiqColors.dark.background.
     backgroundColor: Color(0xFF0B0D12),
     skipTaskbar: false,
-    titleBarStyle: TitleBarStyle.hidden,
+    titleBarStyle: ShellChrome.usesSystemDecorations
+        ? TitleBarStyle.normal
+        : TitleBarStyle.hidden,
     title: 'Skotiq',
   );
 
@@ -436,7 +438,7 @@ void main(List<String> args) async {
   // [WindowResizeEdges] paints no Directionality-requiring widget: the grips
   // are Positioned by absolute left/right/top/bottom, so the app root needs
   // no direction context of its own.
-  Widget appRoot = Platform.isLinux
+  Widget appRoot = Platform.isLinux && !ShellChrome.usesSystemDecorations
       ? const WindowResizeEdges(child: SkotiqApp(isDesktop: true))
       : const SkotiqApp(isDesktop: true);
 
