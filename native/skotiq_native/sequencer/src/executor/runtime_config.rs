@@ -166,20 +166,66 @@ impl SequenceExecutor {
     /// `start()` (which builds a fresh ExecutionContext) sees it immediately
     /// rather than waiting for the next Dart push.
     pub async fn update_weather_verdict(&self, unsafe_override: Option<bool>) {
+        self.update_weather_verdict_from(unsafe_override, false)
+            .await;
+    }
+
+    /// [`Self::update_weather_verdict`] with the verdict's source class.
+    /// `advisory` marks an UNSAFE verdict that rests only on a forecast or
+    /// cloud model: it holds the run and never parks it or ends it.
+    pub async fn update_weather_verdict_from(&self, unsafe_override: Option<bool>, advisory: bool) {
         tracing::debug!(
-            "[SEQ] update_weather_verdict: unsafe_override={:?}",
-            unsafe_override
+            "[SEQ] update_weather_verdict: unsafe_override={:?} advisory={}",
+            unsafe_override,
+            advisory
         );
         if let Some(tx) = &self.command_tx {
             let _ = tx
-                .send(ExecutorCommand::UpdateWeatherVerdict { unsafe_override })
+                .send(ExecutorCommand::UpdateWeatherVerdict {
+                    unsafe_override,
+                    advisory,
+                })
                 .await;
         } else {
             let manager = self.trigger_manager.read().await;
             let state_lock = manager.state();
             let mut state = state_lock.write().await;
-            state.update_weather_verdict(unsafe_override);
+            state.update_weather_verdict_from(unsafe_override, advisory);
         }
+    }
+
+    /// The operator says the sky is clear: for `duration_secs` the app's
+    /// weather verdict is not acted on, and a run held for weather resumes now
+    /// rather than after the safe period. `0` ends the override. A hardware
+    /// safety monitor that reads unsafe still holds the run.
+    pub async fn set_weather_operator_clear(&self, duration_secs: u64, reason: &str) {
+        let until = (duration_secs > 0)
+            .then(|| std::time::Instant::now() + std::time::Duration::from_secs(duration_secs));
+        {
+            let manager = self.trigger_manager.read().await;
+            let state_lock = manager.state();
+            state_lock.write().await.weather_operator_clear_until = until;
+        }
+        tracing::info!(
+            "[SEQ] Operator weather override: clear for {} s ({})",
+            duration_secs,
+            reason
+        );
+        if until.is_some() {
+            // Wake a weather hold that is waiting out its check interval.
+            self.recovery_signals.request_try_now();
+        }
+        self.emit_manual_intervention(
+            "weather_sky_clear",
+            serde_json::json!({ "duration_secs": duration_secs, "reason": reason }),
+        );
+    }
+
+    /// Set how long the sky must read safe before a weather hold ends: the
+    /// operator's "required safe duration". Read at each weather-hold check,
+    /// so it reaches a hold already in progress.
+    pub fn set_weather_resume_after_safe_secs(&self, secs: u64) {
+        self.runtime_config.write().weather_resume_after_safe_secs = Some(secs);
     }
 
     /// Update dither configuration at runtime.

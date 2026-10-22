@@ -947,6 +947,7 @@ impl SequenceExecutor {
                     recovery_driver_signals,
                     recovery_driver_state,
                     recovery_driver_trigger_mgr,
+                    recovery_driver_trigger_context: trigger_action_context.clone(),
                     recovery_request_rx,
                 });
 

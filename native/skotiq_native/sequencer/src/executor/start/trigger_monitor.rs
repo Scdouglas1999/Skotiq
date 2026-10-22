@@ -310,6 +310,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         // verdict that goes stale between safety polls is detected
         // promptly. Pure read; never mutates or clears the verdict.
         let verdict_stale_unsafe;
+        let mut stale_verdict_dropped = false;
 
         {
             let manager = trigger_manager.read().await;
@@ -320,8 +321,18 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             if let Some(safe) = is_safe {
                 state.weather_safe = safe;
             }
+            state.safety_fail_mode = current_safety_fail_mode;
 
-            verdict_stale_unsafe = state.is_weather_verdict_stale_unsafe(verdict_staleness_secs);
+            let stale = state.is_weather_verdict_stale_unsafe(verdict_staleness_secs);
+            if stale && !stale_unsafe_verdict_holds(current_safety_fail_mode) {
+                // Missing data under a permissive fail mode: the verdict is set
+                // aside, not held on to. The stamp stays, so a fresh push is
+                // still what re-arms the warning below.
+                state.weather_verdict_unsafe = None;
+                state.weather_verdict_advisory = false;
+                stale_verdict_dropped = true;
+            }
+            verdict_stale_unsafe = stale && stale_unsafe_verdict_holds(current_safety_fail_mode);
 
             // Only guiding this run started is judged, and only while it is
             // guiding. PHD2 keeps reporting the RMS of its last guiding after
@@ -501,6 +512,12 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         ) {
             tracing::warn!("{}", msg);
             let _ = event_tx_clone2.send(ExecutorEvent::Error { message: msg });
+        }
+        if stale_verdict_dropped {
+            let message =
+                stale_verdict_dropped_message(verdict_staleness_secs, current_safety_fail_mode);
+            tracing::warn!("{}", message);
+            let _ = event_tx_clone2.send(ExecutorEvent::Warning { message });
         }
 
         let should_poll_mount = last_mount_poll_at
@@ -766,7 +783,14 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             let mut manager = trigger_manager.write().await;
             let mut dropped_under_hold: Vec<String> = Vec::new();
             let fired = manager.check_all().await;
-            let stop_on_quality_problems = manager.state().read().await.stop_on_quality_problems;
+            let (stop_on_quality_problems, weather_advisory_only) = {
+                let state = manager.state();
+                let state = state.read().await;
+                (
+                    state.stop_on_quality_problems,
+                    state.weather_unsafe_is_advisory_only(),
+                )
+            };
             let fired_with_names: Vec<_> = fired
                 .into_iter()
                 .filter(|(id, _)| !(explicit_end && id == "dawn_approaching"))
@@ -775,7 +799,7 @@ pub(super) async fn run_trigger_monitor_poll_loop(
                 .map(|(trigger_id, action)| {
                     let fired = apply_quality_policy(
                         &trigger_id,
-                        apply_park_policy(&trigger_id, action, park_policy),
+                        apply_park_policy(&trigger_id, action, park_policy, weather_advisory_only),
                         stop_on_quality_problems,
                     );
                     (trigger_id, fired)

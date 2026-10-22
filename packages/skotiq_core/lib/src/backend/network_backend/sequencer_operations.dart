@@ -440,13 +440,32 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> sequencerUpdateWeatherVerdict({bool? unsafeOverride}) async {
-    // Full-night audit 2026-06-04 (defense-in-depth) — forwarded to the remote
-    // host so the remote rig's in-sequencer WeatherUnsafe trigger sees the same
-    // weather-safety verdict the local controller computed.
+  Future<void> sequencerUpdateWeatherVerdict({
+    bool? unsafeOverride,
+    bool advisory = false,
+  }) async {
+    // Forwarded to the host so its in-sequencer WeatherUnsafe trigger sees
+    // the verdict this controller computed.
     await _post('sequencer/update-weather-verdict', {
       'unsafeOverride': unsafeOverride,
+      'advisory': advisory,
     });
+  }
+
+  @override
+  Future<void> sequencerSetWeatherOperatorClear({
+    required int durationSecs,
+    required String reason,
+  }) async {
+    await _post('sequencer/weather-operator-clear', {
+      'durationSecs': durationSecs,
+      'reason': reason,
+    });
+  }
+
+  @override
+  Future<void> sequencerSetWeatherResumeAfterSafeSecs(int seconds) async {
+    await _post('sequencer/weather-resume-after', {'seconds': seconds});
   }
 
   @override

@@ -124,13 +124,17 @@ pub struct RuntimeConfig {
     /// native gate is never weaker than the Dart gate it backstops.
     pub max_sun_altitude_degrees: Option<f64>,
     /// How long (seconds) a pushed `Some(true)` (UNSAFE) Dart weather verdict may
-    /// go un-refreshed before the safety poll emits a loud "verdict feed stale;
-    /// holding paused fail-closed" warning. The unsafe verdict is NEVER
-    /// auto-cleared on staleness — this governs only WHEN the indefinite hold
-    /// stops being silent. `0` falls back to
-    /// [`DEFAULT_WEATHER_VERDICT_STALENESS_SECS`]; any other value is clamped to a
-    /// sane floor so a misconfiguration cannot make every tick warn.
+    /// go un-refreshed before it counts as stale. A stale verdict is missing
+    /// data: fail closed keeps holding and warns, fail open and warn only set
+    /// it aside and warn (see [`stale_unsafe_verdict_holds`]). `0` falls back
+    /// to [`DEFAULT_WEATHER_VERDICT_STALENESS_SECS`]; any other value is
+    /// clamped to a sane floor so a misconfiguration cannot make every tick
+    /// warn.
     pub weather_verdict_staleness_secs: u64,
+    /// How long the sky must read safe, without a break, before a weather hold
+    /// lets the run image again. `None` means nothing has been pushed and
+    /// [`DEFAULT_WEATHER_RESUME_AFTER_SAFE_SECS`] applies.
+    pub weather_resume_after_safe_secs: Option<u64>,
     /// user override for the standard `AutofocusInterval`
     /// trigger's `every_n_frames`. The Rust default is 25 frames, which is
     /// wildly wrong for both very-short (5 s) and very-long (5 min) subs —
@@ -438,6 +442,8 @@ pub enum ExecutorCommand {
     /// make the rig safer than the hardware verdict, never less safe.
     UpdateWeatherVerdict {
         unsafe_override: Option<bool>,
+        /// The UNSAFE verdict rests only on a forecast or cloud model.
+        advisory: bool,
     },
 }
 

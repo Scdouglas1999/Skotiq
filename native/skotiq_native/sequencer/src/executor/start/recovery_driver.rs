@@ -24,6 +24,7 @@ pub(super) struct RecoveryDriverArgs {
     pub recovery_driver_signals: Arc<crate::recovery::RecoverySignals>,
     pub recovery_driver_state: Arc<RwLock<ExecutorState>>,
     pub recovery_driver_trigger_mgr: Arc<RwLock<TriggerManager>>,
+    pub recovery_driver_trigger_context: TriggerActionContext,
     pub recovery_request_rx: mpsc::Receiver<crate::recovery::RecoveryCause>,
 }
 
@@ -48,6 +49,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         recovery_driver_signals,
         recovery_driver_state,
         recovery_driver_trigger_mgr,
+        recovery_driver_trigger_context,
         mut recovery_request_rx,
     } = args;
     while let Some(cause) = recovery_request_rx.recv().await {
@@ -76,6 +78,21 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
             )
         };
 
+        // A weather hold is not a repair with a budget: it checks the sky
+        // often, never runs out, and never stops tracking. Weather alone must
+        // not end the run, and a held mount that keeps tracking can image
+        // again the moment the sky clears.
+        let weather_hold = cause == crate::recovery::RecoveryCause::WeatherUnsafe;
+        let (interval_secs, max_duration_secs, stop_tracking) = if weather_hold {
+            (
+                WEATHER_HOLD_CHECK_SECS,
+                WEATHER_HOLD_NOMINAL_SPAN_SECS,
+                false,
+            )
+        } else {
+            (interval_secs, max_duration_secs, stop_tracking)
+        };
+        let mut weather_safe_since: Option<std::time::Instant> = None;
         let mut ctx =
             crate::recovery::RecoveryContext::new(cause.clone(), interval_secs, max_duration_secs);
 
@@ -217,7 +234,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 ctx.phase = crate::recovery::RecoveryPhase::GaveUp;
                 break;
             }
-            if ctx.is_exhausted(chrono::Utc::now()) {
+            if !weather_hold && ctx.is_exhausted(chrono::Utc::now()) {
                 tracing::warn!(
                     "[RECOVERY] Exhausted (attempts={}/{}, elapsed={:.0}s/{:.0}s)",
                     ctx.attempt_count,
@@ -291,14 +308,28 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 context: Box::new(ctx.clone()),
             });
 
-            let outcome = run_recovery_attempt(
-                &ctx.cause,
-                &recovery_driver_device_ops,
-                recovery_driver_mount_id.as_deref(),
-                &recovery_driver_device_ids,
-                &recovery_driver_trigger_mgr,
-            )
-            .await;
+            let outcome = if weather_hold {
+                let resume_after = recovery_driver_runtime
+                    .read()
+                    .weather_resume_after_safe_secs
+                    .unwrap_or(DEFAULT_WEATHER_RESUME_AFTER_SAFE_SECS);
+                weather_hold_attempt(
+                    &recovery_driver_device_ops,
+                    &recovery_driver_trigger_mgr,
+                    &mut weather_safe_since,
+                    resume_after,
+                )
+                .await
+            } else {
+                run_recovery_attempt(
+                    &ctx.cause,
+                    &recovery_driver_device_ops,
+                    recovery_driver_mount_id.as_deref(),
+                    &recovery_driver_device_ids,
+                    &recovery_driver_trigger_mgr,
+                )
+                .await
+            };
 
             match outcome {
                 crate::recovery::AttemptOutcome::Succeeded => {
@@ -440,6 +471,18 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                     "resuming sequence"
                 }
             );
+            if weather_hold && !operator_paused {
+                prepare_imaging_after_weather_hold(WeatherHoldExit {
+                    held_secs: ctx.elapsed_secs(chrono::Utc::now()),
+                    device_ops: &recovery_driver_device_ops,
+                    trigger_mgr: &recovery_driver_trigger_mgr,
+                    trigger_context: &recovery_driver_trigger_context,
+                    runtime: &recovery_driver_runtime,
+                    is_cancelled: &recovery_driver_is_cancelled,
+                    event_tx: &recovery_driver_event_tx,
+                })
+                .await;
+            }
             *recovery_driver_state.write().await = resumed_state;
             {
                 let mut prog = recovery_driver_progress.write();
@@ -675,6 +718,105 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
     }
 }
 
+/// What [`prepare_imaging_after_weather_hold`] needs.
+struct WeatherHoldExit<'a> {
+    held_secs: f64,
+    device_ops: &'a SharedDeviceOps,
+    trigger_mgr: &'a Arc<RwLock<TriggerManager>>,
+    trigger_context: &'a TriggerActionContext,
+    runtime: &'a Arc<StdRwLock<RuntimeConfig>>,
+    is_cancelled: &'a Arc<AtomicBool>,
+    event_tx: &'a broadcast::Sender<ExecutorEvent>,
+}
+
+/// Get the rig ready to image again after a weather hold, before the node tree
+/// is released: recenter on the target after a long hold, and have guiding
+/// that lost its star during the hold start again on a fresh star before the
+/// next light frame. Neither can end the run; a recenter that fails is told
+/// and the run images where the mount points.
+async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
+    let state = exit.trigger_mgr.read().await.state();
+    let (target_name, target_ra_hours, target_dec, current_filter) = {
+        let ts = state.read().await;
+        (
+            ts.current_target_name.clone(),
+            ts.target_ra.map(|ra| ra / 15.0),
+            ts.target_dec,
+            ts.current_filter.clone(),
+        )
+    };
+    let recenter = exit.held_secs >= WEATHER_HOLD_RECENTER_AFTER_SECS
+        && target_ra_hours.is_some()
+        && target_dec.is_some()
+        && exit.trigger_context.mount_id.is_some()
+        && exit.trigger_context.camera_id.is_some();
+    if recenter {
+        tracing::info!(
+            "[WEATHER] Held for {:.0} min; recentering on the target before imaging again",
+            exit.held_secs / 60.0
+        );
+        let mut claim =
+            TriggerCameraClaim::acquire(&state, exit.is_cancelled, &RecoveryAction::Recenter).await;
+        let ctx = build_trigger_autofocus_context(
+            exit.trigger_context,
+            target_name,
+            target_ra_hours,
+            target_dec,
+            current_filter,
+            exit.is_cancelled.clone(),
+            exit.device_ops.clone(),
+            state.clone(),
+            exit.runtime,
+            Some(exit.event_tx.clone()),
+        );
+        let config = crate::CenterConfig {
+            use_target_coords: true,
+            custom_ra: None,
+            custom_dec: None,
+            accuracy_arcsec: 10.0,
+            max_attempts: 3,
+            exposure_duration: 5.0,
+            filter: None,
+        };
+        let result = crate::instructions::execute_center(&config, &ctx, None).await;
+        claim.release().await;
+        if result.status != NodeStatus::Success {
+            let message = format!(
+                "Recentering after the weather hold did not succeed ({}). The run images where \
+                 the mount points.",
+                result.message.as_deref().unwrap_or("no detail")
+            );
+            tracing::warn!("[WEATHER] {}", message);
+            let _ = exit.event_tx.send(ExecutorEvent::Warning { message });
+        }
+        // The Center's own move marked this run's guiding for a restart on a
+        // fresh star before the next light frame.
+        return;
+    }
+
+    let run_guiding = state.read().await.guiding_enabled;
+    if !run_guiding {
+        return;
+    }
+    let settled = matches!(
+        exit.device_ops.guider_get_status().await,
+        Ok(status) if guiding_is_settled(&status)
+    );
+    if settled {
+        return;
+    }
+    tracing::info!(
+        "[WEATHER] Guiding is not holding a star after the weather hold; it starts again on a \
+         fresh star before the next light frame"
+    );
+    crate::instructions::stop_an_active_guider(exit.device_ops, "restart after the weather hold")
+        .await;
+    let mut ts = state.write().await;
+    ts.set_guiding_enabled(false);
+    ts.set_guide_star_lost(false);
+    ts.guiding_resume_pending = true;
+}
+
 async fn stops_on_quality_problems(trigger_mgr: &Arc<RwLock<TriggerManager>>) -> bool {
     let manager = trigger_mgr.read().await;
     let state = manager.state();
@@ -862,6 +1004,7 @@ mod tests {
             recovery_driver_signals: signals.clone(),
             recovery_driver_state: state.clone(),
             recovery_driver_trigger_mgr: Arc::new(RwLock::new(TriggerManager::new())),
+            recovery_driver_trigger_context: TriggerActionContext::default(),
             recovery_request_rx: request_rx,
         }));
 
@@ -1072,6 +1215,7 @@ mod tests {
             recovery_driver_signals: Arc::new(crate::recovery::RecoverySignals::new()),
             recovery_driver_state: state.clone(),
             recovery_driver_trigger_mgr: trigger_mgr.clone(),
+            recovery_driver_trigger_context: TriggerActionContext::default(),
             recovery_request_rx: request_rx,
         }));
         request_tx.send(RecoveryCause::GuideStarLost).await.unwrap();

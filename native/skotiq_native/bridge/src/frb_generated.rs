@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1703080;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1452936108;
 
 // Section: executor
 
@@ -7750,6 +7750,27 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_qualit
                     })().await)
                 } })
 }
+fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clear_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    duration_secs: impl CstDecode<u32>,
+    reason: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_set_weather_operator_clear", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_duration_secs = duration_secs.cst_decode();let api_reason = reason.cst_decode(); move |context| async move {
+                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
+                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_set_weather_operator_clear(api_duration_secs, api_reason).await?;   Ok(output_ok)
+                    })().await)
+                } })
+}
+fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    seconds: impl CstDecode<u32>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_set_weather_resume_after_safe_secs", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_seconds = seconds.cst_decode(); move |context| async move {
+                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
+                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_set_weather_resume_after_safe_secs(api_seconds).await?;   Ok(output_ok)
+                    })().await)
+                } })
+}
 fn wire__crate__api__sequencer__lifecycle__api_sequencer_skip_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -8089,10 +8110,11 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_sky_brightn
 fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_verdict_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     unsafe_override: impl CstDecode<Option<bool>>,
+    advisory: impl CstDecode<bool>,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_update_weather_verdict", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_unsafe_override = unsafe_override.cst_decode(); move |context| async move {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_update_weather_verdict", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_unsafe_override = unsafe_override.cst_decode();let api_advisory = advisory.cst_decode(); move |context| async move {
                     transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_update_weather_verdict(api_unsafe_override).await?;   Ok(output_ok)
+                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_update_weather_verdict(api_unsafe_override, api_advisory).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -35062,6 +35084,27 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clear(
+        port_: i64,
+        duration_secs: u32,
+        reason: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clear_impl(
+            port_,
+            duration_secs,
+            reason,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs(
+        port_: i64,
+        seconds: u32,
+    ) {
+        wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs_impl(port_, seconds)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_skip(
         port_: i64,
     ) {
@@ -35325,10 +35368,12 @@ mod io {
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_verdict(
         port_: i64,
         unsafe_override: *mut bool,
+        advisory: bool,
     ) {
         wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_verdict_impl(
             port_,
             unsafe_override,
+            advisory,
         )
     }
 

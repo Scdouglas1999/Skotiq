@@ -768,7 +768,23 @@ class DisconnectedBackend
   }
 
   @override
-  Future<void> sequencerUpdateWeatherVerdict({bool? unsafeOverride}) async {
+  Future<void> sequencerUpdateWeatherVerdict({
+    bool? unsafeOverride,
+    bool advisory = false,
+  }) async {
+    _throwNotConnected();
+  }
+
+  @override
+  Future<void> sequencerSetWeatherOperatorClear({
+    required int durationSecs,
+    required String reason,
+  }) async {
+    _throwNotConnected();
+  }
+
+  @override
+  Future<void> sequencerSetWeatherResumeAfterSafeSecs(int seconds) async {
     _throwNotConnected();
   }
 

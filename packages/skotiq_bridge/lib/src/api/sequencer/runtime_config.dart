@@ -178,6 +178,10 @@ Future<void> apiSequencerUpdateAutofocusConfig({required String configJson}) =>
 /// is NOT constructed (grading disabled globally — per-node `quality_check`
 /// on TakeExposure still wins). The Dart `enableImageGrading` toggle on
 /// app settings drives this directly.
+///
+/// A star-count floor also arms the star-count drop check at
+/// [`skotiq_sequencer::quality::DEFAULT_STAR_COUNT_DROP_PERCENT`]: both grade
+/// the same count, and the drop is the one that scales to the field.
 Future<void> apiSequencerUpdateDefaultQualityCheck({
   double? hfrThreshold,
   double? hfrBaselinePercent,
@@ -266,12 +270,38 @@ Future<void> apiSequencerUpdateCloudMotion({
 ///
 /// `unsafe_override = Some(true)` => Dart computed UNSAFE; `Some(false)` =>
 /// Dart computed SAFE; `None` => Dart abstains (provider disabled / no data)
-/// and this layer is inert.
-Future<void> apiSequencerUpdateWeatherVerdict({bool? unsafeOverride}) => RustLib
-    .instance
-    .api
+/// and this layer is inert. `advisory` marks an UNSAFE verdict that rests only
+/// on a forecast or cloud model: it holds the run until the sky clears and
+/// never parks the mount or ends the run.
+Future<void> apiSequencerUpdateWeatherVerdict({
+  bool? unsafeOverride,
+  required bool advisory,
+}) => RustLib.instance.api
     .crateApiSequencerRuntimeConfigApiSequencerUpdateWeatherVerdict(
       unsafeOverride: unsafeOverride,
+      advisory: advisory,
+    );
+
+/// The operator says the sky is clear. For `duration_secs` the app's weather
+/// verdict is not acted on and a run held for weather resumes at once; `0`
+/// ends the override early. A hardware safety monitor that reads unsafe still
+/// holds the run. `reason` is recorded with the operator action.
+Future<void> apiSequencerSetWeatherOperatorClear({
+  required int durationSecs,
+  required String reason,
+}) => RustLib.instance.api
+    .crateApiSequencerRuntimeConfigApiSequencerSetWeatherOperatorClear(
+      durationSecs: durationSecs,
+      reason: reason,
+    );
+
+/// How long the sky must read safe, without a break, before a run held for
+/// weather images again: the operator's "required safe duration".
+Future<void> apiSequencerSetWeatherResumeAfterSafeSecs({
+  required int seconds,
+}) => RustLib.instance.api
+    .crateApiSequencerRuntimeConfigApiSequencerSetWeatherResumeAfterSafeSecs(
+      seconds: seconds,
     );
 
 /// JSON-serialised cloud-motion snapshot for the run

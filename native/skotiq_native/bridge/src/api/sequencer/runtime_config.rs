@@ -490,16 +490,53 @@ pub async fn api_sequencer_update_cloud_motion(
 ///
 /// `unsafe_override = Some(true)` => Dart computed UNSAFE; `Some(false)` =>
 /// Dart computed SAFE; `None` => Dart abstains (provider disabled / no data)
-/// and this layer is inert.
+/// and this layer is inert. `advisory` marks an UNSAFE verdict that rests only
+/// on a forecast or cloud model: it holds the run until the sky clears and
+/// never parks the mount or ends the run.
 pub async fn api_sequencer_update_weather_verdict(
     unsafe_override: Option<bool>,
+    advisory: bool,
 ) -> Result<(), SkotiqError> {
     tracing::debug!(
-        "[API] update_weather_verdict: unsafe_override={:?}",
-        unsafe_override
+        "[API] update_weather_verdict: unsafe_override={:?} advisory={}",
+        unsafe_override,
+        advisory
     );
     let executor = get_sequence_executor().read().await;
-    executor.update_weather_verdict(unsafe_override).await;
+    executor
+        .update_weather_verdict_from(unsafe_override, advisory)
+        .await;
+    Ok(())
+}
+
+/// The operator says the sky is clear. For `duration_secs` the app's weather
+/// verdict is not acted on and a run held for weather resumes at once; `0`
+/// ends the override early. A hardware safety monitor that reads unsafe still
+/// holds the run. `reason` is recorded with the operator action.
+pub async fn api_sequencer_set_weather_operator_clear(
+    duration_secs: u32,
+    reason: String,
+) -> Result<(), SkotiqError> {
+    tracing::info!(
+        "[API] weather operator clear: {} s ({})",
+        duration_secs,
+        reason
+    );
+    let executor = get_sequence_executor().read().await;
+    executor
+        .set_weather_operator_clear(u64::from(duration_secs), &reason)
+        .await;
+    Ok(())
+}
+
+/// How long the sky must read safe, without a break, before a run held for
+/// weather images again: the operator's "required safe duration".
+pub async fn api_sequencer_set_weather_resume_after_safe_secs(
+    seconds: u32,
+) -> Result<(), SkotiqError> {
+    tracing::debug!("[API] weather resume after safe: {} s", seconds);
+    let executor = get_sequence_executor().read().await;
+    executor.set_weather_resume_after_safe_secs(u64::from(seconds));
     Ok(())
 }
 

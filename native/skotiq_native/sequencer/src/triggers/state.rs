@@ -285,6 +285,19 @@ pub struct TriggerState {
     /// emit a loud warning: the operator learns the hold is sustained by a dead
     /// feed rather than fresh data. It is NEVER used to resume.
     pub weather_verdict_last_update: Option<Instant>,
+    /// The pushed UNSAFE verdict comes only from advisory sources: an internet
+    /// forecast or cloud model, not a sensor at the site. An advisory verdict
+    /// may hold the run but never parks it or ends it.
+    pub weather_verdict_advisory: bool,
+    /// Until this instant the operator has said the sky is clear: the app's
+    /// verdict is not acted on and a weather hold resumes without waiting for
+    /// the safe period. A hardware safety monitor that reads unsafe still
+    /// counts.
+    pub weather_operator_clear_until: Option<Instant>,
+    /// The run's safety fail mode, copied in by the trigger monitor each tick
+    /// so the weather hold resolves a missing safety reading the same way the
+    /// monitor does.
+    pub safety_fail_mode: crate::SafetyFailMode,
 
     // Temperature
     pub baseline_temperature: Option<f64>,
@@ -455,6 +468,9 @@ impl Default for TriggerState {
             weather_safe: false,
             weather_verdict_unsafe: None,
             weather_verdict_last_update: None,
+            weather_verdict_advisory: false,
+            weather_operator_clear_until: None,
+            safety_fail_mode: crate::SafetyFailMode::default(),
             baseline_temperature: None,
             current_temperature: None,
             baseline_focuser_position: None,
@@ -936,7 +952,15 @@ impl TriggerState {
     /// thresholds / API / cloud sources say unsafe. Never makes the trigger LESS
     /// safe than the hardware `weather_safe` reading (see the evaluator).
     pub fn update_weather_verdict(&mut self, unsafe_override: Option<bool>) {
+        self.update_weather_verdict_from(unsafe_override, false);
+    }
+
+    /// [`Self::update_weather_verdict`] with the verdict's source class:
+    /// `advisory` is true when the UNSAFE verdict rests only on a forecast or
+    /// cloud model. Ignored for a verdict that is not UNSAFE.
+    pub fn update_weather_verdict_from(&mut self, unsafe_override: Option<bool>, advisory: bool) {
         self.weather_verdict_unsafe = unsafe_override;
+        self.weather_verdict_advisory = unsafe_override == Some(true) && advisory;
         // Stamp the push time so the safety poll can detect a stale-AND-unsafe
         // verdict (a dead Dart feed holding the sequence paused) and warn loudly
         // without ever auto-clearing the unsafe state. Stamp on EVERY push,
@@ -967,6 +991,25 @@ impl TriggerState {
             Some(last) => last.elapsed().as_secs() >= staleness_secs,
             None => false,
         }
+    }
+
+    /// Whether the operator's "the sky is clear" override is in force.
+    pub fn weather_operator_clear_active(&self) -> bool {
+        self.weather_operator_clear_until
+            .is_some_and(|until| Instant::now() < until)
+    }
+
+    /// Whether the app's pushed verdict currently says UNSAFE and is acted on:
+    /// it is not under the operator's clear-sky override.
+    pub fn weather_verdict_counts_unsafe(&self) -> bool {
+        self.weather_verdict_unsafe == Some(true) && !self.weather_operator_clear_active()
+    }
+
+    /// Whether unsafe weather right now rests only on advisory sources: the
+    /// hardware safety reading is safe and the app's UNSAFE verdict comes from
+    /// a forecast. Such weather holds the run and never parks or ends it.
+    pub fn weather_unsafe_is_advisory_only(&self) -> bool {
+        self.weather_safe && self.weather_verdict_counts_unsafe() && self.weather_verdict_advisory
     }
 
     /// Science: store the latest transparency reading. `None`
