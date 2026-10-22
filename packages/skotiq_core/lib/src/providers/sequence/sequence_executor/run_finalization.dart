@@ -97,4 +97,8 @@ class RunFinalization implements NativeStopConfirmationTarget {
   /// True once per-run timers / watchdogs / settings watchers / native
   /// subscription / live-stacking have been released (once).
   bool resourcesReleased = false;
+
+  /// True once the run row's final `finishRun` write persisted and the
+  /// session-end hooks fired, so a retry repeats neither.
+  bool runRecordFinished = false;
 }

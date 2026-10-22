@@ -85,11 +85,11 @@ void main() {
   // place.
   test('the executor traces backend events THROUGH the limiter', () {
     final source = File(
-      'lib/src/providers/sequence/sequence_executor/event_operations.dart',
+      'lib/src/providers/sequence/sequence_executor/run_event_handler.dart',
     ).readAsStringSync();
     final handler = source.substring(
-      source.indexOf('void _handleSequencerEvent'),
-      source.indexOf("if (event.category != EventCategory.sequencer) return;"),
+      source.indexOf('void handle(SkotiqEvent raw)'),
+      source.indexOf('SequencerRunEvent.fromSkotiqEvent('),
     );
     expect(handler, contains('_eventTraceLimiter.admit('));
     expect(

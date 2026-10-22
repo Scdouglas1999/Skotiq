@@ -155,10 +155,7 @@ void main() {
           SessionHandoffDecision.resume;
 
       final executor = container.read(sequenceExecutorProvider);
-      await executor.seedIntegrationCarryOverFromHandoffForTest(
-        backend,
-        sequence,
-      );
+      await executor.seedIntegrationCarryOverFromHandoffForTest(sequence);
 
       final captured = verify(
         () => backend.sequencerUpdatePendingIntegrationCarryOver(captureAny()),
@@ -210,10 +207,7 @@ void main() {
           SessionHandoffDecision.restart;
 
       final executor = container.read(sequenceExecutorProvider);
-      await executor.seedIntegrationCarryOverFromHandoffForTest(
-        backend,
-        sequence,
-      );
+      await executor.seedIntegrationCarryOverFromHandoffForTest(sequence);
 
       final captured = verify(
         () => backend.sequencerUpdatePendingIntegrationCarryOver(captureAny()),
@@ -266,10 +260,7 @@ void main() {
           SessionHandoffDecision.continueNew;
 
       final executor = container.read(sequenceExecutorProvider);
-      await executor.seedIntegrationCarryOverFromHandoffForTest(
-        backend,
-        sequence,
-      );
+      await executor.seedIntegrationCarryOverFromHandoffForTest(sequence);
 
       // ContinueNew → payload was empty → backend never called.
       verifyNever(
@@ -312,10 +303,7 @@ void main() {
       // No decision set — provider returns null. The seeder must NOT
       // pre-emptively zero or guess; the budget tracker starts default.
       final executor = container.read(sequenceExecutorProvider);
-      await executor.seedIntegrationCarryOverFromHandoffForTest(
-        backend,
-        sequence,
-      );
+      await executor.seedIntegrationCarryOverFromHandoffForTest(sequence);
 
       verifyNever(
         () => backend.sequencerUpdatePendingIntegrationCarryOver(any()),
@@ -328,10 +316,7 @@ void main() {
       // before reading the carry-over provider.
       final sequence = Sequence.create(name: 'unscoped', nodes: const {});
       final executor = container.read(sequenceExecutorProvider);
-      await executor.seedIntegrationCarryOverFromHandoffForTest(
-        backend,
-        sequence,
-      );
+      await executor.seedIntegrationCarryOverFromHandoffForTest(sequence);
       verifyNever(
         () => backend.sequencerUpdatePendingIntegrationCarryOver(any()),
       );
@@ -365,7 +350,7 @@ void main() {
         expect(
           () => errorContainer
               .read(sequenceExecutorProvider)
-              .seedIntegrationCarryOverFromHandoffForTest(backend, sequence),
+              .seedIntegrationCarryOverFromHandoffForTest(sequence),
           throwsA(isA<StateError>()),
         );
       },
@@ -400,7 +385,7 @@ void main() {
 
       await errorContainer
           .read(sequenceExecutorProvider)
-          .seedIntegrationCarryOverFromHandoffForTest(backend, sequence);
+          .seedIntegrationCarryOverFromHandoffForTest(sequence);
 
       expect(
         errorContainer.read(sessionHandoffIgnoreUnavailableOnceProvider),

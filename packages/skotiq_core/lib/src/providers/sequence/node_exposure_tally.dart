@@ -32,7 +32,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/backend/event_types.dart';
-import 'structured_progress_json.dart';
+import 'sequencer_run_event.dart';
 
 /// Frames captured, and frames planned, for one exposure node's current pass.
 class NodeExposureTally {
@@ -126,51 +126,47 @@ final nodeExposureTallyProvider =
 
 /// Fold ONE sequencer event into the per-node exposure tally.
 ///
-/// This is the whole write path. Both live subscribers on a desktop host call
-/// it — `SequenceExecutor._handleSequencerEvent` and the DeviceService-driven
-/// pump in `sequence_progress.dart` — and so do the widget tests, which replay
-/// the waveF event sequence through this function rather than hand-rolling the
-/// provider writes. A test therefore cannot pass against an event shape
+/// The whole write path: the executor, the DeviceService pump and the widget
+/// tests all go through it, so a test cannot pass against an event shape
 /// production does not handle.
-///
-/// `InstructionProgressStructured` is the ONLY source counted, because it is
-/// the only exposure-shaped event that names the node it reports for.
-/// `ExposureStarted` / `ExposureCompleted` carry frame/total but no node id
-/// (`event_mapping.dart`'s ExposureCompleted case is frame, total,
-/// duration_secs), so the only way to use them is to attribute them to the
-/// run's current node — and in the waveF log `NodeStarted` for node 2 lands 53
-/// µs BEFORE node 1's last frame, so that attribution credits node 2 with
-/// node 1's frame while node 1 is left reading 3 / 4. Counting nothing from an
-/// id-less event is the truthful answer; the node-addressed event carries the
-/// same frame number anyway.
 void applySequencerEventToNodeExposureTally(
   NodeExposureTallyNotifier tally,
   SkotiqEvent event,
 ) {
-  switch (event.eventType) {
-    case 'NodeStarted':
-      final nodeId =
-          event.data['node_id'] as String? ?? event.data['nodeId'] as String?;
-      if (nodeId != null) tally.startNode(nodeId);
-      break;
+  final typed = SequencerRunEvent.fromSkotiqEvent(event);
+  if (typed != null) applyRunEventToNodeExposureTally(tally, typed);
+}
 
-    case 'InstructionProgressStructured':
-      if (event.data['detail_kind'] != 'Exposure') break;
-      final nodeId = event.data['node_id'] as String?;
-      if (nodeId == null || nodeId.isEmpty) break;
-      // `detail_json` crosses the bridge as a JSON String; see
-      // [decodeStructuredProgressJson].
-      final decoded = decodeStructuredProgressJson(event.data['detail_json']);
-      if (decoded is! Map) break;
+/// [applySequencerEventToNodeExposureTally] for an already-decoded event.
+///
+/// Only a node-addressed `Exposure` structured progress is counted.
+/// `ExposureStarted` / `ExposureCompleted` name no node, and attributing them
+/// to the current node credits the next node with the previous node's last
+/// frame when `NodeStarted` overtakes it.
+void applyRunEventToNodeExposureTally(
+  NodeExposureTallyNotifier tally,
+  SequencerRunEvent event,
+) {
+  switch (event) {
+    case NodeStarted(:final nodeId?):
+      tally.startNode(nodeId);
+    case StructuredInstructionProgress(
+          detailKind: 'Exposure',
+          :final nodeId?,
+          :final detailJson,
+        )
+        when nodeId.isNotEmpty:
+      if (detailJson is! Map) return;
       final frame =
-          _asInt(decoded['frame']) ?? _asInt(decoded['current_frame']);
-      final total = _asInt(decoded['total']) ?? _asInt(decoded['total_frames']);
-      if (frame == null || total == null) break;
-      // The native per-frame callback fires AFTER a frame lands
-      // (`instructions/expose.rs` calls it once `completed_exposures += 1`), so
-      // `frame` here is the number of frames CAPTURED, not the one in flight.
+          _asInt(detailJson['frame']) ?? _asInt(detailJson['current_frame']);
+      final total =
+          _asInt(detailJson['total']) ?? _asInt(detailJson['total_frames']);
+      if (frame == null || total == null) return;
+      // The native per-frame callback fires after a frame lands, so `frame` is
+      // the number of frames CAPTURED, not the one in flight.
       tally.recordFrames(nodeId, captured: frame, planned: total);
-      break;
+    default:
+      return;
   }
 }
 
