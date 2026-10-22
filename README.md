@@ -10,6 +10,10 @@
 
 **Astrophotography capture software that runs the whole night from one app.**
 
+> Nightshade is becoming **Skotiq**. This page previews the forthcoming release
+> with screenshots captured from the running imaging laptop on October 22, 2026.
+> The latest public download remains Nightshade 7.1.0; the new release is being prepared.
+
 [![Latest release](https://img.shields.io/github/v/release/Scdouglas1999/Nightshade?label=latest&color=2ea44f)](https://github.com/Scdouglas1999/Nightshade/releases/latest)
 [![Public beta](https://img.shields.io/badge/status-public_beta-f59e0b)](#whats-missing)
 [![Desktop](https://img.shields.io/badge/desktop-Windows_%7C_Linux-2563eb)](#downloads)
@@ -73,7 +77,7 @@ get laid out here too.</p>
 </tr>
 <tr>
 <td valign="top">
-<img src="assets/screenshots/equipment.png" width="100%" alt="Skotiq equipment screen on a live rig: a ZWO ASI1600MM-Cool camera cooled to 7.1°C, a Pegasus NYX-101 mount, a ZWO EAF focuser at position 45459, an eight-slot filter wheel on DARK and PHD2 guiding all connected at once, with the startup auto-connect log reporting five of five devices succeeded">
+<img src="assets/screenshots/equipment.png" width="100%" alt="Skotiq equipment screen on a live rig: a ZWO ASI1600MM-Cool camera reading 7.1°C, a Pegasus NYX-101 mount, a ZWO EAF focuser at position 45459, an eight-slot filter wheel on DARK and PHD2 guiding all connected at once, with the startup auto-connect log reporting five of five devices succeeded">
 <p><b>Connect once.</b> Save the rig as a profile — camera, mount, focuser, filter wheel,
 guider and the optics in front of them — and it brings the lot back next time.</p>
 </td>
@@ -104,7 +108,6 @@ you set. Weather, your safety monitor, twilight and free disk space all feed one
 about whether it's safe to carry on.</p>
 </td>
 <td valign="top">
-<img src="assets/screenshots/flat-wizard.png" width="100%" alt="Skotiq flat wizard part-way through a real flat run on the Ha filter: a test exposure converging toward the 32768 ADU histogram target on the chart, with per-filter calibration status cards beside it">
 <p><b>Take flats without guessing.</b> The wizard measures the level and works out the
 exposure. If it can't land inside your tolerance it tells you, instead of handing you a bad
 flat.</p>
@@ -169,12 +172,6 @@ way.
 | **Android app** | Checking from bed, or stopping something | Pairing, monitoring, and camera, mount and sequencer control |
 | **A second PC** | A proper remote control room | The full app mirroring the live session over the network |
 
-<div align="center">
-<img src="assets/screenshots/web-dashboard.png" width="820" alt="Skotiq browser dashboard with device, camera, mount, filter wheel, focuser, rotator, sequencer, guiding and planetarium panels">
-
-<sub>The browser dashboard, served by the host at <code>/dashboard</code>.</sub>
-
-</div>
 
 A few things worth knowing before you put a host on a network:
 
@@ -294,10 +291,10 @@ means for you and whether there's a way around it:
 
 **[docs/known-limitations.md](docs/known-limitations.md)**
 
-The short version: there's been no full unattended night from dusk to dawn, no second-device
-test across a firewall, no macOS or iOS build, no code signing and no update signing key, the
-switch-device path is unverified, and INDI weather and switch support needs checking on a
-real Linux observatory before you trust it to keep things safe overnight.
+The owner has completed two full nights of imaging on real hardware. That validates
+the exercised rig and workflow, not every platform or device. Release checks still
+include packaging, signing, migration and update verification; broader hardware
+coverage and platform limitations are documented in the linked limitations page.
 
 ## Building it yourself
 
