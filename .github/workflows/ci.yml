@@ -216,7 +216,8 @@ jobs:
     # Linux Rust runs on every PR + push for fast feedback.
     name: Rust Tests (linux)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # The full suite includes timed autofocus and overnight-recovery scenarios.
+    timeout-minutes: 45
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
