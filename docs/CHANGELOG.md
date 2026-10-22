@@ -9,6 +9,177 @@ Engineering cross-references in the form `(§N.M)` point at the
 `docs/plans/2026-05-09-v250-audit-fixes.md` v2.5.0 pre-release audit and are
 intended for code reviewers rather than end users.
 
+## [Unreleased] (DRAFT — proposed 8.0.0)
+
+The Nightshade-to-Skotiq rename, a rebuilt Tonight screen, a real remote
+client, a color-drafting Darkroom, and a large set of mount, sequencing and
+updater fixes made while running the app on a telescope through October.
+Full notes in `docs/release/v8.0.0-draft.md` (rename to match the tag when
+the version is decided). 424 commits, 53 merges.
+
+### Added
+
+- **Rebrand to Skotiq.** New name, mark, icon, splash and seeded accent
+  throughout; Windows `skotiq.exe` under `%LOCALAPPDATA%\Programs\Skotiq`;
+  application IDs `com.skotiq.desktop` / `com.skotiq.mobile`; mDNS
+  `_skotiq._tcp`; `SKOTIQ_*` environment variables; automatic migration of an
+  existing install's settings, profiles, sequences, targets and history on
+  first run (schema v62 also moves the seeded accent to the brand violet while
+  keeping custom accents). Android is a fresh install and re-pairs.
+- **Tonight rebuilt** as the night-control screen: header strip with the
+  night's clock and run state (including a restored run waiting for Start),
+  center frame stage with the latest frame and its measurements, an action bar
+  (Snapshot, Loop, Autofocus, Solve & sync, Center), scaled charts for guiding
+  and focus/temperature, the night's event log, a target/plan column with a
+  labelled altitude plot and per-filter progress, and a tabbed Overview /
+  Camera / Focus / Mount / Guide / Solve rail.
+- **Before-you-start checklist** on Tonight with live values: cooler state and
+  set-point, filter and slot count, focuser position, park state, guider,
+  solver, free disk, weather and the dawn rule.
+- **Second-computer remote client.** `--remote-host` opens the full desktop app
+  as a linked client of the machine with the hardware: the client's event log
+  opens on the host's night so far, runtime results and the last frame mirror
+  across, a mirrored frame reuses the host's plate solve, settings read and
+  write through to the host, a client's captures save under the host's output
+  layout, and host run notifications reach the client.
+- **Mount home** as its own verified command, beside Park in the API
+  (`POST /api/mount/home`), Imaging, Equipment and the sequencer.
+- **Darkroom color drafts.** The dawn pass drafts each target's color
+  composite from the night's masters: `channel_combine` (flattened channels,
+  star-based white balance, background neutralization, color-preserving
+  stretch measured at full resolution), `scnr` and `chroma_denoise`. Every
+  pass runs visibly with per-stage measurements and timings logged to disk;
+  on a mono master the color-only steps say so.
+- **Retry budget** for failed downloads and filter-wheel moves (default 3,
+  configurable in Settings → Sequencer).
+- **Guide-star loss hold**: a lost star holds the run tracking and resumes
+  when stars return, rather than ending the night.
+- **Weather holds**: a forecast warns or holds the run until the sky clears
+  instead of ending it; switching weather safety off releases a held run at
+  once; park-before-dawn measures against the coming dawn and refuses to fire
+  with no site set.
+- Simulators: a mount that slews at a hardware rate and can lag its Slewing
+  flag, a focuser that can cool through the night, and a camera that can
+  replay a recorded night, used to test the recovery behavior end-to-end.
+
+### Fixed
+
+- **Meridian flips**: hour angle is taken against the target's RA of date; a
+  flip re-slews to the mount's position in J2000 and verifies by coordinates
+  in the mount's own frame (or on the sky near the pole); a queued flip
+  re-checks it is still due; a flip that can still fire holds the next frame;
+  the exposure gate no longer waits on a flip the trigger was not going to
+  fire. Option to stop tracking before the meridian and flip after.
+- **Slews** report complete only once the mount has actually arrived: lagging
+  `Slewing` flags are waited out, arrival is checked on the sky in the mount's
+  own frame, and a target slew leaves the mount tracking. Native serial mounts
+  reconnect after a heartbeat loss; polled side of pier is carried in state.
+- **Sequencer survival**: a cooler that cannot reach set-point notifies and
+  the run images at the reached temperature; every failed autofocus notifies
+  and the run continues on the previous focus and never parks; a trigger
+  autofocus that kills guiding holds the run first; quality rejects notify
+  rather than stop (one notification per streak, "stop for quality problems"
+  is an opt-in setting, saved sequences' quality-stop steps convert to
+  notices); the run's own mount moves never read as a lost star; a spent retry
+  budget is a notification, not a stop.
+- **Recovery honesty**: Resume cannot unfreeze a recovery; a pause outlives
+  one; a recovery give-up reports tracking was left off; weather and dawn are
+  still watched during a recovery ladder; operator Stop during a recovery
+  never parks or reports a give-up; automatic safing never parks a mount when
+  nothing is running.
+- **Checkpoints**: a fresh start inherits nothing from an old checkpoint;
+  restoring a checkpoint loads the run and waits for Start; every Resume path
+  actually restores; a restored run continues in the night's reopened session;
+  `POST /api/sequencer/start` continues a restored checkpoint headlessly.
+- **Frames**: star detection measures against a local noise map and whole
+  stars, so grading judges measured FWHM/eccentricity; a defocused frame
+  reports its true HFR even past 20 px; a frame that lost most of its stars is
+  rejected; FITS record pointing in J2000; a mirrored frame's `.wcs` reports
+  ASTAP's rotation; a VM-reaped solver no longer aborts the app.
+- **Autofocus**: default selection is the brightest 10 stars (existing
+  installs migrate); a failed run returns the optics to origin; a starless
+  verification frame leaves landing unverified rather than blaming the
+  focuser; wings measured at real size; the run's autofocus draws live in the
+  Focus tab; backlash is operator-tunable.
+- **Drivers**: LX200-family gotos stop reading as slewing on arrival, never
+  print "sixty seconds", and a refused sync fails; Sky-Watcher and iOptron get
+  the same slewing/seconds fixes; INDI gotos and focuser moves return when the
+  driver answers and report refusals; a failed or cancelled INDI reconnect no
+  longer strands the server; ZWO overlapping discoveries share one scan; the
+  ZWO cooler reports the set-point the camera actually holds; a slow PHD2 is
+  not reported disconnected.
+- **Remote client**: closing a client no longer parks the host's mount; a
+  client can leave the host's interrupted run alone; the client stopped
+  echoing the host's site back and its idle report reaches the host; the
+  30-second re-hydrate no longer blanks device cards, re-downloads frames,
+  paints stale state on a disconnected device or reconnects a dropped focuser;
+  a refused ticket upgrade no longer marks a paired token dead; the event
+  socket refuses posts the token is not allowed; a stale wait closes rather
+  than hanging; an unresponsive pairing database no longer holds requests
+  open.
+- **Updater**: finds updates on GitHub Releases; installs on Linux and hands
+  verified APKs to the Android package installer with real release notes;
+  per-target signed manifests (`manifest-<platform>.json`) verified by CI
+  against the compiled-in public key before publish; refuses unsigned or
+  foreign-signed releases by name; refuses an apply the install cannot write;
+  rolls back a build that dies on startup including the updater binary itself;
+  never queues a reboot rename; bounds its waits. Until
+  `SKOTIQ_UPDATE_PRIVATE_KEY` is configured, manifests are unsigned and the
+  updater declines to install, by design.
+- **Reports and notifications**: a failed run names the fault that ended it; a
+  failure with no known reason records no cause; session reports order runs by
+  time; Last Night names a failed run's cause; a device error toasts without a
+  DeviceService listener; a critical phone battery notifies without pausing
+  the run.
+- **Camera care**: panel warm-up never leaves the cooler running at an
+  invented set-point; sequence Warm Camera never switches on an off cooler.
+- **Planner/framing**: side column is one panel with the compact altitude
+  chart; Enter frames the searched object; the curve never shows the previous
+  target; altitude asks for a site once; the scheduler precesses J2000 targets
+  before computing altitude/transit/set; target names resolve through SIMBAD
+  exactly, Astrobin subjects resolve to the named object only.
+- **Polar alignment**: readouts stay on screen at small sizes; the axis is
+  tracked through the camera's full attitude against the pole of date;
+  adjustment frames go binned 2x2 with a position hint.
+- **Each target's frames** save in their own folder, numbered on from disk;
+  the run's guiding triggers only arm for guiding the run started; a trigger
+  dropped under a hold no longer spends its cooldown; Smart Exposure dither
+  cadence counts across visits and every dither is counted once.
+- **Desktop shell**: single glass window; first window fits its screen; KWin
+  no longer double-frames the Linux window; closing works after the shell is
+  gone; the setup wizard uses the window's own title bar; the rail compacts on
+  short windows; a second window reports the other's running action.
+- **Equipment**: a profile device saved by position connects the named device;
+  the side panel is pinned with Save under the optical-train form.
+- **Miscellaneous**: malformed runtime-channel values handled; warm camera
+  step ETA correct; "Coming up" lists real events.
+
+### Changed
+
+- Night-control presentation: weather verdicts warn or hold rather than
+  presenting forecasts as critical alerts; recovery banners explain what is
+  deciding and offer honest resume.
+- Registration keeps an affine refinement only when it earns its terms;
+  background fit degree is judged against every candidate; color pixel writes
+  go through bounded chunks.
+- Build/version metadata and artifact naming now follow the `skotiq-*` scheme;
+  the desktop pubspec is the single artifact-version source checked by CI.
+
+### Internal (maintainability)
+
+- Sequencer internals continued toward explicit state: typed events, a stats
+  ledger and a frame-recorder boundary landed in the baseline; the larger
+  poll/evaluate/policy/dispatch split (`arch/a1`) and the sequencer lifecycle
+  extraction (`arch/a2`) remain on their own branches and are not in this
+  release.
+- Remote protocol gained typed runtime-result/settings mirroring between host
+  and linked clients.
+- `tools/live_rig/drive_api.py` gained read-heavy inspection coverage used on
+  the imaging laptop.
+- Test coverage grew around recovery ladders, guiding loss, meridian flips,
+  autofocus failure paths, framing/UI goldens, real-master pixel tests and
+  compressed simulated nights.
+
 ## [7.1.0] (build 28, 2026-09-19)
 
 Most of the user interface rewritten on one shared set of components, three new
