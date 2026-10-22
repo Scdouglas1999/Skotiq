@@ -30,7 +30,7 @@ rayon = "1.10"
 image = { version = "0.24", default-features = false, features = ["jpeg"] }
 
 # LRU cache for device ID parsing
-lru = "0.16.3"
+lru = "0.18.2"
 
 # Sync rwlock used for sequencer ExecutionContext slots that the bridge populates
 # (matches `nightshade_sequencer`; see the executor's runtime-config docs).
