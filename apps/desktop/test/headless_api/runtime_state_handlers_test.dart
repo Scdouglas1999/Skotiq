@@ -27,6 +27,7 @@ void main() {
   late ProviderContainer container;
   late List<SkotiqEvent> broadcast;
   late RuntimeStateHandlers handlers;
+  var retained = <SkotiqEvent>[];
 
   setUp(() {
     final backend = _MockFfiBackend();
@@ -42,7 +43,7 @@ void main() {
     );
     broadcast = <SkotiqEvent>[];
     container.read(hostMutationEventHubProvider).wsBroadcast = broadcast.add;
-    handlers = RuntimeStateHandlers(container);
+    handlers = RuntimeStateHandlers(container, retained: () => retained);
   });
 
   tearDown(() => container.dispose());
@@ -107,5 +108,29 @@ void main() {
       ),
       throwsA(isA<HandlerFailure>().having((f) => f.statusCode, 'status', 404)),
     );
+  });
+
+  test('recent events leave out telemetry and sync envelopes', () async {
+    SkotiqEvent event(String type, int at) => SkotiqEvent(
+      timestamp: at,
+      severity: EventSeverity.info,
+      category: EventCategory.sequencer,
+      eventType: type,
+      data: const {},
+    );
+    retained = [
+      event('Started', 1),
+      event('ExposureProgress', 2),
+      const HostRuntimeUpdate(channel: 'plateSolve', revision: 3).toEvent(),
+      event('NodeCompleted', 4),
+    ];
+
+    final response = await handlers.handleRecentEvents(
+      Request('GET', Uri.parse('http://localhost/api/runtime/recent-events')),
+    );
+
+    final events = (jsonDecode(await response.readAsString())['events'] as List)
+        .cast<Map<String, dynamic>>();
+    expect(events.map((e) => e['eventType']), ['Started', 'NodeCompleted']);
   });
 }

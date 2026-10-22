@@ -12,4 +12,9 @@ List<HeadlessRoute> buildRuntimeStateRoutes(RuntimeStateHandlers h) =>
     <HeadlessRoute>[
       HeadlessRoute(HttpMethod.get, '/api/runtime/state', h.handleGetState),
       HeadlessRoute(HttpMethod.post, '/api/runtime/state', h.handleReport),
+      HeadlessRoute(
+        HttpMethod.get,
+        '/api/runtime/recent-events',
+        h.handleRecentEvents,
+      ),
     ];

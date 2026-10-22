@@ -135,7 +135,15 @@ extension _HeadlessApiServerHandlerInitialization on HeadlessApiServer {
     _atlasHandlers = AtlasHandlers(container);
     _backupHandlers = BackupHandlers(container);
     _syncHandlers = SyncHandlers(container);
-    _runtimeStateHandlers = RuntimeStateHandlers(container);
+    _runtimeStateHandlers = RuntimeStateHandlers(
+      container,
+      retained: () {
+        final oldest = _eventReplayBuffer.oldestSeq;
+        if (oldest == null) return const <SkotiqEvent>[];
+        return _eventReplayBuffer.eventsSince(oldest - 1) ??
+            const <SkotiqEvent>[];
+      },
+    );
     _framingHandlers = FramingHandlers(container, jobManager: _jobManager);
     _fileSystemHandlers = FileSystemHandlers(container);
     _scienceHandlers = ScienceHandlers(container);

@@ -28,6 +28,29 @@ mixin _NetworkBackendRuntimeMirrorOperations on _NetworkBackendTransport {
     return updates;
   }
 
+  /// The host's newest log-worthy events from before this client connected,
+  /// oldest first. Empty when the host predates the endpoint.
+  Future<List<SkotiqEvent>> getHostRecentEvents({int limit = 100}) async {
+    final Map<String, dynamic> response;
+    try {
+      response = await _get('runtime/recent-events', {'limit': limit});
+    } on ServerError catch (e) {
+      if (e.httpStatus == 404) return const [];
+      rethrow;
+    }
+    final raw = response['events'];
+    if (raw is! List) return const [];
+    final events = <SkotiqEvent>[];
+    for (final item in raw.whereType<Map>()) {
+      try {
+        events.add(SkotiqEvent.fromWireJson(Map<String, dynamic>.from(item)));
+      } on FormatException {
+        continue;
+      }
+    }
+    return events;
+  }
+
   /// Send a value this client computed for [channel] to the host.
   Future<void> reportRuntimeState({
     required String channel,

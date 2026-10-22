@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../backend/bridge_event_mapper.dart' show tryBridgeEventFromCoreEvent;
 import '../backend/network_backend.dart';
 import '../models/backend/device_info.dart';
 import '../models/backend/device_status.dart';
@@ -27,6 +28,7 @@ import '../utils/utc_timestamp.dart';
 import 'database_provider.dart';
 import 'backend_provider.dart';
 import 'equipment_provider.dart';
+import 'event_provider.dart' show eventHistoryProvider;
 import 'device_heartbeat_health_provider.dart';
 import 'equipment/device_type_registry.dart';
 import 'framing_provider.dart';

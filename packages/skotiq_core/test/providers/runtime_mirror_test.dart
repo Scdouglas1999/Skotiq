@@ -649,4 +649,41 @@ void main() {
       verifyNever(() => backend.cameraGetLastImage(any()));
     });
   });
+
+  test('a client connecting mid-night opens on the host event log', () async {
+    final backend = _clientBackend();
+    when(() => backend.getHostRecentEvents()).thenAnswer(
+      (_) async => const [
+        SkotiqEvent(
+          timestamp: 1000,
+          severity: EventSeverity.info,
+          category: EventCategory.sequencer,
+          eventType: 'Started',
+          data: {'sequence_name': 'Parity run'},
+        ),
+        SkotiqEvent(
+          timestamp: 2000,
+          severity: EventSeverity.info,
+          category: EventCategory.sequencer,
+          eventType: 'TriggerFired',
+          data: {
+            'trigger_id': 't1',
+            'trigger_name': 'Meridian Flip',
+            'action': 'flip',
+          },
+        ),
+      ],
+    );
+    final client = _client(backend);
+    addTearDown(client.dispose);
+
+    await seedEventLogFromHost(client, backend);
+    await seedEventLogFromHost(client, backend);
+
+    final history = client.read(eventHistoryProvider);
+    expect(history, hasLength(2));
+    // Newest first, as live events are kept.
+    expect(history.first.timestamp.toInt(), 2000);
+    verify(() => backend.getHostRecentEvents()).called(1);
+  });
 }
