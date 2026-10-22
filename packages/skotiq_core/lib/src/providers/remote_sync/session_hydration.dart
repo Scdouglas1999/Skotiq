@@ -73,6 +73,12 @@ Future<void> hydrateRemoteSessionState(
   // hydration only runs on the slave / on BackendReconnected).
   _invalidate(reader, appSettingsProvider);
 
+  // The host's key/value settings (sequencer defaults, presets, scheduler
+  // config and the rest): re-fetch on connect and on every periodic
+  // re-hydrate, so a change the host did not announce still arrives within
+  // one cycle. Providers re-read only when a value actually changed.
+  _read(reader, hostSettingsStoreProvider)?.refresh();
+
   // Framing target is NOT seeded from framing/current-position here: that GET
   // returns the mount's current pointing (already mirrored via getMountStatus),
   // not a chosen framing target, and FramingNotifier.setTargetCoordinates would

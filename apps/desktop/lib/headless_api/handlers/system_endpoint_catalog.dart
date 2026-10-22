@@ -251,6 +251,8 @@ List<String> availableHeadlessEndpoints() {
     // Settings
     'GET /api/settings',
     'POST /api/settings',
+    'GET /api/settings/store',
+    'POST /api/settings/store',
     'GET /api/settings/meridian-flip',
     'POST /api/settings/meridian-flip',
     'GET /api/settings/home-assistant',

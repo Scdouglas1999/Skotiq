@@ -54,6 +54,16 @@ List<HeadlessRoute> buildProfileRoutes(ProfileHandlers h) => <HeadlessRoute>[
   HeadlessRoute(HttpMethod.post, '/api/settings', h.handleUpdateSettings),
   HeadlessRoute(
     HttpMethod.get,
+    '/api/settings/store',
+    h.handleGetSettingsStore,
+  ),
+  HeadlessRoute(
+    HttpMethod.post,
+    '/api/settings/store',
+    h.handleUpdateSettingsStore,
+  ),
+  HeadlessRoute(
+    HttpMethod.get,
     '/api/settings/meridian-flip',
     h.handleGetMeridianFlipSettings,
   ),

@@ -11,6 +11,7 @@ import '../../localization/skotiq_localizations.dart';
 import '../../widgets/tutorial_keys/settings_keys.dart';
 import 'settings_catalog.dart';
 import 'settings_search_index.g.dart';
+import 'widgets/host_settings_notice.dart';
 import 'widgets/settings_widgets.dart';
 
 // Re-export the derived deep-link index map so existing importers keep
@@ -348,9 +349,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         Expanded(
           child: SafeArea(
             top: false,
-            child: SettingsRowHighlight(
-              rowTitle: _highlightRow,
-              child: section.build(true),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const HostSettingsNotice(),
+                Expanded(
+                  child: SettingsRowHighlight(
+                    rowTitle: _highlightRow,
+                    child: section.build(true),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -406,9 +415,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               Expanded(
-                child: SettingsRowHighlight(
-                  rowTitle: _highlightRow,
-                  child: _selectedSection(groups).build(false),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const HostSettingsNotice(),
+                    Expanded(
+                      child: SettingsRowHighlight(
+                        rowTitle: _highlightRow,
+                        child: _selectedSection(groups).build(false),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

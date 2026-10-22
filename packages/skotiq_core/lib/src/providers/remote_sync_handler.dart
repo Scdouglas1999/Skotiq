@@ -24,6 +24,7 @@ import '../services/sequence_file_service.dart'
     show sequenceFileServiceProvider;
 import '../utils/utc_timestamp.dart';
 import 'database_provider.dart';
+import 'host_settings/host_settings_providers.dart' show hostSettingsStoreProvider;
 import 'backend_provider.dart';
 import 'equipment_provider.dart';
 import 'device_heartbeat_health_provider.dart';

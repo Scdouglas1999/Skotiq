@@ -188,6 +188,7 @@ export 'src/providers/app_version_provider.dart';
 export 'src/providers/focuser_backlash_calibration_provider.dart';
 export 'src/providers/focuser_backlash_provider.dart';
 export 'src/providers/database_provider.dart';
+export 'src/providers/host_settings/host_settings_providers.dart';
 export 'src/providers/equipment_provider.dart';
 export 'src/providers/unified_discovery_provider.dart';
 export 'src/providers/device_backend_selection_provider.dart';

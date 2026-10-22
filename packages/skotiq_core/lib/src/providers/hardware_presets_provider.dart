@@ -22,6 +22,8 @@ final hardwarePresetsServiceProvider =
     StateNotifierProvider<HardwarePresetsNotifier, HardwarePresetsService>((
       ref,
     ) {
+      // Reload when the settings rows change underneath, e.g. on the host.
+      ref.watch(settingsDaoProvider);
       final notifier = HardwarePresetsNotifier(ref);
       // Kick off hydration immediately. State starts at the built-ins-only base
       // service; once `_load()` resolves the persisted overrides are merged in.

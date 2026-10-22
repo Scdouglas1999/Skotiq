@@ -7,6 +7,8 @@ final polarAlignmentConfigProvider =
     StateNotifierProvider<PolarAlignmentConfigNotifier, PolarAlignmentConfig>((
       ref,
     ) {
+      // Reload when the settings rows change underneath, e.g. on the host.
+      ref.watch(settingsDaoProvider);
       return PolarAlignmentConfigNotifier(ref);
     });
 
@@ -35,8 +37,9 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
   Future<void> _loadConfig() async {
     final revisionAtStart = _revision;
     try {
-      final db = ref.read(databaseProvider);
-      final setting = await db.settingsDao.getSetting(_settingsKey);
+      final setting = await ref
+          .read(settingsDaoProvider)
+          .getSetting(_settingsKey);
 
       // If the user edited while we were reading the DB, honour their edit and
       // discard the stale on-disk value rather than overwriting it.
@@ -76,9 +79,8 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
 
   Future<void> _saveConfig() async {
     try {
-      final db = ref.read(databaseProvider);
       final json = jsonEncode(state.toJson());
-      await db.settingsDao.setSetting(_settingsKey, json);
+      await ref.read(settingsDaoProvider).setSetting(_settingsKey, json);
       // Clear any previously-surfaced save error now that a save succeeded.
       ref.read(polarAlignmentConfigSaveErrorProvider.notifier).state = null;
       developer.log(

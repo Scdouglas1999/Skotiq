@@ -99,6 +99,7 @@ final darkroomAutoDraftEnabledProvider = FutureProvider.autoDispose<bool>((
   ref,
 ) async {
   ref.watch(autoIntegrationEnabledProvider);
+  ref.watch(settingsDaoProvider);
   return ref.watch(autoIntegrationServiceProvider).isDarkroomAutoDraftEnabled();
 });
 

@@ -47,14 +47,14 @@ class SchedulerConfigStore {
 }
 
 final schedulerConfigStoreProvider = Provider<SchedulerConfigStore>((ref) {
-  return SchedulerConfigStore(ref.read(settingsDaoProvider));
+  return SchedulerConfigStore(ref.watch(settingsDaoProvider));
 });
 
 /// One-shot cold-start load of the persisted scheduler config. Not invalidated
 /// on slider edits (those update the engine in place via `updateConfig`), so
 /// the engine is not torn down on every tweak.
 final schedulerPersistedConfigProvider = FutureProvider<SchedulerConfig>((ref) {
-  return ref.read(schedulerConfigStoreProvider).load();
+  return ref.watch(schedulerConfigStoreProvider).load();
 });
 
 /// Set as soon as the operator changes scheduler tuning in this process. It

@@ -101,6 +101,49 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     return models.AppSettings.fromJson(settingsJson);
   }
 
+  /// The host's `app_settings` key/value rows that are not part of the
+  /// [models.AppSettings] wire model, or null when the host predates
+  /// `GET /api/settings/store` and answers 404.
+  Future<Map<String, String>?> getSettingsStore() {
+    return _retryableRequest(() async {
+      const endpoint = 'settings/store';
+      final response = await _sendWithAuthRefresh(
+        endpoint: endpoint,
+        send: (headers) => _http.get(_apiUri(endpoint), headers: headers),
+      );
+      if (response.statusCode == HttpStatus.notFound) return null;
+      if (response.statusCode != 200) {
+        throw _parseErrorResponse(
+          response.statusCode,
+          response.body,
+          'GET',
+          endpoint,
+        );
+      }
+      final json = jsonDecode(response.body);
+      final settings = json is Map<String, dynamic> ? json['settings'] : null;
+      if (settings is! Map) {
+        throw StateError(
+          'GET /api/settings/store returned no settings object (HTTP 200)',
+        );
+      }
+      return settings.map(
+        (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
+      );
+    });
+  }
+
+  /// Write [settings] into the host's key/value store and delete [remove].
+  Future<void> updateSettingsStore(
+    Map<String, String> settings, {
+    List<String> remove = const [],
+  }) async {
+    await _post('settings/store', {
+      'settings': settings,
+      if (remove.isNotEmpty) 'remove': remove,
+    });
+  }
+
   @override
   Future<void> updateSettings(models.AppSettings settings) async {
     // Forward through the dedicated overload so
