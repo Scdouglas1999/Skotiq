@@ -283,9 +283,21 @@ class NightEquipmentSection extends StatelessWidget {
 /// weather source the header says so and only what the app knows anyway
 /// (the moon) is listed; forecast values carry "forecast" in their labels.
 class NightConditionsSection extends StatelessWidget {
-  const NightConditionsSection({super.key, required this.conditions});
+  const NightConditionsSection({
+    super.key,
+    required this.conditions,
+    this.onSkyClear,
+    this.onEndOverride,
+  });
 
   final NightConditionsVm conditions;
+
+  /// The operator says the sky is clear: the weather verdict is set aside for
+  /// a while and a held run resumes.
+  final VoidCallback? onSkyClear;
+
+  /// End that override early.
+  final VoidCallback? onEndOverride;
 
   @override
   Widget build(BuildContext context) {
@@ -317,6 +329,26 @@ class NightConditionsSection extends StatelessWidget {
             columns: 3,
             items: nightMetricItems(conditions.metrics, l10n),
             semanticLabel: title,
+          ),
+        for (final note in conditions.notes) NightPanelNote(note.resolve(l10n)),
+        if (conditions.skyOverride == NightSkyOverride.offer &&
+            onSkyClear != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: NightPanelButton(
+              label: l10n.text('nightWeatherSkyClear'),
+              semanticLabel: l10n.text('nightWeatherSkyClearSemantics'),
+              onPressed: onSkyClear,
+            ),
+          ),
+        if (conditions.skyOverride == NightSkyOverride.active &&
+            onEndOverride != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: NightPanelButton(
+              label: l10n.text('nightWeatherEndOverride'),
+              onPressed: onEndOverride,
+            ),
           ),
       ],
     );

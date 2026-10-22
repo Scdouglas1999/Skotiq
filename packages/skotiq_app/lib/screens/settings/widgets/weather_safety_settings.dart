@@ -124,6 +124,7 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
       );
     }
     _syncControllers(settings);
+    final policy = ref.watch(weatherDecisionPolicyProvider).valueOrNull;
 
     return SettingsPage(
       title: l10n.text('weatherSafetyTitle'),
@@ -165,6 +166,38 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                 onChanged: (value) => ref
                     .read(weatherSettingsActionsProvider)
                     .setAutoParkOnUnsafe(value),
+              ),
+              isMobile: widget.isMobile,
+            ),
+            SettingRow(
+              icon: LucideIcons.cloud,
+              title: l10n.text('weatherSafetyForecastHolds'),
+              subtitle: _withPrerequisite(
+                l10n.text('weatherSafetyForecastHoldsDesc'),
+                settings.weatherSafetyEnabled,
+              ),
+              trailing: SettingsSwitch(
+                value: policy?.forecastHoldsRun ?? false,
+                enabled: policy != null,
+                onChanged: (value) => ref
+                    .read(weatherSettingsActionsProvider)
+                    .setDecisionPolicy(forecastHoldsRun: value),
+              ),
+              isMobile: widget.isMobile,
+            ),
+            SettingRow(
+              icon: LucideIcons.sparkles,
+              title: l10n.text('weatherSafetyStarEvidence'),
+              subtitle: _withPrerequisite(
+                l10n.text('weatherSafetyStarEvidenceDesc'),
+                settings.weatherSafetyEnabled,
+              ),
+              trailing: SettingsSwitch(
+                value: policy?.starEvidenceOverridesForecast ?? true,
+                enabled: policy != null,
+                onChanged: (value) => ref
+                    .read(weatherSettingsActionsProvider)
+                    .setDecisionPolicy(starEvidenceOverridesForecast: value),
               ),
               isMobile: widget.isMobile,
             ),

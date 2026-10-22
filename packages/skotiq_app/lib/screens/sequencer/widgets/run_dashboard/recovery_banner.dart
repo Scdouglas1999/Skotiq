@@ -90,6 +90,7 @@ class _RunDashboardRecoveryBannerState
     if (ctx == null) return const SizedBox.shrink();
 
     final colors = SkotiqColors.of(context);
+    final l10n = context.l10n;
     // Watch (not read) so the buttons always hold the current control if the
     // recovery control provider is ever re-created (e.g. a backend swap).
     final control = ref.watch(recoveryControlProvider);
@@ -97,14 +98,19 @@ class _RunDashboardRecoveryBannerState
     final nextAttemptSecs = ctx.nextAttemptInSecs(now);
     final remainingBudgetSecs =
         ctx.remainingSecs(now).clamp(0.0, double.infinity);
+    // A weather hold is waiting, not repairing: it has no attempt budget,
+    // the mount keeps tracking, and the run resumes by itself.
+    final weatherHold = ctx.cause.kind == 'WeatherUnsafe';
+    final tone = weatherHold ? colors.warning : colors.error;
+    final heldSecs = now.difference(ctx.startedAt).inSeconds.toDouble();
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: colors.error.withValues(alpha: 0.20),
+        color: tone.withValues(alpha: 0.20),
         border: Border(
-          top: BorderSide(color: colors.error, width: 1.8),
-          bottom: BorderSide(color: colors.error.withValues(alpha: 0.7)),
+          top: BorderSide(color: tone, width: 1.8),
+          bottom: BorderSide(color: tone.withValues(alpha: 0.7)),
         ),
       ),
       child: Padding(
@@ -112,75 +118,132 @@ class _RunDashboardRecoveryBannerState
           horizontal: SkotiqTokens.space2xl,
           vertical: SkotiqTokens.spaceMd,
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            StatusDot(
-                color: colors.error,
-                size: 12,
-                variant: StatusDotVariant.urgent),
-            const SizedBox(width: SkotiqTokens.spaceMd),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final buttons = _RecoveryActionButtons(
+              colors: colors,
+              control: control,
+              onSkyClear: weatherHold
+                  ? () => ref.read(weatherSafetyProvider.notifier).snooze(
+                        const Duration(minutes: 30),
+                        reason: 'Operator on the recovery banner: the sky is '
+                            'clear',
+                      )
+                  : null,
+            );
+            final summary = Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                StatusDot(
+                    color: tone,
+                    size: 12,
+                    variant: weatherHold
+                        ? StatusDotVariant.static
+                        : StatusDotVariant.urgent),
+                const SizedBox(width: SkotiqTokens.spaceMd),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
+                      Row(
+                        children: [
+                          Text(
+                            weatherHold
+                                ? l10n.text('recoveryWeatherTag')
+                                : 'RECOVERING',
+                            style: TextStyle(
+                              fontSize: SkotiqTypography.fontSize10,
+                              fontWeight: FontWeight.w800,
+                              color: tone,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              weatherHold
+                                  ? l10n.text('recoveryWeatherTitle')
+                                  : ctx.cause.displayLabel,
+                              style: TextStyle(
+                                fontSize: SkotiqTypography.fontSize14,
+                                fontWeight: FontWeight.w700,
+                                color: colors.textPrimary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
                       Text(
-                        'RECOVERING',
-                        style: TextStyle(
-                          fontSize: SkotiqTypography.fontSize10,
-                          fontWeight: FontWeight.w800,
-                          color: colors.error,
-                          letterSpacing: 0.8,
+                        weatherHold
+                            ? l10n.text(
+                                'recoveryWeatherStatus',
+                                params: {'held': _formatSecs(heldSecs)},
+                              )
+                            : _statusLine(
+                                ctx, nextAttemptSecs, remainingBudgetSecs),
+                        style: SkotiqTypography.withTabular(
+                          SkotiqTypography.labelSm.copyWith(
+                            color: colors.textSecondary,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          ctx.cause.displayLabel,
+                      if (ctx.lastError != null &&
+                          ctx.lastError!.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          weatherHold
+                              ? ctx.lastError!
+                              : 'Last error: ${ctx.lastError}',
                           style: TextStyle(
-                            fontSize: SkotiqTypography.fontSize14,
-                            fontWeight: FontWeight.w700,
-                            color: colors.textPrimary,
+                            fontSize: SkotiqTypography.fontSize11,
+                            color: colors.textMuted,
                           ),
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      ),
+                      ],
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _statusLine(ctx, nextAttemptSecs, remainingBudgetSecs),
-                    style: SkotiqTypography.withTabular(
-                      SkotiqTypography.labelSm.copyWith(
-                        color: colors.textSecondary,
-                      ),
+                ),
+              ],
+            );
+            // Narrow: the buttons go under the text instead of squeezing it.
+            if (constraints.maxWidth < _stackButtonsBelowWidth) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  summary,
+                  const SizedBox(height: SkotiqTokens.spaceSm),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: buttons,
                     ),
                   ),
-                  if (ctx.lastError != null && ctx.lastError!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      'Last error: ${ctx.lastError}',
-                      style: TextStyle(
-                        fontSize: SkotiqTypography.fontSize11,
-                        color: colors.textMuted,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
                 ],
-              ),
-            ),
-            const SizedBox(width: SkotiqTokens.spaceMd),
-            _RecoveryActionButtons(colors: colors, control: control),
-          ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(child: summary),
+                const SizedBox(width: SkotiqTokens.spaceMd),
+                buttons,
+              ],
+            );
+          },
         ),
       ),
     );
   }
+
+  /// Below this width the action buttons sit under the banner text.
+  static const double _stackButtonsBelowWidth = 900;
 
   String _statusLine(
       RecoveryStatus ctx, double nextAttemptSecs, double remainingBudgetSecs) {
@@ -231,7 +294,13 @@ class _RecoveryActionButtons extends StatefulWidget {
   const _RecoveryActionButtons({
     required this.colors,
     required this.control,
+    this.onSkyClear,
   });
+
+  /// Set for a weather hold: the operator says the sky is clear, the
+  /// weather verdict is set aside for 30 minutes and the run resumes now.
+  /// A weather hold has no node to skip, so Skip node is not offered.
+  final VoidCallback? onSkyClear;
 
   @override
   State<_RecoveryActionButtons> createState() => _RecoveryActionButtonsState();
@@ -287,27 +356,42 @@ class _RecoveryActionButtonsState extends State<_RecoveryActionButtons> {
 
   @override
   Widget build(BuildContext context) {
+    final onSkyClear = widget.onSkyClear;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (onSkyClear != null) ...[
+          SkotiqButton(
+            key: const Key('recovery_sky_clear'),
+            label: context.l10n.text('nightWeatherSkyClear'),
+            icon: LucideIcons.sun,
+            size: ButtonSize.small,
+            onPressed: onSkyClear,
+          ),
+          const SizedBox(width: SkotiqTokens.spaceSm),
+        ],
         SkotiqButton(
           key: const Key('recovery_try_now'),
-          label: 'Try now',
+          label: onSkyClear != null
+              ? context.l10n.text('recoveryWeatherCheckNow')
+              : 'Try now',
           icon: LucideIcons.rotateCw,
           size: ButtonSize.small,
           isLoading: _tryNowBusy,
           onPressed: _tryNowBusy ? null : _tryNow,
         ),
-        const SizedBox(width: SkotiqTokens.spaceSm),
-        SkotiqButton(
-          key: const Key('recovery_skip_node'),
-          label: 'Skip node',
-          icon: LucideIcons.skipForward,
-          size: ButtonSize.small,
-          variant: ButtonVariant.outline,
-          isLoading: _skipBusy,
-          onPressed: _skipBusy ? null : _skipNode,
-        ),
+        if (onSkyClear == null) ...[
+          const SizedBox(width: SkotiqTokens.spaceSm),
+          SkotiqButton(
+            key: const Key('recovery_skip_node'),
+            label: 'Skip node',
+            icon: LucideIcons.skipForward,
+            size: ButtonSize.small,
+            variant: ButtonVariant.outline,
+            isLoading: _skipBusy,
+            onPressed: _skipBusy ? null : _skipNode,
+          ),
+        ],
         const SizedBox(width: SkotiqTokens.spaceSm),
         // Abort exits the recovery loop and marks the sequence Failed —
         // an unrecoverable user decision. Wrap in [HoldToConfirmButton]

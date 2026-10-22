@@ -286,8 +286,19 @@ final Map<String, Map<String, String>> _localizedValues = {
     'weatherSafetyAlertTiming': 'Alert Timing',
     'weatherSafetyAutoPark': 'Auto-park mount',
     'weatherSafetyAutoParkDesc':
-        'Park the mount and close the cover and dome when conditions turn '
-            'unsafe. When off, imaging stops and nothing is parked or closed',
+        'Park the mount and close the cover and dome when a weather device '
+            'or safety monitor at the site reports unsafe. An internet '
+            'forecast never parks. When off, imaging stops and nothing is '
+            'parked or closed',
+    'weatherSafetyForecastHolds': 'Forecast clouds hold the run',
+    'weatherSafetyForecastHoldsDesc':
+        'When the internet forecast says cloudy, hold exposures with the '
+            'mount tracking, and resume once the sky has read clear for the '
+            'required safe duration. When off, a forecast only warns',
+    'weatherSafetyStarEvidence': 'Trust stars over the forecast',
+    'weatherSafetyStarEvidenceDesc':
+        'When the latest frame holds at least half the usual stars, a '
+            'cloudy forecast is not acted on',
     'weatherSafetyAutoResume': 'Auto-resume after clear',
     'weatherSafetyAutoResumeDesc':
         'Resume once all weather sources return safe',
@@ -1106,6 +1117,31 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightPanelToLookAt': '{count} to look at',
     'nightPanelUnknown': 'unknown',
     'nightPanelUnsafe': 'Unsafe',
+    'nightWeatherForecastHolds':
+        'Decided by the internet forecast. Exposures are held, the mount keeps tracking, and imaging resumes when it clears. A forecast never parks.',
+    'nightWeatherForecastWarns':
+        'Decided by the internet forecast, which only warns. The run continues.',
+    'nightWeatherDecidedByDevice': 'Decided by the weather device at the site.',
+    'nightWeatherDecidedByMonitor': 'Decided by the safety monitor.',
+    'nightWeatherDecidedByDawn': 'Dawn is near.',
+    'nightWeatherDecidedByNoData':
+        'No current weather data; the safety fail mode decides.',
+    'nightWeatherStarsOutweighForecast':
+        'The forecast says cloudy, but recent frames are full of stars, so imaging continues.',
+    'nightWeatherStarsClear': 'Last frame: {stars} stars (usual {usual}).',
+    'nightWeatherStarsFew':
+        'Last frame: {stars} stars (usual {usual}), fewer than usual.',
+    'nightWeatherOverrideActive':
+        'Weather verdict set aside until {time}: you said the sky is clear.',
+    'nightWeatherSkyClear': 'Sky is clear, resume',
+    'nightWeatherSkyClearSemantics':
+        'The sky is clear: set the weather verdict aside for 30 minutes and resume imaging',
+    'nightWeatherEndOverride': 'Use the weather verdict again',
+    'recoveryWeatherTag': 'WEATHER HOLD',
+    'recoveryWeatherTitle': 'Waiting for a clear sky',
+    'recoveryWeatherStatus':
+        'Exposures held, mount tracking · held {held} · resumes on its own',
+    'recoveryWeatherCheckNow': 'Check now',
     'nightPanelVsMedian': 'vs night median',
     'nightPanelWarmUp': 'Warm up',
     'nightPanelWarmUpNote':
@@ -1870,9 +1906,22 @@ final Map<String, Map<String, String>> _localizedValues = {
     'weatherSafetyAlertTiming': 'Tiempo de alerta',
     'weatherSafetyAutoPark': 'Aparcar la montura',
     'weatherSafetyAutoParkDesc':
-        'Aparcar la montura y cerrar la tapa y la c\u00FApula cuando las '
-            'condiciones sean inseguras. Desactivado, se detiene la captura sin '
-            'aparcar ni cerrar nada',
+        'Aparcar la montura y cerrar la tapa y la c\u00FApula cuando una '
+            'estaci\u00F3n meteorol\u00F3gica o un monitor de seguridad '
+            'indique condiciones inseguras. Una previsi\u00F3n de internet '
+            'nunca aparca. Desactivado, se detiene la captura sin aparcar ni '
+            'cerrar nada',
+    'weatherSafetyForecastHolds': 'Las nubes previstas pausan la sesi\u00F3n',
+    'weatherSafetyForecastHoldsDesc':
+        'Cuando la previsi\u00F3n de internet indica nubes, pausar las '
+            'exposiciones con la montura en seguimiento y reanudar cuando el '
+            'cielo lleve despejado el tiempo requerido. Desactivado, la '
+            'previsi\u00F3n solo avisa',
+    'weatherSafetyStarEvidence': 'Confiar en las estrellas antes que en la '
+        'previsi\u00F3n',
+    'weatherSafetyStarEvidenceDesc':
+        'Si la \u00FAltima toma tiene al menos la mitad de las estrellas '
+            'habituales, no se act\u00FAa seg\u00FAn una previsi\u00F3n de nubes',
     'weatherSafetyAutoResume': 'Reanudar al despejar',
     'weatherSafetyAutoResumeDesc':
         'Reanudar cuando todas las fuentes vuelvan a estado seguro',
@@ -2690,6 +2739,33 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightPanelToLookAt': '{count} por revisar',
     'nightPanelUnknown': 'desconocido',
     'nightPanelUnsafe': 'No seguro',
+    'nightWeatherForecastHolds':
+        'Lo decide la previsión de internet. Las exposiciones se detienen, la montura sigue en seguimiento y la captura se reanuda cuando despeje. Una previsión nunca aparca.',
+    'nightWeatherForecastWarns':
+        'Lo decide la previsión de internet, que solo avisa. La sesión continúa.',
+    'nightWeatherDecidedByDevice':
+        'Lo decide la estación meteorológica del observatorio.',
+    'nightWeatherDecidedByMonitor': 'Lo decide el monitor de seguridad.',
+    'nightWeatherDecidedByDawn': 'Se acerca el amanecer.',
+    'nightWeatherDecidedByNoData':
+        'No hay datos meteorológicos actuales; decide el modo de fallo de seguridad.',
+    'nightWeatherStarsOutweighForecast':
+        'La previsión indica nubes, pero las últimas tomas están llenas de estrellas, así que la captura continúa.',
+    'nightWeatherStarsClear':
+        'Última toma: {stars} estrellas (normal {usual}).',
+    'nightWeatherStarsFew':
+        'Última toma: {stars} estrellas (normal {usual}), menos de lo normal.',
+    'nightWeatherOverrideActive':
+        'Veredicto meteorológico ignorado hasta las {time}: indicaste que el cielo está despejado.',
+    'nightWeatherSkyClear': 'Cielo despejado, reanudar',
+    'nightWeatherSkyClearSemantics':
+        'El cielo está despejado: ignorar el veredicto meteorológico durante 30 minutos y reanudar la captura',
+    'nightWeatherEndOverride': 'Volver a usar el veredicto meteorológico',
+    'recoveryWeatherTag': 'PAUSA POR TIEMPO',
+    'recoveryWeatherTitle': 'Esperando un cielo despejado',
+    'recoveryWeatherStatus':
+        'Exposiciones en pausa, montura en seguimiento · {held} · se reanuda sola',
+    'recoveryWeatherCheckNow': 'Comprobar ahora',
     'nightPanelVsMedian': 'frente a la mediana de la noche',
     'nightPanelWarmUp': 'Calentar',
     'nightPanelWarmUpNote':
