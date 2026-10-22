@@ -89,7 +89,7 @@ impl SequenceExecutor {
             if let Some(reason) = state.manual_flip_refusal() {
                 return Err(reason);
             }
-            state.meridian_flip_requested = true;
+            state.meridian.request();
             (state.current_target_name.clone(), state.current_hour_angle)
         };
         tracing::info!(

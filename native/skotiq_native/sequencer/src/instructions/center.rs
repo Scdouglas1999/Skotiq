@@ -4,6 +4,7 @@
 //! see them, and `super::*` supplies the imports the original file had.
 
 use super::*;
+use crate::triggers::{FlipBlocked, FlipProgress};
 
 // Center instruction (Plate Solve + Sync + Slew Loop)
 
@@ -608,30 +609,16 @@ async fn wait_for_flip(
         if let Some(result) = ctx.check_cancelled() {
             return Some(result);
         }
-        let (
-            threshold_min,
-            polled_ha,
-            flipped,
-            pier,
-            trigger_has_target,
-            mount_parked,
-            mount_following,
-            flip_requested,
-        ) = {
+        let (threshold_min, polled_ha, pier, blocked, flip_requested) = {
             let state = lock.read().await;
             (
                 state.meridian_flip_minutes_past,
                 state.current_hour_angle,
-                state.has_flipped_this_target,
                 state.pier_side,
-                state.target_ra.is_some() && state.target_dec.is_some(),
-                state.mount_parked == Some(true),
-                // The trigger's other precondition: it will not flip a mount
-                // that is parked or not tracking (see `TriggerType::MeridianFlip`
-                // in `Trigger::check`), so holding for it there waits out the
-                // whole bound on every frame.
-                state.mount_parked != Some(true) && state.mount_is_tracking != Some(false),
-                state.meridian_flip_requested && state.manual_flip_refusal().is_none(),
+                // The trigger's own preconditions, read through the same
+                // predicate the trigger uses.
+                state.flip_blocked(crate::MeridianTriggerMethod::MinutesPastMeridian),
+                state.flip_request_pending(),
             )
         };
         // An operator's flip request fires the trigger on its next tick, and
@@ -666,30 +653,28 @@ async fn wait_for_flip(
             }
             continue;
         }
-        // No MinutesPastMeridian trigger armed / already flipped — nothing
-        // predictable to gate on.
+        // No MinutesPastMeridian trigger armed: nothing predictable to gate on.
         let threshold_min = threshold_min?;
-        if flipped {
-            return None;
-        }
-        // Mirror the trigger's own precondition: a flip is meaningless without
-        // a target, and the trigger returns false outright in that case.
-        if !trigger_has_target {
-            return None;
-        }
-        if !mount_following && !announced {
-            let message = format!(
-                "Not holding the next {exposure_secs:.0}s exposure for a meridian flip: the \
-                 mount is {}, and the flip trigger does not flip a mount in that state.",
-                if mount_parked {
-                    "parked"
-                } else {
-                    "not tracking"
-                }
-            );
-            tracing::warn!("{}", message);
-            control.report(&message);
-            return None;
+        match blocked {
+            // Already flipped, or no target to flip for: no flip to wait for.
+            Some(FlipBlocked::AlreadyFlipped | FlipBlocked::NoTarget) => return None,
+            Some(state @ (FlipBlocked::MountParked | FlipBlocked::MountNotTracking))
+                if !announced =>
+            {
+                let message = format!(
+                    "Not holding the next {exposure_secs:.0}s exposure for a meridian flip: the \
+                     mount is {}, and the flip trigger does not flip a mount in that state.",
+                    if state == FlipBlocked::MountParked {
+                        "parked"
+                    } else {
+                        "not tracking"
+                    }
+                );
+                tracing::warn!("{}", message);
+                control.report(&message);
+                return None;
+            }
+            _ => {}
         }
         let ha = hour_angle().or(polled_ha)?;
         // The trigger's own pre-flip-side test, called rather than re-derived:
@@ -884,19 +869,11 @@ async fn wait_for_overdue_flip_to_start(
         if let Some(result) = ctx.check_cancelled() {
             return OverdueFlip::Cancelled(result);
         }
-        let verdict = {
-            let state = lock.read().await;
-            if state.has_flipped_this_target {
-                Some(OverdueFlip::Flipped)
-            } else if state.meridian_flip_dispatch_pending
-                || (state.meridian_flip_requested && state.manual_flip_refusal().is_none())
-            {
-                Some(OverdueFlip::Starting)
-            } else if state.last_evaluation_running != Some(false) {
-                Some(OverdueFlip::NotComing)
-            } else {
-                None
-            }
+        let verdict = match lock.read().await.flip_progress() {
+            FlipProgress::Flipped => Some(OverdueFlip::Flipped),
+            FlipProgress::Starting => Some(OverdueFlip::Starting),
+            FlipProgress::NotComing => Some(OverdueFlip::NotComing),
+            FlipProgress::AwaitingEvaluation => None,
         };
         if let Some(verdict) = verdict {
             return verdict;

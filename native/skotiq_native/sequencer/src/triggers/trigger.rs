@@ -60,8 +60,10 @@ pub struct Trigger {
     pub enabled: bool,
     #[serde(skip)]
     pub cooldown_secs: Option<u64>,
+    /// When this trigger's action was last dispatched. Only a dispatch starts
+    /// the cooldown, so a firing nothing acted on cannot silence the trigger.
     #[serde(skip)]
-    pub last_triggered: Option<Instant>,
+    last_triggered: Option<Instant>,
     /// Counter for consecutive frames exceeding HFR threshold.
     /// Only used by HfrDegraded triggers; reset when condition clears.
     #[serde(skip)]
@@ -191,14 +193,12 @@ impl Trigger {
         self
     }
 
-    /// Forget a firing the run did not act on.
-    ///
-    /// [`Trigger::check`] starts the cooldown whenever it fires, whether or
-    /// not anything acts on the firing. A firing the trigger monitor drops
-    /// because the run is held (paused, or in a recovery) must not spend it,
-    /// or the trigger stays silent for up to its cooldown after the hold ends.
-    pub fn rearm_after_hold(&mut self) {
-        self.last_triggered = None;
+    /// Start the cooldown: the trigger's action has been dispatched.
+    /// Evaluation never does this, so a firing that is dropped (the run is
+    /// held, or a policy filtered it) leaves the trigger armed for the next
+    /// tick.
+    pub(super) fn start_cooldown(&mut self) {
+        self.last_triggered = Some(Instant::now());
     }
 
     /// Forget everything this trigger learned during a previous run: its
@@ -225,13 +225,15 @@ impl Trigger {
         }
     }
 
-    /// Check if the trigger condition is met
+    /// Whether the trigger's condition holds now. Evaluation only: a trigger
+    /// in its cooldown does not fire, but firing does not start the cooldown
+    /// (see [`Self::start_cooldown`]).
     pub async fn check(&mut self, state: &TriggerState) -> bool {
         if !self.enabled || self.is_in_cooldown() {
             return false;
         }
 
-        let triggered = match &self.trigger_type {
+        match &self.trigger_type {
             TriggerType::HfrDegraded {
                 threshold_percent,
                 absolute_threshold,
@@ -300,64 +302,20 @@ impl Trigger {
                 }
             }
             TriggerType::MeridianFlip { config } => {
-                // once flipped for a target, the same trigger
-                // must not fire again until the target changes. Without this
-                // guard, the post-flip pier-side reading could ping-pong and
-                // request a second flip in the opposite direction.
-                if state.has_flipped_this_target {
+                // Once flipped for a target the trigger stays quiet until the
+                // target changes, so a post-flip pier-side reading cannot
+                // request a second flip back.
+                if state.meridian.has_flipped() {
                     return false;
                 }
-
                 // An operator's request skips the window threshold, never the
-                // preconditions below; the refusal check applies them all.
-                if state.meridian_flip_requested && state.manual_flip_refusal().is_none() {
+                // preconditions; `flip_request_pending` applies them all.
+                if state.flip_request_pending() {
                     return true;
                 }
-
-                // A flip only means anything for a target we are tracking.
-                // Hour angle comes from the MOUNT, so without this the trigger
-                // fires on a run that never set a target — and the flip arm
-                // then either slews to whatever coordinates were left over or
-                // reports a flip failure the operator cannot act on.
-                if state.target_ra.is_none() || state.target_dec.is_none() {
-                    return false;
-                }
-
-                // ...and the mount has to actually be following it.
-                //
-                // `current_hour_angle` is now the TARGET's, which fixed the
-                // flip that fired off a parked mount's home RA. It did not fix
-                // the case underneath: a parked mount whose named target really
-                // is past the meridian still armed the flip. That is precisely a
-                // calibration block — a TargetHeader with darks under it, mount
-                // parked, dome shut — and the flip then slews a parked mount,
-                // retries against whatever the centering step needs, and the
-                // exhausted flip coerces a run that captured every frame it was
-                // asked for into FAILED (see `meridian_flip_failed` in
-                // `executor/start.rs`). A dark, bias or flat is taken with the
-                // shutter closed or on a flat panel, so where the mount points
-                // cannot ruin it.
-                //
-                // These are the same two questions the Dart countdown banner
-                // already asks before it will arm ("Mount is parked" / "Mount
-                // not tracking" in `meridian_countdown_provider`). Only that
-                // banner asked them, which is how the Imaging screen could say
-                // "Meridian flip imminent — handled automatically" while the
-                // Sequencer reported "attempt 2/4 failed" for the same instant.
-                //
-                // Both fields are `Option`: `Some(_)` is a real reading, `None`
-                // means the mount never reported. Only a definite reading
-                // blocks the flip, so a mount that publishes neither behaves
-                // exactly as before rather than losing flips entirely.
-                //
-                // `OnTrackingLimitHit` is exempt: tracking having STOPPED is its
-                // whole premise, and `looks_like_tracking_limit_hit` already
-                // refuses a parked or slewing mount itself.
-                if !matches!(
-                    config.trigger_method,
-                    crate::MeridianTriggerMethod::OnTrackingLimitHit
-                ) && (state.mount_parked == Some(true) || state.mount_is_tracking == Some(false))
-                {
+                // The preconditions every flip decision shares with the
+                // pre-frame gate and the pre-meridian hold.
+                if state.flip_blocked(config.trigger_method).is_some() {
                     return false;
                 }
 
@@ -414,7 +372,7 @@ impl Trigger {
                         // glitch (e.g. EQ8 self-recovering from a brief stall)
                         // without forcing a flip; zero means "flip immediately".
                         if config.tracking_limit_wait_minutes > 0.0 {
-                            if let Some(detected_at) = state.tracking_limit_detected_at {
+                            if let Some(detected_at) = state.tracking.limit_detected_at() {
                                 let elapsed_secs = chrono::Utc::now().timestamp() - detected_at;
                                 // Why: tracking_limit_wait_minutes is f64 user-config
                                 // (UI-bounded, typically 0..30). f64 -> i64 saturates
@@ -630,7 +588,7 @@ impl Trigger {
                 }
             }
             TriggerType::MountTrackingLost => {
-                if !state.mount_tracking_expected || !state.mount_tracking_lost {
+                if !state.tracking.expected_and_lost() {
                     return false;
                 }
 
@@ -663,10 +621,9 @@ impl Trigger {
                     }
             }
             TriggerType::GuideStarLost => {
-                // `guiding_enabled` gate prevents the trigger from firing while
-                // the guider is idle between sequences (e.g. during slews or
-                // before a StartGuiding node has run).
-                state.guiding_enabled && state.guide_star_lost
+                // Only guiding this run started is armed, so an idle guider
+                // between sequences or before StartGuiding never fires it.
+                state.guiding.armed_and_lost()
             }
             TriggerType::FocusDrift {
                 window_size,
@@ -846,12 +803,6 @@ impl Trigger {
                     .get_or_insert_with(Instant::now);
                 since.elapsed().as_secs_f64() >= *duration_secs
             }
-        };
-
-        if triggered {
-            self.last_triggered = Some(Instant::now());
         }
-
-        triggered
     }
 }

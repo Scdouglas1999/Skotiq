@@ -13,7 +13,7 @@
 //! refused with the reason, so the operator learns why nothing happened
 //! instead of watching a request sit there.
 
-use super::TriggerState;
+use super::{FlipBlocked, TriggerState};
 use crate::PierSide;
 
 impl TriggerState {
@@ -28,19 +28,20 @@ impl TriggerState {
             .as_deref()
             .map(|name| format!("'{name}'"))
             .unwrap_or_else(|| "the target".to_string());
-        if self.target_ra.is_none() || self.target_dec.is_none() {
-            return Some(
-                "The run has no target set yet, so there is nothing to flip for.".to_string(),
-            );
-        }
-        if self.has_flipped_this_target {
-            return Some(format!("The mount has already flipped for {target}."));
-        }
-        if self.mount_parked == Some(true) {
-            return Some("The mount is parked.".to_string());
-        }
-        if self.mount_is_tracking == Some(false) {
-            return Some("The mount is not tracking.".to_string());
+        match self.flip_blocked(crate::MeridianTriggerMethod::MinutesPastMeridian) {
+            Some(FlipBlocked::NoTarget) => {
+                return Some(
+                    "The run has no target set yet, so there is nothing to flip for.".to_string(),
+                )
+            }
+            Some(FlipBlocked::AlreadyFlipped) => {
+                return Some(format!("The mount has already flipped for {target}."))
+            }
+            Some(FlipBlocked::MountParked) => return Some("The mount is parked.".to_string()),
+            Some(FlipBlocked::MountNotTracking) => {
+                return Some("The mount is not tracking.".to_string())
+            }
+            None => {}
         }
         let Some(hour_angle) = self.current_hour_angle.filter(|ha| ha.is_finite()) else {
             return Some(format!(
@@ -112,7 +113,7 @@ mod tests {
     #[test]
     fn every_trigger_precondition_is_a_refusal() {
         let cases: [(&str, Mutation); 6] = [
-            ("already flipped", |s| s.has_flipped_this_target = true),
+            ("already flipped", |s| s.meridian.mark_performed(None)),
             ("parked", |s| s.mount_parked = Some(true)),
             ("not tracking", |s| s.mount_is_tracking = Some(false)),
             ("pier side East", |s| s.pier_side = Some(PierSide::East)),
@@ -159,12 +160,12 @@ mod tests {
             !trigger.check(&state).await,
             "15 min past a 30 min threshold must not fire on its own"
         );
-        state.meridian_flip_requested = true;
+        state.meridian.request();
         assert!(trigger.check(&state).await, "a standing request fires it");
 
         let mut east = past_meridian_state();
         east.current_hour_angle = Some(-0.1);
-        east.meridian_flip_requested = true;
+        east.meridian.request();
         let mut fresh = super::super::Trigger::new(
             "meridian_flip",
             "Meridian Flip",
@@ -182,12 +183,12 @@ mod tests {
     #[test]
     fn a_target_change_or_a_completed_flip_drops_the_request() {
         let mut state = past_meridian_state();
-        state.meridian_flip_requested = true;
+        state.meridian.request();
         state.mark_flip_performed();
-        assert!(!state.meridian_flip_requested);
+        assert!(!state.meridian.is_requested());
 
-        state.meridian_flip_requested = true;
+        state.meridian.request();
         state.set_meridian_target("M33".to_string());
-        assert!(!state.meridian_flip_requested);
+        assert!(!state.meridian.is_requested());
     }
 }

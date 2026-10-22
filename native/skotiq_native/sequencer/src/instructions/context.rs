@@ -457,10 +457,10 @@ impl InstructionContext {
     }
 
     /// Whether the run is imaging unguided because the guide-star recovery ran
-    /// out. See [`crate::triggers::TriggerState::imaging_unguided`].
+    /// out. See [`crate::triggers::GuidingState::is_unguided`].
     pub async fn imaging_unguided(&self) -> bool {
         match &self.trigger_state {
-            Some(state) => state.read().await.imaging_unguided,
+            Some(state) => state.read().await.guiding.is_unguided(),
             None => false,
         }
     }

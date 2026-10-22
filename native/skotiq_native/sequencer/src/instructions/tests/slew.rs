@@ -311,9 +311,9 @@ mod guiding_through_a_move {
     async fn state_of(ctx: &InstructionContext) -> (bool, bool, u32) {
         let state = ctx.trigger_state.as_ref().unwrap().read().await;
         (
-            state.guiding_enabled,
-            state.guiding_resume_pending,
-            state.mount_motion_depth,
+            state.guiding.is_enabled(),
+            state.guiding.resume_pending(),
+            state.guiding.motion_depth(),
         )
     }
 

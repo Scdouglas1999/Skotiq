@@ -169,7 +169,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 Some(mount_id) => {
                     let run_is_moving_mount = {
                         let manager = recovery_driver_trigger_mgr.read().await;
-                        let depth = manager.state().read().await.mount_motion_depth;
+                        let depth = manager.state().read().await.guiding.motion_depth();
                         depth > 0
                     };
                     let moving = run_is_moving_mount
@@ -875,9 +875,7 @@ async fn continue_unguided(c: UnguidedContinuation<'_>) {
         let manager = c.trigger_mgr.read().await;
         let state_lock = manager.state();
         let mut state = state_lock.write().await;
-        state.imaging_unguided = true;
-        state.set_guiding_enabled(false);
-        state.set_guide_star_lost(false);
+        state.guiding.give_up_guiding();
         if let Some(history) = state.guiding_rms_history.as_mut() {
             history.clear();
         }
@@ -1315,12 +1313,12 @@ mod tests {
             "{:?}",
             r.warnings
         );
-        assert!(r.trigger_state.imaging_unguided);
+        assert!(r.trigger_state.guiding.is_unguided());
         assert!(
-            !r.trigger_state.guiding_enabled,
+            !r.trigger_state.guiding.is_enabled(),
             "the star-lost trigger must be disarmed or it fires again at once"
         );
-        assert!(!r.trigger_state.guide_star_lost);
+        assert!(!r.trigger_state.guiding.star_lost());
     }
 
     #[tokio::test]
@@ -1347,7 +1345,7 @@ mod tests {
             "{:?}",
             r.errors
         );
-        assert!(!r.trigger_state.imaging_unguided);
+        assert!(!r.trigger_state.guiding.is_unguided());
     }
 
     #[tokio::test]

@@ -501,7 +501,8 @@ async fn a_failed_guider_resume_is_marked_not_just_described() {
             .expect("pointing_ctx wires a trigger state")
             .read()
             .await
-            .guiding_enabled,
+            .guiding
+            .is_enabled(),
         "the cleanup knows the guider is down; the run's state must say so"
     );
 }
@@ -609,7 +610,8 @@ async fn a_stop_ends_the_wait_for_the_guider_to_settle() {
             .expect("pointing_ctx wires a trigger state")
             .read()
             .await
-            .guiding_enabled,
+            .guiding
+            .is_enabled(),
         "a guider nobody saw settle must not be left marked as guiding"
     );
 }
@@ -634,7 +636,8 @@ async fn a_successful_guider_resume_leaves_the_result_alone() {
             .expect("pointing_ctx wires a trigger state")
             .read()
             .await
-            .guiding_enabled,
+            .guiding
+            .is_enabled(),
         "a proven resume re-arms the guide-star-lost latch"
     );
 }

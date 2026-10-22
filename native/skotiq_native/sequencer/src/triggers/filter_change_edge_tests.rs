@@ -17,14 +17,14 @@ async fn filter_change_trigger_fires_once_per_change() {
 
     let first: Vec<_> = manager.check_all().await;
     assert!(
-        first.iter().any(|(id, _)| id == "filter_change"),
+        first.iter().any(|f| f.trigger_id() == "filter_change"),
         "the change itself must fire the trigger"
     );
 
     for tick in 0..5 {
         let later: Vec<_> = manager.check_all().await;
         assert!(
-            !later.iter().any(|(id, _)| id == "filter_change"),
+            !later.iter().any(|f| f.trigger_id() == "filter_change"),
             "tick {tick} re-fired FilterChange with no new filter change"
         );
     }
@@ -32,7 +32,7 @@ async fn filter_change_trigger_fires_once_per_change() {
     manager.state().write().await.set_filter("OIII".to_string());
     let second: Vec<_> = manager.check_all().await;
     assert!(
-        second.iter().any(|(id, _)| id == "filter_change"),
+        second.iter().any(|f| f.trigger_id() == "filter_change"),
         "a genuinely new filter change must fire again"
     );
 }

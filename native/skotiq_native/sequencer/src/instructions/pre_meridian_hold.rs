@@ -54,14 +54,11 @@ pub(crate) async fn hold_before_meridian(
         ) else {
             return Ok(None);
         };
-        // The flip trigger's own preconditions: a flip for this target, a
-        // mount that is following it, on the side a flip leaves. A mount the
-        // operator left untracked is not ours to hold.
-        if state.has_flipped_this_target
-            || state.target_ra.is_none()
-            || state.target_dec.is_none()
-            || state.mount_parked == Some(true)
-            || state.mount_is_tracking == Some(false)
+        // The flip trigger's own preconditions, on the side a flip leaves. A
+        // mount the operator left untracked is not ours to hold.
+        if state
+            .flip_blocked(crate::MeridianTriggerMethod::MinutesPastMeridian)
+            .is_some()
             || matches!(state.pier_side, Some(crate::PierSide::East))
         {
             return Ok(None);
@@ -87,11 +84,11 @@ pub(crate) async fn hold_before_meridian(
     let motion = MountMotion::begin(ctx, "pre-meridian hold").await;
     {
         let mut state = lock.write().await;
-        state.mount_tracking_held_by_run = true;
+        state.run.begin_hold(crate::triggers::RunHold::PreMeridian);
         state.set_mount_tracking_expected(false);
     }
     if let Err(error) = ctx.device_ops.mount_set_tracking(mount_id, false).await {
-        lock.write().await.mount_tracking_held_by_run = false;
+        lock.write().await.run.end_hold();
         motion.end().await;
         let message = format!(
             "Could not stop tracking {} for the pre-meridian hold: {error}",
@@ -134,7 +131,7 @@ pub(crate) async fn hold_before_meridian(
             let restored = ctx.device_ops.mount_set_tracking(mount_id, true).await;
             {
                 let mut state = lock.write().await;
-                state.mount_tracking_held_by_run = false;
+                state.run.end_hold();
                 if restored.is_ok() {
                     state.mount_is_tracking = Some(true);
                 }
@@ -177,7 +174,7 @@ pub(crate) async fn hold_before_meridian(
     }
 
     if let Err(error) = ctx.device_ops.mount_set_tracking(mount_id, true).await {
-        lock.write().await.mount_tracking_held_by_run = false;
+        lock.write().await.run.end_hold();
         motion.end().await;
         let message = format!("Could not restart tracking for the meridian flip: {error}");
         tracing::error!("[MERIDIAN] {}", message);
@@ -189,7 +186,7 @@ pub(crate) async fn hold_before_meridian(
     // its next tick. The loss baseline re-arms on the poll's own `true`.
     {
         let mut state = lock.write().await;
-        state.mount_tracking_held_by_run = false;
+        state.run.end_hold();
         state.mount_is_tracking = Some(true);
     }
     let message = format!(
@@ -212,7 +209,7 @@ pub(crate) async fn pick_up_guiding_after_hold(
     ctx: &InstructionContext,
 ) -> Option<InstructionResult> {
     let trigger_state = ctx.trigger_state.as_ref()?;
-    if !trigger_state.read().await.guiding_resume_pending {
+    if !trigger_state.read().await.guiding.resume_pending() {
         return None;
     }
     let guiding_now = ctx
@@ -222,7 +219,7 @@ pub(crate) async fn pick_up_guiding_after_hold(
         .is_ok_and(|status| status.is_guiding);
     if guiding_now {
         let mut state = trigger_state.write().await;
-        state.guiding_resume_pending = false;
+        state.guiding.set_resume_pending(false);
         state.set_guiding_enabled(true);
         return None;
     }
@@ -239,7 +236,7 @@ async fn end_hold_on_cancel(
     motion: MountMotion,
     control: &BurstControl<'_>,
 ) -> InstructionResult {
-    lock.write().await.mount_tracking_held_by_run = false;
+    lock.write().await.run.end_hold();
     motion.end().await;
     let message = "The run stopped during the pre-meridian hold; mount tracking is left off.";
     tracing::info!("[MERIDIAN] {}", message);

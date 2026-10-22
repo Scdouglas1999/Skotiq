@@ -31,7 +31,7 @@ use crate::PierSide;
 ///     fire on everything far enough east.
 ///  2. **Pier East is the post-flip side.** A mount that already reports
 ///     `pierEast` has flipped (or started the night on that side) and must not
-///     flip again; `has_flipped_this_target` covers the same ground for the
+///     flip again; `MeridianFlipState::has_flipped` covers the same ground for the
 ///     run that performed the flip, and this covers a resume that did not.
 ///
 /// `Unknown` — the reading a simulator and many legacy mounts give — is NOT

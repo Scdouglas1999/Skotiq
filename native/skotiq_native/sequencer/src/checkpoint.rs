@@ -139,11 +139,11 @@ impl TriggerStateSnapshot {
             current_hour_angle: state.current_hour_angle,
             pier_side: state.pier_side,
             mount_tracking_limit_time: state.mount_tracking_limit_time,
-            has_flipped_this_target: state.has_flipped_this_target,
+            has_flipped_this_target: state.meridian.has_flipped(),
             current_target_name: state.current_target_name.clone(),
             next_meridian_flip_time: state.next_meridian_flip_time,
-            guiding_enabled: state.guiding_enabled,
-            guide_star_lost: state.guide_star_lost,
+            guiding_enabled: state.guiding.is_enabled(),
+            guide_star_lost: state.guiding.star_lost(),
             current_humidity: state.current_humidity,
             current_altitude: state.current_altitude,
             weather_safe: state.weather_safe,
@@ -164,12 +164,12 @@ impl TriggerStateSnapshot {
             target_ra: state.target_ra,
             target_dec: state.target_dec,
             mount_is_tracking: state.mount_is_tracking,
-            mount_tracking_expected: state.mount_tracking_expected,
-            mount_tracking_lost: state.mount_tracking_lost,
+            mount_tracking_expected: state.tracking.is_expected(),
+            mount_tracking_lost: state.tracking.is_lost(),
             mount_slewing: state.mount_slewing,
             mount_parked: state.mount_parked,
             mount_status_query_failed: state.mount_status_query_failed,
-            tracking_limit_detected_at: state.tracking_limit_detected_at,
+            tracking_limit_detected_at: state.tracking.limit_detected_at(),
             meridian_trigger_method: state.meridian_trigger_method,
             dome_shutter_status: state.dome_shutter_status.clone(),
             dome_shutter_open_expected: state.dome_shutter_open_expected,
@@ -190,11 +190,12 @@ impl TriggerStateSnapshot {
         state.current_hour_angle = self.current_hour_angle;
         state.pier_side = self.pier_side;
         state.mount_tracking_limit_time = self.mount_tracking_limit_time;
-        state.has_flipped_this_target = self.has_flipped_this_target;
+        state.meridian.restore_flipped(self.has_flipped_this_target);
         state.current_target_name = self.current_target_name.clone();
         state.next_meridian_flip_time = self.next_meridian_flip_time;
-        state.guiding_enabled = self.guiding_enabled;
-        state.guide_star_lost = self.guide_star_lost;
+        state
+            .guiding
+            .restore(self.guiding_enabled, self.guide_star_lost);
         state.current_humidity = self.current_humidity;
         state.current_altitude = self.current_altitude;
         state.weather_safe = self.weather_safe;
@@ -215,12 +216,14 @@ impl TriggerStateSnapshot {
         state.target_ra = self.target_ra;
         state.target_dec = self.target_dec;
         state.mount_is_tracking = self.mount_is_tracking;
-        state.mount_tracking_expected = self.mount_tracking_expected;
-        state.mount_tracking_lost = self.mount_tracking_lost;
+        state.tracking.restore(
+            self.mount_tracking_expected,
+            self.mount_tracking_lost,
+            self.tracking_limit_detected_at,
+        );
         state.mount_slewing = self.mount_slewing;
         state.mount_parked = self.mount_parked;
         state.mount_status_query_failed = self.mount_status_query_failed;
-        state.tracking_limit_detected_at = self.tracking_limit_detected_at;
         state.meridian_trigger_method = self.meridian_trigger_method;
         state.dome_shutter_status = self.dome_shutter_status.clone();
         state.dome_shutter_open_expected = self.dome_shutter_open_expected;
@@ -1102,10 +1105,9 @@ mod tests {
         original.current_hour_angle = Some(0.75);
         original.pier_side = Some(PierSide::West);
         original.mount_tracking_limit_time = Some(1_700_000_000);
-        original.has_flipped_this_target = true;
+        original.meridian.mark_performed(None);
         original.current_target_name = Some("M31".into());
-        original.guiding_enabled = true;
-        original.guide_star_lost = false;
+        original.guiding.restore(true, false);
         original.current_humidity = Some(63.0);
         original.current_altitude = Some(58.4);
         original.weather_safe = true;
@@ -1120,7 +1122,7 @@ mod tests {
         original.completed_exposures = 42;
         original.last_autofocus_frame = 30;
         original.last_dither_frame = 41;
-        original.tracking_limit_detected_at = Some(1_700_005_000);
+        original.tracking.set_limit_detected_at(Some(1_700_005_000));
         original.grid_dither_index = 7;
         original.last_applied_filter_offset = 42;
 
@@ -1165,12 +1167,12 @@ mod tests {
             original.mount_tracking_limit_time
         );
         assert_eq!(
-            restored.has_flipped_this_target,
-            original.has_flipped_this_target
+            restored.meridian.has_flipped(),
+            original.meridian.has_flipped()
         );
         assert_eq!(restored.current_target_name, original.current_target_name);
-        assert_eq!(restored.guiding_enabled, original.guiding_enabled);
-        assert_eq!(restored.guide_star_lost, original.guide_star_lost);
+        assert_eq!(restored.guiding.is_enabled(), original.guiding.is_enabled());
+        assert_eq!(restored.guiding.star_lost(), original.guiding.star_lost());
         assert_eq!(restored.current_humidity, original.current_humidity);
         assert_eq!(restored.current_altitude, original.current_altitude);
         assert_eq!(restored.weather_safe, original.weather_safe);
@@ -1193,8 +1195,8 @@ mod tests {
         assert_eq!(restored.last_autofocus_frame, original.last_autofocus_frame);
         assert_eq!(restored.last_dither_frame, original.last_dither_frame);
         assert_eq!(
-            restored.tracking_limit_detected_at,
-            original.tracking_limit_detected_at
+            restored.tracking.limit_detected_at(),
+            original.tracking.limit_detected_at()
         );
         assert_eq!(restored.grid_dither_index, original.grid_dither_index);
     }
@@ -1205,7 +1207,7 @@ mod tests {
         let manager = CheckpointManager::new(&dir);
 
         let mut state = TriggerState::new();
-        state.has_flipped_this_target = true;
+        state.meridian.mark_performed(None);
         state.current_target_name = Some("NGC7000".into());
         state.completed_exposures = 17;
         state.last_autofocus_frame = 10;

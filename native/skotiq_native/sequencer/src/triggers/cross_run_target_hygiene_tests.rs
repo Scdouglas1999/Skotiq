@@ -9,7 +9,7 @@ fn reset_for_new_run_drops_the_previous_runs_target() {
     state.current_altitude = Some(10.5);
     state.current_hour_angle = Some(11.18);
     state.next_meridian_flip_time = Some(1);
-    state.tracking_limit_detected_at = Some(1);
+    state.tracking.set_limit_detected_at(Some(1));
     state.update_plate_solve(270.1, 60.1, 1.2);
 
     state.reset_for_new_run();
@@ -20,7 +20,7 @@ fn reset_for_new_run_drops_the_previous_runs_target() {
     assert_eq!(state.current_altitude, None);
     assert_eq!(state.current_hour_angle, None);
     assert_eq!(state.next_meridian_flip_time, None);
-    assert_eq!(state.tracking_limit_detected_at, None);
+    assert_eq!(state.tracking.limit_detected_at(), None);
     assert_eq!(state.last_plate_solve_ra, None);
     assert_eq!(state.last_plate_solve_dec, None);
     assert_eq!(state.last_plate_solve_pixel_scale, None);
@@ -262,13 +262,14 @@ async fn on_tracking_limit_hit_is_exempt_from_the_not_tracking_guard() {
     };
 
     let mut state = parked_calibration_run_state();
-    state.mount_tracking_expected = true;
-    state.mount_tracking_lost = true;
+    state.tracking.restore(true, true, None);
     state.mount_is_tracking = Some(false);
     state.mount_status_query_failed = false;
     state.mount_slewing = Some(false);
     state.mount_parked = Some(false);
-    state.tracking_limit_detected_at = Some(chrono::Utc::now().timestamp() - 600);
+    state
+        .tracking
+        .set_limit_detected_at(Some(chrono::Utc::now().timestamp() - 600));
 
     assert!(
         meridian_trigger(config).check(&state).await,
@@ -442,7 +443,9 @@ async fn a_new_run_starts_with_no_trigger_in_cooldown() {
         state.update_temperature(10.0);
         state.current_temperature = Some(13.0);
     }
-    assert_eq!(manager.check_all().await.len(), 1);
+    let mut fired = manager.check_all().await;
+    assert_eq!(fired.len(), 1);
+    assert!(manager.dispatch(fired.remove(0)).is_some());
     assert!(manager
         .get_trigger("temperature_shift")
         .unwrap()

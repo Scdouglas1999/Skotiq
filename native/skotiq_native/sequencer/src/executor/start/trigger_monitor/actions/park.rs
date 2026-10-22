@@ -1,0 +1,134 @@
+//! `ParkAndAbort`: end the run, parking and closing the rig unless the
+//! operator's park setting says to leave it.
+
+use super::*;
+
+/// "Park before dawn" is off: end the run as the dawn rule does and leave the
+/// mount, cover and dome as they are. The node tree is cancelled first so the
+/// exposure in flight is aborted rather than cut off.
+pub(in super::super) async fn end_without_parking(
+    trigger_name: &str,
+    run: &RunControl,
+    park: &mut ParkSignals,
+) -> ActionFlow {
+    park.stop_node_tree(&run.is_cancelled).await;
+    let message = format!(
+        "{trigger_name}: the run has ended. The mount was not parked and the \
+         cover and dome were not closed, because Park before dawn is off. \
+         The mount may still be tracking."
+    );
+    tracing::warn!("{}", message);
+    run.error(message);
+    ActionFlow::Terminate {
+        recorded: RecoveryAction::ParkAndAbort,
+        reason: "Dawn Approaching without parking",
+    }
+}
+
+/// Stop the node tree, stop guiding, then park the mount and close the cover
+/// and dome through the shared safe-state sweep. Every step's failure is
+/// logged as well as sent, since a headless run has no event subscriber.
+pub(in super::super) async fn park_and_abort(
+    rig: &Rig,
+    run: &RunControl,
+    park: &mut ParkSignals,
+) -> ActionFlow {
+    // The exposure instruction aborts its integration on cancellation before
+    // the tree reports quiescence; only then may hardware move.
+    park.parking_begins();
+    park.stop_node_tree(&run.is_cancelled).await;
+
+    // Guiding is device state the node tree does not own.
+    if let Err(error) = rig.device_ops.guider_stop().await {
+        // An unguided rig has nothing to stop; reporting it would bury the
+        // abort's real cause.
+        if crate::device_ops::is_no_guider_configured(&error) {
+            tracing::debug!("ParkAndAbort: no guider to stop ({})", error);
+        } else {
+            let msg = format!(
+                "ParkAndAbort: failed to stop guiding before parking: {}",
+                error
+            );
+            tracing::error!("{}", msg);
+            run.error(msg);
+        }
+    }
+
+    let devices = &rig.context;
+    if devices.mount_id.is_some() {
+        tracing::warn!(
+            "ParkAndAbort: parking mount '{}' (max_retries=1, retry_delay=2s)",
+            devices.mount_id.as_deref().unwrap_or("?")
+        );
+    } else {
+        tracing::warn!("ParkAndAbort: no mount configured, cannot park");
+    }
+    if let Some(cover_id) = &devices.cover_calibrator_id {
+        tracing::warn!("ParkAndAbort: closing cover '{}'", cover_id);
+    }
+    if let Some(dome_id) = &devices.dome_id {
+        tracing::warn!("ParkAndAbort: closing dome shutter '{}'", dome_id);
+    }
+
+    let safe_state = crate::device_ops::park_and_close_safe_state(
+        &rig.device_ops,
+        devices.mount_id.as_deref(),
+        devices.cover_calibrator_id.as_deref(),
+        devices.dome_id.as_deref(),
+        1,
+        2.0,
+    )
+    .await;
+
+    match &safe_state.park {
+        Some(park_outcome) if !park_outcome.success => {
+            let msg = format!(
+                "ParkAndAbort: mount park FAILED after {} attempt{}: {}. \
+                 Mount may be in an unsafe position — manual intervention required.",
+                park_outcome.attempts_made,
+                if park_outcome.attempts_made == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                park_outcome
+                    .last_error
+                    .clone()
+                    .unwrap_or_else(|| "unknown error".to_string()),
+            );
+            tracing::error!("{}", msg);
+            run.error(msg);
+        }
+        None => {
+            let msg = "ParkAndAbort fired but no mount is configured; the rig cannot be parked automatically.".to_string();
+            tracing::error!("{}", msg);
+            run.error(msg);
+        }
+        _ => {}
+    }
+    if let (Some(cover_id), Some(e)) = (&devices.cover_calibrator_id, &safe_state.cover_close_error)
+    {
+        let msg = format!(
+            "ParkAndAbort: failed to close cover '{}': {}. \
+             Optics may be left exposed — manual intervention required.",
+            cover_id, e
+        );
+        tracing::error!("{}", msg);
+        run.error(msg);
+    }
+    if let (Some(dome_id), Some(e)) = (&devices.dome_id, &safe_state.dome_close_error) {
+        let msg = format!(
+            "ParkAndAbort: failed to close dome '{}': {} — \
+             scope may be exposed under an open roof. Manual intervention required.",
+            dome_id, e
+        );
+        tracing::error!("{}", msg);
+        run.error(msg);
+    }
+
+    park.parked();
+    ActionFlow::Terminate {
+        recorded: RecoveryAction::ParkAndAbort,
+        reason: "RecoveryAction::ParkAndAbort",
+    }
+}

@@ -11,24 +11,24 @@ async fn audit_1_9_pier_side_return_clears_flipped_flag() {
 
     // Pre-flip: mount on West side.
     state.update_pier_side(PierSide::West);
-    assert!(!state.has_flipped_this_target);
+    assert!(!state.meridian.has_flipped());
 
     // Flip happens — pier side now reads East. The executor publishes
     // pier-side first, then calls mark_flip_performed (this is the live
     // sequence in `meridian_flip_executor::execute`'s success path).
     state.update_pier_side(PierSide::East);
     state.mark_flip_performed();
-    assert!(state.has_flipped_this_target);
-    assert_eq!(state.flip_origin_pier_side, Some(PierSide::West));
+    assert!(state.meridian.has_flipped());
+    assert_eq!(state.meridian.flip_origin(), Some(PierSide::West));
 
     // Some time later the mount returns to the original (West) side.
     // The return-to-origin invariant clears the flag so the trigger can fire again.
     state.update_pier_side(PierSide::West);
     assert!(
-        !state.has_flipped_this_target,
+        !state.meridian.has_flipped(),
         "has_flipped_this_target must clear when the mount returns to the pre-flip side"
     );
-    assert_eq!(state.flip_origin_pier_side, None);
+    assert_eq!(state.meridian.flip_origin(), None);
 }
 
 /// pier side `Unknown` must NOT clear the flag (it is not
@@ -40,11 +40,11 @@ async fn audit_1_9_unknown_pier_side_does_not_clear_flipped_flag() {
     state.update_pier_side(PierSide::West);
     state.update_pier_side(PierSide::East);
     state.mark_flip_performed();
-    assert!(state.has_flipped_this_target);
+    assert!(state.meridian.has_flipped());
 
     state.update_pier_side(PierSide::Unknown);
     assert!(
-        state.has_flipped_this_target,
+        state.meridian.has_flipped(),
         "Unknown pier side must keep the flag latched until a real reading arrives"
     );
 }
@@ -585,6 +585,7 @@ async fn wave_5_cloud_arriving_respects_cooldown() {
     let mut state = TriggerState::new();
     state.update_cloud_motion(Some(85.0), Some(8.0), None, None, None);
     assert!(trigger.check(&state).await);
+    trigger.start_cooldown();
     // Cooldown should suppress the second fire.
     assert!(!trigger.check(&state).await);
 }
