@@ -169,9 +169,8 @@ class FfiBackend extends _FfiBackendBase
   /// reads — dropping a field here puts NULLs back in `captured_images` with
   /// nothing on either side of it noticing.
   @visibleForTesting
-  (String, Map<String, dynamic>) sequencerEventInfoForTesting(
-    bridge.SequencerEvent event,
-  ) => _extractSequencerEventInfo(event);
+  (String, Map<String, dynamic>) sequencerEventInfoForTesting(dynamic event) =>
+      _extractSequencerEventInfo(event);
 
   /// Family seams matching [sequencerEventInfoForTesting], one per union the
   /// event stream dispatches. The mappers take `dynamic`, so a test can hand
