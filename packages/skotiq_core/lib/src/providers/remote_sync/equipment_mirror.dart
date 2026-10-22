@@ -144,15 +144,8 @@ void _applyEquipmentTelemetry(
       _read(reader, mountStateProvider.notifier).setSlewing(true);
       break;
     case 'MountSlewCompleted':
+      // Carries the commanded target, not a reading; see event_handling.
       _read(reader, mountStateProvider.notifier).setSlewing(false);
-      final ra = (data['ra'] as num?)?.toDouble();
-      final dec = (data['dec'] as num?)?.toDouble();
-      if (ra != null && dec != null) {
-        _read(
-          reader,
-          mountStateProvider.notifier,
-        ).updatePosition(ra, dec, 0.0, 0.0);
-      }
       break;
     case 'MountTrackingStarted':
       _read(reader, mountStateProvider.notifier).setTracking(true);

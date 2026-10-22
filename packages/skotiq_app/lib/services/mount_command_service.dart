@@ -29,8 +29,8 @@ class MountCommandService {
     this._ref, {
     DeviceBackend? backend,
     DeviceService? deviceService,
-  })  : _backend = backend ?? _ref.read(deviceBackendProvider),
-        _deviceService = deviceService ?? _ref.read(deviceServiceProvider);
+  }) : _backend = backend ?? _ref.read(deviceBackendProvider),
+       _deviceService = deviceService ?? _ref.read(deviceServiceProvider);
 
   MountState get _mountState => _ref.read(mountStateProvider);
 
@@ -128,9 +128,7 @@ class MountCommandService {
         return CommandActionResult.ok;
       } catch (e) {
         final operation = unparkRequested ? 'unpark' : 'park';
-        return CommandActionResult.failure(
-          'Failed to $operation mount: $e',
-        );
+        return CommandActionResult.failure('Failed to $operation mount: $e');
       }
     });
   }
@@ -176,8 +174,15 @@ class MountCommandService {
   }
 
   /// Slews the mount to the specified RA/Dec coordinates.
-  Future<CommandActionResult> slewTo(double ra, double dec,
-      {bool showFeedback = true}) async {
+  ///
+  /// Completes when the slew is over, not when the driver accepts it: a
+  /// success means the mount stopped on the target, and a slew that was
+  /// aborted, stopped short or never started is a failure saying which.
+  Future<CommandActionResult> slewTo(
+    double ra,
+    double dec, {
+    bool showFeedback = true,
+  }) async {
     final coordinateError = _equatorialCoordinateError(ra, dec);
     if (coordinateError != null) {
       return CommandActionResult.failure(coordinateError);
@@ -194,11 +199,11 @@ class MountCommandService {
         }
         await _deviceService.slewMountToCoordinates(ra, dec);
         if (showFeedback) {
-          return const CommandActionResult.success(
-            message: 'Slew complete',
-          );
+          return const CommandActionResult.success(message: 'Slew complete');
         }
         return CommandActionResult.ok;
+      } on MountSlewException catch (e) {
+        return CommandActionResult.failure(e.message);
       } catch (e) {
         return CommandActionResult.failure('Slew failed: $e');
       }
@@ -227,9 +232,7 @@ class MountCommandService {
       }
       await _deviceService.abortMountSlew();
       if (showFeedback) {
-        return const CommandActionResult.success(
-          message: 'Mount slew aborted',
-        );
+        return const CommandActionResult.success(message: 'Mount slew aborted');
       }
       return CommandActionResult.ok;
     } catch (e) {
@@ -286,9 +289,7 @@ class MountCommandService {
         await _deviceService.setMountTrackingRate(rate.index);
         return CommandActionResult.ok;
       } catch (e) {
-        return CommandActionResult.failure(
-          'Failed to set tracking rate: $e',
-        );
+        return CommandActionResult.failure('Failed to set tracking rate: $e');
       }
     });
   }
@@ -320,8 +321,11 @@ class MountCommandService {
   }
 
   /// Slews the mount to the specified Alt/Az coordinates.
-  Future<CommandActionResult> slewToAltAz(double altitude, double azimuth,
-      {bool showFeedback = true}) async {
+  Future<CommandActionResult> slewToAltAz(
+    double altitude,
+    double azimuth, {
+    bool showFeedback = true,
+  }) async {
     if (!altitude.isFinite || altitude < -90 || altitude > 90) {
       return const CommandActionResult.failure(
         'Altitude must be between -90 and +90 degrees',
@@ -380,11 +384,11 @@ class MountCommandService {
         final outcome = await _deviceService.findMountHome();
         return switch (outcome) {
           MountHomeOutcome.confirmed => const CommandActionResult.success(
-              message: 'Mount is at home',
-            ),
+            message: 'Mount is at home',
+          ),
           MountHomeOutcome.unconfirmed => const CommandActionResult.success(
-              message: homeUnconfirmedMessage,
-            ),
+            message: homeUnconfirmedMessage,
+          ),
         };
       } on MountHomeException catch (e) {
         return CommandActionResult.failure(e.message);
@@ -464,11 +468,17 @@ class MountCommandService {
       'The mount moved and stopped, but its driver cannot confirm it is at home';
 
   /// Sends a pulse guide command in the specified direction.
-  Future<CommandActionResult> pulseGuide(String direction,
-      {int durationMs = 500}) async {
+  Future<CommandActionResult> pulseGuide(
+    String direction, {
+    int durationMs = 500,
+  }) async {
     final normalizedDirection = direction.toLowerCase();
-    if (!const {'north', 'south', 'east', 'west'}
-        .contains(normalizedDirection)) {
+    if (!const {
+      'north',
+      'south',
+      'east',
+      'west',
+    }.contains(normalizedDirection)) {
       return const CommandActionResult.failure(
         'Pulse direction must be north, south, east, or west',
       );

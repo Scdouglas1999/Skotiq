@@ -367,6 +367,7 @@ export 'src/models/sequencer/recovery_status.dart';
 // Services
 export 'src/services/device_service.dart';
 export 'src/services/mount_home_watcher.dart';
+export 'src/services/mount_slew_watcher.dart';
 export 'src/services/device_exceptions.dart';
 export 'src/utils/device_id.dart' show isValidDeviceIdFormat;
 // Single source of truth for device-identity logic: parsing, canonicalization,

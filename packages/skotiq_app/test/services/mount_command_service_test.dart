@@ -277,8 +277,12 @@ void main() {
     await tester.pump();
     expect(quiesced, isFalse);
 
+    // The swap releases the slew watch rather than waiting out a slew that
+    // can take minutes, and the command says it stopped following the mount.
     slewFinished.complete();
-    expect((await command).isSuccess, isTrue);
+    final result = await command;
+    expect(result.isSuccess, isFalse);
+    expect(result.message, DeviceService.slewWatchReleasedMessage);
     await quiesce;
     expect(quiesced, isTrue);
   });

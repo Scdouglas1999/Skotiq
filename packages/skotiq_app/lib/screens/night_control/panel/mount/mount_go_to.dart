@@ -177,9 +177,13 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
         );
     final noCoordinates =
         coordinates == null ? l10n.text('nightScopeWhyNoCoordinates') : null;
-    final busy = _busy != null
-        ? l10n.text(manualActionKey('nightActBusy', ManualActionId.center))
-        : null;
+    final busy = switch (_busy) {
+      null => null,
+      'center' =>
+        l10n.text(manualActionKey('nightActBusy', ManualActionId.center)),
+      'slew' => l10n.text('nightScopeWhySlewing'),
+      _ => l10n.text('nightScopeWhyCommandRunning'),
+    };
 
     // Slew and Sync: nothing in flight, a run not loaded, an unparked mount.
     String? plainReason(bool Function(MountCapabilities) can) {

@@ -1231,6 +1231,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopePosition': 'Position',
     'nightScopeNotConnected': 'Not connected',
     'nightScopeSlewing': 'Slewing',
+    'nightScopeSlewingRemaining': 'Slewing · {distance} to go',
     'nightScopeParked': 'Parked',
     'nightScopeNotTracking': 'Not tracking',
     'nightScopeTrackingAt': 'Tracking · {rate}',
@@ -1290,6 +1291,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeSync': 'Sync here',
     'nightScopeWhyNoCoordinates': 'Enter an object, or RA and Dec',
     'nightScopeWhySlewing': 'Wait for the mount to stop moving',
+    'nightScopeWhyCommandRunning': 'Another mount command is running',
     'nightScopeWhyMountCannot': 'This mount does not support it',
     'nightScopeWhyRunTargetOnly':
         "During a run, Slew & center only goes to the run's target",
@@ -2818,6 +2820,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopePosition': 'Posición',
     'nightScopeNotConnected': 'Sin conexión',
     'nightScopeSlewing': 'Moviéndose',
+    'nightScopeSlewingRemaining': 'Moviéndose · faltan {distance}',
     'nightScopeParked': 'Aparcada',
     'nightScopeNotTracking': 'Sin seguimiento',
     'nightScopeTrackingAt': 'Siguiendo · {rate}',
@@ -2882,6 +2885,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeSync': 'Sincronizar aquí',
     'nightScopeWhyNoCoordinates': 'Escribe un objeto, o AR y Dec',
     'nightScopeWhySlewing': 'Espera a que la montura se detenga',
+    'nightScopeWhyCommandRunning': 'Hay otra orden de la montura en curso',
     'nightScopeWhyMountCannot': 'Esta montura no lo admite',
     'nightScopeWhyRunTargetOnly':
         'Durante una sesión, Mover y centrar solo va al objetivo de la sesión',

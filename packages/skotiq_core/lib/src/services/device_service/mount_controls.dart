@@ -18,7 +18,12 @@ extension _DeviceServiceMountControls on DeviceService {
     return null;
   }
 
-  /// Slew mount to coordinates
+  /// Slew the mount to J2000 coordinates and wait until it is there.
+  ///
+  /// The backend call returns once the driver has accepted the slew, not when
+  /// the mount arrives, so completion is decided by [MountSlewWatcher] from the
+  /// mount's own status. While it watches, [mountSlewProgressProvider] and the
+  /// slew operation's step say how far the mount still has to go.
   Future<void> _slewMountToCoordinates(double ra, double dec) async {
     final deviceId = await _getMountDeviceId();
     if (deviceId == null || deviceId.isEmpty) {
@@ -27,6 +32,9 @@ extension _DeviceServiceMountControls on DeviceService {
 
     final mountNotifier = _ref.read(mountStateProvider.notifier);
     final operationsNotifier = _ref.read(activeOperationsProvider.notifier);
+    final progressNotifier = _ref.read(mountSlewProgressProvider.notifier);
+    _slewWatchReleasedReason = null;
+    final generation = ++_slewWatchGeneration;
 
     mountNotifier.setSlewing(true);
     final operationId = operationsNotifier.startOperation(
@@ -40,10 +48,49 @@ extension _DeviceServiceMountControls on DeviceService {
 
     try {
       await _backend.mountSlewToCoordinates(deviceId, ra, dec);
-      mountNotifier.updatePosition(ra, dec, 0.0, 0.0);
       mountNotifier.setParked(false);
+      final watcher = _ref.read(mountSlewWatcherFactoryProvider)(
+        readStatus: () => _backend.getMountStatus(deviceId),
+        targetRa: ra,
+        targetDec: dec,
+        isCancelled: () =>
+            _disposed ||
+            generation != _slewWatchGeneration ||
+            _ref.read(mountStateProvider).deviceId != deviceId,
+        onProgress: (progress) {
+          if (_disposed || generation != _slewWatchGeneration) return;
+          progressNotifier.state = progress;
+          operationsNotifier.updateProgress(
+            OperationType.slewToTarget,
+            progress: progress.fraction,
+            currentStep:
+                'Slewing, ${formatSlewDistance(progress.remainingDegrees)} '
+                'to go',
+            operationId: operationId,
+          );
+        },
+      );
+      final MountStatus arrived;
+      try {
+        arrived = await watcher.watch();
+      } on MountSlewException {
+        final released = _slewWatchReleasedReason;
+        if (generation != _slewWatchGeneration && released != null) {
+          throw MountSlewException(released);
+        }
+        rethrow;
+      }
+      mountNotifier.updatePosition(
+        arrived.rightAscension,
+        arrived.declination,
+        arrived.altitude,
+        arrived.azimuth,
+      );
     } finally {
-      mountNotifier.setSlewing(false);
+      if (!_disposed && generation == _slewWatchGeneration) {
+        mountNotifier.setSlewing(false);
+        progressNotifier.state = null;
+      }
       operationsNotifier.completeOperation(
         OperationType.slewToTarget,
         operationId: operationId,
@@ -156,6 +203,11 @@ extension _DeviceServiceMountControls on DeviceService {
     // Ends a home in progress too: the home watcher reads this flag and stops
     // waiting for a mount the operator has just stopped.
     mountNotifier.setHoming(false);
+    // Ends a slew watch the same way: the slew command then reports that it
+    // was stopped instead of waiting for an arrival that will not come.
+    _slewWatchReleasedReason = null;
+    _slewWatchGeneration++;
+    _ref.read(mountSlewProgressProvider.notifier).state = null;
     await _backend.mountAbort(deviceId);
     mountNotifier.setSlewing(false);
   }

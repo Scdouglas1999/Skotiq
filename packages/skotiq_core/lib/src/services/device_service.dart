@@ -34,6 +34,7 @@ import 'device_heartbeat_router.dart';
 import 'device_reconnect_coordinator.dart';
 import 'device_exceptions.dart';
 import 'mount_home_watcher.dart';
+import 'mount_slew_watcher.dart';
 import 'logging_service.dart';
 import 'error_service.dart';
 import 'phd2_launcher.dart';
@@ -185,6 +186,14 @@ class DeviceService {
   /// Tracks the last applied filter focus offset per filter wheel so that
   /// multiple wheels do not clobber each other's delta calculations.
   final Map<String, int> _lastAppliedFilterOffsetByWheel = {};
+
+  /// Bumped by Abort slew and by a backend swap; a slew watch started under an
+  /// older value stops watching.
+  int _slewWatchGeneration = 0;
+
+  /// Why the device service stopped watching a slew it did not abort, or null
+  /// when Abort slew ended it.
+  String? _slewWatchReleasedReason;
 
   /// In-flight guarded operations — backend swap waits for zero.
   int _inFlightOperations = 0;
@@ -340,6 +349,8 @@ class DeviceService {
     }
     _focuserVerifyGeneration++;
     _rotatorVerifyGeneration++;
+    _slewWatchReleasedReason = slewWatchReleasedMessage;
+    _slewWatchGeneration++;
     _filterWheelVerifyGeneration++;
     _lastAppliedFilterOffsetByWheel.clear();
     await quiesce();
@@ -481,6 +492,14 @@ class DeviceService {
   ) => _connectAllFromProfile(profile);
   Future<void> disconnectAll() => _disconnectAll();
 
+  /// Why a slew command fails when the backend is swapped while it waits.
+  static const String slewWatchReleasedMessage =
+      'Stopped following the slew because the connection to the mount '
+      'changed. The mount may still be moving.';
+
+  /// Slew to J2000 [ra] hours / [dec] degrees and complete once the mount
+  /// has arrived (see [MountSlewWatcher]); throws [MountSlewException] when
+  /// it does not get there.
   Future<void> slewMountToCoordinates(double ra, double dec) =>
       _trackInFlight(() => _slewMountToCoordinates(ra, dec));
   Future<void> syncMountToCoordinates(double ra, double dec) =>

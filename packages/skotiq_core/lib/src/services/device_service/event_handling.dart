@@ -155,23 +155,13 @@ extension _DeviceServiceEventHandling on DeviceService {
 
       // Mount Slew Events
       case 'MountSlewStarted':
-        final ra = (data['ra'] as num?)?.toDouble();
-        final dec = (data['dec'] as num?)?.toDouble();
         _ref.read(mountStateProvider.notifier).setSlewing(true);
-        if (ra != null && dec != null) {
-          // Optionally update target position
-        }
         break;
 
+      // Sent once the mount has arrived. It carries the commanded target, not
+      // a reading, so the position stays whatever the mount last reported.
       case 'MountSlewCompleted':
-        final ra = (data['ra'] as num?)?.toDouble();
-        final dec = (data['dec'] as num?)?.toDouble();
         _ref.read(mountStateProvider.notifier).setSlewing(false);
-        if (ra != null && dec != null) {
-          _ref
-              .read(mountStateProvider.notifier)
-              .updatePosition(ra, dec, 0.0, 0.0);
-        }
         // Smart notification - only show if not on imaging/planetarium screens
         _ref
             .read(smartNotificationServiceProvider)

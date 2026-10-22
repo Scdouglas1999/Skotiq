@@ -85,16 +85,16 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next)) return;
-        _operationRevision++;
-        if (mounted && _operationInFlight) {
-          setState(() => _operationInFlight = false);
-        }
-      },
-    );
+    _backendSubscription = ref.listenManual<SkotiqBackend>(backendProvider, (
+      previous,
+      next,
+    ) {
+      if (previous == null || identical(previous, next)) return;
+      _operationRevision++;
+      if (mounted && _operationInFlight) {
+        setState(() => _operationInFlight = false);
+      }
+    });
   }
 
   @override
@@ -117,14 +117,17 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     // Determine if slew+center+rotate option should be shown
     final showRotateOption = hasRotator && widget.targetRotation != null;
 
+    final slew = ref.watch(mountSlewProgressProvider);
     final visibleLabel = _operationInFlight
-        ? 'Working...'
+        ? slew == null
+              ? 'Working...'
+              : 'Slewing · ${formatSlewDistance(slew.remainingDegrees)}'
         : widget.label ??
-            switch (widget.defaultMode) {
-              SlewMode.slew => 'Slew',
-              SlewMode.slewAndCenter => 'Slew & Center',
-              SlewMode.slewCenterRotate => 'Slew, Center & Rotate',
-            };
+              switch (widget.defaultMode) {
+                SlewMode.slew => 'Slew',
+                SlewMode.slewAndCenter => 'Slew & Center',
+                SlewMode.slewCenterRotate => 'Slew, Center & Rotate',
+              };
 
     // The filled half runs the default action; the chevron opens alternatives.
     return Row(
@@ -137,8 +140,9 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
             label: visibleLabel,
             icon: widget.icon ?? LucideIcons.move,
             variant: widget.variant,
-            onPressed:
-                enabled ? () => _handleSlewMode(widget.defaultMode) : null,
+            onPressed: enabled
+                ? () => _handleSlewMode(widget.defaultMode)
+                : null,
           ),
         ),
         const SizedBox(width: 4),
@@ -155,7 +159,8 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
             onSelected: _handleSlewMode,
             offset: const Offset(0, 40),
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg)),
+              borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
+            ),
             color: colors.surface,
             tooltip: 'More slew options',
             itemBuilder: (context) => [
@@ -173,11 +178,16 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
                 value: SlewMode.slewAndCenter,
                 child: Row(
                   children: [
-                    Icon(LucideIcons.target,
-                        size: 16, color: colors.textPrimary),
+                    Icon(
+                      LucideIcons.target,
+                      size: 16,
+                      color: colors.textPrimary,
+                    ),
                     const SizedBox(width: 8),
-                    Text('Slew & Center',
-                        style: TextStyle(color: colors.textPrimary)),
+                    Text(
+                      'Slew & Center',
+                      style: TextStyle(color: colors.textPrimary),
+                    ),
                   ],
                 ),
               ),
@@ -186,11 +196,16 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
                   value: SlewMode.slewCenterRotate,
                   child: Row(
                     children: [
-                      Icon(LucideIcons.rotateCw,
-                          size: 16, color: colors.textPrimary),
+                      Icon(
+                        LucideIcons.rotateCw,
+                        size: 16,
+                        color: colors.textPrimary,
+                      ),
                       const SizedBox(width: 8),
-                      Text('Slew, Center & Rotate',
-                          style: TextStyle(color: colors.textPrimary)),
+                      Text(
+                        'Slew, Center & Rotate',
+                        style: TextStyle(color: colors.textPrimary),
+                      ),
                     ],
                   ),
                 ),
@@ -213,9 +228,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     );
   }
 
-  Future<void> _handleSlewMode(
-    SlewMode mode,
-  ) async {
+  Future<void> _handleSlewMode(SlewMode mode) async {
     if (_operationInFlight) return;
     final revision = ++_operationRevision;
     final backend = ref.read(backendProvider);
@@ -246,10 +259,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     }
   }
 
-  Future<void> _handleSlew(
-    int revision,
-    SkotiqBackend backend,
-  ) async {
+  Future<void> _handleSlew(int revision, SkotiqBackend backend) async {
     final mountService = ref.read(mountCommandServiceProvider);
     final result = await mountService.slewTo(widget.ra, widget.dec);
     if (!mounted ||
@@ -260,10 +270,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     context.showCommandActionResult(result);
   }
 
-  Future<void> _handleSlewAndCenter(
-    int revision,
-    SkotiqBackend backend,
-  ) async {
+  Future<void> _handleSlewAndCenter(int revision, SkotiqBackend backend) async {
     if (!await _preflightCentering(revision, backend)) return;
 
     // First slew to approximate position
@@ -372,7 +379,8 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
               ref.read(rotatorStateProvider).deviceId ==
                   rotatorState.deviceId) {
             context.showSuccessSnackBar(
-                'Rotating to ${widget.targetRotation!.toStringAsFixed(1)}°');
+              'Rotating to ${widget.targetRotation!.toStringAsFixed(1)}°',
+            );
           }
         }
       } catch (e) {
@@ -410,14 +418,15 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
 
     // Same alt/az model the scheduler uses to decide what is worth imaging, so
     // the slew gate and the planner never disagree about where a target is.
-    final (altitudeDeg, azimuthDeg) =
-        ref.read(schedulerServiceProvider).calculateAltAz(
-              raHours: widget.ra,
-              decDegrees: widget.dec,
-              time: DateTime.now().toUtc(),
-              latitudeDegrees: site.latitude,
-              longitudeDegrees: site.longitude,
-            );
+    final (altitudeDeg, azimuthDeg) = ref
+        .read(schedulerServiceProvider)
+        .calculateAltAz(
+          raHours: widget.ra,
+          decDegrees: widget.dec,
+          time: DateTime.now().toUtc(),
+          latitudeDegrees: site.latitude,
+          longitudeDegrees: site.longitude,
+        );
 
     // Settings → Location → effective horizon. 0° (the mathematical horizon)
     // is the default and the floor: a site cannot opt out of the ground.
@@ -432,7 +441,8 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
       return ConfirmDialog.show(
         context: context,
         title: 'Target is below the horizon',
-        message: '$target is ${(-altitudeDeg).toStringAsFixed(1)}° below the '
+        message:
+            '$target is ${(-altitudeDeg).toStringAsFixed(1)}° below the '
             'horizon right now ($where) — it is under the ground. Slewing '
             'there can drive the telescope into the pier, a tripod leg or the '
             'ground. Check the coordinates, and check your site in '
@@ -445,7 +455,8 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     return ConfirmDialog.show(
       context: context,
       title: 'Target is below your horizon limit',
-      message: '$target is only ${altitudeDeg.toStringAsFixed(1)}° above the '
+      message:
+          '$target is only ${altitudeDeg.toStringAsFixed(1)}° above the '
           'horizon ($where), under the ${floorDeg.toStringAsFixed(0)}° '
           'effective horizon set in Settings → Location. It may be behind '
           'trees or a roof, and it will be looking through a lot of air.',
@@ -453,10 +464,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     );
   }
 
-  Future<bool> _preflightCentering(
-    int revision,
-    SkotiqBackend backend,
-  ) async {
+  Future<bool> _preflightCentering(int revision, SkotiqBackend backend) async {
     final camera = ref.read(cameraStateProvider);
     if (camera.connectionState != DeviceConnectionState.connected) {
       if (mounted && _isCurrentOperation(revision, backend)) {
@@ -470,8 +478,9 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     final centering = ref.read(centeringServiceProvider);
     if (centering.isRunning) {
       if (mounted && _isCurrentOperation(revision, backend)) {
-        context
-            .showWarningSnackBar('A centering operation is already running.');
+        context.showWarningSnackBar(
+          'A centering operation is already running.',
+        );
       }
       return false;
     }
@@ -544,13 +553,13 @@ class _CenteringDialogWithResultState
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        closeAuthorityBoundDialog(context);
-      },
-    );
+    _backendSubscription = ref.listenManual<SkotiqBackend>(backendProvider, (
+      previous,
+      next,
+    ) {
+      if (previous == null || identical(previous, next) || !mounted) return;
+      closeAuthorityBoundDialog(context);
+    });
     // Auto-start centering
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startCentering();
@@ -708,19 +717,13 @@ class _CenteringDialogWithResultState
                 const SizedBox(height: 8),
                 Text(
                   'Iteration ${centeringStatus.currentIteration}/${centeringStatus.maxIterations}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colors.textMuted,
-                  ),
+                  style: TextStyle(fontSize: 12, color: colors.textMuted),
                 ),
                 if (centeringStatus.currentOffsetArcmin != null) ...[
                   const SizedBox(height: 8),
                   Text(
                     'Offset: ${centeringStatus.currentOffsetArcmin!.toStringAsFixed(2)} arcmin',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colors.textSecondary,
-                    ),
+                    style: TextStyle(fontSize: 12, color: colors.textSecondary),
                   ),
                 ],
               ],
