@@ -129,7 +129,7 @@ impl Default for Reject {
 impl Reject {
     /// Maximum iterations for the iterated rejectors. Kept small because all of
     /// them converge fast (each iteration only removes the extreme tails).
-    const MAX_ITERATIONS: usize = 8;
+    pub(crate) const MAX_ITERATIONS: usize = 8;
 }
 
 /// Tunables for [`integrate_frames`]. [`Default`] is a quality-first archival

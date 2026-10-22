@@ -10,7 +10,7 @@
 //! `docs/FRB_TROUBLESHOOTING.md`). Every knob added later — new rejection
 //! algorithm, new resampler, drizzle params — then rides inside the JSON payload
 //! and never triggers another regen. This is the same trick the live stacker
-//! uses for node config (per project memory). The boundary is exactly five
+//! uses for node config (per project memory). The boundary is exactly six
 //! `String -> Result<String, String>` functions:
 //!
 //! * [`api_integrate_session`] — one-shot batch integration → linear FITS master.
@@ -18,6 +18,8 @@
 //!   finalize / info).
 //! * [`api_build_master_flat`] — build a unit-mean master flat from raw flats.
 //! * [`api_save_fits_master`] — re-export an in-memory buffer as a FITS master.
+//! * [`api_build_calibration_master`] — build a dark or bias master from raw
+//!   frames on disk, a band of rows at a time.
 //! * [`api_post_session_cancel`] — set / read / clear a run's cancellation flag.
 //!
 //! The pipeline is **stateless per call** (no process-wide singleton): the
@@ -62,6 +64,8 @@ use crate::event::{EventSeverity, ImagingEvent};
 
 mod args;
 pub(crate) use args::*;
+mod calibration_master;
+pub(crate) use calibration_master::*;
 mod calibration_report;
 pub(crate) use calibration_report::*;
 mod cancel;
