@@ -13,6 +13,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'desktop_app_bootstrap.dart';
 import 'desktop_last_gasp.dart';
+import 'desktop_shutdown_safing.dart';
 import 'desktop_logging_init.dart';
 import 'frame_timing_probe.dart';
 import 'main_headless.dart' as headless;
@@ -245,20 +246,14 @@ void main(List<String> args) async {
   final lastGasp = DesktopLastGasp(
     recordFile: resolveDesktopSessionRecordFile(bootPaths.dataDirectory),
     safeRig: () async {
-      await container
-          .read(safeRigServiceProvider)
-          .safeTheRig(
-            reason: 'Skotiq is shutting down',
-            park: true,
-            // Quitting is not a reason to move an idle mount: it parks only
-            // when a run was in progress.
-            idleMount: IdleMountPolicy.leave,
-            closeDome: true,
-            closeCover: true,
-            abortExposure: true,
-            disableCooling: true,
-            notify: false,
-          );
+      final safed = await safeRigForDesktopShutdown(container);
+      if (!safed) {
+        logger.info(
+          'Linked or disconnected: this app owns no rig, so nothing is safed '
+          'on the way out',
+          source: 'desktop.shutdown',
+        );
+      }
     },
     exitProcess: exit,
     // The GUI drains the same dawn queue the daemon does (see
