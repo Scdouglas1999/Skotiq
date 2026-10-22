@@ -824,4 +824,33 @@ void main() {
     // The host's own action is unchanged by the report.
     expect(host.container.read(localManualActionProvider), 'autofocus');
   });
+
+  test('an update missing a field is dropped, not shown with a made-up '
+      'number', () {
+    final backend = _clientBackend();
+    final client = _client(backend);
+    addTearDown(client.dispose);
+    final own = _solve();
+    client.read(plateSolveStateProvider.notifier).state = PlateSolveState(
+      lastResult: own,
+    );
+
+    applyHostRuntimeUpdate(
+      client,
+      const HostRuntimeUpdate(
+        channel: 'plateSolve',
+        revision: 9,
+        value: {
+          'isSolving': false,
+          'result': {'success': true, 'dec': 41.2},
+        },
+      ),
+      networkBackend: backend,
+    );
+
+    expect(
+      identical(client.read(plateSolveStateProvider).lastResult, own),
+      isTrue,
+    );
+  });
 }

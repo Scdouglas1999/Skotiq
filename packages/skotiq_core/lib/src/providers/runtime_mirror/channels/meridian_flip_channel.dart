@@ -57,13 +57,17 @@ class MeridianFlipChannel extends RuntimeMirrorChannel<MeridianFlipRunState> {
           (s) => s.name == value['state'],
           orElse: () => FlipExecutionState.idle,
         );
-    context.read(flipCurrentAttemptProvider.notifier).state =
-        jsonInt(value['attempt']) ?? 0;
+    context.read(flipCurrentAttemptProvider.notifier).state = requireInt(
+      value,
+      'attempt',
+    );
     context.read(flipCurrentStepProvider.notifier).state = FlipStep.values
         .where((s) => s.name == value['step'])
         .firstOrNull;
-    context.read(flipProgressProvider.notifier).state =
-        jsonInt(value['progress']) ?? 0;
+    context.read(flipProgressProvider.notifier).state = requireInt(
+      value,
+      'progress',
+    );
     context.read(flipLastErrorProvider.notifier).state = jsonString(
       value['error'],
     );

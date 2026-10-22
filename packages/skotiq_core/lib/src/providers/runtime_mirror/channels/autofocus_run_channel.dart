@@ -64,9 +64,13 @@ class AutofocusRunChannel extends RuntimeMirrorChannel<AutofocusOverlayState> {
           overlay.onAutofocusFailed('Autofocus finished without a result');
         }
       case 'failed':
-        final status = jsonString(value['status']) ?? '';
+        final status = jsonString(value['status']);
         overlay.onAutofocusFailed(
-          status.startsWith('Failed: ') ? status.substring(8) : status,
+          status == null
+              ? 'Autofocus failed'
+              : status.startsWith('Failed: ')
+              ? status.substring(8)
+              : status,
         );
       case 'cancelled':
         overlay.onAutofocusCancelled();

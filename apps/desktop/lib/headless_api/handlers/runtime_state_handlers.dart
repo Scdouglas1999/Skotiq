@@ -47,11 +47,9 @@ class RuntimeStateHandlers {
   /// telemetry. A client seeds its event log with them so it opens on the
   /// same log the host shows.
   Future<Response> handleRecentEvents(Request request) async {
-    final limit =
-        (int.tryParse(request.url.queryParameters['limit'] ?? '') ?? 100).clamp(
-          1,
-          200,
-        );
+    final requested = request.url.queryParameters['limit'];
+    final parsed = requested == null ? null : int.tryParse(requested);
+    final limit = (parsed ?? 100).clamp(1, 200);
     final kept = [
       for (final event in _retained())
         if (!isHostSyncEnvelope(event) &&

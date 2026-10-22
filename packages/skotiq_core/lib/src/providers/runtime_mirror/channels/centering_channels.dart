@@ -42,8 +42,8 @@ class CenteringStatusChannel extends RuntimeMirrorChannel<CenteringStatus> {
               (s) => s.name == value['state'],
               orElse: () => CenteringState.idle,
             ),
-            currentIteration: jsonInt(value['currentIteration']) ?? 0,
-            maxIterations: jsonInt(value['maxIterations']) ?? 0,
+            currentIteration: requireInt(value, 'currentIteration'),
+            maxIterations: requireInt(value, 'maxIterations'),
             currentOffsetArcsec: jsonDouble(value['offsetArcsec']),
             currentOffsetArcmin: jsonDouble(value['offsetArcmin']),
             message: jsonString(value['message']),
@@ -88,7 +88,7 @@ class CenteringResultChannel extends RuntimeMirrorChannel<CenteringResult?> {
         : CenteringResult(
             success: value['success'] == true,
             finalOffsetArcsec: jsonDouble(value['finalOffsetArcsec']),
-            iterations: jsonInt(value['iterations']) ?? 0,
+            iterations: requireInt(value, 'iterations'),
             errorMessage: jsonString(value['error']),
             iterationHistory: _decodeIterations(value['history']),
           );
@@ -112,7 +112,7 @@ List<CenteringIteration> _decodeIterations(Object? raw) => [
   if (raw is List)
     for (final item in raw.whereType<Map>())
       CenteringIteration(
-        iterationNumber: jsonInt(item['n']) ?? 0,
+        iterationNumber: requireInt(item, 'n'),
         solvedRa: jsonDouble(item['solvedRa']),
         solvedDec: jsonDouble(item['solvedDec']),
         targetRa: jsonDouble(item['targetRa']),
@@ -121,6 +121,9 @@ List<CenteringIteration> _decodeIterations(Object? raw) => [
         offsetArcmin: jsonDouble(item['offsetArcmin']),
         plateSolveSuccess: item['solved'] == true,
         errorMessage: jsonString(item['error']),
-        timestamp: jsonInstant(item['at']) ?? DateTime.now().toUtc(),
+        timestamp: DateTime.fromMillisecondsSinceEpoch(
+          requireInt(item, 'at'),
+          isUtc: true,
+        ),
       ),
 ];

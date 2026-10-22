@@ -66,8 +66,13 @@ Future<void> hydrateRemoteSessionState(
   // events; this fills a client that connected or reconnected after them.
   try {
     await hydrateHostRuntimeState(reader, backend);
-  } catch (_) {
+  } catch (e) {
     // An unreachable endpoint leaves the values the events already applied.
+    developer.log(
+      'Runtime state hydration failed: $e',
+      name: 'RemoteSessionSync',
+      level: 900,
+    );
   }
   if (!_isCurrentRemoteBackend(reader, backend)) return;
 
@@ -375,7 +380,12 @@ Future<void> seedEventLogFromHost(Object reader, NetworkBackend backend) async {
       for (final event in events.reversed) ?tryBridgeEventFromCoreEvent(event),
     ];
     _read(reader, eventHistoryProvider.notifier).seedEarlier(typed);
-  } catch (_) {
+  } catch (e) {
     // The log then starts with the first live event, as before.
+    developer.log(
+      'Event log seeding failed: $e',
+      name: 'RemoteSessionSync',
+      level: 900,
+    );
   }
 }

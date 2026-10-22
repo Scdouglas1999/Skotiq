@@ -23,7 +23,7 @@ class AutofocusResultChannel extends RuntimeMirrorChannel<AutofocusResult?> {
     if (value == null) return null;
     return {
       'bestPosition': value.bestPosition,
-      'bestHfr': finiteOrNull(value.bestHfr) ?? 0.0,
+      'bestHfr': finiteOrNull(value.bestHfr),
       'focusData': [
         for (final p in value.focusData)
           if (finiteOrNull(p.hfr) != null)
@@ -37,7 +37,7 @@ class AutofocusResultChannel extends RuntimeMirrorChannel<AutofocusResult?> {
       'method': value.method,
       'temperature': finiteOrNull(value.temperature),
       'timestamp': value.timestamp,
-      'curveFitQuality': finiteOrNull(value.curveFitQuality) ?? 0.0,
+      'curveFitQuality': finiteOrNull(value.curveFitQuality),
       'backlashApplied': value.backlashApplied,
     };
   }

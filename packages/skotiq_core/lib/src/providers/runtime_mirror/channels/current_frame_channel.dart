@@ -70,6 +70,8 @@ class CurrentFrameChannel extends RuntimeMirrorChannel<CapturedImageData?> {
     final width = jsonInt(value['width']);
     final height = jsonInt(value['height']);
     final exposure = jsonDouble(value['exposure']);
+    final gain = jsonInt(value['gain']);
+    final offset = jsonInt(value['offset']);
     requestHostCurrentFrame(
       context.reader,
       backend,
@@ -80,12 +82,12 @@ class CurrentFrameChannel extends RuntimeMirrorChannel<CapturedImageData?> {
               height: height,
               filePath: jsonString(value['filePath']),
               targetName: jsonString(value['targetName']),
-              settings: exposure == null
+              settings: exposure == null || gain == null || offset == null
                   ? null
                   : ExposureSettings(
                       exposureTime: exposure,
-                      gain: jsonInt(value['gain']) ?? 0,
-                      offset: jsonInt(value['offset']) ?? 0,
+                      gain: gain,
+                      offset: offset,
                       binningX: jsonInt(value['binX']) ?? 1,
                       binningY: jsonInt(value['binY']) ?? 1,
                       filter: jsonString(value['filter']),

@@ -60,30 +60,36 @@ class PlateSolveChannel extends RuntimeMirrorChannel<PlateSolveState> {
   }
 }
 
-List<double> _coeffs(Float64List values) => [
-  for (final v in values) finiteOrNull(v) ?? 0.0,
+List<double?> _coeffs(Float64List values) => [
+  for (final v in values) finiteOrNull(v),
 ];
 
-Float64List _decodeCoeffs(Object? raw) => Float64List.fromList([
-  if (raw is List)
-    for (final v in raw) v is num ? v.toDouble() : 0.0,
-]);
+Float64List _decodeCoeffs(Object? raw) {
+  if (raw is! List) throw const FormatException('Solve has no coefficients');
+  return Float64List.fromList([
+    for (final v in raw)
+      if (v is num)
+        v.toDouble()
+      else
+        throw const FormatException('Solve coefficient is not a number'),
+  ]);
+}
 
 Map<String, dynamic> encodePlateSolveResult(PlateSolveResult r) => {
   'success': r.success,
-  'ra': finiteOrNull(r.ra) ?? 0.0,
-  'dec': finiteOrNull(r.dec) ?? 0.0,
-  'pixelScale': finiteOrNull(r.pixelScale) ?? 0.0,
-  'rotation': finiteOrNull(r.rotation) ?? 0.0,
-  'fieldWidth': finiteOrNull(r.fieldWidth) ?? 0.0,
-  'fieldHeight': finiteOrNull(r.fieldHeight) ?? 0.0,
-  'solveTimeSecs': finiteOrNull(r.solveTimeSecs) ?? 0.0,
+  'ra': finiteOrNull(r.ra),
+  'dec': finiteOrNull(r.dec),
+  'pixelScale': finiteOrNull(r.pixelScale),
+  'rotation': finiteOrNull(r.rotation),
+  'fieldWidth': finiteOrNull(r.fieldWidth),
+  'fieldHeight': finiteOrNull(r.fieldHeight),
+  'solveTimeSecs': finiteOrNull(r.solveTimeSecs),
   if (r.error != null) 'error': r.error,
   'cd': [
-    finiteOrNull(r.cd11) ?? 0.0,
-    finiteOrNull(r.cd12) ?? 0.0,
-    finiteOrNull(r.cd21) ?? 0.0,
-    finiteOrNull(r.cd22) ?? 0.0,
+    finiteOrNull(r.cd11),
+    finiteOrNull(r.cd12),
+    finiteOrNull(r.cd21),
+    finiteOrNull(r.cd22),
   ],
   'sipAOrder': r.sipAOrder,
   'sipBOrder': r.sipBOrder,
@@ -102,22 +108,22 @@ PlateSolveResult decodePlateSolveResult(Map<String, dynamic> json) {
       : 0;
   return PlateSolveResult(
     success: json['success'] == true,
-    ra: jsonDouble(json['ra']) ?? 0,
-    dec: jsonDouble(json['dec']) ?? 0,
-    pixelScale: jsonDouble(json['pixelScale']) ?? 0,
-    rotation: jsonDouble(json['rotation']) ?? 0,
-    fieldWidth: jsonDouble(json['fieldWidth']) ?? 0,
-    fieldHeight: jsonDouble(json['fieldHeight']) ?? 0,
-    solveTimeSecs: jsonDouble(json['solveTimeSecs']) ?? 0,
+    ra: requireDouble(json, 'ra'),
+    dec: requireDouble(json, 'dec'),
+    pixelScale: requireDouble(json, 'pixelScale'),
+    rotation: requireDouble(json, 'rotation'),
+    fieldWidth: requireDouble(json, 'fieldWidth'),
+    fieldHeight: requireDouble(json, 'fieldHeight'),
+    solveTimeSecs: requireDouble(json, 'solveTimeSecs'),
     error: jsonString(json['error']),
     cd11: cdAt(0),
     cd12: cdAt(1),
     cd21: cdAt(2),
     cd22: cdAt(3),
-    sipAOrder: jsonInt(json['sipAOrder']) ?? 0,
-    sipBOrder: jsonInt(json['sipBOrder']) ?? 0,
-    sipApOrder: jsonInt(json['sipApOrder']) ?? 0,
-    sipBpOrder: jsonInt(json['sipBpOrder']) ?? 0,
+    sipAOrder: requireInt(json, 'sipAOrder'),
+    sipBOrder: requireInt(json, 'sipBOrder'),
+    sipApOrder: requireInt(json, 'sipApOrder'),
+    sipBpOrder: requireInt(json, 'sipBpOrder'),
     sipACoeffs: _decodeCoeffs(json['sipA']),
     sipBCoeffs: _decodeCoeffs(json['sipB']),
     sipApCoeffs: _decodeCoeffs(json['sipAp']),

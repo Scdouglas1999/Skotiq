@@ -187,6 +187,13 @@ bool applyClientRuntimeReport(
   store._reportOrigins[channel] = origin;
   try {
     target.apply(RuntimeApplyContext(container), value);
+  } on FormatException catch (e) {
+    container
+        .read(loggingServiceProvider)
+        .warning(
+          'Runtime report $channel from $origin dropped: ${e.message}',
+          source: _logSource,
+        );
   } finally {
     store._reportOrigins.remove(channel);
   }

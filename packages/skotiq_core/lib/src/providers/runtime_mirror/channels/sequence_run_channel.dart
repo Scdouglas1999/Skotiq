@@ -57,10 +57,9 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
         'currentNodeStatus': p.currentNodeStatus?.name,
         'totalExposures': p.totalExposures,
         'completedExposures': p.completedExposures,
-        'totalIntegrationSecs': finiteOrNull(p.totalIntegrationSecs) ?? 0.0,
-        'completedIntegrationSecs':
-            finiteOrNull(p.completedIntegrationSecs) ?? 0.0,
-        'elapsedSecs': finiteOrNull(p.elapsedSecs) ?? 0.0,
+        'totalIntegrationSecs': finiteOrNull(p.totalIntegrationSecs),
+        'completedIntegrationSecs': finiteOrNull(p.completedIntegrationSecs),
+        'elapsedSecs': finiteOrNull(p.elapsedSecs),
         'estimatedRemainingSecs': finiteOrNull(p.estimatedRemainingSecs),
         'currentTarget': p.currentTarget,
         'currentFilter': p.currentFilter,
@@ -92,7 +91,7 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
         'completedExposures': s.completedExposures,
         'failedExposures': s.failedExposures,
         'rejectedExposures': s.rejectedExposures,
-        'totalIntegrationSecs': finiteOrNull(s.totalIntegrationSecs) ?? 0.0,
+        'totalIntegrationSecs': finiteOrNull(s.totalIntegrationSecs),
         'currentFilter': s.currentFilter,
         'isGuiding': s.isGuiding,
         'isCapturing': s.isCapturing,
@@ -133,13 +132,17 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
               currentNodeId: jsonString(progress['currentNodeId']),
               currentNodeName: jsonString(progress['currentNodeName']),
               currentNodeStatus: status(progress['currentNodeStatus']),
-              totalExposures: jsonInt(progress['totalExposures']) ?? 0,
-              completedExposures: jsonInt(progress['completedExposures']) ?? 0,
-              totalIntegrationSecs:
-                  jsonDouble(progress['totalIntegrationSecs']) ?? 0,
-              completedIntegrationSecs:
-                  jsonDouble(progress['completedIntegrationSecs']) ?? 0,
-              elapsedSecs: jsonDouble(progress['elapsedSecs']) ?? 0,
+              totalExposures: requireInt(progress, 'totalExposures'),
+              completedExposures: requireInt(progress, 'completedExposures'),
+              totalIntegrationSecs: requireDouble(
+                progress,
+                'totalIntegrationSecs',
+              ),
+              completedIntegrationSecs: requireDouble(
+                progress,
+                'completedIntegrationSecs',
+              ),
+              elapsedSecs: requireDouble(progress, 'elapsedSecs'),
               estimatedRemainingSecs: jsonDouble(
                 progress['estimatedRemainingSecs'],
               ),
@@ -171,8 +174,8 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
               e.value is List &&
               (e.value as List).length == 2)
             e.key as String: NodeExposureTally(
-              captured: jsonInt((e.value as List)[0]) ?? 0,
-              planned: jsonInt((e.value as List)[1]) ?? 0,
+              captured: _countAt(e.value as List, 0),
+              planned: _countAt(e.value as List, 1),
             ),
       });
     }
@@ -188,12 +191,14 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
               targetName: jsonString(session['targetName']),
               targetRa: jsonDouble(session['targetRa']),
               targetDec: jsonDouble(session['targetDec']),
-              totalExposures: jsonInt(session['totalExposures']) ?? 0,
-              completedExposures: jsonInt(session['completedExposures']) ?? 0,
-              failedExposures: jsonInt(session['failedExposures']) ?? 0,
-              rejectedExposures: jsonInt(session['rejectedExposures']) ?? 0,
-              totalIntegrationSecs:
-                  jsonDouble(session['totalIntegrationSecs']) ?? 0,
+              totalExposures: requireInt(session, 'totalExposures'),
+              completedExposures: requireInt(session, 'completedExposures'),
+              failedExposures: requireInt(session, 'failedExposures'),
+              rejectedExposures: requireInt(session, 'rejectedExposures'),
+              totalIntegrationSecs: requireDouble(
+                session,
+                'totalIntegrationSecs',
+              ),
               currentFilter: jsonString(session['currentFilter']),
               isGuiding: session['isGuiding'] == true,
               isCapturing: session['isCapturing'] == true,
@@ -207,4 +212,10 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
           );
     }
   }
+}
+
+int _countAt(List<dynamic> pair, int index) {
+  final value = pair[index];
+  if (value is num) return value.toInt();
+  throw const FormatException('Tally count is not a number');
 }

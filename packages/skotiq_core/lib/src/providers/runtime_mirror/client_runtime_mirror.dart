@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -77,6 +78,12 @@ void applyHostRuntimeUpdate(
       RuntimeApplyContext(reader, networkBackend: networkBackend),
       update.value,
     );
+  } on FormatException catch (e) {
+    developer.log(
+      'Runtime update ${update.channel} dropped: ${e.message}',
+      name: _logSource,
+      level: 900,
+    );
   } finally {
     state._applying.remove(update.channel);
   }
@@ -124,7 +131,12 @@ final clientRuntimeReporterProvider = Provider<void>((ref) {
     final Map<String, dynamic>? value;
     try {
       value = channel.encodeCurrent(ref);
-    } catch (_) {
+    } on Object catch (e) {
+      developer.log(
+        'Runtime report ${channel.key} not encoded: $e',
+        name: _logSource,
+        level: 900,
+      );
       return;
     }
     // A provider can notify without changing what the host would be told.
