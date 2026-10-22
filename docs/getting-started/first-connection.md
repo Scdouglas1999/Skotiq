@@ -302,4 +302,4 @@ If you're having trouble connecting devices:
 - Check [Firewall Troubleshooting](../troubleshooting/firewall.md) for network
   devices or remote access
 - Review your device's ASCOM/INDI driver documentation
-- Report issues on [GitHub](https://github.com/Scdouglas1999/Nightshade/issues) with specific error messages
+- Report issues on [GitHub](https://github.com/Scdouglas1999/Skotiq/issues) with specific error messages

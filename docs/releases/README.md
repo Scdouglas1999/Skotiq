@@ -1,15 +1,17 @@
-# Skotiq releases
+# Releases
 
-Operator-facing release overviews live in this folder. They are longer and more
-detailed than the published release body.
+## Current release
 
-- **Current:** [Skotiq 7.1.0](../release/v7.1.0.md) — the last published
-  release (tag `v7.1.0`, published 2026-09-19 under the old Nightshade name).
-- **Forthcoming draft:** [next release notes](../release/v8.0.0-draft.md) —
-  the rename release, drafted against `feature/night-control` @ `c832f5001`.
-  Version number is a proposal, not a decision.
-- **Previous overviews:** [Skotiq 6.0.0](./v6.0.0-README.md) — Make It Real /
-  Collaborative Sky; [Skotiq 5.0.0](./v5.0.0-release-notes.md) — Living Sky.
+**[Skotiq 8.0.0](../release/v8.0.0.md)** — the Skotiq rebrand, redesigned night control, remote workflows, calibration automation and core architecture improvements.
 
-For the chronological change log, see [`docs/CHANGELOG.md`](../CHANGELOG.md).
-The public landing page is the [repository README](../../README.md).
+[Download](https://github.com/Scdouglas1999/Skotiq/releases/tag/v8.0.0) · [Changelog](../CHANGELOG.md) · [Upgrade guide](../release/rebrand-skotiq.md) · [Compatibility](../known-limitations.md)
+
+## Earlier releases
+
+- [7.1.0](../release/v7.1.0.md)
+- [7.0.0](../release/v7.0.0.md)
+- [6.2.0](../release/v6.2.0.md)
+- [6.1.0](../release/v6.1.0.md)
+- [6.0.0](../release/v6.0.0.md)
+
+All published packages and earlier notes are available on [GitHub Releases](https://github.com/Scdouglas1999/Skotiq/releases).

@@ -177,8 +177,13 @@ impl DepthLockService {
     /// Offer a freshly saved light to every applicable goal. Never blocks:
     /// a full queue sheds this frame with an explanation.
     pub fn notify_frame_saved(&self, path: &str) {
-        if self.store.list().map(|g| g.is_empty()).unwrap_or(true) {
-            return;
+        match self.store.list() {
+            Ok(goals) if goals.is_empty() => return,
+            Ok(_) => {}
+            Err(error) => {
+                tracing::warn!("DepthLock could not list goals for {path}: {error}");
+                return;
+            }
         }
         self.enqueue(
             Job::Frame {

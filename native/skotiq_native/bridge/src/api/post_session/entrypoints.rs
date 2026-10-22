@@ -41,6 +41,13 @@ pub fn api_integrate_session(args_json: String) -> Result<String, String> {
 /// * `add`      `{ op, sidecarPath, lightPaths[], exposuresSec?, calibration?, settings? }`
 /// * `finalize` `{ op, sidecarPath, masterFitsPath, previewPngPath? }`
 /// * `info`     `{ op, sidecarPath }`
+/// * `build`    `{ op, gridReference, normalizationReference?, groups[], filter?, target?,
+///   settings?, clip?, masterFitsPath, previewPngPath?, runId? }` — one filter's master from
+///   every group (night) of subs in one call, folding a sub at a time; a sub that will not
+///   register is skipped and reported ([`MasterBuildResult`]).
+/// * `deliver`  `{ op, masters[], referenceFilter?, outputDir, target }` — register a target's
+///   per-filter masters onto one grid and write linear mono masters plus a planar RGB FITS
+///   for PixInsight ([`MasterDeliverResult`]).
 ///
 /// Returns a [`MasterAccumulateResult`]. The running accumulator state lives in
 /// the `.skmaster` sidecar; the FITS is the shareable artifact written on
@@ -52,18 +59,20 @@ pub fn api_integrate_session(args_json: String) -> Result<String, String> {
 pub fn api_master_accumulate(args_json: String) -> Result<String, String> {
     let op: MasterOp =
         serde_json::from_str(&args_json).map_err(|e| format!("invalid accumulate args: {e}"))?;
-    let result = match op.op.as_str() {
-        "create" => master_create(&args_json)?,
-        "add" => master_add(&args_json)?,
-        "finalize" => master_finalize(&args_json)?,
-        "info" => master_info(&args_json)?,
+    let encoded = match op.op.as_str() {
+        "create" => serde_json::to_string(&master_create(&args_json)?),
+        "add" => serde_json::to_string(&master_add(&args_json)?),
+        "finalize" => serde_json::to_string(&master_finalize(&args_json)?),
+        "info" => serde_json::to_string(&master_info(&args_json)?),
+        "build" => serde_json::to_string(&master_build(&args_json)?),
+        "deliver" => serde_json::to_string(&master_deliver(&args_json)?),
         other => {
             return Err(format!(
-                "unknown master op '{other}'; expected create/add/finalize/info"
+                "unknown master op '{other}'; expected create/add/finalize/info/build/deliver"
             ))
         }
     };
-    serde_json::to_string(&result).map_err(|e| format!("failed to encode result: {e}"))
+    encoded.map_err(|e| format!("failed to encode result: {e}"))
 }
 
 /// Build a unit-mean master flat from raw flats (+ optional bias / dark-flat

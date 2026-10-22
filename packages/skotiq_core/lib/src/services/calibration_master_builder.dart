@@ -102,9 +102,9 @@ class CalibrationMasterBuildResult {
     return CalibrationMasterBuildResult(
       outputPath: json['outputPath'] as String,
       kind: json['kind'] as String,
-      width: i('width') ?? 0,
-      height: i('height') ?? 0,
-      frameCount: i('frameCount') ?? 0,
+      width: (json['width'] as num).toInt(),
+      height: (json['height'] as num).toInt(),
+      frameCount: (json['frameCount'] as num).toInt(),
       leakingFrames: [
         for (final p in (json['leakingFrames'] as List? ?? const [])) '$p',
       ],
@@ -112,10 +112,10 @@ class CalibrationMasterBuildResult {
         for (final l in (json['frameLevels'] as List? ?? const []))
           CalibrationFrameLevel.fromJson(Map<String, dynamic>.from(l as Map)),
       ],
-      leakBaseline: d('leakBaseline') ?? 0,
-      leakThreshold: d('leakThreshold') ?? 0,
-      masterMean: d('masterMean') ?? 0,
-      rejectionFraction: d('rejectionFraction') ?? 0,
+      leakBaseline: (json['leakBaseline'] as num).toDouble(),
+      leakThreshold: (json['leakThreshold'] as num).toDouble(),
+      masterMean: (json['masterMean'] as num).toDouble(),
+      rejectionFraction: (json['rejectionFraction'] as num).toDouble(),
       exposureSecs: d('exposureSecs'),
       gain: i('gain'),
       offset: i('offset'),

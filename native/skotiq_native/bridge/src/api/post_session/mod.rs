@@ -15,11 +15,10 @@
 //!
 //! * [`api_integrate_session`] — one-shot batch integration → linear FITS master.
 //! * [`api_master_accumulate`] — multi-night accumulating master (create / add /
-//!   finalize / info).
+//!   finalize / info / build / deliver).
 //! * [`api_build_master_flat`] — build a unit-mean master flat from raw flats.
 //! * [`api_save_fits_master`] — re-export an in-memory buffer as a FITS master.
-//! * [`api_build_calibration_master`] — build a dark or bias master from raw
-//!   frames on disk, a band of rows at a time.
+//! * [`api_build_calibration_master`] — build a dark or bias master from raw frames.
 //! * [`api_post_session_cancel`] — set / read / clear a run's cancellation flag.
 //!
 //! The pipeline is **stateless per call** (no process-wide singleton): the
@@ -78,8 +77,14 @@ mod integrate;
 pub(crate) use integrate::*;
 mod masters;
 pub(crate) use masters::*;
+mod multi_night;
+pub(crate) use multi_night::*;
+mod delivery;
+pub(crate) use delivery::*;
 mod telemetry;
 pub(crate) use telemetry::*;
+#[cfg(test)]
+mod multi_night_tests;
 #[cfg(test)]
 mod pass_view_capture_tests;
 #[cfg(test)]

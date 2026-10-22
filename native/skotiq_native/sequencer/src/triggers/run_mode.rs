@@ -15,6 +15,8 @@ pub enum RunHold {
     /// Tracking is off before the meridian until the target reaches the flip
     /// threshold (see `instructions::pre_meridian_hold`).
     PreMeridian,
+    /// Recovery deliberately stopped tracking until its attempt finishes.
+    RecoveryTracking,
 }
 
 /// The run as the trigger monitor sees it on one tick.
@@ -211,7 +213,11 @@ mod tests {
     #[test]
     fn only_a_live_run_has_a_mode() {
         for executor in ALL_EXECUTOR_STATES {
-            for hold in [None, Some(RunHold::PreMeridian)] {
+            for hold in [
+                None,
+                Some(RunHold::PreMeridian),
+                Some(RunHold::RecoveryTracking),
+            ] {
                 let live = matches!(
                     executor,
                     ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering

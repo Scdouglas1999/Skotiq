@@ -1,33 +1,25 @@
-# Skotiq User Documentation
+# Skotiq documentation
 
-Welcome to the Skotiq user documentation. Use these guides to install,
-configure, and operate Skotiq within the platform and hardware scope listed
-for the release candidate you are testing.
+Plan your targets, connect your rig, capture the night and review the results.
+Skotiq runs on Windows and Linux, with an Android companion and remote access
+from another desktop or browser.
 
-## What is Skotiq?
+**[Download Skotiq 8.0](https://github.com/Scdouglas1999/Skotiq/releases/tag/v8.0.0)** ·
+**[What's new](release/v8.0.0.md)** · **[Installation](getting-started/installation.md)** ·
+**[Supported hardware](supported-hardware-by-platform.md)** ·
+**[Help and support](../.github/SUPPORT.md)**
 
-Skotiq is an astrophotography application for controlling cameras,
-mounts, focusers, and related observatory equipment where the release package
-and connected driver backend support those capabilities. Built with Flutter and
-Rust, it is designed for desktop imaging workflows, with platform support
-limited by the artifacts and hardware evidence published for each release.
+## Start here
 
-### Key Features
+- **New to Skotiq:** install the app, create an equipment profile and take your first image.
+- **Upgrading an existing installation:** read the [migration guide](release/rebrand-skotiq.md).
+- **Planning a night:** use target scoring, framing and the sequencer to prepare your run.
+- **Away from the telescope:** connect the Android companion, browser dashboard or a second desktop to the host.
+- **Reviewing results:** open Analytics for session history and the Darkroom for your masters and processing recipes.
 
-- **Platform-Scoped Support**: Windows, Linux, macOS, and mobile claims are
-  release-specific and must match the release notes and support matrix
-- **Multi-backend Device Support**: ASCOM COM, Alpaca, INDI, native SDK, and simulator paths with platform-specific capability gates
-- **Intelligent Sequencer**: Behavior tree-based automation for complex imaging workflows
-- **Integrated Planetarium**: GPU-rendered interactive sky visualization
-- **Smart Focusing**: Automatic V-curve autofocus with temperature compensation
-- **PHD2 Integration**: Seamless autoguiding integration
-- **Plate Solving**: Precise target framing and alignment
-- **Session Management**: Track and analyze your imaging sessions with checkpoint recovery
-- **Weather Integration**: Radar display, cloud motion analysis, safety alerts
-- **Remote Control**: Token-authenticated headless API, browser dashboard, and
-  mobile client paths where verified for the release
-- **Update Support**: Update checks and manifests where enabled by the release
-  channel
+The owner has completed two full imaging nights on a Windows rig. See the
+[release notes](release/v8.0.0.md) for the exercised equipment and the
+[compatibility matrix](supported-hardware-by-platform.md) for other backends.
 
 ## Getting Started
 
@@ -346,8 +338,8 @@ Application:
 ### Community and Support
 
 - **Documentation**: You're reading it!
-- **GitHub**: https://github.com/Scdouglas1999/Nightshade
-- **Issues**: https://github.com/Scdouglas1999/Nightshade/issues
+- **GitHub**: https://github.com/Scdouglas1999/Skotiq
+- **Issues**: https://github.com/Scdouglas1999/Skotiq/issues
 
 ### Developer Resources
 

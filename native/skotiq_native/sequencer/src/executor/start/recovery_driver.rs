@@ -200,7 +200,12 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
                 // The run's own stop is not a lost-tracking event.
                 {
                     let manager = recovery_driver_trigger_mgr.read().await;
-                    manager.state().write().await.mount_tracking_held_by_run = true;
+                    manager
+                        .state()
+                        .write()
+                        .await
+                        .run
+                        .begin_hold(crate::triggers::RunHold::RecoveryTracking);
                 }
                 if let Err(e) = recovery_driver_device_ops
                     .mount_set_tracking(mount_id, false)
@@ -735,7 +740,7 @@ pub(super) async fn run_recovery_driver(args: RecoveryDriverArgs) {
         // change is the mount's own again.
         if stop_tracking && recovery_driver_mount_id.is_some() {
             let manager = recovery_driver_trigger_mgr.read().await;
-            manager.state().write().await.mount_tracking_held_by_run = false;
+            manager.state().write().await.run.end_hold();
         }
     }
 }
@@ -816,7 +821,7 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
         return;
     }
 
-    let run_guiding = state.read().await.guiding_enabled;
+    let run_guiding = state.read().await.guiding.is_enabled();
     if !run_guiding {
         return;
     }
@@ -836,7 +841,7 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
     let mut ts = state.write().await;
     ts.set_guiding_enabled(false);
     ts.set_guide_star_lost(false);
-    ts.guiding_resume_pending = true;
+    ts.guiding.set_resume_pending(true);
 }
 
 async fn stops_on_quality_problems(trigger_mgr: &Arc<RwLock<TriggerManager>>) -> bool {

@@ -9,15 +9,17 @@ Engineering cross-references in the form `(§N.M)` point at the
 `docs/plans/2026-05-09-v250-audit-fixes.md` v2.5.0 pre-release audit and are
 intended for code reviewers rather than end users.
 
-## [Unreleased] (DRAFT — proposed 8.0.0)
+## [8.0.0] — 2026-10-22
 
 The Nightshade-to-Skotiq rename, a rebuilt Tonight screen, a real remote
 client, a color-drafting Darkroom, and a large set of mount, sequencing and
 updater fixes made while running the app on a telescope through October.
-Full notes in `docs/release/v8.0.0-draft.md` (rename to match the tag when
-the version is decided). 424 commits, 53 merges.
+Full notes and the complete change inventory are in [the 8.0.0 release notes](release/v8.0.0.md).
 
 ### Added
+
+- End-of-night dark and bias capture, native calibration-master building and dark-library registration.
+- Multi-night master accumulation and aligned per-filter/RGB master delivery.
 
 - **Rebrand to Skotiq.** New name, mark, icon, splash and seeded accent
   throughout; Windows `skotiq.exe` under `%LOCALAPPDATA%\Programs\Skotiq`;
@@ -63,6 +65,8 @@ the version is decided). 424 commits, 53 merges.
   replay a recorded night, used to test the recovery behavior end-to-end.
 
 ### Fixed
+
+- Correct planar color FITS/XISF layout and registration between different filters.
 
 - **Meridian flips**: hour angle is taken against the target's RA of date; a
   flip re-slews to the mount's position in J2000 and verifies by coordinates
@@ -155,6 +159,9 @@ the version is decided). 424 commits, 53 merges.
   step ETA correct; "Coming up" lists real events.
 
 ### Changed
+
+- Typed sequencer events, explicit run lifecycle and focused Dart run components.
+- Rust trigger polling, policy and dispatch modules with dedicated guiding/tracking state.
 
 - Night-control presentation: weather verdicts warn or hold rather than
   presenting forecasts as critical alerts; recovery banners explain what is

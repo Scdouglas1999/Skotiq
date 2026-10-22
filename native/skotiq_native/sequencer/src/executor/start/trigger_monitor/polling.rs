@@ -99,7 +99,8 @@ impl DevicePoller {
             let _ = self.events.send(ExecutorEvent::Error { message: msg });
         }
         if stale_verdict_dropped {
-            let message = stale_verdict_dropped_message(cadence.verdict_staleness_secs, cadence.fail_mode);
+            let message =
+                stale_verdict_dropped_message(cadence.verdict_staleness_secs, cadence.fail_mode);
             tracing::warn!("{}", message);
             let _ = self.events.send(ExecutorEvent::Warning { message });
         }

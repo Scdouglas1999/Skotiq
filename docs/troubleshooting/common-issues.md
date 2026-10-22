@@ -739,7 +739,7 @@ When asking for help, provide:
 
 **Official Support**
 - Documentation: This documentation
-- GitHub Issues: https://github.com/Scdouglas1999/Nightshade/issues
+- GitHub Issues: https://github.com/Scdouglas1999/Skotiq/issues
 
 **Community Help**
 - Cloudy Nights forum
@@ -779,7 +779,7 @@ When asking for help, provide:
 
 If you've tried these solutions and still experiencing problems:
 
-1. Post detailed issue on [GitHub Issues](https://github.com/Scdouglas1999/Nightshade/issues) with logs
+1. Post detailed issue on [GitHub Issues](https://github.com/Scdouglas1999/Skotiq/issues) with logs
 2. Include Skotiq version, OS, equipment, and steps to reproduce
 
 Use the exact error text and evidence above so support can distinguish a bug

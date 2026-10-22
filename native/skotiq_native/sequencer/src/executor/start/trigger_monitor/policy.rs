@@ -38,14 +38,21 @@ pub(super) fn select_dispatches(
         if policy.explicit_end && trigger_id == "dawn_approaching" {
             continue;
         }
-        if policy.calibration_run && !super::super::calibration_run::acts_in_calibration_run(&trigger_id) {
+        if policy.calibration_run
+            && !super::super::calibration_run::acts_in_calibration_run(&trigger_id)
+        {
             continue;
         }
         // Park and quality settings first, so the mode judges what the
         // trigger will actually do.
         let fired = apply_quality_policy(
             &trigger_id,
-            apply_park_policy(&trigger_id, firing.action().clone(), policy.park_policy, policy.weather_advisory_only),
+            apply_park_policy(
+                &trigger_id,
+                firing.action().clone(),
+                policy.park_policy,
+                policy.weather_advisory_only,
+            ),
             policy.stop_on_quality_problems,
         );
         // A trigger removed since the evaluation cannot be classified, and an

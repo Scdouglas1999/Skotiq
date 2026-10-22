@@ -141,10 +141,18 @@ EonFrameNeeds planFrameNeeds(
   for (final light in lights) {
     if (light.frameType.toLowerCase() != 'light') continue;
     if (light.exposureDuration <= 0) continue;
+    final gain = light.gain;
+    final offset = light.offset;
+    if (gain == null || offset == null) {
+      throw FormatException(
+        'Cannot match calibration settings for ${light.fileName}: '
+        'the recorded gain or offset is missing.',
+      );
+    }
     final key = (
       (light.exposureDuration * 1000).round(),
-      light.gain ?? 0,
-      light.offset ?? 0,
+      gain,
+      offset,
       light.binX,
       light.binY,
       _setPointFor(light, cameraSetPointC),

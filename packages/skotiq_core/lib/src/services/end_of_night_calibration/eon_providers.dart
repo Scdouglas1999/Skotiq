@@ -81,7 +81,15 @@ class ProviderEonRig implements EonRig {
   Future<List<String>?> filterNames() async {
     final wheel = _ref.read(filterWheelStateProvider);
     if (!_connected(wheel.connectionState, wheel.deviceId)) return null;
-    return wheel.filterNames;
+    // The driver's own slot names, not a cached copy: the dark slot is
+    // chosen by name and must be the slot the wheel will actually move to.
+    try {
+      return await _ref
+          .read(backendProvider)
+          .filterWheelGetNames(wheel.deviceId!);
+    } catch (_) {
+      return wheel.filterNames;
+    }
   }
 
   @override

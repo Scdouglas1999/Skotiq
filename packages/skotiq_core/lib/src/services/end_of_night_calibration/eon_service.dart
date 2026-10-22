@@ -485,11 +485,20 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     for (final frame in frames) {
       final type = frame.frameType.toLowerCase();
       if (type != 'dark' && type != 'bias') continue;
+      final gain = frame.gain;
+      final offset = frame.offset;
+      if (gain == null || offset == null) {
+        report.problems.add(
+          'Excluded ${frame.fileName} from master building: '
+          'the recorded gain or offset is missing.',
+        );
+        continue;
+      }
       final key = (
         type,
         (frame.exposureDuration * 1000).round(),
-        frame.gain ?? 0,
-        frame.offset ?? 0,
+        gain,
+        offset,
         frame.binX,
         frame.binY,
       );

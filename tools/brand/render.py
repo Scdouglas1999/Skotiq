@@ -356,11 +356,20 @@ def readme():
               os.path.join(BRANDING, "banner-light.png"), 1280, 400)
 
 
+def banner_anim():
+    """Animated README banners — the mark's draw + working motions as GIFs."""
+    import banner_anim as ba
+    ba.render_gif(os.path.join(BRANDING, "banner.gif"), True, 960, 300, 20)
+    ba.render_gif(os.path.join(BRANDING, "banner-light.gif"), False, 960, 300, 20)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("group", choices=["masters", "icons", "web", "readme", "all"])
+    ap.add_argument("group", choices=["masters", "icons", "web", "readme",
+                                      "banner-anim", "all"])
     args = ap.parse_args()
-    groups = {"masters": masters, "icons": icons, "web": web, "readme": readme}
+    groups = {"masters": masters, "icons": icons, "web": web,
+              "readme": readme, "banner-anim": banner_anim}
     if args.group == "all":
         for fn in groups.values():
             fn()

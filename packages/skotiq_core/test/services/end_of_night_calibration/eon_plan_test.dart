@@ -5,8 +5,8 @@ import 'package:skotiq_core/src/database/database.dart' as db;
 db.CapturedImage light(
   int id, {
   double exposure = 90,
-  int gain = 76,
-  int offset = 15,
+  int? gain = 76,
+  int? offset = 15,
   int bin = 1,
   double? sensorTemp = -10.1,
   String frameType = 'light',
@@ -33,6 +33,14 @@ db.CapturedImage light(
 
 void main() {
   group('planFrameNeeds', () {
+    test('missing gain or offset cannot become a zero-setting dark group', () {
+      for (final frame in [light(1, gain: null), light(2, offset: null)]) {
+        expect(() => planFrameNeeds([frame]), throwsFormatException);
+      }
+      final needs = planFrameNeeds([light(3, gain: 0, offset: 0)]);
+      expect(needs.darks.single.gain, 0);
+      expect(needs.darks.single.offset, 0);
+    });
     test('one dark set per light setting and one bias set per gain', () {
       final needs = planFrameNeeds([
         for (var i = 0; i < 30; i++) light(i),

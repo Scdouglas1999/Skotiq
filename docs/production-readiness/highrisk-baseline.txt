@@ -201,3 +201,21 @@ packages/skotiq_core/lib/src/services/notification/transports/system_push_transp
 packages/skotiq_core/lib/src/services/snippet_file_service.dart:146:  /// threw UnimplementedError and snippet export was dead on a phone. There the
 packages/skotiq_core/lib/src/utils/export_target.dart:41:/// throws `UnimplementedError: getSavePath() has not been implemented.` Every
 packages/skotiq_core/lib/src/utils/export_target.dart:45:/// emulator: "Failed to export: UnimplementedError: getSavePath() has not been
+
+native/skotiq_native/bridge/src/api/darkroom/composite_tests.rs:392:        .unwrap_or_default();
+native/skotiq_native/bridge/src/api/darkroom/real_master_harness_tests.rs:160:    let steps = recipe["steps"].as_array().cloned().unwrap_or_default();
+native/skotiq_native/bridge/src/api/phd2.rs:1386:                let method = request["method"].as_str().unwrap_or_default().to_string();
+native/skotiq_native/bridge/src/api/post_session/pass_view_capture_tests.rs:125:    let data = image.as_f32().unwrap_or_default();
+native/skotiq_native/bridge/src/api/post_session/pass_view_capture_tests.rs:152:    let from = std::env::var("PASSVIZ_FROM").unwrap_or_default();
+native/skotiq_native/bridge/src/api/sequencer/event_bridge.rs:235:                        node_id: node_id.clone().unwrap_or_default(),
+native/skotiq_native/imaging/src/recipe/ops/channel_combine.rs:453:            for (role, sigma) in raw.star_sigma.unwrap_or_default() {
+native/skotiq_native/imaging/src/recipe/ops/channel_combine.rs:681:            |role: FilterRole| -> Vec<Vec<f32>> { by_role.get(&role).cloned().unwrap_or_default() };
+native/skotiq_native/sequencer/src/executor/monitoring.rs:407:                .unwrap_or_default();
+native/skotiq_native/sequencer/src/executor/start/recovery_driver.rs:907:            .unwrap_or_default(),
+native/skotiq_native/sequencer/src/executor/start/trigger_monitor/actions/cloud.rs:72:            result.message.unwrap_or_default()
+native/skotiq_native/sequencer/src/executor/start/trigger_monitor/actions/recenter.rs:89:            result.message.unwrap_or_default()
+native/skotiq_native/sequencer/src/executor/start/trigger_monitor/actions/science.rs:71:                result.message.unwrap_or_default()
+native/skotiq_native/sequencer/src/instructions/autofocus.rs:365:    let focuser_id = ctx.focuser_id.clone().unwrap_or_default();
+native/skotiq_native/sequencer/src/instructions/device_retry.rs:171:    "not implemented",
+native/skotiq_native/sequencer/src/node/instructions/expose.rs:544:        .unwrap_or_default();
+native/skotiq_native/sequencer/src/node/instructions/expose.rs:833:        measured.map(|m| format!(": {m}")).unwrap_or_default(),

@@ -68,7 +68,9 @@ pub(super) async fn run_trigger_monitor_poll_loop(
         .sequence_for_custom_recovery_triggers
         .as_ref()
         .is_some_and(super::explicit_end::owns_dawn_end);
-    let calibration_run = args.sequence_for_custom_recovery_triggers.as_ref()
+    let calibration_run = args
+        .sequence_for_custom_recovery_triggers
+        .as_ref()
         .is_some_and(super::calibration_run::is_calibration_only);
     let executor_state = args.state_clone.clone();
     let is_cancelled = args.is_cancelled_clone.clone();
@@ -120,7 +122,10 @@ pub(super) async fn run_trigger_monitor_poll_loop(
             let (stop_on_quality_problems, weather_advisory_only) = {
                 let state = manager.state();
                 let state = state.read().await;
-                (state.stop_on_quality_problems, state.weather_unsafe_is_advisory_only())
+                (
+                    state.stop_on_quality_problems,
+                    state.weather_unsafe_is_advisory_only(),
+                )
             };
             select_dispatches(
                 &mut manager,

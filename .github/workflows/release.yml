@@ -22,6 +22,7 @@ on:
 permissions:
   contents: write
 
+# Legacy secret aliases preserve the update-signing identity during migration.
 env:
   FLUTTER_VERSION: '3.44.1'
 
@@ -163,7 +164,7 @@ jobs:
         # The update public key is compiled in so the app can authenticate the
         # OTA manifests below. Without it every update download is refused,
         # whether or not the manifests are signed.
-        run: flutter build apk --release --split-per-abi "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY }}"
+        run: flutter build apk --release --split-per-abi "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY || secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}"
 
       - name: Stage + checksum APKs
         run: |
@@ -193,7 +194,7 @@ jobs:
       # stays fail-closed-disabled); the build still succeeds.
       - name: Sign OTA manifests (per ABI)
         env:
-          SKOTIQ_UPDATE_PRIVATE_KEY: ${{ secrets.SKOTIQ_UPDATE_PRIVATE_KEY }}
+          SKOTIQ_UPDATE_PRIVATE_KEY: ${{ secrets.SKOTIQ_UPDATE_PRIVATE_KEY || secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           BUILD_NUMBER="$(grep -oP 'build_number:\s*\K\d+' version.yaml)"
@@ -282,7 +283,7 @@ jobs:
           set -euo pipefail
           cargo build --locked --release --manifest-path native/skotiq_native/bridge/Cargo.toml
           cd apps/desktop
-          flutter build linux --release "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY }}"
+          flutter build linux --release "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY || secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}"
 
       - name: Bundle native libs + verify the bridge is present
         run: |
@@ -409,7 +410,7 @@ jobs:
       # fail-closed-disabled); the build still succeeds.
       - name: Package + sign OTA manifest
         env:
-          SKOTIQ_UPDATE_PRIVATE_KEY: ${{ secrets.SKOTIQ_UPDATE_PRIVATE_KEY }}
+          SKOTIQ_UPDATE_PRIVATE_KEY: ${{ secrets.SKOTIQ_UPDATE_PRIVATE_KEY || secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           BUILD_NUMBER="$(grep -oP 'build_number:\s*\K\d+' version.yaml)"
@@ -488,7 +489,7 @@ jobs:
       # still succeeds (unsigned beta).
       - name: Build Flutter Windows app (release)
         working-directory: apps/desktop
-        run: flutter build windows --release "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY }}"
+        run: flutter build windows --release "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY || secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}"
 
       - name: Stage native DLLs (bridge, libraw, MSVC runtime) into Release
         shell: pwsh
@@ -577,7 +578,7 @@ jobs:
       - name: Package + sign OTA manifest
         shell: pwsh
         env:
-          SKOTIQ_UPDATE_PRIVATE_KEY: ${{ secrets.SKOTIQ_UPDATE_PRIVATE_KEY }}
+          SKOTIQ_UPDATE_PRIVATE_KEY: ${{ secrets.SKOTIQ_UPDATE_PRIVATE_KEY || secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY }}
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           $rel = "apps/desktop/build/windows/x64/runner/Release"
@@ -670,8 +671,8 @@ jobs:
       # manifest fails the release too.
       - name: Verify OTA manifests against the app update key
         env:
-          SKOTIQ_UPDATE_PUBLIC_KEY: ${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY }}
-          SIGNING_KEY_CONFIGURED: ${{ secrets.SKOTIQ_UPDATE_PRIVATE_KEY != '' }}
+          SKOTIQ_UPDATE_PUBLIC_KEY: ${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY || secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}
+          SIGNING_KEY_CONFIGURED: ${{ (secrets.SKOTIQ_UPDATE_PRIVATE_KEY != '' || secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY != '') }}
         run: |
           set -euo pipefail
           require=()

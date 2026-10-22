@@ -17,15 +17,26 @@ downstream is edited by hand.
 
 - `render.py` — regenerates every committed asset. Subcommands:
 
-      python3 tools/brand/render.py masters   # assets/branding/*.svg
-      python3 tools/brand/render.py icons     # Windows, Linux, macOS, iOS, Android
-      python3 tools/brand/render.py web       # web icons + run-watch SVGs
-      python3 tools/brand/render.py readme    # logo, social preview, banners
-      python3 tools/brand/render.py all       # everything
+      python3 tools/brand/render.py masters      # assets/branding/*.svg
+      python3 tools/brand/render.py icons        # Windows, Linux, macOS, iOS, Android
+      python3 tools/brand/render.py web          # web icons + run-watch SVGs
+      python3 tools/brand/render.py readme       # logo, social preview, banners
+      python3 tools/brand/render.py banner-anim  # animated README banners (GIF)
+      python3 tools/brand/render.py all          # everything
 
   Requires `rsvg-convert` and ImageMagick 7 (`magick`), plus `fontTools` for
   the wordmark metrics. Output is deterministic: rerunning produces identical
   files.
+
+- `banner_anim.py` — the animated banner (`assets/branding/banner{,-light}.gif`,
+  960×300, 100 frames at 50 ms, looping). Each frame reproduces the app's
+  `SkotiqMarkMotion` timings from `skotiq_mark.dart` exactly: the `draw` pass
+  (five lanes staggering on 90 ms apart under cubic-bezier(.22,.7,.2,1), the
+  pole star's 1.25× overshoot pop), a settle beat, then one `working` glint
+  sweep (the synced white dash on a 2.6 s cycle). Partial arcs use SVG
+  `pathLength` so dash offsets are the same path fractions the CustomPainter
+  extracts. Runs standalone (`python3 tools/brand/banner_anim.py`) or through
+  `render.py banner-anim`.
 
 ## Levels
 
