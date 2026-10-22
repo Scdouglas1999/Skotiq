@@ -167,6 +167,8 @@ struct ImageHeader {
     sample_format: String,
     #[allow(dead_code)]
     color_space: String,
+    /// The `pixelStorage` attribute, absent in legacy files of this app.
+    pixel_storage: Option<String>,
     data_offset: usize,
     data_size: usize,
 }
@@ -219,8 +221,24 @@ pub fn read_xisf(path: &Path) -> Result<(ImageData, XisfMetadata), XisfError> {
         other => return Err(XisfError::UnsupportedSampleFormat(other.to_string())),
     };
 
-    // XISF stores data in channel-major order (all R, then all G, then all B)
-    // We need to keep it as-is for processing
+    // XISF's default `Planar` storage holds every sample of a channel before
+    // the next channel; `ImageData` interleaves them.
+    let interleaved = match header.pixel_storage.as_deref() {
+        Some(storage) => storage.eq_ignore_ascii_case("Normal"),
+        None => written_interleaved_by_this_app(&metadata),
+    };
+    if header.channels > 1 && !interleaved {
+        let pixels = (header.width as usize) * (header.height as usize);
+        let sample_bytes = pixel_type.byte_size();
+        if data.len() == pixels * header.channels as usize * sample_bytes {
+            data = crate::fits_layout::planar_to_interleaved(
+                &data,
+                pixels,
+                header.channels as usize,
+                sample_bytes,
+            );
+        }
+    }
     let image = ImageData {
         width: header.width,
         height: header.height,
@@ -230,6 +248,17 @@ pub fn read_xisf(path: &Path) -> Result<(ImageData, XisfMetadata), XisfError> {
     };
 
     Ok((image, metadata))
+}
+
+/// Whether a file without a `pixelStorage` attribute came from an earlier build
+/// of this app, which wrote interleaved samples while declaring none. Every
+/// other writer follows the XISF default, planar.
+fn written_interleaved_by_this_app(metadata: &XisfMetadata) -> bool {
+    matches!(
+        metadata.properties.get("XISF:CreatorApplication"),
+        Some(XisfProperty::String(creator))
+            if creator.starts_with("Skotiq") || creator.starts_with("Nightshade")
+    )
 }
 
 /// Parse the XISF XML header using quick-xml, extracting both image header info and metadata.
@@ -291,6 +320,7 @@ fn parse_image_element(element: &BytesStart) -> Result<ImageHeader, XisfError> {
     let mut sample_format: Option<String> = None;
     let mut color_space: Option<String> = None;
     let mut location: Option<String> = None;
+    let mut pixel_storage: Option<String> = None;
 
     for attr_result in element.attributes() {
         let attr = attr_result?;
@@ -305,6 +335,7 @@ fn parse_image_element(element: &BytesStart) -> Result<ImageHeader, XisfError> {
             "sampleFormat" => sample_format = Some(value.into_owned()),
             "colorSpace" => color_space = Some(value.into_owned()),
             "location" => location = Some(value.into_owned()),
+            "pixelStorage" => pixel_storage = Some(value.into_owned()),
             // bounds and other attributes are noted but not needed for reading
             _ => {}
         }
@@ -354,6 +385,7 @@ fn parse_image_element(element: &BytesStart) -> Result<ImageHeader, XisfError> {
         channels,
         sample_format,
         color_space,
+        pixel_storage,
         data_offset,
         data_size,
     })
@@ -559,8 +591,21 @@ pub fn write_xisf(
         writer.write_all(&vec![0u8; padding])?;
     }
 
-    // Write image data
-    writer.write_all(&image.data)?;
+    // Write image data, one channel after another.
+    let channels = image.channels.max(1) as usize;
+    if channels == 1 {
+        writer.write_all(&image.data)?;
+    } else {
+        let sample_bytes = image.pixel_type.byte_size();
+        let samples: Vec<&[u8]> = image.data.chunks_exact(sample_bytes).collect();
+        for channel in 0..channels {
+            let mut plane = Vec::with_capacity(samples.len() / channels * sample_bytes);
+            for sample in samples.iter().skip(channel).step_by(channels) {
+                plane.extend_from_slice(sample);
+            }
+            writer.write_all(&plane)?;
+        }
+    }
 
     writer.flush()?;
 
@@ -661,6 +706,7 @@ fn build_xisf_xml(
     image_start.push_attribute(("sampleFormat", sample_format));
     image_start.push_attribute(("bounds", bounds));
     image_start.push_attribute(("colorSpace", color_space));
+    image_start.push_attribute(("pixelStorage", "Planar"));
     image_start.push_attribute(("location", location.as_str()));
     xml_writer.write_event(Event::Start(image_start))?;
 
@@ -846,5 +892,77 @@ mod tests {
             "SKOTIQ_VERSION should start with a digit; got {:?}",
             SKOTIQ_PRODUCT_VERSION
         );
+    }
+
+    fn color_scratch(name: &str) -> (std::path::PathBuf, ImageData) {
+        let dir = std::env::temp_dir().join(format!("sk_xisf_layout_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        // Channel c of pixel p holds 100·c + p, so every sample is unique.
+        let samples: Vec<u16> = (0..12u16).flat_map(|p| [p, 100 + p, 200 + p]).collect();
+        (dir.join(name), ImageData::from_u16(4, 3, 3, &samples))
+    }
+
+    fn data_of(path: &Path) -> (String, Vec<u16>) {
+        let bytes = std::fs::read(path).unwrap();
+        let xml_len = u32::from_le_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]) as usize;
+        let xml = String::from_utf8(bytes[16..16 + xml_len].to_vec()).unwrap();
+        let tail = &bytes[bytes.len() - 36 * 2..];
+        (
+            xml,
+            tail.as_chunks::<2>()
+                .0
+                .iter()
+                .map(|b| u16::from_le_bytes(*b))
+                .collect(),
+        )
+    }
+
+    #[test]
+    fn color_is_written_plane_by_plane_and_read_back() {
+        let (path, image) = color_scratch("planar.xisf");
+        write_xisf(&path, &image, &XisfMetadata::default()).unwrap();
+        let (xml, data) = data_of(&path);
+        assert!(xml.contains("pixelStorage=\"Planar\""), "{xml}");
+        assert_eq!(data[..3], [0, 1, 2]);
+        assert_eq!(data[12..15], [100, 101, 102]);
+        let (back, _) = read_xisf(&path).unwrap();
+        assert_eq!(back.data, image.data);
+    }
+
+    #[test]
+    fn a_legacy_interleaved_file_of_this_app_still_reads_correctly() {
+        let (path, image) = color_scratch("legacy.xisf");
+        write_xisf(&path, &image, &XisfMetadata::default()).unwrap();
+        // Rewrite as the earlier builds did: no storage attribute, the
+        // interleaved buffer as it is.
+        let mut bytes = std::fs::read(&path).unwrap();
+        let attribute = b" pixelStorage=\"Planar\"";
+        let at = bytes
+            .windows(attribute.len())
+            .position(|w| w == attribute)
+            .unwrap();
+        bytes[at..at + attribute.len()].fill(b' ');
+        let start = bytes.len() - image.data.len();
+        bytes[start..].copy_from_slice(&image.data);
+        std::fs::write(&path, bytes).unwrap();
+
+        let (back, _) = read_xisf(&path).unwrap();
+        assert_eq!(back.data, image.data);
+    }
+
+    #[test]
+    fn another_programs_file_without_a_storage_attribute_is_planar() {
+        let (path, image) = color_scratch("external.xisf");
+        let metadata = XisfMetadata {
+            properties: HashMap::from([(
+                "XISF:CreatorApplication".to_string(),
+                XisfProperty::String("PixInsight 1.9.3".to_string()),
+            )]),
+            fits_keywords: HashMap::new(),
+        };
+        assert!(!written_interleaved_by_this_app(&metadata));
+        write_xisf(&path, &image, &metadata).unwrap();
+        let (back, _) = read_xisf(&path).unwrap();
+        assert_eq!(back.data, image.data);
     }
 }

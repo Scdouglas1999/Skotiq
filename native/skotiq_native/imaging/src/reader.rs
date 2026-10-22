@@ -18,6 +18,7 @@
 //!   string flows through to the format-detection arm that fails with a
 //!   real error if no magic-bytes match.
 
+use crate::fits_layout::{detect_layout, layout_from_header, PlaneLayout};
 use crate::{FitsError, FitsHeader, ImageData, PixelType};
 use image::GenericImageView;
 use memmap2::Mmap;
@@ -33,6 +34,7 @@ pub struct MappedFitsReader {
     pixel_type: PixelType,
     data_offset: usize,
     header: FitsHeader,
+    layout: PlaneLayout,
 }
 
 impl MappedFitsReader {
@@ -59,6 +61,27 @@ impl MappedFitsReader {
             FitsError::InvalidFormat("FITS data offset exceeds platform limits".to_string())
         })?;
 
+        let samples = (width as usize) * (height as usize) * (channels as usize);
+        let data_end = samples
+            .checked_mul(pixel_type.byte_size())
+            .and_then(|bytes| bytes.checked_add(data_offset));
+        if data_end.is_none_or(|end| end > mmap.len()) {
+            return Err(FitsError::InvalidFormat(
+                "FITS data is shorter than its header declares".to_string(),
+            ));
+        }
+        let layout = if channels > 1 {
+            layout_from_header(&header).unwrap_or_else(|| {
+                let bzero = header.get_float("BZERO").unwrap_or(0.0);
+                let bscale = header.get_float("BSCALE").unwrap_or(1.0);
+                detect_layout(width as usize, height as usize, channels as usize, |k| {
+                    be_sample(&mmap[data_offset..], pixel_type, bzero, bscale, k)
+                })
+            })
+        } else {
+            PlaneLayout::Interleaved
+        };
+
         tracing::info!(
             "Opened memory-mapped FITS: {}x{}x{}, type {:?}, data offset: {}",
             width,
@@ -76,7 +99,29 @@ impl MappedFitsReader {
             pixel_type,
             data_offset,
             header,
+            layout,
         })
+    }
+
+    /// Append the raw (big-endian) bytes of pixel `(x, y)`, channels in
+    /// interleaved order, whichever way the file orders its planes.
+    fn push_pixel(&self, x: usize, y: usize, out: &mut Vec<u8>) {
+        let bytes = self.pixel_type.byte_size();
+        let channels = self.channels as usize;
+        let width = self.width as usize;
+        let plane = width * self.height as usize;
+        match self.layout {
+            PlaneLayout::Interleaved => {
+                let at = self.data_offset + (y * width + x) * channels * bytes;
+                out.extend_from_slice(&self.mmap[at..at + channels * bytes]);
+            }
+            PlaneLayout::Planar => {
+                for c in 0..channels {
+                    let at = self.data_offset + (c * plane + y * width + x) * bytes;
+                    out.extend_from_slice(&self.mmap[at..at + bytes]);
+                }
+            }
+        }
     }
 
     /// Get image dimensions
@@ -120,22 +165,20 @@ impl MappedFitsReader {
         let region_size = (width as usize) * (height as usize) * bytes_per_pixel * channels;
         let mut region_data = Vec::with_capacity(region_size);
 
-        // Read row by row from memory-mapped file
+        // Read row by row from memory-mapped file. `open` checked that the
+        // whole data block is mapped.
         for row in y..(y + height) {
+            if self.layout == PlaneLayout::Planar {
+                for col in x..(x + width) {
+                    self.push_pixel(col as usize, row as usize, &mut region_data);
+                }
+                continue;
+            }
             let row_offset = self.data_offset + (row as usize) * stride;
             let col_offset = (x as usize) * bytes_per_pixel * channels;
             let offset = row_offset + col_offset;
             let length = (width as usize) * bytes_per_pixel * channels;
-
-            if offset + length <= self.mmap.len() {
-                // Convert from big-endian (FITS standard) to little-endian
-                let row_data = &self.mmap[offset..offset + length];
-                region_data.extend_from_slice(row_data);
-            } else {
-                return Err(FitsError::InvalidFormat(
-                    "Region read out of bounds".to_string(),
-                ));
-            }
+            region_data.extend_from_slice(&self.mmap[offset..offset + length]);
         }
 
         // Convert from FITS big-endian to system little-endian
@@ -212,29 +255,17 @@ impl MappedFitsReader {
 
         let bytes_per_pixel = self.pixel_type.byte_size();
         let channels = self.channels as usize;
-        let stride = (self.width as usize) * bytes_per_pixel * channels;
 
         let output_size = (out_width as usize) * (out_height as usize) * bytes_per_pixel * channels;
         let mut output_data = Vec::with_capacity(output_size);
 
-        // Sample every Nth row and column
+        // Sample every Nth row and column. `open` checked that the whole data
+        // block is mapped.
         for out_y in 0..out_height {
             let src_y = (out_y * downsample_factor) as usize;
-            let row_offset = self.data_offset + src_y * stride;
-
             for out_x in 0..out_width {
                 let src_x = (out_x * downsample_factor) as usize;
-                let pixel_offset = row_offset + src_x * bytes_per_pixel * channels;
-
-                if pixel_offset + bytes_per_pixel * channels > self.mmap.len() {
-                    return Err(FitsError::InvalidFormat(
-                        "Downsampled FITS read exceeded mapped image bounds".to_string(),
-                    ));
-                }
-
-                let pixel_data =
-                    &self.mmap[pixel_offset..pixel_offset + bytes_per_pixel * channels];
-                output_data.extend_from_slice(pixel_data);
+                self.push_pixel(src_x, src_y, &mut output_data);
             }
         }
 
@@ -271,6 +302,22 @@ impl MappedFitsReader {
     pub fn file_size(&self) -> usize {
         self.mmap.len()
     }
+}
+
+/// The physical value of the `k`-th big-endian sample of FITS data.
+fn be_sample(data: &[u8], pixel_type: PixelType, bzero: f64, bscale: f64, k: usize) -> f64 {
+    let size = pixel_type.byte_size();
+    let Some(b) = data.get(k * size..(k + 1) * size) else {
+        return f64::NAN;
+    };
+    let stored = match pixel_type {
+        PixelType::U8 => b[0] as f64,
+        PixelType::U16 => i16::from_be_bytes([b[0], b[1]]) as f64,
+        PixelType::U32 => i32::from_be_bytes([b[0], b[1], b[2], b[3]]) as f64,
+        PixelType::F32 => f32::from_be_bytes([b[0], b[1], b[2], b[3]]) as f64,
+        PixelType::F64 => f64::from_be_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]),
+    };
+    stored * bscale + bzero
 }
 
 /// Generate a preview thumbnail without loading the full image

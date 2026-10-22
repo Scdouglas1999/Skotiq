@@ -201,7 +201,13 @@ pub struct RegistrationConfig {
 impl Default for RegistrationConfig {
     fn default() -> Self {
         Self {
-            star_detection: StarDetectionConfig::default(),
+            // Saturated stars stay in: their centroids are good enough to match,
+            // and dropping them makes the brightest-N set the band just under
+            // saturation, which is a different set of stars in every filter.
+            star_detection: StarDetectionConfig {
+                saturation_limit: u16::MAX,
+                ..StarDetectionConfig::default()
+            },
             max_stars_for_matching: 60,
             descriptor_tolerance: 0.004,
             transform_kind: TransformKind::Similarity,
@@ -1861,5 +1867,77 @@ mod tests {
             "RMS residual {} px should be < 0.15 for 90° rotation",
             result.stats.rms_residual_px
         );
+    }
+
+    /// Two filters of one field: the stars that saturate in the reference are
+    /// the brightest unsaturated stars of the other filter, and the stars the
+    /// reference keeps unsaturated are faint in the other. A detector that
+    /// drops saturated stars builds its triangles from disjoint star sets.
+    fn two_filter_pair(saturation_limit: u16) -> Result<RegisteredFrame, RegistrationError> {
+        let size = 900.0;
+        let mut rng = Rng::new(7);
+        let mut unit = || (rng.next_u64() >> 11) as f64 / (1u64 << 53) as f64;
+        let positions: Vec<(f64, f64)> = (0..120)
+            .map(|_| (40.0 + unit() * (size - 80.0), 40.0 + unit() * (size - 80.0)))
+            .collect();
+        let ref_stars: Vec<(f64, f64, f64)> = positions
+            .iter()
+            .enumerate()
+            .map(|(i, &(x, y))| {
+                let peak = if i < 60 {
+                    90_000.0
+                } else {
+                    50_000.0 - 400.0 * (i - 60) as f64
+                };
+                (x, y, peak)
+            })
+            .collect();
+        let frame_stars: Vec<(f64, f64, f64)> = positions
+            .iter()
+            .enumerate()
+            .map(|(i, &(x, y))| {
+                let peak = if i < 60 {
+                    50_000.0 - 400.0 * i as f64
+                } else {
+                    3_000.0
+                };
+                (x + 4.0, y - 3.0, peak)
+            })
+            .collect();
+        let field = |stars| SyntheticField {
+            width: size as u32,
+            height: size as u32,
+            stars,
+            background: 800.0,
+            sigma: 1.6,
+            noise_amp: 5.0,
+        };
+        let reference = field(ref_stars).render();
+        let frame = field(frame_stars).render();
+        let mut cfg = config();
+        cfg.star_detection.saturation_limit = saturation_limit;
+        register_frame(&reference, &frame, &cfg)
+    }
+
+    #[test]
+    fn registers_across_filters_whose_saturated_stars_differ() {
+        let limit = RegistrationConfig::default()
+            .star_detection
+            .saturation_limit;
+        let result = two_filter_pair(limit).expect("cross-filter registration");
+        assert!(result.stats.inlier_count >= 30, "{:?}", result.stats);
+        let (mx, my) = result.transform.apply(504.0, 397.0);
+        assert!(
+            (mx - 500.0).abs() < 0.2 && (my - 400.0).abs() < 0.2,
+            "({mx}, {my})"
+        );
+    }
+
+    #[test]
+    fn a_detector_that_drops_saturated_stars_cannot_match_two_filters() {
+        assert!(matches!(
+            two_filter_pair(60_000),
+            Err(RegistrationError::NoConsistentGeometry { .. })
+        ));
     }
 }
