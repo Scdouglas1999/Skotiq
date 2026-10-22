@@ -163,9 +163,13 @@ extension FlatWizardRun on FlatWizardNotifier {
       final historyGain = config.gain ?? cameraState.gain ?? 0;
 
       // Base save path with optional date subfolder.
+      // On a linked client the folder is the host's, joined in its style.
+      final paths = backend is NetworkBackend
+          ? hostPathContext(savePath)
+          : p.context;
       var baseSavePath = savePath;
       if (runSettings.createDateSubfolder) {
-        baseSavePath = p.join(baseSavePath, _fmtDate(DateTime.now()));
+        baseSavePath = paths.join(baseSavePath, _fmtDate(DateTime.now()));
       }
       final createOutputLocally = backend is! NetworkBackend;
       await prepareFlatOutputDirectory(
@@ -318,7 +322,7 @@ extension FlatWizardRun on FlatWizardNotifier {
         // Frame capture
         var filterSavePath = baseSavePath;
         if (runSettings.createFilterSubfolders) {
-          filterSavePath = p.join(
+          filterSavePath = paths.join(
             baseSavePath,
             _sanitizeComponent(filterSetting.filterName),
           );
@@ -411,7 +415,7 @@ extension FlatWizardRun on FlatWizardNotifier {
           final filename =
               '${_sanitizeComponent('Flat_${filterSetting.filterName}_'
               '${_fmtStamp(captureTime)}_$frameNum')}.fits';
-          final filePath = p.join(filterSavePath, filename);
+          final filePath = paths.join(filterSavePath, filename);
           try {
             await backend.saveFitsFromLastCapture(
               deviceId: cameraId,

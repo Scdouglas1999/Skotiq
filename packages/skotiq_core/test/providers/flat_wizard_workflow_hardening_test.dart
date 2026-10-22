@@ -619,6 +619,36 @@ void main() {
     expect(local, isEmpty);
   });
 
+  test('a linked Windows host gets flat paths in its own path style', () async {
+    final backend = _ThrowingHistoryBackend();
+    addTearDown(backend.dispose);
+    final container = makeContainer(
+      backend,
+      wheel: const FilterWheelState(filterNames: ['L']),
+      filterNames: const ['L'],
+    );
+    final notifier = await primeWizard(container);
+    notifier.updateGlobalSettings(
+      container
+          .read(flatWizardProvider)
+          .globalSettings
+          .copyWith(
+            savePath: r'C:\Users\scdou\Documents\Flats',
+            createDateSubfolder: true,
+            createFilterSubfolders: true,
+          ),
+    );
+
+    await notifier.runCapture();
+
+    expect(backend.savedPaths, isNotEmpty);
+    for (final saved in backend.savedPaths) {
+      expect(saved, startsWith(r'C:\Users\scdou\Documents\Flats\'));
+      expect(saved, contains(r'\L\Flat_L_'));
+      expect(saved, isNot(contains('/')));
+    }
+  });
+
   test(
     're-loading filters mid-run is a NO-OP (live bookkeeping is not wiped)',
     () async {

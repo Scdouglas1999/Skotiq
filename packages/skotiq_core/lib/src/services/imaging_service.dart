@@ -32,12 +32,14 @@ import 'capture_preview_loader.dart';
 import '../database/database.dart' show CapturedImagesCompanion;
 import '../database/daos/images_dao.dart' show ImagesDao;
 import '../providers/thumbnail_sidecar_provider.dart';
+import '../utils/host_paths.dart';
 import '../utils/utc_timestamp.dart';
 import 'calibration_service.dart';
 import 'notification_service.dart';
 import 'logging_service.dart';
 import 'science/science_processing_service.dart';
 import 'frame_quality_score.dart';
+export '../utils/host_paths.dart' show hostPathContext;
 part 'imaging_service/file_paths.dart';
 part 'imaging_service/persistence.dart';
 part 'imaging_service/quality_processing.dart';
@@ -58,19 +60,6 @@ String? hostScratchFilePath(List<RemoteDirectoryEntry> roots, String fileName) {
       .firstWhere((r) => r.name == 'Documents', orElse: () => roots.first)
       .path;
   return hostPathContext(root).join(root, 'Skotiq', 'scratch', fileName);
-}
-
-/// The path style of the machine that owns [hostPath]: Windows when it has a
-/// drive letter or a backslash, posix otherwise. A linked client must build
-/// every path the host will write in this style, never its own.
-@visibleForTesting
-path.Context hostPathContext(String hostPath) {
-  final isWindowsPath =
-      hostPath.contains(r'\') || RegExp(r'^[A-Za-z]:').hasMatch(hostPath);
-  return path.Context(
-    style: isWindowsPath ? path.Style.windows : path.Style.posix,
-    current: isWindowsPath ? r'C:\' : '/',
-  );
 }
 
 class ImagingService {

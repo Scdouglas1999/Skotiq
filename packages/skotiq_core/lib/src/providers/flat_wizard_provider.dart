@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import '../utils/host_paths.dart';
 import '../backend/network_backend.dart';
 import '../models/backend/fits_header.dart' show FitsWriteHeader;
 import '../models/backend/image_result.dart' show CapturedImageResult;

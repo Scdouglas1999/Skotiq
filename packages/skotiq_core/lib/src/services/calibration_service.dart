@@ -14,6 +14,7 @@ import '../providers/backend_provider.dart';
 import '../providers/dark_library_provider.dart';
 import '../services/dark_library_service.dart';
 import '../services/logging_service.dart';
+import '../utils/host_paths.dart';
 import '../providers/database_provider.dart';
 
 /// Sentinel object used by [CalibrationSettings.copyWith] to distinguish
@@ -303,7 +304,14 @@ class CalibrationService {
     }
 
     // Determine output path
-    final effectiveOutputPath = outputPath ?? _generateCalOutputPath(lightPath);
+    // A linked host's light path is in the host's path style; the `_cal`
+    // sibling must be derived in that style too.
+    final effectiveOutputPath =
+        outputPath ??
+        _generateCalOutputPath(
+          lightPath,
+          isRemote ? hostPathContext(lightPath) : path.context,
+        );
 
     if (!isRemote) {
       // Ensure output directory exists
@@ -384,11 +392,11 @@ class CalibrationService {
   ///
   /// Adds "_cal" suffix before the extension:
   ///   "image_001.fits" -> "image_001_cal.fits"
-  String _generateCalOutputPath(String lightPath) {
-    final dir = path.dirname(lightPath);
-    final ext = path.extension(lightPath);
-    final baseName = path.basenameWithoutExtension(lightPath);
-    return path.join(dir, '${baseName}_cal$ext');
+  String _generateCalOutputPath(String lightPath, path.Context paths) {
+    final dir = paths.dirname(lightPath);
+    final ext = paths.extension(lightPath);
+    final baseName = paths.basenameWithoutExtension(lightPath);
+    return paths.join(dir, '${baseName}_cal$ext');
   }
 }
 
