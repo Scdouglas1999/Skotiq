@@ -184,8 +184,8 @@ jobs:
   test-dart:
     name: Dart Tests
     runs-on: ubuntu-latest
-    # Raised from 20: the 6.0 suite grew past it and the job was being killed mid-run.
-    timeout-minutes: 45
+    # The 8.0 workspace has over 15,000 tests; hosted runners exceeded 45 minutes.
+    timeout-minutes: 60
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
