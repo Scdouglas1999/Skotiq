@@ -832,6 +832,14 @@ pub(crate) mod tests {
         }
     }
 
+    fn fixture_path(name: &str) -> String {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("fixture")
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    }
+
     pub(crate) fn definition() -> GoalDefinition {
         GoalDefinition {
             label: "IFN wisp".into(),
@@ -840,7 +848,7 @@ pub(crate) mod tests {
             profile_id: "profile-1".into(),
             filter_name: "L".into(),
             filter_index: Some(0),
-            reference_path: "/fixture/reference.fits".into(),
+            reference_path: fixture_path("reference.fits"),
             reference: ReferenceGeometry {
                 width: 1024,
                 height: 768,
@@ -864,8 +872,8 @@ pub(crate) mod tests {
                 ccd_temp_c: Some(-10.0),
             },
             compatibility: CompatibilityPolicy::default(),
-            dark_path: "/fixture/dark.fits".into(),
-            flat_path: "/fixture/flat.fits".into(),
+            dark_path: fixture_path("dark.fits"),
+            flat_path: fixture_path("flat.fits"),
             measurement: spec(),
             enabled: true,
             automatic_completion: false,
@@ -932,7 +940,7 @@ pub(crate) mod tests {
         ApertureFrame {
             frame_id: id.to_string(),
             acquired_at_ms,
-            source_path: format!("/fixture/{id}.fits"),
+            source_path: fixture_path(&format!("{id}.fits")),
             provenance_digest: "context1".into(),
             signal: vec![Some(1.0); 16],
             background: vec![Some(0.0); 16],
@@ -1009,7 +1017,7 @@ pub(crate) mod tests {
         assert_eq!(record.evidence.len(), 1);
         assert_eq!(
             record.evidence["frame1"].source_path,
-            "/fixture/frame1.fits"
+            fixture_path("frame1.fits")
         );
         assert_eq!(record.analyzed_evidence_revision, Some(1));
         assert_eq!(
@@ -1114,7 +1122,10 @@ pub(crate) mod tests {
         assert_eq!(archived.definition.filter_name, "L");
         assert_eq!(archived.evidence.len(), 1);
         assert_eq!(archived.evidence[0].frame_id, "frame1");
-        assert_eq!(archived.evidence[0].source_path, "/fixture/frame1.fits");
+        assert_eq!(
+            archived.evidence[0].source_path,
+            fixture_path("frame1.fits")
+        );
         assert_eq!(archived.evidence[0].provenance_digest, "context1");
         assert!(archived.report.is_some());
 
