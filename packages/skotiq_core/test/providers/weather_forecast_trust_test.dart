@@ -290,6 +290,14 @@ void main() {
       settings.add(const WeatherSettings(weatherSafetyEnabled: false));
       await settle();
       expect(pushes.first, (unsafe: null, advisory: false));
+      // The sequencer stops acting on the app's weather at once, rather than
+      // waiting out the safe period.
+      verify(
+        () => backend.sequencerSetWeatherOperatorClear(
+          durationSecs: 24 * 3600,
+          reason: 'Weather safety switched off',
+        ),
+      ).called(1);
     });
   });
 

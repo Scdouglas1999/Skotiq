@@ -116,6 +116,10 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   /// checked. Well inside the sequencer's six-minute staleness window.
   static const _verdictHeartbeatInterval = Duration(seconds: 60);
 
+  /// How long switching weather safety off sets the app's verdict aside in
+  /// the sequencer: the rest of any night. Switching it back on ends it.
+  static const _safetyOffClearSecs = 24 * 3600;
+
   /// An evaluation that has not finished in this long is treated as lost so
   /// the next one can run; a wedged evaluation must not freeze the verdict.
   static const _evaluationWedgeTimeout = Duration(seconds: 60);
@@ -204,13 +208,28 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     // weatherSafetyEnabled/failMode has to move this notifier's verdict, not
     // wait for the five-minute timer or an unrelated device event.
     _ref.listen<AsyncValue<WeatherSettings>>(weatherSettingsDataProvider, (
-      _,
+      previous,
       next,
     ) {
-      // Switching weather safety off releases a held run at once, without
-      // waiting for an evaluation that might itself be what is stuck.
-      if (next.valueOrNull?.weatherSafetyEnabled == false) {
+      // Switching weather safety off releases a held run at once: the verdict
+      // is withdrawn and the sequencer is told to stop acting on the app's
+      // weather, without waiting for an evaluation (that might itself be what
+      // is stuck) or for the safe period. A hardware safety monitor still
+      // counts. Switching it back on ends that.
+      final was = previous?.valueOrNull?.weatherSafetyEnabled;
+      final now = next.valueOrNull?.weatherSafetyEnabled;
+      if (now == false) {
         unawaited(_pushWeatherVerdict(null));
+        if (was != false) {
+          unawaited(
+            _pushOperatorClear(
+              WeatherSafetyNotifier._safetyOffClearSecs,
+              'Weather safety switched off',
+            ),
+          );
+        }
+      } else if (now == true && was == false) {
+        unawaited(_pushOperatorClear(0, 'Weather safety switched on'));
       }
       _scheduleSourceChangeEvaluation();
     });
